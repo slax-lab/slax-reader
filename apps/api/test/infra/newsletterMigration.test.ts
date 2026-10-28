@@ -22,9 +22,7 @@ describe('first Newsletter release migration', () => {
         "INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES (1,'newsletter','feed+reader@newsletterreader.slax.dev','feed+reader@newsletterreader.slax.dev')"
       )
       const binding = (await db.query<{ id: number }>("SELECT id FROM sr_platform_bind WHERE platform='newsletter'")).rows[0]
-      await db.query("INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,payload_key) VALUES (1,$1,'sender','mail','newsletter-staged/payload')", [
-        binding.id
-      ])
+      await db.query("INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key) VALUES (1,$1,'sender','mail')", [binding.id])
       const row = (await db.query<{ id: number }>('SELECT id FROM sr_newsletter_receipt')).rows[0]
       expect(Number(row.id)).toBeGreaterThan(0)
       const columns = (await db.query<{ column_name: string }>("SELECT column_name FROM information_schema.columns WHERE table_name='sr_newsletter_receipt'")).rows.map(
@@ -34,9 +32,10 @@ describe('first Newsletter release migration', () => {
       expect(columns).not.toContain('legacy_id')
       expect(columns).not.toContain('receipt_id')
       expect(columns).not.toContain('raw_key')
-      await expect(
-        db.query("INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,payload_key) VALUES (2,$1,'sender','foreign','payload')", [binding.id])
-      ).rejects.toThrow()
+      expect(columns).not.toContain('payload_key')
+      expect(columns).not.toContain('retry_at')
+      expect(columns).not.toContain('attempts')
+      await expect(db.query("INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key) VALUES (2,$1,'sender','foreign')", [binding.id])).rejects.toThrow()
       await expect(
         db.exec(
           "INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES (2,'newsletter','feed+reader@newsletterreader.slax.dev','feed+reader@newsletterreader.slax.dev')"

@@ -32,7 +32,7 @@ The system SHALL provision a Newsletter address only for an authenticated active
 - **THEN** it can receive a prefixed Newsletter address without claiming daguang@slax.app, and root/foreign-domain mail cannot enter its Newsletter
 
 ### Requirement: Bounded private incoming Newsletter
-The Edge Worker SHALL accept email through a dedicated email handler. Ownership SHALL derive from the full SMTP envelope recipient, configured domain and active platform binding, never header To. Dispatch SHALL require feed+ and exactly one valid non-empty account token, accepting case variations but rejecting bare feed, unprefixed accounts, other prefixes and additional plus details before staged-content storage. Newsletter Lab and active user SHALL be checked at admission and final commit. The system SHALL bound raw mail to 5 MiB, MIME nesting, part count and headers, admit at most 200 sources per user and 200 new messages per UTC day, and preserve binary attachment metadata without storing attachment bytes. It SHALL not log private email data.
+The Edge Worker SHALL accept email through a dedicated email handler. Ownership SHALL derive from the full SMTP envelope recipient, configured domain and active platform binding, never header To. Dispatch SHALL require feed+ and exactly one valid non-empty account token, accepting case variations but rejecting bare feed, unprefixed accounts, other prefixes and additional plus details before content storage. Newsletter Lab and active user SHALL be checked at admission and final commit. The system SHALL bound raw mail to 5 MiB, MIME nesting, part count and headers, admit at most 200 sources per user and 200 new messages per UTC day, and preserve binary attachment metadata without storing attachment bytes. It SHALL not log private email data.
 
 #### Scenario: Valid message and MIME variants
 - **WHEN** an enabled user's bound envelope address receives HTML, plain text or multipart mail
@@ -43,7 +43,7 @@ The Edge Worker SHALL accept email through a dedicated email handler. Ownership 
 - **THEN** it is rejected without publishing a Feed entry or disclosing address existence in the rejection
 
 ### Requirement: Durable idempotent publication
-A new receipt SHALL be acknowledged by application code only after its processing obligation is durably committed. Accepted pending receipts SHALL be retried after body or database publication failures. Message-ID deduplication SHALL be scoped to user and sender source, and fallback identity SHALL include stable body content. A duplicate SHALL preserve the existing entry and quota. R2 content SHALL exist before entry references are published. User deletion and Lab disable SHALL fence in-flight final commits.
+A new email delivery SHALL be acknowledged by application code only after final body storage and atomic publication complete. After body or database publication failures, pending receipts SHALL resume only when a new incoming delivery or explicit EML replay supplies the message again. There SHALL be no scheduled Newsletter recovery or stored recovery payload. Message-ID deduplication SHALL be scoped to user and sender source, and fallback identity SHALL include stable body content. A duplicate SHALL preserve the existing entry and quota. R2 content SHALL exist before entry references are published. User deletion and Lab disable SHALL fence in-flight final commits.
 
 #### Scenario: Concurrent duplicates
 - **WHEN** the same email is delivered concurrently or retried with revised payload but the same Message-ID
@@ -51,14 +51,14 @@ A new receipt SHALL be acknowledged by application code only after its processin
 
 #### Scenario: Publication failure after admission
 - **WHEN** R2 body publication or entry commit fails after receipt admission
-- **THEN** the receipt remains recoverable and retry publishes one entry without consuming another daily slot
+- **THEN** the receipt stays pending and the failure propagates; a new delivery can publish one entry without consuming another daily slot, with no automatic background retry
 
 #### Scenario: Disable or delete while processing
 - **WHEN** a user disables Newsletter or deletes the account while an accepted receipt is processing
 - **THEN** processing cannot recreate subscriptions or publish new entries for that user
 
 ### Requirement: Safe retained Newsletter body
-The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and CID/relative image references, use signed controlled image URLs and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. Orphaned content and completed staged payloads SHALL be eligible for garbage collection. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
+The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and CID/relative image references, use signed controlled image URLs and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. Orphaned final Feed content SHALL remain eligible for shared garbage collection. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
 
 #### Scenario: Malicious email and image handling
 - **WHEN** mail contains scripts, tracking images, event attributes, CID images or relative resource URLs
@@ -114,7 +114,7 @@ The system SHALL use immutable `newsletter` platform bindings with permanent ret
 - **THEN** the generic source projection remains consistent without resurrecting deleted rows or losing refreshed state
 
 ### Requirement: Synchronous processing and setup
-New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; done or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain; sanitized content staged as versioned JSON SHALL retain bounded recovery until SMTP retry behavior is proven. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Dev SHALL configure newsletterreader.slax.dev; beta, prod and the legacy main copy SHALL configure newsletterreader.slax.com. Hosted SMTP failure/retry behavior SHALL be verified before any later removal of durable staged-content recovery.
+New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; done or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain, but no Newsletter recovery handler, staged payload or recovery cursor SHALL exist. Only per-event receipt states and short processing leases SHALL remain for deduplication and cancellation. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Dev SHALL configure newsletterreader.slax.dev; beta, prod and the legacy main copy SHALL configure newsletterreader.slax.com. The system SHALL NOT assume original-sender retries are guaranteed after Worker infrastructure failure. Automatic recovery is deferred to a later iteration.
 
 #### Scenario: Account repair after enabling
 - **WHEN** the user enables Newsletter with a missing, invalid or reserved initial account

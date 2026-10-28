@@ -64,7 +64,6 @@ import { QueueClient } from '../../infra/queue/queueClient'
 import { TelegramBotService } from '../../domain/telegram'
 import { MonitoringOrchestrator } from '../../domain/orchestrator/monitor'
 import { AigcBatchOrchestrator } from '../../domain/orchestrator/aigc'
-import { NewsletterService } from '../../domain/newsletter'
 import { PodcastService } from '../../domain/podcast'
 import { SubscriptionOrchestrator } from '../../domain/orchestrator/subscription'
 import { SubscriptionAppleService } from '../../domain/subscriptionApple'
@@ -80,12 +79,12 @@ import { MarkOrchestrator } from '../../domain/orchestrator/mark'
 import { DashboardService } from '../../domain/dashboard'
 import { ShareOrchestrator } from '../../domain/orchestrator/share'
 import { SyncOrchestrator } from '../../domain/orchestrator/sync'
+import { NewsletterService } from '../../domain/newsletter'
 import { ImportOrchestrator } from '../../domain/orchestrator/import'
 import { EmailService } from '../../domain/email'
 import { ContentOrchestrator } from '../../domain/orchestrator/content'
 import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
-import { NewsletterJob } from '../../handler/cron/newsletterJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
 import { RssJob } from '../../handler/cron/rssJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
@@ -253,12 +252,7 @@ container.register(MediaSnapshotService, {
 })
 
 container.register(NewsletterService, {
-  useFactory: container =>
-    new NewsletterService(
-      container.resolve(NewsletterRepo),
-      container.resolve(RssContent),
-      lazy(() => container.resolve(BucketClient))
-    )
+  useFactory: container => new NewsletterService(container.resolve(NewsletterRepo), container.resolve(RssContent))
 })
 
 container.register(NotificationService, {
@@ -529,10 +523,6 @@ container.register(BookmarkJob, {
 
 container.register(CollectionJob, {
   useFactory: container => new CollectionJob(container.resolve(CollectionService))
-})
-
-container.register(NewsletterJob, {
-  useFactory: container => new NewsletterJob(container.resolve(NewsletterService))
 })
 
 container.register(PodcastJob, {

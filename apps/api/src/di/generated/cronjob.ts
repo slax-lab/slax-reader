@@ -2,7 +2,6 @@ import { Container } from '../../decorators/di'
 import { ContextManager } from '@/utils/context'
 import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
-import { NewsletterJob } from '../../handler/cron/newsletterJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
 import { RssJob } from '../../handler/cron/rssJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
@@ -29,10 +28,6 @@ export const handleCronjob = async (container: Container, event: any, env: Env, 
   const recomputeCollectionSubscriberActive = async () => {
     const controller = container.resolve(CollectionJob)
     exec.waitUntil(controller.recomputeCollectionSubscriberActive(new ContextManager(exec, env)))
-  }
-  const recoverNewsletter = async () => {
-    const controller = container.resolve(NewsletterJob)
-    exec.waitUntil(controller.recoverNewsletter(new ContextManager(exec, env)))
   }
   const sweepPodcasts = async () => {
     const controller = container.resolve(PodcastJob)
@@ -61,7 +56,6 @@ export const handleCronjob = async (container: Container, event: any, env: Env, 
     ['*/2 * * * *', monitorTwitterBookmarks],
     ['*/1 * * * *', detectStuckAndRetry],
     ['*/30 * * * *', recomputeCollectionSubscriberActive],
-    ['*/5 * * * *', recoverNewsletter],
     ['*/5 * * * *', sweepPodcasts],
     ['*/5 * * * *', refreshRss],
     ['*/5 * * * *', recoverPayments],

@@ -62,7 +62,7 @@ const recipient = async () => {
   await repo.address(1, 'newsletterreader.slax.dev', true)
   return (await repo.recipient('newsletterreader.slax.dev', 'jane.doe'))!
 }
-const reserve = async (source = 'source', message = 'message', key = 'newsletter-staged/test') => repo.admit(await recipient(), source, message, key)
+const reserve = async (source = 'source', message = 'message') => repo.admit(await recipient(), source, message)
 describe('Newsletter PostgreSQL boundaries', () => {
   test('GET is pure, provision is canonical and idempotent, and rename preserves address', async () => {
     expect(await repo.address(1, 'newsletterreader.slax.dev', false)).toMatchObject({
@@ -144,12 +144,10 @@ describe('Newsletter PostgreSQL boundaries', () => {
     expect((await db.query('SELECT title FROM sr_rss_entry')).rows).toEqual([{ title: 'One' }])
     expect((await db.query('SELECT kind,feed_url FROM sr_feed')).rows).toEqual([{ kind: 'newsletter', feed_url: 'newsletter:source' }])
   })
-  test('post-admission failure remains pending and can be recovered', async () => {
+  test('a failed attempt releases its lease so actual redelivery can publish', async () => {
     const first = await reserve()
     const [claim] = await repo.claim(first.receipt.id)
-    await repo.defer(claim)
-    expect(await repo.claim()).toHaveLength(0)
-    await db.exec("UPDATE sr_newsletter_receipt SET retry_at=now()-interval '1 minute'")
+    await repo.release(claim)
     const [retry] = await repo.claim(first.receipt.id)
     expect(retry.lease_token).not.toBe(claim.lease_token)
     expect(
@@ -182,9 +180,7 @@ describe('Newsletter PostgreSQL boundaries', () => {
   test('daily and source limits count pending obligations, while duplicates consume no new slot', async () => {
     await reserve()
     const r = await recipient()
-    await db.query(`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,payload_key) SELECT 1,$1,'source','seed-'||i,'raw' FROM generate_series(1,199) i`, [
-      r.id
-    ])
+    await db.query(`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key) SELECT 1,$1,'source','seed-'||i FROM generate_series(1,199) i`, [r.id])
     expect((await reserve()).created).toBe(false)
     await expect(reserve('source', 'new')).rejects.toMatchObject({
       code: 'limit_reached'
@@ -232,7 +228,7 @@ const pipeline = () => {
     R2Bucket: bucket,
     putIfKeyExists: (key: string, body: string) => bucket.put(key, body)
   }
-  const service = new NewsletterService(repo, new RssContent(() => client as never), () => client as never)
+  const service = new NewsletterService(repo, new RssContent(() => client as never))
   const env = {
     NEWSLETTER_DOMAIN: 'newsletterreader.slax.dev'
   } as Env
@@ -299,34 +295,6 @@ describe('Newsletter service real database and object pipeline', () => {
     await expect(p.service.receive(p.message('<other>', 'jane.doe@other.example'), p.env)).rejects.toMatchObject({ code: 'not_found' })
     await expect(p.service.receive(p.message(), { ...p.env, NEWSLETTER_DOMAIN: '' })).rejects.toMatchObject({ code: 'not_found' })
   })
-  test('synchronous publication propagates failure and durable sanitized content recovers without another delivery', async () => {
-    await recipient()
-    const p = pipeline(),
-      write = p.bucket.put.getMockImplementation()!
-    p.bucket.put.mockImplementation(async (key, body) => {
-      if (key.startsWith('rss-content/')) throw new Error('body store failure')
-      return write(key, body)
-    })
-    await expect(p.service.receive(p.message(), p.env)).rejects.toThrow()
-    expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'pending' }])
-    expect((await db.query('SELECT * FROM sr_rss_entry')).rows).toHaveLength(0)
-    p.bucket.put.mockImplementation(write)
-    await db.exec("UPDATE sr_newsletter_receipt SET retry_at=now()-interval '1 minute'")
-    await p.service.tick({ env: p.env } as any)
-    expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'done' }])
-    p.bucket.put.mockRejectedValue(new Error('raw store failure'))
-    await expect(p.service.receive(p.message('<raw-fail>'), p.env)).rejects.toThrow('raw store failure')
-    expect((await db.query('SELECT * FROM sr_newsletter_receipt')).rows).toHaveLength(1)
-  })
-  test('staged-content sweep protects pending obligations and removes old unreferenced content', async () => {
-    const p = pipeline()
-    await reserve('source', 'mail', 'newsletter-staged/pending')
-    for (const key of ['newsletter-staged/pending', 'newsletter-staged/orphan']) p.objects.set(key, { bytes: new Uint8Array(), uploaded: new Date(0) })
-    await db.exec("UPDATE sr_newsletter_receipt SET retry_at=now()+interval '1 day'")
-    await p.service.tick({ env: p.env } as any)
-    expect(p.objects.has('newsletter-staged/pending')).toBe(true)
-    expect(p.objects.has('newsletter-staged/orphan')).toBe(false)
-  })
   test('account-setting availability uses case-insensitive locking and does not change an issued address', async () => {
     await recipient()
     const users = new UserRepo(
@@ -360,9 +328,7 @@ test('account deletion retires its address immediately and cancels admitted work
 test('over-quota admission does not perform expensive raw object writes', async () => {
   const r = await recipient(),
     p = pipeline()
-  await db.query(`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,payload_key) SELECT 1,$1,'source','seed-'||i,'raw' FROM generate_series(1,200) i`, [
-    r.id
-  ])
+  await db.query(`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key) SELECT 1,$1,'source','seed-'||i FROM generate_series(1,200) i`, [r.id])
   await expect(p.service.receive(p.message(), p.env)).rejects.toMatchObject({
     code: 'limit_reached'
   })
@@ -398,9 +364,7 @@ test('new incoming MIME is not retained as raw mail and pending duplicates resum
   })
   await expect(p.service.receive(p.message(), p.env)).rejects.toThrow()
   expect([...p.objects.keys()].some(key => key.startsWith('newsletter-raw/'))).toBe(false)
-  const staged = [...p.objects].find(([key]) => key.startsWith('newsletter-staged/'))!
-  const payload = JSON.parse(new TextDecoder().decode(staged[1].bytes))
-  expect(payload).toMatchObject({ version: 1, title: 'Received', html: expect.stringContaining('Safe') })
+  expect(p.objects.size).toBe(0)
   p.bucket.put.mockImplementation(write)
   await p.service.receive(p.message(), p.env)
   expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'done' }])
@@ -438,4 +402,44 @@ test('settings enable provisions once and keeps missing/reserved accounts repair
   const response = await controller.newsletterAddress(ctx, new Request('http://localhost/v1/user/newsletter_address'))
   expect(response.headers.get('Cache-Control')).toBe('private, no-store')
   expect((await db.query("SELECT id FROM sr_platform_bind WHERE user_id=1 AND platform='newsletter'")).rows).toHaveLength(1)
+})
+
+test('successful synchronous delivery stores only final Feed content, without a recovery payload', async () => {
+  await recipient()
+  const p = pipeline()
+  await p.service.receive(p.message('<without-staging>'), p.env)
+  expect(p.objects.size).toBe(1)
+  expect([...p.objects.keys()].every(key => key.startsWith('rss-content/'))).toBe(true)
+})
+
+test('failed synchronous delivery stores no recovery payload and succeeds only on a fresh delivery', async () => {
+  await recipient()
+  const p = pipeline(),
+    write = p.bucket.put.getMockImplementation()!
+  p.bucket.put.mockImplementation(async (key, body) => {
+    if (key.startsWith('rss-content/')) throw new Error('temporary body failure')
+    return write(key, body)
+  })
+  await expect(p.service.receive(p.message('<redelivery-only>'), p.env)).rejects.toThrow('temporary body failure')
+  expect(p.objects.size).toBe(0)
+  expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'pending' }])
+  expect((await db.query('SELECT id FROM sr_rss_entry')).rows).toHaveLength(0)
+  p.bucket.put.mockImplementation(write)
+  await p.service.receive(p.message('<redelivery-only>'), p.env)
+  await p.service.receive(p.message('<redelivery-only>'), p.env)
+  expect((await db.query('SELECT id FROM sr_rss_entry')).rows).toHaveLength(1)
+  expect(p.objects.size).toBe(1)
+})
+
+test('only actual redelivery can take over an expired lease and the old event cannot publish', async () => {
+  const first = await reserve(),
+    [initial] = await repo.claim(first.receipt.id)
+  expect(await repo.claim(first.receipt.id)).toHaveLength(0)
+  await db.exec("UPDATE sr_newsletter_receipt SET lease_until=now()-interval '1 second'")
+  const [next] = await repo.claim(first.receipt.id)
+  expect(next.lease_token).not.toBe(initial.lease_token)
+  const item = { sourceTitle: 'Sender', title: 'New delivery', summary: 'body', publishedAt: null, contentKey: 'rss-content/new-delivery', truncated: false }
+  expect(await repo.complete(initial, item)).toBe(false)
+  expect(await repo.complete(next, item)).toBe(true)
+  expect((await db.query('SELECT id FROM sr_rss_entry')).rows).toHaveLength(1)
 })

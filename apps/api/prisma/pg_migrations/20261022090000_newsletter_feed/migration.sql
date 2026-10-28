@@ -45,19 +45,14 @@ CREATE TABLE sr_newsletter_receipt (
  binding_id INTEGER NOT NULL,
  source_key TEXT NOT NULL,
  message_key TEXT NOT NULL,
- payload_key TEXT NOT NULL,
  state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending','done','cancelled')),
  lease_token TEXT,
  lease_until TIMESTAMP(3),
- retry_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
- attempts INTEGER NOT NULL DEFAULT 0,
  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
  completed_at TIMESTAMP(3)
 );
 CREATE UNIQUE INDEX sr_newsletter_receipt_user_id_source_key_message_key_key ON sr_newsletter_receipt(user_id,source_key,message_key);
-CREATE INDEX sr_newsletter_receipt_state_retry_at_idx ON sr_newsletter_receipt(state,retry_at);
 CREATE INDEX sr_newsletter_receipt_user_id_created_at_idx ON sr_newsletter_receipt(user_id,created_at);
-CREATE INDEX sr_newsletter_receipt_payload_key_idx ON sr_newsletter_receipt(payload_key);
 CREATE FUNCTION validate_newsletter_receipt_binding() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM sr_platform_bind WHERE id=NEW.binding_id AND user_id=NEW.user_id AND platform='newsletter') THEN

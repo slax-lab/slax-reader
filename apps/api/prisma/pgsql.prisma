@@ -919,24 +919,19 @@ model sr_podcast_episode {
     @@index([transcript_status, next_retry_at])
 }
 
-// Pending receipts are durable processing obligations, independent of SMTP retries.
+// Receipt state and short processing leases fence actual incoming deliveries.
 model sr_newsletter_receipt {
     id          BigInt    @id @default(autoincrement())
     binding_id  Int
     user_id     Int
     source_key  String
     message_key String
-    payload_key     String
     state       String    @default("pending")
     lease_token String?
     lease_until DateTime?
-    retry_at    DateTime  @default(now())
-    attempts    Int       @default(0)
     created_at  DateTime  @default(now())
     completed_at DateTime?
 
     @@unique([user_id, source_key, message_key])
-    @@index([state, retry_at])
     @@index([user_id, created_at])
-    @@index([payload_key])
 }

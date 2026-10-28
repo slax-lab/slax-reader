@@ -22,12 +22,12 @@ function fakeContainer() {
 }
 
 describe('handleCronjob', () => {
-  test('every job on */5 runs', async () => {
+  test('shared jobs on */5 run without Newsletter recovery', async () => {
     const { container, called } = fakeContainer()
     const waits: Promise<unknown>[] = []
     await handleCronjob(container, { cron: '*/5 * * * *' }, {} as Env, { waitUntil: (p: Promise<unknown>) => waits.push(p) } as any)
     await Promise.all(waits)
-    expect(called.sort()).toEqual(['checkImportProgress', 'recoverDeletedUsers', 'recoverNewsletter', 'recoverPayments', 'refreshRss', 'sweepPodcasts', 'sweepYoutubeArticles'])
+    expect(called.sort()).toEqual(['checkImportProgress', 'recoverDeletedUsers', 'recoverPayments', 'refreshRss', 'sweepPodcasts', 'sweepYoutubeArticles'])
   })
 
   test('a schedule with one job runs just that job; an unknown schedule runs nothing', async () => {

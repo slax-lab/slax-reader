@@ -1,3 +1,5 @@
+> Recovery scope superseded on 2026-10-28: see [Newsletter without background recovery](2026-10-28-newsletter-no-recovery.md). Current first-release code has no automatic recovery or staged payload, and the initial DDL is updated directly.
+
 # Newsletter review revision
 
 Approved in conversation on 2026-10-27; Newsletter compatibility removed at the user’s explicit direction on 2026-10-28. This refines `support-newsletter-feed` and the existing application/configuration pull requests. The linked delta specifications are authoritative.
