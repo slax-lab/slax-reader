@@ -52,8 +52,8 @@
 - [x] 4.3 Exercise the approved cases against the section and the Definition of Done bullet:
   existing surface before/after, new surface after-only, removed surface before-only, motion
   recording, later-push replacement, and the `n/a` path. Verify: each case has a matching
-  clause in both files and a one-line body example the section accepts — done; the case script
-  reports `ok` for all six.
+  clause in the operative file that owns it and a one-line body example the section accepts —
+  done; the case script reports `ok` for all six.
 - [x] 4.4 Confirm the untouched boundary: `DESIGN.md`, `REVIEW.md`, `.rulesync/**` and its
   generated artifacts, `openspec/specs/change-verification/spec.md`, and
   `openspec/config.yaml` do not appear in the diff, and no image-presence check, template
