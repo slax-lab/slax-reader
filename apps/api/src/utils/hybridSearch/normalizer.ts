@@ -23,7 +23,10 @@ export class Normalizer {
   private shardCount = 0
   private jbObject!: DurableObjectStub<SlaxJieba>
 
-  constructor(private env: Env) {
+  constructor(
+    private env: Env,
+    private options: { strictPrivate?: boolean } = {}
+  ) {
     const doId = Math.floor(Math.random() * Normalizer.maxDOCount)
     const jbObj = this.env.SLAX_JIEBA
     this.jbObject = jbObj.get(jbObj.idFromName(`${doId}`))
@@ -73,8 +76,8 @@ export class Normalizer {
     try {
       return await this.splitAndProcess(title, this.cleanRawText(content))
     } catch (e) {
-      const ct = content?.slice(0, 100)
-      console.log(`processFulltext ${title} ${ct} error:`, e)
+      console.error('Fulltext normalization failed', { category: 'tokenizer_unavailable' })
+      if (this.options.strictPrivate) throw new Error('Private fulltext normalization unavailable')
       return []
     }
   }
@@ -101,7 +104,7 @@ export class Normalizer {
     const processedText = this.preprocessForSemantic(`${title} ${content}`)
     const chunks = this.semanticSplit(processedText)
 
-    return (await embedding(this.env, chunks)).map((item, idx) => {
+    return (await embedding(this.env, chunks, this.options)).map((item, idx) => {
       return { id: `${bmId}_${idx}`, embedding: item.embedding }
     })
   }
@@ -212,9 +215,13 @@ export class Normalizer {
       method: 'POST',
       body: JSON.stringify({ text })
     })
-    if (!res.ok) return ''
+    if (!res.ok) {
+      if (this.options.strictPrivate) throw new Error('Private tokenizer unavailable')
+      return ''
+    }
 
     const { data: segments } = await res.json<{ data: string[] }>()
+    if (!Array.isArray(segments) || segments.some(item => typeof item !== 'string')) throw new Error('Tokenizer response invalid')
 
     // 预编译正则
     const spaceRegex = /\s+/g

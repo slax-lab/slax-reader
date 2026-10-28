@@ -1,15 +1,15 @@
 import { inject, injectable } from '@/decorators/di'
-import { NewsletterRepo, type NewsletterAddressStatus, type NewsletterReceipt } from '@/infra/repository/dbNewsletter'
-import { RssContent } from '@/domain/rss/content'
+import { NewsletterRepo, type NewsletterAddressStatus } from '@/infra/repository/dbNewsletter'
+import { NewsletterContent } from '@/domain/newsletter/content'
 import { ContextManager } from '@/utils/context'
 import { hashSHA256 } from '@/utils/strings'
-import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError, parseNewsletter, readNewsletterRaw, type ParsedNewsletter } from './newsletter/parser'
+import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError, parseNewsletter, readNewsletterRaw } from './newsletter/parser'
 
 @injectable()
 export class NewsletterService {
   constructor(
     @inject(NewsletterRepo) private repo: NewsletterRepo,
-    @inject(RssContent) private content: RssContent
+    @inject(NewsletterContent) private content: NewsletterContent
   ) {}
   async address(ctx: ContextManager, provision: boolean): Promise<NewsletterAddressStatus> {
     if (!ctx.getUserId()) throw new NewsletterError('not_found', 401)
@@ -30,36 +30,21 @@ export class NewsletterService {
     const raw = await readNewsletterRaw(message),
       parsed = await parseNewsletter(raw)
     const source = await hashSHA256(recipient.uuid + '\n' + parsed.sender)
-    const { receipt } = await this.repo.admit(recipient, source, parsed.messageKey)
-    if (receipt.state !== 'pending') return
-    const [claimed] = await this.repo.claim(receipt.id)
-    if (!claimed) {
-      // A concurrent processor may have completed while this delivery waited.
-      const current = await this.repo.checkAdmission(recipient, source, parsed.messageKey)
-      if (current && current.state !== 'pending') return
-      throw new NewsletterError('unavailable', 503)
-    }
-    // The email event does not finish successfully before publication completes.
-    await this.process(claimed, parsed, env)
-  }
-
-  private async process(row: NewsletterReceipt, parsed: ParsedNewsletter, env: Env) {
-    try {
-      const stored = await this.content.storeItem(env, row.source_key, { content_html: parsed.html, image_url: null, article_url: null })
-      const completed = await this.repo.complete(row, {
-        sourceTitle: parsed.sourceTitle,
-        title: parsed.title,
-        summary: parsed.summary,
-        publishedAt: parsed.publishedAt,
-        contentKey: stored.content_key,
-        truncated: parsed.truncated || stored.content_truncated
-      })
-      if (!completed) throw new NewsletterError('unavailable', 503)
-    } catch (error) {
-      const cancelled = error instanceof NewsletterError && ['not_found', 'lab_disabled', 'invalid_message'].includes(error.code)
-      await this.repo.release(row, cancelled)
-      throw error
-    }
+    const { mail } = await this.repo.admit(recipient, source, parsed.messageKey, parsed.sender)
+    if (mail.state !== 'pending') return
+    const startedAt = Date.now()
+    const stored = await this.content.store(env, recipient.uuid, mail.id, parsed)
+    // Indeterminate database outcomes retain the body; GC checks authoritative references later.
+    const result = await this.repo.publish(mail.id, recipient.user_id, recipient.id, {
+      senderName: parsed.sourceTitle,
+      title: parsed.title,
+      summary: parsed.summary,
+      publishedAt: parsed.publishedAt,
+      contentKey: stored.key,
+      truncated: stored.truncated,
+      startedAt
+    })
+    if (!result.published && result.mail.content_key !== stored.key) await this.content.discard(stored.key)
   }
 }
 

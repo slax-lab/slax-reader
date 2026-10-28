@@ -79,6 +79,25 @@ export interface ParsedNewsletter {
   truncated: boolean
   publishedAt: Date | null
 }
+// Keep oversized mail text readable without changing the shipped RSS sanitizer.
+function sanitizeMailHtml(html: string) {
+  const doc = new DOMParser().parseFromString(`<html><body>${html}</body></html>`, 'text/html') as unknown as Document
+  for (const parent of doc.querySelectorAll('*'))
+    for (const node of Array.from(parent.childNodes)) {
+      const text = node.nodeType === 3 ? node.textContent || '' : ''
+      if (text.length <= 4096) continue
+      for (let offset = 0; offset < text.length; ) {
+        let end = Math.min(offset + 4096, text.length)
+        if (end < text.length && /[\uD800-\uDBFF]/.test(text[end - 1])) end--
+        const span = doc.createElement('span')
+        span.textContent = text.slice(offset, end)
+        parent.insertBefore(span, node)
+        offset = end
+      }
+      parent.removeChild(node)
+    }
+  return sanitizeFeedHtml(doc.body.innerHTML, 'https://rss.invalid/')
+}
 export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter> {
   if (!raw.byteLength || raw.byteLength > NEWSLETTER_LIMITS.rawBytes) throw new NewsletterError('invalid_message', 413)
   let mail
@@ -104,7 +123,7 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
   }))
   if (!body && !attachments.length) throw new NewsletterError('invalid_message')
   // Email has no trustworthy document base. Remove references that RSS would resolve against its synthetic base.
-  const doc = new DOMParser().parseFromString('<html><body>' + body.slice(0, 512 * 1024) + '</body></html>', 'text/html')
+  const doc = new DOMParser().parseFromString('<html><body>' + body.slice(0, 512 * 1024) + '</body></html>', 'text/html') as unknown as Document
   let removedTrackingImages = 0
   for (const node of doc.querySelectorAll('img')) {
     const style = (node.getAttribute('style') || '').toLowerCase().replace(/\s+/g, '')
@@ -135,12 +154,12 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
       if (value !== null && !/^https?:\/\//i.test(value)) node.removeAttribute(key)
     }
   }
-  const full = sanitizeFeedHtml(doc.body.innerHTML, 'https://rss.invalid/')
+  const full = sanitizeMailHtml(doc.body.innerHTML)
   const extracted = ContentParser.parseContentOnly(doc.body.innerHTML)
-  const candidate = extracted ? sanitizeFeedHtml(extracted, 'https://rss.invalid/') : null
+  const candidate = extracted ? sanitizeMailHtml(extracted) : null
   // Mail may contain multiple articles or short confirmations: retain the whole sanitized message whenever extraction loses content or links.
-  const fullDoc = new DOMParser().parseFromString('<html><body>' + full.html + '</body></html>', 'text/html')
-  const candidateDoc = new DOMParser().parseFromString('<html><body>' + (candidate?.html || '') + '</body></html>', 'text/html')
+  const fullDoc = new DOMParser().parseFromString('<html><body>' + full.html + '</body></html>', 'text/html') as unknown as Document
+  const candidateDoc = new DOMParser().parseFromString('<html><body>' + (candidate?.html || '') + '</body></html>', 'text/html') as unknown as Document
   const normalize = (value: string) => value.replace(/\s+/g, ' ').trim()
   const useExtraction =
     !!candidate &&

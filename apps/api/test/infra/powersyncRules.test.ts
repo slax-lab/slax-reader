@@ -121,24 +121,15 @@ describe('PowerSync collection rules', () => {
   test('gates on-demand RSS data by laboratory, ownership and the latest-page window', () => {
     const rss = stream('rss_v1')
     expect(rss).toContain('auto_subscribe: false')
-    expect(rss).not.toContain('connection.parameter(')
+    expect(rss).not.toContain("connection.parameter(")
     expect(rss.match(/lab\.feature = 'rss'\s+AND lab\.enabled = true/g)?.length).toBeGreaterThanOrEqual(3)
     expect(rss.match(/lab\.user_id IN current_user_id/g)?.length).toBeGreaterThanOrEqual(3)
     expect(rss.match(/subscription\.user_id IN current_user_id/g)?.length).toBeGreaterThanOrEqual(2)
     // Feed and entry data must be reached through the user's subscriptions.
-    expect(rss).toMatch(/FROM sr_feed AS sr_rss_feed\s+WHERE id IN \(\s+SELECT subscription\.feed_id/)
+    expect(rss).toMatch(/FROM sr_rss_feed\s+WHERE id IN \(\s+SELECT subscription\.feed_id/)
     expect(rss).toMatch(/FROM sr_rss_entry\s+WHERE feed_id IN \(\s+SELECT subscription\.feed_id/)
     expect(rss).toContain('AND is_history = false')
     for (const internal of ['etag', 'last_modified', 'lease_token', 'content_key', 'entry_key', 'history_url']) expect(rss).not.toContain(internal)
-  })
-
-  test('RSS keeps its kind filter and legacy projection while Newsletter synchronization is deferred', () => {
-    const rss = stream('rss_v1')
-    expect(rss).toContain("source.kind = 'rss'")
-    expect(rss).toMatch(/AND feed_id IN \(/)
-    expect(rss.split('    queries:')[1]).not.toMatch(/SELECT id, kind, feed_url/)
-    expect(rules).not.toContain('newsletter_v1:')
-    expect(rules).not.toContain("lab.feature = 'newsletter'")
   })
 
   test('never compares a connection parameter with an IN list', () => {

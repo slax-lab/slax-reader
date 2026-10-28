@@ -43,22 +43,22 @@ The Edge Worker SHALL accept email through a dedicated email handler. Ownership 
 - **THEN** it is rejected without publishing a Feed entry or disclosing address existence in the rejection
 
 ### Requirement: Durable idempotent publication
-A new email delivery SHALL be acknowledged by application code only after final body storage and atomic publication complete. After body or database publication failures, pending receipts SHALL resume only when a new incoming delivery or explicit EML replay supplies the message again. There SHALL be no scheduled Newsletter recovery or stored recovery payload. Message-ID deduplication SHALL be scoped to user and sender source, and fallback identity SHALL include stable body content. A duplicate SHALL preserve the existing entry and quota. R2 content SHALL exist before entry references are published. User deletion and Lab disable SHALL fence in-flight final commits.
+A new email delivery SHALL be acknowledged by application code only after final body storage and atomic publication complete. After body or database publication failures, pending mail rows SHALL resume only when a new incoming delivery or explicit EML replay supplies the message again. There SHALL be no scheduled Newsletter recovery or stored recovery payload. Message-ID deduplication SHALL be scoped to user and sender source, and fallback identity SHALL include stable body content. A duplicate SHALL preserve the existing entry and quota. R2 content SHALL exist before entry references are published. User deletion and Lab disable SHALL fence in-flight final commits.
 
 #### Scenario: Concurrent duplicates
 - **WHEN** the same email is delivered concurrently or retried with revised payload but the same Message-ID
 - **THEN** exactly one entry is published and one daily slot is consumed
 
 #### Scenario: Publication failure after admission
-- **WHEN** R2 body publication or entry commit fails after receipt admission
-- **THEN** the receipt stays pending and the failure propagates; a new delivery can publish one entry without consuming another daily slot, with no automatic background retry
+- **WHEN** R2 body publication or entry commit fails after message admission
+- **THEN** the message stays pending and the failure propagates; a new delivery can publish one entry without consuming another daily slot, with no automatic background retry
 
 #### Scenario: Disable or delete while processing
-- **WHEN** a user disables Newsletter or deletes the account while an accepted receipt is processing
-- **THEN** processing cannot recreate subscriptions or publish new entries for that user
+- **WHEN** a user disables Newsletter or deletes the account while an accepted message is processing
+- **THEN** processing cannot publish new entries for that user
 
 ### Requirement: Safe retained Newsletter body
-The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and CID/relative image references, use signed controlled image URLs and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. Orphaned final Feed content SHALL remain eligible for shared garbage collection. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
+The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and CID/relative image references, use signed controlled image URLs and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. Orphaned Newsletter content SHALL be collected independently without visiting RSS or Inbox objects. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
 
 #### Scenario: Malicious email and image handling
 - **WHEN** mail contains scripts, tracking images, event attributes, CID images or relative resource URLs
@@ -106,22 +106,22 @@ Web SHALL always show Feed in navigation, support stable address provisioning/co
 - **WHEN** an operator enables the dev literal feed route and Subaddressing after Worker readiness and later stops the pilot
 - **THEN** registered enabled dev users receive mail without per-user routes, unknown feed+ details and the bare feed address are rejected by the Worker, and rollback disables/restores only the pilot feed route while preserving reservations and content
 
-### Requirement: First-release persistence and RSS compatibility
-The system SHALL use immutable `newsletter` platform bindings with permanent retirement, a BIGINT identity receipt primary key, and a physical generic `sr_feed` source table. The first-release migration SHALL preserve existing RSS source IDs and create Newsletter bindings/receipts directly, without earlier Newsletter schema or code compatibility. During overlapping releases all RSS source writes SHALL use the legacy source authority mirrored transactionally into the new table, including deletes and lease/history state. RSS sync SHALL preserve legacy client table names and exclude Newsletter.
+### Requirement: Independent first-release persistence
+The system SHALL use immutable newsletter platform bindings and one sr_newsletter_feed row per message, combining admission, pending/ready/cancelled deduplication and final content metadata. It SHALL NOT create sr_feed, sr_newsletter_receipt, Newsletter subscriptions or earlier schema compatibility. The unmerged initial migration SHALL be revised directly without RSS ALTER, mirror, backfill or trial cleanup migrations. Newsletter SHALL NOT write any sr_rss table. Existing RSS model, HTTP contracts, fetching/history/retention/save and synchronization SHALL remain unchanged.
 
-#### Scenario: Writes during migration and rollout
-- **WHEN** old and new RSS handlers insert, update or delete source state during the transition
-- **THEN** the generic source projection remains consistent without resurrecting deleted rows or losing refreshed state
+#### Scenario: Independent receive and existing RSS writers
+- **WHEN** Newsletter is received while existing RSS clients read, write or refresh
+- **THEN** Newsletter uses only its own mail table/content and every RSS table/schema/behavior remains the same as before the feature migration
 
 ### Requirement: Synchronous processing and setup
-New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; done or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain, but no Newsletter recovery handler, staged payload or recovery cursor SHALL exist. Only per-event receipt states and short processing leases SHALL remain for deduplication and cancellation. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Dev SHALL configure newsletterreader.slax.dev; beta, prod and the legacy main copy SHALL configure newsletterreader.slax.com. The system SHALL NOT assume original-sender retries are guaranteed after Worker infrastructure failure. Automatic recovery is deferred to a later iteration.
+New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; ready or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain, but no Newsletter recovery handler, staged payload or recovery cursor SHALL exist. Only per-message states without processing leases SHALL remain for deduplication and cancellation. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Dev SHALL configure newsletterreader.slax.dev; beta, prod and the legacy main copy SHALL configure newsletterreader.slax.com. The system SHALL NOT assume original-sender retries are guaranteed after Worker infrastructure failure. Automatic recovery is deferred to a later iteration.
 
 #### Scenario: Account repair after enabling
 - **WHEN** the user enables Newsletter with a missing, invalid or reserved initial account
 - **THEN** the Lab remains enabled with an actionable setup state, and account repair followed by repeated enable can provision once
 
 #### Scenario: Disable then re-enable
-- **WHEN** a receipt was pending before Newsletter was disabled and later re-enabled
+- **WHEN** a message was pending before Newsletter was disabled and later re-enabled
 - **THEN** its durable cancelled state prevents late publication
 
 
@@ -135,3 +135,22 @@ Newsletter processing SHALL reuse a quiet pure content extraction path, fall bac
 #### Scenario: Attachment-only or multi-article mail
 - **WHEN** mail contains only a binary attachment or multiple useful content sections
 - **THEN** a readable metadata body or complete sanitized fallback remains, with no invented download URL or stored attachment binary
+
+### Requirement: Independent private Inbox copy
+An authenticated live user with Newsletter enabled SHALL be able to save an owned ready mail without an article URL. Save SHALL copy received content to distinct standard bookmark HTML/text R2 keys, including the HTML snapshot marker, without fetching an original web URL. The bookmark, owner relation and explicitly disabled single-bookmark sharing SHALL be published atomically. A successful response SHALL identify a committed ready bookmark. The system SHALL not assume private_user alone disables public reads.
+
+#### Scenario: Save and repeat
+- **WHEN** a user saves a mail, repeats or saves concurrently
+- **THEN** one live private bookmark is published with copied content, repeats reuse it and no duplicate quota/bookmark/index rows or personal-state overwrite occur
+
+#### Scenario: Trash restore and deliberate sharing
+- **WHEN** a copied bookmark is restored by saving again
+- **THEN** it returns to Inbox with marks/tags/star/title and any deliberate sharing choice preserved; a newly created copy defaults to disabled single-bookmark sharing even with global sharing on
+
+#### Scenario: Failure and independent lifetimes
+- **WHEN** storage/index/commit fails, Newsletter is disabled, or one content copy is deleted
+- **THEN** no referenced successful body is deleted, indeterminate commits are reconciled safely, index failure can be repaired without recopying, and Feed/Inbox content lifetimes stay independent
+
+#### Scenario: Internal snapshot and private indexing
+- **WHEN** an internal Newsletter bookmark enters generic acquisition/retry/sync/import paths or its indexing fails
+- **THEN** no network crawl or pending-state mutation occurs and no mail subject/body/provider error data is logged; strict indexing failure is distinguishable from legitimate empty content

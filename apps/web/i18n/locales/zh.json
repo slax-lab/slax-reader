@@ -1475,6 +1475,8 @@
     "copied": "已复制",
     "address_stable": "之后修改账户名称，邮箱地址也不会改变。",
     "privacy": "远程图片通过 Slax 图片代理加载。打开邮件仍可能被发件人记为已读。仅保留附件名称及已有下载链接，不保存附件文件。",
+    "source": "邮件订阅",
+    "saved_content_hint": "从邮件保存。此收件箱副本独立于 Feed，默认关闭单篇分享。",
     "content_hint": "通过邮件接收的内容。远程图片使用 Slax 图片代理。",
     "errors": {
       "account_taken": "这个用户名已被使用，请换一个名字。",
@@ -1485,7 +1487,7 @@
       "unavailable": "暂时无法接收 Newsletter，请稍后重试。",
       "copy_failed": "复制失败，请选中上方地址手动复制。"
     },
-    "management_hint": "暂不支持管理 Newsletter 发件人、保存到收件箱或自动退订。",
+    "management_hint": "暂不支持管理 Newsletter 发件人或自动退订。",
     "no_messages": "还没有 Newsletter",
     "empty_hint": "使用上方邮箱订阅 Newsletter，新邮件会出现在这里。"
   }

@@ -21,7 +21,6 @@ async function main() {
   resources.env.COMPOSE_PROJECT_NAME = project
   const compose = ['compose', '--env-file', '/dev/null', '-f', composeFile]
   try {
-    if (process.argv[2] === '--corepack-archive' && process.argv[3]) resources.command('corepack', ['install', '--global', '--cache-only', resolve(process.argv[3])])
     // Discover only the executable path, never copy Docker authentication/config files.
     const plugin = spawnSync('docker', ['info', '--format', '{{range .ClientInfo.Plugins}}{{if eq .Name "compose"}}{{.Path}}{{end}}{{end}}'], { encoding: 'utf8' })
     assert.equal(plugin.status, 0, 'Docker Compose metadata is unavailable')

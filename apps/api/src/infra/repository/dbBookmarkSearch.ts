@@ -36,6 +36,17 @@ export class BookmarkSearchRepo {
     `
   }
 
+  async replaceBookmarkRawAtomic(db: D1Database, bookmarkId: number, shards: { shard_idx: number; content: string; rawContent: string; rawTitle: string; title: string }[]) {
+    await db.batch([
+      db.prepare('DELETE FROM slax_bookmark_raw WHERE bookmark_id = ?').bind(bookmarkId),
+      ...shards.map(item =>
+        db
+          .prepare('INSERT INTO slax_bookmark_raw (shard_idx,bookmark_id,content,raw_content,title,raw_title) VALUES (?,?,?,?,?,?)')
+          .bind(item.shard_idx, bookmarkId, item.content, item.rawContent, item.title, item.rawTitle)
+      )
+    ])
+  }
+
   async deleteBookmarkRaw(bookmarkId: number) {
     return await this.prisma().$executeRaw`DELETE FROM slax_bookmark_raw WHERE bookmark_id = ${bookmarkId}`
   }

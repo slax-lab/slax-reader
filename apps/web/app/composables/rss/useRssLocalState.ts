@@ -105,7 +105,7 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
   // Drop overlays once the synced rows reflect the confirmed server state.
   const retireOverlays = () => {
     if (!ready.value) return
-    const rows = new Map<string, RssSubscription>(local.subscriptions.value.map(row => [row.id, row]))
+    const rows = new Map(local.subscriptions.value.map(row => [row.id, row]))
     for (const id of added.keys()) if (rows.has(id)) added.delete(id)
     for (const [id, overlay] of renamed) {
       const row = rows.get(id)
@@ -138,7 +138,7 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
   watch([local.subscriptions, local.savedUrls, ready], retireOverlays)
 
   const subscriptions = computed<RssSubscription[]>(() => {
-    const rows = new Map<string, RssSubscription>(local.subscriptions.value.map(row => [row.id, row]))
+    const rows = new Map(local.subscriptions.value.map(row => [row.id, row]))
     for (const [id, row] of added) if (!rows.has(id)) rows.set(id, row)
     return [...rows.values()]
       .filter(row => !removed.has(row.id))

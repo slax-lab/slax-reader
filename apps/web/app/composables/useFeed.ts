@@ -1,0 +1,480 @@
+import { computed, onScopeDispose, ref, watch } from "vue";
+
+import { feedRowKind } from "~/utils/feed";
+
+import type {
+  FeedEntriesResponse,
+  FeedEntry,
+  FeedEntryDetail,
+  FeedKind,
+  FeedSubscription,
+  FeedSubscriptionsResponse,
+  RssRefreshResponse,
+  RssSaveResponse,
+  RssSubscription,
+} from "@slax-reader/contracts";
+import { useLabFeatures } from "~/composables/useLabFeatures";
+import { useUserStore } from "~/stores/user";
+
+type CachedList = {
+  items: FeedEntry[];
+  cursor: string | null;
+  pages: number;
+  updatedAt: number;
+  hasMore: boolean;
+  historyStatus: FeedEntriesResponse["history_status"];
+  retryAt: string | null;
+};
+const CACHE_TTL = 60_000;
+export const feedSubscriptionName = (row: {
+  title: string;
+  remark?: string | null;
+}) => row.remark?.trim() || row.title;
+export const feedSourceText = (name: string) =>
+  name
+    .normalize("NFKC")
+    .match(
+      /\p{Script=Han}|(?:(?!\p{Script=Han})\p{L})(?:(?!\p{Script=Han})[\p{L}\p{M}])*/u,
+    )?.[0] || "RSS";
+
+/** Mixed and Newsletter Feed state; the original RSS panel owns RSS-only sessions. */
+export function useFeed() {
+  const labs = useLabFeatures(),
+    user = useUserStore();
+  const restSubscriptions = ref<FeedSubscription[]>([]),
+    restEntries = ref<FeedEntry[]>([]);
+  const detail = ref<FeedEntryDetail | null>(null),
+    selected = ref(""),
+    restCursor = ref<string | null>(null);
+  const restHasMore = ref(false),
+    restHistoryStatus = ref<FeedEntriesResponse["history_status"]>("exhausted"),
+    restRetryAt = ref<string | null>(null);
+  const restoreList = (snapshot?: CachedList) => {
+    restEntries.value = snapshot?.items || [];
+    restCursor.value = snapshot?.cursor || null;
+    restHasMore.value = snapshot?.hasMore || false;
+    restHistoryStatus.value = snapshot?.historyStatus || "exhausted";
+    restRetryAt.value = snapshot?.retryAt || null;
+  };
+  const loading = ref(false),
+    initializing = ref(false),
+    detailLoading = ref(false),
+    pending = ref(false),
+    error = ref("");
+  const cache = new Map<string, CachedList>();
+  let permissionGeneration = 0,
+    generation = 0,
+    detailGeneration = 0,
+    initializeGeneration = 0,
+    session = 0;
+  const rssEnabled = computed(() => labs.loaded.value && labs.isEnabled("rss"));
+  const newsletterEnabled = computed(
+    () => labs.loaded.value && labs.isEnabled("newsletter"),
+  );
+  const kinds = computed<FeedKind[]>(() => [
+    ...(rssEnabled.value ? ["rss" as const] : []),
+    ...(newsletterEnabled.value ? ["newsletter" as const] : []),
+  ]);
+  const enabled = newsletterEnabled;
+  const allowed = (row: { kind?: string | null }) =>
+    kinds.value.includes(feedRowKind(row));
+  const subscriptions = restSubscriptions,
+    entries = restEntries,
+    cursor = restCursor,
+    hasMore = restHasMore,
+    historyStatus = restHistoryStatus,
+    retryAt = restRetryAt;
+  const fail = (e: unknown) => {
+    error.value = e instanceof Error ? e.message : "source_unavailable";
+  };
+  const clear = () => {
+    session++;
+    generation++;
+    detailGeneration++;
+    initializeGeneration++;
+    cache.clear();
+    restSubscriptions.value = [];
+    restoreList();
+    detail.value = null;
+    selected.value = "";
+    restCursor.value = null;
+    loading.value = false;
+    initializing.value = false;
+    detailLoading.value = false;
+    pending.value = false;
+    error.value = "";
+  };
+  watch(
+    () => user.userInfo?.userId,
+    (id) => {
+      clear();
+      if (id) void initialize();
+    },
+  );
+  watch(enabled, (value) => {
+    if (!value) clear();
+  });
+  watch(
+    kinds,
+    () => {
+      permissionGeneration++;
+      pending.value = false;
+      generation++;
+      detailGeneration++;
+      detailLoading.value = false;
+      loading.value = false;
+      restSubscriptions.value = restSubscriptions.value.filter(allowed);
+      restEntries.value = restEntries.value.filter(allowed);
+      restCursor.value = null;
+      for (const [key, snapshot] of cache) {
+        snapshot.items = snapshot.items.filter(allowed);
+        snapshot.updatedAt = 0;
+        snapshot.cursor = null;
+        if (key && !subscriptions.value.some((row) => row.id === key))
+          cache.delete(key);
+      }
+      if (detail.value && !allowed(detail.value)) detail.value = null;
+      if (
+        selected.value &&
+        !subscriptions.value.some((row) => row.id === selected.value)
+      ) {
+        selected.value = "";
+        restoreList(cache.get(""));
+      }
+    },
+    { flush: "sync" },
+  );
+  onScopeDispose(clear);
+
+  const fetchPage = (source: string, after: string | null, history = false) =>
+    request().get<FeedEntriesResponse>({
+      url: "/v1/feed/entries",
+      query: {
+        ...(source ? { subscription_id: source } : {}),
+        ...(after ? { cursor: after } : {}),
+        ...(history ? { fetch_history: "1" } : {}),
+        limit: "20",
+      },
+    });
+  const reload = async (more = false) => {
+    if (!enabled.value || loading.value || (more && !hasMore.value)) return;
+    const source = selected.value,
+      stamp = ++generation,
+      previous = cache.get(source);
+    loading.value = true;
+    error.value = "";
+    try {
+      if (more) {
+        const result = await fetchPage(source, restCursor.value, true);
+        if (stamp !== generation || !enabled.value) return;
+        if (!result) throw new Error("source_unavailable");
+      }
+      // Revalidate every loaded page before swapping the list, preserving pagination and old rows while loading.
+      // History from another source can belong above the old cursor; re-read the expanded window so none is skipped.
+      let next: string | null = null,
+        pages = 0,
+        items: FeedEntry[] = [];
+      const targetPages = (previous?.pages || 1) + (more ? 1 : 0);
+      let page: FeedEntriesResponse;
+      do {
+        const result = await fetchPage(source, next);
+        if (stamp !== generation || !enabled.value) return;
+        if (!result) throw new Error("source_unavailable");
+        page = result;
+        items.push(...page.items.filter(allowed));
+        next = page.next_cursor;
+        pages++;
+      } while (next && (page.cached_more ?? true) && pages < targetPages);
+      const snapshot: CachedList = {
+        items: [...new Map(items.map((item) => [item.id, item])).values()],
+        cursor: next,
+        pages,
+        updatedAt: Date.now(),
+        hasMore: page.has_more ?? !!next,
+        historyStatus: page.history_status || "exhausted",
+        retryAt: page.retry_at || null,
+      };
+      cache.set(source, snapshot);
+      restoreList(snapshot);
+    } catch (e) {
+      if (stamp === generation) fail(e);
+    } finally {
+      if (stamp === generation) loading.value = false;
+    }
+  };
+  const select = async (id: string, force = false) => {
+    generation++;
+    detailGeneration++;
+    selected.value = id;
+    detail.value = null;
+    detailLoading.value = false;
+    error.value = "";
+    loading.value = false;
+    const cached = cache.get(id);
+    restoreList(cached);
+    if (force || !cached || Date.now() - cached.updatedAt >= CACHE_TTL)
+      await reload();
+  };
+  const initialize = async (force = false) => {
+    const initialization = ++initializeGeneration,
+      account = session;
+    initializing.value = true;
+    error.value = "";
+    try {
+      await labs.fetch();
+      if (
+        !enabled.value ||
+        initialization !== initializeGeneration ||
+        account !== session
+      )
+        return;
+      const result = await request().get<FeedSubscriptionsResponse>({
+        url: "/v1/feed/subscriptions",
+      });
+      if (initialization !== initializeGeneration || account !== session)
+        return;
+      if (!result) throw new Error("source_unavailable");
+      const previous = new Map(
+        restSubscriptions.value.map((row) => [row.id, row]),
+      );
+      restSubscriptions.value = result.items.filter(allowed);
+      const ids = new Set(restSubscriptions.value.map((row) => row.id));
+      for (const [key, snapshot] of cache) {
+        if (key && !ids.has(key)) {
+          cache.delete(key);
+          continue;
+        }
+        // Drop removed subscriptions immediately and keep user-assigned source names in every cached view.
+        snapshot.items = snapshot.items
+          .filter((row) => ids.has(row.subscription_id))
+          .map((row) => ({
+            ...row,
+            source_title: feedSubscriptionName(
+              result.items.find((sub) => sub.id === row.subscription_id)!,
+            ),
+          }));
+      }
+      if (selected.value && !ids.has(selected.value)) {
+        await select("");
+        return;
+      }
+      const changed = result.items.some((row) => {
+        const old = previous.get(row.id);
+        return (
+          (!selected.value || row.id === selected.value) &&
+          (!old ||
+            (row.kind === "rss" &&
+              old.kind === "rss" &&
+              (old.last_success_at !== row.last_success_at ||
+                old.last_checked_at !== row.last_checked_at)))
+        );
+      });
+      const cached = cache.get(selected.value);
+      if (cached) {
+        restoreList(cached);
+      }
+      if (
+        !loading.value &&
+        (force ||
+          changed ||
+          !cached ||
+          Date.now() - cached.updatedAt >= CACHE_TTL)
+      )
+        await reload();
+    } catch (e) {
+      if (initialization === initializeGeneration && account === session)
+        fail(e);
+    } finally {
+      if (initialization === initializeGeneration) initializing.value = false;
+    }
+  };
+  const mutate = async (work: () => Promise<void>) => {
+    if (pending.value) return;
+    const account = session, permission = permissionGeneration;
+    pending.value = true;
+    error.value = "";
+    try {
+      await work();
+    } catch (e) {
+      if (account === session && permission === permissionGeneration) fail(e);
+    } finally {
+      if (account === session && permission === permissionGeneration) pending.value = false;
+    }
+  };
+  const add = (url: string, remark = "") =>
+    mutate(async () => {
+      if (!rssEnabled.value) return;
+      const account = session;
+      const row = await request().post<RssSubscription>({
+        url: "/v1/rss/subscriptions",
+        body: { url, remark: remark.trim() || null },
+      });
+      if (account !== session || !rssEnabled.value) return;
+      if (!row) throw new Error("source_unavailable");
+      restSubscriptions.value = [
+        ...restSubscriptions.value.filter((item) => item.id !== row.id),
+        { ...row, kind: "rss" },
+      ];
+      cache.delete("");
+      await select(row.id);
+    });
+  const update = (id: string, remark: string) =>
+    mutate(async () => {
+      if (
+        !rssEnabled.value ||
+        subscriptions.value.find((row) => row.id === id)?.kind === "newsletter"
+      )
+        return;
+      const account = session;
+      const row = await request().post<RssSubscription>({
+        url: `/v1/rss/subscriptions/${encodeURIComponent(id)}/update`,
+        body: { remark: remark.trim() || null },
+      });
+      if (account !== session || !rssEnabled.value) return;
+      if (!row) throw new Error("source_unavailable");
+      restSubscriptions.value = restSubscriptions.value.map((sub) =>
+        sub.id === row.id ? { ...row, kind: "rss" } : sub,
+      );
+      const renamed = (entry: FeedEntry) =>
+        entry.subscription_id === row.id
+          ? { ...entry, source_title: feedSubscriptionName(row) }
+          : entry;
+      for (const snapshot of cache.values())
+        snapshot.items = snapshot.items.map(renamed);
+      restEntries.value = restEntries.value.map(renamed);
+      if (detail.value?.subscription_id === row.id)
+        detail.value = {
+          ...detail.value,
+          source_title: feedSubscriptionName(row),
+        };
+    });
+  const remove = (id: string) =>
+    mutate(async () => {
+      if (
+        !rssEnabled.value ||
+        subscriptions.value.find((row) => row.id === id)?.kind === "newsletter"
+      )
+        return;
+      const account = session;
+      await request().post({
+        url: `/v1/rss/subscriptions/${encodeURIComponent(id)}/delete`,
+      });
+      if (account !== session || !rssEnabled.value) return;
+      restSubscriptions.value = restSubscriptions.value.filter(
+        (row) => row.id !== id,
+      );
+      cache.delete(id);
+      for (const snapshot of cache.values()) {
+        snapshot.items = snapshot.items.filter(
+          (row) => row.subscription_id !== id,
+        );
+        snapshot.updatedAt = 0;
+      }
+      await select(selected.value === id ? "" : selected.value);
+    });
+  const refresh = () =>
+    mutate(async () => {
+      if (
+        !rssEnabled.value ||
+        subscriptions.value.find((row) => row.id === selected.value)?.kind ===
+          "newsletter"
+      )
+        return;
+      const id = selected.value,
+        account = session;
+      if (!id) {
+        await initialize(true);
+        return;
+      }
+      const result = await request().post<RssRefreshResponse>({
+        url: `/v1/rss/subscriptions/${encodeURIComponent(id)}/refresh`,
+      });
+      if (account !== session || !rssEnabled.value) return;
+      if (!result) throw new Error("source_unavailable");
+      const row = restSubscriptions.value.find((item) => item.id === id);
+      if (row?.kind === "rss") {
+        row.refreshing = true;
+        row.next_allowed_at = result.next_allowed_at;
+      }
+    });
+  const open = async (entry: FeedEntry) => {
+    if (!allowed(entry)) return;
+    const stamp = ++detailGeneration;
+    detail.value = null;
+    detailLoading.value = true;
+    error.value = "";
+    try {
+      const result = await request().get<FeedEntryDetail>({
+        url: `/v1/feed/entries/${encodeURIComponent(entry.id)}`,
+      });
+      if (stamp !== detailGeneration || !allowed(entry)) return;
+      if (!result) throw new Error("source_unavailable");
+      detail.value = result;
+    } catch (e) {
+      if (stamp === detailGeneration) fail(e);
+    } finally {
+      if (stamp === detailGeneration) detailLoading.value = false;
+    }
+  };
+  const closePreview = () => {
+    detailGeneration++;
+    detail.value = null;
+    detailLoading.value = false;
+  };
+  const save = (entry: FeedEntry) =>
+    mutate(async () => {
+      if (!enabled.value || !allowed(entry)) return;
+      const account = session,
+        permission = permissionGeneration,
+        kind = entry.kind;
+      const endpoint = kind === "newsletter" ? "feed" : "rss";
+      const result = await request().post<RssSaveResponse>({
+        url: `/v1/${endpoint}/entries/${encodeURIComponent(entry.id)}/save`,
+      });
+      if (account !== session || permission !== permissionGeneration || !enabled.value || !allowed(entry)) return;
+      if (!result?.bookmark_user_uuid) throw new Error("source_unavailable");
+      const matches = (row: FeedEntry) =>
+        row.kind === kind &&
+        (kind === "newsletter"
+          ? row.id === entry.id
+          : !!entry.article_url && row.article_url === entry.article_url);
+      const saved = (row: FeedEntry) =>
+        matches(row)
+          ? { ...row, bookmark_user_uuid: result.bookmark_user_uuid }
+          : row;
+      for (const snapshot of cache.values())
+        snapshot.items = snapshot.items.map(saved);
+      restEntries.value = restEntries.value.map(saved);
+      if (detail.value && matches(detail.value))
+        detail.value.bookmark_user_uuid = result.bookmark_user_uuid;
+    });
+  return {
+    labs,
+    subscriptions,
+    entries,
+    detail,
+    selected,
+    cursor,
+    hasMore,
+    historyStatus,
+    retryAt,
+    enabled,
+    rssEnabled,
+    newsletterEnabled,
+    loading,
+    initializing,
+    detailLoading,
+    pending,
+    error,
+    initialize,
+    reload,
+    select,
+    add,
+    update,
+    remove,
+    refresh,
+    open,
+    closePreview,
+    save,
+  };
+}

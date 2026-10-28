@@ -474,3 +474,16 @@ describe('components/BookmarkList/BookmarkCell', () => {
     })
   })
 })
+
+it('renders a saved Newsletter source as a non-link caption while retaining snapshot navigation', async () => {
+  const open=vi.spyOn(window,'open').mockImplementation(()=>null)
+  const bookmark=makeBookmarkItem({target_url:'slax-newsletter://message/12',site_name:'Mail sender',bookmark_user_uuid:'mail-copy',status:'success'})
+  const wrapper=mountCell({bookmark,sourceFilterable:true})
+  expect(wrapper.get('.article-source').element.tagName).toBe('SPAN')
+  expect(wrapper.find('a.article-source').exists()).toBe(false)
+  await wrapper.get('.article-source').trigger('click')
+  expect(open).not.toHaveBeenCalled()
+  await wrapper.get('.article-title').trigger('click')
+  expect(mockPwaOpen).toHaveBeenCalledWith({url:'/b/mail-copy?_slax_entry=bookmarks'})
+  wrapper.unmount();open.mockRestore()
+})

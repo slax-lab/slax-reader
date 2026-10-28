@@ -34,12 +34,11 @@ export class RssContent {
     // currently referenced revision. Expired writers cannot overwrite it.
     const html = doc.body.innerHTML || '<p></p>'
     const digest = await hashSHA256(html)
-    if (previousKey?.startsWith(`${PREFIX}${feedId}/`) && previousKey.endsWith('/' + digest))
-      return { content_key: previousKey, image_url: image, content_truncated: clean.truncated }
+    if (previousKey?.startsWith(`${PREFIX}${feedId}/`) && previousKey.endsWith('/' + digest)) return { content_key: previousKey, image_url: image }
     const key = `${PREFIX}${feedId}/${crypto.randomUUID()}/${digest}`
     const object = await this.bucket().putIfKeyExists(key, html)
     if (!object) throw new RssError('source_unavailable', 503)
-    return { content_key: key, image_url: image, content_truncated: clean.truncated }
+    return { content_key: key, image_url: image }
   }
 
   async store(env: Env, feedId: string, result: FeedResult, previous: Map<string, string> = new Map()): Promise<StoredFeedResult> {
@@ -50,8 +49,7 @@ export class RssContent {
       const batch = await Promise.allSettled(
         result.feed.items.slice(offset, offset + 5).map(async item => {
           const { content_html, ...metadata } = item
-          const stored = await this.storeItem(env, feedId, { content_html, image_url: item.image_url, article_url: item.article_url }, previous.get(item.entry_key))
-          return { ...metadata, ...stored, content_truncated: metadata.content_truncated || stored.content_truncated }
+          return { ...metadata, ...(await this.storeItem(env, feedId, { content_html, image_url: item.image_url, article_url: item.article_url }, previous.get(item.entry_key))) }
         })
       )
       for (const item of batch) {

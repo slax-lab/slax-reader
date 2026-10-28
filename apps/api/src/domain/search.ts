@@ -409,17 +409,26 @@ export class SearchService {
     ])
   }
 
-  public async addSearchRecord(ctx: ContextManager, bookmarkId: number, title: string, content: string) {
-    const normalizer = new Normalizer(ctx.env)
-    return await Promise.allSettled([this.fulltextNormalize(ctx, normalizer, bookmarkId, title, content), this.semanticNormalize(ctx, normalizer, bookmarkId, title, content)])
+  public async addSearchRecord(ctx: ContextManager, bookmarkId: number, title: string, content: string, options: { strictPrivate?: boolean } = {}) {
+    const normalizer = new Normalizer(ctx.env, options)
+    return await Promise.allSettled([
+      this.fulltextNormalize(ctx, normalizer, bookmarkId, title, content, options.strictPrivate),
+      this.semanticNormalize(ctx, normalizer, bookmarkId, title, content, options.strictPrivate)
+    ])
   }
 
   /**
    * 全文搜索内容归一化
    */
-  public async fulltextNormalize(ctx: ContextManager, normalizer: Normalizer, bookmarkId: number, title: string, content: string) {
+  public async fulltextNormalize(ctx: ContextManager, normalizer: Normalizer, bookmarkId: number, title: string, content: string, strictPrivate = false) {
     try {
       const res = await normalizer.processFulltext(title, content)
+      if (strictPrivate)
+        return await this.bookmarkSearchRepo.replaceBookmarkRawAtomic(
+          ctx.env.DB_FULLTEXT,
+          bookmarkId,
+          res.map((item, idx) => ({ shard_idx: idx, content: item.normalized_content, rawContent: item.raw_content, title: item.normalized_title, rawTitle: item.raw_title }))
+        )
       if (res.length < 1) {
         console.log(`fulltext normalize failed, bookmarkId: ${bookmarkId}, content is empty`)
         return []
@@ -435,7 +444,8 @@ export class SearchService {
         }))
       )
     } catch (e) {
-      console.log(e, 'fulltextNormalize error')
+      console.error('Fulltext indexing failed', { bookmarkId })
+      if (strictPrivate) throw new Error('Private fulltext indexing unavailable')
       throw e
     }
   }
@@ -443,7 +453,7 @@ export class SearchService {
   /**
    * 语义搜索内容归一化
    */
-  public async semanticNormalize(ctx: ContextManager, normalizer: Normalizer, bookmarkId: number, title: string, content: string) {
+  public async semanticNormalize(ctx: ContextManager, normalizer: Normalizer, bookmarkId: number, title: string, content: string, strictPrivate = false) {
     try {
       const normalized = await normalizer.processSemantic(bookmarkId, title, content)
       console.log(`semantic normalize, bookmarkId: ${bookmarkId}, normalized: ${normalized.length}`)
@@ -451,6 +461,7 @@ export class SearchService {
       const shard = await this.bookmarkRepo.upsertVectorShard(bookmarkId, Math.floor(Math.random() * 5))
       if (!shard) {
         console.error(`create semantic vector shard failed, bookmarkId: ${bookmarkId}`)
+        if (strictPrivate) throw new Error('Private snapshot vector unavailable')
         return
       }
 
@@ -460,10 +471,11 @@ export class SearchService {
         shard.bucket_idx,
         normalized.map(item => ({ vecId: item.id, vector: item.embedding }))
       )
-      console.log(`create semantic vector, bookmarkId: ${bookmarkId}, shardIdx: ${shard.bucket_idx}, mutaionsId: ${JSON.stringify(res)}`)
+      if (!strictPrivate) console.log(`create semantic vector, bookmarkId: ${bookmarkId}, shardIdx: ${shard.bucket_idx}, mutaionsId: ${JSON.stringify(res)}`)
       return res
     } catch (e) {
-      console.log(e, 'semanticNormalize error')
+      console.error('Semantic indexing failed', { bookmarkId })
+      if (strictPrivate) throw new Error('Private semantic indexing unavailable')
       throw e
     }
   }

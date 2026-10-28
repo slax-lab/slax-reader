@@ -1,9 +1,10 @@
 // BookmarkCell 点击/跳转编排
 // 快照走 seam，fork 可覆盖
-import { urlHttpString } from '@commons/frontend-utils/string'
+import { isNewsletterBookmarkTarget } from '~/utils/bookmarkSource'
 
-import { BookmarkParseStatus } from '@slax-reader/contracts/interface'
 import type { BookmarkItem } from '@commons/frontend-types/models'
+import { urlHttpString } from '@commons/frontend-utils/string'
+import { BookmarkParseStatus } from '@slax-reader/contracts/interface'
 import { showSnapshotStatusModal } from '~/components/Modal'
 
 type ListSection = 'inbox' | 'starred' | 'topics' | 'archive' | 'trash' | 'notifications'
@@ -67,7 +68,7 @@ export function useBookmarkCellNavigation(options: UseBookmarkCellNavigationOpti
   }
 
   const clickHref = () => {
-    if (isRequesting()) {
+    if (isNewsletterBookmarkTarget(bookmark.value.target_url) || isRequesting()) {
       return
     }
 

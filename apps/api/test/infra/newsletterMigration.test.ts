@@ -12,58 +12,62 @@ async function rssDatabase() {
   return db
 }
 
-describe('first Newsletter release migration', () => {
-  test('creates only platform-owned receiving identities and numeric receipt IDs', async () => {
+describe('independent Newsletter migration', () => {
+  test('keeps the populated RSS schema and writer behavior unchanged', async () => {
     const db = await rssDatabase()
     try {
-      await db.exec(read('20261022090000_newsletter_feed'))
-      expect((await db.query("SELECT to_regclass('sr_newsletter_address') AS name")).rows).toEqual([{ name: null }])
-      await db.exec(
-        "INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES (1,'newsletter','feed+reader@newsletterreader.slax.dev','feed+reader@newsletterreader.slax.dev')"
-      )
-      const binding = (await db.query<{ id: number }>("SELECT id FROM sr_platform_bind WHERE platform='newsletter'")).rows[0]
-      await db.query("INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key) VALUES (1,$1,'sender','mail')", [binding.id])
-      const row = (await db.query<{ id: number }>('SELECT id FROM sr_newsletter_receipt')).rows[0]
-      expect(Number(row.id)).toBeGreaterThan(0)
-      const columns = (await db.query<{ column_name: string }>("SELECT column_name FROM information_schema.columns WHERE table_name='sr_newsletter_receipt'")).rows.map(
-        r => r.column_name
-      )
-      expect(columns).not.toContain('address_id')
-      expect(columns).not.toContain('legacy_id')
-      expect(columns).not.toContain('receipt_id')
-      expect(columns).not.toContain('raw_key')
-      expect(columns).not.toContain('payload_key')
-      expect(columns).not.toContain('retry_at')
-      expect(columns).not.toContain('attempts')
-      await expect(db.query("INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key) VALUES (2,$1,'sender','foreign')", [binding.id])).rejects.toThrow()
-      await expect(
-        db.exec(
-          "INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES (2,'newsletter','feed+reader@newsletterreader.slax.dev','feed+reader@newsletterreader.slax.dev')"
+      await db.exec("INSERT INTO sr_rss_feed(id,feed_url,title) VALUES ('rss','https://rss.test','Original')")
+      const schema = () =>
+        db.query(
+          "SELECT table_name,column_name,data_type,column_default,is_nullable FROM information_schema.columns WHERE table_name LIKE 'sr_rss_%' ORDER BY table_name,ordinal_position"
         )
-      ).rejects.toThrow()
-      await db.exec("INSERT INTO sr_platform_bind(user_id,platform) VALUES (1,'telegram'); DELETE FROM sr_platform_bind WHERE user_id=1")
-      expect((await db.query('SELECT platform,retired_at FROM sr_platform_bind')).rows).toEqual([{ platform: 'newsletter', retired_at: expect.any(Date) }])
-      await expect(db.exec("UPDATE sr_platform_bind SET platform_id='reassigned' WHERE platform='newsletter'")).rejects.toThrow()
-      await expect(db.exec("UPDATE sr_platform_bind SET retired_at=NULL WHERE platform='newsletter'")).rejects.toThrow()
+      const before = (await schema()).rows
+      await db.exec(read('20261022090000_newsletter_feed'))
+      expect((await schema()).rows).toEqual(before)
+      expect((await db.query('SELECT title FROM sr_rss_feed')).rows).toEqual([{ title: 'Original' }])
+      await db.exec(
+        "UPDATE sr_rss_feed SET title='Updated' WHERE id='rss'; INSERT INTO sr_rss_feed(id,feed_url) VALUES ('new','https://new.test'); DELETE FROM sr_rss_feed WHERE id='new'"
+      )
+      expect((await db.query('SELECT id,title FROM sr_rss_feed')).rows).toEqual([{ id: 'rss', title: 'Updated' }])
+      expect((await db.query("SELECT tgname FROM pg_trigger WHERE tgrelid='sr_rss_feed'::regclass AND NOT tgisinternal")).rows).toEqual([])
+      expect((await db.query("SELECT to_regclass('sr_feed') AS source,to_regclass('sr_newsletter_receipt') AS receipt")).rows).toEqual([{ source: null, receipt: null }])
     } finally {
       await db.close()
     }
   })
-  test('backfills existing RSS IDs and mirrors every refreshed field and deletion', async () => {
+  test('one numeric mail row enforces dedupe and ready-body consistency while bindings remain permanent', async () => {
     const db = await rssDatabase()
     try {
-      await db.exec(
-        "INSERT INTO sr_rss_feed(id,feed_url,lease_token,history_seen) VALUES ('rss','https://rss.test','lease',ARRAY['old']),('delete','https://delete.test',NULL,ARRAY[]::text[])"
-      )
       await db.exec(read('20261022090000_newsletter_feed'))
-      expect((await db.query('SELECT * FROM sr_feed ORDER BY id')).rows).toEqual((await db.query('SELECT * FROM sr_rss_feed ORDER BY id')).rows)
+      await db.exec("INSERT INTO sr_newsletter_feed(user_id,source_key,sender,message_key) VALUES (1,repeat('a',64),'sender@example.com',repeat('b',64))")
+      const row = (await db.query<any>('SELECT id,state,content_key FROM sr_newsletter_feed')).rows[0]
+      expect(BigInt(row.id)).toBeGreaterThan(0n)
+      expect(row).toMatchObject({ state: 'pending', content_key: null })
+      await expect(db.exec("INSERT INTO sr_newsletter_feed(user_id,source_key,sender,message_key) VALUES (1,repeat('a',64),'sender@example.com',repeat('b',64))")).rejects.toThrow()
+      await expect(db.exec("UPDATE sr_newsletter_feed SET state='ready'")).rejects.toThrow()
+      await db.exec("UPDATE sr_newsletter_feed SET state='ready',content_key='newsletter-content/body.html'")
+      expect(
+        (await db.query("SELECT column_name FROM information_schema.columns WHERE table_name='sr_newsletter_feed' ORDER BY ordinal_position")).rows.map((r: any) => r.column_name)
+      ).toEqual([
+        'id',
+        'user_id',
+        'source_key',
+        'sender',
+        'sender_name',
+        'message_key',
+        'state',
+        'title',
+        'summary',
+        'content_key',
+        'content_truncated',
+        'published_at',
+        'received_at'
+      ])
       await db.exec(
-        "UPDATE sr_rss_feed SET title='fresh',site_url='https://site',etag='etag',last_modified='modified',last_checked_at=now(),last_success_at=now(),next_fetch_at=now(),next_allowed_at=now(),error='retry',failure_count=3,lease_token='new',lease_until=now(),history_url='history',history_seen=ARRAY['a','b'],history_checked_at=now(),history_retry_at=now(),icon_url='icon'"
+        "INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES (1,'newsletter','feed+reader@newsletterreader.slax.dev','reader'); DELETE FROM sr_platform_bind WHERE platform='newsletter'"
       )
-      expect((await db.query('SELECT * FROM sr_feed ORDER BY id')).rows).toEqual((await db.query('SELECT * FROM sr_rss_feed ORDER BY id')).rows)
-      await db.exec("DELETE FROM sr_rss_feed WHERE id='delete'; INSERT INTO sr_rss_feed(id,feed_url) VALUES ('late','https://late')")
-      expect((await db.query('SELECT id FROM sr_feed ORDER BY id')).rows).toEqual([{ id: 'late' }, { id: 'rss' }])
-      await expect(db.exec("INSERT INTO sr_feed(feed_url,kind) VALUES ('invalid','other')")).rejects.toThrow()
+      expect((await db.query("SELECT retired_at FROM sr_platform_bind WHERE platform='newsletter'")).rows[0]).toMatchObject({ retired_at: expect.any(Date) })
+      await expect(db.exec("UPDATE sr_platform_bind SET retired_at=NULL WHERE platform='newsletter'")).rejects.toThrow()
     } finally {
       await db.close()
     }

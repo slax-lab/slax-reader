@@ -192,9 +192,12 @@ async function main() {
             }
           ],
           durable_objects: {
-            bindings: [{ name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' }]
+            bindings: [
+              { name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' },
+              { name: 'SLAX_JIEBA', class_name: 'SlaxJieba' }
+            ]
           },
-          migrations: [{ tag: 'v1', new_classes: ['SlaxWebSocketServer'] }]
+          migrations: [{ tag: 'v1', new_classes: ['SlaxWebSocketServer', 'SlaxJieba'] }]
         },
         null,
         2
@@ -366,7 +369,7 @@ async function main() {
       assert.ok(body.includes('Newsletter delivery is not available for this message.'), body)
       rejectionEvidence.push({ to, status: rejected.status })
     }
-    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '0')
+    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_feed'), '0')
     evidence.envelopePolicy = rejectionEvidence
     evidence.businessAddressPolicy = 'feed+daguang is eligible in the Newsletter subdomain; existing root business mail is outside its namespace'
     // Exercise actual Edge email dispatch, generated DI/router, Prisma transactions and local R2.
@@ -406,7 +409,7 @@ async function main() {
       )
       assert.equal(response.status, 200, await response.text())
     }
-    await poll(() => resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_newsletter_receipt WHERE state='done'") === '1', 'newsletter publication')
+    await poll(() => resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_newsletter_feed WHERE state='ready'") === '1', 'newsletter publication')
     const emlFile = resolve(resources.workspace, 'synthetic-newsletter.eml')
     writeFileSync(emlFile, rawMail)
     assert.equal(
@@ -425,7 +428,7 @@ async function main() {
       ]),
       0
     )
-    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '1')
+    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_feed'), '1')
 
     const feed = await request('newsletter-feed', '/v1/feed/entries', {
       headers: mailHeaders
@@ -447,7 +450,7 @@ async function main() {
       }
     )
     assert.equal(secondDelivery.status, 200, await secondDelivery.text())
-    await poll(() => resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_newsletter_receipt WHERE state='done'") === '2', 'second reader publication')
+    await poll(() => resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_newsletter_feed WHERE state='ready'") === '2', 'second reader publication')
     const secondFeed = await request('second-user-feed', '/v1/feed/entries', { headers: secondHeaders })
     assert.equal(secondFeed.body.data.items.length, 1)
     assert.notEqual(secondFeed.body.data.items[0].id, entryId)
@@ -455,6 +458,72 @@ async function main() {
     assert.ok(secondBody.body.data.content_html.includes('Second reader private body'))
     assert.ok(!secondBody.body.data.content_html.includes('Runtime newsletter body'))
     assert.equal((await request('second-user-denied-first-body', `/v1/feed/entries/${entryId}`, { headers: secondHeaders })).body.code, 404)
+    const savePath = `/v1/feed/entries/${encodeURIComponent(entryId)}/save`
+    const saveInit = { method: 'POST', headers: mailHeaders }
+    assert.equal((await request('foreign-newsletter-save', savePath, { ...saveInit, headers: secondHeaders })).body.code, 404)
+    const saved = await request('newsletter-save', savePath, saveInit)
+    assert.equal(saved.body.code, 200)
+    assert.equal(saved.body.data.result, 'created')
+    assert.equal(saved.body.data.processing_status, 'ready')
+    const savedUuid = saved.body.data.bookmark_user_uuid
+    const savedId = Number(resources.sql(pg.id, 'http_reader', `SELECT bookmark_id FROM sr_user_bookmark WHERE uuid='${savedUuid}'`))
+    assert.equal(resources.sql(pg.id, 'http_reader', `SELECT is_enable FROM sr_bookmark_share WHERE bookmark_id=${savedId} AND user_id=1`), 'f')
+    assert.equal(resources.sql(pg.id, 'http_reader', `SELECT count(*) FROM sr_bookmark b JOIN sr_newsletter_feed n ON n.content_key=b.content_key WHERE b.id=${savedId}`), '0')
+    assert.equal((await request('newsletter-save-repeat', savePath, saveInit)).body.data.bookmark_user_uuid, savedUuid)
+    assert.equal(d1('DB_FULLTEXT', `SELECT count(*) AS n FROM slax_bookmark_raw WHERE bookmark_id=${savedId}`)[0].n, 1)
+    const indexedMail = d1('DB_FULLTEXT', `SELECT raw_content,content FROM slax_bookmark_raw WHERE bookmark_id=${savedId}`)[0]
+    assert.ok(String(indexedMail.raw_content).includes('Runtime newsletter body'))
+    assert.ok(String(indexedMail.content).toLowerCase().includes('runtime'))
+    assert.equal(
+      d1(
+        'DB_FULLTEXT',
+        `SELECT count(*) AS n FROM slax_fts_bookmark JOIN slax_bookmark_raw r ON r.id=slax_fts_bookmark.rowid WHERE slax_fts_bookmark MATCH 'content:runtime' AND r.bookmark_id=${savedId}`
+      )[0].n,
+      1
+    )
+
+    const savedBody = await localFetch(`http://localhost:${httpPort}/v1/bookmark/content`, {
+      method: 'POST',
+      headers: { ...mailHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookmark_uid: savedUuid })
+    })
+    assert.equal(savedBody.status, 200)
+    assert.ok((await savedBody.text()).includes('Runtime newsletter body'))
+    const contentConfig = resolve(resources.workspace, 'newsletter-content-client.json')
+    writeFileSync(
+      contentConfig,
+      JSON.stringify({
+        name: 'newsletter-content-client',
+        compatibility_date: '2025-05-05',
+        services: [{ binding: 'BACKEND', service: 'root-tooling-local-edge', entrypoint: 'ContentEntry' }]
+      })
+    )
+    const { getPlatformProxy } = createRequire(import.meta.url)('wrangler')
+    const previousRegistry = process.env.WRANGLER_REGISTRY_PATH
+    process.env.WRANGLER_REGISTRY_PATH = resolve(resources.workspace, 'worker-home/config/.wrangler/registry')
+    let contentProxy: any
+    try {
+      contentProxy = await getPlatformProxy({ configPath: contentConfig, envFiles: [resources.emptyEnv], remoteBindings: false })
+    } finally {
+      if (previousRegistry === undefined) delete process.env.WRANGLER_REGISTRY_PATH
+      else process.env.WRANGLER_REGISTRY_PATH = previousRegistry
+    }
+    try {
+      for (const headers of [{}, secondHeaders]) {
+        const response = await contentProxy.env.BACKEND.fetch(`https://content.internal/content/meta?uuid=${savedUuid}`, { headers })
+        assert.equal(response.status, 404)
+      }
+      const response = await contentProxy.env.BACKEND.fetch(`https://content.internal/content/meta?uuid=${savedUuid}`, { headers: mailHeaders })
+      assert.equal(response.status, 200)
+    } finally {
+      await contentProxy.dispose()
+    }
+    resources.sql(pg.id, 'http_reader', `UPDATE sr_user_bookmark SET deleted_at=now(),is_starred=true,alias_title='Kept title' WHERE uuid='${savedUuid}'`)
+    const restored = await request('newsletter-save-restore', savePath, saveInit)
+    assert.equal(restored.body.data.result, 'restored')
+    assert.equal(restored.body.data.bookmark_user_uuid, savedUuid)
+    assert.equal(resources.sql(pg.id, 'http_reader', `SELECT is_starred AND alias_title='Kept title' AND deleted_at IS NULL FROM sr_user_bookmark WHERE uuid='${savedUuid}'`), 't')
+    evidence.newsletterCopy = 'independent HTML/text; explicit disabled sharing; owner read; anonymous/B denial; repeat and restore identity; real Jieba/D1 fulltext'
     evidence.twoUserDelivery = 'one literal route format, distinct registered details and private bodies; cross-user body denied'
     const disabled = await request('newsletter-disable', '/v1/user/setting/disable', {
       method: 'POST',
@@ -478,6 +547,19 @@ async function main() {
       ).body.code,
       404
     )
+    const afterDisable = await localFetch(`http://localhost:${httpPort}/v1/bookmark/content`, {
+      method: 'POST',
+      headers: { ...mailHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookmark_uid: savedUuid })
+    })
+    assert.equal(afterDisable.status, 200)
+    assert.ok((await afterDisable.text()).includes('Runtime newsletter body'))
+    // Leave the historical bookmark smoke's empty-list precondition intact.
+    resources.sql(
+      pg.id,
+      'http_reader',
+      `DELETE FROM sr_user_bookmark WHERE bookmark_id=${savedId};DELETE FROM sr_bookmark_share WHERE bookmark_id=${savedId};DELETE FROM sr_bookmark WHERE id=${savedId}`
+    )
     const rejection = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=feed%2Bunknown%40${newsletterDomain}`, {
       method: 'POST',
       headers: { 'Content-Type': 'message/rfc822' },
@@ -487,9 +569,9 @@ async function main() {
       status: rejection.status,
       body: await rejection.text()
     }
-    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_receipt'), '2')
+    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_feed'), '2')
     evidence.newsletterDomain = newsletterDomain
-    evidence.newsletterRuntime = 'actual local Edge email twice -> one receipt/entry; R2 body through Core; disabled reads denied; unknown recipient creates no receipt'
+    evidence.newsletterRuntime = 'actual local Edge email twice -> one mail row; R2 body through Core; disabled reads denied; unknown recipient creates no mail row'
 
     const listPath = '/v1/bookmark/list?page=1&size=20'
     for (const [label, headers] of [

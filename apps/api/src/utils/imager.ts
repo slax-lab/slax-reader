@@ -100,9 +100,8 @@ export class Imager {
             const source = publicTarget(this.getImageUrlFromDocment(img) || '').href
             img.setAttribute('src', await buildImageProxyUrl(this.env, source, url.href, 'rss'))
             img.removeAttribute('srcset')
-          } catch {
-            img.removeAttribute('src')
-            img.removeAttribute('srcset')
+          } catch (error) {
+            console.log(`Failed to replace image: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}`)
           }
         })
       )

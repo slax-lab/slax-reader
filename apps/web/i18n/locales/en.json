@@ -1473,6 +1473,8 @@
     "copied": "Copied",
     "address_stable": "This address stays the same if you rename your account.",
     "privacy": "Remote images load through Slax’s image proxy. Opening a message may still count as a read to its sender. Only attachment names and existing download links are kept; attachment files are not stored.",
+    "source": "Newsletter",
+    "saved_content_hint": "Saved from email. This Inbox copy is independent of Feed and starts with sharing turned off.",
     "content_hint": "Content received by email. Remote images use Slax’s image proxy.",
     "errors": {
       "account_taken": "This account name is already in use. Choose another name.",
@@ -1483,7 +1485,7 @@
       "unavailable": "Newsletter receiving is unavailable. Please try again later.",
       "copy_failed": "Could not copy. Select and copy the address above."
     },
-    "management_hint": "Newsletter sender management, saving to Inbox, and automatic unsubscribe are not available yet.",
+    "management_hint": "Newsletter sender management and automatic unsubscribe are not available yet.",
     "no_messages": "No newsletters yet",
     "empty_hint": "Subscribe with your address above. New messages will appear here."
   }

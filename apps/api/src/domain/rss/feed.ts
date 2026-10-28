@@ -111,13 +111,7 @@ export function sanitizeFeedHtml(html: string, base: string): { html: string; te
       const encoded = escape(node.textContent || '')
       if (encoded.length > budget) {
         truncated = true
-        // Keep a readable prefix, without cutting an escaped entity or a surrogate pair.
-        const prefix = encoded
-          .slice(0, budget)
-          .replace(/&[^;]*$/, '')
-          .replace(/[\uD800-\uDBFF]$/, '')
-        budget = 0
-        return prefix
+        return ''
       }
       budget -= encoded.length
       return encoded

@@ -5,9 +5,8 @@
         <h1>{{ $t('rss.title') }}</h1>
         <span class="labs-badge">{{ $t('rss.labs') }}</span>
       </div>
-      <button v-if="rss.rssEnabled.value" class="rss-button primary" @click="showAdd"><RssIcon name="plus" />{{ $t('rss.add') }}</button>
+      <button v-if="rss.enabled.value" class="rss-button primary" @click="showAdd"><RssIcon name="plus" />{{ $t('rss.add') }}</button>
     </div>
-    <NewsletterAddress v-if="rss.newsletterEnabled.value" />
     <div v-if="rss.error.value && !previewEntry && !adding && !removing" class="rss-notice" role="alert">
       <span>{{ errorText }}</span
       ><button class="text-button" @click="rss.initialize()">{{ $t('rss.retry') }}</button>
@@ -26,22 +25,17 @@
           type="button"
           :aria-pressed="rss.selected.value === sub.id"
           :title="rssSubscriptionName(sub)"
-          :aria-label="rssSubscriptionName(sub)"
           @click="rss.select(sub.id)"
         >
-          <span class="source-avatar" aria-hidden="true">
-            <img v-if="sub.kind !== 'newsletter' && sub.icon_url && !failedIcons.has(sub.icon_url)" :src="sub.icon_url" alt="" loading="lazy" referrerpolicy="no-referrer" @error="iconFailed(sub)" />
-            <span v-else class="source-fallback" :class="{
-                'source-word': rssSourceText(rssSubscriptionName(sub)).length > 1
-              }"
-              >{{ rssSourceText(rssSubscriptionName(sub)) }}</span>
+          <span class="source-avatar">
+            <img v-if="sub.icon_url && !failedIcons.has(sub.icon_url)" :src="sub.icon_url" alt="" loading="lazy" referrerpolicy="no-referrer" @error="iconFailed(sub)" />
+            <span v-else class="source-fallback" :class="{ 'source-word': rssSourceText(rssSubscriptionName(sub)).length > 1 }">{{ rssSourceText(rssSubscriptionName(sub)) }}</span>
           </span>
           <span class="source-label">{{ rssSubscriptionName(sub) }}</span>
         </button>
       </div>
       <div class="source-actions">
         <button
-          v-if="rss.rssEnabled.value && current?.kind !== 'newsletter'"
           class="icon-button"
           :disabled="rss.pending.value || rss.loading.value || current?.refreshing || coolingDown"
           :title="refreshTitle"
@@ -50,8 +44,8 @@
         >
           <RssIcon name="refresh" :class="{ spinning: current?.refreshing || rss.loading.value }" />
         </button>
-        <button v-if="current && current.kind !== 'newsletter'" class="icon-button" :title="$t('rss.edit')" :aria-label="$t('rss.edit')" @click="showEdit(current)"><RssIcon name="edit" /></button>
-        <button v-if="current && current.kind !== 'newsletter'" class="icon-button" :title="$t('rss.remove')" :aria-label="$t('rss.remove')" @click="removing = current"><RssIcon name="trash" /></button>
+        <button v-if="current" class="icon-button" :title="$t('rss.edit')" :aria-label="$t('rss.edit')" @click="showEdit(current)"><RssIcon name="edit" /></button>
+        <button v-if="current" class="icon-button" :title="$t('rss.remove')" :aria-label="$t('rss.remove')" @click="removing = current"><RssIcon name="trash" /></button>
         <ListLayoutSwitcher v-if="rss.entries.value.length" v-model="listMode" last-updated-text="" />
       </div>
     </div>
@@ -65,7 +59,7 @@
       <div class="empty-icon"><RssIcon name="rss" /></div>
       <h2>{{ $t('rss.title') }}</h2>
       <p>{{ $t('rss.enable_hint') }}</p>
-      <NuxtLink class="rss-button primary" :to="localePath('/user') + '#labs'">{{ $t('rss.settings') }}</NuxtLink>
+      <NuxtLink class="rss-button primary" :to="localePath('/user') + '#features'">{{ $t('rss.settings') }}</NuxtLink>
     </section>
     <section v-else :aria-label="$t('rss.all')" :aria-busy="rss.loading.value">
       <div v-if="(rss.loading.value || rss.initializing.value) && !rss.entries.value.length" class="skeletons" role="status">
@@ -77,10 +71,9 @@
       </div>
       <section v-else-if="!rss.entries.value.length" class="empty-state">
         <div class="empty-icon"><RssIcon name="rss" /></div>
-        <h2>{{ $t(rss.subscriptions.value.length ? 'rss.no_articles' : rss.rssEnabled.value ? 'rss.no_subscriptions' : 'newsletter.no_messages') }}</h2>
-        <p v-if="rss.rssEnabled.value">{{ $t(rss.subscriptions.value.length ? 'rss.empty_articles_hint' : 'rss.empty_hint') }}</p>
-        <p v-else>{{ $t('newsletter.empty_hint') }}</p>
-        <button v-if="rss.rssEnabled.value && !rss.subscriptions.value.length" class="rss-button primary" @click="showAdd"><RssIcon name="plus" />{{ $t('rss.add') }}</button>
+        <h2>{{ $t(rss.subscriptions.value.length ? 'rss.no_articles' : 'rss.no_subscriptions') }}</h2>
+        <p>{{ $t(rss.subscriptions.value.length ? 'rss.empty_articles_hint' : 'rss.empty_hint') }}</p>
+        <button v-if="!rss.subscriptions.value.length" class="rss-button primary" @click="showAdd"><RssIcon name="plus" />{{ $t('rss.add') }}</button>
       </section>
       <p v-else-if="!visibleEntries.length" class="empty-state">{{ $t('rss.no_matches') }}</p>
       <template v-for="entry in visibleEntries" :key="entry.id">
@@ -106,10 +99,9 @@
           </button>
           <div class="article-footer">
             <span>{{ entry.author }}</span
-            ><NuxtLink v-if="entry.kind !== 'newsletter' && entry.bookmark_user_uuid" class="save-action saved" :to="localePath('/b/' + entry.bookmark_user_uuid)"
+            ><NuxtLink v-if="entry.bookmark_user_uuid" class="save-action saved" :to="localePath('/b/' + entry.bookmark_user_uuid)"
               ><RssIcon name="check" />{{ $t('rss.saved') }}</NuxtLink
-            ><button v-else-if="entry.kind !== 'newsletter'"
-              class="save-action" :disabled="rss.pending.value || !entry.article_url" :title="!entry.article_url ? $t('rss.no_url') : ''" @click="rss.save(entry)">
+            ><button v-else class="save-action" :disabled="rss.pending.value || !entry.article_url" :title="!entry.article_url ? $t('rss.no_url') : ''" @click="rss.save(entry)">
               <RssIcon name="bookmark" />{{ $t('rss.save') }}
             </button>
           </div>
@@ -134,7 +126,7 @@
             {{ date(previewEntry.published_at || previewEntry.first_seen_at) }}<span v-if="previewEntry.author"> · {{ previewEntry.author }}</span>
           </div>
           <h2 id="rss-preview-title">{{ previewEntry.title }}</h2>
-          <p class="feed-caption">{{ $t(previewEntry.kind === 'newsletter' ? 'newsletter.content_hint' : 'rss.feed_content') }}</p>
+          <p class="feed-caption">{{ $t('rss.feed_content') }}</p>
           <p v-if="rss.detailLoading.value" class="preview-loading" role="status"><RssIcon name="refresh" class="spinning" />{{ $t('rss.loading') }}</p>
           <p v-else-if="rss.error.value && !rss.detail.value" class="rss-notice" role="alert">
             {{ errorText }} <button class="text-button" @click="rss.open(previewEntry)">{{ $t('rss.retry') }}</button>
@@ -143,20 +135,19 @@
           <p v-if="rss.detail.value?.content_truncated" class="feed-caption">{{ $t('rss.truncated') }}</p>
           <p v-if="rss.error.value && rss.detail.value" class="rss-notice" role="alert">{{ errorText }}</p>
         </div>
-        <footer v-if="previewEntry.kind !== 'newsletter' || previewEntry.article_url" class="reader-footer">
+        <footer class="reader-footer">
           <a v-if="previewEntry.article_url" class="text-button" :href="previewEntry.article_url" target="_blank" rel="noopener noreferrer"
             >{{ $t('rss.original') }}<RssIcon name="external" /></a
-          ><span v-else-if="previewEntry.kind !== 'newsletter'" class="update-caption">{{ $t('rss.no_url') }}</span
-          ><NuxtLink v-if="previewEntry.kind !== 'newsletter' && previewBookmark" class="rss-button primary" :to="localePath('/b/' + previewBookmark)"><RssIcon name="check" />{{ $t('rss.saved') }}</NuxtLink
-          ><button v-else-if="previewEntry.kind !== 'newsletter'"
-            class="rss-button primary" :disabled="rss.pending.value || !previewEntry.article_url" @click="rss.save(rss.detail.value || previewEntry)">
+          ><span v-else class="update-caption">{{ $t('rss.no_url') }}</span
+          ><NuxtLink v-if="previewBookmark" class="rss-button primary" :to="localePath('/b/' + previewBookmark)"><RssIcon name="check" />{{ $t('rss.saved') }}</NuxtLink
+          ><button v-else class="rss-button primary" :disabled="rss.pending.value || !previewEntry.article_url" @click="rss.save(rss.detail.value || previewEntry)">
             <RssIcon name="bookmark" />{{ $t('rss.save') }}
           </button>
         </footer>
       </template>
     </dialog>
 
-    <dialog v-if="rss.rssEnabled.value" ref="addDialog" class="rss-dialog compact-dialog" aria-labelledby="rss-add-title" @close="adding = false" @click="closeBackdrop($event, addDialog)">
+    <dialog ref="addDialog" class="rss-dialog compact-dialog" aria-labelledby="rss-add-title" @close="adding = false" @click="closeBackdrop($event, addDialog)">
       <form @submit.prevent="add">
         <header class="dialog-header">
           <h2 id="rss-add-title">{{ $t(editing ? 'rss.edit' : 'rss.add') }}</h2>
@@ -178,7 +169,7 @@
         <label class="input-label remark-label" for="rss-remark">{{ $t('rss.remark') }}</label>
         <input id="rss-remark" v-model="remark" type="text" maxlength="120" :placeholder="editing?.title || $t('rss.remark_placeholder')" />
         <p class="update-caption">{{ $t('rss.remark_hint') }}</p>
-        <p v-if="!editing" class="update-caption">{{ $t('rss.feed_limit', { count: rss.subscriptions.value.filter(row => row.kind !== 'newsletter').length }) }}</p>
+        <p v-if="!editing" class="update-caption">{{ $t('rss.feed_limit', { count: rss.subscriptions.value.length }) }}</p>
         <p v-if="rss.error.value" class="rss-notice" role="alert">{{ errorText }}</p>
         <footer class="dialog-actions">
           <button type="button" class="rss-button" @click="addDialog?.close()">{{ $t('rss.cancel') }}</button
@@ -188,7 +179,7 @@
         </footer>
       </form>
     </dialog>
-    <dialog v-if="rss.rssEnabled.value" ref="removeDialog" class="rss-dialog compact-dialog" aria-labelledby="rss-remove-title" @close="removing = null" @click="closeBackdrop($event, removeDialog)">
+    <dialog ref="removeDialog" class="rss-dialog compact-dialog" aria-labelledby="rss-remove-title" @close="removing = null" @click="closeBackdrop($event, removeDialog)">
       <header class="dialog-header">
         <h2 id="rss-remove-title">{{ $t('rss.remove') }}</h2>
         <button class="icon-button" :aria-label="$t('rss.close')" @click="removeDialog?.close()"><RssIcon name="close" /></button>
@@ -205,12 +196,11 @@
 </template>
 <script setup lang="ts">
 import ListLayoutSwitcher from '~/components/BookmarkList/ListLayoutSwitcher.vue'
-import NewsletterAddress from '~/components/NewsletterAddress.vue'
 import RssIcon from '~/components/RssIcon.vue'
 
 import { sanitizeRssPreview } from '~/utils/rssPreview'
 
-import type { FeedEntry, FeedSubscription } from '@slax-reader/contracts'
+import type { RssEntry, RssSubscription } from '@slax-reader/contracts'
 import { rssSourceText, rssSubscriptionName, useRss } from '~/composables/useRss'
 import { useUserStore } from '~/stores/user'
 
@@ -222,28 +212,29 @@ const localePath = useLocalePath()
 const { t, locale, te } = useI18n()
 const user = useUserStore()
 const remark = ref(''),
-  editing = ref<FeedSubscription | null>(null)
+  editing = ref<RssSubscription | null>(null)
 const url = ref(''),
   adding = ref(false)
 const preview = ref<HTMLDialogElement>(),
   addDialog = ref<HTMLDialogElement>(),
   removeDialog = ref<HTMLDialogElement>()
-const previewEntry = ref<FeedEntry | null>(null),
-  removing = ref<FeedSubscription | null>(null),
+const previewEntry = ref<RssEntry | null>(null),
+  removing = ref<RssSubscription | null>(null),
   now = ref(Date.now())
 const failedImages = reactive(new Set<string>())
 const failedIcons = reactive(new Set<string>())
 const current = computed(() => rss.subscriptions.value.find(row => row.id === rss.selected.value))
 const coolingDown = computed(() => !!current.value && Date.parse(current.value.next_allowed_at) > now.value)
 const historyCoolingDown = computed(() => !!rss.retryAt.value && Date.parse(rss.retryAt.value) > now.value)
-const refreshTitle = computed(() => (current.value?.refreshing ? t('rss.refreshing') : coolingDown.value ? t('rss.next_refresh', { time: date(current.value!.next_allowed_at) }) : t('rss.refresh'))
+const refreshTitle = computed(() =>
+  current.value?.refreshing ? t('rss.refreshing') : coolingDown.value ? t('rss.next_refresh', { time: date(current.value!.next_allowed_at) }) : t('rss.refresh')
 )
 const previewBookmark = computed(() => rss.detail.value?.bookmark_user_uuid || rss.entries.value.find(row => row.id === previewEntry.value?.id)?.bookmark_user_uuid)
 const visibleEntries = computed(() => {
   const term = search.value.trim().toLocaleLowerCase()
   return term ? rss.entries.value.filter(row => [row.title, row.summary, row.source_title].some(text => text.toLocaleLowerCase().includes(term))) : rss.entries.value
 })
-const iconFailed = (sub: FeedSubscription) => {
+const iconFailed = (sub: RssSubscription) => {
   if (sub.icon_url) failedIcons.add(sub.icon_url)
 }
 const errorText = computed(() => (te('rss.errors.' + rss.error.value) ? t('rss.errors.' + rss.error.value) : t('rss.source_error')))
@@ -266,7 +257,7 @@ const showAdd = () => {
   adding.value = true
   addDialog.value?.showModal()
 }
-const showEdit = (row: FeedSubscription) => {
+const showEdit = (row: RssSubscription) => {
   rss.error.value = ''
   editing.value = row
   url.value = row.feed_url
@@ -286,7 +277,7 @@ const remove = async () => {
   if (removing.value) await rss.remove(removing.value.id)
   if (!rss.error.value) removeDialog.value?.close()
 }
-const open = (entry: FeedEntry) => {
+const open = (entry: RssEntry) => {
   previewEntry.value = entry
   preview.value?.showModal()
   void rss.open(entry)
@@ -301,13 +292,6 @@ watch(removing, async value => {
     rss.error.value = ''
     await nextTick()
     removeDialog.value?.showModal()
-  }
-})
-watch([rss.rssEnabled, rss.newsletterEnabled], () => {
-  if (previewEntry.value && (previewEntry.value.kind === 'newsletter' ? !rss.newsletterEnabled.value : !rss.rssEnabled.value)) closePreview()
-  if (!rss.rssEnabled.value) {
-    addDialog.value?.close()
-    removeDialog.value?.close()
   }
 })
 watch(rss.enabled, value => {
@@ -1005,9 +989,6 @@ input {
   .reader-footer .rss-button {
     padding: 9px 12px;
   }
-}
-:global(html[data-slax-theme='eink'] .rss-dialog::backdrop) {
-  backdrop-filter: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .spinning {

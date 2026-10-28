@@ -39,14 +39,16 @@ import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
 import { FeedRepo } from '../../infra/repository/dbFeed'
 import { RssService } from '../../domain/rss'
-import { RssContent } from '../../domain/rss/content'
+import { NewsletterContent } from '../../domain/newsletter/content'
 import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
 import { NewsletterRepo } from '../../infra/repository/dbNewsletter'
 import { MediaBodyService } from '../../domain/mediaBody'
 import { RssRepo } from '../../infra/repository/dbRss'
+import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
+import { NewsletterSaveRepo } from '../../infra/repository/dbNewsletterSave'
 import { AigcService } from '../../domain/aigc'
 import { TagService } from '../../domain/tag'
 import { MarkService } from '../../domain/mark'
@@ -75,6 +77,7 @@ import { BookmarkAddOrchestrator } from '../../domain/orchestrator/bookmarkAdd'
 import { UrlParserHandler } from '../../domain/orchestrator/urlParser'
 import { CollectionOrchestrator } from '../../domain/orchestrator/collection'
 import { FeedService } from '../../domain/feed'
+import { NewsletterSaveService } from '../../domain/newsletter/save'
 import { MarkOrchestrator } from '../../domain/orchestrator/mark'
 import { DashboardService } from '../../domain/dashboard'
 import { ShareOrchestrator } from '../../domain/orchestrator/share'
@@ -85,6 +88,7 @@ import { EmailService } from '../../domain/email'
 import { ContentOrchestrator } from '../../domain/orchestrator/content'
 import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
+import { NewsletterContentGcJob } from '../../handler/cron/newsletterContentGcJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
 import { RssJob } from '../../handler/cron/rssJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
@@ -195,7 +199,7 @@ container.register(EmailService, {
 })
 
 container.register(FeedService, {
-  useFactory: container => new FeedService(container.resolve(FeedRepo), container.resolve(RssService), container.resolve(RssContent))
+  useFactory: container => new FeedService(container.resolve(FeedRepo), container.resolve(RssService), container.resolve(NewsletterContent))
 })
 
 container.register(ImportService, {
@@ -252,7 +256,7 @@ container.register(MediaSnapshotService, {
 })
 
 container.register(NewsletterService, {
-  useFactory: container => new NewsletterService(container.resolve(NewsletterRepo), container.resolve(RssContent))
+  useFactory: container => new NewsletterService(container.resolve(NewsletterRepo), container.resolve(NewsletterContent))
 })
 
 container.register(NotificationService, {
@@ -391,6 +395,22 @@ container.register(YoutubeArticleService, {
     )
 })
 
+container.register(NewsletterContent, {
+  useFactory: container => new NewsletterContent(lazy(() => container.resolve(BucketClient)))
+})
+
+container.register(NewsletterSaveService, {
+  useFactory: container =>
+    new NewsletterSaveService(
+      container.resolve(NewsletterSaveRepo),
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(SearchService),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(BookmarkRepo),
+      container.resolve(NotificationMessage)
+    )
+})
+
 container.register(AigcBatchOrchestrator, {
   useFactory: container => new AigcBatchOrchestrator(container.resolve(AigcService), container.resolve(BookmarkService), container.resolve(TagService))
 })
@@ -525,6 +545,10 @@ container.register(CollectionJob, {
   useFactory: container => new CollectionJob(container.resolve(CollectionService))
 })
 
+container.register(NewsletterContentGcJob, {
+  useFactory: container => new NewsletterContentGcJob(container.resolve(NewsletterContent), container.resolve(NewsletterRepo))
+})
+
 container.register(PodcastJob, {
   useFactory: container => new PodcastJob(container.resolve(PodcastService))
 })
@@ -633,6 +657,14 @@ container.register(NewsletterRepo, {
   useFactory: container => new NewsletterRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
+container.register(NewsletterSaveRepo, {
+  useFactory: container =>
+    new NewsletterSaveRepo(
+      lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)),
+      container.resolve(BookmarkRepo)
+    )
+})
+
 container.register(PodcastArticleRepo, {
   useFactory: container => new PodcastArticleRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
@@ -734,7 +766,7 @@ container.register(EventsController, {
 })
 
 container.register(FeedController, {
-  useFactory: container => new FeedController(container.resolve(FeedService))
+  useFactory: container => new FeedController(container.resolve(FeedService), container.resolve(NewsletterSaveService))
 })
 
 container.register(ImageController, {

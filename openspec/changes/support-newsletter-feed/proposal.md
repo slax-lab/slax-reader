@@ -2,42 +2,31 @@
 
 ## Why
 
-Users need a dedicated Newsletter receiving address and one Feed destination for RSS and email reading. The legacy mail collector only extracts a URL, has no Worker email entry point, and cannot satisfy this requirement.
+Users need permanent Newsletter receiving addresses and one Web Feed for RSS and email. Newsletter must remain independent of the shipped RSS storage and write pipeline. Saving received mail to Inbox must create an independent snapshot, including messages without a web article URL.
 
 ## What Changes
 
-- Add a user-Lab-gated Newsletter feature with an account-derived, permanent receiving address and user-isolated sender sources.
-- Receive bounded MIME messages through the Edge Worker, process content quietly, and store HTML in R2 with synchronous publication and duplicate suppression.
-- Add authenticated Feed read APIs. Newsletter uses REST in the initial rollout; remove its PowerSync stream and client subscription while retaining RSS-only legacy APIs and sync projections.
-- Always display Feed in Web, including setup and disabled states, address provisioning, merged reading, and existing RSS management. With Newsletter enabled, read the whole unified Feed through REST for one ordered cursor; RSS-only sessions retain existing local-first PowerSync behavior.
-- Use dev feed+account@newsletterreader.slax.dev and production feed+account@newsletterreader.slax.com, one literal feed route plus Subaddressing per environment, and dev-first operational acceptance with production domains preconfigured. Preserve existing root-domain mail services and business forwarding.
+- Receive bounded MIME through the Edge email handler and immutable newsletter platform bindings, using feed+account addresses.
+- Create one purpose-built sr_newsletter_feed row per message; keep admission, deduplication, cancellation and readable content metadata together. No sr_feed or sr_newsletter_receipt, no RSS DDL/mirror/backfill or Newsletter writes to RSS tables.
+- Keep synchronous publication without processing leases, replay payloads or automatic recovery. Preserve configured limits, quiet parsing, attachment metadata, proxy images and tracking-pixel removal.
+- Merge existing RSS reads and ready Newsletter rows through private REST Feed endpoints. Preserve original RSS APIs, fetching, history, retention, save behavior and PowerSync. Put mixed Web behavior in Feed-owned adapters and delegate RSS-only mode to unchanged RSS code.
+- Add Save to Inbox by copying the received R2 body into a separate standard HTML/text bookmark snapshot; create private bookmark/relation and explicitly disabled per-bookmark sharing atomically. Repeats/restore preserve personal state and deliberate sharing choices.
+- Preserve dev newsletterreader.slax.dev and beta/prod/legacy-main newsletterreader.slax.com with one literal feed route plus Cloudflare Subaddressing. No per-user route or new infrastructure service.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `newsletter-feed`: Stable Newsletter addresses, bounded incoming email processing, unified Feed reads, independent feature gates and dev rollout.
+- newsletter-feed: Stable receiving addresses, independent message persistence, synchronous publication, private Feed reads and copied Inbox snapshots.
 
 ### Modified Capabilities
 
-- `rss-labs`: Always-visible Web Feed destination and kind isolation for RSS APIs, polling, quotas, retention and synchronization.
+- rss-labs: Always-visible Web Feed navigation and mixed-source presentation; shipped RSS storage/contracts/behavior remain unchanged.
 
 ## Impact
 
-API Workers, PostgreSQL schema and migration, R2 objects, shared TypeScript contracts, PowerSync rules and Web local schema/UI. Introduces pinned postal-mime. Mobile, CLI and Extension continue using unchanged RSS contracts. The user explicitly deferred Newsletter PowerSync on 2026-10-27 to simplify initial debugging. The user superseded the root-domain pilot on 2026-10-27 and explicitly selected the fixed feed+ prefix and newsletterreader subdomains. Production activation still requires the compatibility release on all Workers sharing the database, a verified production Worker target, and preservation of existing business forwarding. Only newsletterreader.slax.com receives production mail; root slax.com Feishu MX and slax.app forwarding remain outside this change.
+API Workers, one initial Newsletter migration, R2 content, additive Feed contracts and Web UI. Existing search helpers need a narrow private indexing/error path and atomic D1 replacement; existing generic behavior is retained. No new dependencies, Newsletter PowerSync stream or data compatibility for unshipped trials. RSS model/repository/service/content/local-first differences from this PR are reverted to the reviewed upstream baseline.
 
-## Approved review revision
+## Human approval (2026-10-28)
 
-The user approved the 2026-10-27 plan revision and implementation in the existing worktree. Replace the dedicated address registry at runtime with immutable Newsletter platform bindings; provision through user setting enable and retain read-only address GET. Expand RSS sources into physical `sr_feed` with a transactionally installed old-to-new write mirror and ID-preserving backfill. Remove `NEWSLETTER_ENABLED`; domain configuration follows the latest approved environment policy below. New receives await publication, preserve attachment metadata and existing external links, filter explicit tracking pixels and use quiet shared extraction. The user supplied and accepted a real EML in local API/Web on 2026-10-28; the message remains private. Automatic recovery is deferred by the user on 2026-10-28; no previous Newsletter implementation is supported.
-
-## First-release simplification (2026-10-28)
-
-The user confirmed that Newsletter has not merged or shipped and explicitly rejected compatibility with earlier versions of this PR. Consolidate its unshipped migrations into the initial feature migration, never create a separate address registry, use a direct BIGINT receipt id with a required platform binding and receipt state/short processing lease, and remove legacy UUID/address/raw-mail paths and projections. Preserve the existing RSS compatibility mirror because RSS already ships. Development databases with old trial migration history require separate explicit local repair/reset; do not alter them automatically. Newsletter Save to Inbox remains out of scope; this revision only investigates the current RSS storage behavior.
-
-## Production-domain preconfiguration (2026-10-28)
-
-The user explicitly requested setting the production receiving domain in the existing private configuration PR now, avoiding a later configuration-only PR. Keep dev at newsletterreader.slax.dev and set beta, prod and the legacy main copy to newsletterreader.slax.com. This supersedes the earlier empty-domain pilot gate. A valid domain permits user-Lab provisioning once matching code is deployed; real receiving still requires Cloudflare DNS/Subaddressing and the literal feed route. Operational acceptance starts in dev; do not change remote routing or deploy as part of this configuration update.
-
-## No background Newsletter recovery (2026-10-28)
-
-The user explicitly requested removing recoverNewsletter for the first release and considering recovery in a future iteration. Incoming events still await synchronous publication and propagate infrastructure failures. Remove dedicated staging, scheduled scans/GC, retry scheduling and counters. Retain only receipt deduplication/state and short per-delivery leases needed for concurrency and disable/deletion fences. A failed or interrupted receipt is processed again only if another email delivery or explicit local EML replay arrives; original-sender retry is not guaranteed. Consolidate the unmerged initial DDL directly, without adding a migration or resetting the operator's current local database.
+The user approved docs/superpowers/plans/2026-10-28-newsletter-independent-storage.md after independent review, explicitly confirmed disabled single-bookmark sharing for new Inbox copies, and authorized implementation in the existing worktree, updates to original PRs and local API/Web startup for renewed acceptance. This supersedes earlier generic-source/receipt designs, no-save decisions and RSS compatibility rollout requirements. Local trial data is disposable: directly revise the initial unmerged DDL without cleanup migrations or compatibility layers. No remote deployment or console mutation is authorized by this implementation request.
