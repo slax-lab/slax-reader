@@ -467,7 +467,7 @@ async function main() {
     assert.equal(saved.body.data.processing_status, 'ready')
     const savedUuid = saved.body.data.bookmark_user_uuid
     const savedId = Number(resources.sql(pg.id, 'http_reader', `SELECT bookmark_id FROM sr_user_bookmark WHERE uuid='${savedUuid}'`))
-    assert.equal(resources.sql(pg.id, 'http_reader', `SELECT is_enable FROM sr_bookmark_share WHERE bookmark_id=${savedId} AND user_id=1`), 'f')
+    assert.equal(resources.sql(pg.id, 'http_reader', `SELECT count(*) FROM sr_bookmark_share WHERE bookmark_id=${savedId} AND user_id=1`), '0')
     assert.equal(resources.sql(pg.id, 'http_reader', `SELECT count(*) FROM sr_bookmark b JOIN sr_newsletter_feed n ON n.content_key=b.content_key WHERE b.id=${savedId}`), '0')
     assert.equal((await request('newsletter-save-repeat', savePath, saveInit)).body.data.bookmark_user_uuid, savedUuid)
     assert.equal(d1('DB_FULLTEXT', `SELECT count(*) AS n FROM slax_bookmark_raw WHERE bookmark_id=${savedId}`)[0].n, 1)
@@ -509,12 +509,27 @@ async function main() {
       else process.env.WRANGLER_REGISTRY_PATH = previousRegistry
     }
     try {
+      assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT snapshot_sharing FROM sr_user WHERE id=1'), 't')
+      for (const headers of [{}, secondHeaders]) {
+        const response = await contentProxy.env.BACKEND.fetch(`https://content.internal/content/meta?uuid=${savedUuid}`, { headers })
+        assert.equal(response.status, 200)
+      }
+      resources.sql(pg.id, 'http_reader', 'UPDATE sr_user SET snapshot_sharing=false WHERE id=1')
       for (const headers of [{}, secondHeaders]) {
         const response = await contentProxy.env.BACKEND.fetch(`https://content.internal/content/meta?uuid=${savedUuid}`, { headers })
         assert.equal(response.status, 404)
       }
       const response = await contentProxy.env.BACKEND.fetch(`https://content.internal/content/meta?uuid=${savedUuid}`, { headers: mailHeaders })
       assert.equal(response.status, 200)
+      resources.sql(
+        pg.id,
+        'http_reader',
+        `UPDATE sr_user SET snapshot_sharing=true WHERE id=1; INSERT INTO sr_bookmark_share(bookmark_id,user_id,share_code,is_enable) VALUES(${savedId},1,'',false)`
+      )
+      for (const headers of [{}, secondHeaders]) {
+        const response = await contentProxy.env.BACKEND.fetch(`https://content.internal/content/meta?uuid=${savedUuid}`, { headers })
+        assert.equal(response.status, 404)
+      }
     } finally {
       await contentProxy.dispose()
     }
@@ -523,7 +538,8 @@ async function main() {
     assert.equal(restored.body.data.result, 'restored')
     assert.equal(restored.body.data.bookmark_user_uuid, savedUuid)
     assert.equal(resources.sql(pg.id, 'http_reader', `SELECT is_starred AND alias_title='Kept title' AND deleted_at IS NULL FROM sr_user_bookmark WHERE uuid='${savedUuid}'`), 't')
-    evidence.newsletterCopy = 'independent HTML/text; explicit disabled sharing; owner read; anonymous/B denial; repeat and restore identity; real Jieba/D1 fulltext'
+    assert.equal(resources.sql(pg.id, 'http_reader', `SELECT is_enable FROM sr_bookmark_share WHERE bookmark_id=${savedId} AND user_id=1`), 'f')
+    evidence.newsletterCopy = 'independent HTML/text; follows global sharing on/off; owner read; explicit off preserved across restore; repeat identity; real Jieba/D1 fulltext'
     evidence.twoUserDelivery = 'one literal route format, distinct registered details and private bodies; cross-user body denied'
     const disabled = await request('newsletter-disable', '/v1/user/setting/disable', {
       method: 'POST',

@@ -15,15 +15,6 @@ export const adapter = (db: any): any => {
       )
     ).rows
   return {
-    sr_bookmark_share: {
-      upsert: async ({ create }: any) =>
-        (
-          await db.query(
-            'INSERT INTO sr_bookmark_share(user_id,bookmark_id,is_enable) VALUES($1,$2,false) ON CONFLICT(bookmark_id,user_id) DO UPDATE SET is_enable=false RETURNING *',
-            [create.user_id, create.bookmark_id]
-          )
-        ).rows[0]
-    },
     sr_user_lab_feature: {
       upsert: async ({ create }: any) =>
         (

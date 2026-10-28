@@ -136,8 +136,8 @@ Newsletter processing SHALL reuse a quiet pure content extraction path, fall bac
 - **WHEN** mail contains only a binary attachment or multiple useful content sections
 - **THEN** a readable metadata body or complete sanitized fallback remains, with no invented download URL or stored attachment binary
 
-### Requirement: Independent private Inbox copy
-An authenticated live user with Newsletter enabled SHALL be able to save an owned ready mail without an article URL. Save SHALL copy received content to distinct standard bookmark HTML/text R2 keys, including the HTML snapshot marker, without fetching an original web URL. The bookmark, owner relation and explicitly disabled single-bookmark sharing SHALL be published atomically. A successful response SHALL identify a committed ready bookmark. The system SHALL not assume private_user alone disables public reads.
+### Requirement: Independent Inbox copy
+An authenticated live user with Newsletter enabled SHALL be able to save an owned ready mail without an article URL. Save SHALL copy received content to distinct standard bookmark HTML/text R2 keys, including the HTML snapshot marker, without fetching an original web URL. The owner-isolated bookmark and owner relation SHALL be published atomically. A new copy SHALL follow ordinary account-default sharing without creating a per-bookmark override. A successful response SHALL identify a committed ready bookmark. The system SHALL not assume private_user alone disables public reads.
 
 #### Scenario: Save and repeat
 - **WHEN** a user saves a mail, repeats or saves concurrently
@@ -149,7 +149,11 @@ An authenticated live user with Newsletter enabled SHALL be able to save an owne
 
 #### Scenario: Trash restore and deliberate sharing
 - **WHEN** a copied bookmark is restored by saving again
-- **THEN** it returns to Inbox with marks/tags/star/title and any deliberate sharing choice preserved; a newly created copy defaults to disabled single-bookmark sharing even with global sharing on
+- **THEN** it returns to Inbox with marks/tags/star/title and any deliberate sharing choice preserved; a newly created copy follows the owner's current global sharing setting
+
+#### Scenario: Standard Inbox source and sharing defaults
+- **WHEN** a user opens a saved mail or changes the account's global sharing setting
+- **THEN** the Inbox header reuses the standard Source module with localized Newsletter and sender metadata, no synthetic link/external arrow or implementation/privacy paragraph; absent a deliberate per-bookmark override, the ordinary sharing policy follows the current global setting
 
 #### Scenario: Failure and independent lifetimes
 - **WHEN** storage/index/commit fails, Newsletter is disabled, or one content copy is deleted

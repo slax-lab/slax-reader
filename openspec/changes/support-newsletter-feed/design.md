@@ -20,9 +20,11 @@ Explicit RSS history probes delegate to the unchanged public RSS service, anchor
 
 ## Independent Inbox acquisition
 
-Save accepts only an owned ready mail and live enabled owner. It copies received content through SnapshotBundle to distinct HTML/text keys, including the normal plain-HTML marker. One owner/message/destination-locked transaction publishes the bookmark, user relation and disabled share row. Stable identity is slax-newsletter://message/<id> with private_user; no article URL or crawl job is used. Repeat/restore also use final authorization, preserve annotations and explicit sharing choices, and never overwrite a successful snapshot. Generic acquire/retry/sync/import paths reject internal mail identities before mutation.
+Save accepts only an owned ready mail and live enabled owner. It copies received content through SnapshotBundle to distinct HTML/text keys, including the normal plain-HTML marker. One owner/message/destination-locked transaction publishes the owner-isolated bookmark and user relation without adding a per-bookmark sharing override. New copies follow the owner's current global sharing setting, using the ordinary bookmark read/share policy. Stable identity is slax-newsletter://message/<id> with private_user; no article URL or crawl job is used. Repeat/restore also use final authorization, preserve annotations and explicit sharing choices, and never overwrite a successful snapshot. Generic acquire/retry/sync/import paths reject internal mail identities before mutation.
 
 Post-commit indexing/cache/changelog/notification use established helpers with strict private diagnostics and atomic D1 replacement for the new path. Index failure does not delete a committed copy; a repeat can repair it. Unknown COMMIT outcomes retain uncertain files. No project-wide snapshot recovery/outbox is introduced. Existing Inbox copies remain readable when Newsletter is disabled, and the two R2 lifetimes are independent.
+
+The Inbox source header reuses SnapshotArticleSource with localized Newsletter text and sender metadata. A source without a URL uses the same semantic tokens and layout as ordinary sources but renders a non-link without an external arrow; existing website source links remain unchanged. Remove the former saved-content paragraph.
 
 ## Verification
 

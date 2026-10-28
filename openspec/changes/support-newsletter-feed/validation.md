@@ -1,8 +1,22 @@
 # Current revision: independent Newsletter storage and Inbox copies
 
-Revision approved by the user on 2026-10-28, including default-disabled single-bookmark sharing. This section supersedes all older receipt, generic-feed, RSS-mirror, lease and no-save statements in the historical record below. Implementation and local verification are complete; renewed user hands-on acceptance and the original PR update remain pending.
+Revision approved by the user on 2026-10-28. During acceptance, the user explicitly replaced the special disabled-sharing default with ordinary account-default sharing and requested the standard Source module. That later decision supersedes earlier disabled-sharing evidence below. The original PR update and renewed human hands-on acceptance remain pending.
 
-## Automated checks
+## Latest acceptance adjustments: ordinary sharing and standard Source (2026-10-28)
+
+New Newsletter Inbox copies create no per-bookmark sharing override and follow the current account-level sharing setting. Save/restore preserves any existing per-bookmark choice. Storage remains owner-isolated with independent HTML/text keys; private Feed reads and acquisition guards are unchanged. No trial-data compatibility or new migration was added, and existing local copies are not bulk-updated.
+
+The old saved-content paragraph and its English/Chinese translations are removed. BookmarkArticle now reuses SnapshotArticleSource with localized Newsletter and sender text. Sources without a URL render as a non-interactive element with no href/target/external arrow; ordinary website sources retain their original link, author and style behavior.
+
+- Regression-first API tests reproduced the forced share override; the source regression reproduced the empty external link. Targeted API verification passed **33 tests** (Newsletter save/repository and bookmark access security). Targeted Web verification passed **20 tests** (source module, existing PDF source, Feed panel and composable).
+- `pnpm api -- gen:all` passed and generated the reduced NewsletterSaveRepo dependency wiring. Unrelated generated router ordering churn was discarded; generated types/consumer output had no final differences. API/contracts typecheck passed.
+- Canonical Web typecheck, API/contracts typecheck and scoped API/Web lint passed. Strict OpenSpec validation passed **79/0** and `git diff --check` passed. No native CLI/Extension/Mobile logic, contracts or package output changed.
+- Actual `pnpm api -- test:http` passed in its owned fresh Edge/Core/PostgreSQL/R2/D1/Jieba environment. It verifies zero override rows for a new copy; anonymous and other-user metadata reads with global sharing on; denial with global sharing off; owner access; explicit per-bookmark off overriding global on and surviving Trash restore; dedupe, copied body/search and disabled Newsletter behavior. The prior forced-off HTTP expectations were revised to the newly requested contract. No operator account's sharing setting was changed.
+- Actual BookmarkArticle ran in the isolated Nuxt browser fixture with synthetic data. Default desktop light, 390px dark and 768px e-ink all displayed the existing 12px Source capsule, Newsletter and sender above the title; the paragraph, synthetic link and external arrow were absent. Narrow-screen source/page overflow checks passed. Existing website/X/PDF source unit cases remained green. Screenshots stay outside Git at `/tmp/newsletter-inbox-source-light.png`, `/tmp/newsletter-inbox-source-dark.png` and `/tmp/newsletter-inbox-source-eink.png`. The browser fixture does not establish authenticated backend behavior; that is covered separately by the actual HTTP smoke.
+- Temporary fixture services/tabs were stopped and the viewport reset. The requested localhost:3000/8787 integration services remain running for renewed human acceptance. No hosted routing or deployment was performed.
+- Local Bugs/Security/Compliance review of this delta found no Important issues: normal share policy is reused rather than forced on, explicit choices remain untouched, the internal mail identity never becomes a web link, and current plan/spec/operator guidance agree with the user's revised request. Earlier independent review records cover the implementation baseline; this delta's human hands-on acceptance is still pending.
+
+## Earlier automated evidence (sharing default superseded)
 
 ### Save-progress acceptance correction (2026-10-28)
 

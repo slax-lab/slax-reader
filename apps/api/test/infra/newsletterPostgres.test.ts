@@ -13,13 +13,7 @@ native('independent Newsletter native transactions', () => {
   const pg = new PrismaClient({ adapter: new PrismaPg(pool) })
   const repo = new NewsletterRepo(() => pg),
     lab = new LabRepo(() => pg),
-    saves = new NewsletterSaveRepo(
-      () => pg,
-      new BookmarkRepo(
-        () => pg,
-        () => pg
-      )
-    )
+    saves = new NewsletterSaveRepo(() => pg)
   let recipient: NewsletterRecipient
   const hash = (value: number) => value.toString(16).padStart(64, '0')
   beforeAll(async () => {
@@ -105,7 +99,7 @@ native('independent Newsletter native transactions', () => {
     )
     expect(outcomes.filter(row => row.result === 'created')).toHaveLength(1)
     expect(new Set(outcomes.map(row => row.relation.uuid)).size).toBe(1)
-    expect((await pg.sr_bookmark_share.findFirst({ where: { bookmark_id: outcomes[0].relation.bookmark_id } }))?.is_enable).toBe(false)
+    expect(await pg.sr_bookmark_share.findFirst({ where: { bookmark_id: outcomes[0].relation.bookmark_id } })).toBeNull()
   })
   test('real HTTP-style trash then save restoration reactivates existing tag relations', async () => {
     const { mail } = await repo.admit(recipient, hash(1), hash(2), 'sender@fixture.invalid')

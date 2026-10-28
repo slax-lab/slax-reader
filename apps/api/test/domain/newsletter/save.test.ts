@@ -5,7 +5,6 @@ import { NewsletterSaveRepo } from '@/infra/repository/dbNewsletterSave'
 import { NewsletterContent } from '@/domain/newsletter/content'
 import { parseNewsletter } from '@/domain/newsletter/parser'
 import { NewsletterSaveService } from '@/domain/newsletter/save'
-import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { memoryBucket } from '../../utils/snapshotBucket'
 import { readEmbeddedSnapshot } from '@/utils/snapshotBundle'
 let indexing: ReturnType<typeof vi.fn>, service: NewsletterSaveService, repo: NewsletterSaveRepo, storage: ReturnType<typeof memoryBucket>
@@ -27,9 +26,8 @@ beforeEach(async () => {
   const stored = await new NewsletterContent(() => ({ R2Bucket: storage.bucket }) as never).store({} as Env, 'owner', 1n, parsed)
   await storage.bucket.put('newsletter-content/original', await (await storage.bucket.get(stored.key))!.text())
   await storage.bucket.delete(stored.key)
-  const pg = () => adapter(db),
-    bookmarks = new BookmarkRepo(pg, pg)
-  repo = new NewsletterSaveRepo(pg, bookmarks)
+  const pg = () => adapter(db)
+  repo = new NewsletterSaveRepo(pg)
   indexing = vi.fn(async () => [{ status: 'fulfilled', value: undefined }])
   const search = { addSearchRecord: indexing, clearSearchCache: vi.fn(async () => {}) }
   const searchRepo = { upsertUserBookmark: vi.fn(async () => {}) }
@@ -43,12 +41,13 @@ beforeEach(async () => {
     { sendBookmarkChange: vi.fn(async () => {}) } as never
   )
 })
-test('copies URL-less mail into a ready private HTML/text snapshot and explicitly disables sharing', async () => {
+test.each([true, false])('copies mail into an owned HTML/text snapshot and follows account sharing=%s', async defaultSharing => {
+  await db.exec(`UPDATE sr_user SET snapshot_sharing=${defaultSharing} WHERE id=1`)
   const result = await service.save(ctx, 1n)
   expect(result).toMatchObject({ result: 'created', processing_status: 'ready' })
   const [row] = (
     await db.query<any>(
-      'SELECT b.*,ub.uuid AS relation_uuid,s.is_enable FROM sr_bookmark b JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id JOIN sr_bookmark_share s ON s.bookmark_id=b.id'
+      'SELECT b.*,ub.uuid AS relation_uuid,s.is_enable FROM sr_bookmark b JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id LEFT JOIN sr_bookmark_share s ON s.bookmark_id=b.id'
     )
   ).rows
   expect(row).toMatchObject({
@@ -56,9 +55,10 @@ test('copies URL-less mail into a ready private HTML/text snapshot and explicitl
     status: 'success',
     target_url: 'slax-newsletter://message/1',
     title: 'Private subject',
-    is_enable: false,
+    is_enable: null,
     relation_uuid: result.bookmark_user_uuid
   })
+  expect((await db.query('SELECT snapshot_sharing FROM sr_user WHERE id=1')).rows).toEqual([{ snapshot_sharing: defaultSharing }])
   expect(row.content_key).toMatch(/^html\/body\//)
   expect(row.content_key).not.toBe('newsletter-content/original')
   const html = await (await storage.bucket.get(row.content_key))!.text()
@@ -68,20 +68,20 @@ test('copies URL-less mail into a ready private HTML/text snapshot and explicitl
   await storage.bucket.delete('newsletter-content/original')
   expect(await storage.bucket.get(row.content_key)).not.toBeNull()
 })
-test('repeat and Trash restore preserve independent identity, annotations and deliberate sharing', async () => {
+test.each([true, false])('repeat and Trash restore preserve identity, annotations and deliberate sharing=%s', async explicitSharing => {
   const first = await service.save(ctx, 1n),
     keys = [...storage.objects.keys()]
   expect(await service.save(ctx, 1n)).toMatchObject({ result: 'already_saved', bookmark_user_uuid: first.bookmark_user_uuid })
   expect([...storage.objects.keys()]).toEqual(keys)
   await db.exec(
-    "UPDATE sr_user_bookmark SET deleted_at=now(),archive_status=1,is_starred=true,alias_title='My title'; INSERT INTO sr_user_delete_bookmark(user_id,bookmark_id) SELECT 1,id FROM sr_bookmark;UPDATE sr_bookmark_share SET is_enable=true"
+    `UPDATE sr_user_bookmark SET deleted_at=now(),archive_status=1,is_starred=true,alias_title='My title'; INSERT INTO sr_user_delete_bookmark(user_id,bookmark_id) SELECT 1,id FROM sr_bookmark;INSERT INTO sr_bookmark_share(user_id,bookmark_id,is_enable) SELECT 1,id,${explicitSharing} FROM sr_bookmark`
   )
   expect(await service.save(ctx, 1n)).toMatchObject({ result: 'restored', bookmark_user_uuid: first.bookmark_user_uuid })
   expect((await db.query('SELECT deleted_at,archive_status,is_starred,alias_title FROM sr_user_bookmark')).rows).toEqual([
     { deleted_at: null, archive_status: 0, is_starred: true, alias_title: 'My title' }
   ])
   expect((await db.query('SELECT * FROM sr_user_delete_bookmark')).rows).toEqual([])
-  expect((await db.query('SELECT is_enable FROM sr_bookmark_share')).rows).toEqual([{ is_enable: true }])
+  expect((await db.query('SELECT is_enable FROM sr_bookmark_share')).rows).toEqual([{ is_enable: explicitSharing }])
 })
 test('second-member storage failure publishes no bookmark and cleans only its own files', async () => {
   const put = storage.bucket.put.bind(storage.bucket)

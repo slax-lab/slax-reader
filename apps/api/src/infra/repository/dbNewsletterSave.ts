@@ -2,7 +2,6 @@ import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import type { Prisma, PrismaClient } from '@prisma/hyperdrive-client'
-import { BookmarkRepo } from './dbBookmark'
 import type { NewsletterMail } from './dbNewsletter'
 import { NewsletterError } from '@/domain/newsletter/parser'
 export interface NewsletterDestination {
@@ -24,10 +23,7 @@ export interface NewsletterSaved {
 export const newsletterBookmarkTarget = (id: bigint) => `slax-newsletter://message/${id}`
 @injectable()
 export class NewsletterSaveRepo {
-  constructor(
-    @inject(PRISIMA_HYPERDRIVE_CLIENT) private pg: LazyInstance<PrismaClient>,
-    @inject(BookmarkRepo) private bookmarks: BookmarkRepo
-  ) {}
+  constructor(@inject(PRISIMA_HYPERDRIVE_CLIENT) private pg: LazyInstance<PrismaClient>) {}
   async source(userId: number, id: bigint): Promise<NewsletterMail> {
     const [row] = await this.pg().$queryRaw<
       NewsletterMail[]
@@ -73,7 +69,6 @@ export class NewsletterSaveRepo {
         { id: number }[]
       >`INSERT INTO sr_bookmark(target_url,private_user,title,description,site_name,byline,content_key,content_md_key,content_word_count,status,created_at,updated_at,published_at) VALUES(${newsletterBookmarkTarget(id)},${userId},${source.title},${source.summary},${source.sender_name || source.sender},${source.sender},${destination.content_key},${destination.content_md_key},${destination.content_word_count},'success',${now},${now},${source.published_at || source.received_at}) RETURNING id`
       await tx.$executeRaw`INSERT INTO sr_user_bookmark(uuid,user_id,bookmark_id,type,updated_at) VALUES(${destination.uuid},${userId},${bookmark.id},0,${now})`
-      await this.bookmarks.disableBookmarkShareUpsert(bookmark.id, userId, tx)
       const relation = await this.existing(userId, id, tx)
       if (!relation) throw new NewsletterError('unavailable', 503)
       return { relation, result: 'created' as const }

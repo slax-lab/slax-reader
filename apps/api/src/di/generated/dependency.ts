@@ -658,11 +658,7 @@ container.register(NewsletterRepo, {
 })
 
 container.register(NewsletterSaveRepo, {
-  useFactory: container =>
-    new NewsletterSaveRepo(
-      lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)),
-      container.resolve(BookmarkRepo)
-    )
+  useFactory: container => new NewsletterSaveRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
 container.register(PodcastArticleRepo, {
