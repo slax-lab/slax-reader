@@ -40,6 +40,11 @@ export class ImportOrchestrator {
 
       for (const item of batchMessage) {
         if (!item) continue
+        if ('kind' in item && item.kind === 'failed') {
+          dispatchedCount++
+          await this.importService.incrImportTask(ctx, ctx.getUserId(), message.info.id, 0, 1)
+          continue
+        }
         await this.bookmarkService.createBookmarkImportRelation(ctx.getUserId(), item.bookmarkId, message.info.id)
         await this.trackImportedBookmark(ctx, item, message.info.type)
 
@@ -56,6 +61,7 @@ export class ImportOrchestrator {
             {
               url: item.targetUrl,
               bookmarkId: item.bookmarkId,
+              captureRevision: item.captureRevision,
               userId: item.userId,
               enUserId,
               userLang: ctx.getlang() || 'en',
@@ -121,6 +127,11 @@ export class ImportOrchestrator {
 
       for (const item of batchMessage) {
         if (!item) continue
+        if ('kind' in item && item.kind === 'failed') {
+          dispatchedCount++
+          await this.importService.incrImportTask(ctx, ctx.getUserId(), message.info.id, 0, 1)
+          continue
+        }
         await this.bookmarkService.createBookmarkImportRelation(ctx.getUserId(), item.bookmarkId, message.info.id)
         await this.trackImportedBookmark(ctx, item, message.info.type)
 
@@ -137,6 +148,7 @@ export class ImportOrchestrator {
             {
               url: item.targetUrl,
               bookmarkId: item.bookmarkId,
+              captureRevision: item.captureRevision,
               userId: item.userId,
               enUserId,
               userLang: ctx.getlang() || 'en',

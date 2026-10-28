@@ -125,7 +125,7 @@ for (const {platform, kind, initialRssError} of [
     '../components': components,
     '../components/SourceRing': {SourceCircularProgress},
     '../data': {bookmarkCacheKey, bookmarkDisplayTitle: record => record.title, collectionMarkPolicy: () => ({showMarks: true, showProfile: false}), PERSONAL_MARK_POLICY: {showMarks: true, showProfile: false}, PENDING_COLLECTION_MARK_POLICY: {}, PREFERENCE_KEYS},
-    '../runtime': {useReadingMobile: () => React.useContext(Context), useMobile: () => React.useContext(Context), useControlledUpgradeReaderObserver: () => undefined},
+    '../runtime': {useReadingMobile: () => React.useContext(Context), useMobile: () => React.useContext(Context), useMobileSettings: select => {const settings = React.useContext(Context).settings ?? {}; return select ? select(settings) : settings}, useControlledUpgradeReaderObserver: () => undefined},
     '../rss/controller': {reportRssSaved: (...saved) => savedEntries.push(saved), rssErrorCode}, '../theme': {mobileColors: {}, mobileTypography: {}},
     '../native/reader': {readerNativeAdapter: {}}, '../native/image-actions': {imageActionPort: {save: async () => {}, share: async () => {}}}, '../native/platform': {},
     '../telemetry': {useTelemetry: () => telemetry}, '../reader/share': {},
@@ -142,8 +142,8 @@ for (const {platform, kind, initialRssError} of [
     '../observe': readerObserve.module, '../observe/readiness': readiness,
   }
   const exported = await loadComponent('../../src/screens/ReaderScreen.tsx', boundaries)
-  const listeners = new Map()
-  const navigation = {isFocused: () => true, setOptions: value => {options = value; optionWrites++}, navigate() {}, goBack() {}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}}
+  const listeners = new Map(), optionKeys = []
+  const navigation = {isFocused: () => true, setOptions: value => {options = value; optionWrites++; optionKeys.push(...Object.keys(value))}, navigate() {}, goBack() {}, addListener: (name, callback) => {listeners.set(name, callback); return () => listeners.delete(name)}}
   function Harness() {
     const [settings, setSettings] = React.useState({user_id: 'fixture-user'})
     React.useEffect(() => preferences.subscribe(setSettings), [])
@@ -195,9 +195,8 @@ for (const {platform, kind, initialRssError} of [
       assert.deepEqual(imageReads, [[sourceCacheKey, image]], 'The actual article gallery resolver retains its source personal/collection cache owner')
       await act(async () => {galleryProps.onDismiss()})
     }
-    assert.equal(options.header, undefined, 'The source overlay must not replace the genuine native header/back implementation')
-    assert.equal(options.headerTransparent, true, 'Original Reader draws under the native overlay instead of losing toolbar viewport')
-    assert.equal(options.headerStyle.backgroundColor, 'transparent')
+    if (kind === 'rss') assert.equal(optionWrites, 0, 'An RSS preview keeps its static route header untouched')
+    else assert.deepEqual([...new Set(optionKeys)].sort(), ['headerRight', 'unstable_headerRightItems'], 'Mount only fills the static right slot; the transparent chrome is never reconfigured')
     if (kind === 'rss') assert.equal(skeletonProps, undefined, 'The original RSS route starts with its own centered loading indicator')
     else assert.equal(skeletonProps.topSpacer, 106, 'Both source platform article skeletons reserve status padding plus 44 before their first 12-point gap')
     await withRenderedElement(readerProps.header, () => {
@@ -206,8 +205,7 @@ for (const {platform, kind, initialRssError} of [
     })
     assert.equal(readerProps.headerSafeAreaPoints, platform === 'ios' ? 62 : 0, 'Only iOS separates WK native safe/header insets; Android scrolls the whole measured header')
     if (kind === 'rss') {
-      assert.equal(options.headerRight, undefined, 'Original RSS has genuine Back and no bookmark More action')
-      assert.equal(options.unstable_headerRightItems, undefined)
+      assert.equal(options, undefined, 'Original RSS has genuine Back and no bookmark More action')
       for (const event of [
         {type: 'textSelected', mark: {stroke: []}, text: 'RSS text', containerYPoints: 12},
         {type: 'markClicked', mark: {id: 'fixture-mark', stroke: [], comments: []}, text: 'RSS text'},
@@ -258,6 +256,7 @@ for (const {platform, kind, initialRssError} of [
       return
     }
     assert.ok(options.headerRight, 'The source more action belongs next to the genuine native back control')
+    await withRenderedElement(options.headerRight(), () => assert.ok(rendered.has('reader-header-slot') && rendered.has('reader-header-more-container'), 'The More control renders inside the fixed-size route slot'))
     await act(async () => readerProps.onEvent({type: 'textSelected', mark: {stroke: []}, text: 'Near status bar', containerYPoints: 12}, 'fixture-page'))
     assert.equal(selectionMenuProps.minTop, platform === 'ios' ? 82 : 60, 'Source full-window menus use iOS status+20 and the Android fixed 60dp minimum')
     assert.equal(options.unstable_headerRightItems()[0].hidesSharedBackground, true, 'The adjacent source more action must not inherit the iOS 26 native back background exception')

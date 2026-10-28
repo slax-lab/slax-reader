@@ -3,7 +3,9 @@ import Foundation
 struct SlaxReaderSecurity: Equatable {
   static let origin = URL(string: "https://reader.slax.invalid/")!
   static let csp = "default-src 'none'; script-src 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'unsafe-inline' https:; font-src https: data:; img-src https: data: blob: slaxstatic: slaxstatics:; media-src https: data: blob: slaxmedia: slaxmedias:; frame-src https:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; worker-src 'none'"
-  static let pdfOrigin = URL(string: "https://pdf.reader.slax.invalid/")!
+  /// PDF pages live on the scheme their byte ranges are served from, so those fetches are same-origin (WebKit blocks
+  /// https → custom-scheme fetches as mixed content). Main-frame loads of this origin never reach the scheme handler.
+  static let pdfOrigin = URL(string: "slaxpdf://pdf/")!
   let protectedHosts: [String]
   let imageProxyOrigins: [String]
   let pdfMode: Bool
@@ -74,7 +76,7 @@ struct SlaxReaderSecurity: Equatable {
   }
   static func pdfCsp(_ pageId: String) throws -> String {
     guard pageId.range(of: "^[A-Za-z0-9-]+$", options: .regularExpression) != nil else { throw URLError(.badURL) }
-    return "default-src 'none'; script-src 'nonce-slax-pdf-\(pageId)' blob: 'wasm-unsafe-eval'; worker-src blob:; connect-src blob:; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'"
+    return "default-src 'none'; script-src 'nonce-slax-pdf-\(pageId)' blob: 'wasm-unsafe-eval'; worker-src blob:; connect-src blob: slaxpdf://pdf; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'"
   }
   static func pdfDocument(_ html: String, pageId: String) throws -> String {
     let csp = try pdfCsp(pageId)

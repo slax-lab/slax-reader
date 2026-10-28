@@ -6,6 +6,7 @@ import { Hashid } from '@/utils/hashids'
 import { hashSHA256 } from '@/utils/strings'
 import { URLPolicie } from '@/utils/urlPolicie'
 import { i18n } from '@/const/i18n'
+import { readerBookmarkUuid } from '@slax-reader/contracts'
 
 export interface callbackPayload {
   chat_id: number
@@ -85,7 +86,7 @@ export class TelegramBotService {
 
     const url = new URL(match[0])
     const policie = new URLPolicie(this.env, url)
-    if (policie.isBlocked()) {
+    if (policie.isBlocked() && !readerBookmarkUuid(url.href, [this.env.FRONT_END_URL])) {
       await ctx.reply(this.t.telegramBlockedUrl({}))
       return
     }

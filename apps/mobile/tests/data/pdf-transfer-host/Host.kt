@@ -1,6 +1,5 @@
 package com.slax.reader.platform
 
-import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
@@ -38,7 +37,10 @@ fun main(args: Array<String>) {
   val forbiddenHeader = begin(); rejects {transfer(forbiddenHeader).open(url("full"), headers + ("Cookie" to "forbidden"))}; SlaxPdfTransfers.end("account-a", forbiddenHeader); drained()
   rejects {SlaxPdfTransfers.begin("account-a", "http://remote.test", true)}
   rejects {SlaxPdfTransfers.begin("account-a", origin, false)}
-  val capacity = (1..6).map {begin()}; rejects {begin()}; capacity.forEach {SlaxPdfTransfers.end("account-a", it)}; drained()
+  // Background acquisition is bounded below the total so an open Reader's foreground ranges always have transfers.
+  val capacity = (1..8).map {begin()}; rejects {begin()}
+  val reserved = (1..4).map {SlaxPdfTransfers.begin("account-a", origin, true, foreground = true)}; rejects {SlaxPdfTransfers.begin("account-a", origin, true, foreground = true)}
+  (capacity + reserved).forEach {SlaxPdfTransfers.end("account-a", it)}; drained()
   val slow = begin(); val slowTransfer = transfer(slow); slowTransfer.open(url("slow"), headers)
   val entered = CountDownLatch(1); var cancelled = false
   val reading = thread {entered.countDown(); cancelled = runCatching {while (slowTransfer.read() != null) {}}.isFailure}
@@ -46,15 +48,9 @@ fun main(args: Array<String>) {
   val stale = begin(); transfer(stale).open(url("full"), headers)
   SlaxStorageOwner.activate("account-b"); rejects {transfer(stale).read()}; SlaxPdfTransfers.revokeAll(); drained()
   SlaxStorageOwner.activate("account-a")
-  val module = SlaxPdfTransferModule(); module.appContext.reactContext = android.content.Context(File(args[1]))
-  val definition = module.definition()
-  val nativeId = definition.synchronous["begin"]!!(arrayOf("account-a", origin)) as String
-  fun invoke(name: String, vararg arguments: Any?): expo.modules.kotlin.Promise {
-    val promise = expo.modules.kotlin.Promise(); definition.functions[name]!!(arrayOf(*arguments, promise)); promise.await(); check(promise.error == null); return promise
-  }
-  val opened = invoke("open", "account-a", nativeId, url("partial"), headers)
-  check((opened.value as Map<*, *>)["status"] == 206 && opened.thread == "SlaxPdfTransfer")
-  check((invoke("read", "account-a", nativeId).value as ByteArray).contentEquals(ByteArray(8) {it.toByte()}))
-  check(invoke("read", "account-a", nativeId).value == null); drained()
+  val partial = begin(); val partialTransfer = transfer(partial)
+  check(partialTransfer.open(url("partial"), headers)["status"] == 206)
+  check(partialTransfer.read()!!.contentEquals(ByteArray(8) {it.toByte()}) && partialTransfer.read() == null); drained()
+  check(SlaxPdfTransfers.origin(origin, true).port > 0); rejects {SlaxPdfTransfers.origin("https://user@api.test", false)}
   println("Kotlin bounded PDF transport passed")
 }

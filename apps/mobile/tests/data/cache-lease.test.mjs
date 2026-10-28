@@ -36,7 +36,6 @@ test('revoked article cache cannot read, overwrite, measure, or clear the next a
   const next = nextAccount(); await next.writeArticle('same-id', 'account B');
   await assert.rejects(cache.writeArticle('same-id', 'late A'), /revoked/);
   await assert.rejects(cache.clearArticles(), /revoked/);
-  await assert.rejects(cache.removeArticle('same-id'), /revoked/);
   await assert.rejects(cache.removeImages('same-id'), /revoked/);
   await assert.rejects(cache.articleBytes('same-id'), /revoked/);
   await assert.rejects(cache.imageBytes('same-id'), /revoked/);
@@ -156,15 +155,29 @@ test('a late native URI cannot escape a revoked cache owner or a cancelled consu
   }
 });
 
-test('article fingerprints stay native and a cancelled atomic text commit retains the prior body', async () => {
-  const f = fixture(), controller = new AbortController();
-  assert.equal(await f.cache.articleFingerprint('doc'), null);
-  const fingerprint = await f.cache.contentFingerprint('正文'); assert.equal(fingerprint.size, 6);
-  await f.cache.writeArticle('doc', '正文'); assert.deepEqual(await f.cache.articleFingerprint('doc'), fingerprint);
-  let release; f.native.waitWrite(new Promise(resolve => {release = resolve;}));
-  const work = f.cache.writeArticle('doc', 'replacement', controller.signal), rejected = assert.rejects(work, {name: 'AbortError'});
-  for (let index = 0; index < 20 && !f.native.pendingWrites(); index++) await Promise.resolve();
-  assert.equal(f.native.pendingWrites(), 1); controller.abort(); release(); await rejected;
-  assert.equal(await f.cache.readArticle('doc'), '正文'); assert.equal(f.native.pendingWrites(), 0);
-  f.revoke(); await assert.rejects(f.cache.articleFingerprint('doc'), /revoked/);
+test('an account cache reads, measures and clears committed copies only through the native offline engine', async () => {
+  const contents = new Map(), native = memoryNativeFileStore(contents), calls = [];
+  const filename = new URL('../../src/data/cache.ts', import.meta.url), exports = {};
+  vm.runInNewContext(ts.transpileModule(readFileSync(filename, 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).outputText, {exports, require(name) {
+    if (name === 'expo-file-system') return {File: class {}};
+    if (name === './native-file-store.ts') return native;
+    if (name === './cache-paths.ts') return {imageCachePath, imageCacheReadPaths, normalizeImageUrl};
+    if (name === 'expo') return {requireNativeModule: () => ({imageCacheFileUri: () => null})};
+    if (name === '../utils/abort.ts') return {throwIfAborted};
+    throw new Error(`Unexpected cache import ${name}`);
+  }}, {filename: filename.pathname});
+  let active = true;
+  const offline = {
+    async readArticle(key) {calls.push(['read', key]); return key === 'doc' ? '<p>engine</p>' : null;},
+    async usage(keys) {calls.push(['usage', keys]); return {article: 10, images: 4};},
+    async clear(keys, categories) {calls.push(['clear', keys, categories]); return keys;},
+  };
+  const cache = new exports.ArticleFileCache('/app/data', () => 'hash', () => {if (!active) throw new Error('Account lease revoked');}, offline, 'owner-a');
+  assert.equal(await cache.readArticle('doc'), '<p>engine</p>'); assert.equal(await cache.readArticle('missing'), null);
+  assert.equal(await cache.articleBytes('doc'), 10); assert.equal(await cache.imageBytes('doc'), 4);
+  assert.equal(await cache.removeArticleContent('doc'), true); await cache.removeImages('doc');
+  assert.equal(JSON.stringify(calls.slice(-2)), JSON.stringify([['clear', ['doc'], ['article']], ['clear', ['doc'], ['images']]]));
+  assert.equal(native.calls.length, 0, 'Account copies never use JavaScript file paths');
+  await assert.rejects(cache.readArticle('../escape'), /Invalid article cache key/);
+  active = false; await assert.rejects(cache.readArticle('doc'), /revoked/);
 });

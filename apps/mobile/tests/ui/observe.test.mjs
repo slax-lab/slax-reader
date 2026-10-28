@@ -234,7 +234,7 @@ test('ApplicationRoutes uses the Observe navigation container and preserves the 
     './theme': theme,
     './telemetry': {useTelemetry: () => ({identify() {}, screen() {}})},
     './components/SourceLine': {SourceLine: nil},
-    './screens/AppRecoveryScreen': {AppRecoveryScreen: nil},
+    './screens/AppRecoveryScreen': {AppRecoveryScreen: nil}, './navigation/reader-route': {readerScreenOptions: () => ({}), useReaderPrewarm() {}},
     './screens/LoginScreen': {LoginScreen: nil, ReauthenticationScreen: nil},
     './screens/LibraryScreen': {LibraryScreen: nil},
     './screens/ReaderScreen': {ReaderScreen: nil},

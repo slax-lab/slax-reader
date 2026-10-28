@@ -6,7 +6,7 @@ import type {BookmarkRecord, TagRecord} from '../../data'
 import {SourceIcon, SourceText} from '../../components'
 import {SourceCircularProgress} from '../../components/SourceRing'
 import {mobileColors as C, mobileTypography as T} from '../../theme'
-import {OverviewExcerpt} from '../OverviewViews'
+import {OverviewExcerpt, type OverviewBounds} from '../OverviewViews'
 import {sourceDisplayTime} from '../model'
 import type {Translate} from '../state/types'
 import type {FeatureState} from '../state/feature-state'
@@ -42,7 +42,7 @@ export function RssReaderHeader({top, rss, error, originalUrl, saveButton, t, on
 }
 
 export function ReaderHeader({top, title, record, pdf, isPdf, originalUrl, isCollection, selectedTags, overview, t, onOriginal, onTags, onOverview}: {
-  top: number; title: string; record: BookmarkRecord | null; pdf: PdfDescriptor | null; isPdf: boolean; originalUrl: string; isCollection: boolean; selectedTags: TagRecord[]; overview: React.ReactNode; t: Translate; onOriginal(): void; onTags(): void; onOverview(): void
+  top: number; title: string; record: BookmarkRecord | null; pdf: PdfDescriptor | null; isPdf: boolean; originalUrl: string; isCollection: boolean; selectedTags: TagRecord[]; overview: React.ReactNode; t: Translate; onOriginal(): void; onTags(): void; onOverview(bounds: OverviewBounds | null): void
 }) {
   return <View style={[styles.header, {paddingTop: top + 44}]} testID="reader-article-header">
     <SourceText numberOfLines={3} style={T.detailTitle}>{title}</SourceText>

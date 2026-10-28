@@ -17,7 +17,7 @@ function labService(enabled: boolean) {
 }
 
 function wireService(enabled: boolean) {
-  const createBookmarkBase = vi.fn().mockResolvedValue({ id: 11, private_user: 7 })
+  const createBookmarkBase = vi.fn().mockResolvedValue({ id: 11, private_user: 7, updated_at: new Date() })
   const bookmarkRepo = { getBookmark: vi.fn().mockResolvedValue(null) }
   const service = Object.create(BookmarkService.prototype) as BookmarkService
   Object.assign(service, { createBookmarkBase, bookmarkRepo, labService: labService(enabled) })

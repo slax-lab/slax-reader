@@ -35,6 +35,7 @@ const fakeStuckBookmark = (overrides: Record<string, unknown> = {}) => ({
   target_url: 'https://example.com/stuck',
   status: 'pending',
   created_at: new Date(Date.now() - 5 * 60_000),
+  updated_at: new Date('2026-10-22T00:00:00Z'),
   user_id: 10,
   ...overrides
 })
@@ -54,7 +55,7 @@ describe('detectStuckAndRetry', () => {
     expect(bookmarkRepo.casBookmarkStatus).not.toHaveBeenCalled()
   })
 
-  test('1 条卡死 (有 user_id) → CAS(FAILED) + kickoffWorkflow', async () => {
+  test('pending rescue dispatches without marking the original capture failed', async () => {
     const { svc, bookmarkRepo, crawlService, userRepo } = wire()
     const stuck = fakeStuckBookmark()
     bookmarkRepo.findStuckBookmarks.mockResolvedValue([stuck])
@@ -64,7 +65,7 @@ describe('detectStuckAndRetry', () => {
 
     await svc.detectStuckAndRetry(ctx)
 
-    expect(bookmarkRepo.casBookmarkStatus).toHaveBeenCalledWith(1, 'pending', 'failed')
+    expect(bookmarkRepo.casBookmarkStatus).not.toHaveBeenCalled()
     expect(crawlService.createWorkflow).toHaveBeenCalledWith(
       ctx.env,
       expect.objectContaining({
@@ -76,7 +77,7 @@ describe('detectStuckAndRetry', () => {
     )
   })
 
-  test('parseing 状态也能被检测和救援', async () => {
+  test('does not rescue a capture already claimed as parseing', async () => {
     const { svc, bookmarkRepo, crawlService, userRepo } = wire()
     const stuck = fakeStuckBookmark({ status: 'parseing' })
     bookmarkRepo.findStuckBookmarks.mockResolvedValue([stuck])
@@ -86,8 +87,8 @@ describe('detectStuckAndRetry', () => {
 
     await svc.detectStuckAndRetry(ctx)
 
-    expect(bookmarkRepo.casBookmarkStatus).toHaveBeenCalledWith(1, 'parseing', 'failed')
-    expect(crawlService.createWorkflow).toHaveBeenCalled()
+    expect(bookmarkRepo.casBookmarkStatus).not.toHaveBeenCalled()
+    expect(crawlService.createWorkflow).not.toHaveBeenCalled()
   })
 
   test('无 user_id (孤儿) → CAS(FAILED), 不告警、不创建 workflow', async () => {
@@ -103,7 +104,7 @@ describe('detectStuckAndRetry', () => {
     expect(crawlService.createWorkflow).not.toHaveBeenCalled()
   })
 
-  test('CAS 返回 false (并发竞争) → 不创建 workflow', async () => {
+  test('pending rescue preserves the revision and leaves claim admission to the workflow', async () => {
     const { svc, bookmarkRepo, crawlService } = wire()
     const stuck = fakeStuckBookmark()
     bookmarkRepo.findStuckBookmarks.mockResolvedValue([stuck])
@@ -112,7 +113,8 @@ describe('detectStuckAndRetry', () => {
 
     await svc.detectStuckAndRetry(ctx)
 
-    expect(crawlService.createWorkflow).not.toHaveBeenCalled()
+    expect(bookmarkRepo.casBookmarkStatus).not.toHaveBeenCalled()
+    expect(crawlService.createWorkflow).toHaveBeenCalledWith(ctx.env, expect.objectContaining({ captureRevision: stuck.updated_at.toISOString() }))
   })
 
   test('kickoffWorkflowForRetry 失败 → alert(stuck.retry_failed)', async () => {
@@ -164,7 +166,7 @@ describe('detectStuckAndRetry', () => {
 
 describe('批次并发', () => {
   test('15 条 → 分 10+5 两批处理', async () => {
-    const { svc, bookmarkRepo, userRepo } = wire()
+    const { svc, bookmarkRepo, userRepo, crawlService } = wire()
     const stuckList = Array.from({ length: 15 }, (_, i) =>
       fakeStuckBookmark({ id: i + 1, user_id: 10, target_url: `https://example.com/${i}` })
     )
@@ -175,7 +177,8 @@ describe('批次并发', () => {
 
     await svc.detectStuckAndRetry(ctx)
 
-    expect(bookmarkRepo.casBookmarkStatus).toHaveBeenCalledTimes(15)
+    expect(crawlService.createWorkflow).toHaveBeenCalledTimes(15)
+    expect(bookmarkRepo.casBookmarkStatus).not.toHaveBeenCalled()
   })
 
   test('processStuckBookmark 某条 reject → 其他条仍处理', async () => {

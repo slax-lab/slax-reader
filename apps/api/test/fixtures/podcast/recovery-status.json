@@ -1,0 +1,13 @@
+{
+  "transcript": { "transcript": "failed", "article": "failed", "body_ready": false, "language": "en", "reason": "input_changed", "translation": null, "can_retry": true },
+  "article": { "transcript": "ready", "article": "failed", "body_ready": false, "language": "en", "reason": "input_changed", "translation": null, "can_retry": true },
+  "translation": {
+    "transcript": "ready",
+    "article": "ready",
+    "body_ready": true,
+    "language": "en",
+    "reason": null,
+    "translation": { "status": "failed", "language": "zh", "version": null },
+    "can_retry": true
+  }
+}

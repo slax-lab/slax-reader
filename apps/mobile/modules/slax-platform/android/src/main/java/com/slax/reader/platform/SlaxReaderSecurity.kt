@@ -17,7 +17,7 @@ internal class SlaxReaderSecurity(hosts: List<String>, val imageProxyOrigins: Li
     }
     fun pdfCsp(pageId: String): String {
       require(Regex("^[A-Za-z0-9-]+$").matches(pageId)) { "Invalid PDF page identity" }
-      return "default-src 'none'; script-src 'nonce-slax-pdf-$pageId' blob: 'wasm-unsafe-eval'; worker-src blob:; connect-src blob:; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'"
+      return "default-src 'none'; script-src 'nonce-slax-pdf-$pageId' blob: 'wasm-unsafe-eval'; worker-src blob:; connect-src blob: https://pdf.reader.slax.invalid; img-src blob: data:; font-src blob: data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'"
     }
     fun pdfDocument(html: String, pageId: String): String {
       val policy = "<meta http-equiv=\"Content-Security-Policy\" content=\"${pdfCsp(pageId)}\">"

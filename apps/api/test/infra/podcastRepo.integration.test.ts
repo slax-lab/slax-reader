@@ -30,6 +30,7 @@ describePg('podcast repositories on Postgres', () => {
   const token = randomUUID().slice(0, 8)
   let n = 0
   let source = ''
+  const ownedBookmarks: number[] = []
   const bookmarkBase = 910_000_000 + Math.floor(Math.random() * 1_000_000)
 
   const info = (over: Partial<PodcastEpisodeInfo> = {}): PodcastEpisodeInfo => ({
@@ -65,6 +66,7 @@ describePg('podcast repositories on Postgres', () => {
     await pg.sr_podcast_episode.deleteMany({ where: { source_id: { startsWith: `p${token}` } } })
     await pg.sr_media_article.deleteMany({ where: { source_id: { startsWith: `p${token}` } } })
     await pg.sr_media_article_ref.deleteMany({ where: { source_id: { startsWith: `p${token}` } } })
+    await pg.sr_bookmark.deleteMany({ where: { id: { in: ownedBookmarks } } })
     await pg.$disconnect()
   })
 
@@ -198,12 +200,41 @@ describePg('podcast repositories on Postgres', () => {
     expect(await episodes.findById(ep.id)).toBeNull()
   })
 
+  const legacyBookmark = async (id: number) => {
+    ownedBookmarks.push(id)
+    const now = new Date('2026-10-23T00:00:00Z')
+    const row = await pg.sr_bookmark.create({
+      data: {
+        id,
+        target_url: `https://podcast-ref.invalid/${token}/${id}`,
+        status: 'success',
+        content_key: `html/body/${id}.html`,
+        created_at: now,
+        updated_at: now,
+        published_at: now
+      }
+    })
+    await articles.linkBookmark({ bookmark_id: id, user_id: 1, source_id: source, source_hash: 'old' })
+    return { bookmarkId: id, updatedAt: row.updated_at, contentKey: row.content_key }
+  }
+
+  test('refs: stale inspected eligibility cannot overwrite a recaptured reference', async () => {
+    const eligible = await Promise.all([300, 400, 500, 600].map(offset => legacyBookmark(bookmarkBase + offset + n)))
+    await pg.sr_bookmark.update({ where: { id: eligible[0].bookmarkId }, data: { updated_at: new Date('2026-10-23T00:00:01Z') } })
+    await pg.sr_bookmark.update({ where: { id: eligible[1].bookmarkId }, data: { status: 'parseing' } })
+    await pg.sr_bookmark.update({ where: { id: eligible[2].bookmarkId }, data: { content_key: 'html/body/replaced.html' } })
+    expect(await articles.setRefsHash(source, 'new', eligible)).toBe(1)
+    for (const row of eligible.slice(0, 3)) expect(await articles.findRef(row.bookmarkId)).toMatchObject({ source_hash: 'old' })
+    expect(await articles.findRef(eligible[3].bookmarkId)).toMatchObject({ source_hash: 'new' })
+  })
+
   test('refs: the transcript hash reaches every bookmark of the episode; podcast and YouTube stay apart', async () => {
     const b1 = bookmarkBase + 100 + n
     const b2 = bookmarkBase + 200 + n
     await articles.linkBookmark({ bookmark_id: b1, user_id: 1, source_id: source, source_hash: '' })
     await articles.linkBookmark({ bookmark_id: b2, user_id: 2, source_id: source, source_hash: '' })
-    expect(await articles.setRefsHash(source, 'h9')).toBe(2)
+    const eligible = await Promise.all([b1, b2].map(id => legacyBookmark(id)))
+    expect(await articles.setRefsHash(source, 'h9', eligible)).toBe(2)
     expect((await articles.listEpisodeRefs(source)).map(r => [r.bookmark_id, r.source_hash])).toEqual([
       [b1, 'h9'],
       [b2, 'h9']

@@ -9,6 +9,7 @@ import {rssImageUrl, youtubeCues} from '../model'
 import {toolbarVisible} from '../index'
 import {useReducedMotion} from '../../motion/useReducedMotion'
 import type {ReaderEvent} from '../types'
+import type {OverviewBounds} from '../OverviewViews'
 import {useImageActions, type ImageActionPort} from './useImageActions'
 import {FeatureState} from './feature-state'
 import type {useReaderAi} from './useReaderAi'
@@ -52,6 +53,7 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
     const animation = Animated.timing(headerMoreOffset, {toValue: toolbarIsVisible ? 0 : -100, duration: reducedMotion ? 0 : 300, easing: Easing.bezier(.4, 0, .2, 1), useNativeDriver: true})
     animation.start(); return () => animation.stop()
   }, [headerMoreOffset, toolbarIsVisible, reducedMotion])
+  const [overviewSource, setOverviewSource] = useState<OverviewBounds | null>(null)
   const [gallery, setGallery] = useState<{images: string[]; index: number} | null>(null)
   const resolveGalleryUri = useCallback((uri: string, signal?: AbortSignal) => resolveGalleryImage(cache, cacheKey, uri, {fetch: expoFetch, allowNetwork: !fixtureOnly, isActive: isAccountActive, signal}), [cache, cacheKey, fixtureOnly, isAccountActive])
   const imageActions = useImageActions({port: ports.imageActions, resolveUri: resolveGalleryUri, isActive: isAccountActive})
@@ -140,7 +142,7 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
     pendingToolbar.current = {id: toolbarId, run: () => performToolbarAction(id), isActive: isAccountActive}
     setOverlay(null); if (!isIos) toolbarDidDismiss()
   }
-  const showOverview = () => {if (!isAccountActive()) return; telemetry.firebase('bookmark', 'overview_interact', {}, 'open'); setOverlay('overview'); void api.sendMetrics('ai_overview'); void ai.load('overview')}
+  const showOverview = (source?: OverviewBounds | null) => {if (!isAccountActive()) return; telemetry.firebase('bookmark', 'overview_interact', {}, 'open'); setOverviewSource(source ?? null); setOverlay('overview'); void api.sendMetrics('ai_overview'); void ai.load('overview')}
   const closeOverview = () => {if (!isAccountActive()) return; telemetry.firebase('bookmark', 'overview_interact', {}, 'close'); setOverlay(null)}
   const handleEvent = (event: ReaderEvent) => {
     if (!isAccountActive()) return
@@ -161,7 +163,7 @@ export function useReaderInteractions(scope: ReaderScope, ports: InteractionPort
   }
   const cancelPending = () => {pendingExternal.current = null; pendingToolbar.current = null}
   const scroll = (position: number, nearBottom: boolean) => {if (isAccountActive()) {document.scrollInfo.current = {position, nearBottom}; setToolbarIsVisible(toolbarVisible(position, nearBottom))}}
-  return {overlay, toolbarId, toolbarIsVisible, headerMoreVisible, headerMoreOffset, externalUrl, externalDialogId, doNotAlert, gallery, transcriptVisible, youtubeTime, cues,
+  return {overlay, overviewSource, toolbarId, toolbarIsVisible, headerMoreVisible, headerMoreOffset, externalUrl, externalDialogId, doNotAlert, gallery, transcriptVisible, youtubeTime, cues,
     showToolbar, dismissToolbar, toolbarDidDismiss, action, external, confirmExternal, externalDidDismiss, cancelExternal, showOverview, closeOverview, handleEvent, resolveGalleryUri, cancelPending, scroll, imageActions,
     openGalleryImageAction: (source: string) => imageActions.open(source, 'gallery'),
     closeOverlay: () => setOverlay(null), showSubscription: () => setOverlay('subscription'), revoke: () => {setOverlay(null); clearError()},

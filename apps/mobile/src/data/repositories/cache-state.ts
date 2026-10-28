@@ -2,8 +2,8 @@ import {bookmarkCacheKey} from './records.ts';
 import {RowWatcher} from './watch-rows.ts';
 import type {SqlDatabase} from './sql.ts';
 
-export const PERSONAL_CACHE_SQL = `SELECT id, type AS content_type, json_extract(metadata, '$.bookmark.status') AS status FROM sr_user_bookmark WHERE archive_status = 0 AND deleted_at IS NULL ORDER BY created_at DESC`;
-export const COLLECTION_CACHE_SQL = `SELECT DISTINCT cb.id, collection.owner_id, json_extract(cb.metadata, '$.bookmark.type') AS content_type, json_extract(cb.metadata, '$.bookmark.status') AS status FROM sr_user_collection_subscriber subscriber INNER JOIN sr_user_collection collection ON collection.id = subscriber.collection_id INNER JOIN sr_collection_bookmark cb ON cb.owner_id = collection.owner_id ORDER BY collection.owner_id, coalesce(nullif(cb.starred_at, ''), cb.created_at) DESC`;
+export const PERSONAL_CACHE_SQL = `SELECT id, type AS content_type, json_extract(metadata, '$.bookmark.status') AS status, updated_at FROM sr_user_bookmark WHERE archive_status = 0 AND deleted_at IS NULL ORDER BY created_at DESC`;
+export const COLLECTION_CACHE_SQL = `SELECT DISTINCT cb.id, collection.owner_id, json_extract(cb.metadata, '$.bookmark.type') AS content_type, json_extract(cb.metadata, '$.bookmark.status') AS status, cb.updated_at FROM sr_user_collection_subscriber subscriber INNER JOIN sr_user_collection collection ON collection.id = subscriber.collection_id INNER JOIN sr_collection_bookmark cb ON cb.owner_id = collection.owner_id ORDER BY collection.owner_id, coalesce(nullif(cb.starred_at, ''), cb.created_at) DESC`;
 export const LOCAL_CACHE_SQL = `SELECT id,
   json_extract(data, '$.is_downloaded') AS download_status,
   json_type(data, '$.is_downloaded') AS download_status_type,
@@ -22,19 +22,19 @@ WHERE CASE WHEN json_valid(data) THEN json_type(data) = 'object' AND (
 ) ELSE 0 END`;
 
 export type CacheTask = {id: string; key: string; owner?: string; domain: 'personal' | 'collection'; pdf: boolean};
-export type CacheCandidate = CacheTask & {success: boolean};
-export type CacheLocalState = {id: string; manual: boolean; downloaded: boolean; cleared: boolean; pdfCachePresent: boolean; pdfId?: string; pdfOwner?: string};
+export type CacheCandidate = CacheTask & {success: boolean; version?: string};
+export type CacheLocalState = {id: string; manual: boolean; downloaded: boolean; cleared: boolean; pdfCachePresent: boolean; pdfId?: string; pdfOwner?: string; status?: number};
 
 function candidate(row: Record<string, unknown>, domain: CacheTask['domain']): CacheCandidate {
   const id = String(row.id), owner = domain === 'collection' ? String(row.owner_id ?? '') : undefined;
-  return {id, key: bookmarkCacheKey(id, owner), owner, domain, pdf: row.content_type === 'pdf' || Number(row.content_type) === 2, success: row.status === 'success'};
+  return {id, key: bookmarkCacheKey(id, owner), owner, domain, pdf: row.content_type === 'pdf' || Number(row.content_type) === 2, success: row.status === 'success', version: typeof row.updated_at === 'string' ? row.updated_at : ''};
 }
 
 function localState(row: Record<string, unknown>): CacheLocalState {
   const value = row.download_status_type === 'array' ? JSON.parse(String(row.download_status)) : row.download_status;
   const status = Number(row.download_status_type === null ? undefined : value);
   return {
-    id: String(row.id), manual: row.manual === 1, downloaded: status === 2, cleared: status === 0,
+    id: String(row.id), manual: row.manual === 1, downloaded: status === 2, cleared: status === 0, status: Number.isFinite(status) ? status : undefined,
     pdfCachePresent: row.pdf_cache_present === 1,
     pdfId: typeof row.pdf_id === 'string' ? row.pdf_id : undefined,
     pdfOwner: typeof row.pdf_owner === 'string' ? row.pdf_owner : undefined,

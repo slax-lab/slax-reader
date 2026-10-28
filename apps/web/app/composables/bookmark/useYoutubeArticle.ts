@@ -77,6 +77,11 @@ export const useYoutubeArticle = (bookmarkUid: () => string, options: { loadCont
 
   const apply = async (next: YoutubeArticleState | null | undefined) => {
     if (!next || stopped) return
+    if (next.version !== state.value?.version) {
+      article.value = null
+      loadedVersion = ''
+      contentFailures = 0
+    }
     state.value = next
     if (withContent && next.status === 'ready' && next.version) await loadContent(next.version)
     schedule()

@@ -25,8 +25,21 @@ function wireCrawlService() {
   const ls = createMockLogsService()
   const ab = createMockAlertBot()
   const svc = new (CrawlService as any)()
-  ;(svc as any).bucketClient = bc; ;(svc as any).bookmarkRepo = br
-  ;(svc as any).logsService = ls; ;(svc as any).alertBot = ab
+  ;(svc as any).bucketClient = bc
+  ;(svc as any).bookmarkRepo = br
+  ;(svc as any).logsService = ls
+  ;(svc as any).alertBot = ab
+  ;(svc as any).snapshotRepo = {
+    snapshot: vi.fn(async () => ({ status: 'pending', updated_at: new Date('2026-10-22T00:00:00Z') })),
+    failDispatch: vi.fn(async (id, _revision) => {
+      await br.updateBookmarkStatus(id, 'failed')
+      return true
+    }),
+    setCaptureStatus: vi.fn(async (id, _revision, status) => {
+      await br.updateBookmarkStatus(id, status)
+      return true
+    })
+  }
   return { svc: svc as CrawlService, br, ls, ab }
 }
 
@@ -67,6 +80,16 @@ describe('kickoffWorkflow 错误处理', () => {
 })
 
 describe('CrawlService.createWorkflow 重试', () => {
+  test('a legacy Reader URL becomes failed without crawling the Reader shell', async () => {
+    const { svc, br } = wireCrawlService()
+    const env = { ...createMockCtx().env, FRONT_END_URL: 'https://reader.test' }
+    await expect(svc.createWorkflow(env, { url: 'https://reader.test/b/11111111-1111-4111-8111-111111111111', bookmarkId: 42, userId: 1 } as any)).rejects.toMatchObject({
+      name: 'fork_source_not_ready'
+    })
+    expect(br.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
+  })
+
   test('首次成功 → 只调 1 次 + 发送 success event', async () => {
     const { svc, ls } = wireCrawlService()
     const env = createMockCtx().env
@@ -123,5 +146,25 @@ describe('CrawlService.createImportParseWorkflow 重试', () => {
     await expect(svc.createImportParseWorkflow(env, { url: 'https://a.com', bookmarkId: 5, userId: 1 } as any, 2))
       .rejects.toThrow('fail')
     expect(br.updateBookmarkStatus).toHaveBeenCalledWith(5, 'failed')
+  })
+})
+
+describe('bound capture dispatch', () => {
+  test.each(['createWorkflow', 'createImportParseWorkflow'] as const)('%s forwards the admitted capture revision', async method => {
+    const { svc } = wireCrawlService()
+    const env = createMockCtx().env
+    const captureRevision = '2026-10-22T00:00:00.000Z'
+    await svc[method](env, { url: 'https://example.com/article', bookmarkId: 42, userId: 1, captureRevision } as any)
+    const binding = method === 'createWorkflow' ? env.CRAWL_WORKFLOW : env.IMPORT_PARSE_WORKFLOW
+    expect(binding.create).toHaveBeenCalledWith(expect.objectContaining({ params: expect.objectContaining({ captureRevision }) }))
+  })
+
+  test('a superseded revision does not dispatch or reset the capture', async () => {
+    const { svc, br } = wireCrawlService()
+    const env = createMockCtx().env
+    await svc.createWorkflow(env, { url: 'https://example.com/article', bookmarkId: 42, userId: 1, captureRevision: '2026-10-21T00:00:00.000Z' } as any)
+    expect(env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
+    expect(br.updateBookmarkStatus).not.toHaveBeenCalled()
+    expect(br.updateBookmark).not.toHaveBeenCalled()
   })
 })

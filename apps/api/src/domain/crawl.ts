@@ -1,4 +1,9 @@
 import { SocialMediaApi } from '../infra/external/socialMedia'
+import { readerBookmarkUuid } from '@slax-reader/contracts'
+import { forkError } from '@/utils/bookmarkForkError'
+import { MediaSnapshotService } from './mediaSnapshot'
+import { BookmarkForkRepo, type MediaSnapshotRef } from '@/infra/repository/dbBookmarkFork'
+import type { MediaSnapshot } from '@/utils/mediaSnapshot'
 import { FetchError, SlaxFetch } from '../infra/external/remoteFetcher'
 import { HtmlBuilder, YoutubeCue } from '../utils/htmlBuilder'
 import { extractYoutubeVideoId, shouldUseBrowserHtml } from '../utils/platformDetector'
@@ -6,7 +11,7 @@ import { captionPlainText, captionSourceHash, youtubeCaptionKeys, type YoutubeCa
 import { evaluateYoutubeEligibility } from '../utils/youtubeEligibility'
 import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION, YOUTUBE_ARTICLE_SCHEMA_VERSION } from '../infra/repository/dbYoutubeArticle'
 import { youtubeArticleLanguage } from '@/utils/youtubeArticle'
-import { PodcastArticleRepo, PodcastEpisodeRepo } from '../infra/repository/dbPodcastArticle'
+import { PodcastEpisodeRepo, type podcastEpisodePO } from '../infra/repository/dbPodcastArticle'
 import { fetchPublicText } from '@/infra/external/podcastFetch'
 import {
   appleLookupUrl,
@@ -54,11 +59,18 @@ import type { ToutiaoArticle } from '../const/moreapi/toutiao'
 
 export type TwitterFetched =
   | { kind: 'tweet'; tweetInfo: TweetInfo; quoteTweetHtml: string }
-  | { kind: 'article'; sourceUrl: string; viaFxEmbedHtml: string | null; fallbackTweetInfo: TweetArticleInfo | null }
+  | {
+      kind: 'article'
+      sourceUrl: string
+      viaFxEmbedHtml: string | null
+      fallbackTweetInfo: TweetArticleInfo | null
+    }
 
 export type ZhihuFetched = { title: string; content: string; author: string }
 
 export interface CrawlResult {
+  /** Timestamp returned by this content publication, never a later row lookup. */
+  publishedRevision?: string
   title: string
   textContent: string
   excerpt?: string
@@ -117,7 +129,8 @@ export class CrawlService {
     @inject(SlaxAlertBotClient) private alertBot: SlaxAlertBotClient,
     @inject(YoutubeArticleRepo) private youtubeArticleRepo: YoutubeArticleRepo,
     @inject(PodcastEpisodeRepo) private podcastEpisodeRepo: PodcastEpisodeRepo,
-    @inject(PodcastArticleRepo) private podcastArticleRepo: PodcastArticleRepo
+    @inject(MediaSnapshotService) private snapshots: MediaSnapshotService,
+    @inject(BookmarkForkRepo) private snapshotRepo: BookmarkForkRepo
   ) {}
 
   public async pushBookmarkFailureAlert(userId: number, scope: string, meta: Record<string, unknown>) {
@@ -132,7 +145,23 @@ export class CrawlService {
   }
 
   public async createWorkflow(env: Env, params: CrawlWorkflowParams, maxRetries: number = 3, trackingContext?: ContextManager) {
-    if (trackingContext?.get(EVENT_CONTEXT_KEY)) params = { ...params, eventContext: { ...getEventContext(trackingContext) } }
+    const raw = await this.snapshotRepo.snapshot(params.bookmarkId)
+    if (!raw) throw forkError()
+    if (params.captureRevision && params.captureRevision !== raw.updated_at.toISOString()) return
+    if (!['pending', 'pending_retry'].includes(raw.status)) return
+    if (readerBookmarkUuid(params.url, [env.FRONT_END_URL])) {
+      await this.snapshotRepo.failDispatch(params.bookmarkId, raw.updated_at)
+      throw forkError()
+    }
+    params = {
+      ...params,
+      captureRevision: params.captureRevision ?? raw.updated_at.toISOString()
+    }
+    if (trackingContext?.get(EVENT_CONTEXT_KEY))
+      params = {
+        ...params,
+        eventContext: { ...getEventContext(trackingContext) }
+      }
     const hostname = (() => {
       try {
         return new URL(params.url).hostname || 'unknown'
@@ -149,7 +178,7 @@ export class CrawlService {
         console.log(`Failed to create workflow for bookmark ${params.bookmarkId} (attempt ${attempt}/${maxRetries}): ${err}`)
 
         if (attempt === maxRetries) {
-          await this.bookmarkRepo.updateBookmarkStatus(params.bookmarkId, queueStatus.FAILED)
+          await this.snapshotRepo.failDispatch(params.bookmarkId, new Date(params.captureRevision!))
           const errMsg = err instanceof MultiLangError ? err.message : err instanceof Error ? err.message : String(err)
           await this.sendAddBookmarkStepEvent(params.userId, params.bookmarkId, hostname, 'workflow_creation', 'failed', errMsg, trackingContext)
           await this.pushBookmarkFailureAlert(params.userId, 'workflow_creation', {
@@ -169,7 +198,19 @@ export class CrawlService {
   }
 
   public async createImportParseWorkflow(env: Env, params: ImportParseWorkflowParams, maxRetries: number = 3, trackingContext?: ContextManager) {
-    if (trackingContext?.get(EVENT_CONTEXT_KEY)) params = { ...params, eventContext: { ...getEventContext(trackingContext), source: 'import' } }
+    const raw = await this.snapshotRepo.snapshot(params.bookmarkId)
+    if (!raw) throw forkError()
+    if (params.captureRevision && params.captureRevision !== raw.updated_at.toISOString()) return
+    if (!['pending', 'pending_retry'].includes(raw.status)) return
+    params = {
+      ...params,
+      captureRevision: params.captureRevision ?? raw.updated_at.toISOString()
+    }
+    if (trackingContext?.get(EVENT_CONTEXT_KEY))
+      params = {
+        ...params,
+        eventContext: { ...getEventContext(trackingContext), source: 'import' }
+      }
     const hostname = (() => {
       try {
         return new URL(params.url).hostname || 'unknown'
@@ -186,7 +227,7 @@ export class CrawlService {
         console.log(`Failed to create import parse workflow for bookmark ${params.bookmarkId} (attempt ${attempt}/${maxRetries}): ${err}`)
 
         if (attempt === maxRetries) {
-          await this.bookmarkRepo.updateBookmarkStatus(params.bookmarkId, queueStatus.FAILED)
+          await this.snapshotRepo.failDispatch(params.bookmarkId, new Date(params.captureRevision!))
           const errMsg = err instanceof MultiLangError ? err.message : err instanceof Error ? err.message : String(err)
           await this.sendAddBookmarkStepEvent(params.userId, params.bookmarkId, hostname, 'import_parse_workflow_creation', 'failed', errMsg, trackingContext)
           await this.pushBookmarkFailureAlert(params.userId, 'import_parse_workflow_creation', {
@@ -474,11 +515,26 @@ export class CrawlService {
     }
   }
 
-  private static contentKeys(userBookmarkUuid: string) {
-    return {
-      contentKey: `html/body/${userBookmarkUuid}.html`,
-      textKey: `text/body/${userBookmarkUuid}.txt`
+  public async claimCapture(ctx: ContextManager, bookmarkId: number) {
+    const revision = ctx.get('snapshotCaptureRevision') as string | undefined
+    return !!revision && this.snapshotRepo.claimWrite(bookmarkId, new Date(revision), ['pending', 'pending_retry'], true)
+  }
+
+  public async ownsCapture(ctx: ContextManager, bookmarkId: number) {
+    const revision = ctx.get('snapshotCaptureRevision') as string | undefined
+    return !!revision && this.snapshotRepo.ownsWrite(bookmarkId, new Date(revision))
+  }
+
+  public setCaptureStatus(ctx: ContextManager, bookmarkId: number, status: queueStatus.SUCCESS): Promise<string | false>
+  public setCaptureStatus(ctx: ContextManager, bookmarkId: number, status: queueStatus): Promise<string | boolean>
+  public async setCaptureStatus(ctx: ContextManager, bookmarkId: number, status: queueStatus) {
+    const revision = ctx.get('snapshotCaptureRevision') as string | undefined
+    if (!revision) throw new Error('Capture revision missing')
+    if (status === queueStatus.SUCCESS) {
+      const publishedUpdatedAt = new Date(Math.max(Date.now(), new Date(revision).getTime() + 1))
+      return (await this.snapshotRepo.releaseWrite(bookmarkId, new Date(revision), publishedUpdatedAt)) ? publishedUpdatedAt.toISOString() : false
     }
+    return this.snapshotRepo.setCaptureStatus(bookmarkId, new Date(revision), status)
   }
 
   /**
@@ -529,7 +585,12 @@ export class CrawlService {
     const html = HtmlBuilder.buildYoutube(fetched.videoId, fetched.cues)
     const textContent = fetched.cues.length > 0 ? fetched.cues.map(c => c.text).join(' ') : fetched.title
 
+    const saved = await this.saveYoutubeCaptionArtifacts(ctx, fetched, bookmarkId, false)
+    const ref: MediaSnapshotRef = saved ?? { media_kind: 'youtube', source_id: fetched.videoId, source_hash: await captionSourceHash(fetched.caption, fetched.videoId) }
+    const media = await this.snapshots.initialize(ref, ctx.getUserId())
+    if (!saved) media.variants = {}
     const result = await this.parseAndSaveSocialMedia(ctx, {
+      media,
       html,
       originalUrl,
       bookmarkId,
@@ -543,7 +604,6 @@ export class CrawlService {
         publishedTime: new Date()
       }
     })
-    await this.saveYoutubeCaptionArtifacts(ctx, fetched, bookmarkId)
     return result
   }
 
@@ -554,7 +614,7 @@ export class CrawlService {
    * source and point this bookmark at it. Never throws: the bookmark is already saved and its
    * status must not depend on any of this. Logs carry ids, hashes and counts only, never the transcript.
    */
-  public async saveYoutubeCaptionArtifacts(ctx: ContextManager, fetched: YoutubeFetched, bookmarkId: number): Promise<void> {
+  public async saveYoutubeCaptionArtifacts(ctx: ContextManager, fetched: YoutubeFetched, bookmarkId: number, link = true): Promise<MediaSnapshotRef | undefined> {
     const { videoId, caption } = fetched
     // An unavailable provider is not evidence that the video has no captions. Do not overwrite
     // the shared no-caption evaluation (or its bookmark reference) with a transient failure.
@@ -569,6 +629,8 @@ export class CrawlService {
         return
       }
       const sourceHash = await captionSourceHash(caption, videoId)
+      // Preserve existing captures' terminal outcomes before an evaluation can change a skipped row.
+      await this.snapshots.settleSource(ctx, 'youtube', videoId)
       const plainText = caption ? captionPlainText(caption) : ''
       let captionKey: string | null = null
       let captionTextKey: string | null = null
@@ -601,10 +663,11 @@ export class CrawlService {
         status: eligibility.decision === 'generate' ? 'pending' : 'skipped',
         eligibility
       })
-      await this.youtubeArticleRepo.linkBookmark({ bookmark_id: bookmarkId, user_id: ctx.getUserId(), source_id: videoId, source_hash: sourceHash })
+      if (link) await this.youtubeArticleRepo.linkBookmark({ bookmark_id: bookmarkId, user_id: ctx.getUserId(), source_id: videoId, source_hash: sourceHash })
       console.log(
         `YouTube caption saved for bookmark ${bookmarkId}: video=${videoId} hash=${sourceHash.slice(0, 12)} cues=${caption?.cues.length ?? 0} chars=${plainText.length} decision=${eligibility.decision} reasons=${eligibility.reason_codes.join(',') || '-'}`
       )
+      return { media_kind: 'youtube', source_id: videoId, source_hash: sourceHash }
     } catch (err) {
       console.error(`YouTube caption artifacts failed for bookmark ${bookmarkId} (video ${videoId}): ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -707,7 +770,10 @@ export class CrawlService {
   public async parseAndSavePodcast(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
     const html = HtmlBuilder.buildPodcast({ ...info })
     const textContent = renderPodcastText({ info })
+    const ref = await this.savePodcastEpisode(info, bookmarkId)
+    const media = ref ? await this.snapshots.initialize(ref, ctx.getUserId(), info, ref.podcastInput) : null
     const result = await this.parseAndSaveSocialMedia(ctx, {
+      media,
       html,
       originalUrl: info.pageUrl,
       bookmarkId,
@@ -721,18 +787,17 @@ export class CrawlService {
         publishedTime: info.publishedAt ?? new Date()
       }
     })
-    await this.savePodcastEpisode(ctx, info, bookmarkId)
     return result
   }
 
-  /** Episode row and bookmark reference. Never throws: the bookmark is already saved. */
-  public async savePodcastEpisode(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number): Promise<void> {
+  /** Shared episode inputs for the private capture. Never throws: the bookmark is already saved. */
+  public async savePodcastEpisode(info: PodcastEpisodeInfo, bookmarkId: number): Promise<(MediaSnapshotRef & { podcastInput: podcastEpisodePO }) | undefined> {
     if (!info.audioUrl) return
     try {
       const sourceId = await podcastSourceId(info.audioUrl)
       const episode = await this.podcastEpisodeRepo.upsertFromInfo(sourceId, info)
-      await this.podcastArticleRepo.linkBookmark({ bookmark_id: bookmarkId, user_id: ctx.getUserId(), source_id: sourceId, source_hash: episode.transcript_hash ?? '' })
       console.log(`Podcast episode saved for bookmark ${bookmarkId}: episode=${episode.id} source=${sourceId} kind=${info.kind} status=${episode.transcript_status}`)
+      return { media_kind: 'podcast', source_id: sourceId, source_hash: episode.transcript_hash ?? '', podcastInput: structuredClone(episode) }
     } catch (err) {
       console.error(`Podcast episode save failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -745,11 +810,11 @@ export class CrawlService {
         console.warn(`Dynamic page returned a loading placeholder for ${fetchRes.url}`)
         throw FetchThreePartyError('Dynamic page returned a loading placeholder')
       }
-      return await this.saveParseRes(selected.parseRes, bookmarkId, userBookmarkUuid, selected.qualityReview)
+      return await this.saveParseRes(selected.parseRes, bookmarkId, userBookmarkUuid, selected.qualityReview, ctx)
     }
 
     const parseRes = await this.createParseRes(ctx, fetchRes)
-    return this.scoreAndSaveArticle(parseRes, fetchRes, bookmarkId, userBookmarkUuid)
+    return this.scoreAndSaveArticle(ctx, parseRes, fetchRes, bookmarkId, userBookmarkUuid)
   }
 
   public fetchToutiaoData(ctx: ContextManager, url: string): Promise<ToutiaoArticle> {
@@ -774,10 +839,10 @@ export class CrawlService {
       dir: '',
       lang: ''
     }
-    return this.scoreAndSaveArticle(parseRes, fetchRes, bookmarkId, userBookmarkUuid)
+    return this.scoreAndSaveArticle(ctx, parseRes, fetchRes, bookmarkId, userBookmarkUuid)
   }
 
-  private async scoreAndSaveArticle(parseRes: Preparse, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  private async scoreAndSaveArticle(ctx: ContextManager, parseRes: Preparse, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
     let qualityReview: ArticleQualityReview
     try {
       qualityReview = scoreArticleQuality({
@@ -789,7 +854,7 @@ export class CrawlService {
       console.warn(`Article quality scoring failed for ${fetchRes.url}: ${error instanceof Error ? error.message : String(error)}`)
       qualityReview = unavailableArticleQualityReview()
     }
-    return await this.saveParseRes(parseRes, bookmarkId, userBookmarkUuid, qualityReview)
+    return await this.saveParseRes(parseRes, bookmarkId, userBookmarkUuid, qualityReview, ctx)
   }
 
   private async createBestParseRes(ctx: ContextManager, fetchRes: fetchResult): Promise<{ parseRes: Preparse; qualityReview: ArticleQualityReview }> {
@@ -856,24 +921,22 @@ export class CrawlService {
     return parseRes
   }
 
-  protected async saveParseRes(parseRes: Preparse, bookmarkId: number, userBookmarkUuid: string, qualityReview?: ArticleQualityReview): Promise<CrawlResult> {
-    const { contentKey, textKey } = CrawlService.contentKeys(userBookmarkUuid)
-
-    await Promise.all([
-      this.bucketClient().putIfKeyExists(textKey, parseRes.textContent),
-      this.bucketClient().putIfKeyExists(contentKey, parseRes.contentDocument.documentElement.outerHTML)
-    ])
-    await this.bookmarkRepo.updateBookmark(bookmarkId, {
-      title: parseRes.title,
-      description: parseRes.excerpt || '',
-      content_word_count: parseRes.textContent.length,
-      content_key: contentKey,
-      content_md_key: textKey,
-      status: queueStatus.SUCCESS,
-      byline: parseRes.byline || '',
-      site_name: parseRes.siteName || '',
-      published_at: parseRes.publishedTime
-    })
+  protected async saveParseRes(parseRes: Preparse, bookmarkId: number, userBookmarkUuid: string, qualityReview?: ArticleQualityReview, ctx?: ContextManager): Promise<CrawlResult> {
+    const content = await this.snapshots.capture(
+      bookmarkId,
+      userBookmarkUuid,
+      { html: parseRes.contentDocument.documentElement.outerHTML, text: parseRes.textContent },
+      {
+        title: parseRes.title,
+        description: parseRes.excerpt || '',
+        byline: parseRes.byline || '',
+        site_name: parseRes.siteName || '',
+        published_at: parseRes.publishedTime
+      },
+      null,
+      ctx?.get('snapshotCaptureRevision')
+    )
+    const contentKey = content.content_key
 
     return {
       title: parseRes.title,
@@ -883,6 +946,7 @@ export class CrawlService {
       siteName: parseRes.siteName,
       publishedTime: parseRes.publishedTime,
       contentKey,
+      publishedRevision: content.publishedRevision,
       qualityReview
     }
   }
@@ -947,24 +1011,25 @@ export class CrawlService {
     const { document } = parseHTML(xHtml)
     await new Imager(ctx.env).batchReplaceImage(new URL(tweetInfo.url), document)
 
-    const { contentKey, textKey } = CrawlService.contentKeys(userBookmarkUuid)
     const textContent = tweetInfo.text
     const cleanText = tweetInfo.text.replaceAll('\n', ' ')
     const title = `Tweet: ${cleanText.substring(0, 30)}`
     const byline = tweetInfo.author.name
-
-    await Promise.all([this.bucketClient().putIfKeyExists(textKey, textContent), this.bucketClient().putIfKeyExists(contentKey, document.documentElement.outerHTML)])
-    await this.bookmarkRepo.updateBookmark(bookmarkId, {
-      title,
-      description: cleanText.substring(0, 30),
-      content_word_count: textContent.length,
-      content_key: contentKey,
-      content_md_key: textKey,
-      status: queueStatus.SUCCESS,
-      byline,
-      site_name: 'Twitter',
-      published_at: new Date(tweetInfo.createdAt)
-    })
+    const content = await this.snapshots.capture(
+      bookmarkId,
+      userBookmarkUuid,
+      { html: document.documentElement.outerHTML, text: textContent },
+      {
+        title,
+        description: cleanText.substring(0, 30),
+        byline,
+        site_name: 'Twitter',
+        published_at: new Date(tweetInfo.createdAt)
+      },
+      null,
+      ctx.get('snapshotCaptureRevision')
+    )
+    const contentKey = content.content_key
 
     return {
       title,
@@ -973,7 +1038,8 @@ export class CrawlService {
       byline,
       siteName: 'Twitter',
       publishedTime: new Date(tweetInfo.createdAt),
-      contentKey
+      contentKey,
+      publishedRevision: content.publishedRevision
     }
   }
 
@@ -1013,7 +1079,7 @@ export class CrawlService {
       throw FetchThreePartyError('parseAndSaveTwitterArticle: neither fxembed nor fallback present')
     }
 
-    return await this.saveParseRes(parseRes, bookmarkId, userBookmarkUuid)
+    return await this.saveParseRes(parseRes, bookmarkId, userBookmarkUuid, undefined, ctx)
   }
 
   // ---------------- 社交媒体通用 parse + save ----------------
@@ -1026,29 +1092,38 @@ export class CrawlService {
     ctx: ContextManager,
     opts: {
       html: string
+      media?: MediaSnapshot | null
       originalUrl: string
       bookmarkId: number
       userBookmarkUuid: string
-      meta: { title: string; textContent: string; excerpt: string; byline: string; siteName: string; publishedTime: Date }
+      meta: {
+        title: string
+        textContent: string
+        excerpt: string
+        byline: string
+        siteName: string
+        publishedTime: Date
+      }
     }
   ): Promise<CrawlResult> {
     const { document } = parseHTML(opts.html)
     await new Imager(ctx.env).batchReplaceImage(new URL(opts.originalUrl), document)
 
-    const { contentKey, textKey } = CrawlService.contentKeys(opts.userBookmarkUuid)
-
-    await Promise.all([this.bucketClient().putIfKeyExists(textKey, opts.meta.textContent), this.bucketClient().putIfKeyExists(contentKey, document.documentElement.outerHTML)])
-    await this.bookmarkRepo.updateBookmark(opts.bookmarkId, {
-      title: opts.meta.title,
-      description: opts.meta.excerpt,
-      content_word_count: opts.meta.textContent.length,
-      content_key: contentKey,
-      content_md_key: textKey,
-      status: queueStatus.SUCCESS,
-      byline: opts.meta.byline,
-      site_name: opts.meta.siteName,
-      published_at: opts.meta.publishedTime
-    })
+    const content = await this.snapshots.capture(
+      opts.bookmarkId,
+      opts.userBookmarkUuid,
+      { html: document.documentElement.outerHTML, text: opts.meta.textContent },
+      {
+        title: opts.meta.title,
+        description: opts.meta.excerpt,
+        byline: opts.meta.byline,
+        site_name: opts.meta.siteName,
+        published_at: opts.meta.publishedTime
+      },
+      opts.media ?? null,
+      ctx.get('snapshotCaptureRevision')
+    )
+    const contentKey = content.content_key
 
     return {
       title: opts.meta.title,
@@ -1057,6 +1132,7 @@ export class CrawlService {
       byline: opts.meta.byline,
       siteName: opts.meta.siteName,
       publishedTime: opts.meta.publishedTime,
+      publishedRevision: content.publishedRevision,
       contentKey
     }
   }

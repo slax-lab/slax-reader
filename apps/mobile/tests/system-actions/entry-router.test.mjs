@@ -4,7 +4,7 @@ import {SystemEntryRouter} from '../../src/system-actions/entry-router.ts';
 import {systemBookmarkId} from '../../src/system-actions/catalog-policy.ts';
 
 const owner = {userId: 'u', origin: 'https://api.test', generation: 'g1'};
-const opaqueId = systemBookmarkId(JSON.stringify(['u', 'https://api.test']), 'real-bookmark');
+const opaqueId = systemBookmarkId('real-bookmark');
 const invocation = {id: 'open-1', name: 'openBookmark', params: {bookmarkId: opaqueId}, createdAt: 1};
 function setup(initialReceipts = []) {
   let currentOwner = owner, ready = false, receipts = initialReceipts;
