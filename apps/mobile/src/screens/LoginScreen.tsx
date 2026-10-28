@@ -110,7 +110,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
       <View style={{height: Math.min(width * 128 / 375, 128)}}/>
       <Text style={styles.title}>{t('login_welcome_title')}</Text>
       <View>
-        <Image source={mobileAssets.bg_login} style={{width, aspectRatio: L.loginArtworkAspectRatio}} resizeMode="contain"/>
+        <Image source={mobileAssets.bg_login} style={{width, height: width / L.loginArtworkAspectRatio}} resizeMode="contain"/>
         <Text style={styles.subtitle}>{t('login_welcome_subtitle')}</Text>
       </View>
     </View>
