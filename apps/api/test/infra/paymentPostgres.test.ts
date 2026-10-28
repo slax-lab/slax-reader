@@ -316,7 +316,7 @@ describe.skipIf(!enabled)('payment ledger against isolated PostgreSQL', () => {
     const orchestrator = new SubscriptionOrchestrator({} as never, service, repo, payments, {} as never)
     for (const [eventId] of queue.mock.calls) await orchestrator.processSubscription(ctx, { id: 'delivery', info: { eventId } })
     expect(await db!.sr_user_subscription_period.count()).toBe(1)
-    const body = JSON.stringify({ id: 'evt_wrong_mode', type: 'invoice.paid', livemode: false, created: 1, data: { object: invoice } })
+    const body = JSON.stringify({ id: 'evt_connected_account', type: 'invoice.paid', livemode: true, account: 'acct_connected', created: 1, data: { object: invoice } })
     await expect(service.decryptCallbackEvent(ctx, body, stripe.webhooks.generateTestHeaderString({ payload: body, secret: 'whsec_local' }))).rejects.toBeDefined()
     expect(await db!.sr_stripe_event.count()).toBe(2)
   })

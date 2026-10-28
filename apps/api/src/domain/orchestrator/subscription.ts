@@ -27,8 +27,8 @@ export class SubscriptionOrchestrator {
     const token = await this.repo.claimPaymentJob(key)
     if (!token) throw new Error('Payment event is leased')
     try {
-      if (res.event_account || !res.live_mode) {
-        await this.repo.parkPaymentJob(key, 'Connected-account or test-mode Stripe event is unsupported', token)
+      if (res.event_account) {
+        await this.repo.parkPaymentJob(key, 'Connected-account Stripe event is unsupported', token)
         return
       }
       const eventData = { ...JSON.parse(res.event_data), livemode: res.live_mode, _paymentEventId: res.event_id }
@@ -48,12 +48,6 @@ export class SubscriptionOrchestrator {
       try {
         if (job.kind === 'stripe_event') await this.processSubscription(ctx, { id: job.key, info: job.payload as { eventId: number } })
         else if (job.kind === 'stripe_cancel' || job.kind === 'stripe_credit') {
-          const keyMode = /^stripe:(true|false):/.exec(job.key)?.[1] || /stripe:(true|false):/.exec(job.key)?.[1]
-          if (keyMode !== 'true') {
-            const token = await this.repo.claimPaymentJob(job.key)
-            if (token) await this.repo.parkPaymentJob(job.key, 'External operation must use live Stripe mode', token)
-            continue
-          }
           await this.payments.runOperation(job.key)
         } else if (job.kind === 'payment_notice' || job.kind === 'payment_telemetry') {
           const token = await this.repo.claimPaymentJob(job.key)

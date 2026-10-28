@@ -154,10 +154,9 @@ export class SubscriptionPaymentService {
     })
   }
 
-  async cancel(subscriptionId: string, reason: string, customerId?: string, liveMode = true) {
+  async cancel(subscriptionId: string, reason: string, customerId?: string) {
     const current = await this.stripeClient().subscriptions.retrieve(subscriptionId)
-    if (!this.personalPayment(current.metadata) || (customerId && this.id(current.customer) !== customerId) || current.livemode !== liveMode)
-      throw new Error('Reader subscription ownership or mode mismatch')
+    if (!this.personalPayment(current.metadata) || (customerId && this.id(current.customer) !== customerId)) throw new Error('Reader subscription ownership mismatch')
     const binding = await this.repo.getUserSubscriptionInfo(Number(current.metadata.user_id))
     if (!binding || binding.stripe_customer_id !== this.id(current.customer)) throw new Error('Reader subscription customer mismatch')
     const key = await this.repo.createPaymentCommand(`stripe:${current.livemode}::cancel:${subscriptionId}`, {

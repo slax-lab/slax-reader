@@ -3,9 +3,9 @@ import Stripe from 'stripe'
 import { SubscriptionService } from '@/domain/subscription'
 import { SubscriptionPaymentService } from '@/domain/subscriptionPayment'
 
-const invoice = (metadata: Record<string, string> = { user_id: '7' }) => ({
+const invoice = (metadata: Record<string, string> = { user_id: '7' }, livemode = true) => ({
   id: 'in_legacy',
-  livemode: true,
+  livemode,
   billing_reason: 'subscription_cycle',
   subscription: 'sub_legacy',
   customer: 'cus_bound',
@@ -85,7 +85,14 @@ describe('Stripe platform metadata compatibility', () => {
     expect(h.repo.applyPaymentGrant).not.toHaveBeenCalled()
   })
 
-  test.each([{ livemode: false }, { account: 'acct_other' }, { signature: 'invalid' }])('retains webhook authenticity checks: %j', async options => {
+  test.each([true, false])('signed %s-mode callback is persisted for queue handling', async livemode => {
+    const h = setup()
+    await h.callback(invoice(), { livemode })
+    expect(h.repo.createSubscriptionEvent).toHaveBeenCalledOnce()
+    expect(h.pushStripeEvent).toHaveBeenCalledWith(1)
+  })
+
+  test.each([{ account: 'acct_other' }, { signature: 'invalid' }])('retains webhook authenticity checks: %j', async options => {
     const h = setup()
     await expect(h.callback(invoice(), options)).rejects.toBeDefined()
     expect(h.repo.createSubscriptionEvent).not.toHaveBeenCalled()
@@ -118,6 +125,15 @@ describe('Stripe platform metadata compatibility', () => {
     expect(h.repo.applyPaymentGrant).toHaveBeenCalledWith(expect.objectContaining({ userId: 7, key: 'stripe:true::pi:pi_legacy' }))
   })
 
+  test.each([true, false])('%s-mode invoice grant carries its mode-specific idempotency scope', async livemode => {
+    const h = setup()
+    const data = invoice({ user_id: '7' }, livemode)
+    await h.payments.handle('invoice.payment_succeeded', data)
+    expect(h.repo.applyPaymentGrant).toHaveBeenCalledWith(expect.objectContaining({
+      key: `stripe:${livemode}::invoice:in_legacy`, scope: `stripe:${livemode}:`, userId: 7
+    }))
+  })
+
   test('legacy invoice refund reaches refund validation', async () => {
     const h = setup()
     h.client.invoices.retrieve.mockResolvedValue({ ...invoice(), charge: 'ch_1' })
@@ -125,14 +141,13 @@ describe('Stripe platform metadata compatibility', () => {
     expect(h.repo.applyPaymentRefund).toHaveBeenCalledWith(expect.objectContaining({ userId: 7, key: 'stripe:true::invoice:in_legacy', cumulative: 599 }))
   })
 
-  test('legacy cancellation keeps customer and mode checks', async () => {
+  test.each([true, false])('legacy cancellation accepts %s-mode subscriptions and retains customer checks', async livemode => {
     const h = setup()
-    h.client.subscriptions.retrieve.mockResolvedValue({ id: 'sub_legacy', metadata: { user_id: '7' }, customer: 'cus_bound', livemode: true })
+    h.client.subscriptions.retrieve.mockResolvedValue({ id: 'sub_legacy', metadata: { user_id: '7' }, customer: 'cus_bound', livemode })
     h.repo.getPaymentJob.mockResolvedValue({ status: 'done' } as never)
-    await h.payments.cancel('sub_legacy', 'owner request', 'cus_bound', true)
+    await h.payments.cancel('sub_legacy', 'owner request', 'cus_bound')
     expect(h.repo.createPaymentCommand).toHaveBeenCalledOnce()
-    await expect(h.payments.cancel('sub_legacy', 'owner request', 'cus_other', true)).rejects.toThrow()
-    await expect(h.payments.cancel('sub_legacy', 'owner request', 'cus_bound', false)).rejects.toThrow()
+    await expect(h.payments.cancel('sub_legacy', 'owner request', 'cus_other')).rejects.toThrow()
     expect(h.repo.createPaymentCommand).toHaveBeenCalledOnce()
   })
 })

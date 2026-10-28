@@ -62,7 +62,6 @@ export class SubscriptionService {
     }
 
     try {
-      if (!eventRes.livemode) throw new Error('Test-mode Stripe events are unsupported')
       const object = eventRes.data.object as { metadata?: Record<string, string>; subscription_details?: { metadata?: Record<string, string> } }
       const metadata = object.subscription_details?.metadata || object.metadata
       if (metadata?.collection_id || metadata?.owner_id) {

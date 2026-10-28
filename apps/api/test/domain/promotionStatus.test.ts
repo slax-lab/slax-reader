@@ -9,7 +9,7 @@ function setup(sub: unknown = null, received = false) {
     findReceiveActivityRecord: vi.fn().mockResolvedValue(received ? {} : null),
     claimReward: vi.fn().mockResolvedValue({ credit: false, endTime: '2027-01-01T00:00:00Z' })
   }
-  const service = new SubscriptionServiceMain({} as never, {} as never, {} as never, repo as never, {} as never, {} as never, {} as never)
+  const service = new SubscriptionServiceMain((() => ({ liveMode: false })) as never, {} as never, {} as never, repo as never, {} as never, {} as never, {} as never)
   const ctx = { getUserId: () => 7, getlang: () => 'en', env: {} } as never
   return { repo, service, ctx }
 }

@@ -10,7 +10,7 @@ Allow Stripe payments for locally bound users to retain their entitlements acros
 The system SHALL accept otherwise valid Stripe payment events without requiring `metadata.platform` to equal `reader`. The same rule SHALL apply to subscription state, one-time payments, invoice grants, refunds, and cancellation ownership checks.
 
 #### Scenario: Legacy renewal has no platform marker
-- **WHEN** a signed live-mode renewal identifies a valid user and the user's bound Stripe customer, without a platform marker
+- **WHEN** a signed renewal identifies a valid user and the user's bound Stripe customer, without a platform marker
 - **THEN** it enters the payment inbox and is eligible for the existing idempotent entitlement grant
 
 #### Scenario: Platform marker has another value
@@ -18,7 +18,7 @@ The system SHALL accept otherwise valid Stripe payment events without requiring 
 - **THEN** the marker alone does not cause the event to be rejected
 
 ### Requirement: Payment ownership checks remain effective
-The system MUST continue rejecting connected-account or test-mode events and collection/owner payments, and MUST continue requiring a valid user and matching stored Stripe customer for entitlement changes.
+The system MUST continue rejecting connected-account events and collection/owner payments, and MUST continue requiring a valid user and matching stored Stripe customer for entitlement changes.
 
 #### Scenario: Collection metadata is present
 - **WHEN** a payment carries a nonempty collection or owner identifier
@@ -32,17 +32,17 @@ The system MUST continue rejecting connected-account or test-mode events and col
 - **WHEN** a valid platform-less invoice is delivered again
 - **THEN** its invoice grant key prevents duplicate entitlement
 
-### Requirement: Deployed Stripe processing always uses live mode
-The system SHALL process live Stripe callbacks, queued events, cancellation, and reward credits without requiring a global deployment mode environment variable. The system MUST reject test-mode callbacks and queued events and MUST NOT recover persisted test-mode Stripe external operations.
+### Requirement: Stripe modes do not require a global deployment switch
+The system SHALL process valid signed test-mode and live-mode Stripe callbacks and queued events without requiring a global deployment mode environment variable. Cancellation and external operation recovery SHALL support either mode through the configured Stripe client. Event and operation modes SHALL remain part of their existing ledger namespaces for deduplication.
 
-#### Scenario: Edge has no Stripe mode environment binding
-- **WHEN** a valid live Stripe invoice reaches the callback and queue consumer with no mode environment binding
-- **THEN** it is eligible for the existing entitlement grant and is not parked because configuration is missing
+#### Scenario: Worker has no Stripe mode environment binding
+- **WHEN** a valid signed test or live Stripe invoice reaches the callback and queue consumer with no mode environment binding
+- **THEN** it is eligible for the existing entitlement grant under its event mode and is not parked because configuration is missing
 
 #### Scenario: Reward creates a Stripe credit
 - **WHEN** a bound Stripe subscriber claims an eligible reward without a mode environment binding
-- **THEN** the durable credit and its execution use the live Stripe operation key
+- **THEN** the durable credit and its execution use the same operation key in the configured Stripe client's mode namespace
 
-#### Scenario: Test-mode event or operation reaches a deployed worker
-- **WHEN** a test-mode Stripe event or persisted external operation reaches callback ingestion or payment recovery
-- **THEN** it does not grant entitlement or execute an external Stripe operation
+#### Scenario: Test or live operation reaches recovery
+- **WHEN** a persisted Stripe cancellation or credit operation reaches payment recovery
+- **THEN** recovery executes it through the configured Stripe client without rejecting its mode

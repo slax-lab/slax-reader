@@ -35,30 +35,30 @@ afterEach(() => {
 })
 
 describe('payment telemetry recovery', () => {
-  test('processes live Stripe events when no mode environment flag is present', async () => {
+  test.each([true, false])('processes %s-mode Stripe events when no mode environment flag is present', async liveMode => {
     const { orchestrator, repo } = setup()
     const event = {
-      event_id: 'evt_live', live_mode: true, event_account: '', event_type: 'invoice.paid',
-      event_data: JSON.stringify({ id: 'in_live', billing_reason: 'subscription_create', subscription_details: { metadata: { user_id: '7' } }, lines: { data: [{ price: { recurring: { interval: 'month', interval_count: 1 } }, period: { start: 1, end: 2 } }] } }),
+      event_id: `evt_${liveMode}`, live_mode: liveMode, event_account: '', event_type: 'invoice.paid',
+      event_data: JSON.stringify({ id: `in_${liveMode}`, billing_reason: 'subscription_create', subscription_details: { metadata: { user_id: '7' } }, lines: { data: [{ price: { recurring: { interval: 'month', interval_count: 1 } }, period: { start: 1, end: 2 } }] } }),
       previous_event_data: '{}'
     }
     const applyPaymentGrant = vi.fn()
     Object.assign(repo, { applyPaymentGrant })
     Object.assign(orchestrator, { subscriptionService: { getEventById: vi.fn().mockResolvedValue(event) } })
     await orchestrator.processSubscription({} as never, { id: 'msg', info: { eventId: 1 } })
-    expect(applyPaymentGrant).toHaveBeenCalledWith(expect.objectContaining({ key: 'stripe:true::invoice:in_live', userId: 7 }))
-    expect(repo.finishPaymentJob).toHaveBeenCalledWith('stripe:true::evt_live', 'lease')
+    expect(applyPaymentGrant).toHaveBeenCalledWith(expect.objectContaining({ key: `stripe:${liveMode}::invoice:in_${liveMode}`, userId: 7 }))
+    expect(repo.finishPaymentJob).toHaveBeenCalledWith(`stripe:${liveMode}::evt_${liveMode}`, 'lease')
   })
 
-  test.each([{ live_mode: false, event_account: '' }, { live_mode: true, event_account: 'acct_connected' }])('parks unsupported Stripe event scope %j', async mode => {
+  test('parks connected-account Stripe event scope', async () => {
     const { orchestrator, repo } = setup()
-    const event = { event_id: 'evt_unsupported', ...mode, event_type: 'invoice.paid', event_data: '{}', previous_event_data: '{}' }
+    const event = { event_id: 'evt_unsupported', live_mode: true, event_account: 'acct_connected', event_type: 'invoice.paid', event_data: '{}', previous_event_data: '{}' }
     Object.assign(orchestrator, { subscriptionService: { getEventById: vi.fn().mockResolvedValue(event) } })
     await orchestrator.processSubscription({} as never, { id: 'msg', info: { eventId: 2 } })
-    expect(repo.parkPaymentJob).toHaveBeenCalledWith(`stripe:${mode.live_mode}:${mode.event_account}:evt_unsupported`, expect.any(String), 'lease')
+    expect(repo.parkPaymentJob).toHaveBeenCalledWith('stripe:true:acct_connected:evt_unsupported', expect.any(String), 'lease')
   })
 
-  test('recovers live cancellation and credit keys while parking false-mode keys', async () => {
+  test('recovers cancellation and credit keys for both Stripe modes', async () => {
     const { orchestrator, repo } = setup()
     const runOperation = vi.fn()
     Object.assign(orchestrator, { payments: { runOperation } })
@@ -69,11 +69,11 @@ describe('payment telemetry recovery', () => {
       { key: 'stripe:false::credit:reward:2', kind: 'stripe_credit' }
     ])
     await orchestrator.recover({} as never)
-    expect(runOperation.mock.calls).toEqual([['stripe:true::cancel:sub_1'], ['stripe:true::credit:reward:1']])
-    expect(repo.parkPaymentJob.mock.calls).toEqual([
-      ['stripe:false::cancel:sub_2', expect.any(String), 'lease'],
-      ['stripe:false::credit:reward:2', expect.any(String), 'lease']
+    expect(runOperation.mock.calls).toEqual([
+      ['stripe:true::cancel:sub_1'], ['stripe:true::credit:reward:1'],
+      ['stripe:false::cancel:sub_2'], ['stripe:false::credit:reward:2']
     ])
+    expect(repo.parkPaymentJob).not.toHaveBeenCalled()
   })
 
   test.each([

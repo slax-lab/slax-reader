@@ -19,7 +19,7 @@ cpu_ms = 300000
 
 [vars]
 # Local defaults. For remote deployment set RUN_ENV = "prod".
-# RUN_TYPE identifies the installation. Stripe payment processing always uses live mode.
+# RUN_TYPE identifies the installation. Stripe credentials select test or live API mode.
 RUN_ENV = "development"
 RUN_TYPE = "dev"
 # Comma-separated allowlist for the beta host and the /m/ dashboard. These are operator and

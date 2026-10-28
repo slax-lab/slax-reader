@@ -25,7 +25,7 @@ For a new installation, bootstrap deploys Browser → Core without service/Workf
 
 This is a Cloudflare Workers runtime, not a Docker-hosted Node API. Offline builds and local tests do not verify cloud resource permissions, secrets or third-party integrations. Validate authentication, bookmarks, queues, provider callbacks and sync after deployment.
 
-The configured frontend origin also controls credentialed events CORS, image Referer checks and share shortcuts. Screenshots use IMAGE_PREFIX and notification icons use FRONT_END_URL. End the image prefix with `/` and point it to your image service. Remote deployment requires `RUN_ENV = "prod"` to disable development endpoints and enable production checks; `RUN_TYPE` identifies dev/beta/prod. Stripe payment processing always uses live mode; configure a live Stripe key and its matching webhook signing secret.
+The configured frontend origin also controls credentialed events CORS, image Referer checks and share shortcuts. Screenshots use IMAGE_PREFIX and notification icons use FRONT_END_URL. End the image prefix with `/` and point it to your image service. Remote deployment requires `RUN_ENV = "prod"` to disable development endpoints and enable production checks; `RUN_TYPE` identifies dev/beta/prod. Stripe credentials select test or live API mode; configure the Stripe key and its matching webhook signing secret. Signed callbacks are processed in either mode without a separate mode environment variable.
 
 ## Full development startup and external CI configuration
 
