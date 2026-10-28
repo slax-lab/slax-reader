@@ -6,7 +6,7 @@ The mobile application reports production performance metrics through [EAS Obser
 
 - Cold and warm launch, time to first render, time to interactive, and bundle load.
 - Per-route cold/warm first render and interactive timing for `Login`, `Library`, `Reader`, and `Reauthenticate`.
-- EAS Update download timing when the app is delivered through EAS Update. The current local-build workflow does not use EAS Update, so this metric remains absent until that integration is adopted.
+- EAS Update download timing for builds that embed `expo-updates` once an update is published to their runtime (see [release](release.md#over-the-air-javascript-updates-eas-update)).
 - Optional user-defined events and preview JS/native error reporting only when explicitly added.
 
 The app marks interactive when the entry route is usable: Login and Reauthenticate after their first interactive render, Library when the initial list state is renderable (including a legitimate empty or error state), and Reader when the document is ready or the normal error UI is interactive. Full PowerSync synchronization and automatic cache completion are not prerequisites. Each screen mount marks interactive at most once; returning to a still-mounted screen is reported through `warm_ttr`, not a second interactive marker.
@@ -25,7 +25,7 @@ The app marks interactive when the entry route is usable: Login and Reauthentica
 
 Observe requires an EAS project. The project id already lives under `extra.eas.projectId`; the EAS account used for builds must have access to it.
 
-`expo-observe` is a native module, so it cannot be delivered by an OTA-only change. After changing the dependency:
+`expo-observe` is a native module, so it cannot be delivered by an EAS Update. After changing the dependency:
 
 ```sh
 pnpm mobile -- prebuild
