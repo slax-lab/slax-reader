@@ -66,11 +66,12 @@ Each approved case, where it is stated, and a one-line body example the section 
 
 The group unit (a before/after pair is one group, a recording is one group, so three before/after
 pairs fit the 1–3 cap), the pairing rule (same state, theme, and width, captioned with the
-surface, state, theme, width, and what changed), the independent-surface escape (more than 1–3
-groups only when the change spans independent surfaces, with the reason stated), and the allowed
-"before" sources (target branch, an earlier capture of the same surface, accepted demo, naming
-the source when it is not the target branch) are stated in both files. The `n/a` path is
-restricted in the template so a transition, drag, or scroll-linked change cannot use it.
+surface, state, theme, width, and what changed), and the independent-surface escape (more than
+1–3 groups only when the change spans independent surfaces, with the reason stated) are stated
+in both operative files. Before-image provenance is owned by `docs/DEFINITION-OF-DONE.md` only:
+the target branch, an earlier capture of the same surface, or the accepted demo, naming the
+source when it is not the target branch. The `n/a` path is restricted in the template so a
+transition, drag, or scroll-linked change cannot use it.
 
 ## What the edits intentionally do not do
 
