@@ -1200,6 +1200,8 @@ input {
   overflow-wrap: anywhere;
 }
 .reader-dialog {
+  /* Keep modal focus in the viewport despite the global dialog reset. */
+  position: fixed;
   max-width: 820px;
 }
 .reader-dialog[open] {
