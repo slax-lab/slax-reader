@@ -519,3 +519,8 @@ Review decisions retain the approved simplified enforcement/lifecycle/indexing s
 Web full suite before that final correction passed in the thread pool: 2587 passed, 3 skipped (227 passing files, one skipped). Two earlier fork-pool runs were stopped after prolonged initialization without a completed result. No product/test configuration was changed to obtain the thread-pool run.
 
 Local API startup uses the existing operator development configuration and database without rebuilding test data; its 13 Newsletter columns are compatible with the current runtime. The freshly generated constraints/index layout was verified in owned disposable databases rather than silently changing the operator database's earlier trial migration. Use an account without an issued mailbox to exercise the new first-configuration rule; an existing issued address intentionally remains readable and unchanged.
+
+
+### Local handoff readiness
+
+Local Web http://localhost:3000/login returned HTTP 200 and its actual browser page shows the normal Google/Apple sign-in UI. Edge http://localhost:8787/v1/user/labs returns the expected unauthenticated HTTP 401, and Core listens on 8686; both actual API Workers reported ready. The operator's existing data was preserved. The owned migration/PostgreSQL container and temporary component server/files were removed after verification, and viewport overrides were reset. Keep the actual API/Web dev sessions running for the requesting user's acceptance. No new Cloudflare console operation is needed for this code refinement; hosted rollout remains a later operator step.

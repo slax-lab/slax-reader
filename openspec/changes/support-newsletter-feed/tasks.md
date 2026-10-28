@@ -17,9 +17,13 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 
 - [x] 6d. Record renewed human hands-on acceptance and complete reviewed verification/screenshot preparation for committing and updating the original PR. Demo approval alone is not product acceptance.
 
-## Archive after merge
+## Team-feedback revision
 
 - [x] 6e. Generate the clean initial schema, document every field and verify serialized address reservation without added unique address index/CHECK constraints.
 - [x] 6f. Implement Newsletter-only first-configuration validation, flat modules and HtmlBuilder mail extraction; restore generic sync repository and ordinary search helpers.
-- [ ] 6g. Complete fresh runtime/regression/review evidence and start local API/Web for renewed hands-on acceptance before PR handoff.
+- [x] 6g. Complete fresh runtime/regression/review evidence and start local API/Web for renewed hands-on acceptance before PR handoff.
+- [ ] 6h. Obtain renewed human hands-on acceptance of the first-configuration rule and reviewed account-casing correction, then update original PR #349.
+
+## Archive after merge
+
 - [ ] 7. After the task PR merges, classify unchecked tasks and archive this change through a separate documentation PR.
