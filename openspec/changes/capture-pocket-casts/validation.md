@@ -45,9 +45,9 @@ Local evidence: `/tmp/pocket-live-result.json`, `/tmp/pocket-body.html`, `/tmp/p
 - Bugs: verified short and canonical episode recognition, show-page exclusion, missing audio, shared source identity, and existing bookmark identity. Capture tests verified annotation refusal before writes.
 - Security: audio, cover, and transcript URLs use the existing outbound URL screen. Credential-bearing, private, and non-HTTP media URLs are rejected. The parser does not execute source scripts.
 - Compliance: this diff implements `capture-pocket-casts`. Review found that untyped transcript links could be mistaken for VTT. The parser now requires a supported type, except native caption tracks. The regression test passes.
-- No unresolved Important code findings. Human hands-on acceptance remains pending. Luca authorized PR creation for colleague review on 2026-10-27.
+- No unresolved Important code findings. Luca confirmed human hands-on acceptance on 2026-10-28, as recorded below.
 
-## Limits and remaining acceptance
+## Verification limits
 
 Direct HTTP fetching returned a target 403. The browser rendered the source page. The existing provider fallback remains unchanged; a production Zyte or ScrapingBot fetch was not verified.
 
@@ -57,10 +57,28 @@ Annotation refusal uses the existing pre-write mark check. It does not add a tra
 
 After deployment, enable podcast Labs and save the original source link again. The existing save flow retains the bookmark identity. A bookmark with annotations must keep its current body.
 
-Human hands-on acceptance is pending under `DESIGN.md` section 10.2. The `Pocket Casts player preview` tab exists in a dedicated Chrome preview window on M2-MBP. Reviewers must exercise playback. Record the reviewer, date, and adjustments here. Final production transcription remains a separate verification gap.
+Final production transcription remains a separate verification gap. Human UI acceptance does not establish production transcription success.
 
 Archive after the task PR merges. Sequence archive after the already-merged bookmark-fork delta for `podcast-article`.
 
 ## Review handoff — 2026-10-27
 
-Luca explicitly requested PR creation and colleague review with the test results. This instruction overrides the usual pre-PR acceptance order for this task. It does not establish hands-on acceptance or authorize merge or deployment. The PR records the pending checks for reviewers.
+Luca explicitly requested PR creation and colleague review with the test results. This instruction overrode the usual pre-PR acceptance order for this task. That instruction alone did not establish hands-on acceptance or authorize merge or deployment. Acceptance was pending at that time.
+
+## Human UI acceptance — 2026-10-28
+
+- Reviewer: Luca (wulujia).
+- Confirmation date: 2026-10-28.
+- Result: Luca confirmed that human hands-on acceptance was complete.
+- Scope: the user-visible Pocket Casts capture result, with the existing player and episode notes presentation.
+- Adjustments: no UI changes were required. Luca confirmed that there were no UI changes.
+- Evidence source: Luca's confirmation in the task conversation, followed by his clarification about UI changes.
+
+This record supersedes the earlier pending status. Acceptance was confirmed after PR creation; the earlier handoff remains historical context.
+The production crawl, paid transcription, and final cleaned article retain the verification limits stated above.
+
+## Evidence correction — 2026-10-28
+
+The PR description recorded acceptance before this file and task 2.3 were updated. This documentation correction aligns all three records.
+This correction changes no application code or package output. It is exempt from runtime verification and application version changes.
+Verification: `pnpm exec openspec validate --all --strict` passed all 79 items; `git diff --check` passed.

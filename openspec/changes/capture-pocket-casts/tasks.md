@@ -9,5 +9,5 @@
 
 - [x] 2.1 Parse the reported live episode page and record the resulting audio, title, and duration; state provider and paid-generation limits.
 - [x] 2.2 Run focused tests, type checks, lint, generation, strict OpenSpec validation, and local review; record results.
-- [ ] 2.3 Obtain colleague hands-on acceptance of the resulting player and article. Luca authorized PR creation first on 2026-10-27.
+- [x] 2.3 Record human hands-on acceptance. Luca confirmed acceptance on 2026-10-28; no UI changes were required. See `validation.md` for scope and remaining production verification gaps.
 - [ ] 2.4 Archive through a documentation PR after the task PR merges and the merged bookmark-fork deltas are archived.
