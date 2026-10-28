@@ -131,6 +131,19 @@ describe('confirmed Newsletter setup', () => {
     expect(post).toHaveBeenCalledOnce()
     expect(post.mock.calls[0][0].body.newsletter_address).toBe(ready.address)
   })
+  it('repairs the exact casing of a historical account before confirming its lowercase mailbox', async () => {
+    profileGet.mockResolvedValue({ account: 'Reader01' })
+    get.mockResolvedValueOnce({ ...empty, status: 'invalid_account' }).mockResolvedValueOnce({ ...ready, address: 'feed+reader01@newsletterreader.slax.dev' })
+    const w = create()
+    await flushPromises()
+    await submit(w, 'reader01')
+    await confirm(w)
+    expect(post.mock.calls.map(([p]) => [p.url, p.body])).toEqual([
+      ['/v1/user/setting', { key: 'account', value: 'reader01' }],
+      ['/v1/user/setting/enable', { key: 'lab:newsletter', newsletter_address: 'feed+reader01@newsletterreader.slax.dev' }]
+    ])
+    expect(w.get('.newsletter-address').text()).toBe('feed+reader01@newsletterreader.slax.dev')
+  })
   it('keeps detail-read failure retryable without creating from unverified account state', async () => {
     profileGet.mockRejectedValueOnce(new Error('private profile failure'))
     const w = create()

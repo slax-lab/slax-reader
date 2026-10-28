@@ -128,7 +128,7 @@
       <p id="newsletter-confirm-detail" class="dialog-caption">
         {{ $t('newsletter.confirm_detail') }}
       </p>
-      <p v-if="confirmation && confirmation.account.toLowerCase() !== currentAccount.toLowerCase()" class="dialog-caption">
+      <p v-if="confirmation && confirmation.account !== currentAccount" class="dialog-caption">
         {{ $t('newsletter.confirm_account', { account: confirmation.account }) }}
       </p>
       <footer class="dialog-actions">
@@ -318,7 +318,7 @@ const provision = async () => {
   pending.value = true
   error.value = ''
   try {
-    if (selected.account.toLowerCase() !== String(currentAccount.value).toLowerCase()) {
+    if (selected.account !== currentAccount.value) {
       await request().post({
         url: '/v1/user/setting',
         body: { key: 'account', value: selected.account },
