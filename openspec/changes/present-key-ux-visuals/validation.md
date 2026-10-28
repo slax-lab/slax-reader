@@ -22,8 +22,9 @@ Run in `/Users/boxcounter/Code/Slax/slax-reader/.tower/worktrees/wt-40` on
 | --- | --- |
 | `pnpm exec openspec validate present-key-ux-visuals --strict` | `Change 'present-key-ux-visuals' is valid`, with the info line that `skip_specs` is set and zero deltas are accepted |
 | `pnpm exec openspec validate --all --strict` | `Totals: 79 passed, 0 failed (79 items)` before the rebase; `Totals: 82 passed, 0 failed (82 items)` after the rebase onto current `origin/dev`, which added two changes |
-| `git diff --check` | clean, no whitespace errors |
-| `git diff --name-only` | `.github/PULL_REQUEST_TEMPLATE.md`, `docs/DEFINITION-OF-DONE.md`; the change directory is untracked and added in the same commit |
+| `git diff --check origin/dev...HEAD` | clean, no whitespace errors |
+| `git diff --name-only origin/dev...HEAD` | seven paths: `.github/PULL_REQUEST_TEMPLATE.md`, `docs/DEFINITION-OF-DONE.md`, and the five files under `openspec/changes/present-key-ux-visuals/` (`.openspec.yaml`, `proposal.md`, `design.md`, `tasks.md`, `validation.md`) |
+| `git rev-parse HEAD` against `gh pr view 426 --json headRefOid` | equal — pull request #426's head is the delivered branch head |
 | `grep -rn "PULL_REQUEST_TEMPLATE" .github tooling openspec apps packages` | no code, workflow, or tooling path reads the template; the only non-archive hit is the governance requirement in `openspec/specs/agent-rule-governance/spec.md` naming it as a policy text |
 
 ## Template structure and rendering check
@@ -133,9 +134,12 @@ committed. The text above stands alone without media, as the rule it introduces 
 
 ## Delivery state
 
-The branch `feat/present-key-ux-visuals` is rebased onto the `origin/dev` tip `870d9bb6` and was
-delivered as pull request #426 against `dev` at tip `e8e8b9a9`. The review-round correction is
-committed on top of that tip and is **not pushed** until the tower reviews it, so PR #426 shows
-the pre-correction text until then. The change directory carries no delta specs (`skip_specs`),
-so archiving moves no requirement into `openspec/specs/`; the archive step is the unchecked task
-in `tasks.md` and happens through a docs pull request after the task pull request merges.
+The branch `feat/present-key-ux-visuals` is rebased onto the `origin/dev` tip `870d9bb6` and is
+delivered as pull request #426 against `dev`. The delivered head carries three commits: the
+original delivery `e8e8b9a9`, the review-round correction `f2b3af37`, and this evidence fix on
+top; the branch head and the pull request's head are the same commit. The delivered diff is the
+full seven paths — `.github/PULL_REQUEST_TEMPLATE.md`, `docs/DEFINITION-OF-DONE.md`, and the five
+files under `openspec/changes/present-key-ux-visuals/` — not the two operative files alone. The
+change directory carries no delta specs (`skip_specs`), so archiving moves no requirement into
+`openspec/specs/`; the archive step is the unchecked task in `tasks.md` and happens through a
+docs pull request after the task pull request merges.
