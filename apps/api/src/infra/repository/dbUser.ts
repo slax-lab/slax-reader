@@ -350,7 +350,6 @@ export class UserRepo {
       if (!users[0]) throw UserNotFoundError()
       if (!users[0].deleted_at) await tx.sr_user.update({ where: { id: userId }, data: { deleted_at: new Date() } })
       await tx.sr_user_api_key.deleteMany({ where: { user_id: userId } })
-      await tx.$executeRaw`UPDATE sr_platform_bind SET retired_at=COALESCE(retired_at,now()) WHERE user_id=${userId} AND platform='newsletter'`
       await tx.$executeRaw`UPDATE sr_newsletter_feed SET state='cancelled' WHERE user_id=${userId} AND state='pending'`
     })
   }

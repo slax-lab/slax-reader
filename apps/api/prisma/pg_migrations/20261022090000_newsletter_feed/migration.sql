@@ -1,26 +1,6 @@
--- First Newsletter release: independent messages and permanent platform bindings.
+-- First Newsletter release: independent messages using existing platform bindings.
 BEGIN;
-ALTER TABLE sr_platform_bind ADD COLUMN retired_at TIMESTAMP(3);
 CREATE UNIQUE INDEX sr_platform_bind_newsletter_address_key ON sr_platform_bind(platform,platform_id) WHERE platform='newsletter';
-CREATE FUNCTION guard_newsletter_binding() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN
- IF OLD.platform = 'newsletter' THEN
-  IF TG_OP = 'DELETE' THEN
-   UPDATE sr_platform_bind SET retired_at = COALESCE(retired_at, CURRENT_TIMESTAMP) WHERE id = OLD.id;
-   RETURN NULL;
-  END IF;
-  IF (NEW.id, NEW.uuid, NEW.user_id, NEW.platform, NEW.platform_id, NEW.user_name, NEW.created_at)
-   IS DISTINCT FROM (OLD.id, OLD.uuid, OLD.user_id, OLD.platform, OLD.platform_id, OLD.user_name, OLD.created_at)
-   OR (OLD.retired_at IS NOT NULL AND NEW.retired_at IS DISTINCT FROM OLD.retired_at) THEN
-   RAISE EXCEPTION 'Newsletter binding identity and retirement are immutable';
-  END IF;
- ELSIF TG_OP = 'UPDATE' AND NEW.platform = 'newsletter' THEN
-  RAISE EXCEPTION 'Cannot repurpose a binding as Newsletter';
- END IF;
- IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
- RETURN NEW;
-END $$;
-CREATE TRIGGER sr_platform_bind_newsletter_guard BEFORE UPDATE OR DELETE ON sr_platform_bind FOR EACH ROW EXECUTE FUNCTION guard_newsletter_binding();
 
 CREATE TABLE sr_newsletter_feed (
  id BIGSERIAL PRIMARY KEY,

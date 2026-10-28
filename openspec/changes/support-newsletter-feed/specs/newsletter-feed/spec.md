@@ -5,7 +5,7 @@ Enable private Newsletter delivery and reading through permanent account-derived
 ## ADDED Requirements
 
 ### Requirement: Permanent account-derived receiving address
-The system SHALL provision a Newsletter address only for an authenticated active user with Newsletter enabled and explicit deployment admission configuration. The receiving local part SHALL be feed+ followed by the first validated lowercase account token of at most 59 ASCII characters. A permanent newsletter platform binding SHALL retain the complete canonical address, and Web SHALL display/copy the complete prefixed address. GET SHALL have no provisioning side effect; existing user setting enable SHALL idempotently provision the address. An issued address SHALL remain stable after account changes and SHALL never be reassigned after retirement or user deletion.
+The system SHALL provision a Newsletter address only for an authenticated active user with Newsletter enabled and explicit deployment admission configuration. The receiving local part SHALL be feed+ followed by the first validated lowercase account token of at most 59 ASCII characters. A permanent newsletter platform binding SHALL retain the complete canonical address, and Web SHALL display/copy the complete prefixed address. GET SHALL have no provisioning side effect; existing user setting enable SHALL idempotently provision the address. An issued address SHALL remain stable after account changes and SHALL never be reassigned after user deletion. The system SHALL use the existing sr_user.deleted_at for account revocation, without adding a binding retirement field or custom binding trigger. Cleanup SHALL retain the ordinary Newsletter binding row as the address reservation.
 
 #### Scenario: Provision and rename
 - **WHEN** a user provisions an address and later changes account or display name
@@ -23,9 +23,13 @@ The system SHALL provision a Newsletter address only for an authenticated active
 - **WHEN** a user provisions with a 59-character safe account or a 60-character account
 - **THEN** the former receives a 64-octet local part and the latter receives invalid_account without creating a binding; no truncation or extra suffix occurs
 
-#### Scenario: Existing immutable receiving binding
+#### Scenario: Existing stable receiving binding
 - **WHEN** a valid receiving address is already bound in the configured domain and the user later renames
 - **THEN** GET and repeated user-setting enable render feed+ followed by the original stored token, without replacing the issued binding
+
+#### Scenario: Account deletion uses existing user state
+- **WHEN** an owner is deleted through the existing user-deletion flow, including while an email is being processed
+- **THEN** sr_user.deleted_at prevents address access, new admission and late publication, pending mail is cancelled, and the retained binding reserves the issued address without a separate retirement column or trigger
 
 #### Scenario: Existing business mail service
 - **WHEN** the account is daguang in the selected Newsletter subdomain
@@ -39,7 +43,7 @@ The Edge Worker SHALL accept email through a dedicated email handler. Ownership 
 - **THEN** one user-isolated sender source and a safe readable entry are created, independent of envelope bounce sender and header To
 
 #### Scenario: Disabled, unknown or oversized delivery
-- **WHEN** a routed message targets another domain, an unknown or retired address, a disabled/deleted user, an exceeded quota or exceeds input bounds
+- **WHEN** a routed message targets another domain, an unknown address, a disabled/deleted user, an exceeded quota or exceeds input bounds
 - **THEN** it is rejected without publishing a Feed entry or disclosing address existence in the rejection
 
 ### Requirement: Durable idempotent publication
@@ -107,7 +111,7 @@ Web SHALL always show Feed in navigation, support stable address provisioning/co
 - **THEN** registered enabled dev users receive mail without per-user routes, unknown feed+ details and the bare feed address are rejected by the Worker, and rollback disables/restores only the pilot feed route while preserving reservations and content
 
 ### Requirement: Independent first-release persistence
-The system SHALL use immutable newsletter platform bindings and one sr_newsletter_feed row per message, combining admission, pending/ready/cancelled deduplication and final content metadata. It SHALL NOT create sr_feed, sr_newsletter_receipt, Newsletter subscriptions or earlier schema compatibility. The unmerged initial migration SHALL be revised directly without RSS ALTER, mirror, backfill or trial cleanup migrations. Newsletter SHALL NOT write any sr_rss table. Existing RSS model, HTTP contracts, fetching/history/retention/save and synchronization SHALL remain unchanged.
+The system SHALL use existing newsletter platform bindings, without new binding columns or triggers, and one sr_newsletter_feed row per message, combining admission, pending/ready/cancelled deduplication and final content metadata. It SHALL NOT create sr_feed, sr_newsletter_receipt, Newsletter subscriptions or earlier schema compatibility. The unmerged initial migration SHALL be revised directly without RSS ALTER, mirror, backfill or trial cleanup migrations. Newsletter SHALL NOT write any sr_rss table. Existing RSS model, HTTP contracts, fetching/history/retention/save and synchronization SHALL remain unchanged.
 
 #### Scenario: Independent receive and existing RSS writers
 - **WHEN** Newsletter is received while existing RSS clients read, write or refresh

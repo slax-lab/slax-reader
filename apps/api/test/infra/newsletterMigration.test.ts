@@ -35,7 +35,26 @@ describe('independent Newsletter migration', () => {
       await db.close()
     }
   })
-  test('one numeric mail row enforces dedupe and ready-body consistency while bindings remain permanent', async () => {
+  test('keeps binding columns and normal update/delete behavior while preventing duplicate mailboxes', async () => {
+    const db = await rssDatabase()
+    try {
+      const columns = () =>
+        db.query("SELECT column_name,data_type,column_default,is_nullable FROM information_schema.columns WHERE table_name='sr_platform_bind' ORDER BY ordinal_position")
+      const before = (await columns()).rows
+      await db.exec(read('20261022090000_newsletter_feed'))
+      expect((await columns()).rows).toEqual(before)
+      expect((await db.query("SELECT tgname FROM pg_trigger WHERE tgrelid='sr_platform_bind'::regclass AND NOT tgisinternal")).rows).toEqual([])
+      await db.exec("INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES(1,'newsletter','feed+reader@newsletterreader.slax.dev','reader')")
+      await expect(db.exec("INSERT INTO sr_platform_bind(user_id,platform,platform_id) VALUES(2,'newsletter','feed+reader@newsletterreader.slax.dev')")).rejects.toThrow()
+      await db.exec("UPDATE sr_platform_bind SET user_name='Updated' WHERE platform='newsletter'")
+      expect((await db.query("SELECT user_name FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([{ user_name: 'Updated' }])
+      await db.exec("DELETE FROM sr_platform_bind WHERE platform='newsletter'")
+      expect((await db.query("SELECT * FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([])
+    } finally {
+      await db.close()
+    }
+  })
+  test('one numeric mail row enforces dedupe and ready-body consistency', async () => {
     const db = await rssDatabase()
     try {
       await db.exec(read('20261022090000_newsletter_feed'))
@@ -63,11 +82,6 @@ describe('independent Newsletter migration', () => {
         'published_at',
         'received_at'
       ])
-      await db.exec(
-        "INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES (1,'newsletter','feed+reader@newsletterreader.slax.dev','reader'); DELETE FROM sr_platform_bind WHERE platform='newsletter'"
-      )
-      expect((await db.query("SELECT retired_at FROM sr_platform_bind WHERE platform='newsletter'")).rows[0]).toMatchObject({ retired_at: expect.any(Date) })
-      await expect(db.exec("UPDATE sr_platform_bind SET retired_at=NULL WHERE platform='newsletter'")).rejects.toThrow()
     } finally {
       await db.close()
     }

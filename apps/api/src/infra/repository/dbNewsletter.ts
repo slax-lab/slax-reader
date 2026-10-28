@@ -50,9 +50,8 @@ export class NewsletterRepo {
   async address(userId: number, domain: string, provision: boolean): Promise<NewsletterAddressStatus> {
     return this.pg().$transaction(async tx => {
       const user = await this.active(tx, userId)
-      const [existing] = await tx.$queryRaw<{ platform_id: string; retired_at: Date | null }[]>`
-        SELECT platform_id,retired_at FROM sr_platform_bind WHERE user_id=${userId} AND platform='newsletter'`
-      if (existing?.retired_at) throw new NewsletterError('not_found', 404)
+      const [existing] = await tx.$queryRaw<{ platform_id: string }[]>`
+        SELECT platform_id FROM sr_platform_bind WHERE user_id=${userId} AND platform='newsletter'`
       if (existing) {
         const address = existing.platform_id
         const at = address.lastIndexOf('@')
@@ -85,13 +84,13 @@ export class NewsletterRepo {
     const [row] = await this.pg().$queryRaw<NewsletterRecipient[]>`SELECT a.id,a.user_id,u.uuid FROM sr_platform_bind a
       JOIN sr_user u ON u.id=a.user_id AND u.deleted_at IS NULL
       JOIN sr_user_lab_feature l ON l.user_id=u.id AND l.feature='newsletter' AND l.enabled
-      WHERE a.platform='newsletter' AND a.platform_id=${address} AND a.retired_at IS NULL`
+      WHERE a.platform='newsletter' AND a.platform_id=${address}`
     return row || null
   }
 
   private async binding(tx: Tx, userId: number, bindingId: number) {
     await this.active(tx, userId)
-    const rows = await tx.$queryRaw<{ id: number }[]>`SELECT id FROM sr_platform_bind WHERE id=${bindingId} AND user_id=${userId} AND platform='newsletter' AND retired_at IS NULL`
+    const rows = await tx.$queryRaw<{ id: number }[]>`SELECT id FROM sr_platform_bind WHERE id=${bindingId} AND user_id=${userId} AND platform='newsletter'`
     if (!rows.length) throw new NewsletterError('not_found', 404)
   }
   async admit(recipient: NewsletterRecipient, source: string, message: string, sender: string): Promise<{ created: boolean; mail: NewsletterMail }> {

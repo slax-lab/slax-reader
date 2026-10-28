@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest'
 import { db, repo, recipient, adapter } from './fixture'
 import { LabRepo } from '@/infra/repository/dbLab'
+import { UserRepo } from '@/infra/repository/dbUser'
 const source = 'a'.repeat(64),
   message = 'b'.repeat(64)
 const reserve = async () => repo.admit(await recipient(), source, message, 'mail@example.com')
@@ -27,16 +28,16 @@ describe('Newsletter permanent addresses', () => {
     await db.query('UPDATE sr_user SET account=$1 WHERE id=1', ['你好'])
     expect(await repo.address(1, 'newsletterreader.slax.dev', true)).toEqual(first)
   })
-  test('retired addresses never transfer and full domain controls ownership', async () => {
+  test('deleted users cannot receive and retained bindings cannot transfer', async () => {
     await recipient()
-    await db.exec("UPDATE sr_platform_bind SET retired_at=now() WHERE user_id=1 AND platform='newsletter'; UPDATE sr_user SET account='JANE.DOE' WHERE id=2")
+    await db.exec("UPDATE sr_user SET deleted_at=now() WHERE id=1; UPDATE sr_user SET account='JANE.DOE' WHERE id=2")
     await expect(repo.address(2, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({
       code: 'address_reserved'
     })
     expect(await repo.recipient('slax.com', 'jane.doe')).toBeNull()
     expect(await repo.recipient('newsletterreader.slax.dev', 'jane.doe')).toBeNull()
   })
-  test('a Newsletter binding is immutable across domain changes and distinct from business mail', async () => {
+  test('an issued address stays stable across domain changes and distinct from business mail', async () => {
     await db.exec("UPDATE sr_user SET account='DaGuAnG' WHERE id=1")
     expect(await repo.address(1, 'newsletterreader.slax.dev', true)).toMatchObject({ address: 'feed+daguang@newsletterreader.slax.dev', status: 'ready' })
     expect(await repo.recipient('newsletterreader.slax.dev', 'daguang')).toMatchObject({ user_id: 1 })
@@ -77,6 +78,20 @@ describe('Newsletter permanent addresses', () => {
   })
 })
 describe('independent one-row admission and publication', () => {
+  test('existing user deletion blocks address access, admission and late publication', async () => {
+    const r = await recipient(),
+      first = await reserve()
+    const pg = () => adapter(db)
+    await new UserRepo(pg, pg).markUserAsDeleted(1)
+    await expect(repo.address(1, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({ code: 'not_found' })
+    expect(await repo.recipient('newsletterreader.slax.dev', 'jane.doe')).toBeNull()
+    await expect(repo.admit(r, source, 'c'.repeat(64), 'mail@example.com')).rejects.toMatchObject({ code: 'not_found' })
+    await expect(repo.publish(first.mail.id, 1, r.id, { ...candidate, startedAt: Date.now() })).rejects.toMatchObject({ code: 'not_found' })
+    expect((await db.query('SELECT state,content_key FROM sr_newsletter_feed')).rows).toEqual([{ state: 'cancelled', content_key: null }])
+    expect((await db.query("SELECT platform_id FROM sr_platform_bind WHERE user_id=1 AND platform='newsletter'")).rows).toEqual([
+      { platform_id: 'feed+jane.doe@newsletterreader.slax.dev' }
+    ])
+  })
   test('deduplicates admission and publishes one coherent immutable candidate without touching RSS', async () => {
     const r = await recipient(),
       first = await reserve()

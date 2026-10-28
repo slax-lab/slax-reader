@@ -168,8 +168,6 @@ model sr_platform_bind {
     user_name   String   @default("")
     created_at  DateTime @default(now())
 
-    retired_at DateTime?
-
     @@unique([user_id, platform])
     @@index([platform, platform_id])
 }

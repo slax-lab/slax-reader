@@ -6,7 +6,7 @@ Users need permanent Newsletter receiving addresses and one Web Feed for RSS and
 
 ## What Changes
 
-- Receive bounded MIME through the Edge email handler and immutable newsletter platform bindings, using feed+account addresses.
+- Receive bounded MIME through the Edge email handler and existing newsletter platform bindings with stable addresses, using feed+account addresses.
 - Create one purpose-built sr_newsletter_feed row per message; keep admission, deduplication, cancellation and readable content metadata together. No sr_feed or sr_newsletter_receipt, no RSS DDL/mirror/backfill or Newsletter writes to RSS tables.
 - Keep synchronous publication without processing leases, replay payloads or automatic recovery. Preserve configured limits, quiet parsing, attachment metadata, proxy images and tracking-pixel removal.
 - Merge existing RSS reads and ready Newsletter rows through private REST Feed endpoints. Preserve original RSS APIs, fetching, history, retention, save behavior and PowerSync. Put mixed Web behavior in Feed-owned adapters and delegate RSS-only mode to unchanged RSS code.

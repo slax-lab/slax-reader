@@ -10,6 +10,7 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 - [x] 4. Implement independent Inbox snapshot copies, ordinary default sharing (revised by the user during acceptance), idempotent restore/reconcile, safe indexing and acquisition guards with concurrency/security tests.
 - [x] 5. Implement Feed-owned Web actions while delegating unchanged RSS-only UI; verify themes/responsive behavior and obtain renewed human hands-on acceptance.
 - [x] 6. Complete generation/full checks/actual Worker and database verification, zero-RSS-diff audit, fresh three-pass review, operator documentation and original PR updates without deployment.
+- [x] 6a. Simplify account revocation to existing sr_user.deleted_at; remove binding retirement columns/triggers directly from the initial migration, verify deletion/publication fences and retained address reservations, and update the original PR.
 
 ## Archive after merge
 

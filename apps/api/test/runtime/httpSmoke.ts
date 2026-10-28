@@ -541,6 +541,22 @@ async function main() {
     assert.equal(resources.sql(pg.id, 'http_reader', `SELECT is_enable FROM sr_bookmark_share WHERE bookmark_id=${savedId} AND user_id=1`), 'f')
     evidence.newsletterCopy = 'independent HTML/text; follows global sharing on/off; owner read; explicit off preserved across restore; repeat identity; real Jieba/D1 fulltext'
     evidence.twoUserDelivery = 'one literal route format, distinct registered details and private bodies; cross-user body denied'
+    // Exercise account revocation using only existing user state in this disposable fixture.
+    resources.sql(pg.id, 'http_reader', 'UPDATE sr_user SET deleted_at=now() WHERE id=1')
+    try {
+      const rejected = await localFetch(`http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=${encodeURIComponent(address.body.data.address)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'message/rfc822' },
+        body: rawMail.replace('<newsletter-runtime-smoke@example.com>', '<deleted-owner-smoke@example.com>')
+      })
+      assert.equal(rejected.status, 400, await rejected.text())
+      assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_feed WHERE user_id=1'), '1')
+      assert.equal(resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_platform_bind WHERE user_id=1 AND platform='newsletter'"), '1')
+      assert.equal((await request('deleted-owner-feed', '/v1/feed/entries', { headers: mailHeaders })).status, 401)
+      evidence.newsletterRevocation = 'sr_user.deleted_at alone denies email and authenticated Feed access; retained binding; no new mail row'
+    } finally {
+      resources.sql(pg.id, 'http_reader', 'UPDATE sr_user SET deleted_at=NULL WHERE id=1')
+    }
     const disabled = await request('newsletter-disable', '/v1/user/setting/disable', {
       method: 'POST',
       headers: { ...mailHeaders, 'Content-Type': 'application/json' },

@@ -21,7 +21,7 @@
 - Directly rewrite the unshipped initial Newsletter migration. Do not add cleanup migrations, trial-data compatibility, RSS data copies/backfills, mirrors or automatic local-database repair. Operator test data is disposable.
 - Preserve `sr_rss_feed`, `sr_rss_subscription`, `sr_rss_entry`, `sr_rss_save_job`, RSS HTTP contracts, fetching/history/quotas/retention/save behavior, and RSS PowerSync names/rules. Newsletter must not write any RSS table.
 - Remove `sr_feed` and `sr_newsletter_receipt` from the unshipped model/DDL and runtime. Do not rename a cloned RSS model to Newsletter.
-- Keep immutable `newsletter` platform bindings, existing setting enable/disable integration and `feed+<account>` addresses. Dev: `newsletterreader.slax.dev`; beta/prod/legacy-main: `newsletterreader.slax.com`.
+- Keep stable `newsletter` addresses in existing platform bindings, existing setting enable/disable integration and `feed+<account>` addresses. Dev: `newsletterreader.slax.dev`; beta/prod/legacy-main: `newsletterreader.slax.com`.
 - Retain 5 MiB per incoming EML, 200 sender sources per user and 200 newly admitted messages per UTC day. A replay of an existing identity does not consume another slot.
 - No automatic Newsletter processing recovery, retry timer/counter, replay payload, queue or PowerSync stream. A pending message needs an actual new delivery or explicit EML replay to be processed again. Do not promise SMTP sender retries.
 - Retain content extraction/fallback, sanitization, signed image proxying and explicit tracking-pixel filtering. Existing HTTP(S) attachment links and binary attachment names/explanations remain; do not store attachment binaries.
@@ -80,18 +80,18 @@ Do not add `kind` (all rows are Newsletter), feed/site URLs, etag/last-modified,
 
 `source_key` is a deliberate denormalization for opaque indexed filtering, not a fetchable source. Derive the source list from ready rows using the latest `(received_at,id)` label per source. No separate Newsletter source/subscription table. A sender whose first message is pending/cancelled is not displayed. The quota counts distinct sources among pending/ready rows; daily admission counts all newly admitted identities including later cancellations, matching the current admission rule.
 
-Do not store `binding_id`: the existing immutable, one-per-user Newsletter binding is verified by its exact captured ID at admission and publication. It cannot be reassigned, so another persistent owner pointer adds no independent message identity. Keep its existing uniqueness/retirement guard.
+Do not store `binding_id`: the existing one-per-user Newsletter binding is verified by its exact captured ID at admission and publication. Application provisioning does not reassign an issued address, so another persistent owner pointer adds no independent message identity. Retain the address uniqueness index and ordinary binding rows during cleanup. Reuse sr_user.deleted_at for revocation; add no binding retirement column or custom trigger.
 
 ### 3. Synchronous receive without processing leases
 
-1. Resolve the configured envelope and active immutable platform binding; bounded MIME parsing remains unchanged.
+1. Resolve the configured envelope and active platform binding; bounded MIME parsing remains unchanged.
 2. In a short transaction, lock the existing `sr_user` row, verify live owner + enabled Newsletter + exact active binding. Resolve the unique message before counting quota. Insert a pending mail row only for a new identity.
 3. Ready/cancelled duplicates return without R2 writes. Pending duplicates can attempt processing with their current parsed MIME; no background replay exists.
 4. Outside the transaction, sanitize/proxy the candidate and write a fresh immutable object under `newsletter-content/<owner-uuid>/<message-id>/<attempt-uuid>.html`. Never overwrite an object's key from another attempt. This is the final-body namespace, not a stored recovery payload.
 5. In a second short transaction, take the same user lock and recheck owner, Lab, exact binding and message state. The first pending-to-ready update publishes the candidate's complete title/sender-name/summary/date/truncation/body together. A later contender sees ready/cancelled and cannot overwrite anything. No R2 I/O occurs under a PostgreSQL lock.
 6. A failed write leaves the row pending and propagates failure. A later actual delivery may retry. Concurrent deliveries may perform redundant temporary writes, but only one object is referenced; this consciously avoids a lease subsystem.
 
-Disabling Newsletter, under the same user lock, changes pending mail rows to cancelled. Re-enabling does not resurrect them. Ready rows remain. Deletion retires the platform binding and fences pending publication under that lock before asynchronous cleanup. No timestamp-generation field is needed: the cancelled row is the durable barrier across an off/on cycle.
+Disabling Newsletter, under the same user lock, changes pending mail rows to cancelled. Re-enabling does not resurrect them. Ready rows remain. Deletion sets the existing sr_user.deleted_at and cancels pending mail under that lock before asynchronous cleanup. Recipient lookup excludes deleted owners; admission and publication recheck the same existing user state. No timestamp-generation field is needed: the cancelled row is the durable barrier across an off/on cycle.
 
 Known losing attempts remove only their own unpublished key. For an unknown database COMMIT outcome, read authoritative state before cleanup; an uncertain/missing result is not proof of rollback. Leave ambiguous objects for reference-aware collection, not eager deletion.
 
@@ -101,7 +101,7 @@ Add `NewsletterContent` with `store/read/discard/sweep` and the Newsletter prefi
 
 The previous implementation relied on RSS content GC; restoring RSS must not leave the new namespace permanently unmanaged. Add a narrowly scoped `NewsletterContentGcJob` on the existing hourly schedule. It only lists final Newsletter objects, skips objects newer than 24 hours, checks references in `sr_newsletter_feed`, and deletes unreferenced keys. Use an existing KV binding for its pagination cursor; bound each invocation to four pages of at most 1,000 objects. This job never reads pending MIME, publishes mail or retries processing, and introduces no new console trigger. Keep a five-minute publication deadline for each content attempt; a late writer cannot publish an object after the GC grace period.
 
-Owner deletion deletes Newsletter rows/content in bounded batches while the owner is already revoked. Delete only that owner's keys; retries and the orphan collector handle failed deletes. Keep platform binding retirement as a permanent reservation. Inbox copies continue through established bookmark trash/deletion ownership; the Newsletter collector cannot scan their namespaces.
+Owner deletion deletes Newsletter rows/content in bounded batches while the owner is already revoked. Delete only that owner's keys; retries and the orphan collector handle failed deletes. Keep the ordinary Newsletter binding row as a permanent address reservation; no separate retirement state is needed. Inbox copies continue through established bookmark trash/deletion ownership; the Newsletter collector cannot scan their namespaces.
 
 Do not add a project-wide snapshot GC/recovery system in this revision. An interrupted Inbox copy before publication or an indeterminate COMMIT can leave unreachable objects in existing snapshot namespaces, as in the current snapshot copy path. Known failures are cleaned and ambiguous objects retained for safe diagnosis; no published body is deleted to avoid this limited orphan risk. Record that limitation explicitly.
 
@@ -160,7 +160,7 @@ Remove the address-card text saying saving is unavailable; keep sender-managemen
 **Interfaces:** schema/constraints in Design §2; RSS tables and projections match upstream with zero Newsletter DDL/data writes.
 
 - [ ] Write RED migration assertions: `sr_newsletter_feed` exists with the reviewed columns; `sr_feed`/`sr_newsletter_receipt` do not; every RSS table/trigger/index/column is unchanged before/after migration, including populated RSS data and concurrent RSS writes.
-- [ ] Apply the direct initial-DDL/model rewrite and restore RSS-only backend/sync fixtures, including RSS sanitizer/image failure behavior. Keep platform binding guards. Remove obsolete compatibility claims and restore original RSS specs; do not weaken shipped RSS guarantees.
+- [ ] Apply the direct initial-DDL/model rewrite and restore RSS-only backend/sync fixtures, including RSS sanitizer/image failure behavior. Keep the address uniqueness index without new binding columns or triggers. Remove obsolete compatibility claims and restore original RSS specs; do not weaken shipped RSS guarantees.
 - [ ] Run `pnpm api -- test test/infra/newsletterMigration.test.ts test/domain/rss/repository.test.ts test/infra/powersyncRules.test.ts`. Inspect a real fresh PostgreSQL schema comparison and concurrent-write exercise. No reset/repair/backfill feature is written for operator trial databases.
 - [ ] Run required `gen:diff` → inspect SQL → `migration:local` → `gen:all` against owned scratch resources. Consolidate any legitimate unshipped feature difference into the initial migration; omit an empty or trial-cleanup migration. Never hand-edit generated output.
 

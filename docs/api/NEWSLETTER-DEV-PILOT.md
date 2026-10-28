@@ -24,9 +24,9 @@ The dev Edge Worker is **reader-backend**, serving **reader-api.slax.dev**. The 
 
 The `newsletter` platform binding permanently stores the complete canonical address. Account renames do not change it. Eligible initial tokens are 1–59 safe ASCII characters; the fixed `feed+` consumes five SMTP local-part octets. Enable through `/v1/user/setting/enable` (`key: lab:newsletter`); missing, invalid or reserved accounts leave the Lab enabled and expose account repair. Read-only `/v1/user/newsletter_address` never provisions, and its old POST is removed.
 
-Newsletter has not shipped. Its consolidated initial migration creates only `sr_newsletter_feed`, alongside the immutable Newsletter binding guards. One mail row covers admission, deduplication, pending/ready/cancelled state and the final body pointer. There is no `sr_feed`, receipt table, RSS mirror, data copy/backfill or processing lease. Use a fresh disposable local database when an older trial migration has already been applied; no compatibility or repair migration is provided.
+Newsletter has not shipped. Its consolidated initial migration creates only `sr_newsletter_feed`, alongside a partial unique index for Newsletter receiving addresses on the existing sr_platform_bind table. No binding columns or triggers are added. Account deletion uses existing sr_user.deleted_at, and cleanup retains the Newsletter binding row to reserve the address. One mail row covers admission, deduplication, pending/ready/cancelled state and the final body pointer. There is no `sr_feed`, receipt table, RSS mirror, data copy/backfill or processing lease. Use a fresh disposable local database when an older trial migration has already been applied; no compatibility or repair migration is provided.
 
-The first release accepts only its configured feed+ address format. External subscriptions must use the current copied address. An issued address is immutable; changing a receiving domain later requires a separate migration plan rather than silently replacing bindings.
+The first release accepts only its configured feed+ address format. External subscriptions must use the current copied address. Normal address provisioning preserves an issued address; changing a receiving domain later requires a separate migration plan rather than silently replacing bindings.
 
 ## Dev Cloudflare console steps
 
@@ -118,7 +118,7 @@ NEWSLETTER_DOMAIN = "newsletterreader.slax.dev"
 
 Add the key to the existing table, without replacing its other settings. The private configuration repository's `api/dev.toml` is used by deployment; local startup does not automatically load that file. After changing local API configuration, run `pnpm api -- gen:all`, stop the existing API dev session and restart `pnpm api -- dev`. Keep only one local API session. Run `pnpm web -- dev` separately if Web is not already running, then open http://localhost:3000.
 
-A missing/invalid effective domain causes `/v1/user/setting/enable` to return HTTP 503 with `data.error=unavailable` during address provisioning. The Lab may already have been enabled before provisioning failed. After fixing configuration and restarting the API, refresh Web; if the Lab is already on, generate the address from Feed. Changing an issued address's domain also fails instead of replacing its immutable binding. No Cloudflare routing or DNS change is needed for local replay.
+A missing/invalid effective domain causes `/v1/user/setting/enable` to return HTTP 503 with `data.error=unavailable` during address provisioning. The Lab may already have been enabled before provisioning failed. After fixing configuration and restarting the API, refresh Web; if the Lab is already on, generate the address from Feed. Changing an issued address's domain also fails instead of replacing its existing binding. No Cloudflare routing or DNS change is needed for local replay.
 
 ### Preview and delivery
 
