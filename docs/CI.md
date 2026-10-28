@@ -34,11 +34,26 @@ On `main` the six suite gates are required through `promotion integrity` rather 
 
 - The head branch is an allowed source and lives in this repository: `dev` or `hotfix/*` for `beta`; `beta` or `hotfix/*` for `main`. A fork branch named `dev` is rejected.
 - The six application CI gates, reported by the GitHub Actions app, are present and completed successfully on the pull request's head commit. A skipped suite gate counts as success only because `ci-scope` did not select that suite for the diff.
+- For a `beta` promotion, the migration release evidence stage passes: every added migration declares its class, the diff only adds migration files, a `hotfix/*` head adds only `expand`, and every current `contract` satisfies its prerequisite and direct deployment-record evidence (see below).
 - For a `beta` → `main` promotion, the beta-environment deployment evidence is green. Deploy workflows attach their conclusions to the merged pull request's head SHA rather than the merge commit, so the gate resolves the promotion head through the merged pull request that produced the `beta` tip, then reads the `beta` deployments on that head SHA and the `api-deploy`/`web-deploy` run conclusions behind them. Both deploy workflows are paths-filtered, so evidence is required only from a workflow that registered a run for that head SHA — a batch that triggered no deploy workflow has nothing to deploy and passes without it. A `hotfix/*` head skips this evidence, because it never entered `beta`.
 
 The suite gates and beta deploys trigger around the same time as the gate, so the script polls the evidence every 30 seconds up to a 45-minute deadline (`PROMOTION_GATE_TIMEOUT_MS`); a completed failure fails immediately, and a timeout names the contexts still outstanding.
 
 The workflow uses the repository `GITHUB_TOKEN` with `actions: read`, `checks: write`, `contents: read`, `deployments: read`, and `pull-requests: read` (the beta → main provenance lookup reads `commits/{sha}/pulls`); it does not need the administration permission that drift detection uses.
+
+## Migration release evidence
+
+`tooling/migration-release-evidence.mjs` checks migration releases at exactly two checkpoints: `promotion integrity` for a pull request targeting `beta`, and the API deploy preflight. There is no migration-evidence gate in pull-request CI; ordinary `expand` and `migrate` migrations remain covered by the normal code-owner review.
+
+Every added migration begins with a leading `-- migration-safety:` declaration. `migrate` adds `preserves` and `reason`; `contract` adds `removes`, `prerequisite-change`, `prerequisite-pr`, `prerequisite-merge`, `confirmed-by`, and `reason`. The checker reads the leading block only: it never parses SQL, reads reviews or `CODEOWNERS`, or infers the pull request that introduced a file.
+
+The release diff may only add migration files. A deleted, renamed, or modified migration fails, including a retroactive declaration on an existing file; `migration_lock.toml` must not change. A `hotfix/*` release may add only `expand` migrations.
+
+For each current `contract`, the checker makes one `deployments?sha=<prerequisite-merge>` read and keeps only `api-deploy.yml` records for `beta` or `main`. The newest record per environment decides; the deployment status, the run conclusion, and the `Migrate databases and deploy Workers` step must all be successful. Missing, failed, in-progress, or ambiguous evidence fails closed and names the human-review path: declare the commit the deployment recorded, or use the adjudicated runbook. The check never walks branch history, lists deployments by environment, waits for evidence, or falls back to another commit. A deployments, actions, or jobs API outage, or any unexpected response shape, blocks a release with a current contract; a release whose diff adds no contract never calls those APIs.
+
+The promotion workflow checks out full history, fetches the base and head branches, and passes them as `MIGRATION_BASE`/`MIGRATION_HEAD`. The deploy preflight runs after the superseded-release check and before the first remote access — no firewall rule, Tunnel, database contact, or publication happens first. The deploy job checks out full history for the ancestry checks and holds `actions: read`, `deployments: read`, and `pull-requests: read` in addition to `contents: read`.
+
+A `dev` deploy skips prerequisite and deployment evidence because its database is test-only; it still enforces declarations, immutability, and the hotfix rule. The checker source is in the API path filter, and `ci-scope` selects the API scope for the checker and for migration files.
 
 ## Ruleset state and drift detection
 
@@ -57,6 +72,7 @@ The expected ruleset state is codified in `.github/rulesets.expected.json`, and 
 | Web implementation/config/tests | Web typecheck and tests, shared type prerequisites, icon checks |
 | Extension implementation/config/tests | Extension compile and tests, shared type prerequisites, controlled release-tooling checks |
 | API implementation/config/tests | Generation, lint, typecheck, tests, offline Worker build |
+| Migration declarations or the migration release evidence checker | API release evidence suite and API CI |
 | Mobile implementation/config/tests | Mobile checks and JavaScript bundle |
 | CLI implementation/config/tests | CLI typecheck, tests, and package smoke on Node 22.22.2, 24.15.0, and 26.12.1; CLI tooling checks |
 | `packages/contracts/**` | All five application consumers |

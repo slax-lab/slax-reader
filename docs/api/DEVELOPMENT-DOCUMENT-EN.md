@@ -52,6 +52,23 @@ See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operat
 | Diagnostics | `pnpm api -- debug:hashids` / `debug:hash-article` |
 | Optional CLI tools | `pnpm api -- stripe:webhook` / `mcp:tool` / `update:cli` |
 
+## Migration declarations
+
+Every migration added under `apps/api/prisma/` starts with a leading declaration:
+
+```sql
+-- migration-safety: contract
+-- removes: example_unique_key
+-- prerequisite-change: example-removal-change
+-- prerequisite-pr: 412
+-- prerequisite-merge: <commit recorded by the api-deploy deployment>
+-- confirmed-by: @DGuang21
+-- reason: The prerequisite release removed the last reader and writer of this key.
+DROP INDEX IF EXISTS "example_unique_key";
+```
+
+`expand` is additive only. `migrate` adds `preserves` and `reason`. `contract` adds `removes`, `prerequisite-change`, `prerequisite-pr`, `prerequisite-merge`, `confirmed-by`, and `reason`. `removes`, `preserves`, `reason`, and `confirmed-by` are review claims: the release check verifies presence and shape, and a reviewer verifies the claim. `prerequisite-merge` is the commit recorded by a successful `api-deploy` deployment to `beta` or `main`, and the prerequisite pull request's merge commit must be its ancestor. Generate the migration, add the declaration before applying it locally, then run the migration command and `gen:all`. Never edit, delete, rename, or retroactively annotate an existing migration or change `migration_lock.toml`; add a corrective migration instead. A `hotfix/*` release may add only `expand` migrations.
+
 ## Environment file locations
 
 - `deploy/local/api.toml`: actual non-secret deployment configuration; the sole public template is `deploy/cloudflare/api.toml.example`.

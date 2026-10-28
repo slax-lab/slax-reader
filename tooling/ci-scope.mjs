@@ -29,6 +29,7 @@ export function selectScopes(paths) {
       if (/\/package\.json$|^apps\/(web|extension)\/(config\/|env\.schema|nuxt\.config|wxt\.config)/.test(path)) add(['tooling'], path)
     }
     if (path === 'tooling/pnpm-command.mjs') add([...apps, 'tooling', 'cliTooling', 'extensionTooling'], path)
+    if (path === 'tooling/migration-release-evidence.mjs' || path === 'tooling/migration-release-evidence.test.mjs') add(['api', 'tooling'], path)
     if (/^tooling\/(run-app|env-files)(\.|$)/.test(path)) add([...frontend, 'tooling', 'extensionTooling'], path)
     if (/^tooling\/(web|extension|api|mobile|cli)\.mjs$/.test(path)) add([path.split('/')[1].split('.')[0], 'tooling'], path)
     if (/^tooling\/cli.*\.mjs$/.test(path) || /^\.github\/workflows\/cli-.*\.yml$/.test(path)) add(['cliTooling'], path)

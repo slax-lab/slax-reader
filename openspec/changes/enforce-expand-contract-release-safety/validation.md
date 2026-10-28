@@ -1,55 +1,87 @@
 # Validation
 
-Date: 2026-10-28. Branch: `feat/minimize-contract-release-checks`. Change: `enforce-expand-contract-release-safety`. Base: `dev` at `f217f465`.
+Date: 2026-10-28. Branch: `feat/minimize-contract-release-checks`. Change: `enforce-expand-contract-release-safety`. Base: `dev` at `870d9bb6`.
 
-## Scope and approval status
+## Scope and approval
 
-This revision contains **planning artifacts only**: `proposal.md`, `design.md`, the three delta specs, `tasks.md`, and this record. No implementation file, workflow, migration, or database was changed. The revised architecture has not been approved for implementation; every task in `tasks.md`, including the approval task and every implementation task, is unchecked pending the user's confirmation.
+The user approved this revision for implementation on 2026-10-28, as the continuation of the M43 revision. The approval is recorded in `proposal.md` and `design.md`, and implementation tasks 1.1 through 5.6 are complete. Task 5.7 (push, pull request, archive) remains unchecked as a delivery step.
 
-This revision replaces the multi-surface plan that pull request #421 carried and then removes the bounded first-parent history walk from the previous revision. The user's review established that the walk was unnecessary: the contract already declares `prerequisite-merge`, so the deployment record can be read directly.
+This change implements the two-checkpoint design and the direct deployment lookup. It contains no SQL parser, statement whitelist, review or `CODEOWNERS` lookup, introducing-pull-request inference, branch-history walk, deployment listing, new runtime dependency, or executed DDL. No database, deployment, or remote resource was mutated.
 
 ## Final decision model
 
-| Concern | Final model |
+| Concern | Implemented rule |
 | --- | --- |
-| Checkpoints | `promotion integrity` for a pull request whose base is `beta`; the API deploy preflight for every environment |
-| Ordinary migrations | Existing code-owner review; no machine review lookup and no introducing-pull-request inference |
-| Contract evidence | One `deployments?sha=<prerequisite-merge>` read; `api-deploy.yml` records for `beta` or `main`; deployment status, run conclusion, and `Migrate databases and deploy Workers` step must all be successful |
-| Missing, failed, in-progress, ambiguous | Fail closed and name the human-review path: declare the deployed commit the pipeline recorded, or use the adjudicated runbook |
-| Immutability | A release only adds migration files; no edit, delete, or rename; `migration_lock.toml` unchanged |
-| Hotfix | `expand` only; `migrate` and `contract` ship through a normal release |
-| Rollback and adjudication | Manual runbooks; no fourth declaration class and no pipeline bypass |
+| Checkpoints | `promotion integrity` for a pull request whose base is `beta`; the API deploy preflight after the superseded-release check and before any remote access |
+| Ordinary migrations | Existing code-owner review; no machine review lookup |
+| Contract evidence | One `deployments?sha=<prerequisite-merge>` read; `api-deploy.yml` records for `beta`/`main`; deployment status, run conclusion, and `Migrate databases and deploy Workers` step must all succeed |
+| `prerequisite-merge` | The commit recorded by that deployment; the prerequisite pull request's `merge_commit_sha` must be its ancestor, and it must be an ancestor of the release head |
+| Missing, failed, in-progress, ambiguous | Fail closed and name the human-review path |
+| Immutability | A release only adds migration files; no edit, delete, rename, or retroactive header; `migration_lock.toml` unchanged |
+| Hotfix | `expand` only |
+| Rollback and adjudication | Manual runbooks in `REVIEW.md`; no fourth declaration class and no pipeline bypass |
 
-The check makes one deployments read per contract and never walks branch history, lists deployments by environment, waits for evidence to appear, or falls back to another commit.
+## Files changed
+
+- `tooling/migration-release-evidence.mjs` — declaration parser, release-diff assessment, prerequisite and direct deployment evidence, CLI.
+- `tooling/migration-release-evidence.test.mjs` — 26 tests over synthetic git repositories and fixture API responses.
+- `tooling/promotion-gate.mjs` — runs the migration stage for base `beta` only; wraps a checker failure with its stage.
+- `tooling/promotion-gate.test.mjs` — asserts the stage is called for `beta`, skipped for `main`, and reports a failing check run.
+- `tooling/ci-scope.mjs` and `tooling/ci-scope.test.mjs` — select API for the checker and migration files.
+- `tooling/ci-workflow.test.mjs` — asserts the deploy preflight's position, permissions, history, and path filter.
+- `.github/workflows/promotion-gate.yml` — full history, base/head fetch, `MIGRATION_*` inputs.
+- `.github/workflows/api-deploy.yml` — full history, read scopes, preflight before the firewall, checker in the path filter.
+- `package.json` — `test:ci` includes the new suite; `test:migration-evidence` local command.
+- `REVIEW.md` — four real migration families, declaration procedure, contract evidence, hotfix rule, rollback confirmation, adjudicated runbook.
+- `docs/CI.md`, `docs/BRANCHING.md`, `docs/api/DEVELOPMENT-DOCUMENT-EN.md` — checkpoints, direct lookup, failure behavior, operator rules.
+- `.rulesync/rules/api-commands.md` and generated `apps/api/AGENTS.md` — declaration procedure for backend agents.
+- `openspec/changes/enforce-expand-contract-release-safety/` — approval record, tasks, this validation record.
 
 ## Commands and results
 
 | Command | Result |
 | --- | --- |
-| `openspec validate enforce-expand-contract-release-safety --strict` | valid |
-| `openspec validate --all --strict` | 79 passed, 0 failed |
-| `git diff --cached --check` | no whitespace errors |
+| `node --test tooling/migration-release-evidence.test.mjs` | 26 passed, 0 failed |
+| `pnpm test:ci` | 97 passed, 0 failed |
+| `pnpm test:preflight` | 104 passed, 0 failed, 2 skipped |
+| `pnpm exec openspec validate --all --strict` | 82 passed, 0 failed |
+| `pnpm agent:check` | rulesync doctor, generate check, strict OpenSpec, and gh-aw drift all passed |
+| `git diff --check` | no whitespace errors |
 
-## Evidence grounded before writing
+## Exercised scenarios
 
-The direct lookup was checked against live repository data, read-only, before it was written:
+The checker suite drives real temporary git repositories and fixture GitHub responses; no network, database, or deployment was used.
 
-| Observation | Source |
-| --- | --- |
-| Deployments record the merged pull request's head commit, not the merge commit. PR #416's merge commit `db8f456c` has `beta` deployment records only because it was the `dev` tip at promotion #419, while its own `dev` deployment is recorded against its head `34e14cf7`. | `git rev-list --parents`, `GET /repos/slax-lab/slax-reader/deployments?sha=<commit>` |
-| One release records both an `api-deploy` and a `web-deploy` deployment for the same commit, so the rule filters by the linked run path. | For `db8f456c`: deployment `7378276506` links to run `40640597301` (`api-deploy.yml`), deployment `7378276538` links to run `40640597430` (`web-deploy.yml`) |
-| The `Migrate databases and deploy Workers` step exists and can be read from the run's jobs. | `GET /repos/slax-lab/slax-reader/actions/runs/40640597301/jobs` and `.../runs/40289138123/jobs` each returned that step with `conclusion=success` |
-| The declared commit can be read directly from the deployment record, so no history walk is needed. | `deployments?sha=<commit>` returns the API and web records for that exact commit |
+- Declaration: all three classes; ordinary comments; CRLF; missing class; missing field; duplicate; unknown; inapplicable; bad shapes; `n/a` trailer.
+- Diff: added migration; missing declaration; modified; deleted; renamed; `migration_lock.toml`; three-dot promotion diff with a target-only migration.
+- Hotfix: `expand` passes; `migrate` fails.
+- Prerequisite: not merged; merge commit not an ancestor; declared commit not an ancestor of the release head; trailer mismatch; `n/a` pair.
+- Deployment: valid record; no record with the human-review path; `web-deploy`-only; `dev`-only; failed status; in-progress; failed step; failed run; newest-wins with an older failure; newest tie disagreement; both environments; `dev` deploy skips evidence.
+- CLI: missing configuration fails closed; a deploy-mode release without contracts passes; a deploy-mode contract passes end to end.
+- Output: an API error keeps the status code, never the raw body.
+
+## Live evidence used to design the lookup
+
+Read-only checks against the live repository on 2026-10-28:
+
+- Deployments record the merged pull request's head commit, not the merge commit: PR #416's merge commit `db8f456c` has `beta` records only because it was the `dev` tip at promotion #419, while its own `dev` deployment is recorded against `34e14cf7`.
+- One release records both an `api-deploy` and a `web-deploy` deployment for the same commit (`db8f456c`: deployments `7378276506`/`7378276538`).
+- The `Migrate databases and deploy Workers` step is present and concluded `success` in runs `40640597301` and `40289138123`.
+
+## Local pre-push review
+
+The REVIEW.md passes were run against the diff:
+
+- **Bugs.** One finding: the promotion workflow's base/head fetch would fail the job for a fork head before the gate could report its own failing check run, leaving the required context unreported. Resolved by tolerating the fetch failure and letting the gate reject the fork or the checker fail closed with a stage and message. No other defects found; the parser, diff, ancestry, grouping, and CLI paths are covered by the suite.
+- **Security.** No secrets or private values are printed; API tokens stay in request headers; no new dependency; no remote mutation. A fixture test asserts an API error body never reaches the output.
+- **Compliance.** The diff matches the approved change and its delta specs; every implementation task is implemented or explicitly deferred to delivery; no UI-visible change, so no hands-on acceptance applies; `docs/release/VERSIONING.md` excludes API and Web from package-version increments, so no version bump is required.
+
+No Important findings remain.
 
 ## Declared gaps
 
-- **No implementation exists.** This is a proposal revision; there is no code, workflow, or migration to exercise, and no runtime verification is possible or claimed. `docs/DEFINITION-OF-DONE.md` exempts documentation-scale work when the change states the exemption; this record states it.
-- **No live release was executed.** No database, Cloudflare resource, GitHub deployment, or private configuration was touched. All live reads above were read-only GitHub API and local git reads.
-- **The direct lookup and step check are not exercised in code.** The live reads confirm the record shape, the workflow path, and the step name; the grouping, newest-record, ambiguity, and missing-evidence behavior remain implementation tasks (tasks 2.4 and 5.2).
-- **The declared-commit rule needs operator documentation.** A pull request's merge commit usually has no deployment of its own, so a contract author must declare the commit the deployment recorded. Tasks 4.1 and 4.2 add that rule to `REVIEW.md` and the release docs; until then a wrong declaration lands on the human-review path.
-- **The runbooks do not exist yet.** The rollback and adjudication procedures are specified in the delta and are documentation tasks (task 4.1).
-- **Branch suffix.** The repository requires a task branch suffix equal to the change-id. This worktree branch is `feat/minimize-contract-release-checks`; the delivery pull request must be cut from current `origin/dev` as `feat/enforce-expand-contract-release-safety`, or the branch renamed before the pull request opens (task 5.7).
-
-## Review status
-
-Awaiting the user's confirmation of this revised architecture. No implementation approval is recorded in `proposal.md` or `design.md`, and `tasks.md` has no completed item.
+- **No live release was executed.** The checkpoints were exercised against synthetic repositories and fixture API responses. No database, Cloudflare resource, GitHub deployment, or private configuration was touched.
+- **The GitHub Actions integration is verified by workflow contract tests, not by a real promotion.** The first real use will be the first release after this merges; an `expand`-only migration is still the right first live test, not a real contract.
+- **The deployment-record shape was verified read-only on 2026-10-28.** A future change to how `pull_request_target` records deployments would make the lookup fail closed; the human-review path is the recovery.
+- **Branch suffix.** The worktree branch is `feat/minimize-contract-release-checks`; the delivery pull request must be cut from current `origin/dev` as `feat/enforce-expand-contract-release-safety`, or the branch renamed before opening (task 5.7).
+- **Delivery is pending.** No push, pull request, or archive was performed; independent review and the delivery step remain for the tower.

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { allowedHead, assessSuiteGates, checkRunName, createCheckRun, defaultTimeoutMs, deployWorkflows, pollIntervalMs, readInputs, readTimeout, runGateAndReport, runPromotionGate, suiteGates } from './promotion-gate.mjs'
+import { allowedHead, assessSuiteGates, checkRunName, createCheckRun, defaultTimeoutMs, deployWorkflows, GateError, pollIntervalMs, readInputs, readTimeout, runGateAndReport, runPromotionGate, suiteGates } from './promotion-gate.mjs'
 
 const require = createRequire(import.meta.url)
 const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
@@ -21,7 +21,8 @@ const env = (overrides = {}) => ({
   PR_NUMBER: '42', BASE_REF: 'beta', HEAD_REF: 'dev', HEAD_SHA: headSha,
   HEAD_REPOSITORY: repository, BASE_REPOSITORY: repository, ...overrides
 })
-const options = (fetchImpl, overrides = {}) => ({ token: 'fixture-token', fetchImpl, wait: async () => {}, ...overrides })
+const options = (fetchImpl, overrides = {}) => ({ token: 'fixture-token', fetchImpl, wait: async () => {}, migrationEvidence: async () => {}, ...overrides })
+const report = (environment, overrides = {}) => runGateAndReport(environment, { migrationEvidence: async () => {}, ...overrides })
 const response = body => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
 const httpFailure = status => new Response('fixture-private-error', { status })
 
@@ -254,9 +255,36 @@ test('a dev-to-beta promotion never reads reviews or deployments', async () => {
   await runPromotionGate(inputs({}), options(routed(checksRoute(greenGates()))))
 })
 
+test('a dev-to-beta promotion runs the migration release evidence stage', async () => {
+  const calls = []
+  await runPromotionGate(inputs({}), options(routed(checksRoute(greenGates())), { migrationEvidence: async args => { calls.push(args) } }))
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].base, 'beta')
+  assert.equal(calls[0].head, 'dev')
+  assert.equal(calls[0].headSha, headSha)
+})
+
+test('a beta-to-main promotion does not run the migration release evidence stage', async () => {
+  let called = false
+  await runPromotionGate(inputs({ base: 'main', head: 'beta' }), options(routed(betaDeploymentRoutes({ runs: defaultDeploymentRuns() })), { migrationEvidence: async () => { called = true } }))
+  assert.equal(called, false)
+})
+
+test('a migration evidence failure reports a failing check run with its stage', async () => {
+  const posted = []
+  const result = await report(env(), {
+    fetchImpl: routed([checkRunRoute(posted)]),
+    migrationEvidence: async () => { throw new GateError('Migration release evidence failed at evidence: no api-deploy record') }
+  })
+  assert.equal(result.reported, true)
+  assert.equal(result.passed, false)
+  assert.equal(posted[0].conclusion, 'failure')
+  assert.match(posted[0].output.summary, /Migration release evidence failed at evidence/)
+})
+
 test('a passing gate reports a promotion integrity check run on the head SHA', async () => {
   const posted = []
-  const result = await runGateAndReport(env(), { fetchImpl: routed([...checksRoute(greenGates()), checkRunRoute(posted)]) })
+  const result = await report(env(), { fetchImpl: routed([...checksRoute(greenGates()), checkRunRoute(posted)]) })
   assert.deepEqual(result, { reported: true, passed: true })
   assert.equal(posted.length, 1)
   assert.deepEqual(
@@ -270,7 +298,7 @@ test('a passing gate reports a promotion integrity check run on the head SHA', a
 
 test('a failing verdict still reports a failing check run with an actionable summary', async () => {
   const posted = []
-  const result = await runGateAndReport(env({ HEAD_REF: 'main' }), { fetchImpl: routed([checkRunRoute(posted)]) })
+  const result = await report(env({ HEAD_REF: 'main' }), { fetchImpl: routed([checkRunRoute(posted)]) })
   assert.equal(result.reported, true)
   assert.equal(result.passed, false)
   assert.match(result.message, /not an allowed source/)
@@ -285,7 +313,7 @@ test('an evidence API error still reports a failing check run', async () => {
     [/\/check-runs\?/, () => httpFailure(503)],
     checkRunRoute(posted)
   ]
-  const result = await runGateAndReport(env(), { fetchImpl: routed(routes), wait: async () => {} })
+  const result = await report(env(), { fetchImpl: routed(routes), wait: async () => {} })
   assert.equal(result.reported, true)
   assert.equal(result.passed, false)
   assert.equal(posted[0].conclusion, 'failure')
@@ -294,7 +322,7 @@ test('an evidence API error still reports a failing check run', async () => {
 
 test('invalid inputs are reported as a failing check run when the target identity is usable', async () => {
   const posted = []
-  const result = await runGateAndReport(env({ BASE_REF: 'dev' }), { fetchImpl: routed([checkRunRoute(posted)]) })
+  const result = await report(env({ BASE_REF: 'dev' }), { fetchImpl: routed([checkRunRoute(posted)]) })
   assert.equal(result.reported, true)
   assert.equal(result.passed, false)
   assert.equal(posted[0].conclusion, 'failure')
@@ -302,20 +330,20 @@ test('invalid inputs are reported as a failing check run when the target identit
 })
 
 test('an unreportable target leaves the verdict unreported', async () => {
-  const result = await runGateAndReport(env({ HEAD_SHA: 'not-a-sha' }), { fetchImpl: async () => assert.fail('must not call the API') })
+  const result = await report(env({ HEAD_SHA: 'not-a-sha' }), { fetchImpl: async () => assert.fail('must not call the API') })
   assert.equal(result.reported, false)
   assert.equal(result.passed, false)
 })
 
 test('a rejected check run creation leaves the verdict unreported', async () => {
-  const result = await runGateAndReport(env({ HEAD_REF: 'main' }), { fetchImpl: routed([checkRunRoute([], 500)]) })
+  const result = await report(env({ HEAD_REF: 'main' }), { fetchImpl: routed([checkRunRoute([], 500)]) })
   assert.equal(result.reported, false)
   assert.equal(result.passed, false)
 })
 
 test('a failed success report is never misreported as a gate failure', async () => {
   const posted = []
-  const result = await runGateAndReport(env(), { fetchImpl: routed([...checksRoute(greenGates()), checkRunRoute(posted, 500)]), wait: async () => {} })
+  const result = await report(env(), { fetchImpl: routed([...checksRoute(greenGates()), checkRunRoute(posted, 500)]), wait: async () => {} })
   assert.equal(result.reported, false)
   assert.equal(result.passed, false)
   assert.equal(posted.length, 1)
@@ -344,8 +372,13 @@ test('the workflow uses the trusted pull_request_target trigger and reports a di
   assert.match(workflow.concurrency.group, /pull_request\.number/)
   const checkout = workflow.jobs.gate.steps.find(step => step.uses?.startsWith('actions/checkout@'))
   assert.equal(checkout.with.ref, '${{ github.event.repository.default_branch }}')
+  assert.equal(checkout.with['fetch-depth'], 0)
   assert.equal(checkout.with['persist-credentials'], false)
+  const fetchStep = workflow.jobs.gate.steps.find(step => step.name === 'Fetch the promotion base and head')
+  assert.ok(fetchStep)
+  assert.match(fetchStep.run, /refs\/heads/)
   const step = workflow.jobs.gate.steps.find(step => step.run === 'node tooling/promotion-gate.mjs')
   assert.ok(step)
-  for (const key of ['GH_TOKEN', 'PR_NUMBER', 'BASE_REF', 'HEAD_REF', 'HEAD_SHA', 'HEAD_REPOSITORY', 'BASE_REPOSITORY']) assert.ok(step.env[key], key)
+  assert.ok(workflow.jobs.gate.steps.indexOf(fetchStep) < workflow.jobs.gate.steps.indexOf(step))
+  for (const key of ['GH_TOKEN', 'PR_NUMBER', 'BASE_REF', 'HEAD_REF', 'HEAD_SHA', 'HEAD_REPOSITORY', 'BASE_REPOSITORY', 'MIGRATION_BASE', 'MIGRATION_HEAD', 'MIGRATION_TARGET', 'MIGRATION_SOURCE']) assert.ok(step.env[key], key)
 })

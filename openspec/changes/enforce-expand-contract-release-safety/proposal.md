@@ -40,3 +40,7 @@ Not changing: migration command names and order, `migration_lock.toml`, `_prisma
 - Migration files: new files in the four families gain a declaration header. Existing and already-applied migrations, `migration_lock.toml`, and `_prisma_migrations` are not modified.
 - No `CODEOWNERS` change and no API or Web package-version bump: `docs/release/VERSIONING.md` excludes Web and API changes from package-version increments, and this change touches release tooling, workflows, and documentation only.
 - Implementation approval and start have not been granted: this change contains planning artifacts only, and every implementation task stays unchecked until the human approves this revision.
+
+## Approval
+
+Approved by the user on 2026-10-28 for implementation, as the continuation of this revision. The approval covers the two checkpoints, the direct `deployments?sha=<prerequisite-merge>` evidence model, the declaration and immutability rules, the expand-only hotfix, and the manual rollback and adjudication runbooks. Implementation may proceed; delivery (task 5.7) remains pending.

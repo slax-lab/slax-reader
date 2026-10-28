@@ -131,3 +131,17 @@ test('shallow history cannot masquerade as a complete PR comparison', t => {
   assert.throws(() => changedPaths({ cwd: join(f.cwd, 'shallow'), base: head, head }), /complete Git history/)
   assert.throws(() => changedPaths({ cwd: join(f.cwd, 'shallow'), base, head }))
 })
+
+test('the migration release evidence checker and migration files select the API scope', () => {
+  for (const path of ['tooling/migration-release-evidence.mjs', 'tooling/migration-release-evidence.test.mjs']) {
+    assert.equal(selectScopes([path]).scopes.api, true, path)
+    assert.equal(selectScopes([path]).scopes.tooling, true, path)
+  }
+  for (const path of [
+    'apps/api/prisma/pg_migrations/20261028000000_drop/migration.sql',
+    'apps/api/prisma/logs_migrations/20261028000000_drop/migration.sql',
+    'apps/api/prisma/d1_migrations/0001_drop.sql',
+    'apps/api/prisma/d1_migrations/fulltext/0001_drop.sql',
+    'apps/api/prisma/pg_migrations/migration_lock.toml'
+  ]) assert.deepEqual(selectedApps([path]), ['api'], path)
+})

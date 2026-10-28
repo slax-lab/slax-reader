@@ -241,6 +241,26 @@ test('CLI retains compatibility suites and publication/deployment retain their o
   for (const name of ['api-deploy', 'web-deploy']) assert.equal(workflow(name).jobs.deploy.concurrency['cancel-in-progress'], false)
 })
 
+test('the API deploy runs migration release evidence after the superseded check and before any remote access', () => {
+  const w = workflow('api-deploy')
+  assert.deepEqual(w.permissions, { actions: 'read', contents: 'read', deployments: 'read', 'pull-requests': 'read' })
+  assert.ok(w.on.pull_request_target.paths.includes('tooling/migration-release-evidence.mjs'))
+  const steps = w.jobs.deploy.steps
+  const checkout = steps.find(step => step.uses?.startsWith('actions/checkout@'))
+  assert.equal(checkout.with['fetch-depth'], 0)
+  const current = steps.findIndex(step => step.name === 'Check the branch before deployment')
+  const preflight = steps.findIndex(step => step.name === 'Check migration release evidence')
+  const firewall = steps.findIndex(step => step.name === 'Allow the runner through the existing firewall')
+  const tunnel = steps.findIndex(step => step.name === 'Open the database Tunnel')
+  assert.ok(current >= 0 && preflight > current && firewall > preflight && tunnel > firewall, steps.map(step => step.name ?? step.uses ?? step.run).join(','))
+  const step = steps[preflight]
+  assert.equal(step.if, "steps.release.outputs.current == 'true'")
+  assert.equal(step.run, 'node tooling/migration-release-evidence.mjs deploy')
+  assert.equal(step.env.GH_TOKEN, '${{ github.token }}')
+  assert.equal(step.env.PR_HEAD_REF, '${{ github.event.pull_request.head.ref }}')
+  assert.match(steps[current].run, /tooling\/migration-release-evidence\.mjs/)
+})
+
 test('mobile EAS release preflight requires an increasing build with consistent metadata', () => {
   const base = {version: '1.0.25', buildNumber: 771, previousBuildNumber: 770}
   assert.deepEqual(compareMobileVersion(base, base), {changed: false, errors: []})

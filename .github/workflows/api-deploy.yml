@@ -10,6 +10,7 @@ on:
       - 'tooling/api.mjs'
       - 'tooling/pnpm-command.mjs'
       - 'deploy/cloudflare/api.toml.example'
+      - 'tooling/migration-release-evidence.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -17,7 +18,10 @@ on:
       - '.github/workflows/api-deploy.yml'
 
 permissions:
+  actions: read
   contents: read
+  deployments: read
+  pull-requests: read
 
 jobs:
   deploy:
@@ -61,6 +65,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -170,12 +175,19 @@ jobs:
             # Keep these paths aligned with the workflow's API path filter.
             changed=$(git diff --name-only "$MERGE_SHA" "$tip" -- apps/api packages/contracts \
               tooling/api.mjs tooling/pnpm-command.mjs deploy/cloudflare/api.toml.example \
+              tooling/migration-release-evidence.mjs \
               package.json pnpm-lock.yaml pnpm-workspace.yaml \
               .github/workflows/api-ci.yml .github/workflows/api-deploy.yml)
             if [ -n "$changed" ]; then current=false; fi
           fi
           echo "current=$current" >> "$GITHUB_OUTPUT"
           if [ "$current" = false ]; then echo 'Release skipped: newer API changes are already on this branch' >&3; fi
+      - name: Check migration release evidence
+        if: steps.release.outputs.current == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: node tooling/migration-release-evidence.mjs deploy
       - name: Allow the runner through the existing firewall
         if: steps.release.outputs.current == 'true'
         env:

@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { EvidenceError, evaluateRelease } from './migration-release-evidence.mjs'
 
 // The `promotion integrity` check (design D2). One composite required context
 // for pull requests entering beta and main: it asserts where the head came from
@@ -274,6 +275,24 @@ export async function inspectDeploymentEvidence(inputs, { token, fetchImpl, grac
   return { ready: true, pending: [] }
 }
 
+// Migration release evidence for a dev -> beta promotion. The workflow fetches
+// the base and head branches into refs/remotes/origin; the checker reads the
+// three-dot promotion diff and, for a current contract, one deployments record
+// for the declared commit. A missing input fails the gate closed.
+export async function migrationEvidenceForPromotion({ repository, base, head, token, fetchImpl }) {
+  const baseRef = process.env.MIGRATION_BASE
+  const headRef = process.env.MIGRATION_HEAD
+  const target = process.env.MIGRATION_TARGET
+  const source = process.env.MIGRATION_SOURCE
+  if (!baseRef || !headRef || !target || !source) fail('Migration release evidence inputs are missing')
+  try {
+    return await evaluateRelease({ target, sourceBranch: source, base: baseRef, head: headRef, repository, token, fetchImpl })
+  } catch (error) {
+    if (error instanceof EvidenceError) fail(`Migration release evidence failed at ${error.stage}: ${error.message}`)
+    throw error
+  }
+}
+
 // Shared poll: the suite gates and the beta deployment are independent, so one
 // deadline covers both and each poll re-checks whichever is still outstanding.
 export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, deployRunGraceMs = defaultDeployRunGraceMs, requireDeployment = false, log = () => {} }) {
@@ -300,10 +319,15 @@ export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = d
   }
 }
 
-export async function runPromotionGate(inputs, { token, fetchImpl = fetch, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, deployRunGraceMs = defaultDeployRunGraceMs, log = () => {} } = {}) {
+export async function runPromotionGate(inputs, { token, fetchImpl = fetch, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, deployRunGraceMs = defaultDeployRunGraceMs, migrationEvidence = migrationEvidenceForPromotion, log = () => {} } = {}) {
   if (typeof token !== 'string' || !token) fail('Missing GitHub token')
   allowedHead(inputs) // throws on an unsanctioned source; the hotfix flag is no longer needed here
   log(`source allowed: ${inputs.head} -> ${inputs.base}`)
+
+  if (inputs.base === 'beta') {
+    await migrationEvidence({ repository: inputs.repository, base: inputs.base, head: inputs.head, headSha: inputs.headSha, token, fetchImpl })
+    log('migration release evidence: passed')
+  }
 
   const requireDeployment = inputs.base === 'main' && inputs.head === 'beta'
   await pollPromotionEvidence(inputs, { token, fetchImpl, wait, intervalMs, timeoutMs, deployRunGraceMs, requireDeployment, log })
@@ -369,7 +393,7 @@ export async function createCheckRun({ repository, headSha, token, conclusion, t
 // CLI wrapper: run the gate, then report exactly one check run. A failing
 // verdict is reported as a failing check and does not fail the job — the check
 // is the merge gate. Only an unreportable verdict fails the job.
-export async function runGateAndReport(env = process.env, { fetchImpl = fetch, wait = delay, log = () => {}, errorLog = () => {} } = {}) {
+export async function runGateAndReport(env = process.env, { fetchImpl = fetch, wait = delay, migrationEvidence, log = () => {}, errorLog = () => {} } = {}) {
   const target = {
     repository: env.GITHUB_REPOSITORY ?? '',
     headSha: env.HEAD_SHA ?? '',
@@ -381,7 +405,7 @@ export async function runGateAndReport(env = process.env, { fetchImpl = fetch, w
   let inputs
   try {
     inputs = readInputs(env)
-    await runPromotionGate(inputs, { token: target.token, fetchImpl, wait, timeoutMs: readTimeout(env), log })
+    await runPromotionGate(inputs, { token: target.token, fetchImpl, wait, timeoutMs: readTimeout(env), log, ...(migrationEvidence ? { migrationEvidence } : {}) })
   } catch (error) {
     const message = error instanceof GateError ? error.message : 'Promotion gate failed unexpectedly'
     const guidance = 'Fix the failed condition and push a new commit, or re-run this workflow once the missing evidence exists; the check reports again on the current head.'
@@ -401,6 +425,7 @@ export async function runGateAndReport(env = process.env, { fetchImpl = fetch, w
   }
 
   const notes = [`Promotion ${inputs.head} -> ${inputs.base} passed on ${inputs.headSha}.`, `All ${suiteGates.length} application CI gates are green.`]
+  if (inputs.base === 'beta') notes.push('Migration release evidence is green.')
   if (inputs.base === 'main' && inputs.head === 'beta') notes.push('The beta environment deployment evidence is green.')
   try {
     await createCheckRun({

@@ -32,13 +32,35 @@ Reserve Important for findings that:
 
 - break behavior or introduce a regression
 - lose or corrupt user data (bookmarks, highlights, comments)
-- corrupt the shared production database through schema migrations: the beta environment runs migrations against production PostgreSQL before code passes the `main` gate, so any migration that is incompatible with the code currently serving production — dropping or renaming tables/columns, changing column types, adding `NOT NULL` columns without defaults — is Important unless the change demonstrates an expand/contract split; applies when the diff touches `**/migrations/**` (e.g. `apps/api/prisma/migrations/`), `*.sql`, or ORM schema files (e.g. `schema.prisma`)
+- corrupt the shared production database through schema migrations: the beta environment runs migrations against production PostgreSQL before code passes the `main` gate, so any migration that is incompatible with the code currently serving production — dropping or renaming tables/columns, changing column types, adding `NOT NULL` columns without defaults — is Important unless the change demonstrates an expand/contract split; applies when the diff touches a migration under `apps/api/prisma/pg_migrations/`, `apps/api/prisma/logs_migrations/`, `apps/api/prisma/d1_migrations/`, or `apps/api/prisma/d1_migrations/fulltext/`, or another `*.sql` or ORM schema file (e.g. `schema.prisma`)
 - leak secrets or PII
 - introduce suspected malicious code: a backdoor, covert data exfiltration, or an unvetted dependency with install scripts or unexpected network/file access. Such a finding needs concrete evidence in the diff, not general suspicion; when uncertain, flag it and require a human reviewer's verdict before merge
 - break the cross-app API contracts in `packages/contracts`
 - diverge from the intent of the linked OpenSpec change
 
 Style, naming, and refactoring suggestions are Nits at most.
+
+## Migration releases
+
+The four migration families are `apps/api/prisma/pg_migrations/**/migration.sql`, `apps/api/prisma/logs_migrations/**/migration.sql`, `apps/api/prisma/d1_migrations/*.sql`, and `apps/api/prisma/d1_migrations/fulltext/*.sql`. Every migration added by a release starts with a leading declaration block:
+
+- `-- migration-safety: expand` — additive only; no other safety field.
+- `-- migration-safety: migrate` — also declares `-- preserves:` and `-- reason:`.
+- `-- migration-safety: contract` — also declares `-- removes:`, `-- prerequisite-change:`, `-- prerequisite-pr:`, `-- prerequisite-merge:`, `-- confirmed-by:`, and `-- reason:`.
+
+`removes`, `preserves`, `reason`, and `confirmed-by` are author claims. The machine checks their presence and shape; the reviewer checks that they are true. In particular, verify that `confirmed-by` names an API owner who actually confirmed that the prerequisite release removed the last reader and writer.
+
+Migration release evidence runs at two checkpoints only: `promotion integrity` for a pull request targeting `beta`, and the API deploy preflight after the superseded-release check and before any remote access. It checks declaration completeness, release-diff immutability (a release may only add migration files; it may not edit, delete, rename, or retroactively annotate one; `migration_lock.toml` may not change), the expand-only hotfix rule, and the evidence a current `contract` requires:
+
+- `prerequisite-pr` is a merged pull request with a matching `OpenSpec:` trailer (or `n/a`/`n/a` for implementation-only work; promotion and sync-back pull requests are exempt).
+- The prerequisite pull request's merge commit is an ancestor of `prerequisite-merge`; `prerequisite-merge` is an ancestor of the release head.
+- `prerequisite-merge` is the commit recorded by a successful `api-deploy` deployment to `beta` or `main`, and that run's `Migrate databases and deploy Workers` step succeeded. The check reads `deployments?sha=<prerequisite-merge>` once; it does not walk branch history or list deployments.
+
+When that evidence is missing, failed, still running, or ambiguous, the release fails closed. Correct the declaration to the commit the deployment recorded, or use the adjudicated runbook below; do not reclassify the migration.
+
+`hotfix/*` releases may add only `expand` migrations; `migrate` and `contract` ship through a normal release. After an out-of-band `wrangler rollback`, no contract proceeds until a pipeline redeploy completes: the contract reviewer confirms either that no rollback happened since the evidence deployment or that the redeploy is complete.
+
+The adjudicated runbook is the only exception path and has no pipeline support. Two named owners record an incident reference, a backup reference, and a ledger-reconciliation statement on the pull request, execute the destructive step manually outside the migration path during an announced window, and ship the code change without a destructive migration. A `contract` or `migrate` declaration must never be used to smuggle that step, and there is no fourth declaration class.
 
 ## Cap the nits
 

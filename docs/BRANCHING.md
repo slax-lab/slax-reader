@@ -51,9 +51,23 @@ One direction has no sync-back pull request at all: a conflicted `beta` → `mai
 
 ## Hotfix flow
 
-When `beta` or `main` needs an urgent fix while the branch that would normally feed it carries changes that are not ready to promote, cut `hotfix/<name>` from the branch that needs the fix and merge it back through a pull request subject to that branch's entry conditions. A hotfix pull request requires one approving review from an approver other than its author — the content never passed through `dev`, where reviews happen — and the rulesets on `beta` and `main` enforce that review exactly as they do for every other pull request to those branches. The administrator's `pull_request` bypass remains for a change that genuinely cannot wait; requiring the review is what keeps the bypass an exceptional act.
+When `beta` or `main` needs an urgent fix while the branch that would normally feed it carries changes that are not ready to promote, cut `hotfix/<name>` from the branch that needs the fix and merge it back through a pull request subject to that branch's entry conditions. A hotfix pull request requires one approving review from an approver other than its author — the content never passed through `dev`, where reviews happen — and the rulesets on `beta` and `main` enforce that review exactly as they do for every other pull request to those branches. The administrator's `pull_request` bypass remains for a change that genuinely cannot wait; requiring the review is what keeps the bypass an exceptional act. A hotfix may carry only `expand` migrations; a `migrate` or `contract` change ships through a normal release.
 
 Then propagate the same `hotfix/*` branch downstream with merge-commit pull requests — to `dev`, and additionally to `beta` when the hotfix landed on `main` — and start no further normal promotion until that propagation is merged. Merging the same `hotfix/*` branch keeps histories convergent; a propagation pull request headed by the fixed `main` branch would also fail `beta`'s source allowlist, which admits only `dev` or `hotfix/*` heads.
+
+## Migration releases
+
+A migration enters `beta` or `main` only through a release whose migration evidence passes at two checkpoints: the promotion to `beta` (checked by `promotion integrity`) and the API deploy preflight. The promotion check is the early warning; the deploy preflight is the gate before any shared database is touched. `docs/CI.md` owns the check mechanics.
+
+Every new migration carries the declaration header described in `REVIEW.md`. Ordinary `expand` and `migrate` migrations need the normal code-owner review and nothing else. A `contract` additionally requires:
+
+- a merged prerequisite pull request with the matching `OpenSpec:` trailer;
+- `prerequisite-merge` naming the commit recorded by a successful `api-deploy` deployment to `beta` or `main`, with the prerequisite pull request's merge commit as its ancestor and `prerequisite-merge` as an ancestor of the release head;
+- a `confirmed-by` owner who confirmed that the prerequisite removed the last reader and writer.
+
+When the deployment evidence is missing, failed, still running, or ambiguous, the check fails closed. Correct the declaration to the commit the deployment recorded, or use the adjudicated runbook in `REVIEW.md`; never reclassify a destructive migration as `expand`.
+
+A `hotfix/*` release may add only `expand` migrations; `migrate` and `contract` ship through a normal release. After an out-of-band `wrangler rollback`, no contract proceeds until a pipeline redeploy completes. The delivery branch for a migration-change pull request uses the change-id as its suffix, like any task branch, and the branch name is checked before the pull request opens.
 
 ## Promotion mechanics
 

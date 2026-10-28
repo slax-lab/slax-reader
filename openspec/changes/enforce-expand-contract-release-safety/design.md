@@ -174,3 +174,7 @@ Every failure reports one fixed stage — `declaration`, `immutability`, `hotfix
 ## Open Questions
 
 None.
+
+## Approval
+
+The user approved this revision for implementation on 2026-10-28. The two checkpoints, the direct deployment lookup, and the fixed `prerequisite-merge` semantics — the commit recorded by the successful `api-deploy` deployment, with the prerequisite pull request's merge commit as its ancestor — are approved as written.
