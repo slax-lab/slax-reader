@@ -2,6 +2,10 @@
 
 <!-- What does this PR change, and why? -->
 
+## Key visuals
+
+<!-- 1–3 visuals for a change that alters what a user sees, so a reviewer meets the change before the evidence trail: a surface that already ships gets before and after, a new surface after only, and a removed surface before only, all in the same state, theme, and width and captioned with the surface, state, theme, width, and what changed. A motion-only change — transition, drag, or scroll-linked behavior a still cannot show — gets a short recording instead, counted inside the 1–3, and its caption names what to watch. More only when the change spans independent surfaces, with the reason stated. The complete state/theme/width evidence stays in the Test plan; these visuals present it and neither extend nor replace it. Attach with `gh --attach` and never commit media; the captions must stand alone without the images. No visible surface, or a visible change a still cannot usefully show: write "n/a" with the reason. A later push that changes what a visual shows replaces it here. -->
+
 ## OpenSpec change
 
 <!-- Behavior changes: the change id from openspec/changes/<id>. Refactors, docs, and tooling: write "n/a". -->
