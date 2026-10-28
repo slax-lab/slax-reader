@@ -38,7 +38,7 @@
               {{ $t('page.user.api_key_cli_completion_hint') }}
             </div>
             <div class="open-source">
-              <a href="https://github.com/slax-lab/slax-reader-cli" target="_blank" rel="noopener noreferrer">{{ $t('page.user.api_key_cli_open_source') }}</a>
+              <a href="https://github.com/slax-lab/slax-reader/tree/main/apps/cli" target="_blank" rel="noopener noreferrer">{{ $t('page.user.api_key_cli_open_source') }}</a>
             </div>
           </div>
 
@@ -103,7 +103,7 @@ const apiKey = ref<UserApiKey | null>(null)
 const isLoading = ref(false)
 const isShowingFullKey = ref(false)
 const activeInstallTab = ref<'manual' | 'ai-agent'>('manual')
-const aiAgentGuideUrl = 'https://raw.githubusercontent.com/slax-lab/slax-reader-cli/refs/heads/main/docs/ai-agent-installation-guide.md'
+const aiAgentGuideUrl = 'https://raw.githubusercontent.com/slax-lab/slax-reader/refs/heads/main/docs/cli/ai-agent-installation-guide.md'
 
 const displayKey = computed(() => {
   if (!apiKey.value) {
