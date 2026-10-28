@@ -76,12 +76,41 @@ Player controls and timestamp behavior passed automated component tests, but tho
 
 Cindy browser status did not return. Screenshots used an isolated Chrome session without the user's profile.
 
-## Chinese episode and transcription blocker
+## Chinese episode and local transcription
 
 The reported Pocket Casts episode resolves from the previously captured public page to its full Xiaoyuzhou audio URL.
 Its title is “Vol.238 宏观漫谈112｜全球资本市场，集体‘缺钱’？”. The page reports 5,160 seconds.
-The local runner stopped with **`ASSEMBLYAI_API_KEY is not set`**. No paid job started, and no transcript or article was produced.
-Configure the existing runtime binding before repeating this check. Do not mark Chinese generation or paid transcription as verified.
+The initial local runner stopped with **`ASSEMBLYAI_API_KEY is not set`**. That result did not describe Cloudflare configuration.
+On 2026-10-28, Luca supplied a key for local testing. The key stayed in a mode-0600 temporary file outside the repository.
+
+The real Worker exposed an AssemblyAI client defect: calling `this.fetcher(...)` bound native `fetch` to the client instance.
+Cloudflare rejected that context with `Illegal invocation`. The client now calls a detached function.
+A regression test failed before the fix and passed afterward. Existing arrow-function mocks did not detect this runtime constraint.
+
+The corrected client submitted one real transcription job. Polling completed with Chinese text and speaker labels.
+The saved transcript contains 413 cues and 29,805 text characters. The provider reported 5,207 seconds.
+The estimated transcription cost is USD 0.2459. This estimate is not the provider invoice.
+The next two article attempts reused the saved transcript. They did not submit another transcription job.
+
+**Chinese article generation still fails.** Three editing attempts failed `chunk_incomplete_coverage` before body publication.
+Captured responses split individual cues across paragraphs and repeated their references. They did not omit cue IDs.
+A prompt clarification did not resolve the failure and was removed. The exact ordered-coverage check remains unchanged.
+The article row is failed after three attempts. Its recorded model cost is USD 0.0441075.
+No Chinese article screenshot or completed publication claim is justified by this test.
+
+The current Web build separately verified real Chinese audio play, pause, and keyboard seeking.
+The audio reached 2.22 seconds, paused, and sought to 3 seconds. No page error occurred.
+That playback check used the episode notes, not a completed article.
+
+Follow-up checks: 63 tests passed across AssemblyAI, Podcast runner, and Podcast article suites; API typecheck passed.
+Strict OpenSpec validation passed 81 items. Changed-client lint reported no errors.
+Local evidence: `/tmp/podcast-chinese-transcript.json`, `/tmp/podcast-chinese-key-test-4.json`, and `/tmp/podcast-asr-tests-final.log`.
+The key value is absent from this record, the tests, and the code. The complete PR diff passed the exact-key check.
+The local test Worker stopped, and its temporary key file was removed.
+
+Follow-up review: Bugs and Security have no new Important findings for the detached-fetch fix.
+Compliance retains the existing Important finding for missing human hands-on acceptance. The PR remains a draft.
+This API-only fix changes no packaged application output and needs no application version increment.
 
 ## Platform limits
 
@@ -89,7 +118,7 @@ Configure the existing runtime binding before repeating this check. Do not mark 
 | --- | --- | --- |
 | RSS and direct audio | Existing parser tests; real RSS transcript generation | Successful live playback for the selected source |
 | Apple Podcasts | Lookup tests, exact feed matching, page fallback | Live old-episode recovery |
-| Xiaoyuzhou | Existing hydration parser tests | Fresh capture and real Chinese transcription |
+| Xiaoyuzhou | Existing hydration parser tests | Fresh capture; Chinese article editing remains incomplete |
 | Pocket Casts | Parent PR capture evidence; recorded source parsed again | Compact-link live resolution and final Chinese article |
 | Spotify | Public audio, embed-only, preview exclusion, and linked-caption fixtures | A live episode with a usable public transcript source |
 | Overcast | URL recognition and common public metadata path | Live episode source resolution |
@@ -116,7 +145,7 @@ Web and API do not use package-version increments under `docs/release/VERSIONING
 
 ## Next verification
 
-1. Configure the existing transcription binding and process the Chinese episode.
+1. Correct Chinese article editing without weakening coverage or readability checks; reuse the saved transcript.
 2. Verify live playback with an accessible complete episode.
 3. Verify each additional platform through a real episode, including its unavailable state.
 4. Test translated articles and deployed visitor reads.

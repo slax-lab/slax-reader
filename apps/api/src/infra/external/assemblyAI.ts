@@ -52,7 +52,8 @@ export class AssemblyAIClient {
 
   private async call(path: string, init: RequestInit = {}): Promise<AssemblyTranscriptResponse> {
     if (!this.apiKey) throw new AssemblyAIError('ASSEMBLYAI_API_KEY is not set', 0, true)
-    const resp = await this.fetcher(`${ASSEMBLYAI_BASE_URL}${path}`, {
+    const fetcher = this.fetcher
+    const resp = await fetcher(`${ASSEMBLYAI_BASE_URL}${path}`, {
       ...init,
       headers: { authorization: this.apiKey, 'content-type': 'application/json' }
     })
