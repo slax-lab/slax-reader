@@ -60,6 +60,7 @@ export function useFeed() {
     initializing = ref(false),
     detailLoading = ref(false),
     pending = ref(false),
+    savingEntryId = ref<string | null>(null),
     error = ref("");
   const cache = new Map<string, CachedList>();
   let permissionGeneration = 0,
@@ -102,6 +103,7 @@ export function useFeed() {
     initializing.value = false;
     detailLoading.value = false;
     pending.value = false;
+    savingEntryId.value = null;
     error.value = "";
   };
   watch(
@@ -119,6 +121,7 @@ export function useFeed() {
     () => {
       permissionGeneration++;
       pending.value = false;
+      savingEntryId.value = null;
       generation++;
       detailGeneration++;
       detailLoading.value = false;
@@ -288,17 +291,24 @@ export function useFeed() {
       if (initialization === initializeGeneration) initializing.value = false;
     }
   };
-  const mutate = async (work: () => Promise<void>) => {
+  const mutate = async (
+    work: () => Promise<void>,
+    entryId: string | null = null,
+  ) => {
     if (pending.value) return;
     const account = session, permission = permissionGeneration;
     pending.value = true;
+    savingEntryId.value = entryId;
     error.value = "";
     try {
       await work();
     } catch (e) {
       if (account === session && permission === permissionGeneration) fail(e);
     } finally {
-      if (account === session && permission === permissionGeneration) pending.value = false;
+      if (account === session && permission === permissionGeneration) {
+        pending.value = false;
+        savingEntryId.value = null;
+      }
     }
   };
   const add = (url: string, remark = "") =>
@@ -447,7 +457,7 @@ export function useFeed() {
       restEntries.value = restEntries.value.map(saved);
       if (detail.value && matches(detail.value))
         detail.value.bookmark_user_uuid = result.bookmark_user_uuid;
-    });
+    }, entry.id);
   return {
     labs,
     subscriptions,
@@ -465,6 +475,7 @@ export function useFeed() {
     initializing,
     detailLoading,
     pending,
+    savingEntryId,
     error,
     initialize,
     reload,

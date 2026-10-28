@@ -109,6 +109,7 @@ beforeEach(() => {
     initializing: Vue.ref(false),
     detailLoading: Vue.ref(false),
     pending: Vue.ref(false),
+    savingEntryId: Vue.ref<string | null>(null),
     error: Vue.ref(""),
     initialize: vi.fn(),
     select: vi.fn(),
@@ -144,6 +145,43 @@ function panel() {
 }
 
 describe("Newsletter Feed", () => {
+  it("shows the active mail's save progress in list and preview, then allows retry", async () => {
+    const mail = {
+      ...entry,
+      id: "newsletter:1",
+      kind: "newsletter",
+      article_url: null,
+    };
+    rss.entries.value = [mail, { ...mail, id: "newsletter:2" }];
+    const wrapper = panel();
+    await wrapper.findAll(".article-main")[0].trigger("click");
+    rss.pending.value = true;
+    rss.savingEntryId.value = mail.id;
+    await Vue.nextTick();
+
+    const saves = wrapper.findAll("article .save-action");
+    const previewSave = wrapper.get(".reader-footer button");
+    for (const button of [saves[0], previewSave]) {
+      expect(button.text()).toBe("rss.saving");
+      expect(button.attributes("aria-busy")).toBe("true");
+      expect(button.attributes("disabled")).toBeDefined();
+      expect(button.find(".spinning").exists()).toBe(true);
+      await button.trigger("click");
+    }
+    expect(rss.save).not.toHaveBeenCalled();
+    expect(saves[1].text()).toBe("rss.save");
+    expect(saves[1].find(".spinning").exists()).toBe(false);
+
+    rss.pending.value = false;
+    rss.savingEntryId.value = null;
+    await Vue.nextTick();
+    for (const button of [saves[0], previewSave]) {
+      expect(button.text()).toBe("rss.save");
+      expect(button.attributes("aria-busy")).toBe("false");
+      expect(button.attributes("disabled")).toBeUndefined();
+      expect(button.find(".spinning").exists()).toBe(false);
+    }
+  });
   it("saves URL-less mail from both list and preview and shows the saved route", async () => {
     const mail = {
       ...entry,

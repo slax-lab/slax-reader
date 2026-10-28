@@ -143,6 +143,10 @@ An authenticated live user with Newsletter enabled SHALL be able to save an owne
 - **WHEN** a user saves a mail, repeats or saves concurrently
 - **THEN** one live private bookmark is published with copied content, repeats reuse it and no duplicate quota/bookmark/index rows or personal-state overwrite occur
 
+#### Scenario: Save progress and retry
+- **WHEN** a Save to Inbox request is pending in the mixed Feed list or reader preview
+- **THEN** both surfaces show saving text and busy state for that entry, with a spinner respecting reduced-motion/eink settings, prevent duplicate activation, and leave other entries without a misleading spinner; completion shows the saved link and failure restores a retryable save action
+
 #### Scenario: Trash restore and deliberate sharing
 - **WHEN** a copied bookmark is restored by saving again
 - **THEN** it returns to Inbox with marks/tags/star/title and any deliberate sharing choice preserved; a newly created copy defaults to disabled single-bookmark sharing even with global sharing on

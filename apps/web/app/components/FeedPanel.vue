@@ -239,6 +239,7 @@
             ><button
               v-else
               class="save-action"
+              :aria-busy="rss.savingEntryId.value === entry.id"
               :disabled="
                 rss.pending.value ||
                 (entry.kind === 'rss' && !entry.article_url)
@@ -250,7 +251,14 @@
               "
               @click="rss.save(entry)"
             >
-              <RssIcon name="bookmark" />{{ $t("rss.save") }}
+              <RssIcon
+                :name="
+                  rss.savingEntryId.value === entry.id ? 'refresh' : 'bookmark'
+                "
+                :class="{ spinning: rss.savingEntryId.value === entry.id }"
+              />{{
+                $t(rss.savingEntryId.value === entry.id ? "rss.saving" : "rss.save")
+              }}
             </button>
           </div>
         </article>
@@ -373,13 +381,21 @@
           ><button
             v-else
             class="rss-button primary"
+            :aria-busy="rss.savingEntryId.value === previewEntry.id"
             :disabled="
               rss.pending.value ||
               (previewEntry.kind === 'rss' && !previewEntry.article_url)
             "
             @click="rss.save(rss.detail.value || previewEntry)"
           >
-            <RssIcon name="bookmark" />{{ $t("rss.save") }}
+            <RssIcon
+              :name="
+                rss.savingEntryId.value === previewEntry.id ? 'refresh' : 'bookmark'
+              "
+              :class="{ spinning: rss.savingEntryId.value === previewEntry.id }"
+            />{{
+              $t(rss.savingEntryId.value === previewEntry.id ? "rss.saving" : "rss.save")
+            }}
           </button>
         </footer>
       </template>

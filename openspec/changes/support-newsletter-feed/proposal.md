@@ -11,6 +11,7 @@ Users need permanent Newsletter receiving addresses and one Web Feed for RSS and
 - Keep synchronous publication without processing leases, replay payloads or automatic recovery. Preserve configured limits, quiet parsing, attachment metadata, proxy images and tracking-pixel removal.
 - Merge existing RSS reads and ready Newsletter rows through private REST Feed endpoints. Preserve original RSS APIs, fetching, history, retention, save behavior and PowerSync. Put mixed Web behavior in Feed-owned adapters and delegate RSS-only mode to unchanged RSS code.
 - Add Save to Inbox by copying the received R2 body into a separate standard HTML/text bookmark snapshot; create private bookmark/relation and explicitly disabled per-bookmark sharing atomically. Repeats/restore preserve personal state and deliberate sharing choices.
+- Show entry-specific Save to Inbox progress in both the mixed Feed list and reader preview, with localized saving text, a motion-aware spinner and duplicate activation prevention. The user requested this acceptance correction on 2026-10-28.
 - Preserve dev newsletterreader.slax.dev and beta/prod/legacy-main newsletterreader.slax.com with one literal feed route plus Cloudflare Subaddressing. No per-user route or new infrastructure service.
 
 ## Capabilities

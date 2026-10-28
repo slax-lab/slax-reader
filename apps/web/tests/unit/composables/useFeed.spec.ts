@@ -55,6 +55,26 @@ afterEach(() => {
   scopes.splice(0).forEach((scope) => scope.stop());
   vi.restoreAllMocks();
 });
+test("save progress lasts for the request, blocks a duplicate, and clears on failure", async () => {
+  const feed = create();
+  let rejectSave!: (error: Error) => void;
+  post.mockReturnValueOnce(new Promise((_, reject) => {
+    rejectSave = reject;
+  }));
+  const saving = feed.save(mail("newsletter:1") as never);
+  expect(feed.savingEntryId.value).toBe("newsletter:1");
+  expect(feed.pending.value).toBe(true);
+  await feed.save(mail("newsletter:1") as never);
+  expect(post).toHaveBeenCalledTimes(1);
+  rejectSave(new Error("source_unavailable"));
+  await saving;
+  expect(feed.savingEntryId.value).toBeNull();
+  expect(feed.pending.value).toBe(false);
+  post.mockResolvedValueOnce({ bookmark_user_uuid: "retry" });
+  await feed.save(mail("newsletter:1") as never);
+  expect(post).toHaveBeenCalledTimes(2);
+  expect(feed.savingEntryId.value).toBeNull();
+});
 test("saving a URL-less mail updates only its own identity in list and preview", async () => {
   const feed = create();
   get.mockResolvedValueOnce({
@@ -173,7 +193,16 @@ test("disable then re-enable also fences an older save response", async () => {
   labs.newsletter.value = false;
   labs.newsletter.value = true;
   feed.entries.value = [mail("newsletter:1") as never];
+  expect(feed.savingEntryId.value).toBeNull();
+  let finishNew!: (value: unknown) => void;
+  post.mockReturnValueOnce(new Promise(resolve => { finishNew = resolve; }));
+  const newSaving = feed.save(mail("newsletter:2") as never);
   finish({ bookmark_user_uuid: "late" });
   await saving;
   expect(feed.entries.value.every((row) => !row.bookmark_user_uuid)).toBe(true);
+  expect(feed.savingEntryId.value).toBe("newsletter:2");
+  expect(feed.pending.value).toBe(true);
+  finishNew({ bookmark_user_uuid: "current" });
+  await newSaving;
+  expect(feed.savingEntryId.value).toBeNull();
 });
