@@ -31,28 +31,32 @@ two authors would disagree about it, and it would drag `DESIGN.md` into a presen
 
 ## D2 — Volume: 1–3 groups, with a stated escape for independent surfaces
 
-**Decision.** 1–3 visual groups by default. A change spanning independent surfaces may exceed
-the cap only when the body states why. This mirrors how the repository handles dimensions that
-do not apply (`DESIGN.md` requires naming an inapplicable state, theme, or width with its
-reason rather than omitting it silently).
+**Decision.** 1–3 visual groups by default, where a before/after pair is **one group** and a
+recording is one group. A change spanning independent surfaces may exceed the cap only when the
+body states why. This mirrors how the repository handles dimensions that do not apply
+(`DESIGN.md` requires naming an inapplicable state, theme, or width with its reason rather than
+omitting it silently).
 
 **Alternatives rejected.** A hard cap would force an arbitrary choice on a cross-surface
-change. No cap invites a wall of images, which defeats the reason the section exists.
+change. No cap invites a wall of images, which defeats the reason the section exists. Counting
+individual images rather than groups would spend two of the three slots on one before/after
+pair, leaving a multi-surface change unable to show its second surface at the approved volume.
 
 ## D3 — Cases, pairing, and the `n/a` path
 
-| Change | Visuals |
-| --- | --- |
-| Surface that already ships | before and after |
-| New surface | after only |
-| Removed surface | before only |
-| Motion-only (transition, drag, scroll-linked behavior a still cannot show) | a short recording, counted inside the 1–3 |
+| Change | Visuals | Groups |
+| --- | --- | --- |
+| Surface that already ships | before and after | 1 |
+| New surface | after only | 1 |
+| Removed surface | before only | 1 |
+| Motion-only (transition, drag, scroll-linked behavior a still cannot show) | a short recording | 1 |
 
 A before/after pair must share the state, theme, and width, and the caption must name the
 surface, state, theme, width, and what changed — a mismatched pair misleads more than no pair.
 Crop to the changed surface so the block stays short. `n/a` with its reason covers a change
-with no visible surface and a visible change a still cannot usefully show beyond the motion
-cases.
+with no visible surface, and a visible change a still cannot usefully show *outside* the motion
+cases; it must never exempt a transition, drag, or scroll-linked change, which requires the
+recording.
 
 ## D4 — Where a "before" image may come from
 
@@ -68,8 +72,8 @@ judge currency and costs the author one clause.
 
 **Decision.** A transition, drag, or scroll-linked behavior that a still cannot show gets a
 short recording; its caption names what to watch, and the caption states the expected motion in
-one line so the text record stands alone. The recording is one of the 1–3 groups, not an
-addition to them.
+one line so the text record stands alone. The recording is one group, not an addition to the
+1–3, and the `n/a` path may not be used for it.
 
 **Alternatives rejected.** Requiring a recording for every change (cost, and stills are better
 for static surfaces). Leaving motion changes without any visual (the reviewer cannot judge the
@@ -78,7 +82,7 @@ interaction at all).
 ## D6 — Presentation, not evidence
 
 **Decision.** The complete state/theme/width coverage and its attachments stay in the Test
-plan; `validation.md` holds only the text record. The template clause says the visuals "present
+plan; `validation.md` holds only the text record. The template clause says the groups "present
 it and neither extend nor replace it".
 
 **Alternatives rejected.** Moving full coverage into `validation.md` is impossible: media may
@@ -88,8 +92,8 @@ across the themes, widths, and states — a threshold change the approval exclud
 
 ## D7 — Update on a later push
 
-**Decision.** Scope the obligation to a push that changes what a shown visual shows; that push
-replaces the affected visual in place. GitHub attachments are immutable, so "replace" means
+**Decision.** Scope the obligation to a push that changes what a shown group shows; that push
+replaces the affected group in place. GitHub attachments are immutable, so "replace" means
 editing the body and re-attaching.
 
 **Alternative rejected.** Appending a second set leaves the reviewer unable to tell which is
@@ -148,30 +152,30 @@ would duplicate it, and adding key visuals as a requirement would create a thres
 ```markdown
 ## Key visuals
 
-<!-- 1–3 visuals for a change that alters what a user sees, so a reviewer meets the change before the evidence trail: a surface that already ships gets before and after, a new surface after only, and a removed surface before only, all in the same state, theme, and width and captioned with the surface, state, theme, width, and what changed. A motion-only change — transition, drag, or scroll-linked behavior a still cannot show — gets a short recording instead, counted inside the 1–3, and its caption names what to watch. More only when the change spans independent surfaces, with the reason stated. The complete state/theme/width evidence stays in the Test plan; these visuals present it and neither extend nor replace it. Attach with `gh --attach` and never commit media; the captions must stand alone without the images. No visible surface, or a visible change a still cannot usefully show: write "n/a" with the reason. A later push that changes what a visual shows replaces it here. -->
+<!-- 1–3 visual groups for a change that alters what a user sees, so a reviewer meets the change before the evidence trail: a surface that already ships gets a before/after pair as one group, a new surface gets after only, and a removed surface before only, all in the same state, theme, and width and captioned with the surface, state, theme, width, and what changed. A motion-only change — transition, drag, or scroll-linked behavior a still cannot show — gets a short recording as its group, and its caption names what to watch. More groups only when the change spans independent surfaces, with the reason stated. The complete state/theme/width evidence stays in the Test plan; these groups present it and neither extend nor replace it. Attach with `gh --attach` and never commit media; the captions must stand alone without the images. Write "n/a" with the reason only for a change with no visible surface, or for a visible change a still cannot usefully show that is outside the motion cases above. A later push that changes what a group shows replaces that group here. -->
 ```
 
 `docs/DEFINITION-OF-DONE.md` § "UI-visible evidence", after the matrix bullet:
 
 ```markdown
-- The pull request carries 1–3 key visuals near its change summary, following the template's
-  Key visuals section: before and after for a surface that already ships, after only for a new
-  surface, before only for a removed one, captured in the same state, theme, and width and
-  captioned with the surface, state, theme, width, and what changed; a motion-only change (a
-  transition, drag, or scroll-linked behavior a still cannot show) carries a short recording
-  whose caption names what to watch. More than 1–3 only when the change spans independent
-  surfaces, with the reason stated. A before
-  image may come from the target branch, an earlier capture of the same surface, or the
-  accepted demo, naming its source when it is not the target branch. The visuals present the
-  evidence above without extending or replacing it, and a later push that changes what a
-  visual shows replaces that visual in the same push.
+- The pull request carries 1–3 key visual groups near its change summary, following the
+  template's Key visuals section: a before/after pair for a surface that already ships counts as
+  one group, a new surface gets after only, and a removed one before only, captured in the same
+  state, theme, and width and captioned with the surface, state, theme, width, and what changed;
+  a motion-only change (a transition, drag, or scroll-linked behavior a still cannot show)
+  carries a short recording as its group, whose caption names what to watch. More than 1–3 groups
+  only when the change spans independent surfaces, with the reason stated. A before image may
+  come from the target branch, an earlier capture of the same surface, or the accepted demo,
+  naming its source when it is not the target branch. The groups present the evidence above
+  without extending or replacing it, and a later push that changes what a group shows replaces
+  that group in the same push.
 ```
 
 ## Risks
 
 - **Caption drifting from the image.** The caption names surface, state, theme, width, and what
   changed, so the reviewer can check it against the image in one glance.
-- **A stale visual after later commits.** Bounded by D7's replace-in-the-same-push rule.
+- **A stale group after later commits.** Bounded by D7's replace-in-the-same-push rule.
 - **Governance text drifting from practice.** One owner per layer (D9), with the template
   carrying the form and the Definition of Done carrying the procedure; neither restates the
   matrix.

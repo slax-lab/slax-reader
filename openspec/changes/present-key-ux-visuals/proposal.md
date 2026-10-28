@@ -7,19 +7,21 @@ key-visuals direction on 2026-10-28 and authorized this implementation. The appr
 
 - the trigger — a `UI-visible change`, operationally "the change alters what a user sees on a
   surface" — not the narrower `material UX` classifier;
-- volume — 1–3 visual groups, more only when the change spans independent surfaces, with the
+- volume — 1–3 visual groups, where a before/after pair counts as one group, and more only when
+  the change spans independent surfaces, with the
   reason stated;
 - the cases — before and after for a surface that already ships, after only for a new surface,
   before only for a removed one, all captured in the same state, theme, and width;
 - where a "before" image may come from — the target branch, an earlier capture of the same
   surface, or an accepted demo, naming the source when it is not the target branch;
-- a short recording, counted inside the 1–3 groups, when a still cannot show the change —
+- a short recording as one group, when a still cannot show the change —
   a transition, drag, or scroll-linked behavior;
 - placement and framing — a `## Key visuals` section between Change summary and OpenSpec
   change, captioned so the text stands alone, presenting the evidence that the Test plan
   already carries and neither extending nor replacing it;
-- the `n/a` path, and no image-presence enforcement in CI;
-- replacement, on a later push that changes what a shown visual would show.
+- the `n/a` path, restricted so it cannot exempt the transition, drag, or scroll-linked cases
+  that require a recording, and no image-presence enforcement in CI;
+- replacement, on a later push that changes what a shown group would show.
 
 Conditions recorded with the approval: no verification threshold changes; `DESIGN.md`
 (the verification matrix and the acceptance procedure), `REVIEW.md`, `.rulesync/**`, and
@@ -53,11 +55,12 @@ and the review cannot see images anyway.
 ## What Changes
 
 - Add a `## Key visuals` section to `.github/PULL_REQUEST_TEMPLATE.md`, between
-  `## Change summary` and `## OpenSpec change`, carrying the trigger, the 1–3 volume with its
-  multi-surface escape, the before/after/new/removed cases and their same-state/theme/width
-  requirement, the caption requirement, the recording criterion for motion-only changes, the
-  presentation-not-evidence clause, the media pointer, the `n/a` path, and replacement on a
-  later push.
+  `## Change summary` and `## OpenSpec change`, carrying the trigger, the 1–3 group volume (a
+  before/after pair counts as one group) with its multi-surface escape, the
+  before/after/new/removed cases and their same-state/theme/width requirement, the caption
+  requirement, the recording criterion for motion-only changes as one group, the
+  presentation-not-evidence clause, the media pointer, the `n/a` path restricted against the
+  motion cases, and replacement on a later push.
 - Add one operational bullet to `docs/DEFINITION-OF-DONE.md` § "UI-visible evidence": when a
   UI-visible change carries key visuals, the before/after/after-only/before-only cases, the
   allowed "before" source, the recording criterion, the presentation scope, and replacement in
@@ -87,7 +90,7 @@ None.
 None. `openspec/specs/change-verification/spec.md` already requires the themed, responsive,
 state-complete screens attached as pull request media, and already requires the text record to
 stand alone without it. This change neither adds nor relaxes a requirement; it tells an author
-where to place a presentation subset of that evidence and what each visual must say about
+where to place a presentation subset of that evidence and what each group must say about
 itself. A delta that restated the obligation could only duplicate it, and a delta that imposed
 key visuals as a new requirement would change a threshold the approval explicitly left alone.
 

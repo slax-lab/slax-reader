@@ -20,23 +20,25 @@
 ## 2. Record the section in the pull request template
 
 - [x] 2.1 Insert `## Key visuals` between `## Change summary` and `## OpenSpec change`, with the
-  guidance carried as one HTML comment: the trigger, the 1–3 volume with its independent-surface
-  escape, the three surface cases, the same-state/theme/width pairing, the caption naming
-  surface, state, theme, width, and what changed, the motion recording, the
-  presentation-not-evidence clause, the `gh --attach` and no-commit pointer with text standing
-  alone, the `n/a` path with its reason, and replacement on a later push. Verify: the visible
-  heading order is Change summary → Key visuals → OpenSpec change → Linked issue → Test plan →
-  Checklist; the guidance stays inside the comment and does not render as body text; the
+  guidance carried as one HTML comment: the trigger, the 1–3 group volume with a before/after
+  pair counted as one group and the independent-surface escape, the three surface cases, the
+  same-state/theme/width pairing, the caption naming surface, state, theme, width, and what
+  changed, the motion recording as one group, the presentation-not-evidence clause, the
+  `gh --attach` and no-commit pointer with text standing alone, the `n/a` path with its reason
+  restricted so it cannot exempt the motion cases, and replacement on a later push. Verify: the
+  visible heading order is Change summary → Key visuals → OpenSpec change → Linked issue → Test
+  plan → Checklist; the guidance stays inside the comment and does not render as body text; the
   comment markers balance — done; the structural check reports every assertion `ok`.
 
 ## 3. Record the procedure in the Definition of Done
 
 - [x] 3.1 Add one bullet to `docs/DEFINITION-OF-DONE.md` § "UI-visible evidence" covering the
-  cases, the pairing, the allowed "before" sources with the naming rule, the motion criterion,
-  the presentation scope, and replacement in the same push. Verify: the bullet restates neither
-  the verification matrix nor the acceptance procedure, and both neighbouring bullets are
-  unchanged — done; the isolated bullet check reports no matrix, acceptance, or theme-coverage
-  restatement, and the diff leaves the matrix, acceptance, and ownership bullets intact.
+  group unit (a before/after pair counts as one group), the cases, the pairing, the allowed
+  "before" sources with the naming rule, the motion criterion as one group, the presentation
+  scope, and replacement in the same push. Verify: the bullet restates neither the verification
+  matrix nor the acceptance procedure, and both neighbouring bullets are unchanged — done; the
+  isolated bullet check reports no matrix, acceptance, or theme-coverage restatement, and the
+  diff leaves the matrix, acceptance, and ownership bullets intact.
 
 ## 4. Verification
 

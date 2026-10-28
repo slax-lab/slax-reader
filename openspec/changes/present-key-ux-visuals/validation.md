@@ -39,10 +39,10 @@ that:
   `## OpenSpec change` → `## Linked issue` → `## Test plan` → `## Checklist`;
 - the Key visuals guidance sits inside a single HTML comment that does not appear in the visible
   text, and it sits between the Key visuals heading and the OpenSpec change heading;
-- the guidance states every approved rule (trigger, volume with its independent-surface escape,
-  three surface cases, pairing and the caption's surface/state/theme/width/change content, the
-  recording counting inside the 1–3, presentation scope, media pointer, `n/a` path,
-  replacement).
+- the guidance states every approved rule (trigger, the 1–3 group volume with a before/after
+  pair as one group and the independent-surface escape, three surface cases, pairing and the
+  caption's surface/state/theme/width/change content, the recording as one group, presentation
+  scope, media pointer, the `n/a` path restricted against the motion cases, replacement).
 
 All assertions report `ok` on the delivered state. Two rounds of failures were harness artefacts,
 not content: the first check sliced the Definition of Done by blank-line-separated blocks and so
@@ -54,20 +54,22 @@ comparison normalizes whitespace; the bullet's content then passed every asserti
 
 Each approved case, where it is stated, and a one-line body example the section accepts:
 
-| Case | Template clause | Definition of Done clause | Body example |
-| --- | --- | --- | --- |
-| Surface that already ships | "a surface that already ships gets before and after" | "before and after for a surface that already ships" | Settings page, dark theme, 390px — before: default card; after: card with the new border |
-| New surface | "a new surface after only" | "after only for a new surface" | Reader toolbar, light theme, 768px — after only: toolbar with four controls |
-| Removed surface | "a removed surface before only" | "before only for a removed one" | Legacy share sheet, light theme, 1024px — before only: the sheet with the removed row |
-| Motion-only change | "transition, drag, or scroll-linked behavior … gets a short recording … caption names what to watch" | "a short recording whose caption names what to watch" | Recording: opening the comment drawer, light, 390px — watch the 180ms slide and the backdrop fade |
-| Later push changes a shown visual | "replaces it here" | "replaces that visual in the same push" | Replaced the after visual after the caption font changed; the earlier attachment is superseded |
-| No visible surface, or a still cannot usefully show it | 'write "n/a" with the reason' | covered by the template section the bullet points to | n/a — this pull request changes only test fixtures; no surface renders differently |
+| Case | Groups | Template clause | Definition of Done clause | Body example |
+| --- | --- | --- | --- | --- |
+| Surface that already ships | 1 | "a surface that already ships gets a before/after pair as one group" | "a before/after pair for a surface that already ships counts as one group" | Settings page, dark theme, 390px — before: default card; after: card with the new border |
+| New surface | 1 | "a new surface gets after only" | "a new surface gets after only" | Reader toolbar, light theme, 768px — after only: toolbar with four controls |
+| Removed surface | 1 | "a removed surface before only" | "a removed one before only" | Legacy share sheet, light theme, 1024px — before only: the sheet with the removed row |
+| Motion-only change | 1 | "a motion-only change … gets a short recording as its group, and its caption names what to watch" | "carries a short recording as its group, whose caption names what to watch" | Recording: opening the comment drawer, light, 390px — watch the 180ms slide and the backdrop fade |
+| Later push changes a shown group | n/a | "replaces that group here" | "replaces that group in the same push" | Replaced the after group after the caption font changed; the earlier attachment is superseded |
+| No visible surface, or a still cannot usefully show a non-motion change | n/a | 'write "n/a" with the reason only for a change with no visible surface, or for a visible change a still cannot usefully show that is outside the motion cases above' | covered by the template section the bullet points to | n/a — this pull request changes only test fixtures; no surface renders differently |
 
-The pairing rule (same state, theme, and width, captioned with the surface, state, theme, width,
-and what changed), the volume escape (more than 1–3 only when the change spans independent
-surfaces, with the reason stated), and the allowed "before" sources (target branch, an earlier
-capture of the same surface, accepted demo, naming the source when it is not the target branch)
-are stated in both files.
+The group unit (a before/after pair is one group, a recording is one group, so three before/after
+pairs fit the 1–3 cap), the pairing rule (same state, theme, and width, captioned with the
+surface, state, theme, width, and what changed), the independent-surface escape (more than 1–3
+groups only when the change spans independent surfaces, with the reason stated), and the allowed
+"before" sources (target branch, an earlier capture of the same surface, accepted demo, naming
+the source when it is not the target branch) are stated in both files. The `n/a` path is
+restricted in the template so a transition, drag, or scroll-linked change cannot use it.
 
 ## What the edits intentionally do not do
 
@@ -86,6 +88,30 @@ are stated in both files.
 - Duplicate another active change: no active change under `openspec/changes/` references
   `.github/PULL_REQUEST_TEMPLATE.md`; the only references are in archived changes.
 
+## Review round 1 correction
+
+Independent review round 1 (`reviewer-present-ux-visuals`, reviewed tip `e8e8b9a9`) returned
+`p1-2items` / fix-then-merge on two wording divergences from the approved rule. Both were fixed
+in the operative texts, with no redesign:
+
+1. **The unit is a visual group.** The template said "1–3 visuals" and the Definition of Done
+   repeated "1–3 key visuals", so a before/after pair would have consumed two of three slots.
+   Both files now define "1–3 visual groups", state that a before/after pair is one group, and
+   use that unit in the motion clause (a recording is its group) and the independent-surface
+   clause ("more groups only when …"). `design.md` D2/D3/D5 and `proposal.md` state the same
+   unit, and D2 records why counting images would shrink the effective volume.
+2. **The `n/a` escape no longer reaches the motion cases.** The template previously allowed
+   `n/a` for "a visible change a still cannot usefully show", which could exempt exactly the
+   transition, drag, or scroll-linked changes that require a recording. The escape is now
+   limited to "a change with no visible surface, or … a visible change a still cannot usefully
+   show that is outside the motion cases above". `design.md` D3/D5 state the restriction, and
+   the Definition of Done bullet names the recording as a group without any escape.
+
+Re-run after the correction: `openspec validate --all --strict` → `Totals: 82 passed, 0 failed
+(82 items)`; `openspec validate present-key-ux-visuals --strict` → valid with the `skip_specs`
+info line; `git diff --check` clean; the structure and case checks re-run with the new clauses,
+including assertions for the group unit and the narrowed `n/a` path, all `ok`.
+
 ## Media
 
 This change attaches no screenshots or recordings: it defines the rule, and the media it
@@ -96,7 +122,7 @@ committed. The text above stands alone without media, as the rule it introduces 
 
 - **First real render.** The section's rendering and the caption-as-only-channel practice can
   only be exercised by the next UI-visible pull request. That pull request must confirm the
-  images render and the captions stand alone before it merges, and it must replace any visual a
+  images render and the captions stand alone before it merges, and it must replace any group a
   later push invalidates. No throwaway draft pull request was opened to exercise it earlier:
   opening one is an external action outside this change's authority.
 - **Visual currency.** The rule cannot verify that an author attached the right image, only
@@ -107,8 +133,9 @@ committed. The text above stands alone without media, as the rule it introduces 
 
 ## Delivery state
 
-The branch `feat/present-key-ux-visuals` is rebased onto the current `origin/dev` tip as part of
-delivery, so the delivered commit sits directly on top of `origin/dev`; it is delivered as
-pull request #426 against `dev`. The change directory carries no delta specs (`skip_specs`), so
-archiving moves no requirement into `openspec/specs/`; the archive step is the unchecked task in
-`tasks.md` and happens through a docs pull request after the task pull request merges.
+The branch `feat/present-key-ux-visuals` is rebased onto the `origin/dev` tip `870d9bb6` and was
+delivered as pull request #426 against `dev` at tip `e8e8b9a9`. The review-round correction is
+committed on top of that tip and is **not pushed** until the tower reviews it, so PR #426 shows
+the pre-correction text until then. The change directory carries no delta specs (`skip_specs`),
+so archiving moves no requirement into `openspec/specs/`; the archive step is the unchecked task
+in `tasks.md` and happens through a docs pull request after the task pull request merges.

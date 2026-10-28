@@ -59,16 +59,17 @@ This document owns the operational evidence procedure. The normative requirement
 
 - The evidence satisfies the verification matrix in `DESIGN.md` §6, and covers the themes,
   responsive widths, and recorded states that `DESIGN.md` requires for the affected surface.
-- The pull request carries 1–3 key visuals near its change summary, following the template's
-  Key visuals section: before and after for a surface that already ships, after only for a new
-  surface, before only for a removed one, captured in the same state, theme, and width and
-  captioned with the surface, state, theme, width, and what changed; a motion-only change (a
-  transition, drag, or scroll-linked behavior a still cannot show) carries a short recording
-  whose caption names what to watch. More than 1–3 only when the change spans independent
-  surfaces, with the reason stated. A before image may come from the target branch, an earlier
-  capture of the same surface, or the accepted demo, naming its source when it is not the
-  target branch. The visuals present the evidence above without extending or replacing it, and
-  a later push that changes what a visual shows replaces that visual in the same push.
+- The pull request carries 1–3 key visual groups near its change summary, following the
+  template's Key visuals section: a before/after pair for a surface that already ships counts as
+  one group, a new surface gets after only, and a removed one before only, captured in the same
+  state, theme, and width and captioned with the surface, state, theme, width, and what changed;
+  a motion-only change (a transition, drag, or scroll-linked behavior a still cannot show)
+  carries a short recording as its group, whose caption names what to watch. More than 1–3 groups
+  only when the change spans independent surfaces, with the reason stated. A before image may
+  come from the target branch, an earlier capture of the same surface, or the accepted demo,
+  naming its source when it is not the target branch. The groups present the evidence above
+  without extending or replacing it, and a later push that changes what a group shows replaces
+  that group in the same push.
 - The evidence records the acceptance required by `DESIGN.md` §10.2: who accepted, the date,
   and what was adjusted.
 - The acceptance procedure and its no-declared-gap rule are owned by `DESIGN.md` §10.2.
