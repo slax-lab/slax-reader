@@ -62,7 +62,7 @@ A new email delivery SHALL be acknowledged by application code only after final 
 - **THEN** processing cannot publish new entries for that user
 
 ### Requirement: Safe retained Newsletter body
-The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and CID/relative image references, use signed controlled image URLs and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. Orphaned Newsletter content SHALL be collected independently without visiting RSS or Inbox objects. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
+The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and CID/relative image references, use signed controlled image URLs and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. The first release SHALL NOT register a Newsletter-specific scheduled task or scan bodies for orphan collection. Known unpublished candidates SHALL retain immediate cleanup; interrupted or ambiguous writes MAY leave orphan objects until a later iteration. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
 
 #### Scenario: Malicious email and image handling
 - **WHEN** mail contains scripts, tracking images, event attributes, CID images or relative resource URLs
@@ -118,7 +118,7 @@ The system SHALL use existing newsletter platform bindings, without new binding 
 - **THEN** Newsletter uses only its own mail table/content and every RSS table/schema/behavior remains the same as before the feature migration
 
 ### Requirement: Synchronous processing and setup
-New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; ready or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain, but no Newsletter recovery handler, staged payload or recovery cursor SHALL exist. Only per-message states without processing leases SHALL remain for deduplication and cancellation. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Dev SHALL configure newsletterreader.slax.dev; beta, prod and the legacy main copy SHALL configure newsletterreader.slax.com. The system SHALL NOT assume original-sender retries are guaranteed after Worker infrastructure failure. Automatic recovery is deferred to a later iteration.
+New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; ready or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain, but no Newsletter recovery or body-collection handler, staged payload, GC cursor or recovery cursor SHALL exist. Only per-message states without processing leases SHALL remain for deduplication and cancellation. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Dev SHALL configure newsletterreader.slax.dev; beta, prod and the legacy main copy SHALL configure newsletterreader.slax.com. The system SHALL NOT assume original-sender retries are guaranteed after Worker infrastructure failure. Automatic recovery is deferred to a later iteration.
 
 #### Scenario: Account repair after enabling
 - **WHEN** the user enables Newsletter with a missing, invalid or reserved initial account

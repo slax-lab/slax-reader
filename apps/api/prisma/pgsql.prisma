@@ -909,5 +909,4 @@ model sr_newsletter_feed {
     @@unique([user_id, source_key, message_key])
     @@index([user_id, received_at(sort: Desc), id(sort: Desc)])
     @@index([user_id, source_key, received_at(sort: Desc), id(sort: Desc)])
-    @@index([content_key])
 }

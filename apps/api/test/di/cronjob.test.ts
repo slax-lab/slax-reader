@@ -37,6 +37,6 @@ describe('handleCronjob', () => {
     await handleCronjob(container, { cron: '0 */1 * * *' }, {} as Env, exec)
     await handleCronjob(container, { cron: '7 7 * * *' }, {} as Env, exec)
     await Promise.all(waits)
-    expect(called).toEqual(['clearExpiredTrashedBookmark', 'collectNewsletterBodies'])
+    expect(called).toEqual(['clearExpiredTrashedBookmark'])
   })
 })

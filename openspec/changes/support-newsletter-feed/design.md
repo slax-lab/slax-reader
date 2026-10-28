@@ -10,7 +10,7 @@ Short owner-locked transactions admit/quota-check and publish. R2 work occurs be
 
 ## Content lifecycle
 
-Newsletter final bodies use newsletter-content only. Retain current quiet MIME extraction/sanitization and attachment explanations; no raw EML/attachment binary or replay body is stored. Reference-aware hourly GC uses existing schedule/KV, a 24-hour grace and bounded cursor; five-minute attempts cannot publish after that grace. Owner deletion revokes first and removes Newsletter content independently of bookmarks. Known unpublished writes are discarded; indeterminate commits are reconciled or retained, never eagerly deleted.
+Newsletter final bodies use newsletter-content only. Retain current quiet MIME extraction/sanitization and attachment explanations; no raw EML/attachment binary or replay body is stored. Newsletter-specific scheduled tasks, body scanning, GC cursors and reference-lookup indexes are deferred. Keep the five-minute publication deadline as the current per-attempt processing bound. Owner deletion revokes first and removes Newsletter content independently of bookmarks. Known unpublished writes are discarded; indeterminate commits are reconciled or retained, never eagerly deleted. Interrupted writes or failed deletes can leave orphan R2 objects in this first release; no background collection is promised.
 
 ## RSS and read aggregation
 

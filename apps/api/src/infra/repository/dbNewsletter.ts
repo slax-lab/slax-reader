@@ -128,9 +128,4 @@ export class NewsletterRepo {
       return { mail, published: true }
     })
   }
-  async referencedContent(keys: string[]): Promise<string[]> {
-    if (!keys.length) return []
-    const rows = await this.pg().$queryRaw<{ content_key: string }[]>`SELECT content_key FROM sr_newsletter_feed WHERE content_key=ANY(${keys}::text[])`
-    return rows.map(row => row.content_key)
-  }
 }

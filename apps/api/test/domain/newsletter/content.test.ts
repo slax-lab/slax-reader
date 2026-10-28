@@ -1,4 +1,4 @@
-import { test, expect, vi } from 'vitest'
+import { test, expect } from 'vitest'
 import { db, repo, recipient, adapter } from './fixture'
 import { NewsletterService } from '@/domain/newsletter'
 import { NewsletterContent } from '@/domain/newsletter/content'
@@ -73,16 +73,4 @@ test('invalid envelope cannot store body or admit mail', async () => {
     await expect(p.service.receive(p.message('bad', to), p.env)).rejects.toMatchObject({ code: 'not_found' })
   expect(p.objects.size).toBe(0)
   expect((await db.query('SELECT * FROM sr_newsletter_feed')).rows).toEqual([])
-})
-test('GC removes only old unreferenced Newsletter bodies and skips Inbox/RSS/recent objects', async () => {
-  const p = setup(),
-    old = new Date(Date.now() - 25 * 3600_000)
-  for (const key of ['newsletter-content/old', 'newsletter-content/kept', 'newsletter-content/recent', 'rss-content/old', 'html/body/copy.html'])
-    p.objects.set(key, { body: 'body', uploaded: key.endsWith('recent') ? new Date() : old })
-  await db.exec(
-    `INSERT INTO sr_newsletter_feed(user_id,source_key,sender,message_key,state,content_key) VALUES(1,repeat('a',64),'a@example.com',repeat('b',64),'ready','newsletter-content/kept')`
-  )
-  const kv = { get: vi.fn(async () => null), put: vi.fn(async () => {}) }
-  await p.content.sweep({ env: { KV: kv } } as never, repo)
-  expect([...p.objects.keys()].sort()).toEqual(['html/body/copy.html', 'newsletter-content/kept', 'newsletter-content/recent', 'rss-content/old'])
 })

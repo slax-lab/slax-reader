@@ -21,5 +21,4 @@ CREATE TABLE sr_newsletter_feed (
 CREATE UNIQUE INDEX sr_newsletter_feed_user_id_source_key_message_key_key ON sr_newsletter_feed(user_id,source_key,message_key);
 CREATE INDEX sr_newsletter_feed_user_id_received_at_id_idx ON sr_newsletter_feed(user_id,received_at DESC,id DESC);
 CREATE INDEX sr_newsletter_feed_user_id_source_key_received_at_id_idx ON sr_newsletter_feed(user_id,source_key,received_at DESC,id DESC);
-CREATE INDEX sr_newsletter_feed_content_key_idx ON sr_newsletter_feed(content_key);
 COMMIT;

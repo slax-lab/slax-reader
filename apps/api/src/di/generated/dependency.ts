@@ -88,7 +88,6 @@ import { EmailService } from '../../domain/email'
 import { ContentOrchestrator } from '../../domain/orchestrator/content'
 import { BookmarkJob } from '../../handler/cron/bookmarkJob'
 import { CollectionJob } from '../../handler/cron/collectionJob'
-import { NewsletterContentGcJob } from '../../handler/cron/newsletterContentGcJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
 import { RssJob } from '../../handler/cron/rssJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
@@ -543,10 +542,6 @@ container.register(BookmarkJob, {
 
 container.register(CollectionJob, {
   useFactory: container => new CollectionJob(container.resolve(CollectionService))
-})
-
-container.register(NewsletterContentGcJob, {
-  useFactory: container => new NewsletterContentGcJob(container.resolve(NewsletterContent), container.resolve(NewsletterRepo))
 })
 
 container.register(PodcastJob, {

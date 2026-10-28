@@ -142,7 +142,7 @@ Use the actual local Edge port. Delivery is localhost-only, sends the original b
 
 ## Failure handling without automatic recovery
 
-The user deferred recoverNewsletter on 2026-10-28. The incoming event parses MIME and awaits final Feed HTML storage plus database publication. No original EML, attachment binaries or temporary replay JSON is stored; no Newsletter recovery cron, scan or staging GC exists. Shared scheduled jobs and final Feed-body orphan GC remain.
+The user deferred recoverNewsletter on 2026-10-28. The incoming event parses MIME and awaits final Feed HTML storage plus database publication. No original EML, attachment binaries or temporary replay JSON is stored; no Newsletter recovery cron, scan or staging GC exists. Existing shared scheduled jobs remain, with no Newsletter-specific scheduled task or body scan. The user also deferred orphan-body collection; interrupted writes, indeterminate publication outcomes or failed deletes can leave unreferenced R2 objects until a later iteration. Immediate discard of a known unpublished candidate and normal account-deletion cleanup remain.
 
 A processing failure propagates and leaves the mail pending. Each delivery can attempt its own immutable content object; only one atomic publication wins. Publication is bounded to five minutes and disabling/deleting cancels pending mail. Only another actual email delivery or explicit local EML replay supplies the content and attempts processing again. Ready/cancelled duplicates are no-ops; disabling/deleting still fences in-flight publication. No background process guarantees eventual delivery.
 

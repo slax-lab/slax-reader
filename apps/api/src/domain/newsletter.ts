@@ -34,7 +34,7 @@ export class NewsletterService {
     if (mail.state !== 'pending') return
     const startedAt = Date.now()
     const stored = await this.content.store(env, recipient.uuid, mail.id, parsed)
-    // Indeterminate database outcomes retain the body; GC checks authoritative references later.
+    // Indeterminate database outcomes retain the body rather than risking deletion of committed content.
     const result = await this.repo.publish(mail.id, recipient.user_id, recipient.id, {
       senderName: parsed.sourceTitle,
       title: parsed.title,

@@ -74,7 +74,6 @@ Constraints/indexes:
 - CHECK that ready rows have a nonempty content key and non-ready rows have no content key. Validate key/sender bounds at admission; sender length at most 254.
 - `(user_id, received_at DESC, id DESC)` for timeline and daily admission.
 - `(user_id, source_key, received_at DESC, id DESC)` for sender timeline/grouping.
-- `content_key` index for reference-aware orphan collection.
 
 Do not add `kind` (all rows are Newsletter), feed/site URLs, etag/last-modified, polling/history timestamps, refresh cooldown/error/failure fields, lease tokens, lease deadlines, retry/attempt/completion timestamps, attachment bytes, copied-bookmark state or a second UUID identifier.
 
@@ -93,15 +92,15 @@ Do not store `binding_id`: the existing one-per-user Newsletter binding is verif
 
 Disabling Newsletter, under the same user lock, changes pending mail rows to cancelled. Re-enabling does not resurrect them. Ready rows remain. Deletion sets the existing sr_user.deleted_at and cancels pending mail under that lock before asynchronous cleanup. Recipient lookup excludes deleted owners; admission and publication recheck the same existing user state. No timestamp-generation field is needed: the cancelled row is the durable barrier across an off/on cycle.
 
-Known losing attempts remove only their own unpublished key. For an unknown database COMMIT outcome, read authoritative state before cleanup; an uncertain/missing result is not proof of rollback. Leave ambiguous objects for reference-aware collection, not eager deletion.
+Known losing attempts remove only their own unpublished key. For an unknown database COMMIT outcome, read authoritative state before cleanup; an uncertain/missing result is not proof of rollback. Retain ambiguous objects; background collection is deferred and must not be promised.
 
 ### 4. Independent storage and cleanup
 
-Add `NewsletterContent` with `store/read/discard/sweep` and the Newsletter prefix only. Reuse existing pure sanitizer and image signer without editing RSS files or using `RssContent` as its storage owner. Newsletter details never expose an R2 key or raw mailbox recipient.
+Add `NewsletterContent` with `store/read/discard` and the Newsletter prefix only. Reuse existing pure sanitizer and image signer without editing RSS files or using `RssContent` as its storage owner. Newsletter details never expose an R2 key or raw mailbox recipient.
 
-The previous implementation relied on RSS content GC; restoring RSS must not leave the new namespace permanently unmanaged. Add a narrowly scoped `NewsletterContentGcJob` on the existing hourly schedule. It only lists final Newsletter objects, skips objects newer than 24 hours, checks references in `sr_newsletter_feed`, and deletes unreferenced keys. Use an existing KV binding for its pagination cursor; bound each invocation to four pages of at most 1,000 objects. This job never reads pending MIME, publishes mail or retries processing, and introduces no new console trigger. Keep a five-minute publication deadline for each content attempt; a late writer cannot publish an object after the GC grace period.
+The user deferred Newsletter orphan-body collection on 2026-10-28. Do not register a Newsletter cron, list Newsletter objects in a background scan, maintain a GC cursor or add a reference-lookup index. Keep immediate discard of known unpublished candidates and the existing five-minute per-attempt publication deadline. Interrupted writes or ambiguous commits can leave orphan R2 objects until a later iteration.
 
-Owner deletion deletes Newsletter rows/content in bounded batches while the owner is already revoked. Delete only that owner's keys; retries and the orphan collector handle failed deletes. Keep the ordinary Newsletter binding row as a permanent address reservation; no separate retirement state is needed. Inbox copies continue through established bookmark trash/deletion ownership; the Newsletter collector cannot scan their namespaces.
+Owner deletion deletes Newsletter rows/content in bounded batches while the owner is already revoked. Delete only that owner's referenced keys. If an object delete fails after its row was removed, the first release may retain that orphan; no background collector guarantees its removal. Keep the ordinary Newsletter binding row as a permanent address reservation; no separate retirement state is needed. Inbox copies continue through established bookmark trash/deletion ownership; Newsletter ingestion has no background collector for their namespaces.
 
 Do not add a project-wide snapshot GC/recovery system in this revision. An interrupted Inbox copy before publication or an indeterminate COMMIT can leave unreachable objects in existing snapshot namespaces, as in the current snapshot copy path. Known failures are cleaned and ambiguous objects retained for safe diagnosis; no published body is deleted to avoid this limited orphan risk. Record that limitation explicitly.
 
@@ -166,13 +165,13 @@ Remove the address-card text saying saving is unavailable; keep sender-managemen
 
 ### Task 2: Independent ingest, storage and lifecycle
 
-**Files:** `src/domain/newsletter.ts`, new `src/domain/newsletter/content.ts`, `src/infra/repository/dbNewsletter.ts`, `src/infra/repository/dbLab.ts`, `src/infra/repository/dbUser.ts`, `src/domain/userDeletion.ts`, new `src/handler/cron/newsletterContentGcJob.ts`; extend `test/domain/newsletter/repository.test.ts`, new `test/domain/newsletter/content.test.ts`.
+**Files:** `src/domain/newsletter.ts`, new `src/domain/newsletter/content.ts`, `src/infra/repository/dbNewsletter.ts`, `src/infra/repository/dbLab.ts`, `src/infra/repository/dbUser.ts`, `src/domain/userDeletion.ts`; extend `test/domain/newsletter/repository.test.ts`, new `test/domain/newsletter/content.test.ts`.
 
-**Interfaces:** `NewsletterRepo.admit(recipient, source, message, sender): Promise<{created:boolean,mail:NewsletterMail}>`; `publish(id, ownerId, bindingId, candidate): Promise<{mail:NewsletterMail,published:boolean}>`; `NewsletterContent.store(env, ownerUuid, mailId, parsed): Promise<{key:string,truncated:boolean}>`, `read(key):Promise<string>`, `discard(key):Promise<void>`, `sweep(ctx,repo):Promise<void>`. IDs remain bigint internally and string at contracts. Every parsed candidate passed to publish carries all metadata and its own key.
+**Interfaces:** `NewsletterRepo.admit(recipient, source, message, sender): Promise<{created:boolean,mail:NewsletterMail}>`; `publish(id, ownerId, bindingId, candidate): Promise<{mail:NewsletterMail,published:boolean}>`; `NewsletterContent.store(env, ownerUuid, mailId, parsed): Promise<{key:string,truncated:boolean}>`, `read(key):Promise<string>`, `discard(key):Promise<void>`. IDs remain bigint internally and string at contracts. Every parsed candidate passed to publish carries all metadata and its own key.
 
 - [ ] RED: replay/concurrent publication yields one coherent ready row and no extra quota charge; ready/cancelled replay makes no writes; failure stays pending; only new delivery resumes; no RSS table changes; no original EML/binaries stored.
-- [ ] RED: disable→enable and deletion during R2 work fence completion; quotas reserve pending messages under parallel load; same sender across users is isolated; after a write older than five minutes publication fails safely; GC skips recent/referenced bodies and progresses its cursor without visiting RSS/Inbox keys.
-- [ ] Implement §3–4, remove receipt/claim/release code and RSS content injection, preserve parser behavior. Replace receipt cancellation with mail-row cancellation. Add owner cleanup and final-body-only GC; do not re-add recoverNewsletter.
+- [ ] RED: disable→enable and deletion during R2 work fence completion; quotas reserve pending messages under parallel load; same sender across users is isolated; after a write older than five minutes publication fails safely; no Newsletter-specific scheduled handler is registered.
+- [ ] Implement §3–4, remove receipt/claim/release code and RSS content injection, preserve parser behavior. Replace receipt cancellation with mail-row cancellation. Keep owner cleanup and immediate unpublished-candidate discard; defer orphan-body collection and its index/cursor; do not re-add recoverNewsletter.
 - [ ] Run focused Newsletter/migration/lifecycle/parser tests and actual local email-handler injection. Use native PostgreSQL clients for races; PGlite alone does not prove the multi-connection lock behavior.
 
 ### Task 3: Unified read facade over independent storage
@@ -222,7 +221,7 @@ Remove the address-card text saying saving is unavailable; keep sender-managemen
 
 ## Console / rollout impact
 
-The address and delivery topology remain unchanged: configured newsletterreader subdomain, Subaddressing and one literal feed route to the deployed email-capable Worker. This revision needs no new domain, route per user, bucket, queue or PowerSync rule publication. Existing hourly cron/KV/R2 bindings support final-body GC; verify bindings during normal deployment. Apply the reviewed new initial Newsletter DDL in dev and deploy matching API/Web. Existing RSS production data/writers stay valid without a compatibility rollout. Actual hosted delivery/platform confirmations remain operational acceptance, not a property proved by local injection.
+The address and delivery topology remain unchanged: configured newsletterreader subdomain, Subaddressing and one literal feed route to the deployed email-capable Worker. This revision needs no new domain, route per user, bucket, queue or PowerSync rule publication. No Newsletter-specific cron or GC cursor is required; preserve existing shared schedules and unrelated bindings. Apply the reviewed new initial Newsletter DDL in dev and deploy matching API/Web. Existing RSS production data/writers stay valid without a compatibility rollout. Actual hosted delivery/platform confirmations remain operational acceptance, not a property proved by local injection.
 
 ## Sources and verification boundary
 
@@ -249,4 +248,4 @@ The reviewer set aside runtime correctness, UX aesthetics, hosted delivery/bindi
 
 ## Implementation status (2026-10-28)
 
-Tasks 1–4 are implemented and verified in the existing worktree. Task 5 implementation, automated and agent browser checks are complete; renewed user hands-on acceptance remains pending. Task 6 checks and the fresh Bugs/Security/Compliance review are complete with no unresolved findings; original PR updates await that acceptance. Archive remains after merge. Detailed current results, superseded runs and explicit gaps are in the change validation.md. Native save concurrency coverage was consolidated into test/infra/newsletterPostgres.test.ts rather than a second duplicate integration file. The actual page mount is pages/bookmarks/index.vue.
+Tasks 1–6 are implemented and verified in the existing worktree. The requesting user completed renewed hands-on acceptance on 2026-10-28 and authorized the original PR updates. Later user-requested simplifications reuse existing user-deletion state and defer Newsletter-specific scheduled tasks; their current verification is recorded in validation.md. Archive remains after merge. Detailed current results, superseded runs and explicit gaps are in the change validation.md. Native save concurrency coverage was consolidated into test/infra/newsletterPostgres.test.ts rather than a second duplicate integration file. The actual page mount is pages/bookmarks/index.vue.
