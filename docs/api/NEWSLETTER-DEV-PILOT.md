@@ -109,18 +109,35 @@ Before widening the pilot, finish existing RSS synchronization compatibility/iso
 
 ## Private EML preview and local replay
 
+### Local runtime configuration
+
+Run from the Newsletter worktree. The default `pnpm api -- dev` reads the ignored `deploy/local/api.toml`, selecting `[env.dev]` when that environment exists. Set the receiving domain in the effective variables table: `[env.dev.vars]` for the current local bundle, or `[vars]` only when no named environment is selected. Native Wrangler environment variables are not inherited from the top-level table.
+
+```toml
+[env.dev.vars]
+NEWSLETTER_DOMAIN = "newsletterreader.slax.dev"
+```
+
+Add the key to the existing table, without replacing its other settings. The private configuration repository's `api/dev.toml` is used by deployment; local startup does not automatically load that file. After changing local API configuration, run `pnpm api -- gen:all`, stop the existing API dev session and restart `pnpm api -- dev`. Keep only one local API session. Run `pnpm web -- dev` separately if Web is not already running, then open http://localhost:3000.
+
+A missing/invalid effective domain causes `/v1/user/setting/enable` to return HTTP 503 with `data.error=unavailable` during address provisioning. The Lab may already have been enabled before provisioning failed. After fixing configuration and restarting the API, refresh Web; if the Lab is already on, generate the address from Feed. Changing an issued address's domain also fails instead of replacing its immutable binding. No Cloudflare routing or DNS change is needed for local replay.
+
+### Preview and delivery
+
 Keep real EML outside Git. Preview performs no DB, R2 or network/image requests and creates owner-only files with an external-resource-blocking CSP:
 
 ```sh
-pnpm api -- newsletter:test --mode preview --eml /absolute/path/sample.eml --out /tmp/newsletter-preview
+pnpm api -- newsletter:test --mode preview --eml "/absolute/path/sample.eml" --out /tmp/newsletter-preview
 ```
+
+For a path containing spaces or an apostrophe, wrap the whole path in double quotes and do not also backslash-escape those characters.
 
 Open `newsletter.html`, compare `newsletter.txt` to the original, and inspect `report.json` for attachment metadata, removed tracker count, extraction fallback and truncation. The report contains private subject/sender data; do not publish it. Preview intentionally blocks all remote images, so it validates structure and extraction rather than remote image display.
 
 With the operator-configured local API/Web running and a copied local account address:
 
 ```sh
-pnpm api -- newsletter:test --mode deliver --eml /absolute/path/sample.eml --edge http://localhost:8787 --to 'feed+account@newsletterreader.slax.dev' --repeat 2
+pnpm api -- newsletter:test --mode deliver --eml "/absolute/path/sample.eml" --edge http://localhost:8787 --to 'feed+account@newsletterreader.slax.dev' --repeat 2
 ```
 
 Use the actual local Edge port. Delivery is localhost-only, sends the original bytes through Wrangler `/cdn-cgi/local/email`, preserves plus details and rejects redirects. Replaying one Message-ID should produce one entry; changed Message-ID should produce another. This is not a production debug endpoint or SMTP test. Compare local Feed subject/body/links/attachment explanation and verify normal images use the signed proxy while filtered trackers never reach it.

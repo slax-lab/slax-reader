@@ -63,6 +63,8 @@ Newsletter-specific compatibility in the original 8.2 decision was superseded by
 - [x] 8.7 Remove all unshipped Newsletter compatibility, consolidate the first-release migration, and verify platform-only bindings, numeric receipt IDs and current staged-content recovery without resetting operator databases.
 - [x] 8.8 Trace RSS Save to Inbox storage and report independent snapshot/reuse behavior; do not add Newsletter saving in this revision.
 
+- [x] 8.9 Record the user's real-EML local acceptance, document local runtime setup/path quoting, and update the original PR with the three authorized test screenshots.
+
 ## 9. Archive after merge
 
 - [ ] 9.1 After the task PR merges, classify every remaining unchecked task and archive this OpenSpec change through a separate documentation PR.
