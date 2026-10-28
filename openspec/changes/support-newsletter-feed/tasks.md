@@ -13,6 +13,10 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 - [x] 6a. Simplify account revocation to existing sr_user.deleted_at; remove binding retirement columns/triggers directly from the initial migration, verify deletion/publication fences and retained address reservations, and update the original PR.
 - [x] 6b. Defer Newsletter-specific scheduled tasks: remove the body collector and its dedicated scan/query/index/cursor, regenerate registration, preserve immediate cleanup and existing shared jobs, verify and update the original PR.
 
+- [x] 6c. Implement the user-approved collapsible address card and explicit confirmed creation, regenerate/check API wiring, verify themes/identity/errors and local runtime, complete fresh review, and prepare API/Web for renewed human acceptance before PR handoff.
+
+- [x] 6d. Record renewed human hands-on acceptance and complete reviewed verification/screenshot preparation for committing and updating the original PR. Demo approval alone is not product acceptance.
+
 ## Archive after merge
 
 - [ ] 7. After the task PR merges, classify unchecked tasks and archive this change through a separate documentation PR.

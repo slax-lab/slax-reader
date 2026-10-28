@@ -13,6 +13,7 @@ Users need permanent Newsletter receiving addresses and one Web Feed for RSS and
 - Add Save to Inbox by copying the received R2 body into a separate standard HTML/text bookmark snapshot; create an owner-isolated bookmark/relation atomically and follow ordinary account-default sharing without a Newsletter-specific override. Repeats/restore preserve personal state and deliberate sharing choices.
 - Show entry-specific Save to Inbox progress in both the mixed Feed list and reader preview, with localized saving text, a motion-aware spinner and duplicate activation prevention. The user requested this acceptance correction on 2026-10-28.
 - Preserve dev newsletterreader.slax.dev and beta/prod/legacy-main newsletterreader.slax.com with one literal feed route plus Cloudflare Subaddressing. No per-user route or new infrastructure service.
+- Present a locally remembered per-user collapsible address card with clear information hierarchy. Labs enablement alone must not issue a permanent address; creation uses the existing setting endpoint only after an explicit full-address confirmation, with accessible inline conflict feedback.
 
 ## Capabilities
 
@@ -35,3 +36,9 @@ The user approved docs/superpowers/plans/2026-10-28-newsletter-independent-stora
 ## Acceptance adjustments (2026-10-28)
 
 The user explicitly replaced the special disabled-sharing default with normal bookmark sharing: new copies have no per-bookmark override and follow the owner's current global setting; repeats/restores preserve deliberate per-bookmark choices. The source header must reuse SnapshotArticleSource styles with a localized Newsletter label and sender, without the former implementation/privacy paragraph, synthetic web link or external arrow. These requested local corrections are authorized within the existing change and require renewed hands-on acceptance before PR handoff.
+
+## Newsletter setup demo approval (2026-10-28)
+
+The requesting user accepted the interactive setup-card preview and explicitly authorized implementation in the existing worktree, followed by local API/Web startup for renewed hands-on acceptance. The approved structure retains the title, complete address and copy action when collapsed; records disclosure preference locally per signed-in user; emphasizes permanent-address information over secondary receiving details; previews the complete candidate; and requires a cancellable confirmation before account/address writes. Occupied account names and reserved mailboxes receive actionable inline feedback without losing the draft. Labs only enables the feature; confirmed creation remains on the existing setting-enable endpoint, without a new table or endpoint.
+
+The demo provided ready, unconfigured, occupied, loading, unavailable and simulated network-failure states, Chinese/English labels, light/dark/e-ink themes and desktop/768px/390px controls. The user's adjustment added symmetric 10px horizontal padding to the disclosure button so its arrow remains clear of the hover background edge; this corrected version was accepted. This is approval to implement, not acceptance of the production implementation or authorization to deploy. The plan is [Newsletter Setup Interaction](../../../docs/superpowers/plans/2026-10-28-newsletter-setup-interaction.md).

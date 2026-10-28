@@ -346,7 +346,20 @@ async function main() {
     }
     const daguangAddress = await request('daguang-address-GET', '/v1/user/newsletter_address', { headers: secondHeaders })
     assert.equal(daguangAddress.body.code, 200)
-    assert.equal(daguangAddress.body.data.address, `feed+daguang@${newsletterDomain}`)
+    assert.equal(daguangAddress.body.data.status, 'not_provisioned')
+    assert.equal(resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_platform_bind WHERE platform='newsletter'"), '0')
+    assert.equal(
+      (
+        await request('daguang-address-confirm', '/v1/user/setting/enable', {
+          method: 'POST',
+          headers: secondHeaders,
+          body: JSON.stringify({ key: 'lab:newsletter', newsletter_address: `feed+daguang@${newsletterDomain}` })
+        })
+      ).body.code,
+      200
+    )
+    const confirmedDaguang = await request('daguang-address-confirmed', '/v1/user/newsletter_address', { headers: secondHeaders })
+    assert.equal(confirmedDaguang.body.data.address, `feed+daguang@${newsletterDomain}`)
     const rejectionEvidence = []
     for (const to of [
       `feed@${newsletterDomain}`,
@@ -394,7 +407,27 @@ async function main() {
       ).body.code,
       200
     )
-    const address = await request('newsletter-address', '/v1/user/newsletter_address', { headers: mailHeaders })
+    let address = await request('newsletter-address', '/v1/user/newsletter_address', { headers: mailHeaders })
+    assert.equal(address.body.data.status, 'not_provisioned')
+    const confirmationHeaders = { ...mailHeaders, 'Content-Type': 'application/json' }
+    const changed = await request('newsletter-stale-confirmation', '/v1/user/setting/enable', {
+      method: 'POST',
+      headers: confirmationHeaders,
+      body: JSON.stringify({ key: 'lab:newsletter', newsletter_address: `feed+stale@${newsletterDomain}` })
+    })
+    assert.equal(changed.body.data.error, 'address_changed')
+    assert.equal(resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_platform_bind WHERE platform='newsletter' AND user_id=1"), '0')
+    assert.equal(
+      (
+        await request('newsletter-confirm-address', '/v1/user/setting/enable', {
+          method: 'POST',
+          headers: confirmationHeaders,
+          body: JSON.stringify({ key: 'lab:newsletter', newsletter_address: `feed+newsletter-smoke@${newsletterDomain}` })
+        })
+      ).body.code,
+      200
+    )
+    address = await request('newsletter-address-confirmed', '/v1/user/newsletter_address', { headers: mailHeaders })
     assert.equal(address.body.data.address, `feed+newsletter-smoke@${newsletterDomain}`)
     const rawMail =
       'From: Smoke Weekly <weekly@example.com>\r\nTo: ignored@other.example\r\nSubject: Newsletter runtime smoke\r\nMessage-ID: <newsletter-runtime-smoke@example.com>\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">'

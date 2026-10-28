@@ -22,7 +22,7 @@ The dev Edge Worker is **reader-backend**, serving **reader-api.slax.dev**. The 
 3. RSS tables, APIs and PowerSync rules are unchanged by Newsletter. No Newsletter-related PowerSync publication is required. Continue deploying upstream collection/PowerSync changes through their existing process.
 4. Enable Newsletter in Labs for one or two controlled dev users, generate/copy their addresses and verify the exact `feed+...@newsletterreader.slax.dev` format before routing external mail.
 
-The `newsletter` platform binding permanently stores the complete canonical address. Account renames do not change it. Eligible initial tokens are 1–59 safe ASCII characters; the fixed `feed+` consumes five SMTP local-part octets. Enable through `/v1/user/setting/enable` (`key: lab:newsletter`); missing, invalid or reserved accounts leave the Lab enabled and expose account repair. Read-only `/v1/user/newsletter_address` never provisions, and its old POST is removed.
+The `newsletter` platform binding permanently stores the complete canonical address. Account renames do not change it. Eligible initial tokens are 1–59 safe ASCII characters; the fixed `feed+` consumes five SMTP local-part octets. Enable through `/v1/user/setting/enable` (`key: lab:newsletter`); plain activation only enables the Lab. In Feed, preview the complete address and confirm its permanent assignment. Confirmed creation sends the same endpoint an explicit `newsletter_address`; cancellation performs no account or binding writes. Missing, invalid or reserved accounts remain repairable beside the input. Read-only `/v1/user/newsletter_address` never provisions, and its old POST is removed.
 
 Newsletter has not shipped. Its consolidated initial migration creates only `sr_newsletter_feed`, alongside a partial unique index for Newsletter receiving addresses on the existing sr_platform_bind table. No binding columns or triggers are added. Account deletion uses existing sr_user.deleted_at, and cleanup retains the Newsletter binding row to reserve the address. One mail row covers admission, deduplication, pending/ready/cancelled state and the final body pointer. There is no `sr_feed`, receipt table, RSS mirror, data copy/backfill or processing lease. Use a fresh disposable local database when an older trial migration has already been applied; no compatibility or repair migration is provided.
 
@@ -58,7 +58,7 @@ Use two Reader accounts you control, with distinct short safe account names such
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | With both Labs off, open Feed; then enable Newsletter | Feed stays visible, shows setup guidance, then provisions when the account is valid or shows account repair. |
+| 1 | With both Labs off, open Feed; then enable Newsletter | Feed stays visible, shows setup guidance, then shows setup without creating an address, including for an existing valid Reader account. |
 | 2 | Generate/copy addresses for A and B, refresh and provision again | Each has its own `feed+account@newsletterreader.slax.dev`; repeated provisioning preserves its address. |
 | 3 | Send ordinary mail with a unique title to A, then reload the Feed page | One sender source and entry appear in A's Feed; Inbox is unchanged. Activity should show the complete plus recipient. |
 | 4 | Send another message from the same sender to B, then reload | B sees B's message; A's content is inaccessible to B. Both addresses use the one literal Cloudflare route. |
@@ -107,6 +107,14 @@ Before widening the pilot, finish the unchanged RSS regression checks, real News
 
 ## Private EML preview and local replay
 
+### Local setup-card acceptance
+
+1. Sign in at http://localhost:3000 and enable Newsletter in Labs. A user without an issued binding should see a setup form in Feed; enabling the Lab must not create a mailbox.
+2. Enter a valid account and check the full lowercase `feed+account@newsletterreader.slax.dev` candidate. Create opens a second confirmation explaining that the address is permanent and, if necessary, that the Reader account will be set too. Return or Escape before submitting keeps the draft and makes no writes.
+3. Use another test user's existing account to check the inline taken warning. An address retained for another binding shows a reservation warning instead. Enter a free account to clear the warning, confirm, and check waiting feedback, the final address and copy action. Avoid changing a real operator's account just to trigger a test case.
+4. Collapse the card, refresh and verify that title, full address, copy and permanent status remain. Expand to see the stronger permanence notice and muted receiving details. A different signed-in user has an independent preference. Check Chinese/English and light/dark/e-ink at phone, 768px and desktop widths.
+5. An already issued address deliberately has no create form. Use a new local test identity to exercise first creation; no database reset or compatibility migration is needed for this UI revision. Continue the EML receive/read/save checks below with the copied address.
+
 ### Local runtime configuration
 
 Run from the Newsletter worktree. The default `pnpm api -- dev` reads the ignored `deploy/local/api.toml`, selecting `[env.dev]` when that environment exists. Set the receiving domain in the effective variables table: `[env.dev.vars]` for the current local bundle, or `[vars]` only when no named environment is selected. Native Wrangler environment variables are not inherited from the top-level table.
@@ -118,7 +126,7 @@ NEWSLETTER_DOMAIN = "newsletterreader.slax.dev"
 
 Add the key to the existing table, without replacing its other settings. The private configuration repository's `api/dev.toml` is used by deployment; local startup does not automatically load that file. After changing local API configuration, run `pnpm api -- gen:all`, stop the existing API dev session and restart `pnpm api -- dev`. Keep only one local API session. Run `pnpm web -- dev` separately if Web is not already running, then open http://localhost:3000.
 
-A missing/invalid effective domain causes `/v1/user/setting/enable` to return HTTP 503 with `data.error=unavailable` during address provisioning. The Lab may already have been enabled before provisioning failed. After fixing configuration and restarting the API, refresh Web; if the Lab is already on, generate the address from Feed. Changing an issued address's domain also fails instead of replacing its existing binding. No Cloudflare routing or DNS change is needed for local replay.
+With a missing/invalid effective domain, address GET returns HTTP 200 with `data.status=unavailable` and `data.domain=null`; confirmed creation returns HTTP 503 with `data.error=unavailable`. Plain Lab activation does not provision an address and does not require the domain to be ready. After fixing configuration and restarting the API, refresh Web; if the Lab is already on, generate the address from Feed. Changing an issued address's domain also fails instead of replacing its existing binding. No Cloudflare routing or DNS change is needed for local replay.
 
 ### Preview and delivery
 

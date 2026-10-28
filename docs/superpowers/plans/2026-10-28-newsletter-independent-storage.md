@@ -10,6 +10,8 @@
 
 **Spec:** This document's proposed design below amends `openspec/changes/support-newsletter-feed/`. OpenSpec artifacts were reconciled with this approved revision before implementation. The user approved this plan on 2026-10-28 and later explicitly changed Inbox copies to ordinary account-default sharing during acceptance. That later request supersedes the initial disabled-sharing decision; implementation is authorized in the existing worktree.
 
+The later [Newsletter Setup Interaction](2026-10-28-newsletter-setup-interaction.md) supersedes setup/provisioning interaction details in this storage plan: Labs activation is separate from explicitly confirmed permanent mailbox creation.
+
 ## Status and scope
 
 - Requested on 2026-10-28; inspected application PR #349 at `9f9594fbe3c6a023426e23384193ccaf20908ce0`. The PR is open and unmerged. Inspection baseline: `origin/dev`, merge base `f217f465c736a6b80621f78111e80ef6e833f27a`.

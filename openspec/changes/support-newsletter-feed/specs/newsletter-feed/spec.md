@@ -5,7 +5,7 @@ Enable private Newsletter delivery and reading through permanent account-derived
 ## ADDED Requirements
 
 ### Requirement: Permanent account-derived receiving address
-The system SHALL provision a Newsletter address only for an authenticated active user with Newsletter enabled and explicit deployment admission configuration. The receiving local part SHALL be feed+ followed by the first validated lowercase account token of at most 59 ASCII characters. A permanent newsletter platform binding SHALL retain the complete canonical address, and Web SHALL display/copy the complete prefixed address. GET SHALL have no provisioning side effect; existing user setting enable SHALL idempotently provision the address. An issued address SHALL remain stable after account changes and SHALL never be reassigned after user deletion. The system SHALL use the existing sr_user.deleted_at for account revocation, without adding a binding retirement field or custom binding trigger. Cleanup SHALL retain the ordinary Newsletter binding row as the address reservation.
+The system SHALL provision a Newsletter address only for an authenticated active user with Newsletter enabled, configured receiving domain and explicit confirmation of the complete candidate address. The receiving local part SHALL be feed+ followed by the first validated lowercase account token of at most 59 ASCII characters. A permanent newsletter platform binding SHALL retain the complete canonical address, and Web SHALL display/copy the complete prefixed address. GET and Labs enablement alone SHALL have no provisioning side effect. Confirmed creation SHALL use the existing setting-enable endpoint and match the confirmed address against the current candidate under the owner row lock, rejecting a stale account/domain rather than issuing an unconfirmed address. An issued address SHALL remain stable after account changes and SHALL never be reassigned after user deletion. The system SHALL use the existing sr_user.deleted_at for account revocation, without adding a binding retirement field or custom binding trigger. Cleanup SHALL retain the ordinary Newsletter binding row as the address reservation.
 
 #### Scenario: Provision and rename
 - **WHEN** a user provisions an address and later changes account or display name
@@ -122,7 +122,22 @@ New email delivery SHALL await content storage and atomic publication. Existing 
 
 #### Scenario: Account repair after enabling
 - **WHEN** the user enables Newsletter with a missing, invalid or reserved initial account
-- **THEN** the Lab remains enabled with an actionable setup state, and account repair followed by repeated enable can provision once
+- **THEN** the Lab remains enabled without issuing an address, and account repair followed by confirmed creation can provision once
+
+### Requirement: Confirmed collapsible Newsletter setup
+The setup card SHALL remember its disclosure preference locally per signed-in user, tolerate unavailable local storage and avoid carrying another user's address, draft, error or confirmation across sessions. Collapsed ready state SHALL retain the title, full address, fixed-address status and copy action. Unconfigured state SHALL retain an actionable setup summary. Expanded state SHALL emphasize the address and its permanence, with privacy/attachment/management details in lower-emphasis supporting text, using existing Web semantic tokens in light/dark/e-ink at desktop, 768px and narrow widths. The disclosure control SHALL have symmetric 10px horizontal padding and visible keyboard focus.
+
+#### Scenario: Confirm before first creation
+- **WHEN** a user submits a valid candidate or presses Enter in the account field
+- **THEN** a labelled modal shows the full candidate and explains that it cannot change, including after account rename; cancelling performs no writes, while confirmation submits the frozen candidate with pending/duplicate-submit protection
+
+#### Scenario: Occupied account or reserved address
+- **WHEN** account setting reports an occupied name or address creation reports a reservation conflict
+- **THEN** Web retains the draft, expands the form, identifies the affected field with an announced actionable message and permits another name; infrastructure failure instead offers retry without exposing raw error text
+
+#### Scenario: Disclosure preference and identity changes
+- **WHEN** a user collapses the card, reloads, changes signed-in user or loses local-storage access
+- **THEN** their available local preference is restored independently; no other user's sensitive state or in-flight confirmation is reused, and storage failure does not block setup/copy
 
 #### Scenario: Disable then re-enable
 - **WHEN** a message was pending before Newsletter was disabled and later re-enabled

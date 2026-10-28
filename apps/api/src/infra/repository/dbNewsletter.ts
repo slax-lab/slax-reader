@@ -47,13 +47,14 @@ export class NewsletterRepo {
     if (!lab?.enabled) throw new NewsletterError('lab_disabled', 403)
     return user
   }
-  async address(userId: number, domain: string, provision: boolean): Promise<NewsletterAddressStatus> {
+  async address(userId: number, domain: string, provision: boolean, confirmedAddress?: string): Promise<NewsletterAddressStatus> {
     return this.pg().$transaction(async tx => {
       const user = await this.active(tx, userId)
       const [existing] = await tx.$queryRaw<{ platform_id: string }[]>`
         SELECT platform_id FROM sr_platform_bind WHERE user_id=${userId} AND platform='newsletter'`
       if (existing) {
         const address = existing.platform_id
+        if (provision && confirmedAddress !== undefined && confirmedAddress !== address) throw new NewsletterError('address_changed', 409)
         const at = address.lastIndexOf('@')
         if (address.slice(at + 1) !== domain) throw new NewsletterError('unavailable', 503)
         const part = address.startsWith(NEWSLETTER_LOCAL_PREFIX) ? newsletterLocalPart(address.slice(NEWSLETTER_LOCAL_PREFIX.length, at)) : null
@@ -67,6 +68,7 @@ export class NewsletterRepo {
         return { address: null, domain, status }
       }
       const address = NEWSLETTER_LOCAL_PREFIX + part + '@' + domain
+      if (provision && confirmedAddress !== undefined && confirmedAddress !== address) throw new NewsletterError('address_changed', 409)
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${address},0))`
       const reserved = await tx.$queryRaw<{ id: number }[]>`SELECT id FROM sr_platform_bind WHERE platform='newsletter' AND platform_id=${address}`
       if (reserved.length) {

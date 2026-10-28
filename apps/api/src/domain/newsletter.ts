@@ -11,14 +11,14 @@ export class NewsletterService {
     @inject(NewsletterRepo) private repo: NewsletterRepo,
     @inject(NewsletterContent) private content: NewsletterContent
   ) {}
-  async address(ctx: ContextManager, provision: boolean): Promise<NewsletterAddressStatus> {
+  async address(ctx: ContextManager, provision: boolean, confirmedAddress?: string): Promise<NewsletterAddressStatus> {
     if (!ctx.getUserId()) throw new NewsletterError('not_found', 401)
     const domain = configuredNewsletterDomain(ctx.env)
     if (!domain) {
       if (provision) throw new NewsletterError('unavailable', 503)
       return { address: null, domain: null, status: 'unavailable' }
     }
-    return this.repo.address(ctx.getUserId(), domain, provision)
+    return this.repo.address(ctx.getUserId(), domain, provision, confirmedAddress)
   }
   async receive(message: ForwardableEmailMessage, env: Env): Promise<void> {
     const domain = configuredNewsletterDomain(env)

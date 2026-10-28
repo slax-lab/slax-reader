@@ -15,6 +15,23 @@ const candidate = {
   startedAt: Date.now()
 }
 describe('Newsletter permanent addresses', () => {
+  test('a stale full-address confirmation cannot issue a different mailbox', async () => {
+    await expect(repo.address(1, 'newsletterreader.slax.dev', true, 'feed+old-name@newsletterreader.slax.dev')).rejects.toMatchObject({ code: 'address_changed' })
+    expect((await db.query("SELECT * FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([])
+    await expect(repo.address(1, 'newsletterreader.slax.dev', true, 'feed+jane.doe@newsletterreader.slax.com')).rejects.toMatchObject({ code: 'address_changed' })
+    expect((await db.query("SELECT * FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([])
+    expect(await repo.address(1, 'newsletterreader.slax.dev', true, 'feed+jane.doe@newsletterreader.slax.dev')).toMatchObject({
+      address: 'feed+jane.doe@newsletterreader.slax.dev'
+    })
+  })
+  test('confirmation never replaces a receiving address created in another session', async () => {
+    await repo.address(1, 'newsletterreader.slax.dev', true)
+    await db.exec("UPDATE sr_user SET account='renamed' WHERE id=1")
+    await expect(repo.address(1, 'newsletterreader.slax.dev', true, 'feed+renamed@newsletterreader.slax.dev')).rejects.toMatchObject({ code: 'address_changed' })
+    expect(await repo.address(1, 'newsletterreader.slax.dev', true, 'feed+jane.doe@newsletterreader.slax.dev')).toMatchObject({
+      address: 'feed+jane.doe@newsletterreader.slax.dev'
+    })
+  })
   test('GET is pure, provision is canonical and idempotent, and rename preserves address', async () => {
     expect(await repo.address(1, 'newsletterreader.slax.dev', false)).toMatchObject({
       status: 'not_provisioned',

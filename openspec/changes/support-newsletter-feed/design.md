@@ -26,6 +26,10 @@ Post-commit indexing/cache/changelog/notification use established helpers with s
 
 The Inbox source header reuses SnapshotArticleSource with localized Newsletter text and sender metadata. A source without a URL uses the same semantic tokens and layout as ordinary sources but renders a non-link without an external arrow; existing website source links remain unchanged. Remove the former saved-content paragraph.
 
+## Confirmed address setup
+
+The approved setup-card revision is detailed in [Newsletter Setup Interaction](../../../docs/superpowers/plans/2026-10-28-newsletter-setup-interaction.md). Plain Labs enablement changes only the feature state. Creation carries newsletter_address on the same setting-enable request; the repository checks the complete frozen address against the current account/domain under the existing user lock before inserting a binding. No migration, background job or availability endpoint is added. The Web card owns disclosure persistence, candidate validation, native dialog lifecycle, inline business errors and request-generation fencing. Supporting details use the existing muted auxiliary type role; permanent-address information keeps stronger text emphasis.
+
 ## Verification
 
 Run regression-first tests, real native PostgreSQL races, real fresh Worker/DB/R2/D1 smoke, full API/Web checks, strict OpenSpec, zero-RSS-diff audit, fresh Bugs/Security/Compliance review and renewed hands-on acceptance. Hosted receiving remains a separate operator exercise. Archive through a docs PR after merge.

@@ -1466,12 +1466,12 @@
   "newsletter": {
     "title": "Your Newsletter address",
     "description": "Use this address to subscribe to newsletters. New messages appear in Feed.",
-    "account_label": "Choose an account name",
-    "account_hint": "Your account name will be used for your address at {domain}. Choose carefully: the issued address stays the same.",
-    "create": "Create Newsletter address",
+    "account_label": "Account name",
+    "account_hint": "This name will be used for your address. The email prefix uses lowercase letters.",
+    "create": "Create address",
     "copy": "Copy address",
     "copied": "Copied",
-    "address_stable": "This address stays the same if you rename your account.",
+    "address_stable": "Renaming your account will not change this email address.",
     "privacy": "Remote images load through Slax’s image proxy. Opening a message may still count as a read to its sender. Only attachment names and existing download links are kept; attachment files are not stored.",
     "source": "Newsletter",
     "content_hint": "Content received by email. Remote images use Slax’s image proxy.",
@@ -1481,11 +1481,28 @@
       "account_required": "Choose an account name to create your address.",
       "invalid_account": "This account name cannot be used for a Newsletter address. Enter a valid account name.",
       "lab_disabled": "Enable Newsletter in Labs to create your address.",
-      "unavailable": "Newsletter receiving is unavailable. Please try again later.",
-      "copy_failed": "Could not copy. Select and copy the address above."
+      "unavailable": "Setup could not be completed. Please retry to check whether your address was created.",
+      "copy_failed": "Could not copy. Select and copy the address above.",
+      "address_changed": "The address changed. Please review the current address and confirm again."
     },
     "management_hint": "Newsletter sender management and automatic unsubscribe are not available yet.",
     "no_messages": "No newsletters yet",
-    "empty_hint": "Subscribe with your address above. New messages will appear here."
+    "empty_hint": "Subscribe with your address above. New messages will appear here.",
+    "fixed": "Permanent",
+    "not_configured": "Not configured",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "setup_summary": "Set up your address to receive newsletters.",
+    "candidate": "Your new address",
+    "address_permanent": "This address cannot be changed.",
+    "receiving_details": "Receiving details",
+    "confirm_title": "Create this Newsletter address?",
+    "confirm_description": "Please check the complete address below:",
+    "confirm_permanent": "Once created, this email address is permanent and cannot be changed.",
+    "confirm_detail": "Renaming your Reader account will not change it. You can go back and edit your entry now.",
+    "confirm_account": "This also sets your Reader account name to {account}.",
+    "confirm_cancel": "Go back",
+    "confirm_create": "Confirm and create",
+    "creating": "Creating…"
   }
 }

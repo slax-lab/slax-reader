@@ -15,6 +15,7 @@ import { UserDeletionService } from '../../domain/userDeletion'
 import { LabService } from '../../domain/lab'
 import { NewsletterService } from '@/domain/newsletter'
 import { NewsletterError } from '@/domain/newsletter/parser'
+import type { NewsletterEnableSettingRequest } from '@slax-reader/contracts'
 
 @Controller('/v1/user')
 export class UserController {
@@ -135,18 +136,16 @@ export class UserController {
    */
   @Post('/setting/enable')
   public async handleEnableUserSettingRequest(ctx: ContextManager, request: Request) {
-    const req = await RequestUtils.json<{ key: string }>(request)
+    const req = await RequestUtils.json<{ key: string } & Pick<NewsletterEnableSettingRequest, 'newsletter_address'>>(request)
     if (!req) return Failed(ErrorParam())
 
     try {
+      if (req.key === 'lab:newsletter' && req.newsletter_address !== undefined && (typeof req.newsletter_address !== 'string' || !req.newsletter_address)) {
+        throw new NewsletterError('invalid_account')
+      }
       const res = await this.userService.enableUserSetting(ctx, req.key, true)
-      if (req.key === 'lab:newsletter') {
-        try {
-          await this.newsletter.address(ctx, true)
-        } catch (error) {
-          // The enabled Lab exposes account repair even before an address can be issued.
-          if (!(error instanceof NewsletterError) || !['account_required', 'invalid_account', 'address_reserved'].includes(error.code)) throw error
-        }
+      if (req.key === 'lab:newsletter' && req.newsletter_address !== undefined) {
+        await this.newsletter.address(ctx, true, req.newsletter_address)
       }
       return Successed(res)
     } catch (error) {

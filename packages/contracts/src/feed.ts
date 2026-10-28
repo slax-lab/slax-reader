@@ -49,10 +49,16 @@ export interface NewsletterAddressResponse {
     | "not_provisioned"
     | "address_reserved";
 }
+/** Without newsletter_address, this only enables the Lab; no mailbox is issued. */
+export interface NewsletterEnableSettingRequest {
+  key: "lab:newsletter";
+  newsletter_address?: string;
+}
 export type NewsletterErrorCode =
   | "account_required"
   | "invalid_account"
   | "address_reserved"
+  | "address_changed"
   | "lab_disabled"
   | "unavailable"
   | "not_found"
