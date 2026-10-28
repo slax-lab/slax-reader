@@ -2,6 +2,14 @@
 
 Revision approved by the user on 2026-10-28. During acceptance, the user explicitly replaced the special disabled-sharing default with ordinary account-default sharing and requested the standard Source module. That later decision supersedes earlier disabled-sharing evidence below. The requesting user completed renewed hands-on acceptance on 2026-10-28 and authorized the existing PR updates; the handoff is recorded below.
 
+## PR handoff (2026-10-28)
+
+The accepted implementation and documentation were pushed to the existing [application PR #349](https://github.com/slax-lab/slax-reader/pull/349); matching README guidance was pushed to [private configuration PR #7](https://github.com/slax-lab/slax-reader-config/pull/7). The application still targets dev and the configuration PR retains its original main target and draft state. Existing assignees/review requests are unchanged, including no assignee/reviewer on the configuration PR. Both supplied screenshots were uploaded with `gh pr edit --attach`, their body references were verified as GitHub asset URLs, and the older receive/read screenshots remain in a collapsed historical section. No screenshot binary is committed.
+
+User-provided evidence: [Feed preview](https://github.com/user-attachments/assets/d8c4ae06-22fe-4f34-920c-38b3088ebb65), [saved Inbox detail](https://github.com/user-attachments/assets/17eb93ac-d384-4676-8108-333c9fc25aaf).
+
+Remote CI was still running at handoff; the passing local checks above are not a claim that remote CI has completed. The worktree and requested local API/Web services are preserved for further review. The task PR remains open; archiving is deliberately deferred until merge through the required documentation PR.
+
 ## Final pre-push verification (2026-10-28)
 
 - Full API suite: **2563 passed / 118 skipped**, 202 files passed / 15 skipped. Command: `pnpm api -- test --no-file-parallelism --hookTimeout=60000`. The initial simultaneous API/Web run hit a 10-second PGlite beforeAll setup timeout; serialized API verification with a longer hook allowance passed all enabled tests. No product or test configuration was changed to hide a failure.
@@ -39,7 +47,7 @@ The user reported that Save to Inbox lacked visible progress. The mixed Feed now
 - Browser exercise used the actual Feed components in the isolated Nuxt fixture with a synthetic 2.5-second save response, not an artificial delay in the application. Light/default desktop showed spinning progress in both list and preview, failure restored the action and retry produced the saved route. At 390px dark, the saving row remained usable without horizontal overflow; unrelated rows did not spin. At 768px e-ink, saving text and disabled/busy state remained visible with computed animation `none` and no horizontal overflow. Existing reduced-motion CSS is reused; a separate OS reduced-motion preference was not exercised.
 - Screenshots are local, outside Git: `/tmp/newsletter-save-progress-list.png`, `/tmp/newsletter-save-progress-preview.png`, `/tmp/newsletter-save-progress-dark.png`, `/tmp/newsletter-save-progress-eink.png`. Temporary fixture services/tabs were stopped and the browser viewport reset; the requested localhost:3000/8787 integration environment remains running.
 - Scoped ESLint reported zero errors and existing selector/typing warnings. The initial direct typecheck ran while the isolated fixture owned Nuxt-generated plugin types and therefore reported fixture-related PowerSync type errors. After stopping it, canonical `pnpm web -- typecheck` regenerated the normal types and passed. Strict OpenSpec validation passed **79/0** and `git diff --check` passed. The normal local login page returned HTTP 200 after cleanup.
-- Local Bugs/Security/Compliance review of this correction found no Important issues: state lifetime follows existing session/permission fences, no new transport/storage/logging or dependencies were introduced, and the requested waiting/retry behavior is recorded in the existing approved change. The user later accepted the revised save/source UI on 2026-10-28; see the acceptance record above. The original PR update is tracked below.
+- Local Bugs/Security/Compliance review of this correction found no Important issues: state lifetime follows existing session/permission fences, no new transport/storage/logging or dependencies were introduced, and the requested waiting/retry behavior is recorded in the existing approved change. The user later accepted the revised save/source UI on 2026-10-28; see the acceptance record above. The original PR update is recorded below.
 
 ### Independent-storage implementation baseline
 
