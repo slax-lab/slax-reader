@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { allowedHead, assessSuiteGates, checkRunName, createCheckRun, defaultTimeoutMs, deployWorkflows, pollIntervalMs, readInputs, readTimeout, runGateAndReport, runPromotionGate, suiteGates } from './promotion-gate.mjs'
+import { allowedHead, assertMigrationReleaseEvidence, assessSuiteGates, checkRunName, createCheckRun, defaultTimeoutMs, deployWorkflows, pollIntervalMs, readInputs, readTimeout, runGateAndReport, runPromotionGate, suiteGates } from './promotion-gate.mjs'
 
 const require = createRequire(import.meta.url)
 const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
@@ -62,7 +62,9 @@ const mergeBaseSha = '4'.repeat(40)
 // the compare call supplies only the merge base.
 const compareRoute = () => [
   [/\/compare\//, () => response({ status: 'ahead', merge_base_commit: { sha: mergeBaseSha } })],
-  [/\/git\/trees\/[a-f0-9]{40}\?recursive=1$/, () => response({ truncated: false, tree: [] })]
+  [/\/git\/trees\/[a-f0-9]{40}\?recursive=1$/, () => response({ truncated: false, tree: [] })],
+  // The pre-release target is the base branch tip; a pull request is unmerged.
+  [/\/git\/ref\/heads\/(?:main|beta)$/, url => response({ object: { sha: url.endsWith('main') ? '2'.repeat(40) : '3'.repeat(40) } })]
 ]
 const mergedPull = (overrides = {}) => ({ merged_at: '2026-10-22T03:18:30Z', merge_commit_sha: headSha, base: { ref: 'beta' }, head: { sha: sourceSha }, ...overrides })
 const deployment = (id, createdAt = '2026-10-22T03:18:35Z') => ({ id, created_at: createdAt, environment: 'beta', sha: sourceSha })
@@ -366,7 +368,7 @@ test('check run creation verifies the returned identity', async () => {
 // compare API, the introduced file and CODEOWNERS from the contents API, and
 // ownership from the introducing pull request's reviews. Every frozen ref
 // (main, beta, the dev adoption commit) reads as absent.
-function migrationRoutes({ baseFiles = [], headFiles = [], truncated = false, content = {}, codeowners = codeownersText, reviews = [{ user: { login: 'DGuang21' }, state: 'APPROVED', submitted_at: '2026-10-27T00:00:00Z', id: 1 }], pulls = [{ number: 700, merged_at: '2026-10-27T00:00:00Z', merge_commit_sha: introducingSha, base: { sha: ownerBase }, head: { sha: sourceSha } }] } = {}) {
+function migrationRoutes({ baseFiles = [], headFiles = [], truncated = false, content = {}, betaFiles = [], mainTipFiles = [], codeowners = codeownersText, reviews = [{ user: { login: 'DGuang21' }, state: 'APPROVED', submitted_at: '2026-10-27T00:00:00Z', id: 1 }], pulls = [{ number: 700, merged_at: '2026-10-27T00:00:00Z', merge_commit_sha: introducingSha, base: { sha: ownerBase }, head: { sha: sourceSha } }] } = {}) {
   return [
     [/\/git\/trees\/([a-f0-9]{40})\?recursive=1$/, url => {
       const ref = url.match(/\/git\/trees\/([a-f0-9]{40})/)[1]
@@ -378,6 +380,10 @@ function migrationRoutes({ baseFiles = [], headFiles = [], truncated = false, co
       const path = decodeURIComponent(url.match(/\/contents\/([^?]+)\?/)[1])
       const ref = new URL(url).searchParams.get('ref')
       if (path === '.github/CODEOWNERS' && (ref === headSha || ref === ownerBase)) return response({ type: 'file', encoding: 'base64', content: encode(codeowners) })
+      // The pre-release target tip is whichever branch the gate reads; beta is
+      // the source branch of a beta-to-main promotion.
+      if (ref === '2'.repeat(40) || ref === 'main') return mainTipFiles.includes(path) ? response({ type: 'file', encoding: 'base64', content: encode(content[path] ?? '') }) : httpFailure(404)
+      if (ref === '3'.repeat(40) || ref === 'beta') return betaFiles.includes(path) ? response({ type: 'file', encoding: 'base64', content: encode(content[path] ?? '') }) : httpFailure(404)
       if (ref !== headSha) return httpFailure(404)
       if (path in content) return response({ type: 'file', encoding: 'base64', content: encode(content[path]) })
       return httpFailure(404)
@@ -416,6 +422,31 @@ test('a promotion that deletes a migration fails on immutability', async () => {
 test('a hotfix promotion carrying a contract fails before any deployment evidence', async () => {
   const routes = migrationRoutes({ headFiles: [{ path: pg('drop'), type: 'blob', sha: '5'.repeat(40) }], content: { [pg('drop')]: contractText } })
   await assert.rejects(runPromotionGate(inputs({ base: 'main', head: 'hotfix/urgent' }), options(routed(routes))), /hotfix may add only expand/)
+})
+
+test('a beta-to-main promotion whose migrations already live on beta passes as frozen', async () => {
+  const path = d1('0002')
+  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], betaFiles: [path], content: { [path]: 'ALTER TABLE t ADD COLUMN c int;\n' } })
+  const result = await assertMigrationReleaseEvidence(inputs({ base: 'main', head: 'beta' }), { token: 'fixture-token', fetchImpl: routed(routes) })
+  assert.deepEqual(result.current, [])
+  assert.deepEqual(result.frozen, [path])
+})
+
+test('an actual re-add on the target branch fails the promotion', async () => {
+  const path = d1('0002')
+  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], mainTipFiles: [path], content: { [path]: expandText } })
+  await assert.rejects(
+    assertMigrationReleaseEvidence(inputs({ base: 'main', head: 'beta' }), { token: 'fixture-token', fetchImpl: routed(routes) }),
+    /already carried this migration before the release/
+  )
+})
+
+test('a dev-to-beta promotion whose migrations came from main is frozen', async () => {
+  const path = d1('0002')
+  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], mainTipFiles: [path], content: { [path]: 'ALTER TABLE t ADD COLUMN c int;\n' } })
+  const result = await assertMigrationReleaseEvidence(inputs({}), { token: 'fixture-token', fetchImpl: routed(routes) })
+  assert.deepEqual(result.current, [])
+  assert.deepEqual(result.frozen, [path])
 })
 
 test('a truncated tree listing fails the gate closed', async () => {

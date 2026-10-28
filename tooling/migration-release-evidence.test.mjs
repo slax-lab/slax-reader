@@ -89,12 +89,14 @@ function evidenceFixture(overrides = {}) {
   const files = overrides.files ?? {}
   const existing = overrides.existing ?? {}
   const pull = overrides.pull ?? mergedPull()
+  const targetCommit = overrides.targetCommit ?? '3'.repeat(40)
   return {
     calls,
     evidence: {
       async pathExists(ref, path) {
         calls.push(['pathExists', ref, path])
-        return (existing[ref] ?? []).includes(path)
+        // `existing.target` models the target branch as it stood before the release.
+        return (existing[ref === targetCommit ? 'target' : ref] ?? []).includes(path)
       },
       async readMigration(path) {
         calls.push(['readMigration', path])
@@ -138,13 +140,15 @@ function evidenceFixture(overrides = {}) {
 }
 
 async function verify(overrides = {}, options = {}) {
-  const { evidence, calls } = evidenceFixture(overrides)
+  const targetCommit = options.targetCommit ?? '3'.repeat(40)
+  const { evidence, calls } = evidenceFixture({ targetCommit, ...overrides })
   const result = await verifyReleaseEvidence({
     evidence,
     diff: options.diff ?? [],
     headSha: options.headSha ?? headSha,
     headRef: options.headRef ?? 'dev',
     targetRef: options.targetRef ?? 'beta',
+    targetCommit,
     environment: options.environment ?? 'beta',
     surface: options.surface ?? 'pull-request'
   })
@@ -349,13 +353,46 @@ test('release-diff immutability rejects deletes, renames, released edits, and lo
   const frozen = await verify({ existing: { [adoptionCommit]: [pg('old')] } }, { diff: [{ path: pg('old'), status: 'modified' }] })
   assert.deepEqual(stages(frozen.result), ['immutability'])
 
-  const readded = await verify({ existing: { beta: [pg('old')] } }, { diff: [{ path: pg('old'), status: 'added' }] })
+  const readded = await verify({ existing: { target: [pg('old')] } }, { diff: [{ path: pg('old'), status: 'added' }] })
   assert.deepEqual(stages(readded.result), ['immutability'])
-  assert.match(readded.result.findings[0].message, /already exists on the beta branch/)
+  assert.match(readded.result.findings[0].message, /already carried this migration before the release/)
 
   const lock = await verify({}, { diff: [{ path: 'apps/api/prisma/pg_migrations/migration_lock.toml', status: 'modified' }] })
   assert.deepEqual(stages(lock.result), ['immutability'])
   assert.match(lock.result.findings[0].message, /migration_lock\.toml/)
+})
+
+test('a normal beta deploy of a new migration passes although beta now contains it', async () => {
+  // The deploy runs on the merge commit, so beta's live tip already holds the
+  // migration. The target is judged at the pre-release parent instead.
+  const path = pg('new_one')
+  const { result, calls } = await verify({ files: { [path]: expandText } }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'beta', targetRef: 'beta', targetCommit: '3'.repeat(40) })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.current, [path])
+  assert.ok(calls.some(([name, ref]) => name === 'pathExists' && ref === '3'.repeat(40)))
+  assert.ok(!calls.some(([name, ref]) => name === 'pathExists' && ref === 'beta'))
+})
+
+test('a beta-to-main promotion passes when the migrations come from beta', async () => {
+  const path = pg('carried')
+  const { result, calls } = await verify({ files: { [path]: expandText }, existing: { beta: [path] } }, { diff: [{ path, status: 'added' }], targetRef: 'main', environment: 'main', surface: 'pull-request', targetCommit: '4'.repeat(40) })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.current, [])
+  assert.deepEqual(result.frozen, [path])
+  assert.ok(!calls.some(([name]) => name === 'readMigration' || name === 'introducingPullRequest'))
+})
+
+test('an actual re-add of a path the target already carried fails on immutability', async () => {
+  const path = pg('diverged')
+  const { result } = await verify({ existing: { target: [path] } }, { diff: [{ path, status: 'added' }], targetRef: 'main', environment: 'main', targetCommit: '4'.repeat(40) })
+  assert.deepEqual(stages(result), ['immutability'])
+  assert.match(result.findings[0].message, /the main branch already carried this migration before the release/)
+})
+
+test('the deploy target is judged at its pre-release parent, not the live branch', async () => {
+  const path = pg('again')
+  const { result } = await verify({ existing: { target: [path] } }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'main', targetRef: 'main', targetCommit: '5'.repeat(40) })
+  assert.deepEqual(stages(result), ['immutability'])
 })
 
 test('an adoption-era migration still on its way to beta is frozen, not current', async () => {
@@ -366,12 +403,11 @@ test('an adoption-era migration still on its way to beta is frozen, not current'
   assert.ok(!calls.some(([name]) => name === 'readMigration' || name === 'introducingPullRequest'))
 })
 
-test('a hotfix migration propagated back to dev is not a re-add failure', async () => {
+test('a hotfix migration propagated back to dev is historical, not a re-add failure', async () => {
   const { result } = await verify({ files: { [pg('x')]: expandText }, existing: { main: [pg('x')] } }, { diff: [{ path: pg('x'), status: 'added' }], surface: 'deploy', environment: 'dev', targetRef: 'dev' })
   assert.equal(result.ok, true)
-  assert.deepEqual(result.current, [pg('x')])
-  const blocked = await verify({ existing: { main: [pg('x')] } }, { diff: [{ path: pg('x'), status: 'added' }] })
-  assert.deepEqual(stages(blocked.result), ['immutability'])
+  assert.deepEqual(result.current, [])
+  assert.deepEqual(result.frozen, [pg('x')])
 })
 
 test('an in-flight dev migration may be edited and needs no declaration', async () => {
@@ -696,6 +732,27 @@ test('the CLI fails an undeclared, deleted, or re-released migration on a synthe
     })
     assert.equal(removal.ok, false)
     assert.deepEqual(stages(removal), ['immutability'])
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('the CLI judges a beta deploy target at the pre-release parent', async () => {
+  const { directory, run } = cliRepository()
+  try {
+    writeFileSync(join(directory, d1('0002_add')), expandText)
+    run(['add', '.'])
+    run(['commit', '-q', '-m', 'add'])
+    const head = run(['rev-parse', 'HEAD']).trim()
+    // The merge is already on beta, so the live ref holds the migration.
+    run(['update-ref', 'refs/remotes/origin/beta', head])
+    const result = await runCli({
+      argv: ['--surface', 'deploy', '--base', `${head}^1`, '--head', head, '--base-ref', 'beta', '--environment', 'beta'],
+      env: cliEnv, cwd: directory, fetchImpl: emptyGithub, log: () => {}, errorLog: () => {}
+    })
+    assert.equal(result.ok, false)
+    assert.ok(!stages(result).includes('immutability'), 'the deploy must not be rejected as a re-add')
+    assert.deepEqual(stages(result), ['evidence'])
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

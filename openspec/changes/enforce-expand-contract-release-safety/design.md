@@ -125,7 +125,9 @@ Resolve one serving commit per environment (`main`, `beta`). This is a new resol
 
 For the release diff:
 
-- An added migration file is **current**: it needs a declaration and an approval.
+- An added migration file is **current** when it is absent from `main`, `beta`, and the pinned `dev` adoption tree: it needs a declaration and an approval.
+- An added file that already exists on another shared branch or in the adoption tree is **historical**, not current — a migration carried from `beta` to `main`, or a hotfix migration propagated to `dev`. It needs no fresh declaration and does not fail.
+- An added file is a **re-add** only when the target branch already carried that path before the release. The target is read at its pre-release state — the merge's first parent for a deploy, the pull request's base commit for API CI, and the base branch tip for a promotion — because after a merge the target already contains the release and a promotion's source branch already contains every migration it carries. Re-adding fails.
 - A deleted or renamed migration file fails the check.
 - A modified migration file fails when the same path exists on `main` or `beta`. A migration merged to `dev` after adoption may still be edited before it reaches a shared branch, including its declaration.
 

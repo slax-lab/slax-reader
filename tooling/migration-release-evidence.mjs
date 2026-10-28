@@ -390,9 +390,19 @@ export function createGitEvidence({ cwd = process.cwd(), repository, token, fetc
     ...github,
 
     // The workflow fetches `main`, `beta`, and the target branch before the
-    // preflight runs; this module never mutates the repository itself.
+    // preflight runs; this module never mutates the repository itself. A commit
+    // SHA is accepted so the pre-release target can be read from its own tree.
     async pathExists(ref, path) {
       if (ref === adoption) return github.pathExists(ref, path)
+      if (shaPattern.test(String(ref))) {
+        if (!hasCommit(ref)) fail('evidence', String(ref).slice(0, 12), 'the pre-release target commit is not available to this checkout')
+        try {
+          git(['cat-file', '-e', `${ref}:${path}`])
+          return true
+        } catch {
+          return false
+        }
+      }
       if (!hasCommit(`refs/remotes/origin/${ref}`)) fail('evidence', ref, `the ${ref} branch tree is not fetched for this checkout`)
       try {
         git(['cat-file', '-e', `refs/remotes/origin/${ref}:${path}`])
@@ -443,7 +453,14 @@ async function verifyContract({ evidence, declaration, headSha, path }) {
 
 const labelFor = ref => ref === 'main' || ref === 'beta' ? `the ${ref} branch` : 'the pinned dev adoption commit'
 
-export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef = '', targetRef = '', environment = targetRef, surface = 'pull-request' }) {
+// `targetCommit` is the target branch exactly as it stood before this release:
+// the merge's first parent for a deploy, the pull request's base commit for
+// API CI, and the base branch tip for a promotion. Comparing an added path
+// against a live target branch is wrong on both ends: after a merge the target
+// already contains the release, and on a promotion the source branch already
+// contains every migration it carries. Tests default it to the adoption commit
+// so a fixture that does not model a target still exercises the rule.
+export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef = '', targetRef = '', targetCommit, environment = targetRef, surface = 'pull-request' }) {
   if (!shaPattern.test(String(headSha ?? ''))) throw new Error('Missing or invalid release head SHA')
   if (!Array.isArray(diff)) throw new Error('Expected a complete release-diff array')
   const findings = []
@@ -476,26 +493,26 @@ export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef =
 
   const released = []
   const frozen = []
-  // A migration propagated from a hotfix reaches `dev` through a sync-back
-  // pull request, where it legitimately appears as added although it already
-  // exists on main. Re-adding a released path is only a failure when the target
-  // itself is a shared branch.
+  // Re-adding is a real failure only on a shared target: the target already
+  // applied that path before this release. Every other shared branch is a
+  // source of history — a migration carried from beta to main, or a hotfix
+  // migration propagated to dev — so its presence makes the file frozen rather
+  // than current, and it needs no fresh declaration.
   const sharedTarget = targetRef === 'beta' || targetRef === 'main'
+  const otherShared = ['main', 'beta'].filter(branch => branch !== targetRef)
   for (const entry of migrations) {
-    let adopted = false
+    let historical = false
     const ok = await attempt('immutability', entry.path, async () => {
       if (entry.status === 'removed' || entry.status === 'renamed') fail('immutability', entry.path, `the release diff ${entry.status} a migration file`)
       if (entry.status === 'added') {
-        // A path that already exists on a shared branch must not arrive again.
-        // The adoption tree is different: a migration merged to dev before
-        // enforcement is already applied there but may still be on its way to
-        // beta, so its first promotion adds it without any declaration.
         if (sharedTarget) {
-          for (const ref of ['main', 'beta']) {
-            if (await evidence.pathExists(ref, entry.path)) fail('immutability', entry.path, `the migration already exists on ${labelFor(ref)} and must not be re-added`)
-          }
+          const target = targetCommit ?? await evidence.branchTip(targetRef)
+          if (await evidence.pathExists(target, entry.path)) fail('immutability', entry.path, `${labelFor(targetRef)} already carried this migration before the release and must not re-add it`)
         }
-        adopted = await evidence.pathExists(adoptionCommit, entry.path)
+        historical = await evidence.pathExists(adoptionCommit, entry.path)
+        for (const branch of historical ? [] : otherShared) {
+          if (await evidence.pathExists(branch, entry.path)) historical = true
+        }
       }
       if (entry.status === 'modified') {
         for (const ref of ['main', 'beta', adoptionCommit]) {
@@ -504,7 +521,7 @@ export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef =
       }
     })
     if (!ok || entry.status !== 'added') continue
-    if (adopted) frozen.push(entry.path)
+    if (historical) frozen.push(entry.path)
     else released.push(entry)
   }
 
@@ -653,13 +670,17 @@ export async function runCli({ argv = process.argv.slice(2), env = process.env, 
   let diff
   let evidence
   let headSha
+  let targetCommit
   if (options.surface === 'promotion') {
     headSha = options.head
     diff = await releaseDiffFromTrees({ repository, token, fetchImpl, base: options.baseRef, head: headSha })
     evidence = createGithubEvidence({ repository, token, fetchImpl })
+    // The promotion pull request is unmerged, so the base branch tip is still
+    // the pre-release target; the verifier reads it only when a migration needs it.
   } else {
     headSha = resolveRev(cwd, options.head)
     const base = options.surface === 'pull-request' ? mergeBase(cwd, resolveRev(cwd, options.base), headSha) : resolveRev(cwd, options.base)
+    targetCommit = resolveRev(cwd, options.base)
     diff = parseGitDiff({ cwd, base, head: headSha })
     evidence = createGitEvidence({ cwd, repository, token, fetchImpl })
   }
@@ -670,6 +691,7 @@ export async function runCli({ argv = process.argv.slice(2), env = process.env, 
     headSha,
     headRef: options.headRef,
     targetRef: options.baseRef,
+    targetCommit,
     environment: options.environment,
     surface: options.surface
   })

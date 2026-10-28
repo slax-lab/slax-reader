@@ -303,16 +303,19 @@ export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = d
 
 // Migration release evidence on the promotion diff (design
 // enforce-expand-contract-release-safety). The gate has no checkout of the head,
-// so the diff comes from the compare API: additions, deletions, renames, and
-// edits of migration files, each added migration's declaration, the named API
-// owner approval on the pull request that introduced it, and a current
-// contract's prerequisite and deployment evidence. A promotion that adds no
-// current contract resolves no deployment evidence.
+// so the diff comes from the merge base and two recursive tree listings:
+// additions, deletions, renames, and edits of migration files, each current
+// migration's declaration, the named API owner approval on the pull request that
+// introduced it, and a current contract's prerequisite and deployment evidence.
+// A promotion that adds no current contract resolves no deployment evidence.
+// The verifier reads the target at the base branch tip, which is still
+// pre-release: the pull request has not merged yet.
 export async function assertMigrationReleaseEvidence(inputs, { token, fetchImpl }) {
   try {
+    const evidence = createGithubEvidence({ repository: inputs.repository, token, fetchImpl })
     const diff = await releaseDiffFromTrees({ repository: inputs.repository, token, fetchImpl, base: inputs.base, head: inputs.headSha })
     const result = await verifyReleaseEvidence({
-      evidence: createGithubEvidence({ repository: inputs.repository, token, fetchImpl }),
+      evidence,
       diff,
       headSha: inputs.headSha,
       headRef: inputs.head,
