@@ -459,6 +459,19 @@ test('a hotfix cannot ship a non-expand migration by reusing a shared copy', asy
   assert.ok(stages(divergent.result).includes('declaration'))
 })
 
+test('a hotfix that diverges from a shared copy cannot skip the declaration', async () => {
+  // The round-2 reproduction: same path on beta, different head content, no
+  // declaration. It must fail both immutability and declaration, and the
+  // release head content must actually be read.
+  const path = d1('0002_divergent')
+  const { result, calls } = await verify({ files: { [path]: 'ALTER TABLE t ADD COLUMN c int;\n' }, existing: { beta: { [path]: contractText } } }, { diff: [{ path, status: 'added' }], headRef: 'hotfix/divergent', targetRef: 'main' })
+  assert.equal(result.ok, false)
+  assert.deepEqual(stages(result).sort(), ['declaration', 'immutability'])
+  assert.deepEqual(result.frozen, [])
+  assert.deepEqual(result.current, [path])
+  assert.ok(calls.some(([name, calledPath]) => name === 'readMigration' && calledPath === path))
+})
+
 test('a hotfix may add only expand migrations', async () => {
   const expand = await verify({ files: { [d1('0003')]: expandText } }, { diff: [{ path: d1('0003'), status: 'added' }], headRef: 'hotfix/urgent', targetRef: 'main' })
   assert.equal(expand.result.ok, true)

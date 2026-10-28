@@ -32,8 +32,8 @@ Six decisions were made during implementation and recorded in the artifacts:
 
 | Command | Result |
 | --- | --- |
-| `node --test tooling/migration-release-evidence.test.mjs` | 46 passed, 0 failed |
-| `pnpm test:ci` | 127 passed, 0 failed |
+| `node --test tooling/migration-release-evidence.test.mjs` | 47 passed, 0 failed |
+| `pnpm test:ci` | 128 passed, 0 failed |
 | `pnpm test:preflight` | 104 passed, 0 failed, 2 skipped (win32-only cases) |
 | `pnpm exec openspec validate --all --strict` | 79 passed, 0 failed |
 | `pnpm agent:check` | `rulesync doctor --strict` and `generate --check` clean; OpenSpec 79/79; compiled agentic workflows match their sources |
@@ -110,7 +110,7 @@ No security finding: no secret is read, printed, or copied; every failure report
 
 **Fix.** Path identity is now a blob identity: `evidence.fileSha(ref, path)` returns the blob hash from Git (`rev-parse <ref>:<path>`) or from the GitHub contents API (`sha`), which share one hash space. An added path is historical only when every copy it finds is identical to the release head; any divergent copy records an immutability finding and leaves the file current, so the declaration, ownership, and contract checks still run. The hotfix class check now parses frozen and re-added copies as well, and a frozen copy without a declaration fails instead of being exempted. `createGithubEvidence` resolves `HEAD` to the release head SHA so the promotion surface reads the same content reference.
 
-**Regressions added.** `divergent content under an existing path fails immutability and stays current` (promotion, beta deploy, and adoption copies), `divergent content under an existing path fails the promotion` (promotion gate over contents-API fixtures), and `a hotfix cannot ship a non-expand migration by reusing a shared copy` (byte-identical contract, plus a divergent non-expand file that reports both findings). The existing identical-history cases for a beta deploy and a beta-to-main promotion remain and still pass.
+**Regressions added.** `divergent content under an existing path fails immutability and stays current` (promotion, beta deploy, and adoption copies), `a hotfix that diverges from a shared copy cannot skip the declaration` (the reviewer's exact reproduction: same path on beta, different undeclared head content, both findings and a real content read), `divergent content under an existing path fails the promotion` (promotion gate over contents-API fixtures), and `a hotfix cannot ship a non-expand migration by reusing a shared copy` (byte-identical contract, plus a divergent non-expand file that reports both findings). The existing identical-history cases for a beta deploy and a beta-to-main promotion remain and still pass.
 
 ## Machine facts versus owner judgment
 
