@@ -44,6 +44,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: >-
           node tooling/migration-release-evidence.mjs
           --surface pull-request
@@ -51,6 +52,7 @@ jobs:
           --head "$HEAD_SHA"
           --base-ref "$BASE_REF"
           --head-ref "$HEAD_REF"
+          --pull-request "$PR_NUMBER"
   check:
     runs-on: ubuntu-latest
     env:

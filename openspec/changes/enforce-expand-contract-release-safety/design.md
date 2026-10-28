@@ -87,8 +87,8 @@ Every migration file added by the release diff requires an `APPROVED` review fro
 
 Resolution:
 
-1. Find the commit that added the path (`commits?path=<path>&sha=<release head>`, oldest adding commit; a local `git log --diff-filter=A` when a checkout exists).
-2. Map it to exactly one merged pull request (`commits/{sha}/pulls`). Ambiguity fails closed.
+1. On API pull-request CI, take the **current open pull request** as the introducer: the added path is part of its own diff, and its head and base must equal the release head and target branch. Its approval must already exist, because the check runs before the merge.
+2. On the promotion and deploy surfaces, find the commit that added the path (`commits?path=<path>&sha=<release head>`, oldest adding commit) and map it to exactly one **merged** pull request (`commits/{sha}/pulls`). Ambiguity fails closed.
 3. Read `CODEOWNERS` at that pull request's **base** commit and resolve named user owners for the migration path. Team handles are ignored: `GITHUB_TOKEN` cannot resolve membership, so a team entry would pass without a specific person.
 4. Read the pull request's reviews with pagination, use each reviewer's latest state, and require at least one named-user owner in state `APPROVED`.
 
@@ -113,9 +113,9 @@ Rules 6 and 7 are required because every contract mutates the shared production 
 Resolve one serving commit per environment (`main`, `beta`). This is a new resolver, not a reuse of the promotion gate's beta evidence lookup, which maps a known head SHA to a deployment.
 
 1. List deployments for the environment: `GET /repos/{repo}/deployments?environment=<main|beta>&per_page=100`, newest first. The deployment `sha` is the merge commit that was deployed (verified against the live repository: environment `main` deployments carry `sha` = the `beta` promotion merge commit).
-2. Deduplicate by `sha`. The same run can produce two deployments for one commit.
-3. Resolve the latest status of the newest deployment. If the newest api-deploy deployment's run is failed, cancelled, or in progress, **freeze**: a current contract fails and the resolver never falls back to an older success, because a partial publish may have left some Workers on the new code.
-4. Keep only deployments whose status links to an `.github/workflows/api-deploy.yml` run (`main` is also used by other deploy workflows).
+2. Resolve the latest status of the deployment and keep only records whose status links to an `.github/workflows/api-deploy.yml` run (`main` is also used by other deploy workflows). A record is attributed to the API workflow **before** it is deduplicated, so a newer web-deploy success for the same commit cannot consume the commit and hide the API run.
+3. Evaluate the API run's conclusion and its migration step. If the newest api-deploy deployment's run is failed, cancelled, or in progress, **freeze**: a current contract fails and the resolver never falls back to an older success, because a partial publish may have left some Workers on the new code.
+4. Deduplicate by `sha` only after that evaluation: the same run can produce two deployment records for one commit, and the first evaluated API record for a commit decides.
 5. Read the job steps and require `Migrate databases and deploy Workers` to have concluded `success`. A superseded run (`current=false`) skips that step but still creates a successful deployment, so without this check a commit that never deployed would count as serving. This was confirmed against the live repository.
 6. If no deployment satisfies these conditions, there is no serving evidence and a current contract fails closed.
 

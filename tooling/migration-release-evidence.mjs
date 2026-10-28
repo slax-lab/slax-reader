@@ -331,6 +331,24 @@ export function createGithubEvidence({ repository, token, fetchImpl = fetch, hea
       return reviews.map(review => ({ user: review?.user, state: review?.state, submitted_at: review?.submitted_at, id: review?.id }))
     },
 
+    // The pull request whose own diff is being checked. API CI runs before the
+    // merge, so the introducing pull request is the current open one; its head
+    // and base are verified against the release under test.
+    async currentPullRequest(number) {
+      if (!Number.isSafeInteger(number) || number <= 0) fail('ownership', String(number), 'the current pull request number is invalid')
+      const { body, notFound } = await get(`/repos/${repository}/pulls/${number}`)
+      if (notFound) fail('ownership', `#${number}`, 'the current pull request does not exist')
+      if (!shaPattern.test(String(body?.head?.sha ?? '')) || !shaPattern.test(String(body?.base?.sha ?? ''))) fail('ownership', `#${number}`, 'the current pull request has no usable revisions')
+      return {
+        number,
+        state: body?.state,
+        merged: typeof body?.merged_at === 'string',
+        headSha: body.head.sha,
+        baseRef: body?.base?.ref,
+        baseSha: body.base.sha
+      }
+    },
+
     async pullRequest(number) {
       if (!Number.isSafeInteger(number) || number <= 0) fail('prerequisite', String(number), 'the prerequisite pull request number is invalid')
       const { body, notFound } = await get(`/repos/${repository}/pulls/${number}`)
@@ -354,17 +372,21 @@ export function createGithubEvidence({ repository, token, fetchImpl = fetch, hea
 // back to an older success, because a partial publish may have left Workers on
 // the new code. A superseded run skips the migration step but still creates a
 // successful deployment, so the step conclusion is part of the evidence.
+//
+// The `main` environment also carries web-deploy deployments, and one commit can
+// produce several records. A record is attributed to api-deploy.yml and fully
+// evaluated — run conclusion and migration step — before it is deduplicated, so
+// a newer web-deploy success for the same commit can never hide the API run's
+// failure by consuming the commit's slot.
 export async function resolveServingCommit(environment, { repository, get, list }) {
   if (!['main', 'beta'].includes(environment)) fail('evidence', environment, 'serving evidence exists only for the main and beta environments')
   const deployments = await list(`/repos/${repository}/deployments?environment=${encodeURIComponent(environment)}`)
-  const seen = new Set()
+  const evaluated = new Set()
   for (const deployment of deployments) {
     const id = Number(deployment?.id)
     const sha = deployment?.sha
     if (!Number.isSafeInteger(id) || id <= 0) fail('evidence', environment, `a ${environment} deployment has no usable identity`)
     if (!shaPattern.test(String(sha ?? ''))) fail('evidence', environment, `a ${environment} deployment has no usable commit`)
-    if (seen.has(sha)) continue
-    seen.add(sha)
 
     const statuses = await list(`/repos/${repository}/deployments/${id}/statuses`)
     const latest = [...statuses].sort((a, b) => String(b?.created_at ?? '').localeCompare(String(a?.created_at ?? '')))[0]
@@ -382,6 +404,9 @@ export async function resolveServingCommit(environment, { repository, get, list 
     const step = jobs.flatMap(job => Array.isArray(job?.steps) ? job.steps : []).find(item => item?.name === migrateStepName)
     if (!step) fail('evidence', environment, `the newest ${environment} API deployment has no migration and publication step`)
     if (step.conclusion !== 'success') fail('evidence', environment, `the newest ${environment} API deployment did not run the migration and publication step successfully (${step.conclusion ?? 'no conclusion'})`)
+
+    if (evaluated.has(sha)) continue
+    evaluated.add(sha)
     return { environment, sha }
   }
   fail('evidence', environment, `no successful ${apiDeployWorkflow} deployment exists for ${environment}`)
@@ -475,7 +500,11 @@ const labelFor = ref => ref === 'main' || ref === 'beta' ? `the ${ref} branch` :
 // already contains the release, and on a promotion the source branch already
 // contains every migration it carries. Tests default it to the adoption commit
 // so a fixture that does not model a target still exercises the rule.
-export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef = '', targetRef = '', targetCommit, environment = targetRef, surface = 'pull-request' }) {
+//
+// `currentPullRequest` is the pull request whose own diff API CI checks. It has
+// not merged yet, so it is the introducing pull request and the approval must
+// already exist on it; promotion and deploy keep requiring merged provenance.
+export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef = '', targetRef = '', targetCommit, currentPullRequest, environment = targetRef, surface = 'pull-request' }) {
   if (!shaPattern.test(String(headSha ?? ''))) throw new Error('Missing or invalid release head SHA')
   if (!Array.isArray(diff)) throw new Error('Expected a complete release-diff array')
   const findings = []
@@ -573,13 +602,34 @@ export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef =
   }
 
   const skipEvidence = surface === 'deploy' && environment === 'dev'
+  // API CI checks the pull request that carries the diff, so the approval is
+  // read from that open pull request; every other surface runs after a merge and
+  // resolves the merged provenance instead.
+  const openIntroducing = async number => {
+    const pull = await evidence.currentPullRequest(number)
+    if (pull.state !== 'open' || pull.merged) fail('ownership', `#${number}`, 'the current pull request is not open')
+    if (pull.headSha !== headSha) fail('ownership', `#${number}`, 'the current pull request head is not the release head')
+    if (pull.baseRef !== targetRef) fail('ownership', `#${number}`, `the current pull request does not target ${targetRef}`)
+    return { number, baseSha: pull.baseSha }
+  }
+  const usesCurrentPull = surface === 'pull-request' && Number.isSafeInteger(currentPullRequest) && currentPullRequest > 0
+  let currentIntroducing
+  if (usesCurrentPull) {
+    try {
+      currentIntroducing = await openIntroducing(currentPullRequest)
+    } catch (error) {
+      if (!(error instanceof EvidenceError)) throw error
+      findings.push({ stage: error.stage ?? 'ownership', reference: error.reference ?? `#${currentPullRequest}`, message: error.message })
+    }
+  }
   const codeowners = new Map()
   const reviewStates = new Map()
   for (const path of released.map(entry => entry.path)) {
     const declaration = declarations.get(path)
     if (!declaration || skipEvidence) continue
+    if (usesCurrentPull && !currentIntroducing) continue
     await attempt('ownership', path, async () => {
-      const introducing = await evidence.introducingPullRequest(path, headSha)
+      const introducing = usesCurrentPull ? currentIntroducing : await evidence.introducingPullRequest(path, headSha)
       if (!codeowners.has(introducing.baseSha)) codeowners.set(introducing.baseSha, await evidence.codeowners(introducing.baseSha))
       const owners = ownersForPath(codeowners.get(introducing.baseSha), path)
       if (owners.length === 0) fail('ownership', path, 'no named user owner covers the migration path; team handles cannot satisfy the check')
@@ -676,12 +726,14 @@ export function parseCliArgs(argv) {
   if (surface === 'promotion' && shaPattern.test(values.head) === false) throw new Error('Missing or invalid --head commit SHA')
   const environment = values.environment ?? values['base-ref']
   if (surface === 'deploy' && !['dev', 'beta', 'main'].includes(environment)) throw new Error('The deploy environment must be dev, beta, or main')
+  if (values['pull-request'] !== undefined && !/^[1-9][0-9]*$/.test(values['pull-request'])) throw new Error('The current pull request must be a positive number')
   return {
     surface,
     base: values.base ?? values['base-ref'],
     head: values.head,
     baseRef: values['base-ref'],
     headRef: values['head-ref'] ?? '',
+    pullRequest: values['pull-request'] === undefined ? undefined : Number(values['pull-request']),
     environment
   }
 }
@@ -730,6 +782,7 @@ export async function runCli({ argv = process.argv.slice(2), env = process.env, 
     headRef: options.headRef,
     targetRef: options.baseRef,
     targetCommit,
+    currentPullRequest: options.surface === 'pull-request' ? options.pullRequest : undefined,
     environment: options.environment,
     surface: options.surface
   })

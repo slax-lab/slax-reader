@@ -136,6 +136,11 @@ function evidenceFixture(overrides = {}) {
         calls.push(['pullRequest', number])
         return pull
       },
+      async currentPullRequest(number) {
+        calls.push(['currentPullRequest', number])
+        if (!overrides.current) throw new Error(`no fixture current pull request ${number}`)
+        return overrides.current
+      },
       async servingCommit(environment) {
         calls.push(['servingCommit', environment])
         const value = (overrides.serving ?? {})[environment]
@@ -156,6 +161,7 @@ async function verify(overrides = {}, options = {}) {
     headRef: options.headRef ?? 'dev',
     targetRef: options.targetRef ?? 'beta',
     targetCommit,
+    currentPullRequest: options.currentPullRequest,
     environment: options.environment ?? 'beta',
     surface: options.surface ?? 'pull-request'
   })
@@ -285,6 +291,52 @@ test('ownership fails closed for teams, outsiders, head-only CODEOWNERS, and dis
 
   const ambiguous = await verify({ files, introducing: new EvidenceError('ownership', pg('add_value'), 'the migration must be introduced by exactly one merged pull request') }, { diff })
   assert.deepEqual(stages(ambiguous.result), ['ownership'])
+})
+
+test('API CI accepts the current open pull request as the introducing pull request', async () => {
+  const path = pg('add_value')
+  const current = { number: 731, state: 'open', merged: false, headSha, baseRef: 'beta', baseSha: ownerBase }
+  const { result, calls } = await verify({ files: { [path]: expandText }, current }, { diff: [{ path, status: 'added' }], currentPullRequest: 731 })
+  assert.equal(result.ok, true)
+  assert.ok(calls.some(([name, number]) => name === 'currentPullRequest' && number === 731))
+  assert.ok(!calls.some(([name]) => name === 'introducingPullRequest'), 'the open pull request replaces the merged lookup')
+
+  const unapproved = await verify({ files: { [path]: expandText }, current, approvals: [review('outsider', 'APPROVED')] }, { diff: [{ path, status: 'added' }], currentPullRequest: 731 })
+  assert.deepEqual(stages(unapproved.result), ['ownership'])
+})
+
+test('the current pull request must be open, at the release head, and target the base', async () => {
+  const path = pg('add_value')
+  const current = overrides => ({ number: 731, state: 'open', merged: false, headSha, baseRef: 'beta', baseSha: ownerBase, ...overrides })
+  const cases = [
+    ['closed', { state: 'closed' }],
+    ['merged', { merged: true }],
+    ['another head', { headSha: '9'.repeat(40) }],
+    ['another base', { baseRef: 'main' }]
+  ]
+  for (const [name, override] of cases) {
+    const { result } = await verify({ files: { [path]: expandText }, current: current(override) }, { diff: [{ path, status: 'added' }], currentPullRequest: 731 })
+    assert.equal(result.ok, false, name)
+    assert.deepEqual(stages(result), ['ownership'], name)
+  }
+})
+
+test('promotion and deploy still require merged introducing provenance', async () => {
+  const path = pg('drop_key')
+  const files = { [path]: contractText }
+  // The deploy surface resolves the merged pull request; an open one is not used there.
+  const deploy = await verify({ files }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'beta', targetRef: 'beta', currentPullRequest: 731 })
+  assert.equal(deploy.result.ok, true)
+  assert.ok(deploy.calls.some(([name]) => name === 'introducingPullRequest'))
+  assert.ok(!deploy.calls.some(([name]) => name === 'currentPullRequest'))
+
+  const promotion = await verify({ files }, { diff: [{ path, status: 'added' }], surface: 'promotion', targetRef: 'beta' })
+  assert.equal(promotion.result.ok, true)
+  assert.ok(promotion.calls.some(([name]) => name === 'introducingPullRequest'))
+  assert.ok(!promotion.calls.some(([name]) => name === 'currentPullRequest'))
+
+  const unmerged = await verify({ files, introducing: new EvidenceError('ownership', path, 'the migration must be introduced by exactly one merged pull request') }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'beta', targetRef: 'beta' })
+  assert.deepEqual(stages(unmerged.result), ['ownership'])
 })
 
 test('an expand-only release resolves no deployment evidence during an outage', async () => {
@@ -715,6 +767,45 @@ test('the GitHub evidence source reads the actions jobs envelope and dedupes dep
   assert.deepEqual(await evidence.servingCommit('beta'), { environment: 'beta', sha: headSha })
 })
 
+test('a same-commit web success never hides a newer API failure', async () => {
+  const fixture = servingFixture({
+    deployments: [
+      { id: 20, sha: headSha, created_at: '2026-10-28T00:00:00Z' },
+      { id: 10, sha: headSha, created_at: '2026-10-27T00:00:00Z' },
+      { id: 5, sha: '9'.repeat(40), created_at: '2026-10-26T00:00:00Z' }
+    ],
+    statuses: {
+      20: [{ state: 'success', created_at: '2026-10-28T00:00:00Z', log_url: `https://github.com/${repository}/actions/runs/7000/job/7` }],
+      10: [{ state: 'success', created_at: '2026-10-27T00:00:00Z', log_url: `https://github.com/${repository}/actions/runs/5000/job/7` }],
+      5: [{ state: 'success', created_at: '2026-10-26T00:00:00Z', log_url: `https://github.com/${repository}/actions/runs/4000/job/7` }]
+    },
+    runs: {
+      7000: { path: '.github/workflows/web-deploy.yml', head_sha: headSha, status: 'completed', conclusion: 'success' },
+      5000: { path: '.github/workflows/api-deploy.yml', head_sha: headSha, status: 'completed', conclusion: 'failure' },
+      4000: { path: '.github/workflows/api-deploy.yml', head_sha: '9'.repeat(40), status: 'completed', conclusion: 'success' }
+    }
+  })
+  await assert.rejects(resolveServingCommit('main', { repository, list: fixture.list, get: fixture.get }), /newest main API deployment is failure/)
+})
+
+test('a same-commit web record does not consume the commit before the API record is read', async () => {
+  const fixture = servingFixture({
+    deployments: [
+      { id: 20, sha: headSha, created_at: '2026-10-28T00:00:00Z' },
+      { id: 10, sha: headSha, created_at: '2026-10-27T00:00:00Z' }
+    ],
+    statuses: {
+      20: [{ state: 'success', created_at: '2026-10-28T00:00:00Z', log_url: `https://github.com/${repository}/actions/runs/7000/job/7` }],
+      10: [{ state: 'success', created_at: '2026-10-27T00:00:00Z', log_url: `https://github.com/${repository}/actions/runs/5000/job/7` }]
+    },
+    runs: {
+      7000: { path: '.github/workflows/web-deploy.yml', head_sha: headSha, status: 'completed', conclusion: 'success' },
+      5000: { path: '.github/workflows/api-deploy.yml', head_sha: headSha, status: 'completed', conclusion: 'success' }
+    }
+  })
+  assert.deepEqual(await resolveServingCommit('main', { repository, list: fixture.list, get: fixture.get }), { environment: 'main', sha: headSha })
+})
+
 function cliRepository() {
   const directory = mkdtempSync(join(tmpdir(), 'migration-evidence-cli-'))
   const run = args => execFileSync('git', args, { cwd: directory, encoding: 'utf8' })
@@ -829,8 +920,10 @@ test('the CLI fails closed when the frozen branch trees are not fetched', async 
 
 test('CLI arguments require a surface, refs, and a release head', () => {
   assert.deepEqual(parseCliArgs(['--surface', 'deploy', '--base', `${headSha}^1`, '--head', headSha, '--base-ref', 'beta']), {
-    surface: 'deploy', base: `${headSha}^1`, head: headSha, baseRef: 'beta', headRef: '', environment: 'beta'
+    surface: 'deploy', base: `${headSha}^1`, head: headSha, baseRef: 'beta', headRef: '', pullRequest: undefined, environment: 'beta'
   })
+  assert.equal(parseCliArgs(['--surface', 'pull-request', '--base', headSha, '--head', headSha, '--base-ref', 'dev', '--pull-request', '731']).pullRequest, 731)
+  assert.throws(() => parseCliArgs(['--surface', 'pull-request', '--base', headSha, '--head', headSha, '--base-ref', 'dev', '--pull-request', '0']), /positive number/)
   assert.throws(() => parseCliArgs(['--surface', 'wrong', '--base', headSha, '--head', headSha, '--base-ref', 'dev']), /surface/)
   assert.throws(() => parseCliArgs(['--surface', 'deploy', '--head', headSha, '--base-ref', 'dev']), /Missing --base/)
   assert.throws(() => parseCliArgs(['--surface', 'deploy', '--base', headSha, '--head', headSha]), /Missing --base-ref/)

@@ -44,9 +44,23 @@ A migration file present in the pinned `dev` adoption tree, on `main`, or on `be
 
 Every migration file added by the release diff MUST have an `APPROVED` review from a named user owner on the pull request that introduced it. This requirement applies to `expand`, `migrate`, and `contract` alike, because the approval is the evidence that an accountable API owner accepted both the class and the author's semantic claim.
 
-The check MUST resolve the introducing commit and exactly one merged introducing pull request, read `CODEOWNERS` from that pull request's base commit, resolve named user owners for the migration path, and use each reviewer's latest review state. Team handles MUST NOT satisfy the check, because the workflow token cannot resolve team membership. Ambiguous provenance or an unreadable review list MUST fail closed.
+On API pull-request CI the check runs before the merge, so the introducing pull request MUST be the current open pull request: its head MUST be the release head and its base MUST be the release branch, and its `APPROVED` review MUST already exist. On the promotion and deploy surfaces, which run after a merge, the check MUST resolve the introducing commit and exactly one merged introducing pull request instead.
+
+The check MUST read `CODEOWNERS` from the introducing pull request's base commit, resolve named user owners for the migration path, and use each reviewer's latest review state. Team handles MUST NOT satisfy the check, because the workflow token cannot resolve team membership. Ambiguous provenance or an unreadable review list MUST fail closed.
 
 `CODEOWNERS` MUST contain a named-user owner list for `/apps/api/prisma/**` before the check is enforced, so the rule has more than one eligible named owner and the adjudicated overlay can find two.
+
+#### Scenario: The open pull request carries the required approval
+- **WHEN** API CI checks a migration added by the current open pull request and a named owner has approved that pull request
+- **THEN** the ownership check passes before the merge
+
+#### Scenario: The open pull request has no named-owner approval
+- **WHEN** API CI checks a migration added by the current open pull request and only an outsider, a team, or no reviewer approved it
+- **THEN** the ownership check fails and the pull request cannot merge
+
+#### Scenario: The current pull request is not the release under test
+- **WHEN** the current pull request is closed, merged, at another head, or targeting another branch
+- **THEN** the ownership check fails closed instead of accepting its reviews
 
 #### Scenario: A named owner approved the introducing pull request
 - **WHEN** a migration is added by a merged pull request whose base `CODEOWNERS` names the approving user as an owner of the migration path
@@ -177,6 +191,10 @@ Every failure MUST report one fixed stage among `declaration`, `ownership`, `pre
 #### Scenario: The newest deployment failed
 - **WHEN** a current contract exists and the newest `api-deploy.yml` run for an environment failed or is in progress
 - **THEN** the check fails and does not use an older successful deployment
+
+#### Scenario: A newer web deployment shares the commit
+- **WHEN** the newest deployment for a commit belongs to another deploy workflow and an older record for the same commit belongs to `api-deploy.yml`
+- **THEN** the record is attributed and evaluated before deduplication, so a web success never hides the API run's failure and never consumes the commit
 
 #### Scenario: A superseded run skipped migration
 - **WHEN** a deployment's run skipped the migration and publication step because a newer release superseded it
