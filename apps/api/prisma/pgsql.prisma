@@ -890,23 +890,39 @@ model sr_podcast_episode {
     @@index([transcript_status, next_retry_at])
 }
 
-// One incoming Newsletter message; admission and final content share this row.
+/// One received mail; admission and publication share this row, independently of RSS.
 model sr_newsletter_feed {
+    /// Auto-increment message identity; serialize as decimal text for newsletter:<id> and saved targets.
     id                BigInt    @id @default(autoincrement())
+    /// Logical sr_user.id owner; live-user/Lab checks authorize access without a new foreign key.
     user_id           Int
+    /// SHA-256 of owner UUID + newline + canonical sender; owner-local source group, not an RSS id.
     source_key        String
+    /// Validated canonical lowercase From mailbox used with the owner UUID to derive source_key.
     sender            String
+    /// Safe From display name with mailbox fallback; display metadata, never an ownership key.
     sender_name       String    @default("")
+    /// SHA-256 of Message-ID or deterministic MIME/body/attachment identity; part of the dedupe key.
     message_key       String
+    /// pending admission becomes ready after body publication or cancelled on revocation; no recovery lease.
     state             String    @default("pending")
+    /// Safe MIME subject with no-subject fallback; published together with body metadata.
     title             String    @default("")
+    /// Sanitized selected-body excerpt, capped at 500 characters; not another stored body.
     summary           String    @default("")
+    /// Final owned Newsletter R2 HTML key: nonempty when ready, null otherwise; Inbox uses separate keys.
     content_key       String?
+    /// Input/body sanitization truncation marker, not a processing failure or retry flag.
     content_truncated Boolean   @default(false)
+    /// Optional validated sender Date for display; not used as the receive-order cursor.
     published_at      DateTime?
+    /// Server admission timestamp for daily quota and descending pagination, with numeric id as tie-breaker.
     received_at       DateTime  @default(now())
 
+    /// One admission per owner, sender source and message identity.
     @@unique([user_id, source_key, message_key])
+    /// Owner-wide receive-order pagination.
     @@index([user_id, received_at(sort: Desc), id(sort: Desc)])
+    /// Owner/source receive-order pagination.
     @@index([user_id, source_key, received_at(sort: Desc), id(sort: Desc)])
 }

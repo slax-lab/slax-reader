@@ -19,4 +19,7 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 
 ## Archive after merge
 
+- [ ] 6e. Generate the clean initial schema, document every field and verify serialized address reservation without added unique address index/CHECK constraints.
+- [ ] 6f. Implement Newsletter-only first-configuration validation, flat modules and HtmlBuilder mail extraction; restore generic sync repository and ordinary search helpers.
+- [ ] 6g. Complete fresh runtime/regression/review evidence and start local API/Web for renewed hands-on acceptance before PR handoff.
 - [ ] 7. After the task PR merges, classify unchecked tasks and archive this change through a separate documentation PR.

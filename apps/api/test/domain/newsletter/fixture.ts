@@ -45,7 +45,7 @@ beforeAll(async () => {
     '20260923044137_add_rss_timeline_index',
     '20260923065020',
     '20261019090000_rss_local_first',
-    '20261022090000_newsletter_feed'
+    '20261028142946_newsletter_feed'
   ])
     await db.exec(await readFile(new URL('../../../prisma/pg_migrations/' + path + '/migration.sql', import.meta.url), 'utf8'))
   repo = new NewsletterRepo(() => adapter(db))

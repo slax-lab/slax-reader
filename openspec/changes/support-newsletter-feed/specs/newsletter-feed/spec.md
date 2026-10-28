@@ -5,7 +5,7 @@ Enable private Newsletter delivery and reading through permanent account-derived
 ## ADDED Requirements
 
 ### Requirement: Permanent account-derived receiving address
-The system SHALL provision a Newsletter address only for an authenticated active user with Newsletter enabled, configured receiving domain and explicit confirmation of the complete candidate address. The receiving local part SHALL be feed+ followed by the first validated lowercase account token of at most 59 ASCII characters. A permanent newsletter platform binding SHALL retain the complete canonical address, and Web SHALL display/copy the complete prefixed address. GET and Labs enablement alone SHALL have no provisioning side effect. Confirmed creation SHALL use the existing setting-enable endpoint and match the confirmed address against the current candidate under the owner row lock, rejecting a stale account/domain rather than issuing an unconfirmed address. An issued address SHALL remain stable after account changes and SHALL never be reassigned after user deletion. The system SHALL use the existing sr_user.deleted_at for account revocation, without adding a binding retirement field or custom binding trigger. Cleanup SHALL retain the ordinary Newsletter binding row as the address reservation.
+The system SHALL provision a Newsletter address only for an authenticated active user with Newsletter enabled, configured receiving domain and explicit confirmation of the complete candidate address. The receiving local part SHALL be feed+ followed by the first validated account token of exactly 6–15 lowercase ASCII letters/digits. A permanent newsletter platform binding SHALL retain the complete canonical address, and Web SHALL display/copy the complete prefixed address. GET and Labs enablement alone SHALL have no provisioning side effect. Confirmed creation SHALL use the existing setting-enable endpoint and match the confirmed address against the current candidate under the owner row lock, rejecting a stale account/domain rather than issuing an unconfirmed address. An issued address SHALL remain stable after account changes and SHALL never be reassigned after user deletion. The system SHALL use the existing sr_user.deleted_at for account revocation, without adding a binding retirement field or custom binding trigger. Cleanup SHALL retain the ordinary Newsletter binding row as the address reservation.
 
 #### Scenario: Provision and rename
 - **WHEN** a user provisions an address and later changes account or display name
@@ -20,8 +20,8 @@ The system SHALL provision a Newsletter address only for an authenticated active
 - **THEN** at most one owner receives it and the reservation remains unavailable to others
 
 #### Scenario: Fixed prefix and length boundary
-- **WHEN** a user provisions with a 59-character safe account or a 60-character account
-- **THEN** the former receives a 64-octet local part and the latter receives invalid_account without creating a binding; no truncation or extra suffix occurs
+- **WHEN** a user provisions with a 6–15-character lowercase alphanumeric account or an invalid first-configuration token
+- **THEN** the former can create a confirmed address and the latter receives invalid_account without creating a binding; ordinary Reader account settings and issued addresses retain their existing policy
 
 #### Scenario: Existing stable receiving binding
 - **WHEN** a valid receiving address is already bound in the configured domain and the user later renames
@@ -111,7 +111,7 @@ Web SHALL always show Feed in navigation, support stable address provisioning/co
 - **THEN** registered enabled dev users receive mail without per-user routes, unknown feed+ details and the bare feed address are rejected by the Worker, and rollback disables/restores only the pilot feed route while preserving reservations and content
 
 ### Requirement: Independent first-release persistence
-The system SHALL use existing newsletter platform bindings, without new binding columns or triggers, and one sr_newsletter_feed row per message, combining admission, pending/ready/cancelled deduplication and final content metadata. It SHALL NOT create sr_feed, sr_newsletter_receipt, Newsletter subscriptions or earlier schema compatibility. The unmerged initial migration SHALL be revised directly without RSS ALTER, mirror, backfill or trial cleanup migrations. Newsletter SHALL NOT write any sr_rss table. Existing RSS model, HTTP contracts, fetching/history/retention/save and synchronization SHALL remain unchanged.
+The system SHALL use existing newsletter platform bindings, without new binding columns or triggers, and one sr_newsletter_feed row per message, combining admission, pending/ready/cancelled deduplication and final content metadata. It SHALL NOT create sr_feed, sr_newsletter_receipt, Newsletter subscriptions or earlier schema compatibility. The unmerged initial migration SHALL be generated from Prisma through the existing script without RSS ALTER, mirror, backfill, trial cleanup migrations, new binding address uniqueness or handwritten CHECK constraints. Every message field SHALL have a Prisma documentation comment. Application address reservation SHALL serialize its lookup/insert using the complete canonical address advisory transaction lock. Newsletter SHALL NOT write any sr_rss table. Existing RSS model, HTTP contracts, fetching/history/retention/save and synchronization SHALL remain unchanged.
 
 #### Scenario: Independent receive and existing RSS writers
 - **WHEN** Newsletter is received while existing RSS clients read, write or refresh
@@ -176,8 +176,8 @@ An authenticated live user with Newsletter enabled SHALL be able to save an owne
 
 #### Scenario: Failure and independent lifetimes
 - **WHEN** storage/index/commit fails, Newsletter is disabled, or one content copy is deleted
-- **THEN** no referenced successful body is deleted, indeterminate commits are reconciled safely, index failure can be repaired without recopying, and Feed/Inbox content lifetimes stay independent
+- **THEN** no referenced successful body is deleted, indeterminate commits are reconciled safely, ordinary indexing failure does not fail a committed save, and Feed/Inbox content lifetimes stay independent
 
-#### Scenario: Internal snapshot and private indexing
-- **WHEN** an internal Newsletter bookmark enters generic acquisition/retry/sync/import paths or its indexing fails
-- **THEN** no network crawl or pending-state mutation occurs and no mail subject/body/provider error data is logged; strict indexing failure is distinguishable from legitimate empty content
+#### Scenario: Internal snapshot and ordinary indexing
+- **WHEN** an internal Newsletter bookmark enters generic acquisition/retry/import or sync-create paths, or its indexing fails
+- **THEN** no network crawl or pending-state mutation occurs; sync create PUTs are rejected before the generic repository while personal PATCH/delete/restore remain usable. Newly copied content follows ordinary shared indexing/diagnostics; unchanged repeats/restores do not rebuild its content index

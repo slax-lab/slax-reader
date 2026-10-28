@@ -22,7 +22,7 @@ describe('independent Newsletter migration', () => {
           "SELECT table_name,column_name,data_type,column_default,is_nullable FROM information_schema.columns WHERE table_name LIKE 'sr_rss_%' ORDER BY table_name,ordinal_position"
         )
       const before = (await schema()).rows
-      await db.exec(read('20261022090000_newsletter_feed'))
+      await db.exec(read('20261028142946_newsletter_feed'))
       expect((await schema()).rows).toEqual(before)
       expect((await db.query('SELECT title FROM sr_rss_feed')).rows).toEqual([{ title: 'Original' }])
       await db.exec(
@@ -35,17 +35,17 @@ describe('independent Newsletter migration', () => {
       await db.close()
     }
   })
-  test('keeps binding columns and normal update/delete behavior while preventing duplicate mailboxes', async () => {
+  test('keeps binding columns and normal update/delete behavior without a feature-specific address constraint', async () => {
     const db = await rssDatabase()
     try {
       const columns = () =>
         db.query("SELECT column_name,data_type,column_default,is_nullable FROM information_schema.columns WHERE table_name='sr_platform_bind' ORDER BY ordinal_position")
       const before = (await columns()).rows
-      await db.exec(read('20261022090000_newsletter_feed'))
+      await db.exec(read('20261028142946_newsletter_feed'))
       expect((await columns()).rows).toEqual(before)
       expect((await db.query("SELECT tgname FROM pg_trigger WHERE tgrelid='sr_platform_bind'::regclass AND NOT tgisinternal")).rows).toEqual([])
       await db.exec("INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES(1,'newsletter','feed+reader@newsletterreader.slax.dev','reader')")
-      await expect(db.exec("INSERT INTO sr_platform_bind(user_id,platform,platform_id) VALUES(2,'newsletter','feed+reader@newsletterreader.slax.dev')")).rejects.toThrow()
+      expect((await db.query("SELECT indexname FROM pg_indexes WHERE tablename='sr_platform_bind' AND indexname='sr_platform_bind_newsletter_address_key'")).rows).toEqual([])
       await db.exec("UPDATE sr_platform_bind SET user_name='Updated' WHERE platform='newsletter'")
       expect((await db.query("SELECT user_name FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([{ user_name: 'Updated' }])
       await db.exec("DELETE FROM sr_platform_bind WHERE platform='newsletter'")
@@ -54,16 +54,16 @@ describe('independent Newsletter migration', () => {
       await db.close()
     }
   })
-  test('one numeric mail row enforces dedupe and ready-body consistency', async () => {
+  test('one numeric mail row preserves defaults and dedupe without handwritten CHECKs', async () => {
     const db = await rssDatabase()
     try {
-      await db.exec(read('20261022090000_newsletter_feed'))
+      await db.exec(read('20261028142946_newsletter_feed'))
       await db.exec("INSERT INTO sr_newsletter_feed(user_id,source_key,sender,message_key) VALUES (1,repeat('a',64),'sender@example.com',repeat('b',64))")
       const row = (await db.query<any>('SELECT id,state,content_key FROM sr_newsletter_feed')).rows[0]
       expect(BigInt(row.id)).toBeGreaterThan(0n)
       expect(row).toMatchObject({ state: 'pending', content_key: null })
       await expect(db.exec("INSERT INTO sr_newsletter_feed(user_id,source_key,sender,message_key) VALUES (1,repeat('a',64),'sender@example.com',repeat('b',64))")).rejects.toThrow()
-      await expect(db.exec("UPDATE sr_newsletter_feed SET state='ready'")).rejects.toThrow()
+      expect((await db.query("SELECT conname FROM pg_constraint WHERE conrelid='sr_newsletter_feed'::regclass AND contype='c'")).rows).toEqual([])
       await db.exec("UPDATE sr_newsletter_feed SET state='ready',content_key='newsletter-content/body.html'")
       expect(
         (await db.query("SELECT column_name FROM information_schema.columns WHERE table_name='sr_newsletter_feed' ORDER BY ordinal_position")).rows.map((r: any) => r.column_name)

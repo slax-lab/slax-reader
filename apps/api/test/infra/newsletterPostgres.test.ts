@@ -31,6 +31,22 @@ native('independent Newsletter native transactions', () => {
     await pg.$disconnect()
     await pool.end()
   })
+  test('concurrent owners reserve one address through the application lock and retain it after deletion', async () => {
+    const account = 'race' + crypto.randomUUID().replaceAll('-', '').slice(0, 10)
+    const owners = await Promise.all([0, 1].map(async i => {
+      const user = await pg.sr_user.create({ data: { email: account + i + '@fixture.invalid', account, created_at: new Date(), last_login_at: new Date() } })
+      await lab.upsert(user.id, 'newsletter', true)
+      return user
+    }))
+    const attempts = await Promise.allSettled(owners.map(user => repo.address(user.id, 'newsletterreader.slax.dev', true)))
+    expect(attempts.filter(x => x.status === 'fulfilled')).toHaveLength(1)
+    expect(attempts.find(x => x.status === 'rejected')).toMatchObject({ reason: { code: 'address_reserved' } })
+    const winner = owners[attempts.findIndex(x => x.status === 'fulfilled')]
+    const loser = owners.find(x => x.id !== winner.id)!
+    expect(await repo.address(winner.id, 'newsletterreader.slax.dev', true)).toMatchObject({ address: 'feed+' + account + '@newsletterreader.slax.dev' })
+    await pg.sr_user.update({ where: { id: winner.id }, data: { deleted_at: new Date() } })
+    await expect(repo.address(loser.id, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({ code: 'address_reserved' })
+  })
   test('parallel admissions reserve one identity and publication commits a coherent winner', async () => {
     const attempts = await Promise.all(Array.from({ length: 8 }, () => repo.admit(recipient, hash(1), hash(2), 'sender@fixture.invalid')))
     expect(attempts.filter(row => row.created)).toHaveLength(1)

@@ -27,7 +27,7 @@ Users need permanent Newsletter receiving addresses and one Web Feed for RSS and
 
 ## Impact
 
-API Workers, one initial Newsletter migration, R2 content, additive Feed contracts and Web UI. Existing search helpers need a narrow private indexing/error path and atomic D1 replacement; existing generic behavior is retained. No new dependencies, Newsletter PowerSync stream or data compatibility for unshipped trials. RSS model/repository/service/content/local-first differences from this PR are reverted to the reviewed upstream baseline.
+API Workers, one initial Newsletter migration, R2 content, additive Feed contracts and Web UI. Saved copies use ordinary shared bookmark indexing and diagnostics with best-effort post-commit effects; shared search normalization and embedding are unchanged. No new dependencies, Newsletter PowerSync stream or data compatibility for unshipped trials. RSS model/repository/service/content/local-first differences from this PR are reverted to the reviewed upstream baseline.
 
 ## Human approval (2026-10-28)
 
@@ -42,3 +42,7 @@ The user explicitly replaced the special disabled-sharing default with normal bo
 The requesting user accepted the interactive setup-card preview and explicitly authorized implementation in the existing worktree, followed by local API/Web startup for renewed hands-on acceptance. The approved structure retains the title, complete address and copy action when collapsed; records disclosure preference locally per signed-in user; emphasizes permanent-address information over secondary receiving details; previews the complete candidate; and requires a cancellable confirmation before account/address writes. Occupied account names and reserved mailboxes receive actionable inline feedback without losing the draft. Labs only enables the feature; confirmed creation remains on the existing setting-enable endpoint, without a new table or endpoint.
 
 The demo provided ready, unconfigured, occupied, loading, unavailable and simulated network-failure states, Chinese/English labels, light/dark/e-ink themes and desktop/768px/390px controls. The user's adjustment added symmetric 10px horizontal padding to the disclosure button so its arrow remains clear of the hover background edge; this corrected version was accepted. This is approval to implement, not acceptance of the production implementation or authorization to deploy. The plan is [Newsletter Setup Interaction](../../../docs/superpowers/plans/2026-10-28-newsletter-setup-interaction.md).
+
+## Team-feedback revision approval (2026-10-28)
+
+The user approved [Newsletter Team Feedback](../../../docs/superpowers/plans/2026-10-28-newsletter-team-feedback.md) and authorized implementation, a final independent review and local API/Web startup. The revision removes the new binding address unique index and handwritten CHECK constraints, retains serialized application reservation, generates the initial migration through Prisma, documents every message field, flattens domain modules, moves mail extraction into HtmlBuilder, rejects internal create PUTs in the sync orchestrator and restores ordinary search helpers. Only first Newsletter configuration accepts 6–15 lowercase ASCII letters/digits; ordinary Reader account policy and issued bindings remain unchanged. Renewed product acceptance and PR handoff remain pending.
