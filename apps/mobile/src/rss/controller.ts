@@ -28,7 +28,7 @@ export function reportRssSaved(entryId: string, bookmarkId: string, articleUrl?:
 
 /** Source RssViewModel semantics, including expanded-window history reload and cancellation. */
 export class RssController {
-  private state = emptyState(); private listeners = new Set<() => void>(); private lists = new Map<string | null, CachedList>();
+  private state = emptyState(); private emitted = this.state; private listeners = new Set<() => void>(); private lists = new Map<string | null, CachedList>();
   private request: AbortController | null = null; private generation = 0; private lastPollAt = 0; private disposed = false;
   private labRequest: AbortController | null = null;
   private localReady = false; private localEpoch = 0; private stopLocal: (() => void) | null = null;
@@ -188,7 +188,19 @@ export class RssController {
   activate() {this.disposed = false; saves.add(this.saved);}
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => {this.listeners.delete(listener);}; };
-  private update(change: Partial<RssState>) { this.state = {...this.state, ...change}; this.listeners.forEach(listener => listener()); }
+  /** Emits only for a real change; equal arrays keep their previous identity. */
+  private update(change: Partial<RssState>) {
+    const state = this.state, next = {...state} as Record<keyof RssState, unknown>;
+    let changed = state !== this.emitted;
+    for (const key of Object.keys(change) as (keyof RssState)[]) {
+      const previous = state[key], value = change[key];
+      if (Object.is(previous, value) || Array.isArray(previous) && Array.isArray(value) && previous.length === value.length && value.every((item, index) => Object.is(item, previous[index]))) continue;
+      next[key] = value; changed = true;
+    }
+    if (!changed) return;
+    this.state = this.emitted = next as unknown as RssState;
+    this.listeners.forEach(listener => listener());
+  }
   private versions(source: string | null) { return JSON.stringify(this.state.subscriptions.filter(item => source === null || item.id === source).map(item => [item.id, item.last_success_at]).sort()); }
   private named(items: RssEntry[]) {
     const names = new Map(this.state.subscriptions.map(row => [row.id, rssDisplayName(row)]));

@@ -5,6 +5,9 @@ import type {MobileScreenProps} from '../../navigation/types'
 import type {ReaderHandle} from '../ReaderWebView'
 import type {ReaderIdentity, Translate, WriteReaderPreferences} from './types'
 
+/** Fallback for a native stack that never reports the end of the push transition. */
+export const READER_TRANSITION_FALLBACK_MS = 600
+
 export interface ReaderExitPorts {
   abort(): void
   persist(): void
@@ -15,9 +18,12 @@ export interface ReaderExitPorts {
 export function useReaderLifecycle(identity: ReaderIdentity, ports: {
   navigation: MobileScreenProps<'Reader'>['navigation']; routeKey: string; t: Translate
   isAccountActive(): boolean; writePreferences: WriteReaderPreferences
+  /** Defers background status persistence while the push transition runs. */
+  setInteractionBusy?(busy: boolean, source: string): void
 }) {
   const {cacheKey, bookmarkId, collectionOwnerId, collectionId, isPreview} = identity
   const {navigation, routeKey, t, isAccountActive, writePreferences} = ports
+  const setInteractionBusy = useRef(ports.setInteractionBusy); setInteractionBusy.current = ports.setInteractionBusy
   const mounted = useRef(true)
   const foreground = useRef(AppState.currentState == null || AppState.currentState === 'active')
   const reader = useRef<ReaderHandle | null>(null)
@@ -50,13 +56,23 @@ export function useReaderLifecycle(identity: ReaderIdentity, ports: {
       routeFocused.current = false; foreground.current = false; setRouteVisible(false)
       commands.current?.background(); commands.current?.persist(); void commands.current?.flushOutline('background').catch(fail)
     })
-    let transitioning = false
-    const start = navigation.addListener('transitionStart', () => {transitioning = true; setTransitionReady(false)})
-    const end = navigation.addListener('transitionEnd', () => {transitioning = false; setTransitionReady(true)})
-    const cancel = navigation.addListener('gestureCancel', () => {transitioning = false; setTransitionReady(true)})
-    const frame = requestAnimationFrame(() => {if (!transitioning && navigation.isFocused()) setTransitionReady(true)})
-    return () => {cancelAnimationFrame(frame); focus(); blur(); start(); end(); cancel()}
+    return () => {focus(); blur()}
   }, [navigation, isAccountActive, fail])
+  // Once the push has settled the document host stays mounted; a later pop or cancelled back gesture never unmounts it.
+  useLayoutEffect(() => {
+    if (transitionReady) return
+    const routes = navigation.getState?.()?.routes
+    if (!routes || routes[0]?.key === routeKey) {setTransitionReady(true); return}
+    const source = `transition:${routeKey}`
+    let busy = true
+    const idle = () => {if (busy) {busy = false; setInteractionBusy.current?.(false, source)}}
+    setInteractionBusy.current?.(true, source)
+    const settle = () => {idle(); setTransitionReady(true)}
+    const end = navigation.addListener('transitionEnd', event => {if (!event.data.closing) settle()})
+    const cancel = navigation.addListener('gestureCancel', settle)
+    const fallback = setTimeout(settle, READER_TRANSITION_FALLBACK_MS)
+    return () => {clearTimeout(fallback); end(); cancel(); idle()}
+  }, [navigation, routeKey, transitionReady])
   useEffect(() => {
     mounted.current = true
     return () => {mounted.current = false; commands.current?.abort(); commands.current?.persist(); void commands.current?.flushOutline('exit').catch(() => undefined)}

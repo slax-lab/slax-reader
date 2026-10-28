@@ -1,4 +1,3 @@
-import CryptoKit
 import ExpoModulesCore
 import WebKit
 import UIKit
@@ -42,22 +41,25 @@ private enum SlaxReaderRuleLists {
   }()
   private static var pending: [String: [(WKContentRuleList?, Error?) -> Void]] = [:]
   private static var pruned = false
-  // Compiled lists persist across launches under a content-derived name. A new build gets a new prefix,
-  // so a stale list is never reused and previous builds' lists are removed once, never the current ones.
+  // Bump whenever SlaxReaderSecurity.contentRules() changes its output for the same policy.
+  private static let rulesVersion = "r1"
+  // Compiled lists persist across launches, named by rules version, build and policy identity. A new build
+  // or rules version gets a new prefix, so a stale list is never reused; other prefixes are pruned once.
   private static let prefix: String = {
     let info = Bundle.main.infoDictionary
     let build = "\(info?["CFBundleShortVersionString"] as? String ?? "0")-\(info?["CFBundleVersion"] as? String ?? "0")"
-    return "slax-reader-rules-\(build.replacingOccurrences(of: "[^A-Za-z0-9.-]", with: "_", options: .regularExpression))-"
+    return "slax-reader-rules-\(rulesVersion)-\(sanitized(build))-"
   }()
-  private static func ruleListName(_ rules: String) -> String {
-    prefix + SHA256.hash(data: Data(rules.utf8)).map { String(format: "%02x", $0) }.joined()
+  private static func sanitized(_ value: String) -> String { value.replacingOccurrences(of: "[^A-Za-z0-9.-]", with: "_", options: .regularExpression) }
+  private static func ruleListName(_ security: SlaxReaderSecurity) -> String {
+    prefix + (security.pdfMode ? "pdf" : "article-" + sanitized(security.protectedHosts.joined(separator: "_")))
   }
 
-  static func load(_ rules: String, completion: @escaping (WKContentRuleList?, Error?) -> Void) {
+  static func load(_ rules: String, for security: SlaxReaderSecurity, completion: @escaping (WKContentRuleList?, Error?) -> Void) {
     if let cached = cache.object(forKey: rules as NSString) { completion(cached, nil); return }
     if pending[rules] != nil { pending[rules]?.append(completion); return }
     pending[rules] = [completion]
-    let name = ruleListName(rules)
+    let name = ruleListName(security)
     let store: WKContentRuleListStore = WKContentRuleListStore.default()
     let finish: (WKContentRuleList?, Error?) -> Void = { list, error in
       DispatchQueue.main.async {
@@ -82,6 +84,26 @@ private enum SlaxReaderRuleLists {
     }
   }
 }
+/// One-time warmup before the first Reader opens. The discarded web view only starts WebKit processes; documents always get their own view.
+enum SlaxReaderPrewarm {
+  private static var started = false
+  private static var warmView: WKWebView?
+  static func run(protectedHosts: [String], imageProxyOrigins: [String]) {
+    guard !started else { return }
+    started = true
+    if let security = try? SlaxReaderSecurity(protectedHosts, imageProxyOrigins: imageProxyOrigins), let rules = try? security.contentRules() {
+      SlaxReaderRuleLists.load(rules, for: security) { _, _ in }
+    }
+    let configuration = WKWebViewConfiguration()
+    configuration.websiteDataStore = .nonPersistent()
+    configuration.allowsInlineMediaPlayback = true
+    configuration.mediaTypesRequiringUserActionForPlayback = []
+    let view = WKWebView(frame: .zero, configuration: configuration)
+    view.loadHTMLString("<!doctype html><html><body></body></html>", baseURL: nil)
+    warmView = view
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5) { warmView?.stopLoading(); warmView = nil }
+  }
+}
 final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScrollViewDelegate {
   private static var sequence = 0
   // WebKit callbacks, view disposal, and account revocation share the main queue.
@@ -99,6 +121,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
   }
   let onEvent = EventDispatcher()
   let resources: SlaxResourceHandler
+  let pdfRanges: SlaxPdfSchemeHandler
   private let message: SlaxWeakMessage
   private let sourceMessage: SlaxWeakSourceMessage
   let webView: WKWebView
@@ -108,6 +131,14 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
   func setPdfMode(_ value: Bool) {
     if pdfMode != value && (loaded != nil || security != nil) { detach(); return }
     pdfMode = value
+  }
+  /// The document whose byte ranges this PDF host serves to its page; immutable once a document is loaded.
+  private var pdfSource: SlaxPdfSource?
+  func setPdfSource(_ raw: [String: Any]?) {
+    let next = SlaxPdfSource(raw)
+    if raw != nil && next == nil { emit("error", ["message": "Invalid PDF source", "code": "pdfSource"]); detach(); return }
+    if pdfSource != nil && pdfSource != next { detach(); return }
+    pdfSource = next
   }
   private var security: SlaxReaderSecurity?
   private var rulesReady = false
@@ -194,13 +225,14 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     loadedGeneration = nil
     pendingSourceReady = nil
     cancelEvaluations("E_READER_INACTIVE")
-    resources.cancelAll()
+    resources.cancelAll(); pdfRanges.cancelAll()
     emit("error", ["message": "Reader process interrupted", "code": "renderProcessGone"])
   }
 
   required init(appContext: AppContext? = nil) {
     Self.sequence += 1; identifier = Self.sequence
     let resources = SlaxResourceHandler()
+    let pdfRanges = SlaxPdfSchemeHandler()
     let message = SlaxWeakMessage()
     let sourceMessage = SlaxWeakSourceMessage()
     let configuration = WKWebViewConfiguration()
@@ -212,20 +244,33 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     configuration.setURLSchemeHandler(resources, forURLScheme: "slaxstatics")
     configuration.setURLSchemeHandler(resources, forURLScheme: "slaxmedia")
     configuration.setURLSchemeHandler(resources, forURLScheme: "slaxmedias")
+    // Registration precedes knowing the mode; the handler serves nothing unless this is a current PDF host (see `pdfRanges.scope`).
+    configuration.setURLSchemeHandler(pdfRanges, forURLScheme: SlaxPdfSchemeHandler.scheme)
     configuration.userContentController.add(message, name: "slaxReader")
     configuration.userContentController.add(sourceMessage, name: "NativeBridge")
     configuration.userContentController.addUserScript(WKUserScript(source: "window.ReactNativeWebView={postMessage:function(data){window.webkit.messageHandlers.slaxReader.postMessage(String(data));}};", injectionTime: .atDocumentStart, forMainFrameOnly: true))
     webView = SlaxNoMenuWebView(frame: .zero, configuration: configuration)
-    self.resources = resources; self.message = message; self.sourceMessage = sourceMessage
+    self.resources = resources; self.pdfRanges = pdfRanges; self.message = message; self.sourceMessage = sourceMessage
     super.init(appContext: appContext)
     Self.activeViews.add(self)
     resources.hasResourceOwnership = { [weak self] in self?.ownsResources == true }
+    pdfRanges.scope = { [weak self] in
+      guard let self, self.pdfMode, !self.resources.isFixture, self.ownsResources, self.loaded != nil, self.loadedOwner == self.resourceOwner,
+        let owner = self.resourceOwner, Self.activeOwner == owner, let source = self.pdfSource else { return nil }
+      return (source, owner)
+    }
     message.owner = self
     sourceMessage.owner = self
     webView.navigationDelegate = self; webView.uiDelegate = self; webView.scrollView.delegate = self
     webView.isOpaque = false; webView.backgroundColor = .clear; webView.scrollView.backgroundColor = .clear
     webView.scrollView.showsVerticalScrollIndicator = false; webView.scrollView.showsHorizontalScrollIndicator = false
     webView.scrollView.contentInsetAdjustmentBehavior = .never
+    // The Reader draws its own transparent top bar; iOS 26 must not add its automatic scroll-edge blur band at any edge.
+    #if compiler(>=6.2)
+    if #available(iOS 26, *) {
+      for effect in [webView.scrollView.topEdgeEffect, webView.scrollView.bottomEdgeEffect, webView.scrollView.leftEdgeEffect, webView.scrollView.rightEdgeEffect] { effect.isHidden = true }
+    }
+    #endif
     (webView as? SlaxNoMenuWebView)?.onTouch = { [weak self] y in self?.emit("touch", ["screenY": y]) }
     addSubview(webView)
     NotificationCenter.default.addObserver(self, selector: #selector(suspendDocument), name: UIApplication.willResignActiveNotification, object: nil)
@@ -263,7 +308,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
       rulesCompiling = true
       let expectedPage = pageId, expectedOwner = resourceOwner
       guard let rules = try? security.contentRules() else { detach(); return }
-      SlaxReaderRuleLists.load(rules) { [weak self] list, error in
+      SlaxReaderRuleLists.load(rules, for: security) { [weak self] list, error in
         guard let self, self.ownsResources, self.pageId == expectedPage, self.resourceOwner == expectedOwner, self.security == security else { return }
         guard let list, error == nil else { self.emit("error", ["message": "Reader security policy unavailable", "code": "securityPolicy"]); self.detach(); return }
         self.webView.configuration.userContentController.add(list)
@@ -284,7 +329,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     let generation = UUID().uuidString
     loaded = html; loadedPageId = pageId; loadedGeneration = generation; loadedOwner = resourceOwner
     sourceMessage.bind(pageId: pageId, generation: generation)
-    resources.cancelAll()
+    resources.cancelAll(); pdfRanges.cancelAll()
     var document: String
     if pdfMode {
       guard let pdfDocument = try? SlaxReaderSecurity.pdfDocument(html, pageId: pageId) else { detach(); return }
@@ -314,13 +359,41 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     // JSON serialization embeds arguments without executing article contents.
     webView.evaluateJavaScript("window.__SlaxReaderHost && window.__SlaxReaderHost.receiveSourceMessage.apply(null, \(arguments));", completionHandler: { _, _ in })
   }
-  func updateInsets(top: Double, bottom: Double) {
-    let offset = webView.scrollView.contentOffset.y + webView.scrollView.contentInset.top
-    webView.scrollView.contentInset = UIEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
-    webView.scrollView.setContentOffset(CGPoint(x: 0, y: (initializedInsets ? offset : 0) - top), animated: false)
-    initializedInsets = true
+  // A header change keeps the adjusted document offset. During a drag or fling the correction waits for the
+  // gesture to end, because setContentOffset would stop deceleration and move the text under the finger.
+  private var pendingOffsetCorrection: CGFloat = 0
+  private var scrollGestureActive: Bool {
+    let scrollView = webView.scrollView
+    return scrollView.isTracking || scrollView.isDragging || scrollView.isDecelerating
   }
-  func detach() { guard !detached else { return }; detached = true; trailingScroll?.cancel(); trailingScroll = nil; navigationGate.invalidate(); loadedGeneration = nil; cancelEvaluations(); pendingSourceReady = nil; contentSizeObservation = nil; NotificationCenter.default.removeObserver(self); Self.activeViews.remove(self); resources.close(); webView.stopLoading(); webView.configuration.userContentController.removeScriptMessageHandler(forName: "slaxReader"); webView.configuration.userContentController.removeScriptMessageHandler(forName: "NativeBridge"); webView.navigationDelegate = nil; webView.uiDelegate = nil; webView.scrollView.delegate = nil }
+  func updateInsets(top: Double, bottom: Double) {
+    let scrollView = webView.scrollView
+    let insets = UIEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
+    guard !initializedInsets || scrollView.contentInset != insets else { return }
+    let previousTop = scrollView.contentInset.top
+    scrollView.contentInset = insets
+    guard initializedInsets else {
+      initializedInsets = true
+      scrollView.setContentOffset(CGPoint(x: 0, y: -top), animated: false)
+      return
+    }
+    pendingOffsetCorrection += previousTop - CGFloat(top)
+    if !scrollGestureActive { applyPendingOffsetCorrection(afterGesture: false) }
+  }
+  private func applyPendingOffsetCorrection(afterGesture: Bool) {
+    let correction = pendingOffsetCorrection
+    pendingOffsetCorrection = 0
+    guard correction != 0, !detached else { return }
+    let scrollView = webView.scrollView
+    let y = scrollView.contentOffset.y + correction
+    guard afterGesture else { scrollView.setContentOffset(CGPoint(x: 0, y: y), animated: false); return }
+    // A gesture that ended against the top already bounced onto the new inset; shifting it would hide part of the header.
+    let top = -scrollView.contentInset.top
+    guard scrollView.contentOffset.y > top else { return }
+    let bottom = max(top, scrollView.contentSize.height + scrollView.contentInset.bottom - scrollView.bounds.height)
+    scrollView.setContentOffset(CGPoint(x: 0, y: min(max(y, top), bottom)), animated: false)
+  }
+  func detach() { guard !detached else { return }; detached = true; trailingScroll?.cancel(); trailingScroll = nil; navigationGate.invalidate(); loadedGeneration = nil; cancelEvaluations(); pendingSourceReady = nil; contentSizeObservation = nil; NotificationCenter.default.removeObserver(self); Self.activeViews.remove(self); resources.close(); pdfRanges.close(); webView.stopLoading(); webView.configuration.userContentController.removeScriptMessageHandler(forName: "slaxReader"); webView.configuration.userContentController.removeScriptMessageHandler(forName: "NativeBridge"); webView.navigationDelegate = nil; webView.uiDelegate = nil; webView.scrollView.delegate = nil }
   private func unexpectedNavigation() {
     guard !processGone else { return }
     emit("error", ["message": "Reader document navigation was rejected", "code": "documentNavigation"])
@@ -382,8 +455,12 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     trailingScroll = work
     DispatchQueue.main.asyncAfter(deadline: .now() + (Self.userScrollSampleInterval - elapsed), execute: work)
   }
-  func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) { if !decelerate { emitScroll(scrollView) } }
-  func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) { emitScroll(scrollView) }
+  func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+    guard !decelerate else { return }
+    applyPendingOffsetCorrection(afterGesture: true)
+    emitScroll(scrollView)
+  }
+  func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) { applyPendingOffsetCorrection(afterGesture: true); emitScroll(scrollView) }
   func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) { emitScroll(scrollView) }
   func scrollViewDidScrollToTop(_ scrollView: UIScrollView) { emitScroll(scrollView) }
   private func emitScroll(_ scrollView: UIScrollView) {

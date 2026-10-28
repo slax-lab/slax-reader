@@ -12,6 +12,7 @@ import {useTelemetry} from './telemetry';
 import {SourceLine} from './components/SourceLine';
 import {AppRecoveryScreen} from './screens/AppRecoveryScreen';
 import {ObserveNavigationContainer, ObserveRoot} from './observe';
+import {readerScreenOptions, useReaderPrewarm} from './navigation/reader-route';
 
 const screens = {
   Login: () => require('./screens/LoginScreen').LoginScreen,
@@ -43,12 +44,13 @@ const sourceHeaderTitle = Platform.OS === 'android'
   : undefined;
 
 export function ApplicationRoutes() {
-  const {session, upgrade, retryStart, t, systemEntry} = useMobile();
+  const {session, upgrade, retryStart, t, systemEntry, runtime} = useMobile();
   const telemetry = useTelemetry();
   const reported = useRef(new Set<string>());
   const userId = session.status === 'authenticated' ? session.session.userId : null;
   useEffect(() => { telemetry.identify(userId); }, [telemetry, userId]);
   useEffect(() => () => systemEntry?.setNavigator(null), [systemEntry]);
+  useReaderPrewarm(session.status === 'authenticated' ? runtime : undefined);
   function reportRoutes() {
     const state = navigationRef.getRootState();
     if (!state) return;
@@ -67,7 +69,7 @@ export function ApplicationRoutes() {
       {session.status === 'unauthenticated' ? <Stack.Screen name="Login" getComponent={screens.Login} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>
         <Stack.Screen name="Library" getComponent={screens.Library} options={{headerShown: false}}/>
         <Stack.Screen name="Search" getComponent={screens.Search} options={{title: t('search_action'), headerStyle: {backgroundColor: C.readerBackground}}}/>
-        <Stack.Screen name="Reader" getComponent={screens.Reader} options={{title: '', headerStyle: {backgroundColor: C.readerBackground}}}/>
+        <Stack.Screen name="Reader" getComponent={screens.Reader} options={readerScreenOptions}/>
         <Stack.Screen name="Settings" getComponent={screens.Settings} options={{title: t('setting_title'), headerTitle: sourceHeaderTitle}}/>
         <Stack.Screen name="About" getComponent={screens.About} options={{title: t('sidebar_about')}}/>
         <Stack.Screen name="Debug" getComponent={screens.Debug} options={{title: 'Debug'}}/>

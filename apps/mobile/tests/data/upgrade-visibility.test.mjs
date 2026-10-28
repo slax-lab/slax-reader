@@ -44,6 +44,7 @@ function provider(platform = 'ios', cacheRoot = platform === 'ios' ? directory :
     if (name === './components/AvatarResources') return {AvatarResourcesContext: React.createContext(null), useAvatarResource: (_slot, url) => url};
     if (name === './controlled-upgrade-visibility') return require('../../src/controlled-upgrade-visibility.ts');
     if (name === './settings/system-surface-preferences') return require('../../src/settings/system-surface-preferences.ts');
+    if (name === './reader/security.ts') return {readerProtectedHosts: () => ['fixture.test'], readerImageProxyOrigins: () => ['https://fixture.test']};
     assert(['expo-localization', './components/AvatarResources', './data', './i18n', './config', './payments/controller', './payments/expo-store', './native/platform', './system-actions/SaveURLHost', './system-actions/adapters'].includes(name), name);
     return {};
   }});

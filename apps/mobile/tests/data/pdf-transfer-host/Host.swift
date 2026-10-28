@@ -37,8 +37,11 @@ func drained() { for _ in 0..<300 { if SlaxPdfTransfers.count() == 0 { return };
     rejects { _ = try transfer(headerId).open(url("full"), headers: forbidden) }; SlaxPdfTransfers.end(owner: "account-a", id: headerId); drained()
     rejects { _ = try SlaxPdfTransfers.begin(owner: "account-a", origin: "http://remote.test", allowHTTP: true) }
     rejects { _ = try SlaxPdfTransfers.begin(owner: "account-a", origin: origin, allowHTTP: false) }
+    // Background acquisition never takes the transfers reserved for an open Reader's foreground ranges.
     let capacity = try (0..<6).map { _ in try begin() }; rejects { _ = try begin() }
-    capacity.forEach { SlaxPdfTransfers.end(owner: "account-a", id: $0) }; drained()
+    let reserved = try (0..<4).map { _ in try SlaxPdfTransfers.begin(owner: "account-a", origin: origin, allowHTTP: true, foreground: true) }
+    rejects { _ = try SlaxPdfTransfers.begin(owner: "account-a", origin: origin, allowHTTP: true, foreground: true) }
+    (capacity + reserved).forEach { SlaxPdfTransfers.end(owner: "account-a", id: $0) }; drained()
     let slow = try begin(), pending = try transfer(slow); _ = try pending.open(url("slow"), headers: headers)
     let entered = DispatchSemaphore(value: 0), finished = DispatchSemaphore(value: 0), lock = NSLock(); var cancelled = false
     DispatchQueue.global().async {

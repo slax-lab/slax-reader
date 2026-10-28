@@ -262,16 +262,21 @@ test('cache projection preserves manual flag and PDF pin semantics while ignorin
   assert.equal(updates[0][6].pdfOwner, 'owner');
 });
 
-test('cache candidate watches ignore title/updated timestamps but preserve status, ordering, type and account ownership', async t => {
+test('cache candidate watches ignore titles, carry the bookmark version and preserve status, ordering, type and account ownership', async t => {
   const f = fixture(); t.after(() => f.db.close());
   f.addBookmark('older', '2026-10-01'); f.addBookmark('newer', '2026-10-02');
   const updates: CacheCandidate[][] = [], cache = new CacheStateRepository(f.database);
   t.after(cache.watchPersonal(rows => updates.push(rows)));
   const initial = updates[0];
-  await f.database.execute("UPDATE sr_user_bookmark SET alias_title = 'Edited', updated_at = '2026-10-03', metadata = json_set(metadata, '$.bookmark.title', 'Changed') WHERE id = 'older'"); f.refresh();
+  assert.equal(initial[1].version, '2026-10-01');
+  await f.database.execute("UPDATE sr_user_bookmark SET alias_title = 'Edited', metadata = json_set(metadata, '$.bookmark.title', 'Changed') WHERE id = 'older'"); f.refresh();
   assert.equal(updates.length, 1);
+  await f.database.execute("UPDATE sr_user_bookmark SET updated_at = '2026-10-03' WHERE id = 'older'"); f.refresh();
+  assert.equal(updates.length, 2); assert.equal(updates[1][0], initial[0]); assert.equal(updates[1][1].version, '2026-10-03');
+  const versioned = updates[1][1];
   await f.database.execute("UPDATE sr_user_bookmark SET created_at = '2026-10-04' WHERE id = 'older'"); f.refresh();
-  assert.equal(updates.length, 2); assert.equal(updates[1][0], initial[1]); assert.equal(updates[1][1], initial[0]);
+  assert.equal(updates.length, 3); assert.equal(updates[2][0], versioned); assert.equal(updates[2][1], initial[0]);
+  updates.splice(1, 1);
   await f.database.execute("UPDATE sr_user_bookmark SET type = 2 WHERE id = 'older'"); f.refresh();
   assert.equal(updates[2][0].pdf, true);
   await f.database.execute("UPDATE sr_user_bookmark SET metadata = json_set(metadata, '$.bookmark.status', 'pending') WHERE id = 'older'"); f.refresh();

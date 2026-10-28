@@ -61,7 +61,7 @@ test('actual Kotlin pull transport bounds chunks, rejects redirects and drains c
   const network = kotlinNetwork;
   const output = resolve(f.output, 'host.jar');
   await run(process.env.SLAX_KOTLINC ?? 'kotlinc', ['-classpath', network, '-include-runtime', '-d', output,
-    ...['SlaxFileStore.kt', 'SlaxPdfTransfer.kt', 'SlaxPdfTransferModule.kt'].map(file => resolve(source, file)),
+    ...['SlaxFileStore.kt', 'SlaxPdfTransfer.kt'].map(file => resolve(source, file)),
     ...['ExpoModule.kt', 'Promise.kt'].map(file => resolve(root, 'tests/data/file-store-host', file)),
     ...['Context.kt', 'ApplicationInfo.kt'].map(file => resolve(root, 'tests/reader/native-resources-host', file)), resolve(root, 'tests/data/pdf-transfer-host/Host.kt')]);
   assert.match(await run(process.env.JAVA_HOME ? resolve(process.env.JAVA_HOME, 'bin/java') : 'java', ['-cp', [output, network].join(delimiter), 'com.slax.reader.platform.HostKt', f.origin, f.output]), /Kotlin bounded PDF transport passed/);
@@ -70,7 +70,7 @@ test('actual Kotlin pull transport bounds chunks, rejects redirects and drains c
 test('actual Swift pull transport bounds chunks, rejects redirects and drains cancellation under real HTTP', {skip: process.platform !== 'darwin'}, async t => {
   const f = await fixture(t), source = resolve(root, 'modules/slax-platform/ios'), output = resolve(f.output, 'host');
   await run('xcrun', ['swiftc', '-swift-version', '5', '-emit-module', '-emit-library', '-module-name', 'ExpoModulesCore', resolve(root, 'tests/data/file-store-host/ExpoModulesCore.swift'), '-o', resolve(f.output, 'libExpoModulesCore.dylib')]);
-  await run('xcrun', ['swiftc', '-swift-version', '5', '-typecheck', '-I', f.output, ...['SlaxFileStore.swift', 'SlaxPdfTransfer.swift', 'SlaxPdfTransferModule.swift'].map(file => resolve(source, file))]);
+  await run('xcrun', ['swiftc', '-swift-version', '5', '-typecheck', '-I', f.output, ...['SlaxFileStore.swift', 'SlaxPdfTransfer.swift'].map(file => resolve(source, file))]);
   await run('xcrun', ['swiftc', '-swift-version', '5', resolve(source, 'SlaxFileStore.swift'), resolve(source, 'SlaxPdfTransfer.swift'), resolve(root, 'tests/data/pdf-transfer-host/Host.swift'), '-o', output]);
   assert.match(await run(output, [f.origin]), /Swift bounded PDF transport passed/);
 });

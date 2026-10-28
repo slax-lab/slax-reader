@@ -10,11 +10,14 @@ enum SlaxPdfTransfers {
   private static let workers: OperationQueue = {
     let queue = OperationQueue(); queue.name = "SlaxPdfTransfer"; queue.qualityOfService = .utility; queue.maxConcurrentOperationCount = 6; return queue
   }()
-  static func begin(owner: String, origin: String, allowHTTP: Bool) throws -> String {
+  /// Background acquisition never takes the slots reserved for an open Reader's foreground ranges.
+  static let backgroundSlots = 6, foregroundSlots = 4
+  static func begin(owner: String, origin: String, allowHTTP: Bool, foreground: Bool = false) throws -> String {
     lock.lock(); defer { lock.unlock() }
-    guard active.count < 6 else { throw SlaxPdfTransferError(code: "busy") }
+    let running = active.values.filter { $0.foreground == foreground }.count
+    guard running < (foreground ? foregroundSlots : backgroundSlots) else { throw SlaxPdfTransferError(code: "busy") }
     let id = UUID().uuidString
-    let transfer = try SlaxPdfTransfer(owner: owner, origin: origin, allowHTTP: allowHTTP, lease: SlaxStorageOwner.capture(owner)) {
+    let transfer = try SlaxPdfTransfer(owner: owner, origin: origin, allowHTTP: allowHTTP, foreground: foreground, lease: SlaxStorageOwner.capture(owner)) {
       lock.lock(); active.removeValue(forKey: id); lock.unlock()
     }
     active[id] = transfer
@@ -38,6 +41,7 @@ enum SlaxPdfTransfers {
 
 final class SlaxPdfTransfer: NSObject, URLSessionDataDelegate, URLSessionDownloadDelegate {
   let owner: String
+  let foreground: Bool
   var expiry: DispatchWorkItem?
   private let origin: URLComponents
   private let lease: SlaxStorageLease
@@ -58,11 +62,11 @@ final class SlaxPdfTransfer: NSObject, URLSessionDataDelegate, URLSessionDownloa
   func completeOperation() { condition.lock(); submitted = false; condition.unlock() }
   private var error: SlaxPdfTransferError?
 
-  init(owner: String, origin: String, allowHTTP: Bool, lease: SlaxStorageLease, released: @escaping () -> Void) throws {
+  init(owner: String, origin: String, allowHTTP: Bool, foreground: Bool = false, lease: SlaxStorageLease, released: @escaping () -> Void) throws {
     guard let base = URLComponents(string: origin), let host = base.host, !host.isEmpty,
       base.user == nil, base.password == nil, base.query == nil, base.fragment == nil, ["", "/"].contains(base.path),
       base.scheme == "https" || allowHTTP && base.scheme == "http" && ["127.0.0.1", "localhost", "[::1]", "::1"].contains(host) else { throw SlaxPdfTransferError(code: "protocol") }
-    self.owner = owner; self.origin = base; self.lease = lease; self.released = released
+    self.owner = owner; self.foreground = foreground; self.origin = base; self.lease = lease; self.released = released
   }
   private func check() throws {
     if let error { throw error }
@@ -95,7 +99,7 @@ final class SlaxPdfTransfer: NSObject, URLSessionDataDelegate, URLSessionDownloa
       let configuration = URLSessionConfiguration.ephemeral
       configuration.httpShouldSetCookies = false; configuration.httpCookieStorage = nil; configuration.urlCache = nil
       configuration.urlCredentialStorage = nil; configuration.timeoutIntervalForRequest = 120; configuration.timeoutIntervalForResource = 120
-      let delegate = OperationQueue(); delegate.name = "SlaxPdfDelegate"; delegate.qualityOfService = .utility; delegate.maxConcurrentOperationCount = 1
+      let delegate = OperationQueue(); delegate.name = "SlaxPdfDelegate"; delegate.qualityOfService = foreground ? .userInitiated : .utility; delegate.maxConcurrentOperationCount = 1
       let session = URLSession(configuration: configuration, delegate: self, delegateQueue: delegate)
       self.session = session; let task = session.dataTask(with: request); self.task = task; task.resume()
       while response == nil && error == nil { condition.wait() }

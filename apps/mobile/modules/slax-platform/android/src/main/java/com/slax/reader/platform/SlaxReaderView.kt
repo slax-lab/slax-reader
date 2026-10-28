@@ -34,6 +34,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
   }
   override val shouldUseAndroidLayout = true
   val onEvent by EventDispatcher()
+  val onContentHeight by EventDispatcher()
   val resourceHandler: SlaxResources = SlaxResources(context) { ownsResources() }
   @Volatile private var resourceOwner: String? = null
   fun setResourceOwner(owner: String?) {
@@ -43,10 +44,24 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
   var html = ""
     set(value) { field = if (detached) "" else value }
   var pageId = ""
-  private var pdfMode = false
+  @Volatile private var pdfMode = false
   fun setPdfMode(value: Boolean) {
     if (pdfMode != value && (loaded != null || security != null)) { detach(); return }
     pdfMode = value
+  }
+  /** The document whose byte ranges this PDF host serves to its page; immutable once set. */
+  @Volatile private var pdfSource: SlaxPdfSource? = null
+  fun setPdfSource(raw: Map<*, *>?) {
+    val next = SlaxPdfSource.parse(raw)
+    if (raw != null && next == null) { emit("error", mapOf("message" to "Invalid PDF source", "code" to "pdfSource")); detach(); return }
+    if (pdfSource != null && pdfSource != next) { detach(); return }
+    pdfSource = next
+  }
+  // Requests arrive on WebView worker threads; the scope reads only volatile state of this view.
+  private val pdfRanges = SlaxPdfRanges({ SlaxOfflineEngines.engine(context) }, SlaxReaderSecurity.PDF_ORIGIN) {
+    val owner = resourceOwner
+    val source = pdfSource
+    if (!pdfMode || resourceHandler.isFixture || detached || owner == null || owner != activeOwner || loadedOwner != owner || source == null) null else source to owner
   }
   private var security: SlaxReaderSecurity? = null
   private var protectedHosts: List<String>? = null
@@ -58,7 +73,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
   }
   private var loaded: String? = null
   private var loadedPageId: String? = null
-  private var loadedOwner: String? = null
+  @Volatile private var loadedOwner: String? = null
   private var generation = 0
   private var navigationStarted = false
   private var evaluationSequence = 0
@@ -99,7 +114,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
   private val identity = View.generateViewId()
   private var retainedWebView: WebView? = object : WebView(context) {
     private fun suppress(callback: ActionMode.Callback): ActionMode.Callback = object : ActionMode.Callback {
-      override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean { val created = callback.onCreateActionMode(mode, menu); menu.clear(); emit("touch", mapOf("screenY" to screenY)); return created }
+      override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean { val created = callback.onCreateActionMode(mode, menu); menu.clear(); emitTouch(); return created }
       override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean { callback.onPrepareActionMode(mode, menu); menu.clear(); return false }
       override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean = false
       override fun onDestroyActionMode(mode: ActionMode) { callback.onDestroyActionMode(mode) }
@@ -113,7 +128,8 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     }
     override fun onTouchEvent(event: MotionEvent): Boolean {
       screenY = event.rawY / resourceHandler.displayDensity
-      if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_MOVE || event.actionMasked == MotionEvent.ACTION_UP) emit("touch", mapOf("screenY" to screenY))
+      // Selection placement only needs the press and release points; moves stay native.
+      if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_UP) emitTouch()
       return super.onTouchEvent(event)
     }
   }
@@ -135,7 +151,12 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     webView.overScrollMode = View.OVER_SCROLL_NEVER
     webView.addJavascriptInterface(object { @JavascriptInterface fun postMessage(data: String) {
       if (data.length > 8 * 1024 * 1024) return
-      post { if (permitsEvaluation()) emit("message", mapOf("data" to data)) }
+      val height = documentHeight(data)
+      post {
+        if (!permitsEvaluation()) return@post
+        if (height != null && height.first == pageId) scheduleContentHeight(height.second)
+        emit("message", mapOf("data" to data))
+      }
     } }, "ReactNativeWebView")
     webView.webChromeClient = WebChromeClient()
     webView.webViewClient = object : WebViewClient() {
@@ -148,6 +169,9 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
       }
       override fun onPageFinished(view: WebView, url: String?) { emit("loadEnd") }
       override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+        if (pdfMode && !request.isForMainFrame) pdfRanges.handle(request.url.toString(), request.method, request.requestHeaders.orEmpty())?.let {
+          return WebResourceResponse(it.mimeType, null, it.status, it.reason, it.headers, it.body)
+        }
         if (pdfMode && !request.isForMainFrame && request.url.scheme in listOf("blob", "data")) return null
         if (pdfMode || request.isForMainFrame || request.url.scheme in listOf("slaxmedia", "slaxmedias", "slaxstatic", "slaxstatics") && request.method != "GET") return WebResourceResponse("text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0)))
         return resourceHandler.intercept(request.url.toString(), request.requestHeaders)
@@ -165,6 +189,34 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
   }
   private fun emit(type: String, fields: Map<String, Any> = emptyMap()) { if (!detached) onEvent(fields + mapOf("type" to type, "target" to identity, "pageId" to pageId)) }
+  private fun emitTouch() = emit("touch", mapOf("screenY" to screenY))
+
+  // The article host measures its document height (scrollHeight, CSS px == dp) and reports it through its own bridge
+  // message. The value is applied to this view's container on the UI thread, deduplicated and at most once per frame.
+  private var appliedContentHeight = -1.0
+  private var pendingContentHeight: Double? = null
+  private fun documentHeight(data: String): Pair<String, Double>? {
+    if (pdfMode || data.length > 512 || !data.contains("\"contentHeight\"")) return null
+    return try {
+      val envelope = org.json.JSONObject(data)
+      val payload = envelope.optJSONObject("payload") ?: return null
+      if (envelope.optString("channel") != "slax-reader" || payload.optString("type") != "contentHeight") return null
+      val height = payload.optDouble("height", Double.NaN)
+      if (height.isFinite() && height > 0) envelope.optString("pageId") to height else null
+    } catch (_: Exception) { null }
+  }
+  private fun scheduleContentHeight(height: Double) {
+    val scheduled = pendingContentHeight != null
+    pendingContentHeight = height
+    if (scheduled) return
+    postOnAnimation {
+      val next = pendingContentHeight ?: return@postOnAnimation
+      pendingContentHeight = null
+      if (detached || kotlin.math.abs(next - appliedContentHeight) < 1.0) return@postOnAnimation
+      appliedContentHeight = next
+      onContentHeight(mapOf("height" to next))
+    }
+  }
   fun loadPendingDocument() {
     if (detached || !ownsResources()) return
     val hosts = protectedHosts ?: return
@@ -179,7 +231,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
       return
     }
     if (html.isNotEmpty() && pageId.isNotEmpty()) {
-      resourceHandler.cancelAll(); loaded = html; loadedPageId = pageId; loadedOwner = resourceOwner; generation++
+      resourceHandler.cancelAll(); pdfRanges.cancelAll(); loaded = html; loadedPageId = pageId; loadedOwner = resourceOwner; generation++
       var document = try { if (pdfMode) SlaxReaderSecurity.pdfDocument(html, pageId) else SlaxReaderSecurity.document(html) } catch (_: Exception) { detach(); return }
       if (resourceHandler.isFixture && !pdfMode) {
         val policy = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob: slaxstatic: slaxstatics:; media-src data: blob:; connect-src 'none'; frame-src 'none'; child-src 'none'; base-uri 'none'; form-action 'none'\">"
@@ -194,7 +246,7 @@ class SlaxReaderView(context: Context, appContext: AppContext) : ExpoView(contex
     detached = true; generation++
     val pending = evaluations.values.toList(); evaluations.clear()
     pending.forEach { it.reject("E_READER_RELEASED", "Reader page was released", null) }
-    activeViews.remove(this); resourceHandler.close()
+    activeViews.remove(this); resourceHandler.close(); pdfRanges.close()
     html = ""; loaded = null; loadedPageId = null; loadedOwner = null
     val released = retainedWebView
     retainedWebView = null

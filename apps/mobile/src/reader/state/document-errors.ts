@@ -1,6 +1,14 @@
 import {getDataErrorDiagnostic} from '../../data/transport-errors'
 import {rssErrorCode} from '../../rss/controller'
+import {offlineEngineError} from '../../data/offline-engine'
 import {pdfFailure} from '../pdf-errors'
+
+/** A byte-range failure reported by the PDF page carries the native engine code; map it like any other engine read. */
+export const pdfRangeError = (error: Error): unknown => {
+  const failure = pdfFailure(error, 'document')
+  if (failure.stage !== 'pdf-range') return error
+  return offlineEngineError({code: failure.code, message: failure.status ? `${failure.code} (${failure.status})` : failure.code}, 'pdf-range')
+}
 
 export const pdfMustInvalidate = (error: unknown) => {
   const diagnostic = getDataErrorDiagnostic(error)

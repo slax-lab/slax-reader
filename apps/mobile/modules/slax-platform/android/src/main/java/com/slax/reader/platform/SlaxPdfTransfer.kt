@@ -18,19 +18,22 @@ internal class SlaxPdfTransferError(val code: String) : Exception("PDF transfer 
 internal object SlaxPdfTransfers {
   const val CHUNK_BYTES = 64 * 1024
   const val MAX_BYTES = 50L * 1024 * 1024
-  private const val MAX_TRANSFERS = 6
+  private const val MAX_TRANSFERS = 12
   private val lock = Any()
   private val active = ConcurrentHashMap<String, SlaxPdfTransfer>()
-  private val workers = ThreadPoolExecutor(6, 6, 30, TimeUnit.SECONDS, ArrayBlockingQueue<Runnable>(24)) { work -> Thread(work, "SlaxPdfTransfer").apply { isDaemon = true } }
+  private val workers = ThreadPoolExecutor(6, 6, 30, TimeUnit.SECONDS, ArrayBlockingQueue<Runnable>(48)) { work -> Thread(work, "SlaxPdfTransfer").apply { isDaemon = true } }
   private val expiry = ScheduledThreadPoolExecutor(1) { work -> Thread(work, "SlaxPdfExpiry").apply { isDaemon = true } }.apply { removeOnCancelPolicy = true }
-  private val client = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).cookieJar(CookieJar.NO_COOKIES)
+  internal val client: OkHttpClient = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).cookieJar(CookieJar.NO_COOKIES)
     .retryOnConnectionFailure(false).callTimeout(120, TimeUnit.SECONDS).connectTimeout(30, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).build()
 
-  fun begin(owner: String, origin: String, allowHttp: Boolean): String = synchronized(lock) {
-    if (active.size >= MAX_TRANSFERS) throw SlaxPdfTransferError("busy")
+  /** Background acquisition never takes the transfers reserved for an open Reader's foreground ranges. */
+  private const val FOREGROUND_TRANSFERS = 4
+  fun begin(owner: String, origin: String, allowHttp: Boolean, foreground: Boolean = false): String = synchronized(lock) {
+    val running = active.values.count { it.foreground == foreground }
+    if (running >= if (foreground) FOREGROUND_TRANSFERS else MAX_TRANSFERS - FOREGROUND_TRANSFERS) throw SlaxPdfTransferError("busy")
     val lease = SlaxStorageOwner.capture(owner)
     val id = java.util.UUID.randomUUID().toString()
-    val transfer = SlaxPdfTransfer(owner, origin, allowHttp, lease, client) { active.remove(id) }
+    val transfer = SlaxPdfTransfer(owner, origin, allowHttp, lease, client, foreground) { active.remove(id) }
     active[id] = transfer
     val timer = expiry.schedule({ end(owner, id) }, 120, TimeUnit.SECONDS)
     transfer.finished = { timer.cancel(false) }
@@ -50,6 +53,14 @@ internal object SlaxPdfTransfers {
     try {workers.execute(work)} catch (_: java.util.concurrent.RejectedExecutionException) {rejected()}
   }
   fun count() = active.size
+  /** Accepts an HTTPS API origin, or a loopback HTTP origin in development builds. */
+  fun origin(raw: String, allowHttp: Boolean): URI {
+    val uri = runCatching { URI(raw) }.getOrElse { throw SlaxPdfTransferError("protocol") }
+    val loopback = uri.host in listOf("127.0.0.1", "localhost", "[::1]", "::1", "10.0.2.2")
+    if (uri.host.isNullOrEmpty() || uri.rawUserInfo != null || uri.rawQuery != null || uri.rawFragment != null || uri.rawPath !in listOf("", "/") ||
+      uri.scheme != "https" && !(allowHttp && uri.scheme == "http" && loopback)) throw SlaxPdfTransferError("protocol")
+    return uri
+  }
 }
 
 internal class SlaxPdfTransfer(
@@ -58,6 +69,7 @@ internal class SlaxPdfTransfer(
   private val allowHttp: Boolean,
   private val lease: SlaxStorageLease,
   private val client: OkHttpClient,
+  val foreground: Boolean,
   private val released: () -> Unit,
 ) {
   private val io = Any()
@@ -77,13 +89,7 @@ internal class SlaxPdfTransfer(
   private var advertised: Long? = null
 
   init { validateOrigin(origin) }
-  private fun validateOrigin(raw: String): URI {
-    val uri = runCatching { URI(raw) }.getOrElse { throw SlaxPdfTransferError("protocol") }
-    val loopback = uri.host in listOf("127.0.0.1", "localhost", "[::1]", "::1", "10.0.2.2")
-    if (uri.host.isNullOrEmpty() || uri.rawUserInfo != null || uri.rawQuery != null || uri.rawFragment != null || uri.rawPath !in listOf("", "/") ||
-      uri.scheme != "https" && !(allowHttp && uri.scheme == "http" && loopback)) throw SlaxPdfTransferError("protocol")
-    return uri
-  }
+  private fun validateOrigin(raw: String): URI = SlaxPdfTransfers.origin(raw, allowHttp)
   private fun check() {
     if (cancelled.get()) throw SlaxPdfTransferError("cancelled")
     try {lease.check()} catch (_: Exception) {throw SlaxPdfTransferError("cancelled")}

@@ -1,4 +1,3 @@
-import {Sha256} from '../src/data/pdf-sha256.ts';
 import {throwIfAborted} from '../src/utils/abort.ts';
 import type {FixturePdf} from './pdf.ts';
 
@@ -32,7 +31,7 @@ export function createFixturePdfImport(options: {
         state.rejectedUploads++; record(); throw new Error('Only the seeded synthetic PDF is accepted');
       }
       const bytes = new Uint8Array(await file.arrayBuffer()); current(); throwIfAborted(signal);
-      if (bytes.length !== options.document.descriptor.size || new Sha256().update(bytes).digest() !== options.document.descriptor.document_id) {
+      if (bytes.length !== options.document.descriptor.size || bytes.some((byte, index) => byte !== options.document.bytes[index])) {
         state.rejectedUploads++; record(); throw new Error('Only the seeded synthetic PDF is accepted');
       }
       state.acceptedUploads++; state.matchedBytes = bytes.length;

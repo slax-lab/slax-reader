@@ -56,66 +56,43 @@ public final class SlaxStorageModule: Module {
       self.writeLock.unlock()
       if entry?.0 == owner { entry?.1.cancel() }
     }
-    AsyncFunction("readBytes") { (directory: String, owner: String?, path: String, versioned: Bool, promise: Promise) in
-      try self.submit(directory, owner: owner, promise: promise) { try $0.read(path, versioned: versioned, limit: SlaxFileStore.blockLimit) }
+    AsyncFunction("readBytes") { (directory: String, owner: String?, path: String, promise: Promise) in
+      try self.submit(directory, owner: owner, promise: promise) { try $0.read(path, limit: SlaxFileStore.articleLimit) }
     }
     AsyncFunction("readText") { (directory: String, owner: String?, path: String, promise: Promise) in
       try self.submit(directory, owner: owner, promise: promise) { store in
-        guard let bytes = try store.read(path, versioned: false, limit: SlaxFileStore.articleLimit) else { return nil }
+        guard let bytes = try store.read(path, limit: SlaxFileStore.articleLimit) else { return nil }
         guard let text = String(data: bytes, encoding: .utf8) else { throw SlaxFileStoreError.invalid }; return text
       }
     }
-    AsyncFunction("writeBytes") { (directory: String, owner: String?, path: String, bytes: Data, versioned: Bool, promise: Promise) in
-      try self.submit(directory, owner: owner, bytes: bytes.count, promise: promise) { try $0.write(path, bytes: bytes, versioned: versioned) }
-    }
-    AsyncFunction("writeBlock") { (directory: String, owner: String?, id: String, path: String, bytes: Data, promise: Promise) in
-      self.writeLock.lock(); let entry = self.writes[id]; self.writeLock.unlock()
-      guard let entry, entry.0 == owner, path.hasPrefix("pdf/"), bytes.count <= SlaxFileStore.blockLimit else { throw SlaxFileStoreError.revoked }
-      try self.submit(directory, owner: owner, bytes: bytes.count, promise: promise, captured: entry.1) { try $0.write(path, bytes: bytes, versioned: true) }
+    AsyncFunction("writeBytes") { (directory: String, owner: String?, path: String, bytes: Data, promise: Promise) in
+      try self.submit(directory, owner: owner, bytes: bytes.count, promise: promise) { try $0.write(path, bytes: bytes) }
     }
     AsyncFunction("writeImage") { (directory: String, owner: String?, id: String, path: String, bytes: Data, promise: Promise) in
       self.writeLock.lock(); let entry = self.writes[id]; self.writeLock.unlock()
       guard let entry, entry.0 == owner, path.hasPrefix("bookmark/"), path.contains("/images/") else { throw SlaxFileStoreError.revoked }
-      try self.submit(directory, owner: owner, bytes: bytes.count, promise: promise, captured: entry.1) { try $0.write(path, bytes: bytes, versioned: false) }
+      try self.submit(directory, owner: owner, bytes: bytes.count, promise: promise, captured: entry.1) { try $0.write(path, bytes: bytes) }
     }
     AsyncFunction("writeText") { (directory: String, owner: String?, path: String, text: String, promise: Promise) in
       guard text.utf8.count <= SlaxFileStore.articleLimit else { throw SlaxFileStoreError.oversized }
-      try self.submit(directory, owner: owner, bytes: text.utf8.count, promise: promise) { try $0.write(path, bytes: Data(text.utf8), versioned: false) }
+      try self.submit(directory, owner: owner, bytes: text.utf8.count, promise: promise) { try $0.write(path, bytes: Data(text.utf8)) }
     }
     AsyncFunction("writeArticle") { (directory: String, owner: String?, id: String, path: String, text: String, promise: Promise) in
       self.writeLock.lock(); let entry = self.writes[id]; self.writeLock.unlock()
       guard let entry, entry.0 == owner, path.hasPrefix("bookmark/"), path.hasSuffix("/content.html"), text.utf8.count <= SlaxFileStore.articleLimit else { throw SlaxFileStoreError.invalid }
-      try self.submit(directory, owner: owner, bytes: text.utf8.count, promise: promise, captured: entry.1) { try $0.write(path, bytes: Data(text.utf8), versioned: false) }
+      try self.submit(directory, owner: owner, bytes: text.utf8.count, promise: promise, captured: entry.1) { try $0.write(path, bytes: Data(text.utf8)) }
     }
-    AsyncFunction("textFingerprint") { (directory: String, owner: String?, text: String, promise: Promise) in
-      guard text.utf8.count <= SlaxFileStore.articleLimit else { throw SlaxFileStoreError.oversized }
-      try self.submit(directory, owner: owner, bytes: text.utf8.count, promise: promise) { try $0.textFingerprint(text) }
+    AsyncFunction("size") { (directory: String, owner: String?, path: String, promise: Promise) in
+      try self.submit(directory, owner: owner, promise: promise) { try $0.size(path) }
     }
-    AsyncFunction("fingerprint") { (directory: String, owner: String?, path: String, promise: Promise) in
-      try self.submit(directory, owner: owner, promise: promise) { try $0.fingerprint(path) }
-    }
-    AsyncFunction("size") { (directory: String, owner: String?, path: String, versioned: Bool, promise: Promise) in
-      try self.submit(directory, owner: owner, promise: promise) { try $0.size(path, versioned: versioned) }
-    }
-    AsyncFunction("list") { (directory: String, owner: String?, path: String, versioned: Bool, promise: Promise) in
-      try self.submit(directory, owner: owner, promise: promise) { try $0.list(path, versioned: versioned) }
+    AsyncFunction("list") { (directory: String, owner: String?, path: String, promise: Promise) in
+      try self.submit(directory, owner: owner, promise: promise) { try $0.list(path) }
     }
     AsyncFunction("measure") { (directory: String, owner: String?, path: String, promise: Promise) in
       try self.submit(directory, owner: owner, promise: promise) { try $0.measure(path) }
     }
-    AsyncFunction("stageRemoval") { (directory: String, owner: String?, id: String, path: String, generation: String, promise: Promise) in
-      self.writeLock.lock(); let entry = self.writes[id]; self.writeLock.unlock()
-      guard let entry, entry.0 == owner else { throw SlaxFileStoreError.revoked }
-      try self.submit(directory, owner: owner, promise: promise, captured: entry.1) { try $0.stageRemoval(path, generation: generation); return nil }
-    }
-    AsyncFunction("restoreRemoval") { (directory: String, owner: String?, path: String, generation: String, promise: Promise) in
-      try self.submit(directory, owner: owner, promise: promise) { try $0.restoreRemoval(path, generation: generation); return nil }
-    }
-    AsyncFunction("purgeRemoval") { (directory: String, owner: String?, path: String, generation: String, promise: Promise) in
-      try self.submit(directory, owner: owner, promise: promise) { try $0.purgeRemoval(path, generation: generation); return nil }
-    }
-    AsyncFunction("remove") { (directory: String, owner: String?, path: String, versioned: Bool, promise: Promise) in
-      try self.submit(directory, owner: owner, promise: promise) { try $0.remove(path, versioned: versioned); return nil }
+    AsyncFunction("remove") { (directory: String, owner: String?, path: String, promise: Promise) in
+      try self.submit(directory, owner: owner, promise: promise) { try $0.remove(path); return nil }
     }
   }
 }
