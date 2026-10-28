@@ -67,7 +67,7 @@ Every new migration carries the declaration header described in `REVIEW.md`. Ord
 
 When the deployment evidence is missing, failed, still running, or ambiguous, the check fails closed. Correct the declaration to the commit the deployment recorded, or use the adjudicated runbook in `REVIEW.md`; never reclassify a destructive migration as `expand`.
 
-A `hotfix/*` release may add only `expand` migrations; `migrate` and `contract` ship through a normal release. After an out-of-band `wrangler rollback`, no contract proceeds until a pipeline redeploy completes. The delivery branch for a migration-change pull request uses the change-id as its suffix, like any task branch, and the branch name is checked before the pull request opens.
+A `hotfix/*` release may add only `expand` migrations; `migrate` and `contract` ship through a normal release. After an out-of-band `wrangler rollback`, no contract proceeds until a pipeline redeploy completes. The delivery branch for a migration-change pull request uses the change-id as its suffix, like any task branch, and the author verifies that suffix before the pull request opens.
 
 ## Promotion mechanics
 

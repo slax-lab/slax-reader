@@ -32,6 +32,7 @@ This change implements the two-checkpoint design and the direct deployment looku
 - `.github/workflows/promotion-gate.yml` — full history, base/head fetch, `MIGRATION_*` inputs.
 - `.github/workflows/api-deploy.yml` — the superseded and migration checks immediately after checkout/setup-node, before `pnpm install`, Cloudflared, private configuration, firewall, or Tunnel; full history; read scopes; checker in the path filter.
 - `package.json` — `test:ci` includes the new suite; `test:migration-evidence` local command.
+- `apps/api/test/script/rootCommands.test.ts` — root script contract updated with `test:migration-evidence`.
 - `REVIEW.md` — four real migration families, declaration procedure, contract evidence, hotfix rule, rollback confirmation, adjudicated runbook.
 - `docs/CI.md`, `docs/BRANCHING.md`, `docs/api/DEVELOPMENT-DOCUMENT-EN.md` — checkpoints, direct lookup, failure behavior, operator rules, examples for all three classes.
 - `.rulesync/rules/api-commands.md` and generated `apps/api/AGENTS.md` — declaration procedure for backend agents.
@@ -44,9 +45,12 @@ This change implements the two-checkpoint design and the direct deployment looku
 | `node --test tooling/migration-release-evidence.test.mjs` | 31 passed, 0 failed |
 | `pnpm test:ci` | 103 passed, 0 failed |
 | `pnpm test:preflight` | 104 passed, 0 failed, 2 skipped |
+| `pnpm api -- test` | 194 files passed, 14 skipped; 2534 tests passed, 112 skipped, 0 failed |
 | `pnpm exec openspec validate --all --strict` | 82 passed, 0 failed |
 | `pnpm agent:check` | rulesync doctor, generate check, strict OpenSpec, and gh-aw drift all passed (exit 0) |
 | `git diff --check` | no whitespace errors |
+
+The API suite ran after `pnpm api -- config:init` and `pnpm api -- gen:all` with the placeholder database URLs from `.github/workflows/api-ci.yml`, matching the CI job's sequence.
 
 ## Exercised scenarios
 
@@ -80,6 +84,12 @@ The independent review of `4413f6ee` returned `p1-4items` / fix-then-merge. The 
 6. **Full history documented.** `proposal.md`, `design.md`, and `tasks.md` now describe `fetch-depth: 0`, matching the delivered workflows and tests.
 7. **Stale approval text removed.** `proposal.md` no longer says the diff is planning-only or that approval is missing.
 
+## API CI failure and resolution
+
+The first delivery failed API CI in `apps/api/test/script/rootCommands.test.ts`: the test asserts the exact sorted list of root scripts, and the change added `test:migration-evidence` to `package.json` without updating that list. Resolved by adding the script to the expected list; no other contract change. The targeted test passes, and the full suite passes under the same sequence API CI uses (`pnpm api -- gen:all` then `pnpm api -- test`).
+
+The automated documentation review also flagged a `docs/BRANCHING.md` sentence that claimed the delivery branch name is checked before the pull request opens; no such machine check exists. The sentence now states that the author verifies the suffix. PR #431's recorded branch-naming exception is unchanged.
+
 ## Local pre-push review
 
 The REVIEW.md passes were re-run against the updated diff:
@@ -87,6 +97,8 @@ The REVIEW.md passes were re-run against the updated diff:
 - **Bugs.** The round-1 mixed-record and duplicate-step defects are covered by new fixtures; no further defect found in the parser, diff, ancestry, classification, grouping, or CLI paths.
 - **Security.** No secrets or private values are printed; API tokens stay in request headers; no new dependency; no remote mutation. Evidence-stage API errors are asserted not to leak the response body.
 - **Compliance.** The diff matches the approved change and its delta specs; the workflow now performs the approved checkpoint before remote release access; verification evidence is recorded here. No UI-visible change, so no hands-on acceptance applies; `docs/release/VERSIONING.md` excludes API and Web from package-version increments, so no version bump is required.
+
+Round 2 (the API CI fix and documentation correction): the expected root-script list now includes `test:migration-evidence` and matches `package.json`; the `docs/BRANCHING.md` sentence now states that the author verifies the suffix; the validation record describes the CI failure and its resolution without a current-head claim. No Important findings.
 
 No Important findings remain.
 
