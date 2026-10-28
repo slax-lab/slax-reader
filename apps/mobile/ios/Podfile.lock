@@ -271,6 +271,36 @@ PODS:
     - ExpoModulesCore
     - ExpoModulesWorklets
     - React-RCTFabric
+  - EXStructuredHeaders (58.0.1)
+  - EXUpdates (58.0.18):
+    - EASClient
+    - EXManifests
+    - ExpoModulesCore
+    - EXStructuredHeaders
+    - EXUpdatesInterface
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - ReachabilitySwift
+    - React-bridging
+    - React-Core
+    - React-Core-prebuilt
+    - React-cxxstableapi
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - EXUpdatesInterface (58.0.1):
     - ExpoModulesCore
   - fast_float (8.0.0):
@@ -529,6 +559,7 @@ PODS:
     - FBLazyVector (= 0.88.0)
     - RCTRequired (= 0.88.0)
     - React-Core (= 0.88.0)
+  - ReachabilitySwift (5.2.4)
   - React (0.88.0):
     - React-Core (= 0.88.0)
     - React-Core/DevSupport (= 0.88.0)
@@ -2712,6 +2743,8 @@ DEPENDENCIES:
   - "ExpoSensors (from `../../../node_modules/.pnpm/expo-sensors@58.0.4_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-color@_fd5aaaf6d734681fc9659ecab8de677f/node_modules/expo-sensors/ios`)"
   - "ExpoSharing (from `../../../node_modules/.pnpm/expo-sharing@58.0.19_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-color_99abbf6c6475ac8a2f8b894d3555f265/node_modules/expo-sharing/ios`)"
   - "ExpoUI (from `../../../node_modules/.pnpm/@expo+ui@58.0.21_@babel+core@7.29.7_supports-color@10.2.2__expo@58.0.16_react-dom@19.3._89de926a9fa50ceaf754ac8212f2d0ed/node_modules/@expo/ui/ios`)"
+  - "EXStructuredHeaders (from `../../../node_modules/.pnpm/expo-structured-headers@58.0.1/node_modules/expo-structured-headers/ios`)"
+  - "EXUpdates (from `../../../node_modules/.pnpm/expo-updates@58.0.18_expo-dev-client@58.0.14_expo@58.0.16_react-native@0.88.0_@babel+co_1434907d5f8c5255055c3eaf80a4992a/node_modules/expo-updates/ios`)"
   - "EXUpdatesInterface (from `../../../node_modules/.pnpm/expo-updates-interface@58.0.1_expo@58.0.16/node_modules/expo-updates-interface/ios`)"
   - fast_float (from `build/rndeps-facades/fast_float`)
   - FBLazyVector (from `build/rncore-facades/FBLazyVector`)
@@ -2840,6 +2873,7 @@ SPEC REPOS:
     - powersync-sqlite-core
     - PromisesObjC
     - PromisesSwift
+    - ReachabilitySwift
     - RecaptchaInterop
 
 EXTERNAL SOURCES:
@@ -2917,6 +2951,10 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/expo-sharing@58.0.19_expo@58.0.16_react-native@0.88.0_@babel+core@7.29.7_supports-color_99abbf6c6475ac8a2f8b894d3555f265/node_modules/expo-sharing/ios"
   ExpoUI:
     :path: "../../../node_modules/.pnpm/@expo+ui@58.0.21_@babel+core@7.29.7_supports-color@10.2.2__expo@58.0.16_react-dom@19.3._89de926a9fa50ceaf754ac8212f2d0ed/node_modules/@expo/ui/ios"
+  EXStructuredHeaders:
+    :path: "../../../node_modules/.pnpm/expo-structured-headers@58.0.1/node_modules/expo-structured-headers/ios"
+  EXUpdates:
+    :path: "../../../node_modules/.pnpm/expo-updates@58.0.18_expo-dev-client@58.0.14_expo@58.0.16_react-native@0.88.0_@babel+co_1434907d5f8c5255055c3eaf80a4992a/node_modules/expo-updates/ios"
   EXUpdatesInterface:
     :path: "../../../node_modules/.pnpm/expo-updates-interface@58.0.1_expo@58.0.16/node_modules/expo-updates-interface/ios"
   fast_float:
@@ -3149,7 +3187,7 @@ SPEC CHECKSUMS:
   ExpoLocalization: ed930f5d68e7b3c2073a04787358839e1a8e1680
   ExpoLogBox: 14c42e5429c85e1e2acfb9316b4e821db8e40d42
   ExpoMediaLibrary: 536f542d5fc1266c99627f66bdee9493b8139de9
-  ExpoModulesCore: 6e6c84f652769285c7e9c684beebd45bb8853f53
+  ExpoModulesCore: 30e19edbd9664fd74623e5e0429ebc01f8e1d19f
   ExpoModulesJSI: e5d1a819a2f39a87aeb4c1ced02357d3a55b400c
   ExpoModulesWorklets: a09d8313cdc714c0e539f5f432445d6a9783d2e2
   ExpoModulesWorkletsAdapter: af28304098cadef4feae172c37c0a4d2771c0416
@@ -3159,6 +3197,8 @@ SPEC CHECKSUMS:
   ExpoSensors: c126f95565e222791ba5e9ce8535e4e2ecfad1c3
   ExpoSharing: 50a4b4e2686aa32214ffa1cbf1999b3db86f35e6
   ExpoUI: 2dfa03387386304db67c1fb125c67beec0813ae6
+  EXStructuredHeaders: d38b81fb2ff838c15bf28135deb247e76293d2b9
+  EXUpdates: 9ae98510134bbacb8b94f46c561f5ba8da45c2a2
   EXUpdatesInterface: 1c6a522d0eb0485f4de3fa55d0316288763b3f10
   fast_float: 7c925d1cebf8328d4018d061f49377e9f887e3b4
   FBLazyVector: fdebac2dfe9c53bca49f8218fbdf1e24e36c8be0
@@ -3195,6 +3235,7 @@ SPEC CHECKSUMS:
   RCTSwiftUI: 4b21ec5b1f86acb9c96bb429100ad88d4023ed76
   RCTSwiftUIWrapper: 68bd9fac4e710259cb2b202472adc5f4d113e872
   RCTTypeSafety: 77078a9c26030dd84a6bdae74ed900159f89a098
+  ReachabilitySwift: 32793e867593cfc1177f5d16491e3a197d2fccda
   React: 8dafd0ef058191e9e7238cfa6b3deaa24398e5dd
   React-bridging: 7c54be133225720d355418ec645943262a1aa5bb
   React-callinvoker: b76a26472ac4f42362f18393379740ea003b2bc6
