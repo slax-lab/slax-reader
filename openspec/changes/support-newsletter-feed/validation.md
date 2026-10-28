@@ -1,3 +1,5 @@
+> Current implementation (2026-10-28): the user explicitly rejected early Newsletter compatibility because the feature has not shipped. The consolidated first-release migration creates platform-only addresses and direct numeric receipt IDs; legacy Newsletter tables, fields, projections and raw/MIME recovery are removed. Current cleaned-content JSON recovery and already-shipped RSS compatibility remain. Earlier records below describe superseded revisions.
+
 > Current implementation decision (2026-10-27 review revision): immutable Newsletter platform bindings and BIGINT receipt primary keys replace the runtime registry/UUID-key design. New email awaits publication; sanitized MIME staging plus historical raw recovery remain until an SMTP retry experiment permits removal. NEWSLETTER_ENABLED is removed; non-dev domains are explicitly empty during the pilot. The review-revision record below supersedes earlier implementation details.
 
 > Current rollout decision (2026-10-27): Newsletter synchronization is deferred. The REST-first revision at the end of this record supersedes earlier Newsletter stream/publication acceptance requirements. RSS compatibility filtering and existing collection synchronization still apply.
@@ -263,3 +265,35 @@ Version assessment: Web/API do not use package increments. CLI/Extension/Mobile 
 Application commit 9ca18131 was pushed to the existing feat/support-newsletter-feed branch and PR #349. Private configuration commit 23ffcf5 was pushed to the existing codex/enable-newsletter-dev branch and PR #7. Both descriptions now explain the final implementation, recovery gate, migration compatibility, dev console work and EML commands; the application screenshots show the latest selected subdomain and repaired setup/attachment UI. No new assignees or reviewer requests were added; existing human-owned review state is preserved. PRs remain unmerged.
 
 The temporary UI/API preview listeners and owned revision PostgreSQL container were stopped/removed after acceptance. The managed worktree and all project data remain. Historical/full test artifacts and private preview files stay local; real EML is still awaited. Archiving remains a separate documentation PR after merge.
+
+## No earlier Newsletter compatibility (2026-10-28)
+
+The user confirmed that Newsletter has not merged/shipped and explicitly removed the requirement to support earlier versions of this PR. The unshipped migration history was consolidated into `20261022090000_newsletter_feed`. It directly creates platform-only receiving bindings and numeric `sr_newsletter_receipt.id`, with required `binding_id`/`payload_key`. It never creates an earlier Newsletter registry, UUID receipt column, legacy address mapping or bidirectional projection. The original production RSS migrations and source write mirror remain because RSS already ships.
+
+Current recovery uses versioned JSON of parsed, cleaned HTML/metadata, preserving publication date and truncation without reparsing synthetic MIME. Old raw-prefix scans, synthetic MIME serialization and compatibility-only tests are removed. Active pending-delivery lease/retry/cancellation/deduplication and staged-payload GC remain. No Inbox save feature or UI was added.
+
+### Verification
+
+- New migration tests were RED against the previous migration (old registry still present and generic source absent), then GREEN after consolidation. They assert platform-only receiving ownership, direct numeric IDs, required current fields, owner validation, permanent retirement, and full existing-RSS source mirror/backfill/deletion behavior.
+- Staged-content regression was RED when JSON was expected but synthetic MIME was persisted, then GREEN with parsed-content JSON. Focused API tests: **88 passed**.
+- Full API: **2570 passed / 112 skipped**, 197 files passed / 14 skipped. Six removed tests existed solely for unsupported earlier Newsletter versions; permanent ownership and RSS compatibility remain covered.
+- Actual fresh local Edge/Core/PostgreSQL/logs/D1/R2 HTTP smoke passed, including settings address creation, plus-safe EML replay/dedupe, two-owner isolation and private body reads. It applies the consolidated migration history from scratch rather than repairing or resetting operator databases.
+- gen:diff produced only an empty migration, establishing model/SQL parity. The empty artifact and its disposable-database marker were omitted; migration:local and gen:all passed on the owned scratch PostgreSQL/worktree-local D1. API/contracts typecheck and scoped ESLint passed (0 errors, existing/ignored-test warnings remain). Strict OpenSpec: **79 passed / 0 failed**.
+- Native scratch PostgreSQL introspection confirms no earlier address registry and direct bigint id, integer binding_id and text payload_key. No shared/remote database or operator environment file was read or reset.
+- No Web presentation, public API contract or CLI/Extension/Mobile output changes in this delta. The prior accepted UI and Web evidence remain applicable; no repeated human UI acceptance is required for internal persistence cleanup.
+
+### RSS Save to Inbox investigation
+
+Production source trace: RssService.save → repository bookmark/user relation + save job → RssService.dispatchSaves → CrawlWorkflow → CrawlService.saveParseRes → MediaSnapshotService.capture → SnapshotBundle. A new unsaved URL creates an independent private HTML/text snapshot; it does not reuse the RSS entry content_key. Feed HTML and bookmark HTML can differ because RSS may provide an excerpt and acquisition fetches the original page. Existing successful same-owner/same-URL bookmarks reuse their saved record and skip a new crawl. Newsletter saving remains unimplemented; sharing a Feed object would require adapting snapshot reading/indexing and GC ownership, not just assigning the key.
+
+### Documentation correction and remaining gaps
+
+Restored unrelated private-config README deployment/recovery documentation accidentally removed by the prior unbounded section replacement. The Newsletter edit is now bounded by its section headings; no runtime TOML changes were needed. The operator guide now explains that existing local trial migration checksums require explicit local repair/reset with its owner; no such reset was performed automatically.
+
+Hosted DNS/routing/Subaddressing, actual third-party Newsletter mail, the user's real EML, hosted RSS synchronization and original-sender SMTP failure retries remain unverified as previously recorded. Current recovery stays in place. No merge, deployment or remote migration performed.
+
+### Current local pre-push review
+
+A fresh independent reviewer checked Bugs, Security and Compliance for the current first-release simplification and reported **no Important findings or Nits**. The review covered the actual SQL/model and direct-ID queries, binding ownership/permanent retirement, JSON recovery/deduplication/GC, RSS compatibility and operator documentation. The private README was checked without opening TOMLs: its exact prefix before Newsletter rollout and suffix from Deployment access match the parent of the prior documentation revision, proving unrelated deployment/recovery instructions were restored intact.
+
+The parent verified current test logs, scanned runtime/schema/migrations for removed Newsletter legacy fields, and corrected stale active-spec/guide wording. Historical dated records above remain as superseded evidence, not current rollout requirements. No application version decision is required: this delta changes internal API persistence only, with no CLI/Extension/Mobile contract, dependency or package-output change. Both existing PRs retain their assignment/review state; archive remains deferred until after merge.

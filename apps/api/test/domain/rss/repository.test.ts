@@ -100,9 +100,6 @@ beforeAll(async () => {
   const localFirst = new URL('../../../prisma/pg_migrations/20261019090000_rss_local_first/migration.sql', import.meta.url)
   await db.exec(await readFile(localFirst, 'utf8'))
   await db.exec(await readFile(new URL('../../../prisma/pg_migrations/20261022090000_newsletter_feed/migration.sql', import.meta.url), 'utf8'))
-  await db.exec(await readFile(new URL('../../../prisma/pg_migrations/20261027100000_newsletter_review_revision/migration.sql', import.meta.url), 'utf8'))
-  await db.exec(await readFile(new URL('../../../prisma/pg_migrations/20261027141709_newsletter_review_revision_check/migration.sql', import.meta.url), 'utf8'))
-  await db.exec(await readFile(new URL('../../../prisma/pg_migrations/20261027150000_newsletter_overlap_projection/migration.sql', import.meta.url), 'utf8'))
   repo = new RssRepo(() => adapter(db))
 }, 30_000)
 beforeEach(async () => {

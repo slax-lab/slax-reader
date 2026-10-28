@@ -919,29 +919,14 @@ model sr_podcast_episode {
     @@index([transcript_status, next_retry_at])
 }
 
-// Permanent receiving-name reservations survive account retirement.
-model sr_newsletter_address {
-    id         String    @id @default(dbgenerated("(gen_random_uuid())::text"))
-    user_id    Int
-    domain     String
-    local_part String
-    created_at DateTime @default(now())
-    retired_at DateTime?
-
-    @@unique([domain, local_part])
-    @@unique([user_id, domain])
-}
-
 // Pending receipts are durable processing obligations, independent of SMTP retries.
 model sr_newsletter_receipt {
-    id          BigInt    @id @default(autoincrement()) @map("receipt_id")
-    legacy_id   String    @unique @default(dbgenerated("(gen_random_uuid())::text")) @map("id")
-    binding_id  Int?
+    id          BigInt    @id @default(autoincrement())
+    binding_id  Int
     user_id     Int
-    address_id  String?
     source_key  String
     message_key String
-    raw_key     String
+    payload_key     String
     state       String    @default("pending")
     lease_token String?
     lease_until DateTime?
@@ -953,5 +938,5 @@ model sr_newsletter_receipt {
     @@unique([user_id, source_key, message_key])
     @@index([state, retry_at])
     @@index([user_id, created_at])
-    @@index([raw_key])
+    @@index([payload_key])
 }

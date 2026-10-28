@@ -15,10 +15,9 @@ export interface NewsletterReceipt {
   id: bigint
   user_id: number
   binding_id: number
-  address_id: string | null
   source_key: string
   message_key: string
-  raw_key: string
+  payload_key: string
   state: string
   lease_token: string | null
   attempts: number
@@ -91,7 +90,7 @@ export class NewsletterRepo {
     if (!(address as unknown[]).length) throw new NewsletterError('not_found', 404)
     const [existing] = await tx.$queryRaw<
       NewsletterReceipt[]
-    >`SELECT r.*,r.receipt_id AS id FROM sr_newsletter_receipt r WHERE user_id=${recipient.user_id} AND source_key=${source} AND message_key=${message}`
+    >`SELECT r.* FROM sr_newsletter_receipt r WHERE user_id=${recipient.user_id} AND source_key=${source} AND message_key=${message}`
     if (existing) return existing
     const day = new Date()
     day.setUTCHours(0, 0, 0, 0)
@@ -107,13 +106,13 @@ export class NewsletterRepo {
   async checkAdmission(recipient: NewsletterRecipient, source: string, message: string) {
     return this.pg().$transaction(tx => this.admission(tx, recipient, source, message))
   }
-  async admit(recipient: NewsletterRecipient, source: string, message: string, rawKey: string) {
+  async admit(recipient: NewsletterRecipient, source: string, message: string, payloadKey: string) {
     return this.pg().$transaction(async tx => {
       const existing = await this.admission(tx, recipient, source, message)
       if (existing) return { created: false, receipt: existing }
       const [receipt] = await tx.$queryRaw<
         NewsletterReceipt[]
-      >`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,raw_key) VALUES(${recipient.user_id},${recipient.id},${source},${message},${rawKey}) RETURNING *,receipt_id AS id`
+      >`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,payload_key) VALUES(${recipient.user_id},${recipient.id},${source},${message},${payloadKey}) RETURNING *`
       return { created: true, receipt }
     })
   }
@@ -122,16 +121,16 @@ export class NewsletterRepo {
       now = new Date(),
       until = new Date(Date.now() + 90_000)
     return this.pg().$queryRaw`UPDATE sr_newsletter_receipt SET lease_token=${token},lease_until=${until},attempts=attempts+1
-      WHERE receipt_id IN(SELECT receipt_id FROM sr_newsletter_receipt WHERE state='pending' AND (${id}::bigint IS NOT NULL OR retry_at<=${now}) AND (lease_until IS NULL OR lease_until<=${now})
-        AND (${id}::bigint IS NULL OR receipt_id=${id}) ORDER BY created_at LIMIT 5 FOR UPDATE SKIP LOCKED) RETURNING *,receipt_id AS id`
+      WHERE id IN(SELECT id FROM sr_newsletter_receipt WHERE state='pending' AND (${id}::bigint IS NOT NULL OR retry_at<=${now}) AND (lease_until IS NULL OR lease_until<=${now})
+        AND (${id}::bigint IS NULL OR id=${id}) ORDER BY created_at LIMIT 5 FOR UPDATE SKIP LOCKED) RETURNING *`
   }
   async complete(receipt: NewsletterReceipt, item: NewsletterPublication): Promise<boolean> {
     return this.pg().$transaction(async tx => {
       await this.active(tx, receipt.user_id)
       const [row] = await tx.$queryRaw<
         NewsletterReceipt[]
-      >`SELECT r.*,r.receipt_id AS id FROM sr_newsletter_receipt r JOIN sr_platform_bind a ON a.id=r.binding_id AND a.user_id=r.user_id AND a.platform='newsletter' AND a.retired_at IS NULL
-        WHERE r.receipt_id=${receipt.id} AND r.user_id=${receipt.user_id} AND r.state='pending' AND r.lease_token=${receipt.lease_token} AND r.lease_until>${new Date()} FOR UPDATE OF r`
+      >`SELECT r.* FROM sr_newsletter_receipt r JOIN sr_platform_bind a ON a.id=r.binding_id AND a.user_id=r.user_id AND a.platform='newsletter' AND a.retired_at IS NULL
+        WHERE r.id=${receipt.id} AND r.user_id=${receipt.user_id} AND r.state='pending' AND r.lease_token=${receipt.lease_token} AND r.lease_until>${new Date()} FOR UPDATE OF r`
       if (!row) return false
       const now = new Date(),
         url = 'newsletter:' + row.source_key
@@ -146,18 +145,18 @@ export class NewsletterRepo {
           item.publishedAt || now
         },${item.publishedAt})
         ON CONFLICT(feed_id,entry_key) DO NOTHING`
-      await tx.$executeRaw`UPDATE sr_newsletter_receipt SET state='done',lease_token=NULL,lease_until=NULL,completed_at=${now} WHERE receipt_id=${row.id}`
+      await tx.$executeRaw`UPDATE sr_newsletter_receipt SET state='done',lease_token=NULL,lease_until=NULL,completed_at=${now} WHERE id=${row.id}`
       return true
     })
   }
   async defer(receipt: NewsletterReceipt, cancel = false) {
     const retry = new Date(Date.now() + Math.min(3600_000, 60_000 * 2 ** Math.min(receipt.attempts, 6)))
     await this.pg().$executeRaw`UPDATE sr_newsletter_receipt SET state=${cancel ? 'cancelled' : 'pending'},retry_at=${retry},lease_token=NULL,lease_until=NULL,
-      completed_at=${cancel ? new Date() : null} WHERE receipt_id=${receipt.id} AND state='pending' AND lease_token=${receipt.lease_token}`
+      completed_at=${cancel ? new Date() : null} WHERE id=${receipt.id} AND state='pending' AND lease_token=${receipt.lease_token}`
   }
-  async rawReferenced(keys: string[]): Promise<string[]> {
+  async payloadReferenced(keys: string[]): Promise<string[]> {
     if (!keys.length) return []
-    const rows = await this.pg().$queryRaw<{ raw_key: string }[]>`SELECT raw_key FROM sr_newsletter_receipt WHERE state='pending' AND raw_key=ANY(${keys}::text[])`
-    return rows.map(row => row.raw_key)
+    const rows = await this.pg().$queryRaw<{ payload_key: string }[]>`SELECT payload_key FROM sr_newsletter_receipt WHERE state='pending' AND payload_key=ANY(${keys}::text[])`
+    return rows.map(row => row.payload_key)
   }
 }

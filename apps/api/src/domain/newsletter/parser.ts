@@ -22,7 +22,7 @@ export interface NewsletterConfig {
   NEWSLETTER_DOMAIN?: string
 }
 export const NEWSLETTER_LOCAL_PREFIX = 'feed+'
-// The registry stores the stable account token; reserve five SMTP local-part octets for feed+.
+// Reserve five SMTP local-part octets for feed+ when validating the initial account token.
 export const newsletterLocalPart = (value: string): string | null =>
   value.length > 0 && value.length <= 64 - NEWSLETTER_LOCAL_PREFIX.length && /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(value) && !value.includes('..')
     ? value.toLowerCase()
@@ -173,51 +173,7 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
     messageKey,
     html: clean.html,
     summary: clean.text.slice(0, 500),
-    truncated:
-      full.truncated || clean.truncated || body.length > 512 * 1024 || mail.headers.some(header => header.key === 'x-slax-content-truncated' && header.value.trim() === '1'),
+    truncated: full.truncated || clean.truncated || body.length > 512 * 1024,
     publishedAt: date && Number.isFinite(date.valueOf()) && date.valueOf() <= Date.now() + 24 * 3600_000 ? date : null
   }
-}
-
-const base64Utf8 = (value: string): string => {
-  const bytes = new TextEncoder().encode(value)
-  let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary)
-}
-const encodedHeader = (value: string): string => {
-  const words: string[] = []
-  let chunk = ''
-  for (const character of value.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 500)) {
-    if (new TextEncoder().encode(chunk + character).byteLength > 42) {
-      words.push('=?UTF-8?B?' + base64Utf8(chunk) + '?=')
-      chunk = ''
-    }
-    chunk += character
-  }
-  if (chunk) words.push('=?UTF-8?B?' + base64Utf8(chunk) + '?=')
-  return words.join('\r\n ')
-}
-/** Serialize only cleaned content as MIME so older workers can safely recover staged deliveries. */
-export function serializeNewsletterContent(parsed: ParsedNewsletter): string {
-  if (!/^[^\s<>@\u0000-\u001f]+@[^\s<>@\u0000-\u001f]+\.[^\s<>@\u0000-\u001f]+$/.test(parsed.sender) || parsed.sender.length > 254 || !/^[a-f0-9]{64}$/.test(parsed.messageKey))
-    throw new NewsletterError('invalid_message')
-  const headers = [
-    'From: ' + encodedHeader(parsed.sourceTitle) + ' <' + parsed.sender + '>',
-    'Subject: ' + encodedHeader(parsed.title),
-    'Message-ID: <' + parsed.messageKey + '@newsletter.invalid>',
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=utf-8',
-    'Content-Transfer-Encoding: base64'
-  ]
-  if (parsed.publishedAt && Number.isFinite(parsed.publishedAt.valueOf())) headers.push('Date: ' + parsed.publishedAt.toUTCString())
-  if (parsed.truncated) headers.push('X-Slax-Content-Truncated: 1')
-  return (
-    headers.join('\r\n') +
-    '\r\n\r\n' +
-    (base64Utf8(parsed.html)
-      .match(/.{1,76}/g)
-      ?.join('\r\n') || '') +
-    '\r\n'
-  )
 }

@@ -45,16 +45,13 @@ beforeAll(async () => {
     '20260923044137_add_rss_timeline_index',
     '20260923065020',
     '20261019090000_rss_local_first',
-    '20261022090000_newsletter_feed',
-    '20261027100000_newsletter_review_revision',
-    '20261027141709_newsletter_review_revision_check',
-    '20261027150000_newsletter_overlap_projection'
+    '20261022090000_newsletter_feed'
   ])
     await db.exec(await readFile(new URL('../../../prisma/pg_migrations/' + path + '/migration.sql', import.meta.url), 'utf8'))
   repo = new NewsletterRepo(() => adapter(db))
 })
 beforeEach(async () => {
-  await db.exec(`TRUNCATE sr_user,sr_user_lab_feature,sr_platform_bind,sr_newsletter_address,sr_newsletter_receipt,sr_rss_entry,sr_rss_feed,sr_feed,sr_rss_subscription;
+  await db.exec(`TRUNCATE sr_user,sr_user_lab_feature,sr_platform_bind,sr_newsletter_receipt,sr_rss_entry,sr_rss_feed,sr_feed,sr_rss_subscription;
     INSERT INTO sr_user(id,account) VALUES(1,'Jane.Doe'),(2,'other');
     INSERT INTO sr_user_lab_feature VALUES(1,'newsletter',true),(2,'newsletter',true);`)
 })
@@ -65,7 +62,7 @@ const recipient = async () => {
   await repo.address(1, 'newsletterreader.slax.dev', true)
   return (await repo.recipient('newsletterreader.slax.dev', 'jane.doe'))!
 }
-const reserve = async (source = 'source', message = 'message', key = 'newsletter-raw/test') => repo.admit(await recipient(), source, message, key)
+const reserve = async (source = 'source', message = 'message', key = 'newsletter-staged/test') => repo.admit(await recipient(), source, message, key)
 describe('Newsletter PostgreSQL boundaries', () => {
   test('GET is pure, provision is canonical and idempotent, and rename preserves address', async () => {
     expect(await repo.address(1, 'newsletterreader.slax.dev', false)).toMatchObject({
@@ -96,8 +93,9 @@ describe('Newsletter PostgreSQL boundaries', () => {
     await expect(repo.address(1, 'newsletterreader.slax.com', true)).rejects.toMatchObject({ code: 'unavailable' })
     expect((await db.query("SELECT platform_id FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([{ platform_id: 'feed+daguang@newsletterreader.slax.dev' }])
   })
-  test('a stored token renders the selected prefix and survives a later rename', async () => {
-    await db.exec("INSERT INTO sr_newsletter_address(user_id,domain,local_part) VALUES(1,'newsletterreader.slax.com','jane.doe'); UPDATE sr_user SET account='daguang' WHERE id=1")
+  test('an issued platform binding renders its original token after a rename', async () => {
+    await repo.address(1, 'newsletterreader.slax.com', true)
+    await db.exec("UPDATE sr_user SET account='daguang' WHERE id=1")
     for (const provision of [false, true])
       expect(await repo.address(1, 'newsletterreader.slax.com', provision)).toMatchObject({ address: 'feed+jane.doe@newsletterreader.slax.com', status: 'ready' })
   })
@@ -109,9 +107,6 @@ describe('Newsletter PostgreSQL boundaries', () => {
     expect(await repo.address(2, 'newsletterreader.slax.dev', false)).toMatchObject({ address: null, status: 'invalid_account' })
     await expect(repo.address(2, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({ code: 'invalid_account' })
     expect((await db.query("SELECT user_id FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([{ user_id: 1 }])
-    await db.query("INSERT INTO sr_newsletter_address(user_id,domain,local_part) VALUES(2,'newsletterreader.slax.dev',$1)", ['b'.repeat(60)])
-    for (const provision of [false, true]) await expect(repo.address(2, 'newsletterreader.slax.dev', provision)).rejects.toMatchObject({ code: 'invalid_account' })
-    expect((await db.query('SELECT local_part FROM sr_newsletter_address WHERE user_id=2')).rows[0].local_part).toHaveLength(60)
   })
   test('missing account and disabled/deleted users cannot provision or receive', async () => {
     await db.exec("UPDATE sr_user SET account='' WHERE id=1")
@@ -187,7 +182,7 @@ describe('Newsletter PostgreSQL boundaries', () => {
   test('daily and source limits count pending obligations, while duplicates consume no new slot', async () => {
     await reserve()
     const r = await recipient()
-    await db.query(`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,raw_key) SELECT 1,$1,'source','seed-'||i,'raw' FROM generate_series(1,199) i`, [
+    await db.query(`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,payload_key) SELECT 1,$1,'source','seed-'||i,'raw' FROM generate_series(1,199) i`, [
       r.id
     ])
     expect((await reserve()).created).toBe(false)
@@ -323,14 +318,14 @@ describe('Newsletter service real database and object pipeline', () => {
     await expect(p.service.receive(p.message('<raw-fail>'), p.env)).rejects.toThrow('raw store failure')
     expect((await db.query('SELECT * FROM sr_newsletter_receipt')).rows).toHaveLength(1)
   })
-  test('raw sweep protects pending obligations and removes old unreferenced mail', async () => {
+  test('staged-content sweep protects pending obligations and removes old unreferenced content', async () => {
     const p = pipeline()
-    await reserve('source', 'mail', 'newsletter-raw/pending')
-    for (const key of ['newsletter-raw/pending', 'newsletter-raw/orphan']) p.objects.set(key, { bytes: new Uint8Array(), uploaded: new Date(0) })
+    await reserve('source', 'mail', 'newsletter-staged/pending')
+    for (const key of ['newsletter-staged/pending', 'newsletter-staged/orphan']) p.objects.set(key, { bytes: new Uint8Array(), uploaded: new Date(0) })
     await db.exec("UPDATE sr_newsletter_receipt SET retry_at=now()+interval '1 day'")
     await p.service.tick({ env: p.env } as any)
-    expect(p.objects.has('newsletter-raw/pending')).toBe(true)
-    expect(p.objects.has('newsletter-raw/orphan')).toBe(false)
+    expect(p.objects.has('newsletter-staged/pending')).toBe(true)
+    expect(p.objects.has('newsletter-staged/orphan')).toBe(false)
   })
   test('account-setting availability uses case-insensitive locking and does not change an issued address', async () => {
     await recipient()
@@ -365,7 +360,9 @@ test('account deletion retires its address immediately and cancels admitted work
 test('over-quota admission does not perform expensive raw object writes', async () => {
   const r = await recipient(),
     p = pipeline()
-  await db.query(`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,raw_key) SELECT 1,$1,'source','seed-'||i,'raw' FROM generate_series(1,200) i`, [r.id])
+  await db.query(`INSERT INTO sr_newsletter_receipt(user_id,binding_id,source_key,message_key,payload_key) SELECT 1,$1,'source','seed-'||i,'raw' FROM generate_series(1,200) i`, [
+    r.id
+  ])
   await expect(p.service.receive(p.message(), p.env)).rejects.toMatchObject({
     code: 'limit_reached'
   })
@@ -401,6 +398,9 @@ test('new incoming MIME is not retained as raw mail and pending duplicates resum
   })
   await expect(p.service.receive(p.message(), p.env)).rejects.toThrow()
   expect([...p.objects.keys()].some(key => key.startsWith('newsletter-raw/'))).toBe(false)
+  const staged = [...p.objects].find(([key]) => key.startsWith('newsletter-staged/'))!
+  const payload = JSON.parse(new TextDecoder().decode(staged[1].bytes))
+  expect(payload).toMatchObject({ version: 1, title: 'Received', html: expect.stringContaining('Safe') })
   p.bucket.put.mockImplementation(write)
   await p.service.receive(p.message(), p.env)
   expect((await db.query('SELECT state FROM sr_newsletter_receipt')).rows).toEqual([{ state: 'done' }])

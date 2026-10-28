@@ -9,7 +9,7 @@ The system SHALL provision a Newsletter address only for an authenticated active
 
 #### Scenario: Provision and rename
 - **WHEN** a user provisions an address and later changes account or display name
-- **THEN** GET and repeated POST return the original receiving address
+- **THEN** GET and repeated user-setting enable return the original receiving address
 
 #### Scenario: Missing, invalid or reserved account
 - **WHEN** no address exists and the current account is missing, invalid or already reserved
@@ -23,16 +23,16 @@ The system SHALL provision a Newsletter address only for an authenticated active
 - **WHEN** a user provisions with a 59-character safe account or a 60-character account
 - **THEN** the former receives a 64-octet local part and the latter receives invalid_account without creating a binding; no truncation or extra suffix occurs
 
-#### Scenario: Existing canonical registry token
-- **WHEN** a valid account token is already bound in the configured domain and the user later renames
-- **THEN** GET and repeated POST render feed+ followed by the original stored token, while an oversized legacy token remains reserved and is not exposed as an invalid mailbox
+#### Scenario: Existing immutable receiving binding
+- **WHEN** a valid receiving address is already bound in the configured domain and the user later renames
+- **THEN** GET and repeated user-setting enable render feed+ followed by the original stored token, without replacing the issued binding
 
 #### Scenario: Existing business mail service
 - **WHEN** the account is daguang in the selected Newsletter subdomain
 - **THEN** it can receive a prefixed Newsletter address without claiming daguang@slax.app, and root/foreign-domain mail cannot enter its Newsletter
 
 ### Requirement: Bounded private incoming Newsletter
-The Edge Worker SHALL accept email through a dedicated email handler. Ownership SHALL derive from the full SMTP envelope recipient, configured domain and active registry, never header To. Dispatch SHALL require feed+ and exactly one valid non-empty account token, accepting case variations but rejecting bare feed, unprefixed accounts, other prefixes and additional plus details before raw storage. Newsletter Lab and active user SHALL be checked at admission and final commit. The system SHALL bound raw mail to 5 MiB, MIME nesting, part count and headers, admit at most 200 sources per user and 200 new messages per UTC day, and preserve binary attachment metadata without storing attachment bytes. It SHALL not log private email data.
+The Edge Worker SHALL accept email through a dedicated email handler. Ownership SHALL derive from the full SMTP envelope recipient, configured domain and active platform binding, never header To. Dispatch SHALL require feed+ and exactly one valid non-empty account token, accepting case variations but rejecting bare feed, unprefixed accounts, other prefixes and additional plus details before staged-content storage. Newsletter Lab and active user SHALL be checked at admission and final commit. The system SHALL bound raw mail to 5 MiB, MIME nesting, part count and headers, admit at most 200 sources per user and 200 new messages per UTC day, and preserve binary attachment metadata without storing attachment bytes. It SHALL not log private email data.
 
 #### Scenario: Valid message and MIME variants
 - **WHEN** an enabled user's bound envelope address receives HTML, plain text or multipart mail
@@ -58,7 +58,7 @@ A new receipt SHALL be acknowledged by application code only after its processin
 - **THEN** processing cannot recreate subscriptions or publish new entries for that user
 
 ### Requirement: Safe retained Newsletter body
-The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and CID/relative image references, use signed controlled image URLs and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. Orphaned content and legacy completed raw mail SHALL be eligible for garbage collection. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
+The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and CID/relative image references, use signed controlled image URLs and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. Orphaned content and completed staged payloads SHALL be eligible for garbage collection. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
 
 #### Scenario: Malicious email and image handling
 - **WHEN** mail contains scripts, tracking images, event attributes, CID images or relative resource URLs
@@ -106,15 +106,15 @@ Web SHALL always show Feed in navigation, support stable address provisioning/co
 - **WHEN** an operator enables the dev literal feed route and Subaddressing after Worker readiness and later stops the pilot
 - **THEN** registered enabled dev users receive mail without per-user routes, unknown feed+ details and the bare feed address are rejected by the Worker, and rollback disables/restores only the pilot feed route while preserving reservations and content
 
-### Requirement: Review revision compatibility
-The system SHALL use immutable `newsletter` platform bindings with permanent retirement, a BIGINT identity receipt primary key, and a physical generic `sr_feed` source table. The additive migration SHALL preserve existing source IDs, reservations and pending delivery obligations. During overlapping releases all RSS source writes SHALL use the legacy source authority mirrored transactionally into the new table, including deletes and lease/history state. RSS sync SHALL preserve legacy client table names and exclude Newsletter.
+### Requirement: First-release persistence and RSS compatibility
+The system SHALL use immutable `newsletter` platform bindings with permanent retirement, a BIGINT identity receipt primary key, and a physical generic `sr_feed` source table. The first-release migration SHALL preserve existing RSS source IDs and create Newsletter bindings/receipts directly, without earlier Newsletter schema or code compatibility. During overlapping releases all RSS source writes SHALL use the legacy source authority mirrored transactionally into the new table, including deletes and lease/history state. RSS sync SHALL preserve legacy client table names and exclude Newsletter.
 
 #### Scenario: Writes during migration and rollout
 - **WHEN** old and new RSS handlers insert, update or delete source state during the transition
 - **THEN** the generic source projection remains consistent without resurrecting deleted rows or losing refreshed state
 
 ### Requirement: Synchronous processing and setup
-New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; done or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain; sanitized content staged in legacy-readable MIME and historical raw-backed receipts SHALL retain bounded recovery until SMTP retry behavior is proven and obligations are drained. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Non-dev domains SHALL remain unset during the dev pilot. Hosted SMTP failure/retry behavior SHALL be verified before any later removal of durable staged-content recovery.
+New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; done or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain; sanitized content staged as versioned JSON SHALL retain bounded recovery until SMTP retry behavior is proven. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Non-dev domains SHALL be explicitly empty during the dev pilot. Hosted SMTP failure/retry behavior SHALL be verified before any later removal of durable staged-content recovery.
 
 #### Scenario: Account repair after enabling
 - **WHEN** the user enables Newsletter with a missing, invalid or reserved initial account

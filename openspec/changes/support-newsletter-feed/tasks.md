@@ -51,12 +51,17 @@ Remote dev deployment, hosted RSS compatibility-rule publication and real SMTP a
 
 ## 8. Approved review revision (2026-10-27)
 
+Newsletter-specific compatibility in the original 8.2 decision was superseded by the explicit first-release simplification in 8.7. RSS compatibility remains required.
+
 - [x] 8.1 Add generic physical Feed sources with a transactional old-to-new write mirror and explicit backfill; preserve legacy RSS writes and sync client aliases.
 - [x] 8.2 Move immutable Newsletter addresses into platform bindings, retain overlap tombstones, and add a BIGINT receipt primary key without destroying legacy processing identities.
 - [x] 8.3 Remove deployment boolean admission, consolidate address setup into user settings, and await synchronous publication with pending dedupe and durable cancellation.
 - [x] 8.4 Reuse quiet pure content extraction, preserve attachment metadata/existing links, filter explicit tracking pixels and provide offline EML preview/local replay tooling.
 - [x] 8.5 Update Web setup calls and repair states, verify actual browser behavior and obtain renewed human hands-on acceptance.
 - [x] 8.6 Update private pilot configuration and rollout/test guides, run generation/full checks/local Worker verification and three-pass review, then update the original PRs. Record hosted SMTP and real EML gaps explicitly.
+
+- [x] 8.7 Remove all unshipped Newsletter compatibility, consolidate the first-release migration, and verify platform-only bindings, numeric receipt IDs and current staged-content recovery without resetting operator databases.
+- [x] 8.8 Trace RSS Save to Inbox storage and report independent snapshot/reuse behavior; do not add Newsletter saving in this revision.
 
 ## 9. Archive after merge
 

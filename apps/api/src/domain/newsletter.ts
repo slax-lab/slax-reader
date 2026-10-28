@@ -5,11 +5,10 @@ import { BucketClient } from '@/infra/repository/bucketClient'
 import type { LazyInstance } from '@/decorators/lazy'
 import { ContextManager } from '@/utils/context'
 import { hashSHA256 } from '@/utils/strings'
-import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError, parseNewsletter, readNewsletterRaw, serializeNewsletterContent } from './newsletter/parser'
+import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError, parseNewsletter, readNewsletterRaw, type ParsedNewsletter } from './newsletter/parser'
 
-const RAW_PREFIX = 'newsletter-raw/'
 const STAGED_PREFIX = 'newsletter-staged/'
-const RAW_CURSOR = 'newsletter-maintenance/raw-gc-cursor'
+const STAGED_CURSOR = 'newsletter-maintenance/staged-gc-cursor'
 @injectable()
 export class NewsletterService {
   constructor(
@@ -43,7 +42,7 @@ export class NewsletterService {
       // Store cleaned content only: raw MIME can contain private binary attachments.
       // This bounded recovery payload is temporary until hosted SMTP retries are proven.
       const key = STAGED_PREFIX + crypto.randomUUID()
-      const stored = await this.bucket().R2Bucket.put(key, serializeNewsletterContent(parsed), { httpMetadata: { contentType: 'message/rfc822' } })
+      const stored = await this.bucket().R2Bucket.put(key, JSON.stringify({ version: 1, ...parsed }), { httpMetadata: { contentType: 'application/json' } })
       if (!stored) throw new NewsletterError('unavailable', 503)
       receipt = (await this.repo.admit(recipient, source, parsed.messageKey, key)).receipt
     }
@@ -61,10 +60,13 @@ export class NewsletterService {
 
   private async process(row: NewsletterReceipt, env: Env) {
     try {
-      const object = await this.bucket().R2Bucket.get(row.raw_key)
-      if (!object) throw new Error('Raw receipt object unavailable')
-      // Cleaned MIME remains readable by overlapping workers; it contains no original attachment bytes.
-      const parsed = await parseNewsletter(new Uint8Array(await object.arrayBuffer()))
+      const object = await this.bucket().R2Bucket.get(row.payload_key)
+      if (!object) throw new Error('Newsletter staged content unavailable')
+      const payload = JSON.parse(await object.text())
+      if (payload.version !== 1 || typeof payload.html !== 'string') throw new NewsletterError('invalid_message')
+      const publishedAt = payload.publishedAt ? new Date(payload.publishedAt) : null
+      if (publishedAt && !Number.isFinite(publishedAt.valueOf())) throw new NewsletterError('invalid_message')
+      const parsed: ParsedNewsletter = { ...payload, publishedAt }
       const stored = await this.content.storeItem(env, row.source_key, { content_html: parsed.html, image_url: null, article_url: null })
       const completed = await this.repo.complete(row, {
         sourceTitle: parsed.sourceTitle,
@@ -91,17 +93,14 @@ export class NewsletterService {
       }
     }
     const bucket = this.bucket().R2Bucket
-    for (const prefix of [RAW_PREFIX, STAGED_PREFIX]) {
-      const cursorKey = prefix === RAW_PREFIX ? RAW_CURSOR : 'newsletter-maintenance/staged-gc-cursor'
-      const state = await bucket.get(cursorKey),
-        cursor = state ? await state.text() : ''
-      const page = await bucket.list({ prefix, limit: 200, ...(cursor ? { cursor } : {}) })
-      const keys = page.objects.filter(row => row.uploaded.valueOf() < Date.now() - 24 * 3600_000).map(row => row.key)
-      const keep = new Set(await this.repo.rawReferenced(keys)),
-        garbage = keys.filter(key => !keep.has(key))
-      if (garbage.length) await bucket.delete(garbage)
-      await bucket.put(cursorKey, page.truncated ? page.cursor : '')
-    }
+    const state = await bucket.get(STAGED_CURSOR),
+      cursor = state ? await state.text() : ''
+    const page = await bucket.list({ prefix: STAGED_PREFIX, limit: 200, ...(cursor ? { cursor } : {}) })
+    const keys = page.objects.filter(row => row.uploaded.valueOf() < Date.now() - 24 * 3600_000).map(row => row.key)
+    const keep = new Set(await this.repo.payloadReferenced(keys)),
+      garbage = keys.filter(key => !keep.has(key))
+    if (garbage.length) await bucket.delete(garbage)
+    await bucket.put(STAGED_CURSOR, page.truncated ? page.cursor : '')
   }
 }
 
