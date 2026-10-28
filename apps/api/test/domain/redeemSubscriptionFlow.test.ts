@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest'
 import { SubscriptionServiceMain } from '@/domain/subscriptionMain'
 import { subscriptionInterval } from '@/infra/repository/dbSubscription'
 
-function harness(credit = false) {
+function harness(credit = false, liveMode = true) {
   const repo = {
     claimReward: vi.fn().mockResolvedValue({ credit, endTime: '2027-02-28T00:00:00.000Z' }),
     getPaymentJob: vi.fn().mockResolvedValue({
@@ -17,7 +17,7 @@ function harness(credit = false) {
   const create = vi.fn().mockResolvedValue({ id: 'credit' })
   const push = vi.fn()
   const service = new SubscriptionServiceMain(
-    (() => ({ customers: { createBalanceTransaction: create } })) as never,
+    (() => ({ liveMode, customers: { createBalanceTransaction: create } })) as never,
     {} as never,
     {} as never,
     repo as never,
@@ -25,7 +25,7 @@ function harness(credit = false) {
     {} as never,
     {} as never
   )
-  return { service, repo, create, push, ctx: { getUserId: () => 1, env: { STRIPE_LIVE_MODE: 'false' } } as never }
+  return { service, repo, create, push, ctx: { getUserId: () => 1, env: {} } as never }
 }
 
 describe('redeemSubscription transactional reward flow', () => {
@@ -39,7 +39,7 @@ describe('redeemSubscription transactional reward flow', () => {
       interval: subscriptionInterval.MONTH,
       count: 6,
       credit: 3594,
-      liveMode: false
+      liveMode: true
     })
     expect(h.create).not.toHaveBeenCalled()
     expect(h.push).not.toHaveBeenCalled()
@@ -64,15 +64,21 @@ describe('redeemSubscription transactional reward flow', () => {
     expect(h.create).toHaveBeenCalledWith(
       'cus_123',
       { amount: -3594, currency: 'usd', description: 'Subscription reward' },
-      { idempotencyKey: 'stripe:false::credit:reward:redeem:1:abc' }
+      { idempotencyKey: 'stripe:true::credit:reward:redeem:1:abc' }
     )
-    expect(h.repo.finishPaymentJob).toHaveBeenCalledWith('stripe:false::credit:reward:redeem:1:abc', 'lease')
+    expect(h.repo.finishPaymentJob).toHaveBeenCalledWith('stripe:true::credit:reward:redeem:1:abc', 'lease')
   })
 
   test('credit delivery failure remains pending for recovery', async () => {
     const h = harness(true)
     h.create.mockRejectedValue(new Error('Stripe timeout'))
     await expect(h.service.redeemSubscription(h.ctx, 'abc')).rejects.toThrow('Stripe timeout')
-    expect(h.repo.finishPaymentJob).toHaveBeenCalledWith('stripe:false::credit:reward:redeem:1:abc', 'lease', 'Error: Stripe timeout')
+    expect(h.repo.finishPaymentJob).toHaveBeenCalledWith('stripe:true::credit:reward:redeem:1:abc', 'lease', 'Error: Stripe timeout')
+  })
+
+  test.each([true, false])('reward ledger uses Stripe key prefix mode=%s', async liveMode => {
+    const h = harness(false, liveMode)
+    await h.service.redeemSubscription(h.ctx, 'mode-check')
+    expect(h.repo.claimReward).toHaveBeenCalledWith(expect.objectContaining({ liveMode }))
   })
 })

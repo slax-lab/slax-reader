@@ -22,7 +22,6 @@ describe('Worker types security', () => {
     expect(env).toContain('TELEGRAM_WEBHOOK_SECRET?: string')
     expect(env).toContain('GA4_API_SECRET?: string')
     expect(env).toContain('OPENAI_MODERATION_ENDPOINT?: string')
-    expect(env).toContain('STRIPE_LIVE_MODE?: string')
     expect(env).toContain('STRIPE_SECRET_KEY: string')
     expect(env).toContain('STRIPE_CALLBACK_SECRET: string')
     expect(env).toContain('APP_STORE_API_PRIVATE_KEY: string')

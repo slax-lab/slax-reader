@@ -11,8 +11,8 @@ export class SubscriptionPaymentService {
     @inject(SubscriptionRepo) private repo: SubscriptionRepo
   ) {}
 
-  private reader(metadata: Stripe.Metadata | null | undefined) {
-    return metadata?.platform === 'reader' && !metadata.collection_id && !metadata.owner_id
+  private personalPayment(metadata: Stripe.Metadata | null | undefined) {
+    return !metadata?.collection_id && !metadata?.owner_id
   }
 
   private id(value: string | { id: string } | null | undefined) {
@@ -28,8 +28,8 @@ export class SubscriptionPaymentService {
         const expectedRevision = (state?.payload as { revision?: string } | undefined)?.revision || null
         const latest = type === 'customer.subscription.deleted' ? event : await this.stripeClient().subscriptions.retrieve(event.id)
         const userId = Number(latest.metadata?.user_id)
-        if (!this.reader(latest.metadata) || !Number.isSafeInteger(userId) || userId <= 0) {
-          await this.repo.reconcilePayment(`ownership:${key}`, 'Subscription is not explicitly bound to Reader', { subscriptionId: event.id })
+        if (!this.personalPayment(latest.metadata) || !Number.isSafeInteger(userId) || userId <= 0) {
+          await this.repo.reconcilePayment(`ownership:${key}`, 'Subscription user binding is missing or collection-scoped', { subscriptionId: event.id })
           return true
         }
         const sub = await this.repo.getUserSubscriptionInfo(userId)
@@ -60,8 +60,8 @@ export class SubscriptionPaymentService {
     if (type === 'payment_intent.succeeded') {
       if (event.invoice) return true
       const userId = Number(event.metadata?.user_id)
-      if (!this.reader(event.metadata) || !Number.isSafeInteger(userId) || userId <= 0) {
-        await this.repo.reconcilePayment(`${scope}:pi:${event.id}`, 'Payment is not explicitly bound to Reader', { paymentIntent: event.id })
+      if (!this.personalPayment(event.metadata) || !Number.isSafeInteger(userId) || userId <= 0) {
+        await this.repo.reconcilePayment(`${scope}:pi:${event.id}`, 'Payment user binding is missing or collection-scoped', { paymentIntent: event.id })
         return true
       }
       const price = await this.stripeClient().prices.retrieve(event.metadata.price_id)
@@ -86,7 +86,7 @@ export class SubscriptionPaymentService {
     const metadata = event.subscription_details?.metadata
     const userId = Number(metadata?.user_id)
     const line = event.lines?.data?.[0]
-    if (!this.reader(metadata) || !Number.isSafeInteger(userId) || userId <= 0 || !line?.price || event.lines.has_more || event.lines.data.length !== 1) {
+    if (!this.personalPayment(metadata) || !Number.isSafeInteger(userId) || userId <= 0 || !line?.price || event.lines.has_more || event.lines.data.length !== 1) {
       await this.repo.reconcilePayment(`${scope}:invoice:${event.id}`, 'Invoice Reader ownership or single entitlement line cannot be established', { invoiceId: event.id })
       return true
     }
@@ -133,8 +133,8 @@ export class SubscriptionPaymentService {
       metadata = intent.metadata
     }
     const userId = Number(metadata?.user_id)
-    if (!this.reader(metadata) || !Number.isSafeInteger(userId) || userId <= 0 || (!invoiceId && !pi)) {
-      await this.repo.reconcilePayment(`${scope}:refund:${charge.id}`, 'Refund is not explicitly bound to a Reader payment', { chargeId: charge.id })
+    if (!this.personalPayment(metadata) || !Number.isSafeInteger(userId) || userId <= 0 || (!invoiceId && !pi)) {
+      await this.repo.reconcilePayment(`${scope}:refund:${charge.id}`, 'Refund user binding is missing or collection-scoped', { chargeId: charge.id })
       return
     }
     const refunds: { id: string; amount: number }[] = []
@@ -154,10 +154,9 @@ export class SubscriptionPaymentService {
     })
   }
 
-  async cancel(subscriptionId: string, reason: string, customerId?: string, liveMode?: boolean) {
+  async cancel(subscriptionId: string, reason: string, customerId?: string) {
     const current = await this.stripeClient().subscriptions.retrieve(subscriptionId)
-    if (!this.reader(current.metadata) || (customerId && this.id(current.customer) !== customerId) || (liveMode !== undefined && current.livemode !== liveMode))
-      throw new Error('Reader subscription ownership or mode mismatch')
+    if (!this.personalPayment(current.metadata) || (customerId && this.id(current.customer) !== customerId)) throw new Error('Reader subscription ownership mismatch')
     const binding = await this.repo.getUserSubscriptionInfo(Number(current.metadata.user_id))
     if (!binding || binding.stripe_customer_id !== this.id(current.customer)) throw new Error('Reader subscription customer mismatch')
     const key = await this.repo.createPaymentCommand(`stripe:${current.livemode}::cancel:${subscriptionId}`, {
