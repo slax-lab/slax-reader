@@ -9,6 +9,7 @@ on:
       - 'packages/contracts/**'
       - 'tooling/api.mjs'
       - 'tooling/pnpm-command.mjs'
+      - 'tooling/migration-release-evidence.mjs'
       - 'deploy/cloudflare/api.toml.example'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -17,7 +18,10 @@ on:
       - '.github/workflows/api-deploy.yml'
 
 permissions:
+  actions: read
   contents: read
+  deployments: read
+  pull-requests: read
 
 jobs:
   deploy:
@@ -61,6 +65,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 2
           persist-credentials: false
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -169,13 +174,27 @@ jobs:
             git -c credential.helper= fetch --no-tags --depth=1 origin "$tip"
             # Keep these paths aligned with the workflow's API path filter.
             changed=$(git diff --name-only "$MERGE_SHA" "$tip" -- apps/api packages/contracts \
-              tooling/api.mjs tooling/pnpm-command.mjs deploy/cloudflare/api.toml.example \
+              tooling/api.mjs tooling/pnpm-command.mjs tooling/migration-release-evidence.mjs deploy/cloudflare/api.toml.example \
               package.json pnpm-lock.yaml pnpm-workspace.yaml \
               .github/workflows/api-ci.yml .github/workflows/api-deploy.yml)
             if [ -n "$changed" ]; then current=false; fi
           fi
           echo "current=$current" >> "$GITHUB_OUTPUT"
           if [ "$current" = false ]; then echo 'Release skipped: newer API changes are already on this branch' >&3; fi
+      - name: Verify migration release evidence
+        if: steps.release.outputs.current == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          gh auth setup-git
+          git fetch --no-tags --depth=1 origin \
+            refs/heads/main:refs/remotes/origin/main \
+            refs/heads/beta:refs/remotes/origin/beta \
+            "refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
+          node tooling/migration-release-evidence.mjs --surface deploy \
+            --base "$MERGE_SHA^1" --head "$MERGE_SHA" \
+            --base-ref "$TARGET_BRANCH" --head-ref "$PR_HEAD_REF" --environment "$TARGET_BRANCH"
       - name: Allow the runner through the existing firewall
         if: steps.release.outputs.current == 'true'
         env:

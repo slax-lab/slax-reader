@@ -8,7 +8,10 @@ on:
         type: boolean
         default: false
 permissions:
+  actions: read
   contents: read
+  deployments: read
+  pull-requests: read
 jobs:
   changes:
     if: ${{ !inputs.full_validation }}
@@ -22,6 +25,32 @@ jobs:
           persist-credentials: false
       - id: scope
         uses: ./.github/actions/ci-scope
+  migration-evidence:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && !inputs.full_validation && needs.changes.result == 'success' && needs.changes.outputs.api == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify migration release evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: >-
+          node tooling/migration-release-evidence.mjs
+          --surface pull-request
+          --base "$BASE_SHA"
+          --head "$HEAD_SHA"
+          --base-ref "$BASE_REF"
+          --head-ref "$HEAD_REF"
   check:
     runs-on: ubuntu-latest
     env:
@@ -49,7 +78,7 @@ jobs:
     # The dev and beta rulesets require this exact job name.
     name: API CI gate
     if: always()
-    needs: [changes, check]
+    needs: [changes, migration-evidence, check]
     runs-on: ubuntu-latest
     steps:
       - name: Fail when a suite job did not pass

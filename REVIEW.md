@@ -32,13 +32,34 @@ Reserve Important for findings that:
 
 - break behavior or introduce a regression
 - lose or corrupt user data (bookmarks, highlights, comments)
-- corrupt the shared production database through schema migrations: the beta environment runs migrations against production PostgreSQL before code passes the `main` gate, so any migration that is incompatible with the code currently serving production — dropping or renaming tables/columns, changing column types, adding `NOT NULL` columns without defaults — is Important unless the change demonstrates an expand/contract split; applies when the diff touches `**/migrations/**` (e.g. `apps/api/prisma/migrations/`), `*.sql`, or ORM schema files (e.g. `schema.prisma`)
+- corrupt the shared production database through schema migrations: the beta environment runs migrations against production PostgreSQL before code passes the `main` gate, so any migration that is incompatible with the code currently serving production — dropping or renaming tables/columns, changing column types, adding `NOT NULL` columns without defaults — is Important unless the change demonstrates an expand/contract split; applies when the diff touches a migration family (`apps/api/prisma/pg_migrations/**`, `apps/api/prisma/logs_migrations/**`, `apps/api/prisma/d1_migrations/**`, `apps/api/prisma/d1_migrations/fulltext/**`), `*.sql`, or ORM schema files (e.g. `schema.prisma`)
 - leak secrets or PII
 - introduce suspected malicious code: a backdoor, covert data exfiltration, or an unvetted dependency with install scripts or unexpected network/file access. Such a finding needs concrete evidence in the diff, not general suspicion; when uncertain, flag it and require a human reviewer's verdict before merge
 - break the cross-app API contracts in `packages/contracts`
 - diverge from the intent of the linked OpenSpec change
 
 Style, naming, and refactoring suggestions are Nits at most.
+
+## Migration release evidence
+
+Every new migration carries a declaration in its leading comment block and a named API owner approval. The release check verifies that the declaration exists and is complete, that a named owner approved the pull request that introduced the migration, that the release diff did not delete, rename, or edit a released migration, and that a `contract` has prerequisite and deployment evidence. It does not parse SQL, and it never claims a migration is safe. Treat its result as a record of what was declared and approved, not as proof.
+
+The semantic duties stay here. For every migration in the diff, confirm:
+
+- the declared class is honest: `expand` only adds a compatible object, `migrate` preserves the guarantee it names, and `contract` is the delayed removal of an object nothing serves anymore;
+- `removes` and `preserves` name the objects the SQL actually touches — the check does not compare them;
+- `reason` explains the real operational constraint, not the class;
+- for a `contract`, serving code (including dynamic SQL, background jobs, and external consumers) no longer reads or writes the removed object, and the prerequisite release that removed the last dependency is the one the declaration names.
+
+A `contract` is backed by machine evidence: the prerequisite pull request is merged, its `merge_commit_sha` equals `prerequisite-merge`, its body carries the matching `OpenSpec:` trailer, and that commit is contained in `main`, the release head, and the commits behind the latest successful production and beta API deployments. The evidence is pipeline evidence only — confirm that no out-of-band `wrangler rollback` happened since the evidence deployment, or that a pipeline redeploy completed. A rollback the pipeline never recorded is invisible to the check, so this confirmation is a review duty, not a machine guarantee.
+
+A migration file already on `main`, `beta`, or the pinned `dev` adoption commit is frozen: it must not be edited or annotated, because Prisma records its checksum. A migration merged to `dev` after adoption may still change before it reaches a shared branch.
+
+A `hotfix/*` pull request to `beta` or `main` may add only `expand` migrations. A `migrate`, `contract`, or `adjudicated` declaration must ship through a normal release, because a hotfix cannot carry the release its own prerequisite depends on.
+
+The `adjudicated` overlay is exceptional: it applies to a `contract` or `migrate` whose prerequisite cannot be satisfied, requires two named owners with `APPROVED` reviews, an incident reference, a backup reference, a ledger-reconciliation reference, and an adjudication timestamp. It skips only prerequisite and deployment evidence. Confirm the incident justifies it; it is not a routine fourth class.
+
+The approving owner is the accountable reviewer for the class and its claim. An approval that does not engage with the declaration is a finding, and so is a declaration that hides a destructive statement behind `expand`.
 
 ## Cap the nits
 

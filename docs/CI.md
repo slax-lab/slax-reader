@@ -3,8 +3,9 @@
 ## Scope and change policy
 
 - **Owns:** CI scope selection, workflow and gate mechanics, the promotion-integrity check,
-  ruleset drift detection, the required configuration check, review readiness, daily full
-  validation, Mobile EAS builds, release verification, and local verification commands.
+  the migration release evidence check, ruleset drift detection, the required configuration
+  check, review readiness, daily full validation, Mobile EAS builds, release verification, and
+  local verification commands.
 - **Does not own:** branch protection, approvals, promotion, sync-back, or hotfix policy
   (`docs/BRANCHING.md`); review policy (`REVIEW.md`); the verification-evidence procedure
   (`docs/DEFINITION-OF-DONE.md`); the normative CI and branch requirements
@@ -35,10 +36,37 @@ On `main` the six suite gates are required through `promotion integrity` rather 
 - The head branch is an allowed source and lives in this repository: `dev` or `hotfix/*` for `beta`; `beta` or `hotfix/*` for `main`. A fork branch named `dev` is rejected.
 - The six application CI gates, reported by the GitHub Actions app, are present and completed successfully on the pull request's head commit. A skipped suite gate counts as success only because `ci-scope` did not select that suite for the diff.
 - For a `beta` → `main` promotion, the beta-environment deployment evidence is green. Deploy workflows attach their conclusions to the merged pull request's head SHA rather than the merge commit, so the gate resolves the promotion head through the merged pull request that produced the `beta` tip, then reads the `beta` deployments on that head SHA and the `api-deploy`/`web-deploy` run conclusions behind them. Both deploy workflows are paths-filtered, so evidence is required only from a workflow that registered a run for that head SHA — a batch that triggered no deploy workflow has nothing to deploy and passes without it. A `hotfix/*` head skips this evidence, because it never entered `beta`.
+- The promotion diff carries valid migration release evidence: every added migration declares its class and has a named API owner approval, no migration is deleted, renamed, or edited on a shared branch, and every current `contract` satisfies its prerequisite and deployment evidence or carries a valid adjudicated overlay. The diff is enumerated from the merge base and the two recursive tree listings, so a batch larger than the compare API's 300-file file list is still verified completely; a truncated tree listing fails closed.
 
 The suite gates and beta deploys trigger around the same time as the gate, so the script polls the evidence every 30 seconds up to a 45-minute deadline (`PROMOTION_GATE_TIMEOUT_MS`); a completed failure fails immediately, and a timeout names the contexts still outstanding.
 
 The workflow uses the repository `GITHUB_TOKEN` with `actions: read`, `checks: write`, `contents: read`, `deployments: read`, and `pull-requests: read` (the beta → main provenance lookup reads `commits/{sha}/pulls`); it does not need the administration permission that drift detection uses.
+
+## Migration release evidence
+
+`tooling/migration-release-evidence.mjs` is the single read-only check behind three surfaces. It reads a migration file's leading comment block, the release diff, and public GitHub records: the pull request that introduced a migration and its named-owner review, a `contract`'s prerequisite pull request and merge commit, branch and deployment ancestry, and the newest successful `api-deploy` deployment per environment. It contains no SQL parser, statement whitelist, object-name cross-check, or replacement analysis, and it executes no DDL. Whether a declared class is honest stays a review duty (`REVIEW.md`).
+
+| Surface | Release diff | Ownership | Contract evidence |
+| --- | --- | --- | --- |
+| API pull-request CI (`migration-evidence` job) | `merge-base(base, head)..head` | full | full |
+| `promotion integrity` | merge base plus two recursive tree listings | full | full |
+| API deploy preflight | `HEAD^1..HEAD` | skipped | full for `beta` and `main`; skipped for `dev` |
+
+A migration file added by the diff is current unless the same path already exists on `main`, `beta`, or the pinned `dev` adoption commit. A path already on a shared branch must not be added again. A path present only in the adoption tree is frozen: it is already applied on `dev` and needs no declaration or approval, and its first promotion to `beta` or `main` is not blocked. A frozen file must not be edited or annotated, because Prisma recorded its checksum. A migration merged to `dev` after adoption may still change before it reaches a shared branch. Deleting or renaming any migration, editing a released or frozen one, and changing `migration_lock.toml` fail on immutability.
+
+Every failure reports one fixed stage — `declaration`, `ownership`, `prerequisite`, `immutability`, or `evidence` — with a public migration path, pull-request number, or commit SHA. Private configuration, connection values, and raw API responses never appear in the output. The check runs before any remote access: no firewall rule, Tunnel, migration, or Worker publication happens after a failing verdict.
+
+Permissions and checkouts:
+
+- API CI runs the `migration-evidence` job on `pull_request` with `actions`, `contents`, `deployments`, and `pull-requests` read scopes, and checks out full history so the merge-base diff and the `main`/`beta`/adoption trees are local. It is skipped for `full_validation` runs, which have no release diff.
+- `promotion integrity` already carries those four read scopes and reads everything through the API: one compare call supplies the merge base, and two recursive `git/trees` listings supply path and blob identity for the migration families. A truncated listing, an unreadable tree, or an unresolvable merge base fails closed.
+- The API deploy preflight checks out the merge commit with `fetch-depth: 2`, fetches `main`, `beta`, and the target branch read-only with the workflow token, and passes `GH_TOKEN`. It runs after the superseded-release check and before the firewall step, so a superseded release — which mutates nothing — does not resolve evidence.
+
+The check resolves a serving commit only from `.github/workflows/api-deploy.yml` deployments whose `Migrate databases and deploy Workers` step concluded successfully. Duplicate deployments are deduplicated by commit, non-API deployments are skipped, and a failed, cancelled, or in-progress newest API deployment freezes the verdict instead of falling back to an older success. A release whose diff adds no current `contract` resolves no deployment evidence, so an expand-only release is not blocked by a deployments-API outage. An unreadable `CODEOWNERS`, pull-requests, actions, or contents response fails closed, as does ambiguous provenance.
+
+A `hotfix/*` pull request to `beta` or `main` may add only `expand` migrations; `migrate`, `contract`, and `adjudicated` declarations must ship through a normal release. An out-of-band `wrangler rollback` cannot be observed by the check; `REVIEW.md` requires the contract reviewer to confirm either no rollback since the evidence deployment or a completed pipeline redeploy.
+
+Run the local check from the repository root with `pnpm migration:evidence -- --surface pull-request --base <sha> --head <sha> --base-ref <ref> --head-ref <ref>`; `--surface deploy` and `--surface promotion` select the other two surfaces, and `GH_TOKEN` plus `GITHUB_REPOSITORY` are required.
 
 ## Ruleset state and drift detection
 
@@ -57,6 +85,8 @@ The expected ruleset state is codified in `.github/rulesets.expected.json`, and 
 | Web implementation/config/tests | Web typecheck and tests, shared type prerequisites, icon checks |
 | Extension implementation/config/tests | Extension compile and tests, shared type prerequisites, controlled release-tooling checks |
 | API implementation/config/tests | Generation, lint, typecheck, tests, offline Worker build |
+| Migration files under `apps/api/prisma/**` | API suite and the migration release evidence check |
+| `tooling/migration-release-evidence.mjs` or its test | API suite and root tooling checks |
 | Mobile implementation/config/tests | Mobile checks and JavaScript bundle |
 | CLI implementation/config/tests | CLI typecheck, tests, and package smoke on Node 22.22.2, 24.15.0, and 26.12.1; CLI tooling checks |
 | `packages/contracts/**` | All five application consumers |

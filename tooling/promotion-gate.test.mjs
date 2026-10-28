@@ -11,6 +11,27 @@ const repository = 'slax-lab/slax-reader'
 const headSha = 'a'.repeat(40)
 const sourceSha = 'b'.repeat(40)
 const otherSha = 'c'.repeat(40)
+const introducingSha = 'd'.repeat(40)
+const ownerBase = 'e'.repeat(40)
+const d1 = name => `apps/api/prisma/d1_migrations/${name}.sql`
+const pg = name => `apps/api/prisma/pg_migrations/${name}/migration.sql`
+const expandText = '-- migration-safety: expand\nALTER TABLE example ADD COLUMN value integer;\n'
+const contractText = [
+  '-- migration-safety: contract',
+  '-- removes: example_unique_key',
+  '-- prerequisite-change: example-removal',
+  '-- prerequisite-pr: 412',
+  '-- prerequisite-merge: ' + '9'.repeat(40),
+  '-- reason: The prerequisite release removed the last reader and writer.',
+  'DROP INDEX IF EXISTS "example_unique_key";',
+  ''
+].join('\n')
+const codeownersText = [
+  '* @slax-lab/reader-core',
+  '/apps/api/** @DGuang21 @slax-lab/reader-core',
+  '/apps/api/prisma/** @DGuang21 @boxcounter @slax-lab/reader-core'
+].join('\n')
+const encode = text => Buffer.from(text).toString('base64')
 
 const inputs = (overrides = {}) => ({
   repository, number: 42, base: 'beta', head: 'dev', headSha,
@@ -36,6 +57,13 @@ function routed(routes) {
 const gateRun = (name, id, overrides = {}) => ({ id, name, status: 'completed', conclusion: 'success', app: { slug: 'github-actions' }, ...overrides })
 const greenGates = () => suiteGates.map((name, index) => gateRun(name, index + 1))
 const checksRoute = runs => [[/\/check-runs\?/, () => response({ total_count: runs.length, check_runs: runs })]]
+const mergeBaseSha = '4'.repeat(40)
+// The promotion diff comes from the merge base plus two recursive tree listings;
+// the compare call supplies only the merge base.
+const compareRoute = () => [
+  [/\/compare\//, () => response({ status: 'ahead', merge_base_commit: { sha: mergeBaseSha } })],
+  [/\/git\/trees\/[a-f0-9]{40}\?recursive=1$/, () => response({ truncated: false, tree: [] })]
+]
 const mergedPull = (overrides = {}) => ({ merged_at: '2026-10-22T03:18:30Z', merge_commit_sha: headSha, base: { ref: 'beta' }, head: { sha: sourceSha }, ...overrides })
 const deployment = (id, createdAt = '2026-10-22T03:18:35Z') => ({ id, created_at: createdAt, environment: 'beta', sha: sourceSha })
 const deploymentStatus = (runId, state = 'success', createdAt = '2026-10-22T03:21:00Z') => ({ state, created_at: createdAt, log_url: `https://github.com/${repository}/actions/runs/${runId}/job/7` })
@@ -55,6 +83,7 @@ function betaDeploymentRoutes({ pulls = [mergedPull()], deployments = [deploymen
   const deploymentHandlers = deployments.map(item => [new RegExp(`/deployments/${item.id}/statuses\\?`), typeof statuses[item.id] === 'function' ? statuses[item.id] : () => response(statuses[item.id] ?? [deploymentStatus(1000 + item.id)])])
   const runHandlers = Object.entries(runs).map(([id, run]) => [new RegExp(`/actions/runs/${id}$`), () => response(run)])
   return [
+    ...compareRoute(),
     ...checksRoute(greenGates()),
     [/\/commits\/[a-f0-9]{40}\/pulls\?/, () => response(pulls)],
     [/\/actions\/workflows\//, url => {
@@ -133,6 +162,7 @@ test('suite gate assessment reads the latest Actions run per required name', () 
 test('a dev-to-beta promotion passes with six green gates and polls pending ones', async () => {
   let polls = 0
   const fetchImpl = routed([
+    ...compareRoute(),
     [/\/check-runs\?/, () => response({ check_runs: polls++ === 0 ? greenGates().map((run, index) => index === 0 ? { ...run, status: 'in_progress' } : run) : greenGates() })]
   ])
   let waits = 0
@@ -143,16 +173,17 @@ test('a dev-to-beta promotion passes with six green gates and polls pending ones
 
 test('a failed suite gate fails immediately while a pending one times out with its name', async () => {
   let waits = 0
-  const failed = routed(checksRoute(greenGates().map((run, index) => index === 5 ? { ...run, conclusion: 'failure' } : run)))
+  const failed = routed([...compareRoute(), ...checksRoute(greenGates().map((run, index) => index === 5 ? { ...run, conclusion: 'failure' } : run))])
   await assert.rejects(runPromotionGate(inputs({}), options(failed, { wait: async () => { waits++ } })), /Tooling CI gate \(failure\)/)
   assert.equal(waits, 0)
-  const pending = routed(checksRoute(greenGates().map((run, index) => index === 0 ? { ...run, status: 'queued' } : run)))
+  const pending = routed([...compareRoute(), ...checksRoute(greenGates().map((run, index) => index === 0 ? { ...run, status: 'queued' } : run))])
   await assert.rejects(runPromotionGate(inputs({}), options(pending, { wait: async () => { waits++ }, timeoutMs: 0 })), /did not complete before the timeout.*Web CI gate/)
   assert.equal(waits, 0)
 })
 
 test('check runs paginate and only the first page cannot satisfy the gate', async () => {
   const pages = [
+    ...compareRoute(),
     [/\/check-runs\?filter=all&per_page=100&page=1$/, () => response({ check_runs: Array.from({ length: 100 }, (_, index) => gateRun(`filler ${index}`, index + 1)) })],
     [/\/check-runs\?filter=all&per_page=100&page=2$/, () => response({ check_runs: greenGates() })]
   ]
@@ -247,16 +278,16 @@ test('a batch that triggered only one deploy workflow requires evidence only fro
 
 test('a hotfix to main skips deploy evidence and never reads reviews', async () => {
   // No reviews route is registered: any attempt to read them throws inside routed().
-  await runPromotionGate(inputs({ base: 'main', head: 'hotfix/urgent' }), options(routed(checksRoute(greenGates()))))
+  await runPromotionGate(inputs({ base: 'main', head: 'hotfix/urgent' }), options(routed([...compareRoute(), ...checksRoute(greenGates())])))
 })
 
 test('a dev-to-beta promotion never reads reviews or deployments', async () => {
-  await runPromotionGate(inputs({}), options(routed(checksRoute(greenGates()))))
+  await runPromotionGate(inputs({}), options(routed([...compareRoute(), ...checksRoute(greenGates())])))
 })
 
 test('a passing gate reports a promotion integrity check run on the head SHA', async () => {
   const posted = []
-  const result = await runGateAndReport(env(), { fetchImpl: routed([...checksRoute(greenGates()), checkRunRoute(posted)]) })
+  const result = await runGateAndReport(env(), { fetchImpl: routed([...compareRoute(), ...checksRoute(greenGates()), checkRunRoute(posted)]) })
   assert.deepEqual(result, { reported: true, passed: true })
   assert.equal(posted.length, 1)
   assert.deepEqual(
@@ -282,6 +313,7 @@ test('a failing verdict still reports a failing check run with an actionable sum
 test('an evidence API error still reports a failing check run', async () => {
   const posted = []
   const routes = [
+    ...compareRoute(),
     [/\/check-runs\?/, () => httpFailure(503)],
     checkRunRoute(posted)
   ]
@@ -315,7 +347,7 @@ test('a rejected check run creation leaves the verdict unreported', async () => 
 
 test('a failed success report is never misreported as a gate failure', async () => {
   const posted = []
-  const result = await runGateAndReport(env(), { fetchImpl: routed([...checksRoute(greenGates()), checkRunRoute(posted, 500)]), wait: async () => {} })
+  const result = await runGateAndReport(env(), { fetchImpl: routed([...compareRoute(), ...checksRoute(greenGates()), checkRunRoute(posted, 500)]), wait: async () => {} })
   assert.equal(result.reported, false)
   assert.equal(result.passed, false)
   assert.equal(posted.length, 1)
@@ -328,6 +360,76 @@ test('check run creation verifies the returned identity', async () => {
   }, {
     fetchImpl: async () => response({ name: 'wrong name', head_sha: headSha, status: 'completed', conclusion: 'success' })
   }), /Could not verify/)
+})
+
+// Migration release evidence fixtures: the promotion diff comes from the
+// compare API, the introduced file and CODEOWNERS from the contents API, and
+// ownership from the introducing pull request's reviews. Every frozen ref
+// (main, beta, the dev adoption commit) reads as absent.
+function migrationRoutes({ baseFiles = [], headFiles = [], truncated = false, content = {}, codeowners = codeownersText, reviews = [{ user: { login: 'DGuang21' }, state: 'APPROVED', submitted_at: '2026-10-27T00:00:00Z', id: 1 }], pulls = [{ number: 700, merged_at: '2026-10-27T00:00:00Z', merge_commit_sha: introducingSha, base: { sha: ownerBase }, head: { sha: sourceSha } }] } = {}) {
+  return [
+    [/\/git\/trees\/([a-f0-9]{40})\?recursive=1$/, url => {
+      const ref = url.match(/\/git\/trees\/([a-f0-9]{40})/)[1]
+      if (truncated) return response({ truncated: true, tree: [] })
+      return response({ truncated: false, tree: ref === headSha ? headFiles : baseFiles })
+    }],
+    ...compareRoute(),
+    [/\/contents\//, url => {
+      const path = decodeURIComponent(url.match(/\/contents\/([^?]+)\?/)[1])
+      const ref = new URL(url).searchParams.get('ref')
+      if (path === '.github/CODEOWNERS' && (ref === headSha || ref === ownerBase)) return response({ type: 'file', encoding: 'base64', content: encode(codeowners) })
+      if (ref !== headSha) return httpFailure(404)
+      if (path in content) return response({ type: 'file', encoding: 'base64', content: encode(content[path]) })
+      return httpFailure(404)
+    }],
+    [/\/commits\?path=/, () => response([{ sha: introducingSha }])],
+    [/\/commits\/[a-f0-9]{40}\/pulls/, () => response(pulls)],
+    [/\/pulls\/\d+\/reviews/, () => response(reviews)],
+    ...checksRoute(greenGates())
+  ]
+}
+
+test('a promotion adding an undeclared migration fails the gate on the declaration stage', async () => {
+  const routes = migrationRoutes({ headFiles: [{ path: d1('0002'), type: 'blob', sha: '5'.repeat(40) }], content: { [d1('0002')]: 'ALTER TABLE t ADD COLUMN c int;\n' } })
+  await assert.rejects(runPromotionGate(inputs({}), options(routed(routes))), /Migration release evidence failed:[\s\S]*declaration: apps\/api\/prisma\/d1_migrations\/0002\.sql/)
+})
+
+test('a promotion adding an approved expand migration passes', async () => {
+  const routes = migrationRoutes({ headFiles: [{ path: d1('0002'), type: 'blob', sha: '5'.repeat(40) }], content: { [d1('0002')]: expandText } })
+  await runPromotionGate(inputs({}), options(routed(routes)))
+})
+
+test('a promotion whose new migration has no named-owner approval fails on ownership', async () => {
+  const routes = migrationRoutes({
+    headFiles: [{ path: d1('0002'), type: 'blob', sha: '5'.repeat(40) }],
+    content: { [d1('0002')]: expandText },
+    reviews: [{ user: { login: 'outsider' }, state: 'APPROVED', submitted_at: '2026-10-27T00:00:00Z', id: 1 }]
+  })
+  await assert.rejects(runPromotionGate(inputs({}), options(routed(routes))), /Migration release evidence failed:[\s\S]*ownership:/)
+})
+
+test('a promotion that deletes a migration fails on immutability', async () => {
+  const routes = migrationRoutes({ baseFiles: [{ path: d1('0001'), type: 'blob', sha: '5'.repeat(40) }] })
+  await assert.rejects(runPromotionGate(inputs({}), options(routed(routes))), /immutability:/)
+})
+
+test('a hotfix promotion carrying a contract fails before any deployment evidence', async () => {
+  const routes = migrationRoutes({ headFiles: [{ path: pg('drop'), type: 'blob', sha: '5'.repeat(40) }], content: { [pg('drop')]: contractText } })
+  await assert.rejects(runPromotionGate(inputs({ base: 'main', head: 'hotfix/urgent' }), options(routed(routes))), /hotfix may add only expand/)
+})
+
+test('a truncated tree listing fails the gate closed', async () => {
+  const routes = migrationRoutes({ truncated: true })
+  await assert.rejects(runPromotionGate(inputs({}), options(routed(routes))), /tree listing is truncated/)
+})
+
+test('a promotion diff larger than 300 files still reaches the migration verdict', async () => {
+  const headFiles = [
+    ...Array.from({ length: 400 }, (_, index) => ({ path: `apps/web/file-${index}.vue`, type: 'blob', sha: String(index).padStart(40, '0') })),
+    { path: d1('0002'), type: 'blob', sha: '5'.repeat(40) }
+  ]
+  const routes = migrationRoutes({ headFiles, content: { [d1('0002')]: 'ALTER TABLE t ADD COLUMN c int;\n' } })
+  await assert.rejects(runPromotionGate(inputs({}), options(routed(routes))), /declaration: apps\/api\/prisma\/d1_migrations\/0002\.sql/)
 })
 
 test('the workflow uses the trusted pull_request_target trigger and reports a distinct check run', () => {

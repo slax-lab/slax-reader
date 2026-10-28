@@ -36,7 +36,7 @@ The human administrator merges promotion, sync-back, and hotfix pull requests fr
 
 ## Task branches
 
-- One task = one branch = one PR: branch `<type>/<task-name>` cut from `origin/dev`, where `<type>` is the commit type of the work, e.g. `feat`, `fix`, `docs`, `chore`, `ci`. The task's pull request targets `dev`. `<task-name>` is one string, used verbatim for the branch suffix and — when a change is required — the OpenSpec change-id.
+- One task = one branch = one PR: branch `<type>/<task-name>` cut from `origin/dev`, where `<type>` is the commit type of the work, e.g. `feat`, `fix`, `docs`, `chore`, `ci`. The task's pull request targets `dev`. `<task-name>` is one string, used verbatim for the branch suffix and — when a change is required — the OpenSpec change-id. A working branch whose suffix differs from the change-id (a scratch or generated name) must be renamed before the pull request opens, so the branch, the pull request, and the change agree.
 - Never commit on a long-lived branch (`dev`, `beta`, or `main`): a pre-commit hook rejects the commit locally, and the repository ruleset rejects the push remotely. Trivial fixes (typo scale, single file) also go through a branch and a pull request.
 - Before the first file edit of a session, check where you are: if `git branch --show-current` is a long-lived branch, cut the task branch first — `git switch -c <type>/<task-name> --no-track origin/dev` — asking the human first when the checkout carries uncommitted changes.
 - Parallel tasks MUST NOT carry delta specs for the same capability (`openspec/specs/<capability>/`); sequence such tasks instead. The non-delegable same-capability obligation is stated in the root agent rules.
@@ -54,6 +54,10 @@ One direction has no sync-back pull request at all: a conflicted `beta` → `mai
 When `beta` or `main` needs an urgent fix while the branch that would normally feed it carries changes that are not ready to promote, cut `hotfix/<name>` from the branch that needs the fix and merge it back through a pull request subject to that branch's entry conditions. A hotfix pull request requires one approving review from an approver other than its author — the content never passed through `dev`, where reviews happen — and the rulesets on `beta` and `main` enforce that review exactly as they do for every other pull request to those branches. The administrator's `pull_request` bypass remains for a change that genuinely cannot wait; requiring the review is what keeps the bypass an exceptional act.
 
 Then propagate the same `hotfix/*` branch downstream with merge-commit pull requests — to `dev`, and additionally to `beta` when the hotfix landed on `main` — and start no further normal promotion until that propagation is merged. Merging the same `hotfix/*` branch keeps histories convergent; a propagation pull request headed by the fixed `main` branch would also fail `beta`'s source allowlist, which admits only `dev` or `hotfix/*` heads.
+
+A hotfix pull request to `beta` or `main` may add only `expand` migrations. A `migrate`, `contract`, or `adjudicated` declaration must ship through a normal release: a hotfix cannot carry the release that its own prerequisite depends on. The migration release evidence check enforces this on the promotion diff and in the deploy preflight (`docs/CI.md`).
+
+After an out-of-band `wrangler rollback` on `beta` or `main`, no `contract` may proceed until the rolled-back target commit is redeployed through `api-deploy.yml` and the evidence resolves it as serving again. The check cannot observe the rollback itself; the contract reviewer confirms the redeploy (`REVIEW.md`).
 
 ## Promotion mechanics
 

@@ -138,10 +138,12 @@ A file added after adoption goes through the check before the `dev` deploy appli
 | Surface | Release diff | Contract evidence | Ownership |
 | --- | --- | --- | --- |
 | API pull-request CI | `merge-base(base, head)..head` | Full | Full |
-| `promotion integrity` | compare API `base...head` (`files[].status`) | Full | Full |
+| `promotion integrity` | merge-base tree diff (`git/trees`, recursive) | Full | Full |
 | API deploy preflight | `HEAD^1..HEAD` | Full for `beta`/`main`; skipped for `dev` (test database) | Skipped for `dev` |
 
 Evidence is computed from the release diff only, so a release whose diff contains no current `contract` does not resolve deployments at all. A contract already on `main` or `beta` is historical: it was applied and is frozen, so it is not revalidated.
+
+The promotion surface has no checkout of the head, so it enumerates the diff from the API instead. The compare API cannot supply it: its `files` array is capped at 300 entries and is not paginated (`page=2` returns no file list), and a routine `dev` → `beta` batch already exceeds 300 files — verified against the live repository, where `beta...dev` reported 300 files and 64 commits. Capping the whole promotion on that limit would block every promotion. The gate therefore reads one compare response for `merge_base_commit`, then two recursive `git/trees` listings and diffs only the four migration families plus `migration_lock.toml` by path and blob identity; a rename is a removed path whose blob reappears under a new path. A truncated tree listing, an unreadable tree, or an unresolvable merge base still fails closed.
 
 The check runs before any remote access in the deploy job: no firewall rule, Tunnel, migration, or publication. It is read-only and needs no database or deployment credentials.
 
@@ -158,7 +160,7 @@ The check runs before any remote access in the deploy job: no firewall rule, Tun
 | Deployments API unavailable | A release with a current `contract` fails; a release without one does not call it |
 | Contents/tree API unavailable | Pull-request CI and the promotion gate cannot read `CODEOWNERS` or the base tree and fail closed |
 | Pull-requests or actions API unavailable | Ownership and contract evidence fail closed; a release with no new migration in its diff does not call them |
-| Compare API hits the 300-file limit or truncates | Promotion fails closed |
+| The merge base is unresolvable, or a recursive tree listing is truncated | Promotion fails closed |
 | Latest API run failed, cancelled, or in progress | Current `contract` fails; no fallback to an older success |
 | Duplicate or ambiguous deployment, pull request, or introducing commit | Fail closed |
 
@@ -184,7 +186,11 @@ Every failure reports one fixed stage — `declaration`, `ownership`, `prerequis
 - **A deployments-API outage blocks contract releases.** Accepted fail-closed behavior; releases without a current contract do not call it.
 - **Named-owner availability.** One named user per path can block a merge. Mitigation: the small named-user list for `/apps/api/prisma/**`, added before enforcement.
 - **Adoption edge.** A `dev` migration merged before adoption is frozen by the pinned commit; a migration merged after adoption must carry its header before the `dev` deploy applies it.
-- **Branch discipline.** The delivery branch suffix must equal the change-id. The Tower branch `feat/simplify-migration-release-evidence` does not; the delivery pull request must be cut from current `origin/dev` as `feat/enforce-expand-contract-release-safety`, or the branch renamed before the pull request opens.
+- **Branch discipline.** The delivery branch suffix must equal the change-id. The Tower worktree branch is `feat/implement-migration-release-evidence`; the delivery pull request must be cut from current `origin/dev` as `feat/enforce-expand-contract-release-safety`, so the branch is renamed before the pull request opens.
+
+## Approval
+
+Alex Lee approved this revised release-evidence architecture on 2026-10-28, and implementation started from this revision. The SQL-semantic route recorded in decision 1 stays withdrawn.
 
 ## Rollout / migration plan
 

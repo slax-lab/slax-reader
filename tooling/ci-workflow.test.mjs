@@ -55,7 +55,12 @@ test('application workflows always detect full PR differences and cancel obsolet
     assertValidationTriggers(w)
     assert.equal(w.concurrency['cancel-in-progress'], true)
     assert.match(w.concurrency.group, /pull_request.number/)
-    assert.deepEqual(w.permissions, { contents: 'read' })
+    // API CI also reads the release evidence, so its token carries the read
+    // scopes the promotion gate uses. Every scope stays read-only.
+    const permissions = name === 'api-ci'
+      ? { actions: 'read', contents: 'read', deployments: 'read', 'pull-requests': 'read' }
+      : { contents: 'read' }
+    assert.deepEqual(w.permissions, permissions)
     const steps = w.jobs.changes.steps
     assert.equal(evaluate(w.jobs.changes.if, {}), true)
     assert.equal(steps[0].with['fetch-depth'], 0)
@@ -99,6 +104,57 @@ test('suite gate jobs expose the required contexts and fail closed unless every 
   }
   assert.deepEqual(names.sort(), ['API CI gate', 'CLI CI gate', 'Extension CI gate', 'Mobile CI gate', 'Tooling CI gate', 'Web CI gate'])
   assert.equal(new Set(names).size, names.length, 'required contexts must be unique across workflows')
+})
+
+test('API CI verifies migration release evidence on the pull request diff with read-only scopes', () => {
+  const w = workflow('api-ci')
+  const job = w.jobs['migration-evidence']
+  assert.ok(job, 'the migration evidence job must exist')
+  assert.equal(job.needs, 'changes')
+  assert.equal(evaluate(job.if, { needs: needs(['apps/api/prisma/d1_migrations/0002_add.sql']) }), true)
+  assert.equal(evaluate(job.if, { needs: needs(['apps/web/page.vue']) }), false)
+  assert.equal(evaluate(job.if, { inputs: { full_validation: true }, needs: { changes: { result: 'skipped', outputs: {} } } }), false)
+
+  const checkout = job.steps[0]
+  assert.equal(checkout.uses, 'actions/checkout@v4')
+  assert.equal(checkout.with['fetch-depth'], 0)
+  assert.equal(checkout.with['persist-credentials'], false)
+  assert.ok(job.steps.some(step => step.uses?.startsWith('actions/setup-node@')))
+  const step = job.steps.find(item => item.name === 'Verify migration release evidence')
+  assert.ok(step)
+  for (const flag of ['--surface pull-request', '--base "$BASE_SHA"', '--head "$HEAD_SHA"', '--base-ref "$BASE_REF"', '--head-ref "$HEAD_REF"']) assert.ok(step.run.includes(flag), flag)
+  assert.equal(step.env.BASE_SHA, '${{ github.event.pull_request.base.sha }}')
+  assert.equal(step.env.HEAD_SHA, '${{ github.event.pull_request.head.sha }}')
+  assert.equal(step.env.BASE_REF, '${{ github.event.pull_request.base.ref }}')
+  assert.equal(step.env.HEAD_REF, '${{ github.event.pull_request.head.ref }}')
+  assert.ok(step.env.GH_TOKEN)
+  assert.deepEqual([...w.jobs['api-gate'].needs].sort(), ['changes', 'check', 'migration-evidence'])
+})
+
+test('the API deploy preflight verifies migration evidence before any remote access', () => {
+  const w = workflow('api-deploy')
+  assert.deepEqual(w.permissions, { actions: 'read', contents: 'read', deployments: 'read', 'pull-requests': 'read' })
+  assert.ok(w.on.pull_request_target.paths.includes('tooling/migration-release-evidence.mjs'))
+  const steps = w.jobs.deploy.steps
+  const names = steps.map(step => step.name)
+  const release = names.indexOf('Check the branch before deployment')
+  const preflight = names.indexOf('Verify migration release evidence')
+  const firewall = names.indexOf('Allow the runner through the existing firewall')
+  const publish = names.indexOf('Migrate databases and deploy Workers')
+  assert.ok(release >= 0 && preflight > release && firewall > preflight && publish > preflight, names.join('|'))
+  assert.deepEqual(names.slice(0, preflight).filter(name => /firewall|Tunnel|Migrate/i.test(name)), [])
+
+  const step = steps[preflight]
+  assert.equal(step.if, "steps.release.outputs.current == 'true'")
+  assert.ok(step.env.GH_TOKEN)
+  for (const expression of ['gh auth setup-git', 'refs/heads/main:refs/remotes/origin/main', 'refs/heads/beta:refs/remotes/origin/beta', '"refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"', '--surface deploy', '--base "$MERGE_SHA^1"', '--head "$MERGE_SHA"', '--base-ref "$TARGET_BRANCH"', '--environment "$TARGET_BRANCH"']) {
+    assert.ok(step.run.includes(expression), expression)
+  }
+  const checkout = steps.find(item => item.uses?.startsWith('actions/checkout@'))
+  assert.equal(checkout.with['fetch-depth'], 2)
+  assert.equal(checkout.with['persist-credentials'], false)
+  const branchCheck = steps[release]
+  assert.match(branchCheck.run, /tooling\/migration-release-evidence\.mjs/)
 })
 
 test('daily and manual full validation call every read-only suite on dev without publication permissions', () => {

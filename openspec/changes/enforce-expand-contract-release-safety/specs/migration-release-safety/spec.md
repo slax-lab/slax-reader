@@ -125,8 +125,12 @@ A migration file present in the pinned `dev` adoption tree, on `main`, or on `be
 - **THEN** the check does not report an immutability failure
 
 #### Scenario: A frozen migration gains a declaration
-- **WHEN** the release diff adds or changes a declaration on a migration present in the `dev` adoption tree
+- **WHEN** the release diff edits a migration present in the `dev` adoption tree, including by adding or changing its declaration
 - **THEN** the check fails on immutability
+
+#### Scenario: An adoption-era migration reaches its first shared branch
+- **WHEN** the release diff adds to `beta` or `main` a migration that is present in the `dev` adoption tree but absent from both shared branches
+- **THEN** it is frozen rather than current: it needs no declaration or approval, and the promotion is not blocked
 
 #### Scenario: A lagging branch lacks a migration
 - **WHEN** the head does not contain a migration that exists on `main` but the release diff contains no deletion for it
@@ -156,13 +160,13 @@ Every failure MUST report one fixed stage among `declaration`, `ownership`, `pre
 - **WHEN** a deployment's run skipped the migration and publication step because a newer release superseded it
 - **THEN** that deployment does not count as serving evidence
 
-#### Scenario: The compare API truncates
-- **WHEN** the promotion compare response reaches the 300-file limit or reports truncation
+#### Scenario: The release trees cannot be enumerated
+- **WHEN** a recursive tree listing for the promotion diff is truncated, a tree is unreadable, or the merge base cannot be resolved
 - **THEN** the promotion check fails closed
 
 #### Scenario: The dev deploy has no contract evidence
 - **WHEN** the target environment is `dev` and the release adds a contract
-- **THEN** declaration, ownership, and immutability checks run, prerequisite and deployment evidence are skipped, and the test database may be migrated
+- **THEN** declaration and immutability checks run, ownership was already required on the pull request that introduced the migration, prerequisite and deployment evidence are skipped, and the test database may be migrated
 
 ### Requirement: Hotfix releases carry only expand migrations
 

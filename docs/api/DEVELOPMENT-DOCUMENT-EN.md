@@ -52,6 +52,57 @@ See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operat
 | Diagnostics | `pnpm api -- debug:hashids` / `debug:hash-article` |
 | Optional CLI tools | `pnpm api -- stripe:webhook` / `mcp:tool` / `update:cli` |
 
+## Migration release evidence
+
+Beta and production share the PostgreSQL databases, so a merged release into `beta` applies its migrations to the shared production databases before production Workers update. Every new migration therefore declares its release class in a leading comment block, and a named API owner approves that classification on the pull request that introduces the migration. The check reads only the declaration, the release diff, and public GitHub records; it does not parse SQL.
+
+Generate the migration first, classify it, add the declaration before the local apply, and regenerate afterwards:
+
+1. `pnpm api -- gen:diff` (or `gen:diff:d1`, `gen:diff:logs`) and inspect the SQL.
+2. Put the declaration on the file's first lines.
+3. `pnpm api -- migration:local` (or `migration:local:logs`), then `pnpm api -- gen:all`.
+
+```sql
+-- migration-safety: expand
+ALTER TABLE "sr_user_bookmark" ADD COLUMN "example" text;
+```
+
+```sql
+-- migration-safety: migrate
+-- preserves: example_unique_key
+-- reason: Backfills the renamed column before the old writer is removed.
+UPDATE "example" SET "value" = 0 WHERE "value" IS NULL;
+```
+
+```sql
+-- migration-safety: contract
+-- removes: example_unique_key
+-- prerequisite-change: example-removal
+-- prerequisite-pr: 412
+-- prerequisite-merge: 0123456789abcdef0123456789abcdef01234567
+-- reason: The prerequisite release removed the last reader and writer of this key.
+DROP INDEX IF EXISTS "example_unique_key";
+```
+
+```sql
+-- migration-safety: adjudicated
+-- adjudicated-class: contract
+-- removes: example_unique_key
+-- incident: https://github.com/slax-lab/slax-reader/issues/123
+-- adjudicated-at: 2026-10-28T12:00:00Z
+-- approved-by: @DGuang21, @boxcounter
+-- backup: R2 snapshot reference backup-20261028
+-- ledger-reconciliation: prisma migrate resolve --applied 20261028_example
+-- reason: The prerequisite cannot be deployed first because the key is actively corrupting data.
+DROP INDEX IF EXISTS "example_unique_key";
+```
+
+The four families are `apps/api/prisma/pg_migrations/**/migration.sql`, `apps/api/prisma/logs_migrations/**/migration.sql`, `apps/api/prisma/d1_migrations/*.sql`, and `apps/api/prisma/d1_migrations/fulltext/*.sql`. One class per file; `expand` carries no other safety field, `migrate` carries `preserves` and `reason`, `contract` carries `removes`, `prerequisite-change`, `prerequisite-pr`, `prerequisite-merge`, and `reason`. Duplicate, unknown, or class-inapplicable fields fail.
+
+`removes`, `preserves`, and `reason` are author claims. The check verifies that they are present and shaped as documented; it never compares them with SQL or proves that a migration preserves or removes a guarantee. Confirming the class is honest, the named objects are the ones the SQL touches, and serving code no longer uses a removed object remains a review duty (`REVIEW.md`).
+
+A migration already on `main`, `beta`, or the pinned `dev` adoption commit is frozen: editing it or adding a declaration breaks the checksum Prisma recorded, so it fails on immutability. A frozen migration needs no declaration and no approval, and its first promotion to `beta` or `main` is not blocked. A migration merged to `dev` after adoption may still change before it reaches a shared branch. A `contract` is accepted only when its prerequisite pull request is merged with the declared `merge_commit_sha`, carries the matching `OpenSpec:` trailer, and is contained in `main`, the release head, and the commits behind the latest successful production and beta API deployments. Deployment evidence is pipeline evidence: an out-of-band `wrangler rollback` is invisible, so the reviewer confirms the redeploy. A `hotfix/*` pull request may add only `expand` migrations. See `docs/CI.md` for the three checking surfaces.
+
 ## Environment file locations
 
 - `deploy/local/api.toml`: actual non-secret deployment configuration; the sole public template is `deploy/cloudflare/api.toml.example`.

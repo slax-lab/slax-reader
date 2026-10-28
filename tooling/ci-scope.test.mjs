@@ -63,6 +63,19 @@ test('the Web schema selects its Extension release consumer without unrelated ap
   assert.deepEqual(result.reasons.extensionTooling, [path])
 })
 
+test('the migration release evidence checker selects the API suite that enforces it', () => {
+  for (const path of ['tooling/migration-release-evidence.mjs', 'tooling/migration-release-evidence.test.mjs']) {
+    const result = selectScopes([path])
+    assert.deepEqual(selectedApps([path]), ['api'])
+    assert.equal(result.scopes.tooling, true)
+    assert.deepEqual(result.reasons.api, [path])
+  }
+  for (const path of ['apps/api/prisma/pg_migrations/20261028120000_example/migration.sql', 'apps/api/prisma/logs_migrations/20261028120000_example/migration.sql', 'apps/api/prisma/d1_migrations/0016_example.sql', 'apps/api/prisma/d1_migrations/fulltext/0016_example.sql']) {
+    assert.deepEqual(selectedApps([path]), ['api'], path)
+  }
+  assert.deepEqual(selectedApps(['apps/api/prisma/migration_lock.toml']), ['api'])
+})
+
 test('design, icons and configuration guards retain their exact validation inputs', () => {
   for (const path of ['DESIGN.md', 'docs/design/reference/example.svg', 'tooling/design-reference.mjs']) assert.equal(selectScopes([path]).scopes.design, true)
   assert.equal(selectScopes(['docs/design/reference/example.svg']).scopes.icons, true)

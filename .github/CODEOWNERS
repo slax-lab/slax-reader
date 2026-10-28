@@ -14,6 +14,11 @@
 /apps/cli/**           @Whyjsee @slax-lab/reader-core
 /apps/api/**           @DGuang21 @slax-lab/reader-core
 /apps/api/script/deploy/**   @DGuang21 @slax-lab/reader-core
+# Every new migration needs a named API owner's APPROVED review on the pull request
+# that introduces it, and the adjudicated overlay needs two. Keep at least two
+# named users here; the release evidence check ignores team handles because the
+# workflow token cannot resolve membership.
+/apps/api/prisma/**    @DGuang21 @boxcounter @slax-lab/reader-core
 /.github/**            @boxcounter @slax-lab/reader-core
 /.rulesync/**          @boxcounter @slax-lab/reader-core
 /README.md             @boxcounter @slax-lab/reader-core

@@ -10,6 +10,7 @@
     "agent:sync": "rulesync generate",
     "agent:check": "rulesync doctor --strict && rulesync generate --check && openspec validate --all --strict && bash tooling/check-gh-aw-drift.sh",
     "design:check": "node tooling/design-reference.mjs",
+    "migration:evidence": "node tooling/migration-release-evidence.mjs",
     "icons:check": "node tooling/icon-registry.mjs --check",
     "icons:test": "node --test tooling/icon-registry.test.mjs",
     "icons:write": "node tooling/icon-registry.mjs --write",
@@ -23,7 +24,7 @@
     "cli": "node tooling/cli.mjs",
     "test:cli-tooling": "node --test tooling/cli-command.test.mjs tooling/cli-release.test.mjs tooling/cli-release-source.test.mjs tooling/cli-release-notes.test.mjs tooling/cli-release-process.test.mjs tooling/cli-release-consumer.test.mjs",
     "prepare": "lefthook install",
-    "test:ci": "node --test tooling/ci-scope.test.mjs tooling/ci-workflow.test.mjs tooling/rulesets.test.mjs tooling/promotion-gate.test.mjs",
+    "test:ci": "node --test tooling/ci-scope.test.mjs tooling/ci-workflow.test.mjs tooling/rulesets.test.mjs tooling/promotion-gate.test.mjs tooling/migration-release-evidence.test.mjs",
     "test:extension-tooling": "node --test tooling/extension-release.test.mjs tooling/extension-release-source.test.mjs tooling/extension-release-package.test.mjs tooling/extension-release-workflow.test.mjs"
   },
   "devDependencies": {

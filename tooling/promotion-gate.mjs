@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { EvidenceError, createGithubEvidence, formatFindings, releaseDiffFromTrees, verifyReleaseEvidence } from './migration-release-evidence.mjs'
 
 // The `promotion integrity` check (design D2). One composite required context
 // for pull requests entering beta and main: it asserts where the head came from
@@ -300,10 +301,41 @@ export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = d
   }
 }
 
+// Migration release evidence on the promotion diff (design
+// enforce-expand-contract-release-safety). The gate has no checkout of the head,
+// so the diff comes from the compare API: additions, deletions, renames, and
+// edits of migration files, each added migration's declaration, the named API
+// owner approval on the pull request that introduced it, and a current
+// contract's prerequisite and deployment evidence. A promotion that adds no
+// current contract resolves no deployment evidence.
+export async function assertMigrationReleaseEvidence(inputs, { token, fetchImpl }) {
+  try {
+    const diff = await releaseDiffFromTrees({ repository: inputs.repository, token, fetchImpl, base: inputs.base, head: inputs.headSha })
+    const result = await verifyReleaseEvidence({
+      evidence: createGithubEvidence({ repository: inputs.repository, token, fetchImpl }),
+      diff,
+      headSha: inputs.headSha,
+      headRef: inputs.head,
+      targetRef: inputs.base,
+      environment: inputs.base,
+      surface: 'promotion'
+    })
+    if (!result.ok) fail(`Migration release evidence failed:\n${formatFindings(result.findings)}`)
+    return result
+  } catch (error) {
+    if (error instanceof GateError) throw error
+    if (error instanceof EvidenceError) fail(`Migration release evidence failed: ${error.stage}: ${error.reference}: ${error.message}`)
+    fail('Migration release evidence failed: the check could not complete')
+  }
+}
+
 export async function runPromotionGate(inputs, { token, fetchImpl = fetch, wait = delay, intervalMs = pollIntervalMs, timeoutMs = defaultTimeoutMs, deployRunGraceMs = defaultDeployRunGraceMs, log = () => {} } = {}) {
   if (typeof token !== 'string' || !token) fail('Missing GitHub token')
   allowedHead(inputs) // throws on an unsanctioned source; the hotfix flag is no longer needed here
   log(`source allowed: ${inputs.head} -> ${inputs.base}`)
+
+  const evidence = await assertMigrationReleaseEvidence(inputs, { token, fetchImpl })
+  log(`migration release evidence: ${evidence.checked.length} migration path(s), ${evidence.current.length} current`)
 
   const requireDeployment = inputs.base === 'main' && inputs.head === 'beta'
   await pollPromotionEvidence(inputs, { token, fetchImpl, wait, intervalMs, timeoutMs, deployRunGraceMs, requireDeployment, log })

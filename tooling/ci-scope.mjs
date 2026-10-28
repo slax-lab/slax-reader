@@ -35,6 +35,7 @@ export function selectScopes(paths) {
     if (/^tooling\/extension-release.*\.(mjs|py)$/.test(path) || path === '.github/workflows/extension-release.yml' || path === 'tooling/cli-release.mjs' || path === 'tooling/extension.mjs') add(['extensionTooling'], path)
     if (path === 'apps/web/env.schema.ts') add(['extensionTooling'], path)
     if (path === '.github/workflows/cli-ci.yml') add(['cli'], path)
+    if (/^tooling\/migration-release-evidence(\.test)?\.mjs$/.test(path)) add(['api', 'tooling'], path)
     if (/^tooling\//.test(path) && !/^tooling\/cli/.test(path)) add(['tooling'], path)
     if (path.startsWith('deploy/mobile/') && !(path.split('/').length === 3 && readmeName.test(path.split('/')[2]))) add(['mobile'], path)
     if (path.startsWith('deploy/cloudflare/') || (path.startsWith('deploy/local/') && !/^deploy\/local\/\.env\.(web|extension)/.test(path))) add(['api', 'tooling'], path)
