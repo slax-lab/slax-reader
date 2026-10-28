@@ -3,7 +3,7 @@ import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import type { Prisma, PrismaClient } from '@prisma/hyperdrive-client'
 import type { NewsletterMail } from './dbNewsletter'
-import { NewsletterError } from '@/domain/newsletter/parser'
+import { NewsletterError } from '@/utils/newsletter'
 export interface NewsletterDestination {
   uuid: string
   content_key: string

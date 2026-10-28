@@ -1,7 +1,7 @@
 import { test, expect } from 'vitest'
 import { db, repo, recipient, adapter } from './fixture'
 import { NewsletterService } from '@/domain/newsletter'
-import { NewsletterContent } from '@/domain/newsletter/content'
+import { NewsletterContent } from '@/domain/newsletterContent'
 import { LabRepo } from '@/infra/repository/dbLab'
 import { memoryRssBucket } from '../rss/testBucket'
 const setup = () => {

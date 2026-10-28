@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { parseNewsletter, readNewsletterRaw, newsletterLocalPart, newsletterDomain } from '@/domain/newsletter/parser'
+import { parseNewsletter, readNewsletterRaw, newsletterLocalPart, newsletterDomain } from '@/utils/newsletter'
 
 const mail = (body: string, headers = '') =>
   new TextEncoder().encode(
@@ -62,7 +62,7 @@ describe('bounded Newsletter input', () => {
 })
 
 import { receiveNewsletterEmail } from '@/domain/newsletter'
-import { NewsletterError } from '@/domain/newsletter/parser'
+import { NewsletterError } from '@/utils/newsletter'
 import { vi } from 'vitest'
 test('SMTP wrapper uses a generic policy rejection and propagates sanitized infrastructure failure', async () => {
   const setReject = vi.fn(),

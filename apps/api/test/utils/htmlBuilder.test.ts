@@ -228,3 +228,12 @@ describe('HtmlBuilder.buildTweet', () => {
     expect(content(HtmlBuilder.buildTweet(item))).toBe('plain text only')
   })
 })
+
+describe('standalone mail body extraction', () => {
+  test('keeps useful article text and links without URL hooks', () => {
+    const body = '<article><h1>Mail story</h1><p>' + 'Useful newsletter details. '.repeat(80) + '</p><a href="https://example.com/story?token=keep">Read story</a></article>'
+    const result = HtmlBuilder.buildNewsletterBody(body)
+    expect(result).toContain('Useful newsletter details.')
+    expect(result).toContain('https://example.com/story?token=keep')
+  })
+})

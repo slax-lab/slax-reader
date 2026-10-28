@@ -1,5 +1,5 @@
 import PostalMime from 'postal-mime'
-import { ContentParser } from '@/utils/parser'
+import { HtmlBuilder } from '@/utils/htmlBuilder'
 import type { NewsletterErrorCode } from '@slax-reader/contracts'
 import { DOMParser } from 'linkedom'
 import { sanitizeFeedHtml } from '@/domain/rss/feed'
@@ -155,7 +155,7 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
     }
   }
   const full = sanitizeMailHtml(doc.body.innerHTML)
-  const extracted = ContentParser.parseContentOnly(doc.body.innerHTML)
+  const extracted = HtmlBuilder.buildNewsletterBody(doc.body.innerHTML)
   const candidate = extracted ? sanitizeMailHtml(extracted) : null
   // Mail may contain multiple articles or short confirmations: retain the whole sanitized message whenever extraction loses content or links.
   const fullDoc = new DOMParser().parseFromString('<html><body>' + full.html + '</body></html>', 'text/html') as unknown as Document

@@ -3,7 +3,7 @@ import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import type { Prisma, PrismaClient } from '@prisma/hyperdrive-client'
 import { isNewsletterAccount, type NewsletterAddressResponse } from '@slax-reader/contracts'
-import { NEWSLETTER_LIMITS, NEWSLETTER_LOCAL_PREFIX, NewsletterError, newsletterLocalPart } from '@/domain/newsletter/parser'
+import { NEWSLETTER_LIMITS, NEWSLETTER_LOCAL_PREFIX, NewsletterError, newsletterLocalPart } from '@/utils/newsletter'
 
 type Tx = Prisma.TransactionClient
 export interface NewsletterRecipient {

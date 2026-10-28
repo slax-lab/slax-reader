@@ -8,7 +8,7 @@ import { SearchService } from '@/domain/search'
 import { NotificationMessage } from '@/infra/message/notification'
 import { ContextManager } from '@/utils/context'
 import { SnapshotBundle } from '@/utils/snapshotBundle'
-import { NewsletterError } from './parser'
+import { NewsletterError } from '@/utils/newsletter'
 import type { FeedSaveResponse } from '@slax-reader/contracts'
 @injectable()
 export class NewsletterSaveService {

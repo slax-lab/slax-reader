@@ -39,16 +39,16 @@ import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
 import { FeedRepo } from '../../infra/repository/dbFeed'
 import { RssService } from '../../domain/rss'
-import { NewsletterContent } from '../../domain/newsletter/content'
 import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
 import { NewsletterRepo } from '../../infra/repository/dbNewsletter'
+import { NewsletterContent } from '../../domain/newsletterContent'
+import { NewsletterSaveRepo } from '../../infra/repository/dbNewsletterSave'
 import { MediaBodyService } from '../../domain/mediaBody'
 import { RssRepo } from '../../infra/repository/dbRss'
 import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
-import { NewsletterSaveRepo } from '../../infra/repository/dbNewsletterSave'
 import { AigcService } from '../../domain/aigc'
 import { TagService } from '../../domain/tag'
 import { MarkService } from '../../domain/mark'
@@ -77,7 +77,7 @@ import { BookmarkAddOrchestrator } from '../../domain/orchestrator/bookmarkAdd'
 import { UrlParserHandler } from '../../domain/orchestrator/urlParser'
 import { CollectionOrchestrator } from '../../domain/orchestrator/collection'
 import { FeedService } from '../../domain/feed'
-import { NewsletterSaveService } from '../../domain/newsletter/save'
+import { NewsletterSaveService } from '../../domain/newsletterSave'
 import { MarkOrchestrator } from '../../domain/orchestrator/mark'
 import { DashboardService } from '../../domain/dashboard'
 import { ShareOrchestrator } from '../../domain/orchestrator/share'
@@ -258,6 +258,22 @@ container.register(NewsletterService, {
   useFactory: container => new NewsletterService(container.resolve(NewsletterRepo), container.resolve(NewsletterContent))
 })
 
+container.register(NewsletterContent, {
+  useFactory: container => new NewsletterContent(lazy(() => container.resolve(BucketClient)))
+})
+
+container.register(NewsletterSaveService, {
+  useFactory: container =>
+    new NewsletterSaveService(
+      container.resolve(NewsletterSaveRepo),
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(SearchService),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(BookmarkRepo),
+      container.resolve(NotificationMessage)
+    )
+})
+
 container.register(NotificationService, {
   useFactory: container =>
     new NotificationService(container.resolve(UserRepo), container.resolve(BookmarkRepo), container.resolve(CollectionRepo), container.resolve(NotificationMessage))
@@ -391,22 +407,6 @@ container.register(YoutubeArticleService, {
       container.resolve(CrawlService),
       container.resolve(MediaBodyService),
       container.resolve(MediaSnapshotService)
-    )
-})
-
-container.register(NewsletterContent, {
-  useFactory: container => new NewsletterContent(lazy(() => container.resolve(BucketClient)))
-})
-
-container.register(NewsletterSaveService, {
-  useFactory: container =>
-    new NewsletterSaveService(
-      container.resolve(NewsletterSaveRepo),
-      lazy(() => container.resolve(BucketClient)),
-      container.resolve(SearchService),
-      container.resolve(BookmarkSearchRepo),
-      container.resolve(BookmarkRepo),
-      container.resolve(NotificationMessage)
     )
 })
 

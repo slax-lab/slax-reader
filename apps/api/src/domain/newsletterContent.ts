@@ -4,7 +4,7 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import { buildImageProxyUrl } from '@/utils/imager'
 import { publicTarget } from '@/utils/publicTargetPolicy'
-import { NewsletterError, type ParsedNewsletter } from './parser'
+import { NewsletterError, type ParsedNewsletter } from '@/utils/newsletter'
 
 const PREFIX = 'newsletter-content/'
 @injectable()

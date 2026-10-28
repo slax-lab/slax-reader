@@ -1,5 +1,5 @@
-import { NewsletterSaveService } from '@/domain/newsletter/save'
-import { NewsletterError } from '@/domain/newsletter/parser'
+import { NewsletterSaveService } from '@/domain/newsletterSave'
+import { NewsletterError } from '@/utils/newsletter'
 import { Controller } from '@/decorators/controller'
 import { Get, Post } from '@/decorators/route'
 import { inject } from '@/decorators/di'

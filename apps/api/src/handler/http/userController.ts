@@ -14,7 +14,7 @@ import { QueueClient } from '../../infra/queue/queueClient'
 import { UserDeletionService } from '../../domain/userDeletion'
 import { LabService } from '../../domain/lab'
 import { NewsletterService } from '@/domain/newsletter'
-import { configuredNewsletterDomain, NEWSLETTER_LOCAL_PREFIX, NewsletterError } from '@/domain/newsletter/parser'
+import { configuredNewsletterDomain, NEWSLETTER_LOCAL_PREFIX, NewsletterError } from '@/utils/newsletter'
 import { isNewsletterAccount, type NewsletterEnableSettingRequest } from '@slax-reader/contracts'
 
 @Controller('/v1/user')

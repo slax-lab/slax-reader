@@ -2,7 +2,7 @@ import { inject, injectable } from '@/decorators/di'
 import { FeedRepo, type FeedEntryRow, type FeedCursor } from '@/infra/repository/dbFeed'
 import { ContextManager } from '@/utils/context'
 import { RssService, rssHistoryState, encodeRssCursor } from './rss'
-import { NewsletterContent } from './newsletter/content'
+import { NewsletterContent } from './newsletterContent'
 import { RssError } from './rss/feed'
 import type { FeedEntriesQuery, FeedEntriesResponse, FeedEntry, FeedEntryDetail, FeedKind, FeedSubscriptionsResponse } from '@slax-reader/contracts'
 export const FEED_UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i
