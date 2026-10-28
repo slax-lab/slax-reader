@@ -4,10 +4,10 @@ OpenSpec: `support-newsletter-feed`. Selected format and REST-first rollout conf
 
 ## Address and activation policy
 
-| Installation | User address | Cloudflare literal route | Initial admission |
+| Installation | User address | Cloudflare literal route | Operational rollout |
 | --- | --- | --- | --- |
 | Dev | `feed+<account>@newsletterreader.slax.dev` | `feed@newsletterreader.slax.dev` | Enabled after deployment readiness |
-| Beta / production | `feed+<account>@newsletterreader.slax.com` | `feed@newsletterreader.slax.com` | Explicitly disabled during dev acceptance |
+| Beta / production | `feed+<account>@newsletterreader.slax.com` | `feed@newsletterreader.slax.com` | Domain preconfigured; receiving route follows production readiness |
 
 The application supplies the fixed `feed+` prefix; `NEWSLETTER_DOMAIN` contains only the receiving domain. Cloudflare Subaddressing matches every `feed+detail` to the one literal `feed` route and preserves the complete recipient in `message.to`. The Worker validates the full envelope domain and prefix, then resolves the permanent account token, active user and Newsletter Lab. Bare `feed`, empty/unknown details, another prefix, additional plus separators and foreign domains are rejected before content storage. Header To never controls ownership. A new Reader user needs no additional Cloudflare rule.
 
@@ -17,7 +17,7 @@ The dev Edge Worker is **reader-backend**, serving **reader-api.slax.dev**. The 
 
 ## Release readiness
 
-1. Review and merge private configuration PR #7 before application PR #349. Dev: `NEWSLETTER_DOMAIN="newsletterreader.slax.dev"`. Remove `NEWSLETTER_ENABLED`. Beta/prod and the legacy main copy: explicitly set `NEWSLETTER_DOMAIN=""` during the pilot. Deployment uses `--keep-vars`: omitting the domain alone would preserve a previously configured remote value. Main releases consume `api/prod.toml`. Config merge alone does not deploy.
+1. Review and merge private configuration PR #7 before application PR #349. Dev: `NEWSLETTER_DOMAIN="newsletterreader.slax.dev"`. Remove `NEWSLETTER_ENABLED`. As requested by the user on 2026-10-28, beta/prod and the legacy main copy already set `NEWSLETTER_DOMAIN="newsletterreader.slax.com"`, avoiding a later domain-only configuration PR. This supersedes the earlier empty-domain pilot gate. Matching deployment permits user-Lab address provisioning; it does not create Cloudflare DNS or routing. Deployment uses `--keep-vars`: rollback must explicitly clear a domain rather than omit it. Main releases consume `api/prod.toml`. Config merge alone does not deploy.
 2. Merge the reviewed application PR into dev. Wait for **both API and Web deployments**. Verify the consolidated first-release `20261022090000_newsletter_feed` migration, matching dev Edge/Core PostgreSQL/R2 bindings, generated routes/DI and the Edge `email()` handler. Preserve Worker identities and existing scheduled triggers; the email event awaits publication. The existing five-minute tick remains useful for bounded recovery of cleaned staged content (five per tick) and payload GC. Remove it only after the SMTP retry gate below and drain current pending receipts; shared five-minute jobs must remain.
 3. Publish the RSS compatibility rules in `deploy/local/powersync-local/sync_rules.yaml` to the matching hosted dev PowerSync service before admitting Newsletter rows. There is **no Newsletter stream to publish or subscribe to**. The physical source is now `sr_feed AS sr_rss_feed`, preserving the client table name. Owner/kind filters exclude Newsletter from RSS clients; API deployment does not publish rules. Keep upstream collection rules intact. Apply collection-owner migrations `20261022043051_local_first_ddl` and `20261027040000_collection_owner_hard_delete` before publishing the merged file; `owner_deleted` must exist and be backfilled. Check actual RSS-only rows and cross-user isolation; inspect parameter-result counts before widening the pilot. Service health and REST reads do not prove RSS synchronization correctness.
 4. Enable Newsletter in Labs for one or two controlled dev users, generate/copy their addresses and verify the exact `feed+...@newsletterreader.slax.dev` format before routing external mail.
@@ -103,7 +103,7 @@ When constructing local injection URLs manually, encode `+` as `%2B` in query pa
 
 To stop, disable/restore the pilot's **literal feed@newsletterreader.slax.dev route** and explicitly clear `NEWSLETTER_DOMAIN` through the maintained config/release path (an omitted variable may survive `--keep-vars`). Preserve existing Catch-all/unrelated literal rules. Do not globally disable Subaddressing if another route relies on it. Keep schema, completed content and all permanent reservations; disabling routing does not buffer mail for later replay.
 
-Production stays off until every serving release and sync rule sharing PostgreSQL has RSS-kind isolation. Its later operator rollout uses newsletterreader.slax.com receiving DNS, Subaddressing and **feed@newsletterreader.slax.com** to the verified production Edge Worker. Keep root slax.com Feishu MX and daguang@slax.app forwarding intact. Only operate the selected subdomain; do not repoint the old broken slax.app Catch-all as part of this plan.
+Production domain values are preconfigured. Before enabling controlled production user Labs or activating its literal receiving route, every serving release and RSS sync rule sharing PostgreSQL must have RSS-kind isolation. Production receiving rollout uses newsletterreader.slax.com DNS, Subaddressing and **feed@newsletterreader.slax.com** to the verified production Edge Worker. Keep root slax.com Feishu MX and daguang@slax.app forwarding intact. Only operate the selected subdomain; do not repoint the old broken slax.app Catch-all as part of this plan.
 
 Before widening the pilot, finish existing RSS synchronization compatibility/isolation acceptance, real Newsletter confirmation/content tests and SMTP infrastructure-failure behavior. Subscribed bodies are not pruned by RSS's 30-day rule. Binary attachment storage, automatic unsubscribe and Newsletter saving to Inbox remain out of scope.
 

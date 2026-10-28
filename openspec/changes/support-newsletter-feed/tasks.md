@@ -65,6 +65,8 @@ Newsletter-specific compatibility in the original 8.2 decision was superseded by
 
 - [x] 8.9 Record the user's real-EML local acceptance, document local runtime setup/path quoting, and update the original PR with the three authorized test screenshots.
 
+- [x] 8.10 Preconfigure newsletterreader.slax.com in beta/prod/legacy-main while preserving the dev domain and unrelated private configuration bytes; synchronize rollout/spec/PR descriptions and verify TOML syntax/selected values without deployment.
+
 ## 9. Archive after merge
 
 - [ ] 9.1 After the task PR merges, classify every remaining unchecked task and archive this OpenSpec change through a separate documentation PR.

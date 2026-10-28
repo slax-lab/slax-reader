@@ -18,7 +18,7 @@ Web SHALL always show a Feed entry immediately below Inbox and use the existing 
 ## ADDED Requirements
 
 ### Requirement: RSS remains isolated from Newsletter
-Existing RSS APIs, RSS synchronization, subscription limits, refresh/history leases, periodic polling and 30-day retention SHALL operate only on RSS-kind sources. Existing RSS DTOs and sync column projections SHALL remain compatible with older clients. Generic orphan cleanup SHALL include unsubscribed Newsletter sources and their entries; unreferenced R2 cleanup SHALL reclaim their bodies after the grace period. Physical source migration SHALL preserve legacy client table names and column projections. Newsletter admission SHALL remain disabled until every serving release sharing its database has this isolation.
+Existing RSS APIs, RSS synchronization, subscription limits, refresh/history leases, periodic polling and 30-day retention SHALL operate only on RSS-kind sources. Existing RSS DTOs and sync column projections SHALL remain compatible with older clients. Generic orphan cleanup SHALL include unsubscribed Newsletter sources and their entries; unreferenced R2 cleanup SHALL reclaim their bodies after the grace period. Physical source migration SHALL preserve legacy client table names and column projections. Operators SHALL complete this isolation across every serving release and RSS sync consumer sharing a database before enabling controlled Newsletter user Labs or activating its receiving route. A preconfigured receiving domain SHALL not be treated as proof of isolation readiness.
 
 #### Scenario: Legacy client reads and writes
 - **WHEN** a user has RSS and Newsletter and uses an existing RSS endpoint or rss_v1 stream

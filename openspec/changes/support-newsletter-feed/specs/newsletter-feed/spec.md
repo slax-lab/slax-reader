@@ -80,7 +80,7 @@ The system SHALL expose additive private no-store Feed read APIs returning an ex
 - **THEN** the request is rejected without revealing another user's content
 
 ### Requirement: Always-visible Web Feed and dev pilot
-Web SHALL always show Feed in navigation, support stable address provisioning/copy with a first-time account form, and combine independently gated RSS and Newsletter through REST whenever Newsletter is enabled. RSS-only sessions SHALL retain existing local-first reads and REST fallback. Newsletter SHALL have no PowerSync stream or client subscription in this rollout. Newsletter sender names SHALL use a local avatar fallback. It SHALL explain lazy remote image privacy and unsupported first-version actions. Local cache and body state SHALL follow account and per-kind enablement. Dev rollout SHALL use feed+account@newsletterreader.slax.dev and one literal feed@newsletterreader.slax.dev routing rule to reader-backend with Cloudflare Subaddressing enabled. The production address SHALL use feed+account@newsletterreader.slax.com; beta/production admission SHALL remain disabled during dev acceptance. Existing root-domain mail records, Catch-all rules and literal business forwarding SHALL be preserved.
+Web SHALL always show Feed in navigation, support stable address provisioning/copy with a first-time account form, and combine independently gated RSS and Newsletter through REST whenever Newsletter is enabled. RSS-only sessions SHALL retain existing local-first reads and REST fallback. Newsletter SHALL have no PowerSync stream or client subscription in this rollout. Newsletter sender names SHALL use a local avatar fallback. It SHALL explain lazy remote image privacy and unsupported first-version actions. Local cache and body state SHALL follow account and per-kind enablement. Dev rollout SHALL use feed+account@newsletterreader.slax.dev and one literal feed@newsletterreader.slax.dev routing rule to reader-backend with Cloudflare Subaddressing enabled. The production address SHALL use feed+account@newsletterreader.slax.com; beta/prod/legacy-main configuration SHALL preconfigure newsletterreader.slax.com while operational acceptance starts in dev. Setting the domain SHALL permit user-Lab provisioning after deployment but SHALL not configure Cloudflare receiving routes. Existing root-domain mail records, Catch-all rules and literal business forwarding SHALL be preserved.
 
 #### Scenario: Both Labs disabled
 - **WHEN** the user opens Feed with both features disabled
@@ -114,7 +114,7 @@ The system SHALL use immutable `newsletter` platform bindings with permanent ret
 - **THEN** the generic source projection remains consistent without resurrecting deleted rows or losing refreshed state
 
 ### Requirement: Synchronous processing and setup
-New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; done or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain; sanitized content staged as versioned JSON SHALL retain bounded recovery until SMTP retry behavior is proven. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Non-dev domains SHALL be explicitly empty during the dev pilot. Hosted SMTP failure/retry behavior SHALL be verified before any later removal of durable staged-content recovery.
+New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; done or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain; sanitized content staged as versioned JSON SHALL retain bounded recovery until SMTP retry behavior is proven. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Dev SHALL configure newsletterreader.slax.dev; beta, prod and the legacy main copy SHALL configure newsletterreader.slax.com. Hosted SMTP failure/retry behavior SHALL be verified before any later removal of durable staged-content recovery.
 
 #### Scenario: Account repair after enabling
 - **WHEN** the user enables Newsletter with a missing, invalid or reserved initial account
@@ -123,6 +123,11 @@ New email delivery SHALL await content storage and atomic publication. Existing 
 #### Scenario: Disable then re-enable
 - **WHEN** a receipt was pending before Newsletter was disabled and later re-enabled
 - **THEN** its durable cancelled state prevents late publication
+
+
+#### Scenario: Production domain prepared before receiving rollout
+- **WHEN** the reviewed beta/prod/legacy-main configuration is deployed with matching Newsletter code
+- **THEN** eligible users can provision feed+account@newsletterreader.slax.com, while actual delivery still requires the separately configured production receiving domain and literal feed route
 
 ### Requirement: Private content processing and EML diagnostics
 Newsletter processing SHALL reuse a quiet pure content extraction path, fall back to sanitized full mail when extraction loses useful content, preserve existing HTTP(S) links and append safe attachment metadata after extraction. Explicit 1x1/zero-sized or hidden tracking images SHALL be removed before sanitization without remote measurement. MIME subject/sender/date remain authoritative. Offline preview SHALL perform no network or storage calls; local EML replay SHALL preserve plus details and target localhost only.
