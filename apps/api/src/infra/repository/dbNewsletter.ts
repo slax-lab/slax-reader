@@ -117,7 +117,8 @@ export class NewsletterRepo {
     })
   }
   async publish(id: bigint, userId: number, bindingId: number, item: NewsletterPublication): Promise<{ mail: NewsletterMail; published: boolean }> {
-    if (!/^newsletter-content\/[^\s]+$/.test(item.contentKey) || item.contentKey.split('/').some(part => part === '.' || part === '..')) throw new NewsletterError('unavailable', 503)
+    if (!/^newsletter-content\/[^\s]+$/.test(item.contentKey) || item.contentKey.split('/').some(part => part === '.' || part === '..'))
+      throw new NewsletterError('unavailable', 503)
     if (!Number.isFinite(item.startedAt) || Date.now() - item.startedAt >= 5 * 60_000) throw new NewsletterError('unavailable', 503)
     return this.pg().$transaction(async tx => {
       await this.binding(tx, userId, bindingId)

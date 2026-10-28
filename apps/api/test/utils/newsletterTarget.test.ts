@@ -14,9 +14,21 @@ test.each(['own', 'foreign', 'new'])('uploaded internal create PUT %s is rejecte
   const state = { status: 'success', contentKey: 'html/body/retained.html', archived: true, executions: 0 }
   const orchestrator = Object.assign(Object.create(SyncOrchestrator.prototype), {
     userService: { getUserInfo: async () => ({ uuid: 'owner' }) },
-    dbSyncBatch: { executeOrderedOperations: async () => { state.executions++; state.status = 'pending'; state.archived = false; return [] } }
+    dbSyncBatch: {
+      executeOrderedOperations: async () => {
+        state.executions++
+        state.status = 'pending'
+        state.archived = false
+        return []
+      }
+    }
   }) as SyncOrchestrator
-  const change = { table: 'sr_user_bookmark', id, op: 'PUT', data: { metadata: JSON.stringify({ bookmark: { target_url: 'slax-newsletter://message/1', title: 'Mail' } }) } } as const
+  const change = {
+    table: 'sr_user_bookmark',
+    id,
+    op: 'PUT',
+    data: { metadata: JSON.stringify({ bookmark: { target_url: 'slax-newsletter://message/1', title: 'Mail' } }) }
+  } as const
   await expect(orchestrator.syncChanges({ getUserId: () => 1, env: {} } as never, [change])).rejects.toMatchObject({ name: 'ERROR_PARAM' })
   expect(state).toEqual({ status: 'success', contentKey: 'html/body/retained.html', archived: true, executions: 0 })
 })

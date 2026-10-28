@@ -33,11 +33,13 @@ native('independent Newsletter native transactions', () => {
   })
   test('concurrent owners reserve one address through the application lock and retain it after deletion', async () => {
     const account = 'race' + crypto.randomUUID().replaceAll('-', '').slice(0, 10)
-    const owners = await Promise.all([0, 1].map(async i => {
-      const user = await pg.sr_user.create({ data: { email: account + i + '@fixture.invalid', account, created_at: new Date(), last_login_at: new Date() } })
-      await lab.upsert(user.id, 'newsletter', true)
-      return user
-    }))
+    const owners = await Promise.all(
+      [0, 1].map(async i => {
+        const user = await pg.sr_user.create({ data: { email: account + i + '@fixture.invalid', account, created_at: new Date(), last_login_at: new Date() } })
+        await lab.upsert(user.id, 'newsletter', true)
+        return user
+      })
+    )
     const attempts = await Promise.allSettled(owners.map(user => repo.address(user.id, 'newsletterreader.slax.dev', true)))
     expect(attempts.filter(x => x.status === 'fulfilled')).toHaveLength(1)
     expect(attempts.find(x => x.status === 'rejected')).toMatchObject({ reason: { code: 'address_reserved' } })

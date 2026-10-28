@@ -22,8 +22,11 @@ describe('independent Newsletter migration', () => {
           "SELECT table_name,column_name,data_type,column_default,is_nullable FROM information_schema.columns WHERE table_name LIKE 'sr_rss_%' ORDER BY table_name,ordinal_position"
         )
       const before = (await schema()).rows
+      const indexes = () => db.query("SELECT tablename,indexname,indexdef FROM pg_indexes WHERE tablename LIKE 'sr_rss_%' ORDER BY tablename,indexname")
+      const beforeIndexes = (await indexes()).rows
       await db.exec(read('20261028142946_newsletter_feed'))
       expect((await schema()).rows).toEqual(before)
+      expect((await indexes()).rows).toEqual(beforeIndexes)
       expect((await db.query('SELECT title FROM sr_rss_feed')).rows).toEqual([{ title: 'Original' }])
       await db.exec(
         "UPDATE sr_rss_feed SET title='Updated' WHERE id='rss'; INSERT INTO sr_rss_feed(id,feed_url) VALUES ('new','https://new.test'); DELETE FROM sr_rss_feed WHERE id='new'"

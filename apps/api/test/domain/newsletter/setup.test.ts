@@ -9,7 +9,10 @@ import { UserService } from '@/domain/user'
 
 function controller() {
   const user = Object.create(UserService.prototype)
-  user.userRepo = new UserRepo(() => adapter(db), () => adapter(db))
+  user.userRepo = new UserRepo(
+    () => adapter(db),
+    () => adapter(db)
+  )
   user.labService = new LabService(new LabRepo(() => adapter(db)))
   return Object.assign(Object.create(UserController.prototype), {
     userService: user,
@@ -25,8 +28,11 @@ const bindings = async () => (await db.query("SELECT platform_id FROM sr_platfor
 
 describe('confirmed Newsletter setup on existing user settings', () => {
   test.each(['alex', 'jane.doe', 'Reader01'])('ordinary Reader setting keeps its broader account format: %j', async value => {
-    const response = await controller().handleUserSettingRequest(ctx, new Request('http://local/v1/user/setting', { method: 'POST', body: JSON.stringify({ key: 'account', value }) }))
-    expect((await response.json() as any).code).toBe(200)
+    const response = await controller().handleUserSettingRequest(
+      ctx,
+      new Request('http://local/v1/user/setting', { method: 'POST', body: JSON.stringify({ key: 'account', value }) })
+    )
+    expect(((await response.json()) as any).code).toBe(200)
     expect((await db.query('SELECT account FROM sr_user WHERE id=1')).rows).toEqual([{ account: value.toLowerCase() }])
   })
   test('plain Labs activation enables the feature without issuing an address', async () => {
@@ -42,13 +48,16 @@ describe('confirmed Newsletter setup on existing user settings', () => {
     expect((await enable(request)).code).toBe(200)
     expect(await bindings()).toEqual([{ platform_id: 'feed+jane01@newsletterreader.slax.dev' }])
   })
-  test.each(['alex', 'abcde', 'Reader01', 'jane.doe', 'reader-1', ' reader01', 'reader01 ', '读者reader', 'abcdefghijklmnop'])('rejects first-configuration token %j before changing Labs or writing an address', async token => {
-    await db.exec('UPDATE sr_user_lab_feature SET enabled=false WHERE user_id=1')
-    await db.query('UPDATE sr_user SET account=$1 WHERE id=1', [token])
-    expect(await enable({ key: 'lab:newsletter', newsletter_address: 'feed+' + token + '@newsletterreader.slax.dev' })).toMatchObject({ data: { error: 'invalid_account' } })
-    expect(await bindings()).toEqual([])
-    expect((await db.query('SELECT enabled FROM sr_user_lab_feature WHERE user_id=1')).rows).toEqual([{ enabled: false }])
-  })
+  test.each(['alex', 'abcde', 'Reader01', 'jane.doe', 'reader-1', ' reader01', 'reader01 ', '读者reader', 'abcdefghijklmnop'])(
+    'rejects first-configuration token %j before changing Labs or writing an address',
+    async token => {
+      await db.exec('UPDATE sr_user_lab_feature SET enabled=false WHERE user_id=1')
+      await db.query('UPDATE sr_user SET account=$1 WHERE id=1', [token])
+      expect(await enable({ key: 'lab:newsletter', newsletter_address: 'feed+' + token + '@newsletterreader.slax.dev' })).toMatchObject({ data: { error: 'invalid_account' } })
+      expect(await bindings()).toEqual([])
+      expect((await db.query('SELECT enabled FROM sr_user_lab_feature WHERE user_id=1')).rows).toEqual([{ enabled: false }])
+    }
+  )
   test.each(['reader', 'reader01', 'abcdefghijklmno', '123456'])('accepts boundary token %j for first configuration', async token => {
     await db.query('UPDATE sr_user SET account=$1 WHERE id=1', [token])
     expect((await enable({ key: 'lab:newsletter', newsletter_address: 'feed+' + token + '@newsletterreader.slax.dev' })).code).toBe(200)

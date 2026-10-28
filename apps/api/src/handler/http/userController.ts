@@ -145,7 +145,12 @@ export class UserController {
         const domain = configuredNewsletterDomain(ctx.env)
         if (!domain) throw new NewsletterError('unavailable', 503)
         const address = req.newsletter_address
-        if (typeof address !== 'string' || !address.startsWith(NEWSLETTER_LOCAL_PREFIX) || !address.endsWith('@' + domain) || !isNewsletterAccount(address.slice(NEWSLETTER_LOCAL_PREFIX.length, -(domain.length + 1)))) {
+        if (
+          typeof address !== 'string' ||
+          !address.startsWith(NEWSLETTER_LOCAL_PREFIX) ||
+          !address.endsWith('@' + domain) ||
+          !isNewsletterAccount(address.slice(NEWSLETTER_LOCAL_PREFIX.length, -(domain.length + 1)))
+        ) {
           throw new NewsletterError('invalid_account')
         }
       }

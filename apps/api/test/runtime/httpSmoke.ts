@@ -515,6 +515,22 @@ async function main() {
       1
     )
 
+    const beforeInternalPut = resources.sql(pg.id, 'http_reader', `SELECT status||'|'||content_key FROM sr_bookmark WHERE id=${savedId}`)
+    const internalPut = await request('newsletter-internal-create-put', '/v1/sync/changes', {
+      method: 'POST',
+      headers: mailHeaders,
+      body: JSON.stringify([
+        {
+          table: 'sr_user_bookmark',
+          id: savedUuid,
+          op: 'PUT',
+          data: { metadata: JSON.stringify({ bookmark: { target_url: 'slax-newsletter://message/' + entryId.split(':')[1], title: 'Must not overwrite' } }) }
+        }
+      ])
+    })
+    assert.equal(internalPut.body.code, 400)
+    assert.equal(resources.sql(pg.id, 'http_reader', `SELECT status||'|'||content_key FROM sr_bookmark WHERE id=${savedId}`), beforeInternalPut)
+
     const savedBody = await localFetch(`http://localhost:${httpPort}/v1/bookmark/content`, {
       method: 'POST',
       headers: { ...mailHeaders, 'Content-Type': 'application/json' },

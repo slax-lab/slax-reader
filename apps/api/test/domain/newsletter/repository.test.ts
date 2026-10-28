@@ -96,7 +96,8 @@ describe('Newsletter permanent addresses', () => {
 })
 describe('independent one-row admission and publication', () => {
   test.each(['', ' ', 'html/body/foreign.html', 'newsletter-content/../foreign'])('rejects invalid final body key %j before publication', async contentKey => {
-    const r = await recipient(), first = await reserve()
+    const r = await recipient(),
+      first = await reserve()
     await expect(repo.publish(first.mail.id, 1, r.id, { ...candidate, contentKey, startedAt: Date.now() })).rejects.toMatchObject({ code: 'unavailable' })
     expect((await db.query('SELECT state,content_key FROM sr_newsletter_feed')).rows).toEqual([{ state: 'pending', content_key: null }])
   })

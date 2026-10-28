@@ -75,14 +75,17 @@ afterEach(() => {
 })
 
 describe('confirmed Newsletter setup', () => {
-  it.each(['alex', 'abcde', 'Reader01', 'jane.doe', 'reader-1', ' reader01', 'reader01 ', '读者reader', 'abcdefghijklmnop'])('does not confirm an invalid first-configuration token %j', async name => {
-    const w = create()
-    await flushPromises()
-    await submit(w, name)
-    expect(w.find('dialog[open]').exists()).toBe(false)
-    expect(w.get('#newsletter-account-error').text()).toContain('newsletter.errors.invalid_account')
-    expect(post).not.toHaveBeenCalled()
-  })
+  it.each(['alex', 'abcde', 'Reader01', 'jane.doe', 'reader-1', ' reader01', 'reader01 ', '读者reader', 'abcdefghijklmnop'])(
+    'does not confirm an invalid first-configuration token %j',
+    async name => {
+      const w = create()
+      await flushPromises()
+      await submit(w, name)
+      expect(w.find('dialog[open]').exists()).toBe(false)
+      expect(w.get('#newsletter-account-error').text()).toContain('newsletter.errors.invalid_account')
+      expect(post).not.toHaveBeenCalled()
+    }
+  )
   it('shows the complete candidate before writes and cancellation leaves the draft unchanged', async () => {
     const w = create()
     await flushPromises()
