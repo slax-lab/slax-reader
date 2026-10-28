@@ -10,7 +10,7 @@ function setup(sub: unknown = null, received = false) {
     claimReward: vi.fn().mockResolvedValue({ credit: false, endTime: '2027-01-01T00:00:00Z' })
   }
   const service = new SubscriptionServiceMain({} as never, {} as never, {} as never, repo as never, {} as never, {} as never, {} as never)
-  const ctx = { getUserId: () => 7, getlang: () => 'en', env: { STRIPE_LIVE_MODE: 'false' } } as never
+  const ctx = { getUserId: () => 7, getlang: () => 'en', env: {} } as never
   return { repo, service, ctx }
 }
 const active = (source_type: string, stripe_customer_id = '') => ({ source_type, stripe_customer_id, subscription_end_time: new Date(Date.now() + 86400000) })

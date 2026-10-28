@@ -572,13 +572,12 @@ export class SubscriptionServiceMain {
       console.error(`cancel user subscription failed: subscription not found`)
       throw NotSubscriptionError()
     }
-    if (!['true', 'false'].includes(ctx.env.STRIPE_LIVE_MODE || '')) throw new Error('Stripe deployment mode missing')
     const { SubscriptionPaymentService } = await import('./subscriptionPayment')
     await new SubscriptionPaymentService(this.stripeClient, this.subscriptionRepo).cancel(
       subInfo.stripe_subscription_id,
       'User-initiated unsubscription',
       subInfo.stripe_customer_id,
-      ctx.env.STRIPE_LIVE_MODE === 'true'
+      true
     )
   }
 
@@ -635,7 +634,7 @@ export class SubscriptionServiceMain {
         interval: subscriptionInterval.DAY,
         count: reward.days,
         credit: reward.credit,
-        liveMode: ctx.env.STRIPE_LIVE_MODE === 'true' ? true : ctx.env.STRIPE_LIVE_MODE === 'false' ? false : undefined
+        liveMode: true
       })
     } catch (error) {
       if (error instanceof Error && error.message === 'REWARD_ALREADY_CLAIMED') throw ReceiveActivityAlreadyReceivedError()
@@ -643,7 +642,7 @@ export class SubscriptionServiceMain {
     }
     if (result.credit) {
       const { SubscriptionPaymentService } = await import('./subscriptionPayment')
-      await new SubscriptionPaymentService(this.stripeClient, this.subscriptionRepo).runOperation(`stripe:${ctx.env.STRIPE_LIVE_MODE}::credit:${key}`)
+      await new SubscriptionPaymentService(this.stripeClient, this.subscriptionRepo).runOperation(`stripe:true::credit:${key}`)
       return {
         title: $i.receiveActivityToCreditTitle({}),
         message: $i.receiveActivityToCreditResult({ credit: `$${reward.credit / 100}` }),
@@ -664,7 +663,7 @@ export class SubscriptionServiceMain {
         interval: REDEEM_CODE_INTERVAL,
         count: REDEEM_CODE_INTERVAL_COUNT,
         credit: REDEEM_CODE_CREDIT,
-        liveMode: ctx.env.STRIPE_LIVE_MODE === 'true' ? true : ctx.env.STRIPE_LIVE_MODE === 'false' ? false : undefined
+        liveMode: true
       })
     } catch (error) {
       if (error instanceof Error && error.message === 'REWARD_ALREADY_CLAIMED') throw RedeemCodeNotFoundOrUsedError()
@@ -672,7 +671,7 @@ export class SubscriptionServiceMain {
     }
     if (result.credit) {
       const { SubscriptionPaymentService } = await import('./subscriptionPayment')
-      await new SubscriptionPaymentService(this.stripeClient, this.subscriptionRepo).runOperation(`stripe:${ctx.env.STRIPE_LIVE_MODE}::credit:${key}`)
+      await new SubscriptionPaymentService(this.stripeClient, this.subscriptionRepo).runOperation(`stripe:true::credit:${key}`)
     }
   }
 }

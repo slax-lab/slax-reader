@@ -155,7 +155,7 @@ describe.skipIf(!enabled)('payment ledger against isolated PostgreSQL', () => {
         ]
       }
     }
-    const event = await repo.createSubscriptionEvent('evt_e2e', 'invoice.payment_succeeded', JSON.stringify(invoice), '{}', false, '')
+    const event = await repo.createSubscriptionEvent('evt_e2e', 'invoice.payment_succeeded', JSON.stringify(invoice), '{}', true, '')
     const notice = vi.fn().mockRejectedValueOnce(new Error('notification down')).mockResolvedValue(undefined)
     const payments = new SubscriptionPaymentService((() => ({})) as never, repo)
     const orchestrator = new SubscriptionOrchestrator(
@@ -165,14 +165,14 @@ describe.skipIf(!enabled)('payment ledger against isolated PostgreSQL', () => {
       payments,
       { deliver: vi.fn().mockResolvedValue(undefined) } as never
     )
-    const ctx = { env: { STRIPE_LIVE_MODE: 'false' } } as never
+    const ctx = { env: {} } as never
     await orchestrator.processSubscription(ctx, { id: 'delivery', info: { eventId: event.id } })
     await orchestrator.recover(ctx)
     await orchestrator.recover(ctx)
     await orchestrator.processSubscription(ctx, { id: 'retry', info: { eventId: event.id } })
     expect(await db!.sr_user_subscription_period.count()).toBe(1)
     expect(notice).toHaveBeenCalledTimes(2)
-    expect((await repo.getPaymentJob('stripe:false::evt_e2e'))!.status).toBe('done')
+    expect((await repo.getPaymentJob('stripe:true::evt_e2e'))!.status).toBe('done')
   })
 
   test('Stripe external success followed by lost acknowledgement reuses a stable idempotency key', async () => {
@@ -305,9 +305,9 @@ describe.skipIf(!enabled)('payment ledger against isolated PostgreSQL', () => {
         data: [{ type: 'subscription', price: { recurring: { interval: 'day', interval_count: 30 } }, period: { start: at.getTime() / 1000, end: at.getTime() / 1000 + 2592000 } }]
       }
     }
-    const ctx = { env: { STRIPE_CALLBACK_SECRET: 'whsec_local', STRIPE_LIVE_MODE: 'false', RUN_ENV: 'prod', RUN_TYPE: 'dev' } } as never
+    const ctx = { env: { STRIPE_CALLBACK_SECRET: 'whsec_local', RUN_ENV: 'prod', RUN_TYPE: 'dev' } } as never
     for (const type of ['invoice.paid', 'invoice.payment_succeeded']) {
-      const body = JSON.stringify({ id: `evt_${type}`, type, livemode: false, created: 1, data: { object: invoice } })
+      const body = JSON.stringify({ id: `evt_${type}`, type, livemode: true, created: 1, data: { object: invoice } })
       const signature = stripe.webhooks.generateTestHeaderString({ payload: body, secret: 'whsec_local' })
       await service.decryptCallbackEvent(ctx, body, signature)
     }
@@ -316,18 +316,37 @@ describe.skipIf(!enabled)('payment ledger against isolated PostgreSQL', () => {
     const orchestrator = new SubscriptionOrchestrator({} as never, service, repo, payments, {} as never)
     for (const [eventId] of queue.mock.calls) await orchestrator.processSubscription(ctx, { id: 'delivery', info: { eventId } })
     expect(await db!.sr_user_subscription_period.count()).toBe(1)
-    const body = JSON.stringify({ id: 'evt_wrong_mode', type: 'invoice.paid', livemode: true, created: 1, data: { object: invoice } })
+    const body = JSON.stringify({ id: 'evt_wrong_mode', type: 'invoice.paid', livemode: false, created: 1, data: { object: invoice } })
     await expect(service.decryptCallbackEvent(ctx, body, stripe.webhooks.generateTestHeaderString({ payload: body, secret: 'whsec_local' }))).rejects.toBeDefined()
     expect(await db!.sr_stripe_event.count()).toBe(2)
   })
 
-  test('Reader-only routing rejects foreign platform and unknown historical metadata', async () => {
+  test('platform-less and legacy-platform invoices grant once while collection payments are excluded', async () => {
+    await repo.upsertUserSubscription(7, 'cus_bound')
     const payments = new SubscriptionPaymentService((() => ({})) as never, repo)
-    for (const metadata of [{ platform: 'note', user_id: '7' }, { platform: 'reader', user_id: '7', collection_id: '1' }, { user_id: '7' }]) {
-      await payments.handle('payment_intent.succeeded', { id: `pi_${JSON.stringify(metadata)}`, metadata, livemode: false })
+    for (const [index, metadata] of [{ platform: 'note', user_id: '7' }, { user_id: '7' }].entries()) {
+      const invoice = {
+        id: `in_legacy_${index}`,
+        livemode: true,
+        billing_reason: 'subscription_cycle',
+        customer: 'cus_bound',
+        subscription: 'sub_bound',
+        amount_paid: 599,
+        currency: 'usd',
+        subscription_details: { metadata },
+        lines: {
+          has_more: false,
+          data: [{ price: { recurring: { interval: 'day', interval_count: 30 } }, period: { start: at.getTime() / 1000, end: at.getTime() / 1000 + 2592000 } }]
+        }
+      }
+      await payments.handle('invoice.payment_succeeded', invoice)
+      await payments.handle('invoice.paid', invoice)
     }
-    expect(await db!.sr_user_subscription_period.count()).toBe(0)
-    expect(await db!.sr_payment_job.count({ where: { status: 'reconciliation' } })).toBe(3)
+    for (const field of ['collection_id', 'owner_id']) {
+      await payments.handle('payment_intent.succeeded', { id: `pi_${field}`, metadata: { user_id: '7', [field]: '1' }, livemode: true })
+    }
+    expect(await db!.sr_user_subscription_period.count()).toBe(2)
+    expect(await db!.sr_payment_job.count({ where: { status: 'reconciliation' } })).toBe(2)
   })
 
   test('Apple consumption failure stays in durable inbox and succeeds on retry without granting', async () => {
