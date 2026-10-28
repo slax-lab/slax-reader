@@ -309,7 +309,9 @@ export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = d
 // introduced it, and a current contract's prerequisite and deployment evidence.
 // A promotion that adds no current contract resolves no deployment evidence.
 // The verifier reads the target at the base branch tip, which is still
-// pre-release: the pull request has not merged yet.
+// pre-release: the pull request has not merged yet, so the promoting pull
+// request is the introducing pull request for a migration it carries (a hotfix
+// branch adds its own migration), exactly as on API CI.
 export async function assertMigrationReleaseEvidence(inputs, { token, fetchImpl }) {
   try {
     const evidence = createGithubEvidence({ repository: inputs.repository, token, fetchImpl, headRef: inputs.headSha })
@@ -320,6 +322,7 @@ export async function assertMigrationReleaseEvidence(inputs, { token, fetchImpl 
       headSha: inputs.headSha,
       headRef: inputs.head,
       targetRef: inputs.base,
+      currentPullRequest: inputs.number,
       environment: inputs.base,
       surface: 'promotion'
     })

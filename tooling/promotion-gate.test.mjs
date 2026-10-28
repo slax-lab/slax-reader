@@ -371,7 +371,7 @@ test('check run creation verifies the returned identity', async () => {
 // compare API, the introduced file and CODEOWNERS from the contents API, and
 // ownership from the introducing pull request's reviews. Every frozen ref
 // (main, beta, the dev adoption commit) reads as absent.
-function migrationRoutes({ baseFiles = [], headFiles = [], truncated = false, content = {}, betaContent = {}, mainTipContent = {}, codeowners = codeownersText, reviews = [{ user: { login: 'DGuang21' }, state: 'APPROVED', submitted_at: '2026-10-27T00:00:00Z', id: 1 }], pulls = [{ number: 700, merged_at: '2026-10-27T00:00:00Z', merge_commit_sha: introducingSha, base: { sha: ownerBase }, head: { sha: sourceSha } }] } = {}) {
+function migrationRoutes({ baseFiles = [], headFiles = [], truncated = false, content = {}, betaContent = {}, mainTipContent = {}, currentBase = 'beta', codeowners = codeownersText, reviews = [{ user: { login: 'DGuang21' }, state: 'APPROVED', submitted_at: '2026-10-27T00:00:00Z', id: 1 }], pulls = [{ number: 700, merged_at: '2026-10-27T00:00:00Z', merge_commit_sha: introducingSha, base: { sha: ownerBase }, head: { sha: sourceSha } }] } = {}) {
   return [
     [/\/git\/trees\/([a-f0-9]{40})\?recursive=1$/, url => {
       const ref = url.match(/\/git\/trees\/([a-f0-9]{40})/)[1]
@@ -392,6 +392,7 @@ function migrationRoutes({ baseFiles = [], headFiles = [], truncated = false, co
       if (path in content) return fileResponse(content[path])
       return httpFailure(404)
     }],
+    [/\/pulls\/(\d+)$/, url => response({ number: Number(url.match(/\/pulls\/(\d+)$/)[1]), state: 'open', merged_at: null, head: { sha: headSha }, base: { ref: currentBase, sha: ownerBase } })],
     [/\/commits\?path=/, () => response([{ sha: introducingSha }])],
     [/\/commits\/[a-f0-9]{40}\/pulls/, () => response(pulls)],
     [/\/pulls\/\d+\/reviews/, () => response(reviews)],
@@ -455,10 +456,26 @@ test('a dev-to-beta promotion whose migrations came from main is frozen', async 
 
 test('divergent content under an existing path fails the promotion', async () => {
   const path = d1('0002')
-  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], content: { [path]: expandText }, betaContent: { [path]: contractText } })
+  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], content: { [path]: expandText }, betaContent: { [path]: contractText }, currentBase: 'main' })
   await assert.rejects(
     assertMigrationReleaseEvidence(inputs({ base: 'main', head: 'beta' }), { token: 'fixture-token', fetchImpl: routed(routes) }),
     /differs from the copy on the beta branch/
+  )
+})
+
+test('a hotfix promotion adding an expand migration passes before the merge', async () => {
+  const path = d1('0003')
+  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], content: { [path]: expandText }, currentBase: 'main' })
+  const result = await assertMigrationReleaseEvidence(inputs({ base: 'main', head: 'hotfix/urgent' }), { token: 'fixture-token', fetchImpl: routed(routes) })
+  assert.deepEqual(result.current, [path])
+})
+
+test('a hotfix promotion carrying a contract cannot use the open pull request to pass', async () => {
+  const path = d1('0004')
+  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], content: { [path]: contractText }, currentBase: 'main' })
+  await assert.rejects(
+    assertMigrationReleaseEvidence(inputs({ base: 'main', head: 'hotfix/urgent' }), { token: 'fixture-token', fetchImpl: routed(routes) }),
+    /a hotfix may add only expand migrations/
   )
 })
 

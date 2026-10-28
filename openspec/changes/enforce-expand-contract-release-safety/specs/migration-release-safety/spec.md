@@ -44,11 +44,15 @@ A migration file present in the pinned `dev` adoption tree, on `main`, or on `be
 
 Every migration file added by the release diff MUST have an `APPROVED` review from a named user owner on the pull request that introduced it. This requirement applies to `expand`, `migrate`, and `contract` alike, because the approval is the evidence that an accountable API owner accepted both the class and the author's semantic claim.
 
-On API pull-request CI the check runs before the merge, so the introducing pull request MUST be the current open pull request: its head MUST be the release head and its base MUST be the release branch, and its `APPROVED` review MUST already exist. That pull request MUST be read only when a current migration with a valid declaration needs ownership evidence; a release diff with no current migration MUST NOT read it and MUST NOT be blocked when it is unavailable. On the promotion and deploy surfaces, which run after a merge, the check MUST resolve the introducing commit and exactly one merged introducing pull request instead.
+API pull-request CI and the `promotion integrity` check both run before the merge, so on those surfaces the introducing pull request MUST be the current open pull request: its head MUST be the release head and its base MUST be the release branch, and its `APPROVED` review MUST already exist. That pull request MUST be read only when a current migration with a valid declaration needs ownership evidence; a release diff with no current migration MUST NOT read it and MUST NOT be blocked when it is unavailable. The deploy surface runs after the merge and MUST resolve the introducing commit and exactly one merged introducing pull request instead.
 
 The check MUST read `CODEOWNERS` from the introducing pull request's base commit, resolve named user owners for the migration path, and use each reviewer's latest review state. Team handles MUST NOT satisfy the check, because the workflow token cannot resolve team membership. Ambiguous provenance or an unreadable review list MUST fail closed.
 
 `CODEOWNERS` MUST contain a named-user owner list for `/apps/api/prisma/**` before the check is enforced, so the rule has more than one eligible named owner and the adjudicated overlay can find two.
+
+#### Scenario: The promotion gate uses the open pull request before the merge
+- **WHEN** `promotion integrity` checks a migration carried by the open promotion pull request and a named owner has approved that pull request
+- **THEN** the ownership check passes before the merge, including for a `hotfix/*` head that adds its own `expand` migration
 
 #### Scenario: The open pull request carries the required approval
 - **WHEN** API CI checks a migration added by the current open pull request and a named owner has approved that pull request
@@ -128,7 +132,7 @@ A contract already present on `main` or `beta` is historical: it was applied and
 
 The release diff MUST NOT delete or rename a migration file in any of the four families. It MUST NOT modify a migration file whose path exists on `main` or `beta`. A migration merged to `dev` after the adoption commit MAY be modified before it reaches a shared branch, including its declaration.
 
-An added migration is a re-add only when the target branch already carried that path before the release, judged at the target's pre-release state — the merge's first parent for a deploy, the pull request's base commit for API CI, and the base branch tip for a promotion — and re-adding MUST fail. A path that exists only in the `dev` adoption tree or on another shared branch MUST be treated as historical — no declaration, no failure — only when the release head content is byte-identical to that copy. If the content differs, the check MUST fail on immutability and MUST treat the file as current, so the declaration, ownership, and hotfix rules still apply to it. A `hotfix/*` release MUST parse the class of every migration it adds, including a frozen or re-added copy, and a non-`expand` class MUST fail.
+An added migration is a re-add only when the target is `beta` or `main` and that branch already carried the path before the release, judged at the target's pre-release state — the merge's first parent for a deploy, the pull request's base commit for API CI, and the base branch tip for a promotion — and re-adding MUST fail. A `dev` target does not apply the re-add rule, because a migration propagated from a hotfix legitimately arrives there from a shared branch. A path that exists only in the `dev` adoption tree or on another shared branch MUST be treated as historical — no declaration, no failure — only when the release head content is byte-identical to that copy. If the content differs, the check MUST fail on immutability and MUST treat the file as current, so the declaration, ownership, and hotfix rules still apply to it. A `hotfix/*` release MUST parse the class of every migration it adds, including a frozen or re-added copy, and a non-`expand` class MUST fail.
 
 A migration file present in the pinned `dev` adoption tree, on `main`, or on `beta` MUST NOT receive a new or changed declaration; those files are frozen.
 
@@ -161,8 +165,12 @@ A migration file present in the pinned `dev` adoption tree, on `main`, or on `be
 - **THEN** the migration is historical rather than a re-add, and the promotion passes without a new declaration
 
 #### Scenario: A release re-adds a path the target already carried
-- **WHEN** the release diff adds a migration path that the target branch already carried before the release
+- **WHEN** the release diff adds a migration path that `beta` or `main` already carried before the release
 - **THEN** the check fails on immutability and names the path
+
+#### Scenario: A hotfix migration reaches dev
+- **WHEN** a `hotfix/*` pull request adds to `dev` a migration that already exists on a shared branch
+- **THEN** the re-add rule does not apply, because the path legitimately arrives from that branch
 
 #### Scenario: A diverging copy under an existing path
 - **WHEN** the release diff adds a migration whose path exists on another shared branch or in the adoption tree with different content
@@ -184,7 +192,7 @@ A migration file present in the pinned `dev` adoption tree, on `main`, or on `be
 
 The check MUST evaluate only migration files and contract evidence introduced by the current release diff. A release whose diff adds no `contract` MUST NOT resolve deployment evidence, so an expand-only or migration-only release proceeds when the deployments API is unavailable.
 
-The latest successful API deployment for an environment MUST be resolved from `.github/workflows/api-deploy.yml` deployments only, deduplicated by commit, with the deployment job's migration and publication step concluded successfully. When the newest API deployment run is failed, cancelled, or in progress, a current `contract` MUST fail and the check MUST NOT fall back to an older success. Duplicate or ambiguous deployment, run, or pull-request records MUST fail closed.
+The latest successful API deployment for an environment MUST be resolved from `.github/workflows/api-deploy.yml` deployments only, with the deployment job's migration and publication step concluded successfully. Each deployment record MUST be attributed to that workflow and evaluated — run conclusion and migration step — before its commit is treated as settled, so a newer deployment from another workflow for the same commit cannot suppress it or push the resolver onto an older commit. When the newest API deployment run is failed, cancelled, or in progress, a current `contract` MUST fail and the check MUST NOT fall back to an older success. Duplicate or ambiguous deployment, run, or pull-request records MUST fail closed.
 
 Every failure MUST report one fixed stage among `declaration`, `ownership`, `prerequisite`, `immutability`, and `evidence`, with the public migration path, pull-request number, or commit SHA. It MUST NOT print private configuration, connection values, resource identifiers, or raw API responses.
 

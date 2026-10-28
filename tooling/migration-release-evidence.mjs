@@ -220,7 +220,10 @@ export function trailerExempt(pull) {
   const base = String(pull?.baseRef ?? '')
   if (base === 'beta' && head === 'dev') return true
   if (base === 'main' && head === 'beta') return true
-  return base === 'dev' && (head === 'beta' || head === 'main' || head.startsWith('hotfix/'))
+  // A sync-back carries a long-lived branch back to dev. A `hotfix/*` branch
+  // propagated to dev is a normal pull request: it has its own content, so it
+  // still needs the trailer.
+  return base === 'dev' && (head === 'beta' || head === 'main')
 }
 
 async function githubRequest({ fetchImpl = fetch, token, path }) {
@@ -374,14 +377,15 @@ export function createGithubEvidence({ repository, token, fetchImpl = fetch, hea
 // successful deployment, so the step conclusion is part of the evidence.
 //
 // The `main` environment also carries web-deploy deployments, and one commit can
-// produce several records. A record is attributed to api-deploy.yml and fully
-// evaluated — run conclusion and migration step — before it is deduplicated, so
-// a newer web-deploy success for the same commit can never hide the API run's
-// failure by consuming the commit's slot.
+// produce several records. Records are attributed to api-deploy.yml and fully
+// evaluated — run conclusion and migration step — before a commit is treated as
+// settled, so a newer web-deploy success for the same commit can never hide the
+// API run's failure or push the resolver onto an older commit. The first record
+// attributed to the API workflow decides; duplicates and older records for the
+// same commit are never consulted.
 export async function resolveServingCommit(environment, { repository, get, list }) {
   if (!['main', 'beta'].includes(environment)) fail('evidence', environment, 'serving evidence exists only for the main and beta environments')
   const deployments = await list(`/repos/${repository}/deployments?environment=${encodeURIComponent(environment)}`)
-  const evaluated = new Set()
   for (const deployment of deployments) {
     const id = Number(deployment?.id)
     const sha = deployment?.sha
@@ -404,9 +408,6 @@ export async function resolveServingCommit(environment, { repository, get, list 
     const step = jobs.flatMap(job => Array.isArray(job?.steps) ? job.steps : []).find(item => item?.name === migrateStepName)
     if (!step) fail('evidence', environment, `the newest ${environment} API deployment has no migration and publication step`)
     if (step.conclusion !== 'success') fail('evidence', environment, `the newest ${environment} API deployment did not run the migration and publication step successfully (${step.conclusion ?? 'no conclusion'})`)
-
-    if (evaluated.has(sha)) continue
-    evaluated.add(sha)
     return { environment, sha }
   }
   fail('evidence', environment, `no successful ${apiDeployWorkflow} deployment exists for ${environment}`)
@@ -452,14 +453,20 @@ export function createGitEvidence({ cwd = process.cwd(), repository, token, fetc
       }
     },
 
-    // The checkout is the release head (or its merge commit), so the committed
-    // tree, not the working tree, is the file the release will apply.
-    async readMigration(path) {
-      try {
-        return git(['show', `HEAD:${path}`])
-      } catch {
-        fail('declaration', path, 'the migration file is not readable at the release head')
+    // Read the requested revision when it is available locally — the caller
+    // passes the release head — and fall back to the checkout's HEAD (the merge
+    // commit on a deploy) when a fork head was never fetched. The working tree is
+    // never used: the committed content is what the release applies.
+    async readMigration(path, ref) {
+      const candidates = ref && shaPattern.test(String(ref)) && hasCommit(ref) ? [ref, 'HEAD'] : ['HEAD']
+      for (const candidate of candidates) {
+        try {
+          return git(['show', `${candidate}:${path}`])
+        } catch {
+          // try the next candidate
+        }
       }
+      fail('declaration', path, 'the migration file is not readable at the release head')
     },
 
     async ancestry(ancestor, descendant) {
@@ -602,9 +609,9 @@ export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef =
   }
 
   const skipEvidence = surface === 'deploy' && environment === 'dev'
-  // API CI checks the pull request that carries the diff, so the approval is
-  // read from that open pull request; every other surface runs after a merge and
-  // resolves the merged provenance instead.
+  // API CI and the promotion gate both run on the pull request that carries the
+  // diff, so the approval is read from that open pull request; the deploy surface
+  // runs after the merge and resolves the merged provenance instead.
   const openIntroducing = async number => {
     const pull = await evidence.currentPullRequest(number)
     if (pull.state !== 'open' || pull.merged) fail('ownership', `#${number}`, 'the current pull request is not open')
@@ -612,7 +619,7 @@ export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef =
     if (pull.baseRef !== targetRef) fail('ownership', `#${number}`, `the current pull request does not target ${targetRef}`)
     return { number, baseSha: pull.baseSha }
   }
-  const usesCurrentPull = surface === 'pull-request' && Number.isSafeInteger(currentPullRequest) && currentPullRequest > 0
+  const usesCurrentPull = (surface === 'pull-request' || surface === 'promotion') && Number.isSafeInteger(currentPullRequest) && currentPullRequest > 0
   // Resolved only when a current migration with a valid declaration actually
   // needs ownership evidence: an empty or historical-only diff must not depend
   // on the pull-request endpoint, so a 503 there cannot block a release that
@@ -791,7 +798,7 @@ export async function runCli({ argv = process.argv.slice(2), env = process.env, 
     headRef: options.headRef,
     targetRef: options.baseRef,
     targetCommit,
-    currentPullRequest: options.surface === 'pull-request' ? options.pullRequest : undefined,
+    currentPullRequest: options.surface === 'deploy' ? undefined : options.pullRequest,
     environment: options.environment,
     surface: options.surface
   })

@@ -32,8 +32,8 @@ Six decisions were made during implementation and recorded in the artifacts:
 
 | Command | Result |
 | --- | --- |
-| `node --test tooling/migration-release-evidence.test.mjs` | 56 passed, 0 failed |
-| `pnpm test:ci` | 137 passed, 0 failed |
+| `node --test tooling/migration-release-evidence.test.mjs` | 58 passed, 0 failed |
+| `pnpm test:ci` | 141 passed, 0 failed |
 | `pnpm test:preflight` | 104 passed, 0 failed, 2 skipped (win32-only cases) |
 | `pnpm exec openspec validate --all --strict` | 79 passed, 0 failed |
 | `pnpm agent:check` | `rulesync doctor --strict` and `generate --check` clean; OpenSpec 79/79; compiled agentic workflows match their sources |
@@ -139,6 +139,16 @@ Two findings, both fixed.
 **Regressions.** `an empty or historical-only diff never reads the current pull request` (the fixture throws if called), `the current pull request is read once for every current migration` (two current migrations, one call), and two CLI cases: `the CLI never reads the current pull request for an empty diff` (a fetch stub that throws is never reached) and `the CLI stays green when the pull-request endpoint is down and the diff is historical` (503 on `/pulls/`, an adoption copy served from contents, `ok: true`, no `/pulls/` request).
 
 **Artifacts updated.** `design.md` §3, `docs/CI.md`, and the `migration-release-safety` delta (lazy read plus the "no current migration needs ownership evidence" scenario).
+
+### Review round 6 (PR #421 automated review)
+
+Five items, all fixed.
+
+1. **Promotion integrity could not use the open pull request.** The promotion gate runs before its merge, and a `hotfix/*` head introduces its own migration, so merged provenance was unavailable there. The promotion surface now resolves the current open pull request (open state, head SHA, base ref) exactly like API CI; the deploy surface still requires merged provenance. Regressions: `promotion uses the open pull request before the merge and deploy requires merged provenance`, `a hotfix promotion carries an expand migration before the merge` (unit) and two promotion-gate cases: a hotfix expand migration passes before the merge, and a hotfix contract still fails.
+2. **`hotfix/*` → `dev` was trailer-exempt.** Only real sync-backs (`dev` ← `beta`/`main`) and promotions are exempt now; a hotfix propagated to dev carries its own content and needs the trailer. The existing `trailerExempt` assertion was corrected.
+3. **Unreachable deployment dedupe removed.** The `evaluated` set could never trigger because the first attributed API record returns and failures throw. It is gone; the resolver is documented as "the first record attributed to the API workflow decides, and older records for the same commit are never consulted". `design.md` §4 and the delta say the same.
+4. **`git readMigration` ignored its ref.** It now reads the requested revision when it is available locally and falls back to the checkout's `HEAD` only when a fork head was never fetched. Regression: `git readMigration honors the requested revision` reads an older commit's content while HEAD holds a different one.
+5. **Re-add wording.** The delta, `design.md` §5 and `docs/CI.md` now state the recorded restriction: the rule applies only to `beta` and `main` targets, and a `dev` target never applies it because a hotfix migration legitimately arrives there. A scenario covers it.
 
 ## Machine facts versus owner judgment
 

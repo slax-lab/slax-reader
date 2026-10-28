@@ -11,6 +11,7 @@ import {
   classifyPath,
   codeownersPattern,
   releaseDiffFromTrees,
+  createGitEvidence,
   createGithubEvidence,
   latestReviewStates,
   ownersForPath,
@@ -245,7 +246,7 @@ test('promotion and sync-back pull requests are exempt from the OpenSpec trailer
   assert.equal(trailerExempt({ baseRef: 'main', headRef: 'beta' }), true)
   assert.equal(trailerExempt({ baseRef: 'dev', headRef: 'main' }), true)
   assert.equal(trailerExempt({ baseRef: 'main', headRef: 'hotfix/urgent' }), false)
-  assert.equal(trailerExempt({ baseRef: 'dev', headRef: 'hotfix/urgent' }), true)
+  assert.equal(trailerExempt({ baseRef: 'dev', headRef: 'hotfix/urgent' }), false, 'a hotfix propagated to dev carries its own content')
   assert.equal(trailerExempt({ baseRef: 'dev', headRef: 'feat/topic' }), false)
 })
 
@@ -344,22 +345,68 @@ test('the current pull request must be open, at the release head, and target the
   }
 })
 
-test('promotion and deploy still require merged introducing provenance', async () => {
+test('promotion uses the open pull request before the merge and deploy requires merged provenance', async () => {
   const path = pg('drop_key')
   const files = { [path]: contractText }
-  // The deploy surface resolves the merged pull request; an open one is not used there.
-  const deploy = await verify({ files }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'beta', targetRef: 'beta', currentPullRequest: 731 })
+  const current = { number: 731, state: 'open', merged: false, headSha, baseRef: 'beta', baseSha: ownerBase }
+
+  // The promotion gate runs on the pull request itself, so it reads that open
+  // pull request rather than waiting for a merge.
+  const promotion = await verify({ files, current }, { diff: [{ path, status: 'added' }], surface: 'promotion', targetRef: 'beta', currentPullRequest: 731 })
+  assert.equal(promotion.result.ok, true)
+  assert.ok(promotion.calls.some(([name]) => name === 'currentPullRequest'))
+  assert.ok(!promotion.calls.some(([name]) => name === 'introducingPullRequest'))
+
+  // A promotion without a pull request number falls back to merged provenance.
+  const fallback = await verify({ files }, { diff: [{ path, status: 'added' }], surface: 'promotion', targetRef: 'beta' })
+  assert.equal(fallback.result.ok, true)
+  assert.ok(fallback.calls.some(([name]) => name === 'introducingPullRequest'))
+
+  // The deploy surface runs after the merge: an open pull request is never used.
+  const deploy = await verify({ files, current }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'beta', targetRef: 'beta', currentPullRequest: 731 })
   assert.equal(deploy.result.ok, true)
   assert.ok(deploy.calls.some(([name]) => name === 'introducingPullRequest'))
   assert.ok(!deploy.calls.some(([name]) => name === 'currentPullRequest'))
 
-  const promotion = await verify({ files }, { diff: [{ path, status: 'added' }], surface: 'promotion', targetRef: 'beta' })
-  assert.equal(promotion.result.ok, true)
-  assert.ok(promotion.calls.some(([name]) => name === 'introducingPullRequest'))
-  assert.ok(!promotion.calls.some(([name]) => name === 'currentPullRequest'))
-
   const unmerged = await verify({ files, introducing: new EvidenceError('ownership', path, 'the migration must be introduced by exactly one merged pull request') }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'beta', targetRef: 'beta' })
   assert.deepEqual(stages(unmerged.result), ['ownership'])
+})
+
+test('a hotfix promotion carries an expand migration before the merge', async () => {
+  const path = d1('0003')
+  const current = { number: 731, state: 'open', merged: false, headSha, baseRef: 'main', baseSha: ownerBase }
+  const { result, calls } = await verify({ files: { [path]: expandText }, current }, { diff: [{ path, status: 'added' }], surface: 'promotion', targetRef: 'main', headRef: 'hotfix/urgent', currentPullRequest: 731 })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.current, [path])
+  assert.ok(calls.some(([name]) => name === 'currentPullRequest'))
+
+  const contract = await verify({ files: { [path]: contractText }, current }, { diff: [{ path, status: 'added' }], surface: 'promotion', targetRef: 'main', headRef: 'hotfix/urgent', currentPullRequest: 731 })
+  assert.deepEqual(stages(contract.result), ['declaration'])
+  assert.match(contract.result.findings[0].message, /a hotfix may add only expand migrations/)
+})
+
+test('git readMigration honors the requested revision', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'migration-evidence-read-'))
+  const run = args => execFileSync('git', args, { cwd: directory, encoding: 'utf8' })
+  try {
+    run(['init', '-q', '-b', 'main'])
+    run(['config', 'user.email', 'fixture@example.com'])
+    run(['config', 'user.name', 'Fixture'])
+    const path = d1('0002')
+    mkdirSync(join(directory, path, '..'), { recursive: true })
+    writeFileSync(join(directory, path), expandText)
+    run(['add', '.'])
+    run(['commit', '-q', '-m', 'expand'])
+    const expandSha = run(['rev-parse', 'HEAD']).trim()
+    writeFileSync(join(directory, path), contractText)
+    run(['add', '.'])
+    run(['commit', '-q', '-m', 'contract'])
+    const evidence = createGitEvidence({ cwd: directory, repository, token: 'fixture-token', fetchImpl: async () => { throw new Error('no API call expected') } })
+    assert.equal(await evidence.readMigration(path, expandSha), expandText)
+    assert.equal(await evidence.readMigration(path), contractText)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test('an expand-only release resolves no deployment evidence during an outage', async () => {
