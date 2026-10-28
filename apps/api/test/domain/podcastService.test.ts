@@ -288,6 +288,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     }
   }
   const alertBot = { crawl: { pushMessage: vi.fn(async () => {}) } }
+  const markRepo = { bodyHasMarks: vi.fn(async () => false) }
   const service = new (PodcastService as any)(
     eps,
     arts,
@@ -296,7 +297,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
       bookmarkService as any,
       bookmarkRepo as any,
       searchService as any,
-      { bodyHasMarks: vi.fn(async () => false) } as any,
+      markRepo as any,
       (() => bucket) as any,
       forkRepo as any
     ),
@@ -328,7 +329,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     objects.set(en.article_key!, JSON.stringify(articleDoc('en')))
     return { ep, en }
   }
-  return { service, eps, arts, redis, ub, bookmarks, bookmarkService, bookmarkRepo, forkRepo, searchService, labOn, objects, create, ctx, alertBot, readyEpisode }
+  return { service, markRepo, eps, arts, redis, ub, bookmarks, bookmarkService, bookmarkRepo, forkRepo, searchService, labOn, objects, create, ctx, alertBot, readyEpisode }
 }
 
 describe('triggerAfterCrawl', () => {
@@ -397,11 +398,13 @@ describe('getStatus and getTranslation', () => {
     expect(await w.service.getStatus(w.ctx(VISITOR), UUID)).toMatchObject({ transcript: 'pending', can_retry: false, translation: null })
   })
 
-  test('ready with a translation for the visitor language; flagged or Labs off → unavailable', async () => {
+  test('keeps ready articles readable with Labs disabled and hides flagged articles', async () => {
     const w = wire()
     w.readyEpisode()
     const zh = w.arts.add({ target_language: 'zh', status: 'ready', article_key: 'podcast/canonical/articles/x/zh.json' })
     w.objects.set(zh.article_key!, JSON.stringify(articleDoc('zh')))
+    expect((await w.service.getStatus(w.ctx(OWNER), UUID)).body_ready).toBe(false)
+    await w.service.publishBodies(w.ctx(OWNER), SOURCE)
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ transcript: 'ready', article: 'ready', body_ready: true, language: 'en', translation: null })
     const visitor = await w.service.getStatus(w.ctx(VISITOR), UUID)
     expect(visitor.translation).toEqual({ status: 'ready', language: 'zh', version: `${HASH.slice(0, 12)}-zh-1-v1` })
@@ -420,7 +423,8 @@ describe('getStatus and getTranslation', () => {
     await expect(w.service.getStatus(w.ctx(VISITOR), UUID)).rejects.toMatchObject({ name: ErrorName.BOOKMARK_NOT_FOUND })
     w.ub.moderation_result = 0
     w.labOn.clear()
-    expect((await w.service.getStatus(w.ctx(OWNER), UUID)).transcript).toBe('unavailable')
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ transcript: 'ready', can_retry: false })
+    expect((await w.service.getTranslation(w.ctx(VISITOR), UUID, visitor.translation!.version!)).language).toBe('zh')
   })
 
   test('a share that is turned off hides everything from visitors', async () => {
@@ -635,4 +639,15 @@ describe('fixed body reference filtering', () => {
     await expect(w.service.publishBodies(w.ctx(OWNER), SOURCE)).rejects.toThrow('Media body publication incomplete')
     expect(w.objects.get('html/body/u1.html')).toContain('slax-pod-article')
   })
+})
+
+
+test('publication preserves an annotated legacy body and reports it as unpublished', async () => {
+  const w = wire()
+  w.readyEpisode()
+  w.markRepo.bodyHasMarks.mockResolvedValue(true)
+  const before = w.objects.get('html/body/u1.html')
+  expect(await w.service.publishBodies(w.ctx(OWNER), SOURCE)).toBe(0)
+  expect(w.objects.get('html/body/u1.html')).toBe(before)
+  expect((await w.service.getStatus(w.ctx(OWNER), UUID)).body_ready).toBe(false)
 })

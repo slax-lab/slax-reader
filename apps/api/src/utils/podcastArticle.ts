@@ -22,7 +22,7 @@ import { ASSEMBLYAI_USD_PER_HOUR } from '@/infra/external/assemblyAI'
  * 来源: docs/podcast-article/spec.md 第 3.2、4.4、4.5、4.6、6 节
  */
 
-export const PODCAST_ARTICLE_PROMPT_VERSION = 'v1'
+export const PODCAST_ARTICLE_PROMPT_VERSION = 'v2'
 export const PODCAST_ARTICLE_SCHEMA_VERSION = 1
 
 /** First-version limits (spec 第 6 节). */
@@ -129,7 +129,11 @@ export function expectedEpisodeCostUsd(input: {
   translations: number
 }): number {
   const tokens = input.transcriptText ? estimateTokens(input.transcriptText) : Math.ceil((input.durationSec / 60) * TOKENS_PER_MINUTE[input.language ?? 'en'])
-  const total = (input.needsTranscription ? transcriptionCostUsd(input.durationSec) : 0) + polishCostUsd(tokens) + input.translations * translationCostUsd(tokens)
+  const total =
+    (input.needsTranscription ? transcriptionCostUsd(input.durationSec) : 0) +
+    polishCostUsd(tokens) +
+    expectedChunkCostUsd(tokens + 1000) +
+    input.translations * translationCostUsd(tokens)
   return Math.round(total * 10_000) / 10_000
 }
 
@@ -166,7 +170,7 @@ export function buildPolishInstruction(
   if (lang === 'zh') {
     const position =
       chunk.index === 0
-        ? '这是第一块：在 lede 里写三到五句导读，概括这一集聊了什么，只用本集标题、节目笔记和这一块里出现的内容。'
+        ? '这是第一块：lede 留空。导读会在所有分块完成后生成。保留至少 75% 的原文字数，不得省略问题。'
         : `这不是第一块：lede 留空字符串。前 ${chunk.overlap} 条 cue 上一块已经整理过，只用来衔接，不要再输出。` +
           (prev?.heading ? `如果开头还在聊上一块最后的话题，第一个 section 的 heading 原样写“${prev.heading}”。` : '')
     return [
@@ -200,12 +204,13 @@ export function buildPolishInstruction(
       '保持说话人自己的腔调：口语不改成书面语；说话人反复用同一个词就保留反复，不要替换成同义词；不要把人家的大白话“润色”成你的文风。',
       '',
       `这是第 ${chunk.index + 1} 块，共 ${chunkCount} 块。${position}`,
+      '每段 source_cue_ids 必须列出全部来源编号，包括删去的口头词。除重叠上下文外，每个编号恰好出现一次，顺序不变。每块保留至少 75% 的原文和全部提问。',
       '只返回一个符合 schema 的 JSON 对象。不要 Markdown 代码块，不要 HTML，不要 JSON 之外的任何文字。'
     ].join('\n')
   }
   const position =
     chunk.index === 0
-      ? 'This is the first chunk: write a 3 to 5 sentence lede about what the episode covers, using only the episode title, the notes and this chunk.'
+      ? 'This is the first chunk: set lede to an empty string. The introduction is generated after all chunks. Preserve at least 75 percent of the source length and every question.'
       : `This is not the first chunk: set lede to an empty string. The first ${chunk.overlap} cues were cleaned in the previous chunk; use them for context only and do not output them again.` +
         (prev?.heading ? ` If the chunk opens on the previous topic, use the heading "${prev.heading}" exactly for the first section.` : '')
   return [
@@ -234,7 +239,8 @@ export function buildPolishInstruction(
     '- Break the text into paragraphs of 2-6 sentences at natural topic shifts. One paragraph has one speaker.',
     '- Where the conversation clearly moves to a new topic, start a new section. The heading is a short topic name (3-8 words), no judgment, no colon, no numbering. One to three sections per chunk at most. Never change or drop speech to make room for a heading.',
     '- Speaker (the speaker field): labels such as (A) and (B) in the input come from the transcription service. If the notes and context show who it is, write the name. If it is clearly the host or a guest, write "Host" or "Guest". Otherwise keep the label (for example "A"). If the input has no labels and you cannot tell speakers apart, use null and do not invent labels. Stay consistent with the previous chunk tail.',
-    '- Every paragraph lists the ids of the cues it was built from in source_cue_ids.',
+    '- Every paragraph lists ALL cue ids it covers in source_cue_ids, including removed filler. Cover each non-overlap cue exactly once, in order. Never invent an id.',
+    '- Keep every question and at least 75 percent of the source text length in every chunk.',
     '',
     'Keep the speaker\'s own register: do not formalize casual speech, do not swap repeated words for synonyms, do not "improve" their phrasing into your own style.',
     '',
@@ -262,7 +268,7 @@ export function podcastSpeakerText(transcript: PodcastTranscriptDocument, ctx: P
 }
 
 export function polishQualityOptions(transcript: PodcastTranscriptDocument, ctx: PodcastEpisodeContext): ArticleQualityOptions {
-  return { bounds: POLISH_LENGTH_BOUNDS, speakerText: podcastSpeakerText(transcript, ctx), zhMinCjkRatio: 0.2 }
+  return { requireCompleteCoverage: true, bounds: POLISH_LENGTH_BOUNDS, speakerText: podcastSpeakerText(transcript, ctx), zhMinCjkRatio: 0.2 }
 }
 
 // ---------- translation ----------
@@ -536,8 +542,9 @@ function cuesAttr(cues: PodcastCue[]): string {
 function renderPlayer(info: PodcastPlayerInfo, cues: PodcastCue[]): string {
   const embed = safeHttpUrl(info.embedUrl ?? '')
   if (!info.audioUrl && embed) {
-    return `<iframe class="slax-pod-embed" src="${escapeHtml(embed)}" style="width:100%;height:232px;border:0;" allow="encrypted-media" loading="lazy"></iframe>`
+    return `<iframe class="slax-pod-embed" title="Podcast player" src="${escapeHtml(embed)}" style="width:100%;height:232px;border:0;" allow="encrypted-media" loading="lazy"></iframe>`
   }
+  if (!info.audioUrl) return `<p class="slax-pod-unavailable">${info.language === 'zh' ? '此来源未提供可播放的完整音频。' : 'Full audio is unavailable from this source.'}</p>`
   const src = escapeHtml(safeHttpUrl(info.audioUrl))
   const attrs = [
     'data-kind="audio"',
@@ -564,6 +571,11 @@ function renderShownotes(info: PodcastPlayerInfo, lang: PodcastLanguage): string
   return `<section class="slax-pod-notes">\n<h2>${heading}</h2>\n${paras.join('\n')}\n</section>`
 }
 
+/** Only canonical caption URLs can become external timestamp targets. */
+export function podcastCaptionSource(doc: YoutubeArticleDocument): string | null {
+  return /^https:\/\/www\.youtube\.com\/watch\?v=[A-Za-z0-9_-]{11}$/.test(doc.transcript_source_url ?? '') ? doc.transcript_source_url! : null
+}
+
 /**
  * Body of a podcast bookmark. Before the article exists: the player and the show notes. After: the
  * player (with cues), the article and the show notes. Every paragraph carries the start of its
@@ -575,7 +587,10 @@ export function renderPodcastBody(input: {
   article?: { doc: YoutubeArticleDocument; version: string; cues: PodcastCue[]; paragraphStarts?: number[][] }
 }): string {
   const lang: PodcastLanguage = input.article?.doc.language === 'zh' ? 'zh' : input.article ? 'en' : (input.info.language ?? 'en')
-  const out: string[] = ['<div class="slax-pod" data-slax-derived="podcast">', renderPlayer(input.info, input.article?.cues ?? [])]
+  const out: string[] = [
+    '<div class="slax-pod" data-slax-derived="podcast">',
+    renderPlayer(input.info, input.article && podcastCaptionSource(input.article.doc) ? [] : (input.article?.cues ?? []))
+  ]
   if (input.article) out.push(renderMediaArticle(input.article.doc, input.article.version, input.article.cues, 'podcast', input.article.paragraphStarts))
   const notes = renderShownotes(input.info, lang)
   if (notes) out.push(notes)
@@ -595,12 +610,13 @@ export function renderMediaArticle(
   kind: 'podcast' | 'youtube',
   paragraphStarts?: number[][]
 ): string {
+  const captionSource = kind === 'podcast' ? podcastCaptionSource(doc) : null
   const startOf = new Map(cues.map(c => [c.id, c.start_ms]))
   const lang: PodcastLanguage = doc.language === 'zh' ? 'zh' : 'en'
   const out: string[] = [`<article class="slax-pod-article" data-slax-derived="${kind}-article" data-article-version="${escapeHtml(version)}" lang="${lang}">`]
-  if (kind === 'youtube') {
-    // The same labels as component.youtube_article.* in the Web locales; podcastArticle.test.ts checks both
-    out.push(`<p class="slax-yt-edition">${lang === 'zh' ? '视频整理稿' : 'Edited transcript'}</p>`)
+  {
+    // The same labels as component.youtube_article.* and component.podcast.* in the Web locales; podcastArticle.test.ts checks them
+    out.push(`<p class="slax-yt-edition">${lang === 'zh' ? (kind === 'youtube' ? '视频整理稿' : '播客整理稿') : 'Edited transcript'}</p>`)
     if (doc.lede)
       out.push(
         `<aside class="slax-yt-introduction"><span class="slax-yt-label">${lang === 'zh' ? '导读 · 自动生成' : 'Introduction · generated'}</span><p>${escapeHtml(doc.lede)}</p></aside>`
@@ -609,27 +625,33 @@ export function renderMediaArticle(
       `<details class="slax-yt-contents"><summary>${lang === 'zh' ? '本文目录' : 'Contents'} <span>${doc.sections.length}</span></summary><nav aria-label="${lang === 'zh' ? '本文目录' : 'Contents'}">`
     )
     for (const [i, section] of doc.sections.entries())
-      out.push(`<a href="#yt-topic-${i}"><span>${escapeHtml(section.heading)}</span><time>${formatTimestamp(section.start_ms)}</time></a>`)
+      out.push(`<a href="#${kind === 'youtube' ? 'yt' : 'pod'}-topic-${i}"><span>${escapeHtml(section.heading)}</span><time>${formatTimestamp(section.start_ms)}</time></a>`)
     out.push('</nav></details>')
-  } else if (doc.lede) out.push(`<p class="slax-pod-lede">${escapeHtml(doc.lede)}</p>`)
+  }
   for (const [sectionIndex, section] of doc.sections.entries()) {
     out.push('<section class="slax-pod-section">')
     out.push(
-      `<h2${kind === 'youtube' ? ` id="yt-topic-${sectionIndex}"` : ''} class="slax-pod-heading" data-start-ms="${safeInt(section.start_ms)}">${escapeHtml(section.heading)}</h2>`
+      `<h2 id="${kind === 'youtube' ? 'yt' : 'pod'}-topic-${sectionIndex}" class="slax-pod-heading" ${captionSource ? 'data-source-start-ms' : 'data-start-ms'}="${safeInt(section.start_ms)}">${escapeHtml(section.heading)}</h2>`
     )
     for (const [paragraphIndex, p] of section.paragraphs.entries()) {
       const starts = p.source_cue_ids.map(id => startOf.get(id)).filter((n): n is number => n !== undefined)
       const start = paragraphStarts?.[sectionIndex]?.[paragraphIndex] ?? (starts.length ? Math.min(...starts) : section.start_ms)
       const speaker = p.speaker ? `<span class="slax-pod-speaker">${escapeHtml(speakerDisplay(p.speaker, lang))}</span> ` : ''
+      const timestamp = captionSource
+        ? `<a class="slax-pod-time" href="${escapeHtml(captionSource)}&amp;t=${Math.floor(start / 1000)}" target="_blank" rel="noopener noreferrer" aria-label="YouTube ${formatTimestamp(start)}">${formatTimestamp(start)} ↗</a>`
+        : `<span class="slax-pod-time" data-media-seek="${safeInt(start)}" role="button" tabindex="0">${formatTimestamp(start)}</span>`
       out.push(
-        `<p class="slax-pod-p" data-start-ms="${safeInt(start)}" data-cue-ids="${safeCueIds(p.source_cue_ids)}"><span class="slax-pod-time" data-media-seek="${safeInt(start)}" role="button" tabindex="0">${formatTimestamp(start)}</span> ${speaker}${escapeHtml(p.text)}</p>`
+        `<p class="slax-pod-p" ${captionSource ? 'data-source-start-ms' : 'data-start-ms'}="${safeInt(start)}" data-cue-ids="${safeCueIds(p.source_cue_ids)}">${timestamp} ${speaker}${escapeHtml(p.text)}</p>`
       )
     }
     out.push('</section>')
   }
-  if (kind === 'youtube')
+  out.push(
+    `<footer class="slax-yt-method"><strong>${lang === 'zh' ? '方法与来源' : 'Method and source'}</strong><p>${lang === 'zh' ? '正文根据来源转写稿整理，保留原有顺序。导读单独生成。转写稿和整理稿可能存在错误，请通过时间戳核对来源。' : 'The article follows the source transcript in its original order. The introduction is generated separately. Transcription and editing can contain errors. Use timestamps to check the source.'}</p></footer>`
+  )
+  if (captionSource)
     out.push(
-      `<footer class="slax-yt-method"><strong>${lang === 'zh' ? '方法与来源' : 'Method and source'}</strong><p>${lang === 'zh' ? '正文根据视频字幕整理，保留原有顺序。导读单独生成。字幕和整理稿可能存在错误，请通过时间戳核对原视频。' : 'The article follows the video captions in their original order. The introduction is generated separately. Captions and editing can contain errors. Use timestamps to check the video.'}</p></footer>`
+      `<p class="slax-yt-method">${lang === 'zh' ? '转写来源：YouTube 字幕。时间戳打开视频，不跳转播客音频。' : 'Transcript source: YouTube captions. Timestamps open the video, not the podcast audio.'} <a href="${escapeHtml(captionSource)}" target="_blank" rel="noopener noreferrer">YouTube</a></p>`
     )
   out.push('</article>')
   return out.join('\n')

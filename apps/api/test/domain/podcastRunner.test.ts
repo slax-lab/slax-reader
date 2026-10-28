@@ -202,6 +202,7 @@ function fakeModel(over: { summarize?: boolean; dropTranslationId?: boolean } = 
   return {
     chat: vi.fn(async (contents, _config, options) => {
       const user = (contents[0].parts?.[0] as { text: string }).text
+      if (options.systemInstruction.startsWith('Write a factual')) return { text: JSON.stringify({ lede: 'An episode about data centers in Brazil.' }), usage: { inputTokens: 200, outputTokens: 30 } }
       if (options.systemInstruction.includes('资深译者')) {
         const items = [...user.matchAll(/^(lede|h\d{3}|p\d{4}): (.*)$/gm)].map(m => {
           const numbers = (m[2].match(/\d[\d,]*(?:\.\d+)?%?/g) ?? []).join(' ')
@@ -415,11 +416,11 @@ describe('articles', () => {
     expect(first.deps.publishBodies).toHaveBeenCalledTimes(1)
   })
 
-  test('bounds model thinking so a long transcript cannot truncate on thinking tokens', async () => {
+  test('uses the Gemini 3 thinking level', async () => {
     const { deps } = setup({ episode: { publisher_transcripts: VTT_REF } })
     expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('ready')
     expect(deps.model.chat).toHaveBeenCalled()
-    for (const call of deps.model.chat.mock.calls) expect(call[1]).toMatchObject({ thinkingConfig: { thinkingBudget: 2048 } })
+    for (const call of deps.model.chat.mock.calls) expect(call[1]).toMatchObject({ thinkingConfig: { thinkingLevel: 'LOW' } })
   })
 
   test('another run holds the episode → not_claimed', async () => {
@@ -427,10 +428,10 @@ describe('articles', () => {
     expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('not_claimed')
   })
 
-  test('a summary instead of a cleanup fails quality: no body, chunks dropped', async () => {
+  test('rejects a summary before caching or publication', async () => {
     const { deps, articles, bucket } = setup({ episode: { publisher_transcripts: VTT_REF }, model: fakeModel({ summarize: true }) })
-    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('failed')
-    expect(articles.rows[0].error_message).toMatch(/^quality:.*length_ratio/)
+    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('retry')
+    expect(articles.rows[0].error_message).toContain('edited_length_ratio')
     expect(deps.publishBodies).not.toHaveBeenCalled()
     expect([...bucket.objects.keys()].filter(k => k.includes('/chunks/'))).toEqual([])
   })
@@ -489,10 +490,10 @@ describe('review fixes', () => {
     expect(deps.asr.submit).not.toHaveBeenCalled()
   })
 
-  test('writing the bodies fails: the run still ends ready, the sweep gets a time to write them again, translations go on', async () => {
+  test('writing the bodies fails: the run reports publication_pending, the sweep gets a time to write them again, translations go on', async () => {
     const { deps, episodes, articles } = setup({ episode: { publisher_transcripts: VTT_REF }, targets: ['zh'] })
     deps.publishBodies.mockRejectedValue(new Error('r2 down'))
-    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('ready')
+    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('publication_pending')
     expect(episodes.markRepublish).toHaveBeenCalledTimes(1)
     expect(episodes.clearRepublish).not.toHaveBeenCalled()
     expect(articles.rows.map(r => [r.target_language, r.status])).toEqual([
@@ -515,4 +516,44 @@ describe('review fixes', () => {
     expect(first.articles.dropRequest).toHaveBeenCalledWith(orphan.id)
     expect(first.deps.model.chat).not.toHaveBeenCalled()
   })
+})
+
+
+describe('complete edited article', () => {
+  test('generates the introduction after assembling the complete source', async () => {
+    const s = setup({ episode: { publisher_transcripts: VTT_REF } })
+    await runPodcastEpisode(s.deps, P, engine().step, 'introduction-test')
+    expect((s.deps.model.chat as ReturnType<typeof vi.fn>).mock.calls.some((call: any) => call[2].systemInstruction.startsWith('Write a factual'))).toBe(true)
+  })
+})
+
+
+describe('episode-linked YouTube captions', () => {
+  const ref = [{ url: 'https://www.youtube.com/watch?v=Jv5B5CEaPJI', type: 'application/x-youtube-captions', language: 'en' }]
+  test('uses captions before paid transcription and preserves their source', async () => {
+    const s = setup({ episode: { publisher_transcripts: ref } })
+    s.deps.fetchYoutubeCaption = vi.fn(async () => ({ language: 'en', cues: parseVtt(VTT).map(c => ({ start_ms: c.start_ms, duration_ms: c.end_ms - c.start_ms, text: c.text })) }) as any)
+    expect(await runPodcastEpisode(s.deps, P, engine().step, 'caption-test')).toBe('ready')
+    expect(s.deps.asr.submit).not.toHaveBeenCalled()
+    expect(s.episodes.row.transcript_source).toBe('youtube')
+  })
+  test('uses audio transcription when captions are absent', async () => {
+    const s = setup({ episode: { publisher_transcripts: ref }, asr: asrFake([{ status: 'completed', segments: words, language: 'en', durationSec: 180, costUsd: 0.0085 }]) })
+    s.deps.fetchYoutubeCaption = vi.fn(async () => null)
+    expect(await runPodcastEpisode(s.deps, P, engine().step, 'caption-missing')).toBe('ready')
+    expect(s.deps.asr.submit).toHaveBeenCalledOnce()
+  })
+  test('does not submit an empty audio URL when captions are absent', async () => {
+    const s = setup({ episode: { publisher_transcripts: ref, audio_url: '' } })
+    s.deps.fetchYoutubeCaption = vi.fn(async () => null)
+    expect(await runPodcastEpisode(s.deps, P, engine().step, 'caption-no-audio')).toBe('skipped')
+    expect(s.deps.asr.submit).not.toHaveBeenCalled()
+  })
+})
+
+
+test('a publisher transcript works without a public audio URL', async () => {
+  const s = setup({ episode: { publisher_transcripts: VTT_REF, audio_url: '' } })
+  expect(await runPodcastEpisode(s.deps, P, engine().step, 'publisher-no-audio')).toBe('ready')
+  expect(s.deps.asr.submit).not.toHaveBeenCalled()
 })

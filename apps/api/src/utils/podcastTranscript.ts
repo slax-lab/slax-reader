@@ -26,7 +26,8 @@ export interface PodcastCue {
 
 export interface PodcastTranscriptDocument {
   schema_version: typeof PODCAST_TRANSCRIPT_SCHEMA_VERSION
-  source: 'publisher' | 'assemblyai'
+  source: 'publisher' | 'assemblyai' | 'youtube'
+  source_url?: string
   language: PodcastLanguage
   speakers: boolean
   duration_ms: number

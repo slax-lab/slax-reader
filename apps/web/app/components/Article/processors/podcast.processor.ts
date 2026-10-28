@@ -9,6 +9,21 @@ import type { DOMProcessor, WebProcessorContext } from './types'
  * played is marked and kept in view.
  */
 export const bindMediaText = (context: WebProcessorContext): void => {
+  // YouTube contents stay with YoutubeProcessor, so each contents element has one listener
+  for (const contents of context.container.querySelectorAll<HTMLDetailsElement>('[data-slax-derived="podcast-article"] .slax-yt-contents')) {
+    // Same boundary as isH5 (width <= 768) in useSnapshotLayout
+    contents.open = window.matchMedia('(min-width: 769px)').matches
+    const navigate = (event: Event) => {
+      const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href^="#pod-topic-"]')
+      if (!link) return
+      const heading = context.container.querySelector(link.getAttribute('href')!)
+      if (!heading) return
+      event.preventDefault()
+      heading.scrollIntoView({ block: 'start' })
+    }
+    contents.addEventListener('click', navigate)
+    context.cleanups.push(() => contents.removeEventListener('click', navigate))
+  }
   const seekFrom = (target: EventTarget | null): boolean => {
     const el = (target as HTMLElement | null)?.closest<HTMLElement>('[data-media-seek]')
     if (!el || !context.container.contains(el)) return false
@@ -50,7 +65,7 @@ export class PodcastProcessor implements DOMProcessor {
   readonly name = 'PodcastProcessor'
 
   match(context: WebProcessorContext): boolean {
-    return !!context.container.querySelector('slax-media[data-kind="audio"]')
+    return !!context.container.querySelector('slax-media[data-kind="audio"], [data-slax-derived="podcast-article"]')
   }
 
   process(context: WebProcessorContext): void {

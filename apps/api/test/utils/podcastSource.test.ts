@@ -314,3 +314,21 @@ describe('Pocket Casts', () => {
     expect(parsePocketCastsPage(short, og('https://user:pass@cdn.example.com/structured.mp3'))!.audioUrl).toBe('https://media.example.com/episode.m4a')
   })
 })
+
+
+describe('public podcast platform links', () => {
+  test.each([
+    ['https://pca.st/9e6hvl11', 'pocketcasts'],
+    ['https://overcast.fm/+abc123', 'overcast'],
+    ['https://castbox.fm/episode/An-episode-id123-id456', 'castbox'],
+    ['https://music.amazon.com/podcasts/show-id/episodes/episode-id/title', 'amazon'],
+    ['https://www.ximalaya.com/sound/123456', 'ximalaya']
+  ])('recognizes %s', (url, kind) => expect(classifyPodcastUrl(url)).toBe(kind))
+})
+
+
+test('RSS URLs decode XML entities exactly once', () => {
+  const feed = parsePodcastFeed('<rss><channel><title>Show</title><item><title>Episode</title><enclosure type="audio/mpeg" url="https://cdn.example.com/a.mp3?a=1&amp;b=2&amp;amp;c=3"/><podcast:transcript url="https://cdn.example.com/a.vtt?a=1&#38;b=2" type="text/vtt"/></item></channel></rss>')
+  expect(feed.items[0].audioUrl).toBe('https://cdn.example.com/a.mp3?a=1&b=2&amp;c=3')
+  expect(feed.items[0].transcripts[0].url).toBe('https://cdn.example.com/a.vtt?a=1&b=2')
+})

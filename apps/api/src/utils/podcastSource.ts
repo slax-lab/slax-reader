@@ -8,7 +8,7 @@ import { hashSHA256 } from '@/utils/strings'
  * Ported from papears (sources/xiaoyuzhou.py, apple.py, rss.py, urlpolicy.py).
  */
 
-export type PodcastSourceKind = 'xiaoyuzhou' | 'apple' | 'audio' | 'feed' | 'spotify' | 'pocketcasts'
+export type PodcastSourceKind = 'xiaoyuzhou' | 'apple' | 'audio' | 'feed' | 'spotify' | 'pocketcasts' | 'overcast' | 'castbox' | 'amazon' | 'ximalaya'
 export type PodcastLanguage = 'zh' | 'en'
 
 export interface PodcastTranscriptRef {
@@ -59,6 +59,10 @@ export function classifyPodcastUrl(raw: string): PodcastSourceKind | null {
   if (APPLE_PODCAST_RE.test(raw)) return url.searchParams.get('i') ? 'apple' : null
   if (SPOTIFY_EPISODE_RE.test(raw)) return 'spotify'
   if (isPocketCastsEpisode(url)) return 'pocketcasts'
+  if (url.hostname === 'overcast.fm' && /^\/[+][A-Za-z0-9_-]+\/?$/.test(url.pathname)) return 'overcast'
+  if (['castbox.fm', 'www.castbox.fm'].includes(url.hostname) && /^\/episode\/[^/]+/.test(url.pathname)) return 'castbox'
+  if (/^music\.amazon\.(com|co\.uk|de|co\.jp|com\.au|ca)$/.test(url.hostname) && /^\/podcasts\/[^/]+\/episodes\/[^/]+/.test(url.pathname)) return 'amazon'
+  if (['ximalaya.com', 'www.ximalaya.com', 'm.ximalaya.com'].includes(url.hostname) && /^\/sound\/\d+\/?$/.test(url.pathname)) return 'ximalaya'
   const path = url.pathname.toLowerCase()
   if (AUDIO_EXT_RE.test(path)) return 'audio'
   const host = url.hostname.toLowerCase()
@@ -69,6 +73,7 @@ export function classifyPodcastUrl(raw: string): PodcastSourceKind | null {
 const POCKET_UUID = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
 
 function isPocketCastsEpisode(url: URL): boolean {
+  if (url.hostname === 'pca.st' && /^\/[A-Za-z0-9]{6,12}\/?$/.test(url.pathname)) return true
   if (url.hostname === 'pca.st') return new RegExp(`^/episode/${POCKET_UUID}/?$`, 'i').test(url.pathname)
   if (!['pocketcasts.com', 'www.pocketcasts.com'].includes(url.hostname)) return false
   return new RegExp(`^/podcast/[^/]+/${POCKET_UUID}/[^/]+/${POCKET_UUID}/?$`, 'i').test(url.pathname)
@@ -221,7 +226,7 @@ export async function podcastSourceId(audioUrl: string): Promise<string> {
   return (await hashSHA256(normalized)).slice(0, 32)
 }
 
-function emptyInfo(kind: PodcastSourceKind, pageUrl: string): PodcastEpisodeInfo {
+export function emptyInfo(kind: PodcastSourceKind, pageUrl: string): PodcastEpisodeInfo {
   return {
     kind,
     pageUrl,
@@ -347,6 +352,16 @@ function textOf(el: Element | null | undefined, tag: string): string {
   return el?.getElementsByTagName(tag)[0]?.textContent?.trim() ?? ''
 }
 
+/** Linkedom preserves XML attribute entities. Decode each entity once before URL use. */
+function xmlUrl(value: string | null | undefined): string {
+  const named: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
+  return (value ?? '').replace(/&(amp|lt|gt|quot|apos|#x[0-9a-f]+|#[0-9]+);/gi, (entity, code: string) => {
+    if (!code.startsWith('#')) return named[code.toLowerCase()]
+    const point = code[1].toLowerCase() === 'x' ? parseInt(code.slice(2), 16) : Number(code.slice(1))
+    return point > 0 && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff) ? String.fromCodePoint(point) : entity
+  })
+}
+
 /** Parse an RSS 2.0 podcast feed. Items without an audio enclosure keep an empty audioUrl. */
 export function parsePodcastFeed(xml: string): PodcastFeed {
   const doc = new DOMParser().parseFromString(xml, 'text/xml') as unknown as Document
@@ -357,23 +372,23 @@ export function parsePodcastFeed(xml: string): PodcastFeed {
     const enclosures = [...item.getElementsByTagName('enclosure')]
     const audio = enclosures.find(e => AUDIO_TYPE_RE.test(e.getAttribute('type') ?? '') || AUDIO_EXT_RE.test((e.getAttribute('url') ?? '').split('?')[0]))
     const transcripts = [...item.getElementsByTagName('podcast:transcript')]
-      .map(t => ({ url: t.getAttribute('url') ?? '', type: (t.getAttribute('type') ?? '').toLowerCase(), language: t.getAttribute('language') }))
+      .map(t => ({ url: xmlUrl(t.getAttribute('url')), type: (t.getAttribute('type') ?? '').toLowerCase(), language: t.getAttribute('language') }))
       .filter(t => t.url)
     return {
       guid: textOf(item, 'guid'),
       title: textOf(item, 'title'),
-      audioUrl: audio?.getAttribute('url') ?? '',
+      audioUrl: xmlUrl(audio?.getAttribute('url')),
       durationSec: parseDuration(textOf(item, 'itunes:duration')),
       publishedAt: parseDate(textOf(item, 'pubDate')),
       description: stripHtml(textOf(item, 'content:encoded') || textOf(item, 'description') || textOf(item, 'itunes:summary')),
-      coverUrl: item.getElementsByTagName('itunes:image')[0]?.getAttribute('href') ?? '',
+      coverUrl: xmlUrl(item.getElementsByTagName('itunes:image')[0]?.getAttribute('href')),
       transcripts
     }
   })
   return {
     title: textOf(channel, 'title'),
     author: textOf(channel, 'itunes:author'),
-    coverUrl: channelImage ?? '',
+    coverUrl: xmlUrl(channelImage),
     language: podcastLanguage(textOf(channel, 'language')),
     languageTag: textOf(channel, 'language').toLowerCase() || null,
     items

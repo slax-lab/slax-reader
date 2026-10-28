@@ -1,17 +1,27 @@
 <template>
   <!-- Text bindings only: model output can never become markup -->
-  <article ref="rootRef" class="podcast-translation" :lang="content.language">
-    <p v-if="content.lede" class="pod-tr-lede">{{ content.lede }}</p>
+  <article ref="rootRef" class="podcast-translation" data-slax-derived="podcast-article" :lang="content.language">
+    <p class="slax-yt-edition">{{ $t('component.podcast.edited_transcript') }}</p>
+    <aside v-if="content.lede" class="slax-yt-introduction"><span class="slax-yt-label">{{ $t('component.podcast.introduction') }}</span><p>{{ content.lede }}</p></aside>
+    <details class="slax-yt-contents" :open="!isH5">
+      <summary>{{ $t('component.podcast.contents') }} <span>{{ content.sections.length }}</span></summary>
+      <nav :aria-label="$t('component.podcast.contents')">
+        <a v-for="(section, i) in content.sections" :key="i" :href="`#pod-translation-${i}`" @click.prevent="goToSection(i)"><span>{{ section.heading }}</span><time>{{ formatTime(section.start_ms) }}</time></a>
+      </nav>
+    </details>
     <section v-for="(section, i) in content.sections" :key="i" class="pod-tr-section">
-      <h2 class="pod-tr-heading">{{ section.heading }}</h2>
-      <p v-for="(paragraph, j) in section.paragraphs" :key="j" class="pod-tr-p" :data-start-ms="paragraph.start_ms">
-        <button type="button" class="pod-tr-time" :aria-label="$t('component.podcast.seek', { time: formatTime(paragraph.start_ms) })" @click="seekTo(paragraph.start_ms)">
+      <h2 :id="`pod-translation-${i}`" class="pod-tr-heading slax-pod-heading">{{ section.heading }}</h2>
+      <p v-for="(paragraph, j) in section.paragraphs" :key="j" class="pod-tr-p slax-pod-p" :data-start-ms="captionSource ? undefined : paragraph.start_ms">
+        <a v-if="captionSource" class="pod-tr-time slax-pod-time" :href="`${captionSource}&t=${Math.floor(paragraph.start_ms / 1000)}`" target="_blank" rel="noopener noreferrer">{{ formatTime(paragraph.start_ms) }} ↗</a>
+        <button v-else type="button" class="pod-tr-time slax-pod-time" :aria-label="$t('component.podcast.seek', { time: formatTime(paragraph.start_ms) })" @click="seekTo(paragraph.start_ms)">
           {{ formatTime(paragraph.start_ms) }}
         </button>
-        <span v-if="paragraph.speaker" class="pod-tr-speaker">{{ paragraph.speaker }}{{ content.language === 'zh' ? '：' : ':' }}</span>
+        <span v-if="paragraph.speaker" class="pod-tr-speaker slax-pod-speaker">{{ paragraph.speaker }}{{ content.language === 'zh' ? '：' : ':' }}</span>
         {{ paragraph.text }}
       </p>
     </section>
+    <p v-if="captionSource" class="slax-yt-method">{{ content.language === 'zh' ? '转写来源：YouTube 字幕。时间戳打开视频。' : 'Transcript source: YouTube captions. Timestamps open the video.' }}</p>
+    <footer class="slax-yt-method"><strong>{{ $t('component.podcast.method') }}</strong><p>{{ $t('component.podcast.method_note') }}</p></footer>
   </article>
 </template>
 
@@ -20,11 +30,14 @@ import { MediaFollower, seekTo } from '~/utils/podcastMedia'
 
 import type { PodcastTranslation } from '@slax-reader/contracts/interface'
 
-defineProps<{
+const props = defineProps<{
   content: PodcastTranslation
 }>()
 
+const captionSource = computed(() => /^https:\/\/www\.youtube\.com\/watch\?v=[A-Za-z0-9_-]{11}$/.test(props.content.transcript_source_url ?? '') ? props.content.transcript_source_url : null)
 const rootRef = ref<HTMLElement | null>(null)
+const { isH5 } = useSnapshotLayout()
+const goToSection = (index: number) => rootRef.value?.querySelector(`#pod-translation-${index}`)?.scrollIntoView({ block: 'start' })
 let follower: MediaFollower | null = null
 
 const formatTime = (ms: number): string => {
@@ -46,18 +59,15 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+@use "../../../styles/article/media-reading" as *;
+@include media-reading;
 .podcast-translation {
   margin: 0 0 24px;
   color: var(--slax-text);
   line-height: 1.8;
 }
 
-.pod-tr-lede {
-  margin: 0 0 24px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: var(--slax-accent-bg);
-}
+
 
 .pod-tr-heading {
   margin: 28px 0 12px;

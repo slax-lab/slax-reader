@@ -608,6 +608,12 @@
       "error": "这段音频无法在这里播放，请打开原网页收听。"
     },
     "podcast": {
+      "edited_transcript": "播客整理稿",
+      "introduction": "导读 · 自动生成",
+      "contents": "本文目录",
+      "method": "方法与来源",
+      "method_note": "正文根据来源转写稿整理，保留原有顺序。导读单独生成。转写稿和整理稿可能存在错误，请通过时间戳核对来源。",
+
       "stalled": "暂时获取不到最新状态。",
       "check_again": "重新查看",
       "queued": "转写排队中。",

@@ -17,6 +17,7 @@ export function podcastInputFingerprint(ep: { audio_url: string; title: string; 
 export type MediaLanguage = YoutubeArticleLanguage
 export type PrivateMediaState = 'pending' | 'ready' | 'failed' | 'skipped' | 'unavailable'
 export interface PrivateMediaContent {
+  transcript_source_url?: string
   language: MediaLanguage
   format: 'article' | 'dialogue'
   lede: string
@@ -102,6 +103,7 @@ export function parseMediaSnapshot(value: unknown): MediaSnapshot | null {
 export function normalizedMediaContent(doc: YoutubeArticleDocument, cues: YoutubeCaptionCue[]): PrivateMediaContent {
   const starts = new Map(cues.map(c => [c.id, c.start_ms]))
   return {
+    ...(doc.transcript_source_url ? { transcript_source_url: doc.transcript_source_url } : {}),
     language: doc.language,
     format: doc.format === 'dialogue' ? 'dialogue' : 'article',
     lede: doc.lede,

@@ -1,3 +1,4 @@
+import { SocialMediaApi } from '@/infra/external/socialMedia'
 import { container } from '@/decorators/di'
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:workers'
 import { NonRetryableError } from 'cloudflare:workflows'
@@ -50,6 +51,7 @@ export class PodcastWorkflow extends WorkflowEntrypoint<Env, PodcastWorkflowPara
         bucket: this.env.OSS,
         model: new VertexAIClient(this.env),
         asr: new AssemblyAIClient(this.env.ASSEMBLYAI_API_KEY),
+        fetchYoutubeCaption: async (videoId, language) => (await SocialMediaApi.fetchYoutubeCaption(this.env, videoId, language)).caption,
         fetchTranscript: url => fetchPublicText(url, { maxBytes: 5 * 1024 * 1024 }),
         moderate: async (title, text) => {
           let worst = 0

@@ -127,8 +127,10 @@ describe('fetchPodcastData', () => {
   test('Apple: lookup, then the feed adds transcripts and the language tag', async () => {
     const lookup = JSON.parse(fixture('apple-lookup.json'))
     const episode = lookup.results.find((r: { trackId?: number }) => String(r.trackId) === '1000796109623')
-    // The Daily's feed is not saved; give the Buzzsprout feed the same episode title so it matches
-    const feed = fixture('buzzsprout-feed.xml').replaceAll('Brazil’s Data Center Boom is Enabled by Renewables Firms w/ Laís Martins', episode.trackName.replace(/&/g, '&amp;'))
+    // The fixture must identify the same audio; a matching title alone is insufficient.
+    const feed = fixture('buzzsprout-feed.xml')
+      .replaceAll('Brazil’s Data Center Boom is Enabled by Renewables Firms w/ Laís Martins', episode.trackName.replace(/&/g, '&amp;'))
+      .replace(/(<enclosure[^>]*url=")[^"]+/, `$1${episode.episodeUrl.replace(/&/g, '&amp;')}`)
     const seen = stubFetch({ 'https://itunes.apple.com/lookup': JSON.stringify(lookup), 'https://feeds.simplecast.com/': feed })
     const info = await wire().svc.fetchPodcastData('https://podcasts.apple.com/us/podcast/x/id1200361736?i=1000796109623', ctx)
     expect(seen[0]).toBe('https://itunes.apple.com/lookup?id=1200361736&entity=podcastEpisode&limit=300')

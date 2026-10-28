@@ -28,3 +28,14 @@ describe('PodcastTranslation', () => {
     w.unmount()
   })
 })
+
+
+it('opens caption timestamps on YouTube without seeking podcast audio', async () => {
+  const w = await mountWithApp(PodcastTranslation, { props: { content: { ...CONTENT, transcript_source_url: 'https://www.youtube.com/watch?v=Jv5B5CEaPJI' } }, attachTo: document.body })
+  const link = w.find('.pod-tr-time')
+  expect(link.element.tagName).toBe('A')
+  expect(link.attributes('href')).toBe('https://www.youtube.com/watch?v=Jv5B5CEaPJI&t=3725')
+  expect(w.find('.pod-tr-p').attributes('data-start-ms')).toBeUndefined()
+  expect(w.find('.slax-yt-contents').exists()).toBe(true)
+  w.unmount()
+})

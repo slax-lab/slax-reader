@@ -1,3 +1,5 @@
+import { chooseTranscriptRef } from '@/utils/podcastTranscript'
+import { parsePublicPodcastPage, exactPodcastFeedItem } from '@/utils/podcastPage'
 import { MarkRepo } from '@/infra/repository/dbMark'
 import { SocialMediaApi } from '../infra/external/socialMedia'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
@@ -20,7 +22,6 @@ import {
   parsePocketCastsPage,
   directAudioInfo,
   enrichFromFeed,
-  findFeedItem,
   latestFeedEpisode,
   parseAppleUrl,
   parsePodcastFeed,
@@ -731,7 +732,9 @@ export class CrawlService {
       // Use the URL the provider actually resolved, so a redirected episode slug is not stored stale.
       const page = await pageFetcher()
       const info = parseXiaoyuzhouPage(page.url, page.content)
-      return info.audioUrl ? info : null
+      const publicInfo = parsePublicPodcastPage(page.url, page.content)?.info
+      if (publicInfo) info.transcripts.push(...publicInfo.transcripts)
+      return info.audioUrl || info.transcripts.length ? info : null
     }
     if (kind === 'pocketcasts') {
       const page = await pageFetcher()
@@ -740,6 +743,8 @@ export class CrawlService {
         const reason = classifyPodcastUrl(page.url) === 'pocketcasts' ? 'has no safe episode audio' : `resolved to ${page.url}, which is not an episode link`
         console.warn(`Pocket Casts page ${url} ${reason}; saving as a page`)
       }
+      const publicInfo = parsePublicPodcastPage(page.url, page.content)?.info
+      if (info && publicInfo) info.transcripts.push(...publicInfo.transcripts)
       return info
     }
     if (kind === 'apple') {
@@ -747,12 +752,12 @@ export class CrawlService {
       if (!ids) return null
       const lookup = JSON.parse(await fetchPublicText(appleLookupUrl(ids.showId), { maxBytes: 3 * 1024 * 1024, accept: 'application/json' }))
       const picked = pickAppleEpisode(url, lookup, ids.episodeId)
-      if (!picked) return null
+      if (!picked) return this.readPublicPodcastEpisode(url, pageFetcher)
       if (!picked.feedUrl) return picked.info
       try {
         // The feed adds transcripts, the language and fuller notes; the episode works without it
         const feed = parsePodcastFeed(await fetchPublicText(picked.feedUrl, { maxBytes: 15 * 1024 * 1024 }))
-        return enrichFromFeed(picked.info, feed, findFeedItem(feed, { audioUrl: picked.info.audioUrl, title: picked.info.title }))
+        return enrichFromFeed(picked.info, feed, exactPodcastFeedItem(picked.info, feed))
       } catch (err) {
         console.warn(`Podcast feed enrichment failed for ${url}: ${err instanceof Error ? err.message : String(err)}`)
         return picked.info
@@ -773,8 +778,11 @@ export class CrawlService {
       const oembed = await fetchPublicText(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`, { maxBytes: 256 * 1024, accept: 'application/json' })
         .then(text => JSON.parse(text) as { title?: string; thumbnail_url?: string })
         .catch(() => null)
-      return spotifyInfo(url, oembed)
+      const fallback = spotifyInfo(url, oembed)
+      const resolved = await this.readPublicPodcastEpisode(url, pageFetcher).catch(() => null)
+      return resolved ? { ...resolved, title: resolved.title || fallback.title, embedUrl: fallback.embedUrl } : fallback
     }
+    if (kind && ['overcast', 'castbox', 'amazon', 'ximalaya'].includes(kind)) return this.readPublicPodcastEpisode(url, pageFetcher)
     return null
   }
 
@@ -790,8 +798,27 @@ export class CrawlService {
     return this.markRepo.bodyHasMarks(bookmarkId, ctx.getUserId())
   }
 
+  private async readPublicPodcastEpisode(url: string, pageFetcher: () => Promise<{ content: string; url: string }>): Promise<PodcastEpisodeInfo | null> {
+    const page = await pageFetcher()
+    const parsed = parsePublicPodcastPage(page.url, page.content)
+    if (!parsed) return null
+    if (parsed.feedUrl) {
+      try {
+        const feed = parsePodcastFeed(await fetchPublicText(parsed.feedUrl, { maxBytes: 15 * 1024 * 1024 }))
+        const item = exactPodcastFeedItem(parsed.info, feed)
+        if (item) return enrichFromFeed({ ...parsed.info, audioUrl: item.audioUrl }, feed, item)
+      } catch {
+        console.warn('Podcast feed enrichment failed; retaining public episode metadata')
+      }
+    }
+    return parsed.info
+  }
+
   /** First body of a podcast bookmark (player and notes), the episode row and the bookmark's reference to it. */
   public async parseAndSavePodcast(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+    if (await this.markRepo.bodyHasMarks(bookmarkId, ctx.getUserId())) {
+      throw new Error('Cannot replace annotated Podcast content')
+    }
     const html = HtmlBuilder.buildPodcast({ ...info })
     const textContent = renderPodcastText({ info })
     const ref = await this.savePodcastEpisode(info, bookmarkId)
@@ -816,9 +843,10 @@ export class CrawlService {
 
   /** Shared episode inputs for the private capture. Never throws: the bookmark is already saved. */
   public async savePodcastEpisode(info: PodcastEpisodeInfo, bookmarkId: number): Promise<(MediaSnapshotRef & { podcastInput: podcastEpisodePO }) | undefined> {
-    if (!info.audioUrl) return
+    const source = info.audioUrl || chooseTranscriptRef(info.transcripts)?.ref.url || info.transcripts.find(ref => ref.type === 'application/x-youtube-captions')?.url
+    if (!source) return
     try {
-      const sourceId = await podcastSourceId(info.audioUrl)
+      const sourceId = await podcastSourceId(source)
       const episode = await this.podcastEpisodeRepo.upsertFromInfo(sourceId, info)
       console.log(`Podcast episode saved for bookmark ${bookmarkId}: episode=${episode.id} source=${sourceId} kind=${info.kind} status=${episode.transcript_status}`)
       return { media_kind: 'podcast', source_id: sourceId, source_hash: episode.transcript_hash ?? '', podcastInput: structuredClone(episode) }

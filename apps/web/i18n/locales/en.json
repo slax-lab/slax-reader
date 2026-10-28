@@ -607,6 +607,12 @@
       "error": "This audio cannot be played here. Open the original page to listen."
     },
     "podcast": {
+      "edited_transcript": "Edited transcript",
+      "introduction": "Introduction · generated",
+      "contents": "Contents",
+      "method": "Method and source",
+      "method_note": "The article follows the source transcript in its original order. The introduction is generated separately. Transcription and editing can contain errors. Use timestamps to check the source.",
+
       "stalled": "Could not get the latest status.",
       "check_again": "Check again",
       "queued": "The transcript is queued.",

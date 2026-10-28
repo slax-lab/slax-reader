@@ -1,4 +1,5 @@
 @use 'youtube-reading' as *;
+@use 'media-reading' as *;
 @use 'content-mixin' as *;
 
 @mixin article {
@@ -132,6 +133,7 @@
   }
 
   @include youtube-reading;
+  @include media-reading;
 
   /* 播客整理稿：段首时间戳可点跳转，播放中的段落高亮；正文真实 HTML，便于划线评论 */
   .slax-pod-lede {

@@ -56,6 +56,7 @@ export interface PodcastStatusResponse {
 }
 
 export interface PodcastTranslationResponse {
+  transcript_source_url?: string
   version: string
   language: PodcastLanguage
   lede: string
@@ -180,7 +181,7 @@ export class PodcastService {
       }
       return result
     }
-    if (!(await this.labService.isEnabled(access.ownerId, PODCAST_LAB))) return unavailable
+    const enabled = await this.labService.isEnabled(access.ownerId, PODCAST_LAB)
     const ep = await this.findEpisodeFor(access.bookmarkId)
     if (!ep) return unavailable
 
@@ -199,8 +200,11 @@ export class PodcastService {
 
     const rows = await this.articles.listForSource(ep.source_id, ep.transcript_hash)
     const original = rows.find(r => r.target_language === lang)
+    if (!enabled && original?.status !== 'ready') return unavailable
     res.article = (original?.status as PodcastArticleApiStatus) ?? 'pending'
-    res.body_ready = original?.status === 'ready'
+    res.body_ready =
+      original?.status === 'ready' &&
+      !!(await this.bodies.readBody(access.bookmarkId))?.includes(`data-slax-derived="podcast-article" data-article-version="${this.versionOf(original)}"`)
     if (original && (original.status === 'failed' || original.status === 'skipped')) res.reason = (original.error_message ?? '').split(':')[0] || null
     if (original?.status === 'failed' && access.isOwner && !isFinalError(original.error_message)) res.can_retry = true
     // Same visitor rule for the article stage: a running article is shown as running, a failed or
@@ -220,7 +224,7 @@ export class PodcastService {
         if (tr?.status === 'failed' && access.isOwner && !isFinalError(tr.error_message) && res.body_ready) res.can_retry = true
       }
     }
-    if (!access.isOwner) res.can_retry = false
+    if (!access.isOwner || !enabled) res.can_retry = false
     return res
   }
 
@@ -281,10 +285,10 @@ export class PodcastService {
         }))
       }
     }
-    if (!(await this.labService.isEnabled(access.ownerId, PODCAST_LAB))) throw BookmarkNotFoundError()
     const ep = await this.findEpisodeFor(access.bookmarkId)
     if (!ep?.transcript_hash || ep.transcript_status !== 'ready') throw BookmarkNotFoundError()
-    const row = (await this.articles.listForSource(ep.source_id, ep.transcript_hash)).find(r => r.status === 'ready' && r.article_key && this.versionOf(r) === version)
+    const rows = [...(await this.articles.listForSource(ep.source_id, ep.transcript_hash)), ...(await this.articles.listForSource(ep.source_id, ep.transcript_hash, 'v1'))]
+    const row = rows.find(r => r.status === 'ready' && r.article_key && this.versionOf(r) === version)
     if (!row || row.target_language === podcastLanguage(ep.language)) throw BookmarkNotFoundError()
     const [docObj, transcriptObj] = await Promise.all([this.bucket().R2Bucket.get(row.article_key!), ep.transcript_key ? this.bucket().R2Bucket.get(ep.transcript_key) : null])
     if (!docObj || !transcriptObj) throw BookmarkNotFoundError()
@@ -295,6 +299,7 @@ export class PodcastService {
     return {
       version,
       language: lang,
+      ...(doc.transcript_source_url ? { transcript_source_url: doc.transcript_source_url } : {}),
       lede: doc.lede,
       sections: doc.sections.map(s => ({
         heading: s.heading,
@@ -435,9 +440,7 @@ export class PodcastService {
 
   /**
    * Write the ready original-language article into the body of every bookmark of the episode.
-   * Unlike YouTube, marks do not keep the old body: the podcast's first body is only the player and
-   * show notes, the transcript exists nowhere else on the page, and the page has no "article below
-   * the body" fallback. Marks on the show notes lose their anchor; that is the accepted trade-off.
+   * Preserve annotated bodies. Existing marks must retain their source text.
    */
   public async publishBodies(ctx: ContextManager, sourceId: string): Promise<number> {
     const failures: unknown[] = []
@@ -507,6 +510,7 @@ export class PodcastService {
 
   /** The cached AI overview was made from the show notes: writeBody deletes it, so it is made again from the article. */
   private async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }): Promise<boolean> {
+    if (await this.bodies.hasMarks(bookmarkId, userId)) return false
     return this.bodies.writeBody(ctx, bookmarkId, userId, body)
   }
 

@@ -438,6 +438,7 @@ export interface PodcastState {
 
 /** Structured translation, /v1/podcast/translation. Rendered with text bindings only, never as HTML. */
 export interface PodcastTranslation {
+  transcript_source_url?: string
   version: string
   language: 'en' | 'zh'
   lede: string

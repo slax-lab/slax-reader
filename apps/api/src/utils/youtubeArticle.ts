@@ -279,6 +279,7 @@ export interface ArticleSection {
 }
 
 export interface YoutubeArticleDocument {
+  transcript_source_url?: string
   schema_version: 1
   language: YoutubeArticleLanguage
   format: 'article' | 'dialogue'

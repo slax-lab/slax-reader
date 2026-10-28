@@ -18,6 +18,20 @@ export class PodcastArticleRepo extends MediaArticleRepo {
     super(prismaPg)
   }
 
+  /** Read existing articles after a prompt upgrade without starting replacement work. */
+  public override async findVersion(sourceId: string, sourceHash: string, language: string, promptVersion: string = this.promptVersion) {
+    const current = await super.findVersion(sourceId, sourceHash, language, promptVersion)
+    if (current || promptVersion !== this.promptVersion) return current
+    return super.findVersion(sourceId, sourceHash, language, 'v1')
+  }
+
+  public override async listForSource(sourceId: string, sourceHash: string, promptVersion: string = this.promptVersion) {
+    const current = await super.listForSource(sourceId, sourceHash, promptVersion)
+    if (promptVersion !== this.promptVersion) return current
+    const old = await super.listForSource(sourceId, sourceHash, 'v1')
+    return [...current, ...old.filter(row => !current.some(item => item.target_language === row.target_language))]
+  }
+
   /** Every bookmark of an episode, whatever transcript version it points at. */
   public async listEpisodeRefs(sourceId: string): Promise<mediaArticleRefPO[]> {
     return this.prismaPg().sr_media_article_ref.findMany({ where: { media_kind: this.kind, source_id: sourceId }, orderBy: { id: 'asc' } })
@@ -170,7 +184,7 @@ export class PodcastEpisodeRepo {
     id: number,
     runId: string,
     t: {
-      source: 'publisher' | 'assemblyai'
+      source: 'publisher' | 'assemblyai' | 'youtube'
       key: string
       hash: string
       speakers: boolean
