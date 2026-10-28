@@ -312,7 +312,7 @@ export async function pollPromotionEvidence(inputs, { token, fetchImpl, wait = d
 // pre-release: the pull request has not merged yet.
 export async function assertMigrationReleaseEvidence(inputs, { token, fetchImpl }) {
   try {
-    const evidence = createGithubEvidence({ repository: inputs.repository, token, fetchImpl })
+    const evidence = createGithubEvidence({ repository: inputs.repository, token, fetchImpl, headRef: inputs.headSha })
     const diff = await releaseDiffFromTrees({ repository: inputs.repository, token, fetchImpl, base: inputs.base, head: inputs.headSha })
     const result = await verifyReleaseEvidence({
       evidence,

@@ -126,7 +126,7 @@ Resolve one serving commit per environment (`main`, `beta`). This is a new resol
 For the release diff:
 
 - An added migration file is **current** when it is absent from `main`, `beta`, and the pinned `dev` adoption tree: it needs a declaration and an approval.
-- An added file that already exists on another shared branch or in the adoption tree is **historical**, not current — a migration carried from `beta` to `main`, or a hotfix migration propagated to `dev`. It needs no fresh declaration and does not fail.
+- An added file that already exists on another shared branch or in the adoption tree is **historical**, not current — a migration carried from `beta` to `main`, or a hotfix migration propagated to `dev` — only when the release head content is byte-identical to that copy. It then needs no fresh declaration and does not fail. Different content under an existing path fails immutability and stays current, so declaration, ownership, and hotfix rules still apply to it.
 - An added file is a **re-add** only when the target branch already carried that path before the release. The target is read at its pre-release state — the merge's first parent for a deploy, the pull request's base commit for API CI, and the base branch tip for a promotion — because after a merge the target already contains the release and a promotion's source branch already contains every migration it carries. Re-adding fails.
 - A deleted or renamed migration file fails the check.
 - A modified migration file fails when the same path exists on `main` or `beta`. A migration merged to `dev` after adoption may still be edited before it reaches a shared branch, including its declaration.
@@ -151,7 +151,7 @@ The check runs before any remote access in the deploy job: no firewall rule, Tun
 
 ### 7. Hotfix, rollback, and the adjudicated overlay
 
-- **Hotfix.** A pull request from a `hotfix/*` branch may add only `expand` migrations. `migrate`, `contract`, and `adjudicated` fail with instructions to ship in a normal release. This keeps a hotfix from carrying the release that its own prerequisite depends on.
+- **Hotfix.** A pull request from a `hotfix/*` branch may add only `expand` migrations. `migrate`, `contract`, and `adjudicated` fail with instructions to ship in a normal release. This keeps a hotfix from carrying the release that its own prerequisite depends on. The class is parsed for frozen and re-added copies too, so byte-identical reuse of a shared file cannot smuggle a `contract` through a hotfix.
 - **Rollback.** An out-of-band `wrangler rollback` is allowed only as a declared incident action. After one, no `contract` may proceed until the rolled-back target commit is redeployed through `api-deploy.yml` and the resolver names it as serving again. The machine cannot observe the rollback itself, so `REVIEW.md` requires the contract reviewer to confirm either no out-of-band rollback since the evidence deployment or a completed pipeline redeploy.
 - **Adjudicated.** An `adjudicated` overlay on `contract` or `migrate` skips only the prerequisite and deployment evidence of decision 4 (items 1–3 and 6–7). It still requires a complete declaration, the diff immutability, and **two** named owners in `approved-by`, both of whom must have `APPROVED` reviews on the introducing pull request. It is not allowed in a hotfix and is not a fourth routine class.
 

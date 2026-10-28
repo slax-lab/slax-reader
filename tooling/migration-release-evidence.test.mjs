@@ -84,6 +84,8 @@ const mergedPull = (overrides = {}) => ({
   ...overrides
 })
 
+const contentSha = text => createHash('sha1').update(text).digest('hex')
+
 function evidenceFixture(overrides = {}) {
   const calls = []
   const files = overrides.files ?? {}
@@ -93,10 +95,15 @@ function evidenceFixture(overrides = {}) {
   return {
     calls,
     evidence: {
-      async pathExists(ref, path) {
-        calls.push(['pathExists', ref, path])
-        // `existing.target` models the target branch as it stood before the release.
-        return (existing[ref === targetCommit ? 'target' : ref] ?? []).includes(path)
+      // `existing.target` models the target branch as it stood before the
+      // release; other keys are branch names or the adoption commit. Each value
+      // is that revision's file content, so identity is compared the way the
+      // real surfaces compare blob hashes.
+      async fileSha(ref, path) {
+        calls.push(['fileSha', ref, path])
+        if (ref === 'HEAD') return path in files ? contentSha(files[path]) : null
+        const copy = (existing[ref === targetCommit ? 'target' : ref] ?? {})[path]
+        return copy === undefined ? null : contentSha(copy)
       },
       async readMigration(path) {
         calls.push(['readMigration', path])
@@ -241,7 +248,7 @@ test('an added expand migration with a named owner approval passes', async () =>
   assert.deepEqual(result.findings, [])
   assert.equal(result.ok, true)
   assert.deepEqual(result.current, [pg('add_value')])
-  assert.ok(calls.some(([name, ref]) => name === 'pathExists' && ref === adoptionCommit))
+  assert.ok(calls.some(([name, ref]) => name === 'fileSha' && ref === adoptionCommit))
   assert.ok(calls.some(([name]) => name === 'introducingPullRequest'))
   assert.ok(!calls.some(([name]) => name === 'servingCommit'))
 })
@@ -346,14 +353,14 @@ test('release-diff immutability rejects deletes, renames, released edits, and lo
   const renamed = await verify({}, { diff: [{ path: pg('new'), status: 'renamed', previousPath: pg('old') }] })
   assert.deepEqual(stages(renamed.result), ['immutability'])
 
-  const released = await verify({ existing: { main: [pg('old')] } }, { diff: [{ path: pg('old'), status: 'modified' }] })
+  const released = await verify({ existing: { main: { [pg('old')]: 'released copy' } } }, { diff: [{ path: pg('old'), status: 'modified' }] })
   assert.deepEqual(stages(released.result), ['immutability'])
   assert.match(released.result.findings[0].message, /must not be modified/)
 
-  const frozen = await verify({ existing: { [adoptionCommit]: [pg('old')] } }, { diff: [{ path: pg('old'), status: 'modified' }] })
+  const frozen = await verify({ existing: { [adoptionCommit]: { [pg('old')]: 'adopted copy' } } }, { diff: [{ path: pg('old'), status: 'modified' }] })
   assert.deepEqual(stages(frozen.result), ['immutability'])
 
-  const readded = await verify({ existing: { target: [pg('old')] } }, { diff: [{ path: pg('old'), status: 'added' }] })
+  const readded = await verify({ files: { [pg('old')]: expandText }, existing: { target: { [pg('old')]: expandText } } }, { diff: [{ path: pg('old'), status: 'added' }] })
   assert.deepEqual(stages(readded.result), ['immutability'])
   assert.match(readded.result.findings[0].message, /already carried this migration before the release/)
 
@@ -369,13 +376,13 @@ test('a normal beta deploy of a new migration passes although beta now contains 
   const { result, calls } = await verify({ files: { [path]: expandText } }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'beta', targetRef: 'beta', targetCommit: '3'.repeat(40) })
   assert.equal(result.ok, true)
   assert.deepEqual(result.current, [path])
-  assert.ok(calls.some(([name, ref]) => name === 'pathExists' && ref === '3'.repeat(40)))
-  assert.ok(!calls.some(([name, ref]) => name === 'pathExists' && ref === 'beta'))
+  assert.ok(calls.some(([name, ref]) => name === 'fileSha' && ref === '3'.repeat(40)))
+  assert.ok(!calls.some(([name, ref]) => name === 'fileSha' && ref === 'beta'))
 })
 
 test('a beta-to-main promotion passes when the migrations come from beta', async () => {
   const path = pg('carried')
-  const { result, calls } = await verify({ files: { [path]: expandText }, existing: { beta: [path] } }, { diff: [{ path, status: 'added' }], targetRef: 'main', environment: 'main', surface: 'pull-request', targetCommit: '4'.repeat(40) })
+  const { result, calls } = await verify({ files: { [path]: expandText }, existing: { beta: { [path]: expandText } } }, { diff: [{ path, status: 'added' }], targetRef: 'main', environment: 'main', surface: 'pull-request', targetCommit: '4'.repeat(40) })
   assert.equal(result.ok, true)
   assert.deepEqual(result.current, [])
   assert.deepEqual(result.frozen, [path])
@@ -384,19 +391,19 @@ test('a beta-to-main promotion passes when the migrations come from beta', async
 
 test('an actual re-add of a path the target already carried fails on immutability', async () => {
   const path = pg('diverged')
-  const { result } = await verify({ existing: { target: [path] } }, { diff: [{ path, status: 'added' }], targetRef: 'main', environment: 'main', targetCommit: '4'.repeat(40) })
+  const { result } = await verify({ files: { [path]: expandText }, existing: { target: { [path]: expandText } } }, { diff: [{ path, status: 'added' }], targetRef: 'main', environment: 'main', targetCommit: '4'.repeat(40) })
   assert.deepEqual(stages(result), ['immutability'])
   assert.match(result.findings[0].message, /the main branch already carried this migration before the release/)
 })
 
 test('the deploy target is judged at its pre-release parent, not the live branch', async () => {
   const path = pg('again')
-  const { result } = await verify({ existing: { target: [path] } }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'main', targetRef: 'main', targetCommit: '5'.repeat(40) })
+  const { result } = await verify({ files: { [path]: expandText }, existing: { target: { [path]: expandText } } }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'main', targetRef: 'main', targetCommit: '5'.repeat(40) })
   assert.deepEqual(stages(result), ['immutability'])
 })
 
 test('an adoption-era migration still on its way to beta is frozen, not current', async () => {
-  const { result, calls } = await verify({ existing: { [adoptionCommit]: [pg('old')] } }, { diff: [{ path: pg('old'), status: 'added' }] })
+  const { result, calls } = await verify({ files: { [pg('old')]: expandText }, existing: { [adoptionCommit]: { [pg('old')]: expandText } } }, { diff: [{ path: pg('old'), status: 'added' }] })
   assert.equal(result.ok, true)
   assert.deepEqual(result.current, [])
   assert.deepEqual(result.frozen, [pg('old')])
@@ -404,7 +411,7 @@ test('an adoption-era migration still on its way to beta is frozen, not current'
 })
 
 test('a hotfix migration propagated back to dev is historical, not a re-add failure', async () => {
-  const { result } = await verify({ files: { [pg('x')]: expandText }, existing: { main: [pg('x')] } }, { diff: [{ path: pg('x'), status: 'added' }], surface: 'deploy', environment: 'dev', targetRef: 'dev' })
+  const { result } = await verify({ files: { [pg('x')]: expandText }, existing: { main: { [pg('x')]: expandText } } }, { diff: [{ path: pg('x'), status: 'added' }], surface: 'deploy', environment: 'dev', targetRef: 'dev' })
   assert.equal(result.ok, true)
   assert.deepEqual(result.current, [])
   assert.deepEqual(result.frozen, [pg('x')])
@@ -418,9 +425,38 @@ test('an in-flight dev migration may be edited and needs no declaration', async 
 })
 
 test('a lagging branch is not reported as a deletion', async () => {
-  const { result } = await verify({ existing: { main: [pg('only_on_main')] } }, { diff: [] })
+  const { result } = await verify({ existing: { main: { [pg('only_on_main')]: 'x' } } }, { diff: [] })
   assert.equal(result.ok, true)
   assert.deepEqual(result.findings, [])
+})
+
+test('divergent content under an existing path fails immutability and stays current', async () => {
+  const path = pg('diverged')
+  const promotion = await verify({ files: { [path]: expandText }, existing: { beta: { [path]: contractText } } }, { diff: [{ path, status: 'added' }], targetRef: 'main', environment: 'main', targetCommit: '4'.repeat(40) })
+  assert.ok(stages(promotion.result).includes('immutability'))
+  assert.deepEqual(promotion.result.current, [path], 'a divergent file is not frozen')
+  assert.deepEqual(promotion.result.frozen, [])
+  assert.match(promotion.result.findings.find(finding => finding.stage === 'immutability').message, /differs from the copy on the beta branch/)
+
+  const deploy = await verify({ files: { [path]: expandText }, existing: { main: { [path]: contractText } } }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'beta', targetRef: 'beta' })
+  assert.ok(stages(deploy.result).includes('immutability'))
+  assert.deepEqual(deploy.result.frozen, [])
+
+  const adoption = await verify({ files: { [path]: expandText }, existing: { [adoptionCommit]: { [path]: contractText } } }, { diff: [{ path, status: 'added' }], surface: 'deploy', environment: 'dev', targetRef: 'dev' })
+  assert.ok(stages(adoption.result).includes('immutability'))
+  assert.match(adoption.result.findings.find(finding => finding.stage === 'immutability').message, /differs from the copy on the pinned dev adoption commit/)
+})
+
+test('a hotfix cannot ship a non-expand migration by reusing a shared copy', async () => {
+  const path = pg('hotfix_contract')
+  const identical = await verify({ files: { [path]: contractText }, existing: { beta: { [path]: contractText } } }, { diff: [{ path, status: 'added' }], headRef: 'hotfix/urgent', targetRef: 'main' })
+  assert.deepEqual(stages(identical.result), ['declaration'])
+  assert.match(identical.result.findings[0].message, /a hotfix may add only expand migrations/)
+  assert.deepEqual(identical.result.frozen, [path])
+
+  const divergent = await verify({ files: { [path]: migrateText }, existing: { beta: { [path]: contractText } } }, { diff: [{ path, status: 'added' }], headRef: 'hotfix/urgent', targetRef: 'main' })
+  assert.ok(stages(divergent.result).includes('immutability'))
+  assert.ok(stages(divergent.result).includes('declaration'))
 })
 
 test('a hotfix may add only expand migrations', async () => {

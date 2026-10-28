@@ -110,7 +110,7 @@ A contract already present on `main` or `beta` is historical: it was applied and
 
 The release diff MUST NOT delete or rename a migration file in any of the four families. It MUST NOT modify a migration file whose path exists on `main` or `beta`. A migration merged to `dev` after the adoption commit MAY be modified before it reaches a shared branch, including its declaration.
 
-An added migration is a re-add only when the target branch already carried that path before the release, judged at the target's pre-release state — the merge's first parent for a deploy, the pull request's base commit for API CI, and the base branch tip for a promotion — and re-adding MUST fail. A path that exists only in the `dev` adoption tree or on another shared branch MUST be treated as historical: it needs no declaration, and it MUST NOT fail for being added again.
+An added migration is a re-add only when the target branch already carried that path before the release, judged at the target's pre-release state — the merge's first parent for a deploy, the pull request's base commit for API CI, and the base branch tip for a promotion — and re-adding MUST fail. A path that exists only in the `dev` adoption tree or on another shared branch MUST be treated as historical — no declaration, no failure — only when the release head content is byte-identical to that copy. If the content differs, the check MUST fail on immutability and MUST treat the file as current, so the declaration, ownership, and hotfix rules still apply to it. A `hotfix/*` release MUST parse the class of every migration it adds, including a frozen or re-added copy, and a non-`expand` class MUST fail.
 
 A migration file present in the pinned `dev` adoption tree, on `main`, or on `beta` MUST NOT receive a new or changed declaration; those files are frozen.
 
@@ -145,6 +145,14 @@ A migration file present in the pinned `dev` adoption tree, on `main`, or on `be
 #### Scenario: A release re-adds a path the target already carried
 - **WHEN** the release diff adds a migration path that the target branch already carried before the release
 - **THEN** the check fails on immutability and names the path
+
+#### Scenario: A diverging copy under an existing path
+- **WHEN** the release diff adds a migration whose path exists on another shared branch or in the adoption tree with different content
+- **THEN** the check fails on immutability and still applies the declaration, ownership, and hotfix rules to that file
+
+#### Scenario: A hotfix re-adds a shared contract
+- **WHEN** a `hotfix/*` pull request adds a migration that is byte-identical to a copy on another shared branch but declares `contract`
+- **THEN** the check fails on declaration, because a hotfix may add only `expand` migrations
 
 #### Scenario: A lagging branch lacks a migration
 - **WHEN** the head does not contain a migration that exists on `main` but the release diff contains no deletion for it

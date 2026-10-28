@@ -263,22 +263,30 @@ function githubList(context, path) {
   })()
 }
 
-export function createGithubEvidence({ repository, token, fetchImpl = fetch }) {
+export function createGithubEvidence({ repository, token, fetchImpl = fetch, headRef }) {
   if (!repositoryPattern.test(String(repository ?? ''))) throw new Error('Missing or invalid GITHUB_REPOSITORY')
   if (typeof token !== 'string' || !token) throw new Error('Missing GitHub token')
   const context = { fetchImpl, token }
+  // Surfaces without a checkout read the release head by SHA; `HEAD` is the
+  // same request there.
+  const resolveRef = ref => ref === 'HEAD' ? headRef ?? ref : ref
   const contentsPath = path => path.split('/').map(encodeURIComponent).join('/')
   const get = path => githubRequest({ ...context, path })
   const list = path => githubList(context, path)
 
   return {
-    async pathExists(ref, path) {
-      const { notFound } = await get(`/repos/${repository}/contents/${contentsPath(path)}?ref=${encodeURIComponent(ref)}`)
-      return !notFound
+    // The blob identity of a path at a revision, or null when the path is
+    // absent. Comparing identities is how the check proves that an added
+    // migration is the same file as its copy on another branch.
+    async fileSha(ref, path) {
+      const { body, notFound } = await get(`/repos/${repository}/contents/${contentsPath(path)}?ref=${encodeURIComponent(resolveRef(ref))}`)
+      if (notFound) return null
+      if (body?.type !== 'file' || !shaPattern.test(String(body?.sha ?? ''))) fail('evidence', path, 'the file identity at the requested revision is unreadable')
+      return body.sha
     },
 
     async readMigration(path, ref) {
-      const { body, notFound } = await get(`/repos/${repository}/contents/${contentsPath(path)}?ref=${encodeURIComponent(ref)}`)
+      const { body, notFound } = await get(`/repos/${repository}/contents/${contentsPath(path)}?ref=${encodeURIComponent(resolveRef(ref))}`)
       if (notFound || body?.type !== 'file' || body.encoding !== 'base64') fail('declaration', path, 'the migration file is not readable')
       return Buffer.from(body.content, 'base64').toString('utf8')
     },
@@ -391,24 +399,31 @@ export function createGitEvidence({ cwd = process.cwd(), repository, token, fetc
 
     // The workflow fetches `main`, `beta`, and the target branch before the
     // preflight runs; this module never mutates the repository itself. A commit
-    // SHA is accepted so the pre-release target can be read from its own tree.
-    async pathExists(ref, path) {
-      if (ref === adoption) return github.pathExists(ref, path)
+    // SHA is accepted so the pre-release target can be read from its own tree;
+    // the adoption tree and, on any surface that has no checkout of the head,
+    // the repository API supplies the same blob identities.
+    async fileSha(ref, path) {
+      if (ref === adoption) return github.fileSha(ref, path)
+      if (ref === 'HEAD') {
+        try {
+          return git(['rev-parse', '--verify', '--quiet', `HEAD:${path}`]).trim() || null
+        } catch {
+          return null
+        }
+      }
       if (shaPattern.test(String(ref))) {
         if (!hasCommit(ref)) fail('evidence', String(ref).slice(0, 12), 'the pre-release target commit is not available to this checkout')
         try {
-          git(['cat-file', '-e', `${ref}:${path}`])
-          return true
+          return git(['rev-parse', '--verify', '--quiet', `${ref}:${path}`]).trim() || null
         } catch {
-          return false
+          return null
         }
       }
       if (!hasCommit(`refs/remotes/origin/${ref}`)) fail('evidence', ref, `the ${ref} branch tree is not fetched for this checkout`)
       try {
-        git(['cat-file', '-e', `refs/remotes/origin/${ref}:${path}`])
-        return true
+        return git(['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${ref}:${path}`]).trim() || null
       } catch {
-        return false
+        return null
       }
     },
 
@@ -493,11 +508,14 @@ export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef =
 
   const released = []
   const frozen = []
-  // Re-adding is a real failure only on a shared target: the target already
-  // applied that path before this release. Every other shared branch is a
-  // source of history — a migration carried from beta to main, or a hotfix
-  // migration propagated to dev — so its presence makes the file frozen rather
-  // than current, and it needs no fresh declaration.
+  const frozenEntries = []
+  // Historical means the release adds the *same file* that another shared
+  // branch or the adoption tree already carries: a migration promoted from
+  // beta to main, a hotfix migration propagated to dev, or an adoption-era
+  // migration on its first promotion. A path that exists there with different
+  // content is not historical — it diverges from a released file and fails
+  // immutability, and it stays current so declaration, ownership, and hotfix
+  // rules still apply to it.
   const sharedTarget = targetRef === 'beta' || targetRef === 'main'
   const otherShared = ['main', 'beta'].filter(branch => branch !== targetRef)
   for (const entry of migrations) {
@@ -505,29 +523,48 @@ export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef =
     const ok = await attempt('immutability', entry.path, async () => {
       if (entry.status === 'removed' || entry.status === 'renamed') fail('immutability', entry.path, `the release diff ${entry.status} a migration file`)
       if (entry.status === 'added') {
+        // A path the target already carried before this release is re-added,
+        // whatever its content: the target applied it once already.
         if (sharedTarget) {
           const target = targetCommit ?? await evidence.branchTip(targetRef)
-          if (await evidence.pathExists(target, entry.path)) fail('immutability', entry.path, `${labelFor(targetRef)} already carried this migration before the release and must not re-add it`)
+          if (await evidence.fileSha(target, entry.path)) fail('immutability', entry.path, `${labelFor(targetRef)} already carried this migration before the release and must not re-add it`)
         }
-        historical = await evidence.pathExists(adoptionCommit, entry.path)
-        for (const branch of historical ? [] : otherShared) {
-          if (await evidence.pathExists(branch, entry.path)) historical = true
+        const head = await evidence.fileSha('HEAD', entry.path)
+        if (!head) fail('declaration', entry.path, 'the migration file is not readable at the release head')
+        let identical = false
+        let divergent = false
+        for (const source of [adoptionCommit, ...otherShared]) {
+          const copy = await evidence.fileSha(source, entry.path)
+          if (!copy) continue
+          if (copy === head) identical = true
+          else {
+            divergent = true
+            findings.push({ stage: 'immutability', reference: entry.path, message: `the migration differs from the copy on ${labelFor(source)}; an existing path must not receive different content` })
+          }
         }
+        historical = identical && !divergent
       }
       if (entry.status === 'modified') {
         for (const ref of ['main', 'beta', adoptionCommit]) {
-          if (await evidence.pathExists(ref, entry.path)) fail('immutability', entry.path, `the migration exists on ${labelFor(ref)} and must not be modified`)
+          if (await evidence.fileSha(ref, entry.path)) fail('immutability', entry.path, `the migration exists on ${labelFor(ref)} and must not be modified`)
         }
       }
     })
     if (!ok || entry.status !== 'added') continue
-    if (historical) frozen.push(entry.path)
-    else released.push(entry)
+    if (historical) {
+      frozen.push(entry.path)
+      frozenEntries.push(entry)
+    } else {
+      released.push(entry)
+    }
   }
 
   const hotfix = /^hotfix\//.test(headRef) && ['beta', 'main'].includes(targetRef)
   const declarations = new Map()
-  for (const entry of released) {
+  // A hotfix cannot ship a non-additive migration, and the rule must hold even
+  // when the file is byte-identical to a copy on another branch; a frozen file
+  // without a declaration therefore fails instead of being exempted.
+  for (const entry of hotfix ? [...released, ...frozenEntries] : released) {
     await attempt('declaration', entry.path, async () => {
       const declaration = parseDeclaration(await evidence.readMigration(entry.path, headSha), entry.path)
       if (hotfix && declaration.class !== 'expand') fail('declaration', entry.path, `a hotfix may add only expand migrations; ship the ${declaration.class} migration in a normal release`)
@@ -538,8 +575,9 @@ export async function verifyReleaseEvidence({ evidence, diff, headSha, headRef =
   const skipEvidence = surface === 'deploy' && environment === 'dev'
   const codeowners = new Map()
   const reviewStates = new Map()
-  for (const [path, declaration] of declarations) {
-    if (skipEvidence) continue
+  for (const path of released.map(entry => entry.path)) {
+    const declaration = declarations.get(path)
+    if (!declaration || skipEvidence) continue
     await attempt('ownership', path, async () => {
       const introducing = await evidence.introducingPullRequest(path, headSha)
       if (!codeowners.has(introducing.baseSha)) codeowners.set(introducing.baseSha, await evidence.codeowners(introducing.baseSha))
@@ -674,7 +712,7 @@ export async function runCli({ argv = process.argv.slice(2), env = process.env, 
   if (options.surface === 'promotion') {
     headSha = options.head
     diff = await releaseDiffFromTrees({ repository, token, fetchImpl, base: options.baseRef, head: headSha })
-    evidence = createGithubEvidence({ repository, token, fetchImpl })
+    evidence = createGithubEvidence({ repository, token, fetchImpl, headRef: headSha })
     // The promotion pull request is unmerged, so the base branch tip is still
     // the pre-release target; the verifier reads it only when a migration needs it.
   } else {

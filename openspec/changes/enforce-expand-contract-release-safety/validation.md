@@ -19,20 +19,21 @@ Alex Lee approved the revised release-evidence architecture on 2026-10-28, and i
 
 The `dev` adoption commit is pinned to `f217f465c736a6b80621f78111e80ef6e833f27a`, the `dev` tip the branch was cut from; `origin/dev` still equalled it at commit time and the range contains no migration change.
 
-Five decisions were made during implementation and recorded in the artifacts:
+Six decisions were made during implementation and recorded in the artifacts:
 
 - The promotion surface enumerates the diff from the merge base and two recursive tree listings, because the compare API's `files` array is capped at 300 entries without pagination. Live evidence below.
 - A migration present only in the adoption tree is frozen rather than current, so its first promotion to `beta` or `main` is not blocked and needs no declaration. The `migration-release-safety` delta gained a scenario for it.
 - A migration propagated from a hotfix back to `dev` is not a re-add failure; the re-add rule applies only when the target is `beta` or `main`.
 - The dev deploy re-checks declarations and immutability but not ownership, matching `design.md` §6 and the `api-release-deployment` delta. The `migration-release-safety` dev-deploy scenario said ownership runs; it was corrected to the design's reading, since the introducing pull request already required it.
 - An added migration is a re-add only when the target branch already carried that path **before the release**, read at the merge's first parent (deploy), the pull request's base commit (API CI), or the base branch tip (promotion). Paths on other shared branches and in the adoption tree are historical. The first implementation compared against live branch tips, which broke normal beta deploys and beta-to-main promotions; the review finding and the corrected model are recorded below.
+- Historical means **byte-identical**: an added path is frozen only when its blob identity equals the copy on the other shared branch or in the adoption tree. Different content under an existing path fails immutability and stays current, so declaration, ownership, and hotfix rules still apply; a hotfix's frozen copies are parsed too. The second implementation treated any existing path as historical, which let divergent content — including a `contract` reused through a hotfix — skip those rules.
 
 ## Commands and results
 
 | Command | Result |
 | --- | --- |
-| `node --test tooling/migration-release-evidence.test.mjs` | 44 passed, 0 failed |
-| `pnpm test:ci` | 124 passed, 0 failed |
+| `node --test tooling/migration-release-evidence.test.mjs` | 46 passed, 0 failed |
+| `pnpm test:ci` | 127 passed, 0 failed |
 | `pnpm test:preflight` | 104 passed, 0 failed, 2 skipped (win32-only cases) |
 | `pnpm exec openspec validate --all --strict` | 79 passed, 0 failed |
 | `pnpm agent:check` | `rulesync doctor --strict` and `generate --check` clean; OpenSpec 79/79; compiled agentic workflows match their sources |
@@ -101,13 +102,23 @@ No security finding: no secret is read, printed, or copied; every failure report
 
 **Artifacts updated.** `design.md` §5 (current / historical / re-add), `docs/CI.md`, and the `migration-release-safety` delta now state the pre-release-target rule plus three scenarios: a normal beta deploy, a beta-to-main promotion carrying beta's migrations, and a genuine re-add.
 
+### Review round 3 (independent review)
+
+**Finding.** Historical paths were frozen on path existence alone, so a file that diverged from the shared-branch or adoption copy was accepted without a declaration, an approval, or the hotfix class rule.
+
+**Root cause.** The added-path branch compared only the path's presence (`pathExists`) against the other shared branch and the adoption tree; it never compared content.
+
+**Fix.** Path identity is now a blob identity: `evidence.fileSha(ref, path)` returns the blob hash from Git (`rev-parse <ref>:<path>`) or from the GitHub contents API (`sha`), which share one hash space. An added path is historical only when every copy it finds is identical to the release head; any divergent copy records an immutability finding and leaves the file current, so the declaration, ownership, and contract checks still run. The hotfix class check now parses frozen and re-added copies as well, and a frozen copy without a declaration fails instead of being exempted. `createGithubEvidence` resolves `HEAD` to the release head SHA so the promotion surface reads the same content reference.
+
+**Regressions added.** `divergent content under an existing path fails immutability and stays current` (promotion, beta deploy, and adoption copies), `divergent content under an existing path fails the promotion` (promotion gate over contents-API fixtures), and `a hotfix cannot ship a non-expand migration by reusing a shared copy` (byte-identical contract, plus a divergent non-expand file that reports both findings). The existing identical-history cases for a beta deploy and a beta-to-main promotion remain and still pass.
+
 ## Machine facts versus owner judgment
 
 | Checked by the machine | Left to the approving owner and reviewer |
 | --- | --- |
 | Declaration presence, class, and field shapes | Whether the class is honest |
 | Named-user owner `APPROVED` on the introducing pull request | Whether the approver read the SQL |
-| Added/deleted/renamed/modified paths, and a re-add at the pre-release target | Whether the migration is safe for the data |
+| Added/deleted/renamed/modified paths, a re-add at the pre-release target, and copy identity | Whether the migration is safe for the data |
 | Prerequisite merge SHA, trailer, and ancestry | Whether the prerequisite removed the last dependency |
 | Latest successful `api-deploy` deployment per environment | Whether serving code matches that deployment |
 | Hotfix class, adjudicated field set | Whether the incident justifies adjudication |

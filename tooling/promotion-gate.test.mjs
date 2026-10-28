@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { createHash } from 'node:crypto'
 import { allowedHead, assertMigrationReleaseEvidence, assessSuiteGates, checkRunName, createCheckRun, defaultTimeoutMs, deployWorkflows, pollIntervalMs, readInputs, readTimeout, runGateAndReport, runPromotionGate, suiteGates } from './promotion-gate.mjs'
 
 const require = createRequire(import.meta.url)
@@ -32,6 +33,8 @@ const codeownersText = [
   '/apps/api/prisma/** @DGuang21 @boxcounter @slax-lab/reader-core'
 ].join('\n')
 const encode = text => Buffer.from(text).toString('base64')
+const blobSha = text => createHash('sha1').update(text).digest('hex')
+const fileResponse = text => response({ type: 'file', encoding: 'base64', sha: blobSha(text), content: encode(text) })
 
 const inputs = (overrides = {}) => ({
   repository, number: 42, base: 'beta', head: 'dev', headSha,
@@ -368,7 +371,7 @@ test('check run creation verifies the returned identity', async () => {
 // compare API, the introduced file and CODEOWNERS from the contents API, and
 // ownership from the introducing pull request's reviews. Every frozen ref
 // (main, beta, the dev adoption commit) reads as absent.
-function migrationRoutes({ baseFiles = [], headFiles = [], truncated = false, content = {}, betaFiles = [], mainTipFiles = [], codeowners = codeownersText, reviews = [{ user: { login: 'DGuang21' }, state: 'APPROVED', submitted_at: '2026-10-27T00:00:00Z', id: 1 }], pulls = [{ number: 700, merged_at: '2026-10-27T00:00:00Z', merge_commit_sha: introducingSha, base: { sha: ownerBase }, head: { sha: sourceSha } }] } = {}) {
+function migrationRoutes({ baseFiles = [], headFiles = [], truncated = false, content = {}, betaContent = {}, mainTipContent = {}, codeowners = codeownersText, reviews = [{ user: { login: 'DGuang21' }, state: 'APPROVED', submitted_at: '2026-10-27T00:00:00Z', id: 1 }], pulls = [{ number: 700, merged_at: '2026-10-27T00:00:00Z', merge_commit_sha: introducingSha, base: { sha: ownerBase }, head: { sha: sourceSha } }] } = {}) {
   return [
     [/\/git\/trees\/([a-f0-9]{40})\?recursive=1$/, url => {
       const ref = url.match(/\/git\/trees\/([a-f0-9]{40})/)[1]
@@ -379,13 +382,14 @@ function migrationRoutes({ baseFiles = [], headFiles = [], truncated = false, co
     [/\/contents\//, url => {
       const path = decodeURIComponent(url.match(/\/contents\/([^?]+)\?/)[1])
       const ref = new URL(url).searchParams.get('ref')
-      if (path === '.github/CODEOWNERS' && (ref === headSha || ref === ownerBase)) return response({ type: 'file', encoding: 'base64', content: encode(codeowners) })
+      if (path === '.github/CODEOWNERS' && (ref === headSha || ref === ownerBase)) return fileResponse(codeowners)
       // The pre-release target tip is whichever branch the gate reads; beta is
-      // the source branch of a beta-to-main promotion.
-      if (ref === '2'.repeat(40) || ref === 'main') return mainTipFiles.includes(path) ? response({ type: 'file', encoding: 'base64', content: encode(content[path] ?? '') }) : httpFailure(404)
-      if (ref === '3'.repeat(40) || ref === 'beta') return betaFiles.includes(path) ? response({ type: 'file', encoding: 'base64', content: encode(content[path] ?? '') }) : httpFailure(404)
+      // the source branch of a beta-to-main promotion. Each response carries the
+      // blob identity the check compares against the release head.
+      if (ref === '2'.repeat(40) || ref === 'main') return path in mainTipContent ? fileResponse(mainTipContent[path]) : httpFailure(404)
+      if (ref === '3'.repeat(40) || ref === 'beta') return path in betaContent ? fileResponse(betaContent[path]) : httpFailure(404)
       if (ref !== headSha) return httpFailure(404)
-      if (path in content) return response({ type: 'file', encoding: 'base64', content: encode(content[path]) })
+      if (path in content) return fileResponse(content[path])
       return httpFailure(404)
     }],
     [/\/commits\?path=/, () => response([{ sha: introducingSha }])],
@@ -426,7 +430,7 @@ test('a hotfix promotion carrying a contract fails before any deployment evidenc
 
 test('a beta-to-main promotion whose migrations already live on beta passes as frozen', async () => {
   const path = d1('0002')
-  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], betaFiles: [path], content: { [path]: 'ALTER TABLE t ADD COLUMN c int;\n' } })
+  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], content: { [path]: 'ALTER TABLE t ADD COLUMN c int;\n' }, betaContent: { [path]: 'ALTER TABLE t ADD COLUMN c int;\n' } })
   const result = await assertMigrationReleaseEvidence(inputs({ base: 'main', head: 'beta' }), { token: 'fixture-token', fetchImpl: routed(routes) })
   assert.deepEqual(result.current, [])
   assert.deepEqual(result.frozen, [path])
@@ -434,7 +438,7 @@ test('a beta-to-main promotion whose migrations already live on beta passes as f
 
 test('an actual re-add on the target branch fails the promotion', async () => {
   const path = d1('0002')
-  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], mainTipFiles: [path], content: { [path]: expandText } })
+  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], content: { [path]: expandText }, mainTipContent: { [path]: expandText } })
   await assert.rejects(
     assertMigrationReleaseEvidence(inputs({ base: 'main', head: 'beta' }), { token: 'fixture-token', fetchImpl: routed(routes) }),
     /already carried this migration before the release/
@@ -443,10 +447,19 @@ test('an actual re-add on the target branch fails the promotion', async () => {
 
 test('a dev-to-beta promotion whose migrations came from main is frozen', async () => {
   const path = d1('0002')
-  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], mainTipFiles: [path], content: { [path]: 'ALTER TABLE t ADD COLUMN c int;\n' } })
+  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], content: { [path]: 'ALTER TABLE t ADD COLUMN c int;\n' }, mainTipContent: { [path]: 'ALTER TABLE t ADD COLUMN c int;\n' } })
   const result = await assertMigrationReleaseEvidence(inputs({}), { token: 'fixture-token', fetchImpl: routed(routes) })
   assert.deepEqual(result.current, [])
   assert.deepEqual(result.frozen, [path])
+})
+
+test('divergent content under an existing path fails the promotion', async () => {
+  const path = d1('0002')
+  const routes = migrationRoutes({ headFiles: [{ path, type: 'blob', sha: '5'.repeat(40) }], content: { [path]: expandText }, betaContent: { [path]: contractText } })
+  await assert.rejects(
+    assertMigrationReleaseEvidence(inputs({ base: 'main', head: 'beta' }), { token: 'fixture-token', fetchImpl: routed(routes) }),
+    /differs from the copy on the beta branch/
+  )
 })
 
 test('a truncated tree listing fails the gate closed', async () => {
