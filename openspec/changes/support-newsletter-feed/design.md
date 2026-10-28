@@ -37,3 +37,8 @@ Run regression-first tests, real native PostgreSQL races, real fresh Worker/DB/R
 ## Module boundaries
 
 Keep flat NewsletterService, NewsletterContentService and NewsletterSaveService domain modules; pure MIME/policy helpers live in utils/newsletter.ts. HtmlBuilder.buildNewsletterBody receives sanitized HTML and imports Readability directly, avoiding the parserUtils/WeChat cycle. Full-mail text/link comparison and fallback remain authoritative. Database writes stay separate; only API read projections combine RSS and Newsletter.
+
+
+## Newsletter preview typography
+
+FeedPanel renders Newsletter HTML in its own scoped namespace and includes the same Article reset and content-styles mixins used by the detail renderer. The Article style barrel forwards the existing base content mixin; it does not copy declarations or introduce another renderer/component. Native list detection supplements the existing processor marker in the shared mixin, so sanitized mail lists need no new DOM pass. Code blocks scroll locally within the preview's reading width. The original RSS namespace retains its existing styles. Stored messages adopt these styles at render time, with existing HTML sanitization and image transport unchanged.

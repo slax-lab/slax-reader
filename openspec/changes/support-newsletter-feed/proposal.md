@@ -46,3 +46,8 @@ The demo provided ready, unconfigured, occupied, loading, unavailable and simula
 ## Team-feedback revision approval (2026-10-28)
 
 The user approved [Newsletter Team Feedback](../../../docs/superpowers/plans/2026-10-28-newsletter-team-feedback.md) and authorized implementation, a final independent review and local API/Web startup. The revision removes the new binding address unique index and handwritten CHECK constraints, retains serialized application reservation, generates the initial migration through Prisma, documents every message field, flattens domain modules, moves mail extraction into HtmlBuilder, rejects internal create PUTs in the sync orchestrator and restores ordinary search helpers. Only first Newsletter configuration accepts 6–15 lowercase ASCII letters/digits; ordinary Reader account policy and issued bindings remain unchanged. Renewed product acceptance and PR handoff remain pending.
+
+
+## Newsletter body typography correction (2026-10-28)
+
+The user requested Article detail's existing basic styles for Newsletter bodies and emphasized a simple reusable implementation. Reuse the Article reset/content mixins under a Newsletter-only preview namespace. Native HTML lists should receive the same indentation without requiring the complete Article processing pipeline. Keep receiving/sanitization, storage, Feed structure, RSS presentation and saved-Inbox rendering unchanged. This is an authorized refinement of the existing readable-preview behavior; renewed real-app acceptance remains pending before PR handoff.

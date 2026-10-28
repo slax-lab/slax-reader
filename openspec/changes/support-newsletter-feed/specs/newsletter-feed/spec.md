@@ -64,6 +64,11 @@ A new email delivery SHALL be acknowledged by application code only after final 
 ### Requirement: Safe retained Newsletter body
 The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and CID/relative image references, use signed controlled image URLs and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. The first release SHALL NOT register a Newsletter-specific scheduled task or scan bodies for orphan collection. Known unpublished candidates SHALL retain immediate cleanup; interrupted or ambiguous writes MAY leave orphan objects until a later iteration. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
 
+#### Scenario: Shared Article typography for Newsletter preview
+- **WHEN** received mail is opened in the Feed reader preview
+- **THEN** headings, paragraphs, lists, blockquotes, tables, links and code use the existing Article base typography in light/dark/eink at desktop and narrow widths; native mail lists work without the full Article processing pipeline, and long code stays within a locally scrollable block
+- **AND** existing stored mail receives these styles at render time while RSS preview presentation, HTML sanitization and signed image handling retain their current behavior
+
 #### Scenario: Malicious email and image handling
 - **WHEN** mail contains scripts, tracking images, event attributes, CID images or relative resource URLs
 - **THEN** preview cannot execute active content or fetch remote images directly, and safe text remains readable

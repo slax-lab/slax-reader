@@ -346,7 +346,7 @@
           </p>
           <div
             v-else
-            class="rss-body"
+            :class="previewEntry.kind === 'newsletter' ? 'newsletter-body' : 'rss-body'"
             v-html="safeHtml"
             @error.capture="imageFailed"
           />
@@ -763,7 +763,9 @@ onUnmounted(() => {
   if (timer) clearInterval(timer);
 });
 </script>
-<style scoped>
+<style scoped lang="scss">
+@use '~~/styles/article/index.scss' as article;
+
 .rss-panel {
   color: var(--slax-text);
 }
@@ -1250,6 +1252,15 @@ input {
   font-size: 16px;
   line-height: 1.95;
   overflow-wrap: anywhere;
+}
+:deep(.newsletter-body) {
+  @include article.reset;
+  @include article.content-styles;
+  overflow-wrap: anywhere;
+
+  pre {
+    overflow-x: auto;
+  }
 }
 .rss-body :deep(img) {
   display: block;
