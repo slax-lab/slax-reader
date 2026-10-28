@@ -6,16 +6,21 @@ Date: 2026-10-28. Branch: `feat/minimize-contract-release-checks`. Change: `enfo
 
 This revision contains **planning artifacts only**: `proposal.md`, `design.md`, the three delta specs, `tasks.md`, and this record. No implementation file, workflow, migration, or database was changed. The revised architecture has not been approved for implementation; every task in `tasks.md`, including the approval task and every implementation task, is unchecked pending the user's confirmation.
 
-This revision replaces the multi-surface plan that pull request #421 carried. That plan added a pull-request evidence gate, `CODEOWNERS` and review-API lookups, introducing-pull-request inference, a generic serving resolver, a pinned `dev` adoption tree, and an `adjudicated` declaration class. This revision keeps the declaration header and the immutability rule, and reduces the evidence chain to the two checkpoints and the existing promotion-gate deployment model.
+This revision replaces the multi-surface plan that pull request #421 carried and then removes the bounded first-parent history walk from the previous revision. The user's review established that the walk was unnecessary: the contract already declares `prerequisite-merge`, so the deployment record can be read directly.
 
-| Concern | Previous revision (PR #421) | This revision |
-| --- | --- | --- |
-| Checkpoints | Pull-request CI, `promotion integrity`, deploy preflight | `dev` → `beta` promotion and deploy preflight |
-| Ordinary migration approval | Review-API lookup with `CODEOWNERS` resolution and introducing-PR inference | Existing code-owner review; no machine lookup |
-| Contract semantic confirmation | Machine-checked named-owner `APPROVED` review | `confirmed-by` field in the header; verified by the reviewer |
-| Deployment evidence | Generic resolver listing deployments by environment, deduplicating, filtering by run path and migration step | Known head from the environment branch's merge history; deployment record for that exact commit |
-| Immutability baseline | Live `main`/`beta` trees plus a pinned `dev` adoption commit | Existing files are never edited; no adoption commit |
-| Emergency path | `adjudicated` declaration class in the pipeline | Manual adjudication runbook; no fourth class |
+## Final decision model
+
+| Concern | Final model |
+| --- | --- |
+| Checkpoints | `promotion integrity` for a pull request whose base is `beta`; the API deploy preflight for every environment |
+| Ordinary migrations | Existing code-owner review; no machine review lookup and no introducing-pull-request inference |
+| Contract evidence | One `deployments?sha=<prerequisite-merge>` read; `api-deploy.yml` records for `beta` or `main`; deployment status, run conclusion, and `Migrate databases and deploy Workers` step must all be successful |
+| Missing, failed, in-progress, ambiguous | Fail closed and name the human-review path: declare the deployed commit the pipeline recorded, or use the adjudicated runbook |
+| Immutability | A release only adds migration files; no edit, delete, or rename; `migration_lock.toml` unchanged |
+| Hotfix | `expand` only; `migrate` and `contract` ship through a normal release |
+| Rollback and adjudication | Manual runbooks; no fourth declaration class and no pipeline bypass |
+
+The check makes one deployments read per contract and never walks branch history, lists deployments by environment, waits for evidence to appear, or falls back to another commit.
 
 ## Commands and results
 
@@ -27,23 +32,23 @@ This revision replaces the multi-surface plan that pull request #421 carried. Th
 
 ## Evidence grounded before writing
 
-The deployment-evidence design was checked against live repository data, read-only, before it was written:
+The direct lookup was checked against live repository data, read-only, before it was written:
 
 | Observation | Source |
 | --- | --- |
-| A release records its deployment against the merged pull request's head commit, which is the merge commit's second parent. `beta` tip `a605355f` (PR #419 from `dev`) has second parent `db8f456c`, and the `beta` environment records a deployment for `db8f456c`. `main` tip `3c2536d2` (PR #391 from `beta`) has second parent `888a0a8a`, and the `main` environment records a deployment for `888a0a8a`. | `git rev-list --parents`, `GET /repos/slax-lab/slax-reader/deployments?sha=<commit>&environment=<beta\|main>` |
-| One merged release records both an `api-deploy` and a `web-deploy` deployment for the same commit, so the rule filters by the linked run path. | For `db8f456c`: deployment `7378276506` links to run `40640597301` (`api-deploy.yml`), deployment `7378276538` links to run `40640597430` (`web-deploy.yml`) |
-| The linked run carries the candidate commit and the workflow path, so a record can be tied to a successful API deployment. | `GET /repos/slax-lab/slax-reader/actions/runs/40289138123` returned `path=.github/workflows/api-deploy.yml`, `head_sha=888a0a8a…`, `conclusion=success` |
-| Both current environment branches resolve on their newest merge, well inside the 50-merge bound. | The first-parent walk returned a successful `api-deploy` record after one merge commit on `beta` and on `main` |
+| Deployments record the merged pull request's head commit, not the merge commit. PR #416's merge commit `db8f456c` has `beta` deployment records only because it was the `dev` tip at promotion #419, while its own `dev` deployment is recorded against its head `34e14cf7`. | `git rev-list --parents`, `GET /repos/slax-lab/slax-reader/deployments?sha=<commit>` |
+| One release records both an `api-deploy` and a `web-deploy` deployment for the same commit, so the rule filters by the linked run path. | For `db8f456c`: deployment `7378276506` links to run `40640597301` (`api-deploy.yml`), deployment `7378276538` links to run `40640597430` (`web-deploy.yml`) |
+| The `Migrate databases and deploy Workers` step exists and can be read from the run's jobs. | `GET /repos/slax-lab/slax-reader/actions/runs/40640597301/jobs` and `.../runs/40289138123/jobs` each returned that step with `conclusion=success` |
+| The declared commit can be read directly from the deployment record, so no history walk is needed. | `deployments?sha=<commit>` returns the API and web records for that exact commit |
 
 ## Declared gaps
 
 - **No implementation exists.** This is a proposal revision; there is no code, workflow, or migration to exercise, and no runtime verification is possible or claimed. `docs/DEFINITION-OF-DONE.md` exempts documentation-scale work when the change states the exemption; this record states it.
 - **No live release was executed.** No database, Cloudflare resource, GitHub deployment, or private configuration was touched. All live reads above were read-only GitHub API and local git reads.
-- **The deployment walk has not been exercised in code.** The live check confirms the shape and the first-candidate case; the bounded walk, the failed-candidate rule, the paths-filtered skip, and the fixture behavior remain implementation tasks (tasks 2.4 and 5.2).
+- **The direct lookup and step check are not exercised in code.** The live reads confirm the record shape, the workflow path, and the step name; the grouping, newest-record, ambiguity, and missing-evidence behavior remain implementation tasks (tasks 2.4 and 5.2).
+- **The declared-commit rule needs operator documentation.** A pull request's merge commit usually has no deployment of its own, so a contract author must declare the commit the deployment recorded. Tasks 4.1 and 4.2 add that rule to `REVIEW.md` and the release docs; until then a wrong declaration lands on the human-review path.
 - **The runbooks do not exist yet.** The rollback and adjudication procedures are specified in the delta and are documentation tasks (task 4.1).
 - **Branch suffix.** The repository requires a task branch suffix equal to the change-id. This worktree branch is `feat/minimize-contract-release-checks`; the delivery pull request must be cut from current `origin/dev` as `feat/enforce-expand-contract-release-safety`, or the branch renamed before the pull request opens (task 5.7).
-- **The long-tail bound is unverified.** The 50-merge bound was chosen as a comfortable ceiling and is satisfied trivially by current history; a branch with many API-inert merges would fail closed by design and has no live example.
 
 ## Review status
 

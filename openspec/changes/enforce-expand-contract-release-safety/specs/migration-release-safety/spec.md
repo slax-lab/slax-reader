@@ -10,7 +10,7 @@ Make a migration release state its class explicitly, keep release diffs additive
 
 The migration release check MUST run at exactly two checkpoints: in `promotion integrity` for a pull request whose base is `beta`, and in the API deploy workflow after the superseded-release check and before the first remote access, for every environment.
 
-The check MUST NOT produce a pull-request CI gate, MUST NOT read pull-request reviews or `CODEOWNERS`, and MUST NOT infer the pull request that introduced a file. Ordinary `expand` and `migrate` migrations are covered by the repository's existing code-owner review, and the check MUST NOT duplicate it.
+The check MUST NOT produce a pull-request CI gate, MUST NOT read pull-request reviews or `CODEOWNERS`, MUST NOT infer the pull request that introduced a file, MUST NOT walk branch history, MUST NOT list deployments by environment, and MUST NOT wait for evidence to appear. Ordinary `expand` and `migrate` migrations are covered by the repository's existing code-owner review, and the check MUST NOT duplicate it.
 
 A pull request whose base is `main` MUST NOT gain a migration stage in `promotion integrity`: the beta deployment has already applied those migrations to the shared databases, and the main deploy preflight re-evaluates the same release diff before production mutation.
 
@@ -94,39 +94,37 @@ A head that lags behind the target branch is not a deletion: only paths the diff
 - **WHEN** the release diff deletes, renames, or modifies `migration_lock.toml`
 - **THEN** the check fails on immutability
 
-### Requirement: A contract is backed by a prerequisite release and known-head deployment evidence
+### Requirement: A contract is backed by a prerequisite release and its deployment record
 
 A `contract` added by the release diff MUST declare `prerequisite-change`, `prerequisite-pr`, `prerequisite-merge`, and `confirmed-by`, and all of the following MUST hold before shared data changes:
 
-1. `prerequisite-pr` is a merged pull request in this repository, and `prerequisite-merge` equals that pull request's `merge_commit_sha`.
-2. The pull request body carries `OpenSpec: <prerequisite-change>`, or both use `n/a` for an implementation-only prerequisite. Promotion and sync-back pull requests are exempt from the trailer.
-3. `prerequisite-merge` is an ancestor of the release head.
-4. For each of `beta` and `main`, `prerequisite-merge` is an ancestor of that environment's last known deployed head.
+1. `prerequisite-pr` is a merged pull request in this repository.
+2. That pull request's `merge_commit_sha` is an ancestor of `prerequisite-merge`.
+3. The pull request body carries `OpenSpec: <prerequisite-change>`, or both use `n/a` for an implementation-only prerequisite. Promotion and sync-back pull requests are exempt from the trailer.
+4. `prerequisite-merge` is an ancestor of the release head.
+5. A direct `deployments?sha=<prerequisite-merge>` read finds at least one deployment record whose environment is `beta` or `main`, whose linked run is `.github/workflows/api-deploy.yml`, and whose deployment status, run conclusion, and `Migrate databases and deploy Workers` step conclusion are all successful.
 
-The last known deployed head MUST be resolved from the environment branch's own first-parent history, newest first and bounded to 50 first-parent commits. For a merge commit with two parents, the second parent is the commit the environment's deploy workflow recorded its deployment against, so it is a candidate. For each candidate:
+`prerequisite-merge` MUST name the commit the API release pipeline deployed — the `sha` of that deployment record. A pull request's merge commit usually has no deployment of its own, and requirement 2 ties the record back to the prerequisite pull request.
 
-- only deployment records whose linked run is `.github/workflows/api-deploy.yml` count as evidence; the `web-deploy` record for the same commit does not;
-- a candidate whose newest `api-deploy` record is not successful — failed, errored, inactive, cancelled, or still running — MUST fail the contract; the check MUST NOT fall back to an older head;
-- a candidate with no `api-deploy` record in that environment was paths-filtered and MUST be skipped;
-- the first candidate whose newest `api-deploy` deployment and run both concluded successfully is the environment's last known deployed head.
+The check MUST keep only `beta` and `main` records: a `dev` deployment targets the test database and is not evidence for shared data. It MUST group records by environment and use the newest record per environment; a tie at the newest timestamp with different outcomes is ambiguous and MUST fail. Every environment that has a record MUST pass.
 
-If no candidate within the bound qualifies, the contract MUST fail closed and name the environment.
+A missing record, a record that is failed, errored, inactive, cancelled, or still running, and an ambiguous result MUST fail closed and name the human-review path: the author declares the deployed commit the pipeline recorded, or uses the adjudicated runbook, and a named reviewer records the manual confirmation on the pull request.
 
-At the deploy checkpoint, the environment being deployed MUST use `HEAD^1`, the target branch tip before the released commit, because the current run has not finished; the other environment MUST use its fetched branch tip. At the `dev` → `beta` promotion checkpoint, both environments MUST use their fetched tips. A deploy whose target is `dev` MUST skip prerequisite and deployment evidence because that database is test-only.
+The check MUST NOT walk branch history, list deployments by environment, wait for evidence, fall back to another commit, or accept a record that cannot be tied to exactly one run and step. It reports a deployment-record finding, never a serving claim.
 
 A contract already present in the release base is historical: it was applied and is frozen, so it MUST NOT be revalidated.
 
 #### Scenario: A valid contract passes
-- **WHEN** a contract names a merged prerequisite pull request whose merge commit is contained in the release head and in the last known deployed heads of both `beta` and `main`
+- **WHEN** a contract names a merged prerequisite pull request whose merge commit is an ancestor of the declared commit, and the declared commit has a successful `api-deploy` record for `beta` or `main` with the migration and publication step green
 - **THEN** the contract evidence check passes
 
 #### Scenario: The prerequisite is not merged
 - **WHEN** `prerequisite-pr` names an open or closed-unmerged pull request
 - **THEN** the check fails
 
-#### Scenario: The declared merge commit is not the prerequisite's merge commit
-- **WHEN** `prerequisite-merge` names a commit other than the prerequisite pull request's `merge_commit_sha`
-- **THEN** the check fails, even when that commit is an ancestor of every branch
+#### Scenario: The merge commit is not contained in the declared commit
+- **WHEN** the prerequisite pull request's merge commit is not an ancestor of `prerequisite-merge`
+- **THEN** the check fails on prerequisite evidence
 
 #### Scenario: The prerequisite is not contained in the release
 - **WHEN** `prerequisite-merge` is not an ancestor of the release head
@@ -136,21 +134,29 @@ A contract already present in the release base is historical: it was applied and
 - **WHEN** the prerequisite pull request body carries an `OpenSpec:` value other than `prerequisite-change`
 - **THEN** the check fails on prerequisite evidence
 
-#### Scenario: The prerequisite is not in a deployed head
-- **WHEN** `prerequisite-merge` is not an ancestor of the last known deployed head for `beta` or for `main`
-- **THEN** the check fails on evidence and names the environment
+#### Scenario: The declared commit has no deployment record
+- **WHEN** `deployments?sha=<prerequisite-merge>` returns no `api-deploy` record for `beta` or `main`
+- **THEN** the check fails closed on evidence and names the human-review path
 
-#### Scenario: A candidate merge has no API deployment record
-- **WHEN** an environment branch's newest merge touched no API path, so no `api-deploy` deployment exists for its deployed commit
-- **THEN** the check skips that candidate and evaluates the next merge in the bounded walk
+#### Scenario: The deployment failed or is still running
+- **WHEN** the newest `api-deploy` record for a shared environment is failed, errored, inactive, cancelled, or running
+- **THEN** the contract fails and the check does not use another commit
 
-#### Scenario: The newest API deployment for a candidate failed
-- **WHEN** a candidate head's newest `api-deploy` deployment is failed, errored, inactive, cancelled, or still running
-- **THEN** a current contract fails and the check does not use an older head
+#### Scenario: The newest records for one environment disagree
+- **WHEN** two `api-deploy` records for one environment share the newest timestamp but have different outcomes
+- **THEN** the check treats the evidence as ambiguous and fails closed
 
-#### Scenario: No candidate within the bound has deployment evidence
-- **WHEN** none of the last 50 first-parent commits on an environment branch has a successful `api-deploy.yml` record
-- **THEN** the contract fails closed and the error names the environment
+#### Scenario: Only a web deployment exists
+- **WHEN** the declared commit has a `web-deploy` record but no `api-deploy` record for `beta` or `main`
+- **THEN** the check finds no deployment evidence and fails closed
+
+#### Scenario: Only a dev deployment exists
+- **WHEN** the declared commit has an `api-deploy` record only for the `dev` environment
+- **THEN** the check finds no shared-environment evidence and fails closed
+
+#### Scenario: The migration and publication step did not succeed
+- **WHEN** the selected `api-deploy` record's run has a `Migrate databases and deploy Workers` step with a conclusion other than `success`
+- **THEN** the contract fails on evidence
 
 #### Scenario: A release adds no contract during a deployments outage
 - **WHEN** the release diff adds no current `contract` and the deployments API is unavailable
@@ -204,16 +210,16 @@ An out-of-band `wrangler rollback` is invisible to the check. `REVIEW.md` MUST r
 
 Every failure MUST report one fixed stage among `declaration`, `immutability`, `hotfix`, `prerequisite`, and `evidence`, with the public migration path, pull-request number, or commit SHA. It MUST NOT print private configuration, connection values, resource identifiers, or raw API responses.
 
-A release whose diff adds no `contract` MUST NOT call the deployments API. A missing git ref, insufficient history for the bounded walk, an unexpected API response shape, or a deployment record that cannot be tied to a workflow run MUST fail closed.
+A release whose diff adds no `contract` MUST NOT call the deployments, actions, or jobs API. A missing git ref, an unexpected API response shape, a deployment record that cannot be tied to exactly one run and step, and missing, failed, in-progress, or ambiguous deployment evidence MUST fail closed and name the human-review path where the author must act.
 
 #### Scenario: The deployments API is unavailable during a contract release
 - **WHEN** the release diff adds a current contract and the deployments API cannot be read
 - **THEN** the check fails on evidence and the release mutates nothing
 
-#### Scenario: The checkout lacks the history the walk needs
-- **WHEN** the bounded first-parent walk cannot reach enough history to resolve a deployed head
-- **THEN** the check fails closed and names the environment, instead of assuming a head
+#### Scenario: The declared commit is missing from the checkout
+- **WHEN** the release head or `prerequisite-merge` cannot be resolved in the checkout for the ancestry checks
+- **THEN** the check fails closed instead of assuming the relationship
 
-#### Scenario: A deployment record is not tied to a workflow run
-- **WHEN** a deployment record has no linked run or an unexpected status
+#### Scenario: A deployment record cannot be tied to one run and step
+- **WHEN** a deployment record has no linked run, no matching `Migrate databases and deploy Workers` step, or an unexpected status
 - **THEN** the check fails closed instead of counting it as evidence

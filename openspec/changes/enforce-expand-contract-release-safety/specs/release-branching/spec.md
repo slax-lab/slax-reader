@@ -6,7 +6,7 @@
 
 Pull requests targeting `beta` or `main` SHALL carry a required `promotion integrity` status check. The check SHALL assert that the pull request's head branch is an allowed source for the target branch, and that the validation owned by the source stage has succeeded on the pull request's head commit: the per-suite application CI gates for any head, and — for a promotion to `main` sourced from `beta` — additionally a successful deployment of the head commit to the beta environment. Deployment evidence is required only from a deployment workflow the batch actually triggered (the deploy workflows are paths-filtered); a batch that triggered none has nothing to deploy and passes without it. A hotfix pull request to `main` MAY proceed without beta-environment deployment evidence, but its head commit MUST have passed the application CI gates.
 
-For a pull request whose base is `beta`, the check SHALL also assert migration release evidence on the promotion diff: every added migration declares its class, the diff deletes or renames no migration file and modifies no migration file present in the base, a `hotfix/*` head adds only `expand` migrations, and every current `contract` satisfies its prerequisite and known-head deployment evidence. Evidence is scoped to the promotion diff, so a promotion that adds no current contract resolves no deployment evidence. The migration stage SHALL NOT run for a pull request whose base is `main`: the beta deployment already applied those migrations, and the main deploy preflight re-evaluates the same diff before production mutation.
+For a pull request whose base is `beta`, the check SHALL also assert migration release evidence on the promotion diff: every added migration declares its class, the diff deletes or renames no migration file and modifies no migration file present in the base, a `hotfix/*` head adds only `expand` migrations, and every current `contract` satisfies its prerequisite and direct deployment-record evidence. Evidence is scoped to the promotion diff, so a promotion that adds no current contract resolves no deployment evidence. The migration stage SHALL NOT run for a pull request whose base is `main`: the beta deployment already applied those migrations, and the main deploy preflight re-evaluates the same diff before production mutation.
 
 #### Scenario: A dev-to-beta promotion with green suites passes
 
@@ -35,13 +35,13 @@ For a pull request whose base is `beta`, the check SHALL also assert migration r
 
 #### Scenario: A promotion carries a valid current contract
 
-- **WHEN** the promotion diff adds a contract whose prerequisite pull request and merge commit are valid and whose merge commit is contained in the release head and in the last known deployed heads of both environments
+- **WHEN** the promotion diff adds a contract whose prerequisite pull request and merge commit are valid and whose declared commit has a successful `api-deploy` record for `beta` or `main` with the migration and publication step green
 - **THEN** the `promotion integrity` check reports success for the migration release evidence stage
 
-#### Scenario: A current contract's prerequisite is not deployed
+#### Scenario: A current contract's deployment evidence is missing or failed
 
-- **WHEN** a contract in the promotion diff names a prerequisite merge commit that is not contained in the last known deployed head for `beta` or `main`
-- **THEN** the `promotion integrity` check fails and names the evidence stage and environment
+- **WHEN** a contract in the promotion diff names a commit with no successful `api-deploy` record for `beta` or `main`, or its newest record failed, is still running, or is ambiguous
+- **THEN** the `promotion integrity` check fails on the evidence stage and names the human-review path
 
 #### Scenario: A promotion adds no current contract during a deployments outage
 
