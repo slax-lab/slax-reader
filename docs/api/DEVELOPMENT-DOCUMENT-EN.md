@@ -54,7 +54,19 @@ See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operat
 
 ## Migration declarations
 
-Every migration added under `apps/api/prisma/` starts with a leading declaration:
+Every migration added under `apps/api/prisma/` starts with a leading declaration for one of three classes:
+
+```sql
+-- migration-safety: expand
+ALTER TABLE "example" ADD COLUMN "note" text;
+```
+
+```sql
+-- migration-safety: migrate
+-- preserves: example.id
+-- reason: Backfills a default before the next release adds the constraint.
+UPDATE "example" SET "note" = '';
+```
 
 ```sql
 -- migration-safety: contract

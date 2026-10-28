@@ -126,6 +126,9 @@ export function assessDiff({ entries, readHeadFile }) {
   return added
 }
 
+const evidenceGuidance = stage => stage === 'evidence' ? ` ${humanReviewPath}` : ''
+const evidenceFailure = message => fail('evidence', `${message} ${humanReviewPath}`)
+
 export async function github(fetchImpl, token, path, stage) {
   let response
   try {
@@ -140,13 +143,13 @@ export async function github(fetchImpl, token, path, stage) {
       signal: AbortSignal.timeout(30_000)
     })
   } catch {
-    fail(stage, 'GitHub API request failed or timed out')
+    fail(stage, `GitHub API request failed or timed out.${evidenceGuidance(stage)}`)
   }
-  if (!response.ok) fail(stage, `GitHub API request failed (HTTP ${response.status})`)
+  if (!response.ok) fail(stage, `GitHub API request failed (HTTP ${response.status}).${evidenceGuidance(stage)}`)
   try {
     return await response.json()
   } catch {
-    fail(stage, 'GitHub API returned an invalid response')
+    fail(stage, `GitHub API returned an invalid response.${evidenceGuidance(stage)}`)
   }
 }
 
@@ -179,12 +182,12 @@ export function assessTrailer({ declaration, prerequisite }) {
   }
 }
 
-// One deployments read for the declared commit. Only beta/main api-deploy
-// records count; the web-deploy record created by the same release does not.
+// One deployments read for the declared commit. Only beta/main records are
+// candidates; the workflow classification happens before any newest selection.
 export async function readDeployments({ repository, commit, token, fetchImpl }) {
   const body = await github(fetchImpl, token, `/repos/${repository}/deployments?sha=${commit}&per_page=100`, 'evidence')
-  if (!Array.isArray(body)) fail('evidence', 'GitHub API returned an unexpected deployments response')
-  if (body.length >= 100) fail('evidence', 'GitHub API returned more deployment records than one commit should have')
+  if (!Array.isArray(body)) evidenceFailure('GitHub API returned an unexpected deployments response.')
+  if (body.length >= 100) evidenceFailure('GitHub API returned more deployment records than one commit should have.')
   return body.filter(record => record && sharedEnvironments.includes(record.environment) && record.sha === commit)
 }
 
@@ -196,28 +199,34 @@ function latestStatus(statuses) {
 const deploymentFailureStates = ['failure', 'error', 'inactive', 'cancelled']
 const deploymentPendingStates = ['pending', 'queued', 'in_progress', 'waiting']
 
-export async function assessDeploymentRecord({ repository, commit, record, token, fetchImpl }) {
-  if (!record || !Number.isSafeInteger(Number(record.id)) || Number(record.id) <= 0) fail('evidence', 'A deployment record has no usable identity')
-  const runIdMatch = (url) => typeof url === 'string' ? url.match(/\/actions\/runs\/([1-9][0-9]*)\//u) : undefined
+// Classify a beta/main deployment record by its linked workflow. A web-deploy
+// record is not evidence and is ignored before grouping or newest selection, so
+// a newer web deployment cannot reject an older valid api-deploy record.
+export async function classifyDeploymentRecord({ repository, commit, record, token, fetchImpl }) {
+  if (!record || !Number.isSafeInteger(Number(record.id)) || Number(record.id) <= 0) evidenceFailure('A deployment record has no usable identity.')
   const statuses = await github(fetchImpl, token, `/repos/${repository}/deployments/${record.id}/statuses?per_page=100`, 'evidence')
-  if (!Array.isArray(statuses) || statuses.length >= 100) fail('evidence', `Deployment ${record.id} returned an unexpected status response`)
+  if (!Array.isArray(statuses) || statuses.length >= 100) evidenceFailure(`Deployment ${record.id} returned an unexpected status response.`)
   const status = latestStatus(statuses)
-  if (!status) fail('evidence', `Deployment ${record.id} has no status`)
-  if (deploymentFailureStates.includes(status.state) || deploymentPendingStates.includes(status.state)) {
-    fail('evidence', `Deployment ${record.id} in ${record.environment} is ${status.state}`)
-  }
-  if (status.state !== 'success') fail('evidence', `Deployment ${record.id} has an unexpected state`)
-  if (!runIdMatch(status.log_url)) fail('evidence', `Deployment ${record.id} is not tied to a workflow run`)
-  const runId = Number(runIdMatch(status.log_url)[1])
+  if (!status) evidenceFailure(`Deployment ${record.id} has no status.`)
+  const runMatch = typeof status.log_url === 'string' ? status.log_url.match(/\/actions\/runs\/([1-9][0-9]*)\//u) : undefined
+  if (!runMatch) evidenceFailure(`Deployment ${record.id} is not tied to a workflow run.`)
+  const runId = Number(runMatch[1])
   const run = await github(fetchImpl, token, `/repos/${repository}/actions/runs/${runId}`, 'evidence')
-  if (!run || run.path !== apiDeployWorkflow) fail('evidence', `Deployment ${record.id} is not an api-deploy deployment`)
-  if (run.head_sha !== commit) fail('evidence', `Deployment ${record.id} belongs to another commit`)
-  if (run.status !== 'completed' || run.conclusion !== 'success') fail('evidence', `The api-deploy run for ${commit} is ${run.conclusion ?? run.status}`)
+  if (!run || run.path !== apiDeployWorkflow) return { api: false }
+  const failure = message => ({ api: true, ok: false, error: new EvidenceError('evidence', `${message} ${humanReviewPath}`) })
+  if (deploymentFailureStates.includes(status.state) || deploymentPendingStates.includes(status.state)) {
+    return failure(`Deployment ${record.id} in ${record.environment} is ${status.state}.`)
+  }
+  if (status.state !== 'success') return failure(`Deployment ${record.id} has an unexpected state.`)
+  if (run.head_sha !== commit) return failure(`Deployment ${record.id} belongs to another commit.`)
+  if (run.status !== 'completed' || run.conclusion !== 'success') return failure(`The api-deploy run for ${commit} is ${run.conclusion ?? run.status}.`)
   const jobs = await github(fetchImpl, token, `/repos/${repository}/actions/runs/${runId}/jobs?per_page=100`, 'evidence')
-  if (!jobs || !Array.isArray(jobs.jobs) || jobs.jobs.length >= 100) fail('evidence', `The api-deploy run for ${commit} returned an unexpected jobs response`)
-  const step = jobs.jobs.flatMap(job => Array.isArray(job?.steps) ? job.steps : []).find(item => item?.name === migrationStepName)
-  if (!step) fail('evidence', `The api-deploy run for ${commit} has no "${migrationStepName}" step`)
-  if (step.conclusion !== 'success') fail('evidence', `The "${migrationStepName}" step for ${commit} concluded ${step.conclusion ?? 'unknown'}`)
+  if (!jobs || !Array.isArray(jobs.jobs) || jobs.jobs.length >= 100) evidenceFailure(`The api-deploy run for ${commit} returned an unexpected jobs response.`)
+  const steps = jobs.jobs.flatMap(job => Array.isArray(job?.steps) ? job.steps : []).filter(item => item?.name === migrationStepName)
+  if (steps.length !== 1) return failure(`The api-deploy run for ${commit} has ${steps.length} "${migrationStepName}" steps; exactly one is required.`)
+  const [step] = steps
+  if (step.status !== 'completed' || step.conclusion !== 'success') return failure(`The "${migrationStepName}" step for ${commit} concluded ${step.conclusion ?? step.status ?? 'unknown'}.`)
+  return { api: true, ok: true }
 }
 
 function newerRecord(a, b) {
@@ -226,34 +235,32 @@ function newerRecord(a, b) {
   return Number(a.id) > Number(b.id)
 }
 
-// Records are grouped by environment. The newest record per environment
-// decides; a tie at the newest timestamp with different outcomes is ambiguous.
+// Records are classified first and grouped by environment afterward. The newest
+// api-deploy record per environment decides; a tie at the newest timestamp with
+// different outcomes is ambiguous.
 export async function assessDeployments({ repository, commit, records, token, fetchImpl }) {
-  if (records.length === 0) fail('evidence', `No successful api-deploy record for commit ${commit} in beta or main. ${humanReviewPath}`)
-  const groups = new Map()
+  if (records.length === 0) evidenceFailure(`No api-deploy record for commit ${commit} in beta or main.`)
+  const apiRecords = []
   for (const record of records) {
-    const group = groups.get(record.environment) ?? []
-    group.push(record)
-    groups.set(record.environment, group)
+    const classification = await classifyDeploymentRecord({ repository, commit, record, token, fetchImpl })
+    if (classification.api) apiRecords.push({ record, ...classification })
+  }
+  if (apiRecords.length === 0) evidenceFailure(`No api-deploy record for commit ${commit} in beta or main.`)
+  const groups = new Map()
+  for (const item of apiRecords) {
+    const group = groups.get(item.record.environment) ?? []
+    group.push(item)
+    groups.set(item.record.environment, group)
   }
   const outcomes = []
   for (const [environment, group] of groups) {
-    const newest = group.reduce((best, record) => newerRecord(record, best) ? record : best, undefined)
-    const tied = group.filter(record => String(record.created_at) === String(newest.created_at) && Number(record.id) !== Number(newest.id))
+    const newest = group.reduce((best, item) => newerRecord(item.record, best.record) ? item : best, group[0])
+    const tied = group.filter(item => String(item.record.created_at) === String(newest.record.created_at) && Number(item.record.id) !== Number(newest.record.id))
     const candidates = [newest, ...tied]
-    const results = []
-    for (const record of candidates) {
-      try {
-        await assessDeploymentRecord({ repository, commit, record, token, fetchImpl })
-        results.push({ record, ok: true })
-      } catch (error) {
-        if (!(error instanceof EvidenceError)) throw error
-        results.push({ record, ok: false, error })
-      }
+    if (new Set(candidates.map(item => item.ok)).size > 1) {
+      evidenceFailure(`Deployment evidence for ${environment} is ambiguous: newest records share a timestamp but disagree.`)
     }
-    const distinct = new Set(results.map(result => result.ok))
-    if (distinct.size > 1) fail('evidence', `Deployment evidence for ${environment} is ambiguous: newest records share a timestamp but disagree`)
-    if (!results[0].ok) throw results[0].error
+    if (!newest.ok) throw newest.error
     outcomes.push(environment)
   }
   return outcomes

@@ -121,7 +121,7 @@ A missing, failed, in-progress, or ambiguous verdict fails the contract and name
 
 The deploy preflight runs only when the release is not superseded, so a skipped run neither mutates nor reports a verdict; the newer run carries the same content and is evaluated on its own diff. The preflight is read-only: no firewall rule, Tunnel, migration, publication, or deployment credential is used before it passes.
 
-Both checkpoints use a local git range. The promotion gate fetches the base and the head; the deploy workflow has the released commit as `HEAD`, so `HEAD^1` is the pre-release tip and `fetch-depth: 2` is sufficient. Contract evidence needs no branch history or environment tips: one deployments read per contract, then the linked run and its jobs. A missing commit for the diff or an ancestry check fails closed instead of assuming it. No compare API is used, which removes the 300-file limit and its truncation failure mode.
+Both checkpoints use a local git range. The promotion gate fetches the base and the head; the deploy workflow has the released commit as `HEAD`, so `HEAD^1` is the pre-release tip and `fetch-depth: 0` gives the ancestry checks every commit they need. Contract evidence needs no branch history or environment tips: one deployments read per contract, then the linked run and its jobs. A missing commit for the diff or an ancestry check fails closed instead of assuming it. No compare API is used, which removes the 300-file limit and its truncation failure mode.
 
 ### 6. Hotfix, rollback, and adjudication
 

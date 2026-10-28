@@ -36,10 +36,9 @@ Not changing: migration command names and order, `migration_lock.toml`, `_prisma
 ## Impact
 
 - New: `tooling/migration-release-evidence.mjs` and `tooling/migration-release-evidence.test.mjs`. The checker parses only the leading comment block and reads git ranges and documented GitHub API records; it contains no SQL parser, no review or `CODEOWNERS` lookup, and no introducing-pull-request inference.
-- Changed: `tooling/promotion-gate.mjs` and its test, `.github/workflows/promotion-gate.yml` (the base and head it fetches), `.github/workflows/api-deploy.yml` (the preflight step with `fetch-depth: 2` and the `deployments`, `actions`, and `pull-requests` read scopes), `tooling/ci-scope.mjs` and its test, `package.json`, `REVIEW.md`, `docs/CI.md`, `docs/BRANCHING.md`, the `.rulesync` source for `apps/api/AGENTS.md`, and `docs/api/DEVELOPMENT-DOCUMENT-EN.md`.
+- Changed: `tooling/promotion-gate.mjs` and its test, `.github/workflows/promotion-gate.yml` (full history and the base and head it fetches), `.github/workflows/api-deploy.yml` (the preflight step with `fetch-depth: 0` and the `deployments`, `actions`, and `pull-requests` read scopes), `tooling/ci-scope.mjs` and its test, `package.json`, `REVIEW.md`, `docs/CI.md`, `docs/BRANCHING.md`, the `.rulesync` source for `apps/api/AGENTS.md`, and `docs/api/DEVELOPMENT-DOCUMENT-EN.md`.
 - Migration files: new files in the four families gain a declaration header. Existing and already-applied migrations, `migration_lock.toml`, and `_prisma_migrations` are not modified.
 - No `CODEOWNERS` change and no API or Web package-version bump: `docs/release/VERSIONING.md` excludes Web and API changes from package-version increments, and this change touches release tooling, workflows, and documentation only.
-- Implementation approval and start have not been granted: this change contains planning artifacts only, and every implementation task stays unchecked until the human approves this revision.
 
 ## Approval
 

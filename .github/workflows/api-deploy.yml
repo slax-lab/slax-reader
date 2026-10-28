@@ -71,6 +71,34 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check the branch before deployment
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          exec 3>&1 >"$RELEASE_DIR/source.log" 2>&1
+          trap 'echo "Source revision check failed" >&3' ERR
+          tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')
+          [[ "$tip" =~ ^[a-f0-9]{40}$ ]]
+          current=true
+          if [ "$tip" != "$MERGE_SHA" ]; then
+            git -c credential.helper= fetch --no-tags --depth=1 origin "$tip"
+            # Keep these paths aligned with the workflow's API path filter.
+            changed=$(git diff --name-only "$MERGE_SHA" "$tip" -- apps/api packages/contracts \
+              tooling/api.mjs tooling/pnpm-command.mjs deploy/cloudflare/api.toml.example \
+              tooling/migration-release-evidence.mjs \
+              package.json pnpm-lock.yaml pnpm-workspace.yaml \
+              .github/workflows/api-ci.yml .github/workflows/api-deploy.yml)
+            if [ -n "$changed" ]; then current=false; fi
+          fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          if [ "$current" = false ]; then echo 'Release skipped: newer API changes are already on this branch' >&3; fi
+      - name: Check migration release evidence
+        if: steps.release.outputs.current == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: node tooling/migration-release-evidence.mjs deploy
       - run: pnpm install --frozen-lockfile
       - name: Install cloudflared
         run: |
@@ -160,34 +188,6 @@ jobs:
           pnpm api -- gen:all
           pnpm api -- build
           echo 'API generation and build passed' >&3
-      - name: Check the branch before deployment
-        id: release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          exec 3>&1 >"$RELEASE_DIR/source.log" 2>&1
-          trap 'echo "Source revision check failed" >&3' ERR
-          tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')
-          [[ "$tip" =~ ^[a-f0-9]{40}$ ]]
-          current=true
-          if [ "$tip" != "$MERGE_SHA" ]; then
-            git -c credential.helper= fetch --no-tags --depth=1 origin "$tip"
-            # Keep these paths aligned with the workflow's API path filter.
-            changed=$(git diff --name-only "$MERGE_SHA" "$tip" -- apps/api packages/contracts \
-              tooling/api.mjs tooling/pnpm-command.mjs deploy/cloudflare/api.toml.example \
-              tooling/migration-release-evidence.mjs \
-              package.json pnpm-lock.yaml pnpm-workspace.yaml \
-              .github/workflows/api-ci.yml .github/workflows/api-deploy.yml)
-            if [ -n "$changed" ]; then current=false; fi
-          fi
-          echo "current=$current" >> "$GITHUB_OUTPUT"
-          if [ "$current" = false ]; then echo 'Release skipped: newer API changes are already on this branch' >&3; fi
-      - name: Check migration release evidence
-        if: steps.release.outputs.current == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-        run: node tooling/migration-release-evidence.mjs deploy
       - name: Allow the runner through the existing firewall
         if: steps.release.outputs.current == 'true'
         env:

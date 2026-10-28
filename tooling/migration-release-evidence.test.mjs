@@ -21,6 +21,7 @@ const migrationPath = 'apps/api/prisma/pg_migrations/20261028000000_drop_key/mig
 const otherMigration = 'apps/api/prisma/logs_migrations/20261028000001_add_log/migration.sql'
 const lockPath = 'apps/api/prisma/pg_migrations/migration_lock.toml'
 const fail = message => { throw new Error(message) }
+const rejectsEvidence = (promise, expected, label) => assert.rejects(promise, error => error instanceof EvidenceError && error.stage === 'evidence' && expected.test(error.message) && /Human-review path/.test(error.message), label)
 
 const expand = '-- migration-safety: expand\nALTER TABLE "example" ADD COLUMN "note" text;\n'
 const migrate = '-- migration-safety: migrate\n-- preserves: example.id\n-- reason: Backfills before the next release.\nUPDATE "example" SET "note" = \'\';\n'
@@ -66,13 +67,13 @@ function routed(routes) {
   }
 }
 
-function deploymentRoutes({ deployed, environments = ['beta'], status = 'success', runPath = apiDeployWorkflow, runConclusion = 'success', stepConclusion = 'success', records } = {}) {
+function deploymentRoutes({ deployed, environments = ['beta'], status = 'success', runPath = apiDeployWorkflow, runConclusion = 'success', stepConclusion = 'success', steps, records } = {}) {
   const deploymentRecords = records ?? environments.map((environment, index) => ({ id: 10 + index, environment, sha: deployed, created_at: '2026-10-28T05:53:32Z' }))
   return [
     [/\/deployments\?sha=[a-f0-9]{40}&per_page=100$/, () => response(deploymentRecords)],
     [/\/deployments\/\d+\/statuses\?per_page=100$/, () => response([{ state: status, created_at: '2026-10-28T05:56:10Z', log_url: `https://github.com/${repository}/actions/runs/9001/job/1` }])],
     [/\/actions\/runs\/9001$/, () => response({ path: runPath, head_sha: deployed, status: runConclusion === 'in_progress' ? 'in_progress' : 'completed', conclusion: runConclusion === 'in_progress' ? null : runConclusion })],
-    [/\/actions\/runs\/9001\/jobs\?per_page=100$/, () => response({ jobs: [{ name: 'deploy', steps: [{ name: migrationStepName, status: 'completed', conclusion: stepConclusion }] }] })]
+    [/\/actions\/runs\/9001\/jobs\?per_page=100$/, () => response({ jobs: [{ name: 'deploy', steps: steps ?? [{ name: migrationStepName, status: 'completed', conclusion: stepConclusion }] }] })]
   ]
 }
 
@@ -251,18 +252,87 @@ test('a contract fails closed with the human-review path when no deployment reco
   const { run } = await contractRelease(t, {
     routes: ({ prerequisiteMerge }) => [prerequisiteRoute({ mergeCommit: prerequisiteMerge }), [/\/deployments\?sha=/, () => response([])]]
   })
-  await assert.rejects(run(), error => error.stage === 'evidence' && /human-review path/i.test(error.message))
+  await rejectsEvidence(run(), /No api-deploy record/)
 })
 
 test('web-deploy and dev-only records are not evidence', async t => {
   const webOnly = await contractRelease(t, {
     routes: ({ prerequisiteMerge, deployed }) => [prerequisiteRoute({ mergeCommit: prerequisiteMerge }), ...deploymentRoutes({ deployed, runPath: '.github/workflows/web-deploy.yml' })]
   })
-  await assert.rejects(webOnly.run(), error => error.stage === 'evidence' && /not an api-deploy deployment/.test(error.message))
+  await rejectsEvidence(webOnly.run(), /No api-deploy record/)
   const devOnly = await contractRelease(t, {
     routes: ({ prerequisiteMerge, deployed }) => [prerequisiteRoute({ mergeCommit: prerequisiteMerge }), [/\/deployments\?sha=/, () => response([{ id: 1, environment: 'dev', sha: deployed, created_at: '2026-10-28T05:53:32Z' }])]]
   })
-  await assert.rejects(devOnly.run(), error => error.stage === 'evidence' && /human-review path/i.test(error.message))
+  await rejectsEvidence(devOnly.run(), /No api-deploy record/)
+})
+
+function mixedRoutes({ prerequisiteMerge, deployed, records, runs }) {
+  const statuses = records.map(record => [new RegExp(`/deployments/${record.id}/statuses\\?per_page=100$`), () => response([{ state: record.state ?? 'success', created_at: record.statusAt ?? record.created_at, log_url: `https://github.com/${repository}/actions/runs/${record.run}/job/1` }])])
+  const runRoutes = Object.entries(runs).map(([id, run]) => [new RegExp(`/actions/runs/${id}$`), () => response(run)])
+  const jobRoutes = Object.entries(runs)
+    .filter(([, run]) => run.path === apiDeployWorkflow)
+    .map(([id]) => [new RegExp(`/actions/runs/${id}/jobs\\?per_page=100$`), () => response({ jobs: [{ name: 'deploy', steps: [{ name: migrationStepName, status: 'completed', conclusion: 'success' }] }] })])
+  return [
+    prerequisiteRoute({ mergeCommit: prerequisiteMerge }),
+    [/\/deployments\?sha=/, () => response(records.map(record => ({ id: record.id, environment: record.environment, sha: deployed, created_at: record.created_at })))],
+    ...statuses,
+    ...runRoutes,
+    ...jobRoutes
+  ]
+}
+
+test('a newer web-deploy record is ignored before newest selection', async t => {
+  const release = await contractRelease(t, {
+    routes: ({ prerequisiteMerge, deployed }) => mixedRoutes({
+      prerequisiteMerge,
+      deployed,
+      records: [
+        { id: 20, environment: 'beta', run: 9001, created_at: '2026-10-28T05:00:00Z' },
+        { id: 21, environment: 'beta', run: 9002, created_at: '2026-10-28T06:00:00Z' }
+      ],
+      runs: {
+        9001: { path: apiDeployWorkflow, head_sha: deployed, status: 'completed', conclusion: 'success' },
+        9002: { path: '.github/workflows/web-deploy.yml', head_sha: deployed, status: 'completed', conclusion: 'success' }
+      }
+    })
+  })
+  assert.deepEqual((await release.run()).environments, ['beta'])
+})
+
+test('a same-timestamp web record does not make valid API evidence ambiguous', async t => {
+  const release = await contractRelease(t, {
+    routes: ({ prerequisiteMerge, deployed }) => mixedRoutes({
+      prerequisiteMerge,
+      deployed,
+      records: [
+        { id: 30, environment: 'beta', run: 9001, created_at: '2026-10-28T05:53:32Z' },
+        { id: 31, environment: 'beta', run: 9002, created_at: '2026-10-28T05:53:32Z', state: 'failure' }
+      ],
+      runs: {
+        9001: { path: apiDeployWorkflow, head_sha: deployed, status: 'completed', conclusion: 'success' },
+        9002: { path: '.github/workflows/web-deploy.yml', head_sha: deployed, status: 'completed', conclusion: 'failure' }
+      }
+    })
+  })
+  assert.deepEqual((await release.run()).environments, ['beta'])
+})
+
+test('a newer failed API record still decides over an older success', async t => {
+  const release = await contractRelease(t, {
+    routes: ({ prerequisiteMerge, deployed }) => mixedRoutes({
+      prerequisiteMerge,
+      deployed,
+      records: [
+        { id: 40, environment: 'beta', run: 9001, created_at: '2026-10-28T05:00:00Z' },
+        { id: 41, environment: 'beta', run: 9003, created_at: '2026-10-28T06:00:00Z', state: 'failure' }
+      ],
+      runs: {
+        9001: { path: apiDeployWorkflow, head_sha: deployed, status: 'completed', conclusion: 'success' },
+        9003: { path: apiDeployWorkflow, head_sha: deployed, status: 'completed', conclusion: 'success' }
+      }
+    })
+  })
+  await rejectsEvidence(release.run(), /is failure/)
 })
 
 test('a failed status, an in-progress run and a failed migration step fail closed', async t => {
@@ -275,7 +345,7 @@ test('a failed status, an in-progress run and a failed migration step fail close
     const release = await contractRelease(t, {
       routes: ({ prerequisiteMerge, deployed }) => [prerequisiteRoute({ mergeCommit: prerequisiteMerge }), ...deploymentRoutes({ deployed, ...overrides })]
     })
-    await assert.rejects(release.run(), error => error.stage === 'evidence' && expected.test(error.message), name)
+    await rejectsEvidence(release.run(), expected, name)
   }
 })
 
@@ -307,7 +377,7 @@ test('the newest record per environment decides and a tie with different outcome
       ...deploymentRoutes({ deployed }).slice(1)
     ]
   })
-  await assert.rejects(ambiguous.run(), error => error.stage === 'evidence' && /ambiguous/.test(error.message))
+  await rejectsEvidence(ambiguous.run(), /ambiguous/)
 })
 
 test('every environment with a record must pass', async t => {
@@ -323,6 +393,39 @@ test('a dev deploy skips prerequisite and deployment evidence', async t => {
   f.put(migrationPath, contractSource({ prerequisiteMerge: 'b'.repeat(40) })); const head = f.commit('migration')
   const result = await evaluateRelease({ target: 'dev', sourceBranch: 'dev', base, head, repository, token, fetchImpl: async url => fail(`must not call the API: ${url}`), git: gitAdapter(f.cwd) })
   assert.equal(result.contracts, 0)
+})
+
+test('a duplicate migration step fails closed even when one succeeded', async t => {
+  const release = await contractRelease(t, {
+    routes: ({ prerequisiteMerge, deployed }) => [prerequisiteRoute({ mergeCommit: prerequisiteMerge }), ...deploymentRoutes({ deployed, steps: [
+      { name: migrationStepName, status: 'completed', conclusion: 'success' },
+      { name: migrationStepName, status: 'completed', conclusion: 'failure' }
+    ] })]
+  })
+  await rejectsEvidence(release.run(), /2 "Migrate databases and deploy Workers" steps/)
+  const bothSuccess = await contractRelease(t, {
+    routes: ({ prerequisiteMerge, deployed }) => [prerequisiteRoute({ mergeCommit: prerequisiteMerge }), ...deploymentRoutes({ deployed, steps: [
+      { name: migrationStepName, status: 'completed', conclusion: 'success' },
+      { name: migrationStepName, status: 'completed', conclusion: 'success' }
+    ] })]
+  })
+  await rejectsEvidence(bothSuccess.run(), /2 "Migrate databases and deploy Workers" steps/)
+})
+
+test('an evidence-stage api error names the human-review path without leaking the body', async t => {
+  const f = fixture(t)
+  f.put('README.md', 'fixture'); const base = f.commit('base')
+  f.put('apps/api/src/prerequisite.ts', 'export const p = 1\n'); const prerequisiteMerge = f.commit('prerequisite')
+  f.put('apps/api/src/deployed.ts', 'export const d = 1\n'); const deployed = f.commit('deployed')
+  f.put(migrationPath, contractSource({ prerequisiteMerge: deployed })); const head = f.commit('migration')
+  const fetchImpl = routed([
+    prerequisiteRoute({ mergeCommit: prerequisiteMerge }),
+    [/\/deployments\?sha=/, () => new Response('fixture-private-error', { status: 503 })]
+  ])
+  await assert.rejects(
+    evaluateRelease({ target: 'beta', sourceBranch: 'dev', base, head, repository, token, fetchImpl, git: gitAdapter(f.cwd) }),
+    error => error.stage === 'evidence' && /HTTP 503/.test(error.message) && /Human-review path/.test(error.message) && !error.message.includes('fixture-private-error')
+  )
 })
 
 test('an api error never leaks the raw response body', async t => {

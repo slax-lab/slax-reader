@@ -15,7 +15,7 @@
 ## 3. Checkpoints
 
 - [x] 3.1 Add the migration stage to `tooling/promotion-gate.mjs` for pull requests whose base is `beta`: fetch the base and the head, evaluate the promotion diff, and leave the `main` promotion path unchanged. Verify step order, read scopes, the ancestry check, and the unchanged `main` contract with the workflow tests.
-- [x] 3.2 Add the deploy preflight before the firewall step, after the superseded-release check, with `fetch-depth: 2`, `deployments`, `actions`, and `pull-requests` read permission, and the `pull_request.head.ref` used for the hotfix rule; keep `dev` free of prerequisite and deployment evidence. Verify the preflight leaves no firewall rule, Tunnel, database contact, or publication on failure.
+- [x] 3.2 Add the deploy preflight after the superseded-release check and before the Cloudflared download, private configuration access, firewall step, or Tunnel, with `fetch-depth: 0`, `deployments`, `actions`, and `pull-requests` read permission, and the `pull_request.head.ref` used for the hotfix rule; keep `dev` free of prerequisite and deployment evidence. Verify the preflight leaves no firewall rule, Tunnel, database contact, or publication on failure.
 - [x] 3.3 Select the API scope when the checker or a migration file changes, add the local command and `test:ci` wiring, and extend `tooling/ci-scope.test.mjs` and `tooling/ci-workflow.test.mjs`. Verify `pnpm test:ci` includes the new suite and each touched path selects API.
 
 ## 4. Documentation and runbooks
