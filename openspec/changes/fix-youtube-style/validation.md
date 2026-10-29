@@ -4,9 +4,9 @@
 
 Branch: `feat/fix-youtube-style`, based on `origin/dev` at `30feba75`. Only edited YouTube Web body presentation changes. The player sizing, sidebar, API, original captions, podcast source, manifests, and dependencies are unchanged. No CLI, Extension, or Mobile package/output is affected, so no packaged-app version decision is required.
 
-The user supplied the desired expanded-article screenshots, rejected an earlier spacing-only preview, and later inspected and accepted the implemented YouTube body in the local Chrome preview. They reconfirmed that UI acceptance in the task conversation on 2026-10-29 after the latest automated review. PR #441 is currently open and non-draft. No merge or deployment is authorized.
+The requesting user inspected the implemented YouTube body in the local Chrome preview and explicitly accepted its UI. The user reconfirmed that acceptance after reviewing PR #441 on 2026-10-29. That confirmation had already been received when the agent checked the repository at 09:59:25 UTC. This is a latest-observed bound, not a fabricated exact acceptance time. Scope is the YouTube body and its reference-aligned presentation; sidebar behavior and a real new-bookmark backend flow remain excluded.
 
-Chronology is explicit: PR #441 was created on 2026-10-29 at 08:19:31 UTC, before final-source hands-on acceptance. The review submitted at 09:39:18 UTC acknowledges the acceptance but flags that ordering under `DESIGN.md` section 10.2 and `REVIEW.md`. Acceptance is not backdated; the user's confirmation that the UI is correct does not by itself waive the pre-PR process requirement. The outstanding ordering finding requires a maintainer decision. This correction removes stale draft/pending-status statements without changing repository policy or asserting that the review gate is cleared.
+PR #441 was created at 08:19:31 UTC before final-source hands-on acceptance. Its reviews correctly flagged that ordering. That original submission has now been closed, preserving its chronology and reviews. A replacement PR will be opened only after the already-recorded acceptance and this documentation update. The product code and tests are unchanged from accepted/revalidated source `6e84210e`; only delivery records change. Thus the new submission has its own post-acceptance creation event instead of pretending that #441 was compliant. No acceptance is backdated, no finding or history is deleted, no repository policy is weakened, and the replacement must pass normal CI and review. No merge or deployment is authorized.
 
 ## Automated checks
 
@@ -54,7 +54,7 @@ The actual Nuxt app ran from this worktree on `http://localhost:3217`. Playwrigh
 
 Before screenshots: unmodified live `.dev` page in Chrome, light mode, 1920×900 and 375×900. After screenshots: the final source in the complete local Nuxt app, the same public article, matching viewport/theme, with no preview CSS injection. Three focused groups show desktop reading, desktop contents, and mobile reading. The body crops exclude unrelated shell/side-panel details; the local shell locale differs from the live baseline and is not part of this change. Images are attached to the PR, never committed.
 
-Final-source desktop/mobile screenshots were shown in the task conversation, and the requesting user subsequently exercised the local Chrome preview and accepted the YouTube body appearance. They reconfirmed UI acceptance on 2026-10-29 after the automated review. Scope: the edited YouTube body, chapter controls, and dedicated typography. The separately reported sidebar behavior and a new-bookmark backend flow are not included. The PR is not a draft. See the explicit chronology above: acceptance occurred after PR creation, so the pre-PR ordering finding remains for maintainer disposition rather than being represented as satisfied.
+Final-source desktop/mobile screenshots were shown, and the requesting user exercised the source build in local Chrome and accepted the YouTube body appearance. They reconfirmed that acceptance on 2026-10-29 before the replacement submission. Requested adjustments were reference-aligned chapter times, no paragraph playback decoration, and the subsequent minimal YouTube-only implementation. Sidebar behavior and a real new-bookmark backend flow are excluded. The old acceptance-after-opening sequence belongs specifically to closed PR #441; its review is retained as history. The replacement is submitted after this acceptance with unchanged product files.
 
 ## Local pre-push review
 
@@ -62,11 +62,11 @@ Change-id: `fix-youtube-style`. An independent read-only review and the coordina
 
 - Bugs: no Important source findings. Chapter buttons are appended without replacing existing paragraph text/heading anchors. In the minimized implementation original timestamp attributes are unchanged; cleanup removes only generated buttons and their listeners.
 - Security: no Important findings. No dependency, credential access, dangerous HTML insertion, or new external data flow. Button labels use `textContent`; seek values are finite nonnegative numbers.
-- Compliance: implementation matches the revised reference and scoped delta, with UI acceptance now recorded. The latest automated review still identifies the historical acceptance-after-PR ordering as Important. This remains unresolved pending a maintainer decision; neither editing this record nor requesting another review waives it.
+- Compliance: implementation matches the revised reference and scoped delta, with UI acceptance recorded before the replacement PR is opened. The Important historical ordering finding remains attached to closed PR #441, not silently waived or rewritten. Re-submission follows the required order and still requires a fresh automated verdict; this record does not claim that the new gate has passed.
 
 ## Delivery boundaries
 
-No commit is made to a protected branch, no PR is merged, no dev/beta/production deployment is triggered, and no cache purge is performed. Initial PR handoff cleanup completed and was recorded in PR #441. The user subsequently requested a running browser preview, so the worktree and local preview were restored deliberately. Preserve the requested preview during review, the remote branch/PR, the main workspace, unrelated worktrees, shared stores, and user attachments. Archive remains a separate post-merge documentation task.
+No protected-branch commit, merge, deployment, or cache purge is performed. PR #441 is retained closed and cross-linked to its replacement. Initial cleanup completed; the user later requested a local preview, then stopped the preview window and service after inspection. Do not restart them without a request. Preserve the remote branch, both PR histories, the main workspace, unrelated worktrees, shared stores, and user attachments. Archive remains a separate post-merge documentation task.
 
 ## Minimal-diff follow-up and body acceptance — 2026-10-29
 
