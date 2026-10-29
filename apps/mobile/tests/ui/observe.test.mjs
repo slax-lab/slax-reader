@@ -156,8 +156,9 @@ const sdkBoundaries = sdk => ({
 });
 
 test('the real hook marks once per mount across re-renders and repeated calls', nativeBoundary, async () => withNativeHost(async host => {
-  let marks = 0;
-  const loaded = await loadComponent('../../src/observe/index.ts', sdkBoundaries({useObserve: () => ({markInteractive() {marks++;}})}));
+  let marks = 0, signals = 0;
+  const firstInteractive = {mark() {signals++;}};
+  const loaded = await loadComponent('../../src/observe/index.ts', {...sdkBoundaries({useObserve: () => ({markInteractive() {marks++;}})}), './interactive': {firstInteractive}});
   function Probe({ready}) {
     const markInteractive = loaded.useObserveMarkInteractive();
     React.useEffect(() => {if (ready) {markInteractive(); markInteractive();}}, [ready, markInteractive]);
@@ -165,8 +166,9 @@ test('the real hook marks once per mount across re-renders and repeated calls', 
   }
   await act(async () => host.render(React.createElement(Probe, {ready: false})));
   assert.equal(marks, 0);
+  assert.equal(signals, 0);
   for (const ready of [true, false, true]) await act(async () => host.render(React.createElement(Probe, {ready})));
-  assert.equal(marks, 1);
+  assert.equal(marks, 1); assert.equal(signals, 1);
 }));
 
 test('an async markInteractive rejection is contained instead of becoming an unhandled rejection', nativeBoundary, async () => withNativeHost(async host => {
@@ -244,6 +246,7 @@ test('ApplicationRoutes uses the Observe navigation container and preserves the 
     './screens/DeleteAccountScreen': {DeleteAccountScreen: nil},
     './screens/SubscriptionScreen': {SubscriptionScreen: nil},
     './screens/DebugScreen': {DebugScreen: nil},
+    './screens/DiagnosticLogScreen': {DiagnosticLogScreen: nil},
     './observe': {ObserveRoot: {wrap: component => component}, ObserveNavigationContainer: ObservationNavigationContainer},
   });
   navigationRef = exportedRef;

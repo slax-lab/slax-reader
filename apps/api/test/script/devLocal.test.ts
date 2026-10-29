@@ -38,6 +38,16 @@ function fixture() {
 }
 
 describe('explicit isolated local Worker launcher', () => {
+  test('diagnostic fixture requires explicit opt in and cannot select arbitrary entrypoints', () => {
+    const f = fixture()
+    const main = relative(f.workspace, resolve(ROOT, 'apps/api/test/runtime/diagnosticWorker.ts'))
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, main }))
+    expect(() => localDevOptions(f.args)).toThrow('actual Edge/Core entrypoints')
+    vi.stubEnv('SLAX_API_DIAGNOSTIC_HTTP_FIXTURE', '1')
+    expect(localDevOptions(f.args).args).toContain('--local')
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, main: 'arbitrary.ts' }))
+    expect(() => localDevOptions(f.args)).toThrow('actual Edge/Core entrypoints')
+  })
   test('requires all inputs and never defaults to production-capable dev configs', () => {
     expect(() => localDevOptions([])).toThrow('All four explicit')
     expect(() => localDevOptions(['--remote', 'true'])).toThrow('Usage')

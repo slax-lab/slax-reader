@@ -14,7 +14,8 @@ export const rateLimit = async (request: Request, ctx: ContextManager) => {
 
   const pathname = new URL(request.url).pathname
   const method = request.method.toUpperCase()
-  if (!rateLimitedRoutes.some(route => route.path === pathname && route.method === method)) return
+  const diagnosticUpload = pathname === '/v1/user/report' && method === 'POST' && /^multipart\/form-data(?:;|$)/i.test(request.headers.get('content-type') || '')
+  if (!diagnosticUpload && !rateLimitedRoutes.some(route => route.path === pathname && route.method === method)) return
 
   const limiter = ctx.env.BOOKMARK_ADD_RATE_LIMITER
   if (!limiter) {
@@ -23,12 +24,13 @@ export const rateLimit = async (request: Request, ctx: ContextManager) => {
   }
 
   const userId = ctx.getUserId()
-  const key = userId > 0 ? `uid:${userId}` : `ip:${request.headers.get('CF-Connecting-IP') ?? 'unknown'}`
+  const identity = userId > 0 ? `uid:${userId}` : `ip:${request.headers.get('CF-Connecting-IP') ?? 'unknown'}`
+  const key = diagnosticUpload ? `diagnostic:${identity}` : identity
 
   const { success } = await limiter.limit({ key })
   if (!success) {
     console.log(`rate limit exceeded: ${key} ${method} ${pathname}`)
-    if (userId > 0 && typeof ctx.execution?.waitUntil === 'function') {
+    if (!diagnosticUpload && userId > 0 && typeof ctx.execution?.waitUntil === 'function') {
       const context = captureEventContext(ctx, request)
       ctx.execution.waitUntil(
         (async () => {

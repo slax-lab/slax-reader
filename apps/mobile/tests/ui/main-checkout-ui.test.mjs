@@ -17,7 +17,7 @@ test('startup renders only the default surface until the current account is read
     './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': {mobileColors, mobileLayout, mobileTypography}, './telemetry': {useTelemetry: () => ({identify() {}})}, './components/SourceLine': {SourceLine: nil},
     './screens/AppRecoveryScreen': {AppRecoveryScreen: nil}, './navigation/reader-route': {readerScreenOptions: () => ({}), useReaderPrewarm() {}},
   };
-  for (const name of ['Login','Library','Reader','Settings','About','Feedback','DeleteAccount','Subscription','Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
+  for (const name of ['Login','Library','Reader','Settings','About','Feedback','DeleteAccount','Subscription','Debug','DiagnosticLog']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
   const {ApplicationRoutes} = await loadComponent('../../src/App.tsx', boundaries);
   const render = () => host.render(React.createElement(ApplicationRoutes));
   await render();

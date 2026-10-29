@@ -51,8 +51,9 @@ async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'ol
     './preferences.ts': {PreferenceStore, PREFERENCE_KEYS}, './repositories.ts': {MobileRepositories: class {constructor(lease) {this.lease = lease;}}},
     './schema.ts': {createMobileSchema: async () => ({}), SYNC_PARAMETERS: {}}, './upgrade.ts': {UpgradeVerificationRequired}, '@powersync/react-native': {PowerSyncDatabase: Database},
   }, {Error});
-  const runtime = createMobileDataRuntime({baseUrl: 'https://api.example', platform: 'ios', version: 'test', fetch});
-  return {runtime, sent, events, storage, worker: () => workers.at(-1), setActivationFailure: error => {activationFailure = error;}, setMigrationFailure: error => {migrationFailure = error;}, setCleanupFailure: error => {cleanupFailure = error;}, get pending() {return pending;}, get clears() {return clears;}};
+  const diagnostics = [];
+  const runtime = createMobileDataRuntime({baseUrl: 'https://api.example', platform: 'ios', version: 'test', fetch, diagnostics: {sink: {record(event, fields) {diagnostics.push({event, fields});}}, storage: null, flush: async () => {}, start: () => () => {}}});
+  return {runtime, diagnostics, sent, events, storage, worker: () => workers.at(-1), setActivationFailure: error => {activationFailure = error;}, setMigrationFailure: error => {migrationFailure = error;}, setCleanupFailure: error => {cleanupFailure = error;}, get pending() {return pending;}, get clears() {return clears;}};
 }
 
 test('cold startup publishes local account and verified data without awaiting protected network readiness', async context => {
@@ -96,6 +97,9 @@ test('cold startup network failure retains local account, pending writes and ret
 test('refresh 401 with a waiting cache worker requires reauthentication without clearing or deadlocking', {timeout: 5000}, async context => {
   const f = await fixture(async () => new Response(null, {status: 401})); context.after(() => f.runtime.stop());
   await f.runtime.start(); await until(() => f.runtime.credentials.getSnapshot().status === 'reauthentication-required');
+  assert.deepEqual(f.diagnostics.map(record => record.event), ['app.launch', 'auth.refresh_failed', 'auth.reauth_required']);
+  assert.equal(f.diagnostics[2].fields.http.path, '/v1/user/refresh');
+  assert.equal(f.diagnostics[2].fields.http.status, 401);
   assert.equal(f.runtime.sessions.getSnapshot().status, 'authenticated');
   assert.equal(f.storage.values.auth_token, 'old-token'); assert.equal(f.events.includes('connect'), false);
   assert.equal(f.pending, 3); assert.equal(f.clears, 0); assert(f.runtime.getRepositories());
@@ -153,6 +157,7 @@ test('same runtime stop and start reconnects with a fresh main token without for
   await f.runtime.start(); f.runtime.markLibraryPresented(); await until(() => f.events.filter(value => value === 'connect').length === 1);
   await f.runtime.stop(); await f.runtime.start(); f.runtime.markLibraryPresented(); await until(() => f.events.filter(value => value === 'connect').length === 2);
   assert.equal(f.pending, 3); assert.equal(f.clears, 0);
+  assert.deepEqual(f.diagnostics.map(record => record.event), ['app.launch']);
 });
 
 test('login during deferred database admission publishes local account but exposes no unverified services', {timeout: 5000}, async context => {

@@ -71,6 +71,10 @@
     "./pdf": {
       "types": "./src/pdf.ts",
       "default": "./src/pdf.ts"
+    },
+    "./feedback": {
+      "types": "./src/feedback.ts",
+      "default": "./src/feedback.ts"
     }
   },
   "scripts": {

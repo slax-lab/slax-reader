@@ -60,7 +60,12 @@ describe('Worker types security', () => {
       return { status: 0 }
     }) as typeof spawnSync)
     generateWorkerTypes(root, path.join(root, 'config/prod.toml'))
-    expect(fs.readFileSync(path.join(root, 'worker-configuration.d.ts'), 'utf8')).toBe(env + '// Begin runtime types\nnew runtime')
+    const generated = fs.readFileSync(path.join(root, 'worker-configuration.d.ts'), 'utf8')
+    expect(generated).toContain('API_KEY: string; OPTIONAL_SECRET?: string')
+    expect(generated).toContain('DIAGNOSTICS?: R2Bucket')
+    expect(generated).toContain('DIAGNOSTIC_DOWNLOAD_SECRET?: string')
+    expect(generated).not.toContain('fixture-secret')
+    expect(generated).toBe(environmentTypes(generated) + '// Begin runtime types\nnew runtime')
     expect(fs.readdirSync(root).sort()).toEqual(['config', 'worker-configuration.d.ts'])
   })
 

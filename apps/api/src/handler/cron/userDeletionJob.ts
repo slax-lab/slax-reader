@@ -30,7 +30,7 @@ export class UserDeletionJob {
         if (await ctx.env.KV.get(marker)) continue
         const server = ctx.env.WEBSOCKET_SERVER.get(ctx.env.WEBSOCKET_SERVER.idFromName('global'))
         await server.revokeUser(user.id)
-        await this.deletion.cleanupUserData(user.id)
+        await this.deletion.cleanupUserData(user.id, ctx.env)
         await ctx.env.KV.put(marker, '1', { expirationTtl: 31 * 24 * 60 * 60 })
       } catch {
         console.error('User deletion recovery failed', { userId: user.id })
