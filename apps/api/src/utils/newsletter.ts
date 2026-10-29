@@ -1,23 +1,13 @@
 import PostalMime from 'postal-mime'
 import { Buffer } from 'node:buffer'
-import type { NewsletterErrorCode } from '@slax-reader/contracts'
 import { DOMParser } from 'linkedom'
 import { sanitizeFeedHtml } from '@/domain/rss/feed'
 import { hashSHA256 } from '@/utils/strings'
 
-export const NEWSLETTER_LIMITS = {
-  rawBytes: 5 * 1024 * 1024,
-  sources: 200,
-  daily: 200
-} as const
-export class NewsletterError extends Error {
-  constructor(
-    public code: NewsletterErrorCode,
-    public status = 400
-  ) {
-    super(code)
-  }
-}
+import { NEWSLETTER_LIMITS, NewsletterError, readNewsletterMime, type NewsletterMessageInput, type NewsletterMimeInput } from './newsletterMime'
+import type { NewsletterTiming } from './newsletterTiming'
+export { NEWSLETTER_LIMITS, NewsletterError } from './newsletterMime'
+
 export interface NewsletterConfig {
   NEWSLETTER_DOMAIN?: string
 }
@@ -33,33 +23,6 @@ export const newsletterDomain = (value: string): string | null =>
   value.length <= 253 && /^(?:[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?\.)+[a-z](?:[a-z\d-]{0,61}[a-z\d])?$/i.test(value) ? value.toLowerCase() : null
 export const configuredNewsletterDomain = (env: NewsletterConfig): string | null => newsletterDomain(env.NEWSLETTER_DOMAIN || '')
 
-export async function readNewsletterRaw(message: { rawSize: number; raw: ReadableStream<Uint8Array> }): Promise<Uint8Array> {
-  if (!Number.isFinite(message.rawSize) || message.rawSize < 0 || message.rawSize > NEWSLETTER_LIMITS.rawBytes) throw new NewsletterError('invalid_message', 413)
-  const reader = message.raw.getReader(),
-    chunks: Uint8Array[] = []
-  let size = 0
-  try {
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) break
-      size += value.byteLength
-      if (size > NEWSLETTER_LIMITS.rawBytes) {
-        await reader.cancel()
-        throw new NewsletterError('invalid_message', 413)
-      }
-      chunks.push(value)
-    }
-  } finally {
-    reader.releaseLock()
-  }
-  const raw = new Uint8Array(size)
-  let offset = 0
-  for (const chunk of chunks) {
-    raw.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return raw
-}
 const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const label = (text: string | undefined, fallback: string) =>
   text
@@ -97,14 +60,28 @@ function sanitizeMailHtml(html: string) {
     }
   return sanitizeFeedHtml(doc.body.innerHTML, 'https://rss.invalid/')
 }
-export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter> {
-  if (!raw.byteLength || raw.byteLength > NEWSLETTER_LIMITS.rawBytes) throw new NewsletterError('invalid_message', 413)
+export function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter> {
+  return parseNewsletterStream({
+    rawSize: raw.byteLength,
+    raw: new ReadableStream({
+      start(controller) {
+        controller.enqueue(raw)
+        controller.close()
+      }
+    })
+  })
+}
+export async function parseNewsletterStream(message: NewsletterMessageInput, timing?: NewsletterTiming): Promise<ParsedNewsletter> {
+  const input = timing ? await timing.measure('read', () => readNewsletterMime(message)) : await readNewsletterMime(message)
+  return timing ? timing.measure('parse', () => renderNewsletter(input)) : renderNewsletter(input)
+}
+async function renderNewsletter(input: NewsletterMimeInput): Promise<ParsedNewsletter> {
   let mail
   try {
-    mail = await PostalMime.parse(raw, {
-      maxNestingDepth: 32,
-      maxHeadersSize: 64 * 1024,
-      maxPartCount: 200,
+    mail = await PostalMime.parse(input.mime, {
+      maxNestingDepth: NEWSLETTER_LIMITS.depth,
+      maxHeadersSize: NEWSLETTER_LIMITS.headerBytes + NEWSLETTER_LIMITS.parts * 128,
+      maxPartCount: NEWSLETTER_LIMITS.parts,
       maxRfc822NestingDepth: 0,
       maxForwardedAddresses: 100,
       forceRfc822Attachments: true
@@ -115,15 +92,16 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
   const sender = mail.from?.address?.trim().toLowerCase() || ''
   if (!/^[^\s<>@\u0000-\u001f]+@[^\s<>@\u0000-\u001f]+\.[^\s<>@\u0000-\u001f]+$/.test(sender) || sender.length > 254) throw new NewsletterError('invalid_message')
   const body = mail.html || (mail.text ? '<pre>' + escape(mail.text) + '</pre>' : '')
-  const allAttachments = mail.attachments.map(item => ({
+  const allAttachments = input.attachments.map(item => ({
     filename: label(item.filename?.replace(/[\\/]/g, '_'), 'Unnamed attachment'),
     mimeType: label(item.mimeType, 'application/octet-stream'),
-    size: typeof item.content === 'string' ? new TextEncoder().encode(item.content).byteLength : item.content.byteLength
+    size: item.size
   }))
   if (!body && !allAttachments.length) throw new NewsletterError('invalid_message')
   // Email has no trustworthy document base. Remove references that RSS would resolve against its synthetic base.
-  const doc = new DOMParser().parseFromString('<html><body>' + body.slice(0, 512 * 1024) + '</body></html>', 'text/html') as unknown as Document
-  let removedTrackingImages = 0
+  const doc = new DOMParser().parseFromString('<html><body>' + body.slice(0, NEWSLETTER_LIMITS.bodyCharacters) + '</body></html>', 'text/html') as unknown as Document
+  let removedTrackingImages = 0,
+    cidTruncated = false
   for (const node of doc.querySelectorAll('img')) {
     const style = (node.getAttribute('style') || '').toLowerCase().replace(/\s+/g, '')
     const dimension = (name: string) => node.getAttribute(name) || style.match(new RegExp('(?:^|;)' + name + ':([0-9.]+)(?:px)?(?:;|$)'))?.[1]
@@ -160,8 +138,13 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
       image.removeAttribute('src')
       continue
     }
-    const index = mail.attachments.findIndex(item => item.contentId?.replace(/^<|>$/g, '') === cid)
-    const attachment = mail.attachments[index]
+    if (input.omittedCids.has(cid)) {
+      image.removeAttribute('src')
+      cidTruncated = true
+      continue
+    }
+    const index = input.attachments.findIndex(item => item.contentId === cid)
+    const attachment = mail.attachments.find(item => item.contentId?.replace(/^<|>$/g, '') === cid)
     if (!attachment || !/^image\/(?:png|jpeg|gif|webp|avif)$/i.test(attachment.mimeType)) {
       image.removeAttribute('src')
       continue
@@ -185,18 +168,16 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
       attachments.map(item => '<li>' + escape(item.filename) + ' (' + escape(item.mimeType) + ', ' + item.size + ' bytes)</li>').join('') +
       '</ul></section>'
     : ''
-  const clean = sanitizeFeedHtml(full.html + attachmentHtml, 'https://rss.invalid/')
-  const attachmentIdentity = await Promise.all(
-    mail.attachments.map(async (item, index) => [allAttachments[index], await hashSHA256(typeof item.content === 'string' ? item.content : new Uint8Array(item.content))])
-  )
-  const rendered = new DOMParser().parseFromString('<html><body>' + clean.html + '</body></html>', 'text/html') as unknown as Document
+  const clean = sanitizeFeedHtml(full.html, 'https://rss.invalid/')
+  // Attachment metadata remains visible even when the body reaches its render limit.
+  const rendered = new DOMParser().parseFromString('<html><body>' + clean.html + attachmentHtml + '</body></html>', 'text/html') as unknown as Document
   let embeddedBytes = 0,
     inlineTruncated = false
   for (const image of rendered.querySelectorAll('img')) {
     const data = inline.get(image.getAttribute('src') || '')
     if (!data) continue
     // Each reference duplicates its encoded bytes in HTML; cap expansion independently of text.
-    if (embeddedBytes + data.length > NEWSLETTER_LIMITS.rawBytes) {
+    if (embeddedBytes + data.length > NEWSLETTER_LIMITS.embeddedCharacters) {
       image.remove()
       inlineTruncated = true
       continue
@@ -205,7 +186,7 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
     embeddedBytes += data.length
   }
   const id = mail.messageId?.trim()
-  const messageKey = await hashSHA256(id ? 'id:' + id : 'body:' + JSON.stringify([sender, mail.subject || '', mail.date || '', mail.html || mail.text || '', attachmentIdentity]))
+  const messageKey = id ? await hashSHA256('id:' + id) : input.rawHash
   const date = mail.date ? new Date(mail.date) : null
   return {
     attachments,
@@ -216,7 +197,7 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
     messageKey,
     html: rendered.body.innerHTML,
     excerpt: clean.text.slice(0, 500),
-    truncated: full.truncated || clean.truncated || inlineTruncated || body.length > 512 * 1024,
+    truncated: input.truncated || cidTruncated || full.truncated || clean.truncated || inlineTruncated || body.length > NEWSLETTER_LIMITS.bodyCharacters,
     publishedAt: date && Number.isFinite(date.valueOf()) && date.valueOf() <= Date.now() + 24 * 3600_000 ? date : null
   }
 }

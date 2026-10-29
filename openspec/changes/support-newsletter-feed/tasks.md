@@ -42,7 +42,7 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 - [x] 6q. Preserve successful receive and original failures through cleanup; add actual-handler regressions and quiet cleanup diagnostics.
 - [x] 6r. Unify Web original-navigation policy with Mobile, keeping internal Reader navigation and all source labels; prove affected controls.
 - [x] 6s. Move the mixed comparator to Feed and share literal local/server order/keyset fixtures without RSS or local-first changes.
-- [ ] 6t. Prove splitter compatibility in workerd, implement bounded streamed MIME with ordinary attachment discard and full-input identity, and exercise large/CID/failed inputs.
+- [x] 6t. Prove splitter compatibility in workerd, implement bounded streamed MIME with ordinary attachment discard and full-input identity, and exercise large/CID/failed inputs.
 - [ ] 6u. Complete full checks, actual runtime and independent review, update pilot guidance, and start local API/Web for renewed human acceptance.
 - [ ] 6v. Record renewed human acceptance and update original PR with verified commits and CI; do not deploy.
 

@@ -14,6 +14,7 @@
     "@slax-lab/readability": "^0.6.5",
     "@slax-reader/contracts": "workspace:*",
     "@upstash/redis": "^1.38.0",
+    "@zone-eu/mailsplit": "5.4.29",
     "agents": "^0.17.3",
     "approx-string-match": "^2.0.0",
     "date-fns": "^3.6.0",

@@ -4,7 +4,7 @@ import { NewsletterRepo, type NewsletterAddressStatus } from '@/infra/repository
 import { NewsletterContent } from '@/domain/newsletterContent'
 import { ContextManager } from '@/utils/context'
 import { hashSHA256 } from '@/utils/strings'
-import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError, parseNewsletter, readNewsletterRaw } from '@/utils/newsletter'
+import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError, parseNewsletterStream } from '@/utils/newsletter'
 
 @injectable()
 export class NewsletterService {
@@ -28,8 +28,7 @@ export class NewsletterService {
     if (!domain || at < 1 || message.to.slice(at + 1).toLowerCase() !== domain || !part) throw new NewsletterError('not_found', 404)
     const recipient = await timing.measure('recipient', () => this.repo.recipient(domain, part))
     if (!recipient) throw new NewsletterError('not_found', 404)
-    const raw = await timing.measure('read', () => readNewsletterRaw(message)),
-      parsed = await timing.measure('parse', () => parseNewsletter(raw))
+    const parsed = await parseNewsletterStream(message, timing)
     const source = await hashSHA256(recipient.uuid + '\n' + parsed.sender)
     const { mail } = await timing.measure('admit', () => this.repo.admit(recipient, source, parsed.messageKey, parsed.sender))
     if (mail.state !== 'pending') {

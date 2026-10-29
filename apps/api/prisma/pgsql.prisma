@@ -902,7 +902,7 @@ model sr_newsletter_feed {
     sender            String
     /// 安全处理后的 From 显示名称，缺失时用发件邮箱；用于 Feed 来源名称、预览发件人及 Inbox Source 模块的名称，不参与权限判断。
     sender_name       String    @default("")
-    /// 由 Message-ID 或确定性的 MIME/正文/附件标识计算的 SHA-256；与 user_id、source_key 组成去重键，避免重复投递生成多条邮件记录。
+    /// 有 Message-ID 时计算其 SHA-256，否则对完整原始邮件字节（含丢弃的附件）流式计算 SHA-256；与 user_id、source_key 组成去重键，完全相同的投递不会重复入库。
     message_key       String
     /// 收件时为 pending，正文发布后为 ready，撤销收件资格时为 cancelled；用于阻止未完成邮件进入 Feed/Inbox，以及关闭后重新开启时的迟到发布，不用于定时恢复。
     state             String    @default("pending")

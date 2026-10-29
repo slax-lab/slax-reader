@@ -454,6 +454,8 @@ async function main() {
       '--mailpart\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">\r\n' +
       '--mailpart\r\nContent-Type: image/png\r\nContent-ID: <part>\r\nContent-Transfer-Encoding: base64\r\n\r\n' +
       inlineImage +
+      '\r\n--mailpart\r\nContent-Type: application/pdf\r\nContent-Disposition: attachment; filename="large.pdf"\r\nContent-Transfer-Encoding: base64\r\n\r\n' +
+      Buffer.alloc(8 * 1024 * 1024, 65).toString('base64') +
       '\r\n--mailpart--'
 
     for (let repeat = 0; repeat < 2; repeat++) {
@@ -498,6 +500,8 @@ async function main() {
     assert.ok(detail.body.data.content_html.includes('Runtime newsletter body'))
     assert.ok(!/script|cid:/.test(detail.body.data.content_html))
     assert.ok(detail.body.data.content_html.includes('data:image/png;base64,' + inlineImage))
+    assert.ok(detail.body.data.content_html.includes('large.pdf'))
+    assert.ok(detail.body.data.content_html.length < 5000, 'Ordinary attachment bytes must not enter the stored Feed body')
     assert.ok(workerLog.includes('newsletter.receive') && workerLog.includes('total_ms') && workerLog.includes('cleanup'))
     const subscriptions = await request('newsletter-sources', '/v1/feed/subscriptions', { headers: mailHeaders })
     assert.equal(subscriptions.body.data.items[0].kind, 'newsletter')
@@ -664,6 +668,8 @@ async function main() {
     const copiedBody = await afterDisable.text()
     assert.ok(copiedBody.includes('Runtime newsletter body'))
     assert.ok(copiedBody.includes('data:image/png;base64,' + inlineImage))
+    assert.ok(copiedBody.includes('large.pdf') && copiedBody.length < 10000, 'The independent Inbox body keeps metadata, not the discarded PDF')
+    evidence.newsletterLargeAttachment = '8 MiB PDF drained by actual Edge handler; CLI repeated delivery deduplicates; Feed and independent Inbox contain name only'
     evidence.newsletterCid = 'actual local email MIME Content-ID -> embedded PNG in authenticated Feed and independent Inbox copy'
     const timingSamples = workerLog
       .split('newsletter.receive')

@@ -16,6 +16,14 @@ export class NewsletterTiming {
   }
   log() {
     const total = Math.round(performance.now() - this.startedAt)
-    console.info('newsletter.receive', { event_id: this.eventId, bytes: this.bytes, outcome: this.outcome, cleanup_failed: this.cleanupFailed, phases_ms: this.phases, total_ms: total, slow: total > 5000 })
+    console.info('newsletter.receive', {
+      event_id: this.eventId,
+      bytes: this.bytes,
+      outcome: this.outcome,
+      cleanup_failed: this.cleanupFailed,
+      phases_ms: this.phases,
+      total_ms: total,
+      slow: total > 5000
+    })
   }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { parseNewsletter, readNewsletterRaw, newsletterLocalPart, newsletterDomain } from '@/utils/newsletter'
+import { readNewsletterMime } from '@/utils/newsletterMime'
+import { parseNewsletter, newsletterLocalPart, newsletterDomain } from '@/utils/newsletter'
 
 const mail = (body: string, headers = '') =>
   new TextEncoder().encode(
@@ -45,13 +46,13 @@ describe('bounded Newsletter input', () => {
       new ReadableStream<Uint8Array>({
         pull(c) {
           pulls++
-          c.enqueue(new Uint8Array(3 * 1024 * 1024))
+          c.enqueue(new Uint8Array(9 * 1024 * 1024))
           if (pulls > 3) c.close()
         }
       })
-    await expect(readNewsletterRaw({ rawSize: 6 * 1024 * 1024, raw: stream() })).rejects.toMatchObject({ code: 'invalid_message' })
+    await expect(readNewsletterMime({ rawSize: 26 * 1024 * 1024, raw: stream() })).rejects.toMatchObject({ code: 'invalid_message' })
     const previous = pulls
-    await expect(readNewsletterRaw({ rawSize: 1, raw: stream() })).rejects.toMatchObject({ code: 'invalid_message' })
+    await expect(readNewsletterMime({ rawSize: 1, raw: stream() })).rejects.toMatchObject({ code: 'invalid_message' })
     expect(pulls).toBeGreaterThan(previous)
   })
   test('rejects absent sender and excessive MIME part count', async () => {
@@ -225,4 +226,18 @@ test('bounds repeated CID expansion without cutting base64 or losing surrounding
   expect(parsed.truncated).toBe(true)
   expect(parsed.html).toContain('After image')
   expect(parsed.html.includes('src="data:image/png;base64,' + image + '"')).toBe(true)
+})
+
+test('receives a small body with an eight MiB ordinary attachment without retaining its binary', async () => {
+  const raw = mail(
+    '--b\r\nContent-Type: text/html\r\n\r\n<p>Large attachment mail</p>\r\n--b\r\nContent-Type: application/pdf\r\nContent-Disposition: attachment; filename="large.pdf"\r\n\r\n' +
+      'x'.repeat(8 * 1024 * 1024) +
+      '\r\n--b--\r\n',
+    'Content-Type: multipart/mixed; boundary=b\r\n'
+  )
+  const parsed = await parseNewsletter(raw)
+  expect(parsed.html).toContain('Large attachment mail')
+  expect(parsed.html).toContain('large.pdf')
+  expect(parsed.html.length).toBeLessThan(5000)
+  expect(parsed.attachments).toEqual([{ filename: 'large.pdf', mimeType: 'application/pdf', size: 8 * 1024 * 1024 }])
 })
