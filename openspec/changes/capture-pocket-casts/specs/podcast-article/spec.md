@@ -34,4 +34,4 @@ An owner SHALL be able to save an existing Pocket Casts source URL again to requ
 
 #### Scenario: Existing annotated page
 - **WHEN** a Pocket Casts recapture finds highlights or comments on the existing body
-- **THEN** capture fails without replacing the body or deleting annotations
+- **THEN** capture ends without a page fetch, keeps the body and annotations, and leaves the bookmark readable

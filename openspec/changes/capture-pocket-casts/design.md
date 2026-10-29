@@ -14,7 +14,7 @@ Use the existing source parser, browser-fetch fallback, episode identity, and tr
 - Reuse the rendered page fetch used for Xiaoyuzhou. Parse a download anchor, metadata, show title, duration, and episode notes through the installed DOM parser.
 - Screen extracted media URLs through the existing outbound URL policy. Only typed timed transcript links enter the transcript list.
 - Reuse the existing owner URL-save request for recovery. This preserves the bookmark identity and existing admission controls.
-- Check annotations before replacing a Pocket Casts body. Reject annotated recapture rather than invalidating annotation anchors.
+- Check annotations before fetching a Pocket Casts page. An annotated recapture keeps the current body and ends as success, rather than invalidating annotation anchors or marking the bookmark failed.
 - Keep source identity based on the audio URL, so short and canonical links share transcription work.
 
 ## Risks / Trade-offs

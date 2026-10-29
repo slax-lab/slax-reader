@@ -262,14 +262,22 @@ describe('Pocket Casts capture and recovery', () => {
     }
   })
 
-  test('does not replace an annotated Pocket Casts body', async () => {
-    const { svc, putIfKeyExists, episodes } = wire()
-    const ctx = createMockCtx()
-    vi.spyOn(svc, 'fetchPodcastPage').mockResolvedValue({ content: fixture('20261027-pocket-casts.html'), url })
-    ;(svc as any).markRepo.bodyHasMarks.mockResolvedValue(true)
-    const info = await svc.fetchPodcastData(url, ctx)
-    await expect(svc.parseAndSavePodcast(ctx, info!, 42, 'existing-uuid')).rejects.toThrow('annotated')
-    expect(episodes.upsertFromInfo).not.toHaveBeenCalled()
-    expect(putIfKeyExists).not.toHaveBeenCalled()
+  test('keepsAnnotatedBody: only a bookmark with a body and marks keeps it', async () => {
+    const { svc, br } = wire()
+    const ctx = createMockCtx({ userId: 5 })
+    const marks = (svc as any).markRepo.bodyHasMarks
+    marks.mockResolvedValue(true)
+
+    // First capture: no body yet, so there is nothing to protect and marks are not consulted
+    br.getBookmarkById.mockResolvedValue({ id: 42, content_key: '' })
+    expect(await svc.keepsAnnotatedBody(ctx, 42)).toBe(false)
+    expect(marks).not.toHaveBeenCalled()
+
+    br.getBookmarkById.mockResolvedValue({ id: 42, content_key: 'html/body/existing-uuid.html' })
+    expect(await svc.keepsAnnotatedBody(ctx, 42)).toBe(true)
+    expect(marks).toHaveBeenCalledWith(42, 5)
+
+    marks.mockResolvedValue(false)
+    expect(await svc.keepsAnnotatedBody(ctx, 42)).toBe(false)
   })
 })
