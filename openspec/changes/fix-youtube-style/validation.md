@@ -4,7 +4,9 @@
 
 Branch: `feat/fix-youtube-style`, based on `origin/dev` at `30feba75`. Only edited YouTube Web body presentation changes. The player sizing, sidebar, API, original captions, podcast source, manifests, and dependencies are unchanged. No CLI, Extension, or Mobile package/output is affected, so no packaged-app version decision is required.
 
-The user supplied the desired expanded-article screenshots, rejected an earlier spacing-only preview, then reviewed the revised live-browser preview with chapter times and no paragraph playback indicators. The user explicitly requested this branch, a PR, and cleanup afterward. This authorizes the PR handoff, not merge/deployment. It does not establish hands-on acceptance of the final source implementation; the PR remains draft pending that acceptance.
+The user supplied the desired expanded-article screenshots, rejected an earlier spacing-only preview, and later inspected and accepted the implemented YouTube body in the local Chrome preview. They reconfirmed that UI acceptance in the task conversation on 2026-10-29 after the latest automated review. PR #441 is currently open and non-draft. No merge or deployment is authorized.
+
+Chronology is explicit: PR #441 was created on 2026-10-29 at 08:19:31 UTC, before final-source hands-on acceptance. The review submitted at 09:39:18 UTC acknowledges the acceptance but flags that ordering under `DESIGN.md` section 10.2 and `REVIEW.md`. Acceptance is not backdated; the user's confirmation that the UI is correct does not by itself waive the pre-PR process requirement. The outstanding ordering finding requires a maintainer decision. This correction removes stale draft/pending-status statements without changing repository policy or asserting that the review gate is cleared.
 
 ## Automated checks
 
@@ -52,15 +54,15 @@ The actual Nuxt app ran from this worktree on `http://localhost:3217`. Playwrigh
 
 Before screenshots: unmodified live `.dev` page in Chrome, light mode, 1920×900 and 375×900. After screenshots: the final source in the complete local Nuxt app, the same public article, matching viewport/theme, with no preview CSS injection. Three focused groups show desktop reading, desktop contents, and mobile reading. The body crops exclude unrelated shell/side-panel details; the local shell locale differs from the live baseline and is not part of this change. Images are attached to the PR, never committed.
 
-Final-source desktop/mobile screenshots were shown in the task conversation. The requesting user has not separately confirmed hands-on acceptance of that final source. The user's explicit instruction to open the PR is recorded as a review-before-final-acceptance instruction, not fabricated acceptance. Keep the PR draft and leave the acceptance task unchecked until confirmed.
+Final-source desktop/mobile screenshots were shown in the task conversation, and the requesting user subsequently exercised the local Chrome preview and accepted the YouTube body appearance. They reconfirmed UI acceptance on 2026-10-29 after the automated review. Scope: the edited YouTube body, chapter controls, and dedicated typography. The separately reported sidebar behavior and a new-bookmark backend flow are not included. The PR is not a draft. See the explicit chronology above: acceptance occurred after PR creation, so the pre-PR ordering finding remains for maintainer disposition rather than being represented as satisfied.
 
 ## Local pre-push review
 
 Change-id: `fix-youtube-style`. An independent read-only review and the coordinator's diff review applied all three `REVIEW.md` passes.
 
-- Bugs: no Important source findings. Chapter buttons are appended without replacing existing paragraph text/heading anchors. Cleanup restores original timestamp attributes and removes listeners/controls. Normal mounted/unmounted lifecycle is covered; the direct processor rebind unit case does not claim the whole pipeline reruns after replacing the player.
+- Bugs: no Important source findings. Chapter buttons are appended without replacing existing paragraph text/heading anchors. In the minimized implementation original timestamp attributes are unchanged; cleanup removes only generated buttons and their listeners.
 - Security: no Important findings. No dependency, credential access, dangerous HTML insertion, or new external data flow. Button labels use `textContent`; seek values are finite nonnegative numbers.
-- Compliance: source matches the revised reference and scoped delta. Validation is recorded here. Final-source human acceptance remains open and is explicitly deferred by the requested draft PR handoff, not marked complete.
+- Compliance: implementation matches the revised reference and scoped delta, with UI acceptance now recorded. The latest automated review still identifies the historical acceptance-after-PR ordering as Important. This remains unresolved pending a maintainer decision; neither editing this record nor requesting another review waives it.
 
 ## Delivery boundaries
 
