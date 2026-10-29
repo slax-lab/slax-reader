@@ -250,6 +250,18 @@ describe('Pocket Casts capture and recovery', () => {
     expect(putIfKeyExists.mock.calls.some(call => String(call[1]).includes('slax-media'))).toBe(true)
   })
 
+  test('a resolved page URL that is not an episode link is logged, then saved as a page', async () => {
+    const { svc } = wire()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      vi.spyOn(svc, 'fetchPodcastPage').mockResolvedValue({ content: fixture('20261027-pocket-casts.html'), url: 'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2' })
+      expect(await svc.fetchPodcastData(url, createMockCtx())).toBeNull()
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('not an episode link'))
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
   test('does not replace an annotated Pocket Casts body', async () => {
     const { svc, putIfKeyExists, episodes } = wire()
     const ctx = createMockCtx()

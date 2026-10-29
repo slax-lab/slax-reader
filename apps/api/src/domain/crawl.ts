@@ -735,7 +735,12 @@ export class CrawlService {
     }
     if (kind === 'pocketcasts') {
       const page = await pageFetcher()
-      return parsePocketCastsPage(page.url, page.content)
+      const info = parsePocketCastsPage(page.url, page.content)
+      if (!info) {
+        const reason = classifyPodcastUrl(page.url) === 'pocketcasts' ? 'has no safe episode audio' : `resolved to ${page.url}, which is not an episode link`
+        console.warn(`Pocket Casts page ${url} ${reason}; saving as a page`)
+      }
+      return info
     }
     if (kind === 'apple') {
       const ids = parseAppleUrl(url)

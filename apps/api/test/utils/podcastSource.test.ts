@@ -271,4 +271,33 @@ describe('Pocket Casts', () => {
   test('missing audio remains a normal page', () => {
     expect(parsePocketCastsPage(short, '<html><h1>Episode</h1></html>')).toBeNull()
   })
+
+  test('reads the captured rendered page, so markup drift fails here first', () => {
+    const resolved = 'https://pocketcasts.com/podcast/%E9%AB%98%E8%83%BD%E9%87%8F/642bf450-e9fa-013a-da18-0acc26574db2/vol238/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+    const info = parsePocketCastsPage(resolved, fixture('20261027-pocket-casts-rendered.html'))!
+    expect(info).toMatchObject({
+      kind: 'pocketcasts',
+      audioUrl: 'https://dts-api.xiaoyuzhoufm.com/track/62c6ae08c4eaa82b112b9c84/6ad73cbbef67611cac7972a7/media.xyzcdn.net/62c6ae08c4eaa82b112b9c84/lptdvCfn8Elgq5cwD6ZgmqO5zmdS.m4a',
+      title: 'Vol.238 宏观漫谈112｜全球资本市场，集体“缺钱”？',
+      showName: '高能量',
+      coverUrl: 'https://static.pocketcasts.com/discover/images/webp/480/642bf450-e9fa-013a-da18-0acc26574db2.webp',
+      durationSec: 5160,
+      transcripts: []
+    })
+    expect(info.shownotes).toContain('【内容索引】')
+    expect(info.shownotes).not.toContain('<')
+  })
+
+  test('skips download anchors that are not audio, and rejected candidates fall through', () => {
+    const audio = '<a download href="https://media.example.com/episode.m4a">Download</a>'
+    const page = html().replace(audio, '<a download href="/transcript.pdf">PDF</a><a download href="http://127.0.0.1/first.m4a">LAN</a>' + audio)
+    expect(parsePocketCastsPage(short, page)!.audioUrl).toBe('https://media.example.com/episode.m4a')
+    expect(parsePocketCastsPage(short, html().replace(audio, '<a download href="/transcript.pdf">PDF</a>'))).toBeNull()
+  })
+
+  test('structured audio comes before download anchors; an unsafe one falls through', () => {
+    const og = (url: string) => html().replace('</head>', `<meta property="og:audio" content="${url}"></head>`)
+    expect(parsePocketCastsPage(short, og('https://cdn.example.com/structured.mp3'))!.audioUrl).toBe('https://cdn.example.com/structured.mp3')
+    expect(parsePocketCastsPage(short, og('https://user:pass@cdn.example.com/structured.mp3'))!.audioUrl).toBe('https://media.example.com/episode.m4a')
+  })
 })

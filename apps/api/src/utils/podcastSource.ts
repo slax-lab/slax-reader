@@ -88,8 +88,11 @@ export function parsePocketCastsPage(pageUrl: string, html: string): PodcastEpis
       return ''
     }
   }
-  const audio = doc.querySelector('a[download][href]')?.getAttribute('href') || doc.querySelector('audio[src], audio source[src]')?.getAttribute('src') || meta('og:audio')
-  const audioUrl = safeUrl(audio)
+  // Structured audio first. A download anchor counts only when it names an audio file: the page
+  // also offers other downloads. Each candidate is screened in turn, so a rejected one falls through.
+  const structured = [meta('og:audio'), doc.querySelector('audio[src], audio source[src]')?.getAttribute('src')].map(safeUrl)
+  const downloads = [...doc.querySelectorAll('a[download][href]')].map(a => safeUrl(a.getAttribute('href'))).filter(url => url && AUDIO_EXT_RE.test(new URL(url).pathname))
+  const audioUrl = [...structured, ...downloads].find(Boolean) ?? ''
   if (!audioUrl) return null
   const info = emptyInfo('pocketcasts', pageUrl)
   info.audioUrl = audioUrl
