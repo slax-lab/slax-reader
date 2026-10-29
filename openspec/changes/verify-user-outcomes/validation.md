@@ -42,3 +42,15 @@ Archive remains pending until this PR merges.
 
 PR #409 targets `dev`. DGuang21 and Whyjsee received review requests.
 The PR explains the false completion claim from #405 and links both media repair PRs.
+
+## Review rework — 2026-10-29
+
+Alex Lee (boxcounter) requested changes: keep the three durable requirements and rework the incident-specific details into conditional operational guidance.
+
+- Delta spec: the independent read of a background result applies only when the requested outcome is a final user-visible state that a background process produces. The reader-role and real-or-substituted statements apply only when a screenshot or a shared-content read is presented as evidence. The incident wording left the scenarios.
+- `docs/DEFINITION-OF-DONE.md`: five durable bullets, three conditional bullets under "Apply when relevant", one example.
+- `REVIEW.md`: two bullets. The Important trigger carries the partial-result qualifier from the spec. The fixture-screenshot bullet and the transcript example were removed; the example lives in the procedure.
+- `.github/PULL_REQUEST_TEMPLATE.md`: the five-column table was replaced by one comment sentence.
+- `tasks.md`: task 6 records this rework.
+
+Checks: `openspec validate --all --strict` passed (79 items). `git diff --check` passed. n/a for running-application checks: documentation and template only.

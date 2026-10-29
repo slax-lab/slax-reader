@@ -7,10 +7,10 @@ The YouTube task required a readable generated article. Passing error-state test
 ## What Changes
 
 - Trace acceptance checks to the original user request and reported input.
-- Identify real and substituted dependencies in each evidence record.
-- Require terminal outcome evidence before claiming task completion.
+- Separate the requested outcome from component checks, and identify real and substituted dependencies in the evidence record.
 - Keep declared gaps valid for review, but never treat them as verified success.
-- Require reviewers to flag completion claims supported only by simulated intermediate states.
+- Require reviewers to flag completion claims that exceed the outcome evidence.
+- Keep the independent-read, reader-role, and substituted-screenshot checks as conditional guidance in the operational procedure, not as universal policy.
 
 ## Capabilities
 

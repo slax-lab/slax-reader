@@ -44,18 +44,28 @@ This document owns the operational evidence procedure. The normative requirement
 
 ## Requested outcome and completion claims
 
-- Start with the original user request and reported input. Include these checks beside the proposal and delta-spec checks.
-- Record any user instruction that reduces the immediate scope. Keep the remaining outcomes explicit.
-- Separate component checks from the requested outcome. Error recovery does not prove successful capture or article generation.
-- Record the environment, real dependencies, substituted dependencies, reader role, and observed result for each outcome.
-- Label each outcome `verified`, `partial`, or `unverified`. Explain each limit.
-- For asynchronous work, check the terminal result and read the saved output separately. Use the intended reader role for shared content.
-- Label fixture screenshots in the evidence record and attachment description. Do not present them as real service results.
-- A declared agent-verification gap can permit review under the existing rules. It does not prove success for that outcome.
-- Do not expand authorization to obtain evidence. State a gap when verification requires unavailable access or an unauthorized operation.
+- Start from the original user request and reported input. The proposal and delta-spec checks
+  come beside them, not instead of them.
+- Separate component checks from the requested outcome. Give each requested outcome one result:
+  `verified`, `partial`, or `unverified`, with its limits.
+- Name the dependencies that were real and the ones that were substituted (fixtures, stubs,
+  isolated stores).
+- Record a user instruction that narrows the immediate target. Keep the original outcome in the
+  record as a separate line.
+- A declared agent-verification gap keeps the change reviewable under the rules above. It does
+  not prove success for that outcome.
 
-Example: a visitor can read every saved transcript entry. That verifies transcript access. It does not verify AI article generation.
-A successful job without a readable saved article leaves the readable-article outcome partial.
+Apply when relevant, not as a fixed form:
+
+- When the requested outcome is a final user-visible state produced by a background process,
+  confirm that state through an independent read path, not only the process result.
+- When a screenshot or a read of shared content is the evidence, say whether the state shown is
+  real or substituted, and which reader role made the read.
+- Do not expand authorization to obtain evidence. Declare the gap instead.
+
+Example: a visitor can read every saved transcript entry. That verifies transcript access. It
+does not verify AI article generation. A finished job without a readable saved article leaves
+the readable-article outcome `partial`.
 
 ## Recording evidence
 

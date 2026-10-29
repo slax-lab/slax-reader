@@ -2,36 +2,35 @@
 
 ### Requirement: Completion evidence follows the requested outcome
 
-Verification SHALL cover the original user request and reported input, in addition to the proposal and delta-spec scenarios.
+Verification SHALL trace back to the original user request and reported input, in addition to the proposal and delta-spec scenarios.
 The record SHALL distinguish the requested outcome from narrower component checks.
-A scope reduction SHALL identify the user's instruction that authorizes it.
-The author SHALL NOT claim completion for an outcome supported only by fixtures, intermediate states, or a declared verification gap.
+A scope reduction SHALL identify the user instruction that authorizes it.
+The author SHALL NOT claim completion for an outcome supported only by component checks, intermediate states, or a declared verification gap.
 
-#### Scenario: Recovery controls pass while generation remains unverified
-- **WHEN** error and retry controls pass with simulated status responses
-- **THEN** the evidence verifies only those controls
-- **AND** the author does not claim that article generation succeeded
+#### Scenario: Component checks pass while the requested outcome remains unverified
+- **WHEN** component checks pass with substituted responses
+- **THEN** the evidence verifies only those components
+- **AND** the author does not claim the requested outcome succeeded
 
-#### Scenario: The user changes the immediate acceptance target
-- **WHEN** the user requests visitor transcript access as the immediate target
-- **THEN** the evidence records that instruction and checks transcript access with a visitor role
-- **AND** the record keeps generated article access separate
+#### Scenario: The user narrows the immediate target
+- **WHEN** the user names a narrower immediate target
+- **THEN** the evidence records that instruction and verifies the narrower target
+- **AND** the record keeps the original outcome separate
 
-### Requirement: Evidence states dependency and persistence boundaries
+### Requirement: Evidence separates outcome results from dependency substitutions
 
-Each requested outcome SHALL record its input, reader role where applicable, running environment, real dependencies, substituted dependencies, and observed result.
-Each outcome SHALL use a result of verified, partial, or unverified, with the limits stated.
-For asynchronous work, completion evidence SHALL include the terminal result and a separate read of the saved output.
-For shared output, that read SHALL use the intended reader role.
-Fixture screenshots SHALL be labeled as fixture evidence in the evidence record and attachment description.
+Each requested outcome SHALL carry one result of verified, partial, or unverified, with its limits stated.
+The record SHALL identify which dependencies were real and which were substituted.
+When the requested outcome is a final user-visible state that a background process produces, the evidence SHALL confirm that state through an independent read path, not only the process result.
+When the record presents a screenshot or a read of shared content as evidence, it SHALL state whether the state shown is real or substituted, and which reader role made the read.
 These requirements SHALL NOT authorize additional access, paid operations, or production changes.
 
-#### Scenario: A completed job has no readable saved result
-- **WHEN** a job finishes but the intended reader cannot retrieve its saved result
+#### Scenario: A completed process has no readable result
+- **WHEN** a background process finishes but the intended reader cannot retrieve its saved result
 - **THEN** the requested readable-output outcome remains partial or unverified
 
 #### Scenario: Real dependencies stop at an isolated store
-- **WHEN** real capture and generation write only to an isolated test store
+- **WHEN** real processing writes only to an isolated test store
 - **THEN** the record identifies that boundary and does not claim production publication
 
 #### Scenario: Verification requires unavailable authorization
@@ -45,10 +44,10 @@ A success claim supported only by a narrower check, an intermediate state, or a 
 An accurate partial result with a declared agent-verification gap SHALL retain the existing review treatment.
 This requirement SHALL NOT weaken human hands-on acceptance or release rules.
 
-#### Scenario: A fixture screenshot is presented as completed generation
-- **WHEN** the author claims successful generation using a screenshot of simulated preparing or error states
+#### Scenario: A substituted state is presented as the completed outcome
+- **WHEN** the author claims the requested outcome using evidence of a substituted or intermediate state
 - **THEN** the reviewer reports an Important Compliance finding
 
 #### Scenario: A partial result states its limits
-- **WHEN** the record verifies transcript access and explicitly leaves generated article access unverified
+- **WHEN** the record verifies one outcome and explicitly leaves another unverified with its reason
 - **THEN** the reviewer does not treat that accurate limitation as a false completion claim
