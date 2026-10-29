@@ -1,3 +1,5 @@
+import orderFixture from '../../../../../packages/contracts/test-fixtures/feed-order.json'
+import { compareFeedEntries } from '../../../app/utils/feed'
 import { computed, effectScope, ref } from 'vue'
 
 import { flushPromises } from '@vue/test-utils'
@@ -127,4 +129,14 @@ test('inactive queries expose neither cached presence nor source metadata', asyn
   active.value = false
   expect(newsletter.entries.value).toEqual([])
   expect(presence.value).toBe(false)
+})
+
+
+test('actual SQLite mail reads compose with the shared mixed ordering fixture', () => {
+  sqlite.exec('DELETE FROM sr_newsletter_feed')
+  const insert = sqlite.prepare('INSERT INTO sr_newsletter_feed VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+  for (const row of orderFixture.rows.filter(row => row.kind === 'newsletter')) insert.run(row.id.slice(11), 'sender', 'sender@example.com', 'Sender', row.id, '', row.published_at, row.sort_at)
+  const { newsletter } = create()
+  const rss = orderFixture.rows.filter(row => row.kind === 'rss').map(row => ({ ...newsletter.entries.value[0], ...row, kind: 'rss' as const, first_seen_at: row.sort_at }))
+  expect([...newsletter.entries.value, ...rss].sort(compareFeedEntries).map(row => row.id)).toEqual(orderFixture.expected)
 })

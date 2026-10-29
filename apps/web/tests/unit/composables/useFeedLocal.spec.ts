@@ -1,3 +1,4 @@
+import orderFixture from '../../../../../packages/contracts/test-fixtures/feed-order.json'
 import { computed, effectScope, reactive, type Ref, ref } from 'vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
@@ -597,4 +598,14 @@ test('retained Newsletter presence cannot provisionally enable the next account 
   await flushPromises()
   expect(feed.newsletterEnabled.value).toBe(false)
   expect(feed.subscriptions.value).toEqual([])
+})
+
+
+test('mixed local composition follows the shared literal server ordering examples', () => {
+  const feed = create()
+  seed()
+  tables.entries.value = orderFixture.rows.filter(row => row.kind === 'rss').map(row => ({ ...rss(row.id, 'rss-a', row.sort_at), published_at: row.published_at }))
+  tables.mail.value = orderFixture.rows.filter(row => row.kind === 'newsletter').map(row => ({ ...mail(row.id.slice(11), 'sender', row.sort_at), published_at: row.published_at }))
+  expect(feed.entries.value.map(row => row.id)).toEqual(orderFixture.expected)
+  expect(get).not.toHaveBeenCalled()
 })

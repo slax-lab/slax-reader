@@ -1,6 +1,6 @@
 import { computed, onScopeDispose, type Ref, ref, watch } from "vue";
 
-import { feedRowKind } from "~/utils/feed";
+import { compareFeedEntries, feedRowKind } from "~/utils/feed";
 
 import type {
   FeedEntriesResponse,
@@ -14,7 +14,6 @@ import type {
   RssSubscription,
 } from "@slax-reader/contracts";
 import {
-  compareFeedEntries,
   useLocalNewsletterPresence,
   useNewsletterLocalState,
 } from "~/composables/newsletter/useNewsletterLocalState";

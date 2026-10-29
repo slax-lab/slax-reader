@@ -1,3 +1,4 @@
+import orderFixture from '../../../../../packages/contracts/test-fixtures/feed-order.json'
 import { test, expect } from 'vitest'
 import { db, adapter } from '../newsletter/fixture'
 import { FeedRepo } from '@/infra/repository/dbFeed'
@@ -27,4 +28,25 @@ test('source groups contain only ready owned mail and no fake polling fields', a
   await db.exec("UPDATE sr_user_lab_feature SET enabled=false WHERE user_id=1 AND feature='newsletter'")
   expect(await repo.newsletterSources(1)).toEqual([])
   expect(await repo.entries(1, ['newsletter'], null, null, 20)).toEqual([])
+})
+
+
+test.each([1, 2])('shared ordering examples preserve keyset pagination at page size %s', async limit => {
+  const repo = await setup()
+  await db.exec('TRUNCATE sr_rss_entry,sr_newsletter_feed')
+  for (const [i, row] of orderFixture.rows.entries()) {
+    if (row.kind === 'rss') await db.query(`INSERT INTO sr_rss_entry(id,feed_id,entry_key,title,summary,content_key,sort_at,published_at) VALUES($1,$2,$1,$1,'','rss-content/a',$3,$4)`, [row.id, rss, row.sort_at, row.published_at])
+    else await db.query(`INSERT INTO sr_newsletter_feed(id,user_id,source_key,sender,message_key,state,title,content_key,received_at,published_at) VALUES($1,1,$2,'sender@example.com',$3,'ready',$6,'newsletter-content/a',$4,$5)`, [row.id.slice(11), 'a'.repeat(64), i.toString(16).padStart(64, '0'), row.sort_at, row.published_at, row.id])
+  }
+  const ids: string[] = []
+  let cursor: import('@/infra/repository/dbFeed').FeedCursor | null = null
+  for (;;) {
+    const rows = await repo.entries(1, ['rss', 'newsletter'], null, cursor, limit)
+    if (!rows.length) break
+    ids.push(...rows.map(row => row.id))
+    const last = rows[rows.length - 1]
+    cursor = { at: last.sort_at, id: last.id, kind: last.kind }
+    expect(ids.length).toBeLessThanOrEqual(orderFixture.expected.length)
+  }
+  expect(ids).toEqual(orderFixture.expected)
 })
