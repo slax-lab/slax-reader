@@ -102,7 +102,7 @@ describe('YoutubeProcessor', () => {
     expect(paragraphs.map(p => p.textContent)).toEqual(text)
     expect(range.startContainer).toBe(selected)
     expect(range.toString()).toBe('First')
-    expect([...article.querySelectorAll<HTMLElement>('.slax-pod-time')].map(el => [el.hidden, el.tabIndex, el.getAttribute('aria-hidden')])).toEqual([[true, -1, 'true'], [true, -1, 'true']])
+    expect([...article.querySelectorAll<HTMLElement>('.slax-pod-time')].map(el => [el.hidden, el.tabIndex, el.getAttribute('aria-hidden')])).toEqual([[false, 0, null], [false, 0, null]])
     const spy = vi.fn()
     window.addEventListener('slax:youtube-seek', spy)
     button.click()
@@ -114,10 +114,9 @@ describe('YoutubeProcessor', () => {
     window.removeEventListener('slax:youtube-seek', spy)
   })
 
-  it('binds chapter and contents controls once and can process again after cleanup', () => {
-    const ctx = context(ARTICLE_BODY.replace('<p class="slax-pod-lede">', '<details class="slax-yt-contents"><summary>Contents</summary><nav><a href="#yt-topic-0">Intro</a></nav></details><p class="slax-pod-lede">').replace('<h2 class=', '<h2 id="yt-topic-0" class='))
+  it('adds chapter controls once and can add them again after cleanup', () => {
+    const ctx = context(ARTICLE_BODY)
     const heading = ctx.container.querySelector<HTMLElement>('h2')!
-    heading.scrollIntoView = vi.fn()
     const spy = vi.fn()
     window.addEventListener('slax:youtube-seek', spy)
     for (let cycle = 0; cycle < 2; cycle++) {
@@ -126,9 +125,7 @@ describe('YoutubeProcessor', () => {
       expect(heading.querySelectorAll('button')).toHaveLength(1)
       expect(heading.querySelector('button')!.textContent).toBe('0:00')
       heading.querySelector('button')!.click()
-      ctx.container.querySelector<HTMLAnchorElement>('nav a')!.click()
       expect(spy).toHaveBeenCalledTimes(cycle + 1)
-      expect(heading.scrollIntoView).toHaveBeenCalledTimes(cycle + 1)
       ctx.cleanups.forEach(fn => fn())
     }
     window.removeEventListener('slax:youtube-seek', spy)

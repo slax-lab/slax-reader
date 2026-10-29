@@ -64,4 +64,22 @@ Change-id: `fix-youtube-style`. An independent read-only review and the coordina
 
 ## Delivery boundaries
 
-No commit is made to a protected branch, no PR is merged, no dev/beta/production deployment is triggered, and no cache purge is performed. After the draft PR and screenshot attachments are confirmed remotely, stop this task's dev process and remove its worktree, generated dependencies/build caches, local replay data, temporary scripts/results, and task-created screenshot files. Preserve the remote branch and PR, the main workspace, unrelated worktrees, shared package stores, and user attachments. Post-merge deployment/acceptance and the final archive docs PR remain subsequent work.
+No commit is made to a protected branch, no PR is merged, no dev/beta/production deployment is triggered, and no cache purge is performed. Initial PR handoff cleanup completed and was recorded in PR #441. The user subsequently requested a running browser preview, so the worktree and local preview were restored deliberately. Preserve the requested preview during review, the remote branch/PR, the main workspace, unrelated worktrees, shared stores, and user attachments. Archive remains a separate post-merge documentation task.
+
+## Minimal-diff follow-up and body acceptance — 2026-10-29
+
+The requesting user inspected the actual source running in the independent local Chrome window and stated that the body looked correct. They separately challenged the sidebar push behavior and requested minimal YouTube-only treatment, then explicitly asked to continue. This is hands-on acceptance of the displayed YouTube body, not acceptance of the sidebar or proof of a new-bookmark backend flow. The earlier pending-acceptance notes describe the initial PR handoff and are superseded only for the body scope by this record. No claim is made that the user separately exercised every automated theme/width combination.
+
+The follow-up removes 24 lines of runtime handling: the processor-wide WeakSet/context cleanup wrapper and the loop mutating paragraph timestamps' hidden, tabindex, and aria-hidden attributes. Existing paragraph timestamp nodes and attributes now stay unchanged; the already-scoped YouTube `display: none` rule alone hides them and excludes them from actual Chrome focus/accessibility output. Only generated chapter buttons get a local duplicate-control guard and cleanup. Existing contents/raw-caption/player handling is not wrapped or refactored. The CSS appearance itself is unchanged, so the existing before/after visuals remain representative.
+
+Verification after minimization:
+
+- Focused processor/component/podcast tests: 41 passed. Scoped ESLint passed.
+- Full Web typecheck, `pnpm web -- test --maxWorkers=4`, and build all exited successfully: 224 files and 2,559 tests passed; 1 file/3 tests skipped.
+- Compiled complete CSS cascade: 24 saved/expanded × theme × width combinations passed; ordinary/raw-caption/podcast negative controls unchanged. The fixture now uses original tabindex=0 attributes and verifies the hidden spans cannot receive focus.
+- Real public article replayed into the full running application: saved and expanded paths each passed 12 combinations (375/768/769/1200px × light/dark/e-ink); all 85 paragraph texts match, 17 accessible chapter controls remain, timestamp attributes are unchanged, hidden spans cannot receive focus, Enter and Space emit one seek each (`[66, 66]`), contents navigation succeeds, and no page errors occur.
+- No differences from the PR base in `apps/api`, generic article reset/content styles, `useSnapshotLayout`, layout components, or `pages/b/[id].vue`.
+
+Local review follow-up: Bugs — generated buttons clean up independently and repeated chapter adaptation does not duplicate them; prior paragraph attributes and normal processor lifecycle remain intact. Security — no new HTML injection, requests, or dependencies. Compliance — same accepted visual behavior with a smaller implementation and no sidebar expansion. No Important findings from this minimization review.
+
+Sidebar observation is recorded separately, not repaired here: the local fast-response preview can show an open transcript with layout `panelOpen=false`/push=0 at 1500px. Existing page code synchronizes the active panel and later resets panelOpen on mount; this PR does not change either block. The existing wide-screen rule also deliberately keeps centered content without a push when there is sufficient spare space. This observation is not evidence that all sidebar behavior has been verified or that the PR changed it.

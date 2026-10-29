@@ -31,11 +31,11 @@ Both edited YouTube body presentations SHALL show a 12px accent-colored seek but
 - **AND** the expanded component's existing native chapter control continues to work
 
 #### Scenario: Saved article is processed repeatedly and removed
-- **WHEN** the processor runs repeatedly on the same live body
-- **THEN** there is exactly one added control per timed heading and no duplicate listeners
+- **WHEN** chapter adaptation runs repeatedly on the same live body
+- **THEN** there is exactly one added control per timed heading and no duplicate chapter listeners
 - **WHEN** the processor is cleaned up
-- **THEN** its controls and listeners are removed and paragraph timestamp visibility/focus attributes are restored
-- **AND** processing the body again installs one working set of controls
+- **THEN** the added controls and their listeners are removed while the original paragraph timestamp attributes remain unchanged
+- **AND** processing the body again installs one working set of chapter controls
 
 #### Scenario: Video playback advances through paragraphs
 - **WHEN** playback time updates occur while an edited YouTube body is displayed
@@ -44,7 +44,7 @@ Both edited YouTube body presentations SHALL show a 12px accent-colored seek but
 
 ### Requirement: Edited article styling has no unrelated presentation effects
 
-The correction SHALL affect only the edited YouTube article body. It SHALL preserve existing paragraph elements, descendant text nodes, heading text nodes and IDs, annotation selectors, and contents navigation. Adding chapter-control nodes and reversible timestamp visibility attributes is permitted; moving or replacing existing content is not. Ordinary articles, raw YouTube transcripts, podcast articles, the player (including its maximum width), the sidebar, and the application shell SHALL retain their existing behavior and presentation.
+The correction SHALL affect only the edited YouTube article body. It SHALL preserve existing paragraph elements, descendant text nodes, heading text nodes and IDs, annotation selectors, timestamp attributes, and contents navigation. Adding chapter-control nodes is permitted; moving or replacing existing content is not. Ordinary articles, raw YouTube transcripts, podcast articles, the player (including its maximum width), the sidebar, and the application shell SHALL retain their existing behavior and presentation.
 
 #### Scenario: Existing article interaction
 - **WHEN** a reader uses contents links, chapter controls, or existing annotations after the correction

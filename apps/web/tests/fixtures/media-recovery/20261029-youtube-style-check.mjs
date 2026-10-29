@@ -101,6 +101,10 @@ async function check(page, article) {
   }
   const button = article.locator('.slax-yt-chapter-time, .yt-ai-time').first()
   await button.focus()
+  assert.equal(await article.evaluate(node => [...node.querySelectorAll('.slax-pod-time')].every(stamp => {
+    stamp.focus()
+    return document.activeElement !== stamp
+  })), true)
   assert.equal(await button.evaluate(el => getComputedStyle(el).outlineStyle), 'solid')
   assert.equal(await button.evaluate(el => getComputedStyle(el).outlineWidth), '2px')
   assert.equal(await button.evaluate(el => {
@@ -160,7 +164,7 @@ try {
       <aside class="slax-yt-introduction"><span class="slax-yt-label">Introduction</span><p>Readable introduction.</p></aside>
       <details open class="slax-yt-contents"><summary>Contents <span>1</span></summary><nav><a href="#${expanded ? 'expanded' : 'saved'}"><span>A chapter with wrapping contents text</span><time>0:00</time></a></nav></details>
       <section class="${expanded ? 'yt-ai-section' : 'slax-pod-section'}"><h2 id="${expanded ? 'expanded' : 'saved'}" class="slax-pod-heading ${expanded ? 'yt-ai-heading' : ''}">${expanded ? '<span>Chapter heading</span>' : 'Chapter heading'}<button type="button" class="${expanded ? 'yt-ai-time' : 'slax-yt-chapter-time'}">0:00</button></h2>
-      <p class="slax-pod-p slax-pod-playing ${expanded ? 'yt-ai-paragraph' : ''}">${expanded ? '' : '<span class="slax-pod-time" data-media-seek="0" hidden tabindex="-1">00:00</span>'}Paragraph with <span>nested text</span> and preserved inline markup.</p>
+      <p class="slax-pod-p slax-pod-playing ${expanded ? 'yt-ai-paragraph' : ''}">${expanded ? '' : '<span class="slax-pod-time" data-media-seek="0" role="button" tabindex="0">00:00</span>'}Paragraph with <span>nested text</span> and preserved inline markup.</p>
       <p class="slax-pod-p ${expanded ? 'yt-ai-paragraph' : ''}">Last paragraph.</p></section>
       <footer class="slax-yt-method"><strong>Method</strong><p>Method note.</p></footer></article>`
     await page.setContent(`<div class="article-detail article-body default" data-v-reader-check>${body(false)}<div id="controls"><section><h2>Ordinary heading</h2><p>Ordinary paragraph</p></section><div class="slax-yt-transcript" data-yt-reading><p class="slax-yt-cue"><span class="slax-yt-cue-time">0:12</span><span class="slax-yt-cue-text">Raw caption</span></p></div><article class="slax-pod-article" data-slax-derived="podcast"><section><h2>Podcast</h2><p class="slax-pod-p slax-pod-playing"><span class="slax-pod-time">00:00</span>Podcast paragraph.</p></section></article></div></div><section class="youtube-ai-article">${body(true)}</section>`)

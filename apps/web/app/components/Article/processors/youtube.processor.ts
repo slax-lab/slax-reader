@@ -4,24 +4,12 @@ import type { DOMProcessor, WebProcessorContext } from './types'
 
 export class YoutubeProcessor implements DOMProcessor {
   readonly name = 'YoutubeProcessor'
-  private readonly processed = new WeakSet<HTMLElement>()
 
   match(context: WebProcessorContext): boolean {
     return !!context.container.querySelector('youtube-player')
   }
 
   process(context: WebProcessorContext): void {
-    if (this.processed.has(context.container)) return
-    this.processed.add(context.container)
-    const cleanups: (() => void)[] = []
-    let active = true
-    context.cleanups.push(() => {
-      if (!active) return
-      active = false
-      cleanups.forEach(cleanup => cleanup())
-      this.processed.delete(context.container)
-    })
-    context = { ...context, cleanups }
     const nodes = Array.from(context.container.querySelectorAll('youtube-player'))
 
     nodes.forEach(node => {
@@ -42,6 +30,7 @@ export class YoutubeProcessor implements DOMProcessor {
     const articles = context.container.querySelectorAll('[data-slax-derived="youtube-article"]')
     for (const article of articles) {
       for (const heading of article.querySelectorAll<HTMLElement>('h2.slax-pod-heading[data-start-ms]')) {
+        if (heading.querySelector('.slax-yt-chapter-time')) continue
         const raw = heading.dataset['startMs']
         if (!raw) continue
         const ms = Number(raw)
@@ -60,18 +49,6 @@ export class YoutubeProcessor implements DOMProcessor {
         context.cleanups.push(() => {
           button.removeEventListener('click', seek)
           button.remove()
-        })
-      }
-      for (const stamp of article.querySelectorAll<HTMLElement>('.slax-pod-time[data-media-seek]')) {
-        const attributes = ['hidden', 'tabindex', 'aria-hidden'].map(name => [name, stamp.getAttribute(name)] as const)
-        stamp.hidden = true
-        stamp.tabIndex = -1
-        stamp.setAttribute('aria-hidden', 'true')
-        context.cleanups.push(() => {
-          for (const [name, value] of attributes) {
-            if (value === null) stamp.removeAttribute(name)
-            else stamp.setAttribute(name, value)
-          }
         })
       }
     }
