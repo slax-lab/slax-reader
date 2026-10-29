@@ -1,5 +1,3 @@
-// YoutubeProcessor: the player upgrade, the old raw transcript seek, and the AI article body
-// (same markup as the podcast article): seek on time stamps, follow-along, "listen from here"
 import { listenStartOf, PLAYING_CLASS, PODCAST_EVENTS } from '~~/app/utils/podcastMedia'
 
 import { getElementFullSelector } from '@commons/frontend-utils/dom'
@@ -77,45 +75,92 @@ describe('YoutubeProcessor', () => {
     }
   })
 
-  it('article body: time stamps seek the video on click and Enter; cleanup removes the handlers', () => {
+  it('adds native chapter seek buttons without changing paragraph nodes or heading anchors', () => {
+    const ctx = context(ARTICLE_BODY.replace('<h2 class="slax-pod-heading" data-start-ms="0">', '<h2 id="yt-topic-0" class="slax-pod-heading" data-start-ms="65400">'))
+    const article = ctx.container.querySelector('article')!
+    const original = article.innerHTML
+    const heading = article.querySelector('h2')!
+    const headingText = heading.firstChild
+    const paragraphs = [...article.querySelectorAll('.slax-pod-p')]
+    const descendants = [...article.querySelectorAll('.slax-pod-p, .slax-pod-p *')]
+    const nodes = descendants.map(p => [...p.childNodes])
+    const paths = descendants.map(p => getElementFullSelector(p, ['slax-mark'], ctx.container))
+    const text = paragraphs.map(p => p.textContent)
+    const selected = article.querySelector('b')!.firstChild!
+    const range = document.createRange()
+    range.selectNodeContents(selected)
+    processor.process(ctx)
+    const button = heading.querySelector<HTMLButtonElement>('button.slax-yt-chapter-time')!
+    expect(button).not.toBeNull()
+    expect(button.type).toBe('button')
+    expect(button.textContent).toBe('1:05')
+    expect(button.tabIndex).toBe(0)
+    expect(heading.id).toBe('yt-topic-0')
+    expect(heading.firstChild).toBe(headingText)
+    expect(paths.map(path => ctx.container.querySelector(path))).toEqual(descendants)
+    expect(descendants.map(p => [...p.childNodes])).toEqual(nodes)
+    expect(paragraphs.map(p => p.textContent)).toEqual(text)
+    expect(range.startContainer).toBe(selected)
+    expect(range.toString()).toBe('First')
+    expect([...article.querySelectorAll<HTMLElement>('.slax-pod-time')].map(el => [el.hidden, el.tabIndex, el.getAttribute('aria-hidden')])).toEqual([[false, 0, null], [false, 0, null]])
+    const spy = vi.fn()
+    window.addEventListener('slax:youtube-seek', spy)
+    button.click()
+    expect(spy.mock.calls.map(call => (call[0] as CustomEvent).detail.t)).toEqual([65])
+    ctx.cleanups.forEach(fn => fn())
+    button.click()
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(article.innerHTML).toBe(original)
+    window.removeEventListener('slax:youtube-seek', spy)
+  })
+
+  it('adds chapter controls once and can add them again after cleanup', () => {
     const ctx = context(ARTICLE_BODY)
+    const heading = ctx.container.querySelector<HTMLElement>('h2')!
+    const spy = vi.fn()
+    window.addEventListener('slax:youtube-seek', spy)
+    for (let cycle = 0; cycle < 2; cycle++) {
+      processor.process(ctx)
+      processor.process(ctx)
+      expect(heading.querySelectorAll('button')).toHaveLength(1)
+      expect(heading.querySelector('button')!.textContent).toBe('0:00')
+      heading.querySelector('button')!.click()
+      expect(spy).toHaveBeenCalledTimes(cycle + 1)
+      ctx.cleanups.forEach(fn => fn())
+    }
+    window.removeEventListener('slax:youtube-seek', spy)
+  })
+
+  it('does not bind paragraph seeking or playback indicators inside edited YouTube bodies', () => {
+    const ctx = context(ARTICLE_BODY)
+    const scroll = vi.fn()
+    for (const p of ctx.container.querySelectorAll<HTMLElement>('.slax-pod-p')) p.scrollIntoView = scroll
+    processor.process(ctx)
+    const s = seeks()
+    const stamp = ctx.container.querySelector<HTMLElement>('.slax-pod-time')!
+    stamp.click()
+    stamp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    window.dispatchEvent(new CustomEvent(PODCAST_EVENTS.time, { detail: { t: 70, playing: true } }))
+    expect(ctx.container.querySelector(`.${PLAYING_CLASS}`)).toBeNull()
+    expect(scroll).not.toHaveBeenCalled()
+    expect(s.times()).toEqual([])
+    ctx.cleanups.forEach(fn => fn())
+    s.off()
+  })
+
+  it('retains shared media paragraph seeking outside the edited YouTube boundary', () => {
+    const ctx = context(ARTICLE_BODY.replace('data-slax-derived="youtube-article"', 'data-slax-derived="podcast"'))
     processor.process(ctx)
     const s = seeks()
     const stamp = ctx.container.querySelectorAll<HTMLElement>('.slax-pod-time')[1]!
     stamp.click()
     stamp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
     expect(s.times()).toEqual([65.4, 65.4])
+    expect(stamp.hidden).toBe(false)
+    expect(stamp.tabIndex).toBe(0)
+    expect(ctx.container.querySelector('.slax-yt-chapter-time')).toBeNull()
     ctx.cleanups.forEach(fn => fn())
-    stamp.click()
-    expect(s.spy).toHaveBeenCalledTimes(2)
     s.off()
-  })
-
-  it('article body: the paragraph being played is marked; only while the video plays does the text follow', () => {
-    const ctx = context(ARTICLE_BODY)
-    const scrolled: string[] = []
-    const original = HTMLElement.prototype.scrollIntoView
-    HTMLElement.prototype.scrollIntoView = function (this: HTMLElement) {
-      scrolled.push(this.dataset['startMs'] ?? '')
-    }
-    // jsdom has no layout: every paragraph counts as shown
-    vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([{}] as unknown as DOMRectList)
-    processor.process(ctx)
-    const paragraphs = ctx.container.querySelectorAll<HTMLElement>('.slax-pod-p')
-
-    window.dispatchEvent(new CustomEvent(PODCAST_EVENTS.time, { detail: { t: 70, playing: false } }))
-    expect(paragraphs[1]!.classList.contains(PLAYING_CLASS)).toBe(true)
-    expect(scrolled).toEqual([])
-
-    window.dispatchEvent(new CustomEvent(PODCAST_EVENTS.time, { detail: { t: 1, playing: true } }))
-    expect(paragraphs[0]!.classList.contains(PLAYING_CLASS)).toBe(true)
-    expect(paragraphs[1]!.classList.contains(PLAYING_CLASS)).toBe(false)
-    expect(scrolled).toEqual(['0'])
-
-    ctx.cleanups.forEach(fn => fn())
-    expect(paragraphs[0]!.classList.contains(PLAYING_CLASS)).toBe(false)
-    HTMLElement.prototype.scrollIntoView = original
-    vi.restoreAllMocks()
   })
 
   it('article body: "listen from here" gets the start of the selected paragraph', () => {
