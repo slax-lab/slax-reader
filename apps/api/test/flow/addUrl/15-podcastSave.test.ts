@@ -269,11 +269,16 @@ describe('Pocket Casts capture and recovery', () => {
     marks.mockResolvedValue(true)
 
     // First capture: no body yet, so there is nothing to protect and marks are not consulted
-    br.getBookmarkById.mockResolvedValue({ id: 42, content_key: '' })
+    br.getBookmarkById.mockResolvedValue({ id: 42, content_key: '', content_md_key: '' })
     expect(await svc.keepsAnnotatedBody(ctx, 42)).toBe(false)
     expect(marks).not.toHaveBeenCalled()
 
-    br.getBookmarkById.mockResolvedValue({ id: 42, content_key: 'html/body/existing-uuid.html' })
+    // A body without its text is not kept: the workflow reads content_md_key to build the kept payload
+    br.getBookmarkById.mockResolvedValue({ id: 42, content_key: 'html/body/existing-uuid.html', content_md_key: '' })
+    expect(await svc.keepsAnnotatedBody(ctx, 42)).toBe(false)
+    expect(marks).not.toHaveBeenCalled()
+
+    br.getBookmarkById.mockResolvedValue({ id: 42, content_key: 'html/body/existing-uuid.html', content_md_key: 'md/existing-uuid.md' })
     expect(await svc.keepsAnnotatedBody(ctx, 42)).toBe(true)
     expect(marks).toHaveBeenCalledWith(42, 5)
 

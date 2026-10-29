@@ -102,8 +102,10 @@ export function parsePocketCastsPage(pageUrl: string, html: string): PodcastEpis
   info.coverUrl = safeUrl(meta('og:image'))
   info.shownotes = stripHtml(doc.querySelector('[class*="_showNotesWrapper_"]')?.innerHTML || meta('og:description'))
   const duration = doc.querySelector('.duration-text')?.textContent?.trim() ?? ''
+  // The page writes the duration as units ("1h 26m"); anything else goes through parseDuration
   const units = /^(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s)?$/.exec(duration)
-  info.durationSec = units ? Number(units[1] || 0) * 3600 + Number(units[2] || 0) * 60 + Number(units[3] || 0) || null : parseDuration(duration)
+  const unitSeconds = units ? Number(units[1] || 0) * 3600 + Number(units[2] || 0) * 60 + Number(units[3] || 0) : 0
+  info.durationSec = units ? unitSeconds || null : parseDuration(duration)
   for (const el of doc.querySelectorAll('link[rel="transcript"][href], a[rel="transcript"][href], track[kind="captions"][src]')) {
     const type = el.getAttribute('type') ?? (el.localName === 'track' ? 'text/vtt' : '')
     const url = safeUrl(el.getAttribute('href') || el.getAttribute('src'))
@@ -169,6 +171,7 @@ export function stripHtml(html: string, max = 4000): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
     .replace(/[ \t]+/g, ' ')
     .replace(/\n\s*\n+/g, '\n')
     .trim()

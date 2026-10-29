@@ -35,3 +35,21 @@ An owner SHALL be able to save an existing Pocket Casts source URL again to requ
 #### Scenario: Existing annotated page
 - **WHEN** a Pocket Casts recapture finds highlights or comments on the existing body
 - **THEN** capture ends without a page fetch, keeps the body and annotations, and leaves the bookmark readable
+
+## MODIFIED Requirements
+
+### Requirement: Podcast capture behind Labs
+
+For an owner with the `podcast` Labs feature, the system SHALL save a recognised episode link (Xiaoyuzhou, Apple Podcasts, direct audio, RSS feed newest episode, Spotify, Pocket Casts) as a podcast bookmark with a player and show notes. For other owners, and for links that are not an episode, the system SHALL save the link as a normal page. The system SHALL NOT download or store audio.
+
+#### Scenario: Labs feature off
+- **WHEN** an owner without `podcast` saves a Xiaoyuzhou episode link
+- **THEN** the link saves as a normal page and nothing podcast-specific runs
+
+#### Scenario: Feed without audio
+- **WHEN** an owner with `podcast` saves a feed that has no audio enclosure
+- **THEN** the link saves as a normal page
+
+#### Scenario: Error that will repeat
+- **WHEN** the episode source answers with a blocked address, a 4xx status, a body above the size cap or an unreadable answer
+- **THEN** the link saves as a normal page without further retries

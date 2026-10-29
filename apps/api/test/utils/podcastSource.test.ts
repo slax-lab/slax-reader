@@ -102,6 +102,7 @@ describe('helpers', () => {
 
   test('stripHtml folds tags and entities and caps the length', () => {
     expect(stripHtml('<p>A &amp; B</p><p>C&nbsp;&#8217;s</p>')).toBe('A & B\nC ’s')
+    expect(stripHtml('a&#xff0c;b&#XFF0C;c')).toBe('a，b，c')
     expect(stripHtml('x'.repeat(5000)).length).toBe(4000)
   })
 
@@ -286,6 +287,14 @@ describe('Pocket Casts', () => {
     })
     expect(info.shownotes).toContain('【内容索引】')
     expect(info.shownotes).not.toContain('<')
+  })
+
+  test('the og:description fallback decodes the hex entities the real page carries', () => {
+    const resolved = 'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+    const html = fixture('20261027-pocket-casts-rendered.html').replace(/class="[^"]*_showNotesWrapper_[^"]*"/, 'class="notes"')
+    const info = parsePocketCastsPage(resolved, html)!
+    expect(info.shownotes).toContain('《宏观漫谈》，《高能量》首档专栏节目')
+    expect(info.shownotes).not.toContain('&#')
   })
 
   test('skips download anchors that are not audio, and rejected candidates fall through', () => {

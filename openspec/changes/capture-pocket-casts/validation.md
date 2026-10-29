@@ -114,3 +114,26 @@ Three review threads on PR #406 were resolved in code. The fourth (acceptance or
 ### Verification limits
 
 The kept-body path was exercised through the workflow unit harness with mocked services, not against a running Cloudflare workflow or PostgreSQL. The audio-candidate screen was exercised with fixtures only. No production crawl ran.
+
+## Second review round — 2026-10-29
+
+The review of head `cc37e8c8` reported no Important findings and five Nits. All five are closed here.
+
+### Changes
+
+- `keepsAnnotatedBody` now reads `content_md_key`, the same key the workflow reads to build the kept payload. A bookmark with a body file but no text file is not kept, so post-processing never receives an empty text.
+- `stripHtml` decodes hexadecimal numeric references (`&#x…;`). The `og:description` fallback of the rendered page carries `&#xff0c;`; it now reads as `，`.
+- The Pocket Casts duration parse uses a named `unitSeconds` local.
+- The delta spec adds a MODIFIED `Podcast capture behind Labs` requirement that lists Pocket Casts among the recognised sources, so the living spec stays coherent after archive.
+- Task 2.4 states the archive sequencing against `add-bookmark-fork`, which also carries a `podcast-article` delta and has open tasks.
+
+### Automated checks
+
+| Check | Result |
+| --- | --- |
+| New tests before the fix | 3 failed (hex entities, `og:description` fallback, `content_md_key` guard) |
+| `pnpm exec vitest run test/utils/podcastSource.test.ts test/flow/addUrl/15-podcastSave.test.ts test/flow/addUrl/10-crawlWorkflowRun.test.ts` | 163 passed |
+| `pnpm run typecheck` (api) | Passed |
+| `pnpm run lint` (api) | 0 errors; 344 warnings (unchanged) |
+| `pnpm run test` (api), three runs | 2,526 passed; 112 skipped. One run had a single timeout in `test/script/devPortGuard.test.ts`, a dev-port timing test outside this change |
+| `pnpm exec openspec validate --all --strict` | 79 passed |
