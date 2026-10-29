@@ -455,6 +455,12 @@ describe('getStatus and getTranslation', () => {
     expect(await w.service.getStatus(w.ctx(VISITOR), UUID)).toMatchObject({ transcript: 'ready', article: 'generating', reason: null, can_retry: false })
   })
 
+  test('Labs off: a transcript that is not ready is unavailable to the owner, with no retry', async () => {
+    const w = wire()
+    w.labOn.clear()
+    w.eps.add({ transcript_status: 'failed', error_message: 'asr_error:Download error' })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ transcript: 'unavailable', can_retry: false })
+  })
   test('skipped episodes report the reason without retry for final ones', async () => {
     const w = wire()
     w.eps.add({ transcript_status: 'skipped', error_message: 'too_long' })

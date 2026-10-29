@@ -139,6 +139,7 @@ Web and API do not use package-version increments under `docs/release/VERSIONING
 ## Local review
 
 - Bugs: corrected false publication success, Labs read gating, annotated body replacement, caption timing, preview selection, and RSS entity decoding.
+- Review round 2: an annotated podcast recapture now keeps the body as a cached capture instead of failing the crawl; `application/json+oembed` links are no longer taken as publisher transcripts; with Labs off, a transcript that is not ready reports `unavailable` with no retry. Covered by `podcastPage.test.ts`, `podcastService.test.ts`, `15-podcastSave.test.ts`, and `10-crawlWorkflowRun.test.ts`.
 - Security: retained public-URL checks, bounded transcript fetching, HTML escaping, text-only translation rendering, private access, and moderation gates.
 - Compliance: **Important — human hands-on acceptance is pending.** Keep the PR in draft.
 - Completion: the live source and platform gaps above remain open. They do not count as completed tasks.

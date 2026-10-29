@@ -24,6 +24,11 @@ describe('public episode metadata', () => {
   test('does not use unrelated video recommendations', () => {
     expect(parsePublicPodcastPage(url, page([episode, { '@type': 'VideoObject', contentUrl: 'https://www.youtube.com/watch?v=Jv5B5CEaPJI' }]))!.info.transcripts).toEqual([])
   })
+  test('keeps transcript links and ignores oEmbed discovery links', () => {
+    const links = '<link rel="alternate" type="application/json+oembed" href="https://example.com/oembed?url=x"><link rel="alternate" type="text/vtt" href="https://example.com/ep.vtt">'
+    const info = parsePublicPodcastPage(url, page(episode) + links)!.info
+    expect(info.transcripts.map(t => t.url)).toEqual(['https://example.com/ep.vtt'])
+  })
   test('does not select a feed item by title alone', () => {
     const info = parsePublicPodcastPage(url, page({ '@type': 'PodcastEpisode', name: 'A conversation' }))!.info
     expect(exactPodcastFeedItem(info, { items: [{ title: info.title, audioUrl: 'https://cdn.example.com/wrong.mp3' }] } as any)).toBeNull()

@@ -814,11 +814,20 @@ export class CrawlService {
     return parsed.info
   }
 
+  /**
+   * Whether a podcast recapture must keep the current body: the bookmark already has one, and a
+   * reader left a highlight or comment on it. A first capture has no body, so nothing is protected.
+   * The caller decides this before any page fetch, so a kept body costs no provider call. The check
+   * reads content_md_key because the kept payload reads the same key for its text.
+   */
+  public async keepsAnnotatedBody(ctx: ContextManager, bookmarkId: number): Promise<boolean> {
+    const stored = await this.bookmarkRepo.getBookmarkById(bookmarkId)
+    if (!stored?.content_md_key) return false
+    return this.markRepo.bodyHasMarks(bookmarkId, ctx.getUserId())
+  }
+
   /** First body of a podcast bookmark (player and notes), the episode row and the bookmark's reference to it. */
   public async parseAndSavePodcast(ctx: ContextManager, info: PodcastEpisodeInfo, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
-    if (await this.markRepo.bodyHasMarks(bookmarkId, ctx.getUserId())) {
-      throw new Error('Cannot replace annotated Podcast content')
-    }
     const html = HtmlBuilder.buildPodcast({ ...info })
     const textContent = renderPodcastText({ info })
     const ref = await this.savePodcastEpisode(info, bookmarkId)

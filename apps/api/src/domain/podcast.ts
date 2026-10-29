@@ -194,6 +194,8 @@ export class PodcastService {
 
     // Visitors see only what will become readable: a failed or skipped episode is unavailable to them
     if (transcript !== 'ready' || !ep.transcript_hash || !lang) {
+      // With Labs off nothing more will be made, so the owner sees no state and no retry
+      if (!enabled) return unavailable
       if (access.isOwner) return res
       return transcript === 'pending' || transcript === 'transcribing' ? { ...unavailable, transcript: 'pending' } : unavailable
     }

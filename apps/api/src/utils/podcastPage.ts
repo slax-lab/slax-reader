@@ -54,7 +54,8 @@ export function parsePublicPodcastPage(pageUrl: string, html: string): { info: P
   for (const link of doc.querySelectorAll('link[rel="alternate"][type], a[rel="transcript"][type]')) {
     const type = link.getAttribute('type') || ''
     const href = url(link.getAttribute('href'))
-    if (href && /vtt|subrip|srt|json|text\/plain/.test(type)) info.transcripts.push({ url: href, type, language: info.language })
+    // oEmbed discovery links also carry a json type; they describe the page, not the episode
+    if (href && /vtt|subrip|srt|json|text\/plain/.test(type) && !/oembed/.test(type)) info.transcripts.push({ url: href, type, language: info.language })
   }
   const videos = ([] as any[]).concat(episode?.video || [], episode?.associatedMedia || [], episode?.subjectOf || [], episode?.sameAs || [])
   for (const video of videos) {
