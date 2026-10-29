@@ -38,7 +38,7 @@ export class NewsletterService {
     const result = await this.repo.publish(mail.id, recipient.user_id, recipient.id, {
       senderName: parsed.sourceTitle,
       title: parsed.title,
-      summary: parsed.summary,
+      excerpt: parsed.excerpt,
       publishedAt: parsed.publishedAt,
       contentKey: stored.key,
       truncated: stored.truncated,

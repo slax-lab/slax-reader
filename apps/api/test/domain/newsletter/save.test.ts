@@ -16,7 +16,7 @@ beforeEach(async () => {
     await db.exec(initial.match(new RegExp('CREATE TABLE "public"\\."' + name + '" \\([\\s\\S]*?\\n\\);'))![0])
   }
   await db.exec(`CREATE UNIQUE INDEX ON sr_bookmark(target_url,private_user); CREATE UNIQUE INDEX ON sr_user_bookmark(user_id,bookmark_id);CREATE UNIQUE INDEX ON sr_bookmark_share(bookmark_id,user_id); ALTER TABLE sr_user_bookmark ADD archived_at TIMESTAMP; ALTER TABLE sr_user ADD COLUMN IF NOT EXISTS snapshot_sharing BOOLEAN DEFAULT true;
- INSERT INTO sr_newsletter_feed(id,user_id,source_key,sender,sender_name,message_key,state,title,summary,content_key) VALUES(1,1,repeat('a',64),'sender@example.com','Sender',repeat('b',64),'ready','Private subject','Summary','newsletter-content/original')`)
+ INSERT INTO sr_newsletter_feed(id,user_id,source_key,sender,sender_name,message_key,state,title,excerpt,content_key) VALUES(1,1,repeat('a',64),'sender@example.com','Sender',repeat('b',64),'ready','Private subject','Excerpt','newsletter-content/original')`)
   storage = memoryBucket()
   const parsed = await parseNewsletter(
     new TextEncoder().encode(

@@ -56,7 +56,7 @@ native('independent Newsletter native transactions', () => {
     const candidates = Array.from({ length: 8 }, (_, i) => ({
       senderName: 'Sender ' + i,
       title: 'Title ' + i,
-      summary: 'Summary ' + i,
+      excerpt: 'Excerpt ' + i,
       publishedAt: null,
       contentKey: 'newsletter-content/' + i,
       truncated: false,
@@ -66,7 +66,7 @@ native('independent Newsletter native transactions', () => {
     expect(published.filter(row => row.published)).toHaveLength(1)
     const winner = published.find(row => row.published)!.mail,
       index = Number(winner.content_key!.split('/').at(-1))
-    expect(winner).toMatchObject({ title: 'Title ' + index, summary: 'Summary ' + index, sender_name: 'Sender ' + index })
+    expect(winner).toMatchObject({ title: 'Title ' + index, excerpt: 'Excerpt ' + index, sender_name: 'Sender ' + index })
   })
   test('the final daily quota slot admits only one parallel new identity', async () => {
     await pg.$executeRaw`INSERT INTO sr_newsletter_feed(user_id,source_key,sender,message_key) SELECT ${recipient.user_id},${hash(1)},'sender@fixture.invalid',lpad(to_hex(i),64,'0') FROM generate_series(1,199) i`
@@ -85,7 +85,7 @@ native('independent Newsletter native transactions', () => {
       await repo.publish(mail.id, recipient.user_id, recipient.id, {
         senderName: 'late',
         title: 'late',
-        summary: 'late',
+        excerpt: 'late',
         publishedAt: null,
         contentKey: 'newsletter-content/late',
         truncated: false,
@@ -98,7 +98,7 @@ native('independent Newsletter native transactions', () => {
     await repo.publish(mail.id, recipient.user_id, recipient.id, {
       senderName: 'Sender',
       title: 'Title',
-      summary: 'Summary',
+      excerpt: 'Excerpt',
       publishedAt: null,
       contentKey: 'newsletter-content/native',
       truncated: false,
@@ -124,7 +124,7 @@ native('independent Newsletter native transactions', () => {
     await repo.publish(mail.id, recipient.user_id, recipient.id, {
       senderName: 'Sender',
       title: 'Tagged mail',
-      summary: 'Summary',
+      excerpt: 'Excerpt',
       publishedAt: null,
       contentKey: 'newsletter-content/native-tag',
       truncated: false,

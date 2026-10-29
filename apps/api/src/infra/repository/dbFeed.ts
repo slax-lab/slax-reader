@@ -50,7 +50,7 @@ export class FeedRepo {
    LEFT JOIN sr_bookmark b ON b.target_url=e.article_url AND b.private_user=${userId} LEFT JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id AND ub.user_id=${userId} AND ub.deleted_at IS NULL
    WHERE s.user_id=${userId} AND 'rss'=ANY(${kinds}::text[])
    UNION ALL
-   SELECT 'newsletter:'||n.id::text,'newsletter','newsletter:'||n.source_key,COALESCE(NULLIF(n.sender_name,''),n.sender),n.title,n.sender_name,n.summary,NULL::text,NULL::text,n.published_at,n.received_at,n.received_at,ub.uuid,n.content_key,n.content_truncated,NULL::text,n.id
+   SELECT 'newsletter:'||n.id::text,'newsletter','newsletter:'||n.source_key,COALESCE(NULLIF(n.sender_name,''),n.sender),n.title,n.sender_name,n.excerpt AS summary,NULL::text,NULL::text,n.published_at,n.received_at,n.received_at,ub.uuid,n.content_key,n.content_truncated,NULL::text,n.id
    FROM sr_newsletter_feed n JOIN sr_user u ON u.id=n.user_id AND u.deleted_at IS NULL JOIN sr_user_lab_feature l ON l.user_id=n.user_id AND l.feature='newsletter' AND l.enabled
    LEFT JOIN sr_bookmark b ON b.target_url='slax-newsletter://message/'||n.id::text AND b.private_user=${userId} AND b.status='success' LEFT JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id AND ub.user_id=${userId} AND ub.deleted_at IS NULL
    WHERE n.user_id=${userId} AND n.state='ready' AND 'newsletter'=ANY(${kinds}::text[])

@@ -20,7 +20,7 @@ export interface NewsletterMail {
   message_key: string
   state: 'pending' | 'ready' | 'cancelled'
   title: string
-  summary: string
+  excerpt: string
   content_key: string | null
   content_truncated: boolean
   published_at: Date | null
@@ -30,7 +30,7 @@ export type NewsletterAddressStatus = NewsletterAddressResponse
 export interface NewsletterPublication {
   senderName: string
   title: string
-  summary: string
+  excerpt: string
   publishedAt: Date | null
   contentKey: string
   truncated: boolean
@@ -128,7 +128,7 @@ export class NewsletterRepo {
       if (Date.now() - item.startedAt >= 5 * 60_000) throw new NewsletterError('unavailable', 503)
       const [mail] = await tx.$queryRaw<
         NewsletterMail[]
-      >`UPDATE sr_newsletter_feed SET state='ready',sender_name=${item.senderName},title=${item.title},summary=${item.summary},published_at=${item.publishedAt},content_key=${item.contentKey},content_truncated=${item.truncated} WHERE id=${id} AND user_id=${userId} RETURNING *`
+      >`UPDATE sr_newsletter_feed SET state='ready',sender_name=${item.senderName},title=${item.title},excerpt=${item.excerpt},published_at=${item.publishedAt},content_key=${item.contentKey},content_truncated=${item.truncated} WHERE id=${id} AND user_id=${userId} RETURNING *`
       return { mail, published: true }
     })
   }

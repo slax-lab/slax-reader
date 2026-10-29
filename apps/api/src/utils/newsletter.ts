@@ -75,7 +75,7 @@ export interface ParsedNewsletter {
   title: string
   messageKey: string
   html: string
-  summary: string
+  excerpt: string
   truncated: boolean
   publishedAt: Date | null
 }
@@ -191,7 +191,7 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
     title: label(mail.subject, '(No subject)'),
     messageKey,
     html: clean.html,
-    summary: clean.text.slice(0, 500),
+    excerpt: clean.text.slice(0, 500),
     truncated: full.truncated || clean.truncated || body.length > 512 * 1024,
     publishedAt: date && Number.isFinite(date.valueOf()) && date.valueOf() <= Date.now() + 24 * 3600_000 ? date : null
   }

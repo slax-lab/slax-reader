@@ -8,7 +8,7 @@ const reserve = async () => repo.admit(await recipient(), source, message, 'mail
 const candidate = {
   senderName: 'Sender',
   title: 'One',
-  summary: 'body',
+  excerpt: 'body',
   publishedAt: null,
   contentKey: 'newsletter-content/test/one.html',
   truncated: false,

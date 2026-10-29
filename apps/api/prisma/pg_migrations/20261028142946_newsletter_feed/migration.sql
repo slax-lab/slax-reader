@@ -8,7 +8,7 @@ CREATE TABLE "sr_newsletter_feed" (
     "message_key" TEXT NOT NULL,
     "state" TEXT NOT NULL DEFAULT 'pending',
     "title" TEXT NOT NULL DEFAULT '',
-    "summary" TEXT NOT NULL DEFAULT '',
+    "excerpt" TEXT NOT NULL DEFAULT '',
     "content_key" TEXT,
     "content_truncated" BOOLEAN NOT NULL DEFAULT false,
     "published_at" TIMESTAMP(3),

@@ -67,7 +67,7 @@ export class NewsletterSaveRepo {
       const now = new Date()
       const [bookmark] = await tx.$queryRaw<
         { id: number }[]
-      >`INSERT INTO sr_bookmark(target_url,private_user,title,description,site_name,byline,content_key,content_md_key,content_word_count,status,created_at,updated_at,published_at) VALUES(${newsletterBookmarkTarget(id)},${userId},${source.title},${source.summary},${source.sender_name || source.sender},${source.sender},${destination.content_key},${destination.content_md_key},${destination.content_word_count},'success',${now},${now},${source.published_at || source.received_at}) RETURNING id`
+      >`INSERT INTO sr_bookmark(target_url,private_user,title,description,site_name,byline,content_key,content_md_key,content_word_count,status,created_at,updated_at,published_at) VALUES(${newsletterBookmarkTarget(id)},${userId},${source.title},${source.excerpt},${source.sender_name || source.sender},${source.sender},${destination.content_key},${destination.content_md_key},${destination.content_word_count},'success',${now},${now},${source.published_at || source.received_at}) RETURNING id`
       await tx.$executeRaw`INSERT INTO sr_user_bookmark(uuid,user_id,bookmark_id,type,updated_at) VALUES(${destination.uuid},${userId},${bookmark.id},0,${now})`
       const relation = await this.existing(userId, id, tx)
       if (!relation) throw new NewsletterError('unavailable', 503)

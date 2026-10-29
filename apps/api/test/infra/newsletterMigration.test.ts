@@ -79,7 +79,7 @@ describe('independent Newsletter migration', () => {
         'message_key',
         'state',
         'title',
-        'summary',
+        'excerpt',
         'content_key',
         'content_truncated',
         'published_at',
