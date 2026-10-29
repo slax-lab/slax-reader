@@ -218,6 +218,28 @@ test('downloaded content and source restore are usable before the deferred downl
   })
 }))
 
+test('native HTML load failure uncovers the reader and retries the same cached document on demand', nativeBoundary, async () => withNativeHost(async host => {
+  await screenFixture(host, {}, async fixture => {
+    const html = fixture.reader().html
+    assert.ok(document.querySelector('[data-testid="reader-loading-cover"]'))
+    await act(async () => fixture.reader().onError(readerDocumentError(-1, 'Reader security policy unavailable')))
+    assert.equal(fixture.mounts(), 1, 'A failed load does not automatically loop')
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'none')
+    assert.ok(document.querySelector('[data-testid="reader-native-retry"]'))
+    assert.equal(fixture.dialogs.get('load_bookmark_content_error').visible, false)
+    await fixture.state('background'); await fixture.state('active')
+    assert.equal(fixture.mounts(), 1, 'Foregrounding does not silently retry a rejected native load')
+    await act(async () => host.props.get('reader-native-retry').children[1].props.onPress())
+    assert.equal(fixture.mounts(), 2)
+    assert.equal(fixture.reader().html, html); assert.equal(fixture.reader().initialPosition, 240)
+    assert.equal(document.querySelector('[data-testid="reader-native-retry"]'), null)
+    assert.ok(document.querySelector('[data-testid="reader-loading-cover"]'))
+    await act(async () => fixture.reader().onPresentable())
+    assert.equal(host.props.get('reader-loading-cover').pointerEvents, 'none')
+    assert.ok(!fixture.calls.includes('download'), 'Retry remounts the host without refetching cached content')
+  })
+}))
+
 test('captured comment survives background process recovery with one remount, latest position and no focus replay', nativeBoundary, async () => withNativeHost(async host => {
   await screenFixture(host, {}, async fixture => {
     await act(async () => fixture.reader().onEvent({type: 'textSelected', mark, text: 'Quote', containerYPoints: 200}, 'page'))

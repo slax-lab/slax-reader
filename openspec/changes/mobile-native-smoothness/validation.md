@@ -103,3 +103,68 @@ TestFlight preview **1.0.25 (785)**: build bumped from 784, previous bound 784. 
     - Re-run: `pnpm mobile -- check` passes 1158/1158. `pnpm mobile -- bundle` exports, `pnpm mobile -- build:android` succeeds, and the iOS simulator `xcodebuild` succeeds.
 - 2026-10-27T09:54Z, owner (DGuang21), hands-on review of TestFlight 1.0.25 (793) on iOS: "现在不闪了，打开也很快" (it no longer flashes, and it opens quickly). The owner accepted the Reader open flash fix and the opening speed, and asked to update the pull request. No adjustment was requested.
 - 2026-10-27, owner (DGuang21): "验收我已经全部都看过了的" (I have already checked all of the acceptance items). Every item of this change is accepted. The owner also said that per-build TestFlight receipts and `docs/mobile/release.md` updates are not needed, so this change adds none.
+
+## 2026-10-28 approved regression repairs
+
+The owner requested three repairs after the read-only review: restore automatic cache pause/resume semantics with reference to the previous KMP client, recover from generic native HTML load failures instead of leaving a skeleton, and keep list publication protection throughout a held drag. These restore the existing lifecycle, native-failure and interaction contracts; no layout or architecture redesign is introduced. The separate branch `fix/mobile-lifecycle-recovery` starts at `origin/dev` commit `870d9bb6`. After fetching the latest dev reference, its Mobile source was identical to the previously reviewed `c9b814d4` Mobile source.
+
+The previous KMP `BackgroundDomain.startup()` is idempotent and `cleanup()` cancels its worker scope. Its current `Navigation.kt` invokes these for authenticated entry/account replacement/sign-out; `LifeCycleHelper.kt` publishes lifecycle events. This repair does not claim that those files wire every foreground/background cache transition. The Expo app keeps its existing background-only native suspend/resume and retained plan, and re-arms idempotent warmup after foreground return so initial presentation interruption or admission in the background cannot leave the cache watches unstarted.
+
+Implemented and exercised in the existing mounted-host/in-memory environment:
+- Initial warmup survives backgrounding before Library presentation and admission completed in the background. Account/database/cache identities remain stable; real coordinator repeated start does not register watches again or reopen native state.
+- Native HTML load errors are distinct from ordinary operation failures. They invalidate the failed host, cancel a pending presentable frame, uncover the retry surface and allow an explicit same-content remount at the saved position. Generic load failure does not automatically retry on foreground; existing bounded process-crash recovery is retained.
+- A held drag never uses the 250 ms released-scroll idle fallback. A stale momentum-end/idle callback cannot release a new held drag. Covering/backgrounding or unmounting the feed releases interrupted activity. Existing native FlatList, UI-thread gesture/animation ownership, list batching and scroll sampling remain unchanged.
+
+Final verification:
+- `pnpm mobile -- check`: 1163 passed, 0 failed, 0 skipped; typecheck, architecture, assets and RSS checks passed.
+- `pnpm mobile -- bundle`: iOS and Android exports passed.
+- `pnpm mobile -- test:native-resources`: initially required missing classpath variables; rerun with existing public Gradle-cache Kotlin/OkHttp/Okio jars passed both JVM and macOS Swift resource hosts. No dependency was installed and no application secrets were accessed.
+- `pnpm exec openspec validate --all --strict`: 81 passed, 0 failed.
+- `git diff --check`: passed.
+- Local Bugs/Security/Compliance review: no additional Important finding in this repair diff. Native workers, network endpoints, permissions, dependencies and generated native projects are unchanged. The remaining release conditions below are explicit, not recorded as completed acceptance.
+
+Limitations and release conditions:
+- No simulator/emulator/device was driven, following the recorded owner restriction. Mounted-host execution and resource-host tests are not native device acceptance or Release performance measurements. Fresh hands-on acceptance of these repairs remains pending; the TestFlight 793 acceptance above does not cover them.
+- Full iOS/Android app compilation was not rerun because no native source, native build configuration or dependency changed; both platform JS bundles and native resource hosts were verified.
+- Version/build-number choice was requested from the owner and remains pending. The working copy remains 1.0.25 (793); nothing was committed, pushed, uploaded or released.
+- `apps/mobile/dist` from validation is retained for inspection; no shared cache or pre-existing build output was deleted.
+- Other review findings (foreground cache durability, eviction protection races, Markdown reference invalidation and deep-position restoration) are outside the three approved repairs and remain unchanged.
+
+## 2026-10-28 Login artwork follow-up
+
+The owner then reported that the Login background present in `../slax-reader-client` was missing in Mobile. Byte comparison confirmed that both projects contain the identical 1500 x 1260 `bg_login.png`; the Metro registry and final bundle include it. The source KMP Login uses full width with a 375:314 layout ratio. The Expo Login supplied width and aspectRatio but did not override the static asset's intrinsic height. Both installed RN 0.88 Image implementations prepend the resolved asset width/height before the component style.
+
+A standalone layout reproduction compiled from this checkout's RN Yoga C++ source confirmed the defect: at screen widths 375, 390 and 430, the old style lays the image out at approximately 1505 x 1260 logical units, pushing the wave artwork outside the visible region. Explicit width and `height = width / loginArtworkAspectRatio` produce 375 x 314, 390 x 326 and 430 x 360 after pixel rounding. This one-line repair retains the original image, source ratio, contain scaling, text, controls and colors. Blame traces the old sizing expression to the initial mobile migration commit `11b1e5060`, not the recent native offline-engine changes.
+
+Verification:
+- Existing mounted Login tests now read actual PNG dimensions and cover explicit image sizing at widths 320, 375, 390, 430 and 844 on both platform branches; protocol acceptance and provider cancellation behavior remain covered. Login/general-parity suites: 32 passed.
+- Final `pnpm mobile -- check`: 1165 passed, 0 failed, 0 skipped, including typecheck and architecture checks.
+- Final `pnpm mobile -- bundle`: Android and iOS exports passed; `git diff --check` passed.
+- The Yoga reproduction ran on the macOS host, not in an app/device. Its temporary compiler output was removed. No dependency or generated asset was changed.
+- Native screenshot/visual acceptance remains pending under the recorded no-device-driving instruction; neither the layout reproduction nor mounted tests establish full native visual parity. At this verification checkpoint, version/build number, commit, push and release were unchanged; the later authorized delivery is recorded below.
+
+## 2026-10-28 build 794 delivery
+
+After the repairs, the owner explicitly authorized a build-number increment, TestFlight upload, Git push and cleanup of this task's build caches/artifacts, simulators and worktrees. Marketing version remains `1.0.25`; `buildNumber` is `794` and `previousBuildNumber` is `793`. Both platform projects were regenerated through Expo and iOS CocoaPods integration completed. Android regeneration used the existing public configuration without local service overrides to avoid introducing unrelated Firebase changes; its only semantic changes are the build metadata. Main and Share plist semantic diffs are limited to `CFBundleVersion`.
+
+Delivery verification and results:
+- Final versioned `pnpm mobile -- check`: 1165 passed, 0 failed, 0 skipped. An initial executor was limited to 60 seconds and stopped during tests, before archive started; the complete rerun passed before the signed archive.
+- `pnpm mobile -- bundle`: Android and iOS exports passed for build 794.
+- `pnpm exec openspec validate --all --strict`: passed (81 items); `pnpm agent:check` and `git diff --check`: passed.
+- Guarded `archive:ios`: completed at `2026-10-28T08:38:47.089Z`. Main `app.slax.reader` and Share `app.slax.reader.share` passed iPhoneOS signing, matching 1.0.25/794 versions, App Group, production-environment, framework-closure and main Firebase admission checks.
+- Guarded `export:ios`: completed; the exported App Store IPA passed signature and metadata verification.
+- Guarded `upload:ios`: succeeded. Xcode reported upload complete at `2026-10-28 16:44:05 +0800`, then `Uploaded package is processing` and `Upload succeeded` at `16:44:06 +0800`. TestFlight tester availability and completed processing were not independently confirmed.
+- Non-blocking symbol-upload warnings remain for prebuilt React, ReactNativeDependencies, SDWebImage and its AVIF/SVG/WebP coders, Hermes and libavif frameworks. These did not reject the upload; no claim of full symbol ingestion is made.
+- Pre-push Bugs/Security/Compliance review found no new Important code finding in the scoped repairs. The existing `mobile-native-smoothness` requirements cover the restored lifecycle, native-failure and interaction behavior. The owner authorized this preview and branch push; this is not a fabricated hands-on acceptance of the new UI. No pull request is opened or merged before fresh acceptance.
+
+The release workspace is `.local/mobile-lifecycle-794-20261028`; archive, export and upload reports/logs identify each stage. After Git push, cleanup removed this task's archive/IPA/DerivedData, regenerated iOS build products and `apps/mobile/dist`, approximately 4.11 GiB in total. Compact reports and diagnostic logs were retained. No simulator or additional worktree was created by this task. Other worktrees, older build outputs, dependency caches, operator signing/service files and user data were left untouched. No Android store upload, backend deployment or public App Store release was performed.
+
+### Pre-PR owner acceptance
+
+On 2026-10-28, before PR creation, the repository owner confirmed in this conversation that hands-on acceptance of TestFlight 1.0.25 (794) was complete. The confirmation answered the explicit acceptance question covering the Login background, Reader error retry and list dragging repairs. No further adjustment was requested. This supersedes the pending iOS UI acceptance notes above for those repairs; it is not a claim of agent-operated device verification, Android hands-on acceptance, measured performance gains or an on-device reproduction of the narrowly timed automatic-cache startup race. The owner had already requested creation of the PR against dev.
+
+### PR 429 dev synchronization
+
+On 2026-10-28, the owner requested resolution of PR 429's merge conflict. The branch merged `origin/dev` at `263b9cd0`, including the separately approved EAS Update changes. The only unmerged file was `ios/SlaxShare/Info.plist`: parsing both stage-2 and stage-3 plist values proved that their contents were identical, including version 1.0.25, build 794 and production origins. The already-generated dev XML was selected without hand-editing generated values. The five runtime repair files remained byte-for-byte unchanged. Both sides already carried build 794; no additional build increment, OTA publication, signed archive or TestFlight upload was performed. The prior TestFlight acceptance applies to the repair implementation, not a newly uploaded artifact containing this dev synchronization.
+
+`pnpm install --frozen-lockfile` synchronized the merged dependency lockfile without changes. Final merge-state `pnpm mobile -- check` passed 1167 tests with 0 failures and 0 skips; Android/iOS `pnpm mobile -- bundle` passed; strict OpenSpec validation passed all 83 items; staged and unstaged diff checks passed. No unresolved entries remained. Pre-push review confirmed that dev's OTA dependency/configuration and the PR's lifecycle, Reader, gesture and Login fixes were all retained.
