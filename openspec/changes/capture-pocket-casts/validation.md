@@ -82,3 +82,35 @@ The production crawl, paid transcription, and final cleaned article retain the v
 The PR description recorded acceptance before this file and task 2.3 were updated. This documentation correction aligns all three records.
 This correction changes no application code or package output. It is exempt from runtime verification and application version changes.
 Verification: `pnpm exec openspec validate --all --strict` passed all 79 items; `git diff --check` passed.
+
+## Review fixes — 2026-10-29
+
+Three review threads on PR #406 were resolved in code. The fourth (acceptance order) is a record for the repository owner and stays as documented above.
+
+### Changes
+
+- Annotated recapture. The marks check moved out of `parseAndSavePodcast` into `CrawlService.keepsAnnotatedBody`, which the crawl workflow calls before `fetchPodcastData`. It returns true only when the bookmark already has a body and a reader left a mark on it; a first capture never consults marks. On a kept body the fetch step returns the existing title and text as a `shortCircuit`, the existing `release-cached-capture` step sets the bookmark back to `success`, no page is fetched, no alert fires, and the bookmark never becomes `failed`. The delta spec scenario and `design.md` state this outcome.
+- Audio candidates. `parsePocketCastsPage` screens `og:audio`, then `audio[src]`, then each `a[download][href]` in turn. A download anchor counts only when its path matches `AUDIO_EXT_RE`. A rejected candidate falls through instead of ending the capture.
+- Fixture and logging. `test/fixtures/podcast/20261027-pocket-casts-rendered.html` is a trimmed excerpt of the rendered Pocket Casts DOM captured on 2026-10-27 (episode block only; scripts, navigation, share-tracking query strings, and the publisher's contact details removed). The parser test reads it. `readPodcastEpisode` now logs a warning when a Pocket Casts page gives no episode, and states whether the resolved URL failed the episode-link check or the page had no safe audio.
+
+### Resolved canonical shape
+
+`curl -sI https://pca.st/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2` answered `302` to
+`https://pocketcasts.com/podcast/<show-slug>/642bf450-e9fa-013a-da18-0acc26574db2/<episode-slug>/f7269801-ce3f-48fc-9e57-3783fdbbe7d2`
+(slugs percent-encoded). The episode regex accepts this shape. The direct follow-up request answered `403`, as recorded in the verification limits above.
+
+### Automated checks
+
+| Check | Result |
+| --- | --- |
+| Touched tests before the fix | 5 failed, 157 passed (162) |
+| `pnpm exec vitest run test/utils/podcastSource.test.ts test/flow/addUrl/15-podcastSave.test.ts test/flow/addUrl/10-crawlWorkflowRun.test.ts` | 162 passed |
+| `pnpm api -- typecheck` | Passed |
+| `pnpm api -- lint` | 0 errors; 344 warnings (unchanged) |
+| `pnpm api -- test` | 192 files passed; 14 skipped. 2,525 tests passed; 112 skipped |
+| `pnpm exec openspec validate --all --strict` | 79 passed |
+| `git diff --check` | Passed |
+
+### Verification limits
+
+The kept-body path was exercised through the workflow unit harness with mocked services, not against a running Cloudflare workflow or PostgreSQL. The audio-candidate screen was exercised with fixtures only. No production crawl ran.
