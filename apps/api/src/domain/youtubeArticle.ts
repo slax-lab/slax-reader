@@ -241,6 +241,8 @@ export class YoutubeArticleService {
       row = fallback?.status === 'ready' ? fallback : null
     }
 
+    // A takedown or stale row cannot come back through Settings, so it gives no recovery reason
+    if (row?.status === 'takedown' || row?.status === 'stale') return unavailable
     if (!enabled && row?.status !== 'ready') return access.isOwner ? { ...unavailable, unavailable_reason: 'labs_disabled' } : unavailable
     if (!row) return access.isOwner ? { ...unavailable, unavailable_reason: 'source_missing' } : unavailable
     const res = this.response(requested, row, access, access.isOwner ? await this.manualLeft(viewerId) : false)

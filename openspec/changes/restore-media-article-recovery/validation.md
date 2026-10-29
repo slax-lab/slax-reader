@@ -283,3 +283,8 @@ The earlier sections above record acceptance as pending at the time they were wr
 - Adjustments: none requested.
 - Order: acceptance came after the draft PR opened on 2026-10-27, because Luca requested colleague review first. Acceptance was complete before the PR leaves draft and before merge.
 - Evidence source: Luca's confirmation in the task conversation on 2026-10-28, mirrored in the PR body on the same day, and his reconfirmation on 2026-10-29. Task 3.2 is checked.
+
+### Review follow-up — 2026-10-29, second round
+
+- A `takedown` or `stale` legacy row gives no `unavailable_reason`, so the owner is not told to enable Labs for an article that cannot return. Two new tests failed before the change and pass now. `pnpm exec vitest run test/domain/youtubeArticleService.test.ts`: 72 passed. Typecheck passed; lint 0 errors, 344 warnings.
+- `publication_pending`: the runner already logs `youtube_article_bodies_failed` with the article and video ids before it returns that value, so a failed body publication is visible in production logs. No code change.

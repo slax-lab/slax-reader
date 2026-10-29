@@ -381,6 +381,14 @@ describe('owner opens a bookmark', () => {
     expect(w.create).not.toHaveBeenCalled()
   })
 
+  test.each(['takedown', 'stale'] as const)('a %s row with Labs off gives no recovery reason', async status => {
+    w.labOn.clear()
+    w.repo.add({ status })
+    const res = await w.service.getStatus(w.ctx(OWNER), UUID)
+    expect(res.status).toBe('unavailable')
+    expect(res.unavailable_reason).toBeUndefined()
+  })
+
   test('unavailable reasons belong only to the owner', async () => {
     w.labOn.clear()
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'unavailable', unavailable_reason: 'labs_disabled' })
