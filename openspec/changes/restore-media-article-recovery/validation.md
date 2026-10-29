@@ -236,3 +236,39 @@ Screenshots show the actual locally generated text. They are attached to PR #405
 - Security: model text remains escaped or text-bound. Access and moderation checks remain. No new dependency or secret is introduced.
 - Compliance: the change follows `restore-media-article-recovery` and Luca's approved expansion. Local verification has the limits stated above.
 - Human acceptance remains pending. Luca authorized the draft PR before acceptance; this does not mark acceptance complete.
+
+## Review follow-up — 2026-10-29
+
+Fixes for the open review threads on PR #405 at `f50703b3`. Each behavior fix started from a failing test.
+
+- API: `ensureLanguageRow` takes an explicit prompt version that defaults to the current one. A language row created beside legacy `v1` rows now runs the `v2` pipeline instead of copying `v1` from the fallback base row.
+- API: `getContent` reads one `listForSource` call; the repository already appends the legacy rows.
+- API: the chunk band `[0.72, 1.15]` is one exported constant. The article check of a same-language edit uses the same band, so a chunk that passed cannot fail `length_ratio` at assembly.
+- API: `editingContext` keeps the trailing paragraphs of the last section within 6,000 characters and serializes that array. The model no longer receives a JSON fragment cut mid-key.
+- API: an owner whose preferred language has no captured variant receives the ready article in the language the capture has, with its language reported. A variant that exists keeps its own state. The delta spec scenario gained this outcome.
+- API: the saved-body contents `nav` uses the same label as the Web locale (`Contents` / `本文目录`). A unit test now compares every YouTube saved-body label with `component.youtube_article.*` in both Web locale files.
+- Web: `loadFailed` clears only when a status response lands. The failure line and its Retry button stay on screen while the retried request is in flight.
+- Web: a cue without a readable `data-yt-seek` keeps the last known time, so the 12-second paragraph break still works for the following cues.
+- Web: the saved body opens the contents block at `min-width: 769px`, the same boundary as `isH5` (`width <= 768`) in the expanded view. `DESIGN.md` names 768 px as the primary transition but defines no token for it.
+- Web: the four scripts in `apps/web/tests/fixtures/media-recovery/` stay in the tree and are documented in `docs/web/development.md` with their commands and prerequisites. No package script runs them: each needs a running dev server, a local Chrome, and in two cases real public content. This keeps the evidence reproducible with the least surface. Their import order now passes the Web lint.
+- Verified at HEAD without change: the recognized-reason guard in `YoutubeArticleStatus.vue` and the `source_missing` gating on an empty capture in `youtubeArticle.ts`.
+
+| Check | Result |
+| --- | --- |
+| Failing tests before the fixes | API: 3 new tests failed (`legacy v1 rows`, `same-language edit inside the chunk band` ending in `quality:length_ratio`, `editingContext` budget and constant), plus 2 updated tests (`preferred language` ready outcome, saved-body `nav` label). Web: 4 new tests failed (retry in flight in both views, stamp-less cue before a pause, 769 px boundary) |
+| `pnpm exec vitest run test/domain/youtubeArticleService.test.ts test/domain/youtubeArticleRunner.test.ts test/utils/youtubeEditing.test.ts test/utils/podcastArticle.test.ts test/utils/youtubeArticle.test.ts` from `apps/api` | 5 files, 177 tests passed |
+| `pnpm --dir apps/api run test` | 194 files passed, 14 skipped; 2,533 tests passed, 113 skipped |
+| `pnpm --dir apps/api run typecheck` | Passed |
+| `pnpm --dir apps/api run lint` | 0 errors; 344 pre-existing warnings |
+| `pnpm exec vitest run tests/unit/components/Article/processors/youtube.processor.spec.ts tests/unit/components/Snapshot/YoutubeArticleBar.spec.ts tests/unit/components/Snapshot/YoutubeAiArticle.spec.ts` from `apps/web` | 3 files, 49 tests passed |
+| `pnpm --dir apps/web run typecheck` | Passed with the seven public runtime values set in the shell. Without a local `deploy/local/.env.web*` profile the generated runtime-config types are `unknown` and `app/pages/x/ext-bridge.vue` reports three pre-existing errors; that file is not in this diff |
+| `pnpm --dir apps/web run lint` | 102 `simple-import-sort/imports` errors, all in files outside this change. The changed files and the four fixture scripts pass |
+| `pnpm exec openspec validate --all --strict` | 79 passed, 0 failed |
+| `git diff --check` | Passed |
+| `node apps/web/tests/fixtures/media-recovery/20261027-browser-check.mjs` against `pnpm web -- dev --port 3210` | Compact and expanded views: retry and nine theme/width checks passed |
+| `20261027-readable-transcript-check.mjs` and `20261027-public-transcript-check.mjs` | Not run to completion: `https://r.slax.com/api/content/7bfac4d4-b662-4194-a6f9-1fb29d018d9a` and the public page return HTTP 404 on 2026-10-29, so the real public source is no longer available. This is a declared gap, not a result of this diff |
+| `20261027-edited-youtube-check.mjs` | Not run: it needs the local publication server on port 8797 from the earlier generation run |
+
+The integration test `youtubeArticleRepo.integration.test.ts` gained a case for the legacy base row. It runs only with `RUN_PG_INTEGRATION_TESTS=1` and a local PostgreSQL, which this run did not have.
+
+Human hands-on acceptance under `DESIGN.md` section 10.2 remains pending for the repository owner. Task 3.2 stays open. No production change, merge, or deployment occurred.
