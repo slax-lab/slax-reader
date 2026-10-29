@@ -103,6 +103,8 @@ describe('helpers', () => {
   test('stripHtml folds tags and entities and caps the length', () => {
     expect(stripHtml('<p>A &amp; B</p><p>C&nbsp;&#8217;s</p>')).toBe('A & B\nC ’s')
     expect(stripHtml('a&#xff0c;b&#XFF0C;c')).toBe('a，b，c')
+    // A reference above U+10FFFF is page noise, not a capture failure
+    expect(stripHtml('a&#x110000;b&#999999999;c&#0;d')).toBe('abcd')
     expect(stripHtml('x'.repeat(5000)).length).toBe(4000)
   })
 
