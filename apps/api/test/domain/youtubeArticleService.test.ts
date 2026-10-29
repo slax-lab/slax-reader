@@ -1105,6 +1105,26 @@ describe('private capture recovery guidance', () => {
     expect(w.create).not.toHaveBeenCalled()
   })
 
+  test('a ready fallback with Labs off carries no unavailable reason', async () => {
+    const w = wire({ labOn: [] })
+    w.users[OWNER] = { ai_lang: 'zh', lang: 'zh' }
+    ;(w.service as any).snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: 'en',
+        variants: { en: { status: 'ready', content: {} } }
+      }
+    })
+    const state = await w.service.getStatus(w.ctx(OWNER), UUID)
+    expect(state.status).toBe('ready')
+    expect(state.unavailable_reason).toBeUndefined()
+  })
+
   test('an absent preferred language keeps a failed or pending variant of the same language visible', async () => {
     const w = wire()
     w.users[OWNER] = { ai_lang: 'zh', lang: 'zh' }

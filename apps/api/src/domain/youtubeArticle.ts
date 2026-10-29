@@ -198,7 +198,8 @@ export class YoutubeArticleService {
       }
       const enabled = await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB)
       const result = this.privateStatus(snapshot, requested, access, enabled)
-      if (access.isOwner && snapshot.mode === 'capture' && !snapshot.variants[requested]) {
+      // A reason belongs only to an unavailable answer; a ready fallback in another language carries none
+      if (access.isOwner && snapshot.mode === 'capture' && !snapshot.variants[requested] && result.status === 'unavailable') {
         if (!enabled) result.unavailable_reason = 'labs_disabled'
         else if (Object.keys(snapshot.variants).length === 0) result.unavailable_reason = 'source_missing'
       }
