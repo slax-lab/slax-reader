@@ -1,10 +1,13 @@
 import { computed, effectScope, ref } from 'vue'
 
 import { flushPromises } from '@vue/test-utils'
-import { DatabaseSync } from 'node:sqlite'
+import type { DatabaseSync as SqliteDatabase } from 'node:sqlite'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
-let sqlite: DatabaseSync
+// Node 22 omits SQLite from builtinModules; load it directly instead of bundling it.
+const { DatabaseSync } = process.getBuiltinModule('node:sqlite') as typeof import('node:sqlite')
+
+let sqlite: SqliteDatabase
 const revision = ref(0)
 vi.mock('@powersync/vue', () => ({
   useQuery: (sql: { value: string }) => ({
