@@ -79,9 +79,26 @@ export function parseTranslation(text: string, source: { lede: string; sections:
   }
 }
 
-/** The full previous section carries term choices without a second model-generated glossary. */
+/** Edited chunk characters over its cue characters. The article check of a same-language edit uses the same band. */
+export const EDITED_LENGTH_BOUNDS: [number, number] = [0.72, 1.15]
+
+/** Upper size of the previous-section context in characters. */
+export const EDITING_CONTEXT_CHARS = 6000
+
+/**
+ * The previous section carries term choices without a second model-generated glossary. A long
+ * section keeps only its trailing paragraphs, so the context stays valid JSON within the budget.
+ */
 export function editingContext(sections: ArticleSection[]): string {
-  return JSON.stringify(sections.slice(-1)).slice(-6000)
+  const last = sections.at(-1)
+  if (!last) return '[]'
+  const kept: ArticleSection['paragraphs'] = []
+  for (const paragraph of [...last.paragraphs].reverse()) {
+    const next = JSON.stringify([{ ...last, paragraphs: [paragraph, ...kept] }])
+    if (next.length > EDITING_CONTEXT_CHARS) break
+    kept.unshift(paragraph)
+  }
+  return JSON.stringify([{ ...last, paragraphs: kept }])
 }
 
 export function completeCueCoverage(sections: ArticleSection[], ids: string[]): boolean {

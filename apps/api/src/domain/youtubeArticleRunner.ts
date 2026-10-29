@@ -1,4 +1,13 @@
-import { completeCueCoverage, editedLengthRatio, editingContext, editingInstruction, parseTranslation, TRANSLATION_SCHEMA, translationInstruction } from '@/utils/youtubeEditing'
+import {
+  completeCueCoverage,
+  EDITED_LENGTH_BOUNDS,
+  editedLengthRatio,
+  editingContext,
+  editingInstruction,
+  parseTranslation,
+  TRANSLATION_SCHEMA,
+  translationInstruction
+} from '@/utils/youtubeEditing'
 import type { Content } from '@google/genai'
 import type { ChatUsage, VertexAIConfig } from '@/infra/external/vertexAIClient'
 import type { YoutubeArticleRepo } from '@/infra/repository/dbYoutubeArticle'
@@ -262,7 +271,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
             )
               throw new Error('chunk_incomplete_coverage')
             const ratio = editedLengthRatio(parsed.value.sections, ownCues.map(c => c.text).join(' '))
-            if (ratio < 0.72 || ratio > 1.15) throw new Error('edited_length_ratio')
+            if (ratio < EDITED_LENGTH_BOUNDS[0] || ratio > EDITED_LENGTH_BOUNDS[1]) throw new Error('edited_length_ratio')
             source = parsed.value
             await deps.bucket.put(editKey, JSON.stringify(source))
           }
@@ -331,7 +340,12 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         if (!introduction) throw new Error('introduction_missing')
         doc.lede = JSON.parse(await introduction.text()).lede
       }
-      const quality = checkArticleQuality(doc, plan.cues, captionPlainText(caption), { requireCompleteCoverage: edited })
+      // A same-language edit already passed the chunk band; the article check must not use a tighter one
+      const sameLanguage = caption.language.toLowerCase().split('-')[0] === p.targetLanguage
+      const quality = checkArticleQuality(doc, plan.cues, captionPlainText(caption), {
+        requireCompleteCoverage: edited,
+        ...(edited && sameLanguage ? { bounds: EDITED_LENGTH_BOUNDS } : {})
+      })
       const spent = (await deps.repo.findById(p.articleId))?.cost_usd ?? 0
       const summary = { ...quality, format: plan.format, chunks: plan.chunks.length, cost_usd: Number(spent.toFixed(5)), model: YOUTUBE_ARTICLE_MODEL }
       if (!quality.passed) return { kind: 'quality_failed' as const, quality: summary }

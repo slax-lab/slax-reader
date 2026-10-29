@@ -544,6 +544,29 @@ describe('versioned transcript editing', () => {
     expect(s.publishBodies).not.toHaveBeenCalled()
   })
 
+  test('a same-language edit inside the chunk band also passes the article check', async () => {
+    const model = editedModel()
+    const original = model.chat.getMockImplementation()!
+    model.chat.mockImplementation(async (contents, config, options) => {
+      const result = await original(contents, config, options)
+      if (!options.systemInstruction.startsWith('Edit this transcript')) return result
+      // Each paragraph grows to about 1.13 of its cue text: inside the chunk band, over the generic article cap
+      const doc = JSON.parse(result.text)
+      for (const section of doc.sections)
+        for (const p of section.paragraphs) {
+          const sourceLength = p.text.replace(/\s+/g, '').length
+          p.text += ' ' + 'x'.repeat(Math.round(sourceLength * 0.12))
+        }
+      return { ...result, text: JSON.stringify(doc) }
+    })
+    const s = setup({ cues: 40, model })
+    s.params.promptVersion = 'v2'
+    expect(await s.run()).toBe('ready')
+    const ratio = (s.repo.row.quality_json as { metrics: { length_ratio: number } }).metrics.length_ratio
+    expect(ratio).toBeGreaterThan(1.1)
+    expect(ratio).toBeLessThanOrEqual(1.15)
+  })
+
   test('rejects source references in a changed order', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
