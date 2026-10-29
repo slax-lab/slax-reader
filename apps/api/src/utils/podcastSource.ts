@@ -158,6 +158,12 @@ export function outboundUrlProblem(raw: string): string | null {
 
 // ---------- shared helpers ----------
 
+/** One numeric character reference; an invalid code point from page text is dropped, not thrown. */
+function codePoint(digits: string, radix: number): string {
+  const cp = parseInt(digits, radix)
+  return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : ''
+}
+
 /** Plain text from shownotes HTML: tags out, entities decoded, whitespace folded, capped. */
 export function stripHtml(html: string, max = 4000): string {
   if (!html) return ''
@@ -170,8 +176,8 @@ export function stripHtml(html: string, max = 4000): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&#(\d+);/g, (_, n) => codePoint(n, 10))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => codePoint(n, 16))
     .replace(/[ \t]+/g, ' ')
     .replace(/\n\s*\n+/g, '\n')
     .trim()
