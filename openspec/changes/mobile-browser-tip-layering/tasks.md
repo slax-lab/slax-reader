@@ -13,4 +13,5 @@
 - [x] 2.2 Obtain human hands-on acceptance of the guidance in the prepared running environment and record who accepted, the date, and any requested adjustments.
 - [x] 2.3 Compile and exercise the quote-card correction in light, dark, and e-ink at 320px, 390px, 768px, and desktop widths, including multiline English and Chinese content and link activation; record evidence and obtain human hands-on acceptance.
 - [x] 2.4 Complete the Bugs, Security and Compliance pre-push review, refresh the base when GitHub connectivity permits, and open one PR to dev using the repository template with before/after visual groups for both corrections.
-- [ ] 2.5 After the task PR merges, classify any unfinished tasks and archive this change through a separate documentation PR.
+- [x] 2.5 Record the maintainer's explicit decision to keep uniform layer 1000 above in-page overlays, verify that intended precedence and the absence of route-specific treatment, and update the existing PR's review evidence.
+- [ ] 2.6 After the task PR merges, classify any unfinished tasks and archive this change through a separate documentation PR.

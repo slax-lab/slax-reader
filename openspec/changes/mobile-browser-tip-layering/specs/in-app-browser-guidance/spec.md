@@ -22,3 +22,24 @@ On an eligible public subscription collection page, the external-browser guidanc
 - **WHEN** the visitor closes the guidance with its close control or an upward drag past the existing threshold
 - **THEN** the guidance disappears with its existing manual-close and cooldown behavior
 - **AND** the header is exposed for normal interaction without a layout shift
+
+### Requirement: Guidance has consistent priority on eligible pages
+
+Guidance SHALL use the same elevated stacking priority on every eligible page without route-specific layering. It SHALL remain above lower or equal in-page overlays in its layout context, including the subscription modal and collection-management confirmation. Its existing detection, route exclusions, and dismissal behavior SHALL remain unchanged.
+
+#### Scenario: Subscription modal is open
+
+- **WHEN** eligible guidance and the subscription modal are displayed on a promotion surface
+- **THEN** the guidance remains above the subscription modal overlay in their overlapping region
+- **AND** pointer input in that region reaches the guidance
+
+#### Scenario: Collection-management confirmation is open
+
+- **WHEN** eligible guidance and the collection-management confirmation are displayed together
+- **THEN** the guidance retains the same elevated priority above the confirmation and its backdrop in their overlapping region
+
+#### Scenario: Navigation leaves a public collection
+
+- **WHEN** a reader navigates from a public collection page to another eligible route without dismissing the guidance
+- **THEN** the guidance retains the same elevated layer
+- **AND** returning to the public collection does not change its stacking priority
