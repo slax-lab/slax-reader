@@ -1470,6 +1470,7 @@
     "history_end": "已收集 {count} 篇内容。"
   },
   "newsletter": {
+    "truncated": "邮件内容较长，部分内容已截断，请在原始邮件中查看完整内容。",
     "title": "你的 Newsletter 邮箱",
     "description": "使用此地址订阅 Newsletter，新邮件会出现在 Feed 中。",
     "account_label": "账户名称",

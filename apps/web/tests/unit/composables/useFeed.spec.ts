@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 let labs: any, user: any;
 vi.mock("~/composables/useLabFeatures", () => ({ useLabFeatures: () => labs }));
 vi.mock("~/stores/user", () => ({ useUserStore: () => user }));
+vi.mock("~/composables/rss/useRssLocalState", () => ({ rssLocalDatabase: () => null }));
 const { get, post, mockRequest } = vi.hoisted(() => {
   const get = vi.fn(),
     post = vi.fn();

@@ -72,8 +72,8 @@ test('mounted startup shows recoverable local errors, suppresses duplicate retri
   assert(screens.includes('Login')); assert.equal(host.props.has('app-startup-recovery'), false);
 }));
 
-async function libraryFixture(host) {
-  const controls = new Map(), navigations = [], calls = {globalReads: 0, accountReads: 0, updates: 0, retries: 0, watches: 0};
+async function libraryFixture(host, rows = []) {
+  const controls = new Map(), navigations = [], opened = [], calls = {globalReads: 0, accountReads: 0, updates: 0, retries: 0, watches: 0};
   let listProps, readGate, updateGate;
   const contextValue = {bookmarkId: 'private-article', title: '  Private\nreading  ', collectionId: 'shared', collectionOwnerId: 'publisher'};
   const store = new PreferenceStore(new FixtureMemoryPreferences({continue_reading_bookmark: JSON.stringify(contextValue)}));
@@ -82,7 +82,7 @@ async function libraryFixture(host) {
     async update(edit) {calls.updates++; if (updateGate) await updateGate.promise; return store.update(edit);},
   };
   const repositories = {
-    library: {watch(_sort, _owner, callback) {calls.watches++; callback([]); return () => {};}},
+    library: {watch(_sort, _owner, callback) {calls.watches++; callback(rows); return () => {};}},
     watchLibraryCollections: callback => {callback([]); return () => {};}, watchLibraryUser: callback => {callback([]); return () => {};},
     watchBookmarks(_sort, callback) {calls.watches++; callback([]); return () => {};},
     watchCollections: callback => {callback([]); return () => {};}, watchUser: () => () => {}, watchSubscription: () => () => {},
@@ -90,9 +90,9 @@ async function libraryFixture(host) {
   const context = {t: key => key, repositories: null, preferences: {read: async () => {calls.globalReads++; throw new Error('Unadmitted private read');}}, api: {}, sessions: {}, config: {platform: 'ios'}, nativeResourceOwner: null, upgrade: {status: 'checking'}, retryStart: async () => {calls.retries++;}};
   context.runtime = {getDatabase: () => null, getNativeResourceOwner: () => context.nativeResourceOwner, getRepositories: () => context.repositories, getAccountPreferences: () => context.nativeResourceOwner ? accountPreferences : null, getUpgradeSnapshot: () => context.upgrade};
   const primitive = props => {if (props.onPress) controls.set(props.accessibilityLabel ?? text(props.children), props); return React.createElement(host.native.View, props);};
-  const FlatList = React.forwardRef((props, ref) => {listProps = props; React.useImperativeHandle(ref, () => ({scrollToOffset() {}}), []); return React.createElement(host.native.View, null, props.ListHeaderComponent, props.data.length ? null : props.ListEmptyComponent);});
-  const native = {...host.native, Pressable: primitive, FlatList, PixelRatio: {roundToNearestPixel: value => value}, Platform: {OS: 'ios', select: options => options.default}, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}};
-  const components = {...host.components, SourceProgress: primitive, SourceButton: primitive, ScreenSurface: primitive, Divider: nil, BookmarkRow: nil, LinkInputDialog: nil, RssFeed: nil, RssFeedSwitcher: nil, SourceMenu: nil};
+  const FlatList = React.forwardRef((props, ref) => {listProps = props; React.useImperativeHandle(ref, () => ({scrollToOffset() {}}), []); return React.createElement(host.native.View, null, props.ListHeaderComponent, props.data.length ? props.data.map((item, index) => React.createElement(React.Fragment, {key: item.id}, props.renderItem({item, index}))) : props.ListEmptyComponent);});
+  const native = {...host.native, Pressable: primitive, FlatList, Linking: {openURL: async url => opened.push(url)}, PixelRatio: {roundToNearestPixel: value => value}, Platform: {OS: 'ios', select: options => options.default}, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}};
+  const components = {...host.components, SourceProgress: primitive, SourceButton: props => primitive({...props, children: props.label}), ScreenSurface: primitive, Divider: nil, BookmarkRow: props => primitive({testID: `fixture-bookmark-${props.item.id}`, onPress: () => props.onOpen(props.item), children: props.item.title}), LinkInputDialog: nil, RssFeed: nil, RssFeedSwitcher: nil, SourceMenu: nil};
   const {LibraryDataStatus} = await loadComponent('../../src/screens/LibraryDataStatus.tsx', {react: React, 'react-native': native, '../components': components, '../theme': theme});
   const rssState = {enabled: false};
   class RssController {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}}
@@ -106,11 +106,37 @@ async function libraryFixture(host) {
     '../components': components, '../data': {readContinueReading}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {EmptyInbox: 'empty-inbox'}}, './collection-selection': {CollectionSelection}, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: props => React.createElement(host.native.View, null, props.children, props.open ? props.drawer : null), DrawerScrollBoundary: ({children}) => children, useDrawerGesture: () => null, useDrawerInput: () => null}, '../utils/source-time': {parseSourceTimestamp},
   }, {setInterval, clearInterval});
   const render = () => {controls.clear(); return host.render(React.createElement(LibraryScreen, {navigation: {navigate: (...args) => navigations.push(args)}, route: {params: {}}}));};
-  return {context, controls, calls, navigations, store, render, list: () => listProps, contextValue,
+  return {context, controls, calls, navigations, opened, store, render, list: () => listProps, contextValue,
     admit() {Object.assign(context, {repositories, preferences: accountPreferences, nativeResourceOwner: 'admitted-owner', upgrade: {status: 'ready'}});},
     readGate(value) {readGate = value;}, updateGate(value) {updateGate = value;},
   };
 }
+
+for (const url of ['slax-newsletter://message/42', 'https://fixture.test/original']) test(`mounted Library processing dialog ${url.startsWith('https:') ? 'opens a web original' : 'omits an unavailable Newsletter original'}`, nativeBoundary, async () => withNativeHost(async host => {
+  const f = await libraryFixture(host, [{id: 'processing', title: 'Pending issue', url, status: 'pending'}]);
+  f.admit(); await f.render();
+  await act(async () => host.props.get('fixture-bookmark-processing').onPress());
+  assert.match(host.window.document.body.textContent, /processing_message/);
+  assert.equal(host.window.document.body.textContent.includes('processing_btn_read_original'), url.startsWith('https:'));
+  if (url.startsWith('https:')) {
+    await act(async () => f.controls.get('processing_btn_read_original').onPress());
+    assert.deepEqual(f.opened, ['https://fixture.test/original']);
+  } else {
+    assert.equal(f.controls.has('processing_btn_read_original'), false);
+    await act(async () => f.controls.get('btn_close').onPress());
+    assert.doesNotMatch(host.window.document.body.textContent, /processing_message/);
+  }
+  assert.deepEqual(f.navigations, []);
+}));
+
+test('mounted Library opens a successful saved Newsletter directly in the ordinary Reader', nativeBoundary, async () => withNativeHost(async host => {
+  const f = await libraryFixture(host, [{id: 'saved-mail', title: 'Saved issue', url: 'slax-newsletter://message/42', status: 'success'}]);
+  f.admit(); await f.render();
+  await act(async () => host.props.get('fixture-bookmark-saved-mail').onPress());
+  assert.deepEqual(JSON.parse(JSON.stringify(f.navigations)), [['Reader', {bookmarkId: 'saved-mail'}]]);
+  assert.doesNotMatch(host.window.document.body.textContent, /processing_message/);
+  assert.deepEqual(f.opened, []);
+}));
 
 test('mounted Library confines admission loading/recovery to data area and preserves safe navigation without consuming private preferences', nativeBoundary, async () => withNativeHost(async host => {
   const f = await libraryFixture(host); await f.render();

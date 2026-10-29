@@ -1,5 +1,5 @@
 import PostalMime from 'postal-mime'
-import { HtmlBuilder } from '@/utils/htmlBuilder'
+import { Buffer } from 'node:buffer'
 import type { NewsletterErrorCode } from '@slax-reader/contracts'
 import { DOMParser } from 'linkedom'
 import { sanitizeFeedHtml } from '@/domain/rss/feed'
@@ -69,7 +69,6 @@ const label = (text: string | undefined, fallback: string) =>
 export interface ParsedNewsletter {
   attachments: { filename: string; mimeType: string; size: number }[]
   removedTrackingImages: number
-  extraction: 'content' | 'fallback'
   sender: string
   sourceTitle: string
   title: string
@@ -116,12 +115,12 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
   const sender = mail.from?.address?.trim().toLowerCase() || ''
   if (!/^[^\s<>@\u0000-\u001f]+@[^\s<>@\u0000-\u001f]+\.[^\s<>@\u0000-\u001f]+$/.test(sender) || sender.length > 254) throw new NewsletterError('invalid_message')
   const body = mail.html || (mail.text ? '<pre>' + escape(mail.text) + '</pre>' : '')
-  const attachments = mail.attachments.map(item => ({
+  const allAttachments = mail.attachments.map(item => ({
     filename: label(item.filename?.replace(/[\\/]/g, '_'), 'Unnamed attachment'),
     mimeType: label(item.mimeType, 'application/octet-stream'),
     size: typeof item.content === 'string' ? new TextEncoder().encode(item.content).byteLength : item.content.byteLength
   }))
-  if (!body && !attachments.length) throw new NewsletterError('invalid_message')
+  if (!body && !allAttachments.length) throw new NewsletterError('invalid_message')
   // Email has no trustworthy document base. Remove references that RSS would resolve against its synthetic base.
   const doc = new DOMParser().parseFromString('<html><body>' + body.slice(0, 512 * 1024) + '</body></html>', 'text/html') as unknown as Document
   let removedTrackingImages = 0
@@ -147,6 +146,31 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
       removedTrackingImages++
     }
   }
+  // Sanitize small opaque placeholders before embedding image bytes, preserving the text budget.
+  const inline = new Map<string, string>(),
+    used = new Set<number>(),
+    imagePrefix = `https://newsletter-inline.invalid/${crypto.randomUUID()}/`
+  for (const image of doc.querySelectorAll('img')) {
+    const source = image.getAttribute('src') || ''
+    if (!/^cid:/i.test(source)) continue
+    let cid: string
+    try {
+      cid = decodeURIComponent(source.slice(4)).replace(/^<|>$/g, '')
+    } catch {
+      image.removeAttribute('src')
+      continue
+    }
+    const index = mail.attachments.findIndex(item => item.contentId?.replace(/^<|>$/g, '') === cid)
+    const attachment = mail.attachments[index]
+    if (!attachment || !/^image\/(?:png|jpeg|gif|webp|avif)$/i.test(attachment.mimeType)) {
+      image.removeAttribute('src')
+      continue
+    }
+    const placeholder = imagePrefix + index
+    if (!inline.has(placeholder)) inline.set(placeholder, `data:${attachment.mimeType.toLowerCase()};base64,${Buffer.from(attachment.content as ArrayBuffer).toString('base64')}`)
+    used.add(index)
+    image.setAttribute('src', placeholder)
+  }
   for (const node of doc.querySelectorAll('[srcset]')) node.removeAttribute('srcset')
   for (const node of doc.querySelectorAll('[src], [href], [data-src], [data-original]')) {
     for (const key of ['src', 'href', 'data-src', 'data-original']) {
@@ -155,44 +179,44 @@ export async function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter
     }
   }
   const full = sanitizeMailHtml(doc.body.innerHTML)
-  const extracted = HtmlBuilder.buildNewsletterBody(doc.body.innerHTML)
-  const candidate = extracted ? sanitizeMailHtml(extracted) : null
-  // Mail may contain multiple articles or short confirmations: retain the whole sanitized message whenever extraction loses content or links.
-  const fullDoc = new DOMParser().parseFromString('<html><body>' + full.html + '</body></html>', 'text/html') as unknown as Document
-  const candidateDoc = new DOMParser().parseFromString('<html><body>' + (candidate?.html || '') + '</body></html>', 'text/html') as unknown as Document
-  const normalize = (value: string) => value.replace(/\s+/g, ' ').trim()
-  const useExtraction =
-    !!candidate &&
-    normalize(candidate.text) === normalize(full.text) &&
-    [...fullDoc.querySelectorAll('[href], [src]')].every(node =>
-      [...candidateDoc.querySelectorAll('[href], [src]')].some(
-        other => other.getAttribute('href') === node.getAttribute('href') && other.getAttribute('src') === node.getAttribute('src')
-      )
-    )
-  const selected = useExtraction ? candidate! : full
+  const attachments = allAttachments.filter((_, index) => !used.has(index))
   const attachmentHtml = attachments.length
     ? '<section><h2>Attachments</h2><p>Binary attachments are not stored. Refer to the original email to open them.</p><ul>' +
       attachments.map(item => '<li>' + escape(item.filename) + ' (' + escape(item.mimeType) + ', ' + item.size + ' bytes)</li>').join('') +
       '</ul></section>'
     : ''
-  const clean = sanitizeFeedHtml(selected.html + attachmentHtml, 'https://rss.invalid/')
+  const clean = sanitizeFeedHtml(full.html + attachmentHtml, 'https://rss.invalid/')
   const attachmentIdentity = await Promise.all(
-    mail.attachments.map(async (item, index) => [attachments[index], await hashSHA256(typeof item.content === 'string' ? item.content : new Uint8Array(item.content))])
+    mail.attachments.map(async (item, index) => [allAttachments[index], await hashSHA256(typeof item.content === 'string' ? item.content : new Uint8Array(item.content))])
   )
+  const rendered = new DOMParser().parseFromString('<html><body>' + clean.html + '</body></html>', 'text/html') as unknown as Document
+  let embeddedBytes = 0,
+    inlineTruncated = false
+  for (const image of rendered.querySelectorAll('img')) {
+    const data = inline.get(image.getAttribute('src') || '')
+    if (!data) continue
+    // Each reference duplicates its encoded bytes in HTML; cap expansion independently of text.
+    if (embeddedBytes + data.length > NEWSLETTER_LIMITS.rawBytes) {
+      image.remove()
+      inlineTruncated = true
+      continue
+    }
+    image.setAttribute('src', data)
+    embeddedBytes += data.length
+  }
   const id = mail.messageId?.trim()
   const messageKey = await hashSHA256(id ? 'id:' + id : 'body:' + JSON.stringify([sender, mail.subject || '', mail.date || '', mail.html || mail.text || '', attachmentIdentity]))
   const date = mail.date ? new Date(mail.date) : null
   return {
     attachments,
     removedTrackingImages,
-    extraction: useExtraction ? 'content' : 'fallback',
     sender,
     sourceTitle: label(mail.from?.name, sender),
     title: label(mail.subject, '(No subject)'),
     messageKey,
-    html: clean.html,
+    html: rendered.body.innerHTML,
     excerpt: clean.text.slice(0, 500),
-    truncated: full.truncated || clean.truncated || body.length > 512 * 1024,
+    truncated: full.truncated || clean.truncated || inlineTruncated || body.length > 512 * 1024,
     publishedAt: date && Number.isFinite(date.valueOf()) && date.valueOf() <= Date.now() + 24 * 3600_000 ? date : null
   }
 }

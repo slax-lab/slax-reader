@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref, watch } from "vue";
+import { computed, onScopeDispose, type Ref, ref, watch } from "vue";
 
 import { feedRowKind } from "~/utils/feed";
 
@@ -13,6 +13,17 @@ import type {
   RssSaveResponse,
   RssSubscription,
 } from "@slax-reader/contracts";
+import {
+  compareFeedEntries,
+  useLocalNewsletterPresence,
+  useNewsletterLocalState,
+} from "~/composables/newsletter/useNewsletterLocalState";
+import { useRssEnabled } from "~/composables/rss/useRssEnabled";
+import {
+  rssLocalDatabase,
+  rssLocalOwned,
+  useRssLocalState,
+} from "~/composables/rss/useRssLocalState";
 import { useLabFeatures } from "~/composables/useLabFeatures";
 import { useUserStore } from "~/stores/user";
 
@@ -34,10 +45,10 @@ export const feedSourceText = (name: string) =>
   name
     .normalize("NFKC")
     .match(
-      /\p{Script=Han}|(?:(?!\p{Script=Han})\p{L})(?:(?!\p{Script=Han})[\p{L}\p{M}])*/u,
+      /\p{Script=Han}|(?:(?!\p{Script=Han})\p{L})(?:(?!\p{Script=Han})[\p{L}\p{M}])*/u
     )?.[0] || "RSS";
 
-/** Mixed and Newsletter Feed state; the original RSS panel owns RSS-only sessions. */
+/** Mixed and Newsletter lists use owned local streams; clients without local storage retain REST. */
 export function useFeed() {
   const labs = useLabFeatures(),
     user = useUserStore();
@@ -68,9 +79,22 @@ export function useFeed() {
     detailGeneration = 0,
     initializeGeneration = 0,
     session = 0;
-  const rssEnabled = computed(() => labs.loaded.value && labs.isEnabled("rss"));
-  const newsletterEnabled = computed(
-    () => labs.loaded.value && labs.isEnabled("newsletter"),
+  const database = rssLocalDatabase();
+  const owned = database ? rssLocalOwned() : null;
+  const newsletterPresent = database
+    ? useLocalNewsletterPresence(
+        database,
+        owned!,
+        computed(() => user.userInfo?.userId)
+      )
+    : null;
+  const rssEnabled = database
+    ? useRssEnabled(labs)
+    : computed(() => labs.loaded.value && labs.isEnabled("rss"));
+  const newsletterEnabled = computed(() =>
+    labs.loaded.value
+      ? labs.isEnabled("newsletter")
+      : !!newsletterPresent?.value
   );
   const kinds = computed<FeedKind[]>(() => [
     ...(rssEnabled.value ? ["rss" as const] : []),
@@ -79,15 +103,100 @@ export function useFeed() {
   const enabled = newsletterEnabled;
   const allowed = (row: { kind?: string | null }) =>
     kinds.value.includes(feedRowKind(row));
-  const subscriptions = restSubscriptions,
-    entries = restEntries,
-    cursor = restCursor,
-    hasMore = restHasMore,
-    historyStatus = restHistoryStatus,
-    retryAt = restRetryAt;
+  const localMode = computed(
+    () =>
+      enabled.value && !!database && !!owned?.value && !!user.userInfo?.userId
+  );
+  const localRss = database
+    ? useRssLocalState(
+        database,
+        computed(() => localMode.value && rssEnabled.value),
+        computed(() => user.userInfo?.userId),
+        computed(() =>
+          selected.value.startsWith("newsletter:") ? "" : selected.value
+        )
+      )
+    : null;
+  const localNewsletter = database
+    ? useNewsletterLocalState(
+        database,
+        localMode,
+        computed(() => user.userInfo?.userId),
+        selected
+      )
+    : null;
+  const showsRss = computed(
+    () => rssEnabled.value && !selected.value.startsWith("newsletter:")
+  );
+  const showsNewsletter = computed(
+    () => !selected.value || selected.value.startsWith("newsletter:")
+  );
+  const localSubscriptions = computed<FeedSubscription[]>(() => [
+    ...(rssEnabled.value
+      ? localRss!.subscriptions.value.map((row) => ({
+          ...row,
+          kind: "rss" as const,
+        }))
+      : []),
+    ...localNewsletter!.subscriptions.value,
+  ]);
+  const localEntries = computed<FeedEntry[]>(() =>
+    [
+      ...(showsRss.value
+        ? localRss!.entries.value.map((row) => ({
+            ...row,
+            kind: "rss" as const,
+          }))
+        : []),
+      ...(showsNewsletter.value ? localNewsletter!.entries.value : []),
+    ].sort(compareFeedEntries)
+  );
+  // Stream errors stay visible without replacing healthy RSS or cached Newsletter rows with mixed REST reads.
+  const localUnavailable = computed(
+    () =>
+      localMode.value &&
+      ((showsRss.value && localRss!.unavailable.value) ||
+        (showsNewsletter.value && localNewsletter!.unavailable.value))
+  );
+  const localPending = computed(
+    () =>
+      localMode.value &&
+      localEntries.value.length === 0 &&
+      !localUnavailable.value &&
+      ((showsRss.value && !localRss!.ready.value) ||
+        (showsNewsletter.value && !localNewsletter!.ready.value))
+  );
+  const view = <T>(rest: Ref<T>, synced: () => T) =>
+    computed<T>({
+      get: () => (localMode.value ? synced() : rest.value),
+      set: (value) => {
+        rest.value = value;
+      },
+    });
+  const subscriptions = view(restSubscriptions, () => localSubscriptions.value),
+    entries = view(restEntries, () => localEntries.value),
+    cursor = view(restCursor, () =>
+      showsRss.value ? localRss!.cursor.value : null
+    ),
+    hasMore = view(
+      restHasMore,
+      () =>
+        (showsRss.value && localRss!.hasMore.value) ||
+        (showsNewsletter.value && localNewsletter!.hasMore.value)
+    ),
+    historyStatus = view(restHistoryStatus, () =>
+      showsRss.value ? localRss!.historyStatus.value : "exhausted"
+    ),
+    retryAt = view(restRetryAt, () =>
+      showsRss.value ? localRss!.retryAt.value : null
+    );
   const fail = (e: unknown) => {
     error.value = e instanceof Error ? e.message : "source_unavailable";
   };
+  const reportLocalError = () => {
+    if (localUnavailable.value) error.value = "source_unavailable";
+  };
+  watch(localUnavailable, reportLocalError, { immediate: true, flush: "sync" });
   const clear = () => {
     session++;
     generation++;
@@ -112,10 +221,15 @@ export function useFeed() {
       clear();
       if (id) void initialize();
     },
+    { flush: "sync" }
   );
-  watch(enabled, (value) => {
-    if (!value) clear();
-  });
+  watch(
+    enabled,
+    (value) => {
+      if (!value) clear();
+    },
+    { flush: "sync" }
+  );
   watch(
     kinds,
     () => {
@@ -145,7 +259,30 @@ export function useFeed() {
         restoreList(cache.get(""));
       }
     },
-    { flush: "sync" },
+    { flush: "sync" }
+  );
+  watch(
+    localMode,
+    (value) => {
+      clear();
+      if (!value && enabled.value && user.userInfo?.userId) void initialize();
+    },
+    { flush: "sync" }
+  );
+  watch(
+    () => (localMode.value ? localSubscriptions.value : null),
+    (rows) => {
+      if (
+        rows &&
+        selected.value &&
+        !rows.some((row) => row.id === selected.value)
+      ) {
+        const sourceReady = selected.value.startsWith("newsletter:")
+          ? localNewsletter!.ready.value
+          : localRss!.ready.value;
+        if (sourceReady) void select("");
+      }
+    }
   );
   onScopeDispose(clear);
 
@@ -161,6 +298,26 @@ export function useFeed() {
     });
   const reload = async (more = false) => {
     if (!enabled.value || loading.value || (more && !hasMore.value)) return;
+    if (localMode.value) {
+      if (!more) {
+        reportLocalError();
+        return;
+      }
+      const stamp = ++generation;
+      loading.value = true;
+      error.value = "";
+      try {
+        if (showsNewsletter.value && localNewsletter!.hasMore.value)
+          localNewsletter!.loadMore();
+        if (showsRss.value && localRss!.ready.value && localRss!.hasMore.value)
+          await localRss!.loadMore();
+      } catch (e) {
+        if (stamp === generation) fail(e);
+      } finally {
+        if (stamp === generation) loading.value = false;
+      }
+      return;
+    }
     const source = selected.value,
       stamp = ++generation,
       previous = cache.get(source);
@@ -169,7 +326,7 @@ export function useFeed() {
     try {
       if (more) {
         const result = await fetchPage(source, restCursor.value, true);
-        if (stamp !== generation || !enabled.value) return;
+        if (stamp !== generation || !enabled.value || localMode.value) return;
         if (!result) throw new Error("source_unavailable");
       }
       // Revalidate every loaded page before swapping the list, preserving pagination and old rows while loading.
@@ -181,7 +338,7 @@ export function useFeed() {
       let page: FeedEntriesResponse;
       do {
         const result = await fetchPage(source, next);
-        if (stamp !== generation || !enabled.value) return;
+        if (stamp !== generation || !enabled.value || localMode.value) return;
         if (!result) throw new Error("source_unavailable");
         page = result;
         items.push(...page.items.filter(allowed));
@@ -215,6 +372,10 @@ export function useFeed() {
     loading.value = false;
     const cached = cache.get(id);
     restoreList(cached);
+    if (localMode.value) {
+      reportLocalError();
+      return;
+    }
     if (force || !cached || Date.now() - cached.updatedAt >= CACHE_TTL)
       await reload();
   };
@@ -224,21 +385,38 @@ export function useFeed() {
     initializing.value = true;
     error.value = "";
     try {
-      await labs.fetch();
+      try {
+        await labs.fetch();
+      } catch (e) {
+        if (localMode.value) {
+          reportLocalError();
+          return;
+        }
+        throw e;
+      }
+      if (localMode.value) {
+        reportLocalError();
+        return;
+      }
       if (
         !enabled.value ||
         initialization !== initializeGeneration ||
-        account !== session
+        account !== session ||
+        localMode.value
       )
         return;
       const result = await request().get<FeedSubscriptionsResponse>({
         url: "/v1/feed/subscriptions",
       });
-      if (initialization !== initializeGeneration || account !== session)
+      if (
+        initialization !== initializeGeneration ||
+        account !== session ||
+        localMode.value
+      )
         return;
       if (!result) throw new Error("source_unavailable");
       const previous = new Map(
-        restSubscriptions.value.map((row) => [row.id, row]),
+        restSubscriptions.value.map((row) => [row.id, row])
       );
       restSubscriptions.value = result.items.filter(allowed);
       const ids = new Set(restSubscriptions.value.map((row) => row.id));
@@ -253,7 +431,7 @@ export function useFeed() {
           .map((row) => ({
             ...row,
             source_title: feedSubscriptionName(
-              result.items.find((sub) => sub.id === row.subscription_id)!,
+              result.items.find((sub) => sub.id === row.subscription_id)!
             ),
           }));
       }
@@ -293,15 +471,22 @@ export function useFeed() {
   };
   const mutate = async (
     work: () => Promise<void>,
-    entryId: string | null = null,
+    entryId: string | null = null
   ) => {
     if (pending.value) return;
-    const account = session, permission = permissionGeneration;
+    const account = session,
+      permission = permissionGeneration;
     pending.value = true;
     savingEntryId.value = entryId;
     error.value = "";
     try {
       await work();
+      if (
+        localMode.value &&
+        account === session &&
+        permission === permissionGeneration
+      )
+        error.value = "";
     } catch (e) {
       if (account === session && permission === permissionGeneration) fail(e);
     } finally {
@@ -314,13 +499,20 @@ export function useFeed() {
   const add = (url: string, remark = "") =>
     mutate(async () => {
       if (!rssEnabled.value) return;
-      const account = session;
+      const account = session,
+        permission = permissionGeneration;
       const row = await request().post<RssSubscription>({
         url: "/v1/rss/subscriptions",
         body: { url, remark: remark.trim() || null },
       });
-      if (account !== session || !rssEnabled.value) return;
+      if (
+        account !== session ||
+        permission !== permissionGeneration ||
+        !rssEnabled.value
+      )
+        return;
       if (!row) throw new Error("source_unavailable");
+      if (localMode.value) localRss!.add(row);
       restSubscriptions.value = [
         ...restSubscriptions.value.filter((item) => item.id !== row.id),
         { ...row, kind: "rss" },
@@ -335,15 +527,23 @@ export function useFeed() {
         subscriptions.value.find((row) => row.id === id)?.kind === "newsletter"
       )
         return;
-      const account = session;
+      const account = session,
+        permission = permissionGeneration,
+        previous = localMode.value ? localRss!.remark(id) : undefined;
       const row = await request().post<RssSubscription>({
         url: `/v1/rss/subscriptions/${encodeURIComponent(id)}/update`,
         body: { remark: remark.trim() || null },
       });
-      if (account !== session || !rssEnabled.value) return;
+      if (
+        account !== session ||
+        permission !== permissionGeneration ||
+        !rssEnabled.value
+      )
+        return;
       if (!row) throw new Error("source_unavailable");
+      if (localMode.value) localRss!.rename(row, previous);
       restSubscriptions.value = restSubscriptions.value.map((sub) =>
-        sub.id === row.id ? { ...row, kind: "rss" } : sub,
+        sub.id === row.id ? { ...row, kind: "rss" } : sub
       );
       const renamed = (entry: FeedEntry) =>
         entry.subscription_id === row.id
@@ -365,18 +565,25 @@ export function useFeed() {
         subscriptions.value.find((row) => row.id === id)?.kind === "newsletter"
       )
         return;
-      const account = session;
+      const account = session,
+        permission = permissionGeneration;
       await request().post({
         url: `/v1/rss/subscriptions/${encodeURIComponent(id)}/delete`,
       });
-      if (account !== session || !rssEnabled.value) return;
+      if (
+        account !== session ||
+        permission !== permissionGeneration ||
+        !rssEnabled.value
+      )
+        return;
+      if (localMode.value) localRss!.remove(id);
       restSubscriptions.value = restSubscriptions.value.filter(
-        (row) => row.id !== id,
+        (row) => row.id !== id
       );
       cache.delete(id);
       for (const snapshot of cache.values()) {
         snapshot.items = snapshot.items.filter(
-          (row) => row.subscription_id !== id,
+          (row) => row.subscription_id !== id
         );
         snapshot.updatedAt = 0;
       }
@@ -391,16 +598,23 @@ export function useFeed() {
       )
         return;
       const id = selected.value,
-        account = session;
+        account = session,
+        permission = permissionGeneration;
       if (!id) {
-        await initialize(true);
+        if (!localMode.value) await initialize(true);
         return;
       }
       const result = await request().post<RssRefreshResponse>({
         url: `/v1/rss/subscriptions/${encodeURIComponent(id)}/refresh`,
       });
-      if (account !== session || !rssEnabled.value) return;
+      if (
+        account !== session ||
+        permission !== permissionGeneration ||
+        !rssEnabled.value
+      )
+        return;
       if (!result) throw new Error("source_unavailable");
+      if (localMode.value) localRss!.refresh(id, result.next_allowed_at);
       const row = restSubscriptions.value.find((item) => item.id === id);
       if (row?.kind === "rss") {
         row.refreshing = true;
@@ -441,8 +655,20 @@ export function useFeed() {
       const result = await request().post<RssSaveResponse>({
         url: `/v1/${endpoint}/entries/${encodeURIComponent(entry.id)}/save`,
       });
-      if (account !== session || permission !== permissionGeneration || !enabled.value || !allowed(entry)) return;
+      if (
+        account !== session ||
+        permission !== permissionGeneration ||
+        !enabled.value ||
+        !allowed(entry)
+      )
+        return;
       if (!result?.bookmark_user_uuid) throw new Error("source_unavailable");
+      if (localMode.value) {
+        if (kind === "newsletter")
+          localNewsletter!.save(entry.id, result.bookmark_user_uuid);
+        else if (entry.article_url)
+          localRss!.save(entry.article_url, result.bookmark_user_uuid);
+      }
       const matches = (row: FeedEntry) =>
         row.kind === kind &&
         (kind === "newsletter"
@@ -472,7 +698,7 @@ export function useFeed() {
     rssEnabled,
     newsletterEnabled,
     loading,
-    initializing,
+    initializing: computed(() => initializing.value || localPending.value),
     detailLoading,
     pending,
     savingEntryId,

@@ -28,6 +28,7 @@ import {LibraryDataStatus} from './LibraryDataStatus';
 import {useVisibleSnapshot} from '../components/useVisibleSnapshot';
 import {useObserveMarkInteractive} from '../observe';
 import {libraryIsInteractive} from '../observe/readiness';
+import {httpOriginalUrl} from '../utils/source-url';
 
 declare global {var __SLAX_UI_RSS_STATE__: unknown;}
 
@@ -57,6 +58,7 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
   const [drawerLocked, setDrawerLocked] = useState(false);
   const [drawer, setDrawer] = useState(false), [sortMenu, setSortMenu] = useState(false), [add, setAdd] = useState(false), [edit, setEdit] = useState<LibraryBookmark | null>(null);
   const [processing, setProcessing] = useState<string | null>(null), [error, setError] = useState<string | null>(null), [continueReading, setContinueReading] = useState<{value: ContinueReadingContext; owner: string; repositories: typeof repositories; preferences: typeof preferences} | null>(null), [now, setNow] = useState(Date.now());
+  const processingOriginalUrl = httpOriginalUrl(processing ?? '');
   const visibleContinueReading = dataReady && continueReading?.owner === nativeResourceOwner && continueReading.repositories === repositories && continueReading.preferences === preferences ? continueReading.value : null;
   useEffect(() => {telemetry.track('screen_viewed', {screen_name: 'bookmarks', list_mode: sort === 'archived' ? 'archive' : sort});}, [sort, telemetry]);
   const list = useRef<FlatList<LibraryBookmark>>(null);
@@ -239,7 +241,7 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
     <LinkInputDialog visible={add} onDismiss={() => setAdd(false)} onImportPdf={pdfLab.ready && pdfLab.enabled ? () => setImportingPdf(true) : undefined} onSubmit={url => {telemetry.firebase('bookmark', 'add_start', {channel: 'app', method: 'manual_paste'}); void repositories?.createBookmark(url).then(() => inboxScroll.reset(true)).catch(showError);}} />
     <PdfImportDialog key={`pdf-import-${nativeResourceOwner}`} visible={importingPdf} onDismiss={() => setImportingPdf(false)} onSaved={bookmarkId => {inboxScroll.reset(true); navigation.navigate('Reader', {bookmarkId});}} />
     <LinkInputDialog visible={edit !== null} initialTitle={edit ? edit.aliasTitle || edit.title : undefined} onDismiss={() => setEdit(null)} onSubmit={title => {if (edit) void repositories?.updateBookmark(edit.id, {aliasTitle: title}).catch(showError);}} />
-    <SourceDialog compact visible={processing !== null} onDismiss={() => setProcessing(null)}><View style={{alignItems: 'flex-end'}}><Pressable accessibilityLabel={t('btn_close')} onPress={() => setProcessing(null)}><SourceIcon name="ic_xs_dialog_close" /></Pressable></View><SourceText style={[T.menu, {color: C.bodyText, marginTop: 20}]}>{t('processing_message')}</SourceText><SourceButton label={t('processing_btn_read_original')} style={{marginTop: 24}} onPress={() => {const url = processing; setProcessing(null); if (fixtureOnly) {showError(new Error('External browser navigation has no prepared fixture provider')); return;} if (url && /^https?:\/\//.test(url)) void Linking.openURL(url).catch(showError);}} /></SourceDialog>
+    <SourceDialog compact visible={processing !== null} onDismiss={() => setProcessing(null)}><View style={{alignItems: 'flex-end'}}><Pressable accessibilityLabel={t('btn_close')} onPress={() => setProcessing(null)}><SourceIcon name="ic_xs_dialog_close" /></Pressable></View><SourceText style={[T.menu, {color: C.bodyText, marginTop: 20}]}>{t('processing_message')}</SourceText>{processingOriginalUrl ? <SourceButton label={t('processing_btn_read_original')} style={{marginTop: 24}} onPress={() => {setProcessing(null); if (fixtureOnly) {showError(new Error('External browser navigation has no prepared fixture provider')); return;} void Linking.openURL(processingOriginalUrl).catch(showError);}} /> : null}</SourceDialog>
     <SourceDialog visible={error !== null} title={t('feedback_error_title')} onDismiss={() => setError(null)} actions={<TextAction label={t('btn_ok')} onPress={() => setError(null)} />}><SourceText>{error}</SourceText></SourceDialog>
     </View>
   </SourceDrawer></ScreenSurface>;

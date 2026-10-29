@@ -351,7 +351,7 @@
             @error.capture="imageFailed"
           />
           <p v-if="rss.detail.value?.content_truncated" class="feed-caption">
-            {{ $t("rss.truncated") }}
+            {{ $t(previewEntry.kind === "newsletter" ? "newsletter.truncated" : "rss.truncated") }}
           </p>
           <p
             v-if="rss.error.value && rss.detail.value"
@@ -529,7 +529,7 @@ import NewsletterAddress from "~/components/NewsletterAddress.vue";
 import RssIcon from "~/components/RssIcon.vue";
 import RssPanel from "~/components/RssPanel.vue";
 
-import { sanitizeRssPreview } from "~/utils/rssPreview";
+import { sanitizeNewsletterPreview, sanitizeRssPreview } from "~/utils/rssPreview";
 
 import type { FeedEntry, FeedSubscription } from "@slax-reader/contracts";
 import {
@@ -614,7 +614,7 @@ const date = (value: string | null) =>
     : "—";
 const safeHtml = computed(() =>
   import.meta.client && rss.detail.value
-    ? sanitizeRssPreview(rss.detail.value.content_html, import.meta.dev)
+    ? (previewEntry.value?.kind === 'newsletter' ? sanitizeNewsletterPreview : sanitizeRssPreview)(rss.detail.value.content_html, import.meta.dev)
     : "",
 );
 const imageFailed = (event: Event) => {

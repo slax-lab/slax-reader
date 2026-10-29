@@ -16,7 +16,7 @@ export function localEmailUrl(edge: string, to: string, from: string): URL {
 }
 export function previewDocument(html: string): string {
   return (
-    '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; base-uri \'none\'; form-action \'none\'"><title>Newsletter local preview</title></head><body>' +
+    '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data:; base-uri \'none\'; form-action \'none\'"><title>Newsletter local preview</title></head><body>' +
     html +
     '</body></html>'
   )
@@ -65,7 +65,6 @@ export async function runNewsletterTest(args: string[]): Promise<void> {
         messageKey: parsed.messageKey,
         attachments: parsed.attachments,
         removedTrackingImages: parsed.removedTrackingImages,
-        extraction: parsed.extraction,
         truncated: parsed.truncated
       },
       null,

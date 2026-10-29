@@ -1,5 +1,3 @@
-import { Readability } from '@slax-lab/readability'
-import { parseHTML } from 'linkedom'
 import { XHSData } from '@/const/moreapi/xhs'
 import { renderPodcastBody, type PodcastPlayerInfo } from '@/utils/podcastArticle'
 import { TweetArticleInfo, TweetInfo } from '@/const/twitterapi/struct'
@@ -31,16 +29,6 @@ export interface YoutubeCue {
 export const isSafeVideoId = (videoId: string): boolean => /^[\w-]{1,32}$/.test(videoId)
 
 export class HtmlBuilder {
-  /** Pure extraction of already sanitized mail; the caller retains the complete-mail fallback. */
-  public static buildNewsletterBody(sanitizedHtml: string): string | null {
-    try {
-      const { document } = parseHTML('<html><body>' + sanitizedHtml + '</body></html>')
-      return new Readability(document, { debug: false, keepImgImportantStyles: true }).parse()?.content || null
-    } catch {
-      return null
-    }
-  }
-
   public static buildTweet(item: TweetInfo, quoteTweetHtml?: string): string {
     const tweetStyle =
       item.extendedEntities?.media?.map(media => {

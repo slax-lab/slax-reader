@@ -134,3 +134,22 @@ test('disabling during copying prevents publication and cleans unpublished copy 
   expect((await db.query('SELECT * FROM sr_bookmark')).rows).toEqual([])
   expect([...storage.objects.keys()]).toEqual(['newsletter-content/original'])
 })
+
+test('received CID images survive storage, independent Inbox copying and source deletion', async () => {
+  const image = Buffer.from('inline image bytes').toString('base64')
+  const parsed = await parseNewsletter(
+    new TextEncoder().encode(
+      'From: Sender <sender@example.com>\r\nContent-Type: multipart/related; boundary=b\r\n\r\n' +
+        '--b\r\nContent-Type: text/html\r\n\r\n<p>Inline mail</p><img src="cid:photo">\r\n' +
+        '--b\r\nContent-Type: image/png\r\nContent-ID: <photo>\r\nContent-Transfer-Encoding: base64\r\n\r\n' +
+        image +
+        '\r\n--b--'
+    )
+  )
+  const stored = await new NewsletterContent(() => ({ R2Bucket: storage.bucket }) as never).store({} as Env, 'owner', 1n, parsed)
+  await db.query('UPDATE sr_newsletter_feed SET content_key=$1 WHERE id=1', [stored.key])
+  const saved = await service.save(ctx, 1n)
+  const [bookmark] = (await db.query<any>('SELECT b.content_key FROM sr_bookmark b JOIN sr_user_bookmark u ON b.id=u.bookmark_id WHERE u.uuid=$1', [saved.bookmark_user_uuid])).rows
+  await storage.bucket.delete(stored.key)
+  expect(await (await storage.bucket.get(bookmark.content_key))!.text()).toContain('data:image/png;base64,' + image)
+})

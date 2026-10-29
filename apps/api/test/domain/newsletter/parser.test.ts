@@ -169,3 +169,60 @@ test('removes images with either explicitly zero dimension without removing ordi
   expect(result.html).toContain('/narrow')
   expect(result.removedTrackingImages).toBe(4)
 })
+
+test('keeps the complete sanitized message without invoking Readability', async () => {
+  const { Readability } = await import('@slax-lab/readability')
+  const extract = vi.spyOn(Readability.prototype, 'parse')
+  try {
+    const parsed = await parseNewsletter(
+      mail('<header>Issue intro</header><article><p>First article</p></article><aside>Second article</aside><footer>Confirm subscription</footer>', 'Content-Type: text/html\r\n')
+    )
+    for (const text of ['Issue intro', 'First article', 'Second article', 'Confirm subscription']) expect(parsed.html).toContain(text)
+    expect(extract).not.toHaveBeenCalled()
+  } finally {
+    extract.mockRestore()
+  }
+})
+
+const cidMail = (image: string, mime = 'image/png') =>
+  mail(
+    '--b\r\nContent-Type: text/html\r\n\r\n<p>Before image</p><img src="cid:photo%40mail" alt="Inline photo"><p>After image</p>\r\n' +
+      '--b\r\nContent-Type: ' +
+      mime +
+      '\r\nContent-ID: <photo@mail>\r\nContent-Disposition: inline; filename="photo.png"\r\nContent-Transfer-Encoding: base64\r\n\r\n' +
+      image +
+      '\r\n--b--',
+    'Content-Type: multipart/related; boundary=b\r\n'
+  )
+
+test('resolves MIME Content-ID images as intact base64 data URLs beyond the text budget', async () => {
+  const image = Buffer.alloc(300_000, 42).toString('base64')
+  const parsed = await parseNewsletter(cidMail(image))
+  expect(parsed.html.includes('src="data:image/png;base64,' + image + '"')).toBe(true)
+  expect(parsed.html).toContain('Before image')
+  expect(parsed.html).toContain('After image')
+  expect(parsed.html).not.toContain('cid:')
+  expect(parsed.truncated).toBe(false)
+  expect(parsed.attachments).toEqual([])
+})
+
+test('does not embed active MIME image formats or trust arbitrary data URLs', async () => {
+  const parsed = await parseNewsletter(cidMail(Buffer.from('<svg onload="alert(1)"></svg>').toString('base64'), 'image/svg+xml'))
+  expect(parsed.html).not.toMatch(/data:image|cid:/)
+  expect(parsed.attachments).toHaveLength(1)
+  const arbitrary = await parseNewsletter(mail('<p>Body</p><img src="data:image/png;base64,AAAA">', 'Content-Type: text/html\r\n'))
+  expect(arbitrary.html).not.toContain('data:')
+})
+
+test('bounds repeated CID expansion without cutting base64 or losing surrounding text', async () => {
+  const image = Buffer.alloc(65_536, 42).toString('base64')
+  const raw = new TextEncoder().encode(
+    new TextDecoder().decode(cidMail(image)).replace('<img src="cid:photo%40mail" alt="Inline photo">', '<img src="cid:photo%40mail" alt="Inline photo">'.repeat(100))
+  )
+  const parsed = await parseNewsletter(raw)
+  expect(raw.byteLength).toBeLessThan(100_000)
+  expect(Buffer.byteLength(parsed.html)).toBeLessThan(6 * 1024 * 1024)
+  expect(parsed.truncated).toBe(true)
+  expect(parsed.html).toContain('After image')
+  expect(parsed.html.includes('src="data:image/png;base64,' + image + '"')).toBe(true)
+})

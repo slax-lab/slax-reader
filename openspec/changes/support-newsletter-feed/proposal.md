@@ -8,8 +8,8 @@ Users need permanent Newsletter receiving addresses and one Web Feed for RSS and
 
 - Receive bounded MIME through the Edge email handler and existing newsletter platform bindings with stable addresses, using feed+account addresses.
 - Create one purpose-built sr_newsletter_feed row per message; keep admission, deduplication, cancellation and readable content metadata together. No sr_feed or sr_newsletter_receipt, no RSS DDL/mirror/backfill or Newsletter writes to RSS tables.
-- Keep synchronous publication without processing leases, replay payloads, automatic recovery or Newsletter-specific scheduled tasks. Defer orphan-body collection to a later iteration. Preserve configured limits, quiet parsing, attachment metadata, proxy images and tracking-pixel removal.
-- Merge existing RSS reads and ready Newsletter rows through private REST Feed endpoints. Preserve original RSS APIs, fetching, history, retention, save behavior and PowerSync. Put mixed Web behavior in Feed-owned adapters and delegate RSS-only mode to unchanged RSS code.
+- Keep synchronous publication without processing leases, replay payloads, automatic recovery or Newsletter-specific scheduled tasks. Defer orphan-body collection to a later iteration. Preserve configured limits, quiet parsing, attachment metadata, CID images embedded as raster data URLs, proxy images and tracking-pixel removal; do not use Readability.
+- Add an independent newsletter_v1 PowerSync stream and local Newsletter table; combine both local lists in the Web Feed. Keep private REST Feed endpoints for authenticated bodies, writes and clients without local storage. Preserve original RSS APIs, fetching, history, retention, save behavior and PowerSync. Put mixed Web behavior in Feed-owned adapters and delegate RSS-only mode to unchanged RSS code.
 - Add Save to Inbox by copying the received R2 body into a separate standard HTML/text bookmark snapshot; create an owner-isolated bookmark/relation atomically and follow ordinary account-default sharing without a Newsletter-specific override. Repeats/restore preserve personal state and deliberate sharing choices.
 - Show entry-specific Save to Inbox progress in both the mixed Feed list and reader preview, with localized saving text, a motion-aware spinner and duplicate activation prevention. The user requested this acceptance correction on 2026-10-28.
 - Configure only dev newsletterreader.slax.dev for the pilot; defer beta/prod/legacy-main domain configuration until dev validation. The planned production suffix remains newsletterreader.slax.com. Use one literal feed route plus Cloudflare Subaddressing, without per-user routes or a new infrastructure service.
@@ -27,7 +27,7 @@ Users need permanent Newsletter receiving addresses and one Web Feed for RSS and
 
 ## Impact
 
-API Workers, one initial Newsletter migration, R2 content, additive Feed contracts and Web UI. Saved copies use ordinary shared bookmark indexing and diagnostics with best-effort post-commit effects; shared search normalization and embedding are unchanged. The only added runtime dependency is pinned postal-mime for MIME parsing; there is no Newsletter PowerSync stream or data compatibility for unshipped trials. RSS model/repository/service/content/local-first differences from this PR are reverted to the reviewed upstream baseline.
+API Workers, one initial Newsletter migration, R2 content, additive Feed contracts and Web UI. Saved copies use ordinary shared bookmark indexing and diagnostics with best-effort post-commit effects; shared search normalization and embedding are unchanged. The only added runtime dependency is pinned postal-mime for MIME parsing; there is no data compatibility for unshipped trials. Newsletter and RSS remain separate database tables and sync streams. RSS model/repository/service/content/local-first differences from this PR are reverted to the reviewed upstream baseline.
 
 ## Human approval (2026-10-28)
 
@@ -61,3 +61,11 @@ The requesting user confirmed that the current local implementation meets expect
 ## Scope audit (2026-10-29)
 
 The user requested a whole-PR audit for unrelated changes left by prior iterations. Restore the generic cron-test title, generator-owned route formatting and unrelated dependency ordering; remove the temporary MIME release-age exception after validating the frozen lockfile. General Reader settings must retain their prior accepted spelling and format; only first Newsletter issuance has the new lowercase-alphanumeric rule. Retain atomic account-conflict checks required by the setup flow. Private configuration PR #7 now configures dev only; beta/prod/legacy-main domain settings are deferred until dev validation. Earlier plan documents are historical records rather than current construction instructions.
+
+## Local-first, CID and timing revision approval (2026-10-29)
+
+The user approved the reviewed five-part revision and explicitly authorized implementation in the existing worktree, careful review and local API/Web startup for hands-on acceptance. Add independent Newsletter local-first metadata without changing RSS persistence or its stream. Remove Readability while retaining HTML security sanitization and the existing tracking-image filter (explicitly confirmed). Resolve MIME Content-ID references into raster base64 data URLs embedded in stored HTML; ordinary binary attachments remain metadata-only. Correct existing Mobile bookmark source/original-link presentation only, deferring a Mobile Newsletter feature. Record privacy-safe complete email-event and phase timings with a five-second observation target, without a timeout, Workflow or raw-EML persistence. Hosted console changes and PowerSync publication remain operator actions, not authorization to deploy.
+
+## Local-first revision acceptance (2026-10-29)
+
+After the revised local environment was made available, the requesting user reported that local testing was normal and explicitly authorized committing and updating the original PR. This acceptance covers the local Newsletter revision presented for verification. It does not establish hosted SMTP/PowerSync results or native device acceptance. Mobile remains 1.0.25/build 784 under the user's explicit no-bump decision.

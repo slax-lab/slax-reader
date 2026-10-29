@@ -1,3 +1,4 @@
+import { NewsletterTiming } from '@/utils/newsletterTiming'
 import { DOMParser } from 'linkedom'
 import { inject, injectable } from '@/decorators/di'
 import type { LazyInstance } from '@/decorators/lazy'
@@ -10,20 +11,25 @@ const PREFIX = 'newsletter-content/'
 @injectable()
 export class NewsletterContent {
   constructor(@inject(BucketClient) private bucket: LazyInstance<BucketClient>) {}
-  async store(env: Env, ownerUuid: string, id: bigint, parsed: ParsedNewsletter) {
+  async store(env: Env, ownerUuid: string, id: bigint, parsed: ParsedNewsletter, timing = new NewsletterTiming(0)) {
     const doc = new DOMParser().parseFromString(`<html><body>${parsed.html}</body></html>`, 'text/html') as unknown as Document
-    await Promise.all(
-      Array.from(doc.querySelectorAll('img')).map(async img => {
-        try {
-          img.setAttribute('src', await buildImageProxyUrl(env, publicTarget(img.getAttribute('src') || '').href, 'https://rss.invalid/', 'rss'))
-        } catch {
-          img.removeAttribute('src')
-        }
-        img.removeAttribute('srcset')
-      })
+    await timing.measure('images', () =>
+      Promise.all(
+        Array.from(doc.querySelectorAll('img')).map(async img => {
+          if ((img.getAttribute('src') || '').startsWith('data:image/')) return
+          try {
+            img.setAttribute('src', await buildImageProxyUrl(env, publicTarget(img.getAttribute('src') || '').href, 'https://rss.invalid/', 'rss'))
+          } catch {
+            img.removeAttribute('src')
+          }
+          img.removeAttribute('srcset')
+        })
+      )
     )
     const key = `${PREFIX}${ownerUuid}/${id}/${crypto.randomUUID()}.html`
-    const object = await this.bucket().R2Bucket.put(key, doc.documentElement.outerHTML, { httpMetadata: { contentType: 'text/html; charset=utf-8' } })
+    const object = await timing.measure('store', () =>
+      this.bucket().R2Bucket.put(key, doc.documentElement.outerHTML, { httpMetadata: { contentType: 'text/html; charset=utf-8' } })
+    )
     if (!object) throw new NewsletterError('unavailable', 503)
     return { key, truncated: parsed.truncated }
   }

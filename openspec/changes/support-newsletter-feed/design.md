@@ -10,13 +10,13 @@ Short owner-locked transactions admit/quota-check and publish. R2 work occurs be
 
 ## Content lifecycle
 
-Newsletter final bodies use newsletter-content only. Retain current quiet MIME extraction/sanitization and attachment explanations; no raw EML/attachment binary or replay body is stored. Newsletter-specific scheduled tasks, body scanning, GC cursors and reference-lookup indexes are deferred. Keep the five-minute publication deadline as the current per-attempt processing bound. Owner deletion revokes first and removes Newsletter content independently of bookmarks. Known unpublished writes are discarded; indeterminate commits are reconciled or retained, never eagerly deleted. Interrupted writes or failed deletes can leave orphan R2 objects in this first release; no background collection is promised.
+Newsletter final bodies use newsletter-content only. Retain quiet MIME parsing, security sanitization, tracking-image filtering and ordinary attachment explanations. Remove Readability and candidate comparison. Resolve referenced MIME raster images into data URLs after text sanitization so base64 cannot consume/corrupt the text budget. Cap aggregate embedded data-URL bytes at the existing 5 MiB raw-message bound, omit whole excess references and set the existing truncation indicator; skip the remote proxy for these images and allow them only in the Newsletter preview. No raw EML, separately stored attachment binary or replay body is stored. Newsletter-specific scheduled tasks, body scanning, GC cursors and reference-lookup indexes are deferred. Keep the five-minute publication deadline as the current per-attempt processing bound. Owner deletion revokes first and removes Newsletter content independently of bookmarks. Known unpublished writes are discarded; indeterminate commits are reconciled or retained, never eagerly deleted. Interrupted writes or failed deletes can leave orphan R2 objects in this first release; no background collection is promised.
 
 ## RSS and read aggregation
 
 All shipped RSS tables, HTTP contracts, repository/service/content behavior, Web local schema and PowerSync projections retain upstream values. The facade projects existing RSS and ready mail through UNION ALL and one typed ordering/cursor, with owner/source/enabled-kind binding. Newsletter IDs/selectors have a newsletter: prefix. Numeric IDs are compared numerically. Source DTOs are discriminated unions with no fake mail polling fields.
 
-Explicit RSS history probes delegate to the unchanged public RSS service, anchored with an ordinary cursor at the oldest authorized cached RSS row and limit=1. Web re-reads its expanded loaded window from the head after the probe, retaining old rows on failure. RSS-only mode delegates to the unchanged RSS panel/composable; mixed REST behavior belongs to FeedPanel/useFeed.
+Explicit RSS history probes delegate to the unchanged public RSS service, anchored with an ordinary cursor at the oldest authorized cached RSS row and limit=1. Web re-reads its expanded loaded window from the head after the probe, retaining old rows on failure. RSS-only mode delegates to the unchanged RSS panel/composable. Mixed sessions use the existing owned RSS local state and a separate newsletter_v1 metadata stream/local table. Combine their enabled, owner-scoped rows with typed numeric mail ordering, per-source limits, saved-copy overlays and existing RSS history behavior. Existing metadata is usable before first sync. A pending or failed Newsletter stream never switches a healthy owned database to mixed REST; REST list mode remains only for clients without owned local storage. Body reads and mutations retain authenticated APIs.
 
 ## Independent Inbox acquisition
 
@@ -36,7 +36,7 @@ Run regression-first tests, real native PostgreSQL races, real fresh Worker/DB/R
 
 ## Module boundaries
 
-Keep flat NewsletterService, NewsletterContentService and NewsletterSaveService domain modules; pure MIME/policy helpers live in utils/newsletter.ts. HtmlBuilder.buildNewsletterBody receives sanitized HTML and imports Readability directly, avoiding the parserUtils/WeChat cycle. Full-mail text/link comparison and fallback remain authoritative. Database writes stay separate; only API read projections combine RSS and Newsletter.
+Keep flat NewsletterService, NewsletterContentService and NewsletterSaveService domain modules; pure MIME/policy helpers live in utils/newsletter.ts. Remove HtmlBuilder.buildNewsletterBody and its Readability import. Newsletter helpers own MIME parsing, CID lookup and full-mail security cleaning. Database writes stay separate; only API read projections combine RSS and Newsletter.
 
 
 ## Newsletter preview typography
@@ -52,3 +52,9 @@ The Newsletter message column and its internal parser/publication/save data use 
 ## Dev-only rollout
 
 The 2026-10-29 operator decision configures only newsletterreader.slax.dev. Private beta/prod/legacy-main configurations omit NEWSLETTER_DOMAIN until dev validation and a later rollout decision. The intended eventual production suffix remains newsletterreader.slax.com; omission does not clear an existing remote value under --keep-vars.
+
+## Email-event timing and Mobile compatibility
+
+Capture elapsed wall time from handler entry through cleanup, with one structured summary per success, duplicate, cancellation, rejection or failure. Include an opaque event ID, byte count, numeric phase durations, total_ms and slow = total_ms > 5000; never include addresses, subject, content, URLs, raw errors or base64. Five seconds is an observation target rather than a timeout or a measured hosted guarantee.
+
+Mobile remains an ordinary Inbox consumer: display Newsletter for internal mail identities and expose original navigation only for HTTP(S) URLs in both the Reader and processing dialog. Do not add Newsletter feeds, setup, Labs or stream subscriptions to Mobile.

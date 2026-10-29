@@ -1,5 +1,6 @@
 export const appMessages = {
   en: {
+    newsletter_source: 'Newsletter',
     search_action: "Search",
     search_input: "Search saved articles",
     search_hint: "Keywords or #tags",
@@ -97,6 +98,7 @@ export const appMessages = {
     system_entry_unavailable_message: 'This system search result is no longer available in the signed-in library.',
   },
   zh: {
+    newsletter_source: '邮件通讯',
     search_action: "搜索",
     search_input: "搜索已保存的文章",
     search_hint: "关键词或 #标签",

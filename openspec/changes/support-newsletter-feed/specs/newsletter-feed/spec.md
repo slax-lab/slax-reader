@@ -62,7 +62,12 @@ A new email delivery SHALL be acknowledged by application code only after final 
 - **THEN** processing cannot publish new entries for that user
 
 ### Requirement: Safe retained Newsletter body
-The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and CID/relative image references, use signed controlled image URLs and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. The first release SHALL NOT register a Newsletter-specific scheduled task or scan bodies for orphan collection. Known unpublished candidates SHALL retain immediate cleanup; interrupted or ambiguous writes MAY leave orphan objects until a later iteration. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
+The system SHALL sanitize email HTML, escape plain text, remove unsafe embeds and relative image references, resolve referenced CID raster images as bounded complete data URLs, use signed controlled URLs for remote images and preserve truncation metadata. Newsletter SHALL not be subject to RSS 30-day entry pruning. The first release SHALL NOT register a Newsletter-specific scheduled task or scan bodies for orphan collection. Known unpublished candidates SHALL retain immediate cleanup; interrupted or ambiguous writes MAY leave orphan objects until a later iteration. Newsletter ingestion SHALL not create Inbox bookmarks or trigger AI processing.
+
+
+#### Scenario: Repeated inline-image references
+- **WHEN** a bounded email repeatedly references a large CID image
+- **THEN** embedding is bounded independently of the text budget, complete retained data URLs and surrounding text remain intact, and omitted oversized image references set the truncation indicator
 
 #### Scenario: Shared Article typography for Newsletter preview
 - **WHEN** received mail is opened in the Feed reader preview
@@ -89,7 +94,7 @@ The system SHALL expose additive private no-store Feed read APIs returning an ex
 - **THEN** the request is rejected without revealing another user's content
 
 ### Requirement: Always-visible Web Feed and dev pilot
-Web SHALL always show Feed in navigation, support stable address provisioning/copy with a first-time account form, and combine independently gated RSS and Newsletter through REST whenever Newsletter is enabled. RSS-only sessions SHALL retain existing local-first reads and REST fallback. Newsletter SHALL have no PowerSync stream or client subscription in this rollout. Newsletter sender names SHALL use a local avatar fallback. It SHALL explain lazy remote image privacy and unsupported first-version actions. Local cache and body state SHALL follow account and per-kind enablement. Dev rollout SHALL use feed+account@newsletterreader.slax.dev and one literal feed@newsletterreader.slax.dev routing rule to reader-backend with Cloudflare Subaddressing enabled. The production address SHALL use feed+account@newsletterreader.slax.com; beta/prod/legacy-main configuration SHALL omit NEWSLETTER_DOMAIN until dev validation is complete and a later rollout is approved. Setting the domain SHALL permit user-Lab provisioning after deployment but SHALL not configure Cloudflare receiving routes. Existing root-domain mail records, Catch-all rules and literal business forwarding SHALL be preserved.
+Web SHALL always show Feed in navigation, support stable address provisioning/copy with a first-time account form, and combine independently gated RSS and Newsletter from owned local tables with independent sync streams. RSS-only sessions SHALL retain existing local-first reads and REST fallback. Newsletter SHALL use a separate newsletter_v1 metadata stream, subscribed only for the admitted enabled owner; bodies and mutations SHALL use authenticated APIs. Mixed REST lists SHALL be limited to clients without owned local storage. Newsletter sender names SHALL use a local avatar fallback. It SHALL explain lazy remote image privacy and unsupported first-version actions. Local cache and body state SHALL follow account and per-kind enablement. Dev rollout SHALL use feed+account@newsletterreader.slax.dev and one literal feed@newsletterreader.slax.dev routing rule to reader-backend with Cloudflare Subaddressing enabled. The production address SHALL use feed+account@newsletterreader.slax.com; beta/prod/legacy-main configuration SHALL omit NEWSLETTER_DOMAIN until dev validation is complete and a later rollout is approved. Setting the domain SHALL permit user-Lab provisioning after deployment but SHALL not configure Cloudflare receiving routes. Existing root-domain mail records, Catch-all rules and literal business forwarding SHALL be preserved.
 
 #### Scenario: Both Labs disabled
 - **WHEN** the user opens Feed with both features disabled
@@ -97,15 +102,15 @@ Web SHALL always show Feed in navigation, support stable address provisioning/co
 
 #### Scenario: Newsletter with healthy or pending local synchronization
 - **WHEN** Newsletter is enabled and a local PowerSync database is healthy, pending or unavailable
-- **THEN** Feed subscriptions, entries and body use authenticated REST without subscribing to a Newsletter stream or waiting for its first sync; mixed list order and pagination come from the server
+- **THEN** owned cached lists are immediately readable and update through separate RSS/Newsletter streams; empty pending lists wait for first sync rather than switching the whole Feed to REST, and body reads remain authenticated
 
-#### Scenario: Switch between REST Feed and RSS-only local mode
+#### Scenario: Switch independent local Feed projections
 - **WHEN** Newsletter is enabled or disabled while RSS remains enabled
-- **THEN** the Feed switches between REST and RSS-only local mode, fences obsolete requests/previews/cursors, and never exposes stale local Newsletter rows as RSS
+- **THEN** the Feed changes its enabled local projections and stream subscriptions, fences obsolete requests/previews/cursors, and never exposes stale local Newsletter rows as RSS
 
-#### Scenario: Refresh and retained REST pages
-- **WHEN** Newsletter content changes or a REST refresh fails
-- **THEN** an explicit refresh/reload can retrieve new mail, existing loaded pages remain visible until replacement succeeds, and a new offline session does not promise Newsletter persistence
+#### Scenario: Incoming metadata and retained local pages
+- **WHEN** Newsletter content changes or its stream temporarily fails
+- **THEN** local metadata updates automatically through the Newsletter stream, previously owned metadata remains readable offline, and bodies still require an authenticated network read unless already held in the current session
 
 #### Scenario: Narrow and themed reading
 - **WHEN** a user provisions and reads on narrow or wide Web in light, dark or eink theme
@@ -123,7 +128,7 @@ The system SHALL use existing newsletter platform bindings, without new binding 
 - **THEN** Newsletter uses only its own mail table/content and every RSS table/schema/behavior remains the same as before the feature migration
 
 ### Requirement: Synchronous processing and setup
-New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; ready or cancelled duplicates SHALL not publish. No original raw EML or attachment binary SHALL be retained for new mail. Shared cron schedules SHALL remain, but no Newsletter recovery or body-collection handler, staged payload, GC cursor or recovery cursor SHALL exist. Only per-message states without processing leases SHALL remain for deduplication and cancellation. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Dev SHALL configure newsletterreader.slax.dev; beta, prod and the legacy main copy SHALL omit the receiving domain during the dev pilot. The system SHALL NOT assume original-sender retries are guaranteed after Worker infrastructure failure. Automatic recovery is deferred to a later iteration.
+New email delivery SHALL await content storage and atomic publication. Existing pending duplicates SHALL resume; ready or cancelled duplicates SHALL not publish. No original raw EML or separately stored ordinary attachment binary SHALL be retained for new mail. Referenced MIME raster images SHALL be resolved by Content-ID and embedded as base64 data URLs in final HTML, retained by preview and independent Inbox copying. Readability SHALL NOT run; HTML security sanitization and tracking-image filtering SHALL remain. Shared cron schedules SHALL remain, but no Newsletter recovery or body-collection handler, staged payload, GC cursor or recovery cursor SHALL exist. Only per-message states without processing leases SHALL remain for deduplication and cancellation. A configured domain and user Lab SHALL control admission without NEWSLETTER_ENABLED. Dev SHALL configure newsletterreader.slax.dev; beta, prod and the legacy main copy SHALL omit the receiving domain during the dev pilot. The system SHALL NOT assume original-sender retries are guaranteed after Worker infrastructure failure. Automatic recovery is deferred to a later iteration.
 
 #### Scenario: Account repair after enabling
 - **WHEN** the user enables Newsletter with a missing, invalid or reserved initial account
@@ -154,11 +159,11 @@ The setup card SHALL remember its disclosure preference locally per signed-in us
 - **THEN** no new Newsletter address can be provisioned and email is not admitted in that installation; enabling Labs alone does not supply a receiving domain
 
 ### Requirement: Private content processing and EML diagnostics
-Newsletter processing SHALL reuse a quiet pure content extraction path, fall back to sanitized full mail when extraction loses useful content, preserve existing HTTP(S) links and append safe attachment metadata after extraction. Explicit 1x1/zero-sized or hidden tracking images SHALL be removed before sanitization without remote measurement. MIME subject/sender/date remain authoritative. Offline preview SHALL perform no network or storage calls; local EML replay SHALL preserve plus details and target localhost only.
+Newsletter processing SHALL quietly parse the full bounded MIME body without Readability, preserve complete sanitized mail text and existing HTTP(S) links, resolve referenced CID raster images, and append safe metadata for ordinary attachments. Explicit 1x1/zero-sized or hidden tracking images SHALL be removed before sanitization without remote measurement. MIME subject/sender/date remain authoritative. Offline preview SHALL perform no network or storage calls; local EML replay SHALL preserve plus details and target localhost only.
 
 #### Scenario: Attachment-only or multi-article mail
 - **WHEN** mail contains only a binary attachment or multiple useful content sections
-- **THEN** a readable metadata body or complete sanitized fallback remains, with no invented download URL or stored attachment binary
+- **THEN** a readable metadata body or complete sanitized body remains, with no invented download URL or separately stored ordinary attachment binary
 
 ### Requirement: Independent Inbox copy
 An authenticated live user with Newsletter enabled SHALL be able to save an owned ready mail without an article URL. Save SHALL copy received content to distinct standard bookmark HTML/text R2 keys, including the HTML snapshot marker, without fetching an original web URL. The owner-isolated bookmark and owner relation SHALL be published atomically. A new copy SHALL follow ordinary account-default sharing without creating a per-bookmark override. A successful response SHALL identify a committed ready bookmark. The system SHALL not assume private_user alone disables public reads.
@@ -186,3 +191,17 @@ An authenticated live user with Newsletter enabled SHALL be able to save an owne
 #### Scenario: Internal snapshot and ordinary indexing
 - **WHEN** an internal Newsletter bookmark enters generic acquisition/retry/import or sync-create paths, or its indexing fails
 - **THEN** no network crawl or pending-state mutation occurs; sync create PUTs are rejected before the generic repository while personal PATCH/delete/restore remain usable. Newly copied content follows ordinary shared indexing/diagnostics; unchanged repeats/restores do not rebuild its content index
+
+### Requirement: Privacy-safe receiving timings
+Each email event SHALL emit one structured elapsed-time summary through cleanup for success, duplicate, cancelled, rejected or failed delivery. Summaries SHALL contain only an opaque event identity, byte count, numeric stage durations, outcome, total duration and a five-second slow flag; recipient/sender, subject, content, URLs, base64 and raw infrastructure errors SHALL NOT be logged. The observation target SHALL NOT impose a processing timeout or introduce asynchronous delivery.
+
+#### Scenario: Slow or rejected event
+- **WHEN** processing exceeds five seconds or rejects a message
+- **THEN** its timing summary records the appropriate slow flag and outcome without sensitive mail data or changing admission semantics
+
+### Requirement: Existing Mobile Inbox compatibility
+Existing Mobile saved-mail bookmarks SHALL display a Newsletter source rather than the internal URI hostname. Original-navigation controls SHALL be absent when the bookmark has no HTTP(S) URL. A Mobile Newsletter Feed, setup flow and stream subscription SHALL remain deferred.
+
+#### Scenario: Saved mail in Mobile search and Reader
+- **WHEN** an existing Mobile user searches or opens a saved Newsletter bookmark
+- **THEN** its source is recognizable and no nonfunctional original-navigation action is presented

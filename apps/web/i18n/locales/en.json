@@ -1468,6 +1468,7 @@
     "history_end": "{count} entries collected so far."
   },
   "newsletter": {
+    "truncated": "This message is too large to show in full. Check the original email for the remaining content.",
     "title": "Your Newsletter address",
     "description": "Use this address to subscribe to newsletters. New messages appear in Feed.",
     "account_label": "Account name",

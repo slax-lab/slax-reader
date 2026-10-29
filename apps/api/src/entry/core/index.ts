@@ -1,3 +1,4 @@
+import { NewsletterTiming } from '@/utils/newsletterTiming'
 import { NewsletterService, receiveNewsletterEmail } from '@/domain/newsletter'
 import { SlaxJieba } from '@/utils/hybridSearch/jieba'
 import { MultiLangError } from '@/utils/multiLangError'
@@ -55,13 +56,27 @@ async function handleFetch(request: Request, env: Env, ctx: ExecutionContext) {
 }
 
 export async function handleEmailEvent(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) {
+  const timing = new NewsletterTiming(message.rawSize)
   const ctxManager = new ContextManager(ctx, env)
-  const currentContainer = container.clone()
-  initializeInfrastructure(ctxManager, currentContainer)
   try {
-    await receiveNewsletterEmail(message, env, currentContainer.resolve(NewsletterService))
+    const currentContainer = container.clone()
+    initializeInfrastructure(ctxManager, currentContainer)
+    await receiveNewsletterEmail(message, env, currentContainer.resolve(NewsletterService), timing)
   } finally {
-    await ctxManager.cleanup()
+    try {
+      let failed = false
+      await timing.measure('cleanup', () =>
+        ctxManager.cleanup(() => {
+          failed = true
+        })
+      )
+      if (failed) throw new Error('Newsletter cleanup unavailable')
+    } catch {
+      timing.outcome = 'failed'
+      throw new Error('Newsletter cleanup unavailable')
+    } finally {
+      timing.log()
+    }
   }
 }
 

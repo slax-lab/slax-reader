@@ -448,8 +448,14 @@ async function main() {
     )
     address = await request('newsletter-address-confirmed', '/v1/user/newsletter_address', { headers: mailHeaders })
     assert.equal(address.body.data.address, `feed+newslettersmoke@${newsletterDomain}`)
+    const inlineImage = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jz1kAAAAASUVORK5CYII='
     const rawMail =
-      'From: Smoke Weekly <weekly@example.com>\r\nTo: ignored@other.example\r\nSubject: Newsletter runtime smoke\r\nMessage-ID: <newsletter-runtime-smoke@example.com>\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">'
+      'From: Smoke Weekly <weekly@example.com>\r\nTo: ignored@other.example\r\nSubject: Newsletter runtime smoke\r\nMessage-ID: <newsletter-runtime-smoke@example.com>\r\nContent-Type: multipart/related; boundary=mailpart\r\n\r\n' +
+      '--mailpart\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">\r\n' +
+      '--mailpart\r\nContent-Type: image/png\r\nContent-ID: <part>\r\nContent-Transfer-Encoding: base64\r\n\r\n' +
+      inlineImage +
+      '\r\n--mailpart--'
+
     for (let repeat = 0; repeat < 2; repeat++) {
       const response = await localFetch(
         `http://localhost:${httpPort}/cdn-cgi/local/email?from=bounce%40example.com&to=${encodeURIComponent((repeat ? 'feed+newslettersmoke@' : 'FeEd+NeWsLeTtErSmOkE@') + newsletterDomain)}`,
@@ -491,6 +497,8 @@ async function main() {
     const detail = await request('newsletter-body', `/v1/feed/entries/${entryId}`, { headers: mailHeaders })
     assert.ok(detail.body.data.content_html.includes('Runtime newsletter body'))
     assert.ok(!/script|cid:/.test(detail.body.data.content_html))
+    assert.ok(detail.body.data.content_html.includes('data:image/png;base64,' + inlineImage))
+    assert.ok(workerLog.includes('newsletter.receive') && workerLog.includes('total_ms') && workerLog.includes('cleanup'))
     const subscriptions = await request('newsletter-sources', '/v1/feed/subscriptions', { headers: mailHeaders })
     assert.equal(subscriptions.body.data.items[0].kind, 'newsletter')
     const secondDelivery = await localFetch(
@@ -653,7 +661,18 @@ async function main() {
       body: JSON.stringify({ bookmark_uid: savedUuid })
     })
     assert.equal(afterDisable.status, 200)
-    assert.ok((await afterDisable.text()).includes('Runtime newsletter body'))
+    const copiedBody = await afterDisable.text()
+    assert.ok(copiedBody.includes('Runtime newsletter body'))
+    assert.ok(copiedBody.includes('data:image/png;base64,' + inlineImage))
+    evidence.newsletterCid = 'actual local email MIME Content-ID -> embedded PNG in authenticated Feed and independent Inbox copy'
+    const timingSamples = workerLog
+      .split('newsletter.receive')
+      .slice(1)
+      .flatMap(part => {
+        const match = /total_ms["']?\s*:\s*(\d+)/.exec(part.slice(0, 1500))
+        return match ? [Number(match[1])] : []
+      })
+    evidence.newsletterTiming = { completeHandlerWithCleanup: true, localSamplesMs: timingSamples }
     // Leave the historical bookmark smoke's empty-list precondition intact.
     resources.sql(
       pg.id,

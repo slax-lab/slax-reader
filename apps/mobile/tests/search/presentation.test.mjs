@@ -53,6 +53,11 @@ test('highlighting treats punctuation literally, merges overlaps and preserves v
     assert.ok(runs.some(run => run.match));
   }
   assert.deepEqual(searchTextRuns('No selection', ''), [{text: 'No selection', match: false}]);
-  assert.equal(searchHost('https://www.example.com/path?private=value'), 'example.com');
-  assert.equal(searchHost('invalid'), '');
+  assert.equal(searchHost('https://www.example.com/path?private=value', 'Newsletter'), 'example.com');
+  assert.equal(searchHost('invalid', 'Newsletter'), '');
+});
+
+test('saved Newsletter search metadata uses its localized source instead of the internal hostname', () => {
+  assert.equal(searchHost('slax-newsletter://message/42', '邮件通讯'), '邮件通讯');
+  assert.equal(searchHost('https://www.example.com/article', '邮件通讯'), 'example.com');
 });

@@ -7,13 +7,14 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import React, {act} from 'react';
 import {countingObserve, observeRelativeBoundaries, readiness} from '../reader/observe-mock.mjs';
+import * as sourceUrls from '../../src/utils/source-url.ts';
 
 const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
 async function load(file, boundaries = {}, globals = {}) {
   const passthrough = ({children}) => children ?? null;
   const drawer = {SourceDrawer: passthrough, DrawerScrollBoundary: passthrough, useDrawerGesture: () => null, useDrawerInput: () => null};
-  boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null},
+  boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null}, '../utils/source-url': sourceUrls,
     ...observeRelativeBoundaries(boundaries), ...boundaries};
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},

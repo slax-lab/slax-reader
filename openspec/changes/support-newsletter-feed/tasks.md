@@ -26,6 +26,16 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 
 - [x] 6i. Audit the complete PR scope, remove iteration-only noise, restore ordinary Reader account policy and original RSS hints, reconcile dev-only rollout guidance, verify and update the original PR.
 
+## Approved local-first/CID/timing revision (2026-10-29)
+
+- [x] 6j. Remove Readability, preserve full sanitized mail and tracking filtering, resolve CID raster images into embedded data URLs through receiving, preview and independent Inbox copying; prove regressions.
+- [x] 6k. Add privacy-safe complete-handler and phase timing summaries for every outcome, with a five-second observation flag and tests.
+- [x] 6l. Add a separate Newsletter metadata stream/local table and combine owned local RSS/Newsletter lists, source selection, pagination, saved overlays and enablement/session fences; preserve RSS persistence/stream.
+- [x] 6m. Fix existing Mobile saved-mail source and original-link affordances only, validate and record the Mobile version decision.
+- [x] 6n. Complete actual local runtime verification, regression checks and independent Bugs/Security/Compliance review; document operator publication/console steps and start API/Web for renewed human acceptance.
+
+- [x] 6o. Obtain renewed requesting-user hands-on acceptance of this revision before committing/updating the original PR; record any Mobile device acceptance limits explicitly.
+
 ## Archive after merge
 
 - [ ] 7. After the task PR merges, classify unchecked tasks and archive this change through a separate documentation PR.
