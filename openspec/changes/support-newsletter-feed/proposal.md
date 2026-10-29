@@ -51,3 +51,8 @@ The user approved [Newsletter Team Feedback](../../../docs/superpowers/plans/202
 ## Newsletter body typography correction (2026-10-28)
 
 The user requested Article detail's existing basic styles for Newsletter bodies and emphasized a simple reusable implementation. Reuse the Article reset/content mixins under a Newsletter-only preview namespace. Native HTML lists should receive the same indentation without requiring the complete Article processing pipeline. Keep receiving/sanitization, storage, Feed structure, RSS presentation and saved-Inbox rendering unchanged. This is an authorized refinement of the existing readable-preview behavior; renewed real-app acceptance remains pending before PR handoff.
+
+
+## Renewed local acceptance (2026-10-29)
+
+The requesting user confirmed that the current local implementation meets expectations after the account-validation revision, reader-scroll correction and shared Article body typography, and explicitly authorized a brief review and update to original PR #349. The existing runtime and synthetic fixture evidence retain their recorded scope; this acceptance does not authorize hosted deployment or merge.

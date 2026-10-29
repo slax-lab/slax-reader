@@ -22,7 +22,7 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 - [x] 6e. Generate the clean initial schema, document every field and verify serialized address reservation without added unique address index/CHECK constraints.
 - [x] 6f. Implement Newsletter-only first-configuration validation, flat modules and HtmlBuilder mail extraction; restore generic sync repository and ordinary search helpers.
 - [x] 6g. Complete fresh runtime/regression/review evidence and start local API/Web for renewed hands-on acceptance before PR handoff.
-- [ ] 6h. Obtain renewed human hands-on acceptance of the first-configuration rule and reviewed account-casing, reader-scroll and shared body-typography corrections, then update original PR #349.
+- [x] 6h. Record renewed requesting-user acceptance (2026-10-29) of the first-configuration rule and reviewed account-casing, reader-scroll and shared body-typography corrections, and update original PR #349.
 
 ## Archive after merge
 
