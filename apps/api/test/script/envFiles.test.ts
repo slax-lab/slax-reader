@@ -132,6 +132,17 @@ if (pg.datasource.url !== 'postgresql://local/local_pg' || logs.datasource.url !
     expect(result.stderr).not.toContain('wrong-root-token')
   })
 
+  test('explicit secret-free generation opt out does not open the private environment file', () => {
+    const f = fixture(),
+      entry = path.join(f.api, 'check.ts')
+    fs.writeFileSync(entry, `import { loadApiEnv } from './script/env'; loadApiEnv(); if (process.env.CLOUDFLARE_API_TOKEN) process.exit(2);`)
+    fs.unlinkSync(path.join(f.root, 'deploy/local/.env'))
+    fs.mkdirSync(path.join(f.root, 'deploy/local/.env'))
+    const result = run(f, 'tsx', [entry], { SLAX_API_SKIP_DOTENV: '1' })
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toBe('')
+  })
+
   test('Worker development receives its runtime file separately from tool credentials', () => {
     const f = fixture()
     const result = run(f, 'tsx', [path.join(f.api, 'script/deploy/deploy.ts'), '--dev', 'core'])

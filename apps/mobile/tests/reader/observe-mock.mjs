@@ -1,5 +1,6 @@
 import React from 'react';
 import * as readiness from '../../src/observe/readiness.ts';
+import {createInteractiveSignal} from '../../src/observe/interactive.ts';
 
 export {readiness};
 
@@ -49,6 +50,7 @@ export async function countingObserve(load) {
     'expo-observe': sdk,
     'expo-observe/integrations/react-navigation': {ObserveNavigationContainer: () => null},
     './readiness': readiness,
+    './interactive': {firstInteractive: createInteractiveSignal()},
   });
   return {module, counter};
 }

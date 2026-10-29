@@ -17,7 +17,7 @@ const TARGET = 'SlaxShare';
 const GROUP = 'group.app.slax.reader';
 const BUNDLE_ID = 'app.slax.reader.share';
 const ACTIVITY = 'com.slax.reader.extension.ShareActivity';
-const SOURCES = ['ShareViewController.swift', 'SharedPreferences.swift', 'ShareCollector.swift', 'SharePage.swift'];
+const SOURCES = ['ShareViewController.swift', 'SharedPreferences.swift', 'ShareCollector.swift', 'SharePage.swift', 'ShareDiagnosticRecord.swift', 'ShareDiagnostics.swift', 'ShareNetworkMetrics.swift'];
 function normalizedOptions(config, options) {
   const base = options.apiBaseUrl;
   if (!base || !/^https?:\/\//.test(base)) throw new Error('Slax share requires the configured public apiBaseUrl');

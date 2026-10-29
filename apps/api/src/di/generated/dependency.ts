@@ -98,6 +98,7 @@ import { ApiKeyController } from '../../handler/http/apiKeyController'
 import { BookmarkController } from '../../handler/http/bookmarkController'
 import { CallbackController } from '../../handler/http/callbackController'
 import { CollectionController } from '../../handler/http/collectionController'
+import { DiagnosticController } from '../../handler/http/diagnosticController'
 import { EventsController } from '../../handler/http/eventsController'
 import { ImageController } from '../../handler/http/imageController'
 import { MarkController } from '../../handler/http/markController'
@@ -706,6 +707,10 @@ container.register(CallbackController, {
 
 container.register(CollectionController, {
   useFactory: container => new CollectionController(container.resolve(CollectionService), container.resolve(CollectionOrchestrator))
+})
+
+container.register(DiagnosticController, {
+  useFactory: container => new DiagnosticController(container.resolve(UserService))
 })
 
 container.register(EventsController, {

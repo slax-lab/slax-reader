@@ -3,6 +3,7 @@ import type { PreferenceValues } from '../data/preferences.ts';
 import {mainRefreshAt} from './token-policy.ts';
 import {throwIfAborted} from '../utils/abort.ts';
 import {ReauthenticationRequiredError} from './credential-readiness.ts';
+import {noDiagnostics, recordDiagnostic, type DiagnosticHttp, type DiagnosticSink, type SignOutCause} from './diagnostics.ts';
 
 export interface Session { token: string; userId: string; refreshedAt: number }
 export type SessionState = { status: 'loading' } | { status: 'unauthenticated' } | { status: 'authenticated'; session: Session };
@@ -19,8 +20,8 @@ export interface SessionRequestScope {
 }
 export interface SessionAuthority {
   getSession(): Promise<Session | null>;
-  clearIfMatches(token: string, scope?: SessionRequestScope): Promise<boolean>;
-  rejectIfMatches?(token: string, scope?: SessionRequestScope): Promise<boolean>;
+  clearIfMatches(token: string, scope?: SessionRequestScope, clearLocal?: boolean, cause?: SignOutCause): Promise<boolean>;
+  rejectIfMatches?(token: string, scope?: SessionRequestScope, http?: DiagnosticHttp): Promise<boolean>;
   /** Capture before the first await; fixture authorities may provide fixed credentials instead. */
   captureRequestScope?(): SessionRequestScope;
   prepareRequest?(): Promise<void>;
@@ -63,8 +64,9 @@ export class SessionController implements SessionAuthority {
   readonly preferences: PreferenceStore;
   private lifecycle: AccountLifecycle;
   private now: () => number;
-  constructor(preferences: PreferenceStore, lifecycle: AccountLifecycle, now = () => Date.now() / 1000) {
-    this.preferences = preferences; this.lifecycle = lifecycle; this.now = now;
+  private diagnostics: DiagnosticSink;
+  constructor(preferences: PreferenceStore, lifecycle: AccountLifecycle, now = () => Date.now() / 1000, options: {diagnostics?: DiagnosticSink} = {}) {
+    this.preferences = preferences; this.lifecycle = lifecycle; this.now = now; this.diagnostics = options.diagnostics ?? noDiagnostics;
   }
   getSnapshot = (): SessionState => this.state;
   subscribe = (listener: (state: SessionState) => void): (() => void) => {
@@ -193,24 +195,26 @@ export class SessionController implements SessionAuthority {
       return session;
     });
   }
-  async rejectIfMatches(token: string, scope?: SessionRequestScope): Promise<boolean> {
-    const epoch = this.requestEpoch;
-    let rejected = false;
+  async rejectIfMatches(token: string, scope?: SessionRequestScope, http?: DiagnosticHttp): Promise<boolean> {
+    const epoch = this.requestEpoch, fields = http ? {http: {method: http.method, path: http.path, status: http.status, code: http.code, cfRay: http.cfRay}} : {};
+    let rejected = false, alreadyRejected = false;
     await this.preferences.update(values => {
       rejected = false;
       if (epoch !== this.requestEpoch || !this.credentialsAvailable) return;
       try {scope?.assertCurrent();} catch {return;}
       if (values[K.token] !== token) return;
+      alreadyRejected = values[REAUTHENTICATION] === true;
       values[REAUTHENTICATION] = true;
       delete values[K.syncToken]; delete values[K.syncRefresh]; delete values[K.syncEndpoint]; delete values[K.syncApiOrigin]; delete values[K.syncUserId];
       rejected = true;
     });
     if (!rejected || epoch !== this.requestEpoch) return false;
     this.requestEpoch++;
+    if (!alreadyRejected) recordDiagnostic(this.diagnostics, 'auth.reauth_required', fields);
     this.lifecycle.rejected?.();
     return true;
   }
-  clearIfMatches(token: string, scope?: SessionRequestScope, clearLocal = true): Promise<boolean> {
+  clearIfMatches(token: string, scope?: SessionRequestScope, clearLocal = true, cause: SignOutCause = 'other'): Promise<boolean> {
     return this.exclusive(async () => {
       try { scope?.assertCurrent(); } catch (error) { if (error instanceof SessionChangedError) return false; throw error; }
       const previous = await this.readStoredSession();
@@ -222,6 +226,7 @@ export class SessionController implements SessionAuthority {
         if (requested) values[SIGN_OUT_PENDING] = true;
       });
       if (!requested) return false;
+      recordDiagnostic(this.diagnostics, 'auth.signout', {cause});
       this.requestEpoch++; this.identityEpoch++; this.credentialsAvailable = false;
       const identity = this.captureIdentity();
       this.emit({ status: 'loading' });
@@ -244,11 +249,11 @@ export class SessionController implements SessionAuthority {
       } catch (error) {identity(); this.lifecycle.failed?.(error); throw error;}
     });
   }
-  async signOut(clearLocal = true): Promise<void> {
+  async signOut(clearLocal = true, cause: SignOutCause = 'other'): Promise<void> {
     const scope = this.captureRequestScope();
     const session = await this.readStoredSession();
     scope.assertCurrent();
-    if (session) await this.clearIfMatches(session.token, scope, clearLocal);
+    if (session) await this.clearIfMatches(session.token, scope, clearLocal, cause);
   }
   refreshIfNeeded(refresh: (token: string, signal?: AbortSignal) => Promise<string>, signal?: AbortSignal, assertCurrent = () => {}): Promise<void> {
     if (this.refreshFlight?.epoch === this.requestEpoch && !this.refreshFlight.signal?.aborted) return this.refreshFlight.promise;

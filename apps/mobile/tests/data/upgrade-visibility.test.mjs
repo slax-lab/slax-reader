@@ -45,7 +45,7 @@ function provider(platform = 'ios', cacheRoot = platform === 'ios' ? directory :
     if (name === './controlled-upgrade-visibility') return require('../../src/controlled-upgrade-visibility.ts');
     if (name === './settings/system-surface-preferences') return require('../../src/settings/system-surface-preferences.ts');
     if (name === './reader/security.ts') return {readerProtectedHosts: () => ['fixture.test'], readerImageProxyOrigins: () => ['https://fixture.test']};
-    assert(['expo-localization', './components/AvatarResources', './data', './i18n', './config', './payments/controller', './payments/expo-store', './native/platform', './system-actions/SaveURLHost', './system-actions/adapters'].includes(name), name);
+    assert(['expo-localization', './components/AvatarResources', './data', './i18n', './config', './payments/controller', './payments/expo-store', './native/platform', './system-actions/SaveURLHost', './system-actions/adapters', './diagnostics/native'].includes(name), name);
     return {};
   }});
   const session = {status: 'authenticated', session: {userId: 'synthetic-user', token: 'fixture-auth-token-NOT-A-REAL-CREDENTIAL'}};

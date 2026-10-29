@@ -223,7 +223,19 @@ export function workerConfig(config: ApiConfig, target: Target, local = false): 
     output.durable_objects = { bindings: [{ name: 'SLAX_BROWSER', class_name: 'SlaxBrowser' }] }
     output.migrations = [{ tag: 'v1', new_classes: ['SlaxBrowser'] }]
   }
-  if (!['core', 'edge'].includes(target)) delete output.pipelines
+  if (!['core', 'edge'].includes(target)) {
+    delete output.pipelines
+    if (output.r2_buckets) output.r2_buckets = rows(output.r2_buckets).filter(binding => binding.binding !== 'DIAGNOSTICS')
+  }
+  if (target !== 'core' && output.vars) delete (output.vars as TomlTable).DIAGNOSTIC_DOWNLOAD_SECRET
+  if (['core', 'edge'].includes(target) && rows(output.r2_buckets).some(binding => binding.binding === 'DIAGNOSTICS')) {
+    const observability = (output.observability || {}) as TomlTable
+    output.observability = {
+      ...observability,
+      logs: { ...((observability.logs || {}) as TomlTable), invocation_logs: false },
+      traces: { ...((observability.traces || {}) as TomlTable), enabled: false }
+    }
+  }
   if (target !== 'edge') {
     output.workers_dev = false
     delete output.route

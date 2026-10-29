@@ -45,7 +45,7 @@ async function handleFetch(request: Request, env: Env, ctx: ExecutionContext) {
     })
     .then(res => {
       if (res instanceof Response) return res
-      console.error(`[${request.method}] ${request.url} ${res} is not a response`)
+      console.error(`[${request.method}] ${new URL(request.url).pathname} is not a response`)
       return Failed(ServerError())
     })
   await ctxManager.cleanup()

@@ -1,8 +1,8 @@
 {
   "name": "@apps/slax-reader-mobile",
   "version": "1.0.25",
-  "buildNumber": 794,
-  "previousBuildNumber": 793,
+  "buildNumber": 795,
+  "previousBuildNumber": 794,
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -75,6 +75,7 @@
     "react": "19.3.0",
     "react-native": "0.88.0",
     "react-native-gesture-handler": "~3.3.0",
+    "react-native-logs": "5.6.0",
     "react-native-nitro-google-signin": "2.3.0",
     "react-native-nitro-modules": "0.37.1",
     "react-native-reanimated": "4.7.1",

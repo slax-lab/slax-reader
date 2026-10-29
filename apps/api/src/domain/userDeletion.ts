@@ -4,6 +4,7 @@ import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-clien
 import { PRISIMA_HYPERDRIVE_CLIENT } from '../const/symbol'
 import { UserRepo } from '../infra/repository/dbUser'
 import { snapshotBundleMembers } from '../utils/snapshotBundle'
+import { removeDiagnosticObjects } from '../utils/diagnosticAttachment'
 import { BucketClient } from '../infra/repository/bucketClient'
 
 @injectable()
@@ -18,13 +19,15 @@ export class UserDeletionService {
     await this.userRepo.requireActiveUser(userId)
   }
 
-  public async cleanupUserData(userId: number): Promise<void> {
+  public async cleanupUserData(userId: number, env?: Pick<Env, 'DIAGNOSTICS'>): Promise<void> {
     console.log(`Starting data cleanup for user ${userId}`)
     if (userId < 1) {
       throw new Error(`Invalid userId: ${userId}`)
     }
 
     try {
+      const reports = await this.prismaPg().sr_user_report.findMany({ where: { user_id: userId }, select: { user_id: true, extra_data: true } })
+      await removeDiagnosticObjects(env, reports)
       await this.prismaPg().$executeRaw`DELETE FROM sr_rss_subscription WHERE user_id = ${userId}`
       await this.prismaPg().$executeRaw`DELETE FROM sr_rss_save_job WHERE user_id = ${userId}`
       await this.prismaPg().sr_user_api_key.deleteMany({ where: { user_id: userId } })

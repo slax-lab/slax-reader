@@ -11,9 +11,10 @@ import {useTelemetry} from '../telemetry';
 import {fixtureDocument} from '../native/fixture-document';
 import {fixtureActions} from '../components/fixture-actions';
 import {useObserveMarkInteractive} from '../observe';
+import {loginWithProvider} from '../auth/login';
 
 export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) {
-  const {api, sessions, t, config, fixtureOnly} = useMobile();
+  const {api, sessions, runtime, t, config, fixtureOnly} = useMobile();
   const telemetry = useTelemetry();
   const {width, height} = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -46,10 +47,8 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
     active.current = true; setLoading(provider);
     try {
       telemetry.element(`login_${provider}_button`, 'signup');
-      const request = await (fixtureOnly ? fixtureOnly.authenticate?.(provider) ?? Promise.resolve(null) : authenticate(provider)).finally(() => telemetry.firebase('user', 'login_start', {method: provider}));
-      if (!request || !current()) return;
-      const result = await api.login(request);
-      if (!current()) return;
+      const result = await loginWithProvider({provider, api, diagnostics: runtime?.diagnostics?.sink, isCurrent: current, authenticate: () => (fixtureOnly ? fixtureOnly.authenticate?.(provider) ?? Promise.resolve(null) : authenticate(provider)).finally(() => telemetry.firebase('user', 'login_start', {method: provider}))});
+      if (!result || !current()) return;
       await sessions.accept(result.token, result.user_id, assertCurrent => {
         isCurrentSession = () => {try {assertCurrent(); return true;} catch {return false;}};
       });

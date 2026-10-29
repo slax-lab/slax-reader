@@ -1,5 +1,6 @@
 import React, {useCallback, useRef} from 'react';
 import {NavigationContainer} from '@react-navigation/native';
+import {firstInteractive} from './interactive';
 
 type ObserveSdk = {
   Observe: {configure(config: unknown): void};
@@ -67,6 +68,7 @@ export function useObserveMarkInteractive() {
   return useCallback(() => {
     if (marked.current) return;
     marked.current = true;
+    firstInteractive.mark();
     try {
       const result: unknown = latest.current();
       if (result && typeof (result as Promise<unknown>).then === 'function') (result as Promise<unknown>).catch(noop);

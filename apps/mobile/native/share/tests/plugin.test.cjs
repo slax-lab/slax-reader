@@ -49,7 +49,7 @@ test('share Xcode target generates once with original identity, source/resource 
   }
   const source = project.hash.project.objects.PBXSourcesBuildPhase[target.buildPhases.find(value => value.comment === 'Sources').value];
   const resources = project.hash.project.objects.PBXResourcesBuildPhase[target.buildPhases.find(value => value.comment === 'Resources').value];
-  assert.deepEqual(source.files.map(value => String(files[builds[value.value].fileRef].path).replaceAll('"', '')).sort(), ['SlaxShare/ShareCollector.swift', 'SlaxShare/SharePage.swift', 'SlaxShare/ShareViewController.swift', 'SlaxShare/SharedPreferences.swift']);
+  assert.deepEqual(source.files.map(value => String(files[builds[value.value].fileRef].path).replaceAll('"', '')).sort(), ['SlaxShare/ShareCollector.swift', 'SlaxShare/ShareDiagnosticRecord.swift', 'SlaxShare/ShareDiagnostics.swift', 'SlaxShare/ShareNetworkMetrics.swift', 'SlaxShare/SharePage.swift', 'SlaxShare/ShareViewController.swift', 'SlaxShare/SharedPreferences.swift']);
   assert.deepEqual(resources.files.map(value => String(files[builds[value.value].fileRef].path).replaceAll('"', '')), ['SlaxShare/ExtensionClass.js']);
 });
 test('share target repairs an already generated undefined virtual-group path without duplicating files', () => {
@@ -144,8 +144,11 @@ test('standalone share files retain preprocessing and App Group without Firebase
     assert.equal(info.CFBundleShortVersionString, options.versionName); assert.equal(info.CFBundleVersion, options.versionCode);
     const collector = fs.readFileSync(path.join(output, 'SlaxShare/ShareCollector.swift'), 'utf8');
     assert.doesNotMatch(collector, /Firebase|Analytics|GoogleService-Info/);
-    assert.match(collector, /SharedPreferences\.read\(\)/);
+    assert.match(collector, /SharedPreferences\.read/);
     assert.match(collector, /\/v1\/bookmark\/add_url/);
+    for (const name of ['ShareDiagnosticRecord.swift', 'ShareDiagnostics.swift', 'ShareNetworkMetrics.swift']) {
+      assert.equal(fs.readFileSync(path.join(output, 'SlaxShare', name), 'utf8'), fs.readFileSync(path.join(root, 'native/share/ios', name), 'utf8'));
+    }
     assert.equal(fs.existsSync(path.join(output, 'SlaxShare/GoogleService-Info.plist')), false);
   } finally {fs.rmSync(output, {recursive: true, force: true});}
 });

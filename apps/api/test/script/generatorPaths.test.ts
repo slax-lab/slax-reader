@@ -154,6 +154,7 @@ describe('repository-root generator paths', () => {
         'tag',
         'rss',
         'user',
+        'diagnostic',
         'mcp',
         'sync',
         'promotion',
