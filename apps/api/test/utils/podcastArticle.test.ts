@@ -314,6 +314,19 @@ describe('rendering', () => {
     expect(HtmlBuilder.buildYoutubeArticleBody('"><script>', [], article)).not.toContain('<script>')
   })
 
+  test('YouTube labels match the Web locale strings of the separate article view', () => {
+    const doc = cleanedDoc()
+    for (const [lang, file] of [['en', 'en.json'], ['zh', 'zh.json']] as const) {
+      const locale = JSON.parse(readFileSync(join(__dirname, '../../../web/i18n/locales', file), 'utf8')).component.youtube_article
+      const article = renderMediaArticle({ ...doc, language: lang, lede: 'Lede' }, 'v2', transcript.cues, 'youtube')
+      expect(article).toContain(`<p class="slax-yt-edition">${locale.edited_transcript}</p>`)
+      expect(article).toContain(`<span class="slax-yt-label">${locale.introduction}</span>`)
+      expect(article).toContain(`<summary>${locale.contents} <span>`)
+      expect(article).toContain(`<nav aria-label="${locale.contents}">`)
+      expect(article).toContain(`<strong>${locale.method}</strong><p>${locale.method_note}</p>`)
+    }
+  })
+
   test('Spotify: embed only', () => {
     const html = renderPodcastBody({ info: { ...info, audioUrl: '', embedUrl: 'https://open.spotify.com/embed/episode/x' } })
     expect(html).toContain('<iframe class="slax-pod-embed" src="https://open.spotify.com/embed/episode/x"')

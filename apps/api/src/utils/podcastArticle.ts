@@ -599,13 +599,14 @@ export function renderMediaArticle(
   const lang: PodcastLanguage = doc.language === 'zh' ? 'zh' : 'en'
   const out: string[] = [`<article class="slax-pod-article" data-slax-derived="${kind}-article" data-article-version="${escapeHtml(version)}" lang="${lang}">`]
   if (kind === 'youtube') {
+    // The same labels as component.youtube_article.* in the Web locales; podcastArticle.test.ts checks both
     out.push(`<p class="slax-yt-edition">${lang === 'zh' ? '视频整理稿' : 'Edited transcript'}</p>`)
     if (doc.lede)
       out.push(
         `<aside class="slax-yt-introduction"><span class="slax-yt-label">${lang === 'zh' ? '导读 · 自动生成' : 'Introduction · generated'}</span><p>${escapeHtml(doc.lede)}</p></aside>`
       )
     out.push(
-      `<details class="slax-yt-contents"><summary>${lang === 'zh' ? '本文目录' : 'Contents'} <span>${doc.sections.length}</span></summary><nav aria-label="${lang === 'zh' ? '本文目录' : 'Article contents'}">`
+      `<details class="slax-yt-contents"><summary>${lang === 'zh' ? '本文目录' : 'Contents'} <span>${doc.sections.length}</span></summary><nav aria-label="${lang === 'zh' ? '本文目录' : 'Contents'}">`
     )
     for (const [i, section] of doc.sections.entries())
       out.push(`<a href="#yt-topic-${i}"><span>${escapeHtml(section.heading)}</span><time>${formatTimestamp(section.start_ms)}</time></a>`)
