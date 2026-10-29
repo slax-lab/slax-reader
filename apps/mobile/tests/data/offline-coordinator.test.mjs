@@ -258,6 +258,10 @@ test('suspend holds status and plan changes; resume replays the diff and flushes
   assert.ok(f.e.calls.some(call => call[0] === 'resume'));
   assert.deepEqual(f.e.plans().at(-1).upsert.map(task => task.key), ['b']);
   assert.equal(f.stats.transactions, before + 1); assert.equal(f.row('a').is_downloaded, 2);
+  const watch = f.raw.watch, calls = f.e.calls.length;
+  f.raw.watch = () => assert.fail('Idempotent warmup must not register database watches again');
+  try {f.coordinator.start(); f.coordinator.start(); await tick();} finally {f.raw.watch = watch;}
+  assert.equal(f.e.calls.length, calls, 'Repeated warmup does not reopen native state or rebuild the plan');
 });
 
 test('stale-owner, late, and post-revocation events never reach the database', async t => {

@@ -178,7 +178,8 @@ container.register(CrawlService, {
       container.resolve(YoutubeArticleRepo),
       container.resolve(PodcastEpisodeRepo),
       container.resolve(MediaSnapshotService),
-      container.resolve(BookmarkForkRepo)
+      container.resolve(BookmarkForkRepo),
+      container.resolve(MarkRepo)
     )
 })
 

@@ -121,7 +121,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     async resume() {
       if (stopping) return;
       connector.resume(); network.refresh();
-      offline?.resume();
+      if (offline) {offline.resume(); scheduleWarmup(offline, accountGeneration);}
       void environmentReady?.then(() => readiness.resume()).then(() => {
         if (!stopping && activity.isForeground() && database && accountLease) void connectAccount(database, accountGeneration);
       }).catch(() => undefined);

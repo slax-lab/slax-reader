@@ -135,11 +135,54 @@ committed. The text above stands alone without media, as the rule it introduces 
 
 ## Delivery state
 
-The branch `feat/present-key-ux-visuals` is rebased onto the `origin/dev` tip `870d9bb6` and is
-delivered as pull request #426 against `dev`. The pull request contains the approved rule
-changes plus the evidence corrections that followed them; its head identity is verified after
-each push by the re-runnable `git rev-parse HEAD` / `gh pr view 426 --json headRefOid` equality
-check in the commands table above. The delivered diff covers the operative files and the change
-directory listed in that table. The change directory carries no delta specs (`skip_specs`), so
-archiving moves no requirement into `openspec/specs/`; the archive step is the unchecked task in
-`tasks.md` and happens through a docs pull request after the task pull request merges.
+Pull request #426, `docs(governance): present key UX visuals in the pull request template`,
+merged into `dev` as merge commit `263b9cd0` on 2026-10-28. The commands table above records the
+checks as they were run before that merge: it is the evidence observed at delivery time, not a
+live gate, so nothing here depends on the branch or the pull request head staying put. The
+delivered diff covers the operative files and the change directory listed in that table. The
+change directory carries no delta specs (`skip_specs`), so archiving merged no requirement into
+`openspec/specs/`; § Archive below records the archive action and its results.
+
+## Archive
+
+The precondition the archive task names is met: pull request #426 is merged into `dev` at
+`263b9cd0`. Classification before archiving: the only unchecked item was task 5, the archive
+follow-up itself, which by definition this branch performs. It was completed with the evidence
+its Verify clause asks for, in `tasks.md`, rather than dropped or archived around, and no other
+task was unchecked — `grep -c '^- \[ \]'` over `tasks.md` returned `0`, so the archive ran
+without the tool's incomplete-task prompt.
+
+Run in `/Users/boxcounter/Code/Slax/slax-reader/.tower/worktrees/wt-44` on
+`feat/archive-present-key-ux-visuals`, rebased onto the `dev` tip that contains `263b9cd0`.
+
+| Command | Result |
+| --- | --- |
+| `pnpm exec openspec archive present-key-ux-visuals --yes --skip-specs --json` | exit 0; `archivedAs: "2026-10-28-present-key-ux-visuals"`, `specsUpdated: false` |
+| `pnpm exec openspec validate --all --strict` | `Totals: 82 passed, 0 failed (82 items)` — 62 specs and 20 active changes — exit 0 |
+| `pnpm exec openspec validate --archived` (tree-wide lint) | `change/2026-10-28-present-key-ux-visuals` passes; the tree-wide run reports `Totals: 64 passed, 11 failed (75 items)`, exit 1, entirely from archives that predate this change (see the last note below) |
+| `git diff --cached --check` | no output, exit 0 |
+| `git diff --cached -M --name-status` | the five files move from `openspec/changes/present-key-ux-visuals/` to `openspec/changes/archive/2026-10-28-present-key-ux-visuals/`; no other path |
+
+What the move preserved and what it changed:
+
+- `.openspec.yaml` travels with the change and keeps all three keys — `schema: spec-driven`,
+  `created: 2026-10-28`, `skip_specs: true`.
+- `specsUpdated: false` with an unchanged `openspec/specs/` tree: `skip_specs: true` and no
+  `specs/` directory leave nothing to merge, so no living requirement changed and no capability
+  was retired. `--skip-specs` was passed explicitly, so the flag decided it rather than the
+  absent directory.
+- The content inside the moved directory changed in exactly two files: `tasks.md` task 5,
+  completed with its evidence, and this file, whose § Delivery state is restated as merged facts
+  and whose § Archive is new. `proposal.md`, `design.md`, and `.openspec.yaml` are byte-identical
+  to their delivered content at `263b9cd0`.
+- `present-key-ux-visuals` no longer appears in the active change tree, which is why
+  `openspec validate present-key-ux-visuals --strict` now answers `Unknown item`. That is the
+  expected result of the move, not a lost record; the archived copy is covered by
+  `openspec validate --archived`.
+
+Pre-existing condition outside this change: `openspec validate --archived` reports 11 archived
+changes with incomplete tasks, for example `2026-10-26-add-material-ux-demo-review-d06` at 15/17
+completed. `lefthook.yml` and the `agent-config` workflow enforce only
+`openspec validate --all --strict`, which passes, so this diff neither causes nor is blocked by
+that state. Bringing those historical archives to a completed-task state is a separate backlog
+item that this archive does not touch.

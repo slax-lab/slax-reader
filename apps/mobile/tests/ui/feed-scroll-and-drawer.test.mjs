@@ -240,7 +240,10 @@ test('actual Library preserves both modes through toggles and gives a new native
   assert.equal(inboxPosition.offset, 420);
   assert.equal(lists.inbox.scrollEnabled, undefined, 'The drawer never toggles list scrolling');
   assert.equal(lists.inbox.scrollsToTop, true, 'The visible closed-drawer feed owns status-bar scroll-to-top');
-  await act(async () => {lists.inbox.onScrollBeginDrag({nativeEvent: {contentOffset: {y: 420}}}); lists.inbox.onMomentumScrollEnd({nativeEvent: {contentOffset: {y: 420}, contentSize: {height: 2000}, layoutMeasurement: {height: 500}}});});
+  await act(async () => {
+    const event = {nativeEvent: {contentOffset: {y: 420}, contentSize: {height: 2000}, layoutMeasurement: {height: 500}}};
+    lists.inbox.onScrollBeginDrag(event); lists.inbox.onScrollEndDrag(event); lists.inbox.onMomentumScrollBegin(event); lists.inbox.onMomentumScrollEnd(event);
+  });
   assert.deepEqual(busy, [[true, 'library-scroll'], [false, 'library-scroll']], 'List scroll begin and momentum end report interaction busy state to the runtime');
   await select('rss_feeds'); observe('rss', 195); const firstRss = lists.rss;
   await select('inbox_title'); observe('inbox', 0); restore('inbox'); assert.deepEqual(commands.at(-1), ['inbox', 420]); observe('inbox', 420);
@@ -451,7 +454,25 @@ for (const platform of ['android', 'ios']) test(`actual ${platform} FeedList is 
   for (const [id, {callback, delay}] of [...timers]) {assert.equal(delay, 250); timers.delete(id); callback();}
   assert.deepEqual(activity, [true, false, true, false, true, false], 'A drag that ends without momentum settles after the idle window');
   now += feedScrollInterval; listProps.onScroll(event(0)); assert.equal(timers.size, 0, 'A programmatic scroll while resting does not report activity');
+  listProps.onScrollBeginDrag(event(0)); listProps.onScroll(event(10));
+  now += 1000;
+  for (const [id, {callback}] of [...timers]) {timers.delete(id); callback();}
+  assert.equal(activity.at(-1), true, 'A held drag stays protected during a pause longer than the idle window');
+  assert.equal(timers.size, 0, 'A held drag never arms the idle fallback');
+  listProps.onScroll(event(40));
+  assert.equal(activity.at(-1), true, 'Continued movement in the same drag remains protected');
+  listProps.onScrollEndDrag(event(40)); listProps.onMomentumScrollBegin(event(40));
+  now += feedScrollInterval; listProps.onScroll(event(50));
+  const interruptedIdle = [...timers.values()][0].callback;
+  listProps.onScrollBeginDrag(event(50)); listProps.onMomentumScrollEnd(event(50)); interruptedIdle();
+  assert.equal(activity.at(-1), true, 'An old momentum end or idle callback cannot settle a new held drag');
+  listProps.onScrollEndDrag(event(60));
+  for (const [id, {callback}] of [...timers]) {timers.delete(id); callback();}
+  assert.equal(activity.at(-1), false, 'Release without momentum still settles through the bounded fallback');
+  listProps.onScrollBeginDrag(event(60)); assert.equal(activity.at(-1), true);
   await render(false); assert.equal(listProps.scrollsToTop, false, 'Only the active feed answers the status-bar tap');
+  assert.equal(activity.at(-1), false, 'Covering or backgrounding the feed releases an interrupted held drag');
+  assert.equal(timers.size, 0); await render(true);
   const stale = listProps; listProps.onScrollBeginDrag(event(40)); await act(async () => root.render(null));
   assert.equal(activity.at(-1), false, 'Unmounting mid-scroll releases the busy state');
   const before = [forwarded.length, activity.length];

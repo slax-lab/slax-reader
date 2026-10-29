@@ -8,7 +8,7 @@ import { hashSHA256 } from '@/utils/strings'
  * Ported from papears (sources/xiaoyuzhou.py, apple.py, rss.py, urlpolicy.py).
  */
 
-export type PodcastSourceKind = 'xiaoyuzhou' | 'apple' | 'audio' | 'feed' | 'spotify'
+export type PodcastSourceKind = 'xiaoyuzhou' | 'apple' | 'audio' | 'feed' | 'spotify' | 'pocketcasts'
 export type PodcastLanguage = 'zh' | 'en'
 
 export interface PodcastTranscriptRef {
@@ -58,11 +58,62 @@ export function classifyPodcastUrl(raw: string): PodcastSourceKind | null {
   if (XIAOYUZHOU_EPISODE_RE.test(raw)) return 'xiaoyuzhou'
   if (APPLE_PODCAST_RE.test(raw)) return url.searchParams.get('i') ? 'apple' : null
   if (SPOTIFY_EPISODE_RE.test(raw)) return 'spotify'
+  if (isPocketCastsEpisode(url)) return 'pocketcasts'
   const path = url.pathname.toLowerCase()
   if (AUDIO_EXT_RE.test(path)) return 'audio'
   const host = url.hostname.toLowerCase()
   if (FEED_EXT_RE.test(path) || host.startsWith('feed.') || host.startsWith('feeds.') || /\/(?:feed|rss)(?:\/|$)/.test(path) || host === 'anchor.fm') return 'feed'
   return null
+}
+
+const POCKET_UUID = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+
+function isPocketCastsEpisode(url: URL): boolean {
+  if (url.hostname === 'pca.st') return new RegExp(`^/episode/${POCKET_UUID}/?$`, 'i').test(url.pathname)
+  if (!['pocketcasts.com', 'www.pocketcasts.com'].includes(url.hostname)) return false
+  return new RegExp(`^/podcast/[^/]+/${POCKET_UUID}/[^/]+/${POCKET_UUID}/?$`, 'i').test(url.pathname)
+}
+
+/** Read only rendered episode data. Page scripts and HTML transcript viewers are not transcript sources. */
+export function parsePocketCastsPage(pageUrl: string, html: string): PodcastEpisodeInfo | null {
+  if (classifyPodcastUrl(pageUrl) !== 'pocketcasts') return null
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const meta = (name: string) => doc.querySelector(`meta[property="${name}"]`)?.getAttribute('content') ?? ''
+  const safeUrl = (raw: string | null | undefined): string => {
+    if (!raw) return ''
+    try {
+      const url = new URL(raw, pageUrl).toString()
+      return outboundUrlProblem(url) ? '' : url
+    } catch {
+      return ''
+    }
+  }
+  // Structured audio first. A download anchor counts only when it names an audio file: the page
+  // also offers other downloads. Each candidate is screened in turn, so a rejected one falls through.
+  const structured = [meta('og:audio'), doc.querySelector('audio[src], audio source[src]')?.getAttribute('src')].map(safeUrl)
+  const downloads = [...doc.querySelectorAll('a[download][href]')].map(a => safeUrl(a.getAttribute('href'))).filter(url => url && AUDIO_EXT_RE.test(new URL(url).pathname))
+  const audioUrl = [...structured, ...downloads].find(Boolean) ?? ''
+  if (!audioUrl) return null
+  const info = emptyInfo('pocketcasts', pageUrl)
+  info.audioUrl = audioUrl
+  info.title = (meta('og:title') || doc.querySelector('h1')?.textContent || '').trim()
+  info.showName = doc.querySelector('[data-testid="podcast-title"]')?.textContent?.trim() ?? ''
+  info.author = info.showName
+  info.coverUrl = safeUrl(meta('og:image'))
+  info.shownotes = stripHtml(doc.querySelector('[class*="_showNotesWrapper_"]')?.innerHTML || meta('og:description'))
+  const duration = doc.querySelector('.duration-text')?.textContent?.trim() ?? ''
+  // The page writes the duration as units ("1h 26m"); anything else goes through parseDuration
+  const units = /^(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s)?$/.exec(duration)
+  const unitSeconds = units ? Number(units[1] || 0) * 3600 + Number(units[2] || 0) * 60 + Number(units[3] || 0) : 0
+  info.durationSec = units ? unitSeconds || null : parseDuration(duration)
+  for (const el of doc.querySelectorAll('link[rel="transcript"][href], a[rel="transcript"][href], track[kind="captions"][src]')) {
+    const type = el.getAttribute('type') ?? (el.localName === 'track' ? 'text/vtt' : '')
+    const url = safeUrl(el.getAttribute('href') || el.getAttribute('src'))
+    if (url && ['text/vtt', 'application/x-subrip', 'application/srt', 'application/json'].includes(type)) {
+      info.transcripts.push({ url, type, language: el.getAttribute('hreflang') || el.getAttribute('srclang') || null })
+    }
+  }
+  return info
 }
 
 // ---------- outbound URL screen ----------
@@ -120,6 +171,7 @@ export function stripHtml(html: string, max = 4000): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
     .replace(/[ \t]+/g, ' ')
     .replace(/\n\s*\n+/g, '\n')
     .trim()

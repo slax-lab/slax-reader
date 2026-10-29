@@ -997,6 +997,44 @@ describe('CrawlWorkflow → podcast route', () => {
     await runWorkflow(wf)
     expect(lab.isEnabled).not.toHaveBeenCalled()
   })
+
+  describe('Pocket Casts recapture of an annotated body', () => {
+    const PCA = 'https://pca.st/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+
+    test('keeps the body, fetches nothing, and releases the bookmark as success', async () => {
+      const { wf, cs, bs, uph, pod } = wirePodcast(true)
+      ;(cs as any).keepsAnnotatedBody.mockResolvedValue(true)
+      bs.getBookmarkById.mockResolvedValue({ id: 42, title: 'Kept', byline: 'Host', content_key: 'html/body/x.html', content_md_key: 'md/x.md' })
+      bs.getBookmarkContent.mockResolvedValue('Existing notes of the kept body')
+      const step = createMockStep()
+      await runWorkflow(wf, { url: PCA }, step)
+
+      expect((cs as any).keepsAnnotatedBody).toHaveBeenCalledWith(expect.anything(), 42)
+      expect((cs as any).fetchPodcastData).not.toHaveBeenCalled()
+      expect((cs as any).parseAndSavePodcast).not.toHaveBeenCalled()
+      expect(cs.fetchRegular).not.toHaveBeenCalled()
+      expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), 42, 'success')
+      expect(cs.setCaptureStatus).not.toHaveBeenCalledWith(expect.anything(), 42, 'failed')
+      expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
+      expect(pod.triggerAfterCrawl).not.toHaveBeenCalled()
+      expect(step.do.mock.calls.map((c: any[]) => c[0])).toContain('release-cached-capture')
+      expect(uph.processPostHandler).toHaveBeenCalled()
+    })
+
+    test('without marks the episode is captured as usual', async () => {
+      const { wf, cs } = wirePodcast(true)
+      ;(cs as any).keepsAnnotatedBody.mockResolvedValue(false)
+      await runWorkflow(wf, { url: PCA })
+      expect((cs as any).fetchPodcastData).toHaveBeenCalledWith(PCA, expect.anything())
+      expect((cs as any).parseAndSavePodcast).toHaveBeenCalled()
+    })
+
+    test('other podcast sources never ask', async () => {
+      const { wf, cs } = wirePodcast(true)
+      await runWorkflow(wf, { url: XYZ })
+      expect((cs as any).keepsAnnotatedBody).not.toHaveBeenCalled()
+    })
+  })
 })
 
 describe('capture claim admission', () => {

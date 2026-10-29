@@ -449,6 +449,23 @@ test('android Reader becomes presentable one frame after the guarded restore, wi
   })
 })
 
+test('a native load failure between restore and paint cancels presentation and reports a recoverable document failure', nativeBoundary, async () => {
+  await withNativeHost(async host => {
+    const frames = controlledFrames(), errors = []
+    const page = await readerPage(host, 'ios', {}, {}, frames.globals)
+    await host.render(page.element({onError: error => errors.push(error)}))
+    await iosReady(page, host)
+    assert.equal(frames.pending(), 1)
+    await act(async () => page.documentProps().onError({nativeEvent: {code: -1, description: 'Reader security policy unavailable'}}))
+    assert.equal(errors.length, 1); assert.equal(errors[0].name, 'ReaderDocumentLoadFailed')
+    assert.equal(frames.pending(), 0, 'The failed host cannot publish a pending restored frame')
+    await frames.paint()
+    assert.deepEqual(page.presentable, [])
+    await act(async () => page.documentProps().onError({nativeEvent: {code: -1, description: 'late failure'}}))
+    assert.equal(errors.length, 1, 'A failed host reports its terminal failure once')
+  })
+})
+
 test('a page unmounted between its restore and the next frame never reports presentable', nativeBoundary, async () => {
   await withNativeHost(async host => {
     const frames = controlledFrames()
