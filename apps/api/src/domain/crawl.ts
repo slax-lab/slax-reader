@@ -1,3 +1,4 @@
+import { MarkRepo } from '@/infra/repository/dbMark'
 import { SocialMediaApi } from '../infra/external/socialMedia'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
 import { forkError } from '@/utils/bookmarkForkError'
@@ -16,6 +17,7 @@ import { fetchPublicText } from '@/infra/external/podcastFetch'
 import {
   appleLookupUrl,
   classifyPodcastUrl,
+  parsePocketCastsPage,
   directAudioInfo,
   enrichFromFeed,
   findFeedItem,
@@ -130,7 +132,8 @@ export class CrawlService {
     @inject(YoutubeArticleRepo) private youtubeArticleRepo: YoutubeArticleRepo,
     @inject(PodcastEpisodeRepo) private podcastEpisodeRepo: PodcastEpisodeRepo,
     @inject(MediaSnapshotService) private snapshots: MediaSnapshotService,
-    @inject(BookmarkForkRepo) private snapshotRepo: BookmarkForkRepo
+    @inject(BookmarkForkRepo) private snapshotRepo: BookmarkForkRepo,
+    @inject(MarkRepo) private markRepo: MarkRepo
   ) {}
 
   public async pushBookmarkFailureAlert(userId: number, scope: string, meta: Record<string, unknown>) {
@@ -730,6 +733,15 @@ export class CrawlService {
       const info = parseXiaoyuzhouPage(page.url, page.content)
       return info.audioUrl ? info : null
     }
+    if (kind === 'pocketcasts') {
+      const page = await pageFetcher()
+      const info = parsePocketCastsPage(page.url, page.content)
+      if (!info) {
+        const reason = classifyPodcastUrl(page.url) === 'pocketcasts' ? 'has no safe episode audio' : `resolved to ${page.url}, which is not an episode link`
+        console.warn(`Pocket Casts page ${url} ${reason}; saving as a page`)
+      }
+      return info
+    }
     if (kind === 'apple') {
       const ids = parseAppleUrl(url)
       if (!ids) return null
@@ -764,6 +776,18 @@ export class CrawlService {
       return spotifyInfo(url, oembed)
     }
     return null
+  }
+
+  /**
+   * Whether a Pocket Casts recapture must keep the current body: the bookmark already has one, and a
+   * reader left a highlight or comment on it. A first capture has no body, so nothing is protected.
+   * The caller decides this before any page fetch, so a kept body costs no provider call. The check
+   * reads content_md_key because the kept payload reads the same key for its text.
+   */
+  public async keepsAnnotatedBody(ctx: ContextManager, bookmarkId: number): Promise<boolean> {
+    const stored = await this.bookmarkRepo.getBookmarkById(bookmarkId)
+    if (!stored?.content_md_key) return false
+    return this.markRepo.bodyHasMarks(bookmarkId, ctx.getUserId())
   }
 
   /** First body of a podcast bookmark (player and notes), the episode row and the bookmark's reference to it. */
