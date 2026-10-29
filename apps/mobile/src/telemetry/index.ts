@@ -1,12 +1,12 @@
-import {useReadingMobile, type MobileContextValue} from '../runtime';
+import {useReadingMobile, type MobileServices} from '../runtime';
 import {loadLegacyBridge} from '../data/native-storage.ts';
 import {createMobileTelemetry, type MobileTelemetry} from './core.ts';
 import {firebaseSink} from './firebase.ts';
 
 export * from './core.ts';
-const collectors = new WeakMap<MobileContextValue['runtime'], {telemetry: MobileTelemetry; locale: string}>();
+const collectors = new WeakMap<MobileServices['runtime'], {telemetry: MobileTelemetry; locale: string}>();
 /** Navigation, authentication, and reader actions share the runtime's device identity and SDKs. */
-export function telemetryFor(context: MobileContextValue): MobileTelemetry {
+export function telemetryFor(context: MobileServices): MobileTelemetry {
   if (context.telemetryOverride) return context.telemetryOverride;
   let entry = collectors.get(context.runtime);
   if (!entry) {

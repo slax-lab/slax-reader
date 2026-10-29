@@ -115,6 +115,20 @@ With local integration configuration available, run `pnpm web -- dev` and verify
 
 The `build` hook projects public API TOML data into `deploy/local/.generated/web/wrangler.toml`; it does not rewrite the tracked `apps/web/wrangler.toml`.
 
+## Browser evidence scripts
+
+`apps/web/tests/fixtures/media-recovery/` holds the Playwright scripts that produced the browser evidence for `openspec/changes/restore-media-article-recovery`. No package script or CI job runs them: each one needs a running Nuxt dev server, a local Chrome, and in two cases real public content. Run them by hand when a change touches the YouTube article status, the transcript reading layout, or the saved article body, and record the result in the change's `validation.md`.
+
+```sh
+pnpm web -- dev --port 3210
+node apps/web/tests/fixtures/media-recovery/20261027-browser-check.mjs            # fixtures only: retry and owner guidance in both views
+node apps/web/tests/fixtures/media-recovery/20261027-readable-transcript-check.mjs # real public transcript through a local proxy
+node apps/web/tests/fixtures/media-recovery/20261027-public-transcript-check.mjs  # production public page, no login
+node apps/web/tests/fixtures/media-recovery/20261027-edited-youtube-check.mjs     # needs the local publication server on port 8797
+```
+
+Each script accepts the dev server origin as its first argument. The scripts write screenshots to a temporary directory and never to the repository. A script that drifts from the components it exercises fails on its own assertions; fix the script with the component change.
+
 ## Directory conventions
 
 `open_docs` contains product content read by Nuxt Content and stays inside the app. `content.config.ts` also lists the app-local `docs/en` and `docs/zh` content roots, but those directories are not present in the current snapshot.

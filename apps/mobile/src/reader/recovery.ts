@@ -1,26 +1,28 @@
 export const READER_PROCESS_GONE = -1001
 export function readerDocumentError(code: number, description = 'Reader document failed to load'): Error {
   const error = new Error(description)
-  if (code === READER_PROCESS_GONE) error.name = 'ReaderProcessGone'
+  error.name = code === READER_PROCESS_GONE ? 'ReaderProcessGone' : 'ReaderDocumentLoadFailed'
   return error
 }
 
-/** A dead native document needs a new view even when the HTML has not changed. */
+/** A failed native document needs a new view even when the HTML has not changed. */
 export class ReaderCrashRecovery {
   private failed = false
   private active = true
   private generation = 0
+  private automatic = false
   private automaticAttempts = 0
   private pending: Promise<{generation: number; position: number} | null> | null = null
   get needsRecovery() {return this.active && this.failed}
   recoverForeground(flush: () => Promise<void>, latestPosition: () => number, isForeground: () => boolean) {
-    if (!this.needsRecovery || !isForeground() || this.automaticAttempts >= 1) return Promise.resolve(null)
+    if (!this.needsRecovery || !this.automatic || !isForeground() || this.automaticAttempts >= 1) return Promise.resolve(null)
     if (this.pending) return this.pending
     this.automaticAttempts++
     return this.retry(flush, latestPosition, isForeground).then(result => {if (!result) this.automaticAttempts--; return result})
   }
   fail(error: unknown): boolean {
-    if (!this.active || !(error instanceof Error) || error.name !== 'ReaderProcessGone') return false
+    if (!this.active || !(error instanceof Error) || !['ReaderProcessGone', 'ReaderDocumentLoadFailed'].includes(error.name)) return false
+    this.automatic = error.name === 'ReaderProcessGone'
     this.failed = true; return true
   }
   retry(flush: () => Promise<void>, latestPosition: () => number, isForeground = () => true): Promise<{generation: number; position: number} | null> {

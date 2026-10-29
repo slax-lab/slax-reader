@@ -192,7 +192,7 @@ watch(() => route.path, evaluateVisibility)
 <style lang="scss" scoped>
 .in-app-browser-tip {
   position: fixed;
-  z-index: 80;
+  z-index: 1000;
   top: calc(10px + env(safe-area-inset-top, 0px));
   right: calc(12px + env(safe-area-inset-right, 0px));
   left: calc(12px + env(safe-area-inset-left, 0px));

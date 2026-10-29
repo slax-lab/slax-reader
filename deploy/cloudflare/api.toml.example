@@ -23,7 +23,7 @@ cpu_ms = 300000
 # User addresses use feed+account; enable Subaddressing and route the literal feed address.
 NEWSLETTER_DOMAIN = ""
 # Local defaults. For remote deployment set RUN_ENV = "prod".
-# RUN_TYPE identifies the installation; STRIPE_LIVE_MODE must match the Reader Stripe key.
+# RUN_TYPE identifies the installation. Stripe credentials select test or live API mode.
 RUN_ENV = "development"
 RUN_TYPE = "dev"
 # Comma-separated allowlist for the beta host and the /m/ dashboard. These are operator and

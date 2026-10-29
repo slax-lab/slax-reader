@@ -90,7 +90,7 @@ test('PDF timeout preserves its typed cause with the installed RN signal that di
   const api = createMobileApi({baseUrl: 'https://fixture.invalid', platform: 'ios', version: 'test', sessions: {getSession: async () => ({token: 'synthetic', userId: 'account', refreshedAt: 0}), clearIfMatches: async () => false},
     fetch: async () => new Response(new ReadableStream({pull() {entered();}, cancel() {cancelled = true;}}, {highWaterMark: 0}), {headers: {'Content-Type': 'application/json'}}),
   });
-  const pending = api.getPdfMetadata('doc');
-  const rejected = assert.rejects(pending, error => error instanceof Error && error.name === 'DataTransportError' && 'kind' in error && error.kind === 'timeout' && 'stage' in error && error.stage === 'pdf-metadata');
+  const pending = api.uploadPdf(new Blob([new Uint8Array([37, 80, 68, 70])]), 'doc.pdf');
+  const rejected = assert.rejects(pending, error => error instanceof Error && error.name === 'DataTransportError' && 'kind' in error && error.kind === 'timeout' && 'stage' in error && error.stage === 'pdf-upload');
   await started; context.mock.timers.tick(120000); await rejected; assert.equal(cancelled, true);
 }));

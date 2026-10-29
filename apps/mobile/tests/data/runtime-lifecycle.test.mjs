@@ -9,13 +9,12 @@ import {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailab
 import {MemoryPreferences} from './helpers.ts';
 import {openVerifiedDatabase} from '../../src/data/adoption.ts';
 import {UpgradeVerificationRequired} from '../../src/data/upgrade.ts';
-import {PdfBlockCache} from '../../src/data/pdf-cache.ts';
-import {Sha256} from '../../src/data/pdf-sha256.ts';
 
-test('production runtime suspends and resumes without closing the database or replacing the authenticated account scope', async () => {
+for (const startup of ['presented', 'interrupted-before-presentation', 'admitted-in-background']) test(`production runtime resumes ${startup} without replacing the authenticated account scope`, async () => {
   const events = [], storage = new MemoryPreferences({auth_token: 'synthetic', user_id: 'account', last_refresh_time: String(Date.now() / 1000)});
-  let pending = 3, token = 0, rejectConnect, cachedAccess, networkListener, networkReads = 0, networkStops = 0, pdfScope;
-  const nativePdfFetch = async () => assert.fail('No PDF network call expected in this lifecycle case');
+  let releaseResources;
+  const resourcesReady = startup === 'admitted-in-background' ? new Promise(resolve => {releaseResources = resolve;}) : Promise.resolve();
+  let pending = 3, token = 0, rejectConnect, cachedAccess, networkListener, networkReads = 0, networkStops = 0, workerOptions;
   const network = {read: async () => {networkReads++; return {};}, subscribe(listener) {networkListener = listener; return () => {networkStops++;};}};
   class Database {
     async init() {events.push('init');}
@@ -25,28 +24,21 @@ test('production runtime suspends and resumes without closing the database or re
     async execute() {pending++;}
     async writeTransaction(work) {return work(this);}
   }
-  class Cache {constructor(directory) {this.dataDirectory = directory;} setAccessBarrier(barrier) {this.barrier = barrier;} setAvatarCache(avatars) {this.avatars = avatars;}}
+  class Cache {constructor(directory, _md5, _guard, offline) {this.dataDirectory = directory; this.offline = offline;} setAvatarCache(avatars) {this.avatars = avatars;}}
   const articleCalls = [];
-  class Worker {constructor(options) {cachedAccess = options.assertCachedAccess;} async setOnline(online) {events.push(`network-${online}`);} start() {events.push('cache-start');} async pause() {events.push('cache-pause');} resume() {events.push('cache-resume');} cancel() {} async stop() {} beginForeground() {return () => {};} async getArticleContent(...args) {articleCalls.push(args); return '<p>shared</p>';}}
+  const engine = {};
+  class Worker {constructor(options) {workerOptions = options; cachedAccess = options.assertCachedAccess; assert.equal(options.engine, engine);} async open() {events.push('engine-open');} setOnline(online) {events.push(`network-${online}`);} start() {if (!events.includes('cache-start')) events.push('cache-start');} async suspend() {events.push('cache-pause');} resume() {events.push('cache-resume');} cancel() {} async close() {events.push('engine-close');} setInteractionBusy(busy, source) {events.push(`busy-${busy}-${source}`);} beginForeground() {return () => {};} async getArticleContent(...args) {articleCalls.push(args); return '<p>shared</p>';}}
   const bridge = {beginDataOwnership: async () => ({scanComplete: true, databaseCandidates: [], legacyDataDirectory: '/synthetic', newDatabaseDirectory: '/synthetic/new'}),
     endDataOwnership: async () => {events.push('release');}, newIdentifier: () => 'account-owner', md5String: value => value,
     beginStorageTransition: () => {events.push('begin'); return ++token;}, endStorageTransition: async () => {events.push('end');}};
   const api = {options: {baseUrl: 'https://synthetic.test'}, setBaseUrl(url) {this.options.baseUrl = url;}, sendMetrics: async () => {}, refresh: async value => value};
-  class UnexpectedFileAccess {constructor() {assert.fail('Lifecycle transitions must not access PDF files');}}
-  const {PdfFileStorage} = await loadComponent('../../src/data/pdf-file-storage.ts', {
-    'expo-file-system': {Directory: UnexpectedFileAccess, File: UnexpectedFileAccess},
-    'expo': {requireNativeModule: () => assert.fail('Lifecycle transitions must not resolve PDF paths'), uuid: {v4: () => assert.fail('Lifecycle transitions must not write PDF files')}},
-    './pdf-sha256.ts': {Sha256},
-  }, {TextEncoder});
   const {createMobileDataRuntime} = await loadComponent('../../src/data/runtime.ts', {
-    'expo/fetch': {fetch: async () => {}}, '../domain/session.ts': {SessionController}, '../domain/credential-readiness.ts': {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailableError}, './api.ts': {createMobileApi: options => {assert.equal(options.pdfFetch, nativePdfFetch); assert.equal(pdfScope(), null); return api;}},
-    './pdf-cache.ts': {PdfBlockCache}, './pdf-file-storage.ts': {PdfFileStorage},
+    'expo/fetch': {fetch: async () => {}}, '../domain/session.ts': {SessionController}, '../domain/credential-readiness.ts': {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailableError}, './api.ts': {createMobileApi: options => {assert.equal('pdfFetch' in options, false); return api;}},
     './cache.ts': {ArticleFileCache: Cache}, './account-cleanup.ts': {clearAccountData: async () => {throw new Error('Unexpected cleanup');}},
-    './account-lease.ts': {AccountDatabaseLease, AccountInactiveError}, './background-cache.ts': {BackgroundArticleCache: Worker}, './runtime-activity.ts': {RuntimeActivity},
+    './account-lease.ts': {AccountDatabaseLease, AccountInactiveError}, './offline-coordinator.ts': {OfflineCoordinator: Worker}, './native-offline-engine.ts': {loadOfflineEngine: () => engine}, './runtime-activity.ts': {RuntimeActivity},
     './native-network.ts': {nativeNetwork: {read: async () => ({}), subscribe: () => () => {}}},
-    './native-pdf-transfer.ts': {createNativePdfFetch: scope => {pdfScope = scope; return nativePdfFetch;}},
     '../native/reader-image': {loadReaderImage: async () => assert.fail('No image request expected in lifecycle fixture')},
-    './image-fetch.ts': {fetchCacheImage: async () => {}}, '../native/platform': {activateReaderResources: async () => {}, revokeReaderResources: async () => {events.push('revoke');}},
+    '../native/platform': {activateReaderResources: async () => {events.push('activate'); await resourcesReady;}, revokeReaderResources: async () => {events.push('revoke');}},
     './connector.ts': {createSyncConnector: () => ({pause() {}, resume() {}, invalidate() {}, async prepareConnection() {return {endpoint: 'https://sync.example', token: 'synthetic'};}})}, './adoption.ts': {openVerifiedDatabase}, './adoption-profile.ts': {deriveReviewedAdoptionEvidence: () => undefined},
     './legacy-preferences.ts': {migrateLegacyPreferences: async () => {}}, './native-storage.ts': {loadLegacyBridge: () => bridge, nativePreferenceStorage: () => storage},
     './preferences.ts': {PreferenceStore, PREFERENCE_KEYS}, './repositories.ts': {MobileRepositories: class {constructor(lease) {this.lease = lease;}}},
@@ -54,25 +46,46 @@ test('production runtime suspends and resumes without closing the database or re
   });
   const runtime = createMobileDataRuntime({baseUrl: 'https://synthetic.test', platform: 'ios', version: 'fixture', network});
   await assert.rejects(runtime.getArticleContent('book'), /inactive/i);
-  await runtime.start(); runtime.markLibraryPresented(); await new Promise(resolve => setTimeout(resolve, 0));
-  assert.equal(networkReads, 1); assert.doesNotThrow(cachedAccess);
+  runtime.setInteractionBusy(true, 'scroll');
+  const starting = runtime.start();
+  if (startup === 'admitted-in-background') {
+    for (let i = 0; i < 100 && !events.includes('activate'); i++) await new Promise(resolve => setImmediate(resolve));
+    assert.ok(events.includes('activate'));
+    await runtime.setForeground(false); releaseResources();
+  }
+  await starting;
+  if (startup !== 'presented') {
+    assert.equal(events.includes('cache-start'), false);
+    await runtime.setForeground(false);
+    if (startup === 'admitted-in-background') runtime.markLibraryPresented();
+    await runtime.setForeground(true);
+    if (startup === 'interrupted-before-presentation') assert.equal(events.includes('cache-start'), false, 'Resume still waits for the first Library presentation');
+    assert.ok(events.includes('cache-pause')); assert.ok(events.includes('cache-resume'));
+  }
+  runtime.markLibraryPresented(); await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(events.filter(event => event === 'cache-start').length, 1, 'The first cache start survives background interruption');
+  const resumedBeforePresentation = startup === 'presented' ? 0 : 1;
+  assert.ok(events.includes('engine-open'), 'Account entry opens the native owner'); assert.ok(events.includes('busy-true-scroll'), 'A busy flag set before admission reaches the account coordinator');
+  assert.equal(workerOptions.scope.owner, 'account-owner'); assert.equal(workerOptions.scope.origin, 'https://synthetic.test'); assert.equal(workerOptions.scope.scope, JSON.stringify(['https://synthetic.test', 'account']));
+  assert.equal(workerOptions.scope.clientType, 'ios'); assert.equal(workerOptions.scope.clientVersion, 'fixture'); assert.equal(workerOptions.scope.directory, '/synthetic');
+  runtime.setInteractionBusy(false, 'scroll'); assert.equal(events.at(-1), 'busy-false-scroll');
+  assert.equal(networkReads - resumedBeforePresentation, 1); assert.doesNotThrow(cachedAccess);
   networkListener({isConnected: false}); assert.equal(events.at(-1), 'network-false'); assert.ok(events.includes('disconnect'), 'Offline disconnects PowerSync instead of retrying');
   const count = events.length; networkListener({isConnected: false}); assert.equal(events.length, count);
   networkListener({isConnected: true}); assert.equal(events.at(-1), 'network-true');
   const request = new AbortController();
   assert.equal(await runtime.getArticleContent('book', 'collection-owner', request.signal), '<p>shared</p>');
-  assert.deepEqual(articleCalls, [['book', 'collection-owner', request.signal]]);
+  assert.deepEqual(articleCalls, [['book', 'collection-owner', request.signal, undefined]]);
   const session = runtime.sessions.getSnapshot(), repositories = runtime.getRepositories(), cache = runtime.getCache(), preferences = runtime.getAccountPreferences(), database = runtime.getDatabase();
   await runtime.setForeground(false);
   assert.throws(cachedAccess, /inactive/i);
   assert.equal(runtime.sessions.getSnapshot(), session); assert.equal(runtime.getRepositories(), repositories);
   assert.equal(runtime.getCache(), cache); assert.equal(runtime.getAccountPreferences(), preferences); assert.equal(runtime.getDatabase(), database);
   assert.equal(runtime.getNativeResourceOwner(), 'account-owner'); assert.equal(pending, 3);
-  assert.equal(JSON.stringify(pdfScope()), JSON.stringify({owner: 'account-owner', origin: 'https://synthetic.test'}));
   assert.equal(events.includes('close'), false); assert.equal(events.includes('release'), false); assert.equal(events.includes('revoke'), false);
   await repositories.lease.execute('background position'); assert.equal(pending, 4);
   await runtime.setForeground(true); await new Promise(resolve => setTimeout(resolve, 0));
-  assert.equal(networkReads, 2); assert.doesNotThrow(cachedAccess);
+  assert.equal(networkReads - resumedBeforePresentation, 2); assert.doesNotThrow(cachedAccess);
   assert.equal(events.at(-1), 'connect'); assert.equal(runtime.sessions.getSnapshot(), session);
   const paused = runtime.setForeground(false);
   assert.equal(events.at(-1), 'disconnect', 'Pending connect cannot delay disconnect');
@@ -87,5 +100,6 @@ test('production runtime suspends and resumes without closing the database or re
   await assert.rejects(runtime.getArticleContent('book'), /inactive/i);
   assert.equal(articleCalls.length, 1);
   assert.equal(events.filter(event => event === 'close').length, 1); assert.equal(events.filter(event => event === 'release').length, 1);
+  assert.equal(events.filter(event => event === 'engine-close').length, 1, 'Stop closes the native owner exactly once');
   assert.equal(storage.values.auth_token, 'synthetic'); assert.equal(pending, 4);
 });

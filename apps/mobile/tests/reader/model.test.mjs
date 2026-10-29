@@ -86,7 +86,7 @@ test('outline markdown preserves links, lists, code, table and quotes without ac
   assert.match(html, /<h1>Heading<\/h1>/)
   assert.match(html, /href="#A%20heading"/)
   assert.match(html, /<strong>bold<\/strong>/)
-  assert.match(html, /<ul><li>First<\/li><li>Second<\/li><\/ul>/)
+  assert.match(html, /<ul>\s*<li>First<\/li>\s*<li>Second<\/li>\s*<\/ul>/)
   assert.match(html, /<table>/)
   assert.match(html, /<blockquote>/)
   assert.doesNotMatch(html, /<script>|href="javascript:/)

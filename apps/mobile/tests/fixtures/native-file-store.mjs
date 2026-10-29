@@ -1,5 +1,4 @@
 import {readFileSync} from 'node:fs';
-import {createHash} from 'node:crypto';
 import vm from 'node:vm';
 import ts from 'typescript';
 import {throwIfAborted} from '../../src/utils/abort.ts';
@@ -15,9 +14,6 @@ export function memoryNativeFileStore(contents) {
     async writeImage(directory, owner, id, path, value) {calls.push(['image', owner, path]); await writeWait; if (!writes.has(id)) throw new Error('Native write cancelled'); const result = uri(directory, path); contents.set(result, value); return result;},
     async readText(directory, owner, path) {calls.push(['read', owner, path]); await readWait; return contents.get(uri(directory, path)) ?? null;},
     async writeText(directory, owner, path, value) {calls.push(['write', owner, path]); await writeWait; contents.set(uri(directory, path), value); return uri(directory, path);},
-    async writeArticle(directory, owner, id, path, value) {calls.push(['article', owner, path]); await writeWait; if (!writes.has(id)) throw new Error('Native write cancelled'); contents.set(uri(directory, path), value); return uri(directory, path);},
-    async textFingerprint(_directory, owner, text) {calls.push(['textFingerprint', owner]); return {size: Buffer.byteLength(text), sha256: createHash('sha256').update(text).digest('hex')};},
-    async fingerprint(directory, owner, path) {calls.push(['fingerprint', owner, path]); await readWait; const text = contents.get(uri(directory, path)); return text === undefined ? null : {size: bytes(text), sha256: createHash('sha256').update(text).digest('hex')};},
     async size(directory, owner, path) {calls.push(['size', owner, path]); const value = contents.get(uri(directory, path)); return value === undefined ? null : bytes(value);},
     async measure(directory, owner, path) {calls.push(['measure', owner, path]); const prefix = `${uri(directory, path)}/`; return [...contents].reduce((sum, [key, value]) => sum + (key.startsWith(prefix) ? bytes(value) : 0), 0);},
     async remove(directory, owner, path) {calls.push(['remove', owner, path]); const base = uri(directory, path); for (const key of contents.keys()) if (key === base || key.startsWith(`${base}/`)) contents.delete(key);},

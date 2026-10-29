@@ -3,6 +3,9 @@ import { singleton } from '../../decorators/di'
 
 @singleton()
 export class StripeClient extends Stripe {
+  // Namespaces reward ledger keys; never gates webhook processing.
+  readonly liveMode: boolean
+
   constructor(env: Env) {
     super(env.STRIPE_SECRET_KEY, {
       apiVersion: '2024-06-20',
@@ -13,5 +16,6 @@ export class StripeClient extends Stripe {
       typescript: true,
       httpClient: Stripe.createFetchHttpClient()
     })
+    this.liveMode = env.STRIPE_SECRET_KEY.startsWith('sk_live_') || env.STRIPE_SECRET_KEY.startsWith('rk_live_')
   }
 }

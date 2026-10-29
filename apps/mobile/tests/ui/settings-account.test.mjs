@@ -111,7 +111,7 @@ async function harness(root) {
     'react-native': {AppState: appState, Platform: {OS: 'ios'}, StyleSheet: {create: value => value}, ...Object.fromEntries(['Pressable', 'ScrollView', 'View'].map(name => [name, native(name)]))},
     'react-native-webview': {WebView: native('WebView')},
     '@react-navigation/native': {useFocusEffect: callback => React.useEffect(() => h.focused ? callback() : undefined, [callback, h.focused])},
-    '../runtime': {useMobile},
+    '../runtime': {useMobile, useMobileSettings: () => h.settings},
     '../components': ui,
     '../components/SourceParagraph': {SourceParagraph: native('SourceParagraph')},
     '../domain/delete-account': {deleteCurrentAccount},

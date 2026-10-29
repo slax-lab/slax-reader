@@ -53,6 +53,56 @@ describe('YoutubeArticleBar', () => {
     document.body.innerHTML = ''
   })
 
+  it('shows an initial request failure and restarts status polling', async () => {
+    mockGet.mockRejectedValue(new Error('network'))
+    const w = await mount()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(w.text()).toContain('Could not load the article.')
+    mockGet.mockResolvedValue(state({ status: 'generating' }))
+    await w.find('.yt-status-action').trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('Preparing the article')
+    expect(w.text()).not.toContain('Could not load the article.')
+    expect(mockPost).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('keeps the failure line and its button while the retried status request is in flight', async () => {
+    mockGet.mockRejectedValue(new Error('network'))
+    const w = await mount()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(w.text()).toContain('Could not load the article.')
+    // The retried request fails again after the backoff: nothing must vanish in between
+    mockGet.mockImplementation(() => new Promise((_, reject) => setTimeout(() => reject(new Error('network')), 1000)))
+    await w.find('.yt-status-action').trigger('click')
+    await flushPromises()
+    expect(w.find('.youtube-article-bar').exists()).toBe(true)
+    expect(w.text()).toContain('Could not load the article.')
+    expect(w.find('.yt-status-action').exists()).toBe(true)
+    await vi.advanceTimersByTimeAsync(1000)
+    await flushPromises()
+    expect(w.text()).toContain('Could not load the article.')
+    w.unmount()
+  })
+
+  it.each(['labs_disabled', 'source_missing'])('shows owner recovery guidance for %s', async reason => {
+    routeGet([state({ status: 'unavailable', unavailable_reason: reason })])
+    const w = await mount()
+    await flushPromises()
+    expect(w.text()).toContain(reason === 'labs_disabled' ? 'Enable YouTube AI articles' : 'Save the source link again')
+    w.unmount()
+  })
+
+  it('does not render a translation key for an unknown recovery reason', async () => {
+    routeGet([state({ status: 'unavailable', unavailable_reason: 'future_reason' })])
+    const w = await mount()
+    await flushPromises()
+    expect(w.text()).not.toContain('component.youtube_article.future_reason')
+    w.unmount()
+  })
+
   it('shows the work in progress, then asks for the body once it is written; never loads the article itself', async () => {
     routeGet([state(), state({ status: 'generating' }), ready()])
     const w = await mount()

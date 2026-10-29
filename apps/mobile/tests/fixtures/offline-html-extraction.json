@@ -1,0 +1,193 @@
+{
+  "description": "Golden parity cases for native offline image URL extraction. Expected values are produced by rewriteReaderImageTransports + decodeImageAttribute + normalizeImageUrl (src/reader/image-transports.ts, src/data/background-cache.ts, src/data/cache-paths.ts): ordered, deduplicated absolute http(s) URLs.",
+  "cases": [
+    {
+      "name": "basic double, single and unquoted src",
+      "html": "<p><img src=\"https://a.test/1.jpg\"><img src='http://b.test/2.png' alt=x><img src=https://c.test/3.gif></p>",
+      "images": [
+        "https://a.test/1.jpg",
+        "http://b.test/2.png",
+        "https://c.test/3.gif"
+      ]
+    },
+    {
+      "name": "duplicates keep first order",
+      "html": "<img src=\"https://a.test/x.jpg\"><img src=\"https://b.test/y.jpg\"><IMG SRC=\"https://a.test/x.jpg\">",
+      "images": [
+        "https://a.test/x.jpg",
+        "https://b.test/y.jpg"
+      ]
+    },
+    {
+      "name": "uppercase tag, attribute and scheme",
+      "html": "<IMG ALT=\"t\" SRC=\"HTTPS://Upper.Test/A.JPG\"><img Src=\"Http://mixed.test/b.jpg\">",
+      "images": [
+        "https://Upper.Test/A.JPG",
+        "http://mixed.test/b.jpg"
+      ]
+    },
+    {
+      "name": "data and relative urls are skipped",
+      "html": "<img src=\"data:image/png;base64,AAAA\"><img src=\"DATA:image/gif;base64,R0\"><img src=\"/relative.jpg\"><img src=\"//proto.test/x.jpg\"><img src=\"\">",
+      "images": []
+    },
+    {
+      "name": "comments, doctype and cdata are skipped",
+      "html": "<!doctype html><!-- <img src=\"https://hidden.test/a.jpg\"> --><img src=\"https://seen.test/b.jpg\"><![CDATA[<img src=\"https://cdata.test/c.jpg\">]]>",
+      "images": [
+        "https://seen.test/b.jpg"
+      ]
+    },
+    {
+      "name": "unterminated comment hides the rest",
+      "html": "<img src=\"https://first.test/a.jpg\"><!-- <img src=\"https://never.test/b.jpg\">",
+      "images": [
+        "https://first.test/a.jpg"
+      ]
+    },
+    {
+      "name": "raw text elements hide images until closed",
+      "html": "<script>var s='<img src=\"https://script.test/a.jpg\">'</script><img src=\"https://after-script.test/b.jpg\"><style>.x{background:url(https://style.test/c.jpg)}</style><textarea><img src=\"https://textarea.test/d.jpg\"></textarea><title><img src=\"https://title.test/e.jpg\"></title><img src=\"https://after.test/f.jpg\">",
+      "images": [
+        "https://after-script.test/b.jpg",
+        "https://after.test/f.jpg"
+      ]
+    },
+    {
+      "name": "iframe, noembed, noframes and xmp are raw",
+      "html": "<iframe><img src=\"https://iframe.test/a.jpg\"></iframe><noembed><img src=\"https://noembed.test/b.jpg\"></noembed><noframes><img src=\"https://noframes.test/c.jpg\"></noframes><xmp><img src=\"https://xmp.test/d.jpg\"></xmp><img src=\"https://visible.test/e.jpg\">",
+      "images": [
+        "https://visible.test/e.jpg"
+      ]
+    },
+    {
+      "name": "raw element closes only on its own tag",
+      "html": "<script><img src=\"https://a.test/1.jpg\"></style><img src=\"https://b.test/2.jpg\"></SCRIPT><img src=\"https://c.test/3.jpg\">",
+      "images": [
+        "https://c.test/3.jpg"
+      ]
+    },
+    {
+      "name": "plaintext never closes",
+      "html": "<img src=\"https://before.test/a.jpg\"><plaintext><img src=\"https://after.test/b.jpg\"></plaintext><img src=\"https://later.test/c.jpg\">",
+      "images": [
+        "https://before.test/a.jpg"
+      ]
+    },
+    {
+      "name": "entities in src",
+      "html": "<img src=\"https://a.test/x.jpg?a=1&amp;b=2&AMP;c=3\"><img src=\"https://b.test/&#x41;&#66;&#X43;.jpg\"><img src=\"https://c.test/q&quot;&apos;&lt;&gt;.jpg\">",
+      "images": [
+        "https://a.test/x.jpg?a=1&b=2&c=3",
+        "https://b.test/ABC.jpg",
+        "https://c.test/q\"'<>.jpg"
+      ]
+    },
+    {
+      "name": "invalid numeric entities become replacement characters",
+      "html": "<img src=\"https://a.test/&#0;&#xD800;&#1114112;&#99999999999999999999;.jpg\"><img src=\"https://b.test/&#xyz;&#12a;&nbsp;.jpg\">",
+      "images": [
+        "https://a.test/����.jpg",
+        "https://b.test/&#xyz;&#12a;&nbsp;.jpg"
+      ]
+    },
+    {
+      "name": "entity encoded scheme is still recorded",
+      "html": "<img src=\"&#104;ttps://encoded.test/a.jpg\"><img src=\"https&#58;//colon.test/b.jpg\">",
+      "images": [
+        "https://encoded.test/a.jpg",
+        "https://colon.test/b.jpg"
+      ]
+    },
+    {
+      "name": "slaxstatic forms normalize",
+      "html": "<img src=\"slaxstatics://s.test/a.jpg\"><img src=\"slaxstatic://p.test/b.jpg\"><img src=\"SLAXSTATICS://upper.test/c.jpg\"><img src=\"https://s.test/a.jpg\">",
+      "images": [
+        "https://s.test/a.jpg",
+        "http://p.test/b.jpg"
+      ]
+    },
+    {
+      "name": "only img tags count",
+      "html": "<video poster=\"https://poster.test/a.jpg\" src=\"https://video.test/b.mp4\"><source src=\"https://source.test/c.mp4\"></video><image src=\"https://image.test/d.jpg\"><picture><source srcset=\"https://set.test/e.jpg\"><img src=\"https://pic.test/f.jpg\"></picture><input type=image src=\"https://input.test/g.jpg\">",
+      "images": [
+        "https://pic.test/f.jpg"
+      ]
+    },
+    {
+      "name": "only exact src attribute",
+      "html": "<img data-src=\"https://lazy.test/a.jpg\" srcset=\"https://set.test/b.jpg 2x\" xsrc=\"https://x.test/c.jpg\" src = \"https://spaced.test/d.jpg\">",
+      "images": [
+        "https://spaced.test/d.jpg"
+      ]
+    },
+    {
+      "name": "multiple src attributes are all recorded",
+      "html": "<img src=\"https://first.test/a.jpg\" src=\"https://second.test/b.jpg\">",
+      "images": [
+        "https://first.test/a.jpg",
+        "https://second.test/b.jpg"
+      ]
+    },
+    {
+      "name": "quoted gt inside attributes",
+      "html": "<img alt=\"a > b\" src=\"https://gt.test/a.jpg\"><img title='<x>' src='https://gt.test/b.jpg'>",
+      "images": [
+        "https://gt.test/a.jpg",
+        "https://gt.test/b.jpg"
+      ]
+    },
+    {
+      "name": "unquoted value stops at gt and whitespace",
+      "html": "<img src=https://u.test/a.jpg?x=1>tail<img src=https://u.test/b.jpg alt=y>",
+      "images": [
+        "https://u.test/a.jpg?x=1",
+        "https://u.test/b.jpg"
+      ]
+    },
+    {
+      "name": "tag needs delimiter after name",
+      "html": "<imgx src=\"https://no.test/a.jpg\"><img/src=\"https://slash.test/b.jpg\"><img\nsrc=\"https://newline.test/c.jpg\"><img\tsrc=\"https://tab.test/d.jpg\">",
+      "images": [
+        "https://newline.test/c.jpg",
+        "https://tab.test/d.jpg"
+      ]
+    },
+    {
+      "name": "self closing and slash boundaries",
+      "html": "<img src=\"https://a.test/1.jpg\"/><img / src=\"https://b.test/2.jpg\"><img alt=x/ src=\"https://c.test/3.jpg\">",
+      "images": [
+        "https://a.test/1.jpg",
+        "https://c.test/3.jpg"
+      ]
+    },
+    {
+      "name": "unicode, spaces and query strings",
+      "html": "<img src=\"https://例え.test/画像 1.jpg?q=中文&amp;n=1\"><img src=\"https://emoji.test/📖.png#frag\">",
+      "images": [
+        "https://例え.test/画像 1.jpg?q=中文&n=1",
+        "https://emoji.test/📖.png#frag"
+      ]
+    },
+    {
+      "name": "closing img tags and stray brackets",
+      "html": "</img src=\"https://closing.test/a.jpg\"><img src=\"https://open.test/b.jpg\"> < img src=\"https://space.test/c.jpg\"> <3 <img src=\"https://heart.test/d.jpg\">",
+      "images": [
+        "https://open.test/b.jpg",
+        "https://heart.test/d.jpg"
+      ]
+    },
+    {
+      "name": "unbalanced quote",
+      "html": "<img alt=\"broken src=\"https://inside.test/a.jpg\"><img src=\"https://next.test/b.jpg\">",
+      "images": [
+        "https://next.test/b.jpg"
+      ]
+    },
+    {
+      "name": "empty document",
+      "html": "",
+      "images": []
+    }
+  ]
+}

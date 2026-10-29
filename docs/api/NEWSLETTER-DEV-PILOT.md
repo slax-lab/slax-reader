@@ -186,7 +186,7 @@ The PowerSync maintainer owns hosted publication; the local development containe
 2. Validate the complete configuration. The new on-demand stream exposes only ready-message metadata, filters through the live authenticated owner and enabled Newsletter Lab, and omits body keys, raw messages and attachments.
 3. Publish dev rules, then deploy matching Web/API code. Before opening the pilot to users, verify the client subscribes to newsletter_v1, the first sync completes, and two different users receive only their own rows. Service health or REST body access alone does not prove replication.
 4. Deliver a new EML while Feed stays open; its row should appear without list REST/reload. Check RSS continues updating independently, saved metadata survives reload/offline, disabling only Newsletter hides its rows, and switching users reveals no old rows/body. Body availability offline is not promised.
-5. Do not add a Newsletter stream/subscription to Mobile in this revision. Existing Mobile saved-Inbox compatibility is included; its version remains 1.0.25/build 784 by the user's decision.
+5. Do not add a Newsletter stream/subscription to Mobile in this revision. Existing Mobile saved-Inbox compatibility is included; this feature makes no additional version increment (the branch inherits dev's 1.0.25/build 794 baseline).
 
 ## Five-second receiving observation
 

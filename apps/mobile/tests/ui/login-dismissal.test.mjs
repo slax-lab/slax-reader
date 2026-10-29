@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {React, act, nativeBoundary, loadComponent, withNativeHost} from '../reader/parity-host.mjs'
+import {readFileSync} from 'node:fs'
+import {React, act, nativeBoundary, loadComponent, withNativeHost, flattenStyle} from '../reader/parity-host.mjs'
 import {mobileColors, mobileLayout, mobileTypography} from '../../src/theme/index.ts'
 import {SessionController} from '../../src/domain/session.ts'
 import {PreferenceStore} from '../../src/data/preferences.ts'
@@ -12,6 +13,13 @@ async function loginFixture(host, platform, run, props = {}) {
   let marks = 0;
   const markInteractive = () => {marks++;};
   const controls = new Map(), providers = [], requests = [], accepted = [], alerts = [], lifecycle = []
+  const png = readFileSync(new URL('../../assets/drawable/bg_login.png', import.meta.url))
+  const background = {uri: 'bundled:bg_login', width: png.readUInt32BE(16), height: png.readUInt32BE(20)}
+  let artwork, viewport = {width: 390, height: 844}
+  const Image = props => {
+    if (props.source === background) artwork = {...props, resolvedStyle: {...background, ...flattenStyle(props.style)}}
+    return React.createElement(host.native.Image, props)
+  }
   let modal, phase = 'hidden', session = {status: 'unauthenticated'}, authenticate = async provider => ({provider})
   const primitive = props => {if (props.onPress) controls.set(props.accessibilityLabel ?? text(props.children), props); return React.createElement(host.native.View, props)}
   const Modal = props => {
@@ -23,8 +31,8 @@ async function loginFixture(host, platform, run, props = {}) {
   let loginResponse = {token: 'synthetic', user_id: 'fixture'}
   const mobile = {api: {login: async request => {requests.push(request); return loginResponse}}, sessions: {getSnapshot: () => session, captureIdentity: () => {const before = identity; return () => {if (before !== identity) throw new Error('Identity changed')}}, accept: async (...values) => accepted.push(values)}, t: key => key, config: {webUrl: 'https://fixture.test'}}
   const {LoginScreen} = await loadComponent('../../src/screens/LoginScreen.tsx', {
-    react: React, 'react-native': {...host.native, Platform: {OS: platform}, Text: primitive, Pressable: primitive, Modal, Alert: {alert: (...args) => alerts.push(args)}},
-    'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {}},
+    react: React, 'react-native': {...host.native, Platform: {OS: platform}, useWindowDimensions: () => viewport, Image, Text: primitive, Pressable: primitive, Modal, Alert: {alert: (...args) => alerts.push(args)}},
+    'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {bg_login: background}},
     '../auth/providers': {authenticate: provider => {providers.push({provider, phase}); return authenticate(provider)}}, '../runtime': {useMobile: () => mobile},
     '../theme': {mobileColors, mobileLayout, mobileTypography}, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => ({element() {}, firebase() {}})}, '../native/fixture-document': {}, '../components/fixture-actions': {},
     '../observe': {useObserveMarkInteractive: () => markInteractive},
@@ -33,10 +41,23 @@ async function loginFixture(host, platform, run, props = {}) {
   const press = key => act(async () => controls.get(key).onPress())
   await render()
   await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
+    artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()},
     hydrate: () => {session = {status: 'unauthenticated'}},
     replaceIdentity: () => {identity++; session = {status: 'unauthenticated'}},
     setUser: () => {identity++; session = {status: 'authenticated', session: {userId: 'other', token: 'replacement'}}}, authenticate: value => {authenticate = value}})
 }
+
+for (const platform of ['ios', 'android']) test(`mounted ${platform} login artwork overrides intrinsic PNG dimensions and follows the source layout ratio`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
+  assert.equal(fixture.artwork().source.width, 1500); assert.equal(fixture.artwork().source.height, 1260)
+  for (const width of [320, 375, 390, 430, 844]) {
+    await fixture.resize(width)
+    const artwork = fixture.artwork(), style = flattenStyle(artwork.style)
+    assert.equal(style.width, width)
+    assert.ok(Math.abs(style.height - width * 314 / 375) < 1e-9, 'The bundled PNG height must not leak into logical layout')
+    assert.equal(artwork.resolvedStyle.height, style.height)
+    assert.equal(artwork.resizeMode, 'contain')
+  }
+})))
 
 test('mounted login marks interactive once after first render', nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'ios', async fixture => {
   assert.equal(fixture.marks(), 1);

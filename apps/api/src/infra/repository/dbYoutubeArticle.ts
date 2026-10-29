@@ -17,7 +17,7 @@ export {
 } from '@/infra/repository/dbMediaArticle'
 
 /** Prompt contract version of the AI article. Bump when the prompt or output schema changes. */
-export const YOUTUBE_ARTICLE_PROMPT_VERSION = 'v1'
+export const YOUTUBE_ARTICLE_PROMPT_VERSION = 'v2'
 export const YOUTUBE_ARTICLE_SCHEMA_VERSION = 1
 
 /** YouTube rows of the media article tables: source_id is the video id. */
@@ -28,6 +28,20 @@ export class YoutubeArticleRepo extends MediaArticleRepo {
 
   constructor(@inject(PRISIMA_HYPERDRIVE_CLIENT) prismaPg: LazyInstance<HyperdrivePrismaClient>) {
     super(prismaPg)
+  }
+
+  /** Read existing articles after a prompt upgrade without starting replacement work. */
+  public override async findVersion(sourceId: string, sourceHash: string, language: string, promptVersion: string = this.promptVersion) {
+    const current = await super.findVersion(sourceId, sourceHash, language, promptVersion)
+    if (current || promptVersion !== this.promptVersion) return current
+    return super.findVersion(sourceId, sourceHash, language, 'v1')
+  }
+
+  public override async listForSource(sourceId: string, sourceHash: string, promptVersion: string = this.promptVersion) {
+    const current = await super.listForSource(sourceId, sourceHash, promptVersion)
+    if (promptVersion !== this.promptVersion) return current
+    const old = await super.listForSource(sourceId, sourceHash, 'v1')
+    return [...current, ...old.filter(row => !current.some(item => item.target_language === row.target_language))]
   }
 
   /**

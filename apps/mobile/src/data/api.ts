@@ -5,9 +5,8 @@ import type { SessionAuthority } from '../domain/session.ts';
 import {throwIfAborted} from '../utils/abort.ts';
 import {SharedRequestCache} from './shared-request.ts';
 import {readArticleBody} from './bounded-body.ts';
-import type {PdfAcquisitionResult, PdfCompleteConsumer} from './pdf-acquisition.ts';
-import {PDF_MAX_BYTES, type PdfDescriptor} from '@slax-reader/contracts/pdf';
-import {DataTransportError, NativePdfTransportError, isNetworkTransportError, httpErrorCode, retryAfterMs, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
+import {PDF_MAX_BYTES} from '@slax-reader/contracts/pdf';
+import {DataTransportError, isNetworkTransportError, httpErrorCode, retryAfterMs, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
 export {DataTransportError, isNetworkTransportError, getDataErrorDiagnostic, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS} from './transport-errors.ts';
 
 export class ApiError extends Error {
@@ -38,7 +37,7 @@ export interface SyncChange { table: string; id: string; op: string; data: Recor
 export interface CheckPurchase { jws_representation: string; order_id: string; product_id: string; platform: string }
 export interface FeedbackRequest { bookmark_uuid: string | null; entry_point: string; type: string; content: string; platform: string; environment: string; version: string; allow_follow_up: boolean; target_url: string | null }
 export interface AiEvent { type: string; data?: { overview?: string; outline?: string; tags?: {id: number; name: string}[]; tag?: {id: number; name: string}; key_takeaways?: string[]; done?: boolean }; message?: string }
-export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; fetch?: typeof globalThis.fetch; pdfFetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void> }
+export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; fetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void> }
 
 export class SlaxApi {
   private transport: typeof globalThis.fetch;
@@ -122,18 +121,6 @@ export class SlaxApi {
       return envelope.data as T;
     } finally { cleanup(); }
   }
-  async getPdfMetadata(bookmarkId: string, signal?: AbortSignal): Promise<PdfDescriptor> {
-    return this.pdfRequest('/v1/bookmark/metadata', {bookmark_uid: bookmarkId}, signal, {Accept: 'application/json'}, async (response, signal) => {
-      if (response.status !== 200) throw new ApiError(502, 'Invalid PDF metadata', undefined, {stage: 'pdf-metadata', code: 'pdf_metadata_invalid'});
-      const envelope = await this.pdfJson<{pdf?: PdfDescriptor}>(response, signal, 'pdf-metadata');
-      if (envelope.code !== 200) throw new ApiError(envelope.code, 'PDF metadata request failed', undefined, {stage: 'pdf-metadata'});
-      const pdf = envelope.data?.pdf;
-      if (!pdf || !/^[a-f0-9]{64}$/.test(pdf.document_id) || !Number.isSafeInteger(pdf.size) || pdf.size < 1 || pdf.size > PDF_MAX_BYTES ||
-        typeof pdf.filename !== 'string' || !['url', 'upload'].includes(pdf.source) || !['pending', 'ready', 'empty', 'failed'].includes(pdf.text_status) ||
-        (pdf.pages !== undefined && (!Number.isSafeInteger(pdf.pages) || pdf.pages < 1))) throw new ApiError(502, 'Invalid PDF metadata', undefined, {stage: 'pdf-metadata', code: 'pdf_metadata_invalid'});
-      return {...pdf, url: `/v1/bookmark/pdf?bookmark_uid=${encodeURIComponent(bookmarkId)}`};
-    });
-  }
   private async pdfJson<T>(response: Response, signal: AbortSignal, stage: DataErrorStage): Promise<ApiResponse<T>> {
     const reader = response.body?.getReader();
     if (!reader) throw new ApiError(502, 'PDF response body unavailable', undefined, {stage, code: 'pdf_body_invalid'});
@@ -163,7 +150,7 @@ export class SlaxApi {
     const preparation = this.options.sessions.prepareRequest?.() ?? Promise.resolve();
     await (signal ? abortable(preparation, signal) : preparation);
     identity?.(); if (origin !== this.origin) throw new Error('API environment changed'); throwIfAborted(signal);
-    const stage: DataErrorStage = body ? 'pdf-upload' : path.endsWith('/metadata') ? 'pdf-metadata' : 'pdf-range';
+    const stage: DataErrorStage = 'pdf-upload';
     const scope = this.options.sessions.captureRequestScope?.(), controller = new AbortController();
     const timeoutError = new DataTransportError('timeout', stage);
     let timedOut = false;
@@ -182,13 +169,12 @@ export class SlaxApi {
         check(); let response: Response | undefined, retryHttp = false;
         try {
           let pending: Promise<Response>;
-          const transport = stage === 'pdf-range' ? this.options.pdfFetch ?? this.transport : this.transport;
-          try {pending = transport(url, request);} catch (error) {check(); if (error instanceof NativePdfTransportError) throw error; throw new DataTransportError('network', stage);}
+          try {pending = this.transport(url, request);} catch {check(); throw new DataTransportError('network', stage);}
           void pending.then(value => {if (controller.signal.aborted) void value.body?.cancel().catch(() => undefined);}).catch(() => undefined);
-          try {response = await abortable(pending, controller.signal);} catch (error) {check(); if (error instanceof NativePdfTransportError) throw error; throw new DataTransportError('network', stage);}
+          try {response = await abortable(pending, controller.signal);} catch {check(); throw new DataTransportError('network', stage);}
           check();
           if (response.status === 401 && origin === this.origin) void this.options.sessions.rejectIfMatches?.(session.token, scope).catch(() => undefined);
-          if (response.status !== 200 && response.status !== 206) {
+          if (response.status !== 200) {
             const retryAfter = retryAfterMs(response.headers.get('Retry-After'));
             retryHttp = response.status >= 500 && response.status <= 599 && !retryAfter;
             throw Object.assign(new ApiError(response.status, `PDF request failed (${response.status})`, undefined, {stage}), {retryAfterMs: retryAfter});
@@ -209,68 +195,6 @@ export class SlaxApi {
       }
     } catch (error) {check(); throw error;}
     finally {clearTimeout(timer); signal?.removeEventListener('abort', aborted);}
-  }
-  async getPdfRange(bookmarkId: string, documentId: string, begin: number, end: number, signal?: AbortSignal, expectedSize?: number): Promise<Uint8Array> {
-    const result = await this.transferPdf(bookmarkId, documentId, begin, end, signal, expectedSize);
-    if (result.kind !== 'range') throw new Error('PDF range was not returned');
-    return result.bytes;
-  }
-  acquirePdf(bookmarkId: string, descriptor: PdfDescriptor, begin: number, end: number, complete: PdfCompleteConsumer, signal?: AbortSignal): Promise<PdfAcquisitionResult> {
-    return this.transferPdf(bookmarkId, descriptor.document_id, begin, end, signal, descriptor.size, complete);
-  }
-  private async transferPdf(bookmarkId: string, documentId: string, begin: number, end: number, signal?: AbortSignal, expectedSize?: number, complete?: PdfCompleteConsumer): Promise<PdfAcquisitionResult> {
-    if (!/^[a-f0-9]{64}$/.test(documentId) || !Number.isSafeInteger(begin) || !Number.isSafeInteger(end) || begin < 0 || end <= begin || end > PDF_MAX_BYTES || end - begin > 1024 * 1024 ||
-      (expectedSize !== undefined && (!Number.isSafeInteger(expectedSize) || expectedSize < end || expectedSize > PDF_MAX_BYTES))) throw new Error('Invalid PDF byte range');
-    return this.pdfRequest('/v1/bookmark/pdf', {bookmark_uid: bookmarkId}, signal,
-      {Accept: 'application/pdf', Range: `bytes=${begin}-${end - 1}`}, async (response, signal) => {
-        const invalid = (status: number, message: string, code: DataErrorCode) => new ApiError(status, message, undefined, {stage: 'pdf-range', code});
-        if (response.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/pdf') throw invalid(502, 'Invalid PDF response content type', 'pdf_body_invalid');
-        const etag = response.headers.get('ETag');
-        if (etag && /^"[a-f0-9]{64}"$/.test(etag) && etag !== `"${documentId}"`) throw invalid(412, 'PDF identity changed', 'pdf_identity_mismatch');
-        const match = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(response.headers.get('Content-Range') ?? '');
-        const full = response.status === 200;
-        if (full && response.headers.has('Content-Range')) throw invalid(502, 'Partial PDF body returned as a full response', 'pdf_range_invalid');
-        if (!full && (!match || Number(match[1]) !== begin || Number(match[2]) !== end - 1 || Number(match[3]) < end || Number(match[3]) > PDF_MAX_BYTES ||
-          (expectedSize !== undefined && Number(match[3]) !== expectedSize))) throw invalid(502, 'Invalid PDF range response', 'pdf_range_invalid');
-        const advertised = Number(response.headers.get('Content-Length'));
-        const expected = full ? advertised : end - begin;
-        if (!Number.isSafeInteger(expected) || expected <= 0 || expected > PDF_MAX_BYTES || (full && (expected < end || (expectedSize !== undefined && expected !== expectedSize))) ||
-          (response.headers.has('Content-Length') && advertised !== expected)) throw invalid(502, 'Invalid PDF response length', 'pdf_length_invalid');
-        const reader = response.body?.getReader();
-        if (!reader) throw invalid(502, 'PDF streaming unavailable', 'pdf_stream_unavailable');
-        const cancel = () => {void reader.cancel().catch(() => undefined);};
-        signal.addEventListener('abort', cancel, {once: true});
-        if (signal.aborted) cancel();
-        let received = 0, consumed = false;
-        const chunks = async function* () {
-          for (;;) {
-            throwIfAborted(signal);
-            let chunk: ReadableStreamReadResult<Uint8Array>;
-            try {chunk = await abortable(reader.read(), signal);} catch (error) {throwIfAborted(signal); if (error instanceof NativePdfTransportError) throw error; throw new DataTransportError('network', 'pdf-range');}
-            throwIfAborted(signal);
-            if (chunk.done) break;
-            received += chunk.value.byteLength;
-            if (received > expected) throw invalid(502, 'PDF response exceeds its length', 'pdf_length_invalid');
-            for (let offset = 0; offset < chunk.value.byteLength; offset += 256 * 1024) yield chunk.value.subarray(offset, Math.min(offset + 256 * 1024, chunk.value.byteLength));
-          }
-          if (received !== expected) throw invalid(502, 'Incomplete PDF response', 'pdf_length_invalid');
-          consumed = true;
-        };
-        try {
-          if (full && complete) {
-            const retained = await complete(chunks(), signal, cancel); throwIfAborted(signal);
-            if (retained !== false && !consumed) throw invalid(502, 'Incomplete PDF response consumption', 'pdf_length_invalid');
-            return {kind: 'complete', size: expected};
-          }
-          const result = new Uint8Array(end - begin); let offset = full ? 0 : begin;
-          for await (const value of chunks()) {
-            const left = Math.max(begin, offset), right = Math.min(end, offset + value.byteLength);
-            if (right > left) result.set(value.subarray(left - offset, right - offset), left - begin);
-            offset += value.byteLength;
-          }
-          return {kind: 'range', begin, bytes: result};
-        } finally {signal.removeEventListener('abort', cancel); void reader.cancel().catch(() => undefined); reader.releaseLock();}
-      });
   }
   async uploadPdf(body: Blob, filename: string, signal?: AbortSignal): Promise<{bookmark_uid: string; bookmark_id: number | string}> {
     if (body.size <= 0 || body.size > PDF_MAX_BYTES) throw new Error('Invalid PDF upload size');

@@ -58,8 +58,9 @@ test('Reader display/subscription treat offsetless source timestamps as UTC with
   } finally {if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous}
 })
 
-async function overlays(host) {
+async function overlays(host, motionHost) {
   return loadComponent('../../src/reader/ReaderOverlays.tsx', {
+    ...(motionHost ? {'react-native-reanimated': motionHost.reanimated} : {}),
     react: React, 'react-native': host.native, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})},
     '../components': host.components, '../theme': {mobileColors, mobileTypography}, './coordinates.ts': coordinates, './model.ts': model,
     './MarkdownView.tsx': {MarkdownView: props => React.createElement(host.native.View, {...props, testID: 'markdown'})}, './outline-motion.ts': motion,
@@ -107,7 +108,10 @@ test('actual comments and replies expose Copy without delete permission, then de
 }))
 
 test('actual outline keeps source footer actions, native-safe transient states and expansion/minimize motion', nativeBoundary, async () => withNativeHost(async host => {
-  const {OutlineSheet} = await overlays(host)
+  const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')
+  const ui = installedMotionHost(host.native.View)
+  const {OutlineSheet} = await overlays(host, ui)
+  const settle = async () => {await act(async () => {for (let time = 0; time < 700; time += 16) ui.advance(16)}); await render()}
   let status = 'collapsed', closed = 0, minimized = 0
   const render = () => host.render(React.createElement(OutlineSheet, {status, toolbarVisible: true, markdown: 'Outline', pending: false, busy: false, error: null, position: 120, t: key => key,
     onClose() {closed++; status = 'hidden'}, onCollapse() {minimized++; status = 'collapsed'}, onExpand() {status = 'expanded'}, onRetry() {}, onLink() {}, onPosition() {}}))
@@ -117,6 +121,8 @@ test('actual outline keeps source footer actions, native-safe transient states a
   assert.equal(host.props.get('reader-outline-panel').pointerEvents, 'auto')
   assert.equal(flattenStyle(host.props.get('reader-outline-panel').style).height, 746)
   assert.equal(flattenStyle(host.props.get('reader-outline-footer').style).height, 55)
+  assert.equal(host.props.get('markdown'), undefined, 'Outline content waits for the expansion to settle')
+  await settle()
   assert.ok(host.props.get('markdown'))
   assert.deepEqual(motion.outlineMotion('collapsed', 'expanded').morph, [{toValue: 1, duration: 380, delay: 80}])
   await act(async () => host.props.get('reader-outline-minimize').onPress()); await render()

@@ -69,3 +69,7 @@ The user approved the reviewed five-part revision and explicitly authorized impl
 ## Local-first revision acceptance (2026-10-29)
 
 After the revised local environment was made available, the requesting user reported that local testing was normal and explicitly authorized committing and updating the original PR. This acceptance covers the local Newsletter revision presented for verification. It does not establish hosted SMTP/PowerSync results or native device acceptance. Mobile remains 1.0.25/build 784 under the user's explicit no-bump decision.
+
+## Latest dev integration before PR delivery (2026-10-29)
+
+GitHub reported the task branch conflicting with the latest dev. The four conflicts were an additive CrawlService import and three Mobile test-loader maps. Preserve both MarkRepo and the internal Newsletter acquisition guard; use dev's simplified SourceDrawer fixture plus the Newsletter source-url boundary. Auto-merged Reader/Library changes preserve dev's UI work and the Newsletter HTTP-only original policy. The branch inherits dev's already-approved Mobile 1.0.25/build 794/previous 793 without any additional version increment. Earlier build 784 records describe the pre-sync baseline; no downgrade is made. This sync adds no Newsletter schema change or unrelated feature diff against dev.

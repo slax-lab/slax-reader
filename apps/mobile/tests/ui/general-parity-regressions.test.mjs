@@ -13,7 +13,7 @@ const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
 async function load(file, boundaries = {}, globals = {}) {
   const passthrough = ({children}) => children ?? null;
-  const drawer = {SourceDrawer: passthrough, DrawerScrollBoundary: passthrough, useDrawerGesture: () => null, useDrawerInput: () => null};
+  const drawer = {SourceDrawer: passthrough};
   boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null}, '../utils/source-url': sourceUrls,
     ...observeRelativeBoundaries(boundaries), ...boundaries};
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
@@ -163,7 +163,7 @@ test('mounted RSS editor retains add draft on dismissal/failure, clears on succe
   let state = {enabled: true, busy: false, selected: 'feed-a', subscriptions: [{id: 'feed-a', feed_url: 'https://source.test/feed.xml', remark: 'Original', next_allowed_at: '2020-01-01T00:00:00Z'}], entries: [], ready: true, hasMore: false};
   const controller = {add: async (...values) => {additions.push(values); return ok;}, edit: async (...values) => {edits.push(values); return true;}};
   const {RssFeed} = await load('../../src/components/RssFeed.tsx', {
-    react: React, 'react-native': {...v.primitives, StyleSheet: {create: value => value, absoluteFill: {}}}, '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: source => source.remark}, '../theme': theme, './SourceUI': v.ui, './SourceMenu': {SourceMenu: v.native('SourceMenu')}, './AppImage': {AppImage: v.native('AppImage')}, './fixture-actions': {}, './feed-scroll': {useFeedScrollPosition: () => ({events: {}, reset() {}})},
+    react: React, 'react-native': {...v.primitives, StyleSheet: {create: value => value, absoluteFill: {}}}, '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: source => source.remark}, '../theme': theme, './SourceUI': v.ui, './SourceMenu': {SourceMenu: v.native('SourceMenu')}, './AppImage': {AppImage: v.native('AppImage')}, './fixture-actions': {}, './feed-scroll': {useFeedScrollPosition: () => ({events: {}, reset() {}})}, './FeedList': {FeedList: props => React.createElement(v.primitives.FlatList, props)},
   });
   const position = {source: 'feed-a', select() {}};
   const onDismissAdd = () => {adding = false;};
@@ -228,12 +228,16 @@ for (const platform of ['android', 'ios']) test(`actual ${platform} subscription
   };
   for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
   boundaries['./screens/AppRecoveryScreen'] = {AppRecoveryScreen: nil};
+  const readerScreenOptions = () => ({}), prewarmSources = [];
+  boundaries['./navigation/reader-route'] = {readerScreenOptions, useReaderPrewarm: source => prewarmSources.push(source)};
   const {ApplicationRoutes} = await load('../../src/App.tsx', boundaries);
   await act(async () => root.render(React.createElement(ApplicationRoutes)));
   const {options} = screens.find(screen => screen.name === 'Subscription');
   assert.equal(options.title, 'Pro Reader'); assert.equal(options.headerTitleStyle.fontSize, 20); assert.equal(options.headerTitleStyle.fontWeight, '500');
   assert.equal(options.header, undefined); assert.equal(options.headerLeft, undefined); assert.equal(options.headerBackVisible, undefined);
   assert.equal(v.one('Navigator').screenOptions.headerBackButtonDisplayMode, 'minimal');
+  assert.equal(screens.find(screen => screen.name === 'Reader').options, readerScreenOptions, 'The Reader route registers its static native header options');
+  assert.equal(prewarmSources.at(-1), undefined, 'Without an account runtime the Reader is not prewarmed');
 }));
 
 for (const zone of ['Asia/Shanghai', 'America/Los_Angeles']) test(`mounted Library uses UTC subscription/collection expiry rather than ${zone} local time`, async () => mounted(async root => {
@@ -255,7 +259,7 @@ for (const zone of ['Asia/Shanghai', 'America/Los_Angeles']) test(`mounted Libra
       '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
       '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
       './LibraryDataStatus': {LibraryDataStatus: nil}, '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
-      '../components': components, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer'), DrawerScrollBoundary: ({children}) => children}, '../utils/source-time': time,
+      '../components': components, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../components/FeedList': {FeedList: props => React.createElement(v.primitives.FlatList, props)}, '../components/useAppForeground': {useAppForeground: () => true}, '../utils/source-time': time,
     }, {Date: class extends Date {static now() {return Date.UTC(2026, 9, 11, 12);}}});
     await act(async () => root.render(React.createElement(LibraryScreen, {navigation: {navigate() {}}, route: {params: {}}})));
     assert.equal(v.all('View').some(props => props.testID === 'library-collection-strip'), false, 'No collection must not reserve a selector strip');

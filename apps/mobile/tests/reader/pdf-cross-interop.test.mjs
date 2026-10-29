@@ -261,15 +261,20 @@ test('Web PDF geometry and shared MarkManager interoperate with persisted mobile
       const id = await store.repository.addMark({bookmarkId: body.bookmark_uid, userId: '1', source: body.source, type: body.type, comment: body.comment, parentId: body.parent_uid, rootId: body.parent_uid, selectContent: body.select_content, approxSource: body.approx_source, markPolicy: PERSONAL_MARK_POLICY});
       return {mark_uid: id, root_uid: body.parent_uid ?? id};
     });
-    const mobileHtml = composePdfDocument({pageId: 'cross-interop', descriptor: {document_id: documentId, size: bytes.length, filename: 'rotated.pdf'}, currentUserId: 1});
+    const mobileBytes = `/pdf/cross-interop/${documentId}/${bytes.length}`;
+    const mobileHtml = composePdfDocument({pageId: 'cross-interop', descriptor: {document_id: documentId, size: bytes.length, filename: 'rotated.pdf'}, source: mobileBytes, currentUserId: 1});
     await mobilePage.route('**/*', route => {
+      const url = new URL(route.request().url());
       if (route.request().url() === 'https://pdf.reader.slax.invalid/') return route.fulfill({contentType: 'text/html', body: mobileHtml});
+      // Byte ranges come from the page's own origin, as the native PDF hosts serve them.
+      const range = /^bytes=(\d+)-(\d+)$/.exec(route.request().headers().range ?? '');
+      if (url.origin === 'https://pdf.reader.slax.invalid' && url.pathname === mobileBytes && range) {
+        const begin = Number(range[1]), end = Math.min(Number(range[2]) + 1, bytes.length);
+        return route.fulfill({status: 206, contentType: 'application/pdf', headers: {'Content-Range': `bytes ${begin}-${end - 1}/${bytes.length}`}, body: bytes.subarray(begin, end)});
+      }
       requests.push(route.request().url()); return route.abort();
     });
-    await mobilePage.exposeFunction('nativePdfMessage', async raw => {
-      const message = JSON.parse(raw); mobileEvents.push(message);
-      if (message.kind === 'range') for (let offset = message.begin; offset < message.end; offset += 131072) await mobilePage.evaluate(message => window.__slaxPdfReceive(message), {channel: 'slax-pdf', pageId: 'cross-interop', kind: 'rangeChunk', id: message.id, offset, data: bytes.subarray(offset, Math.min(message.end, offset + 131072)).toString('base64')});
-    });
+    await mobilePage.exposeFunction('nativePdfMessage', async raw => {mobileEvents.push(JSON.parse(raw));});
     await mobilePage.addInitScript(() => {window.ReactNativeWebView = {postMessage: value => window.nativePdfMessage(value)};});
     await webPage.goto('https://web-pdf.test/');
     await webPage.evaluate(id => window.interop.start(id), documentId);

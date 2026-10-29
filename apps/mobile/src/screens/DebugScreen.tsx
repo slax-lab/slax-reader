@@ -5,7 +5,7 @@ import {fetch} from 'expo/fetch';
 import {Accelerometer} from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 import type {SyncStatus} from '@powersync/common';
-import {useMobile} from '../runtime';
+import {useMobile, useMobileSettings} from '../runtime';
 import {resolveDns, systemInfo} from '../native/platform';
 import {Divider, SourceButton, SourceDialog, SourceIcon, SourceSheet, SourceText, TextAction, ScreenSurface} from '../components';
 import {SourceRing} from '../components/SourceRing';
@@ -24,7 +24,7 @@ const resultColors = {idle: '#BDBDBD', testing: '#FFA726', success: '#4CAF50', f
 const mono = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
 export function DebugScreen({navigation}: MobileScreenProps<'Debug'>) {
-  const {runtime, config, preferences, settings, repositories, cache, t, fixtureOnly} = useMobile();
+  const {runtime, config, preferences, repositories, cache, t, fixtureOnly} = useMobile(), settings = useMobileSettings();
   const database = runtime.getDatabase(), [sync, setSync] = useState<SyncStatus | undefined>(database?.currentStatus);
   const [info, setInfo] = useState<Record<string,string>>({}), [results, setResults] = useState<Diagnostic[]>(names.map(name => ({name, status: 'idle', message: ''})));
   const [testing, setTesting] = useState(false), [environment, setEnvironment] = useState(false), [restart, setRestart] = useState(false);

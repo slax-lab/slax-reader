@@ -69,7 +69,6 @@ interface __BaseEnv_Env {
   APPLE_SIGN_AUTH_KEY: string
   APIFY_API_TOKEN: string
   STRIPE_SECRET_KEY: string
-  STRIPE_LIVE_MODE?: string
   STRIPE_CALLBACK_SECRET: string
   TURNSTILE_PAYMENT_SECRET_KEY: string
   JINA_API_KEY: string

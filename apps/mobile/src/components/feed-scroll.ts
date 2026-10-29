@@ -1,5 +1,6 @@
-import {useCallback, useLayoutEffect, useMemo, useRef, useState} from 'react';
-import type {NativeScrollEvent, NativeSyntheticEvent} from 'react-native';
+import {useCallback, useLayoutEffect, useMemo, useRef} from 'react';
+
+type ScrollObservation = {nativeEvent: {contentOffset: {y: number}; contentSize?: {height: number}; layoutMeasurement?: {height: number}}};
 
 /** Survives the source's separate Inbox/RSS composition lifetimes. */
 export class FeedScrollPosition {
@@ -14,19 +15,13 @@ export class FeedScrollPosition {
 
 export function useFeedScrollPosition(position: FeedScrollPosition, scrollTo: (offset: number, animated?: boolean) => void, active = true, scope?: string | null) {
   const pending = useRef(position.offset > 0), content = useRef(0), viewport = useRef(0), requested = useRef<number | null>(null);
-  const [atTop, setAtTop] = useState(position.offset <= 0.5), atTopRef = useRef(atTop);
-  const updateTop = useCallback((offset: number) => {
-    const next = offset <= 0.5;
-    if (atTopRef.current !== next) {atTopRef.current = next; setAtTop(next);}
-  }, []);
-  const anchor = useMemo(() => ({minIndexForVisible: 0}), []);
   const lifetime = useMemo(() => ({active, position, scrollTo}), [active, position, scrollTo, scope]), currentLifetime = useRef<typeof lifetime | null>(null);
   const isCurrent = useCallback(() => lifetime.active && currentLifetime.current === lifetime, [lifetime]);
   useLayoutEffect(() => {
     currentLifetime.current = lifetime;
-    if (active) {pending.current = position.offset > 0; content.current = 0; viewport.current = 0; requested.current = null; updateTop(position.offset);}
+    if (active) {pending.current = position.offset > 0; content.current = 0; viewport.current = 0; requested.current = null;}
     return () => {if (currentLifetime.current === lifetime) currentLifetime.current = null;};
-  }, [lifetime, position, updateTop]);
+  }, [lifetime, position]);
   const attempt = useCallback((atEnd = false) => {
     if (!isCurrent() || !pending.current || viewport.current <= 0 || content.current <= 0) return;
     const maximum = Math.max(0, content.current - viewport.current);
@@ -41,11 +36,11 @@ export function useFeedScrollPosition(position: FeedScrollPosition, scrollTo: (o
   const reset = useCallback((animated = false) => {
     const current = currentLifetime.current;
     if (!current || current.position !== position || current.scrollTo !== scrollTo) return;
-    position.reset(); pending.current = true; requested.current = 0; updateTop(0);
+    position.reset(); pending.current = true; requested.current = 0;
     if (current.active) scrollTo(0, animated);
-  }, [position, scrollTo, updateTop]);
+  }, [position, scrollTo]);
   const events = useMemo(() => {
-    const observe = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const observe = (event: ScrollObservation) => {
       if (!isCurrent()) return;
       const native = event.nativeEvent;
       const height = native.contentSize?.height ?? content.current, visibleHeight = native.layoutMeasurement?.height ?? viewport.current;
@@ -55,25 +50,26 @@ export function useFeedScrollPosition(position: FeedScrollPosition, scrollTo: (o
         if (requested.current === null || Math.abs(value - requested.current) > 0.5) return;
         pending.current = false;
       }
-      position.offset = value; updateTop(value);
+      position.offset = value;
     };
     return {
       onLayout: (event: {nativeEvent: {layout: {height: number}}}) => {if (isCurrent()) {viewport.current = event.nativeEvent.layout.height; attempt();}},
       onContentSizeChange: (_width: number, height: number) => {
         if (!isCurrent()) return;
         const previous = content.current; content.current = height;
-        if (!pending.current && previous > height && viewport.current > 0) {position.offset = Math.min(position.offset, Math.max(0, height - viewport.current)); updateTop(position.offset);}
+        if (!pending.current && previous > height && viewport.current > 0) position.offset = Math.min(position.offset, Math.max(0, height - viewport.current));
         attempt();
       },
       onEndReached: ({distanceFromEnd}: {distanceFromEnd: number}) => {if (distanceFromEnd <= 0) attempt(true);},
       onScrollBeginDrag: () => {if (isCurrent()) {pending.current = false; requested.current = null;}},
+      // iOS status-bar scroll-to-top is a real native rest at zero.
+      onScrollToTop: () => {if (isCurrent()) {position.reset(); pending.current = false; requested.current = null;}},
       onScroll: observe,
       // Sampling is coarse while moving; the end events record the exact resting offset.
       onScrollEndDrag: observe,
       onMomentumScrollEnd: observe,
-      scrollEventThrottle: 48,
       onEndReachedThreshold: 0,
     };
-  }, [isCurrent, attempt, position, updateTop]);
-  return {reset, events, maintainVisibleContentPosition: atTop ? undefined : anchor};
+  }, [isCurrent, attempt, position]);
+  return {reset, events};
 }

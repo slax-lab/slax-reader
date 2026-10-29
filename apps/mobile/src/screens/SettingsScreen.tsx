@@ -1,6 +1,6 @@
 import React, {useLayoutEffect, useSyncExternalStore} from 'react';
 import type {MobileScreenProps} from '../navigation/types';
-import {useMobile} from '../runtime';
+import {useMobile, useMobileSettings} from '../runtime';
 import {usePdfLab} from '../pdf/usePdfLab';
 import {useAccountScope} from '../settings/account-scope';
 import {useRssLab} from '../settings/useRssLab';
@@ -8,8 +8,8 @@ import {useSettingsState} from '../settings/useSettingsState';
 import {SettingsView} from '../settings/SettingsView';
 
 export function SettingsScreen({navigation}: MobileScreenProps<'Settings'>) {
-  const mobile = useMobile();
-  const {t, locale, settings, preferences, api, systemIntentsAvailable, systemDiscoveryAvailable} = mobile;
+  const mobile = useMobile(), settings = useMobileSettings();
+  const {t, locale, preferences, api, systemIntentsAvailable, systemDiscoveryAvailable} = mobile;
   const scope = useAccountScope({
     ...mobile,
     apiOrigin: mobile.config.apiUrl,

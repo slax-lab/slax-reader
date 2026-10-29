@@ -42,7 +42,30 @@ function fixturePdf(count = 13, passwordProtected = false) {
   return Buffer.from(text);
 }
 
-test('PDF WebView document uses real worker, bounded pages, exact selections, local resources and isolated transport', {skip: !chromium || !existsSync(chrome), timeout: 120000}, async () => {
+const PDF_PAGE = 'https://pdf.reader.slax.invalid/';
+/** Serves the composed page and its same-origin byte ranges the way the native PDF hosts do (206, Content-Range, JSON failures). */
+async function servePdf(page, html, bytes, {log = [], hold = () => false} = {}) {
+  const held = [];
+  await page.route('**/*', async route => {
+    const request = route.request(), url = new URL(request.url());
+    log.push(request.url());
+    if (request.url() === PDF_PAGE) return route.fulfill({status: 200, contentType: 'text/html', body: html});
+    if (url.origin + '/' !== PDF_PAGE) return route.abort();
+    if (url.pathname.startsWith('/pdf-cancel/')) return route.fulfill({status: 204, body: ''});
+    if (!url.pathname.startsWith('/pdf/')) return route.abort();
+    const headers = request.headers(), match = /^bytes=(\d+)-(\d+)$/.exec(headers['x-slax-range'] ?? headers.range ?? '');
+    if (!match) return route.fulfill({status: 416, contentType: 'application/json', body: '{"code":"http_range_not_satisfiable","status":416}'});
+    const begin = Number(match[1]), end = Math.min(Number(match[2]) + 1, bytes.length);
+    const respond = () => route.fulfill({status: 206, contentType: 'application/pdf', headers: {'Content-Range': `bytes ${begin}-${end - 1}/${bytes.length}`, 'Accept-Ranges': 'bytes'}, body: bytes.subarray(begin, end)}).catch(() => {});
+    if (hold({begin, end, headers})) {held.push({begin, end, respond, url: request.url()}); return;}
+    return respond();
+  });
+  return held;
+}
+const ranges = log => log.filter(url => new URL(url).pathname.startsWith('/pdf/'));
+const cancels = log => log.filter(url => new URL(url).pathname.startsWith('/pdf-cancel/'));
+
+test('PDF WebView document uses real worker, bounded pages, exact selections, local resources and same-origin native byte ranges', {skip: !chromium || !existsSync(chrome), timeout: 120000}, async () => {
   const runtime = await build({plugins: [readerCompatibilityPlugin(new URL('../../src/reader/', import.meta.url).pathname)], entryPoints: [new URL('../../src/reader/pdf-runtime.ts', import.meta.url).pathname], bundle: true, write: false, platform: 'browser', format: 'iife', target: ['safari16.4', 'chrome110'], minify: true, legalComments: 'inline'});
   const assets = JSON.parse(readFileSync(new URL('../../assets/pdf/bundle.json', import.meta.url), 'utf8'));
   assert.equal(assets.script, runtime.outputFiles[0].text, 'Generated PDF assets must contain the current extracted runtime');
@@ -52,8 +75,11 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
   const bytes = fixturePdf();
   const documentId = createHash('sha256').update(bytes).digest('hex');
   const descriptor = {size: bytes.length, document_id: documentId, filename: 'fixture.pdf', url: 'https://private.example/document?token=must-not-leak'};
-  const html = composePdfDocument({pageId: 'fixture', descriptor, currentUserId: 1});
+  const source = `/pdf/fixture/${documentId}/${bytes.length}`;
+  const html = composePdfDocument({pageId: 'fixture', descriptor, source, currentUserId: 1});
   assert.ok(!html.includes('must-not-leak'));
+  assert.ok(html.includes("connect-src blob: https://pdf.reader.slax.invalid;"), 'The page may only connect to its own byte origin');
+  assert.throws(() => composePdfDocument({pageId: 'fixture', descriptor, source: 'https://elsewhere.example/doc.pdf', currentUserId: 1}), /Invalid PDF source/);
   const browser = await chromium.launch({executablePath: chrome, headless: true});
   try {
     const page = await browser.newPage({viewport: {width: 390, height: 844}});
@@ -61,21 +87,8 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     page.on('worker', worker => workers.push(worker));
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => {if (['warning', 'error'].includes(message.type())) warnings.push(message.text());});
-    await page.route('**/*', route => {
-      requests.push(route.request().url());
-      if (route.request().url() === 'https://pdf.reader.slax.invalid/') return route.fulfill({status: 200, contentType: 'text/html', body: html});
-      return route.abort();
-    });
-    await page.exposeFunction('nativePdfMessage', async raw => {
-      const message = JSON.parse(raw);
-      messages.push(message);
-      if (message.kind === 'range') {
-        for (let offset = message.begin; offset < message.end; offset += 131072) await page.evaluate(message => window.__slaxPdfReceive(message), {
-          channel: 'slax-pdf', pageId: 'fixture', kind: 'rangeChunk', id: message.id, offset,
-          data: bytes.subarray(offset, Math.min(message.end, offset + 131072)).toString('base64'),
-        });
-      }
-    });
+    await servePdf(page, html, bytes, {log: requests});
+    await page.exposeFunction('nativePdfMessage', async raw => {messages.push(JSON.parse(raw));});
     await page.addInitScript(() => {window.ReactNativeWebView = {postMessage: value => window.nativePdfMessage(value)};});
     await page.goto('https://pdf.reader.slax.invalid/');
     await page.waitForFunction(() => document.querySelectorAll('.textLayer span').length > 3, {timeout: 20000});
@@ -91,7 +104,9 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
       return WebAssembly.validate(bytes);
     }), true);
     await assert.rejects(workers[0].evaluate(() => globalThis.__slaxPdfResourceBytes('https://example.com/private')));
-    assert.ok(messages.filter(message => message.kind === 'range').length >= 2);
+    assert.ok(ranges(requests).length >= 1, 'PDF.js reads byte ranges from the page origin');
+    assert.ok(ranges(requests).every(url => new URL(url).pathname === source && /^\?request=fixture-\d+-\d+$/.test(new URL(url).search)), ranges(requests).join('\n'));
+    assert.equal(messages.some(message => ['range', 'cancelRange', 'rangeAck'].includes(message.kind)), false, 'No byte-range traffic reaches React Native');
     const zoomBaseWidth = await page.locator('.page[data-page-number="1"]').evaluate(element => element.getBoundingClientRect().width);
     const gesture = (type, scale) => page.evaluate(({type, scale}) => {
       const event = new Event(type, {bubbles: true, cancelable: true});
@@ -230,7 +245,7 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     await command('single-position', 'position');
     const singleProgress = messages.filter(message => message.kind === 'position').at(-1).position;
     assert.ok(Math.abs(singleProgress - spreadProgress) < 0.15, `Returning to single-page preserves page and normalized position: ${spreadProgress} -> ${singleProgress}`);
-    assert.deepEqual(requests, ['https://pdf.reader.slax.invalid/']);
+    assert.deepEqual(requests.filter(url => !ranges([url]).length && !cancels([url]).length), ['https://pdf.reader.slax.invalid/']);
     assert.deepEqual(errors, []);
     assert.ok(!warnings.some(value => /fake worker|Unable to load|CSP|Content Security Policy/.test(value)), warnings.join('\n'));
     const workerClosed = workers[0].waitForEvent('close');
@@ -239,18 +254,14 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     assert.equal(await page.evaluate(() => typeof window.__slaxPdfReceive), 'undefined');
     const external = await browser.newPage({viewport: {width: 390, height: 10000}});
     const externalMessages = [];
-    const externalHtml = composePdfDocument({pageId: 'android-host', descriptor, currentUserId: 1, platform: 'android', hostViewport: true});
-    await external.route('**/*', route => route.fulfill({status: 200, contentType: 'text/html', body: externalHtml}));
-    await external.exposeFunction('nativePdfMessage', async raw => {
-      const message = JSON.parse(raw); externalMessages.push(message);
-      if (message.kind === 'range') for (let offset = message.begin; offset < message.end; offset += 131072) await external.evaluate(message => window.__slaxPdfReceive(message), {
-        channel: 'slax-pdf', pageId: 'android-host', kind: 'rangeChunk', id: message.id, offset,
-        data: bytes.subarray(offset, Math.min(message.end, offset + 131072)).toString('base64'),
-      });
-    });
+    const externalHtml = composePdfDocument({pageId: 'android-host', descriptor, source, currentUserId: 1, platform: 'android', hostViewport: true});
+    const externalHeaders = [];
+    await servePdf(external, externalHtml, bytes, {hold: ({headers}) => {externalHeaders.push(headers); return false;}});
+    await external.exposeFunction('nativePdfMessage', async raw => {externalMessages.push(JSON.parse(raw));});
     await external.addInitScript(() => {window.ReactNativeWebView = {postMessage: value => window.nativePdfMessage(value)};});
     await external.goto('https://pdf.reader.slax.invalid/');
     await external.waitForFunction(() => document.querySelectorAll('.page').length === 13);
+    assert.ok(externalHeaders.length && externalHeaders.every(headers => /^bytes=\d+-\d+$/.test(headers['x-slax-range']) && headers.range === undefined), 'Android pages keep WebView from applying the range to intercepted streams');
     assert.equal(await external.locator('.page > canvas').count(), 0, 'A document-height Android WebView must await its actual host viewport');
     const externalSend = message => external.evaluate(message => window.__slaxPdfReceive(message), {channel: 'slax-pdf', pageId: 'android-host', ...message});
     await externalSend({kind: 'viewport', offset: -240, height: 640});
@@ -310,7 +321,7 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     assert.ok(externalMessages.some(message => message.kind === 'documentHeight' && message.height > 4000));
     await externalSend({kind: 'command', id: 'external-close', operation: 'teardown'});
     const blocked = await browser.newPage();
-    await blocked.route('**/*', route => route.fulfill({status: 200, contentType: 'text/html', body: html}));
+    await servePdf(blocked, html, bytes);
     await blocked.addInitScript(() => {
       window.Worker = class {constructor() {throw new Error('Worker unavailable')}};
       window.pdfErrors = [];
@@ -321,16 +332,10 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     assert.equal(await blocked.locator('.page > canvas').count(), 0);
     assert.equal(await blocked.locator('#status').getAttribute('role'), 'alert');
     const suspended = await browser.newPage({viewport: {width: 390, height: 844}});
-    const lifecycleMessages = [];
+    const lifecycleMessages = [], suspendedRequests = [];
     let serving = false;
-    await suspended.route('**/*', route => route.fulfill({status: 200, contentType: 'text/html', body: html}));
-    await suspended.exposeFunction('nativePdfMessage', async raw => {
-      const message = JSON.parse(raw); lifecycleMessages.push(message);
-      if (serving && message.kind === 'range') for (let offset = message.begin; offset < message.end; offset += 131072) await suspended.evaluate(message => window.__slaxPdfReceive(message), {
-        channel: 'slax-pdf', pageId: 'fixture', kind: 'rangeChunk', id: message.id, offset,
-        data: bytes.subarray(offset, Math.min(message.end, offset + 131072)).toString('base64'),
-      });
-    });
+    const suspendedHeld = await servePdf(suspended, html, bytes, {log: suspendedRequests, hold: () => !serving});
+    await suspended.exposeFunction('nativePdfMessage', async raw => {lifecycleMessages.push(JSON.parse(raw));});
     await suspended.addInitScript(() => {
       window.ReactNativeWebView = {postMessage: value => window.nativePdfMessage(value)};
       const set = window.setTimeout;
@@ -338,45 +343,39 @@ test('PDF WebView document uses real worker, bounded pages, exact selections, lo
     });
     await suspended.goto('https://pdf.reader.slax.invalid/');
     await suspended.waitForFunction(() => typeof window.__slaxPdfReceive === 'function');
-    while (!lifecycleMessages.some(message => message.kind === 'range')) await suspended.waitForTimeout(10);
-    const interrupted = lifecycleMessages.find(message => message.kind === 'range');
+    while (!suspendedHeld.length) await suspended.waitForTimeout(10);
+    const interrupted = suspendedHeld[0], interruptedId = new URL(interrupted.url).searchParams.get('request');
     await suspended.evaluate(() => window.__slaxPdfReceive({channel: 'slax-pdf', pageId: 'fixture', kind: 'lifecycle', active: false}));
     await suspended.waitForTimeout(2200);
-    assert.ok(lifecycleMessages.some(message => message.kind === 'cancelRange' && message.id === interrupted.id));
+    assert.ok(cancels(suspendedRequests).some(url => url.endsWith(`/pdf-cancel/${interruptedId}`)), 'An aborted page range tells the native server to cancel its work');
     assert.ok(!lifecycleMessages.some(message => message.kind === 'error'), 'Background suspension pauses byte and worker initialization timeouts');
-    await suspended.evaluate(message => window.__slaxPdfReceive(message), {channel: 'slax-pdf', pageId: 'fixture', kind: 'rangeError', id: interrupted.id});
+    await interrupted.respond();
     serving = true;
     await suspended.evaluate(() => window.__slaxPdfReceive({channel: 'slax-pdf', pageId: 'fixture', kind: 'lifecycle', active: true}));
     await suspended.waitForFunction(() => document.querySelector('.textLayer span'), {timeout: 20000});
-    assert.ok(lifecycleMessages.some(message => message.kind === 'range' && message.id !== interrupted.id && message.begin === interrupted.begin));
+    assert.ok(ranges(suspendedRequests).some(url => new URL(url).searchParams.get('request') !== interruptedId), 'The interrupted range is requested again after resume');
     assert.ok(!lifecycleMessages.some(message => message.kind === 'error'));
     await suspended.evaluate(() => window.__slaxPdfReceive({channel: 'slax-pdf', pageId: 'fixture', kind: 'command', id: 'done', operation: 'teardown'}));
     const encrypted = fixturePdf(1, true);
-    const protectedHtml = composePdfDocument({pageId: 'password-fixture', descriptor: {...descriptor, size: encrypted.length, document_id: createHash('sha256').update(encrypted).digest('hex')}, currentUserId: 1});
+    const protectedHtml = composePdfDocument({pageId: 'password-fixture', descriptor: {...descriptor, size: encrypted.length, document_id: createHash('sha256').update(encrypted).digest('hex')}, source: `/pdf/password/${createHash('sha256').update(encrypted).digest('hex')}/${encrypted.length}`, currentUserId: 1});
     const passwordPage = await browser.newPage();
     const passwordMessages = [];
-    await passwordPage.route('**/*', route => route.fulfill({status: 200, contentType: 'text/html', body: protectedHtml}));
-    await passwordPage.exposeFunction('nativePdfMessage', async raw => {
-      const message = JSON.parse(raw); passwordMessages.push(message);
-      if (message.kind === 'range') for (let offset = message.begin; offset < message.end; offset += 131072) await passwordPage.evaluate(message => window.__slaxPdfReceive(message), {
-        channel: 'slax-pdf', pageId: 'password-fixture', kind: 'rangeChunk', id: message.id, offset,
-        data: encrypted.subarray(offset, Math.min(message.end, offset + 131072)).toString('base64'),
-      });
-    });
+    await servePdf(passwordPage, protectedHtml, encrypted);
+    await passwordPage.exposeFunction('nativePdfMessage', async raw => {passwordMessages.push(JSON.parse(raw));});
     await passwordPage.addInitScript(() => {window.ReactNativeWebView = {postMessage: value => window.nativePdfMessage(value)};});
     await passwordPage.goto('https://pdf.reader.slax.invalid/');
     await passwordPage.waitForFunction(() => document.getElementById('status').getAttribute('role') === 'alert');
     assert.equal(passwordMessages.find(message => message.kind === 'error').code, 'PasswordException');
-    console.log(JSON.stringify({worker: workers.length, pages: 12, maxCanvases: 6, selectionQuads: selected.event.selection.source[0].quads.length, byteRanges: messages.filter(message => message.kind === 'range').length, warnings}));
+    console.log(JSON.stringify({worker: workers.length, pages: 12, maxCanvases: 6, selectionQuads: selected.event.selection.source[0].quads.length, byteRanges: ranges(requests).length, warnings}));
   } finally {await browser.close();}
 });
 
-for (const platform of ['ios', 'android']) test(`PDF ${platform} native boundary validates complete events and command results, isolates static pages, and cancels inactive ranges`, nativeBoundary, async () => {
+for (const platform of ['ios', 'android']) test(`PDF ${platform} native boundary validates complete events and command results, isolates static pages, and binds the native byte source`, nativeBoundary, async () => {
   await withNativeHost(async host => {
     host.native.Platform.OS = platform;
     let config, webProps, stateListener;
-    const sent = [], events = [], reads = [], errors = [], operations = [];
-    const origin = 'https://pdf.reader.slax.invalid/';
+    const sent = [], events = [], errors = [], operations = [];
+    const origin = platform === 'ios' ? 'slaxpdf://pdf/' : 'https://pdf.reader.slax.invalid/';
     const reportedUrl = platform === 'android' ? 'about:blank' : origin;
     const documentId = 'a'.repeat(64);
     const source = [{type: 'pdf', version: 1, page: 1, document_id: documentId, text: 'Quote', quads: [[0, 10, 20, 10, 20, 0, 0, 0]]}];
@@ -397,16 +396,19 @@ for (const platform of ['ios', 'android']) test(`PDF ${platform} native boundary
     const {PdfWebView} = await loadComponent('../../src/reader/PdfWebView.tsx', {
       react: React, 'react-native': native,
       '../native/reader': {readerNativeAdapter: adapter}, '@slax-reader/contracts/pdf': pdfContracts,
-      './pdf-document.ts': {PDF_ORIGIN: origin, PDF_BRIDGE_CHUNK_BYTES: 131072, composePdfDocument(value) {config = value; return '<html></html>';}},
+      './pdf-document.ts': {pdfOrigin: value => value === 'ios' ? 'slaxpdf://pdf/' : 'https://pdf.reader.slax.invalid/', pdfSourcePath: (key, value) => `/pdf/${key}/${value.document_id}/${value.size}`, composePdfDocument(value) {config = value; return '<html></html>';}},
       './host/usePdfScrollHost.tsx': scrollHost, './pdf-errors.ts': pdfErrors, './recovery.ts': recovery, '../data/transport-errors.ts': transportErrors,
       './bridge.ts': readerBridge, './position.ts': {ReaderPositionWriter},
     }, globals);
     const ref = React.createRef();
-    const props = {descriptor: {document_id: documentId, size: 1024, filename: 'fixture.pdf', pages: 2}, cacheKey: 'account/pdf', cacheDirectory: '/marked/slax-ui-fixtures/account', resourceOwner: 'account-owner', currentUserId: 1,
-      readRange(begin, end, signal) {reads.push({begin, end, signal}); return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')), {once: true}));},
+    const props = {descriptor: {document_id: documentId, size: 1024, filename: 'fixture.pdf', pages: 2}, cacheKey: 'collection-owner-1-doc', bookmarkId: 'doc', collectionOwnerId: 'owner-1', cacheDirectory: '/marked/slax-ui-fixtures/account', resourceOwner: 'account-owner', currentUserId: 1,
       onEvent: event => events.push(event), onError: error => errors.push(error), onOperationError: error => operations.push(error)};
     await host.render(React.createElement(PdfWebView, {...props, ref}));
     assert.equal(webProps.nativeConfig.props.pdfMode, true);
+    assert.deepEqual(JSON.parse(JSON.stringify(webProps.nativeConfig.props.pdfSource)), {id: 'doc', collectionOwner: 'owner-1', documentId, size: 1024}, 'The native host serves only this document');
+    assert.equal(config.source, `/pdf/collection-owner-1-doc/${documentId}/1024`);
+    assert.equal(config.platform, platform);
+    assert.equal(webProps.source.baseUrl, origin, 'The page lives on the origin its byte ranges are served from');
     assert.equal(webProps.nativeConfig.props.resourceOwner, props.resourceOwner);
     assert.equal(webProps.nativeConfig.props.cacheDirectory, props.cacheDirectory);
     assert.equal(webProps.nativeConfig.props.suppressSelectionMenu, true);
@@ -450,25 +452,21 @@ for (const platform of ['ios', 'android']) test(`PDF ${platform} native boundary
     const validCapture = ref.current.captureSelection();
     receive({kind: 'result', id: sent.at(-1).id, result: selection});
     assert.deepEqual(JSON.parse(JSON.stringify(await validCapture)), selection);
-    receive({kind: 'range', id: 'bad-number', begin: '0', end: 4});
-    receive({kind: 'range', id: 'wrong-origin', begin: 0, end: 4}, platform === 'ios' ? 'about:blank' : 'https://evil.example/');
-    assert.equal(reads.length, 0);
+    const injected = sent.length;
     receive({kind: 'range', id: 'range-1', begin: 0, end: 4});
-    assert.equal(reads.length, 1);
+    receive({kind: 'rangeAck', id: 'range-1', offset: 4});
+    assert.equal(sent.length, injected, 'Byte ranges never travel over the React Native bridge');
     const pending = ref.current.captureSelection();
     const stopped = assert.rejects(pending, /inactive/);
     await act(async () => stateListener('background'));
     await stopped;
-    assert.equal(reads[0].signal.aborted, true);
     assert.ok(sent.some(message => message.kind === 'lifecycle' && message.active === false));
     const priorEvents = events.length;
     receive({kind: 'event', event: selected});
-    receive({kind: 'range', id: 'range-suspended', begin: 0, end: 4});
-    assert.equal(events.length, priorEvents); assert.equal(reads.length, 1);
+    assert.equal(events.length, priorEvents);
     await act(async () => stateListener('active'));
     assert.ok(sent.some(message => message.kind === 'lifecycle' && message.active === true));
-    receive({kind: 'range', id: 'range-resumed', begin: 0, end: 4});
-    assert.equal(reads.length, 2); assert.equal(reads[1].signal.aborted, false);
+    assert.equal(sent.some(message => ['rangeChunk', 'rangeError', 'cancelRange'].includes(message.kind)), false);
     assert.deepEqual(errors, []);
     receive({kind: 'error', code: 'PasswordException'});
     assert.equal(errors.at(-1).name, 'PasswordException');
@@ -486,12 +484,13 @@ for (const platform of ['ios', 'android']) test(`PDF ${platform} native boundary
     assert.equal(errors.length, failuresBeforeClose, 'Released document errors cannot poison the replacement reader');
     receive({kind: 'event', event: selected}, 'about:blank');
     receive({kind: 'event', event: selected}, origin);
-    receive({kind: 'range', id: 'after-nav', begin: 0, end: 4}, 'about:blank');
     assert.equal(events.length, beforeNavigation);
-    assert.equal(reads.length, 2);
-    assert.equal(reads[1].signal.aborted, true);
     const oldPageId = config.pageId;
-    await host.render(React.createElement(PdfWebView, {...props, cacheKey: 'replacement/pdf', ref}));
+    await host.render(React.createElement(PdfWebView, {...props, cacheKey: 'replacement-pdf', bookmarkId: 'replacement-pdf', collectionOwnerId: null, ref}));
+    assert.deepEqual(JSON.parse(JSON.stringify(webProps.nativeConfig.props.pdfSource)), {id: 'replacement-pdf', documentId, size: 1024});
+    // A byte-range failure reported by the page keeps the native engine code and status for the Reader's classification.
+    receive({kind: 'error', code: 'http_forbidden', status: 403, stage: 'pdf-range'});
+    assert.deepEqual([errors.at(-1).code, errors.at(-1).stage, errors.at(-1).status], ['http_forbidden', 'pdf-range', 403]);
     assert.notEqual(config.pageId, oldPageId);
     receive({kind: 'event', event: selected}, reportedUrl, oldPageId);
     assert.equal(events.length, beforeNavigation);
@@ -507,7 +506,7 @@ test('PDF reveal waits for the restored visible page to paint, with a bounded fa
   await withNativeHost(async host => {
     let config, webProps, hostOptions
     const sent = [], fallbacks = []
-    const origin = 'https://pdf.reader.slax.invalid/'
+    const origin = 'slaxpdf://pdf/'
     const WebView = React.forwardRef((props, ref) => {
       webProps = props
       React.useImperativeHandle(ref, () => ({injectJavaScript(script) {sent.push(JSON.parse(script.slice('window.__slaxPdfReceive?.('.length, -');true;'.length)))}, stopLoading() {}}))
@@ -525,12 +524,12 @@ test('PDF reveal waits for the restored visible page to paint, with a bounded fa
     const {PdfWebView} = await loadComponent('../../src/reader/PdfWebView.tsx', {
       react: React, 'react-native': {...host.native, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}},
       '../native/reader': {readerNativeAdapter: adapter}, '@slax-reader/contracts/pdf': pdfContracts,
-      './pdf-document.ts': {PDF_ORIGIN: origin, PDF_BRIDGE_CHUNK_BYTES: 131072, composePdfDocument(value) {config = value; return '<html></html>'}},
+      './pdf-document.ts': {pdfOrigin: () => origin, pdfSourcePath: (key, value) => `/pdf/${key}/${value.document_id}/${value.size}`, composePdfDocument(value) {config = value; return '<html></html>'}},
       './host/usePdfScrollHost.tsx': scrollHost, './pdf-errors.ts': pdfErrors, './recovery.ts': recovery, '../data/transport-errors.ts': transportErrors,
       './bridge.ts': readerBridge, './position.ts': {ReaderPositionWriter},
     }, globals)
-    const props = {descriptor: {document_id: 'c'.repeat(64), size: 1024, filename: 'fixture.pdf', pages: 8}, cacheKey: 'account/reveal', currentUserId: 1, initialPosition: 3.25,
-      readRange: () => new Promise(() => {}), placeholder: React.createElement('section')}
+    const props = {descriptor: {document_id: 'c'.repeat(64), size: 1024, filename: 'fixture.pdf', pages: 8}, cacheKey: 'reveal', bookmarkId: 'reveal', currentUserId: 1, initialPosition: 3.25,
+      placeholder: React.createElement('section')}
     await host.render(React.createElement(PdfWebView, props))
     const receive = message => webProps.onMessage({nativeEvent: {url: origin, data: JSON.stringify({channel: 'slax-pdf', pageId: config.pageId, ...message})}})
     assert.equal(hostOptions.covered, true)
@@ -545,7 +544,7 @@ test('PDF reveal waits for the restored visible page to paint, with a bounded fa
     await act(async () => receive({kind: 'painted', page: 3}))
     assert.equal(hostOptions.covered, false, 'The restored page painting lifts the cover')
 
-    await host.render(React.createElement(PdfWebView, {...props, cacheKey: 'account/reveal-moved'}))
+    await host.render(React.createElement(PdfWebView, {...props, cacheKey: 'reveal-moved', bookmarkId: 'reveal-moved'}))
     await act(async () => receive({kind: 'event', event: {type: 'domReady'}}))
     const moved = hostOptions.onInitialLayout()
     await act(async () => {receive({kind: 'result', id: sent.findLast(message => message.operation === 'restore').id, result: null}); await moved})
@@ -555,7 +554,7 @@ test('PDF reveal waits for the restored visible page to paint, with a bounded fa
     await act(async () => receive({kind: 'painted', page: 4}))
     assert.equal(hostOptions.covered, false)
 
-    await host.render(React.createElement(PdfWebView, {...props, cacheKey: 'account/reveal-fallback'}))
+    await host.render(React.createElement(PdfWebView, {...props, cacheKey: 'reveal-fallback', bookmarkId: 'reveal-fallback'}))
     await act(async () => receive({kind: 'event', event: {type: 'domReady'}}))
     assert.equal(hostOptions.covered, true)
     const fallback = fallbacks.findLast(Boolean)

@@ -8,7 +8,7 @@ import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { YoutubeArticleService, YOUTUBE_ARTICLE_DAILY_LIMITS, playerCues } from '@/domain/youtubeArticle'
 import { MediaBodyService } from '@/domain/mediaBody'
-import { eligibilityDecision, type youtubeArticlePO, type youtubeArticleRefPO } from '@/infra/repository/dbYoutubeArticle'
+import { eligibilityDecision, YOUTUBE_ARTICLE_PROMPT_VERSION, type youtubeArticlePO, type youtubeArticleRefPO } from '@/infra/repository/dbYoutubeArticle'
 import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
 import { ErrorName } from '@/const/err'
 import { createMockCtx } from '@test/helpers/mockFactory'
@@ -68,11 +68,11 @@ function memRepo() {
     findById: vi.fn(async (rid: number) => rows.find(r => r.id === rid) ?? null),
     findVersion: vi.fn(async (v: string, h: string, lang: string) => rows.find(r => r.source_id === v && r.source_hash === h && r.target_language === lang) ?? null),
     listForSource: vi.fn(async (v: string, h: string) => rows.filter(r => r.source_id === v && r.source_hash === h)),
-    ensureLanguageRow: vi.fn(async (base: youtubeArticlePO, lang: string) => {
-      const existing = rows.find(r => r.source_id === base.source_id && r.source_hash === base.source_hash && r.target_language === lang)
+    ensureLanguageRow: vi.fn(async (base: youtubeArticlePO, lang: string, promptVersion: string = YOUTUBE_ARTICLE_PROMPT_VERSION) => {
+      const existing = rows.find(r => r.source_id === base.source_id && r.source_hash === base.source_hash && r.target_language === lang && r.prompt_version === promptVersion)
       if (existing) return existing
       const status = base.status === 'takedown' ? 'takedown' : eligibilityDecision(base) === 'generate' ? 'pending' : 'skipped'
-      return repo.add({ ...base, id: undefined as any, target_language: lang, status, article_key: null, retry_count: 0, next_retry_at: null })
+      return repo.add({ ...base, id: undefined as any, target_language: lang, prompt_version: promptVersion, status, article_key: null, retry_count: 0, next_retry_at: null })
     }),
     requeue: vi.fn(async (rid: number, reset: boolean) => {
       const r = rows.find(x => x.id === rid)
@@ -300,6 +300,18 @@ describe('owner opens a bookmark', () => {
     expect(w.create.mock.calls[0][0]).toMatchObject({ params: { targetLanguage: 'zh' } })
   })
 
+  test('a language created beside legacy v1 rows runs the current prompt version', async () => {
+    w.repo.add({ target_language: 'en', status: 'ready', article_key: 'a.json', prompt_version: 'v1' })
+    w.users[OWNER] = { ai_lang: 'zh', lang: 'en' }
+    await w.service.getStatus(w.ctx(OWNER), UUID)
+    expect(w.repo.rows.map(r => [r.target_language, r.prompt_version])).toEqual([
+      ['en', 'v1'],
+      ['zh', YOUTUBE_ARTICLE_PROMPT_VERSION]
+    ])
+    expect(w.create).toHaveBeenCalledTimes(1)
+    expect(w.create.mock.calls[0][0]).toMatchObject({ params: { targetLanguage: 'zh', promptVersion: YOUTUBE_ARTICLE_PROMPT_VERSION } })
+  })
+
   test('switching back to a language that is ready reads it and starts nothing', async () => {
     w.repo.add({ target_language: 'en', status: 'ready', article_key: `youtube/canonical/articles/${VIDEO}/${HASH}-en-1-v1.json` })
     w.repo.add({ target_language: 'zh', status: 'ready', article_key: `youtube/canonical/articles/${VIDEO}/${HASH}-zh-1-v1.json` })
@@ -350,11 +362,43 @@ describe('owner opens a bookmark', () => {
     expect(w.alertBot.crawl.pushMessage).toHaveBeenCalledTimes(1)
   })
 
+  test('ready articles remain readable with Labs disabled without starting generation', async () => {
+    w.labOn.clear()
+    w.repo.add({ target_language: 'en', status: 'ready', article_key: 'ready.json' })
+    w.objects.set('ready.json', JSON.stringify({ schema_version: 1, language: 'en', format: 'article', lede: 'A saved article.', sections: [] }))
+    const status = await w.service.getStatus(w.ctx(OWNER), UUID)
+    expect(status.status).toBe('ready')
+    expect((await w.service.getContent(w.ctx(OWNER), UUID, status.version!)).lede).toBe('A saved article.')
+    expect((await w.service.getStatus(w.ctx(VISITOR), UUID)).status).toBe('ready')
+    expect(w.create).not.toHaveBeenCalled()
+    expect(w.repo.ensureLanguageRow).not.toHaveBeenCalled()
+  })
+
   test('Labs switch off: unavailable, nothing created or started', async () => {
     w.labOn.clear()
     w.repo.add({})
     expect((await w.service.getStatus(w.ctx(OWNER), UUID)).status).toBe('unavailable')
     expect(w.create).not.toHaveBeenCalled()
+  })
+
+  test.each(['takedown', 'stale'] as const)('a %s row with Labs off gives no recovery reason', async status => {
+    w.labOn.clear()
+    w.repo.add({ status })
+    const res = await w.service.getStatus(w.ctx(OWNER), UUID)
+    expect(res.status).toBe('unavailable')
+    expect(res.unavailable_reason).toBeUndefined()
+  })
+
+  test('unavailable reasons belong only to the owner', async () => {
+    w.labOn.clear()
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'unavailable', unavailable_reason: 'labs_disabled' })
+    expect((await w.service.getStatus(w.ctx(VISITOR), UUID)).unavailable_reason).toBeUndefined()
+    w.labOn.add(OWNER)
+    w.repo.refs.length = 0
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'unavailable', unavailable_reason: 'source_missing' })
+    expect((await w.service.getStatus(w.ctx(VISITOR), UUID)).unavailable_reason).toBeUndefined()
+    w.bookmark.moderation_result = 2
+    expect((await w.service.getStatus(w.ctx(OWNER), UUID)).unavailable_reason).toBeUndefined()
   })
 
   test('bookmark saved before P0 (no ref): unavailable', async () => {
@@ -1026,5 +1070,97 @@ describe('fixed body media compatibility', () => {
     ;(w.service as any).snapshots.load.mockResolvedValue({ managed: true })
     expect(await w.service.backfill(w.ctx(OWNER), 10)).toMatchObject({ processed: 1, linked: 0, failed: 0 })
     expect(w.crawlService.fetchYoutubeData).not.toHaveBeenCalled()
+  })
+})
+
+describe('private capture recovery guidance', () => {
+  test.each([true, false])('an empty capture explains acquisition with Labs %s', async enabled => {
+    const w = wire({ labOn: enabled ? [OWNER] : [] })
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({ media: { kind: 'youtube', mode: 'capture', sourceId: VIDEO, sourceHash: HASH, defaultLanguage: 'en', bodyLanguage: null, variants: {} } })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'unavailable', unavailable_reason: enabled ? 'source_missing' : 'labs_disabled' })
+    expect((await w.service.getStatus(w.ctx(VISITOR), UUID)).unavailable_reason).toBeUndefined()
+    expect(w.create).not.toHaveBeenCalled()
+  })
+
+  test('a missing preferred language does not imply a missing source', async () => {
+    const w = wire()
+    w.users[OWNER] = { ai_lang: 'zh', lang: 'zh' }
+    ;(w.service as any).snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: 'en',
+        variants: { en: { status: 'ready', content: {} } }
+      }
+    })
+    const state = await w.service.getStatus(w.ctx(OWNER), UUID)
+    // The ready article is reported in its own language instead of a silent unavailable state
+    expect(state).toMatchObject({ status: 'ready', language: 'en', requested_language: 'zh', body_ready: true })
+    expect(state.unavailable_reason).toBeUndefined()
+    expect(w.create).not.toHaveBeenCalled()
+  })
+
+  test('a ready fallback with Labs off carries no unavailable reason', async () => {
+    const w = wire({ labOn: [] })
+    w.users[OWNER] = { ai_lang: 'zh', lang: 'zh' }
+    ;(w.service as any).snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: 'en',
+        variants: { en: { status: 'ready', content: {} } }
+      }
+    })
+    const state = await w.service.getStatus(w.ctx(OWNER), UUID)
+    expect(state.status).toBe('ready')
+    expect(state.unavailable_reason).toBeUndefined()
+  })
+
+  test('an absent preferred language keeps a failed or pending variant of the same language visible', async () => {
+    const w = wire()
+    w.users[OWNER] = { ai_lang: 'zh', lang: 'zh' }
+    ;(w.service as any).snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: null,
+        variants: { en: { status: 'ready', content: {} }, zh: { status: 'failed' } }
+      }
+    })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'failed', language: 'zh', requested_language: 'zh', can_retry: true })
+  })
+
+  test('a ready capture stays readable with Labs disabled', async () => {
+    const w = wire({ labOn: [] })
+    const snapshots = (w.service as any).snapshots
+    snapshots.load.mockResolvedValue({
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: 'en',
+        variants: { en: { status: 'ready', content: {} } }
+      }
+    })
+    const state = await w.service.getStatus(w.ctx(OWNER), UUID)
+    expect(state.status).toBe('ready')
+    expect(state.unavailable_reason).toBeUndefined()
+    expect(w.create).not.toHaveBeenCalled()
   })
 })

@@ -62,14 +62,10 @@ export class SubscriptionService {
     }
 
     try {
-      const configured = (ctx.env as Env & { STRIPE_LIVE_MODE?: string }).STRIPE_LIVE_MODE
-      if (configured !== 'true' && configured !== 'false') throw new Error('STRIPE_LIVE_MODE must explicitly be true or false')
-      if (eventRes.livemode !== (configured === 'true')) throw new Error('Stripe event livemode mismatch')
       const object = eventRes.data.object as { metadata?: Record<string, string>; subscription_details?: { metadata?: Record<string, string> } }
       const metadata = object.subscription_details?.metadata || object.metadata
-      const ownershipRequired = eventRes.type.startsWith('invoice.') || eventRes.type.startsWith('customer.subscription.') || eventRes.type === 'payment_intent.succeeded'
-      if ((ownershipRequired && metadata?.platform !== 'reader') || metadata?.collection_id || metadata?.owner_id || (metadata?.platform && metadata.platform !== 'reader')) {
-        await this.subscriptionRepo.reconcilePayment(`stripe:${eventRes.livemode}::rejected:${eventRes.id}`, 'Webhook is not explicitly a Reader payment', {
+      if (metadata?.collection_id || metadata?.owner_id) {
+        await this.subscriptionRepo.reconcilePayment(`stripe:${eventRes.livemode}::rejected:${eventRes.id}`, 'Collection or owner payment is unsupported', {
           eventId: eventRes.id,
           eventType: eventRes.type
         })

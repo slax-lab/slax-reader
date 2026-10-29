@@ -1,9 +1,13 @@
-import {Sha256} from '../src/data/pdf-sha256.ts';
 import type {PdfDescriptor} from '@slax-reader/contracts/pdf';
 
 export interface FixturePdfPlan {bookmarkId: string; document: 'eight-pages' | 'thirteen-pages' | 'long-pages'; prepare?: 'complete'}
 export interface FixturePdf {bytes: Uint8Array; descriptor: PdfDescriptor}
 export interface FixturePdfCounts {metadataRequests: number; rangeRequests: number; bytesServed: number; offlineRequests: number; rejectedRequests: number}
+
+/** Opaque, stable server-style identity for a synthetic document; fixtures never hash content. */
+export function fixtureDocumentId(document: FixturePdfPlan['document']): string {
+  return [...new TextEncoder().encode(`slax-fixture:${document}`)].map(byte => byte.toString(16).padStart(2, '0')).join('').padEnd(64, '0').slice(0, 64);
+}
 
 export function createFixturePdf(document: FixturePdfPlan['document']): FixturePdf {
   if (document !== 'eight-pages' && document !== 'thirteen-pages' && document !== 'long-pages') throw new Error('Unknown prepared PDF fixture');
@@ -26,7 +30,7 @@ export function createFixturePdf(document: FixturePdfPlan['document']): FixtureP
   source += offsets.slice(1).map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
   source += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   const bytes = new TextEncoder().encode(source);
-  return {bytes, descriptor: {url: '', filename: `${document}.pdf`, size: bytes.length, document_id: new Sha256().update(bytes).digest(), source: 'upload', text_status: 'ready', pages}};
+  return {bytes, descriptor: {url: '', filename: `${document}.pdf`, size: bytes.length, document_id: fixtureDocumentId(document), source: 'upload', text_status: 'ready', pages}};
 }
 
 export function prepareFixturePdfs(plans: FixturePdfPlan[] = []): Map<string, FixturePdf> {

@@ -77,7 +77,6 @@ host.__slaxPdfReceive = message => {
     return
   }
   if (!lifecycle.active && message.kind !== 'command') return
-  if (message.kind === 'rangeChunk' || message.kind === 'rangeError') {transport.receive(message); return}
   if (message.kind !== 'command' || typeof message.id !== 'string' || !message.id || message.id.length > 80) return
   try {
     if (!lifecycle.active && !['position', 'teardown'].includes(message.operation ?? '')) throw new Error('PDF document is inactive')

@@ -6,7 +6,7 @@ import {readerNativeAdapter} from '../native/reader'
 import type {WebViewMessageEvent, WebViewProps} from 'react-native-webview'
 import {PDF_MAX_BYTES, validatePdfSources} from '@slax-reader/contracts/pdf'
 import type {PdfDescriptor} from '@slax-reader/contracts/pdf'
-import {composePdfDocument, PDF_BRIDGE_CHUNK_BYTES, PDF_ORIGIN} from './pdf-document.ts'
+import {composePdfDocument, pdfOrigin, pdfSourcePath} from './pdf-document.ts'
 import type {PdfLabels} from './pdf-types.ts'
 import {isReaderOperationCancelled, parseReaderMark, parseReaderSelection, readerOperationCancelled} from './bridge.ts'
 import {ReaderPositionWriter} from './position.ts'
@@ -15,9 +15,8 @@ import type {ReaderEvent, ReaderMarkDetail, ReaderSelection} from './types.ts'
 import {usePdfScrollHost} from './host/usePdfScrollHost.tsx'
 import type {ReaderHostViewport} from './host/geometry.ts'
 import type {ReaderNativeContext} from './native.ts'
-import {pdfFailure, pdfFailureError} from './pdf-errors.ts'
+import {pdfFailureError} from './pdf-errors.ts'
 import {readerDocumentError, READER_PROCESS_GONE} from './recovery.ts'
-import {getDataErrorDiagnostic} from '../data/transport-errors.ts'
 import {choosePdfLayout} from './pdf/adaptive/policy.ts'
 
 export type {PdfSelection} from './pdf-types.ts'
@@ -32,12 +31,14 @@ export interface PdfReaderHandle {
 export type PdfHandle = PdfReaderHandle
 export interface PdfWebViewProps {
   descriptor: PdfDescriptor
+  /** Bookmark key of the document; with `bookmarkId`/`collectionOwnerId` it scopes the native byte source of this host. */
   cacheKey: string
+  bookmarkId: string
+  collectionOwnerId?: string | null
   resourceOwner?: string | null
   cacheDirectory?: string
   currentUserId: number
   marks?: ReaderMarkDetail
-  readRange(begin: number, end: number, signal: AbortSignal): Promise<Uint8Array>
   initialPosition?: number | null
   labels?: Partial<PdfLabels>
   header?: React.ReactNode
@@ -75,13 +76,8 @@ function pdfMark(value: unknown, documentId: string) {
     (mark.approx.position_end !== undefined && (!Number.isSafeInteger(mark.approx.position_end) || mark.approx.position_end < (mark.approx.position_start ?? 0))))) return null
   return mark
 }
-const encode = (bytes: Uint8Array) => {
-  let binary = ''
-  for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192))
-  return btoa(binary)
-}
 export const PdfWebView = forwardRef<PdfReaderHandle, PdfWebViewProps>(function PdfWebView(props, ref) {
-  const pageId = useMemo(() => `pdf-${++pageSequence}`, [props.cacheKey, props.cacheDirectory, props.resourceOwner, props.currentUserId, props.descriptor.document_id, props.descriptor.size])
+  const pageId = useMemo(() => `pdf-${++pageSequence}`, [props.cacheKey, props.bookmarkId, props.collectionOwnerId, props.cacheDirectory, props.resourceOwner, props.currentUserId, props.descriptor.document_id, props.descriptor.size])
   return <PdfPage {...props} pageId={pageId} ref={ref} key={pageId} />
 })
 const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(function PdfPage(props, ref) {
@@ -92,7 +88,8 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
   const staticDocument = useRef(true)
   const initialLoadFinished = useRef(false)
   const initialNavigationAccepted = useRef(false)
-  const nativeDocumentUrl = (url: string) => url === PDF_ORIGIN || url === PDF_ORIGIN.slice(0, -1) || Platform.OS === 'android' && url === 'about:blank'
+  const origin = pdfOrigin(Platform.OS === 'ios' ? 'ios' : 'android')
+  const nativeDocumentUrl = (url: string) => url === origin || url === origin.slice(0, -1) || Platform.OS === 'android' && url === 'about:blank'
   const active = useRef(AppState.currentState == null || AppState.currentState === 'active')
   const [foreground, setForeground] = useState(active.current)
   const [activation, setActivation] = useState(0)
@@ -121,8 +118,6 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
     return () => clearTimeout(timer)
   }, [ready, presentable])
   const pending = useRef(new Map<string, {operation: string; resolve(value: unknown): void; reject(reason: Error): void; timer?: ReturnType<typeof setTimeout>}>())
-  const ranges = useRef(new Map<string, AbortController>())
-  const acknowledgments = useRef(new Map<string, {offset: number; resolve(): void; reject(reason: Error): void; timer: ReturnType<typeof setTimeout>}>())
   const writer = useRef<ReaderPositionWriter | null>(null)
   const fatalError = useRef<Error | null>(null)
   const report = useCallback((reason: unknown) => {
@@ -136,7 +131,7 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
   }, [])
   const html = useMemo(() => {
     if (!Number.isSafeInteger(props.descriptor.size) || props.descriptor.size <= 0 || props.descriptor.size > PDF_MAX_BYTES || !/^[a-f0-9]{64}$/.test(props.descriptor.document_id)) throw new Error('Invalid PDF descriptor')
-    return composePdfDocument({pageId: props.pageId, descriptor: props.descriptor, initialPosition: props.initialPosition,
+    return composePdfDocument({pageId: props.pageId, descriptor: props.descriptor, source: pdfSourcePath(props.cacheKey, props.descriptor), initialPosition: props.initialPosition,
       platform: Platform.OS === 'ios' ? 'ios' : 'android', hostViewport: true,
       currentUserId: props.currentUserId, marks: props.marks, labels: props.labels})
   }, [props.pageId])
@@ -156,7 +151,8 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
     })
   }, [send])
   const nativeContext: ReaderNativeContext = {pageId: props.pageId, cacheKey: props.cacheKey, cacheDirectory: props.cacheDirectory,
-    resourceOwner: props.resourceOwner, pdfMode: true, protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: !props.commentPanelVisible}
+    resourceOwner: props.resourceOwner, pdfMode: true, protectedHosts: ['slax.com'], imageProxyOrigins: [], suppressSelectionMenu: true, scrollsToTop: !props.commentPanelVisible,
+    pdfSource: {id: props.bookmarkId, ...(props.collectionOwnerId ? {collectionOwner: props.collectionOwnerId} : {}), documentId: props.descriptor.document_id, size: props.descriptor.size}}
   const latestViewport = useRef<ReaderHostViewport | null>(null)
   const applyLayout = useCallback((viewport: ReaderHostViewport) => {
     const versionParts = String(Platform.Version).split('.').map(Number)
@@ -188,20 +184,13 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
     if (bufferedHeight.current !== null) {scrollHost.setDocumentHeight(bufferedHeight.current); bufferedHeight.current = null}
     if (bufferedReady.current) {bufferedReady.current = false; setReady(true); callbacks.current.onEvent?.({type: 'domReady'}, props.pageId)}
   }, [foreground, props.pageId])
-  const cancelRange = useCallback((id: string) => {
-    ranges.current.get(id)?.abort()
-    ranges.current.delete(id)
-    const ack = acknowledgments.current.get(id)
-    if (ack) {clearTimeout(ack.timer); ack.reject(new Error('PDF range cancelled')); acknowledgments.current.delete(id)}
-  }, [])
   const close = useCallback(() => {
     send({kind: 'command', id: `close-${++sequence.current}`, operation: 'teardown'})
     exited.current = true
-    for (const id of ranges.current.keys()) cancelRange(id)
     for (const command of pending.current.values()) {clearTimeout(command.timer); command.reject(readerOperationCancelled('PDF document is closed'))}
     pending.current.clear()
     view.current?.stopLoading()
-  }, [cancelRange, send])
+  }, [send])
   const flushPosition = useCallback(async (reason: PositionFlushReason = 'background') => {
     try {if (ready && !exited.current && active.current) await request('position')}
     finally {await writer.current?.flush(reason)}
@@ -229,61 +218,23 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
       setForeground(next)
       send({kind: 'lifecycle', active: next})
       if (!next) {
-        for (const id of ranges.current.keys()) cancelRange(id)
         for (const command of pending.current.values()) {clearTimeout(command.timer); command.reject(readerOperationCancelled('PDF document is inactive'))}
         pending.current.clear()
         void writer.current?.flush('background').catch(reportOperation)
       } else if (callbacks.current.marks) void request('drawMarks', callbacks.current.marks).catch(reportOperation)
     })
     return () => {subscription.remove(); close(); void writer.current?.dispose(callbacks.current.isRouteRemoved?.() ? 'exit' : 'document-change').catch(reportOperation)}
-  }, [props.pageId, reportOperation, close, send, cancelRange, request])
+  }, [props.pageId, reportOperation, close, send, request])
   useEffect(() => {if (ready && active.current && props.marks) void request('drawMarks', props.marks).catch(reportOperation)}, [ready, props.marks, request, reportOperation])
-  const readRange = async (id: string, begin: number, end: number) => {
-    if (!active.current) {send({kind: 'lifecycle', active: false}); return}
-    if (ranges.current.has(id)) return
-    if (!Number.isSafeInteger(begin) || !Number.isSafeInteger(end) || begin < 0 || end <= begin || end > props.descriptor.size || ranges.current.size >= 128) {
-      send({kind: 'rangeError', id}); return
-    }
-    const controller = new AbortController()
-    ranges.current.set(id, controller)
-    try {
-      for (let offset = begin; offset < end; offset += PDF_BRIDGE_CHUNK_BYTES) {
-        const limit = Math.min(end, offset + PDF_BRIDGE_CHUNK_BYTES)
-        const bytes = await callbacks.current.readRange(offset, limit, controller.signal)
-        if (controller.signal.aborted || exited.current) return
-        if (!(bytes instanceof Uint8Array) || bytes.length !== limit - offset) throw new Error('Invalid PDF byte response')
-        await new Promise<void>((resolve, reject) => {
-          const timer = setTimeout(() => {acknowledgments.current.delete(id); reject(new Error('PDF bridge chunk timed out'))}, 10_000)
-          acknowledgments.current.set(id, {offset: limit, resolve, reject, timer})
-          send({kind: 'rangeChunk', id, offset, data: encode(bytes)})
-        })
-      }
-    } catch (reason) {
-      if (!controller.signal.aborted && !exited.current) {
-        const diagnostic = getDataErrorDiagnostic(reason)
-        report(diagnostic.kind !== 'unknown' ? reason : pdfFailureError(reason, 'range'))
-        send({kind: 'rangeError', id, failure: pdfFailure(diagnostic.kind !== 'unknown' ? diagnostic : reason, 'range')})
-      }
-    } finally {cancelRange(id)}
-  }
   const receive = (incoming: WebViewMessageEvent) => {
     if (exited.current || !staticDocument.current || !nativeDocumentUrl(incoming.nativeEvent.url) || typeof incoming.nativeEvent.data !== 'string' || incoming.nativeEvent.data.length > 4 * 1024 * 1024) return
     let message: Record<string, unknown>
     try {message = JSON.parse(incoming.nativeEvent.data)} catch {return}
     if (!object(message) || message.channel !== 'slax-pdf' || message.pageId !== props.pageId) return
-    if (message.kind === 'range' && typeof message.id === 'string' && message.id.length > 0 && message.id.length < 80 && typeof message.begin === 'number' && typeof message.end === 'number') {
-      void readRange(message.id, message.begin, message.end); return
-    }
-    if (message.kind === 'cancelRange' && typeof message.id === 'string') {cancelRange(message.id); return}
     if (!active.current) {
       if (message.kind === 'documentHeight' && finite(message.height) && message.height > 0) bufferedHeight.current = message.height
       if (message.kind === 'event' && object(message.event) && message.event.type === 'domReady') bufferedReady.current = true
       send({kind: 'lifecycle', active: false}); return
-    }
-    if (message.kind === 'rangeAck' && typeof message.id === 'string') {
-      const ack = acknowledgments.current.get(message.id)
-      if (ack && ack.offset === message.offset) {clearTimeout(ack.timer); acknowledgments.current.delete(message.id); ack.resolve()}
-      return
     }
     if (message.kind === 'result' && typeof message.id === 'string') {
       const command = pending.current.get(message.id)
@@ -356,7 +307,7 @@ const PdfPage = forwardRef<PdfReaderHandle, PdfWebViewProps & {pageId: string}>(
     callbacks.current.onEvent?.(event, props.pageId)
   }
   const Host = readerNativeAdapter.HostComponent!
-  return <View style={styles.debugRoot}>{scrollHost.wrap(<Host ref={view} source={{html, baseUrl: PDF_ORIGIN}} style={scrollHost.documentStyle} containerStyle={scrollHost.documentStyle}
+  return <View style={styles.debugRoot}>{scrollHost.wrap(<Host ref={view} source={{html, baseUrl: origin}} style={scrollHost.documentStyle} containerStyle={scrollHost.documentStyle}
     nativeConfig={readerNativeAdapter.nativeConfig(nativeContext)} onScroll={scrollHost.nativeScroll}
     contentInset={scrollHost.contentInset}
     onMessage={receive} onError={event => report(pdfFailureError(readerDocumentError(event.nativeEvent.code, 'PDF native document failed'), 'native'))}
