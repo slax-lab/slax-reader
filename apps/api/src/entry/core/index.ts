@@ -64,16 +64,13 @@ export async function handleEmailEvent(message: ForwardableEmailMessage, env: En
     await receiveNewsletterEmail(message, env, currentContainer.resolve(NewsletterService), timing)
   } finally {
     try {
-      let failed = false
       await timing.measure('cleanup', () =>
         ctxManager.cleanup(() => {
-          failed = true
+          timing.cleanupFailed = true
         })
       )
-      if (failed) throw new Error('Newsletter cleanup unavailable')
     } catch {
-      timing.outcome = 'failed'
-      throw new Error('Newsletter cleanup unavailable')
+      timing.cleanupFailed = true
     } finally {
       timing.log()
     }

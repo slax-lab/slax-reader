@@ -38,8 +38,8 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 
 ## Approved four-comment follow-up (2026-10-29)
 
-- [ ] 6p. Record approved plan, reconcile the current requirements and verify the existing worktree baseline.
-- [ ] 6q. Preserve successful receive and original failures through cleanup; add actual-handler regressions and quiet cleanup diagnostics.
+- [x] 6p. Record approved plan, reconcile the current requirements and verify the existing worktree baseline.
+- [x] 6q. Preserve successful receive and original failures through cleanup; add actual-handler regressions and quiet cleanup diagnostics.
 - [ ] 6r. Unify Web original-navigation policy with Mobile, keeping internal Reader navigation and all source labels; prove affected controls.
 - [ ] 6s. Move the mixed comparator to Feed and share literal local/server order/keyset fixtures without RSS or local-first changes.
 - [ ] 6t. Prove splitter compatibility in workerd, implement bounded streamed MIME with ordinary attachment discard and full-input identity, and exercise large/CID/failed inputs.

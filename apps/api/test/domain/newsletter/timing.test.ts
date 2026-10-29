@@ -23,7 +23,7 @@ test('records stage wall time, total duration and the five-second observation fl
   const summary = log.mock.calls[0][1] as any
   expect(summary).toMatchObject({ bytes: 123, outcome: 'ready', total_ms: 6050, slow: true, phases_ms: { parse: 120, cleanup: 50 } })
   expect(typeof summary.event_id).toBe('string')
-  expect(Object.keys(summary).sort()).toEqual(['bytes', 'event_id', 'outcome', 'phases_ms', 'slow', 'total_ms'])
+  expect(Object.keys(summary).sort()).toEqual(['bytes', 'cleanup_failed', 'event_id', 'outcome', 'phases_ms', 'slow', 'total_ms'])
 })
 
 test('failed phases and policy rejections retain timing without logging infrastructure or mail data', async () => {
