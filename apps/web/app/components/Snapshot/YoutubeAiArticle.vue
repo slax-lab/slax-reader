@@ -19,20 +19,28 @@
     </div>
 
     <!-- Text bindings only: model output can never become markup -->
-    <article v-if="isReady && article" class="yt-ai-body" :lang="article.language" :data-format="article.format">
-      <p v-if="article.lede" class="yt-ai-lede">{{ article.lede }}</p>
+    <article v-if="isReady && article" class="yt-ai-body" data-slax-derived="youtube-article" :lang="article.language" :data-format="article.format">
+      <p class="slax-yt-edition">{{ $t('component.youtube_article.edited_transcript') }}</p>
+      <aside v-if="article.lede" class="slax-yt-introduction"><span class="slax-yt-label">{{ $t('component.youtube_article.introduction') }}</span><p class="yt-ai-lede">{{ article.lede }}</p></aside>
+      <details class="slax-yt-contents" :open="!isH5">
+        <summary>{{ $t('component.youtube_article.contents') }} <span>{{ article.sections.length }}</span></summary>
+        <nav :aria-label="$t('component.youtube_article.contents')">
+          <a v-for="(section, i) in article.sections" :key="i" :href="`#yt-expanded-topic-${i}`" @click.prevent="goToSection(i)"><span>{{ section.heading }}</span><time>{{ formatTime(section.start_ms) }}</time></a>
+        </nav>
+      </details>
       <section v-for="(section, i) in article.sections" :key="i" class="yt-ai-section">
-        <h2 class="yt-ai-heading">
+        <h2 :id="`yt-expanded-topic-${i}`" class="yt-ai-heading slax-pod-heading">
           <span>{{ section.heading }}</span>
           <button type="button" class="yt-ai-time" :aria-label="$t('component.youtube_article.seek', { time: formatTime(section.start_ms) })" @click="seek(section.start_ms)">
             {{ formatTime(section.start_ms) }}
           </button>
         </h2>
-        <p v-for="(paragraph, j) in section.paragraphs" :key="j" class="yt-ai-paragraph">
-          <span v-if="paragraph.speaker" class="yt-ai-speaker">{{ paragraph.speaker }}</span>
+        <p v-for="(paragraph, j) in section.paragraphs" :key="j" class="yt-ai-paragraph slax-pod-p">
+          <span v-if="paragraph.speaker" class="yt-ai-speaker slax-pod-speaker">{{ paragraph.speaker }}</span>
           {{ paragraph.text }}
         </p>
       </section>
+      <footer class="slax-yt-method"><strong>{{ $t('component.youtube_article.method') }}</strong><p>{{ $t('component.youtube_article.method_note') }}</p></footer>
     </article>
   </section>
 </template>
@@ -59,11 +67,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { isH5 } = useSnapshotLayout()
 const { state, article, acting, timedOut, loadFailed, isWorking, start, stop, generate, retry } = useYoutubeArticle(() => props.bookmarkUid)
 
 const status = computed(() => state.value?.status ?? 'unavailable')
 const isReady = computed(() => status.value === 'ready' && !!article.value)
-const visible = computed(() => !!state.value && status.value !== 'unavailable')
+const visible = computed(() => loadFailed.value || (!!state.value && (status.value !== 'unavailable' || !!state.value.unavailable_reason)))
 
 // A visitor may get the owner's language when theirs is not ready
 const languageNote = computed(() => {
@@ -78,6 +87,8 @@ watch(isReady, value => emit('ready', value))
 const seek = (ms: number) => {
   window.dispatchEvent(new CustomEvent('slax:youtube-seek', { detail: { t: Math.floor(ms / 1000) } }))
 }
+
+const goToSection = (index: number) => document.getElementById(`yt-expanded-topic-${index}`)?.scrollIntoView({ block: 'start' })
 
 const formatTime = (ms: number): string => {
   const total = Math.max(0, Math.floor(ms / 1000))
@@ -99,7 +110,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+@use "../../../styles/article/youtube-reading" as *;
 .youtube-ai-article {
+  @include youtube-reading;
   margin: 28px 0 8px;
   padding: 20px 0 0;
   border-top: 1px solid var(--slax-border);
@@ -139,14 +152,6 @@ onBeforeUnmount(() => {
   }
 }
 
-.yt-ai-lede {
-  margin: 0 0 20px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: var(--slax-accent-bg);
-  line-height: 1.7;
-}
-
 .yt-ai-section {
   margin: 0 0 20px;
 }
@@ -164,6 +169,8 @@ onBeforeUnmount(() => {
 .yt-ai-time {
   flex: 0 0 auto;
   padding: 0;
+  min-width: 44px;
+  min-height: 44px;
   border: 0;
   background: transparent;
   font-size: 12px;

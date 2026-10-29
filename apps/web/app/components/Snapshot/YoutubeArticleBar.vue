@@ -2,7 +2,11 @@
   <section v-if="visible" class="youtube-article-bar">
     <!-- One live region that stays in the DOM, so every status change is announced -->
     <div class="yt-bar-status-region" role="status" aria-live="polite">
-      <YoutubeArticleStatus :state="state" :is-working="isWorking" :timed-out="timedOut" :acting="acting" :last="awaitingBody" compact @generate="generate" @retry="retry">
+      <YoutubeArticleStatus :state="state" :is-working="isWorking" :timed-out="timedOut" :acting="acting" :first="loadFailed" :last="awaitingBody" compact @generate="generate" @retry="retry">
+        <template #first>
+          {{ $t('component.youtube_article.load_failed') }}
+          <button type="button" class="yt-status-action" @click="start">{{ $t('component.youtube_article.retry') }}</button>
+        </template>
         <template #last>
           {{ $t('component.youtube_article.ready_reload') }}
           <button type="button" class="yt-status-action" @click="emit('refresh-body')">{{ $t('component.youtube_article.show_article') }}</button>
@@ -34,11 +38,11 @@ const emit = defineEmits<{
   fallback: []
 }>()
 
-const { state, acting, timedOut, isWorking, start, stop, generate, retry } = useYoutubeArticle(() => props.bookmarkUid, { loadContent: false })
+const { state, acting, timedOut, loadFailed, isWorking, start, stop, generate, retry } = useYoutubeArticle(() => props.bookmarkUid, { loadContent: false })
 
 const status = computed(() => state.value?.status ?? 'unavailable')
 // Nothing to say when the body already holds this viewer's article
-const visible = computed(() => !!state.value && status.value !== 'unavailable' && !(status.value === 'ready' && !!state.value?.body_ready && props.bodyHasArticle))
+const visible = computed(() => (loadFailed.value || (!!state.value && (status.value !== 'unavailable' || !!state.value.unavailable_reason))) && !(status.value === 'ready' && !!state.value?.body_ready && props.bodyHasArticle))
 const awaitingBody = computed(() => status.value === 'ready' && !!state.value?.body_ready && !props.bodyHasArticle)
 
 // Swapping the body restarts the video, so it waits while the video plays; then the reader decides

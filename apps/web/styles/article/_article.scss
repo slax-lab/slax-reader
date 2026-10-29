@@ -1,3 +1,4 @@
+@use 'youtube-reading' as *;
 @use 'content-mixin' as *;
 
 @mixin article {
@@ -62,6 +63,75 @@
     background: var(--slax-accent-soft);
     border-color: var(--slax-accent);
   }
+
+  // Flow saved cue nodes into reading paragraphs without changing highlight paths.
+  // Use 18px for sustained transcript reading and compact 12px seek labels.
+  .slax-yt-transcript[data-yt-reading] {
+    font-family: var(--slax-font-sans);
+    font-size: 18px;
+    line-height: 1.85;
+    text-align: start;
+    overflow-wrap: break-word;
+    scroll-margin-top: 76px;
+
+    .slax-yt-cue {
+      display: inline;
+      margin: 0 !important;
+      padding: 0;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      text-align: start;
+      hyphens: none;
+    }
+
+    .slax-yt-cue-text {
+      font-family: inherit;
+      font-size: inherit;
+    }
+
+    .slax-yt-cue[data-yt-paragraph-start]::before {
+      content: '';
+      display: block;
+      margin-top: 24px;
+    }
+
+    .slax-yt-cue-time {
+      display: inline-block;
+      float: right;
+      min-width: 44px;
+      min-height: 44px;
+      text-align: end;
+      margin: 4px 0 0 16px !important;
+      padding: 2px 0;
+      border: 0;
+      border-radius: 2px;
+      background: none;
+      color: var(--slax-text-light);
+      font-size: 12px;
+      line-height: 1.5;
+      letter-spacing: 0.02em;
+
+      &::before,
+      &[hidden] {
+        display: none;
+      }
+
+      &:hover {
+        color: var(--slax-accent);
+      }
+      &:focus-visible {
+        outline: 2px solid var(--slax-accent);
+        outline-offset: 4px;
+      }
+    }
+
+    .slax-yt-cue:first-child::before {
+      margin-top: 0;
+    }
+  }
+
+  @include youtube-reading;
 
   /* 播客整理稿：段首时间戳可点跳转，播放中的段落高亮；正文真实 HTML，便于划线评论 */
   .slax-pod-lede {

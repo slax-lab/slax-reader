@@ -565,6 +565,11 @@
       "title": "字幕"
     },
     "youtube_article": {
+      "edited_transcript": "视频整理稿",
+      "introduction": "导读 · 自动生成",
+      "contents": "本文目录",
+      "method": "方法与来源",
+      "method_note": "正文根据视频字幕整理，保留原有顺序。导读单独生成。字幕和整理稿可能存在错误，请通过时间戳核对原视频。",
       "title": "AI 整理稿",
       "preparing": "整理稿生成中，通常需要 1 到 3 分钟",
       "timeout": "整理稿比平时慢，稍后回来查看。",
@@ -573,6 +578,8 @@
       "failed": "整理失败。",
       "retry": "重试",
       "load_failed": "整理稿加载失败。",
+      "labs_disabled": "请在设置的实验功能中启用 YouTube AI 整理稿。然后重新打开此收藏。",
+      "source_missing": "整理稿缺少来源数据。请重新收藏来源链接。",
       "limit_reached": "今天的生成次数已用完，明天再试。",
       "language_note": "此整理稿为{language}",
       "lang": {

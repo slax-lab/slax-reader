@@ -374,7 +374,7 @@ export function mergeChunkResults(
 
 // ---------- quality ----------
 
-export type YoutubeArticleCheck = 'cue_reference' | 'wrong_language' | 'number_coverage' | 'length_ratio' | 'duplicate_paragraph' | 'empty_block'
+export type YoutubeArticleCheck = 'cue_reference' | 'cue_coverage' | 'wrong_language' | 'number_coverage' | 'length_ratio' | 'duplicate_paragraph' | 'empty_block'
 
 export interface YoutubeArticleQuality {
   passed: boolean
@@ -421,6 +421,8 @@ function articleText(doc: YoutubeArticleDocument): string {
 export interface ArticleQualityOptions {
   /** Allowed article/source length ratio. Default: lengthBounds(captionText, doc.language). */
   bounds?: [number, number]
+  /** Require every source cue in new edited YouTube articles. */
+  requireCompleteCoverage?: boolean
   /** Text a speaker name must appear in to be kept. Default: the captions. */
   speakerText?: string
   /** Minimum CJK share of a zh paragraph. Default 0.5; spoken Chinese with English terms needs less. */
@@ -449,6 +451,11 @@ export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCa
   for (const s of doc.sections) {
     if (!s.heading.trim() || s.paragraphs.length === 0) failed.add('empty_block')
     for (const p of s.paragraphs) if (!p.text.trim()) failed.add('empty_block')
+  }
+
+  if (options.requireCompleteCoverage) {
+    const covered = new Set(paragraphs.flatMap(p => p.source_cue_ids))
+    if (cues.some(c => !covered.has(c.id))) failed.add('cue_coverage')
   }
 
   let lastFirst = -1

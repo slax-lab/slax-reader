@@ -2,6 +2,8 @@
 // (same markup as the podcast article): seek on time stamps, follow-along, "listen from here"
 import { listenStartOf, PLAYING_CLASS, PODCAST_EVENTS } from '~~/app/utils/podcastMedia'
 
+import { getElementFullSelector } from '@commons/frontend-utils/dom'
+import { DetailsProcessor } from '~~/app/components/Article/processors/details.processor'
 import type { WebProcessorContext } from '~~/app/components/Article/processors/types'
 import { ArticleStyle } from '~~/app/components/Article/processors/types'
 import { YoutubeProcessor } from '~~/app/components/Article/processors/youtube.processor'
@@ -122,6 +124,68 @@ describe('YoutubeProcessor', () => {
     expect(listenStartOf(ctx.container.querySelector('b')!.firstChild)).toBe(0)
     expect(listenStartOf(ctx.container.querySelectorAll('.slax-pod-p')[1]!.lastChild)).toBe(65400)
     expect(listenStartOf(ctx.container.querySelector('.slax-pod-lede')!.firstChild)).toBeNull()
+  })
+
+  it('groups caption cues without changing text nodes or highlight selectors', () => {
+    const lines = [
+      'This sentence continues', ' across two captions.',
+      'Another complete sentence with enough detail to form a useful reading paragraph. '.repeat(5),
+      'A new paragraph starts here.', '>> A different speaker answers', ' and finishes the answer.'
+    ]
+    const rows = lines.map((text, i) => `<p class="slax-yt-cue"><span class="slax-yt-cue-time" data-yt-seek="${i * 2}" tabindex="0" role="button">0:0${i * 2}</span> <span class="slax-yt-cue-text">${text}</span></p>`).join('\n')
+    const ctx = context(RAW_BODY.replace(/<div class="slax-yt-transcript">[\s\S]*?<\/div>/, `<div class="slax-yt-transcript">${rows}</div>`))
+    const transcript = ctx.container.querySelector('.slax-yt-transcript')!
+    const before = transcript.textContent
+    const nodes = [...transcript.querySelectorAll('.slax-yt-cue-text')].map(el => el.firstChild)
+    const paths = nodes.map(node => getElementFullSelector(node!.parentElement!, ['slax-mark'], ctx.container))
+    processor.process(ctx)
+    expect(transcript.hasAttribute('data-yt-reading')).toBe(true)
+    expect([...transcript.querySelectorAll('[data-yt-paragraph-start]')].map(el => [...transcript.children].indexOf(el))).toEqual([0, 3, 4])
+    expect(transcript.textContent).toBe(before)
+    expect(paths.map(path => ctx.container.querySelector(path)?.firstChild)).toEqual(nodes)
+    expect([...transcript.querySelectorAll('.slax-yt-cue-text')].map(el => el.firstChild)).toEqual(nodes)
+    expect(transcript.querySelectorAll('.slax-yt-cue-time[tabindex="0"]')).toHaveLength(3)
+    expect(transcript.querySelectorAll('.slax-yt-cue-time[aria-hidden="true"]')).toHaveLength(3)
+    ctx.cleanups.forEach(fn => fn())
+  })
+
+  it('breaks long unpunctuated runs and long pauses without removing cues', () => {
+    const rows = [0, 2, 4, 30].map((time, i) => `<p class="slax-yt-cue"><span class="slax-yt-cue-time" data-yt-seek="${time}" tabindex="0">${time}</span><span class="slax-yt-cue-text">${i === 0 ? 'word '.repeat(190) : 'continued text'}</span></p>`).join('\n')
+    const ctx = context(`<youtube-player data-video-id="video"></youtube-player><div class="slax-yt-transcript">${rows}</div>`)
+    processor.process(ctx)
+    const cues = [...ctx.container.querySelectorAll('.slax-yt-cue')]
+    expect(cues.map(cue => cue.hasAttribute('data-yt-paragraph-start'))).toEqual([true, true, false, true])
+    expect(cues).toHaveLength(4)
+    ctx.cleanups.forEach(fn => fn())
+  })
+
+  it('a cue without a time stamp does not stop the long-pause break', () => {
+    const row = (time: number | null, text: string) =>
+      `<p class="slax-yt-cue">${time === null ? '' : `<span class="slax-yt-cue-time" data-yt-seek="${time}" tabindex="0">${time}</span>`}<span class="slax-yt-cue-text">${text}</span></p>`
+    const rows = [row(0, 'first'), row(2, 'continued'), row(null, 'no stamp'), row(40, 'after a long pause')].join('\n')
+    const ctx = context(`<youtube-player data-video-id="video"></youtube-player><div class="slax-yt-transcript">${rows}</div>`)
+    processor.process(ctx)
+    const cues = [...ctx.container.querySelectorAll('.slax-yt-cue')]
+    expect(cues.map(cue => cue.hasAttribute('data-yt-paragraph-start'))).toEqual([true, false, false, true])
+    ctx.cleanups.forEach(fn => fn())
+  })
+
+  it('keeps mobile contents collapsed and navigates without changing article nodes', () => {
+    const ctx = context(ARTICLE_BODY.replace('<p class="slax-pod-lede">', '<details class="slax-yt-contents"><summary>Contents</summary><nav><a href="#yt-topic-0">Intro</a></nav></details><p class="slax-pod-lede">').replace('<h2 class="slax-pod-heading"', '<h2 id="yt-topic-0" class="slax-pod-heading"'))
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList)
+    const heading = ctx.container.querySelector<HTMLElement>('h2')!
+    const scroll = vi.fn()
+    heading.scrollIntoView = scroll
+    processor.process(ctx)
+    new DetailsProcessor().process(ctx)
+    expect(ctx.container.querySelector('details')!.open).toBe(false)
+    // The same boundary as isH5 (width <= 768) in the expanded view: 768 px stays collapsed on both sides
+    expect(matchMedia).toHaveBeenCalledWith('(min-width: 769px)')
+    ctx.container.querySelector<HTMLAnchorElement>('nav a')!.click()
+    expect(scroll).toHaveBeenCalledWith({ block: 'start' })
+    expect(ctx.container.querySelector('h2')).toBe(heading)
+    ctx.cleanups.forEach(fn => fn())
+    vi.restoreAllMocks()
   })
 
   it('raw body keeps the old transcript seek in whole seconds, and no follower', () => {
