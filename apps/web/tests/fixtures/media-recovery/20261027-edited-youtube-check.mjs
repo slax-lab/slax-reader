@@ -1,8 +1,8 @@
 // Local Web with a real generated article read from the local publication service.
 // Public metadata comes from the reported bookmark. This is not production deployment evidence.
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
 import { mkdtemp, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 

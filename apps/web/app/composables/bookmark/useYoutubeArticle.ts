@@ -22,7 +22,8 @@ export const useYoutubeArticle = (bookmarkUid: () => string, options: { loadCont
   const article = ref<YoutubeArticleContent | null>(null)
   const acting = ref(false)
   const timedOut = ref(false)
-  // Requests kept failing, so polling stopped for this visit; the reader can try again
+  // Requests kept failing, so polling stopped for this visit; the reader can try again. Stays set
+  // while the retried request is in flight, so the message and button do not vanish and return
   const loadFailed = ref(false)
 
   let timer: ReturnType<typeof setTimeout> | null = null
@@ -77,6 +78,8 @@ export const useYoutubeArticle = (bookmarkUid: () => string, options: { loadCont
 
   const apply = async (next: YoutubeArticleState | null | undefined) => {
     if (!next || stopped) return
+    // A status response landed: the failure line (and its retry button) may go now, not before
+    loadFailed.value = false
     if (next.version !== state.value?.version) {
       article.value = null
       loadedVersion = ''
@@ -108,7 +111,6 @@ export const useYoutubeArticle = (bookmarkUid: () => string, options: { loadCont
     contentFailures = 0
     startedAt = Date.now()
     timedOut.value = false
-    loadFailed.value = false
   }
 
   const start = async () => {

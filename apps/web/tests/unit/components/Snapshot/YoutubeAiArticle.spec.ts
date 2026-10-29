@@ -79,6 +79,25 @@ describe('YoutubeAiArticle', () => {
     w.unmount()
   })
 
+  it('keeps the failure line and its button while the retried status request is in flight', async () => {
+    mockGet.mockRejectedValue(new Error('network'))
+    const w = await mount()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(w.text()).toContain('Could not load the article.')
+    // The retried request fails again after the backoff: nothing must vanish in between
+    mockGet.mockImplementation(() => new Promise((_, reject) => setTimeout(() => reject(new Error('network')), 1000)))
+    await w.find('.yt-status-action').trigger('click')
+    await flushPromises()
+    expect(w.find('.youtube-ai-article').exists()).toBe(true)
+    expect(w.text()).toContain('Could not load the article.')
+    expect(w.find('.yt-status-action').exists()).toBe(true)
+    await vi.advanceTimersByTimeAsync(1000)
+    await flushPromises()
+    expect(w.text()).toContain('Could not load the article.')
+    w.unmount()
+  })
+
   it.each(['labs_disabled', 'source_missing'])('shows owner recovery guidance for %s', async reason => {
     routeGet([state({ status: 'unavailable', unavailable_reason: reason })])
     const w = await mount()

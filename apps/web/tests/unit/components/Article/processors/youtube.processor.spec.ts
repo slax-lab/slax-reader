@@ -159,15 +159,28 @@ describe('YoutubeProcessor', () => {
     ctx.cleanups.forEach(fn => fn())
   })
 
+  it('a cue without a time stamp does not stop the long-pause break', () => {
+    const row = (time: number | null, text: string) =>
+      `<p class="slax-yt-cue">${time === null ? '' : `<span class="slax-yt-cue-time" data-yt-seek="${time}" tabindex="0">${time}</span>`}<span class="slax-yt-cue-text">${text}</span></p>`
+    const rows = [row(0, 'first'), row(2, 'continued'), row(null, 'no stamp'), row(40, 'after a long pause')].join('\n')
+    const ctx = context(`<youtube-player data-video-id="video"></youtube-player><div class="slax-yt-transcript">${rows}</div>`)
+    processor.process(ctx)
+    const cues = [...ctx.container.querySelectorAll('.slax-yt-cue')]
+    expect(cues.map(cue => cue.hasAttribute('data-yt-paragraph-start'))).toEqual([true, false, false, true])
+    ctx.cleanups.forEach(fn => fn())
+  })
+
   it('keeps mobile contents collapsed and navigates without changing article nodes', () => {
     const ctx = context(ARTICLE_BODY.replace('<p class="slax-pod-lede">', '<details class="slax-yt-contents"><summary>Contents</summary><nav><a href="#yt-topic-0">Intro</a></nav></details><p class="slax-pod-lede">').replace('<h2 class="slax-pod-heading"', '<h2 id="yt-topic-0" class="slax-pod-heading"'))
-    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList)
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList)
     const heading = ctx.container.querySelector<HTMLElement>('h2')!
     const scroll = vi.fn()
     heading.scrollIntoView = scroll
     processor.process(ctx)
     new DetailsProcessor().process(ctx)
     expect(ctx.container.querySelector('details')!.open).toBe(false)
+    // The same boundary as isH5 (width <= 768) in the expanded view: 768 px stays collapsed on both sides
+    expect(matchMedia).toHaveBeenCalledWith('(min-width: 769px)')
     ctx.container.querySelector<HTMLAnchorElement>('nav a')!.click()
     expect(scroll).toHaveBeenCalledWith({ block: 'start' })
     expect(ctx.container.querySelector('h2')).toBe(heading)

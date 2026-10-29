@@ -1,8 +1,8 @@
 // Local reader with real public responses. No sample transcript or simulated job state.
 // This checks presentation; the proxy supplies transport CORS headers for the local origin.
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
 import { mkdtemp, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 

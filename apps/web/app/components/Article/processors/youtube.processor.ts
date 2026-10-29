@@ -38,7 +38,8 @@ export class YoutubeProcessor implements DOMProcessor {
 
     if (context.container.querySelector('.slax-pod-article')) bindMediaText(context)
     for (const contents of context.container.querySelectorAll<HTMLDetailsElement>('.slax-yt-contents')) {
-      contents.open = window.matchMedia('(min-width: 768px)').matches
+      // Same boundary as isH5 (width <= 768) in useSnapshotLayout: 768 px is collapsed on both sides
+      contents.open = window.matchMedia('(min-width: 769px)').matches
       const navigate = (event: Event) => {
         const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href^="#yt-topic-"]')
         if (!link) return
@@ -77,7 +78,8 @@ export class YoutubeProcessor implements DOMProcessor {
       }
       paragraphLength = (startsParagraph ? 0 : paragraphLength) + text.length
       previousText = text
-      previousTime = time
+      // A cue without a readable stamp keeps the last known time, so the pause break still works
+      if (Number.isFinite(time)) previousTime = time
     }
     transcript.setAttribute('data-yt-reading', '')
 
