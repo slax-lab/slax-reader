@@ -53,3 +53,7 @@ A second temporary fixture at `http://localhost:4320` compiles the actual Web ar
 ## Local review
 
 An independent read-only review completed the Bugs, Security, and Compliance passes against `origin/dev`: no Important findings and no Nits. The initial review confirmed the guidance layer and that body-mounted modals retain their existing precedence through the application stacking context. A second review of the combined final diff on 2026-10-29 also found no Important findings or Nits: all three runtime declaration changes match the approved scope, the quote link/content and Mobile assets remain unchanged, and the evidence records both surfaces' hands-on acceptance and environment limitations. A fresh fetch confirmed the base remains `79e4c6232845767906b331c048c4ef1c72e58f1f` before delivery.
+
+## Delivery
+
+Both corrections were pushed on `fix/mobile-browser-tip-layering` and submitted together in [PR #435](https://github.com/slax-lab/slax-reader/pull/435), targeting `dev`, on 2026-10-29. The PR follows the repository template and includes three matched before/after visual groups uploaded with `gh --attach`. The remaining archive task is deliberately pending until this task PR merges; it belongs in a separate documentation PR afterward.
