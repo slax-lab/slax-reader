@@ -226,7 +226,7 @@ export async function readNewsletterMime(message: NewsletterMessageInput): Promi
       const cid = (node.headers as Headers).getFirst('Content-ID').trim().replace(/^<|>$/g, '')
       const firstCid = !!cid && !seenCids.has(cid)
       if (cid) seenCids.add(cid)
-      const body = node.disposition !== 'attachment' && !node.filename && ['text/html', 'text/plain'].includes(node.contentType || '')
+      const body = node.disposition !== 'attachment' && ['text/html', 'text/plain'].includes(node.contentType || '')
       const kind: Leaf['kind'] = body
         ? node.contentType === 'text/html'
           ? 'html'

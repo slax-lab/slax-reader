@@ -451,7 +451,7 @@ async function main() {
     const inlineImage = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jz1kAAAAASUVORK5CYII='
     const rawMail =
       'From: Smoke Weekly <weekly@example.com>\r\nTo: ignored@other.example\r\nSubject: Newsletter runtime smoke\r\nMessage-ID: <newsletter-runtime-smoke@example.com>\r\nContent-Type: multipart/related; boundary=mailpart\r\n\r\n' +
-      '--mailpart\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">\r\n' +
+      '--mailpart\r\nContent-Type: text/html; charset=utf-8; name=body.html\r\nContent-Disposition: inline; filename=body.html\r\n\r\n<p>Runtime newsletter body</p><script>throw 1</script><img src="cid:part">\r\n' +
       '--mailpart\r\nContent-Type: image/png\r\nContent-ID: <part>\r\nContent-Transfer-Encoding: base64\r\n\r\n' +
       inlineImage +
       '\r\n--mailpart\r\nContent-Type: application/pdf\r\nContent-Disposition: attachment; filename="large.pdf"\r\nContent-Transfer-Encoding: base64\r\n\r\n' +

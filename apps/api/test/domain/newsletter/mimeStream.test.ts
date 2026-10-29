@@ -160,3 +160,14 @@ test('aggregate headers and nested MIME retain their bounds including discarded 
   for (let i = 0; i < 35; i++) body = 'Content-Type: multipart/mixed; boundary=n' + i + '\r\n\r\n--n' + i + '\r\n' + body + '\r\n--n' + i + '--'
   await expect(parseNewsletter(Buffer.from('From: a@example.com\r\n' + body))).rejects.toMatchObject({ code: 'invalid_message' })
 })
+
+test.each([
+  ['text/html; name=body.html', 'inline; filename=body.html', '<p>Inline body content</p>'],
+  ['text/plain; name=body.txt', 'inline; filename=body.txt', 'Inline body content'],
+  ['text/html; name=body.html', '', '<p>Inline body content</p>']
+])('retains named inline text body %s with disposition %s', async (type, disposition, body) => {
+  const headers = 'Content-Type: ' + type + (disposition ? '\r\nContent-Disposition: ' + disposition : '')
+  const result = await parseNewsletter(multipart([part(headers, body)]))
+  expect(result.html.includes('Inline body content')).toBe(true)
+  expect(result.attachments).toEqual([])
+})
