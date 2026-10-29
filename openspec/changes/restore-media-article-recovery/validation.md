@@ -41,7 +41,7 @@ Local browser scripts: `/tmp/media-browser-check.mjs`, `/tmp/media-expanded-chec
 - Bugs: checked header overrides, HTML responses, initial failures, retry, and both presentation modes. Fixed the detached-fragment issue found during browser verification.
 - Security: owner reasons follow access and moderation checks. Visitors receive no owner reason. No new dependency, credential access, or generation bypass exists.
 - Compliance: this diff implements `restore-media-article-recovery`. The proposal approval covers the recovery behavior. The stable containers correct a failure within that behavior.
-- No unresolved Important code findings. Human hands-on acceptance remains pending. Luca authorized PR creation for colleague review on 2026-10-27.
+- No unresolved Important code findings. Luca authorized PR creation for colleague review on 2026-10-27 and confirmed human hands-on acceptance on 2026-10-28, as recorded below.
 
 ## Limits and remaining acceptance
 
@@ -271,4 +271,15 @@ Fixes for the open review threads on PR #405 at `f50703b3`. Each behavior fix st
 
 The integration test `youtubeArticleRepo.integration.test.ts` gained a case for the legacy base row. It runs only with `RUN_PG_INTEGRATION_TESTS=1` and a local PostgreSQL, which this run did not have.
 
-Human hands-on acceptance under `DESIGN.md` section 10.2 remains pending for the repository owner. Task 3.2 stays open. No production change, merge, or deployment occurred.
+No production change, merge, or deployment occurred.
+
+## Human UI acceptance — 2026-10-28
+
+The earlier sections above record acceptance as pending at the time they were written. This section supersedes them.
+
+- Reviewer: Luca (wulujia), repository owner.
+- Date: 2026-10-28, in the task conversation. Luca reconfirmed on 2026-10-29 that this record is correct.
+- Scope: the user-visible YouTube article status area in the compact bar and the expanded article view, the owner guidance lines, and the Retry action, served from the local preview tabs listed under "Limits and remaining acceptance".
+- Adjustments: none requested.
+- Order: acceptance came after the draft PR opened on 2026-10-27, because Luca requested colleague review first. Acceptance was complete before the PR leaves draft and before merge.
+- Evidence source: Luca's confirmation in the task conversation on 2026-10-28, mirrored in the PR body on the same day, and his reconfirmation on 2026-10-29. Task 3.2 is checked.

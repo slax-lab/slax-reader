@@ -27,5 +27,5 @@
 ## 3. Review and delivery
 
 - [x] 3.1 Run focused tests, type checks, lint, strict OpenSpec validation, and the three local review passes; record results.
-- [ ] 3.2 Obtain colleague hands-on acceptance; record who, when, and adjustments. Luca authorized PR creation first on 2026-10-27.
+- [x] 3.2 Obtain colleague hands-on acceptance; record who, when, and adjustments. Luca authorized PR creation first on 2026-10-27. Luca confirmed acceptance on 2026-10-28; see `validation.md`, "Human UI acceptance — 2026-10-28".
 - [ ] 3.3 Archive through a documentation PR after this task PR merges and after the merged bookmark-fork deltas are archived.
