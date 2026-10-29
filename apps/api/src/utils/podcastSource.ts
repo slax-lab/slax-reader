@@ -161,7 +161,7 @@ export function outboundUrlProblem(raw: string): string | null {
 /** One numeric character reference; an invalid code point from page text is dropped, not thrown. */
 function codePoint(digits: string, radix: number): string {
   const cp = parseInt(digits, radix)
-  return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : ''
+  return cp > 0 && cp <= 0x10ffff && (cp < 0xd800 || cp > 0xdfff) ? String.fromCodePoint(cp) : ''
 }
 
 /** Plain text from shownotes HTML: tags out, entities decoded, whitespace folded, capped. */
