@@ -137,3 +137,8 @@ The review of head `cc37e8c8` reported no Important findings and five Nits. All 
 | `pnpm run lint` (api) | 0 errors; 344 warnings (unchanged) |
 | `pnpm run test` (api), three runs | 2,526 passed; 112 skipped. One run had a single timeout in `test/script/devPortGuard.test.ts`, a dev-port timing test outside this change |
 | `pnpm exec openspec validate --all --strict` | 79 passed |
+
+### Third review round — 2026-10-29
+
+- `stripHtml` drops a numeric character reference that is zero or above U+10FFFF instead of throwing `RangeError`, so page noise cannot turn a page save into a retried failure. The test with `&#x110000;` and `&#999999999;` threw before the change and passes now. `pnpm exec vitest run test/utils/podcastSource.test.ts`: 68 passed. Typecheck passed; lint 0 errors, 344 warnings.
+- The guard also drops the surrogate range U+D800 to U+DFFF, the same rule as `importFormats.ts`. The test with `&#xd800;`, `&#xDFFF;` and `&#55296;` failed before the change. `pnpm exec vitest run test/utils/podcastSource.test.ts`: 68 passed.
