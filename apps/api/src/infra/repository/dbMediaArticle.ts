@@ -230,8 +230,13 @@ export abstract class MediaArticleRepo {
    * The row for a language that has none yet. The gate result belongs to the captions, not to the
    * language, so it is copied from a sibling row. A concurrent insert wins and is returned as is.
    */
-  public async ensureLanguageRow(base: mediaArticlePO, targetLanguage: string): Promise<mediaArticlePO> {
-    const where = this.versionKey(base.source_id, base.source_hash, targetLanguage, base.prompt_version)
+  /**
+   * The row of `targetLanguage` for the source of `base`, created from its captions and gate result
+   * when missing. New rows take the current prompt version: `base` can be a legacy row returned by
+   * the read fallback, and a copied old version would run the old pipeline.
+   */
+  public async ensureLanguageRow(base: mediaArticlePO, targetLanguage: string, promptVersion: string = this.promptVersion): Promise<mediaArticlePO> {
+    const where = this.versionKey(base.source_id, base.source_hash, targetLanguage, promptVersion)
     const status: MediaArticleStatus = base.status === 'takedown' ? 'takedown' : eligibilityDecision(base) === 'generate' ? 'pending' : 'skipped'
     return this.prismaPg().sr_media_article.upsert({
       where,
@@ -240,7 +245,7 @@ export abstract class MediaArticleRepo {
         source_id: base.source_id,
         source_hash: base.source_hash,
         target_language: targetLanguage,
-        prompt_version: base.prompt_version,
+        prompt_version: promptVersion,
         schema_version: base.schema_version,
         caption_key: base.caption_key,
         caption_text_key: base.caption_text_key,

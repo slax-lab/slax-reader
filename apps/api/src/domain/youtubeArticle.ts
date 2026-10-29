@@ -264,7 +264,8 @@ export class YoutubeArticleService {
     }
     const ref = await this.repo.findRef(access.bookmarkId)
     if (!ref) throw BookmarkNotFoundError()
-    const rows = [...(await this.repo.listForSource(ref.source_id, ref.source_hash)), ...(await this.repo.listForSource(ref.source_id, ref.source_hash, 'v1'))]
+    // listForSource already appends the readable legacy rows after the current version
+    const rows = await this.repo.listForSource(ref.source_id, ref.source_hash)
     const row = rows.find(r => r.status === 'ready' && r.article_key && this.versionOf(r) === version)
     if (!row) throw BookmarkNotFoundError()
     const obj = await this.bucket().R2Bucket.get(row.article_key!)
@@ -289,8 +290,10 @@ export class YoutubeArticleService {
 
   private privateStatus(snapshot: MediaSnapshot, requested: YoutubeArticleLanguage, access: Access, acquisitionEnabled: boolean): YoutubeArticleStatusResponse {
     const preferred = snapshot.variants[requested]?.status === 'ready' || (access.isOwner && snapshot.mode !== 'fork') ? requested : snapshot.defaultLanguage
+    // A frozen copy, or a capture without the preferred language, shows the ready article it has
+    // instead of a silent unavailable state. A variant that exists keeps its own state.
     const language =
-      snapshot.mode === 'fork' && snapshot.variants[preferred]?.status !== 'ready'
+      !snapshot.variants[preferred] || (snapshot.mode === 'fork' && snapshot.variants[preferred]?.status !== 'ready')
         ? ((['en', 'zh'] as const).find(lang => snapshot.variants[lang]?.status === 'ready') ?? preferred)
         : preferred
     const variant = snapshot.variants[language]

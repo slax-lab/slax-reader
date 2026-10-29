@@ -35,6 +35,7 @@ The status API SHALL distinguish disabled Labs and missing source records for an
 #### Scenario: Preferred language has no saved variant
 - **WHEN** another saved language exists but the owner's preferred language has no variant
 - **THEN** the API does not report that the source is missing
+- **AND** the API reports the ready article in the language it has, so the reader can open it
 
 #### Scenario: Unknown recovery reason
 - **WHEN** the server returns a reason the Web reader does not recognize
