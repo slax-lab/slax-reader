@@ -6,6 +6,33 @@
     line-height: 1.85;
     text-align: start;
     hyphens: none;
+    overflow-wrap: break-word;
+
+    section, aside, details, nav, summary, p, span, a, time, strong, b, em, i, footer,
+    .slax-pod-p span, .slax-pod-heading span, .slax-yt-contents span {
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      text-align: inherit;
+    }
+
+    section:is(.slax-pod-section, .yt-ai-section) {
+      margin: 0 !important;
+
+      > h2.slax-pod-heading,
+      > h2.slax-pod-heading:first-child {
+        margin: 44px 0 20px !important;
+      }
+
+      > p.slax-pod-p {
+        margin: 0 0 20px !important;
+      }
+    }
+
+    .slax-yt-introduction > p { margin: 10px 0 0 !important; }
+    footer.slax-yt-method, footer.slax-yt-method:last-child { margin: 48px 0 24px !important; }
+    footer.slax-yt-method > p, footer.slax-yt-method > p:last-child { margin: 8px 0 !important; }
+
     .slax-yt-edition, .slax-yt-label {
       font-size: 12px;
       font-weight: 500;
@@ -33,37 +60,48 @@
       @media (max-width: 768px) { nav { grid-template-columns: 1fr; } }
     }
     h2.slax-pod-heading {
+      display: block;
       margin: 44px 0 20px;
       font-family: var(--slax-font-serif);
       font-size: 26px;
       line-height: 1.4;
       font-weight: 600;
+      text-align: start;
       scroll-margin-top: 88px;
     }
     p.slax-pod-p {
       margin: 0 0 20px;
       padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
       font-family: var(--slax-font-sans);
       font-size: 18px;
-      line-height: inherit;
+      line-height: 1.85;
       text-align: start;
       hyphens: none;
     }
     .slax-pod-speaker { font-family: inherit; font-size: inherit; font-weight: 500; }
-    .slax-pod-time {
-      float: right;
-      justify-content: center;
+    .slax-pod-time { display: none; }
+    .slax-yt-chapter-time, .yt-ai-time {
+      display: inline-block;
       min-width: 44px;
       min-height: 44px;
-      margin: 0 0 0 14px;
+      margin: 0 0 0 10px;
       padding: 0;
       border: 0;
-      border-radius: 0;
       background: transparent;
-      color: var(--slax-text-light);
+      font-family: var(--slax-font-sans);
       font-size: 12px;
-      &::before { display: none; }
-      &:hover { background: transparent; color: var(--slax-accent); }
+      font-weight: 400;
+      line-height: 1.5;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+      vertical-align: baseline;
+      color: var(--slax-accent);
+      cursor: pointer;
+      &:hover { text-decoration: underline; }
+      &:focus-visible { outline: 2px solid var(--slax-accent); outline-offset: 3px; }
     }
     .slax-yt-method {
       margin: 48px 0 24px;
