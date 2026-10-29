@@ -288,3 +288,6 @@ The earlier sections above record acceptance as pending at the time they were wr
 
 - A `takedown` or `stale` legacy row gives no `unavailable_reason`, so the owner is not told to enable Labs for an article that cannot return. Two new tests failed before the change and pass now. `pnpm exec vitest run test/domain/youtubeArticleService.test.ts`: 72 passed. Typecheck passed; lint 0 errors, 344 warnings.
 - `publication_pending`: the runner already logs `youtube_article_bodies_failed` with the article and video ids before it returns that value, so a failed body publication is visible in production logs. No code change.
+- A same-language v2 chunk stores the usage and cost of its edit call; a translated chunk stores the sum of both calls. The row total was already right. New runner test failed before the change and passes now. `pnpm exec vitest run test/domain/youtubeArticleRunner.test.ts`: 34 passed. Full API suite: 2,536 passed; 113 skipped.
+- The contents grid in `_youtube-reading.scss` collapses at `max-width: 768px`, the same boundary as `isH5` and the saved body. Stylelint passed.
+- The `v1` literals in `dbYoutubeArticle.ts` and the `=== 'v2'` pipeline switch stay as they are: the next prompt bump is a separate change and will move the switch with it.

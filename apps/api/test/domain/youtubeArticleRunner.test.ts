@@ -493,6 +493,17 @@ describe('versioned transcript editing', () => {
     expect(new Set(doc.sections.flatMap((s: any) => s.paragraphs.flatMap((p: any) => p.source_cue_ids))).size).toBe(300)
   })
 
+  test('a same-language edited chunk stores the usage of its edit call', async () => {
+    const s = setup({ model: editedModel() })
+    s.params.promptVersion = 'v2'
+    expect(await s.run()).toBe('ready')
+    // Chunks are dropped after assembly, so read the write itself
+    const put = s.bucket.put.mock.calls.find(c => String(c[0]).includes('/chunks/') && !String(c[0]).endsWith('.source'))!
+    const stored = JSON.parse(String(put[1]))
+    expect(stored.usage.input_tokens).toBeGreaterThan(0)
+    expect(stored.usage.cost_usd).toBeGreaterThan(0)
+  })
+
   test('translation changes text while the application retains source references', async () => {
     const s = setup({ cues: 40, model: editedModel() })
     s.params.promptVersion = 'v2'

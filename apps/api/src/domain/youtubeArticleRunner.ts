@@ -246,6 +246,8 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         let system = buildSystemInstruction(p.targetLanguage, chunk, plan.chunks.length)
         let user = buildUserMessage(p.title, cues)
         let source: { lede: string; sections: ArticleSection[] } | undefined
+        // The edit call of this chunk; its usage counts even when no translation follows
+        let edit: Awaited<ReturnType<typeof ask>> | null = null
         if (edited) {
           const previous = i ? await deps.bucket.get(youtubeArticleChunkKey(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion, i - 1)) : null
           const previousResult = previous ? (JSON.parse(await previous.text()) as StoredChunk) : null
@@ -260,8 +262,8 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
               const previousSource = await deps.bucket.get(`${youtubeArticleChunkKey(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion, i - 1)}.source`)
               if (previousSource) user += '\nPrevious edited context (do not repeat):\n' + editingContext(JSON.parse(await previousSource.text()).sections)
             }
-            const result = await ask(system, user)
-            const parsed = parseChunkOutput(result.reply.text)
+            edit = await ask(system, user)
+            const parsed = parseChunkOutput(edit.reply.text)
             if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
             if (
               !completeCueCoverage(
@@ -289,7 +291,9 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
             ? parseChunkOutput(result.reply.text)
             : { ok: true as const, value: source! }
         if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
-        const { inputTokens = 0, outputTokens = 0, costUsd = 0 } = result ?? {}
+        const inputTokens = (edit?.inputTokens ?? 0) + (result?.inputTokens ?? 0)
+        const outputTokens = (edit?.outputTokens ?? 0) + (result?.outputTokens ?? 0)
+        const costUsd = (edit?.costUsd ?? 0) + (result?.costUsd ?? 0)
 
         const stored: StoredChunk = {
           index: i,

@@ -29,7 +29,8 @@
       a::after { content: none; }
       a:hover { color: var(--slax-accent); }
       a:focus-visible, summary:focus-visible { outline: 2px solid var(--slax-accent); outline-offset: 3px; }
-      @media (max-width: 767px) { nav { grid-template-columns: 1fr; } }
+      // The same boundary as isH5 (width <= 768) and the saved body (min-width: 769px)
+      @media (max-width: 768px) { nav { grid-template-columns: 1fr; } }
     }
     h2.slax-pod-heading {
       margin: 44px 0 20px;
