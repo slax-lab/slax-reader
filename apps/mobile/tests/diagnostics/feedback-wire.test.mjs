@@ -32,10 +32,18 @@ test('real loopback HTTP receives legacy JSON then one consented sanitized NDJSO
     const api = new SlaxApi({baseUrl, platform: 'ios', version: '1.0.25', sessions: {getSession: async () => session, clearIfMatches: async () => false}});
     const report = {bookmark_uuid: 'bookmark', entry_point: 'bookmark_detail', type: 'parse_error', content: 'Feedback draft', platform: 'app', environment: 'iOS 794', version: '1.0.25 (794)', allow_follow_up: false, target_url: 'https://example.org/article'};
     assert.equal(await api.sendFeedback(report), 'accepted');
-    const source = {storage: {shareAvailable: true, list: async () => [], async stage(text) {return {uri: 'file:///cache/slax-diagnostics-wire.ndjson', filename: 'slax-diagnostics-wire.ndjson', file: new Blob([text], {type: 'application/x-ndjson'}), release() {}};}},
-      async snapshot() {return {v: 1, ts: new Date().toISOString(), event: 'snapshot', session: 'authenticated', network: 'online', sync: {connected: true, pendingUploads: 0}, token: 'private-token', body: 'private-body'};}};
-    const file = await stageRecentDiagnostics(source);
+    const now = new Date(2026, 9, 29, 12), common = {v: 1, src: 'app', launch: 'abcd1234', app: '1.0.25 (795)', os: 'iOS 26.1'};
+    let log = '', flushes = 0;
+    const source = {now: () => now, storage: {shareAvailable: true, list: async () => [{name: '2026-10-29.app.ndjson', size: log.length}], read: async () => log, async stage(text) {return {uri: 'file:///cache/slax-diagnostics-wire.ndjson', filename: 'slax-diagnostics-wire.ndjson', file: new Blob([text], {type: 'application/x-ndjson'}), release() {}};}},
+      async flush() {flushes++; log = [
+        {...common, ts: '2026-10-29T11:00:00Z', event: 'app.launch'},
+        {...common, ts: '2026-10-29T12:00:00Z', event: 'auth.refresh_failed', http: {method: 'POST', path: '/v1/user/refresh', status: 503, code: 503, cfRay: 'fixture-LAX'}, error: {class: 'ApiError', status: 503}, sync: {connected: true}, token: 'private-token', body: 'private-body'},
+      ].map(JSON.stringify).join('\n') + '\n';}};
+    const file = await stageRecentDiagnostics(source), expected = await file.file.text();
     try {assert.equal(await api.sendFeedback(report, undefined, file), 'accepted');} finally {file.release();}
-    assert.equal(received.length, 2); assert.deepEqual(received[0].report, report); assert.equal(received[0].text, undefined); assert.equal(received[1].report.attach_diagnostic_log, true);
+    assert.equal(flushes, 1); assert.equal(received.length, 2); assert.deepEqual(received[0].report, report); assert.equal(received[0].text, undefined); assert.equal(received[1].report.attach_diagnostic_log, true);
+    assert.equal(received[1].text, expected); const rows = expected.trim().split('\n').map(JSON.parse);
+    assert.deepEqual(rows.map(row => row.event), ['app.launch', 'auth.refresh_failed']); assert.equal(rows[0].app, '1.0.25 (795)');
+    assert.equal(rows[1].app, undefined); assert.equal(rows[1].os, undefined); assert.equal(rows[1].http.status, 503); assert.equal(rows.some(row => 'sync' in row), false);
   } finally {server.close(); server.closeAllConnections(); await once(server, 'close');}
 });

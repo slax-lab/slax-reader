@@ -111,7 +111,7 @@ internal class ShareDiagnostics private constructor(private val activity: Activi
         if (file.length() >= ShareDiagnosticRecord.DAILY_ALLOWANCE) return
         FileOutputStream(file, true).use {it.write(bytes)}
         if (file.length() >= ShareDiagnosticRecord.DAILY_ALLOWANCE) {
-          val marker = JSONObject().put("v", 1).put("ts", ShareDiagnosticRecord.timestamp()).put("src", "share-android").put("event", "log.truncated")
+          val marker = JSONObject().put("v", 1).put("ts", ShareDiagnosticRecord.timestamp()).put("src", "share-android").put("launch", value.getString("launch")).put("event", "log.truncated")
           ShareDiagnosticRecord.line(marker)?.let {line -> FileOutputStream(file, true).use {it.write(line)}}
         }
         writeFailures = 0

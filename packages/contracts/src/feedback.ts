@@ -160,8 +160,10 @@ export function sanitizeDiagnosticExportEntry(value: unknown): DiagnosticExportE
     ts: value.ts,
     event: value.event as DiagnosticExportEvent
   }
-  scalar(out, value, ['app'], v => typeof v === 'string' && /^\d+(?:\.\d+){0,3}(?:[-+][A-Za-z0-9.-]{1,20})? \(\d{1,20}\)$/.test(v))
-  scalar(out, value, ['os'], v => typeof v === 'string' && /^(?:iOS|Android) [A-Za-z0-9._-]{1,32}$/.test(v))
+  if (['snapshot', 'app.launch', 'share.start'].includes(String(value.event))) {
+    scalar(out, value, ['app'], v => typeof v === 'string' && /^\d+(?:\.\d+){0,3}(?:[-+][A-Za-z0-9.-]{1,20})? \(\d{1,20}\)$/.test(v))
+    scalar(out, value, ['os'], v => typeof v === 'string' && /^(?:iOS|Android) [A-Za-z0-9._-]{1,32}$/.test(v))
+  }
   if (value.event === 'snapshot') {
     if (!object(value.sync) || typeof value.session !== 'string') return null
     scalar(out, value, ['version'], version)

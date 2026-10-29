@@ -87,7 +87,7 @@ export function sanitizeDiagnosticFile(bytes: Uint8Array): Uint8Array {
     } catch {
       throw ErrorParam()
     }
-    if (!entry || (count === 0) !== (entry.event === 'snapshot')) throw ErrorParam()
+    if (!entry || (count > 0 && entry.event === 'snapshot')) throw ErrorParam()
     const sanitized = encoder.encode(JSON.stringify(entry) + '\n')
     if (sanitized.length > DIAGNOSTIC_EXPORT_LINE_MAX_BYTES) throw ErrorParam()
     output.append(sanitized)

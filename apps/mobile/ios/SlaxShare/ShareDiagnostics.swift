@@ -24,9 +24,13 @@ final class ShareDiagnostics: @unchecked Sendable {
     self.write = write ?? { ShareDiagnosticWriter.enqueue($0, at: $1, metrics: $2) }
   }
   private func common(_ event: String, at date: Date) -> [String: Any] {
-    ["v": 1, "ts": ShareDiagnosticRecord.timestamp(date), "src": "share-ios", "launch": share, "share": share, "app": app, "os": os, "event": event]
+    ["v": 1, "ts": ShareDiagnosticRecord.timestamp(date), "src": "share-ios", "launch": share, "share": share, "event": event]
   }
-  func start() { write(common("share.start", at: started), started, nil) }
+  func start() {
+    var fields = common("share.start", at: started)
+    fields["app"] = app; fields["os"] = os
+    write(fields, started, nil)
+  }
   func advance(_ stage: String, reason: String) {
     lock.lock(); defer { lock.unlock() }
     guard !terminal else { return }
@@ -113,12 +117,12 @@ private enum ShareDiagnosticWriter {
         var record = fields
         if let net { record["net"] = net }
         guard let data = ShareDiagnosticRecord.line(record) else { return }
-        if append(data, at: date) { failures = 0 } else { failures += 1 }
+        if append(data, at: date, launch: fields["launch"] as? String ?? "") { failures = 0 } else { failures += 1 }
       }
       if let metrics { metrics.deliver(on: queue, finish) } else { finish(nil) }
     }
   }
-  private static func append(_ data: Data, at date: Date) -> Bool {
+  private static func append(_ data: Data, at date: Date, launch: String) -> Bool {
     guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.slax.reader") else { return false }
     let directory = root.appendingPathComponent("diagnostics", isDirectory: true)
     do {
@@ -139,7 +143,7 @@ private enum ShareDiagnosticWriter {
     guard status.st_size < 524288 else { return true }
     let count = data.withUnsafeBytes { write(descriptor, $0.baseAddress, $0.count) }
     guard count == data.count else { return false }
-    if status.st_size + Int64(count) >= 524288, let marker = ShareDiagnosticRecord.line(["v": 1, "ts": ShareDiagnosticRecord.timestamp(date), "src": "share-ios", "event": "log.truncated"]) {
+    if status.st_size + Int64(count) >= 524288, let marker = ShareDiagnosticRecord.line(["v": 1, "ts": ShareDiagnosticRecord.timestamp(date), "src": "share-ios", "launch": launch, "event": "log.truncated"]) {
       return marker.withUnsafeBytes { write(descriptor, $0.baseAddress, $0.count) } == marker.count
     }
     return true

@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { SignJWT } from 'jose'
-import { sanitizeDiagnosticExportEntry } from '@slax-reader/contracts/feedback'
 
 export async function exerciseDiagnosticFeedback(
   fetch: (path: string, options?: RequestInit) => Promise<Response>,
@@ -11,17 +10,11 @@ export async function exerciseDiagnosticFeedback(
   missingObject: (key: string) => Promise<boolean>
 ) {
   const requestReport = { content: 'Disposable diagnostic feedback', type: 'bug', platform: 'app', entry_point: 'inbox', attach_diagnostic_log: true }
-  const snapshot = {
-    v: 1,
-    event: 'snapshot',
-    ts: new Date().toISOString(),
-    session: 'authenticated',
-    sync: { connected: true, pendingUploads: 0 },
-    forbidden: 'PRIVATE_SENTINEL',
-    network: 'online'
-  }
-  const raw = JSON.stringify(snapshot) + '\n'
-  const expected = JSON.stringify(sanitizeDiagnosticExportEntry(snapshot)) + '\n'
+  const ts = new Date().toISOString()
+  const launch = { v: 1, ts, event: 'app.launch', app: '1.0.0 (795)', os: 'iOS 26.1', src: 'app', launch: 'abcd1234' }
+  const signout = { v: 1, ts, event: 'auth.signout', src: 'app', launch: 'abcd1234', cause: 'user' }
+  const raw = [launch, { ...signout, forbidden: 'PRIVATE_SENTINEL' }].map(entry => JSON.stringify(entry)).join('\n') + '\n'
+  const expected = [launch, signout].map(entry => JSON.stringify(entry)).join('\n') + '\n'
   const makeBody = async (report: unknown = requestReport) => {
     const form = new FormData()
     form.append('report', JSON.stringify(report))
@@ -64,7 +57,17 @@ export async function exerciseDiagnosticFeedback(
   assert.equal(target.pathname, '/v1/diagnostics/download')
   const downloaded = await fetch(path)
   assert.equal(downloaded.status, 200)
-  assert.equal(await downloaded.text(), expected)
+  const downloadedBytes = Buffer.from(await downloaded.arrayBuffer())
+  assert.deepEqual(downloadedBytes, Buffer.from(expected))
+  assert.equal(downloadedBytes.length, metadata.bytes)
+  assert.deepEqual(
+    downloadedBytes
+      .toString('utf8')
+      .trimEnd()
+      .split('\n')
+      .map(line => JSON.parse(line)),
+    [launch, signout]
+  )
   assert.equal(downloaded.headers.get('content-disposition'), `attachment; filename="${metadata.filename}"`)
   assert.equal(downloaded.headers.get('x-content-type-options'), 'nosniff')
   assert.equal(downloaded.headers.get('referrer-policy'), 'no-referrer')

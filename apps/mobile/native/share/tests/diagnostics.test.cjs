@@ -60,6 +60,9 @@ test('Swift share records bound private data, guard terminal writes, and reduce 
     diagnostics.end(outcome: "dismissed", shown: "Collecting", reason: "cancelled")
     precondition(records.count == 2)
     precondition(records[0]["event"] as? String == "share.start" && records[1]["event"] as? String == "share.end")
+    precondition(records[0]["app"] is String && records[0]["os"] as? String == "iOS 26.1")
+    precondition(records[1]["app"] == nil && records[1]["os"] == nil && records[1]["sync"] == nil)
+    precondition(records.filter { $0["app"] != nil || $0["os"] != nil }.count == 1)
     let session = records[0]["share"] as! String
     precondition(session.range(of: "^[0-9a-f]{8}$", options: .regularExpression) != nil && session == records[1]["share"] as? String)
     precondition(records[0]["launch"] as? String == session)

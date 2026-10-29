@@ -2,9 +2,22 @@
 
 ## Purpose
 
-Local-by-default diagnostic recording for share sessions and account sessions in the mobile app and its share targets, so support can explain failed shares, sign-ins, and sign-outs without background upload or recording-time behavior changes. This capability also governs compact contextual feedback, independently consented recent-log attachment delivery, and About sharing of the actual exported file. These scoped additions extend the Feedback/About portions of `mobile-app-parity` requirement "Auxiliary behavior is included in completion" while preserving other route and account safeguards.
+Local-by-default diagnostic recording for startup, share, and account lifecycles, with hidden viewing/event-only export, compact feedback, and independently consented attachments. The latest user request supersedes earlier visible About diagnostics and live/snapshot-leading export requirements: remove the About diagnostic heading and both actions, remove diagnostic current-status/sync snapshots, and correct the hanging gap beneath clear-cache controls through minimal height-cap and inset ownership changes. The impacted existing `mobile-app-parity` requirement is "Auxiliary behavior is included in completion"; other route/account safeguards remain intact. TF795 legacy upload compatibility and historical evidence are preserved, not an instruction to recreate snapshots.
 
 ## ADDED Requirements
+
+### Requirement: Metadata once per lifecycle start
+
+Records SHALL retain schema v1 and common fields `v`, `ts`, `src`, `launch`, and `event`, without a new schema version. Each fresh main-app startup SHALL produce one `app.launch` containing basic app version/build in `app` and OS information in `os`. Ordinary events SHALL NOT repeat `app`/`os`. Native share targets have independent lifecycles: each `share.start` SHALL contain this metadata once and the corresponding `share.end` SHALL omit it. Existing record privacy, bounded writing, and non-interference safeguards SHALL remain unchanged.
+
+#### Scenario: A fresh startup is followed by normal app activity
+- **WHEN** the main app starts freshly and then resumes, rerenders, changes account/environment, or opens diagnostics
+- **THEN** one `app.launch` identifies that startup with `app` and `os`, with no duplicate startup record for those later actions
+- **AND** ordinary event records keep their common v1 fields without repeated app/OS metadata
+
+#### Scenario: A native share runs without the main app
+- **WHEN** an iOS or Android share lifecycle starts and finishes
+- **THEN** `share.start` carries app/OS metadata once and `share.end` retains its diagnostic result without repeating it
 
 ### Requirement: Share session records
 
@@ -61,7 +74,7 @@ Records MUST NOT contain access or sync tokens, request or response bodies, full
 
 ### Requirement: Recording frequency
 
-Records SHALL be written only for the events in this capability, each triggered by one share invocation or one account action. Recording MUST NOT occur in retry loops, timers, watchers, or sync callbacks.
+Records SHALL be written only for events in this capability: one fresh-startup `app.launch`, one native share lifecycle, or one account action, plus the existing bounded writer's drop/truncation markers. Diagnostic event generation MUST NOT occur in retry loops, timers, watchers, or sync callbacks; opening a viewer/export SHALL NOT create a snapshot or fake event.
 
 #### Scenario: Sync retries produce no records
 - **WHEN** sync uploads or the sync stream fail and retry repeatedly
@@ -83,25 +96,40 @@ Background recording SHALL NOT change any share result, message, haptic, or dism
 - **WHEN** the diagnostic directory cannot be written
 - **THEN** shares and sign-ins complete with their normal results and messages
 
-### Requirement: Diagnostic viewer, snapshot, and export
+### Requirement: Hidden diagnostic viewer and event-only export
 
-About SHALL provide a visible action opening the diagnostic log view alongside the native file-sharing action; opening the viewer SHALL NOT require the hidden Debug gesture. The hidden Debug screen SHALL retain its diagnostic log view entry. The view SHALL list stored days with sizes, records filterable by source, and the full record on selection. The view SHALL show a live snapshot read when it opens: sync connection state, last successful sync time, current upload and download error class and status, pending upload count, account and reauthentication state, network state, app version, build, OS version, and environment. The snapshot MUST NOT be written to the log files.
+About SHALL NOT show a diagnostic heading, viewer action, or recent-share action. Five taps on its version SHALL expose Debug, from which the diagnostic viewer and file export remain available. The viewer SHALL list stored days with sizes, support source filtering and record detail, and retain confirmed clear. Diagnostic current-status/live-sync snapshots and verbose sync JSON SHALL NOT be generated, displayed, or included in new exports.
 
-Export SHALL produce one UTF-8 NDJSON file with a freshly read snapshot followed by the selected days' records from all sources in time order, and open the system share sheet when sharing is requested. Recent logs SHALL mean the current local calendar day and the preceding six local calendar days, not a rolling 168-hour window. About and feedback SHALL reuse this recent export definition. Every export SHALL reapply the field allowlist and redaction to the snapshot and stored records; prior on-disk content SHALL NOT bypass privacy checks. Clear SHALL delete all local diagnostic files after confirmation.
+Export SHALL contain only real sanitized selected v1 event records from all sources in time order, with no synthetic header or fabricated event. Recent SHALL mean the current local calendar day plus the prior six local days, including across midnight/daylight-saving transitions; hidden export and consented feedback SHALL share this definition. Reapply allowlist/redaction and remove historical repeated `app`/`os` from ordinary exported records, retaining metadata only on `app.launch`/`share.start`. Historical source logs SHALL NOT be rewritten or deleted for this correction; ordinary retention and user-confirmed clear remain unchanged.
 
-#### Scenario: Export merges share and app records
-- **WHEN** the user exports the last seven days
-- **THEN** the shared file starts with a snapshot captured for that export and contains app, iOS share, and Android share records for the current local day and prior six days in time order
-- **AND** records from earlier local dates are excluded, including across midnight and daylight-saving boundaries
+#### Scenario: About opens without revealing diagnostics
+- **WHEN** the user opens About normally
+- **THEN** no diagnostic heading, viewer button, or recent-share button is present
+- **AND** five version taps still open Debug with working diagnostic viewing and export
 
-#### Scenario: Existing records contain fields outside the export allowlist
-- **WHEN** the export builder reads historical records or current snapshot values
-- **THEN** unsupported fields and sensitive values are removed or redacted before file creation
-- **AND** the file contains no full credentials, bodies, full URLs, titles, free-form errors, or absolute file paths
+#### Scenario: Viewer and export operate without current-state snapshots
+- **WHEN** the user opens diagnostics or requests selected/recent export
+- **THEN** no current-status/sync snapshot is generated or shown
+- **AND** the export contains only the real selected app/native-share event records in time order, with no snapshot header
 
-#### Scenario: No recent records exist
-- **WHEN** the user requests a recent export with no records in its date range
-- **THEN** the builder produces a valid snapshot-only NDJSON file rather than stale records or a path-only placeholder
+#### Scenario: Existing records contain repeated metadata or sensitive fields
+- **WHEN** the export builder reads historical records
+- **THEN** unsupported/sensitive values and ordinary-event `app`/`os` repetition are removed from the export while lifecycle-start metadata remains
+- **AND** the original on-disk logs are unchanged and no full credentials, bodies, full URLs, titles, free-form errors, or absolute paths appear in the export
+
+#### Scenario: No exportable records exist
+- **WHEN** the selected or recent range contains no exportable event records
+- **THEN** the viewer shows an explicit empty state and export/checked feedback returns an actionable localized no-logs result
+- **AND** no synthetic snapshot, startup event, file placeholder, or attachment-free checked submission is generated
+
+### Requirement: Clear-cache bottom spacing
+
+The clear-cache button/sheet SHALL remain bottom-aligned without a hanging external blank area caused by nested height constraints. Apply only the minimal height-cap and inset ownership correction: keep the existing 92% cap on the outer bottom-aligned wrapper, allow the inner sheet up to 100%, and retain deliberate 20 dp padding plus the bottom safe inset once. Keep controls reachable on both platforms and preserve cache-clear, confirmation, and dismissal behavior. Unrelated sheet redesign SHALL NOT be included.
+
+#### Scenario: Clear-cache sheet is opened with a bottom system inset
+- **WHEN** the user opens the clear-cache sheet on iOS or Android
+- **THEN** height-cap ownership avoids repeated nested percentage shrinkage and an external gap while intentional padding and the inset remain once
+- **AND** the action remains reachable and existing cache/dismissal behavior is retained
 
 ### Requirement: Compact keyboard-accessible feedback
 
@@ -114,36 +142,45 @@ Contextual feedback SHALL use a compact bounded multiline input in a scrollable,
 
 ### Requirement: Independent consent for feedback attachments
 
-Every new feedback draft SHALL present an independent default-unchecked recent-log attachment option. Consent MUST NOT be inferred from logging, About sharing, or submitting ordinary feedback, and MUST NOT persist as a global preference. Its localized explanation SHALL disclose optional support upload, seven-day retention, and access by anyone holding the download link. Unchecked submissions SHALL use legacy JSON without generating or uploading diagnostic files. Checked submissions SHALL prepare a fresh recent export and submit it with the report; export, validation, upload, and report-persistence failures SHALL keep the draft and checked choice with an actionable error, never silently omit the attachment. Duplicate submit actions SHALL be disabled while the request is pending.
+Every new feedback draft SHALL present an independent default-unchecked recent-log attachment option. Consent MUST NOT be inferred from logging, hidden native export, or ordinary feedback, and MUST NOT persist as a global preference. Its localized explanation SHALL disclose optional support upload, seven-day retention, and bearer-link access. Unchecked submissions SHALL use legacy JSON without generating or uploading diagnostic files. Checked submissions SHALL prepare a fresh event-only recent export; no logs or any export, validation, upload, or persistence failure SHALL keep draft/consent with an actionable error, never silently omit the attachment. Duplicate submit actions SHALL be disabled while pending.
 
 #### Scenario: Ordinary feedback is submitted
 - **WHEN** the user opens a new feedback draft and submits without selecting the attachment option
 - **THEN** the option is unchecked and the existing JSON report path sends no diagnostic file
 - **AND** neither export generation nor diagnostic R2 upload occurs
 
-#### Scenario: A checked attachment fails
-- **WHEN** attachment export, size validation, upload, or report persistence fails
-- **THEN** the draft and checked option remain available for an explicit retry with a visible error
-- **AND** the client does not submit an attachment-free replacement unless the user deliberately unchecks the option
+#### Scenario: A checked attachment cannot be submitted
+- **WHEN** there are no exportable logs or attachment export, size validation, upload, or report persistence fails
+- **THEN** the draft and checked option remain available with a visible actionable error
+- **AND** the client does not fabricate records or submit without an attachment unless the user deliberately unchecks the option
 
-### Requirement: About shares an actual diagnostic file
+### Requirement: Hidden diagnostic export shares an actual file
 
-About SHALL offer user-initiated sharing of the fresh recent NDJSON export via existing `expo-sharing`. Native share targets SHALL receive the actual file, not a path or text-only message. This action SHALL NOT submit feedback, upload to the backend, or grant feedback attachment consent. Unavailable native sharing or export failure SHALL show a localized error; cancellation SHALL leave the application usable.
+The diagnostic viewer reached through hidden Debug SHALL share selected/recent event-only NDJSON via existing `expo-sharing`. Native targets SHALL receive the actual file, not a path/text-only message. Sharing SHALL NOT submit feedback, upload to the backend, or grant attachment consent. No logs, unavailable native sharing, and export failure SHALL show localized actionable feedback; cancellation SHALL leave the app usable.
 
-#### Scenario: The user shares logs from About
-- **WHEN** the user selects the About diagnostic-sharing action and chooses a native destination
-- **THEN** the destination receives a readable NDJSON attachment with the fresh snapshot and recent records
+#### Scenario: The user shares logs through Debug
+- **WHEN** the user opens diagnostics through Debug and exports an available selected/recent range to a native destination
+- **THEN** the destination receives a readable file containing only the actual sanitized event records, with no snapshot
 - **AND** no feedback report or backend diagnostic upload is created
 
 #### Scenario: Native sharing is cancelled or unavailable
 - **WHEN** the user cancels the share sheet or the platform cannot share the generated file
-- **THEN** cancellation returns to the app without submission, and unavailability is explained without pretending a file was shared
+- **THEN** cancellation returns without submission, and unavailability is explained without claiming a file was shared
 
 ### Requirement: Additive authenticated diagnostic report upload
 
 Authenticated `POST /v1/user/report` SHALL preserve the existing JSON report contract and add multipart fields `report` (one JSON value containing `attach_diagnostic_log: true`) and `diagnostic_log` (one file). The API SHALL reject unauthenticated attachment requests, missing or inconsistent consent/file combinations, duplicate file fields, malformed report JSON, and invalid diagnostic content. The file limit SHALL be 12 MiB (12,582,912 bytes), with at most 64 KiB (65,536 bytes) of multipart overhead and 12,648,448 bytes total. Actual received bytes SHALL be bounded regardless of missing or inaccurate `Content-Length`.
 
-The API SHALL validate UTF-8 NDJSON and supported snapshot/record shapes and apply the allowlist/redaction before storage. Invalid encoding, malformed lines, and unsupported record shapes SHALL fail the checked submission. Client filenames, MIME claims, keys, and download URLs SHALL NOT be trusted. Stored sanitized bytes SHALL also fit the cap. Rejected raw content SHALL NOT be stored or logged. The implementation SHALL use existing runtime facilities without new runtime dependencies.
+The API SHALL accept nonempty event-only v1 NDJSON without requiring a snapshot or a startup event at its beginning. It SHALL retain backward compatibility with already-shipped TestFlight build 795 snapshot-leading uploads, including the prior snapshot-only shape, without making new clients generate snapshots. UTF-8, supported shapes, legacy leading-snapshot placement, allowlist/redaction, and existing limits SHALL remain validated. Ordinary event records SHALL be sanitized without repeated `app`/`os`; lifecycle-start metadata SHALL be retained. Empty files SHALL fail rather than receive synthetic content. Invalid encoding, malformed lines, and unsupported shapes SHALL fail the checked submission. Client filenames, MIME claims, keys, and URLs SHALL NOT be trusted; sanitized output SHALL fit the cap and rejected raw content SHALL NOT be stored/logged. There SHALL be no schema version bump or new runtime dependency.
+
+#### Scenario: Current client sends event-only records
+- **WHEN** an authenticated consented upload contains valid v1 event-only NDJSON within the limits, including a range beginning with an ordinary event
+- **THEN** it is accepted without requiring or synthesizing a snapshot/startup header
+
+#### Scenario: Already-shipped TF795 client sends a legacy attachment
+- **WHEN** a consented TestFlight 795 upload uses the valid legacy leading snapshot followed by records or the prior snapshot-only shape
+- **THEN** the server accepts it through the sanitized compatibility path with existing privacy/size checks
+- **AND** this compatibility does not reinstate client snapshot generation, display, or new-export behavior
 
 #### Scenario: Legacy JSON client submits feedback
 - **WHEN** an authenticated existing client submits a valid JSON report without an attachment

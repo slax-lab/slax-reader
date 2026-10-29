@@ -18,6 +18,96 @@ function multipart(file: Blob = new Blob([valid]), payload: unknown = report) {
   return form
 }
 const request = (body: FormData) => new Request('https://api.test/v1/user/report', { method: 'POST', body })
+const common = { v: 1, ts: snapshot.ts, src: 'app', launch: 'abcd1234' }
+const metadata = { app: '1.0.0 (795)', os: 'iOS 26.1' }
+const launch = { ...common, event: 'app.launch', ...metadata }
+const signout = { ...common, event: 'auth.signout', cause: 'user' }
+const ndjson = (entries: unknown[]) => entries.map(entry => JSON.stringify(entry)).join('\n') + '\n'
+const decode = (bytes: Uint8Array) =>
+  new TextDecoder()
+    .decode(bytes)
+    .trimEnd()
+    .split('\n')
+    .map(line => JSON.parse(line))
+
+describe('compact diagnostic records', () => {
+  test('app launch and ordinary event upload without a snapshot or repeated metadata', async () => {
+    const raw = ndjson([launch, { ...signout, ...metadata, sync: { connected: true }, session: 'authenticated', password: 'private' }])
+    const result = await parseFeedbackRequest(request(multipart(new Blob([raw]))))
+    expect(result.report).toEqual(report)
+    expect(decode(result.diagnostic!)).toEqual([launch, signout])
+  })
+  test.each(['share-ios', 'share-android'])('%s start retains metadata and end omits it', src => {
+    const start = { ...common, src, share: common.launch, event: 'share.start', ...metadata }
+    const end = { ...common, src, share: common.launch, event: 'share.end', outcome: 'success', reason: 'success' }
+    const result = decode(sanitizeDiagnosticFile(encode(ndjson([start, { ...end, ...metadata }]))))
+    expect(result).toEqual([start, { ...end, token: null, http: null, error: null }])
+    expect(result.some(entry => entry.event === 'snapshot')).toBe(false)
+  })
+  test('retained-date slice can contain only ordinary records without a startup header', () => {
+    const entries = [
+      { ...signout, ts: '2026-10-24T00:00:00.000+08:00' },
+      { ...common, ts: '2026-10-24T01:00:00.000+08:00', event: 'auth.reauth_required', http: { status: 401 } }
+    ]
+    expect(decode(sanitizeDiagnosticFile(encode(ndjson(entries))))).toEqual(entries)
+  })
+  test.each([true, false])('TF795 legacy snapshot retained safely, snapshot only: %s', onlySnapshot => {
+    const legacy = { ...snapshot, ...metadata, version: '1.0.0', build: '795', password: 'private', sync: { ...snapshot.sync, body: 'private' } }
+    const entries = onlySnapshot ? [legacy] : [legacy, launch, { ...signout, ...metadata }]
+    const expected = [{ ...snapshot, ...metadata, version: '1.0.0', build: '795' }, ...(onlySnapshot ? [] : [launch, signout])]
+    expect(decode(sanitizeDiagnosticFile(encode(ndjson(entries))))).toEqual(expected)
+  })
+  test.each(['auth.login', 'auth.signout', 'auth.reauth_required', 'auth.refresh_failed', 'account.delete', 'log.dropped', 'log.truncated'])(
+    '%s strips historical metadata and status fields without requiring them',
+    event => {
+      const entry = { ...common, event, provider: 'apple', ok: true, cause: 'user', count: 2 }
+      const clean = sanitizeDiagnosticExportEntry(entry)
+      expect(clean).not.toBeNull()
+      expect(sanitizeDiagnosticExportEntry({ ...entry, ...metadata, sync: { connected: true }, session: 'authenticated' })).toEqual(clean)
+      expect(clean).toMatchObject(common)
+      expect(clean).not.toHaveProperty('app')
+      expect(clean).not.toHaveProperty('os')
+    }
+  )
+  test.each(['app.launch', 'share.start'])('%s keeps legacy optional metadata validation', event => {
+    const entry = { ...common, event, ...(event === 'share.start' ? { src: 'share-ios', share: common.launch } : {}) }
+    expect(sanitizeDiagnosticExportEntry(entry)).toEqual(entry)
+    expect(sanitizeDiagnosticExportEntry({ ...entry, ...metadata })).toEqual({ ...entry, ...metadata })
+    expect(sanitizeDiagnosticExportEntry({ ...entry, app: 'private token', os: { value: 'private' } })).toEqual(entry)
+  })
+  test.each([
+    { ...launch, v: 2 },
+    { ...launch, ts: 'not a timestamp' },
+    { ...launch, src: 'unsupported' },
+    { ...launch, event: 'sync.status' },
+    { ...signout, cause: 'private token' },
+    { ...common, event: 'auth.login', provider: 'apple', ok: 'yes' },
+    { ...common, event: 'log.dropped', count: -1 },
+    { ...common, event: 'share.start', src: 'share-ios', share: 'invalid' },
+    { ...common, event: 'share.end', src: 'share-ios', share: 'abcd1234', outcome: 'success', reason: 'invalid' },
+    { ...snapshot, sync: null },
+    { ...snapshot, session: 'invalid' }
+  ])('malformed required fields remain rejected: %j', entry => {
+    expect(sanitizeDiagnosticExportEntry(entry)).toBeNull()
+    expect(() => sanitizeDiagnosticFile(encode(ndjson([entry])))).toThrow()
+  })
+  test('legacy snapshots may only occur once at the beginning', () => {
+    for (const entries of [
+      [signout, snapshot],
+      [snapshot, snapshot],
+      [snapshot, signout, snapshot]
+    ]) {
+      expect(() => sanitizeDiagnosticFile(encode(ndjson(entries)))).toThrow()
+    }
+  })
+  test('line limit includes UTF-8 bytes and the final newline', () => {
+    const line = ndjson([{ ...signout, unknown: '界' }])
+    const exact = line.slice(0, -1) + ' '.repeat(4096 - encode(line).length) + '\n'
+    expect(encode(exact)).toHaveLength(4096)
+    expect(decode(sanitizeDiagnosticFile(encode(exact)))).toEqual([signout])
+    expect(() => sanitizeDiagnosticFile(encode(exact.slice(0, -1) + ' \n'))).toThrow()
+  })
+})
 
 describe('feedback report parsing', () => {
   test.each([0, 3, 4096, 4097, 70000])('streamed body returns actual sized backing storage for %s bytes', async size => {
@@ -193,9 +283,9 @@ describe('feedback report parsing', () => {
     expect(text).toContain('example.com')
     expect(text).not.toMatch(/secret|private|remoteAddress/)
   })
-  test('exact file cap accepted; cap plus one rejected', async () => {
-    const line = JSON.stringify({ v: 1, ts: snapshot.ts, src: 'app', event: 'app.launch' }) + '\n'
-    const canonical = JSON.stringify(sanitizeDiagnosticExportEntry(snapshot)) + '\n'
+  test.each([snapshot, signout])('exact file cap accepted; cap plus one rejected with %j first', async first => {
+    const line = ndjson([signout])
+    const canonical = JSON.stringify(sanitizeDiagnosticExportEntry(first)) + '\n'
     const prefix = canonical + line.repeat(Math.floor((DIAGNOSTIC_ATTACHMENT_MAX_BYTES - canonical.length) / line.length))
     const remaining = DIAGNOSTIC_ATTACHMENT_MAX_BYTES - prefix.length
     const exact = prefix.slice(0, -1) + ' '.repeat(remaining) + '\n'

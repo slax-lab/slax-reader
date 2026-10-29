@@ -4,7 +4,7 @@ import {SlaxApi, FEEDBACK_DIAGNOSTIC_MAX_BYTES, FEEDBACK_MULTIPART_OVERHEAD_BYTE
 import type {FeedbackRequest, MobileApiOptions} from '../../src/data/api.ts';
 
 const report: FeedbackRequest = {bookmark_uuid: 'bookmark', entry_point: 'reader', type: 'parse_error', content: 'First line\nSecond line', platform: 'app', environment: 'iOS 794', version: '1.0.25 (794)', allow_follow_up: false, target_url: 'https://example.org/article'};
-const upload = () => ({file: new Blob(['{"v":1,"event":"snapshot"}\n'], {type: 'application/x-ndjson'}), filename: 'slax-diagnostics-2026-10-29.ndjson'});
+const upload = () => ({file: new Blob([JSON.stringify({v: 1, ts: '2026-10-29T12:00:00Z', src: 'app', launch: 'abcd1234', event: 'auth.signout', cause: 'user'}) + '\n'], {type: 'application/x-ndjson'}), filename: 'slax-diagnostics-2026-10-29.ndjson'});
 function fixture(fetch: NonNullable<MobileApiOptions['fetch']>, preparation: () => Promise<void> = async () => {}) {
   let epoch = 0, authenticated = true, rejected = 0;
   const capture = () => {const original = epoch; return () => {if (original !== epoch) throw new Error('account changed');};};

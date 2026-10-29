@@ -17,13 +17,16 @@ async function fixture(host, screen = 'Feedback', locale = 'en', platform = 'ios
     if (mode === 'pending') await new Promise(resolve => {deferred = resolve;});
     return new Response(JSON.stringify({code: mode === 'persistence' ? 500 : 200, data: 'ok', message: 'failure'}), {status: 200});
   }});
-  const storage = {shareAvailable: true, list: async () => [], read: async () => '', async stage(lines) {
+  const now = new Date(), day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const log = JSON.stringify({v: 1, ts: now.toISOString(), src: 'app', launch: 'abcd1234', event: 'app.launch', app: '1.0.25 (795)', os: 'iOS 26.1'}) + '\n';
+  const storage = {shareAvailable: true, list: async () => mode === 'empty' ? [] : [{name: `${day}.app.ndjson`, size: log.length}], read: async () => log, async stage(lines) {
     staged++; if (mode === 'export') throw new Error('File write failed');
     if (mode === 'stage-pending') await new Promise(resolve => {deferred = resolve;});
     const file = new Blob([mode === 'oversized' ? new Uint8Array(12582913) : lines], {type: 'application/x-ndjson'}); files.push(file);
     return {uri: 'file:///cache/slax-diagnostics-test.ndjson', filename: 'slax-diagnostics-test.ndjson', file, release() {released++;}};
-  }, async share(file, current) {current(); if (mode === 'unavailable') {const error = new Error(); throw error;} shares++; assert.equal(JSON.parse((await file.file.text()).trim()).event, 'snapshot');}, export: async () => {}};
-  const runtime = {sessions, diagnostics: {storage, flush: async () => {flushed++;}}, preferences: {read: async () => ({selected_env: 'BETA'})}, getDatabase: () => null, credentials: {getSnapshot: () => ({status: 'ready'})}, getNetworkSnapshot: () => 'online'};
+  }, async share(file, current) {current(); shares++; assert.equal(JSON.parse((await file.file.text()).trim()).event, 'app.launch');}, export: async () => {}};
+  const unexpected = () => {throw new Error('diagnostics must not collect runtime state');};
+  const runtime = {sessions, diagnostics: {storage, flush: async () => {flushed++;}}, preferences: {read: unexpected}, getDatabase: unexpected, credentials: {getSnapshot: unexpected}};
   const translator = language => (key, replacements = {}) => Object.entries(replacements).reduce((value, [key, replacement]) => value.replace(`{${key}}`, replacement), appMessages[language][key] ?? key);
   const t = translator(locale);
   const mobile = {api, runtime, t, config: {platform, version: '1.0.25', buildNumber: 794}, repositories: {watchUser(fn) {fn([{email: 'test@example.org'}]); return () => {};}, getBookmark: async () => ({title: 'Article context'})}};
@@ -76,7 +79,9 @@ test('mounted checked feedback retries fresh files, retains consent and draft on
   f.setMode('success'); await f.press('feedback_submit');
   assert.equal(f.stats().staged, 4); assert.equal(f.requests.length, 3); assert.ok(f.requests.every(request => request.body instanceof FormData));
   const form = await new Request('https://api.example.org', f.requests.at(-1)).formData();
-  assert.equal(JSON.parse(form.get('report')).attach_diagnostic_log, true); assert.equal(JSON.parse((await form.get('diagnostic_log').text()).trim()).event, 'snapshot');
+  assert.equal(JSON.parse(form.get('report')).attach_diagnostic_log, true);
+  const rows = (await form.get('diagnostic_log').text()).trim().split('\n').map(JSON.parse);
+  assert.equal(rows.length, 1); assert.equal(rows[0].event, 'app.launch'); assert.equal(rows[0].sync, undefined);
   assert.equal(f.stats().released, 3); assert.equal(host.props.get('feedback_input').value, ''); assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, false);
 }));
 
@@ -99,12 +104,11 @@ test('unmount cancels pending export and a new feedback draft starts unchecked',
   await host.render(f.element()); await host.settle(); assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, false); assert.equal(host.props.get('feedback_input').value, '');
 }));
 
-test('mounted About shares a fresh actual NDJSON file with no report upload or inferred consent', nativeBoundary, async () => withNativeHost(async host => {
-  const f = await fixture(host, 'About'); assert.equal(f.stats().staged, 0);
-  await f.press('about-diagnostic-share'); assert.equal(f.stats().shares, 1); assert.equal(f.stats().released, 1); assert.equal(f.requests.length, 0);
-  assert.equal(JSON.parse((await f.files[0].text()).trim()).event, 'snapshot');
-  assert.equal(host.props.has('about-diagnostic-view'), true); await f.press('about-diagnostic-view'); assert.deepEqual(f.navigations, [['DiagnosticLog']]);
-  f.setMode('export'); await f.press('about-diagnostic-share'); assert.match(host.window.document.body.textContent, /Unable to complete/); assert.equal(host.props.get('about-diagnostic-share').disabled, false);
+for (const locale of ['en', 'zh']) test(`empty logs keep ${locale} feedback draft and consent without a fake attachment or upload`, nativeBoundary, async () => withNativeHost(async host => {
+  const f = await fixture(host, 'Feedback', locale); f.setMode('empty'); await f.type('Keep my draft'); await f.press('feedback-attach-logs'); await f.press('feedback_submit');
+  assert.equal(f.stats().staged, 0); assert.equal(f.requests.length, 0); assert.equal(f.stats().flushed, 1);
+  assert.equal(host.props.get('feedback_input').value, 'Keep my draft'); assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, true);
+  assert.ok(host.window.document.body.textContent.includes(appMessages[locale].feedback_logs_failed)); assert.equal(host.props.get('feedback_submit').disabled, false);
 }));
 test('oversized attachment preserves draft and only an explicit uncheck permits JSON retry', nativeBoundary, async () => withNativeHost(async host => {
   const f = await fixture(host); await f.type('retained'); await f.press('feedback-attach-logs'); f.setMode('oversized'); await f.press('feedback_submit');

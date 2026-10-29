@@ -39,12 +39,17 @@ export interface MobileDiagnostics {sink: DiagnosticSink; storage: DiagnosticSto
 export function createMobileDiagnostics(app: string, clock: DiagnosticClock = diagnosticClock, interactive: {subscribe(listener: () => void): () => void} = firstInteractive): MobileDiagnostics {
   try {
     let forget = () => {};
-    const storage = createDiagnosticStorage(() => forget()), common = {launch: `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`, app, os: Platform.OS === 'android' ? `Android ${Platform.constants.Release}` : `iOS ${Platform.Version}`};
+    const storage = createDiagnosticStorage(() => forget()), common = {launch: `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`};
+    const metadata = {app, os: Platform.OS === 'android' ? `Android ${Platform.constants.Release}` : `iOS ${Platform.Version}`};
     const idleClock: DiagnosticClock = {...clock, idle: callback => typeof globalThis.requestIdleCallback === 'function' ? globalThis.requestIdleCallback(callback) : clock.schedule(callback, 0), cancelIdle: handle => typeof globalThis.cancelIdleCallback === 'function' ? globalThis.cancelIdleCallback(handle as number) : clock.cancel(handle)};
     const transport = createDiagnosticTransport(storage, common, idleClock);
     forget = transport.forget;
     const log = logger.createLogger({async: true, asyncFunc: transport.schedule, transport: transport.transport, formatFunc: () => '', printDate: false, printLevel: false});
-    const sink: DiagnosticSink = {record(event, fields) {try {log.info({...fields, ...common, v: 1, ts: diagnosticTimestamp(clock.now()), src: 'app', event});} catch {}}};
+    let launched = false;
+    const sink: DiagnosticSink = {record(event, fields) {try {
+      if (event === 'app.launch') {if (launched) return; launched = true;}
+      log.info({...fields, ...common, ...(event === 'app.launch' ? metadata : {}), v: 1, ts: diagnosticTimestamp(clock.now()), src: 'app', event});
+    } catch {}}};
     let retained = false;
     return {sink, storage, flush: transport.flush, start() {
       let subscription: {remove(): void} | undefined, retention: unknown, stopInteractive: (() => void) | undefined, stopped = false;

@@ -86,15 +86,6 @@ export function sanitizeDiagnosticRecord(value: unknown): ObjectValue | null {
   if (event === 'auth.login' && (!fields.provider || typeof fields.ok !== 'boolean')) return null;
   if (event === 'account.delete' && typeof fields.ok !== 'boolean') return null;
   if (event === 'auth.signout' && !fields.cause || event === 'log.dropped' && fields.count === undefined) return null;
-  return {...object(shape({launch: text(/^[a-f0-9-]{8,36}$/i), app, os})(raw)), v: 1, ts, src: raw.src, event, ...fields};
-}
-export function sanitizeDiagnosticSnapshot(value: unknown): ObjectValue {
-  const raw = object(value), ts = timestamp(raw.ts);
-  if (raw.v !== 1 || raw.event !== 'snapshot' || !ts) throw new Error('Invalid diagnostic snapshot');
-  return {v: 1, event: 'snapshot', ts, ...object(shape({app, version, build: text(/^\d{1,20}$/), os, env, shareAvailable: bool,
-    sync: shape({connected: bool, lastSyncedAt: nullable(timestamp), uploadError: error, downloadError: error, pendingUploads: nullable(count)}),
-    session: choice('unknown', 'loading', 'authenticated', 'unauthenticated', 'reauthentication-required'),
-    reauthentication: choice('unknown', 'idle', 'checking', 'ready', 'paused', 'retry', 'reauthentication-required'),
-    network: choice('unknown', 'online', 'offline'),
-  })(raw))};
+  const metadata = event === 'app.launch' || event === 'share.start' ? object(shape({app, os})(raw)) : {};
+  return {...object(shape({launch: text(/^[a-f0-9-]{8,36}$/i)})(raw)), v: 1, ts, src: raw.src, event, ...metadata, ...fields};
 }

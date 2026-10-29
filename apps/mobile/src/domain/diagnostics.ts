@@ -32,8 +32,8 @@ export function snapshotDiagnostic<T>(value: T): T {
 export function recordDiagnostic<E extends keyof DiagnosticEvents>(sink: DiagnosticSink | undefined, event: E, fields: DiagnosticEvents[E]) {
   try {sink?.record(event, snapshotDiagnostic(fields));} catch {}
 }
-export interface DiagnosticCommon {v: 1; ts: string; src: DiagnosticSource; launch: string; app: string; os: string}
-export type AppDiagnosticRecord = {[E in keyof DiagnosticEvents]: DiagnosticCommon & {event: E} & DiagnosticEvents[E]}[keyof DiagnosticEvents];
+export interface DiagnosticCommon {v: 1; ts: string; src: DiagnosticSource; launch: string}
+export type AppDiagnosticRecord = {[E in keyof DiagnosticEvents]: DiagnosticCommon & {event: E} & DiagnosticEvents[E] & (E extends 'app.launch' ? {app: string; os: string} : {})}[keyof DiagnosticEvents];
 export type DiagnosticRecord = DiagnosticCommon & {event: keyof DiagnosticEvents | 'share.start' | 'share.end'; [key: string]: unknown};
 export interface DiagnosticFile {name: string; size: number; day: string; src: DiagnosticSource}
 const pad = (value: number, width = 2) => String(value).padStart(width, '0');

@@ -323,7 +323,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   recordDiagnostic(options.diagnostics?.sink, 'app.launch', {});
   return {
     preferences, sessions, api, start, stop,
-    diagnostics: options.diagnostics, getNetworkSnapshot: () => network.getSnapshot(),
+    diagnostics: options.diagnostics,
     credentials: readiness as CredentialReadiness | undefined,
     setForeground: (foreground: boolean) => activity.setForeground(foreground),
     getAccountPreferences: () => accountPreferences,
@@ -352,4 +352,4 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     subscribeUpgrade: (listener: (state: UpgradeState) => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
   };
 }
-export type MobileDataRuntime = Omit<ReturnType<typeof createMobileDataRuntime>, 'credentials' | 'diagnostics' | 'getNetworkSnapshot'> & {credentials?: CredentialReadiness; diagnostics?: MobileDiagnostics; getNetworkSnapshot?: () => ReturnType<NetworkAvailability['getSnapshot']>};
+export type MobileDataRuntime = Omit<ReturnType<typeof createMobileDataRuntime>, 'credentials' | 'diagnostics'> & {credentials?: CredentialReadiness; diagnostics?: MobileDiagnostics};

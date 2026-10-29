@@ -33,8 +33,8 @@ internal class ShareDiagnosticRecord(private val app: String, private val os: St
     if (next == "request" && requestStarted == null) requestStarted = now
     stage = next; stageStarted = now
   }
-  fun common(event: String, ts: String = timestamp()): JSONObject = JSONObject().put("v", 1).put("ts", ts).put("src", "share-android").put("launch", share).put("app", app).put("os", os).put("event", event)
-  fun start(): JSONObject = common("share.start", timestamp(wallTime)).put("share", share)
+  fun common(event: String, ts: String = timestamp()): JSONObject = JSONObject().put("v", 1).put("ts", ts).put("src", "share-android").put("launch", share).put("event", event)
+  fun start(): JSONObject = common("share.start", timestamp(wallTime)).put("share", share).put("app", app).put("os", os)
   fun end(outcome: String, shown: String, net: JSONObject, now: Long = clock(), wallTime: Long = System.currentTimeMillis()): JSONObject {
     return common("share.end", timestamp(wallTime)).put("share", share).put("outcome", outcome).put("stage", stage).put("reason", reason)
       .put("input", input).put("prefs", prefs).put("token", token).put("env", env).field("host", host).field("http", http).field("error", error).put("net", net)
@@ -53,7 +53,6 @@ internal class ShareDiagnosticRecord(private val app: String, private val os: St
       if (record.optString("event") != "share.end") return null
       val compact = JSONObject()
       for (key in listOf("v", "ts", "src", "launch", "event", "share", "outcome", "stage", "reason", "env", "ms", "shown")) compact.field(key, record.opt(key))
-      for (key in listOf("app", "os")) compact.field(key, (record.opt(key) as? String)?.take(64))
       for (key in listOf("input", "prefs", "token", "host", "http", "error", "net")) compact.field(key, null)
       return encode(compact)
     }

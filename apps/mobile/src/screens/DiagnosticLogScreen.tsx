@@ -11,12 +11,9 @@ export function DiagnosticLogScreen({navigation}: MobileScreenProps<'DiagnosticL
   useEffect(() => {navigation.setOptions({title: t('diagnostic_logs'), headerTitleAlign: 'left', headerTitleStyle: {fontSize: 22, fontWeight: '400'}});}, [navigation, t]);
   const records = state.records.filter(record => state.source === 'all' || record.src === state.source);
   return <ScreenSurface><ScrollView contentContainerStyle={styles.content}>
-    <View style={styles.card}><SourceText accessibilityRole="header" style={styles.heading}>{t('diagnostic_snapshot')}</SourceText>
-      <SourceText selectable style={styles.json}>{state.snapshot ? JSON.stringify(state.snapshot, null, 2) : t('diagnostic_loading')}</SourceText>
-      {!state.shareAvailable && <SourceText testID="diagnostic_share_unavailable" style={styles.notice}>{t('diagnostic_share_unavailable')}</SourceText>}
-    </View>
-    {state.error && <SourceText accessibilityRole="alert" style={styles.notice}>{t('diagnostic_error')}</SourceText>}
-    <View style={styles.actions}><SourceButton testID="diagnostic_export" label={t('diagnostic_export')} disabled={state.busy} onPress={() => {void controller.exportSelected();}} style={styles.button}/><SourceButton testID="diagnostic_clear" label={t('diagnostic_clear')} disabled={state.busy} onPress={() => setConfirmClear(true)} style={styles.button}/></View>
+    {!state.shareAvailable && <SourceText testID="diagnostic_share_unavailable" style={styles.notice}>{t('diagnostic_share_unavailable')}</SourceText>}
+    {state.error && <SourceText accessibilityRole="alert" style={styles.notice}>{t(state.error === 'empty' ? 'diagnostic_empty' : 'diagnostic_error')}</SourceText>}
+    <View style={styles.actions}><SourceButton testID="diagnostic_export" label={t('diagnostic_export')} disabled={state.busy || !state.selectedDays.length} onPress={() => {void controller.exportSelected();}} style={styles.button}/><SourceButton testID="diagnostic_clear" label={t('diagnostic_clear')} disabled={state.busy} onPress={() => setConfirmClear(true)} style={styles.button}/></View>
     {state.busy && <ActivityIndicator color={C.text}/>}
     {state.day && <TextAction label={t('diagnostic_back')} onPress={() => controller.back()}/>}
     {state.detail ? <View style={styles.card}><SourceText accessibilityRole="header" style={styles.heading}>{state.detail.event}</SourceText><SourceText testID="diagnostic_detail" selectable style={styles.json}>{JSON.stringify(state.detail, null, 2)}</SourceText></View> : state.day ? <View style={styles.card}>

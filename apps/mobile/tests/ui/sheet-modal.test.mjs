@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {React, act, loadComponent, withNativeHost, nativeBoundary, flattenStyle} from '../reader/parity-host.mjs';
-import {mobileColors} from '../../src/theme/index.ts';
+import {mobileColors, mobileTypography} from '../../src/theme/index.ts';
 import {installedAnimatedHost} from '../reader/installed-animated-host.mjs';
 
 for (const platform of ['ios', 'android']) test(`sheet ${platform} keeps backdrop stationary and waits for the proper dismissal boundary`, nativeBoundary, async () => withNativeHost(async host => {
@@ -79,5 +79,48 @@ for (const platform of ['ios', 'android']) test(`sheet ${platform} measures befo
   visible = false; await render(); await act(async () => installed.advance(20));
   assert.equal(modal.visible, false); assert.equal(closed, platform === 'ios' ? 0 : 1);
   await act(async () => {modal.onDismiss(); modal.onDismiss();}); assert.equal(closed, 1);
+  await host.render(null); assert.equal(installed.nativePending(), 0);
+}));
+
+for (const platform of ['ios', 'android']) for (const bottomInset of [0, 34, 48]) test(`SourceSheet ${platform} caps the outer viewport and owns bottom inset ${bottomInset} once`, nativeBoundary, async () => withNativeHost(async host => {
+  const installed = installedAnimatedHost(host);
+  let modal, keyboard, safeArea, surface, visible = false;
+  const View = props => {
+    if (props.accessibilityViewIsModal && props.onLayout && !props.testID) surface = props;
+    return React.createElement(host.native.View, props);
+  };
+  const native = {...host.native, View, Text: host.native.View, Animated: installed.Animated, Easing: installed.Easing, Platform: {OS: platform},
+    StyleSheet: {...host.native.StyleSheet, flatten: flattenStyle},
+    Modal: props => {modal = props; return props.visible ? React.createElement(host.native.View, props) : null;},
+    KeyboardAvoidingView: props => {keyboard = props; return React.createElement(host.native.View, props);},
+  };
+  const {SourceSheet} = await loadComponent('../../src/components/SourceUI.tsx', {
+    react: React, 'react-native': native, '../theme': {mobileColors, mobileTypography}, '../../assets': {mobileAssets: {}}, './AppImage': {AppImage: () => null},
+    'react-native-safe-area-context': {useSafeAreaInsets: () => ({bottom: bottomInset}), SafeAreaView: props => {safeArea = props; return React.createElement(host.native.View, props);}},
+  });
+  const render = () => host.render(React.createElement(SourceSheet, {visible, bottomPadding: 20, onDismiss() {visible = false;}},
+    React.createElement(host.native.View, {testID: 'clear-action', style: {height: 450}})));
+  await render(); assert.equal(modal.visible, false);
+  visible = true; await render();
+  assert.equal(flattenStyle(keyboard.style).justifyContent, 'flex-end');
+  assert.equal(keyboard.behavior, platform === 'ios' ? 'padding' : undefined);
+  assert.deepEqual(Array.from(safeArea.edges), ['left', 'right']);
+  assert.equal(flattenStyle(safeArea.style).maxHeight, '92%', 'Only the bottom-anchored viewport applies the 92% cap');
+  assert.equal(flattenStyle(surface.style).maxHeight, '100%', 'The inner surface must not shrink again inside its measured wrapper');
+  assert.equal(flattenStyle(surface.style).paddingBottom, bottomInset + 20);
+  const measuredHeight = 48 + 450 + bottomInset + 20;
+  await act(async () => {modal.onShow(); surface.onLayout({nativeEvent: {layout: {height: measuredHeight}}}); host.props.get('source-sheet-content').onLayout({nativeEvent: {layout: {height: measuredHeight}}});});
+  assert.equal(host.props.get('source-sheet-content').style.transform[0].translateY.__getValue(), measuredHeight);
+  await act(async () => installed.advance(300));
+  assert.equal(host.props.get('source-sheet-content').style.transform[0].translateY.__getValue(), 0);
+  assert.equal(flattenStyle(surface.style).paddingBottom, bottomInset + 20, 'Opening adds no second safe-area inset');
+  await act(async () => modal.onRequestClose()); await render();
+  assert.equal(keyboard.pointerEvents, 'none');
+  await act(async () => installed.advance(300));
+  assert.equal(modal.visible, false);
+  visible = true; await render();
+  await act(async () => {modal.onShow(); host.props.get('source-sheet-content').onLayout({nativeEvent: {layout: {height: 300}}});});
+  assert.equal(host.props.get('source-sheet-content').style.transform[0].translateY.__getValue(), 300, 'Reopening uses the new keyboard-constrained measurement');
+  assert.equal(flattenStyle(surface.style).paddingBottom, bottomInset + 20);
   await host.render(null); assert.equal(installed.nativePending(), 0);
 }));

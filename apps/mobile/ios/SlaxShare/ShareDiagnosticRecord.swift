@@ -86,9 +86,6 @@ enum ShareDiagnosticRecord {
     prefs["error"] = NSNull(); record["prefs"] = prefs
     var token = record["token"] as? [String: Any] ?? [:]
     token.removeValue(forKey: "tail4"); record["token"] = token
-    for key in ["app", "os"] {
-      if let text = record[key] as? String { record[key] = String(String.UnicodeScalarView(text.unicodeScalars.prefix(64))) }
-    }
     return encode(record)
   }
   private static func encode(_ fields: [String: Any]) -> Data? {

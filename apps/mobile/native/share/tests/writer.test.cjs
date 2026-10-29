@@ -32,7 +32,7 @@ extension ShareDiagnosticWriter {
     let file = root.appendingPathComponent("diagnostics/" + ShareDiagnosticRecord.day(date) + ".share-ios.ndjson")
     let mode = CommandLine.arguments[1]
     let line = ShareDiagnosticRecord.line(["event": "share.start"])!
-    if mode == "append" { precondition(append(line, at: date)); return }
+    if mode == "append" { precondition(append(line, at: date, launch: "abcd1234")); return }
     if mode == "verifyConcurrent" {
       let data = try Data(contentsOf: file)
       let suffix = String(data: data.dropFirst(524280), encoding: .utf8)!
@@ -41,20 +41,23 @@ extension ShareDiagnosticWriter {
       print("PASS concurrent"); return
     }
     try manager.createDirectory(at: root, withIntermediateDirectories: true)
-    precondition(append(line, at: date))
+    precondition(append(line, at: date, launch: "abcd1234"))
     let attributes = try manager.attributesOfItem(atPath: file.path)
     precondition((attributes[.posixPermissions] as? NSNumber)?.intValue == 0o600)
     try Data(repeating: 120, count: 524280).write(to: file)
     if mode == "seed" { return }
-    precondition(append(line, at: date))
+    precondition(append(line, at: date, launch: "abcd1234"))
     let data = try Data(contentsOf: file)
     let suffix = String(data: data.dropFirst(524280), encoding: .utf8)!
     precondition(suffix.components(separatedBy: "log.truncated").count == 2)
-    precondition(append(line, at: date))
+    let markerLine = suffix.split(separator: Character(UnicodeScalar(10))).last!
+    let marker = try JSONSerialization.jsonObject(with: Data(markerLine.utf8)) as! [String: Any]
+    precondition(marker["launch"] as? String == "abcd1234" && Set(marker.keys) == Set(["v", "ts", "src", "launch", "event"]))
+    precondition(append(line, at: date, launch: "abcd1234"))
     let unchanged = try Data(contentsOf: file)
     precondition(unchanged == data)
     let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: date)!
-    precondition(append(line, at: tomorrow))
+    precondition(append(line, at: tomorrow, launch: "abcd1234"))
     let next = root.appendingPathComponent("diagnostics/" + ShareDiagnosticRecord.day(tomorrow) + ".share-ios.ndjson")
     let nextData = try Data(contentsOf: next)
     precondition(nextData == line)
