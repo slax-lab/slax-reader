@@ -49,7 +49,7 @@
 
       <!-- meta 行：来源 + 标签 + hover 操作区 -->
       <div class="article-meta">
-        <span v-if="isNewsletter" class="article-source">{{ getSiteName() || $t('newsletter.source') }}</span>
+        <span v-if="isNewsletter || !originalHref" class="article-source">{{ getSiteName() || (isNewsletter ? $t('newsletter.source') : '') }}</span>
         <button v-else-if="sourceFilterable && sourceDomain" class="article-source" type="button" @click.stop="selectSource">{{ getSiteName() }}</button>
         <a v-else class="article-source" :href="originalHref" target="_blank" rel="noopener noreferrer" @click.stop="clickHref">{{ getSiteName() }}</a>
 
@@ -129,7 +129,7 @@ import { inject } from 'vue'
 
 import BookmarkTags from '~/components/BookmarkTags.vue'
 
-import { getBookmarkSourceDomain, isNewsletterBookmarkTarget } from '~/utils/bookmarkSource'
+import { getBookmarkSourceDomain, httpOriginalUrl, isNewsletterBookmarkTarget } from '~/utils/bookmarkSource'
 import { truncateTitle } from '~/utils/string'
 
 import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
@@ -271,7 +271,7 @@ const getSiteName = () => {
 
 const isNewsletter = computed(() => isNewsletterBookmarkTarget(bookmark.value.target_url))
 const sourceDomain = computed(() => getBookmarkSourceDomain(bookmark.value))
-const originalHref = computed(() => isNewsletter.value ? '' : urlHttpString(bookmark.value.target_url))
+const originalHref = computed(() => httpOriginalUrl(bookmark.value.target_url))
 
 const selectSource = () => {
   if (isRequesting.value) return
@@ -290,8 +290,8 @@ const articleHref = computed(() => {
   }
 
   return bookmark.value.status === 'success' && bookmark.value.type !== 'shortcut'
-    ? useSlaxRoutes().snapshotRoute(bookmark.value) || urlHttpString(bookmark.value.target_url)
-    : urlHttpString(bookmark.value.target_url)
+    ? useSlaxRoutes().snapshotRoute(bookmark.value) || originalHref.value
+    : originalHref.value
 })
 
 const archiveBookmark = async (archive: boolean) => {

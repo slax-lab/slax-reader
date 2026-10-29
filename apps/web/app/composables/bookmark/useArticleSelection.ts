@@ -2,10 +2,9 @@
 // 行为差异经 adapters 注入
 import { computed, type Ref, ref, shallowRef, toValue, watch } from 'vue'
 
-import { isNewsletterBookmarkTarget } from '~/utils/bookmarkSource'
+import { httpOriginalUrl } from '~/utils/bookmarkSource'
 
 import type { MarkDetail } from '@commons/frontend-types/models'
-import { urlHttpString } from '@commons/frontend-utils/string'
 import { MarkType } from '@slax-reader/contracts/interface'
 import type { SelectionConfig } from '@slax-reader/selection'
 import {
@@ -98,9 +97,9 @@ export function useArticleSelection(p: UseArticleSelectionParams) {
   const effAllowChatbot = computed(() => p.adapters.allowChatbot ?? true)
   const effOwnerUserId = computed(() => toValue(p.adapters.ownerUserId) ?? p.bookmarkUserId.value)
 
-  const urlString = computed(() => urlHttpString(p.detail.value.target_url))
+  const urlString = computed(() => httpOriginalUrl(p.detail.value.target_url))
   const websiteClick = () => {
-    if (isNewsletterBookmarkTarget(p.detail.value.target_url)) return
+    if (!urlString.value) return
     window.open(`${urlString.value}`)
   }
 

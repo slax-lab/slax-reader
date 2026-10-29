@@ -145,6 +145,13 @@ function panel() {
 }
 
 describe("Newsletter Feed", () => {
+  it.each([null, 'slax-newsletter://message/1', 'mailto:a@example.com'])('hides non-HTTP originals in the preview: %s', async url => {
+    rss.entries.value = [{ ...entry, id: 'newsletter:1', kind: 'newsletter', article_url: url }];
+    const wrapper = panel();
+    await wrapper.get('.article-main').trigger('click');
+    expect(wrapper.find('.reader-footer a.text-button').exists()).toBe(false);
+  });
+
   it("shows the active mail's save progress in list and preview, then allows retry", async () => {
     const mail = {
       ...entry,

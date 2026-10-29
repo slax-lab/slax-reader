@@ -10,6 +10,7 @@
 </template>
 
 <script lang="ts" setup>
+import { httpOriginalUrl } from '~/utils/bookmarkSource'
 const props = defineProps<{
   url?: string | null
   /** Parsed publication/column name. A future column_name can be passed here with priority. */
@@ -19,12 +20,7 @@ const props = defineProps<{
   hostUrl?: string | null
 }>()
 
-// 无协议时补 https://
-const href = computed(() => {
-  const url = props.url?.trim() ?? ''
-  if (!url) return url
-  return /^https?:\/\//i.test(url) ? url : `https://${url}`
-})
+const href = computed(() => httpOriginalUrl(props.url))
 
 const hostname = computed(() => {
   const raw = props.hostUrl?.trim() || props.url?.trim() || ''

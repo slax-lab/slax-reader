@@ -363,9 +363,9 @@
         </div>
         <footer class="reader-footer">
           <a
-            v-if="previewEntry.article_url"
+            v-if="previewOriginal"
             class="text-button"
-            :href="previewEntry.article_url"
+            :href="previewOriginal"
             target="_blank"
             rel="noopener noreferrer"
             >{{ $t("rss.original") }}<RssIcon name="external" /></a
@@ -524,6 +524,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { httpOriginalUrl } from "~/utils/bookmarkSource";
 import ListLayoutSwitcher from "~/components/BookmarkList/ListLayoutSwitcher.vue";
 import NewsletterAddress from "~/components/NewsletterAddress.vue";
 import RssIcon from "~/components/RssIcon.vue";
@@ -579,6 +580,7 @@ const refreshTitle = computed(() =>
       ? t("rss.next_refresh", { time: date(currentRss.value!.next_allowed_at) })
       : t("rss.refresh"),
 );
+const previewOriginal = computed(() => httpOriginalUrl(previewEntry.value?.article_url));
 const previewBookmark = computed(
   () =>
     rss.detail.value?.bookmark_user_uuid ||

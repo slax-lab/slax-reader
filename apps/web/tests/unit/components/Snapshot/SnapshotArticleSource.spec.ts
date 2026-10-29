@@ -44,10 +44,18 @@ describe('SnapshotArticleSource', () => {
   })
 
   it('links to the original URL and shows the external-link mark', () => {
-    const wrapper = mountSource({ url: 'example.com/post' })
+    const wrapper = mountSource({ url: 'https://example.com/post' })
 
     expect(wrapper.attributes('href')).toBe('https://example.com/post')
     expect(wrapper.attributes('target')).toBe('_blank')
     expect(wrapper.find('.article-source-external').text()).toBe('↗')
   })
+})
+
+
+it.each(['slax-newsletter://message/1', 'slax-pdf://document/1', 'mailto:a@example.com', 'example.com/post'])('does not render a clickable original for %s', url => {
+  const wrapper = mountSource({ url, siteName: 'Source' })
+  expect(wrapper.element.tagName).toBe('DIV')
+  expect(wrapper.attributes('href')).toBeUndefined()
+  expect(wrapper.find('.article-source-external').exists()).toBe(false)
 })
