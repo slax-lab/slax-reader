@@ -157,7 +157,7 @@ export class UserRepo {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'account:' + canonical},0))`
       const taken = await tx.$queryRaw`SELECT id FROM sr_user WHERE lower(account)=${canonical} AND id<>${userId} AND deleted_at IS NULL`
       if ((taken as unknown[]).length) throw ExistsUserNameError()
-      const [user] = await tx.$queryRaw<userInfoPO[]>`UPDATE sr_user SET account=${canonical} WHERE id=${userId} RETURNING *`
+      const [user] = await tx.$queryRaw<userInfoPO[]>`UPDATE sr_user SET account=${account} WHERE id=${userId} RETURNING *`
       return user
     })
   }

@@ -1,4 +1,4 @@
-> Recovery scope superseded on 2026-10-28: see [Newsletter without background recovery](2026-10-28-newsletter-no-recovery.md). Current first-release code has no automatic recovery or staged payload, and the initial DDL is updated directly.
+> Historical planning checkpoint (2026-10-27), superseded by the current [OpenSpec design](../../../openspec/changes/support-newsletter-feed/design.md) and [dev operator guide](../../api/NEWSLETTER-DEV-PILOT.md). Earlier schemas, routing, recovery and synchronization steps below are retained as decision history and MUST NOT be used as current implementation instructions.
 
 # Newsletter review revision
 

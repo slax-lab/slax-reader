@@ -1,6 +1,6 @@
 # Design
 
-The approved detailed design, interfaces, failure decisions and implementation tasks are in [Independent Newsletter Storage and Inbox Copies](../../../docs/superpowers/plans/2026-10-28-newsletter-independent-storage.md), approved by the user on 2026-10-28.
+Earlier approved plans, including [Independent Newsletter Storage and Inbox Copies](../../../docs/superpowers/plans/2026-10-28-newsletter-independent-storage.md), record historical decisions. The current delta specifications and decisions below govern implementation; subsequent revisions supersede older construction instructions.
 
 ## Storage and ownership
 
@@ -28,7 +28,7 @@ The Inbox source header reuses SnapshotArticleSource with localized Newsletter t
 
 ## Confirmed address setup
 
-The approved setup-card revision is detailed in [Newsletter Setup Interaction](../../../docs/superpowers/plans/2026-10-28-newsletter-setup-interaction.md). Plain Labs enablement changes only the feature state. Creation carries newsletter_address on the same setting-enable request; the repository checks the complete frozen address against the current account/domain under the existing user lock before inserting a binding. First creation accepts exactly 6–15 lowercase ASCII letters/digits, validated in Controller and at the transactional first-insert boundary. Existing bindings and SMTP case handling keep their issued form; general Reader settings retain their broader format. No new endpoint or background job is added. The Web card owns disclosure persistence, candidate validation, native dialog lifecycle, inline business errors and request-generation fencing. Supporting details use the existing muted auxiliary type role; permanent-address information keeps stronger text emphasis.
+The approved setup-card revision is detailed in [Newsletter Setup Interaction](../../../docs/superpowers/plans/2026-10-28-newsletter-setup-interaction.md). Plain Labs enablement changes only the feature state. Creation carries newsletter_address on the same setting-enable request; the repository checks the complete frozen address against the current account/domain under the existing user lock before inserting a binding. First creation accepts exactly 6–15 lowercase ASCII letters/digits, validated in Controller and at the transactional first-insert boundary. Existing bindings and SMTP case handling keep their issued form; general Reader settings retain their prior format and spelling, without forced lowercase conversion. Canonical lowercase values are used only for serialized conflict checks; the requested account spelling is stored unchanged. No new endpoint or background job is added. The Web card owns disclosure persistence, candidate validation, native dialog lifecycle, inline business errors and request-generation fencing. Supporting details use the existing muted auxiliary type role; permanent-address information keeps stronger text emphasis.
 
 ## Verification
 
@@ -47,3 +47,8 @@ FeedPanel renders Newsletter HTML in its own scoped namespace and includes the s
 ## Newsletter excerpt naming
 
 The Newsletter message column and its internal parser/publication/save data use excerpt for the first 500 characters of sanitized body text, avoiding confusion with AI-generated summaries. The existing mixed Feed response retains the RSS-derived summary field through its read projection; RSS persistence/contracts, list rendering and saved-bookmark description behavior remain unchanged. Each Newsletter Prisma field documents its actual consumers in Chinese, as requested. Regenerate and replace the unmerged initial migration in place; do not add a rename or compatibility migration.
+
+
+## Dev-only rollout
+
+The 2026-10-29 operator decision configures only newsletterreader.slax.dev. Private beta/prod/legacy-main configurations omit NEWSLETTER_DOMAIN until dev validation and a later rollout decision. The intended eventual production suffix remains newsletterreader.slax.com; omission does not clear an existing remote value under --keep-vars.

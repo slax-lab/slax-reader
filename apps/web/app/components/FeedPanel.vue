@@ -143,7 +143,7 @@
     <section v-else-if="!rss.enabled.value" class="empty-state">
       <div class="empty-icon"><RssIcon name="rss" /></div>
       <h2>{{ $t("rss.title") }}</h2>
-      <p>{{ $t("rss.enable_hint") }}</p>
+      <p>{{ $t("feed.enable_hint") }}</p>
       <NuxtLink
         class="rss-button primary"
         :to="localePath('/user') + '#labs'"
@@ -288,7 +288,7 @@
         v-else-if="rss.entries.value.length && !rss.loading.value"
         class="list-end"
       >
-        {{ $t("rss.history_end", { count: rss.entries.value.length }) }}
+        {{ $t("feed.history_end", { count: rss.entries.value.length }) }}
       </p>
       <p v-if="search" class="update-caption">{{ $t("rss.search_hint") }}</p>
     </section>

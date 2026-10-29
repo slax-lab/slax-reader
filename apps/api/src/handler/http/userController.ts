@@ -126,7 +126,6 @@ export class UserController {
   public async handleUserSettingRequest(ctx: ContextManager, request: Request) {
     const req = await RequestUtils.json<{ key: string; value: string }>(request)
     if (!req || typeof req.key !== 'string' || typeof req.value !== 'string') return Failed(ErrorParam())
-    if (req.key === 'account' && (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$/.test(req.value) || req.value.includes('..'))) return Failed(ErrorParam())
 
     await this.userService.saveUserSetting(ctx, req)
     return Successed('ok')

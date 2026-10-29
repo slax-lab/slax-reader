@@ -85,4 +85,3 @@ minimumReleaseAgeExclude:
   - expo-modules-jsi@58.0.16
   - expo-widgets@58.0.21
   - expo@58.0.16
-  - postal-mime@4.1.3

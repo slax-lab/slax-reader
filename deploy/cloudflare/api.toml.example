@@ -18,8 +18,8 @@ enabled = true
 cpu_ms = 300000
 
 [vars]
-# Receiving is opt-in after RSS kind isolation and matching sync rules are live.
-# Dev uses newsletterreader.slax.dev; production uses newsletterreader.slax.com and stays disabled.
+# Receiving requires matching API/Web readiness; Newsletter uses REST without new PowerSync rules.
+# Dev uses newsletterreader.slax.dev; beta/production domain configuration is deferred until dev validation.
 # User addresses use feed+account; enable Subaddressing and route the literal feed address.
 NEWSLETTER_DOMAIN = ""
 # Local defaults. For remote deployment set RUN_ENV = "prod".

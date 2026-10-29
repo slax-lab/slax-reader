@@ -1387,7 +1387,7 @@
     }
   },
   "rss": {
-    "history_end": "{count} entries collected so far.",
+    "history_end": "{count} articles collected so far. No further RSS page links were found.",
     "history_retry": "Earlier articles could not be loaded. Please retry shortly.",
     "history_loading": "Earlier articles are being collected. Try loading again shortly.",
     "title": "Feed",
@@ -1411,7 +1411,7 @@
     "search_hint": "Search loaded articles. Load more to keep looking.",
     "settings": "Labs settings",
     "inbox": "Inbox",
-    "enable_hint": "Enable RSS or Newsletter in Labs to bring new reading here.",
+    "enable_hint": "Enable RSS in Labs, then add your own feeds.",
     "url": "RSS / Atom URL",
     "add": "Add feed",
     "all": "All feeds",
@@ -1462,6 +1462,10 @@
     "invalid": "This KOC invitation is no longer valid.",
     "received": "You have already received a KOC reward.",
     "unavailable": "This reward is unavailable for your current subscription. You can check again later."
+  },
+  "feed": {
+    "enable_hint": "Enable RSS or Newsletter in Labs to bring new reading here.",
+    "history_end": "{count} entries collected so far."
   },
   "newsletter": {
     "title": "Your Newsletter address",

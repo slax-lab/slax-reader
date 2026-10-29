@@ -24,6 +24,8 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 - [x] 6g. Complete fresh runtime/regression/review evidence and start local API/Web for renewed hands-on acceptance before PR handoff.
 - [x] 6h. Record renewed requesting-user acceptance (2026-10-29) of the first-configuration rule and reviewed account-casing, reader-scroll and shared body-typography corrections, and update original PR #349.
 
+- [x] 6i. Audit the complete PR scope, remove iteration-only noise, restore ordinary Reader account policy and original RSS hints, reconcile dev-only rollout guidance, verify and update the original PR.
+
 ## Archive after merge
 
 - [ ] 7. After the task PR merges, classify unchecked tasks and archive this change through a separate documentation PR.

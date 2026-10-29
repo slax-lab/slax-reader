@@ -22,7 +22,7 @@ function fakeContainer() {
 }
 
 describe('handleCronjob', () => {
-  test('shared jobs on */5 run without Newsletter recovery', async () => {
+  test('every job on */5 runs', async () => {
     const { container, called } = fakeContainer()
     const waits: Promise<unknown>[] = []
     await handleCronjob(container, { cron: '*/5 * * * *' }, {} as Env, { waitUntil: (p: Promise<unknown>) => waits.push(p) } as any)

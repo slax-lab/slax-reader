@@ -1389,7 +1389,7 @@
     }
   },
   "rss": {
-    "history_end": "已收集 {count} 篇内容。",
+    "history_end": "目前收录 {count} 篇，未发现更多 RSS 分页链接。",
     "history_retry": "较早文章暂时加载失败，请稍后重试。",
     "history_loading": "正在收录较早文章，请稍后继续加载。",
     "title": "Feed",
@@ -1413,7 +1413,7 @@
     "search_hint": "搜索当前已加载的文章，可加载更多继续查找。",
     "settings": "实验室设置",
     "inbox": "收件箱",
-    "enable_hint": "在 Labs 开启 RSS 或 Newsletter，让新内容汇集于此。",
+    "enable_hint": "在实验室设置中开启 RSS，添加自己的订阅源。",
     "url": "RSS / Atom 地址",
     "add": "添加订阅",
     "all": "全部订阅",
@@ -1464,6 +1464,10 @@
     "invalid": "此 KOC 邀请已失效。",
     "received": "你已经领取过 KOC 推荐奖励。",
     "unavailable": "当前订阅暂时无法领取此奖励，可稍后重新确认。"
+  },
+  "feed": {
+    "enable_hint": "在 Labs 开启 RSS 或 Newsletter，让新内容汇集于此。",
+    "history_end": "已收集 {count} 篇内容。"
   },
   "newsletter": {
     "title": "你的 Newsletter 邮箱",

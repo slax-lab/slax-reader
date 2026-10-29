@@ -344,8 +344,17 @@ async function main() {
         200
       )
     }
-    const daguangAddress = await request('daguang-address-GET', '/v1/user/newsletter_address', { headers: secondHeaders })
+    let daguangAddress = await request('daguang-address-GET', '/v1/user/newsletter_address', { headers: secondHeaders })
     assert.equal(daguangAddress.body.code, 200)
+    assert.equal(daguangAddress.body.data.status, 'invalid_account')
+    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT account FROM sr_user WHERE id=2'), 'DaGuAnG')
+    const repaired = await request('daguang-case-repair', '/v1/user/setting', {
+      method: 'POST',
+      headers: secondHeaders,
+      body: JSON.stringify({ key: 'account', value: 'daguang' })
+    })
+    assert.equal(repaired.body.code, 200)
+    daguangAddress = await request('daguang-address-repaired', '/v1/user/newsletter_address', { headers: secondHeaders })
     assert.equal(daguangAddress.body.data.status, 'not_provisioned')
     assert.equal(resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_platform_bind WHERE platform='newsletter'"), '0')
     assert.equal(
@@ -387,6 +396,16 @@ async function main() {
     evidence.businessAddressPolicy = 'feed+daguang is eligible in the Newsletter subdomain; existing root business mail is outside its namespace'
     // Exercise actual Edge email dispatch, generated DI/router, Prisma transactions and local R2.
     const mailHeaders = { Authorization: `Bearer ${token}` }
+    for (const account of ['Reader.Mixed', '读者Reader']) {
+      const ordinary = await request('ordinary-reader-account', '/v1/user/setting', {
+        method: 'POST',
+        headers: { ...mailHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'account', value: account })
+      })
+      assert.equal(ordinary.body.code, 200)
+      assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT account FROM sr_user WHERE id=1'), account)
+    }
+    evidence.readerAccountPolicy = 'ordinary settings retain spelling and format; Newsletter validates only first issuance'
     assert.equal(
       (
         await request('newsletter-account', '/v1/user/setting', {

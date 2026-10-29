@@ -27,13 +27,13 @@ const enable = async (body: object) => {
 const bindings = async () => (await db.query("SELECT platform_id FROM sr_platform_bind WHERE platform='newsletter'")).rows
 
 describe('confirmed Newsletter setup on existing user settings', () => {
-  test.each(['alex', 'jane.doe', 'Reader01'])('ordinary Reader setting keeps its broader account format: %j', async value => {
+  test.each(['alex', 'jane.doe', 'Reader01', '读者Reader'])('ordinary Reader setting preserves its existing spelling and format: %j', async value => {
     const response = await controller().handleUserSettingRequest(
       ctx,
       new Request('http://local/v1/user/setting', { method: 'POST', body: JSON.stringify({ key: 'account', value }) })
     )
     expect(((await response.json()) as any).code).toBe(200)
-    expect((await db.query('SELECT account FROM sr_user WHERE id=1')).rows).toEqual([{ account: value.toLowerCase() }])
+    expect((await db.query('SELECT account FROM sr_user WHERE id=1')).rows).toEqual([{ account: value }])
   })
   test('plain Labs activation enables the feature without issuing an address', async () => {
     await db.exec('UPDATE sr_user_lab_feature SET enabled=false WHERE user_id=1')

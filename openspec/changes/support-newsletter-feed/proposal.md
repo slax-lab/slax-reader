@@ -12,7 +12,7 @@ Users need permanent Newsletter receiving addresses and one Web Feed for RSS and
 - Merge existing RSS reads and ready Newsletter rows through private REST Feed endpoints. Preserve original RSS APIs, fetching, history, retention, save behavior and PowerSync. Put mixed Web behavior in Feed-owned adapters and delegate RSS-only mode to unchanged RSS code.
 - Add Save to Inbox by copying the received R2 body into a separate standard HTML/text bookmark snapshot; create an owner-isolated bookmark/relation atomically and follow ordinary account-default sharing without a Newsletter-specific override. Repeats/restore preserve personal state and deliberate sharing choices.
 - Show entry-specific Save to Inbox progress in both the mixed Feed list and reader preview, with localized saving text, a motion-aware spinner and duplicate activation prevention. The user requested this acceptance correction on 2026-10-28.
-- Preserve dev newsletterreader.slax.dev and beta/prod/legacy-main newsletterreader.slax.com with one literal feed route plus Cloudflare Subaddressing. No per-user route or new infrastructure service.
+- Configure only dev newsletterreader.slax.dev for the pilot; defer beta/prod/legacy-main domain configuration until dev validation. The planned production suffix remains newsletterreader.slax.com. Use one literal feed route plus Cloudflare Subaddressing, without per-user routes or a new infrastructure service.
 - Present a locally remembered per-user collapsible address card with clear information hierarchy. Labs enablement alone must not issue a permanent address; creation uses the existing setting endpoint only after an explicit full-address confirmation, with accessible inline conflict feedback.
 
 ## Capabilities
@@ -27,7 +27,7 @@ Users need permanent Newsletter receiving addresses and one Web Feed for RSS and
 
 ## Impact
 
-API Workers, one initial Newsletter migration, R2 content, additive Feed contracts and Web UI. Saved copies use ordinary shared bookmark indexing and diagnostics with best-effort post-commit effects; shared search normalization and embedding are unchanged. No new dependencies, Newsletter PowerSync stream or data compatibility for unshipped trials. RSS model/repository/service/content/local-first differences from this PR are reverted to the reviewed upstream baseline.
+API Workers, one initial Newsletter migration, R2 content, additive Feed contracts and Web UI. Saved copies use ordinary shared bookmark indexing and diagnostics with best-effort post-commit effects; shared search normalization and embedding are unchanged. The only added runtime dependency is pinned postal-mime for MIME parsing; there is no Newsletter PowerSync stream or data compatibility for unshipped trials. RSS model/repository/service/content/local-first differences from this PR are reverted to the reviewed upstream baseline.
 
 ## Human approval (2026-10-28)
 
@@ -56,3 +56,8 @@ The user requested Article detail's existing basic styles for Newsletter bodies 
 ## Renewed local acceptance (2026-10-29)
 
 The requesting user confirmed that the current local implementation meets expectations after the account-validation revision, reader-scroll correction and shared Article body typography, and explicitly authorized a brief review and update to original PR #349. The existing runtime and synthetic fixture evidence retain their recorded scope; this acceptance does not authorize hosted deployment or merge.
+
+
+## Scope audit (2026-10-29)
+
+The user requested a whole-PR audit for unrelated changes left by prior iterations. Restore the generic cron-test title, generator-owned route formatting and unrelated dependency ordering; remove the temporary MIME release-age exception after validating the frozen lockfile. General Reader settings must retain their prior accepted spelling and format; only first Newsletter issuance has the new lowercase-alphanumeric rule. Retain atomic account-conflict checks required by the setup flow. Private configuration PR #7 now configures dev only; beta/prod/legacy-main domain settings are deferred until dev validation. Earlier plan documents are historical records rather than current construction instructions.
