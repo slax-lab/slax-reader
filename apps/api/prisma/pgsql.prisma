@@ -890,39 +890,39 @@ model sr_podcast_episode {
     @@index([transcript_status, next_retry_at])
 }
 
-/// One received mail; admission and publication share this row, independently of RSS.
+/// 每封收到的邮件对应一条记录，收件登记和正文发布共用此记录，与 RSS 独立存储。
 model sr_newsletter_feed {
-    /// Auto-increment message identity; serialize as decimal text for newsletter:<id> and saved targets.
+    /// 邮件自增主键；对外以十进制字符串传递，用于 newsletter:<id> 和收藏目标标识。
     id                BigInt    @id @default(autoincrement())
-    /// Logical sr_user.id owner; live-user/Lab checks authorize access without a new foreign key.
+    /// 所属用户的 sr_user.id；通过用户未注销及 Labs 开关校验访问权限，不新增外键约束。
     user_id           Int
-    /// SHA-256 of owner UUID + newline + canonical sender; owner-local source group, not an RSS id.
+    /// 由用户 UUID、换行符和规范化发件邮箱计算 SHA-256，作为该用户内的来源分组标识，与 RSS ID 无关。
     source_key        String
-    /// Validated canonical lowercase From mailbox used with the owner UUID to derive source_key.
+    /// 校验并规范化为小写的 From 发件邮箱，与用户 UUID 一起用于计算 source_key。
     sender            String
-    /// Safe From display name with mailbox fallback; display metadata, never an ownership key.
+    /// 安全处理后的 From 显示名称，缺失时使用发件邮箱；仅用于展示，不用于判断归属。
     sender_name       String    @default("")
-    /// SHA-256 of Message-ID or deterministic MIME/body/attachment identity; part of the dedupe key.
+    /// 由 Message-ID 或确定性的 MIME、正文及附件标识计算 SHA-256，与 user_id、source_key 共同组成去重键。
     message_key       String
-    /// pending admission becomes ready after body publication or cancelled on revocation; no recovery lease.
+    /// 收件时为 pending，正文发布后为 ready，撤销收件资格时为 cancelled；不包含恢复任务的处理租约。
     state             String    @default("pending")
-    /// Safe MIME subject with no-subject fallback; published together with body metadata.
+    /// 安全处理后的 MIME 邮件主题，缺失时使用无主题提示；与正文元数据一并发布。
     title             String    @default("")
-    /// Sanitized selected-body excerpt, capped at 500 characters; not another stored body.
+    /// 从选定并净化后的正文提取的摘要，最多 500 个字符，不另存一份正文。
     summary           String    @default("")
-    /// Final owned Newsletter R2 HTML key: nonempty when ready, null otherwise; Inbox uses separate keys.
+    /// Newsletter 正文 HTML 在 R2 中的最终存储键；ready 时非空，其余状态为空；Inbox 副本使用独立存储键。
     content_key       String?
-    /// Input/body sanitization truncation marker, not a processing failure or retry flag.
+    /// 标记输入或正文净化过程中是否发生截断，不表示处理失败，也不用于控制重试。
     content_truncated Boolean   @default(false)
-    /// Optional validated sender Date for display; not used as the receive-order cursor.
+    /// 校验后的邮件 Date 时间，可为空，仅用于展示，不参与收件顺序分页。
     published_at      DateTime?
-    /// Server admission timestamp for daily quota and descending pagination, with numeric id as tie-breaker.
+    /// 服务端收件登记时间，用于每日限额及倒序分页；时间相同时按数值型 id 排序。
     received_at       DateTime  @default(now())
 
-    /// One admission per owner, sender source and message identity.
+    /// 同一用户、发件来源和邮件标识只允许登记一次。
     @@unique([user_id, source_key, message_key])
-    /// Owner-wide receive-order pagination.
+    /// 支持按用户查询，并按收件时间和 id 倒序分页。
     @@index([user_id, received_at(sort: Desc), id(sort: Desc)])
-    /// Owner/source receive-order pagination.
+    /// 支持按用户及来源查询，并按收件时间和 id 倒序分页。
     @@index([user_id, source_key, received_at(sort: Desc), id(sort: Desc)])
 }
