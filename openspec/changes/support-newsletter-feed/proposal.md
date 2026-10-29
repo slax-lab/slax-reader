@@ -27,7 +27,7 @@ Users need permanent Newsletter receiving addresses and one Web Feed for RSS and
 
 ## Impact
 
-API Workers, one initial Newsletter migration, R2 content, additive Feed contracts and Web UI. Saved copies use ordinary shared bookmark indexing and diagnostics with best-effort post-commit effects; shared search normalization and embedding are unchanged. The only added runtime dependency is pinned postal-mime for MIME parsing; there is no data compatibility for unshipped trials. Newsletter and RSS remain separate database tables and sync streams. RSS model/repository/service/content/local-first differences from this PR are reverted to the reviewed upstream baseline.
+API Workers, one initial Newsletter migration, R2 content, additive Feed contracts and Web UI. Saved copies use ordinary shared bookmark indexing and diagnostics with best-effort post-commit effects; shared search normalization and embedding are unchanged. The added MIME dependencies are pinned postal-mime and @zone-eu/mailsplit for bounded stream filtering; there is no data compatibility for unshipped trials. Newsletter and RSS remain separate database tables and sync streams. RSS model/repository/service/content/local-first differences from this PR are reverted to the reviewed upstream baseline.
 
 ## Human approval (2026-10-28)
 
@@ -73,3 +73,8 @@ After the revised local environment was made available, the requesting user repo
 ## Latest dev integration before PR delivery (2026-10-29)
 
 GitHub reported the task branch conflicting with the latest dev. The four conflicts were an additive CrawlService import and three Mobile test-loader maps. Preserve both MarkRepo and the internal Newsletter acquisition guard; use dev's simplified SourceDrawer fixture plus the Newsletter source-url boundary. Auto-merged Reader/Library changes preserve dev's UI work and the Newsletter HTTP-only original policy. The branch inherits dev's already-approved Mobile 1.0.25/build 794/previous 793 without any additional version increment. Earlier build 784 records describe the pre-sync baseline; no downgrade is made. This sync adds no Newsletter schema change or unrelated feature diff against dev.
+
+
+## Four-comment follow-up approval (2026-10-29)
+
+The requesting user approved [Newsletter Review Follow-up](../../../docs/superpowers/plans/2026-10-29-newsletter-review-followup.md) after self-review and independent builder review, and authorized implementation in the existing worktree followed by local API/Web startup for hands-on acceptance. Web follows Mobile's explicit HTTP(S)-only original-link policy. Feed ordering has one common contract and literal parity fixtures while keeping database pagination and local execution. Resource-cleanup failure is diagnostic and cannot change a successful receive or replace an original receive error. Inbound mail accepts up to 25 MiB through a bounded MIME splitter; ordinary attachment bytes are drained, retained text and CID budgets remain independent, and the existing parser handles only reconstructed retained content. This supersedes the earlier 5 MiB raw-mail limit. No migration, RSS persistence/stream change, Workflow, new cron or hosted configuration/deployment is included. The new splitter must first pass actual workerd compatibility checks under existing flags. No PR push occurs before renewed acceptance.

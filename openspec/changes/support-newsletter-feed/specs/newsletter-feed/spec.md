@@ -36,7 +36,7 @@ The system SHALL provision a Newsletter address only for an authenticated active
 - **THEN** it can receive a prefixed Newsletter address without claiming daguang@slax.app, and root/foreign-domain mail cannot enter its Newsletter
 
 ### Requirement: Bounded private incoming Newsletter
-The Edge Worker SHALL accept email through a dedicated email handler. Ownership SHALL derive from the full SMTP envelope recipient, configured domain and active platform binding, never header To. Dispatch SHALL require feed+ and exactly one valid non-empty account token, accepting case variations but rejecting bare feed, unprefixed accounts, other prefixes and additional plus details before content storage. Newsletter Lab and active user SHALL be checked at admission and final commit. The system SHALL bound raw mail to 5 MiB, MIME nesting, part count and headers, admit at most 200 sources per user and 200 new messages per UTC day, and preserve binary attachment metadata without storing attachment bytes. It SHALL not log private email data.
+The Edge Worker SHALL accept email through a dedicated email handler. Ownership SHALL derive from the full SMTP envelope recipient, configured domain and active platform binding, never header To. Dispatch SHALL require feed+ and exactly one valid non-empty account token, accepting case variations but rejecting bare feed, unprefixed accounts, other prefixes and additional plus details before content storage. Newsletter Lab and active user SHALL be checked at admission and final commit. The system SHALL bound streamed raw mail to 25 MiB, retained content independently, MIME nesting, part count and headers, admit at most 200 sources per user and 200 new messages per UTC day, and preserve binary attachment metadata without storing attachment bytes. It SHALL not log private email data.
 
 #### Scenario: Valid message and MIME variants
 - **WHEN** an enabled user's bound envelope address receives HTML, plain text or multipart mail
@@ -205,3 +205,33 @@ Existing Mobile saved-mail bookmarks SHALL display a Newsletter source rather th
 #### Scenario: Saved mail in Mobile search and Reader
 - **WHEN** an existing Mobile user searches or opens a saved Newsletter bookmark
 - **THEN** its source is recognizable and no nonfunctional original-navigation action is presented
+
+
+### Requirement: Bounded streamed MIME intake
+The receiver SHALL consume original MIME once with a 25 MiB raw-byte bound, hash all bytes and verify declared input length. Ordinary attachment bytes SHALL be drained without accumulation or binary storage, retaining attachment metadata. A splitter SHALL bound retained transfer-decoded HTML and plain text to 2 MiB each, CID raster candidates to 5 MiB collectively and structural bytes to 64 KiB before the existing retained-message parser. Aggregate headers SHALL remain bounded to 64 KiB, depth to 32 and MIME parts to 200. Text/CID excess SHALL preserve a readable prefix or omit a complete image with content_truncated. Referenced CID resolution SHALL preserve original first-match order even if the first candidate was omitted. A transport failure SHALL prevent publication and use sanitized infrastructure failure without explicit permanent rejection. No-ID deduplication SHALL include the full original streamed bytes, including discarded attachments.
+
+#### Scenario: Large ordinary attachment
+- **WHEN** an allowed-size message has a small readable body and an 8 MiB ordinary PDF
+- **THEN** it is received with the body and attachment explanation, without accumulating the ordinary binary in retained content or storing it in R2
+
+#### Scenario: Bounded or failed stream
+- **WHEN** input crosses chunk/MIME boundaries, retained-content budgets, or fails before its declared EOF
+- **THEN** valid retained content remains bounded and encoded images stay complete, and an input failure never publishes a partial message
+
+### Requirement: Receive result survives resource cleanup
+Cleanup SHALL be attempted and timed but SHALL NOT replace a receive success, policy result or original sanitized failure. The one private-data-free summary SHALL report cleanup_failed separately from the existing delivery outcome.
+
+#### Scenario: Successful receive and failed disconnect
+- **WHEN** durable publication succeeds and a database disconnect fails
+- **THEN** the handler remains successful and the summary reports the successful outcome with cleanup_failed=true
+
+#### Scenario: Receive and cleanup both fail
+- **WHEN** receiving fails before completion and cleanup also fails
+- **THEN** the original sanitized receive error propagates and cleanup contributes diagnostics only
+
+### Requirement: Consistent Web originals and mixed ordering
+Web original-navigation controls SHALL exist only for explicit HTTP(S) targets, following Mobile policy, while Newsletter bookmarks still open their internal Reader. Local and server mixed lists SHALL share the ordering contract of sort_at descending, RSS before Newsletter on a tie, then native ID descending with numeric Newsletter BIGINT comparison. Literal shared fixtures SHALL exercise both implementations and keyset pages.
+
+#### Scenario: Internal mail original and tied pagination
+- **WHEN** internal mail appears in list/detail/preview or mixed entries share a timestamp
+- **THEN** no nonfunctional original link is shown and local/server entry sequences agree without duplicates or gaps
