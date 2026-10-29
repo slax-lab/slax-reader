@@ -23,6 +23,6 @@
 ## 4. PR handoff and cleanup
 
 - [x] 4.1 Run Bugs, Security, and Compliance local pre-push review passes from `REVIEW.md`; independent review found no Important source issues. Record the explicit draft-PR handoff before final acceptance, and verify only the approved body correction, tests, and artifacts are changed.
-- [ ] 4.2 Coordinator: commit/push `feat/fix-youtube-style` from its isolated worktree and open one PR targeting `dev` with `OpenSpec: fix-youtube-style` and actual test/screenshot/acceptance evidence; verify CI/review status without bypassing gates. Do not merge or deploy.
+- [x] 4.2 Commit/push `feat/fix-youtube-style` and open draft PR #441 targeting `dev` with `OpenSpec: fix-youtube-style`, validation evidence, and six uploaded screenshots. Remote head matches the submitted source; required CI is running and final human acceptance remains pending. No merge or deployment occurred.
 - [ ] 4.3 Coordinator: after successful PR handoff, remove only this task's temporary caches and isolated worktree, preserving the submitted branch/PR and the main workspace. Verify cleanup did not discard unsubmitted work.
 - [ ] 4.4 Deferred until a later merge: classify every unchecked task and archive through a separate documentation PR, sequencing after the `restore-media-article-recovery` capability delta; preserve both requirement sets and pass strict OpenSpec validation. This final archive item stays unchecked in the current PR-only task.
