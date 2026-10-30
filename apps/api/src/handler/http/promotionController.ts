@@ -74,6 +74,16 @@ export class PromotionController {
       avatar: 'https://reader-img.slax.com/koc/senl.jpg',
       activity_id: 'senl'
     },
+    senlinkedin: {
+      name: 'Sen',
+      avatar: 'https://reader-img.slax.com/koc/senl.jpg',
+      activity_id: 'senlinkedin'
+    },
+    sensubstack: {
+      name: 'Sen',
+      avatar: 'https://reader-img.slax.com/koc/senl.jpg',
+      activity_id: 'sensubstack'
+    },
     siderealedu: {
       name: 'Sidereal Education',
       avatar: 'https://reader-img.slax.com/koc/siderealedu.jpg',

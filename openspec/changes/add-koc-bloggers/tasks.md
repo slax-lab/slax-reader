@@ -31,3 +31,11 @@ This extension uses `add-koc-bloggers` as the sole active change for `blogger-pr
 - [x] 4.2 Run API typecheck and lint, confirm `add-koc-bloggers` remains the sole active change for `blogger-promotions`, and run strict OpenSpec validation.
 
 This extension keeps `add-koc-bloggers` as the sole active change for `blogger-promotions` to avoid a second concurrent delta for the same capability.
+
+## Sen LinkedIn and Substack extension
+
+- [x] 5.1 Add `senlinkedin` and `sensubstack`, both using Sen's existing name (`Sen`) and avatar URL, while preserving all 14 profiles present before this extension.
+- [x] 5.2 Run API eslint on the touched file, confirm `add-koc-bloggers` remains the sole active change for `blogger-promotions`, and run strict OpenSpec validation.
+- [x] 5.3 Exercise the registry lookup and claim-validation logic from the real compiled module (`PromotionController.BLOGGER_RECORD` hasOwnProperty lookup and the `/receive` activity-id guard) for `senlinkedin`, `sensubstack`, and an unregistered id; record results in `validation.md`.
+
+This extension keeps `add-koc-bloggers` as the sole active change for `blogger-promotions` to avoid a third concurrent delta for the same capability. The full HTTP smoke harness (`pnpm api -- test:http`) could not run in this environment because its Postgres fixture requires Docker at `/var/run/docker.sock`, while this host runs OrbStack's daemon at `~/.orbstack/run/docker.sock` with no `DOCKER_HOST` passthrough in the harness's isolated environment; this is a pre-existing environment gap unrelated to this change's diff, declared here per `docs/DEFINITION-OF-DONE.md` rather than worked around by editing the test harness.
