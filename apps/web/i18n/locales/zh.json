@@ -318,6 +318,11 @@
       "perk": "赠送 60 天 Pro 会员"
     },
     "login_view": {
+      "benefits": {
+        "save": "无限抓取保存与分享",
+        "devices": "在任何设备继续阅读",
+        "space": "建立自己的高质量、无干扰内容空间"
+      },
       "google_login": "Google 登录",
       "share_page_login_tips": "你还没有登录，登录成功后才可进行相关操作",
       "title": "创建你的账号，来了解一下我们吧~",

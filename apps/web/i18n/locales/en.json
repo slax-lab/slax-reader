@@ -318,6 +318,11 @@
       "perk": "60 Free Days of Pro"
     },
     "login_view": {
+      "benefits": {
+        "save": "Save and share without limits",
+        "devices": "Keep reading on any device",
+        "space": "Build your own high-quality, distraction-free reading space"
+      },
       "google_login": "Google Login",
       "share_page_login_tips": "You are not logged in, please log in first",
       "title": "Sign up to start your reading journey",
