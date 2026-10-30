@@ -64,6 +64,8 @@ Pull requests between two long-lived branches — promotion pull requests (`dev`
    - For a pull request: the body must follow the repository template and its Test plan must carry a real evidence trail — what was run, what was exercised in a running environment, and what was not verified and why — linking `openspec/changes/<change-id>/validation.md` when the details live there.
    - For a local pre-push review: hold the change directory's `validation.md` (or the diff's stated exemption) to the same standard before pushing.
    - A missing Test plan section, an empty or boilerplate evidence trail, or evidence contradicting observable facts (for example claiming a check that CI shows failing) is an Important Compliance finding.
+   - Compare completion claims with the original user request, the reported input, and any user instruction that narrows the immediate target. Check that the trail separates the requested outcome from component checks and names substituted dependencies.
+   - A completion claim supported only by component checks, substituted states, or a declared gap is an Important Compliance finding; an accurate partial result that declares its own gap keeps the treatment in the next bullet.
    - A declared gap ("X was not verified, because Y") is not a finding; whether the declared gap is acceptable is the human reviewer's decision. This clause covers agent-executable verification only — the human acceptance in the next bullet admits no declared gap.
    - For UI-visible changes, the trail must also record the human hands-on acceptance that preceded the pull request (who, when, what was adjusted); its absence is an Important Compliance finding.
 

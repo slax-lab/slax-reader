@@ -20,6 +20,8 @@ OpenSpec:
 
 <!-- Evidence is required (see `docs/DEFINITION-OF-DONE.md`): commands run and their results; the scenarios exercised in a running environment, derived from the change's WHEN/THEN scenarios plus the app's smoke flows; what was NOT verified and why. Link openspec/changes/<change-id>/validation.md when details live there. Attach screenshots/recordings with `gh --attach` — never commit them; the text here must stand alone without media. UI-visible changes: record the pre-PR human hands-on acceptance (who, when, what was adjusted). Documentation-, comment-, and typo-scale changes: write "n/a" with the reason. Refactors: state the diff-derived smoke verification (the diff's touched surface, any related living specs, and the app's documented smoke flows). -->
 
+<!-- Behavior changes: state the requested outcome (from the user request and reported input) and mark it verified, partial, or unverified; name the dependencies that were substituted. A declared gap keeps the change reviewable; it does not prove the outcome. -->
+
 ## Checklist
 
 - [ ] Behavior exercised in a running environment and evidence recorded per the Test plan above (or exemption stated with its reason)
