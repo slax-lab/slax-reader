@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {React, act, nativeBoundary, loadComponent, withNativeHost} from '../reader/parity-host.mjs';
 import {SlaxApi} from '../../src/data/api.ts';
 import {appMessages} from '../../src/i18n/appMessages.ts';
+import {messages} from '../../src/i18n/messages.ts';
 import {mobileColors, mobileTypography} from '../../src/theme/index.ts';
 
 async function fixture(host, screen = 'Feedback', locale = 'en', platform = 'ios') {
@@ -27,7 +28,7 @@ async function fixture(host, screen = 'Feedback', locale = 'en', platform = 'ios
   }, async share(file, current) {current(); shares++; assert.equal(JSON.parse((await file.file.text()).trim()).event, 'app.launch');}, export: async () => {}};
   const unexpected = () => {throw new Error('diagnostics must not collect runtime state');};
   const runtime = {sessions, diagnostics: {storage, flush: async () => {flushed++;}}, preferences: {read: unexpected}, getDatabase: unexpected, credentials: {getSnapshot: unexpected}};
-  const translator = language => (key, replacements = {}) => Object.entries(replacements).reduce((value, [key, replacement]) => value.replace(`{${key}}`, replacement), appMessages[language][key] ?? key);
+  const translator = language => (key, replacements = {}) => Object.entries(replacements).reduce((value, [key, replacement]) => value.replace(`{${key}}`, replacement), messages[language][key] ?? appMessages[language][key] ?? key);
   const t = translator(locale);
   const mobile = {api, runtime, t, config: {platform, version: '1.0.25', buildNumber: 794}, repositories: {watchUser(fn) {fn([{email: 'test@example.org'}]); return () => {};}, getBookmark: async () => ({title: 'Article context'})}};
   const telemetry = {firebase: (...args) => events.push(args)};
@@ -38,8 +39,15 @@ async function fixture(host, screen = 'Feedback', locale = 'en', platform = 'ios
   });
   const components = {...host.components, ScreenSurface, SourceDialog: props => {dialog = props; return props.visible ? React.createElement(host.native.View, null, props.children, props.actions) : null;}};
   const module = await loadComponent(`../../src/screens/${screen}Screen.tsx`, {react: React, 'react-native': native, '../components': components, '../runtime': {useMobile: () => mobile}, '../telemetry': {useTelemetry: () => telemetry}, '../theme': {mobileColors, mobileTypography}}, {TextEncoder, Blob});
-  const navigation = {setOptions(value) {navigationOptions = value;}, goBack() {back++;}, navigate(...args) {navigations.push(args);}};
-  const element = () => React.createElement(module[`${screen}Screen`], {navigation, route: {key: 'feedback', params: {bookmarkId: 'bookmark', entryPoint: 'reader', targetUrl: 'https://example.org/article'}}});
+  const route = {key: 'feedback', params: {bookmarkId: 'bookmark', entryPoint: 'reader', targetUrl: 'https://example.org/article'}};
+  function MountedScreen() {
+    const [options, setOptions] = React.useState({});
+    const navigation = React.useMemo(() => ({setOptions(value) {navigationOptions = value; setOptions(value);}, goBack() {back++;}, navigate(...args) {navigations.push(args);}}), []);
+    return React.createElement(React.Fragment, null,
+      React.createElement(host.native.View, {testID: 'navigation-header'}, options.headerRight?.()),
+      React.createElement(module[`${screen}Screen`], {navigation, route}));
+  }
+  const element = () => React.createElement(MountedScreen);
   await host.render(element()); await host.settle();
   return {api, storage, element, requests, files, events, navigations, t, async setLocale(value) {mobile.t = translator(value); await host.render(element());}, setMode(value) {mode = value;}, resolve() {deferred?.();}, replaceAccount() {epoch++; for (const listener of listeners) listener();},
     stats: () => ({staged, released, flushed, shares, back, listeners: listeners.size}), dialog: () => dialog, options: () => navigationOptions,
@@ -48,25 +56,59 @@ async function fixture(host, screen = 'Feedback', locale = 'en', platform = 'ios
   };
 }
 
-for (const locale of ['en', 'zh']) for (const platform of ['ios', 'android']) test(`mounted ${locale} ${platform} feedback keeps bounded multiline draft and accessible keyboard actions`, nativeBoundary, async () => withNativeHost(async host => {
+for (const locale of ['en', 'zh']) for (const platform of ['ios', 'android']) test(`mounted ${locale} ${platform} feedback keeps scrollable multiline draft and accessible keyboard actions`, nativeBoundary, async () => withNativeHost(async host => {
   const f = await fixture(host, 'Feedback', locale, platform);
   assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, false);
   assert.equal(host.props.get('feedback-follow-up').accessibilityState.checked, true);
   assert.equal(host.props.get('feedback_submit').disabled, true);
-  const input = host.props.get('feedback_input'); assert.equal(input.multiline, true); assert.equal(input.submitBehavior, 'newline'); assert.ok(input.style.height <= 160);
+  const input = host.props.get('feedback_input'); assert.equal(input.multiline, true); assert.equal(input.submitBehavior, 'newline'); assert.equal(input.scrollEnabled, true);
   assert.equal(host.props.get('feedback-scroll').keyboardShouldPersistTaps, 'handled');
   const surfaceStyle = Object.assign({}, ...host.props.get('feedback_screen').style.filter(Boolean));
   assert.equal(surfaceStyle.paddingBottom, platform === 'android' ? 48 : 34);
   assert.equal(host.props.get('feedback-keyboard-layout').behavior, platform === 'ios' ? 'padding' : 'height');
   await act(async () => host.props.get('feedback-measured-surface').onLayout());
   assert.equal(host.props.get('feedback-keyboard-layout').keyboardVerticalOffset, 200);
-  await f.type('first\nsecond'); await act(async () => f.options().headerRight().props.onPress());
-  assert.equal(host.dismisses(), 1); assert.equal(host.props.get('feedback_input').value, 'first\nsecond'); assert.equal(f.requests.length, 0);
+  assert.ok(host.window.document.querySelector('[data-testid="navigation-header"] [data-testid="feedback_submit"]'));
+  for (const [value, disabled] of [[' \n ', true], ['a', false], ['', true], ['first\nsecond', false]]) {
+    await f.type(value); assert.equal(host.props.get('feedback_submit').disabled, disabled);
+  }
   assert.match(host.props.get('feedback-attach-logs').accessibilityHint, locale === 'en' ? /anyone.*seven days|seven days.*anyone/ : /七天.*任何人/);
+  await f.press('feedback-form');
+  assert.equal(host.dismisses(), 1); assert.equal(host.props.get('feedback_input').value, 'first\nsecond'); assert.equal(f.requests.length, 0);
   await f.press('feedback-follow-up'); assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, false);
+  assert.equal(host.dismisses(), 1); assert.equal(host.props.get('feedback_input').value, 'first\nsecond'); assert.equal(f.requests.length, 0);
+  for (const checked of [true, false]) {
+    await f.press('feedback-attach-logs');
+    assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, checked);
+    assert.equal(host.props.get('feedback-follow-up').accessibilityState.checked, false);
+    assert.equal(host.dismisses(), 1, 'Consent toggles do not dismiss the editing keyboard');
+    assert.equal(host.props.get('feedback_input').value, 'first\nsecond'); assert.equal(f.requests.length, 0);
+  }
   await f.press('feedback_submit'); assert.equal(f.requests.length, 1); assert.equal(f.stats().staged, 0); assert.equal(f.stats().flushed, 0);
+  assert.equal(host.dismisses(), 2);
   const body = JSON.parse(f.requests[0].body); assert.equal(body.content, 'first\nsecond'); assert.equal(body.bookmark_uuid, 'bookmark'); assert.equal(body.allow_follow_up, false);
-  assert.equal(f.dialog().title, 'feedback_success_title'); assert.equal(host.props.get('feedback_input').value, '');
+  assert.equal(f.dialog().title, f.t('feedback_success_title')); assert.equal(host.props.get('feedback_input').value, '');
+}));
+
+for (const locale of ['en', 'zh']) test(`mounted ${locale} feedback toggles attachment consent without expanding row text`, nativeBoundary, async () => withNativeHost(async host => {
+  const f = await fixture(host, 'Feedback', locale);
+  const rows = [...host.window.document.querySelectorAll('[data-testid="feedback-follow-up"], [data-testid="feedback-attach-logs"]')];
+  assert.equal(rows[0].dataset.testid, 'feedback-follow-up');
+  const followUpText = locale === 'en' ? 'Allow follow-up at test@example.org' : '允许通过 test@example.org 进行跟进';
+  assert.equal(host.props.get('feedback-follow-up').accessibilityLabel, followUpText);
+  assert.equal(rows[0].textContent, followUpText);
+  assert.equal(host.window.document.body.textContent.includes(appMessages[locale].feedback_attach_logs_disclosure), false);
+  const attachmentText = rows[1].textContent;
+  await f.type('draft'); await f.press('feedback-attach-logs');
+  assert.equal(host.dismisses(), 0); assert.equal(host.focused(), 0); assert.equal(f.requests.length, 0); assert.equal(host.props.get('feedback_input').value, 'draft');
+  assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, true);
+  assert.equal(host.props.get('feedback-follow-up').accessibilityState.checked, true);
+  assert.equal(rows[1].textContent, attachmentText);
+  assert.equal(host.window.document.body.textContent.includes(appMessages[locale].feedback_attach_logs_disclosure), false);
+  await f.press('feedback-attach-logs');
+  assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, false);
+  assert.equal(host.dismisses(), 0); assert.equal(host.focused(), 0);
+  assert.equal(host.window.document.body.textContent.includes(appMessages[locale].feedback_attach_logs_disclosure), false);
 }));
 
 test('mounted checked feedback retries fresh files, retains consent and draft on every failure, then clears on success', nativeBoundary, async () => withNativeHost(async host => {
@@ -74,7 +116,7 @@ test('mounted checked feedback retries fresh files, retains consent and draft on
   for (const mode of ['export', 'network', 'persistence']) {
     f.setMode(mode); await f.press('feedback_submit');
     assert.equal(host.props.get('feedback_input').value, 'Keep my draft'); assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, true);
-    assert.equal(f.dialog().title, 'feedback_error_title'); assert.equal(host.props.get('feedback_submit').disabled, false);
+    assert.equal(f.dialog().title, f.t('feedback_error_title')); assert.equal(host.props.get('feedback_submit').disabled, false);
   }
   f.setMode('success'); await f.press('feedback_submit');
   assert.equal(f.stats().staged, 4); assert.equal(f.requests.length, 3); assert.ok(f.requests.every(request => request.body instanceof FormData));
@@ -85,11 +127,13 @@ test('mounted checked feedback retries fresh files, retains consent and draft on
   assert.equal(f.stats().released, 3); assert.equal(host.props.get('feedback_input').value, ''); assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, false);
 }));
 
-test('mounted submission is single-flight and cancel aborts without late success', nativeBoundary, async () => withNativeHost(async host => {
+test('mounted submission is single-flight and leaving aborts without late success', nativeBoundary, async () => withNativeHost(async host => {
   const f = await fixture(host); f.setMode('pending'); await f.type('pending draft'); await f.press('feedback-attach-logs');
   await f.press('feedback_submit'); await f.press('feedback_submit'); assert.equal(f.requests.length, 1); assert.equal(host.props.get('feedback_input').editable, false);
-  assert.equal(host.props.get('feedback-attach-logs').disabled, true); await f.press('feedback-cancel'); assert.equal(f.stats().back, 1); assert.equal(f.requests[0].signal.aborted, true);
-  f.resolve(); await host.settle(); assert.equal(f.events.length, 0); assert.equal(host.props.get('feedback_input').value, 'pending draft'); assert.equal(f.stats().released, 1);
+  assert.equal(host.props.get('feedback_submit').disabled, true);
+  assert.equal(host.props.get('feedback_submit').label, 'Submitting...');
+  assert.equal(host.props.get('feedback-attach-logs').disabled, true); await host.render(null); assert.equal(f.requests[0].signal.aborted, true);
+  f.resolve(); await host.settle(); assert.equal(f.events.length, 0); assert.equal(f.stats().released, 1);
 }));
 
 test('account replacement while preparing logs cancels attachment and preserves checked draft', nativeBoundary, async () => withNativeHost(async host => {
