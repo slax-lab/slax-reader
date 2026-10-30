@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import {
   classifyPodcastUrl,
+  parsePocketCastsPage,
   directAudioInfo,
   enrichFromFeed,
   findFeedItem,
@@ -101,6 +102,11 @@ describe('helpers', () => {
 
   test('stripHtml folds tags and entities and caps the length', () => {
     expect(stripHtml('<p>A &amp; B</p><p>C&nbsp;&#8217;s</p>')).toBe('A & B\nC ’s')
+    expect(stripHtml('a&#xff0c;b&#XFF0C;c')).toBe('a，b，c')
+    // A reference above U+10FFFF is page noise, not a capture failure
+    expect(stripHtml('a&#x110000;b&#999999999;c&#0;d')).toBe('abcd')
+    // A surrogate is not a scalar value; it would break UTF-8 encoding of the stored notes
+    expect(stripHtml('a&#xd800;b&#xDFFF;c&#55296;d')).toBe('abcd')
     expect(stripHtml('x'.repeat(5000)).length).toBe(4000)
   })
 
@@ -223,5 +229,88 @@ describe('direct audio and Spotify', () => {
       title: 'Ep',
       coverUrl: 'https://i.scdn.co/x'
     })
+  })
+})
+
+describe('Pocket Casts', () => {
+  const short = 'https://pca.st/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+  const canonical = 'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+  const html = () => fixture('20261027-pocket-casts.html')
+
+  test.each([short, canonical, canonical + '?utm_source=share'])('recognizes %s', url => {
+    expect(classifyPodcastUrl(url)).toBe('pocketcasts')
+  })
+
+  test.each([
+    'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2',
+    'https://pca.st/podcast/123',
+    'https://pca.st.evil.test/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+  ])('rejects non-episode %s', url => {
+    expect(classifyPodcastUrl(url)).toBeNull()
+  })
+
+  test('reads rendered metadata without treating the site language as the audio language', async () => {
+    const info = parsePocketCastsPage(short, html())!
+    expect(info).toMatchObject({
+      kind: 'pocketcasts',
+      audioUrl: 'https://media.example.com/episode.m4a',
+      showName: '高能量',
+      durationSec: 5160,
+      language: null,
+      languageTag: null,
+      shownotes: 'Episode notes.',
+      transcripts: []
+    })
+    expect(await podcastSourceId(info.audioUrl)).toBe(await podcastSourceId(parsePocketCastsPage(canonical, html())!.audioUrl))
+  })
+
+  test.each(['http://127.0.0.1/private.mp3', 'https://user:pass@example.com/episode.mp3', 'javascript:alert(1)', 'file:///episode.mp3'])('rejects unsafe media %s', url => {
+    expect(parsePocketCastsPage(short, html().replace('https://media.example.com/episode.m4a', url))).toBeNull()
+  })
+
+  test('reads typed publisher transcripts and ignores the HTML viewer', () => {
+    const page = html().replace('</head>', '<link rel="transcript" type="text/vtt" href="https://publisher.example/episode.vtt" hreflang="zh"><link rel="transcript" href="https://publisher.example/viewer"></head>')
+    expect(parsePocketCastsPage(short, page)!.transcripts).toEqual([{ url: 'https://publisher.example/episode.vtt', type: 'text/vtt', language: 'zh' }])
+  })
+
+  test('missing audio remains a normal page', () => {
+    expect(parsePocketCastsPage(short, '<html><h1>Episode</h1></html>')).toBeNull()
+  })
+
+  test('reads the captured rendered page, so markup drift fails here first', () => {
+    const resolved = 'https://pocketcasts.com/podcast/%E9%AB%98%E8%83%BD%E9%87%8F/642bf450-e9fa-013a-da18-0acc26574db2/vol238/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+    const info = parsePocketCastsPage(resolved, fixture('20261027-pocket-casts-rendered.html'))!
+    expect(info).toMatchObject({
+      kind: 'pocketcasts',
+      audioUrl: 'https://dts-api.xiaoyuzhoufm.com/track/62c6ae08c4eaa82b112b9c84/6ad73cbbef67611cac7972a7/media.xyzcdn.net/62c6ae08c4eaa82b112b9c84/lptdvCfn8Elgq5cwD6ZgmqO5zmdS.m4a',
+      title: 'Vol.238 宏观漫谈112｜全球资本市场，集体“缺钱”？',
+      showName: '高能量',
+      coverUrl: 'https://static.pocketcasts.com/discover/images/webp/480/642bf450-e9fa-013a-da18-0acc26574db2.webp',
+      durationSec: 5160,
+      transcripts: []
+    })
+    expect(info.shownotes).toContain('【内容索引】')
+    expect(info.shownotes).not.toContain('<')
+  })
+
+  test('the og:description fallback decodes the hex entities the real page carries', () => {
+    const resolved = 'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+    const html = fixture('20261027-pocket-casts-rendered.html').replace(/class="[^"]*_showNotesWrapper_[^"]*"/, 'class="notes"')
+    const info = parsePocketCastsPage(resolved, html)!
+    expect(info.shownotes).toContain('《宏观漫谈》，《高能量》首档专栏节目')
+    expect(info.shownotes).not.toContain('&#')
+  })
+
+  test('skips download anchors that are not audio, and rejected candidates fall through', () => {
+    const audio = '<a download href="https://media.example.com/episode.m4a">Download</a>'
+    const page = html().replace(audio, '<a download href="/transcript.pdf">PDF</a><a download href="http://127.0.0.1/first.m4a">LAN</a>' + audio)
+    expect(parsePocketCastsPage(short, page)!.audioUrl).toBe('https://media.example.com/episode.m4a')
+    expect(parsePocketCastsPage(short, html().replace(audio, '<a download href="/transcript.pdf">PDF</a>'))).toBeNull()
+  })
+
+  test('structured audio comes before download anchors; an unsafe one falls through', () => {
+    const og = (url: string) => html().replace('</head>', `<meta property="og:audio" content="${url}"></head>`)
+    expect(parsePocketCastsPage(short, og('https://cdn.example.com/structured.mp3'))!.audioUrl).toBe('https://cdn.example.com/structured.mp3')
+    expect(parsePocketCastsPage(short, og('https://user:pass@cdn.example.com/structured.mp3'))!.audioUrl).toBe('https://media.example.com/episode.m4a')
   })
 })

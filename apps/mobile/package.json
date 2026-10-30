@@ -1,8 +1,8 @@
 {
   "name": "@apps/slax-reader-mobile",
-  "version": "1.0.25",
-  "buildNumber": 793,
-  "previousBuildNumber": 792,
+  "version": "1.0.26",
+  "buildNumber": 797,
+  "previousBuildNumber": 796,
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -35,6 +35,8 @@
     "pods": "node tooling/native-build.mjs pods",
     "fixture:project": "node tooling/fixture-project.mjs",
     "bundle": "expo export --platform all --output-dir dist",
+    "preupdate:publish": "node tooling/pdf-assets.mjs",
+    "update:publish": "SLAX_MOBILE_OTA=1 SLAX_MOBILE_NO_LOCAL_CONFIG=1 EXPO_NO_DOTENV=1 eas update --channel production --environment production --platform all",
     "check": "node tooling/check.mjs"
   },
   "dependencies": {
@@ -67,11 +69,13 @@
     "expo-secure-store": "~58.0.2",
     "expo-sensors": "~58.0.4",
     "expo-sharing": "~58.0.19",
+    "expo-updates": "~58.0.18",
     "markdown-it": "15.0.2",
     "markdown-it-cjk-friendly": "3.0.0",
     "react": "19.3.0",
     "react-native": "0.88.0",
     "react-native-gesture-handler": "~3.3.0",
+    "react-native-logs": "5.6.0",
     "react-native-nitro-google-signin": "2.3.0",
     "react-native-nitro-modules": "0.37.1",
     "react-native-reanimated": "4.7.1",

@@ -46,7 +46,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
         if (previousOrigin !== session.apiUrl) {
           // Local data belongs to the previous API. A development origin switch clears it
           // through the normal account lifecycle instead of migrating or adopting it.
-          await runtime.sessions.signOut();
+          await runtime.sessions.signOut(true, 'environment_switch');
           await runtime.preferences.update(next => {next[DEV_ORIGIN] = session.apiUrl;});
         }
         await runtime.sessions.accept(session.token, session.userId);

@@ -7,7 +7,7 @@ type FeedListProps<T> = Omit<FlatListProps<T>, 'onScroll' | 'onScrollBeginDrag' 
   /** Only the visible feed answers the iOS status-bar scroll-to-top gesture. */
   active?: boolean;
   onScroll?(event: FeedScrollSample): void; onScrollBeginDrag?(): void; onScrollEndDrag?(event: FeedScrollSample): void; onMomentumScrollBegin?(): void; onMomentumScrollEnd?(event: FeedScrollSample): void;
-  /** True from the first drag until the list rests (momentum end, or no movement for a short idle window). */
+  /** True throughout a held drag, then until momentum ends or the released list reaches its idle window. */
   onScrollActivity?(scrolling: boolean): void;
   /** Identifies the content set (e.g. RSS source, Library list). A change replaces the data in place without a scroll-to-top animation. */
   contentScope?: string | null;
@@ -38,20 +38,21 @@ export function FeedList<T>({ref, active = true, onScroll, onScrollBeginDrag, on
     return () => {clearTimeout(timer); clearTimeout(frame);};
   }, [replacing, props.data]);
   const activity = useRef(onScrollActivity); activity.current = onScrollActivity;
-  const mounted = useRef(true), busy = useRef(false), idle = useRef<ReturnType<typeof setTimeout> | null>(null), lastScroll = useRef(-Infinity);
+  const mounted = useRef(true), busy = useRef(false), dragging = useRef(false), idle = useRef<ReturnType<typeof setTimeout> | null>(null), lastScroll = useRef(-Infinity);
   const setBusy = useCallback((next: boolean) => {
     if (idle.current) {clearTimeout(idle.current); idle.current = null;}
     if (busy.current === next) return;
     busy.current = next; activity.current?.(next);
   }, []);
   const settleLater = useCallback(() => {
-    if (!busy.current) return;
+    if (!busy.current || dragging.current) return;
     if (idle.current) clearTimeout(idle.current);
-    idle.current = setTimeout(() => {idle.current = null; setBusy(false);}, scrollIdle);
+    idle.current = setTimeout(() => {idle.current = null; if (!dragging.current) setBusy(false);}, scrollIdle);
   }, [setBusy]);
-  useEffect(() => {mounted.current = true; return () => {setBusy(false); mounted.current = false;};}, [setBusy]);
+  useEffect(() => {mounted.current = true; return () => {dragging.current = false; setBusy(false); mounted.current = false;};}, [setBusy]);
+  useEffect(() => {if (!active) {dragging.current = false; setBusy(false);}}, [active, setBusy]);
   // Handlers close over this render's callbacks, so an event already in flight keeps the callbacks of its own feed lifetime.
-  const beginDrag = useCallback(() => {if (mounted.current) {setBusy(true); onScrollBeginDrag?.();}}, [onScrollBeginDrag, setBusy]);
+  const beginDrag = useCallback(() => {if (mounted.current) {dragging.current = true; setBusy(true); onScrollBeginDrag?.();}}, [onScrollBeginDrag, setBusy]);
   const scroll = useCallback((event: FeedScrollSample) => {
     if (!mounted.current) return;
     settleLater();
@@ -59,9 +60,9 @@ export function FeedList<T>({ref, active = true, onScroll, onScrollBeginDrag, on
     if (now - lastScroll.current < feedScrollInterval) return;
     lastScroll.current = now; onScroll?.(event);
   }, [onScroll, settleLater]);
-  const endDrag = useCallback((event: FeedScrollSample) => {if (mounted.current) {settleLater(); onScrollEndDrag?.(event);}}, [onScrollEndDrag, settleLater]);
+  const endDrag = useCallback((event: FeedScrollSample) => {if (mounted.current) {dragging.current = false; settleLater(); onScrollEndDrag?.(event);}}, [onScrollEndDrag, settleLater]);
   const momentumBegin = useCallback(() => {if (mounted.current) {setBusy(true); onMomentumScrollBegin?.();}}, [onMomentumScrollBegin, setBusy]);
-  const momentumEnd = useCallback((event: FeedScrollSample) => {if (mounted.current) {setBusy(false); onMomentumScrollEnd?.(event);}}, [onMomentumScrollEnd, setBusy]);
+  const momentumEnd = useCallback((event: FeedScrollSample) => {if (mounted.current) {if (!dragging.current) setBusy(false); onMomentumScrollEnd?.(event);}}, [onMomentumScrollEnd, setBusy]);
   return <FlatList<T> ref={ref} {...props} onScroll={scroll} onScrollBeginDrag={beginDrag} onScrollEndDrag={endDrag} onMomentumScrollBegin={momentumBegin} onMomentumScrollEnd={momentumEnd} scrollEventThrottle={feedScrollInterval}
     maintainVisibleContentPosition={replacing ? undefined : visiblePosition} windowSize={9} maxToRenderPerBatch={Platform.OS === 'ios' ? 5 : 1}
     // iOS keeps clipping off: RN's own default, and detached image rows there can come back blank.

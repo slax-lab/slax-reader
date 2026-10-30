@@ -112,6 +112,7 @@ async function main() {
       JWT_EXPIRES: '3600',
       JWT_ISSUER: 'isolated-http-smoke',
       JWT_SECRET_TEXT: randomUUID() + randomUUID(),
+      DIAGNOSTIC_DOWNLOAD_SECRET: randomUUID() + randomUUID(),
       HASH_IDS_SALT: randomUUID(),
       EDGE_SHARED_SECRET: randomUUID(),
       FRONT_END_URL: 'https://reader.smoke.invalid',
@@ -132,7 +133,7 @@ async function main() {
         {
           ...shared,
           name: 'root-tooling-local-core',
-          main: localPath('apps/api/src/entry/core/index.ts'),
+          main: localPath('apps/api/test/runtime/diagnosticWorker.ts'),
           hyperdrive: [
             { binding: 'HYPERDRIVE', id: '00000000000000000000000000000002', localConnectionString: url('http_reader') },
             { binding: 'HYPERDRIVE_LOGS', id: '00000000000000000000000000000003', localConnectionString: url('http_logs') }
@@ -147,7 +148,10 @@ async function main() {
             }
           ],
           kv_namespaces: [{ binding: 'KV', id: '00000000000000000000000000000001' }],
-          r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
+          r2_buckets: [
+            { binding: 'OSS', bucket_name: 'http-reader' },
+            { binding: 'DIAGNOSTICS', bucket_name: 'http-diagnostics' }
+          ],
           workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow', script_name: 'root-tooling-local-edge' }],
           durable_objects: { bindings: [{ name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' }] },
           migrations: [{ tag: 'v1', new_classes: ['SlaxWebSocketServer'] }]
@@ -201,7 +205,7 @@ async function main() {
       ['api', '--', 'dev:local', '--edge-config', edgeConfig, '--core-config', coreConfig, '--state', state, '--env-file', resources.emptyEnv, '--port', String(httpPort)],
       {
         cwd: ROOT,
-        env: { ...resources.env, SLAX_API_INHERIT_PROCESS_GROUP: '1' },
+        env: { ...resources.env, SLAX_API_INHERIT_PROCESS_GROUP: '1', SLAX_API_DIAGNOSTIC_HTTP_FIXTURE: '1' },
         detached: true,
         stdio: ['ignore', 'pipe', 'pipe']
       }
@@ -321,6 +325,15 @@ async function main() {
     assert.equal(after.body.code, 200)
     assert.deepEqual(after.body.data, [])
     evidence.sourceShareRetained = true
+    const { exerciseDiagnosticFeedback } = await import('./diagnosticSmoke')
+    evidence.diagnostics = await exerciseDiagnosticFeedback(
+      (path, options) => localFetch(`http://localhost:${httpPort}${path}`, options),
+      headers,
+      query => resources.sql(pg.id, 'http_reader', query),
+      vars.DIAGNOSTIC_DOWNLOAD_SECRET,
+      () => workerLog,
+      async key => (await (await localFetch(`http://localhost:${httpPort}/__fixture/diagnostic-object-missing?key=${encodeURIComponent(key)}`, { headers })).json()) as boolean
+    )
     evidence.status = 'passed'
   } catch (error) {
     evidence.status = 'failed'

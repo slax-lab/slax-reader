@@ -1,4 +1,4 @@
-import type {TextInputInstance} from 'react-native'
+import type {TextInputInstance, TextLayoutEvent} from 'react-native'
 import React, {useEffect, useRef, useState} from 'react'
 import {ActivityIndicator, AppState, Keyboard, Modal, Pressable, StyleSheet, TextInput, View, FlatList} from 'react-native'
 import {SafeAreaProvider, useSafeAreaFrame, useSafeAreaInsets} from 'react-native-safe-area-context'
@@ -62,7 +62,7 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
     <View style={{flexShrink: 1}}>
       <View style={{height: 60, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 12, backgroundColor: C.readerBackground}}><IconAction name="ic_comment_panel_close" label={t('comment_panel_close')} onPress={onClose} /></View>
       <View style={{paddingHorizontal: 20, paddingBottom: 24, backgroundColor: C.readerBackground}}>
-        <SourceText testID="reader-comment-quote" numberOfLines={2} ellipsizeMode="tail" style={{fontSize: 15, lineHeight: 24, textDecorationLine: stroke || mark?.comments.length ? 'underline' : 'none', textDecorationColor: '#CCB69A', textDecorationStyle: stroke ? 'solid' : 'dashed'}}>{mark?.source.some(source => source.type === 'pdf') ? text : text.replace(/\n{2,}/g, '\n')}</SourceText>
+        <CommentQuote key={text} text={mark?.source.some(source => source.type === 'pdf') ? text : text.replace(/\n{2,}/g, '\n')} decoration={stroke ? 'solid' : mark?.comments.length ? 'dashed' : null} />
         <View style={{flexDirection: 'row', justifyContent: 'center', gap: 40, marginTop: 24}}>
           {action('ic_comment_panel_copy', t('comment_panel_copy'), t('comment_panel_copy_highlight_desc'), onCopy)}
           {stroke || allowLine ? action(stroke ? 'ic_comment_panel_highlighted' : 'ic_comment_panel_highlight', t(stroke ? 'comment_panel_remove_highlight' : 'comment_panel_highlight'), t(stroke ? 'comment_panel_remove_highlight_desc' : 'comment_panel_add_highlight_desc'), onHighlight, busy) : null}
@@ -87,6 +87,13 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
     </Modal> : null}
   </>
 }
+function CommentQuote({text, decoration}: {text: string; decoration: 'solid' | 'dashed' | null}) {
+  const [lines, setLines] = useState<TextLayoutEvent['nativeEvent']['lines']>([])
+  return <View style={styles.commentQuote}>
+    <SourceText testID="reader-comment-quote" numberOfLines={2} ellipsizeMode="tail" style={styles.commentQuoteText} onTextLayout={event => setLines(event.nativeEvent.lines)}>{text}</SourceText>
+    {decoration ? lines.slice(0, 2).map((line, index) => line.width > 0 ? <View key={index} testID={`reader-comment-quote-line-${index}`} pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.commentQuoteLine, {left: line.x, top: line.y + line.height, width: line.width, borderStyle: decoration}]} /> : null) : null}
+  </View>
+}
 function CommentActionMenu({anchor, onDismiss, children}: {anchor: CommentMenuAnchor; onDismiss(): void; children: React.ReactNode}) {
   const frame = useSafeAreaFrame(), insets = useSafeAreaInsets()
   const [size, setSize] = useState({width: 0, height: 32})
@@ -100,6 +107,8 @@ function CommentActionMenu({anchor, onDismiss, children}: {anchor: CommentMenuAn
   </>
 }
 const styles = StyleSheet.create({
+  commentQuote: {paddingBottom: 3}, commentQuoteText: {fontSize: 15, lineHeight: 24},
+  commentQuoteLine: {position: 'absolute', height: 3, borderBottomWidth: 1, borderColor: C.markStroke},
   commentMeta: {fontSize: 12, lineHeight: 16.5, color: C.mutedText}, commentAction: {flexDirection: 'row', alignItems: 'center', gap: 5},
   commentEditor: {flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 8, backgroundColor: C.background}, commentInputContainer: {flex: 1, flexDirection: 'row', gap: 8, minHeight: 38, borderRadius: 8, backgroundColor: C.surface, paddingHorizontal: 8}, commentInput: {paddingVertical: 9, paddingHorizontal: 0, fontSize: 14, lineHeight: 20, minHeight: 38, maxHeight: 100, color: C.bodyText, includeFontPadding: false},
   commentSend: {height: 38, borderRadius: 8, paddingHorizontal: 11.5, alignItems: 'center', justifyContent: 'center'}, commentMenu: {position: 'absolute', flexDirection: 'row', alignItems: 'center', backgroundColor: C.selectionMenu, borderRadius: 12, paddingHorizontal: 6}, commentMenuItem: {height: 32, flexDirection: 'row', alignItems: 'center', gap: 1, paddingLeft: 6, paddingRight: 10, borderRadius: 6}, commentMenuText: {fontSize: 15, lineHeight: 21, fontWeight: '500', color: C.selectionText},

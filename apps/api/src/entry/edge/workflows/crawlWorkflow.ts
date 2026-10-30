@@ -78,7 +78,7 @@ type FetchedPayload =
       kind: 'shortCircuit'
       resolvedUrl: string
       data: { title: string; textContent: string; byline: string }
-      isSocialMedia: false
+      isSocialMedia: boolean
     }
 
 export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> {
@@ -223,6 +223,12 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
               // The seed migration turns the switch on for accounts that already save podcasts; this
               // line keeps the silent-page fallback visible for anyone who still has it off.
               console.log(`Podcast link saved as a page for bookmark ${bookmarkId}: podcast Labs is off`)
+            } else if (classifyPodcastUrl(resolvedUrl) === 'pocketcasts' && (await crawlService.keepsAnnotatedBody(ctxManager, bookmarkId))) {
+              // Marks anchor to the current body, so a recapture keeps it. No page is fetched, and the
+              // claimed capture is released as success below, the same as a cached body.
+              console.log(`Pocket Casts recapture kept the annotated body of bookmark ${bookmarkId}`)
+              const textContent = stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : ''
+              return { kind: 'shortCircuit', resolvedUrl, data: { title: stored?.title ?? '', textContent, byline: stored?.byline ?? '' }, isSocialMedia: true }
             } else {
               const info = await trackStep('podcast_fetching', () => crawlService.fetchPodcastData(resolvedUrl, ctxManager))
               if (info) {

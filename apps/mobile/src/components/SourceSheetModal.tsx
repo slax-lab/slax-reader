@@ -1,12 +1,12 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions} from 'react-native';
+import {Animated, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, type ViewStyle} from 'react-native';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {mobileColors} from '../theme';
 import {motionDuration, motionDurationFor} from '../motion/policy';
 import {useReducedMotion} from '../motion/useReducedMotion';
 
-export function SourceSheetModal({visible, onDismiss, onDidDismiss, dismissible = true, children}: {
-  visible: boolean; onDismiss(): void; onDidDismiss?(): void; dismissible?: boolean; children: React.ReactNode;
+export function SourceSheetModal({visible, onDismiss, onDidDismiss, dismissible = true, maxHeight, children}: {
+  visible: boolean; onDismiss(): void; onDidDismiss?(): void; dismissible?: boolean; maxHeight?: ViewStyle['maxHeight']; children: React.ReactNode;
 }) {
   const {height: windowHeight} = useWindowDimensions();
   const [presented, setPresented] = useState(visible), [shown, setShown] = useState(false), [height, setHeight] = useState(0);
@@ -49,7 +49,7 @@ export function SourceSheetModal({visible, onDismiss, onDidDismiss, dismissible 
       <Animated.View testID="source-sheet-backdrop" style={[StyleSheet.absoluteFill, {backgroundColor: mobileColors.scrim, opacity: progress}]}>
         <Pressable accessible={false} style={StyleSheet.absoluteFill} onPress={() => {if (dismissible) onDismiss();}} />
       </Animated.View>
-      <SafeAreaView edges={['left', 'right']} style={{flexShrink: 1}} pointerEvents="box-none">
+      <SafeAreaView edges={['left', 'right']} style={{flexShrink: 1, maxHeight}} pointerEvents="box-none">
       <Animated.View testID="source-sheet-content" accessibilityViewIsModal onLayout={event => setHeight(previous => previous === event.nativeEvent.layout.height ? previous : event.nativeEvent.layout.height)}
         style={{maxHeight: '100%', opacity: reducedMotion ? progress : 1, transform: [{translateY: progress.interpolate({inputRange: [0, 1], outputRange: [reducedMotion ? 0 : height || windowHeight, 0]})}]}}>
         {visible ? children : retained.current}

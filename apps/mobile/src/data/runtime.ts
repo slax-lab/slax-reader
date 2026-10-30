@@ -28,9 +28,12 @@ import { MobileRepositories } from './repositories.ts';
 import { createMobileSchema, LEGACY_MOBILE_TABLES, SYNC_PARAMETERS } from './schema.ts';
 import { UpgradeVerificationRequired } from './upgrade.ts';
 import type { AdoptionEvidence, LegacyInventory } from './upgrade.ts';
+import {createAccountDiagnostics} from '../diagnostics/exchanges.ts';
+import {noDiagnostics, recordDiagnostic} from '../domain/diagnostics.ts';
+import type {MobileDiagnostics} from '../diagnostics/native.ts';
 
 export type UpgradeState = {status: 'idle' | 'checking' | 'ready'} | {status: 'verification-required'; inventory: LegacyInventory} | {status: 'error'; error: Error};
-export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; adoptionEvidence?: AdoptionEvidence; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]} }
+export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { diagnostics?: MobileDiagnostics; betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; adoptionEvidence?: AdoptionEvidence; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]} }
 /** Construct once at the app root; start before mounting account-bound watchers. */
 export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   const bridge = options.nativeBridge ?? loadLegacyBridge();
@@ -118,7 +121,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     async resume() {
       if (stopping) return;
       connector.resume(); network.refresh();
-      offline?.resume();
+      if (offline) {offline.resume(); scheduleWarmup(offline, accountGeneration);}
       void environmentReady?.then(() => readiness.resume()).then(() => {
         if (!stopping && activity.isForeground() && database && accountLease) void connectAccount(database, accountGeneration);
       }).catch(() => undefined);
@@ -219,8 +222,9 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       void api.sendMetrics('heartbeat').catch(() => undefined);
       connector.resume(); connectAccount(opened, generation);
     },
-  });
-  const api = createMobileApi({...options, fetch: options.fetch ?? expoFetch, sessions});
+  }, undefined, {diagnostics: options.diagnostics?.sink});
+  const diagnosticExchanges = createAccountDiagnostics(options.diagnostics?.sink ?? noDiagnostics, () => sessions.captureRequestScope().assertCurrent);
+  const api = createMobileApi({...options, fetch: options.fetch ?? expoFetch, sessions, onFailedExchange: diagnosticExchanges.failed, onAccountSuccess: diagnosticExchanges.succeeded});
   const connector = createSyncConnector(api, preferences, sessions, options.localSyncEndpoint);
   const readiness = new CredentialReadiness({
     read: () => sessions.getSession(),
@@ -228,7 +232,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       const origin = api.options.baseUrl, scope = sessions.captureRequestScope(), prior = await scope.getSession();
       try {await sessions.refreshIfNeeded(api.refresh, signal, () => {if (api.options.baseUrl !== origin) throw new AccountInactiveError();});}
       catch (error) {
-        if (prior && error && typeof error === 'object' && 'status' in error && error.status === 401 && api.options.baseUrl === origin) await sessions.rejectIfMatches(prior.token, scope);
+        if (prior && error && typeof error === 'object' && 'status' in error && error.status === 401 && api.options.baseUrl === origin) await sessions.rejectIfMatches(prior.token, scope, api.getFailedExchange(error)?.http);
         throw error;
       }
     },
@@ -316,8 +320,10 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     if (hasLease) { await bridge.endDataOwnership(); hasLease = false; }
     sessions.releaseLocalOwner(); startPromise = null; storageReady = null; environmentReady = null; emit({status: 'idle'});
   }
+  recordDiagnostic(options.diagnostics?.sink, 'app.launch', {});
   return {
     preferences, sessions, api, start, stop,
+    diagnostics: options.diagnostics,
     credentials: readiness as CredentialReadiness | undefined,
     setForeground: (foreground: boolean) => activity.setForeground(foreground),
     getAccountPreferences: () => accountPreferences,
@@ -346,4 +352,4 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     subscribeUpgrade: (listener: (state: UpgradeState) => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
   };
 }
-export type MobileDataRuntime = Omit<ReturnType<typeof createMobileDataRuntime>, 'credentials'> & {credentials?: CredentialReadiness};
+export type MobileDataRuntime = Omit<ReturnType<typeof createMobileDataRuntime>, 'credentials' | 'diagnostics'> & {credentials?: CredentialReadiness; diagnostics?: MobileDiagnostics};

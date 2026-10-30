@@ -16,7 +16,7 @@ vi.mock('@/decorators/di', () => ({
   inject: () => () => undefined
 }))
 
-import { YoutubeArticleRepo, type YoutubeArticleEvaluation } from '@/infra/repository/dbYoutubeArticle'
+import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION, type YoutubeArticleEvaluation } from '@/infra/repository/dbYoutubeArticle'
 
 const describePg = process.env.RUN_PG_INTEGRATION_TESTS === '1' ? describe : describe.skip
 
@@ -83,6 +83,13 @@ describePg('YoutubeArticleRepo on Postgres', () => {
 
     const skippedBase = await repo.recordEvaluation(evaluation({ source_hash: 'h2', eligibility: { decision: 'review', reason_codes: ['non_en_zh_language'] }, status: 'skipped' }))
     expect((await repo.ensureLanguageRow(skippedBase, 'zh')).status).toBe('skipped')
+  })
+
+  test('ensureLanguageRow creates the current prompt version from a legacy base row', async () => {
+    const legacy = await repo.recordEvaluation(evaluation({ source_hash: 'h3', prompt_version: 'v1' }))
+    const created = await repo.ensureLanguageRow(legacy, 'zh')
+    expect(created).toMatchObject({ target_language: 'zh', prompt_version: YOUTUBE_ARTICLE_PROMPT_VERSION, status: 'pending' })
+    expect((await repo.ensureLanguageRow(legacy, 'zh')).id).toBe(created.id)
   })
 
   test('one run wins the claim; the winning claim is idempotent; only the winner renews and publishes', async () => {

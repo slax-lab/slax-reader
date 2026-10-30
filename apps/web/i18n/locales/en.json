@@ -318,6 +318,11 @@
       "perk": "60 Free Days of Pro"
     },
     "login_view": {
+      "benefits": {
+        "save": "Save and share without limits",
+        "devices": "Keep reading on any device",
+        "space": "Build your own high-quality, distraction-free reading space"
+      },
       "google_login": "Google Login",
       "share_page_login_tips": "You are not logged in, please log in first",
       "title": "Sign up to start your reading journey",
@@ -564,6 +569,11 @@
       "title": "Transcript"
     },
     "youtube_article": {
+      "edited_transcript": "Edited transcript",
+      "introduction": "Introduction · generated",
+      "contents": "Contents",
+      "method": "Method and source",
+      "method_note": "The article follows the video captions in their original order. The introduction is generated separately. Captions and editing can contain errors. Use timestamps to check the video.",
       "title": "AI article",
       "preparing": "Preparing the article, this usually takes 1 to 3 minutes",
       "timeout": "The article is taking longer than usual. Come back later to read it.",
@@ -572,6 +582,8 @@
       "failed": "Could not generate the article.",
       "retry": "Retry",
       "load_failed": "Could not load the article.",
+      "labs_disabled": "Enable YouTube AI articles in Settings → Labs. Then open this bookmark again.",
+      "source_missing": "The article source data is missing. Save the source link again to capture it.",
       "limit_reached": "Daily limit reached, try again tomorrow.",
       "language_note": "This article is in {language}",
       "lang": {

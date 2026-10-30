@@ -17,6 +17,7 @@ The human approved the complete `expo-mobile-migration` proposal on 2026-10-10 a
 | iOS purchases | `expo-iap` | Approved |
 | Firebase wrappers | `@react-native-firebase/app`, `@react-native-firebase/analytics`, `@react-native-firebase/crashlytics` | Approved |
 | Production performance telemetry | SDK-58-compatible `expo-observe`; anonymous installation identity, filtered route parameters, debug/fixture dispatch disabled | Approved in `mobile-eas-observe`; additive to Firebase and first-party telemetry; requires a new native build and does not authorize an EAS Build migration or publication |
+| Over-the-air updates | SDK-58-compatible `expo-updates`; `nativeVersion` runtime, `production` channel, cold-start check without a startup wait, enabled only in EAS `production` builds (`SLAX_MOBILE_OTA=1`) and disabled for local builds, fixtures and non-production origins | Approved in `mobile-ota-updates`; JavaScript-only fixes through `pnpm mobile -- update:publish`; requires a new native build before the first update |
 
 Required transitive runtime dependencies belong to their approved integration; this does not approve unrelated optional packages. Source-native code may fill gaps. Further optional integrations still require specific human approval before adoption.
 

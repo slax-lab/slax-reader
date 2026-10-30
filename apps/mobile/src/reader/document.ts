@@ -1,6 +1,7 @@
 import { readerAssets } from './embedded.generated.ts'
 import {rewriteReaderImageTransports} from './image-transports.ts'
 import {READER_CSP} from './security.ts'
+import {mobileColors} from '../theme/index.ts'
 
 export interface ReaderDocumentOptions {
   pageId: string
@@ -32,7 +33,7 @@ const [templateHead, ...templateTail] = readerAssets.template.split(CONTENT_MARK
   .map(part => part.replace(/\{\{(?:RESET-CSS|ARTICLE-CSS|MARK-CSS|BOTTOM-LINE-CSS|WEBVIEW-BRIGDE-JS)\}\}/g, marker => constantMarkers[marker]!))
 const headAt = templateHead!.indexOf('<head>') + '<head>'.length
 const configurationAt = readerAssets.nativeHostJs.indexOf(CONFIGURATION_MARKER)
-const documentPrefix = `${templateHead!.slice(0, headAt)}<meta http-equiv="Content-Security-Policy" content="${READER_CSP}"><meta name="referrer" content="strict-origin-when-cross-origin">\n<script>${readerAssets.nativeHostJs.slice(0, configurationAt)}`
+const documentPrefix = `${templateHead!.slice(0, headAt)}<meta http-equiv="Content-Security-Policy" content="${READER_CSP}"><meta name="referrer" content="strict-origin-when-cross-origin"><style>:root{caret-color:${mobileColors.textSelection.slice(0, 7)}}</style>\n<script>${readerAssets.nativeHostJs.slice(0, configurationAt)}`
 const documentHostSuffix = `${readerAssets.nativeHostJs.slice(configurationAt + CONFIGURATION_MARKER.length)}</script>${templateHead!.slice(headAt)}`
 
 export function composeReaderDocument(html: string, options: ReaderDocumentOptions): string {

@@ -34,6 +34,8 @@ export async function loadComponent(path, boundaries, globals = {}) {
     'expo-image': {Image: () => null, loadAsync: async () => ({width: 1, height: 1, release() {}})},
     'expo-haptics': {impactAsync: async () => {}, notificationAsync: async () => {}, selectionAsync: async () => {}},
     'expo-clipboard': {getStringAsync: async () => '', setStringAsync: async () => {}},
+    'expo-sharing': {shareAsync: async () => {throw new Error('Native sharing unavailable in parity host');}},
+    'react-native-logs': require('react-native-logs'),
     '@slax-reader/contracts/pdf': {PDF_MAX_BYTES: 50 * 1024 * 1024},
     ...boundaries,
   }

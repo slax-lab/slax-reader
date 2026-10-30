@@ -132,7 +132,8 @@ export function createMockCrawlService() {
     parseAndSaveWeibo: vi.fn(),
     parseAndSaveReddit: vi.fn(),
     parseAndSaveZhihu: vi.fn(),
-    parseAndSaveWeixin: vi.fn()
+    parseAndSaveWeixin: vi.fn(),
+    keepsAnnotatedBody: vi.fn().mockResolvedValue(false)
   }
 }
 

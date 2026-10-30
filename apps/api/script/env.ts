@@ -4,6 +4,7 @@ import { LOCAL_DIR } from './root'
 
 /** Load CLI credentials, never Worker bindings. Explicit shell/CI values win. */
 export function loadApiEnv(): void {
+  if (process.env.SLAX_API_SKIP_DOTENV === '1') return
   const filename = path.join(LOCAL_DIR, '.env')
   const { error } = config({ path: filename, override: false, quiet: true })
   if (error && (error as NodeJS.ErrnoException).code !== 'ENOENT') {

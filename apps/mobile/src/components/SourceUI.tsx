@@ -91,7 +91,7 @@ export function SourceDialog({visible, onDismiss, onDidDismiss, title, children,
   </Modal>;
 }
 export function SourceSheet({visible, onDismiss, busy, children, style, contentContainerStyle, bottomPadding = 24, handleColor}: {visible: boolean; onDismiss(): void; busy?: boolean; children: React.ReactNode; style?: StyleProp<ViewStyle>; contentContainerStyle?: StyleProp<ViewStyle>; bottomPadding?: number; handleColor?: string}) {
-  return <SourceSheetModal visible={visible} onDismiss={onDismiss} dismissible={!busy}>
+  return <SourceSheetModal visible={visible} onDismiss={onDismiss} dismissible={!busy} maxHeight="92%">
     <SheetBody visible={visible} onDismiss={onDismiss} busy={busy} style={style} contentContainerStyle={contentContainerStyle} bottomPadding={bottomPadding} handleColor={handleColor}>{children}</SheetBody>
   </SourceSheetModal>;
 }

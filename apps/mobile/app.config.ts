@@ -14,6 +14,25 @@ const buildVersion = fixtureMode ? {version: '1.0.0', build: '1'} : readBuildVer
 const firebaseIosConfig = fixtureMode ? undefined : process.env.SLAX_MOBILE_FIREBASE_IOS_CONFIG;
 const firebaseAndroidConfig = fixtureMode ? undefined : process.env.SLAX_MOBILE_FIREBASE_ANDROID_CONFIG;
 
+const easProjectId = 'f8949909-ddbf-49f8-a42d-9e70a9c77fda';
+const productionOrigins = {
+  EXPO_PUBLIC_SLAX_API_URL: 'https://api-reader.slax.com',
+  EXPO_PUBLIC_SLAX_BETA_API_URL: 'https://api-reader-beta.slax.com',
+  EXPO_PUBLIC_SLAX_WEB_URL: 'https://r.slax.com',
+  EXPO_PUBLIC_SLAX_WEB_DOMAIN: '.slax.com',
+};
+// Only EAS production builds and `update:publish` set SLAX_MOBILE_OTA, so locally generated projects and
+// local Release builds never fetch production bundles. Updates reach only the same version(buildNumber).
+const productionBuild = process.env.SLAX_MOBILE_OTA === '1' && !fixtureMode
+  && Object.entries(productionOrigins).every(([key, value]) => (process.env[key] ?? value) === value);
+const updates: ExpoConfig['updates'] = productionBuild ? {
+  enabled: true,
+  url: `https://u.expo.dev/${easProjectId}`,
+  checkAutomatically: 'ON_LOAD',
+  fallbackToCacheTimeout: 0,
+  requestHeaders: {'expo-channel-name': 'production'},
+} : {enabled: false};
+
 const providerPlugins: NonNullable<ExpoConfig['plugins']> = fixtureMode ? [] : [
   ['react-native-nitro-google-signin', {
     iosUrlScheme: process.env.EXPO_PUBLIC_SLAX_GOOGLE_IOS_URL_SCHEME ?? sourceAuth.googleIosUrlScheme,
@@ -25,6 +44,8 @@ const config: ExpoConfig = {
   slug: uiFixture ? 'slax-reader-ui-fixture' : 'slax-reader',
   platforms: ['ios', 'android'],
   version: buildVersion.version,
+  runtimeVersion: {policy: 'nativeVersion'},
+  updates,
   orientation: 'portrait',
   userInterfaceStyle: 'light',
   scheme: uiFixture ? fixtureScheme : [sourceAuth.iosApplicationScheme, 'slaxreader'],
@@ -75,7 +96,7 @@ const config: ExpoConfig = {
   ],
   extra: {
     eas: {
-      projectId: 'f8949909-ddbf-49f8-a42d-9e70a9c77fda',
+      projectId: easProjectId,
       ...(!uiFixture ? {
         build: {
           experimental: {

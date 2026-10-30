@@ -61,6 +61,8 @@ export interface YoutubeArticleContentResponse {
 export type YoutubeArticleApiStatus = 'unavailable' | 'limit_reached' | Exclude<YoutubeArticleStatus, 'stale' | 'takedown'>
 
 export interface YoutubeArticleStatusResponse {
+  /** Recovery guidance for the owner only. */
+  unavailable_reason?: 'labs_disabled' | 'source_missing'
   status: YoutubeArticleApiStatus
   language: YoutubeArticleLanguage | null
   requested_language: YoutubeArticleLanguage
@@ -196,6 +198,11 @@ export class YoutubeArticleService {
       }
       const enabled = await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB)
       const result = this.privateStatus(snapshot, requested, access, enabled)
+      // A reason belongs only to an unavailable answer; a ready fallback in another language carries none
+      if (access.isOwner && snapshot.mode === 'capture' && !snapshot.variants[requested] && result.status === 'unavailable') {
+        if (!enabled) result.unavailable_reason = 'labs_disabled'
+        else if (Object.keys(snapshot.variants).length === 0) result.unavailable_reason = 'source_missing'
+      }
       // Only the pending request owned by this capture may initiate acquisition on open.
       if (enabled && access.isOwner && snapshot.mode === 'capture' && snapshot.variants[requested]?.status === 'pending') {
         const row = await this.repo.findVersion(snapshot.sourceId, snapshot.sourceHash, requested)
@@ -207,17 +214,17 @@ export class YoutubeArticleService {
       }
       return result
     }
-    if (!(await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB))) return unavailable
+    const enabled = await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB)
     const ref = await this.repo.findRef(access.bookmarkId)
-    if (!ref) return unavailable
+    if (!ref) return access.isOwner ? { ...unavailable, unavailable_reason: enabled ? 'source_missing' : 'labs_disabled' } : unavailable
 
     let row = await this.repo.findVersion(ref.source_id, ref.source_hash, requested)
-    if (!row && access.isOwner) {
+    if (!row && access.isOwner && enabled) {
       const base = (await this.repo.listForSource(ref.source_id, ref.source_hash))[0]
       if (base) row = await this.repo.ensureLanguageRow(base, requested)
     }
 
-    if (access.isOwner && row && row.status === 'pending' && !row.next_retry_at && eligibilityDecision(row) === 'generate') {
+    if (enabled && access.isOwner && row && row.status === 'pending' && !row.next_retry_at && eligibilityDecision(row) === 'generate') {
       const counted = await this.takeDaily(viewerId, 'auto')
       if (!counted) return { ...this.response(requested, row, access, await this.manualLeft(viewerId)), status: 'limit_reached' }
       const started = await this.start(ctx, row, access.title, 'open')
@@ -235,7 +242,10 @@ export class YoutubeArticleService {
       row = fallback?.status === 'ready' ? fallback : null
     }
 
-    if (!row) return unavailable
+    // A takedown or stale row cannot come back through Settings, so it gives no recovery reason
+    if (row?.status === 'takedown' || row?.status === 'stale') return unavailable
+    if (!enabled && row?.status !== 'ready') return access.isOwner ? { ...unavailable, unavailable_reason: 'labs_disabled' } : unavailable
+    if (!row) return access.isOwner ? { ...unavailable, unavailable_reason: 'source_missing' } : unavailable
     const res = this.response(requested, row, access, access.isOwner ? await this.manualLeft(viewerId) : false)
     return { ...res, ...(await this.bodyState(ctx, access, row)) }
   }
@@ -255,9 +265,9 @@ export class YoutubeArticleService {
       if (!language) throw BookmarkNotFoundError()
       return { ...snapshot.variants[language]!.content!, version }
     }
-    if (!(await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB))) throw BookmarkNotFoundError()
     const ref = await this.repo.findRef(access.bookmarkId)
     if (!ref) throw BookmarkNotFoundError()
+    // listForSource already appends the readable legacy rows after the current version
     const rows = await this.repo.listForSource(ref.source_id, ref.source_hash)
     const row = rows.find(r => r.status === 'ready' && r.article_key && this.versionOf(r) === version)
     if (!row) throw BookmarkNotFoundError()
@@ -283,8 +293,10 @@ export class YoutubeArticleService {
 
   private privateStatus(snapshot: MediaSnapshot, requested: YoutubeArticleLanguage, access: Access, acquisitionEnabled: boolean): YoutubeArticleStatusResponse {
     const preferred = snapshot.variants[requested]?.status === 'ready' || (access.isOwner && snapshot.mode !== 'fork') ? requested : snapshot.defaultLanguage
+    // A frozen copy, or a capture without the preferred language, shows the ready article it has
+    // instead of a silent unavailable state. A variant that exists keeps its own state.
     const language =
-      snapshot.mode === 'fork' && snapshot.variants[preferred]?.status !== 'ready'
+      !snapshot.variants[preferred] || (snapshot.mode === 'fork' && snapshot.variants[preferred]?.status !== 'ready')
         ? ((['en', 'zh'] as const).find(lang => snapshot.variants[lang]?.status === 'ready') ?? preferred)
         : preferred
     const variant = snapshot.variants[language]

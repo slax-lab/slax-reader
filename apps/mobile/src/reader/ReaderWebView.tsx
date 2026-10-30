@@ -186,9 +186,10 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   useEffect(() => {if (!footer) setFooterHeight(0)}, [Boolean(footer)])
   const reportError = useCallback((error: unknown) => {
     if (exited.current || isReaderOperationCancelled(error)) return
-    if (error instanceof Error && error.name === 'ReaderProcessGone') {
+    if (error instanceof Error && (error.name === 'ReaderProcessGone' || error.name === 'ReaderDocumentLoadFailed')) {
       if (processGone.current) return
       processGone.current = true
+      if (presentFrame.current !== null) {cancelAnimationFrame(presentFrame.current); presentFrame.current = null}
       session.current?.invalidate()
       documentState.current.ready = false
       documentState.current.documentLoaded = false
@@ -405,14 +406,14 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
     const nativeTag = tag.current
     try {
       await applyNativeInsets()
-      if (exited.current || tag.current !== nativeTag) return
+      if (exited.current || processGone.current || tag.current !== nativeTag) return
       const initial = callbacks.current.initialPosition
       if (initial !== null && initial !== undefined && Number.isFinite(initial) && initial >= 0) {
         await scrollTo(legacyPositionToScrollPoints(platform, initial, geometryRef.current), false)
       }
-      if (!exited.current) {
+      if (!exited.current && !processGone.current) {
         initialPositionConsumed.current = true; observePosition('restore')
-        presentFrame.current = requestAnimationFrame(() => {presentFrame.current = null; if (!exited.current) callbacks.current.onPresentable?.(props.pageId)})
+        presentFrame.current = requestAnimationFrame(() => {presentFrame.current = null; if (!exited.current && !processGone.current) callbacks.current.onPresentable?.(props.pageId)})
       }
     } finally {initialPositionInFlight.current = false}
   }

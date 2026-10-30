@@ -9,12 +9,12 @@ import {fileURLToPath} from 'node:url';
 test('native Share refuses a persisted sign-out before looking up an endpoint or sending credentials', {skip: process.platform !== 'darwin'}, () => {
   const output = mkdtempSync(path.join(tmpdir(), 'slax-share-sign-out-'));
   try {
-    const source = fileURLToPath(new URL('../../native/share/ios/ShareCollector.swift', import.meta.url));
+    const sources = ['ShareCollector.swift', 'ShareDiagnosticRecord.swift', 'ShareDiagnostics.swift', 'ShareNetworkMetrics.swift'].map(name => fileURLToPath(new URL(`../../native/share/ios/${name}`, import.meta.url)));
     const main = path.join(output, 'Host.swift');
     writeFileSync(main, `import Foundation
 enum SharedPreferences {
   nonisolated(unsafe) static var values: [String: Any] = [:]
-  static func read() throws -> [String: Any] { values }
+  static func read(report: (String, String?) -> Void) throws -> [String: Any] { report("v1", nil); return values }
 }
 @main struct Host {
   static func main() async throws {
@@ -30,7 +30,7 @@ enum SharedPreferences {
 }
 `);
     const binary = path.join(output, 'host');
-    execFileSync('xcrun', ['swiftc', source, main, '-o', binary], {encoding: 'utf8', timeout: 60000});
+    execFileSync('xcrun', ['swiftc', ...sources, main, '-o', binary], {encoding: 'utf8', timeout: 60000});
     assert.match(execFileSync(binary, {encoding: 'utf8', timeout: 5000}), /guard passed/);
   } finally {rmSync(output, {recursive: true, force: true});}
 });

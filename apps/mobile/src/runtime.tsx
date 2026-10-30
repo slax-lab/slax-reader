@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import {AppState, Platform} from 'react-native';
 import { getLocales } from 'expo-localization';
 import {File} from 'expo-file-system';
+import {createMobileDiagnostics} from './diagnostics/native';
 import { createMobileDataRuntime, type MobileDataRuntime, type MobileRepositories, type PreferenceValues } from './data';
 import { createTranslator, normalizeLocale, type MobileLocale } from './i18n';
 import { mobileConfig } from './config';
@@ -129,7 +130,8 @@ export function ControlledUpgradeFixtureProvider({value, device, onReaderObserva
 
 type AppIntentsRuntimePort = Pick<typeof import('expo-app-intents'), 'isAvailable' | 'useAppIntents' | 'removePendingInvocationAsync' | 'setEntityCatalogAsync' | 'deleteDonationsAsync' | 'donateIntentAsync'>;
 export function MobileProvider({children, appIntents}: {children: React.ReactNode; appIntents?: AppIntentsRuntimePort}) {
-  const [runtime] = useState(() => createMobileDataRuntime({baseUrl: mobileConfig.apiUrl, betaBaseUrl: mobileConfig.betaApiUrl, platform: mobileConfig.platform, version: `${mobileConfig.version} (${mobileConfig.buildNumber})`, readerHosts: {protectedHosts: readerProtectedHosts(mobileConfig), imageProxyOrigins: readerImageProxyOrigins(mobileConfig)}}));
+  const [runtime] = useState(() => createMobileDataRuntime({baseUrl: mobileConfig.apiUrl, betaBaseUrl: mobileConfig.betaApiUrl, platform: mobileConfig.platform, version: `${mobileConfig.version} (${mobileConfig.buildNumber})`, diagnostics: createMobileDiagnostics(`${mobileConfig.version} (${mobileConfig.buildNumber})`), readerHosts: {protectedHosts: readerProtectedHosts(mobileConfig), imageProxyOrigins: readerImageProxyOrigins(mobileConfig)}}));
+  useEffect(() => runtime.diagnostics?.start(), [runtime]);
   const [systemActions] = useState(() => createSaveURLController(runtime, appIntents?.removePendingInvocationAsync ?? (async () => {})));
   const unavailableIntentAction = async (): Promise<never> => {throw new Error('System App Intents are unavailable on this platform');};
   const [systemSurfaces] = useState(() => createSystemSurfacesController(runtime, {
@@ -163,7 +165,7 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
     if (reauthSignOut.current) return;
     reauthSignOut.current = true;
     // Rejected credentials do not ask for the previous account; drop the session and keep local data for Settings cleanup.
-    void runtime.sessions.signOut(false).catch(() => undefined);
+    void runtime.sessions.signOut(false, 'unauthorized').catch(() => undefined);
   }, [runtime, credentialState.status]);
   const nativeResourceOwner = runtime.getNativeResourceOwner();
   useEffect(() => {void systemActions.contextChanged();}, [systemActions, userId, runtime.api.options.baseUrl, nativeResourceOwner, upgrade.status, credentialState.status]);

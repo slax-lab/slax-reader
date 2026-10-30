@@ -17,7 +17,9 @@ const defaultHeaders = {
 }
 
 export const createResponse = (type: ResponseType, options: ResponseOptions): Response => {
-  let { data, status = 200, headers = defaultHeaders[type], message = '' } = options
+  let { data, status = 200, message = '' } = options
+  const headers = new Headers(defaultHeaders[type])
+  for (const [name, value] of Object.entries(options.headers ?? {})) headers.set(name, value)
   if (data instanceof MultiLangError) {
     const mErr = data as MultiLangError
     message = mErr.getMessage
