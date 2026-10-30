@@ -14,6 +14,11 @@ export const normalizeSourceDomain = (value?: string | null): string => {
   }
 }
 
-export const getBookmarkSourceDomain = (bookmark: BookmarkSource): string => normalizeSourceDomain(bookmark.host_url) || normalizeSourceDomain(bookmark.target_url)
+export const isNewsletterBookmarkTarget = (value?: string | null): boolean => /^slax-newsletter:/i.test(value?.trim() || '')
+
+export const getBookmarkSourceDomain = (bookmark: BookmarkSource): string => isNewsletterBookmarkTarget(bookmark.target_url) ? '' : normalizeSourceDomain(bookmark.host_url) || normalizeSourceDomain(bookmark.target_url)
 
 export const bookmarkMatchesSourceDomain = (bookmark: BookmarkSource, domain: string): boolean => getBookmarkSourceDomain(bookmark) === normalizeSourceDomain(domain)
+
+/** Original navigation follows the Mobile policy; internal identities are never external links. */
+export const httpOriginalUrl = (url?: string | null): string => url && /^https?:\/\//i.test(url) ? url : ''

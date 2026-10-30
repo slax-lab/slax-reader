@@ -20,7 +20,9 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
 export default {
   async fetch(request: Request, env: Env, execution: ExecutionContext) {
     const url = new URL(request.url)
-    if (!['localhost', '127.0.0.1'].includes(url.hostname)) return new Response('Local fixture only', { status: 403 })
+    const local = ['localhost', '127.0.0.1'].includes(url.hostname)
+    const contentBinding = url.hostname === 'content.internal' && url.pathname.startsWith('/content/')
+    if (!local && !contentBinding) return new Response('Local fixture only', { status: 403 })
     if (url.pathname === '/__fixture/diagnostic-object-missing') return Response.json((await env.DIAGNOSTICS!.head(url.searchParams.get('key')!)) === null)
     if (url.pathname === '/__fixture/diagnostic-notifications') return Response.json(messages)
     if (url.pathname === '/__fixture/diagnostic-notification-failure') {

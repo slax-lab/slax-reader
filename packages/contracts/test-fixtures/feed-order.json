@@ -1,0 +1,62 @@
+{
+  "rows": [
+    {
+      "kind": "newsletter",
+      "id": "newsletter:9",
+      "sort_at": "2026-10-20T00:00:00.000Z",
+      "published_at": "2026-10-25T00:00:00.000Z"
+    },
+    {
+      "kind": "rss",
+      "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "sort_at": "2026-10-20T00:00:00.000Z",
+      "published_at": null
+    },
+    {
+      "kind": "newsletter",
+      "id": "newsletter:9223372036854775807",
+      "sort_at": "2026-10-20T00:00:00.000Z",
+      "published_at": null
+    },
+    {
+      "kind": "newsletter",
+      "id": "newsletter:1",
+      "sort_at": "2026-10-21T00:00:00.000Z",
+      "published_at": "2026-10-01T00:00:00.000Z"
+    },
+    {
+      "kind": "rss",
+      "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "sort_at": "2026-10-20T00:00:00.000Z",
+      "published_at": null
+    },
+    {
+      "kind": "newsletter",
+      "id": "newsletter:10",
+      "sort_at": "2026-10-20T00:00:00.000Z",
+      "published_at": null
+    },
+    {
+      "kind": "rss",
+      "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "sort_at": "2026-10-21T00:00:00.000Z",
+      "published_at": null
+    },
+    {
+      "kind": "newsletter",
+      "id": "newsletter:2",
+      "sort_at": "2026-10-19T00:00:00.000Z",
+      "published_at": null
+    }
+  ],
+  "expected": [
+    "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    "newsletter:1",
+    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "newsletter:9223372036854775807",
+    "newsletter:10",
+    "newsletter:9",
+    "newsletter:2"
+  ]
+}

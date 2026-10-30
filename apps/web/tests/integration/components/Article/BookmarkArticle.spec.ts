@@ -259,6 +259,14 @@ afterEach(() => {
 
 describe('Article/BookmarkArticle', () => {
   describe('渲染', () => {
+    it('renders saved mail with the real non-link Source component', () => {
+      const wrapper = mountWithApp(BookmarkArticle, { props: { detail: buildDetail({ target_url: 'slax-newsletter://message/1', site_name: 'Weekly' }) }, global: { stubs: { ...stubs, SnapshotArticleSource: false } } })
+      expect(wrapper.get('.article-source').element.tagName).toBe('DIV')
+      expect(wrapper.get('.article-source').attributes('href')).toBeUndefined()
+      expect(wrapper.find('.article-source-external').exists()).toBe(false)
+      expect(wrapper.get('.article-source').text()).toContain('Weekly')
+    })
+
     it('mount → 渲染 .bookmark-article + title + source', () => {
       const wrapper = mountWithApp(BookmarkArticle, { props: { detail: buildDetail() }, global: { stubs } })
       expect(wrapper.find('.bookmark-article').exists()).toBe(true)

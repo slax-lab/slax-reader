@@ -73,7 +73,7 @@ export class ContextManager {
     this.cleanupCallbacks.push(callback)
   }
 
-  async cleanup() {
-    await Promise.all(this.cleanupCallbacks.map(cb => cb().catch(err => console.error('Cleanup error:', err))))
+  async cleanup(onError: (error: unknown) => void = error => console.error('Cleanup error:', error)) {
+    await Promise.all(this.cleanupCallbacks.map(cb => cb().catch(onError)))
   }
 }

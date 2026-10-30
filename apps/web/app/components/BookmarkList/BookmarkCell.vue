@@ -49,7 +49,8 @@
 
       <!-- meta 行：来源 + 标签 + hover 操作区 -->
       <div class="article-meta">
-        <button v-if="sourceFilterable && sourceDomain" class="article-source" type="button" @click.stop="selectSource">{{ getSiteName() }}</button>
+        <span v-if="isNewsletter || !originalHref" class="article-source">{{ getSiteName() || (isNewsletter ? $t('newsletter.source') : '') }}</span>
+        <button v-else-if="sourceFilterable && sourceDomain" class="article-source" type="button" @click.stop="selectSource">{{ getSiteName() }}</button>
         <a v-else class="article-source" :href="originalHref" target="_blank" rel="noopener noreferrer" @click.stop="clickHref">{{ getSiteName() }}</a>
 
         <!-- 标签：紧跟来源；文字模式 / 废纸篓 / 订阅不显示；整块拦截点击，避免触发整卡跳转 -->
@@ -128,13 +129,13 @@ import { inject } from 'vue'
 
 import BookmarkTags from '~/components/BookmarkTags.vue'
 
-import { urlHttpString } from '@commons/frontend-utils/string'
-import { getBookmarkSourceDomain } from '~/utils/bookmarkSource'
+import { getBookmarkSourceDomain, httpOriginalUrl, isNewsletterBookmarkTarget } from '~/utils/bookmarkSource'
 import { truncateTitle } from '~/utils/string'
 
+import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
+import { urlHttpString } from '@commons/frontend-utils/string'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { type EmptyBookmarkResp } from '@slax-reader/contracts/interface'
-import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
 import { vOnClickOutside, vOnKeyStroke } from '@vueuse/components'
 import Toast, { ToastType } from '~/components/Toast'
 import { useBookmarkCellNavigation } from '~/composables/bookmark/useBookmarkCellNavigation'
@@ -268,8 +269,9 @@ const getSiteName = () => {
   return bookmark.value.type === 'shortcut' ? t('component.bookmark_cell.shortcut') + ' ' + siteName : siteName
 }
 
+const isNewsletter = computed(() => isNewsletterBookmarkTarget(bookmark.value.target_url))
 const sourceDomain = computed(() => getBookmarkSourceDomain(bookmark.value))
-const originalHref = computed(() => urlHttpString(bookmark.value.target_url))
+const originalHref = computed(() => httpOriginalUrl(bookmark.value.target_url))
 
 const selectSource = () => {
   if (isRequesting.value) return
@@ -280,6 +282,7 @@ const selectSource = () => {
 }
 
 const articleHref = computed(() => {
+  if (isNewsletter.value) return useSlaxRoutes().snapshotRoute(bookmark.value) || '#'
   if (props.isSubscribe) {
     const uuid = bookmark.value.bookmark_user_uuid
     if (uuid) return `/b/${uuid}`
@@ -287,8 +290,8 @@ const articleHref = computed(() => {
   }
 
   return bookmark.value.status === 'success' && bookmark.value.type !== 'shortcut'
-    ? useSlaxRoutes().snapshotRoute(bookmark.value) || urlHttpString(bookmark.value.target_url)
-    : urlHttpString(bookmark.value.target_url)
+    ? useSlaxRoutes().snapshotRoute(bookmark.value) || originalHref.value
+    : originalHref.value
 })
 
 const archiveBookmark = async (archive: boolean) => {

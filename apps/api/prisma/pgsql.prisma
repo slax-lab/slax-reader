@@ -889,3 +889,40 @@ model sr_podcast_episode {
 
     @@index([transcript_status, next_retry_at])
 }
+
+/// Newsletter 独立邮件表：收件登记、正文发布和 Feed 读取共用一条记录，不写入 RSS 表。
+model sr_newsletter_feed {
+    /// 邮件自增主键；用于 Feed 详情定位、Save to Inbox 的目标标识，以及同一收件时间下的分页排序；对外传递十进制字符串。
+    id                BigInt    @id @default(autoincrement())
+    /// 所属用户的 sr_user.id；用于收件限额、Feed/正文读取、Inbox 收藏和注销清理时隔离用户数据；访问时另查用户未注销及 Labs 开关。
+    user_id           Int
+    /// 由用户 UUID、换行符和规范化发件邮箱计算的 SHA-256；用于 Feed 来源分组/筛选、每用户来源数量限制，并与 user_id、message_key 共同去重。
+    source_key        String
+    /// 规范化为小写的 From 发件邮箱；用于计算 source_key、来源名称缺失时的展示回退，以及 Inbox 副本的 byline。
+    sender            String
+    /// 安全处理后的 From 显示名称，缺失时用发件邮箱；用于 Feed 来源名称、预览发件人及 Inbox Source 模块的名称，不参与权限判断。
+    sender_name       String    @default("")
+    /// 有 Message-ID 时计算其 SHA-256，否则对完整原始邮件字节（含丢弃的附件）流式计算 SHA-256；与 user_id、source_key 组成去重键，完全相同的投递不会重复入库。
+    message_key       String
+    /// 收件时为 pending，正文发布后为 ready，撤销收件资格时为 cancelled；用于阻止未完成邮件进入 Feed/Inbox，以及关闭后重新开启时的迟到发布，不用于定时恢复。
+    state             String    @default("pending")
+    /// 安全处理后的邮件主题，缺失时用无主题提示；用于 Feed 列表/预览标题、列表内搜索和 Inbox 副本标题。
+    title             String    @default("")
+    /// 正文开头最多 500 个字符的摘录，不是 AI 摘要；用于 Feed 卡片标题下方、已加载列表内搜索，以及 Inbox 副本的 description。
+    excerpt           String    @default("")
+    /// 已发布 Newsletter HTML 的 R2 存储键；用于正文读取、复制到 Inbox 及注销清理；ready 时非空，其他状态为空，Inbox 副本另用独立存储键。
+    content_key       String?
+    /// 是否因长度或解析预算限制而截断；仅用于 Feed 正文底部的截断提示，不参与去重、发布状态或重试判断。
+    content_truncated Boolean   @default(false)
+    /// 校验后的邮件 Date，可为空；用于 Feed 列表/预览显示时间和 Inbox 副本的 published_at，缺失时回退 received_at，不参与收件分页排序。
+    published_at      DateTime?
+    /// 服务端首次收件登记时间；用于每日收件限额、Feed 倒序分页，以及邮件 Date 缺失时的显示时间；相同时间按数值型 id 排序。
+    received_at       DateTime  @default(now())
+
+    /// 同一用户、发件来源和邮件标识只登记一次，供重复投递查询和并发去重使用。
+    @@unique([user_id, source_key, message_key])
+    /// 支持用户全部 Newsletter 按收件时间和 id 倒序分页。
+    @@index([user_id, received_at(sort: Desc), id(sort: Desc)])
+    /// 支持按用户及选定来源筛选，再按收件时间和 id 倒序分页。
+    @@index([user_id, source_key, received_at(sort: Desc), id(sort: Desc)])
+}

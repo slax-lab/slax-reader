@@ -37,6 +37,10 @@ export class LabRepo {
         create: { user_id: userId, feature, enabled },
         update: { enabled }
       })
+      if (feature === 'newsletter' && !enabled) {
+        // Cancelling under the user lock also fences a later disable/enable cycle.
+        await tx.$executeRaw`UPDATE sr_newsletter_feed SET state='cancelled' WHERE user_id=${userId} AND state='pending'`
+      }
       if (feature === 'rss' && !enabled) {
         await tx.$queryRaw`SELECT f.id FROM sr_rss_feed f JOIN sr_rss_subscription s ON s.feed_id=f.id WHERE s.user_id=${userId} ORDER BY f.id FOR UPDATE OF f`
         await tx.$executeRaw`UPDATE sr_rss_feed f SET lease_token=NULL,lease_until=NULL WHERE EXISTS(SELECT 1 FROM sr_rss_subscription s WHERE s.feed_id=f.id AND s.user_id=${userId}) AND NOT EXISTS(SELECT 1 FROM sr_rss_subscription s JOIN sr_user u ON u.id=s.user_id AND u.deleted_at IS NULL JOIN sr_user_lab_feature l ON l.user_id=s.user_id AND l.feature='rss' AND l.enabled WHERE s.feed_id=f.id)`

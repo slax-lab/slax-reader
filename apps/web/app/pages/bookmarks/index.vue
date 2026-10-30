@@ -94,7 +94,7 @@
         </div>
       </template>
       <template v-slot:content-list>
-        <RssPanel v-if="rssVisited" v-show="rssActive" :active="rssActive" :search="rssSearch" v-model:list-mode="listMode" />
+        <FeedPanel v-if="rssVisited" v-show="rssActive" :active="rssActive" :search="rssSearch" v-model:list-mode="listMode" />
         <div v-show="!rssActive">
           <!-- fork-only：星标视图顶部合集引导横幅 -->
           <ClientOnly>
@@ -201,9 +201,9 @@ import ListLayoutSwitcher from '~/components/BookmarkList/ListLayoutSwitcher.vue
 import LocalSyncProgress from '~/components/BookmarkList/LocalSyncProgress.vue'
 import StarredSharePrompt from '~/components/BookmarkList/StarredSharePrompt.vue'
 import TabsSidebar from '~/components/BookmarkList/TabsSidebar.vue'
+import FeedPanel from '~/components/FeedPanel.vue'
 import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
 import BookmarksLayout from '~/components/Layouts/BookmarksLayout.vue'
-import RssPanel from '~/components/RssPanel.vue'
 
 import { isInboxPath } from '~/utils/promotionFlow'
 

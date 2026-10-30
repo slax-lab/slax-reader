@@ -13,6 +13,7 @@ export * from './analytics.js'
 export * from './const.js'
 export * from './openai.js'
 export * from './rss.js'
+export * from './feed.js'
 export * from './pdf.js'
 
 export * from './search.js'

@@ -88,9 +88,17 @@ describe('atomic account deletion and login race', () => {
     )
   }
   test('locks the identity, tombstones and deletes keys in one transaction', async () => {
-    const tx = { $queryRaw: vi.fn().mockResolvedValue([{ id: 42, deleted_at: null }]), sr_user: { update: vi.fn() }, sr_user_api_key: { deleteMany: vi.fn() } }
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 42, deleted_at: null }]),
+      $executeRaw: vi.fn(),
+      sr_user: { update: vi.fn() },
+      sr_user_api_key: { deleteMany: vi.fn() }
+    }
     await repo(tx).markUserAsDeleted(42)
     expect(tx.$queryRaw.mock.calls[0][0].join('')).toContain('FOR UPDATE')
+    const updates = tx.$executeRaw.mock.calls.map(call => call[0].join('')).join(' ')
+    expect(updates).toContain("UPDATE sr_newsletter_feed SET state='cancelled'")
+    expect(updates).not.toContain('sr_platform_bind')
     expect(tx.sr_user.update).toHaveBeenCalledOnce()
     expect(tx.sr_user_api_key.deleteMany).toHaveBeenCalledWith({ where: { user_id: 42 } })
   })

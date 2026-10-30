@@ -24,7 +24,7 @@ const fresh = {id: '', source, approx, stroke: [], comments: []}
 const comment = {markId: model.sourceStableId('new-uuid'), userId: model.sourceStableId('fixture-user'), comment: 'First comment', username: 'Fixture', avatar: '', isDeleted: false, createdAt: '2026-10-11 12:00:00', children: []}
 const find = (node, predicate) => Array.isArray(node) ? node.map(child => find(child, predicate)).find(Boolean) : React.isValidElement(node) ? predicate(node) ? node : find(node.props.children, predicate) : undefined
 
-async function screenFixture(host, kind, run, platform = 'ios') {
+async function screenFixture(host, kind, run, platform = 'ios', bookmarkUrl = 'https://fixture.test/original') {
   host.native.Platform.OS = platform
   const preferences = new PreferenceStore(new MemoryPreferences({user_id: 'fixture-user'}))
   let session = {status: 'authenticated', session: {token: 'synthetic', userId: 'fixture-user', refreshedAt: 0}}
@@ -37,7 +37,7 @@ async function screenFixture(host, kind, run, platform = 'ios') {
   let records = [], settings = {}, params = {bookmarkId: 'bookmark', ...(kind === 'rss' ? {rssEntryId: 'rss'} : {}), ...(kind === 'collection' ? {collectionId: 'collection', collectionOwnerId: 'owner'} : {}), ...(kind === 'missing-owner' ? {collectionId: 'collection'} : {})}
   const repositories = {
     local: {read: async () => ({overview: 'cached', outline: 'cached'}), update: async () => {}},
-    getBookmark: async () => ({id: 'bookmark', title: 'Article', aliasTitle: '', url: 'https://fixture.test/original', metadata: '{}'}),
+    getBookmark: async () => ({id: 'bookmark', title: 'Article', aliasTitle: '', url: bookmarkUrl, metadata: '{}'}),
     watchUser: callback => {callback([{id: 'fixture-user', name: 'Fixture'}]); return () => {}},
     watchSubscription: callback => {callback([]); return () => {}}, watchTags: callback => {callback([]); return () => {}},
     watchRows: (_sql, _params, callback) => {refreshRows = callback; return () => {}},
@@ -94,7 +94,7 @@ async function screenFixture(host, kind, run, platform = 'ios') {
     '../data': {bookmarkCacheKey, bookmarkDisplayTitle, collectionMarkPolicy, PERSONAL_MARK_POLICY, PENDING_COLLECTION_MARK_POLICY, PREFERENCE_KEYS},
     '../runtime': {useReadingMobile: () => React.useContext(Context), useMobile: () => React.useContext(Context), useMobileSettings: select => {const settings = React.useContext(Context).settings ?? {}; return select ? select(settings) : settings}, useControlledUpgradeReaderObserver: () => undefined}, '../rss/controller': {reportRssSaved() {}, rssErrorCode: () => ''}, '../theme': {mobileColors: {}, mobileTypography: {}},
     '../native/reader': {readerNativeAdapter: {}}, '../native/image-actions': {imageActionPort: {save: async () => {}, share: async () => {}}}, '../native/platform': {openInAppBrowser: async url => opened.push(url), shareArticle: async (...args) => {shares.push({args, phase: toolbarPhase}); if (shareFailure) throw new Error('Synthetic share failure')}}, '../telemetry': {useTelemetry: () => telemetry}, '../reader/share': {readerShareImage: async () => null},
-    '../reader': {ReaderWebView: React.forwardRef((props, ref) => {readerProps = props; React.useImperativeHandle(ref, () => ({clearSelection: async () => {}, captureSelection: async () => selection, queryImageUrls: async () => [], flushPosition: async () => {}}), []); return null}), toolbarVisible: coordinates.toolbarVisible, composeReaderError: () => '<p>Load error</p>'}, '../reader/input': input,
+    '../reader': {ReaderWebView: React.forwardRef((props, ref) => {readerProps = props; React.useImperativeHandle(ref, () => ({clearSelection: async () => {}, captureSelection: async () => selection, queryImageUrls: async () => [], flushPosition: async () => {}}), []); return props.header}), toolbarVisible: coordinates.toolbarVisible, composeReaderError: () => '<p>Load error</p>'}, '../reader/input': input,
     '../reader/ReaderOverlays': {CommentPanel: props => {panelProps = props; return null}, SelectionMenu: props => {selectionProps = props; return null}, FloatingActions: nil, OutlineSheet: nil, ReaderToolbar, TranscriptSheet: nil},
     '../reader/ImageGallery': {ImageGallery: nil}, '../reader/gallery-resource': {resolveGalleryImage}, '../reader/OverviewViews': {OverviewDialog: nil, OverviewExcerpt: nil}, '../reader/components/CommentPanel': {CommentPanel: props => {panelProps = props; return null}}, '../reader/components/OutlineSheet': {OutlineSheet: nil}, '../reader/ReaderSkeleton': {ReaderSkeleton: nil}, '../reader/TagSheet': {ReaderTagSheet: nil},
     '../reader/model': model, '../reader/account': account, '../reader/position': {ReaderPositionWriter}, '../reader/recovery': {ReaderCrashRecovery}, '../components/fixture-actions': {},
@@ -113,6 +113,16 @@ async function screenFixture(host, kind, run, platform = 'ios') {
     changeRoute: async value => {params = value; await render(); await host.settle(300)}, records: () => records,
   })
 }
+
+for (const platform of ['ios', 'android']) for (const url of ['slax-newsletter://message/42', 'https://fixture.test/original']) test(`actual ${platform} Reader keeps saved content while ${url.startsWith('https:') ? 'retaining web original navigation' : 'hiding Newsletter original navigation'}`, nativeBoundary, async () => withNativeHost(async host => screenFixture(host, 'personal', async fixture => {
+  assert.equal(fixture.reader().html, '<p>Article</p>');
+  const original = host.window.document.querySelector('[data-testid="reader-original"]');
+  assert.equal(Boolean(original), url.startsWith('https:'));
+  if (original) {
+    await act(async () => host.props.get('reader-original').onPress());
+    assert.deepEqual(fixture.opened, ['https://fixture.test/original']);
+  } else assert.deepEqual(fixture.opened, []);
+}, platform, url)));
 
 test('actual Reader first comment updates the open blank-ID panel and retains reply/copy/discard safeguards', nativeBoundary, async () => withNativeHost(async host => screenFixture(host, 'personal', async fixture => {
   await act(async () => fixture.reader().onEvent({type: 'textSelected', mark: fresh, text: 'Quote', containerYPoints: 200}, 'page'))

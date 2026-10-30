@@ -1,9 +1,9 @@
 // BookmarkCell 点击/跳转编排
 // 快照走 seam，fork 可覆盖
-import { urlHttpString } from '@commons/frontend-utils/string'
+import { httpOriginalUrl } from '~/utils/bookmarkSource'
 
-import { BookmarkParseStatus } from '@slax-reader/contracts/interface'
 import type { BookmarkItem } from '@commons/frontend-types/models'
+import { BookmarkParseStatus } from '@slax-reader/contracts/interface'
 import { showSnapshotStatusModal } from '~/components/Modal'
 
 type ListSection = 'inbox' | 'starred' | 'topics' | 'archive' | 'trash' | 'notifications'
@@ -48,7 +48,7 @@ export function useBookmarkCellNavigation(options: UseBookmarkCellNavigationOpti
     })
   }
 
-  const urlString = () => urlHttpString(bookmark.value.target_url)
+  const urlString = () => httpOriginalUrl(bookmark.value.target_url)
 
   const getSnapshotModalTitle = (status: BookmarkParseStatus) => {
     if (status === BookmarkParseStatus.FAILED) {
@@ -67,7 +67,7 @@ export function useBookmarkCellNavigation(options: UseBookmarkCellNavigationOpti
   }
 
   const clickHref = () => {
-    if (isRequesting()) {
+    if (!urlString() || isRequesting()) {
       return
     }
 

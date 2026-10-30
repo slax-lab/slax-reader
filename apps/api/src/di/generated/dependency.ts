@@ -37,8 +37,13 @@ import { CollectionRepo } from '../../infra/repository/dbCollection'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
+import { FeedRepo } from '../../infra/repository/dbFeed'
+import { RssService } from '../../domain/rss'
+import { NewsletterContent } from '../../domain/newsletterContent'
 import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
+import { NewsletterRepo } from '../../infra/repository/dbNewsletter'
+import { NewsletterSaveRepo } from '../../infra/repository/dbNewsletterSave'
 import { MediaBodyService } from '../../domain/mediaBody'
 import { RssRepo } from '../../infra/repository/dbRss'
 import { RssContent } from '../../domain/rss/content'
@@ -62,7 +67,6 @@ import { TelegramBotService } from '../../domain/telegram'
 import { MonitoringOrchestrator } from '../../domain/orchestrator/monitor'
 import { AigcBatchOrchestrator } from '../../domain/orchestrator/aigc'
 import { PodcastService } from '../../domain/podcast'
-import { RssService } from '../../domain/rss'
 import { SubscriptionOrchestrator } from '../../domain/orchestrator/subscription'
 import { SubscriptionAppleService } from '../../domain/subscriptionApple'
 import { UserDeletionService } from '../../domain/userDeletion'
@@ -72,10 +76,13 @@ import { BookmarkOrchestrator } from '../../domain/orchestrator/bookmark'
 import { BookmarkAddOrchestrator } from '../../domain/orchestrator/bookmarkAdd'
 import { UrlParserHandler } from '../../domain/orchestrator/urlParser'
 import { CollectionOrchestrator } from '../../domain/orchestrator/collection'
+import { FeedService } from '../../domain/feed'
+import { NewsletterSaveService } from '../../domain/newsletterSave'
 import { MarkOrchestrator } from '../../domain/orchestrator/mark'
 import { DashboardService } from '../../domain/dashboard'
 import { ShareOrchestrator } from '../../domain/orchestrator/share'
 import { SyncOrchestrator } from '../../domain/orchestrator/sync'
+import { NewsletterService } from '../../domain/newsletter'
 import { ImportOrchestrator } from '../../domain/orchestrator/import'
 import { EmailService } from '../../domain/email'
 import { ContentOrchestrator } from '../../domain/orchestrator/content'
@@ -100,6 +107,7 @@ import { CallbackController } from '../../handler/http/callbackController'
 import { CollectionController } from '../../handler/http/collectionController'
 import { DiagnosticController } from '../../handler/http/diagnosticController'
 import { EventsController } from '../../handler/http/eventsController'
+import { FeedController } from '../../handler/http/feedController'
 import { ImageController } from '../../handler/http/imageController'
 import { MarkController } from '../../handler/http/markController'
 import { McpServerController } from '../../handler/http/mcpController'
@@ -191,6 +199,10 @@ container.register(EmailService, {
   useFactory: container => new EmailService(container.resolve(UserRepo))
 })
 
+container.register(FeedService, {
+  useFactory: container => new FeedService(container.resolve(FeedRepo), container.resolve(RssService), container.resolve(NewsletterContent))
+})
+
 container.register(ImportService, {
   useFactory: container =>
     new ImportService(
@@ -241,6 +253,26 @@ container.register(MediaSnapshotService, {
       container.resolve(BookmarkRepo),
       container.resolve(SearchService),
       container.resolve(BookmarkSearchRepo)
+    )
+})
+
+container.register(NewsletterService, {
+  useFactory: container => new NewsletterService(container.resolve(NewsletterRepo), container.resolve(NewsletterContent))
+})
+
+container.register(NewsletterContent, {
+  useFactory: container => new NewsletterContent(lazy(() => container.resolve(BucketClient)))
+})
+
+container.register(NewsletterSaveService, {
+  useFactory: container =>
+    new NewsletterSaveService(
+      container.resolve(NewsletterSaveRepo),
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(SearchService),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(BookmarkRepo),
+      container.resolve(NotificationMessage)
     )
 })
 
@@ -598,6 +630,10 @@ container.register(CollectionRepo, {
   useFactory: container => new CollectionRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
+container.register(FeedRepo, {
+  useFactory: container => new FeedRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
 container.register(LabRepo, {
   useFactory: container => new LabRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
@@ -612,6 +648,14 @@ container.register(MarkRepo, {
       lazy(() => container.resolve(PRISIMA_CLIENT)),
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT))
     )
+})
+
+container.register(NewsletterRepo, {
+  useFactory: container => new NewsletterRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
+container.register(NewsletterSaveRepo, {
+  useFactory: container => new NewsletterSaveRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
 container.register(PodcastArticleRepo, {
@@ -718,6 +762,10 @@ container.register(EventsController, {
   useFactory: () => new EventsController()
 })
 
+container.register(FeedController, {
+  useFactory: container => new FeedController(container.resolve(FeedService), container.resolve(NewsletterSaveService))
+})
+
 container.register(ImageController, {
   useFactory: () => new ImageController()
 })
@@ -777,7 +825,8 @@ container.register(UserController, {
       container.resolve(BookmarkOrchestrator),
       container.resolve(QueueClient),
       container.resolve(UserDeletionService),
-      container.resolve(LabService)
+      container.resolve(LabService),
+      container.resolve(NewsletterService)
     )
 })
 

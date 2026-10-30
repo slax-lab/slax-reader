@@ -2,12 +2,17 @@
   <div class="bookmark-article snapshot" ref="bookmarkArticle" :class="{ [articleStyle]: true }">
     <header class="article-header">
       <SnapshotArticleSource
-        v-if="!isPdf && detail.target_url && !detail.target_url.startsWith('slax-pdf://')"
+        v-if="!isPdf && detail.target_url && !detail.target_url.startsWith('slax-pdf://') && !isNewsletterBookmarkTarget(detail.target_url)"
         :url="detail.target_url"
         :site-name="detail.site_name"
         :column-name="(detail as BookmarkArticleDetail & { column_name?: string }).column_name"
         :author="detail.byline"
         :host-url="detail.host_url"
+      />
+      <SnapshotArticleSource
+        v-if="!isPdf && isNewsletterBookmarkTarget(detail.target_url)"
+        :site-name="t('newsletter.source')"
+        :author="detail.site_name?.trim() || detail.byline"
       />
       <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url" :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
       <SnapshotForkAttribution v-if="!isPdf || detail.pdf" :has-fork="detail.has_fork === true" :attribution="detail.fork" />
@@ -55,6 +60,7 @@ import SnapshotArticleSource from '~/components/Snapshot/SnapshotArticleSource.v
 import SnapshotForkAttribution from '~/components/Snapshot/SnapshotForkAttribution.vue'
 
 import { applyArticleImageLoading } from '~/utils/articleImageLoading'
+import { isNewsletterBookmarkTarget } from '~/utils/bookmarkSource'
 
 import 'katex/dist/katex.css'
 import { registerComponents } from './CEComponents'

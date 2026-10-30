@@ -153,6 +153,7 @@ describe('repository-root generator paths', () => {
         'subscription',
         'tag',
         'rss',
+        'feed',
         'user',
         'diagnostic',
         'mcp',

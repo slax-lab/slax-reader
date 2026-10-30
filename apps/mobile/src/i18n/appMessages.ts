@@ -1,5 +1,6 @@
 export const appMessages = {
   en: {
+    newsletter_source: 'Newsletter',
     feedback_dismiss_keyboard: 'Dismiss keyboard',
     feedback_attach_logs: 'Attach recent seven-day diagnostic logs (optional)',
     feedback_attach_logs_disclosure: 'Upload only when checked, for support troubleshooting. Logs are retained for seven days and anyone with the support download link can download them.',
@@ -123,6 +124,7 @@ export const appMessages = {
     system_entry_unavailable_message: 'This system search result is no longer available in the signed-in library.',
   },
   zh: {
+    newsletter_source: '邮件通讯',
     feedback_dismiss_keyboard: '收起键盘',
     feedback_attach_logs: '附加最近七天的诊断日志（可选）',
     feedback_attach_logs_disclosure: '仅在勾选后上传，用于排查问题。日志保留七天，持有支持下载链接的任何人均可下载。',
