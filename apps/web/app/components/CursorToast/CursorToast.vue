@@ -55,7 +55,6 @@ const onAfterLeave = () => {
   border-radius: var(--slax-radius-sm);
   box-shadow: var(--slax-shadow-warm);
   backdrop-filter: var(--slax-blur);
-  -webkit-backdrop-filter: var(--slax-blur);
   font-size: var(--slax-fs-aux);
   line-height: 1.4;
 

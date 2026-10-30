@@ -204,7 +204,6 @@ const t = (text: string) => {
   &.appear {
     background: color-mix(in srgb, var(--slax-text) 22%, transparent);
     backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
   }
 }
 

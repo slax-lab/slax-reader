@@ -175,7 +175,6 @@ const t = (text: string, options: Record<string, string | number> = {}) => {
   &.appear {
     background: color-mix(in srgb, var(--slax-text) 22%, transparent);
     backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
   }
 }
 

@@ -52,14 +52,12 @@ const onToggle = () => {
     --style: cursor-not-allowed opacity-60;
   }
 
+  // Overlay only the spinner while loading; keep the knob's own surface visible.
+  // Clearing the knob's background made a fast request look like the knob vanished.
   .knob {
     --style: absolute top-2px left-2px w-16px h-16px rounded-full flex-center transition-all duration-normal;
     background: var(--slax-surface-solid);
     box-shadow: var(--slax-shadow-sm);
-
-    &.loading {
-      --style: bg-transparent shadow-none;
-    }
   }
 
   &.on .knob {

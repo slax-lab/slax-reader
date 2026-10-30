@@ -7,6 +7,7 @@ Execution details and file ownership are in [the implementation plan](../../../d
 - [ ] 1.1 Record deployed/source revisions, report filters, pre-change build identity, route/device/network/cache conditions, and traces in `docs/web/performance/lcp-baseline.md`; separate measurements from historical hypotheses.
 - [x] 1.2 Create synthetic article fixtures for icons before heroes, SSR-isolated/social classes, responsive sources, malformed browser repairs, duplicate attributes, and custom media; verify fixtures contain no production credentials or private article text.
 - [x] 1.3 Probe the actual article-route dependency closure and parser runtime before full integration; verify at most 50 KiB incremental gzip and below-10-ms median on the fixed fixture, record slow-device effects, and stop/revise the article milestone if infeasible.
+- [x] 1.4 Gate both switches by build environment so `preview`/`development` builds enable them for gate measurement while `production`/`beta` stay disabled; confirm the emitted app config in both profiles before relying on either measurement.
 
 ## 2. Article loading policy and lifecycle
 

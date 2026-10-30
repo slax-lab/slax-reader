@@ -392,7 +392,6 @@ watch(isH5, h5 => {
   z-index: 40;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
 }
 
 .side-panel-grab {

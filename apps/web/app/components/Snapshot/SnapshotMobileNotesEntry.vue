@@ -108,8 +108,7 @@ const commentIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
   border: 1px solid var(--slax-border);
   border-radius: 14px;
   box-shadow: var(--slax-shadow-warm);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: var(--slax-blur);
 
   cursor: pointer;
   opacity: 1;
@@ -225,8 +224,7 @@ const commentIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
   border: 1px solid var(--slax-border);
   border-radius: 16px;
   box-shadow: var(--slax-shadow-warm);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: var(--slax-blur);
 
   color: var(--slax-text-muted);
   font-size: 13px;

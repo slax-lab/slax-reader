@@ -169,7 +169,6 @@ onMounted(() => {
   border-radius: 10px;
   background: var(--slax-surface);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   cursor: text;
   transition: all 0.2s;
 

@@ -274,6 +274,13 @@ export default defineNuxtConfig({
   sourcemap: false,
   vite: {
     plugins: [wasm(), scopedPdfStyles()],
+    // Build-time defaults for the LCP experiment switches (see app/app.config.ts).
+    // Disabled for production/beta; enabled for preview (r.slax.dev) and local dev so
+    // the measurement gates can run on a test environment before a production decision.
+    define: {
+      __SLAX_LCP_ARTICLE_IMAGE_PRIORITY__: JSON.stringify(env === 'preview' || env === 'development'),
+      __SLAX_LCP_ANONYMOUS_PUBLIC_STARTUP__: JSON.stringify(env === 'preview' || env === 'development')
+    },
     // @powersync/web spawns a web worker that itself uses dynamic import()
     // (code-splitting). Rollup forbids iife/umd (Vite's default worker.format)
     // for code-splitting worker bundles, so we force ES module workers. The
