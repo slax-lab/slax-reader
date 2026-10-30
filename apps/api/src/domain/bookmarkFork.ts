@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/hyperdrive-client'
 import { inject, injectable } from '@/decorators/di'
 import type { LazyInstance } from '@/decorators/lazy'
 import { ErrorName, type BookmarkForkMetadata } from '@slax-reader/contracts'
@@ -42,22 +43,36 @@ export class BookmarkForkService {
     @inject(NotificationMessage) private notifications: NotificationMessage
   ) {}
 
-  async admit(ctx: ContextManager, sourceUuid: string): Promise<CompletedFork> {
+  async admit(ctx: ContextManager, sourceUuid: string, clientUuid?: string): Promise<CompletedFork> {
+    return this.dispatch(ctx, await this.reserve(ctx, sourceUuid, clientUuid))
+  }
+
+  /** Reserve database state only; the caller must commit before dispatching. */
+  async reserve(ctx: ContextManager, sourceUuid: string, clientUuid?: string, transaction?: Prisma.TransactionClient) {
     const userId = ctx.getUserId()
     if (!userId) throw UnauthorizedError()
     if (typeof sourceUuid !== 'string' || !uuidPattern.test(sourceUuid)) throw ErrorParam()
-    const source = await this.repo.source(userId, sourceUuid.toLowerCase())
+    if (clientUuid !== undefined && !uuidPattern.test(clientUuid)) throw ErrorParam()
+    const source = await this.repo.source(userId, sourceUuid.toLowerCase(), transaction)
     if (!source) throw BookmarkNotFoundError()
     const checks = await Promise.allSettled([
-      this.labs.assertUrlAllowed(ctx, source.bookmark.target_url),
-      isPdfContentKey(source.bookmark.content_key) ? this.labs.assertEnabled(ctx, 'pdf') : Promise.resolve(),
-      this.assertMediaAllowed(ctx, source.bookmark_id)
+      this.labs.assertUrlAllowed(ctx, source.bookmark.target_url, transaction),
+      isPdfContentKey(source.bookmark.content_key) ? this.labs.assertEnabled(ctx, 'pdf', transaction) : Promise.resolve(),
+      this.assertMediaAllowed(ctx, source.bookmark_id, transaction)
     ])
     // Preserve validation priority and require every gate before creating a write claim.
     for (const check of checks) if (check.status === 'rejected') throw check.reason
-    if (source.user_id === userId) return this.existingResult(ctx, await this.repo.ownSource(userId, sourceUuid))
+    if (source.user_id === userId) return { source, relation: await this.repo.ownSource(userId, sourceUuid, transaction), disposition: 'already_saved' as const, ownSource: true }
     if (source.bookmark.status !== 'success') throw forkError()
-    const admission = await this.repo.admit({ userId, source, targetUrl: this.destinationUrl(source, userId), uuid: crypto.randomUUID() })
+    const admission = await this.repo.admit({ userId, source, targetUrl: this.destinationUrl(source, userId), uuid: clientUuid ?? crypto.randomUUID() }, transaction)
+    return { source, ...admission, ownSource: false }
+  }
+
+  /** Reuse HTTP dispatch for reservations committed by either HTTP or sync. */
+  async dispatch(ctx: ContextManager, admission: Awaited<ReturnType<BookmarkForkService['reserve']>>): Promise<CompletedFork> {
+    const userId = ctx.getUserId()
+    const { source } = admission
+    if (admission.ownSource) return this.existingResult(ctx, admission.relation)
     const { relation, disposition } = admission
     const revision = relation.bookmark.updated_at
     const workflowId = `fork-${relation.bookmark_id}-${revision.getTime()}`
@@ -165,9 +180,9 @@ export class BookmarkForkService {
     }
   }
 
-  private async assertMediaAllowed(ctx: ContextManager, bookmarkId: number) {
-    const ref = await this.repo.mediaRef(bookmarkId)
-    if (ref) await this.labs.assertEnabled(ctx, ref.media_kind === 'podcast' ? 'podcast' : 'youtube')
+  private async assertMediaAllowed(ctx: ContextManager, bookmarkId: number, transaction?: Prisma.TransactionClient) {
+    const ref = await this.repo.mediaRef(bookmarkId, transaction)
+    if (ref) await this.labs.assertEnabled(ctx, ref.media_kind === 'podcast' ? 'podcast' : 'youtube', transaction)
   }
 
   async failExecution(bookmarkId: number, job: ForkWorkflowJob) {

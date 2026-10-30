@@ -1,5 +1,19 @@
 # Tasks
 
+## Atomic sync correction — 2026-10-27
+
+- [x] A1 Restore one ordered database transaction including Reader admission and own-source restore; dispatch only after commit.
+- [x] A2 Prove whole-batch rollback, retry, conflict-attempt cleanup and post-commit behavior; update review, PR and reports.
+
+## PowerSync submission follow-up — 2026-10-27
+
+- [x] P1 Record approved reuse-first scope; retain ordinary-save limitations and no schema/bucket/R2 changes.
+- [x] P2 Route Reader sync creates to existing Fork admission with client UUID; preserve ordering, terminal source failures and ordinary-only batches.
+- [x] P3 Reuse local insertion/save guard in the shared Fork hook; retain HTTP fallback, online checks and component presentation.
+- [x] P4 Complete focused/full checks, real PostgreSQL and HTTP/Workflow/R2 exercises, UI smoke and final review; record evidence.
+- [x] P5 Record human acceptance and publish [Draft PR #399](https://github.com/slax-lab/slax-reader/pull/399) because performance PR #396 is merged.
+
+
 ## Remove automatic cleanup — 2026-10-23
 
 - [x] R10 Remove the unmerged cleanup table/migration, registration/retirement/claims and orphan sweep. Preserve immediate lifecycle deletion, uncertain-commit protection and bounded media/index maintenance.
@@ -122,3 +136,5 @@ The owner approved these implementation tasks on 2026-10-23. See the [report](..
 - [x] R32 Propagate the ordinary-tweet publication timestamp into Workflow moderation and test the real tweet publisher at that boundary.
 - [x] R33 Separate post-commit moderation notifications from guarded-write retries; test transient and exhausted webhook failures without losing policy, completion events or import accounting.
 - [x] R34 Preserve active capture timestamps during global podcast moderation while still enforcing policy/share revocation; verify pending, pending_retry and parseing transitions with real PostgreSQL and existing finite failure handling.
+
+- [ ] P6 After this follow-up PR merges, classify any remaining unchecked tasks and archive the combined change in its documentation PR.

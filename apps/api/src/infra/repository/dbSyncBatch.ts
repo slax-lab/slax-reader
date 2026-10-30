@@ -47,6 +47,8 @@ export interface CommittedSyncMutation {
   after: SyncEntitySnapshot | null
 }
 
+export type SyncReaderSave = (tx: prismaTx, operation: Extract<OrderedSyncOperation, { type: 'create_bookmark' }>) => Promise<(() => Promise<void>) | void>
+
 export type SyncCommitObserver = (mutations: CommittedSyncMutation[], committedAt: string) => Promise<void> | void
 
 @injectable()
@@ -56,7 +58,8 @@ export class DBSyncBatchOperation {
   /** execute */
   public async executeOrderedOperations(
     operations: OrderedSyncOperation[],
-    observer?: SyncCommitObserver
+    observer?: SyncCommitObserver,
+    readerSave?: SyncReaderSave
   ): Promise<
     {
       bookmarkId: number
@@ -74,6 +77,8 @@ export class DBSyncBatchOperation {
       captureRevision?: string
     }[] = []
     const mutations: CommittedSyncMutation[] = []
+    const afterCommit: (() => Promise<void>)[] = []
+    const hasReaderSave = !!readerSave && operations.some(operation => operation.type === 'create_bookmark' && operation.data.readerSourceUuid)
     const executeMap: Record<string, executeFunction> = {
       create_tag: this.executeCreateTag,
       create_bookmark: this.executeCreateBookmark,
@@ -87,25 +92,38 @@ export class DBSyncBatchOperation {
     }
 
     const execute = () =>
-      this.prismaHyperdrive().$transaction(async tx => {
-        newBookmarks.length = 0
-        mutations.length = 0
-        for (const operation of operations) {
-          const before = observer ? await this.eventSnapshot(tx, operation) : null
-          const result = await executeMap[operation.type].bind(this)(tx, operation)
-          if (result) newBookmarks.push(result)
-          if (observer) {
-            const after = await this.eventSnapshot(tx, operation)
-            if (before || after) mutations.push({ operation, before, after })
+      this.prismaHyperdrive().$transaction(
+        async tx => {
+          newBookmarks.length = 0
+          mutations.length = 0
+          afterCommit.length = 0
+          for (const operation of operations) {
+            const before = observer ? await this.eventSnapshot(tx, operation) : null
+            if (readerSave && operation.type === 'create_bookmark' && operation.data.readerSourceUuid) {
+              const dispatch = await readerSave(tx, operation)
+              if (dispatch) afterCommit.push(dispatch)
+            } else {
+              const result = await executeMap[operation.type].bind(this)(tx, operation)
+              if (result) newBookmarks.push(result)
+            }
+            if (observer) {
+              const after = await this.eventSnapshot(tx, operation)
+              if (before || after) mutations.push({ operation, before, after })
+            }
           }
-        }
-      })
+        },
+        hasReaderSave ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 } : undefined
+      )
 
-    try {
-      await execute()
-    } catch (error) {
-      if ((error as { code?: string }).code !== 'P2002') throw error
-      await execute()
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await execute()
+        break
+      } catch (error) {
+        const code = (error as { code?: string }).code
+        // Reader admission retains its existing Serializable conflict retry budget.
+        if (attempt >= (hasReaderSave ? 2 : 1) || !(code === 'P2002' || (hasReaderSave && code === 'P2034'))) throw error
+      }
     }
 
     // A rolled-back batch never reaches this observer. Telemetry cannot fail an already-committed sync.
@@ -117,6 +135,7 @@ export class DBSyncBatchOperation {
       }
     }
 
+    for (const dispatch of afterCommit) await dispatch()
     return newBookmarks
   }
 
@@ -161,6 +180,18 @@ export class DBSyncBatchOperation {
     })
   }
 
+  /** A persisted local create remains acknowledged even if its source is later unavailable. */
+  async hasPersistedReaderSave(operation: Extract<OrderedSyncOperation, { type: 'create_bookmark' }>, tx: prismaTx = this.prismaHyperdrive()): Promise<boolean> {
+    return !!(await tx.sr_user_bookmark.findFirst({
+      where: {
+        uuid: operation.bookmarkUuid,
+        user_id: operation.userId,
+        bookmark: { private_user: operation.userId }
+      },
+      select: { id: true }
+    }))
+  }
+
   /** create bookmark */
   public async executeCreateBookmark(
     tx: prismaTx,
@@ -188,8 +219,8 @@ export class DBSyncBatchOperation {
           target_url: targetUrl,
           host_url: new URL(targetUrl).origin,
           private_user: operation.userId,
-          title: 'Open this Reader link and use Fork while online',
-          description: 'This queued save could not copy the snapshot. Open its Reader link and use Fork while connected.',
+          title: 'Could not save this Reader article',
+          description: 'This queued save could not copy the snapshot. Open the Reader link and try saving it again.',
           status: 'failed',
           created_at: now,
           updated_at: now,
