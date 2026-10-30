@@ -17,7 +17,7 @@
     <meta-data android:name="SlaxApiBaseURL" android:value="https://api-reader.slax.com"/>
     <meta-data android:name="SlaxApiBetaURL" android:value="https://api-reader-beta.slax.com"/>
     <meta-data android:name="SlaxVersionCode" android:value="797"/>
-    <meta-data android:name="SlaxVersionName" android:value="1.0.25"/>
+    <meta-data android:name="SlaxVersionName" android:value="1.0.26"/>
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.ENABLE_BSDIFF_PATCH_SUPPORT" android:value="true"/>
     <meta-data android:name="expo.modules.updates.EXPO_RUNTIME_VERSION" android:value="@string/expo_runtime_version"/>
