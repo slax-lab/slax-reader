@@ -25,6 +25,7 @@ const screens = {
   DeleteAccount: () => require('./screens/DeleteAccountScreen').DeleteAccountScreen,
   Subscription: () => require('./screens/SubscriptionScreen').SubscriptionScreen,
   Debug: () => require('./screens/DebugScreen').DebugScreen,
+  DiagnosticLog: () => require('./screens/DiagnosticLogScreen').DiagnosticLogScreen,
 };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
@@ -73,6 +74,7 @@ export function ApplicationRoutes() {
         <Stack.Screen name="Settings" getComponent={screens.Settings} options={{title: t('setting_title'), headerTitle: sourceHeaderTitle}}/>
         <Stack.Screen name="About" getComponent={screens.About} options={{title: t('sidebar_about')}}/>
         <Stack.Screen name="Debug" getComponent={screens.Debug} options={{title: 'Debug'}}/>
+        <Stack.Screen name="DiagnosticLog" getComponent={screens.DiagnosticLog} options={{title: t('diagnostic_logs')}}/>
         <Stack.Screen name="DeleteAccount" getComponent={screens.DeleteAccount} options={{title: t('setting_delete_account')}}/>
         <Stack.Screen name="Subscription" getComponent={screens.Subscription} options={{title: 'Pro Reader', headerTitleStyle: {fontSize: 20, fontWeight: '500'}}}/>
         <Stack.Screen name="Feedback" getComponent={screens.Feedback} options={{title: t('sidebar_feedback'), headerTitle: sourceHeaderTitle}}/>

@@ -75,7 +75,10 @@ export function localDevOptions(args: string[]) {
   ])
   configs.forEach((config, index) => {
     if (Object.keys(config).some(key => !allowed.has(key))) throw new Error('Only the minimal local binding configuration is supported')
-    if (resolve(workspace, config.main) !== resolve(ROOT, `apps/api/src/entry/${index === 0 ? 'edge' : 'core'}/index.ts`)) throw new Error('Use the actual Edge/Core entrypoints')
+    const expected = resolve(ROOT, `apps/api/src/entry/${index === 0 ? 'edge' : 'core'}/index.ts`)
+    const diagnosticFixture =
+      index === 1 && process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE === '1' && resolve(workspace, config.main) === resolve(ROOT, 'apps/api/test/runtime/diagnosticWorker.ts')
+    if (resolve(workspace, config.main) !== expected && !diagnosticFixture) throw new Error('Use the actual Edge/Core entrypoints')
     if (resolve(workspace, config.tsconfig) !== resolve(ROOT, 'apps/api/tsconfig.json')) throw new Error('Use the root API tsconfig')
     const workflows = config.workflows ?? []
     if (

@@ -85,7 +85,7 @@ for (const platform of ['android', 'ios']) test(`mounted ${platform} Login prese
   const {LoginScreen} = await load('../../src/screens/LoginScreen.tsx', {
     react: React, 'react-native': {...v.primitives, Alert: {alert() {}}, Platform: {OS: platform}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 375, height})},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'react-native-webview': {WebView}, '../../assets': {mobileAssets: {}}, '../auth/providers': {authenticate: async provider => {authentication.push(provider); return {provider};}},
-    '../runtime': {useMobile: () => mobile}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => telemetry}, '../native/fixture-document': {}, '../components/fixture-actions': {},
+    '../runtime': {useMobile: () => mobile}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => telemetry}, '../native/fixture-document': {}, '../components/fixture-actions': {}, '../auth/login': await load('../../src/auth/login.ts', {'../domain/diagnostics.ts': await load('../../src/domain/diagnostics.ts')}),
   });
   const render = () => root.render(React.createElement(LoginScreen));
   const press = predicate => act(async () => v.one('Pressable', predicate).onPress());

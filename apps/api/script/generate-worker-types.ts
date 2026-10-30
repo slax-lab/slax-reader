@@ -26,7 +26,22 @@ export function environmentTypes(source: string): string {
     ts.forEachChild(node, check)
   }
   check(ast)
-  return env.replace(/^\/\/ Runtime types generated.*\n/m, '')
+  let declarations = env
+    .replace(/^\/\/ Runtime types generated.*\n/m, '')
+    .replace(
+      '// Env bindings are maintained manually without configuration values; pnpm types refreshes runtime types only.',
+      '// Env bindings contain no configuration values; pnpm types preserves declarations and adds optional bindings from script/generate-worker-types.ts.'
+    )
+  for (const [name, type] of [
+    ['DIAGNOSTICS', 'R2Bucket'],
+    ['DIAGNOSTIC_DOWNLOAD_SECRET', 'string']
+  ]) {
+    if (!new RegExp(`\\b${name}\\??\\s*:`).test(declarations)) {
+      if (!/interface (?:__BaseEnv_)?Env \{/.test(declarations)) throw new Error('Environment interface is missing')
+      declarations = declarations.replace(/interface ((?:__BaseEnv_)?Env) \{/, `interface $1 {\n  ${name}?: ${type}\n`)
+    }
+  }
+  return declarations
 }
 
 export function generateWorkerTypes(root = API_ROOT, runtimeConfig = CONFIG_PATH, environment = process.env.SLAX_API_ENV): void {

@@ -29,7 +29,7 @@ for (const status of ['authenticated', 'unauthenticated']) test(`mounted ${statu
     './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': theme, './telemetry': {useTelemetry: () => telemetry}, './components/SourceLine': {SourceLine: nil},
     './screens/AppRecoveryScreen': {AppRecoveryScreen: nil}, './navigation/reader-route': {readerScreenOptions: () => ({}), useReaderPrewarm() {}},
   };
-  for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
+  for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug', 'DiagnosticLog']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
   const {ApplicationRoutes} = await loadComponent('../../src/App.tsx', boundaries);
   const render = () => host.render(React.createElement(ApplicationRoutes));
   await render(); assert.equal(mounted, 1);
@@ -59,7 +59,7 @@ test('mounted startup shows recoverable local errors, suppresses duplicate retri
     'react-native-gesture-handler': {GestureHandlerRootView: host.native.View}, 'react-native-safe-area-context': {SafeAreaProvider: host.native.View, SafeAreaView: host.native.View},
     './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': theme, './telemetry': {useTelemetry: () => telemetry}, './components/SourceLine': {SourceLine: nil}, './screens/AppRecoveryScreen': {AppRecoveryScreen}, './navigation/reader-route': {readerScreenOptions: () => ({}), useReaderPrewarm() {}},
   };
-  for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
+  for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug', 'DiagnosticLog']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
   const {ApplicationRoutes} = await loadComponent('../../src/App.tsx', boundaries);
   const render = () => host.render(React.createElement(ApplicationRoutes));
   await render();

@@ -134,6 +134,7 @@ async function main() {
       JWT_EXPIRES: '3600',
       JWT_ISSUER: 'isolated-http-smoke',
       JWT_SECRET_TEXT: randomUUID() + randomUUID(),
+      DIAGNOSTIC_DOWNLOAD_SECRET: randomUUID() + randomUUID(),
       HASH_IDS_SALT: randomUUID(),
       EDGE_SHARED_SECRET: randomUUID(),
       FRONT_END_URL: 'https://reader.smoke.invalid',
@@ -154,7 +155,7 @@ async function main() {
         {
           ...shared,
           name: 'root-tooling-local-core',
-          main: localPath('apps/api/src/entry/core/index.ts'),
+          main: localPath('apps/api/test/runtime/diagnosticWorker.ts'),
           hyperdrive: [
             {
               binding: 'HYPERDRIVE',
@@ -182,7 +183,10 @@ async function main() {
             }
           ],
           kv_namespaces: [{ binding: 'KV', id: '00000000000000000000000000000001' }],
-          r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
+          r2_buckets: [
+            { binding: 'OSS', bucket_name: 'http-reader' },
+            { binding: 'DIAGNOSTICS', bucket_name: 'http-diagnostics' }
+          ],
           workflows: [
             {
               binding: 'CRAWL_WORKFLOW',
@@ -272,7 +276,15 @@ async function main() {
       email: 'saver@smoke.invalid',
       lang: 'en'
     })
-    const options = localDevOptions(['--edge-config', edgeConfig, '--core-config', coreConfig, '--state', state, '--env-file', resources.emptyEnv, '--port', String(httpPort)])
+    const previousDiagnosticFixture = process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE
+    process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE = '1'
+    let options: ReturnType<typeof localDevOptions>
+    try {
+      options = localDevOptions(['--edge-config', edgeConfig, '--core-config', coreConfig, '--state', state, '--env-file', resources.emptyEnv, '--port', String(httpPort)])
+    } finally {
+      if (previousDiagnosticFixture === undefined) delete process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE
+      else process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE = previousDiagnosticFixture
+    }
     // Run the installed CLI directly: the guarded launcher uses a second, empty Corepack home.
     const wranglerManifest = createRequire(import.meta.url).resolve('wrangler/package.json')
     const wrangler = JSON.parse(readFileSync(wranglerManifest, 'utf8')) as { bin: { wrangler: string } }
@@ -806,6 +818,15 @@ async function main() {
     assert.equal(after.body.code, 200)
     assert.deepEqual(after.body.data, [])
     evidence.sourceShareRetained = true
+    const { exerciseDiagnosticFeedback } = await import('./diagnosticSmoke')
+    evidence.diagnostics = await exerciseDiagnosticFeedback(
+      (path, options) => localFetch(`http://localhost:${httpPort}${path}`, options),
+      headers,
+      query => resources.sql(pg.id, 'http_reader', query),
+      vars.DIAGNOSTIC_DOWNLOAD_SECRET,
+      () => workerLog,
+      async key => (await (await localFetch(`http://localhost:${httpPort}/__fixture/diagnostic-object-missing?key=${encodeURIComponent(key)}`, { headers })).json()) as boolean
+    )
     evidence.status = 'passed'
   } catch (error) {
     evidence.status = 'failed'

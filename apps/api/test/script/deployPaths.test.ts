@@ -29,6 +29,19 @@ afterEach(() => {
 })
 
 describe('single API configuration', () => {
+  test('diagnostic bindings stay private to responsible Workers and disable URL capture', () => {
+    const config = readConfig(template)
+    ;(config.vars as TomlTable).DIAGNOSTIC_DOWNLOAD_SECRET = 'synthetic-test-secret'
+    for (const target of TARGETS) {
+      const output = workerConfig(config, target)
+      const buckets = (output.r2_buckets ?? []) as TomlTable[]
+      expect(buckets.some(bucket => bucket.binding === 'DIAGNOSTICS')).toBe(['core', 'edge'].includes(target))
+      expect((output.vars as TomlTable).DIAGNOSTIC_DOWNLOAD_SECRET).toBe(target === 'core' ? 'synthetic-test-secret' : undefined)
+      if (['core', 'edge'].includes(target)) {
+        expect(output.observability).toMatchObject({ logs: { invocation_logs: false }, traces: { enabled: false } })
+      }
+    }
+  })
   test('fails when the configured file is missing instead of deploying an example', () => {
     expect(() => readConfig(path.join(directory(), 'api.toml'))).toThrow('configuration is missing')
   })
