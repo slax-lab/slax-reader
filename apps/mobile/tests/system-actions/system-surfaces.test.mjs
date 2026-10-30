@@ -22,7 +22,7 @@ function setup() {
 test('catalog publication is opt-in, bounded by projected data, and cleared on opt-out', async () => {
   const f = setup(); f.controller.activate(); await f.controller.reconcile(false, false); assert.equal(f.calls.length, 0);
   await f.controller.reconcile(true, false); f.emit(); await new Promise(resolve => setImmediate(resolve));
-  assert.equal(f.calls[0][0], 'catalog'); assert.equal(f.calls[0][2][0].id, systemBookmarkId(JSON.stringify(['a', 'https://api.test']), 'bookmark-1'));
+  assert.equal(f.calls[0][0], 'catalog'); assert.equal(f.calls[0][2][0].id, systemBookmarkId('bookmark-1'));
   await f.controller.reconcile(false, false);
   assert.ok(f.calls.some(call => call[0] === 'catalog' && call[2].length === 0)); assert.ok(f.watchStops > 0);
 });
@@ -88,7 +88,7 @@ test('only successful open actions are donated and replayed action ids are dedup
   await f.controller.donateSuccessfulOpen('bookmark-1', 'intent-1');
   assert.equal(f.calls.filter(call => call[0] === 'donate').length, 1);
   assert.equal(f.calls.find(call => call[0] === 'donate')[1], OPEN_BOOKMARK_INTENT);
-  assert.deepEqual(f.calls.find(call => call[0] === 'donate')[2], {bookmarkId: systemBookmarkId(JSON.stringify(['a', 'https://api.test']), 'bookmark-1')});
+  assert.deepEqual(f.calls.find(call => call[0] === 'donate')[2], {bookmarkId: systemBookmarkId('bookmark-1')});
 });
 
 test('deleting a catalog item revokes its successful-open donations', async () => {
@@ -118,7 +118,7 @@ test('catalog snapshots coalesce to the latest rows while an OS publish is pendi
   f.emit([snapshot[0]]); await new Promise(resolve => setImmediate(resolve));
   f.emit([{...snapshot[0], id: 'latest'}]); release(); await new Promise(resolve => setTimeout(resolve, 0));
   const published = f.calls.filter(call => call[0] === 'catalog' && call[2].length);
-  assert.equal(published.at(-1)[2][0].id, systemBookmarkId(JSON.stringify(['a', 'https://api.test']), 'latest'));
+  assert.equal(published.at(-1)[2][0].id, systemBookmarkId('latest'));
 });
 
 test('failed donation remains pending and can be retried by the opted-in owner', async () => {
@@ -218,4 +218,22 @@ test('turning donations off or signing out revokes prior OS suggestions', async 
   await f.controller.reconcile(false, false);
   assert.equal(f.calls.filter(call => call[0] === 'delete').length, before + 1);
   assert.equal(f.state.donationOwner, undefined);
+});
+
+test('the first publish after upgrade keeps donations and only the still-published legacy hashed ids', async () => {
+  const f = setup(), key = JSON.stringify(['a', 'https://api.test']), legacy = `b-${'1'.repeat(64)}`, gone = `b-${'2'.repeat(64)}`;
+  await f.controller['ports'].write({catalogOwner: key, donationOwner: key, catalogBookmarkIds: [legacy], catalogIdMap: {[legacy]: 'bookmark-1', [gone]: 'deleted-bookmark'}, donationIds: ['os-1'], donatedActions: ['open-1']});
+  f.controller.activate(); await f.controller.reconcile(true, true); f.emit(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.calls.some(call => call[0] === 'delete'), false, 'A changed identifier format is not a removed bookmark');
+  assert.deepEqual(f.state.catalogBookmarkIds, ['b-bookmark-1']);
+  assert.deepEqual(f.state.catalogIdMap, {[legacy]: 'bookmark-1'}); assert.deepEqual(f.state.donationIds, ['os-1']);
+  f.emit([]); await new Promise(resolve => setImmediate(resolve));
+  assert.ok(f.calls.some(call => call[0] === 'delete')); assert.deepEqual(f.state.catalogIdMap, {});
+});
+
+test('a replacement account never inherits the previous owner legacy id map', async () => {
+  const f = setup(), legacy = `b-${'1'.repeat(64)}`;
+  await f.controller['ports'].write({catalogOwner: JSON.stringify(['b', 'https://api.test']), catalogBookmarkIds: [legacy], catalogIdMap: {[legacy]: 'bookmark-1'}});
+  f.controller.activate(); await f.controller.reconcile(true, false); f.emit(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.state.catalogOwner, JSON.stringify(['a', 'https://api.test'])); assert.deepEqual(f.state.catalogIdMap, {});
 });

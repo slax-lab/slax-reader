@@ -21,7 +21,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.25</string>
+    <string>1.0.26</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -48,7 +48,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>784</string>
+    <string>797</string>
     <key>FirebaseAutomaticScreenReportingEnabled</key>
     <false/>
     <key>ITSAppUsesNonExemptEncryption</key>

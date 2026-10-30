@@ -22,7 +22,6 @@ describe('Worker types security', () => {
     expect(env).toContain('TELEGRAM_WEBHOOK_SECRET?: string')
     expect(env).toContain('GA4_API_SECRET?: string')
     expect(env).toContain('OPENAI_MODERATION_ENDPOINT?: string')
-    expect(env).toContain('STRIPE_LIVE_MODE?: string')
     expect(env).toContain('STRIPE_SECRET_KEY: string')
     expect(env).toContain('STRIPE_CALLBACK_SECRET: string')
     expect(env).toContain('APP_STORE_API_PRIVATE_KEY: string')
@@ -61,7 +60,12 @@ describe('Worker types security', () => {
       return { status: 0 }
     }) as typeof spawnSync)
     generateWorkerTypes(root, path.join(root, 'config/prod.toml'))
-    expect(fs.readFileSync(path.join(root, 'worker-configuration.d.ts'), 'utf8')).toBe(env + '// Begin runtime types\nnew runtime')
+    const generated = fs.readFileSync(path.join(root, 'worker-configuration.d.ts'), 'utf8')
+    expect(generated).toContain('API_KEY: string; OPTIONAL_SECRET?: string')
+    expect(generated).toContain('DIAGNOSTICS?: R2Bucket')
+    expect(generated).toContain('DIAGNOSTIC_DOWNLOAD_SECRET?: string')
+    expect(generated).not.toContain('fixture-secret')
+    expect(generated).toBe(environmentTypes(generated) + '// Begin runtime types\nnew runtime')
     expect(fs.readdirSync(root).sort()).toEqual(['config', 'worker-configuration.d.ts'])
   })
 

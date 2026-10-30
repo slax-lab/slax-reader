@@ -8,6 +8,7 @@ export type RootStackParams = {
   Settings: undefined;
   About: undefined;
   Debug: undefined;
+  DiagnosticLog: undefined;
   DeleteAccount: undefined;
   Subscription: undefined;
   Feedback: { bookmarkId?: string; targetUrl?: string; entryPoint?: string; type?: string; title?: string } | undefined;

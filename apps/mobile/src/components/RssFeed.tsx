@@ -1,7 +1,6 @@
-import {DrawerScrollBoundary} from './SourceDrawer';
 import type {ViewInstance} from 'react-native';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, PixelRatio, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, type FlatList, PixelRatio, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import type { RssEntry, RssSubscription } from '@slax-reader/contracts';
 import { useMobile } from '../runtime';
 import { rssDisplayName, type RssController, type RssState } from '../rss/controller';
@@ -11,6 +10,7 @@ import { SourceButton, SourceDialog, SourceIcon, SourceSheet, SourceText, Source
 import { SourceMenu } from './SourceMenu';
 import {fixtureActions} from './fixture-actions';
 import {FeedScrollPosition, useFeedScrollPosition} from './feed-scroll';
+import {FeedList} from './FeedList';
 
 export function rssImage(raw?: string | null): string | null {
   if (!raw) return null;
@@ -44,7 +44,7 @@ function RssImageTransport({uri, size, sourceName}: {uri: string | null; size: n
 }
 export function RssFeedSwitcher({state, controller, onAdd}: {state: RssState; controller: RssController; onAdd(): void}) {
   const {t} = useMobile(), all = state.selected === null;
-  return <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, height: 96}} contentContainerStyle={styles.switcher}>
+  return <ScrollView horizontal scrollsToTop={false} showsHorizontalScrollIndicator={false} style={{flexGrow: 0, height: 96}} contentContainerStyle={styles.switcher}>
     {state.subscriptions.length ? <Pressable accessibilityRole="tab" accessibilityLabel={t('rss_all')} accessibilityState={{selected: all, disabled: state.busy}} disabled={state.busy} onPress={() => void controller.select(null)} style={styles.source}>
       <View style={[styles.sourceCircle, {borderColor: all ? C.rssSelectedBorder : 'transparent'}]}><View style={styles.allImage}><SourceIcon name="ic_rss" size={24} style={{tintColor: C.rssAccent}} /></View></View>
       <SourceText numberOfLines={1} ellipsizeMode="middle" style={[T.rssSourceLabel, {marginTop: 6, fontWeight: all ? '500' : '400', color: all ? C.text : C.mutedText}]}>{t('rss_all')}</SourceText>
@@ -57,7 +57,7 @@ export function RssFeedSwitcher({state, controller, onAdd}: {state: RssState; co
   </ScrollView>;
 }
 function displayTime(raw: string) { const date = new Date(raw); if (!Number.isFinite(date.getTime())) return ''; const pad = (v: number) => String(v).padStart(2, '0'); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`; }
-export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, onOpenSettings, onOpen, scrollPosition, active = true, header}: {state: RssState; controller: RssController; adding: boolean; onDismissAdd(): void; onRequestAdd(): void; onOpenSettings(): void; onOpen(entry: RssEntry): void; scrollPosition: FeedScrollPosition; active?: boolean; header?: React.ReactNode}) {
+export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, onOpenSettings, onOpen, scrollPosition, active = true, scrollsToTop = true, onScrollActivity, header}: {state: RssState; controller: RssController; adding: boolean; onDismissAdd(): void; onRequestAdd(): void; onOpenSettings(): void; onOpen(entry: RssEntry): void; scrollPosition: FeedScrollPosition; active?: boolean; scrollsToTop?: boolean; onScrollActivity?(scrolling: boolean): void; header?: React.ReactNode}) {
   const {t, fixtureOnly} = useMobile(); const list = useRef<FlatList<RssEntry>>(null), toolbar = useRef<ViewInstance>(null);
   const scrollTo = useCallback((offset: number, animated = false) => list.current?.scrollToOffset({offset, animated}), []);
   const scroll = useFeedScrollPosition(scrollPosition, scrollTo, true, state.selected);
@@ -90,7 +90,7 @@ export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, 
     });
   }, [fixtureOnly, current]);
   return <View style={{flex: 1, backgroundColor: C.readerBackground}}>
-    <DrawerScrollBoundary><FlatList ref={list} {...scroll.events} maintainVisibleContentPosition={scroll.maintainVisibleContentPosition} data={state.enabled ? state.entries : []} keyExtractor={entry => entry.id} contentContainerStyle={{paddingBottom: 16}}
+    <FeedList ref={list} {...scroll.events} contentScope={state.selected} active={active && scrollsToTop} onScrollActivity={onScrollActivity} data={state.enabled ? state.entries : []} keyExtractor={entry => entry.id} contentContainerStyle={{paddingBottom: 16}}
       ListHeaderComponent={<>
         {header}
         {state.busy || state.enabled && !state.ready ? <SourceProgress height={2} color={C.rssAccent} /> : null}
@@ -102,7 +102,7 @@ export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, 
       ListEmptyComponent={state.enabled && state.ready && !state.busy ? <View style={styles.empty}><SourceIcon name="ic_rss" size={36} /><SourceText style={[T.metadata, {color: C.mutedText, textAlign: 'center'}]}>{t(state.subscriptions.length ? 'rss_empty' : 'rss_no_sources')}</SourceText>{!state.subscriptions.length ? <TextAction label={t('rss_add')} color={C.rssAccent} onPress={onRequestAdd} /> : null}</View> : undefined}
       renderItem={renderEntry}
       ItemSeparatorComponent={RssDivider}
-      ListFooterComponent={state.enabled && state.hasMore ? <View style={{alignItems: 'center', padding: 24}}><TextAction label={t('rss_more')} disabled={state.busy || Boolean(state.retryAt && Date.parse(state.retryAt) > now)} onPress={() => void controller.more()} />{state.historyStatus === 'retry' || state.historyStatus === 'loading' ? <SourceText style={{fontSize: 12, color: C.mutedText}}>{t(state.historyStatus === 'retry' ? 'rss_history_retry' : 'rss_history_loading')}</SourceText> : null}</View> : state.enabled && state.entries.length && !state.busy ? <SourceText style={[T.metadata, {color: C.mutedText, marginHorizontal: 24, marginVertical: 34}]}>{t('rss_history_end')}</SourceText> : undefined} /></DrawerScrollBoundary>
+      ListFooterComponent={state.enabled && state.hasMore ? <View style={{alignItems: 'center', padding: 24}}><TextAction label={t('rss_more')} disabled={state.busy || Boolean(state.retryAt && Date.parse(state.retryAt) > now)} onPress={() => void controller.more()} />{state.historyStatus === 'retry' || state.historyStatus === 'loading' ? <SourceText style={{fontSize: 12, color: C.mutedText}}>{t(state.historyStatus === 'retry' ? 'rss_history_retry' : 'rss_history_loading')}</SourceText> : null}</View> : state.enabled && state.entries.length && !state.busy ? <SourceText style={[T.metadata, {color: C.mutedText, marginHorizontal: 24, marginVertical: 34}]}>{t('rss_history_end')}</SourceText> : undefined} />
     {current ? <SourceMenu visible={menu} anchor={anchor} onDismiss={() => setMenu(false)} items={[{label: t(current.refreshing ? 'rss_refreshing' : 'rss_refresh'), disabled: !canRefresh, onPress: () => void controller.refresh(current.id)}, {label: t('rss_edit'), disabled: state.busy, onPress: () => setEditing(current)}, {label: t('rss_remove'), disabled: state.busy, onPress: () => setRemoving(current)}]} /> : null}
     <RssEditor visible={adding && state.enabled} controller={controller} state={state} onDismiss={onDismissAdd} />
     <RssEditor visible={Boolean(editing)} source={editing ?? undefined} controller={controller} state={state} onDismiss={() => setEditing(null)} />
@@ -130,7 +130,7 @@ function RssOutlinedField({label, value, onChangeText, maxLength, busy, placehol
     <View style={{paddingTop: 8}}>
       <View style={[styles.field, {opacity: busy ? 0.38 : 1}]}>
         <View pointerEvents="none" style={[StyleSheet.absoluteFill, {borderRadius: 12, borderColor: !busy && focused ? C.rssAccent : C.switchOff, borderWidth: !busy && focused ? 2 : 1}]} />
-        {onChangeText ? <TextInput accessibilityLabel={label} value={value} onChangeText={onChangeText} maxLength={maxLength} editable={!busy} multiline={false} autoCapitalize={url ? 'none' : 'sentences'} autoCorrect={!url} placeholder={focused ? placeholder : undefined} placeholderTextColor={C.rssIconMuted} selectionColor={C.rssAccent} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={styles.input} /> : <ScrollView horizontal scrollEnabled={!busy} showsHorizontalScrollIndicator={false} style={{flexGrow: 0}}><SourceText accessibilityLabel={label} accessibilityValue={{text: value}} accessibilityState={{disabled: busy}} selectable={!busy} numberOfLines={1} style={styles.input}>{value}</SourceText></ScrollView>}
+        {onChangeText ? <TextInput accessibilityLabel={label} value={value} onChangeText={onChangeText} maxLength={maxLength} editable={!busy} multiline={false} autoCapitalize={url ? 'none' : 'sentences'} autoCorrect={!url} placeholder={focused ? placeholder : undefined} placeholderTextColor={C.rssIconMuted} selectionColor={C.rssAccent} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={styles.input} /> : <ScrollView horizontal scrollsToTop={false} scrollEnabled={!busy} showsHorizontalScrollIndicator={false} style={{flexGrow: 0}}><SourceText accessibilityLabel={label} accessibilityValue={{text: value}} accessibilityState={{disabled: busy}} selectable={!busy} numberOfLines={1} style={styles.input}>{value}</SourceText></ScrollView>}
       </View>
       <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.fieldLabel, floating ? {top: 0, left: 12, paddingHorizontal: 4, backgroundColor: C.readerBackground} : {top: 24, left: 16}]}><SourceText style={{fontSize: floating ? 12 : 16, lineHeight: floating ? 16 : 24, color: !busy && focused ? C.rssAccent : C.rssIconMuted, opacity: busy ? 0.38 : 1}}>{label}</SourceText></View>
     </View>

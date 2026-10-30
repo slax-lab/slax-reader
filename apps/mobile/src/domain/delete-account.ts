@@ -21,6 +21,6 @@ export async function deleteCurrentAccount(options: {
   if (!session) throw new SessionChangedError();
   const result = await options.api.deleteAccount(options.signal).catch(error => {assertActive(); throw error;});
   assertActive();
-  if (result.canDelete) await options.sessions.clearIfMatches(session.token, scope);
+  if (result.canDelete) await options.sessions.clearIfMatches(session.token, scope, true, 'account_deleted');
   return result;
 }

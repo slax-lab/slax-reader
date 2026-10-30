@@ -1,3 +1,4 @@
+import type { BookmarkForkMetadata } from './bookmarks.js'
 // Augments `@slax-reader/contracts/interface` with the fields and interfaces that are
 // shared by the current Web and Extension applications.
 //
@@ -13,6 +14,8 @@ export type { BookmarkParseStatus, CollectionInfo, SubscriptionType }
 
 declare module '@slax-reader/contracts/interface' {
   // ─── Field augmentations on upstream interfaces ─────────────────────
+
+  interface BaseBookmarkDetail extends Partial<BookmarkForkMetadata> {}
 
   interface BookmarkDetail {
     type: 'shortcut' | 'article' | 'pdf'

@@ -5,7 +5,7 @@ import type {PdfFailureStage} from '../../pdf-errors.ts'
 
 export type PdfRuntimeOptions = PdfDocumentOptions & {labels: PdfLabels}
 export type PdfRuntimeAssets = {worker: string; resources: Record<string, string>}
-export type PdfRuntimeMessage = {channel: string; pageId: string; kind: string; id?: string; offset?: number; data?: string; operation?: string; argument?: unknown; error?: string; active?: boolean; height?: number; failure?: unknown; mode?: 'single' | 'spread'; paneWidth?: number; gutter?: number}
+export type PdfRuntimeMessage = {channel: string; pageId: string; kind: string; id?: string; offset?: number; operation?: string; argument?: unknown; error?: string; active?: boolean; height?: number; mode?: 'single' | 'spread'; paneWidth?: number; gutter?: number}
 export interface PdfRuntimeLifecycle {
   readonly disposed: boolean
   readonly failed: boolean

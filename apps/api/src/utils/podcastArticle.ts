@@ -570,10 +570,13 @@ function renderShownotes(info: PodcastPlayerInfo, lang: PodcastLanguage): string
  * first cue, so the player can follow it and "listen from here" can seek to it. Only fixed tags,
  * class and data-* attributes; every model and feed string goes through escapeHtml.
  */
-export function renderPodcastBody(input: { info: PodcastPlayerInfo; article?: { doc: YoutubeArticleDocument; version: string; cues: PodcastCue[] } }): string {
+export function renderPodcastBody(input: {
+  info: PodcastPlayerInfo
+  article?: { doc: YoutubeArticleDocument; version: string; cues: PodcastCue[]; paragraphStarts?: number[][] }
+}): string {
   const lang: PodcastLanguage = input.article?.doc.language === 'zh' ? 'zh' : input.article ? 'en' : (input.info.language ?? 'en')
   const out: string[] = ['<div class="slax-pod" data-slax-derived="podcast">', renderPlayer(input.info, input.article?.cues ?? [])]
-  if (input.article) out.push(renderMediaArticle(input.article.doc, input.article.version, input.article.cues, 'podcast'))
+  if (input.article) out.push(renderMediaArticle(input.article.doc, input.article.version, input.article.cues, 'podcast', input.article.paragraphStarts))
   const notes = renderShownotes(input.info, lang)
   if (notes) out.push(notes)
   out.push('</div>')
@@ -585,17 +588,38 @@ export function renderPodcastBody(input: { info: PodcastPlayerInfo; article?: { 
  * classes, so the client's seek, follow-along and "listen from here" work for both; only
  * data-slax-derived names the media. `cues` gives each paragraph the start of its first cue.
  */
-export function renderMediaArticle(doc: YoutubeArticleDocument, version: string, cues: { id: string; start_ms: number }[], kind: 'podcast' | 'youtube'): string {
+export function renderMediaArticle(
+  doc: YoutubeArticleDocument,
+  version: string,
+  cues: { id: string; start_ms: number }[],
+  kind: 'podcast' | 'youtube',
+  paragraphStarts?: number[][]
+): string {
   const startOf = new Map(cues.map(c => [c.id, c.start_ms]))
   const lang: PodcastLanguage = doc.language === 'zh' ? 'zh' : 'en'
   const out: string[] = [`<article class="slax-pod-article" data-slax-derived="${kind}-article" data-article-version="${escapeHtml(version)}" lang="${lang}">`]
-  if (doc.lede) out.push(`<p class="slax-pod-lede">${escapeHtml(doc.lede)}</p>`)
-  for (const section of doc.sections) {
+  if (kind === 'youtube') {
+    // The same labels as component.youtube_article.* in the Web locales; podcastArticle.test.ts checks both
+    out.push(`<p class="slax-yt-edition">${lang === 'zh' ? '视频整理稿' : 'Edited transcript'}</p>`)
+    if (doc.lede)
+      out.push(
+        `<aside class="slax-yt-introduction"><span class="slax-yt-label">${lang === 'zh' ? '导读 · 自动生成' : 'Introduction · generated'}</span><p>${escapeHtml(doc.lede)}</p></aside>`
+      )
+    out.push(
+      `<details class="slax-yt-contents"><summary>${lang === 'zh' ? '本文目录' : 'Contents'} <span>${doc.sections.length}</span></summary><nav aria-label="${lang === 'zh' ? '本文目录' : 'Contents'}">`
+    )
+    for (const [i, section] of doc.sections.entries())
+      out.push(`<a href="#yt-topic-${i}"><span>${escapeHtml(section.heading)}</span><time>${formatTimestamp(section.start_ms)}</time></a>`)
+    out.push('</nav></details>')
+  } else if (doc.lede) out.push(`<p class="slax-pod-lede">${escapeHtml(doc.lede)}</p>`)
+  for (const [sectionIndex, section] of doc.sections.entries()) {
     out.push('<section class="slax-pod-section">')
-    out.push(`<h2 class="slax-pod-heading" data-start-ms="${safeInt(section.start_ms)}">${escapeHtml(section.heading)}</h2>`)
-    for (const p of section.paragraphs) {
+    out.push(
+      `<h2${kind === 'youtube' ? ` id="yt-topic-${sectionIndex}"` : ''} class="slax-pod-heading" data-start-ms="${safeInt(section.start_ms)}">${escapeHtml(section.heading)}</h2>`
+    )
+    for (const [paragraphIndex, p] of section.paragraphs.entries()) {
       const starts = p.source_cue_ids.map(id => startOf.get(id)).filter((n): n is number => n !== undefined)
-      const start = starts.length ? Math.min(...starts) : section.start_ms
+      const start = paragraphStarts?.[sectionIndex]?.[paragraphIndex] ?? (starts.length ? Math.min(...starts) : section.start_ms)
       const speaker = p.speaker ? `<span class="slax-pod-speaker">${escapeHtml(speakerDisplay(p.speaker, lang))}</span> ` : ''
       out.push(
         `<p class="slax-pod-p" data-start-ms="${safeInt(start)}" data-cue-ids="${safeCueIds(p.source_cue_ids)}"><span class="slax-pod-time" data-media-seek="${safeInt(start)}" role="button" tabindex="0">${formatTimestamp(start)}</span> ${speaker}${escapeHtml(p.text)}</p>`
@@ -603,6 +627,10 @@ export function renderMediaArticle(doc: YoutubeArticleDocument, version: string,
     }
     out.push('</section>')
   }
+  if (kind === 'youtube')
+    out.push(
+      `<footer class="slax-yt-method"><strong>${lang === 'zh' ? '方法与来源' : 'Method and source'}</strong><p>${lang === 'zh' ? '正文根据视频字幕整理，保留原有顺序。导读单独生成。字幕和整理稿可能存在错误，请通过时间戳核对原视频。' : 'The article follows the video captions in their original order. The introduction is generated separately. Captions and editing can contain errors. Use timestamps to check the video.'}</p></footer>`
+    )
   out.push('</article>')
   return out.join('\n')
 }

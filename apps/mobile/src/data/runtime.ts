@@ -7,17 +7,14 @@ import {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailab
 import { createMobileApi } from './api.ts';
 import type { MobileApiOptions } from './api.ts';
 import { ArticleFileCache } from './cache.ts';
-import {PdfBlockCache} from './pdf-cache.ts';
-import {PdfFileStorage} from './pdf-file-storage.ts';
-import type {PdfDescriptor} from '@slax-reader/contracts/pdf';
 import { clearAccountData } from './account-cleanup.ts';
 import { AccountDatabaseLease, AccountInactiveError } from './account-lease.ts';
-import {BackgroundArticleCache} from './background-cache.ts';
+import {OfflineCoordinator, type OfflineCredentialSource} from './offline-coordinator.ts';
+import {loadOfflineEngine} from './native-offline-engine.ts';
+import type {OfflineEngine} from './offline-engine.ts';
 import {RuntimeActivity} from './runtime-activity.ts';
 import {NetworkAvailability, type NetworkAvailabilitySource} from './network-availability.ts';
 import {nativeNetwork} from './native-network.ts';
-import {createNativePdfFetch} from './native-pdf-transfer.ts';
-import {fetchCacheImage} from './image-fetch.ts';
 import {loadReaderImage} from '../native/reader-image';
 import { activateReaderResources, revokeReaderResources } from '../native/platform';
 import { createSyncConnector } from './connector.ts';
@@ -31,9 +28,12 @@ import { MobileRepositories } from './repositories.ts';
 import { createMobileSchema, LEGACY_MOBILE_TABLES, SYNC_PARAMETERS } from './schema.ts';
 import { UpgradeVerificationRequired } from './upgrade.ts';
 import type { AdoptionEvidence, LegacyInventory } from './upgrade.ts';
+import {createAccountDiagnostics} from '../diagnostics/exchanges.ts';
+import {noDiagnostics, recordDiagnostic} from '../domain/diagnostics.ts';
+import type {MobileDiagnostics} from '../diagnostics/native.ts';
 
 export type UpgradeState = {status: 'idle' | 'checking' | 'ready'} | {status: 'verification-required'; inventory: LegacyInventory} | {status: 'error'; error: Error};
-export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; adoptionEvidence?: AdoptionEvidence; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean }
+export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { diagnostics?: MobileDiagnostics; betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; adoptionEvidence?: AdoptionEvidence; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]} }
 /** Construct once at the app root; start before mounting account-bound watchers. */
 export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   const bridge = options.nativeBridge ?? loadLegacyBridge();
@@ -43,16 +43,20 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   let accountLease: AccountDatabaseLease | null = null;
   let accountPreferences: PreferenceStore | null = null;
   let nativeResourceOwner: string | null = null;
-  let backgroundCache: BackgroundArticleCache | null = null;
+  let offline: OfflineCoordinator | null = null;
+  const engine = options.offlineEngine ?? loadOfflineEngine();
+  const interactionBusy = new Set<string>();
   let avatars: AvatarCache | null = null;
   let libraryPresented = false;
+  const presentationListeners = new Set<() => void>();
+  const notifyPresentation = () => presentationListeners.forEach(listener => listener());
   let pendingWarmup: (() => void) | undefined;
   let cancelWarmup: (() => void) | undefined;
-  const scheduleWarmup = (worker: BackgroundArticleCache, generation: number) => {
+  const scheduleWarmup = (worker: OfflineCoordinator, generation: number) => {
     cancelWarmup?.();
     const run = () => {
       cancelWarmup = undefined;
-      if (!stopping && generation === accountGeneration && backgroundCache === worker && activity.isForeground()) worker.start();
+      if (!stopping && generation === accountGeneration && offline === worker && activity.isForeground()) worker.start();
     };
     if (!libraryPresented) {pendingWarmup = run; cancelWarmup = () => {pendingWarmup = undefined;}; return;}
     const idle = globalThis as typeof globalThis & {requestIdleCallback?: (callback: () => void, options: {timeout: number}) => number; cancelIdleCallback?: (id: number) => void};
@@ -80,7 +84,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       connector.pause(); connectionRequested = false; clearSyncRetry();
       void database?.disconnect().catch(() => undefined);
     }
-    void backgroundCache?.setOnline(state !== 'offline').catch(() => undefined);
+    offline?.setOnline(state !== 'offline');
     if (state === 'online' && activity.isForeground() && database && accountLease) {
       connector.resume();
       void connectAccount(database, accountGeneration);
@@ -111,22 +115,23 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     end: bridge.endStorageTransition ? token => bridge.endStorageTransition!(token) : undefined,
     async pause() {
       readiness.pause(); connector.pause(); connectionRequested = false; clearSyncRetry(); cancelWarmup?.(); cancelWarmup = undefined;
-      const worker = backgroundCache, lease = accountLease;
-      await Promise.all([worker?.pause(), database?.disconnect(), lease?.drainWrites()]);
+      const worker = offline, lease = accountLease;
+      await Promise.all([worker?.suspend(), database?.disconnect(), lease?.drainWrites()]);
     },
     async resume() {
       if (stopping) return;
       connector.resume(); network.refresh();
-      backgroundCache?.resume();
+      if (offline) {offline.resume(); scheduleWarmup(offline, accountGeneration);}
       void environmentReady?.then(() => readiness.resume()).then(() => {
         if (!stopping && activity.isForeground() && database && accountLease) void connectAccount(database, accountGeneration);
       }).catch(() => undefined);
     },
   });
   const revokeAccountScope = () => {
-    libraryPresented = false; pendingWarmup = undefined;
+    const wasPresented = libraryPresented; libraryPresented = false; pendingWarmup = undefined;
+    if (wasPresented) notifyPresentation();
     accountGeneration++; cancelWarmup?.(); cancelWarmup = undefined; connecting = undefined; connectionRequested = false; connector.invalidate(); clearSyncRetry(); syncFailures = 0;
-    const previousBackground = backgroundCache; backgroundCache = null; previousBackground?.cancel();
+    const previousBackground = offline; offline = null; previousBackground?.cancel();
     avatars?.dispose(); avatars = null;
     accountLease?.invalidate(); accountLease = null; accountPreferences = null; nativeResourceOwner = null; repositories = null; cache = null;
     return previousBackground;
@@ -136,7 +141,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     revoke() {
       readiness.reset();
       const previous = revokeAccountScope();
-      retiredBackground = Promise.all([retiredBackground, previous?.stop()]).then(() => undefined);
+      retiredBackground = Promise.all([retiredBackground, previous?.close()]).then(() => undefined);
     },
     rejected() {
       readiness.reject(); connector.pause(); connectionRequested = false; clearSyncRetry();
@@ -146,7 +151,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       if (stopping) return;
       readiness.pause(); connector.pause();
       const previous = revokeAccountScope();
-      retiredBackground = Promise.all([retiredBackground, previous?.stop(), database?.disconnect()]).then(() => undefined).catch(() => undefined);
+      retiredBackground = Promise.all([retiredBackground, previous?.close(), database?.disconnect()]).then(() => undefined).catch(() => undefined);
       emit({status: 'error', error: reason instanceof Error ? reason : new Error('Application data initialization failed')});
     },
     accepted() {
@@ -159,7 +164,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     },
     async leave(_userId, clear) {
       readiness.reset();
-      const previousBackground = revokeAccountScope(); await Promise.all([retiredBackground, previousBackground?.stop()]);
+      const previousBackground = revokeAccountScope(); await Promise.all([retiredBackground, previousBackground?.close()]);
       await storageReady;
       if (stopping || !database) throw new AccountInactiveError();
       const opened = database;
@@ -173,7 +178,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       if (stopping) throw new AccountInactiveError();
       if (!database || !adminCache) throw new Error('Application database is not ready');
       const opened = database, directory = adminCache.dataDirectory;
-      const previousBackground = revokeAccountScope(); await previousBackground?.stop();
+      const previousBackground = revokeAccountScope(); await previousBackground?.close();
       if (stopping || database !== opened) throw new AccountInactiveError();
       const generation = accountGeneration;
       const owner = bridge.newIdentifier();
@@ -184,60 +189,42 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       nativeResourceOwner = owner;
       accountPreferences = preferences.scoped(() => lease.assertActive());
       repositories = new MobileRepositories(lease, () => bridge.newIdentifier(), undefined, (id, signal) => api.getRemoteBookmark(id, signal));
-      const origin = api.options.baseUrl;
-      const pdfAccountGuard = () => {lease.assertActive(); if (api.options.baseUrl !== origin) throw new AccountInactiveError();};
-      const pdfGuard = () => {pdfAccountGuard(); if (!activity.isForeground()) throw new AccountInactiveError();};
-      const pdfStorage = new PdfFileStorage(directory, pdfAccountGuard, owner);
-      const pdf = new PdfBlockCache(pdfStorage, JSON.stringify([origin, session.userId]), pdfGuard, pdfAccountGuard);
-      let accountWorker: BackgroundArticleCache | undefined;
-      cache = new ArticleFileCache(directory, value => bridge.md5String(value), () => lease.assertActive(), {
-        bytes: key => pdf.bytes(key), remove: async (key, check) => {lease.assertActive(); await accountWorker?.forgetPdf(key); pdfGuard(); check?.(); await pdf.remove(key, check);}, clear: () => pdfStorage.clearScope(JSON.stringify([origin, session.userId])),
-      }, owner, loadReaderImage);
-      const accountCache = cache;
-      avatars = createAvatarCache(directory, owner, JSON.stringify([origin, session.userId]), pdfAccountGuard, value => bridge.md5String(value), options.fetch ?? expoFetch);
-      accountCache.setAvatarCache(avatars);
-      const removal = {
-        async stage(key: string, value: string, signal: AbortSignal) {
-          const rollback = await Promise.allSettled([accountCache.stageRemoval(key, value, signal), pdf.stageRemoval(key, value, signal)]);
-          const failed = rollback.find(result => result.status === 'rejected');
-          if (failed) {
-            await Promise.allSettled([accountCache.restoreRemoval(key, value), pdf.restoreRemoval(key, value)]);
-            throw failed.reason;
-          }
+      const origin = api.options.baseUrl, cacheScope = JSON.stringify([origin, session.userId]);
+      const accountGuard = () => {lease.assertActive(); if (api.options.baseUrl !== origin) throw new AccountInactiveError();};
+      const credentials: OfflineCredentialSource = {
+        current() {
+          const state = sessions.getSnapshot();
+          if (readiness.getSnapshot().status !== 'ready' || state.status !== 'authenticated' || state.session.userId !== session.userId || api.options.baseUrl !== origin) return null;
+          const token = state.session.token, scope = sessions.captureRequestScope();
+          return {token, reject: () => sessions.rejectIfMatches(token, scope)};
         },
-        async restore(key: string, value: string) {
-          const results = await Promise.allSettled([accountCache.restoreRemoval(key, value), pdf.restoreRemoval(key, value)]);
-          const failed = results.find(result => result.status === 'rejected'); if (failed) throw failed.reason;
-        },
-        async purge(key: string, value: string) {
-          const results = await Promise.allSettled([accountCache.purgeRemoval(key, value), pdf.purgeRemoval(key, value)]);
-          const failed = results.find(result => result.status === 'rejected'); if (failed) throw failed.reason;
+        subscribe(listener) {
+          const stopReadiness = readiness.subscribe(listener), stopSession = sessions.subscribe(listener);
+          return () => {stopReadiness(); stopSession();};
         },
       };
-      backgroundCache = new BackgroundArticleCache({database: lease, preferences: accountPreferences, cache, removal,
-        resourceScope: JSON.stringify([origin, session.userId, generation, owner]), cacheScope: JSON.stringify([origin, session.userId]), identifier: () => bridge.newIdentifier(), apiOrigin: new URL(origin).origin,
-        assertActive: pdfAccountGuard,
+      const worker = new OfflineCoordinator({engine, database: lease, preferences: accountPreferences, credentials, identifier: () => bridge.newIdentifier(), online: network.getSnapshot() !== 'offline',
+        scope: {owner, scope: cacheScope, origin, directory, userAgent: `SlaxReader/${options.platform} ${options.version}`, clientType: options.platform, clientVersion: options.version, ...options.readerHosts},
+        assertActive: accountGuard,
         assertCachedAccess: () => {
-          pdfGuard();
+          if (!activity.isForeground()) throw new AccountInactiveError();
           const state = readiness.getSnapshot().status;
           if (state === 'reauthentication-required') throw new ReauthenticationRequiredError();
           if (state === 'paused') throw new CredentialsUnavailableError();
         },
-        content: (id, owner, signal) => owner ? api.getCollectionBookmarkRawContent(id, owner, signal) : api.getBookmarkRawContent(id, signal),
-        image: (url, signal) => fetchCacheImage(options.fetch ?? expoFetch, url, signal),
-        pdf: {cache: pdf, metadata: (id, signal) => api.getPdfMetadata(id, signal), range: (id, documentId, begin, end, signal, expectedSize) => api.getPdfRange(id, documentId, begin, end, signal, expectedSize),
-          acquire: (id, descriptor, begin, end, complete, signal) => api.acquirePdf(id, descriptor, begin, end, complete, signal)},
       });
-      const worker = backgroundCache; accountWorker = worker;
-      accountCache.setAccessBarrier((key, signal) => worker.waitForAccess(key, signal));
-      void backgroundCache.setOnline(network.getSnapshot() !== 'offline').catch(() => undefined);
-      if (activity.isForeground()) scheduleWarmup(worker, generation); else await worker.pause();
+      offline = worker; interactionBusy.forEach(source => worker.setInteractionBusy(true, source));
+      cache = new ArticleFileCache(directory, value => bridge.md5String(value), () => lease.assertActive(), worker, owner, loadReaderImage);
+      avatars = createAvatarCache(directory, owner, cacheScope, accountGuard, value => bridge.md5String(value), options.fetch ?? expoFetch);
+      cache.setAvatarCache(avatars);
+      void worker.open(false).catch(error => {if (__DEV__) console.warn('[mobile] offline engine unavailable', error instanceof Error ? error.name : 'unknown');});
+      if (activity.isForeground()) scheduleWarmup(worker, generation); else await worker.suspend();
       void api.sendMetrics('heartbeat').catch(() => undefined);
       connector.resume(); connectAccount(opened, generation);
     },
-  });
-  const pdfFetch = options.pdfFetch ?? options.fetch ?? createNativePdfFetch(() => nativeResourceOwner ? {owner: nativeResourceOwner, origin: api.options.baseUrl} : null);
-  const api = createMobileApi({...options, fetch: options.fetch ?? expoFetch, pdfFetch, sessions});
+  }, undefined, {diagnostics: options.diagnostics?.sink});
+  const diagnosticExchanges = createAccountDiagnostics(options.diagnostics?.sink ?? noDiagnostics, () => sessions.captureRequestScope().assertCurrent);
+  const api = createMobileApi({...options, fetch: options.fetch ?? expoFetch, sessions, onFailedExchange: diagnosticExchanges.failed, onAccountSuccess: diagnosticExchanges.succeeded});
   const connector = createSyncConnector(api, preferences, sessions, options.localSyncEndpoint);
   const readiness = new CredentialReadiness({
     read: () => sessions.getSession(),
@@ -245,7 +232,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       const origin = api.options.baseUrl, scope = sessions.captureRequestScope(), prior = await scope.getSession();
       try {await sessions.refreshIfNeeded(api.refresh, signal, () => {if (api.options.baseUrl !== origin) throw new AccountInactiveError();});}
       catch (error) {
-        if (prior && error && typeof error === 'object' && 'status' in error && error.status === 401 && api.options.baseUrl === origin) await sessions.rejectIfMatches(prior.token, scope);
+        if (prior && error && typeof error === 'object' && 'status' in error && error.status === 401 && api.options.baseUrl === origin) await sessions.rejectIfMatches(prior.token, scope, api.getFailedExchange(error)?.http);
         throw error;
       }
     },
@@ -264,6 +251,8 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   async function start() {
     if (startPromise) return startPromise;
     stopping = false; network.start(); emit({status: 'checking'});
+    const sdkReady = Promise.all([import('@powersync/react-native'), createMobileSchema()]);
+    sdkReady.catch(() => undefined);
     environmentReady = sessions.restoreLocal(async () => {
       const snapshot = await preferences.read();
       if (stopping) throw new AccountInactiveError();
@@ -286,10 +275,9 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       const inventory = await (options.freshStorage && bridge.beginFreshDataOwnership ? bridge.beginFreshDataOwnership() : bridge.beginDataOwnership()); hasLease = true;
       if (stopping) throw new AccountInactiveError();
       const evidence = options.freshStorage ? undefined : options.adoptionEvidence ?? deriveReviewedAdoptionEvidence(inventory, options.platform);
-      const adminPdf = new PdfFileStorage(inventory.legacyDataDirectory);
-      adminCache = new ArticleFileCache(inventory.legacyDataDirectory, value => bridge.md5String(value), undefined, {bytes: async () => 0, remove: async () => {}, clear: () => adminPdf.clear()});
-      const {PowerSyncDatabase} = await import('@powersync/react-native');
-      const schema = await createMobileSchema();
+      adminCache = new ArticleFileCache(inventory.legacyDataDirectory, value => bridge.md5String(value));
+      const [{PowerSyncDatabase}, schema] = await sdkReady;
+      if (stopping) throw new AccountInactiveError();
       let adoptedLegacySchema = false;
       database = await openVerifiedDatabase({inventory, evidence, inspector: bridge, preferences, fresh: options.freshStorage, open: (location, legacySchema) => activity.whileActive(async () => {
         adoptedLegacySchema = legacySchema === true;
@@ -312,7 +300,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
         const error = reason instanceof Error ? reason : new Error('Application data initialization failed');
         if (__DEV__) console.error('[mobile] data initialization failed', error);
         network.stop(); readiness.pause(); connector.pause();
-        const previousBackground = revokeAccountScope(); await previousBackground?.stop(); adminCache = null;
+        const previousBackground = revokeAccountScope(); await previousBackground?.close(); adminCache = null;
         if (!stopping) emit(error instanceof UpgradeVerificationRequired ? {status: 'verification-required', inventory: error.inventory} : {status: 'error', error});
         if (database) {await database.close(); database = null;}
         if (hasLease) {await bridge.endDataOwnership(); hasLease = false;}
@@ -323,34 +311,39 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   }
   async function stop() {
     stopping = true; network.stop(); sessions.releaseLocalOwner(); readiness.pause(); connector.pause();
-    const previousBackground = revokeAccountScope(); await previousBackground?.stop();
+    const previousBackground = revokeAccountScope(); await previousBackground?.close();
     if (startPromise) await startPromise.catch(() => undefined);
-    const lateBackground = revokeAccountScope(); await lateBackground?.stop(); adminCache = null;
+    const lateBackground = revokeAccountScope(); await lateBackground?.close(); adminCache = null;
     await activity.whileActive(async () => {
       if (database) { await revokeReaderResources(); await database.close(); database = null; }
     });
     if (hasLease) { await bridge.endDataOwnership(); hasLease = false; }
     sessions.releaseLocalOwner(); startPromise = null; storageReady = null; environmentReady = null; emit({status: 'idle'});
   }
+  recordDiagnostic(options.diagnostics?.sink, 'app.launch', {});
   return {
     preferences, sessions, api, start, stop,
+    diagnostics: options.diagnostics,
     credentials: readiness as CredentialReadiness | undefined,
     setForeground: (foreground: boolean) => activity.setForeground(foreground),
     getAccountPreferences: () => accountPreferences,
     getNativeResourceOwner: () => nativeResourceOwner,
-    beginArticleAccess: (key: string) => backgroundCache?.beginForeground(key) ?? (() => {}),
-    getArticleContent: (bookmarkId: string, ownerId?: string, signal?: AbortSignal) => backgroundCache ? backgroundCache.getArticleContent(bookmarkId, ownerId, signal) : Promise.reject(new AccountInactiveError()),
-    getPdfMetadata: (bookmarkId: string, ownerId?: string, signal?: AbortSignal) => backgroundCache ? backgroundCache.getPdfMetadata(bookmarkId, ownerId, signal) : Promise.reject(new AccountInactiveError()),
-    readPdfRange: (bookmarkId: string, descriptor: PdfDescriptor, begin: number, end: number, ownerId?: string, signal?: AbortSignal) => backgroundCache ? backgroundCache.readPdfRange(bookmarkId, descriptor, begin, end, ownerId, signal) : Promise.reject(new AccountInactiveError()),
-    cachePdf: (bookmarkId: string, ownerId?: string) => backgroundCache ? backgroundCache.cachePdf(bookmarkId, ownerId) : Promise.reject(new AccountInactiveError()),
-    pdfCacheStatus: (bookmarkId: string, ownerId?: string) => backgroundCache ? backgroundCache.pdfCacheStatus(bookmarkId, ownerId) : Promise.reject(new AccountInactiveError()),
+    /** UI reports scroll/transition activity so offline status persistence waits; each source clears its own flag. */
+    setInteractionBusy: (busy: boolean, source?: string) => {interactionBusy[busy ? 'add' : 'delete'](source ?? 'interaction'); offline?.setInteractionBusy(busy, source);},
+    beginArticleAccess: (key: string) => offline?.beginForeground(key) ?? (() => {}),
+    getArticleContent: (bookmarkId: string, ownerId?: string, signal?: AbortSignal, force?: boolean) => offline ? offline.getArticleContent(bookmarkId, ownerId, signal, force) : Promise.reject(new AccountInactiveError()),
+    getPdfMetadata: (bookmarkId: string, ownerId?: string, signal?: AbortSignal) => offline ? offline.getPdfMetadata(bookmarkId, ownerId, signal) : Promise.reject(new AccountInactiveError()),
+    cachePdf: (bookmarkId: string, ownerId?: string) => offline ? offline.cachePdf(bookmarkId, ownerId) : Promise.reject(new AccountInactiveError()),
+    pdfCacheStatus: (bookmarkId: string, ownerId?: string) => offline ? offline.pdfCacheStatus(bookmarkId, ownerId) : Promise.reject(new AccountInactiveError()),
     markLibraryPresented() {
       if (libraryPresented || stopping || !accountLease || upgradeState.status !== 'ready') return;
-      libraryPresented = true;
+      libraryPresented = true; notifyPresentation();
       const warmup = pendingWarmup; pendingWarmup = undefined;
       if (warmup && activity.isForeground()) warmup();
       if (database && activity.isForeground()) void connectAccount(database, accountGeneration);
     },
+    isLibraryPresented: () => libraryPresented,
+    subscribeLibraryPresented(listener: () => void) {presentationListeners.add(listener); return () => {presentationListeners.delete(listener);};},
     getDatabase: () => database,
     getRepositories: () => repositories,
     getCache: () => cache,
@@ -359,4 +352,4 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     subscribeUpgrade: (listener: (state: UpgradeState) => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
   };
 }
-export type MobileDataRuntime = Omit<ReturnType<typeof createMobileDataRuntime>, 'credentials'> & {credentials?: CredentialReadiness};
+export type MobileDataRuntime = Omit<ReturnType<typeof createMobileDataRuntime>, 'credentials' | 'diagnostics'> & {credentials?: CredentialReadiness; diagnostics?: MobileDiagnostics};

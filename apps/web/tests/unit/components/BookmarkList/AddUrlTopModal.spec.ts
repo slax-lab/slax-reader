@@ -83,6 +83,17 @@ describe('AddUrlTopModal', () => {
     document.body.innerHTML = ''
   })
 
+  it('allows deliberate REST resubmission when no PowerSync state is available', async () => {
+    const wrapper = mountModal(true)
+    await submitUrl('https://example.com/accepted-still-processing')
+    expect(mockPost).toHaveBeenCalledOnce()
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true })
+    await submitUrl('https://example.com/accepted-still-processing')
+    expect(mockPost).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
+  })
+
   it('hides the upload entry while PDF Labs is disabled or unknown, and shows it after opt-in loads', async () => {
     const labs = useLabFeatures()
     labs.features.value[0]!.enabled = false

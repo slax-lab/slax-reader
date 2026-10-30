@@ -4,6 +4,7 @@ import UIKit
 final class ShareViewController: UIViewController {
     private var processingTask: Task<Void, Never>?
     private var isDismissing = false
+    private let diagnostics = ShareDiagnostics(os: "iOS \(UIDevice.current.systemVersion)")
     // MARK: - UI Components
 
     private lazy var backgroundView: UIView = {
@@ -58,6 +59,7 @@ final class ShareViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        diagnostics.start()
         setupUI()
 
         processingTask = Task { [weak self] in
@@ -69,6 +71,7 @@ final class ShareViewController: UIViewController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        diagnostics.end(outcome: "dismissed", shown: statusLabel.text ?? "Collecting", reason: "cancelled")
         processingTask?.cancel()
     }
 
@@ -138,24 +141,42 @@ final class ShareViewController: UIViewController {
             return
         }
 
+        let extractStarted = Date()
+        diagnostics.advance("extract", reason: "no_url_found")
+        var attachmentCount = 0, types: [String] = []
+        for item in extensionItems {
+            for attachment in item.attachments ?? [] {
+                attachmentCount += 1
+                for type in attachment.registeredTypeIdentifiers where types.count < 10 { types.append(String(type.prefix(80))) }
+            }
+        }
+        diagnostics.extraction(items: extensionItems.count, attachments: attachmentCount, types: types)
         do {
             var sharedContent: String? = nil
             var title: String? = nil
+            var urlFrom: String? = nil
 
             for item in extensionItems {
                 for attachment in item.attachments ?? [] {
-                    if let page = try? await loadJavaScriptPreprocessingResults(from: attachment) {
-                        title = page.title
-                        if sharedContent == nil { sharedContent = page.url }
-                    }
+                    do {
+                        if let page = try await loadJavaScriptPreprocessingResults(from: attachment) {
+                            title = page.title
+                            if sharedContent == nil { sharedContent = page.url; urlFrom = "js" }
+                            diagnostics.content(sharedContent, title: title, from: urlFrom)
+                        }
+                    } catch { diagnostics.loadError(type: SharePage.propertyListIdentifier, error: error) }
 
                     if attachment.hasItemConformingToTypeIdentifier("public.url") {
-                        if let url = try? await attachment.loadItem(forTypeIdentifier: "public.url") as? URL {
-                            sharedContent = url.absoluteString
-                        }
+                        do {
+                            if let url = try await attachment.loadItem(forTypeIdentifier: "public.url") as? URL {
+                                sharedContent = url.absoluteString; urlFrom = "url"
+                                diagnostics.content(sharedContent, title: title, from: urlFrom)
+                            }
+                        } catch { diagnostics.loadError(type: "public.url", error: error) }
                     }
                 }
             }
+            diagnostics.duration("extract", since: extractStarted)
 
             guard let content = sharedContent else {
                 showError(message: "No content to share")
@@ -164,7 +185,7 @@ final class ShareViewController: UIViewController {
 
             try Task.checkCancellation()
             guard !isDismissing else { return }
-            try await ShareCollector.collect(content: content, title: title)
+            try await ShareCollector.collect(content: content, title: title, diagnostics: diagnostics)
             guard !Task.isCancelled, !isDismissing else { return }
             showSuccess()
         } catch {
@@ -195,6 +216,7 @@ final class ShareViewController: UIViewController {
     // MARK: - UI State Updates
 
     private func showSuccess() {
+        diagnostics.end(outcome: "success", shown: "Success!")
         let feedbackGenerator = UINotificationFeedbackGenerator()
         feedbackGenerator.notificationOccurred(.success)
 
@@ -232,6 +254,7 @@ final class ShareViewController: UIViewController {
     }
 
     private func showError(message: String?) {
+        diagnostics.end(outcome: "failed", shown: message ?? "Failed!")
         let feedbackGenerator = UINotificationFeedbackGenerator()
         feedbackGenerator.notificationOccurred(.error)
 
@@ -245,6 +268,7 @@ final class ShareViewController: UIViewController {
 
     @objc private func dismissExtension() {
         guard !isDismissing else { return }
+        diagnostics.end(outcome: "dismissed", shown: statusLabel.text ?? "Collecting", reason: "cancelled")
         isDismissing = true
         processingTask?.cancel()
         UIView.animate(withDuration: 0.3, animations: {

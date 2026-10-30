@@ -92,7 +92,7 @@ func rejects(_ work: () throws -> Void) { var failed = false; do { try work() } 
       if try FileManager.default.contentsOfDirectory(atPath: original.deletingLastPathComponent().path).contains(where: { $0.hasPrefix(".slax-") }) { break }
       Thread.sleep(forTimeInterval: 0.01)
     }
-    try expect(try store.read(destination, versioned: false, limit: 10) == Data("prior".utf8))
+    try expect(try store.read(destination, limit: 10) == Data("prior".utf8))
     try pipe.fileHandleForWriting.write(contentsOf: Data([7])); try pipe.fileHandleForWriting.close()
     precondition(done.wait(timeout: .now() + 5) == .success); resultLock.lock(); precondition(failure == nil); resultLock.unlock(); try pipe.fileHandleForReading.close()
 

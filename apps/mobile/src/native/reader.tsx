@@ -2,8 +2,9 @@ import React, {forwardRef, useEffect, useImperativeHandle, useRef} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import type {ViewProps, NativeSyntheticEvent} from 'react-native';
 import {requireNativeView} from 'expo';
+import Animated, {useAnimatedStyle, useEvent, useSharedValue} from 'react-native-reanimated';
 import type {WebView, WebViewProps} from 'react-native-webview';
-import type {ReaderNativeAdapter, ReaderNativeContext, ReaderNativeOverlayProps} from '../reader/native';
+import type {ReaderNativeAdapter, ReaderNativeContext, ReaderNativeOverlayProps, ReaderPdfSource} from '../reader/native';
 
 const NativeOverlay = Platform.OS === 'ios' ? requireNativeView<ReaderNativeOverlayProps>('SlaxPlatform', 'SlaxReaderOverlayView') : undefined;
 
@@ -21,14 +22,19 @@ interface NativeReaderProps extends ViewProps {
   html: string; baseUrl?: string; cacheKey: string; pageId: string; scrollsToTop: boolean;
   cacheDirectory?: string;
   pdfMode: boolean;
+  pdfSource: ReaderPdfSource | null;
   scrollEnabled: boolean;
   protectedHosts: string[];
   imageProxyOrigins: string[];
   resourceOwner: string | null;
   onEvent(event: NativeSyntheticEvent<NativeReaderEvent>): void;
+  /** Android: deduplicated, at most once per frame; handled by a UI-thread worklet, never by React state. */
+  onContentHeight?: unknown;
   ref?: React.Ref<NativeReaderRef>;
 }
 const NativeView = requireNativeView<NativeReaderProps>('SlaxPlatform', 'SlaxReaderView');
+let AnimatedNativeView: React.ComponentType<NativeReaderProps> | undefined;
+const animatedNativeView = () => AnimatedNativeView ??= Animated.createAnimatedComponent(NativeView as unknown as React.ComponentClass<NativeReaderProps>) as unknown as React.ComponentType<NativeReaderProps>;
 const refs = new Map<number, NativeReaderRef>();
 const touchListeners = new Map<number, Set<(screenY: number) => void>>();
 function view(id: number) { const ref = refs.get(id); if (!ref) throw new Error('Reader page is no longer attached'); return ref; }
@@ -40,6 +46,16 @@ const NativeReaderHost = forwardRef<WebView<unknown>, WebViewProps>(function Nat
   const disposed = useRef(false);
   const callbacks = useRef(props); callbacks.current = props;
   const nativeProps = props.nativeConfig?.props as unknown as ReaderNativeContext;
+  // The Android article host is the outer scroller's non-scrolling document; its height follows the native measurement directly.
+  // Until a native measurement arrives, the bridge-reported height sizes it so the article never stays collapsed.
+  const sizesDocument = Platform.OS === 'android' && nativeProps.pdfMode !== true;
+  const nativeHeight = useSharedValue(0);
+  const bridgeHeight = useSharedValue(1);
+  const contentHeight = useEvent<{height: number}>(event => {
+    'worklet';
+    if (Number.isFinite(event.height) && event.height > 0) nativeHeight.value = event.height;
+  }, ['onContentHeight']);
+  const documentHeightStyle = useAnimatedStyle(() => ({height: nativeHeight.value > 0 ? nativeHeight.value : bridgeHeight.value}));
   useImperativeHandle(outerRef, () => ({
     injectJavaScript: (script: string) => {void nativeRef.current?.injectJavaScript(script).catch(() => undefined);},
     evaluateJavaScript: async (script: string, pageId: string) => {
@@ -54,6 +70,7 @@ const NativeReaderHost = forwardRef<WebView<unknown>, WebViewProps>(function Nat
       }
     },
     stopLoading: () => {void nativeRef.current?.stopLoading().catch(() => undefined);},
+    applyDocumentHeight: (height: number) => {if (Number.isFinite(height) && height > 0 && bridgeHeight.value !== height) bridgeHeight.value = height;},
   } as unknown as WebView<unknown>), []);
   useEffect(() => () => {
     disposed.current = true;
@@ -77,13 +94,17 @@ const NativeReaderHost = forwardRef<WebView<unknown>, WebViewProps>(function Nat
     else if (event.type === 'external' && event.url) callbacks.current.onShouldStartLoadWithRequest?.({...navigation, url: event.url, navigationType: 'click', isTopFrame: true, mainDocumentURL: source?.baseUrl ?? '', lockIdentifier: 0});
     else if (event.type === 'error') callbacks.current.onError?.({...incoming, nativeEvent: {...navigation, code: event.code === 'renderProcessGone' ? -1001 : -1, domain: 'SlaxReader', description: event.message ?? 'Reader document failed'}});
   }
-  return <View style={[styles.document, props.containerStyle]}><NativeView ref={instance => { nativeRef.current = instance; if (instance) attachedRef.current = instance; }}
+  const Host = sizesDocument ? animatedNativeView() : NativeView;
+  const host = <Host ref={(instance: NativeReaderRef | null) => { nativeRef.current = instance; if (instance) attachedRef.current = instance; }}
     style={[styles.document, props.style]} testID={props.testID} html={source?.html ?? ''} baseUrl={source?.baseUrl}
-    pdfMode={nativeProps.pdfMode === true} scrollEnabled={props.scrollEnabled !== false} protectedHosts={nativeProps.protectedHosts} imageProxyOrigins={nativeProps.imageProxyOrigins} cacheKey={nativeProps.cacheKey} cacheDirectory={nativeProps.cacheDirectory} resourceOwner={nativeProps.resourceOwner ?? null} pageId={nativeProps.pageId} scrollsToTop={nativeProps.scrollsToTop} onEvent={receive}/></View>;
+    pdfMode={nativeProps.pdfMode === true} pdfSource={nativeProps.pdfMode === true ? nativeProps.pdfSource ?? null : null} scrollEnabled={props.scrollEnabled !== false} protectedHosts={nativeProps.protectedHosts} imageProxyOrigins={nativeProps.imageProxyOrigins} cacheKey={nativeProps.cacheKey} cacheDirectory={nativeProps.cacheDirectory} resourceOwner={nativeProps.resourceOwner ?? null} pageId={nativeProps.pageId} scrollsToTop={nativeProps.scrollsToTop} onEvent={receive}
+    {...(sizesDocument ? {onContentHeight: contentHeight} : {})}/>;
+  return sizesDocument ? <Animated.View style={[styles.document, props.containerStyle, documentHeightStyle]}>{host}</Animated.View> : <View style={[styles.document, props.containerStyle]}>{host}</View>;
 });
 export const readerNativeAdapter: ReaderNativeAdapter = {
   HostComponent: NativeReaderHost,
   OverlayComponent: NativeOverlay,
+  appliesContentHeight: Platform.OS === 'android',
   nativeConfig: context => ({props: context}),
   attach: (id, context) => view(id).setScrollsToTop(context.scrollsToTop),
   subscribeTouch(id, callback) { let listeners = touchListeners.get(id); if (!listeners) { listeners = new Set(); touchListeners.set(id, listeners); } listeners.add(callback); return () => { listeners?.delete(callback); }; },

@@ -1,5 +1,5 @@
 import type {SystemCatalogBookmark} from '../data/repositories/types.ts';
-import {systemBookmarkId, toBookmarkEntities, type BookmarkEntity} from './catalog-policy.ts';
+import {resolveSystemBookmarkId, systemBookmarkId, toBookmarkEntities, type BookmarkEntity} from './catalog-policy.ts';
 import type {SystemActionOwner} from './controller.ts';
 
 export const BOOKMARK_ENTITY_KIND = 'bookmark';
@@ -64,7 +64,7 @@ export class SystemSurfacesController {
           void this.enqueue(async () => {
             while (current() && this.pendingRows) {
               const latestRows = this.pendingRows; this.pendingRows = undefined;
-              const projected = toBookmarkEntities(latestRows, key);
+              const projected = toBookmarkEntities(latestRows);
               const entities = this.enabled ? projected : [];
               await this.publishSnapshot(current, key, entities, projected, latestRows);
             }
@@ -78,8 +78,8 @@ export class SystemSurfacesController {
             if (!current()) return;
             try {
               const previous = await this.ports.read();
-              const ids = projected.map(entity => entity.id);
-              const removed = previous.catalogBookmarkIds?.some(id => !ids.includes(id)) ?? false;
+              const ids = projected.map(entity => entity.id), present = new Set(ids);
+              const removed = previous.catalogBookmarkIds?.some(id => {const bookmarkId = resolveSystemBookmarkId(id, previous.catalogIdMap); return !bookmarkId || !present.has(systemBookmarkId(bookmarkId));}) ?? false;
               if (removed && (previous.donationIds?.length || previous.pendingDonations?.length || previous.donationAttempts?.length)) {
                 previous.revokedDonations = true;
                 await this.ports.write(previous);
@@ -90,8 +90,11 @@ export class SystemSurfacesController {
               }
               if (!current()) return;
               if (this.enabled) await this.ports.setCatalog(BOOKMARK_ENTITY_KIND, entities);
-              const next = await this.ports.read(); next.catalogOwner = key; next.catalogBookmarkIds = ids;
-              next.catalogIdMap = Object.fromEntries(projected.map(entity => [entity.id, rows.find(row => systemBookmarkId(key, row.id) === entity.id)?.id]).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+              const next = await this.ports.read();
+              // Current ids resolve by primary key; only legacy (hashed) entries whose bookmark is still published are retained.
+              const legacy = next.catalogOwner === undefined || next.catalogOwner === key ? next.catalogIdMap ?? {} : {};
+              next.catalogOwner = key; next.catalogBookmarkIds = ids;
+              next.catalogIdMap = Object.fromEntries(Object.entries(legacy).filter(([id, bookmarkId]) => typeof bookmarkId === 'string' && id !== systemBookmarkId(bookmarkId) && present.has(systemBookmarkId(bookmarkId))));
               await this.ports.write(next);
               if (current()) this.report(false);
             }
@@ -105,9 +108,8 @@ export class SystemSurfacesController {
       if (this.disposed || generation !== this.generation || ownerKey(this.ports.currentOwner()) !== key || this.ports.currentOwner()?.generation !== runtimeGeneration || !this.donationsEnabled) return;
       const actions = state.donatedActions ?? [], pending = state.pendingDonations ?? [];
       if (actions.includes(actionId) || state.donationAttempts?.includes(actionId) || pending.some(item => item.actionId === actionId)) return;
-      const catalogId = bookmarkId.startsWith('b-') ? bookmarkId : systemBookmarkId(key, bookmarkId);
+      const catalogId = bookmarkId.startsWith('b-') ? bookmarkId : systemBookmarkId(bookmarkId);
       state.pendingDonations = [...pending.slice(-99), {actionId, bookmarkId: catalogId, owner: key, queued: true}]; state.donationOwner = key;
-      if (!bookmarkId.startsWith('b-')) state.catalogIdMap = {...state.catalogIdMap, [catalogId]: bookmarkId};
       await this.ports.write(state);
       await this.performDonation(actionId, catalogId, key, generation, runtimeGeneration);
     });

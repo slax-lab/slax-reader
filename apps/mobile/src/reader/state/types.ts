@@ -3,11 +3,11 @@ import type {RssEntryDetail} from '@slax-reader/contracts'
 import type {PdfDescriptor} from '@slax-reader/contracts/pdf'
 import type {BookmarkRecord, MarkCommentProfile, PreferenceValues} from '../../data'
 import type {MobileScreenProps} from '../../navigation/types'
-import type {useMobile} from '../../runtime'
+import type {MobileContextValue} from '../../runtime'
 import type {useTelemetry} from '../../telemetry'
 import type {ReaderHandle} from '../ReaderWebView'
 
-export type MobileContext = ReturnType<typeof useMobile>
+export type MobileContext = MobileContextValue
 export type Translate = MobileContext['t']
 export type ReaderIdentity = MobileScreenProps<'Reader'>['route']['params'] & {
   cacheKey: string

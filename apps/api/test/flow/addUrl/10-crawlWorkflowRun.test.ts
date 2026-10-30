@@ -38,12 +38,15 @@ vi.mock('@/di/generated/dependency', () => ({
 vi.mock('@/utils/context', () => ({
   ContextManager: vi.fn().mockImplementation((_ctx: any, env: any) => {
     let userId = 0
+    const values = new Map<string, unknown>()
     return {
       setUserInfo: vi.fn((id: number) => {
         userId = id
       }),
       getUserId: () => userId,
       setHashIds: vi.fn(),
+      set: vi.fn((key: string, value: unknown) => values.set(key, value)),
+      get: vi.fn((key: string) => values.get(key)),
       env,
       execution: { waitUntil: vi.fn((p: Promise<any>) => p.catch(() => {})) }
     }
@@ -54,8 +57,11 @@ vi.mock('@/utils/hashids', () => ({
 }))
 
 import { CrawlWorkflow } from '@/entry/edge/workflows/crawlWorkflow'
-import { CrawlService } from '@/domain/crawl'
+import { CrawlService, type TwitterFetched } from '@/domain/crawl'
+import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
+import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { BookmarkService } from '@/domain/bookmark'
+import { BookmarkForkService } from '@/domain/bookmarkFork'
 import { LabService } from '@/domain/lab'
 import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
 import { TelegramBotService } from '@/domain/telegram'
@@ -81,6 +87,12 @@ import {
 function wireWorkflow(labsEnabled = true) {
   const cs = { ...createMockCrawlService(), fetchYoutubeData: vi.fn(), parseAndSaveYoutube: vi.fn() }
   const bs = createMockBookmarkService()
+  Object.assign(cs, {
+    setCaptureStatus: vi.fn(async (_ctx, id, status) => {
+      await bs.updateBookmarkStatus(id, status)
+      return true
+    })
+  })
   const uph = createMockUrlParserHandler()
   const tg = createMockTelegramBotService()
   const imp = createMockImportService()
@@ -225,7 +237,7 @@ describe('CrawlWorkflow fetch step 状态转换', () => {
 
     await runWorkflow(wf)
 
-    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'parseing')
+    expect(cs.claimCapture).toHaveBeenCalledWith(expect.anything(), 42)
   })
 
   test('regular URL 成功 → fetchRegular + parseAndSaveContent + post-processing', async () => {
@@ -281,12 +293,51 @@ describe('Toutiao workflow', () => {
 })
 
 describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
+  test('real cached release and moderation preserve post-processing and import completion', async () => {
+    const { wf, cs, bs, uph, imp } = wireWorkflow()
+    const captureRevision = '2026-01-01T00:00:00.000Z'
+    const row = { id: 42, status: 'parseing', updated_at: new Date(captureRevision), moderation_result: 0 }
+    const db: any = {
+      sr_bookmark: {
+        updateMany: vi.fn(async ({ where, data }) => {
+          if (where.id !== row.id || where.updated_at.getTime() !== row.updated_at.getTime() || where.status !== row.status) return { count: 0 }
+          Object.assign(row, data)
+          return { count: 1 }
+        })
+      }
+    }
+    db.$transaction = (run: any) => run(db)
+    const forkRepo = new BookmarkForkRepo(() => db)
+    cs.setCaptureStatus = CrawlService.prototype.setCaptureStatus.bind({ snapshotRepo: forkRepo } as any) as any
+    const bookmarks = new BookmarkRepo({} as any, () => db)
+    ;(bs as any).updateBookmarkModerationResult = bookmarks.updateBookmarkModerationResult.bind(bookmarks)
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Cached', textContent: 'Cached body with enough text for moderation', privateUser: 0 })
+    mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage: vi.fn() } })
+    const spy = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.NORMAL)
+    try {
+      await runWorkflow(wf, { captureRevision, importTaskId: 77 })
+      expect(row.status).toBe('success')
+      expect(row.updated_at.getTime()).toBeGreaterThan(new Date(captureRevision).getTime())
+      expect(uph.processPostHandler).toHaveBeenCalledOnce()
+      expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 77, 1)
+      expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 77, 1, 0)
+      expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   test('历史公开文章已有内容 → 跳过 fetch/parse，直接 post-processing', async () => {
     const { wf, cs, bs, uph } = wireWorkflow()
     bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Cached', textContent: 'Cached body', byline: 'Author', privateUser: 0 })
+    const step = createMockStep()
 
-    await runWorkflow(wf)
+    await runWorkflow(wf, {}, step)
 
+    expect(step.do.mock.calls.map(call => call[0])).toContain('release-cached-capture')
+    expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), 42, 'success')
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'success')
+    expect(cs.setCaptureStatus.mock.invocationCallOrder[0]).toBeLessThan(uph.processPostHandler.mock.invocationCallOrder[0])
     expect(cs.fetchRegular).not.toHaveBeenCalled()
     expect(cs.fetchTwitterData).not.toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'content_fetch_cached', 'success')
@@ -297,6 +348,18 @@ describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
     )
   })
 
+  test('a superseded cached capture exits before post-processing or import progress', async () => {
+    const { wf, cs, bs, uph, imp } = wireWorkflow()
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Cached', textContent: 'Cached body', privateUser: 0 })
+    cs.setCaptureStatus.mockResolvedValue(false)
+    await runWorkflow(wf, { importTaskId: 77 })
+    expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), 42, 'success')
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkImportRelationStatus).not.toHaveBeenCalled()
+    expect(imp.incrImportTask).not.toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+  })
+
   test('私有文章已有内容 → 重新 fetch/parse，不复用缓存', async () => {
     const { wf, cs, bs } = wireWorkflow()
     bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Old', textContent: 'Old body', byline: 'Author', privateUser: 1 })
@@ -305,7 +368,7 @@ describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
 
     await runWorkflow(wf)
 
-    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'parseing')
+    expect(cs.claimCapture).toHaveBeenCalledWith(expect.anything(), 42)
     expect(cs.fetchRegular).toHaveBeenCalled()
     expect(cs.parseAndSaveContent).toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).not.toHaveBeenCalledWith(1, 42, 'example.com', 'content_fetch_cached', 'success')
@@ -722,6 +785,102 @@ describe('CrawlWorkflow hostname 提取', () => {
   })
 })
 
+describe('published capture moderation boundaries', () => {
+  function wirePublishedCapture() {
+    const w = wireWorkflow()
+    const revision = new Date('2026-01-01T00:00:00.000Z')
+    const row = { id: 42, status: 'success', updated_at: revision, moderation_result: 0 }
+    const share = { is_enable: true }
+    const db: any = {
+      sr_bookmark: {
+        updateMany: vi.fn(async ({ where, data }) => {
+          if (where.id !== row.id || where.updated_at.getTime() !== row.updated_at.getTime() || where.status !== row.status) return { count: 0 }
+          Object.assign(row, data)
+          return { count: 1 }
+        })
+      },
+      sr_bookmark_share: { upsert: vi.fn(async ({ update }) => Object.assign(share, update)) }
+    }
+    db.$transaction = (run: any) => run(db)
+    const repo = new BookmarkRepo({} as any, () => db)
+    ;(w.bs as any).updateBookmarkModerationResult = repo.updateBookmarkModerationResult.bind(repo)
+    const pushMessage = vi.fn().mockResolvedValue(undefined)
+    mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage } })
+    w.cs.fetchRegular.mockResolvedValue({ content: '<p>An ordinary article with enough text.</p>', url: 'https://example.com/article', title: 'Article' })
+    w.cs.parseAndSaveContent.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, publishedRevision: revision.toISOString() })
+    return { ...w, row, share, db, revision, pushMessage }
+  }
+
+  test('the real ordinary-tweet publisher passes its revision into Workflow moderation and sharing revocation', async () => {
+    const { wf, cs, db, row, share, revision } = wirePublishedCapture()
+    const fetched: TwitterFetched = {
+      kind: 'tweet',
+      tweetInfo: {
+        text: 'An ordinary tweet that must be moderated.',
+        url: 'https://x.com/u/status/1',
+        author: { name: 'User', userName: 'u', profilePicture: '' },
+        createdAt: '2026-01-01T00:00:00Z',
+        quoted_tweet: null
+      } as any,
+      quoteTweetHtml: ''
+    }
+    cs.fetchTwitterData.mockResolvedValue(fetched)
+    const capture = vi.fn().mockResolvedValue({ content_key: 'html/body/tweet.html', publishedRevision: revision.toISOString() })
+    const publisher = Object.assign(Object.create(CrawlService.prototype), { snapshots: { capture } }) as CrawlService
+    cs.parseAndSaveTwitter.mockImplementation(publisher.parseAndSaveTwitter.bind(publisher))
+    const moderate = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.PORN)
+    try {
+      await runWorkflow(wf, { url: fetched.tweetInfo.url })
+      expect(capture).toHaveBeenCalledOnce()
+      expect(moderate).toHaveBeenCalledWith(expect.objectContaining({ text: fetched.tweetInfo.text }))
+      expect(db.sr_bookmark.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 42, updated_at: revision, status: 'success' } }))
+      expect(row.moderation_result).toBe(ModerationResult.PORN)
+      expect(share.is_enable).toBe(false)
+    } finally {
+      moderate.mockRestore()
+    }
+  })
+
+  test.each([false, true])('alert failure retries independently and preserves completion (exhausted=%s)', async exhausted => {
+    const { wf, cs, bs, imp, uph, env, row, share, db, pushMessage } = wirePublishedCapture()
+    const moderate = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.PORN)
+    pushMessage.mockImplementation(async () => {
+      // The first webhook fails only after the real guarded moderation transaction committed.
+      expect(row.moderation_result).toBe(ModerationResult.PORN)
+      expect(share.is_enable).toBe(false)
+      if (exhausted || pushMessage.mock.calls.length === 1) throw new Error('webhook unavailable')
+    })
+    const attempts = new Map<string, number>()
+    const step = {
+      do: vi.fn(async (name: string, options: any, callback?: () => Promise<any>) => {
+        const run = typeof options === 'function' ? options : callback!
+        for (let attempt = 0; ; attempt++) {
+          attempts.set(name, (attempts.get(name) ?? 0) + 1)
+          try {
+            return await run()
+          } catch (error) {
+            if (attempt >= (options.retries?.limit ?? 0)) throw error
+          }
+        }
+      })
+    }
+    try {
+      await runWorkflow(wf, { importTaskId: 77 }, step)
+      expect(db.sr_bookmark.updateMany).toHaveBeenCalledOnce()
+      expect(attempts.get('content-moderation')).toBe(1)
+      expect(attempts.get('content-moderation-alert')).toBe(exhausted ? 3 : 2)
+      expect(pushMessage).toHaveBeenCalledTimes(exhausted ? 3 : 2)
+      expect(env.CONTENT_VALIDATION_WORKFLOW.create).not.toHaveBeenCalled()
+      expect(uph.processPostHandler).toHaveBeenCalledOnce()
+      expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
+      expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 77, 1)
+      expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 77, 1, 0)
+    } finally {
+      moderate.mockRestore()
+    }
+  })
+})
+
 describe('CrawlWorkflow → YouTube AI article trigger', () => {
   const YT = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
 
@@ -730,10 +889,10 @@ describe('CrawlWorkflow → YouTube AI article trigger', () => {
     const yt = { triggerAfterCrawl: vi.fn().mockResolvedValue(undefined) }
     mockResolveMap.set(YoutubeArticleService, yt)
     mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage: vi.fn().mockResolvedValue(undefined) } })
-    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(undefined)
+    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(true)
     ;(w.bs as any).disableBookmarkShare = vi.fn().mockResolvedValue(undefined)
     ;(w.cs as any).fetchYoutubeData = vi.fn().mockResolvedValue({ videoId: 'dQw4w9WgXcQ', title: 'Attention', cues: [] })
-    ;(w.cs as any).parseAndSaveYoutube = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'Attention' })
+    ;(w.cs as any).parseAndSaveYoutube = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'Attention', publishedRevision: '2026-01-01T00:00:00.000Z' })
     return { ...w, yt }
   }
 
@@ -743,6 +902,21 @@ describe('CrawlWorkflow → YouTube AI article trigger', () => {
     await runWorkflow(wf, { url: YT }, step)
     expect(yt.triggerAfterCrawl).toHaveBeenCalledWith(expect.anything(), 42, 1, 'Attention')
     expect(step.do.mock.calls.map((c: any[]) => c[0])).toContain('youtube-article-trigger')
+  })
+
+  test('late moderation uses the published revision and stops stale post-processing', async () => {
+    const { wf, bs, yt, uph } = wireYoutube()
+    ;(bs as any).updateBookmarkModerationResult.mockResolvedValue(false)
+    const spy = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.PORN)
+    try {
+      await runWorkflow(wf, { url: YT })
+      expect((bs as any).updateBookmarkModerationResult).toHaveBeenCalledWith(42, ModerationResult.PORN, { revision: new Date('2026-01-01'), userId: 1 })
+      expect((bs as any).disableBookmarkShare).not.toHaveBeenCalled()
+      expect(yt.triggerAfterCrawl).not.toHaveBeenCalled()
+      expect(uph.processPostHandler).not.toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   test('other routes never trigger it', async () => {
@@ -782,10 +956,10 @@ describe('CrawlWorkflow → podcast route', () => {
     mockResolveMap.set(PodcastService, pod)
     mockResolveMap.set(LabService, lab)
     mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage: vi.fn().mockResolvedValue(undefined) } })
-    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(undefined)
+    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(true)
     ;(w.bs as any).disableBookmarkShare = vi.fn().mockResolvedValue(undefined)
     ;(w.cs as any).fetchPodcastData = vi.fn().mockResolvedValue(INFO)
-    ;(w.cs as any).parseAndSavePodcast = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'E255' })
+    ;(w.cs as any).parseAndSavePodcast = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'E255', publishedRevision: '2026-01-01T00:00:00.000Z' })
     w.cs.fetchRegular.mockResolvedValue({ content: '<p>page</p>', url: XYZ, title: 'T' })
     w.cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
     return { ...w, pod, lab }
@@ -822,5 +996,129 @@ describe('CrawlWorkflow → podcast route', () => {
     const { wf, lab } = wirePodcast(true)
     await runWorkflow(wf)
     expect(lab.isEnabled).not.toHaveBeenCalled()
+  })
+
+  describe('Pocket Casts recapture of an annotated body', () => {
+    const PCA = 'https://pca.st/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+
+    test('keeps the body, fetches nothing, and releases the bookmark as success', async () => {
+      const { wf, cs, bs, uph, pod } = wirePodcast(true)
+      ;(cs as any).keepsAnnotatedBody.mockResolvedValue(true)
+      bs.getBookmarkById.mockResolvedValue({ id: 42, title: 'Kept', byline: 'Host', content_key: 'html/body/x.html', content_md_key: 'md/x.md' })
+      bs.getBookmarkContent.mockResolvedValue('Existing notes of the kept body')
+      const step = createMockStep()
+      await runWorkflow(wf, { url: PCA }, step)
+
+      expect((cs as any).keepsAnnotatedBody).toHaveBeenCalledWith(expect.anything(), 42)
+      expect((cs as any).fetchPodcastData).not.toHaveBeenCalled()
+      expect((cs as any).parseAndSavePodcast).not.toHaveBeenCalled()
+      expect(cs.fetchRegular).not.toHaveBeenCalled()
+      expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), 42, 'success')
+      expect(cs.setCaptureStatus).not.toHaveBeenCalledWith(expect.anything(), 42, 'failed')
+      expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
+      expect(pod.triggerAfterCrawl).not.toHaveBeenCalled()
+      expect(step.do.mock.calls.map((c: any[]) => c[0])).toContain('release-cached-capture')
+      expect(uph.processPostHandler).toHaveBeenCalled()
+    })
+
+    test('without marks the episode is captured as usual', async () => {
+      const { wf, cs } = wirePodcast(true)
+      ;(cs as any).keepsAnnotatedBody.mockResolvedValue(false)
+      await runWorkflow(wf, { url: PCA })
+      expect((cs as any).fetchPodcastData).toHaveBeenCalledWith(PCA, expect.anything())
+      expect((cs as any).parseAndSavePodcast).toHaveBeenCalled()
+    })
+
+    test('other podcast sources never ask', async () => {
+      const { wf, cs } = wirePodcast(true)
+      await runWorkflow(wf, { url: XYZ })
+      expect((cs as any).keepsAnnotatedBody).not.toHaveBeenCalled()
+    })
+  })
+})
+
+describe('capture claim admission', () => {
+  test('duplicate claim exits without fetching, failing, or counting the import twice', async () => {
+    const { wf, cs, bs, imp, uph } = wireWorkflow()
+    cs.claimCapture.mockResolvedValue(false)
+    await runWorkflow(wf, { importTaskId: 77 })
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(cs.setCaptureStatus).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkStatus).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkImportRelationStatus).not.toHaveBeenCalled()
+    expect(imp.incrImportTask).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+  })
+
+  test('a normal fetch retry retains its durable claim and checks ownership again', async () => {
+    const { wf, cs } = wireWorkflow()
+    cs.fetchRegular
+      .mockRejectedValueOnce(new Error('temporary fetch failure'))
+      .mockResolvedValueOnce({ content: '<p>Recovered</p>', url: 'https://example.com/article', title: 'Recovered' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    const step = createMockStep()
+    step.do.mockImplementation(async (name: string, optionsOrCallback: any, callback?: () => Promise<any>) => {
+      const run = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback!
+      if (name !== 'fetch') return run()
+      try {
+        return await run()
+      } catch {
+        return run()
+      }
+    })
+    await runWorkflow(wf, {}, step)
+    expect(cs.claimCapture).toHaveBeenCalledTimes(1)
+    expect(cs.ownsCapture).toHaveBeenCalledTimes(2)
+    expect(cs.fetchRegular).toHaveBeenCalledTimes(2)
+    expect(cs.setCaptureStatus).not.toHaveBeenCalledWith(expect.anything(), 42, 'failed')
+  })
+})
+
+describe('Fork Workflow branch', () => {
+  const job = {
+    sourceUuid: 'source',
+    sourceId: 11,
+    sourceBookmarkId: 10,
+    sourceRevision: '2026-01-01T00:00:00.000Z',
+    destinationUuid: 'destination',
+    destinationId: 21,
+    revision: '2026-01-02T00:00:00.000Z',
+    created: true
+  }
+
+  test('copies through the Fork branch without claiming or fetching an ordinary URL', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    const execute = vi.fn(async () => {})
+    mockResolveMap.set(BookmarkForkService, { execute })
+    await runWorkflow(wf, { fork: job })
+    expect(execute).toHaveBeenCalledOnce()
+    expect(cs.claimCapture).not.toHaveBeenCalled()
+    expect(bs.getUserBookmark).not.toHaveBeenCalled()
+    expect(cs.resolveShortLink).not.toHaveBeenCalled()
+  })
+
+  test('keeps one admission through retry and marks only exhausted copy attempts failed', async () => {
+    const { wf, cs } = wireWorkflow()
+    const execute = vi.fn().mockRejectedValue(new Error('R2 unavailable'))
+    const failExecution = vi.fn(async () => {})
+    mockResolveMap.set(BookmarkForkService, { execute, failExecution })
+    const step = {
+      do: async (_name: string, options: any, callback?: any) => {
+        if (typeof options === 'function') return options()
+        let error
+        for (let attempt = 0; attempt <= options.retries.limit; attempt++) {
+          try {
+            return await callback()
+          } catch (caught) {
+            error = caught
+          }
+        }
+        throw error
+      }
+    }
+    await expect(runWorkflow(wf, { fork: job }, step)).rejects.toThrow('R2 unavailable')
+    expect(execute).toHaveBeenCalledTimes(3)
+    expect(failExecution).toHaveBeenCalledWith(42, job)
+    expect(cs.setCaptureStatus).not.toHaveBeenCalled()
   })
 })

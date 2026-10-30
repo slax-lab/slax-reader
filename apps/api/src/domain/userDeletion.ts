@@ -3,25 +3,31 @@ import type { LazyInstance } from '../decorators/lazy'
 import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '../const/symbol'
 import { UserRepo } from '../infra/repository/dbUser'
+import { snapshotBundleMembers } from '../utils/snapshotBundle'
+import { removeDiagnosticObjects } from '../utils/diagnosticAttachment'
+import { BucketClient } from '../infra/repository/bucketClient'
 
 @injectable()
 export class UserDeletionService {
   constructor(
     @inject(PRISIMA_HYPERDRIVE_CLIENT) private prismaPg: LazyInstance<HyperdrivePrismaClient>,
-    @inject(UserRepo) private userRepo: UserRepo
+    @inject(UserRepo) private userRepo: UserRepo,
+    @inject(BucketClient) private bucket: LazyInstance<BucketClient>
   ) {}
 
   public async ensureUserNotDeleted(userId: number): Promise<void> {
     await this.userRepo.requireActiveUser(userId)
   }
 
-  public async cleanupUserData(userId: number): Promise<void> {
+  public async cleanupUserData(userId: number, env?: Pick<Env, 'DIAGNOSTICS'>): Promise<void> {
     console.log(`Starting data cleanup for user ${userId}`)
     if (userId < 1) {
       throw new Error(`Invalid userId: ${userId}`)
     }
 
     try {
+      const reports = await this.prismaPg().sr_user_report.findMany({ where: { user_id: userId }, select: { user_id: true, extra_data: true } })
+      await removeDiagnosticObjects(env, reports)
       await this.prismaPg().$executeRaw`DELETE FROM sr_rss_subscription WHERE user_id = ${userId}`
       await this.prismaPg().$executeRaw`DELETE FROM sr_rss_save_job WHERE user_id = ${userId}`
       await this.prismaPg().sr_user_api_key.deleteMany({ where: { user_id: userId } })
@@ -151,10 +157,17 @@ export class UserDeletionService {
   }
 
   private async deletePrivateBookmarks(userId: number): Promise<void> {
-    const result = await this.prismaPg().sr_bookmark.deleteMany({
-      where: { private_user: userId }
-    })
-    console.log(`Deleted ${result.count} private bookmarks`)
+    // Retain keys from the rows actually deleted, without a separate cleanup ledger.
+    const deleted = await this.prismaPg().$queryRaw<{ content_key: string }[]>`
+      DELETE FROM sr_bookmark WHERE private_user = ${userId} RETURNING content_key`
+    for (const { content_key } of deleted) {
+      const keys = snapshotBundleMembers(content_key)
+      if (keys)
+        await this.bucket()
+          .R2Bucket.delete(keys)
+          .catch(error => console.error('Deleted bookmark file removal failed', error))
+    }
+    console.log(`Deleted ${deleted.length} private bookmarks`)
   }
 
   private async deleteBookmarkOverviews(userId: number): Promise<void> {

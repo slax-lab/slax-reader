@@ -58,13 +58,51 @@ test('Reader display/subscription treat offsetless source timestamps as UTC with
   } finally {if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous}
 })
 
-async function overlays(host) {
+async function overlays(host, motionHost) {
   return loadComponent('../../src/reader/ReaderOverlays.tsx', {
+    ...(motionHost ? {'react-native-reanimated': motionHost.reanimated} : {}),
     react: React, 'react-native': host.native, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})},
     '../components': host.components, '../theme': {mobileColors, mobileTypography}, './coordinates.ts': coordinates, './model.ts': model,
     './MarkdownView.tsx': {MarkdownView: props => React.createElement(host.native.View, {...props, testID: 'markdown'})}, './outline-motion.ts': motion,
   })
 }
+
+for (const platform of ['ios', 'android']) test(`actual ${platform} comment quote decoration clears measured lines and follows replacement/layout changes`, nativeBoundary, async () => withNativeHost(async host => {
+  host.native.Platform.OS = platform
+  const {CommentPanel} = await overlays(host)
+  let mark = {...fresh(), comments: [comment()]}, text = 'Descending glyphs: gyp\n第二行引用\ntruncated third line'
+  const render = () => host.render(React.createElement(CommentPanel, {visible: true, mark, text, draft: '', reply: null, menu: null, currentUserAvatar: '', hideProfiles: true, allowLine: true, allowComment: true, autoFocus: false, busy: false,
+    t: key => key, onMenu() {}, onDraft() {}, onClose() {}, onCopy() {}, onCopyComment() {}, onHighlight() {}, onReply() {}, onDelete() {}, canDelete: () => false, onSubmit() {}}))
+  const decorations = () => [...host.window.document.querySelectorAll('[data-testid^="reader-comment-quote-line-"]')].map(element => host.props.get(element.dataset.testid))
+  const measure = async lines => {
+    await act(async () => host.props.get('reader-comment-quote').onTextLayout({nativeEvent: {lines}}))
+    const rendered = decorations()
+    assert.equal(rendered.length, Math.min(2, lines.length), 'Hidden lines must not receive decoration')
+    rendered.forEach((props, index) => {
+      const style = flattenStyle(props.style), line = lines[index]
+      const paintedTop = style.top + style.height - style.borderBottomWidth
+      assert.ok(paintedTop >= line.y + line.height + 2, 'The entire underline clears the measured line box')
+      assert.equal(style.left, line.x); assert.equal(style.width, line.width)
+      assert.equal(props.pointerEvents, 'none'); assert.equal(props.accessible, false)
+    })
+    return rendered.map(props => flattenStyle(props.style))
+  }
+  await render()
+  assert.equal(flattenStyle(host.props.get('reader-comment-quote').style).textDecorationLine ?? 'none', 'none')
+  const regular = [{x: 0, y: 0, width: 220, height: 24}, {x: 0, y: 24, width: 140, height: 24}, {x: 0, y: 48, width: 180, height: 24}]
+  assert.ok((await measure(regular)).every(style => style.borderStyle === 'dashed'))
+  const scaledRtl = [{x: 18, y: 0, width: 290, height: 36}, {x: 110, y: 36, width: 198, height: 36}]
+  await measure(scaledRtl)
+  mark = {...mark, stroke: [{userId: 1}]}; await render()
+  assert.ok(decorations().every(props => flattenStyle(props.style).borderStyle === 'solid'))
+  text = 'Replacement quote'; await render()
+  assert.equal(decorations().length, 0, 'A new quote does not reuse the preceding quote geometry')
+  assert.equal(host.props.get('reader-comment-quote').children, text)
+  assert.equal(host.props.get('reader-comment-quote').numberOfLines, 2)
+  await measure([{x: 0, y: 0, width: 160, height: 24}])
+  mark = fresh(); await render()
+  assert.equal(decorations().length, 0, 'Unmarked drafts have no underline')
+}))
 
 test('actual comments and replies expose Copy without delete permission, then delegate Delete to confirmation', nativeBoundary, async () => withNativeHost(async host => {
   const {CommentPanel} = await overlays(host), copied = [], deleted = [], replied = []
@@ -107,7 +145,10 @@ test('actual comments and replies expose Copy without delete permission, then de
 }))
 
 test('actual outline keeps source footer actions, native-safe transient states and expansion/minimize motion', nativeBoundary, async () => withNativeHost(async host => {
-  const {OutlineSheet} = await overlays(host)
+  const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')
+  const ui = installedMotionHost(host.native.View)
+  const {OutlineSheet} = await overlays(host, ui)
+  const settle = async () => {await act(async () => {for (let time = 0; time < 700; time += 16) ui.advance(16)}); await render()}
   let status = 'collapsed', closed = 0, minimized = 0
   const render = () => host.render(React.createElement(OutlineSheet, {status, toolbarVisible: true, markdown: 'Outline', pending: false, busy: false, error: null, position: 120, t: key => key,
     onClose() {closed++; status = 'hidden'}, onCollapse() {minimized++; status = 'collapsed'}, onExpand() {status = 'expanded'}, onRetry() {}, onLink() {}, onPosition() {}}))
@@ -117,6 +158,8 @@ test('actual outline keeps source footer actions, native-safe transient states a
   assert.equal(host.props.get('reader-outline-panel').pointerEvents, 'auto')
   assert.equal(flattenStyle(host.props.get('reader-outline-panel').style).height, 746)
   assert.equal(flattenStyle(host.props.get('reader-outline-footer').style).height, 55)
+  assert.equal(host.props.get('markdown'), undefined, 'Outline content waits for the expansion to settle')
+  await settle()
   assert.ok(host.props.get('markdown'))
   assert.deepEqual(motion.outlineMotion('collapsed', 'expanded').morph, [{toValue: 1, duration: 380, delay: 80}])
   await act(async () => host.props.get('reader-outline-minimize').onPress()); await render()

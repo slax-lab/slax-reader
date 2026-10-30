@@ -5,7 +5,7 @@ import {fetch} from 'expo/fetch';
 import {Accelerometer} from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 import type {SyncStatus} from '@powersync/common';
-import {useMobile} from '../runtime';
+import {useMobile, useMobileSettings} from '../runtime';
 import {resolveDns, systemInfo} from '../native/platform';
 import {Divider, SourceButton, SourceDialog, SourceIcon, SourceSheet, SourceText, TextAction, ScreenSurface} from '../components';
 import {SourceRing} from '../components/SourceRing';
@@ -24,7 +24,7 @@ const resultColors = {idle: '#BDBDBD', testing: '#FFA726', success: '#4CAF50', f
 const mono = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
 export function DebugScreen({navigation}: MobileScreenProps<'Debug'>) {
-  const {runtime, config, preferences, settings, repositories, cache, t, fixtureOnly} = useMobile();
+  const {runtime, config, preferences, repositories, cache, t, fixtureOnly} = useMobile(), settings = useMobileSettings();
   const database = runtime.getDatabase(), [sync, setSync] = useState<SyncStatus | undefined>(database?.currentStatus);
   const [info, setInfo] = useState<Record<string,string>>({}), [results, setResults] = useState<Diagnostic[]>(names.map(name => ({name, status: 'idle', message: ''})));
   const [testing, setTesting] = useState(false), [environment, setEnvironment] = useState(false), [restart, setRestart] = useState(false);
@@ -108,6 +108,7 @@ export function DebugScreen({navigation}: MobileScreenProps<'Debug'>) {
   function row(key: string, value: string, error = false) {return <View key={key} style={styles.row}><SourceText style={styles.label}>{key}</SourceText><SourceText style={[styles.value, error && {color: '#E53935'}]}>{value}</SourceText></View>;}
   const currentEnvironment = settings.selected_env === 'PRODUCTION' || settings.selected_env === 'BETA' ? settings.selected_env : null;
   return <ScreenSurface><ScrollView contentContainerStyle={styles.content}>
+    {section(t('diagnostic_logs'), <SourceButton testID="debug_diagnostic_logs" label={t('diagnostic_open')} onPress={() => navigation.navigate('DiagnosticLog')} style={styles.debugButton} textStyle={styles.debugButtonText}/>)}
     {section('System Info', <>{Object.entries(info).map(([key,value]) => row(key, value))}</>)}
     {section('PowerSync Status', sync ? <>{row('Connected', sync.connected ? '✓ Yes' : '✗ No')}{row('Connecting', sync.connecting ? 'Yes' : 'No')}{row('Downloading', sync.downloading ? 'Yes' : 'No')}{row('Uploading', sync.uploading ? 'Yes' : 'No')}{sync.downloadError || sync.uploadError ? row('Error', String(sync.downloadError ?? sync.uploadError), true) : null}{sync.downloading ? row('Progress', sync.downloadProgress ? `${sync.downloadProgress.downloadedOperations}/${sync.downloadProgress.totalOperations}` : 'Preparing...') : null}</> : row('Status', 'Not initialized'))}
     {section('Cache Maintenance', <><SourceText style={{fontSize: 14, lineHeight: 20, color: '#666666'}}>{t('setting_clear_cache_desc')}</SourceText><SourceButton testID="debug_cache_open" label={`${t('setting_clear_cache')} - ${formatCacheSize(total)}`} busy={busy} disabled={busy || !maintenance} onPress={() => {changedSelection.current = false; setSelected(nonEmptyCacheCategories(usage)); setCleanup(true); void refreshUsage();}} style={styles.debugButton} textStyle={styles.debugButtonText}/></>)}

@@ -2,12 +2,13 @@ import type {BookmarkRecord} from './repositories/types.ts';
 import type {BookmarkSearchHit, BookmarkSearchRequest} from '@slax-reader/contracts';
 import type { ApiResponse, RssSubscriptionsResponse, RssSubscription, RssRefreshResponse, RssEntriesResponse, RssEntryDetail, RssSaveResponse, AddRssSubscriptionRequest, UpdateRssSubscriptionRequest, AddUrlBookmarkRequest, JsonValue } from '@slax-reader/contracts';
 import type { SessionAuthority } from '../domain/session.ts';
+import type {DiagnosticExchange} from '../domain/diagnostics.ts';
+import {redactHeaders} from '../domain/diagnostic-headers.ts';
 import {throwIfAborted} from '../utils/abort.ts';
 import {SharedRequestCache} from './shared-request.ts';
 import {readArticleBody} from './bounded-body.ts';
-import type {PdfAcquisitionResult, PdfCompleteConsumer} from './pdf-acquisition.ts';
-import {PDF_MAX_BYTES, type PdfDescriptor} from '@slax-reader/contracts/pdf';
-import {DataTransportError, NativePdfTransportError, isNetworkTransportError, httpErrorCode, retryAfterMs, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
+import {PDF_MAX_BYTES} from '@slax-reader/contracts/pdf';
+import {DataTransportError, isNetworkTransportError, httpErrorCode, retryAfterMs, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
 export {DataTransportError, isNetworkTransportError, getDataErrorDiagnostic, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS} from './transport-errors.ts';
 
 export class ApiError extends Error {
@@ -37,13 +38,23 @@ export type DeleteAccountReason = 'active_subscription' | 'stripe_connect_exists
 export interface SyncChange { table: string; id: string; op: string; data: Record<string, string | null> | null; preData: Record<string, string | null> | null }
 export interface CheckPurchase { jws_representation: string; order_id: string; product_id: string; platform: string }
 export interface FeedbackRequest { bookmark_uuid: string | null; entry_point: string; type: string; content: string; platform: string; environment: string; version: string; allow_follow_up: boolean; target_url: string | null }
+export interface FeedbackDiagnosticUpload {file: Blob; filename: string}
+export const FEEDBACK_DIAGNOSTIC_MAX_BYTES = 12582912;
+export const FEEDBACK_MULTIPART_OVERHEAD_BYTES = 65536;
 export interface AiEvent { type: string; data?: { overview?: string; outline?: string; tags?: {id: number; name: string}[]; tag?: {id: number; name: string}; key_takeaways?: string[]; done?: boolean }; message?: string }
-export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; fetch?: typeof globalThis.fetch; pdfFetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void> }
+export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; fetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void>; onFailedExchange?: (exchange: DiagnosticExchange) => void; onAccountSuccess?: (exchange: DiagnosticExchange) => void }
+function diagnosticExchange(path: string, method: string, response: Response, headers: Record<string, string>, started: number, code?: number, body?: unknown): DiagnosticExchange {
+  const provider = path === '/v1/user/login' && body && typeof body === 'object' && 'type' in body && (body.type === 'google' || body.type === 'apple') ? body.type : undefined;
+  return {http: {method, path: path.split(/[?#]/)[0]!, status: response.status, code: typeof code === 'number' ? code : null, cfRay: response.headers.get('CF-Ray')?.slice(0, 256) ?? null}, headers: {request: redactHeaders(headers, 'request'), response: redactHeaders(response.headers, 'response')}, durationMs: Math.max(0, Date.now() - started), provider};
+}
+function observeExchange(observer: ((exchange: DiagnosticExchange) => void) | undefined, exchange: DiagnosticExchange, error?: unknown) {try {observer?.({...exchange, http: {...exchange.http}, error});} catch {}}
 
 export class SlaxApi {
   private transport: typeof globalThis.fetch;
   private origin: string;
   private readonly labs = new SharedRequestCache<{features: {key: string; enabled: boolean}[]}>();
+  private readonly failures = new WeakMap<object, DiagnosticExchange>();
+  getFailedExchange = (error: unknown) => error && typeof error === 'object' ? this.failures.get(error) : undefined;
   readonly options: MobileApiOptions;
   constructor(options: MobileApiOptions) { this.options = {...options}; this.transport = options.fetch ?? globalThis.fetch; this.origin = ''; this.setBaseUrl(options.baseUrl); }
   /** Configure once during startup, before restoring a persisted account. */
@@ -60,7 +71,7 @@ export class SlaxApi {
     Object.entries(query ?? {}).forEach(([key, value]) => { if (value !== undefined) url.searchParams.set(key, value); });
     return url.toString();
   }
-  private async response(path: string, method: 'GET' | 'POST', body?: unknown, query?: Record<string, string | undefined>, signal?: AbortSignal, timeout = 30000, tokenOverride?: string, accept = 'application/json', extraHeaders?: Record<string, string>): Promise<{response: Response; cleanup: () => void}> {
+  private async response(path: string, method: 'GET' | 'POST', body?: unknown, query?: Record<string, string | undefined>, signal?: AbortSignal, timeout = 30000, tokenOverride?: string, accept = 'application/json', extraHeaders?: Record<string, string>): Promise<{response: Response; cleanup: () => void; diagnostic: (code?: number) => DiagnosticExchange | undefined}> {
     throwIfAborted(signal);
     const identity = this.options.sessions.captureIdentity?.(), origin = this.origin, publicLogin = path === '/v1/user/login';
     if (tokenOverride === undefined && !publicLogin) {
@@ -84,26 +95,36 @@ export class SlaxApi {
       if (signal?.aborted) aborted();
       const timer = setTimeout(() => controller.abort(new Error('Request timed out')), timeout);
       const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', aborted); };
+      const multipart = typeof FormData !== 'undefined' && body instanceof FormData;
       try {
-        const response = await this.transport(url, {
-          method, headers: {
-            'Content-Type': 'application/json', Accept: accept, 'User-Agent': `SlaxReader/${this.options.platform} ${this.options.version}`,
-            ...(requestToken ? { Authorization: `Bearer ${requestToken}` } : {}),
-            ...extraHeaders,
-          }, body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal, redirect: 'error',
-        });
-        if (response.status === 401 && requestToken && new URL(url).origin === this.origin) await this.options.sessions.rejectIfMatches?.(requestToken, scope);
-        const retryAfter = retryAfterMs(response.headers.get('Retry-After'));
-        if (response.status >= 500 && attempt < 2 && !retryAfter) { await response.body?.cancel(); cleanup(); await this.delay(attempt, signal); continue; }
-        if (response.status !== 200 && response.status !== 204) {
-          const envelope = await response.json().catch(() => null) as {message?: string; data?: unknown} | null;
-          throw Object.assign(new ApiError(response.status, envelope?.message ?? `Request failed (${response.status})`, envelope?.data), {retryAfterMs: retryAfter});
+        if (path === '/v1/user/report' && !requestToken) throw new ApiError(401, 'Authentication required');
+        const headers: Record<string, string> = {
+          ...(!multipart ? {'Content-Type': 'application/json'} : {}), Accept: accept, 'User-Agent': `SlaxReader/${this.options.platform} ${this.options.version}`,
+          ...(requestToken ? { Authorization: `Bearer ${requestToken}` } : {}), ...extraHeaders,
+        }, started = Date.now();
+        const pending = this.transport(url, {method, headers, body: multipart ? body : body === undefined ? undefined : JSON.stringify(body), signal: controller.signal, redirect: 'error'});
+        if (path === '/v1/user/report') void pending.then(value => {if (controller.signal.aborted) void value.body?.cancel().catch(() => undefined);}).catch(() => undefined);
+        const response = await (path === '/v1/user/report' ? abortable(pending, controller.signal) : pending);
+        if (path === '/v1/user/report') {
+          try {identity?.(); scope?.assertCurrent(); if (origin !== this.origin) throw new Error('API environment changed'); throwIfAborted(signal);}
+          catch (error) {void response.body?.cancel().catch(() => undefined); throw error;}
         }
-        return {response, cleanup};
+        const diagnostic = (code?: number) => {try {return diagnosticExchange(path, method, response, headers, started, code, multipart ? undefined : body);} catch {return undefined;}};
+        if (response.status === 401 && requestToken && new URL(url).origin === this.origin) await this.options.sessions.rejectIfMatches?.(requestToken, scope, diagnostic()?.http);
+        const retryAfter = retryAfterMs(response.headers.get('Retry-After'));
+        if (path !== '/v1/user/report' && response.status >= 500 && attempt < 2 && !retryAfter) { await response.body?.cancel(); cleanup(); await this.delay(attempt, signal); continue; }
+        if (response.status !== 200 && response.status !== 204) {
+          const envelope = await response.json().catch(() => null) as {message?: string; data?: unknown; code?: number} | null;
+          const error = Object.assign(new ApiError(response.status, envelope?.message ?? `Request failed (${response.status})`, envelope?.data), {retryAfterMs: retryAfter});
+          const exchange = diagnostic(envelope?.code);
+          if (exchange) {this.failures.set(error, exchange); observeExchange(this.options.onFailedExchange, exchange, error);}
+          throw error;
+        }
+        return {response, cleanup, diagnostic};
       } catch (error) {
         cleanup();
         if (controller.signal.aborted) {throwIfAborted(signal); throwIfAborted(controller.signal);}
-        if (error instanceof ApiError || attempt >= 2) throw error;
+        if (path === '/v1/user/report' || error instanceof ApiError || attempt >= 2) throw error;
         await this.delay(attempt, signal);
       }
     }
@@ -114,25 +135,25 @@ export class SlaxApi {
     throwIfAborted(signal);
   }
   async request<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown, query?: Record<string, string | undefined>, signal?: AbortSignal, timeout?: number, tokenOverride?: string): Promise<T> {
-    const {response, cleanup} = await this.response(path, method, body, query, signal, timeout, tokenOverride);
+    const {response, cleanup, diagnostic} = await this.response(path, method, body, query, signal, timeout, tokenOverride);
     try {
       if (response.status === 204) return undefined as T;
       const envelope = await response.json() as ApiResponse<T>;
-      if (envelope.code !== 200) throw new ApiError(envelope.code, envelope.message, envelope.data);
+      const account = path === '/v1/user/login' || path === '/v1/user/refresh' || path === '/v1/user/delete_my_account';
+      const exchange = envelope.code !== 200 || account ? diagnostic(envelope.code) : undefined;
+      if (envelope.code !== 200) {
+        const error = new ApiError(envelope.code, envelope.message, envelope.data);
+        if (exchange) {this.failures.set(error, exchange); observeExchange(this.options.onFailedExchange, exchange, error);}
+        throw error;
+      }
+      if (exchange && (path === '/v1/user/login' || path === '/v1/user/delete_my_account')) {
+        try {
+          const data = envelope.data as {canDelete?: boolean; reason?: string | null} | null;
+          observeExchange(this.options.onAccountSuccess, {...exchange, canDelete: typeof data?.canDelete === 'boolean' ? data.canDelete : undefined, reason: typeof data?.reason === 'string' ? data.reason : null});
+        } catch {}
+      }
       return envelope.data as T;
     } finally { cleanup(); }
-  }
-  async getPdfMetadata(bookmarkId: string, signal?: AbortSignal): Promise<PdfDescriptor> {
-    return this.pdfRequest('/v1/bookmark/metadata', {bookmark_uid: bookmarkId}, signal, {Accept: 'application/json'}, async (response, signal) => {
-      if (response.status !== 200) throw new ApiError(502, 'Invalid PDF metadata', undefined, {stage: 'pdf-metadata', code: 'pdf_metadata_invalid'});
-      const envelope = await this.pdfJson<{pdf?: PdfDescriptor}>(response, signal, 'pdf-metadata');
-      if (envelope.code !== 200) throw new ApiError(envelope.code, 'PDF metadata request failed', undefined, {stage: 'pdf-metadata'});
-      const pdf = envelope.data?.pdf;
-      if (!pdf || !/^[a-f0-9]{64}$/.test(pdf.document_id) || !Number.isSafeInteger(pdf.size) || pdf.size < 1 || pdf.size > PDF_MAX_BYTES ||
-        typeof pdf.filename !== 'string' || !['url', 'upload'].includes(pdf.source) || !['pending', 'ready', 'empty', 'failed'].includes(pdf.text_status) ||
-        (pdf.pages !== undefined && (!Number.isSafeInteger(pdf.pages) || pdf.pages < 1))) throw new ApiError(502, 'Invalid PDF metadata', undefined, {stage: 'pdf-metadata', code: 'pdf_metadata_invalid'});
-      return {...pdf, url: `/v1/bookmark/pdf?bookmark_uid=${encodeURIComponent(bookmarkId)}`};
-    });
   }
   private async pdfJson<T>(response: Response, signal: AbortSignal, stage: DataErrorStage): Promise<ApiResponse<T>> {
     const reader = response.body?.getReader();
@@ -163,7 +184,7 @@ export class SlaxApi {
     const preparation = this.options.sessions.prepareRequest?.() ?? Promise.resolve();
     await (signal ? abortable(preparation, signal) : preparation);
     identity?.(); if (origin !== this.origin) throw new Error('API environment changed'); throwIfAborted(signal);
-    const stage: DataErrorStage = body ? 'pdf-upload' : path.endsWith('/metadata') ? 'pdf-metadata' : 'pdf-range';
+    const stage: DataErrorStage = 'pdf-upload';
     const scope = this.options.sessions.captureRequestScope?.(), controller = new AbortController();
     const timeoutError = new DataTransportError('timeout', stage);
     let timedOut = false;
@@ -182,13 +203,16 @@ export class SlaxApi {
         check(); let response: Response | undefined, retryHttp = false;
         try {
           let pending: Promise<Response>;
-          const transport = stage === 'pdf-range' ? this.options.pdfFetch ?? this.transport : this.transport;
-          try {pending = transport(url, request);} catch (error) {check(); if (error instanceof NativePdfTransportError) throw error; throw new DataTransportError('network', stage);}
+          try {pending = this.transport(url, request);} catch {check(); throw new DataTransportError('network', stage);}
           void pending.then(value => {if (controller.signal.aborted) void value.body?.cancel().catch(() => undefined);}).catch(() => undefined);
-          try {response = await abortable(pending, controller.signal);} catch (error) {check(); if (error instanceof NativePdfTransportError) throw error; throw new DataTransportError('network', stage);}
+          try {response = await abortable(pending, controller.signal);} catch {check(); throw new DataTransportError('network', stage);}
           check();
-          if (response.status === 401 && origin === this.origin) void this.options.sessions.rejectIfMatches?.(session.token, scope).catch(() => undefined);
-          if (response.status !== 200 && response.status !== 206) {
+          if (response.status === 401 && origin === this.origin) {
+            let exchange: DiagnosticExchange | undefined;
+            try {exchange = diagnosticExchange(path, body ? 'POST' : 'GET', response, request.headers as Record<string, string>, Date.now()); observeExchange(this.options.onFailedExchange, exchange);} catch {}
+            void this.options.sessions.rejectIfMatches?.(session.token, scope, exchange?.http).catch(() => undefined);
+          }
+          if (response.status !== 200) {
             const retryAfter = retryAfterMs(response.headers.get('Retry-After'));
             retryHttp = response.status >= 500 && response.status <= 599 && !retryAfter;
             throw Object.assign(new ApiError(response.status, `PDF request failed (${response.status})`, undefined, {stage}), {retryAfterMs: retryAfter});
@@ -209,68 +233,6 @@ export class SlaxApi {
       }
     } catch (error) {check(); throw error;}
     finally {clearTimeout(timer); signal?.removeEventListener('abort', aborted);}
-  }
-  async getPdfRange(bookmarkId: string, documentId: string, begin: number, end: number, signal?: AbortSignal, expectedSize?: number): Promise<Uint8Array> {
-    const result = await this.transferPdf(bookmarkId, documentId, begin, end, signal, expectedSize);
-    if (result.kind !== 'range') throw new Error('PDF range was not returned');
-    return result.bytes;
-  }
-  acquirePdf(bookmarkId: string, descriptor: PdfDescriptor, begin: number, end: number, complete: PdfCompleteConsumer, signal?: AbortSignal): Promise<PdfAcquisitionResult> {
-    return this.transferPdf(bookmarkId, descriptor.document_id, begin, end, signal, descriptor.size, complete);
-  }
-  private async transferPdf(bookmarkId: string, documentId: string, begin: number, end: number, signal?: AbortSignal, expectedSize?: number, complete?: PdfCompleteConsumer): Promise<PdfAcquisitionResult> {
-    if (!/^[a-f0-9]{64}$/.test(documentId) || !Number.isSafeInteger(begin) || !Number.isSafeInteger(end) || begin < 0 || end <= begin || end > PDF_MAX_BYTES || end - begin > 1024 * 1024 ||
-      (expectedSize !== undefined && (!Number.isSafeInteger(expectedSize) || expectedSize < end || expectedSize > PDF_MAX_BYTES))) throw new Error('Invalid PDF byte range');
-    return this.pdfRequest('/v1/bookmark/pdf', {bookmark_uid: bookmarkId}, signal,
-      {Accept: 'application/pdf', Range: `bytes=${begin}-${end - 1}`}, async (response, signal) => {
-        const invalid = (status: number, message: string, code: DataErrorCode) => new ApiError(status, message, undefined, {stage: 'pdf-range', code});
-        if (response.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/pdf') throw invalid(502, 'Invalid PDF response content type', 'pdf_body_invalid');
-        const etag = response.headers.get('ETag');
-        if (etag && /^"[a-f0-9]{64}"$/.test(etag) && etag !== `"${documentId}"`) throw invalid(412, 'PDF identity changed', 'pdf_identity_mismatch');
-        const match = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(response.headers.get('Content-Range') ?? '');
-        const full = response.status === 200;
-        if (full && response.headers.has('Content-Range')) throw invalid(502, 'Partial PDF body returned as a full response', 'pdf_range_invalid');
-        if (!full && (!match || Number(match[1]) !== begin || Number(match[2]) !== end - 1 || Number(match[3]) < end || Number(match[3]) > PDF_MAX_BYTES ||
-          (expectedSize !== undefined && Number(match[3]) !== expectedSize))) throw invalid(502, 'Invalid PDF range response', 'pdf_range_invalid');
-        const advertised = Number(response.headers.get('Content-Length'));
-        const expected = full ? advertised : end - begin;
-        if (!Number.isSafeInteger(expected) || expected <= 0 || expected > PDF_MAX_BYTES || (full && (expected < end || (expectedSize !== undefined && expected !== expectedSize))) ||
-          (response.headers.has('Content-Length') && advertised !== expected)) throw invalid(502, 'Invalid PDF response length', 'pdf_length_invalid');
-        const reader = response.body?.getReader();
-        if (!reader) throw invalid(502, 'PDF streaming unavailable', 'pdf_stream_unavailable');
-        const cancel = () => {void reader.cancel().catch(() => undefined);};
-        signal.addEventListener('abort', cancel, {once: true});
-        if (signal.aborted) cancel();
-        let received = 0, consumed = false;
-        const chunks = async function* () {
-          for (;;) {
-            throwIfAborted(signal);
-            let chunk: ReadableStreamReadResult<Uint8Array>;
-            try {chunk = await abortable(reader.read(), signal);} catch (error) {throwIfAborted(signal); if (error instanceof NativePdfTransportError) throw error; throw new DataTransportError('network', 'pdf-range');}
-            throwIfAborted(signal);
-            if (chunk.done) break;
-            received += chunk.value.byteLength;
-            if (received > expected) throw invalid(502, 'PDF response exceeds its length', 'pdf_length_invalid');
-            for (let offset = 0; offset < chunk.value.byteLength; offset += 256 * 1024) yield chunk.value.subarray(offset, Math.min(offset + 256 * 1024, chunk.value.byteLength));
-          }
-          if (received !== expected) throw invalid(502, 'Incomplete PDF response', 'pdf_length_invalid');
-          consumed = true;
-        };
-        try {
-          if (full && complete) {
-            const retained = await complete(chunks(), signal, cancel); throwIfAborted(signal);
-            if (retained !== false && !consumed) throw invalid(502, 'Incomplete PDF response consumption', 'pdf_length_invalid');
-            return {kind: 'complete', size: expected};
-          }
-          const result = new Uint8Array(end - begin); let offset = full ? 0 : begin;
-          for await (const value of chunks()) {
-            const left = Math.max(begin, offset), right = Math.min(end, offset + value.byteLength);
-            if (right > left) result.set(value.subarray(left - offset, right - offset), left - begin);
-            offset += value.byteLength;
-          }
-          return {kind: 'range', begin, bytes: result};
-        } finally {signal.removeEventListener('abort', cancel); void reader.cancel().catch(() => undefined); reader.releaseLock();}
-      });
   }
   async uploadPdf(body: Blob, filename: string, signal?: AbortSignal): Promise<{bookmark_uid: string; bookmark_id: number | string}> {
     if (body.size <= 0 || body.size > PDF_MAX_BYTES) throw new Error('Invalid PDF upload size');
@@ -295,18 +257,25 @@ export class SlaxApi {
     const timeout = new DataTransportError('timeout', 'api');
     const timer = setTimeout(() => {timedOut = true; controller.abort(timeout);}, 15000);
     const check = () => {throwIfAborted(signal); scope?.assertCurrent(); if (this.origin !== origin) throw new Error('API environment changed'); if (timedOut) throw timeout; throwIfAborted(controller.signal);};
-    let response: Response | undefined;
+    let response: Response | undefined, code: number | undefined;
+    const headers = {'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}`}, started = Date.now();
     try {
       check();
-      try {response = await abortable(this.transport(this.url('/v1/user/refresh'), {method: 'POST', redirect: 'error', signal: controller.signal, headers: {'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}`}}), controller.signal);}
+      try {response = await abortable(this.transport(this.url('/v1/user/refresh'), {method: 'POST', redirect: 'error', signal: controller.signal, headers}), controller.signal);}
       catch {check(); throw new DataTransportError('network', 'api');}
       check();
       if (response.status !== 200) throw new ApiError(response.status, `Session refresh failed (${response.status})`);
       const value = await abortable(this.pdfJson<{token: string}>(response, controller.signal, 'api'), controller.signal); check();
+      code = value.code;
       if (value.code !== 200) throw new ApiError(value.code, 'Session refresh failed');
       if (typeof value.data?.token !== 'string' || !value.data.token) throw new ApiError(502, 'Invalid session refresh response');
+      try {observeExchange(this.options.onAccountSuccess, diagnosticExchange('/v1/user/refresh', 'POST', response, headers, started, code));} catch {}
       return value.data.token;
-    } catch (error) {check(); throw error;}
+    } catch (error) {
+      check();
+      try {if (response && error instanceof ApiError) {const exchange = diagnosticExchange('/v1/user/refresh', 'POST', response, headers, started, code); this.failures.set(error, exchange); observeExchange(this.options.onFailedExchange, exchange, error);}} catch {}
+      throw error;
+    }
     finally {clearTimeout(timer); signal?.removeEventListener('abort', abort); if (response?.body && !response.body.locked) void response.body.cancel().catch(() => undefined);}
   };
   searchBookmarks = (query: BookmarkSearchRequest, signal?: AbortSignal) => this.request<BookmarkSearchHit[]>('/v1/bookmark/search', 'POST', query, undefined, signal);
@@ -355,7 +324,27 @@ export class SlaxApi {
   getIAPProductIds = (signal?: AbortSignal) => this.request<{products: string[]}>('/v1/subscription/apple_inapp_products', 'GET', undefined, undefined, signal);
   checkIapResult = (params: CheckPurchase, signal?: AbortSignal) => this.request<{ok: boolean}>('/v1/subscription/check_inapp_purchase', 'POST', params, undefined, signal);
   deleteAccount = (signal?: AbortSignal) => this.request<{canDelete: boolean; reason?: DeleteAccountReason | null}>('/v1/user/delete_my_account', 'POST', undefined, undefined, signal);
-  sendFeedback = (params: FeedbackRequest, signal?: AbortSignal) => this.request<string>('/v1/user/report', 'POST', params, undefined, signal);
+  captureFeedbackOwner = () => {
+    const identity = this.options.sessions.captureIdentity?.(), origin = this.origin;
+    return () => {identity?.(); if (this.origin !== origin) throw new Error('API environment changed');};
+  };
+  sendFeedback = async (params: FeedbackRequest, signal?: AbortSignal, upload?: FeedbackDiagnosticUpload): Promise<string> => {
+    const current = this.captureFeedbackOwner();
+    throwIfAborted(signal);
+    let body: FeedbackRequest | FormData = params;
+    if (upload) {
+      if (!Number.isSafeInteger(upload.file.size) || upload.file.size <= 0 || upload.file.size > FEEDBACK_DIAGNOSTIC_MAX_BYTES) throw new Error('Invalid diagnostic upload size');
+      if (!/^slax-diagnostics-[A-Za-z0-9-]{1,100}\.ndjson$/.test(upload.filename)) throw new Error('Invalid diagnostic filename');
+      const report = JSON.stringify({...params, attach_diagnostic_log: true});
+      if (new TextEncoder().encode(report).byteLength > FEEDBACK_MULTIPART_OVERHEAD_BYTES - 4096) throw new Error('Feedback attachment framing exceeds limit');
+      const form = new FormData();
+      form.append('report', report); form.append('diagnostic_log', upload.file, upload.filename);
+      body = form;
+    }
+    const result = this.request<string>('/v1/user/report', 'POST', body, undefined, signal, upload ? PDF_REQUEST_TIMEOUT_MS : undefined);
+    try {const value = await (signal ? abortable(result, signal) : result); current(); throwIfAborted(signal); return value;}
+    catch (error) {current(); throwIfAborted(signal); throw error;}
+  };
   async sendClientEvents(deviceId: string, events: {event_name: string; occurred_at: string; properties: Record<string, string>}[]): Promise<void> {
     const {response, cleanup} = await this.response('/events', 'POST', {events}, undefined, undefined, undefined, undefined, '*/*', {'X-Device-ID': deviceId, 'X-CLIENT-TYPE': this.options.platform, 'X-CLIENT-VERSION': this.options.version});
     try { await response.body?.cancel(); } finally { cleanup(); }

@@ -13,12 +13,11 @@ import {clearAccountData} from '../../src/data/account-cleanup.ts';
 import {MemoryPreferences, testJwt} from './helpers.ts';
 import {openVerifiedDatabase} from '../../src/data/adoption.ts';
 import {UpgradeVerificationRequired} from '../../src/data/upgrade.ts';
-import {PdfBlockCache} from '../../src/data/pdf-cache.ts';
 
 const deferred = () => {let resolve; const promise = new Promise(yes => {resolve = yes;}); return {promise, resolve};};
 async function until(check) {for (let i = 0; i < 100; i++) {if (check()) return; await setImmediate();} assert(check());}
 async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'old-token', user_id: 'account', last_refresh_time: String(Math.floor(Date.now() / 1000) - 172800), powersync_token: testJwt('account', 2, 1), powersync_refresh_time: 1000, powersync_connect_url: 'https://sync.example', powersync_api_origin: 'https://api.example', powersync_user_id: 'account'}), databaseGate = Promise.resolve()) {
-  const events = [], sent = []; let pending = 3, owners = 0, clears = 0, activationFailure, migrationFailure, cleanupFailure;
+  const events = [], sent = [], workers = []; let pending = 3, owners = 0, clears = 0, activationFailure, migrationFailure, cleanupFailure;
   class Database {
     async init() {events.push('init'); await databaseGate;} async close() {events.push('close');}
     async connect(connector) {events.push('connect'); await connector.fetchCredentials();}
@@ -26,15 +25,13 @@ async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'ol
     async disconnectAndClear() {if (cleanupFailure) throw cleanupFailure; clears++; pending = 0;}
     async execute() {pending++;} async writeTransaction(work) {return work(this);}
   }
-  class Cache {constructor(directory) {this.dataDirectory = directory;} setAccessBarrier(barrier) {this.barrier = barrier;} setAvatarCache(avatars) {this.avatars = avatars;} clearArticles() {events.push('clear-files');}}
+  class Cache {constructor(directory) {this.dataDirectory = directory;} setAvatarCache(avatars) {this.avatars = avatars;} clearArticles() {events.push('clear-files');}}
   class Worker {
-    constructor(options) {this.options = options; this.request = new AbortController();}
-    async setOnline() {}
-    start() {this.pending = this.options.content('cached-bookmark', undefined, this.request.signal).catch(() => undefined);}
-    async pause() {this.cancel(); await this.pending;} resume() {} cancel() {this.request.abort();}
-    async stop() {this.cancel(); await this.pending;} beginForeground() {return () => {};}
+    constructor(options) {this.options = options; this.pushed = []; workers.push(this);}
+    async open() {this.stop = this.options.credentials.subscribe(() => this.pushed.push(this.options.credentials.current()?.token ?? null));}
+    setOnline() {} start() {} async suspend() {} resume() {} setInteractionBusy() {}
+    cancel() {this.stop?.();} async close() {this.cancel();} beginForeground() {return () => {};}
   }
-  class PdfStorage {clear() {} clearScope() {}}
   const bridge = {beginDataOwnership: async () => ({scanComplete: true, databaseCandidates: [], legacyDataDirectory: '/synthetic', newDatabaseDirectory: '/synthetic/new'}), endDataOwnership: async () => {}, newIdentifier: () => `owner-${++owners}`, md5String: value => value};
   const fetch = async (url, request) => {
     const path = new URL(url).pathname, bearer = new Headers(request.headers).get('Authorization'); sent.push({path, bearer});
@@ -44,19 +41,19 @@ async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'ol
   };
   const {createMobileDataRuntime} = await loadComponent('../../src/data/runtime.ts', {
     'expo/fetch': {fetch}, '../domain/session.ts': {SessionController}, '../domain/credential-readiness.ts': {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailableError}, './api.ts': {createMobileApi},
-    './pdf-cache.ts': {PdfBlockCache}, './pdf-file-storage.ts': {PdfFileStorage: PdfStorage}, './cache.ts': {ArticleFileCache: Cache}, './account-cleanup.ts': {clearAccountData},
-    './account-lease.ts': {AccountDatabaseLease, AccountInactiveError}, './background-cache.ts': {BackgroundArticleCache: Worker}, './runtime-activity.ts': {RuntimeActivity},
+    './cache.ts': {ArticleFileCache: Cache}, './account-cleanup.ts': {clearAccountData},
+    './account-lease.ts': {AccountDatabaseLease, AccountInactiveError}, './offline-coordinator.ts': {OfflineCoordinator: Worker}, './native-offline-engine.ts': {loadOfflineEngine: () => ({})}, './runtime-activity.ts': {RuntimeActivity},
     './native-network.ts': {nativeNetwork: {read: async () => ({}), subscribe: () => () => {}}},
-    './native-pdf-transfer.ts': {createNativePdfFetch: () => assert.fail('Explicit injected transport must remain authoritative')},
     '../native/reader-image': {loadReaderImage: async () => assert.fail('No image request expected in credential fixture')},
-    './image-fetch.ts': {fetchCacheImage: async () => {}}, '../native/platform': {activateReaderResources: async () => {events.push('activate'); if (activationFailure) throw activationFailure;}, revokeReaderResources: async () => {events.push('revoke');}},
+    '../native/platform': {activateReaderResources: async () => {events.push('activate'); if (activationFailure) throw activationFailure;}, revokeReaderResources: async () => {events.push('revoke');}},
     './connector.ts': {createSyncConnector}, './adoption.ts': {openVerifiedDatabase}, './adoption-profile.ts': {deriveReviewedAdoptionEvidence: () => undefined},
     './legacy-preferences.ts': {migrateLegacyPreferences: async () => {if (migrationFailure) throw migrationFailure;}}, './native-storage.ts': {loadLegacyBridge: () => bridge, nativePreferenceStorage: () => storage},
     './preferences.ts': {PreferenceStore, PREFERENCE_KEYS}, './repositories.ts': {MobileRepositories: class {constructor(lease) {this.lease = lease;}}},
     './schema.ts': {createMobileSchema: async () => ({}), SYNC_PARAMETERS: {}}, './upgrade.ts': {UpgradeVerificationRequired}, '@powersync/react-native': {PowerSyncDatabase: Database},
   }, {Error});
-  const runtime = createMobileDataRuntime({baseUrl: 'https://api.example', platform: 'ios', version: 'test', fetch});
-  return {runtime, sent, events, storage, setActivationFailure: error => {activationFailure = error;}, setMigrationFailure: error => {migrationFailure = error;}, setCleanupFailure: error => {cleanupFailure = error;}, get pending() {return pending;}, get clears() {return clears;}};
+  const diagnostics = [];
+  const runtime = createMobileDataRuntime({baseUrl: 'https://api.example', platform: 'ios', version: 'test', fetch, diagnostics: {sink: {record(event, fields) {diagnostics.push({event, fields});}}, storage: null, flush: async () => {}, start: () => () => {}}});
+  return {runtime, diagnostics, sent, events, storage, worker: () => workers.at(-1), setActivationFailure: error => {activationFailure = error;}, setMigrationFailure: error => {migrationFailure = error;}, setCleanupFailure: error => {cleanupFailure = error;}, get pending() {return pending;}, get clears() {return clears;}};
 }
 
 test('cold startup publishes local account and verified data without awaiting protected network readiness', async context => {
@@ -100,6 +97,9 @@ test('cold startup network failure retains local account, pending writes and ret
 test('refresh 401 with a waiting cache worker requires reauthentication without clearing or deadlocking', {timeout: 5000}, async context => {
   const f = await fixture(async () => new Response(null, {status: 401})); context.after(() => f.runtime.stop());
   await f.runtime.start(); await until(() => f.runtime.credentials.getSnapshot().status === 'reauthentication-required');
+  assert.deepEqual(f.diagnostics.map(record => record.event), ['app.launch', 'auth.refresh_failed', 'auth.reauth_required']);
+  assert.equal(f.diagnostics[2].fields.http.path, '/v1/user/refresh');
+  assert.equal(f.diagnostics[2].fields.http.status, 401);
   assert.equal(f.runtime.sessions.getSnapshot().status, 'authenticated');
   assert.equal(f.storage.values.auth_token, 'old-token'); assert.equal(f.events.includes('connect'), false);
   assert.equal(f.pending, 3); assert.equal(f.clears, 0); assert(f.runtime.getRepositories());
@@ -157,6 +157,7 @@ test('same runtime stop and start reconnects with a fresh main token without for
   await f.runtime.start(); f.runtime.markLibraryPresented(); await until(() => f.events.filter(value => value === 'connect').length === 1);
   await f.runtime.stop(); await f.runtime.start(); f.runtime.markLibraryPresented(); await until(() => f.events.filter(value => value === 'connect').length === 2);
   assert.equal(f.pending, 3); assert.equal(f.clears, 0);
+  assert.deepEqual(f.diagnostics.map(record => record.event), ['app.launch']);
 });
 
 test('login during deferred database admission publishes local account but exposes no unverified services', {timeout: 5000}, async context => {
@@ -225,4 +226,21 @@ test('failed sign-out cleanup publishes recovery and restart completes sign-out 
   assert.equal(f.runtime.sessions.getSnapshot().status, 'unauthenticated'); assert.equal(f.runtime.getUpgradeSnapshot().status, 'ready');
   assert.equal(f.runtime.getRepositories(), null); assert.equal(f.storage.values.auth_token, undefined);
   assert.equal(f.storage.values._slax_sign_out_pending_v1, undefined); assert.equal(f.clears, 1);
+});
+
+test('offline engine credentials follow readiness and a native 401 rejects only the session it was given', {timeout: 5000}, async context => {
+  const storage = new MemoryPreferences({auth_token: 'current', user_id: 'account', last_refresh_time: String(Math.floor(Date.now() / 1000))});
+  const f = await fixture(async () => assert.fail('Fresh token must not refresh'), storage);
+  context.after(() => f.runtime.stop());
+  await f.runtime.start(); await until(() => f.runtime.credentials.getSnapshot().status === 'ready');
+  const credentials = f.worker().options.credentials;
+  assert.equal(credentials.current()?.token, 'current');
+  const stale = credentials.current();
+  await f.runtime.sessions.reauthenticate('rotated', 'account'); await until(() => f.runtime.credentials.getSnapshot().status === 'ready' && credentials.current()?.token === 'rotated');
+  assert.equal(await stale.reject(), false, 'A late 401 for a replaced token cannot reject the refreshed session');
+  assert.equal(f.runtime.credentials.getSnapshot().status, 'ready'); assert.equal(storage.values.auth_token, 'rotated');
+  assert.equal(await credentials.current().reject(), true);
+  await until(() => f.runtime.credentials.getSnapshot().status === 'reauthentication-required');
+  assert.equal(credentials.current(), null, 'No credential is pushed while reauthentication is required');
+  assert.ok(f.worker().pushed.includes(null));
 });

@@ -16,6 +16,7 @@ import { SubscriptionController } from '../../handler/http/subscriptionControlle
 import { TagController } from '../../handler/http/tagController'
 import { RssController } from '../../handler/http/rssController'
 import { UserController } from '../../handler/http/userController'
+import { DiagnosticController } from '../../handler/http/diagnosticController'
 import { McpServerController } from '../../handler/http/mcpController'
 import { SyncController } from '../../handler/http/syncController'
 import { PromotionController } from '../../handler/http/promotionController'
@@ -457,6 +458,10 @@ export function getRouter(container: Container) {
   router.post('/v1/user/delete_my_account', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)
     return await controller.handleDeleteUserAccountRequest(ctx, req)
+  })
+  router.get('/v1/diagnostics/download', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(DiagnosticController)
+    return await controller.download(ctx, req)
   })
   router.all('/v1/mcp/*', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(McpServerController)

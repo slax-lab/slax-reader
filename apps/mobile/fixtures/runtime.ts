@@ -18,14 +18,12 @@ import {assertFixtureScope, decodeFixtureArtwork, FixtureMemoryPreferences, plan
 import {fixtureDocuments} from './documents';
 import {fixtureArtworkBase64, fixtureImageHashes} from './resources';
 import {prepareFixturePdfs, type FixturePdfPlan, type FixturePdfCounts} from './pdf';
-import {BackgroundArticleCache} from '../src/data/background-cache';
-import {PdfBlockCache} from '../src/data/pdf-cache';
-import {FixturePdfStorage} from './pdf-storage';
+import {OfflineCoordinator} from '../src/data/offline-coordinator';
+import {createFixtureOfflineEngine} from './offline-engine';
 import {AccountDatabaseLease} from '../src/data/account-lease';
 import {fixtureActions} from '../src/components/fixture-actions';
 import {activateReaderResources, revokeReaderResources} from '../src/native/platform';
 import {createFixturePdfImport} from './pdf-import';
-import {createFixtureProductionPdfStorage} from './pdf-production-storage';
 import {fetch as expoFetch} from 'expo/fetch';
 import {createPdfHttpFetch, PDF_HTTP_ORIGIN, PDF_HTTP_TOKEN, type PdfHttpObservation} from './pdf-http';
 
@@ -109,18 +107,17 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
   const reusedExistingRssDatabase = Boolean(existingMarker && persistentRssFixture && seedCompleteFile.exists);
   const preferences = new PreferenceStore(new FixtureMemoryPreferences({...payload.settings, auth_token: payload.session.token, user_id: payload.session.userId, last_refresh_time: String(payload.session.refreshedAt), user_language: normalizeLocale(localeInput), analytics_device_id: 'synthetic-ui-fixture'}));
   let database: PowerSyncDatabase | null = null, repositories: MobileRepositories | null = null, cache: ArticleFileCache | null = null;
-  let queue: BackgroundArticleCache | null = null, lease: AccountDatabaseLease | null = null;
-  let nativePdfStorage: ReturnType<typeof createFixtureProductionPdfStorage> | undefined;
+  let queue: OfflineCoordinator | null = null, lease: AccountDatabaseLease | null = null;
   const httpFixture = scenario === 'reader-pdf-http';
   const apiOrigin = httpFixture ? PDF_HTTP_ORIGIN : 'https://fixture-api.test';
   if (httpFixture && payload.session.token !== PDF_HTTP_TOKEN) throw new Error('Loopback fixture requires its synthetic session');
-  const productionStorage = scenario === 'reader-pdf-native-storage' || httpFixture;
+  const rangeEvidence = scenario === 'reader-pdf-native-storage' || httpFixture;
   let nativeResourceOwner: string | null = null, stopped = false, foreground = true, stopPdfActions: (() => void) | undefined, activityListener: {remove(): void} | undefined;
   const documents = prepareFixturePdfs(payload.pdf);
   const importPlan = payload.nativePdfImport;
   if (importPlan && (scenario !== 'reader-pdf-import' || importPlan.bookmarkId !== 'fixture-pdf-imported' || payload.pdf?.length !== 1 || payload.pdf[0]?.document !== 'eight-pages' || !documents.has(importPlan.bookmarkId) || importPlan.syncDelayMs !== 2000 || Object.keys(importPlan.rows).some(table => !['sr_user_bookmark', 'ps_data_local__local_bookmark_info'].includes(table)))) throw new Error('Invalid native PDF import fixture');
   let seedDirectory: Directory | undefined, importPdf: ReturnType<typeof createFixturePdfImport> | undefined;
-  const controls = new FixtureControlLifecycle(async active => {foreground = active; if (active) queue?.resume(); else await queue?.pause();});
+  const controls = new FixtureControlLifecycle(async active => {foreground = active; if (active) queue?.resume(); else await queue?.suspend();});
   const counts: FixturePdfCounts = {metadataRequests: 0, rangeRequests: 0, bytesServed: 0, offlineRequests: 0, rejectedRequests: 0};
   const rangeEvents: {begin: number; end: number; state: string}[] = [];
   const httpEvents: PdfHttpObservation[] = [];
@@ -129,12 +126,12 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
     httpEvents.push(event); if (httpEvents.length > 128) httpEvents.shift();
     new File(scope, 'pdf-http.json').write(JSON.stringify({...marker, transport: 'expo/fetch', backend: 'synthetic-loopback-http', nativeOwnerRequired: true, events: httpEvents, nativeInteractionVerified: false}));
   }) : undefined;
-  const recordPdf = () => {if (!stopped && documents.size) {assertFixtureScope(scope.uri, Paths.cache.uri, marker); new File(scope, 'pdf-transport.json').write(JSON.stringify({...marker, ...counts, ...(productionStorage ? {storageAdapter: 'PdfFileStorage', rangeEvents} : {}), nativeInteractionVerified: false}));}};
+  const recordPdf = () => {if (!stopped && documents.size) {assertFixtureScope(scope.uri, Paths.cache.uri, marker); new File(scope, 'pdf-transport.json').write(JSON.stringify({...marker, ...counts, ...(rangeEvidence ? {storageAdapter: 'fixture-offline-engine', rangeEvents} : {}), nativeInteractionVerified: false}));}};
+  const transport = httpFixture ? httpTransport! : createFixtureFetch(payload, 'https://fixture-api.test', {documents, counts, record: recordPdf, slowRange: rangeEvidence, rangeEvent: event => {if (rangeEvidence) {rangeEvents.push(event); if (rangeEvents.length > 128) rangeEvents.shift(); recordPdf();}}, get importPdf() {return importPdf;}});
   const revoke = async () => {
     const owner = nativeResourceOwner;
     nativeResourceOwner = null; importPdf?.dispose(); queue?.cancel(); lease?.invalidate();
-    await queue?.stop(); await lease?.drainWrites(); queue = null; lease = null;
-    await nativePdfStorage?.cleanup(); nativePdfStorage = undefined;
+    await queue?.close(); await lease?.drainWrites(); queue = null; lease = null;
     if (owner) await resourceTransition(async () => {if (fixtureResourceOwner === owner) {await revokeReaderResources(); fixtureResourceOwner = null;}});
   };
   const sessions = new SessionController(preferences, {async enter(session) {
@@ -148,26 +145,18 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
     await resourceTransition(async () => {account.assertActive(); await activateReaderResources(owner); fixtureResourceOwner = owner; nativeResourceOwner = owner;});
     repositories = new MobileRepositories(account, uuid);
     if (!documents.size) return;
-    const accountGuard = () => {account.assertActive(); if (stopped) throw new Error('PDF fixture is inactive');};
-    const guard = () => {accountGuard(); if (!foreground) throw new Error('PDF fixture is inactive');};
-    if (productionStorage) nativePdfStorage = createFixtureProductionPdfStorage(scope.uri, accountGuard, owner);
-    const files = nativePdfStorage?.storage ?? new FixturePdfStorage(scope.uri, accountGuard);
-    const scopeKey = nativePdfStorage?.scopeKey ?? JSON.stringify(['https://fixture-api.test', session.userId]);
-    const pdf = new PdfBlockCache(files, scopeKey, guard, accountGuard);
     const prepared = cache;
-    cache = new ArticleFileCache(prepared.dataDirectory, url => {const hash = fixtureImageHashes[url]; if (!hash) throw new Error('No prepared fixture image hash'); return hash;}, () => account.assertActive(), {
-      bytes: key => pdf.bytes(key), remove: async key => {await queue?.forgetPdf(key); guard(); await pdf.remove(key);}, clear: () => files.clearScope(scopeKey),
-    }, owner);
-    queue = new BackgroundArticleCache({database: account, preferences: preferences.scoped(() => account.assertActive()), cache, assertActive: () => account.assertActive(),
-      resourceScope: JSON.stringify([apiOrigin, session.userId, nativeResourceOwner]), cacheScope: JSON.stringify([apiOrigin, session.userId]), identifier: uuid, apiOrigin: new URL(apiOrigin).origin,
-      content: (id, owner, signal) => owner ? api.getCollectionBookmarkRawContent(id, owner, signal) : api.getBookmarkRawContent(id, signal),
-      image: async () => {throw new Error('PDF fixtures contain no network images');},
-      pdf: {cache: pdf, metadata: (id, signal) => api.getPdfMetadata(id, signal), range: (id, documentId, begin, end, signal, expectedSize) => api.getPdfRange(id, documentId, begin, end, signal, expectedSize),
-        acquire: (id, descriptor, begin, end, complete, signal) => api.acquirePdf(id, descriptor, begin, end, complete, signal)},
+    const engine = createFixtureOfflineEngine({fetch: transport, articles: key => prepared.readArticle(key)});
+    queue = new OfflineCoordinator({engine, database: account, preferences: preferences.scoped(() => account.assertActive()), identifier: uuid,
+      scope: {owner, scope: JSON.stringify([apiOrigin, session.userId]), origin: new URL(apiOrigin).origin, directory: prepared.dataDirectory, userAgent: `SlaxReader/${mobileConfig.platform} fixture (1)`, clientType: mobileConfig.platform, clientVersion: 'fixture (1)'},
+      credentials: {current: () => {const state = sessions.getSnapshot(); return state.status === 'authenticated' ? {token: state.session.token, reject: async () => false} : null;}, subscribe: listener => sessions.subscribe(listener)},
+      assertActive: () => {account.assertActive(); if (stopped) throw new Error('PDF fixture is inactive');},
+      assertCachedAccess: () => {if (!foreground) throw new Error('PDF fixture is inactive');},
     });
+    cache = new ArticleFileCache(prepared.dataDirectory, url => {const hash = fixtureImageHashes[url]; if (!hash) throw new Error('No prepared fixture image hash'); return hash;}, () => account.assertActive(), queue, owner);
     queue.start();
-  }, async leave(_id, clear) {await revoke(); if (clear) {await database?.disconnectAndClear(); if (documents.size) new FixturePdfStorage(scope.uri).clear(); else await cache?.clearArticles();}}}, () => payload.session.refreshedAt);
-  const api = createMobileApi({baseUrl: apiOrigin, platform: mobileConfig.platform, version: 'fixture (1)', sessions, fetch: httpFixture ? httpTransport : createFixtureFetch(payload, 'https://fixture-api.test', {documents, counts, record: recordPdf, slowRange: productionStorage, rangeEvent: event => {if (productionStorage) {rangeEvents.push(event); if (rangeEvents.length > 128) rangeEvents.shift(); recordPdf();}}, get importPdf() {return importPdf;}}), ...(httpFixture ? {} : {sleep: async () => undefined})});
+  }, async leave(_id, clear) {await revoke(); if (clear) {await database?.disconnectAndClear(); if (!documents.size) await cache?.clearArticles();}}}, () => payload.session.refreshedAt);
+  const api = createMobileApi({baseUrl: apiOrigin, platform: mobileConfig.platform, version: 'fixture (1)', sessions, fetch: transport, ...(httpFixture ? {} : {sleep: async () => undefined})});
   const upgrade: UpgradeState = payload.upgrade?.ownership === 'verification-required' ? {status: 'verification-required', inventory: {scanComplete: true, databaseCandidates: ['fixture-only/powersync.db'], legacyDataDirectory: scope.uri, newDatabaseDirectory: scope.uri}} : {status: 'ready'};
   const statusListeners = new Set<(status: SyncStatus) => void>();
   let status = payload.sync as unknown as SyncStatus;
@@ -204,7 +193,7 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
       seedDirectory = new Directory(Paths.document, 'slax-ui-fixture-import', scope.name);
       seedDirectory.create({intermediates: true});
       const seed = new File(seedDirectory, 'slax-synthetic-eight-pages.pdf'); seed.write(document.bytes);
-      const record = (state: object) => {if (!stopped) new File(scope, 'pdf-import.json').write(JSON.stringify({...marker, ...state, seedUri: seed.uri, expectedSha256: document.descriptor.document_id, expectedBytes: document.descriptor.size, bookmarkId: importPlan.bookmarkId, backend: 'synthetic-local-transport', synchronizationMechanism: 'simulated-local-database', nativeInteractionVerified: false}));};
+      const record = (state: object) => {if (!stopped) new File(scope, 'pdf-import.json').write(JSON.stringify({...marker, ...state, seedUri: seed.uri, expectedDocumentId: document.descriptor.document_id, expectedBytes: document.descriptor.size, bookmarkId: importPlan.bookmarkId, backend: 'synthetic-local-transport', synchronizationMechanism: 'simulated-local-database', nativeInteractionVerified: false}));};
       importPdf = createFixturePdfImport({document, bookmarkId: importPlan.bookmarkId, delayMs: importPlan.syncDelayMs, active, foreground: () => controls.ready(),
         async publish() {
           const rows = planFixtureRows(MOBILE_TABLES, importPlan.rows);
@@ -217,7 +206,7 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
     const payments = new PaymentController({async start() {}, async products() {}, async purchase() {throw new Error('Native purchases are disabled in UI fixtures');}, async finish() {}, async restore() {return [];}, async pending() {return [];}, async entitlements() {return [];}, async stop() {}}, sessions, preferences, async () => ({ok: false}));
     const worker = () => {if (!queue || stopped) throw new Error('This fixture has no active PDF cache scope'); return queue;};
     const runtime: MobileDataRuntime = {preferences, sessions, api,
-      markLibraryPresented() {}, getAvatarCache: () => null,
+      markLibraryPresented() {}, isLibraryPresented: () => true, subscribeLibraryPresented: () => () => {}, getAvatarCache: () => null, setInteractionBusy: (busy, source) => queue?.setInteractionBusy(busy, source),
       setForeground: active => controls.setForeground(active), async start() {},
       async stop() {stopped = true; controls.dispose(); activityListener?.remove(); stopPdfActions?.(); await revoke(); await database?.close(); database = null; repositories = null; cache = null; if (seedDirectory?.exists) seedDirectory.delete();},
       getAccountPreferences: () => {const account = lease; return account ? preferences.scoped(() => account.assertActive()) : preferences;},
@@ -227,7 +216,6 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
         return queue ? queue.getArticleContent(id, owner, signal) : owner ? api.getCollectionBookmarkRawContent(id, owner, signal) : api.getBookmarkRawContent(id, signal);
       },
       getPdfMetadata: (id, owner, signal) => worker().getPdfMetadata(id, owner, signal),
-      readPdfRange: (id, descriptor, begin, end, owner, signal) => worker().readPdfRange(id, descriptor, begin, end, owner, signal),
       cachePdf: (id, owner) => worker().cachePdf(id, owner), pdfCacheStatus: (id, owner) => worker().pdfCacheStatus(id, owner),
       getDatabase: () => database, getRepositories: () => repositories, getCache: () => cache, getUpgradeSnapshot: () => upgrade, subscribeUpgrade: () => () => undefined};
     const network = payload.network;
@@ -239,9 +227,9 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
       for (const id of documents.keys()) {const status = await runtime.pdfCacheStatus(id), local = await repositories?.local.read(id); states.push({bookmarkId: id, ...status, position: local?.pdf_read_position ?? null, downloadState: local?.is_downloaded ?? 0});}
       if (stopped) return;
       assertFixtureScope(scope.uri, Paths.cache.uri, marker);
-      const evidence = {...marker, counts, states, ...(productionStorage ? {storageAdapter: 'PdfFileStorage', namespace: nativePdfStorage?.prefix, rangeEvents} : {}), nativeInteractionVerified: false};
+      const evidence = {...marker, counts, states, ...(rangeEvidence ? {storageAdapter: 'fixture-offline-engine', rangeEvents} : {}), nativeInteractionVerified: false};
       new File(scope, 'pdf-cache.json').write(JSON.stringify(evidence));
-      if (productionStorage) {
+      if (rangeEvidence) {
         const checkpoint = states.every(state => state.complete) ? 'complete' : states.some(state => state.downloadedBytes > 0) ? 'partial' : 'empty';
         new File(scope, `pdf-cache-${checkpoint}.json`).write(JSON.stringify(evidence));
       }
@@ -252,9 +240,8 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
     const value = async (): Promise<MobileContextValue> => {
       if (documents.size && !stopPdfActions) stopPdfActions = fixtureActions.subscribe('pdf-cache', async action => {
         if (action.kind === 'pdf-production-storage') {
-          if (!nativePdfStorage) throw new Error('Production storage diagnostic is not enabled');
-          const result = await nativePdfStorage.diagnose();
-          new File(scope, 'pdf-production-storage.json').write(JSON.stringify({...marker, ...result})); return true;
+          // PDF storage now belongs to the native offline engine; JavaScript has no production file adapter to diagnose.
+          new File(scope, 'pdf-production-storage.json').write(JSON.stringify({...marker, adapter: 'SlaxOfflineEngine', jsAdapter: false, nativeInteractionVerified: false})); return true;
         }
         if (action.kind === 'pdf-http-mode' || action.kind === 'pdf-http-status') {
           if (!httpFixture || !httpTransport || !nativeResourceOwner) throw new Error('Loopback controls require the native HTTP fixture');

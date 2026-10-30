@@ -19,7 +19,7 @@ cpu_ms = 300000
 
 [vars]
 # Local defaults. For remote deployment set RUN_ENV = "prod".
-# RUN_TYPE identifies the installation; STRIPE_LIVE_MODE must match the Reader Stripe key.
+# RUN_TYPE identifies the installation. Stripe credentials select test or live API mode.
 RUN_ENV = "development"
 RUN_TYPE = "dev"
 # Comma-separated allowlist for the beta host and the /m/ dashboard. These are operator and
@@ -76,6 +76,16 @@ migrations_dir = "../../apps/api/prisma/d1_migrations/fulltext"
 binding = "OSS"
 bucket_name = "slax-reader-backend"
 preview_bucket_name = "slax-reader-backend-preview"
+
+# Optional diagnostic attachments. Use a separate PRIVATE bucket with no public domain.
+# Configure a seven-day expiration rule for diagnostics/ before enabling uploads.
+# Provision DIAGNOSTIC_DOWNLOAD_SECRET separately (at least 32 random bytes); never place it here.
+# Repeat this binding in each selected [env.*] configuration; bindings are not inherited.
+# See docs/api/diagnostic-feedback.md for lifecycle and download-log privacy requirements.
+[[r2_buckets]]
+binding = "DIAGNOSTICS"
+bucket_name = "slax-reader-diagnostics"
+preview_bucket_name = "slax-reader-diagnostics-preview"
 
 [[vectorize]]
 binding = "VECTORIZE1"

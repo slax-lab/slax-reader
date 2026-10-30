@@ -16,6 +16,7 @@ export type VertexAIConfig = {
   tools?: Tool[]
   thinkingConfig?: {
     thinkingBudget?: number
+    thinkingLevel?: 'MINIMAL' | 'LOW' | 'MEDIUM' | 'HIGH'
   }
 }
 

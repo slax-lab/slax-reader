@@ -30,6 +30,9 @@ import { LabService } from '../../domain/lab'
 import { SearchService } from '../../domain/search'
 import { YoutubeArticleRepo } from '../../infra/repository/dbYoutubeArticle'
 import { PodcastArticleRepo, PodcastEpisodeRepo } from '../../infra/repository/dbPodcastArticle'
+import { BookmarkForkService } from '../../domain/bookmarkFork'
+import { MediaSnapshotService } from '../../domain/mediaSnapshot'
+import { BookmarkForkRepo } from '../../infra/repository/dbBookmarkFork'
 import { CollectionRepo } from '../../infra/repository/dbCollection'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
@@ -95,6 +98,7 @@ import { ApiKeyController } from '../../handler/http/apiKeyController'
 import { BookmarkController } from '../../handler/http/bookmarkController'
 import { CallbackController } from '../../handler/http/callbackController'
 import { CollectionController } from '../../handler/http/collectionController'
+import { DiagnosticController } from '../../handler/http/diagnosticController'
 import { EventsController } from '../../handler/http/eventsController'
 import { ImageController } from '../../handler/http/imageController'
 import { MarkController } from '../../handler/http/markController'
@@ -141,7 +145,22 @@ container.register(BookmarkService, {
       container.resolve(LabService),
       container.resolve(SearchService),
       container.resolve(YoutubeArticleRepo),
-      container.resolve(PodcastArticleRepo)
+      container.resolve(PodcastArticleRepo),
+      container.resolve(BookmarkForkService),
+      container.resolve(MediaSnapshotService)
+    )
+})
+
+container.register(BookmarkForkService, {
+  useFactory: container =>
+    new BookmarkForkService(
+      container.resolve(BookmarkForkRepo),
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(LabService),
+      container.resolve(SearchService),
+      container.resolve(BookmarkRepo),
+      container.resolve(MediaSnapshotService),
+      container.resolve(NotificationMessage)
     )
 })
 
@@ -158,7 +177,9 @@ container.register(CrawlService, {
       container.resolve(SlaxAlertBotClient),
       container.resolve(YoutubeArticleRepo),
       container.resolve(PodcastEpisodeRepo),
-      container.resolve(PodcastArticleRepo)
+      container.resolve(MediaSnapshotService),
+      container.resolve(BookmarkForkRepo),
+      container.resolve(MarkRepo)
     )
 })
 
@@ -201,7 +222,25 @@ container.register(MediaBodyService, {
       container.resolve(BookmarkRepo),
       container.resolve(SearchService),
       container.resolve(MarkRepo),
-      lazy(() => container.resolve(BucketClient))
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(BookmarkForkRepo)
+    )
+})
+
+container.register(MediaSnapshotService, {
+  useFactory: container =>
+    new MediaSnapshotService(
+      container.resolve(BookmarkForkRepo),
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(YoutubeArticleRepo),
+      container.resolve(PodcastArticleRepo),
+      container.resolve(PodcastEpisodeRepo),
+      container.resolve(UserRepo),
+      container.resolve(LabService),
+      container.resolve(MarkRepo),
+      container.resolve(BookmarkRepo),
+      container.resolve(SearchService),
+      container.resolve(BookmarkSearchRepo)
     )
 })
 
@@ -221,7 +260,8 @@ container.register(PodcastService, {
       container.resolve(UserRepo),
       lazy(() => container.resolve(RedisClient)),
       lazy(() => container.resolve(BucketClient)),
-      container.resolve(SlaxAlertBotClient)
+      container.resolve(SlaxAlertBotClient),
+      container.resolve(MediaSnapshotService)
     )
 })
 
@@ -319,7 +359,8 @@ container.register(UserDeletionService, {
   useFactory: container =>
     new UserDeletionService(
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)),
-      container.resolve(UserRepo)
+      container.resolve(UserRepo),
+      lazy(() => container.resolve(BucketClient))
     )
 })
 
@@ -334,7 +375,8 @@ container.register(YoutubeArticleService, {
       lazy(() => container.resolve(BucketClient)),
       container.resolve(SlaxAlertBotClient),
       container.resolve(CrawlService),
-      container.resolve(MediaBodyService)
+      container.resolve(MediaBodyService),
+      container.resolve(MediaSnapshotService)
     )
 })
 
@@ -454,7 +496,8 @@ container.register(UrlParserHandler, {
       container.resolve(TagService),
       container.resolve(UserService),
       container.resolve(CrawlService),
-      container.resolve(LogsService)
+      container.resolve(LogsService),
+      container.resolve(MediaSnapshotService)
     )
 })
 
@@ -496,7 +539,7 @@ container.register(YoutubeArticleJob, {
 })
 
 container.register(BookmarkConsumer, {
-  useFactory: container => new BookmarkConsumer(container.resolve(UrlParserHandler), container.resolve(ImportOrchestrator))
+  useFactory: container => new BookmarkConsumer(container.resolve(CrawlService), container.resolve(ImportOrchestrator))
 })
 
 container.register(SubscriptionConsumer, {
@@ -541,6 +584,10 @@ container.register(BookmarkRepo, {
       lazy(() => container.resolve(PRISIMA_CLIENT)),
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT))
     )
+})
+
+container.register(BookmarkForkRepo, {
+  useFactory: container => new BookmarkForkRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
 container.register(BookmarkSearchRepo, {
@@ -661,6 +708,10 @@ container.register(CallbackController, {
 
 container.register(CollectionController, {
   useFactory: container => new CollectionController(container.resolve(CollectionService), container.resolve(CollectionOrchestrator))
+})
+
+container.register(DiagnosticController, {
+  useFactory: container => new DiagnosticController(container.resolve(UserService))
 })
 
 container.register(EventsController, {

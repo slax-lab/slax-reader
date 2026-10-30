@@ -8,14 +8,14 @@ import { GA4AnalyticsClient } from '@/infra/external/ga4Analytics'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { SubscriptionRepo } from '@/infra/repository/dbSubscription'
 
-const env = { RUN_TYPE: 'prod', STRIPE_LIVE_MODE: 'false', GA4_MEASUREMENT_ID: 'G-TEST', GA4_API_SECRET: 'test-secret' } as Env
+const env = { RUN_TYPE: 'prod', GA4_MEASUREMENT_ID: 'G-TEST', GA4_API_SECRET: 'test-secret' } as Env
 const payload = { userId: 7, provider: 'stripe', autoRenew: true, offer: false, subscriptionType: 'initial_subscription' }
 const fetchMock = vi.fn()
 
 function setup(config = env) {
   const insertLog = vi.fn().mockResolvedValue(undefined)
   const getPaymentJob = vi.fn().mockResolvedValue(null)
-  const repo = { getPaymentJob, enqueuePaymentJob: vi.fn(), pendingPaymentJobs: vi.fn(), claimPaymentJob: vi.fn().mockResolvedValue('lease'), finishPaymentJob: vi.fn() }
+  const repo = { getPaymentJob, enqueuePaymentJob: vi.fn(), pendingPaymentJobs: vi.fn(), claimPaymentJob: vi.fn().mockResolvedValue('lease'), finishPaymentJob: vi.fn(), parkPaymentJob: vi.fn() }
   const telemetry = new SubscriptionTelemetryService(new LogsService({ insertLog } as never), repo as never, new GA4AnalyticsClient(config))
   const main = new SubscriptionServiceMain({} as never, {} as never, {} as never, repo as never, new SlaxAlertBotClient(config), {} as never, {} as never)
   const payments = new SubscriptionPaymentService({} as never, repo as never)
@@ -35,6 +35,47 @@ afterEach(() => {
 })
 
 describe('payment telemetry recovery', () => {
+  test.each([true, false])('processes %s-mode Stripe events when no mode environment flag is present', async liveMode => {
+    const { orchestrator, repo } = setup()
+    const event = {
+      event_id: `evt_${liveMode}`, live_mode: liveMode, event_account: '', event_type: 'invoice.paid',
+      event_data: JSON.stringify({ id: `in_${liveMode}`, billing_reason: 'subscription_create', subscription_details: { metadata: { user_id: '7' } }, lines: { data: [{ price: { recurring: { interval: 'month', interval_count: 1 } }, period: { start: 1, end: 2 } }] } }),
+      previous_event_data: '{}'
+    }
+    const applyPaymentGrant = vi.fn()
+    Object.assign(repo, { applyPaymentGrant })
+    Object.assign(orchestrator, { subscriptionService: { getEventById: vi.fn().mockResolvedValue(event) } })
+    await orchestrator.processSubscription({} as never, { id: 'msg', info: { eventId: 1 } })
+    expect(applyPaymentGrant).toHaveBeenCalledWith(expect.objectContaining({ key: `stripe:${liveMode}::invoice:in_${liveMode}`, userId: 7 }))
+    expect(repo.finishPaymentJob).toHaveBeenCalledWith(`stripe:${liveMode}::evt_${liveMode}`, 'lease')
+  })
+
+  test('parks connected-account Stripe event scope', async () => {
+    const { orchestrator, repo } = setup()
+    const event = { event_id: 'evt_unsupported', live_mode: true, event_account: 'acct_connected', event_type: 'invoice.paid', event_data: '{}', previous_event_data: '{}' }
+    Object.assign(orchestrator, { subscriptionService: { getEventById: vi.fn().mockResolvedValue(event) } })
+    await orchestrator.processSubscription({} as never, { id: 'msg', info: { eventId: 2 } })
+    expect(repo.parkPaymentJob).toHaveBeenCalledWith('stripe:true:acct_connected:evt_unsupported', expect.any(String), 'lease')
+  })
+
+  test('recovers cancellation and credit keys for both Stripe modes', async () => {
+    const { orchestrator, repo } = setup()
+    const runOperation = vi.fn()
+    Object.assign(orchestrator, { payments: { runOperation } })
+    repo.pendingPaymentJobs.mockResolvedValue([
+      { key: 'stripe:true::cancel:sub_1', kind: 'stripe_cancel' },
+      { key: 'stripe:true::credit:reward:1', kind: 'stripe_credit' },
+      { key: 'stripe:false::cancel:sub_2', kind: 'stripe_cancel' },
+      { key: 'stripe:false::credit:reward:2', kind: 'stripe_credit' }
+    ])
+    await orchestrator.recover({} as never)
+    expect(runOperation.mock.calls).toEqual([
+      ['stripe:true::cancel:sub_1'], ['stripe:true::credit:reward:1'],
+      ['stripe:false::cancel:sub_2'], ['stripe:false::credit:reward:2']
+    ])
+    expect(repo.parkPaymentJob).not.toHaveBeenCalled()
+  })
+
   test.each([
     ['stripe', 'initial_subscription', false, 'stripe'],
     ['stripe', 'auto_renewal', false, 'stripe'],
@@ -49,7 +90,19 @@ describe('payment telemetry recovery', () => {
     expect(JSON.parse(init.body)).toEqual({
       client_id: '7',
       user_id: '7',
-      events: [{ name: 'subscription_checkout_complete', params: { subscription_type: subscriptionType, offer_type: offer ? 'trial_authorized' : 'standard', gateway, event_id: 'telemetry:grant:existing', engagement_time_msec: 100, platform: 'backend' } }]
+      events: [
+        {
+          name: 'subscription_checkout_complete',
+          params: {
+            subscription_type: subscriptionType,
+            offer_type: offer ? 'trial_authorized' : 'standard',
+            gateway,
+            event_id: 'telemetry:grant:existing',
+            engagement_time_msec: 100,
+            platform: 'backend'
+          }
+        }
+      ]
     })
     expect(insertLog).toHaveBeenCalledWith(7, 'subscribe', { status: 'success', source: gateway, subscription_type: subscriptionType, operation_key: 'telemetry:grant:existing' })
     expect(repo.enqueuePaymentJob).not.toHaveBeenCalled()
@@ -58,7 +111,10 @@ describe('payment telemetry recovery', () => {
   test.each(['cancel', 'auto_renew_off', 'refund'])('preserves existing action payload %s', async action => {
     const { telemetry, insertLog } = setup()
     await telemetry.deliver('telemetry:state:existing', { ...payload, action, autoRenew: false, subscriptionType: undefined })
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).events[0]).toMatchObject({ name: 'subscription_cancel_complete', params: { subscription_type: 'initial_subscription', gateway: 'stripe' } })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).events[0]).toMatchObject({
+      name: 'subscription_cancel_complete',
+      params: { subscription_type: 'initial_subscription', gateway: 'stripe' }
+    })
     expect(insertLog).toHaveBeenCalledWith(7, action, expect.objectContaining({ status: 'success', subscription_type: 'initial_subscription' }))
   })
 
@@ -66,17 +122,37 @@ describe('payment telemetry recovery', () => {
     if (failure === 'network') fetchMock.mockRejectedValue(new Error('network failure'))
     else fetchMock.mockImplementation(async () => new Response('', { status: 503 }))
     const { orchestrator, repo, insertLog } = setup()
-    repo.pendingPaymentJobs.mockResolvedValueOnce([{ key: 'telemetry:existing', kind: 'payment_telemetry', payload }, { key: 'stripe:false::evt_1', kind: 'stripe_event', payload: { eventId: 1 } }]).mockResolvedValue([])
-    const event = { event_id: 'evt_1', live_mode: false, event_account: '', event_type: 'invoice.paid', event_data: JSON.stringify({ id: 'in_1', billing_reason: 'subscription_create', subscription_details: { metadata: { platform: 'reader', user_id: '7' } }, lines: { data: [{ price: { recurring: { interval: 'month', interval_count: 1 } }, period: { start: 1, end: 2 } }] } }), previous_event_data: '{}' }
+    repo.pendingPaymentJobs
+      .mockResolvedValueOnce([
+        { key: 'telemetry:existing', kind: 'payment_telemetry', payload },
+        { key: 'stripe:true::evt_1', kind: 'stripe_event', payload: { eventId: 1 } }
+      ])
+      .mockResolvedValue([])
+    const event = {
+      event_id: 'evt_1',
+      live_mode: true,
+      event_account: '',
+      event_type: 'invoice.paid',
+      event_data: JSON.stringify({
+        id: 'in_1',
+        billing_reason: 'subscription_create',
+        subscription_details: { metadata: { platform: 'reader', user_id: '7' } },
+        lines: { data: [{ price: { recurring: { interval: 'month', interval_count: 1 } }, period: { start: 1, end: 2 } }] }
+      }),
+      previous_event_data: '{}'
+    }
     const applyPaymentGrant = vi.fn().mockResolvedValue(undefined)
     Object.assign(repo, { applyPaymentGrant })
     Object.assign(orchestrator, { subscriptionService: { getEventById: vi.fn().mockResolvedValue(event) } })
     await orchestrator.recover({ env } as never)
     await orchestrator.recover({ env } as never)
     expect(insertLog).toHaveBeenCalledTimes(1)
-    expect(applyPaymentGrant).toHaveBeenCalledWith(expect.objectContaining({ key: 'stripe:false::invoice:in_1', userId: 7 }))
-    expect(repo.finishPaymentJob.mock.calls).toEqual([['telemetry:existing', 'lease'], ['stripe:false::evt_1', 'lease']])
-    expect(repo.enqueuePaymentJob.mock.calls).toEqual([['stripe:false::evt_1', 'stripe_event', { eventId: 1 }]])
+    expect(applyPaymentGrant).toHaveBeenCalledWith(expect.objectContaining({ key: 'stripe:true::invoice:in_1', userId: 7 }))
+    expect(repo.finishPaymentJob.mock.calls).toEqual([
+      ['telemetry:existing', 'lease'],
+      ['stripe:true::evt_1', 'lease']
+    ])
+    expect(repo.enqueuePaymentJob.mock.calls).toEqual([['stripe:true::evt_1', 'stripe_event', { eventId: 1 }]])
   })
 
   test('log failure does not keep the nonfinancial job pending', async () => {
@@ -88,18 +164,27 @@ describe('payment telemetry recovery', () => {
     expect(repo.finishPaymentJob).toHaveBeenCalledWith('telemetry:existing', 'lease')
   })
 
-  test.each([{}, { GA4_MEASUREMENT_ID: ' ' }, { GA4_MEASUREMENT_ID: 'G-TEST' }, { GA4_API_SECRET: 'test-secret' }])('unconfigured telemetry and notices are consumed without outgoing requests', async config => {
-    const { orchestrator, repo, insertLog } = setup({ RUN_TYPE: 'prod', ...config } as Env)
-    repo.pendingPaymentJobs.mockResolvedValue([{ key: 'telemetry:existing', kind: 'payment_telemetry', payload }, { key: 'notice:existing', kind: 'payment_notice', payload: { channel: 'stripe', content: 'existing message' } }])
-    await orchestrator.recover({ env: config } as never)
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(insertLog).toHaveBeenCalledTimes(1)
-    expect(repo.finishPaymentJob.mock.calls).toEqual([['telemetry:existing', 'lease'], ['notice:existing', 'lease']])
-  })
+  test.each([{}, { GA4_MEASUREMENT_ID: ' ' }, { GA4_MEASUREMENT_ID: 'G-TEST' }, { GA4_API_SECRET: 'test-secret' }])(
+    'unconfigured telemetry and notices are consumed without outgoing requests',
+    async config => {
+      const { orchestrator, repo, insertLog } = setup({ RUN_TYPE: 'prod', ...config } as Env)
+      repo.pendingPaymentJobs.mockResolvedValue([
+        { key: 'telemetry:existing', kind: 'payment_telemetry', payload },
+        { key: 'notice:existing', kind: 'payment_notice', payload: { channel: 'stripe', content: 'existing message' } }
+      ])
+      await orchestrator.recover({ env: config } as never)
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(insertLog).toHaveBeenCalledTimes(1)
+      expect(repo.finishPaymentJob.mock.calls).toEqual([
+        ['telemetry:existing', 'lease'],
+        ['notice:existing', 'lease']
+      ])
+    }
+  )
 
   test.each(['ga', 'logs', 'both'])('existing %s receipts suppress already delivered sinks without creating new receipts', async receipt => {
     const { orchestrator, repo, insertLog } = setup()
-    repo.getPaymentJob.mockImplementation(async key => receipt === 'both' || key.startsWith(`${receipt}:`) ? { kind: 'telemetry_receipt' } : null)
+    repo.getPaymentJob.mockImplementation(async key => (receipt === 'both' || key.startsWith(`${receipt}:`) ? { kind: 'telemetry_receipt' } : null))
     repo.pendingPaymentJobs.mockResolvedValue([{ key: 'telemetry:existing', kind: 'payment_telemetry', payload }])
     await orchestrator.recover({ env } as never)
     expect(fetchMock).toHaveBeenCalledTimes(receipt === 'logs' ? 1 : 0)
@@ -120,6 +205,10 @@ describe('payment telemetry recovery', () => {
   test('pending repository query retains both telemetry and notice task kinds', async () => {
     const findMany = vi.fn().mockResolvedValue([])
     await new SubscriptionRepo((() => ({ sr_payment_job: { findMany } })) as never).pendingPaymentJobs()
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ kind: { in: expect.arrayContaining(['payment_telemetry', 'payment_notice']) }, status: { in: ['pending', 'running'] } }) }))
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ kind: { in: expect.arrayContaining(['payment_telemetry', 'payment_notice']) }, status: { in: ['pending', 'running'] } })
+      })
+    )
   })
 })

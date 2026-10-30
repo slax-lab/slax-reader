@@ -4,6 +4,8 @@
  * 来源: src/handler/http/youtubeArticleController.ts, src/middleware/auth.ts
  */
 import { describe, expect, test, vi } from 'vitest'
+import { PodcastController } from '@/handler/http/podcastController'
+import { Successed, Render } from '@/utils/responseUtils'
 import { YoutubeArticleController } from '@/handler/http/youtubeArticleController'
 import { isWhitelisted } from '@/middleware/auth'
 import { createMockCtx } from '@test/helpers/mockFactory'
@@ -55,5 +57,45 @@ describe('YoutubeArticleController', () => {
     expect(isWhitelisted('/v1/youtube_article/content')).toBe(true)
     expect(isWhitelisted('/v1/youtube_article/generate')).toBe(false)
     expect(isWhitelisted('/v1/youtube_article/retry')).toBe(false)
+  })
+})
+
+describe('media response headers', () => {
+  test.each(['status', 'content', 'generate', 'retry'])('YouTube %s retains JSON, CORS, and no-store', async mode => {
+    const { ctrl } = wire()
+    const ctx = createMockCtx()
+    const response =
+      mode === 'status'
+        ? await ctrl.handleStatus(ctx, get('/?bookmark_uid=u1'))
+        : mode === 'content'
+          ? await ctrl.handleContent(ctx, get('/?bookmark_uid=u1&version=v'))
+          : mode === 'generate'
+            ? await ctrl.handleGenerate(ctx, post('/', { bookmark_uid: 'u1' }))
+            : await ctrl.handleRetry(ctx, post('/', { bookmark_uid: 'u1' }))
+    expect(response.headers.get('Content-Type')).toBe('application/json')
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+  })
+
+  test.each(['status', 'translation', 'retry'])('podcast %s retains JSON, CORS, and no-store', async mode => {
+    const service = { getStatus: vi.fn(), getTranslation: vi.fn(), retry: vi.fn() }
+    const ctrl = new PodcastController(service as any)
+    const ctx = createMockCtx()
+    const response =
+      mode === 'status'
+        ? await ctrl.handleStatus(ctx, get('/?bookmark_uid=u1'))
+        : mode === 'translation'
+          ? await ctrl.handleTranslation(ctx, get('/?bookmark_uid=u1&version=v'))
+          : await ctrl.handleRetry(ctx, post('/', { bookmark_uid: 'u1' }))
+    expect(response.headers.get('Content-Type')).toBe('application/json')
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+  })
+
+  test('custom headers override defaults without case-sensitive duplicates', () => {
+    const response = Successed({}, 200, 'ok', { 'content-type': 'application/problem+json', 'access-control-allow-origin': 'https://r.slax.com' })
+    expect(response.headers.get('Content-Type')).toBe('application/problem+json')
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://r.slax.com')
+    expect(Render('<p>body</p>', 200, { 'Cache-Control': 'no-store' }).headers.get('Content-Type')).toBe('text/html')
   })
 })

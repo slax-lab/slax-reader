@@ -1,3 +1,4 @@
+import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 /**
  * /add_url Layer 6: 各平台 parseAndSave 实际执行
  * 来源: crawl.ts parseAndSaveTwitter/Xhs/Weibo/Reddit/Content, saveParseRes, extractTweetId
@@ -13,8 +14,11 @@ function wire() {
   const ls = createMockLogsService()
   const ab = createMockAlertBot()
   const svc = new (CrawlService as any)()
-  ;(svc as any).bucketClient = bc; ;(svc as any).bookmarkRepo = br
-  ;(svc as any).logsService = ls; ;(svc as any).alertBot = ab
+  svc.snapshots = createMockMediaSnapshots(putIfKeyExists, br.updateBookmark)
+  ;(svc as any).bucketClient = bc
+  ;(svc as any).bookmarkRepo = br
+  ;(svc as any).logsService = ls
+  ;(svc as any).alertBot = ab
   return { svc: svc as CrawlService, putIfKeyExists, br }
 }
 
@@ -36,7 +40,7 @@ describe('parseAndSaveTwitter', () => {
     expect(result.textContent).toBe('Hello from test tweet!')
     expect(result.siteName).toBe('Twitter')
     expect(result.byline).toBe('User')
-    expect(result.contentKey).toBe('html/body/ub-uuid-10.html')
+    expect(result.contentKey).toBe('snapshots/ub-uuid-10/test/body.html')
     expect(putIfKeyExists).toHaveBeenCalledTimes(2)
     expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ status: 'success', site_name: 'Twitter' }))
   })
@@ -126,7 +130,7 @@ describe('parseAndSaveContent (普通页面)', () => {
     }
     const result = await svc.parseAndSaveContent(createMockCtx(), fetchRes, 50, 'ub-uuid-50')
     expect(result.title).toBeTruthy()
-    expect(result.contentKey).toBe('html/body/ub-uuid-50.html')
+    expect(result.contentKey).toBe('snapshots/ub-uuid-50/test/body.html')
     expect(result.qualityReview?.status).toBe('scored')
     expect(result.qualityReview?.version).toBe('slax-corpus-scoring-v3')
     expect(putIfKeyExists).toHaveBeenCalledTimes(2)
@@ -148,7 +152,7 @@ describe('saveParseRes 内部逻辑', () => {
     const { document } = parseHTML('<html><body><p>X</p></body></html>')
     const parseRes = { title: 'T', textContent: 'X', contentDocument: document, content: '', excerpt: '', byline: '', siteName: '', publishedTime: new Date(), length: 1, dir: '', lang: '' }
     const result = await (svc as any).saveParseRes(parseRes, 99, 'ub-uuid-99')
-    expect(result.contentKey).toBe('html/body/ub-uuid-99.html')
+    expect(result.contentKey).toBe('snapshots/ub-uuid-99/test/body.html')
   })
 
   test('同时写 html + txt 到 R2', async () => {
@@ -167,9 +171,15 @@ describe('saveParseRes 内部逻辑', () => {
     const parseRes = { title: 'T', textContent: 'C', contentDocument: document, content: '', excerpt: 'E', byline: 'B', siteName: 'S', publishedTime: pub, length: 1, dir: '', lang: '' }
     const result = await (svc as any).saveParseRes(parseRes, 77, 'ub-uuid-77')
     expect(br.updateBookmark).toHaveBeenCalledWith(77, {
-      title: 'T', description: 'E', content_word_count: 1,
-      content_key: result.contentKey, content_md_key: expect.stringContaining('text/body/'),
-      status: 'success', byline: 'B', site_name: 'S', published_at: pub
+      title: 'T',
+      description: 'E',
+      content_word_count: 1,
+      content_key: result.contentKey,
+      content_md_key: expect.stringContaining('snapshots/'),
+      status: 'success',
+      byline: 'B',
+      site_name: 'S',
+      published_at: pub
     })
   })
 })

@@ -1,6 +1,7 @@
 import { ContextManager } from '@/utils/context'
 import { Successed, Failed } from '../../utils/responseUtils'
-import { ErrorConnectionParam, ErrorParam } from '../../const/err'
+import { ErrorConnectionParam, ErrorParam, UnauthorizedError } from '../../const/err'
+import { parseFeedbackRequest } from '@/utils/feedbackRequest'
 import { RequestUtils } from '../../utils/requestUtils'
 import { noticeType } from '../../infra/repository/dbUser'
 import { Controller } from '../../decorators/controller'
@@ -80,38 +81,39 @@ export class UserController {
    */
   @Post('/report')
   public async handleUserReportRequest(ctx: ContextManager, request: Request) {
-    const req = await RequestUtils.json<Omit<reportInfoReq, 'user_id'>>(request)
-    if (!req) {
-      return Failed(ErrorParam())
-    }
-
+    if (ctx.getUserId() < 1) throw UnauthorizedError()
+    const { report, diagnostic } = await parseFeedbackRequest(request)
+    const req = report as Omit<reportInfoReq, 'user_id'>
     const invalidPlatform = !req.platform || ![reportPlatform.APP, reportPlatform.EXTENSION, reportPlatform.WEB].includes(req.platform)
     const invalidEntryPoint =
       !req.entry_point ||
       ![reportEntryPoint.INBOX, reportEntryPoint.BOOKMARK_DETAIL, reportEntryPoint.SHARE, reportEntryPoint.COLLECTION, reportEntryPoint.ORIGINAL_WEBSITE].includes(req.entry_point)
 
-    if (invalidPlatform || invalidEntryPoint) {
-      return Failed(ErrorParam())
-    }
-
-    const { bookmark_id, share_code, cb_id, collection_code, bookmark_uuid, ...params } = req
-
+    if (invalidPlatform || invalidEntryPoint) return Failed(ErrorParam())
+    const { bookmark_id, share_code, cb_id, collection_code, bookmark_uuid } = req
     let bmId = 0
     if (req.entry_point !== reportEntryPoint.INBOX) {
       if (!bookmark_id && !share_code && !(cb_id && collection_code) && !bookmark_uuid) return Failed(ErrorParam())
       bmId = await this.bookmarkService.getBookmarkId(ctx, { bmId: bookmark_id, shareCode: share_code, cbId: cb_id, collectionCode: collection_code, uBmId: bookmark_uuid })
       if (!bmId || bmId < 1) return Failed(ErrorParam())
     }
-
-    ctx.execution.waitUntil(
-      this.userService.saveReport(ctx, {
-        ...params,
+    await this.userService.saveReport(
+      ctx,
+      {
+        content: req.content,
+        type: req.type,
+        platform: req.platform,
+        entry_point: req.entry_point,
+        environment: req.environment,
+        version: req.version,
+        target_url: req.target_url,
+        allow_follow_up: req.allow_follow_up,
         bookmark_id: bmId,
         user_id: ctx.getUserId(),
         ip_address: request.headers.get('cf-connecting-ip') || ''
-      })
+      },
+      diagnostic
     )
-
     return Successed('ok')
   }
 

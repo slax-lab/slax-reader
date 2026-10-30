@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client'
+import type { DiagnosticAttachment } from '@/utils/diagnosticAttachment'
 import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_CLIENT, PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
@@ -24,6 +25,7 @@ export interface reportPO {
   target_url?: string
   allow_follow_up?: boolean
   ip_address?: string
+  diagnostic_log?: DiagnosticAttachment
 }
 
 @injectable()
@@ -33,7 +35,6 @@ export class ReportRepo {
     @inject(PRISIMA_HYPERDRIVE_CLIENT) public dataPg: LazyInstance<HyperdrivePrismaClient>
   ) {}
 
-  // @ts-ignore
   public async saveReport(po: reportPO) {
     const data = {
       user_id: po.user_id,
@@ -47,14 +48,20 @@ export class ReportRepo {
         entry_point: po.entry_point,
         bookmark_id: po.bookmark_id,
         target_url: po.target_url,
-        ip_address: po.ip_address
+        ip_address: po.ip_address,
+        ...(po.diagnostic_log ? { diagnostic_log: { ...po.diagnostic_log } } : {})
       }
     }
 
     return await this.dataPg().sr_user_report.create({ data })
   }
 
-  // @ts-ignore
+  public async getByDiagnostic(userId: number, attachmentId: string) {
+    return this.dataPg().sr_user_report.findFirst({
+      where: { user_id: userId, extra_data: { path: ['diagnostic_log', 'id'], equals: attachmentId } }
+    })
+  }
+
   public async getReportDetail(reportId: number) {
     return await this.dataPg().sr_user_report.findFirst({ where: { id: reportId } })
   }

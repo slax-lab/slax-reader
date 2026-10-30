@@ -14,6 +14,7 @@ export interface PreWorkflowResult {
     url: string
     bookmarkId: number
     userId: number
+    captureRevision?: string
     inlineContent?: string
   } | null
 }
@@ -36,6 +37,9 @@ export class BookmarkAddOrchestrator {
       if (typeof res === 'number') {
         return { bookmarkId: res, isShortcut: true, workflowParams: null }
       }
+      if ('kind' in res) {
+        return { bookmarkId: res.bookmark_id, isShortcut: false, workflowParams: null }
+      }
 
       // 普通类型：需要触发 workflow
       return {
@@ -44,6 +48,7 @@ export class BookmarkAddOrchestrator {
         workflowParams: {
           url: res.info.targetUrl,
           bookmarkId: res.info.bookmarkId,
+          captureRevision: res.info.captureRevision,
           userId: res.info.userId
         }
       }
@@ -70,6 +75,9 @@ export class BookmarkAddOrchestrator {
       if (typeof res === 'number') {
         return { bookmarkId: res, isShortcut: true, workflowParams: null }
       }
+      if ('kind' in res) {
+        return { bookmarkId: res.bookmark_id, isShortcut: false, workflowParams: null }
+      }
 
       return {
         bookmarkId: res.info.bookmarkId,
@@ -77,6 +85,7 @@ export class BookmarkAddOrchestrator {
         workflowParams: {
           url: res.info.targetUrl,
           bookmarkId: res.info.bookmarkId,
+          captureRevision: res.info.captureRevision,
           userId: res.info.userId,
           inlineContent: res.info.resource && res.info.resource.length > 0 ? res.info.resource : undefined
         },
@@ -99,8 +108,18 @@ export class BookmarkAddOrchestrator {
 
   public async kickoffWorkflow(
     ctx: ContextManager,
-    params: { url: string; bookmarkId: number; userId: number; inlineContent?: string },
-    opts: { callbackChatId?: number; callbackOriginMessageId?: number; ignoreGenerateTag?: boolean } = {}
+    params: {
+      url: string
+      bookmarkId: number
+      userId: number
+      captureRevision?: string
+      inlineContent?: string
+    },
+    opts: {
+      callbackChatId?: number
+      callbackOriginMessageId?: number
+      ignoreGenerateTag?: boolean
+    } = {}
   ) {
     try {
       await this.crawlService.createWorkflow(
@@ -114,6 +133,7 @@ export class BookmarkAddOrchestrator {
           callbackChatId: opts.callbackChatId ?? 0,
           callbackOriginMessageId: opts.callbackOriginMessageId ?? 0,
           ignoreGenerateTag: opts.ignoreGenerateTag ?? false,
+          captureRevision: params.captureRevision,
           inlineContent: params.inlineContent
         },
         3,

@@ -1,6 +1,8 @@
 /* eslint-disable */
-// Env bindings are maintained manually without configuration values; pnpm types refreshes runtime types only.
+// Env bindings contain no configuration values; pnpm types preserves declarations and adds optional bindings from script/generate-worker-types.ts.
 interface __BaseEnv_Env {
+  DIAGNOSTIC_DOWNLOAD_SECRET?: string
+  DIAGNOSTICS?: R2Bucket
   API_QUEUE_CHANNELS?: string
   KV: KVNamespace
   OSS: R2Bucket
@@ -68,7 +70,6 @@ interface __BaseEnv_Env {
   APPLE_SIGN_AUTH_KEY: string
   APIFY_API_TOKEN: string
   STRIPE_SECRET_KEY: string
-  STRIPE_LIVE_MODE?: string
   STRIPE_CALLBACK_SECRET: string
   TURNSTILE_PAYMENT_SECRET_KEY: string
   JINA_API_KEY: string

@@ -1,4 +1,3 @@
-import {Sha256} from './pdf-sha256.ts';
 import {throwIfAborted} from '../utils/abort.ts';
 export interface AvatarResources {resolve(slot: string, url: string, publish: (uri: string) => void): Promise<void>; subscribe?(listener: () => void): () => void}
 export interface AvatarStorage {
@@ -51,8 +50,7 @@ export class AvatarCache implements AvatarResources {
         this.downloadTail = download.catch(() => {});
         const bytes = await download; throwIfAborted(this.controller.signal);
         if (generation !== this.epoch || this.desired.get(key) !== url || !bytes.length || bytes.length > 1024 * 1024) return;
-        const contentIdentity = new Sha256().update(bytes).digest();
-        const path = `${this.hash(`${identity}:${contentIdentity}`)}.image`;
+        const path = `${this.hash(`${identity}:${this.now()}`)}.image`;
         await this.storage.image(path, bytes, this.controller.signal); throwIfAborted(this.controller.signal);
         const commit = this.tail.then(async () => {
           if (generation !== this.epoch || this.desired.get(key) !== url) return;

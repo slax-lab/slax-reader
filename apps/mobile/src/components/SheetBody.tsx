@@ -54,4 +54,4 @@ export function SheetBody({visible, busy, onDismiss, children, style, contentCon
     </Animated.View></GestureDetector>
   </Animated.View></GestureHandlerRootView>;
 }
-const styles = StyleSheet.create({sheet: {maxHeight: '92%', paddingHorizontal: 24, backgroundColor: C.readerBackground, borderTopLeftRadius: 24, borderTopRightRadius: 24}, handle: {alignSelf: 'center', backgroundColor: '#79747E', height: 4, width: 32, borderRadius: 2, marginVertical: 22}});
+const styles = StyleSheet.create({sheet: {maxHeight: '100%', paddingHorizontal: 24, backgroundColor: C.readerBackground, borderTopLeftRadius: 24, borderTopRightRadius: 24}, handle: {alignSelf: 'center', backgroundColor: '#79747E', height: 4, width: 32, borderRadius: 2, marginVertical: 22}});

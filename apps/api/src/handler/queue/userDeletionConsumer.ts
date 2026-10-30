@@ -18,7 +18,7 @@ export class UserDeletionConsumer {
     console.log(`Starting user deletion process for userId: ${userId}`)
 
     try {
-      await this.userDeletionService.cleanupUserData(userId)
+      await this.userDeletionService.cleanupUserData(userId, ctx.env)
       console.log(`User deletion completed successfully for userId: ${userId}`)
     } catch (error) {
       console.error(`User deletion failed for userId: ${userId}`, error)

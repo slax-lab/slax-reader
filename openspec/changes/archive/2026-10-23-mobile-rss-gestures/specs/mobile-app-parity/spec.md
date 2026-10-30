@@ -44,3 +44,38 @@ The Library row status indicator SHALL occupy a stable slot and present a stable
 - **THEN** each row keeps its status indicator in the same position and the list does not reorder
 - **AND** an indicator never oscillates between uncached, downloading, and cached states
 - **AND** a download that finishes before its downloading state was presented goes directly from uncached to cached without a visible intermediate flash
+
+#### Scenario: An initialized account has local library rows
+- **WHEN** the same account relaunches with admitted cached articles, profile and Collection records
+- **THEN** those records render before network refresh or sync completes without a blocking spinner
+- **AND** refresh does not clear useful rows or briefly report a false empty library
+- **AND** a genuine empty or deleted result replaces obsolete data
+
+#### Scenario: Avatar resources are available from a prior launch
+- **WHEN** the same admitted account opens the Library offline after process termination
+- **THEN** its cached self and Collection avatars render from durable local resources
+- **AND** online refresh can replace a changed avatar without clearing the valid current image first
+- **AND** account/origin replacement or cache cleanup revokes the old resource identity
+
+#### Scenario: An eligible PDF is visible in the library
+- **WHEN** a PDF belongs to the configured automatic-cache window while the app is active
+- **THEN** automatic acquisition can start without opening Reader or pressing a PDF-specific download action
+- **AND** opening Reader promotes and reuses compatible in-flight or committed byte ranges
+- **AND** only a complete integrity-verified file is marked fully cached
+
+#### Scenario: A drawer gesture activates over the article list
+- **WHEN** the drawer is dragging, open or settling closed
+- **THEN** the underlying list cannot scroll, open rows, swipe actions, long-press menus or receive accessibility actions
+- **AND** input is restored only after completed dismissal, including cancelled or interrupted gestures
+- **AND** drawer controls, backdrop dismissal and native Back remain functional
+
+#### Scenario: A large library synchronizes while scrolling
+- **WHEN** the user scrolls a large populated library while sync or automatic PDF caching progresses
+- **THEN** background progress does not repeatedly remount unchanged rows or reset the visible anchor
+- **AND** star/archive/delete actions remain immediate and the list retains its source ordering
+
+#### Scenario: The user scrolls through the complete selected Library list
+- **WHEN** the admitted account opens Inbox, Starred, Archived or a permitted Collection list containing many matching articles
+- **THEN** the complete ordered local list is available without a page-size cap, continuation cursor or scroll-triggered article loading
+- **AND** deep scrolling and Reader return preserve the list position and existing actions
+- **AND** performance optimization does not remove rows from the selected list

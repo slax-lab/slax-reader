@@ -1,3 +1,4 @@
+import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 /**
  * /add_url Layer 15: podcast links. Reading the episode from each source with the real pages and
  * feeds saved on 2026-10-14, the first body (player and notes), the episode row and the reference.
@@ -19,12 +20,14 @@ function wire() {
   const episodes = { upsertFromInfo: vi.fn().mockResolvedValue({ id: 3, transcript_hash: null, transcript_status: 'pending' }) }
   const articles = { linkBookmark: vi.fn().mockResolvedValue({ id: 1 }) }
   const svc = new (CrawlService as any)()
+  svc.snapshots = createMockMediaSnapshots(putIfKeyExists, br.updateBookmark)
   Object.assign(svc, {
     bucketClient: bc,
     bookmarkRepo: br,
     logsService: createMockLogsService(),
     alertBot: createMockAlertBot(),
     podcastEpisodeRepo: episodes,
+    markRepo: { bodyHasMarks: vi.fn().mockResolvedValue(false) },
     podcastArticleRepo: articles
   })
   return { svc: svc as CrawlService, putIfKeyExists, br, episodes, articles }
@@ -204,30 +207,82 @@ describe('parseAndSavePodcast', () => {
     const { svc, putIfKeyExists, br, episodes, articles } = wire()
     const ctx = createMockCtx({ userId: 5 })
     const result = await svc.parseAndSavePodcast(ctx, info, 10, 'ub-10')
-    expect(result.contentKey).toBe('html/body/ub-10.html')
-    const html = putIfKeyExists.mock.calls.find(c => c[0] === 'html/body/ub-10.html')![1] as string
+    expect(result.contentKey).toBe('snapshots/ub-10/test/body.html')
+    const html = putIfKeyExists.mock.calls.find(c => c[0] === 'snapshots/ub-10/test/body.html')![1] as string
     expect(html).toContain('<slax-media data-kind="audio" data-src="https://cdn.example.com/ep.mp3"')
     expect(html).toContain('<h2>Show notes</h2>')
     expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ title: 'Ep 1', site_name: 'Show', byline: 'Host', status: 'success' }))
     const sourceId = await podcastSourceId(info.audioUrl)
     expect(episodes.upsertFromInfo).toHaveBeenCalledWith(sourceId, info)
-    expect(articles.linkBookmark).toHaveBeenCalledWith({ bookmark_id: 10, user_id: 5, source_id: sourceId, source_hash: '' })
+    expect(articles.linkBookmark).not.toHaveBeenCalled()
+    expect((svc as any).snapshots.capture.mock.calls[0][4]).toMatchObject({ sourceId, sourceHash: '' })
   })
 
   test('an episode already transcribed: the reference points at its transcript', async () => {
     const { svc, episodes, articles } = wire()
     episodes.upsertFromInfo.mockResolvedValue({ id: 3, transcript_hash: 'abc', transcript_status: 'ready' })
     await svc.parseAndSavePodcast(createMockCtx({ userId: 5 }), info, 10, 'ub-10')
-    expect(articles.linkBookmark).toHaveBeenCalledWith(expect.objectContaining({ source_hash: 'abc' }))
+    expect((svc as any).snapshots.capture.mock.calls[0][4].sourceHash).toBe('abc')
   })
 
   test('Spotify: embed body, no episode row; a database error never fails the save', async () => {
     const { svc, putIfKeyExists, episodes } = wire()
     await svc.parseAndSavePodcast(createMockCtx(), { ...info, kind: 'spotify', audioUrl: '', embedUrl: 'https://open.spotify.com/embed/episode/x' }, 10, 'ub-10')
-    expect(putIfKeyExists.mock.calls.find(c => c[0] === 'html/body/ub-10.html')![1]).toContain('slax-pod-embed')
+    expect(putIfKeyExists.mock.calls.find(c => c[0] === 'snapshots/ub-10/test/body.html')![1]).toContain('slax-pod-embed')
     expect(episodes.upsertFromInfo).not.toHaveBeenCalled()
 
     episodes.upsertFromInfo.mockRejectedValue(new Error('pg down'))
-    await expect(svc.parseAndSavePodcast(createMockCtx(), info, 11, 'ub-11')).resolves.toMatchObject({ contentKey: 'html/body/ub-11.html' })
+    await expect(svc.parseAndSavePodcast(createMockCtx(), info, 11, 'ub-11')).resolves.toMatchObject({ contentKey: 'snapshots/ub-11/test/body.html' })
+  })
+})
+
+describe('Pocket Casts capture and recovery', () => {
+  const url = 'https://pca.st/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+  test('uses browser fetching and saves the player for the existing bookmark', async () => {
+    const { svc, putIfKeyExists, episodes } = wire()
+    const ctx = createMockCtx()
+    const page = vi.spyOn(svc, 'fetchPodcastPage').mockResolvedValue({ content: fixture('20261027-pocket-casts.html'), url })
+    const info = await svc.fetchPodcastData(url, ctx)
+    expect(page).toHaveBeenCalledWith(ctx, url)
+    expect(info?.kind).toBe('pocketcasts')
+    await svc.parseAndSavePodcast(ctx, info!, 42, 'existing-uuid')
+    expect(episodes.upsertFromInfo).toHaveBeenCalledWith(await podcastSourceId(info!.audioUrl), info)
+    expect(putIfKeyExists.mock.calls.some(call => String(call[1]).includes('slax-media'))).toBe(true)
+  })
+
+  test('a resolved page URL that is not an episode link is logged, then saved as a page', async () => {
+    const { svc } = wire()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      vi.spyOn(svc, 'fetchPodcastPage').mockResolvedValue({ content: fixture('20261027-pocket-casts.html'), url: 'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2' })
+      expect(await svc.fetchPodcastData(url, createMockCtx())).toBeNull()
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('not an episode link'))
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  test('keepsAnnotatedBody: only a bookmark with a body and marks keeps it', async () => {
+    const { svc, br } = wire()
+    const ctx = createMockCtx({ userId: 5 })
+    const marks = (svc as any).markRepo.bodyHasMarks
+    marks.mockResolvedValue(true)
+
+    // First capture: no body yet, so there is nothing to protect and marks are not consulted
+    br.getBookmarkById.mockResolvedValue({ id: 42, content_key: '', content_md_key: '' })
+    expect(await svc.keepsAnnotatedBody(ctx, 42)).toBe(false)
+    expect(marks).not.toHaveBeenCalled()
+
+    // A body without its text is not kept: the workflow reads content_md_key to build the kept payload
+    br.getBookmarkById.mockResolvedValue({ id: 42, content_key: 'html/body/existing-uuid.html', content_md_key: '' })
+    expect(await svc.keepsAnnotatedBody(ctx, 42)).toBe(false)
+    expect(marks).not.toHaveBeenCalled()
+
+    br.getBookmarkById.mockResolvedValue({ id: 42, content_key: 'html/body/existing-uuid.html', content_md_key: 'md/existing-uuid.md' })
+    expect(await svc.keepsAnnotatedBody(ctx, 42)).toBe(true)
+    expect(marks).toHaveBeenCalledWith(42, 5)
+
+    marks.mockResolvedValue(false)
+    expect(await svc.keepsAnnotatedBody(ctx, 42)).toBe(false)
   })
 })

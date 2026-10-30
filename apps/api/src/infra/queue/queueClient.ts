@@ -4,6 +4,7 @@ import { parserType } from '@/utils/urlPolicie'
 import type { EventRequestContext } from '@/utils/eventContext'
 
 export interface parseMessage {
+  captureRevision?: string
   targetUrl: string
   resource: string
   parserType: parserType
@@ -69,6 +70,7 @@ export enum callbackType {
   CALLBACK_EMAIL = 2
 }
 export interface parseMessage {
+  captureRevision?: string
   targetUrl: string
   resource: string
   parserType: parserType

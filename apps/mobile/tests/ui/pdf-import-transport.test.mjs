@@ -4,7 +4,6 @@ import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import ts from 'typescript';
 import {createFixturePdf} from '../../fixtures/pdf.ts';
-import {Sha256} from '../../src/data/pdf-sha256.ts';
 import {throwIfAborted} from '../../src/utils/abort.ts';
 import * as contracts from '../../../../packages/contracts/src/pdf.ts';
 import * as transportErrors from '../../src/data/transport-errors.ts';
@@ -16,10 +15,11 @@ async function load(file, boundaries, globals = {}) {
 const {createFixtureFetch} = await load('../../fixtures/transport.ts', {'../src/utils/abort': {throwIfAborted}});
 const sharedRequest = await load('../../src/data/shared-request.ts', {'../utils/abort.ts': {throwIfAborted}});
 const boundedBody = await load('../../src/data/bounded-body.ts', {'../utils/abort.ts': {throwIfAborted}});
-const {createMobileApi} = await load('../../src/data/api.ts', {'../utils/abort.ts': {throwIfAborted}, '@slax-reader/contracts/pdf': contracts, './transport-errors.ts': transportErrors, './shared-request.ts': sharedRequest, './bounded-body.ts': boundedBody});
+const headerRedaction = await load('../../src/domain/diagnostic-headers.ts', {});
+const {createMobileApi} = await load('../../src/data/api.ts', {'../utils/abort.ts': {throwIfAborted}, '@slax-reader/contracts/pdf': contracts, './transport-errors.ts': transportErrors, './shared-request.ts': sharedRequest, './bounded-body.ts': boundedBody, '../domain/diagnostic-headers.ts': headerRedaction});
 async function fixture(publish) {
   const document = createFixturePdf('eight-pages'), records = [], published = [], timers = new Map(); let sequence = 0, active = true, ready = Promise.resolve();
-  const {createFixturePdfImport} = await load('../../fixtures/pdf-import.ts', {'../src/data/pdf-sha256.ts': {Sha256}, '../src/utils/abort.ts': {throwIfAborted}}, {setTimeout(fn, delay) {const id = ++sequence; timers.set(id, {fn, delay}); return id;}, clearTimeout(id) {timers.delete(id);}});
+  const {createFixturePdfImport} = await load('../../fixtures/pdf-import.ts', {'../src/utils/abort.ts': {throwIfAborted}}, {setTimeout(fn, delay) {const id = ++sequence; timers.set(id, {fn, delay}); return id;}, clearTimeout(id) {timers.delete(id);}});
   const importer = createFixturePdfImport({document, bookmarkId: 'fixture-pdf-imported', delayMs: 2000, active: () => active, foreground: () => ready, publish: publish ?? (async () => {published.push('fixture-pdf-imported');}), record: state => records.push(state)});
   const payload = {api: [], network: {isConnected: true, isInternetReachable: true}}, counts = {metadataRequests: 0, rangeRequests: 0, bytesServed: 0, offlineRequests: 0, rejectedRequests: 0};
   const transport = createFixtureFetch(payload, 'https://fixture-api.test', {documents: new Map(), counts, record() {}, importPdf: importer});
@@ -27,7 +27,7 @@ async function fixture(publish) {
   return {document, importer, api, calls, records, published, timers, payload, transport, revoke() {active = false;}, waitForeground(value) {ready = value;}, async advance() {const pending = [...timers.values()]; timers.clear(); pending.forEach(timer => timer.fn()); await new Promise(resolve => setImmediate(resolve));}};
 }
 
-test('production uploadPdf sends the raw File, verifies exact seeded hash, then waits for delayed simulated publication', async () => {
+test('production uploadPdf sends the raw File, verifies the exact seeded bytes, then waits for delayed simulated publication', async () => {
   const f = await fixture(), file = new File([f.document.bytes], 'slax-synthetic-eight-pages.pdf', {type: 'application/pdf'});
   const result = await f.api.uploadPdf(file, file.name);
   assert.equal(f.calls[0][1].body, file); assert.equal(f.calls[0][1].headers['Content-Type'], 'application/pdf');

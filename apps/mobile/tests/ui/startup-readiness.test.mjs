@@ -27,9 +27,9 @@ for (const status of ['authenticated', 'unauthenticated']) test(`mounted ${statu
     '@react-navigation/native-stack': {createNativeStackNavigator: () => ({Navigator, Group: host.native.View, Screen: props => {screens.set(props.name, props); return null;}})},
     'react-native-gesture-handler': {GestureHandlerRootView: host.native.View}, 'react-native-safe-area-context': {SafeAreaProvider: host.native.View, SafeAreaView: host.native.View},
     './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': theme, './telemetry': {useTelemetry: () => telemetry}, './components/SourceLine': {SourceLine: nil},
-    './screens/AppRecoveryScreen': {AppRecoveryScreen: nil},
+    './screens/AppRecoveryScreen': {AppRecoveryScreen: nil}, './navigation/reader-route': {readerScreenOptions: () => ({}), useReaderPrewarm() {}},
   };
-  for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
+  for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug', 'DiagnosticLog']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
   const {ApplicationRoutes} = await loadComponent('../../src/App.tsx', boundaries);
   const render = () => host.render(React.createElement(ApplicationRoutes));
   await render(); assert.equal(mounted, 1);
@@ -57,9 +57,9 @@ test('mounted startup shows recoverable local errors, suppresses duplicate retri
     '@react-navigation/native': {NavigationContainer: host.native.View, createNavigationContainerRef: () => React.createRef()},
     '@react-navigation/native-stack': {createNativeStackNavigator: () => ({Navigator: host.native.View, Group: host.native.View, Screen: props => {screens.push(props.name); return null;}})},
     'react-native-gesture-handler': {GestureHandlerRootView: host.native.View}, 'react-native-safe-area-context': {SafeAreaProvider: host.native.View, SafeAreaView: host.native.View},
-    './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': theme, './telemetry': {useTelemetry: () => telemetry}, './components/SourceLine': {SourceLine: nil}, './screens/AppRecoveryScreen': {AppRecoveryScreen},
+    './runtime': {useMobile: () => context, MobileProvider: nil}, './theme': theme, './telemetry': {useTelemetry: () => telemetry}, './components/SourceLine': {SourceLine: nil}, './screens/AppRecoveryScreen': {AppRecoveryScreen}, './navigation/reader-route': {readerScreenOptions: () => ({}), useReaderPrewarm() {}},
   };
-  for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
+  for (const name of ['Login', 'Library', 'Reader', 'Settings', 'About', 'Feedback', 'DeleteAccount', 'Subscription', 'Debug', 'DiagnosticLog']) boundaries[`./screens/${name}Screen`] = {[`${name}Screen`]: nil};
   const {ApplicationRoutes} = await loadComponent('../../src/App.tsx', boundaries);
   const render = () => host.render(React.createElement(ApplicationRoutes));
   await render();
@@ -103,7 +103,7 @@ async function libraryFixture(host) {
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: false})},
     '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: props => React.createElement(host.native.View, null, props.text)}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: primitive}, '../components/sync-state': {sourceSyncState: () => ({kind: 'offline'})}, '../components/fixture-actions': {},
     '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: false, enabled: false})}, './LibraryDataStatus': {LibraryDataStatus},
-    '../components': components, '../data': {readContinueReading}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {EmptyInbox: 'empty-inbox'}}, './collection-selection': {CollectionSelection}, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: props => React.createElement(host.native.View, null, props.children, props.open ? props.drawer : null), DrawerScrollBoundary: ({children}) => children, useDrawerGesture: () => null, useDrawerInput: () => null}, '../utils/source-time': {parseSourceTimestamp},
+    '../components': components, '../data': {readContinueReading}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {EmptyInbox: 'empty-inbox'}}, './collection-selection': {CollectionSelection}, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: props => React.createElement(host.native.View, null, props.children, props.open ? props.drawer : null)}, '../components/FeedList': {FeedList: props => React.createElement(native.FlatList, props)}, '../utils/source-time': {parseSourceTimestamp},
   }, {setInterval, clearInterval});
   const render = () => {controls.clear(); return host.render(React.createElement(LibraryScreen, {navigation: {navigate: (...args) => navigations.push(args)}, route: {params: {}}}));};
   return {context, controls, calls, navigations, store, render, list: () => listProps, contextValue,
@@ -175,10 +175,11 @@ test('mounted MobileProvider exposes no repository or cache before admission, ev
     api: {options: {baseUrl: 'https://fixture.test'}}, preferences,
     credentials: {subscribe: callback => {credentialListeners.add(callback); return () => credentialListeners.delete(callback);}, getSnapshot: () => credentialState},
     start: async () => {starts++;}, stop: async () => {stops++; if (restartGate) await restartGate.promise;}, setForeground: async () => {},
+    isLibraryPresented: () => false, subscribeLibraryPresented: () => () => {},
   };
   const {MobileProvider, useMobile} = await loadComponent('../../src/runtime.tsx', {
     react: React, 'react-native': {...host.native, Platform: {OS: 'android'}}, 'expo-localization': {getLocales: () => [{languageTag: 'en'}]}, 'expo-file-system': {},
-    './data': {createMobileDataRuntime: () => runtime}, './i18n': {normalizeLocale: value => value, createTranslator: () => key => key}, './config': {mobileConfig: {apiUrl: 'https://fixture.test'}},
+    './data': {createMobileDataRuntime: () => runtime}, './i18n': {normalizeLocale: value => value, createTranslator: () => key => key}, './config': {mobileConfig: {apiUrl: 'https://fixture.test'}}, './reader/security.ts': {readerProtectedHosts: () => ['fixture.test'], readerImageProxyOrigins: () => ['https://fixture.test']},
     './payments/controller': {PaymentController: class {}}, './payments/expo-store': {createExpoStore: () => ({})}, './native/platform': {setWebSessionCookie: async () => {}}, './controlled-upgrade-visibility': {},
     './system-actions/SaveURLHost': {SaveURLHost: () => null}
   });

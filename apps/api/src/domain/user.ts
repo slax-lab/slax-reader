@@ -36,6 +36,7 @@ import { Auth } from '@/utils/jwt'
 import { RequestUtils } from '@/utils/requestUtils'
 import { SlaxAuth } from '@/utils/auth'
 import { hashMD5, hashSHA256 } from '@/utils/strings'
+import { diagnosticDownloadUrl, downloadDiagnostic, uploadDiagnostic, type DiagnosticAttachment } from '@/utils/diagnosticAttachment'
 
 export interface userBindPlatformItem {
   platform: string
@@ -448,30 +449,68 @@ export class UserService {
     }
   }
 
-  /**
-   * 保存反馈
-   * @param ctx
-   * @param env
-   * @param req
-   * @returns
-   */
-  public async saveReport(ctx: ContextManager, req: saveReportReq): Promise<undefined> {
-    const res = await this.reportRepoData.saveReport({
-      user_id: req.user_id,
-      type: req.type,
-      content: req.content,
-      platform: req.platform,
-      environment: req.environment,
-      version: req.version || '',
-      entry_point: req.entry_point,
-      bookmark_id: req.bookmark_id || 0,
-      target_url: req.target_url || '',
-      ip_address: req.ip_address || '',
-      allow_follow_up: req.allow_follow_up
-    })
+  public async saveReport(ctx: ContextManager, req: saveReportReq, diagnostic?: Uint8Array): Promise<undefined> {
+    let attachment: DiagnosticAttachment | undefined
+    if (diagnostic) {
+      await this.userRepoData.requireActiveUser(req.user_id)
+      attachment = await uploadDiagnostic(ctx.env, req.user_id, diagnostic)
+    }
+    let res: Awaited<ReturnType<ReportRepo['saveReport']>> | null = null
+    try {
+      res = await this.reportRepoData.saveReport({
+        user_id: req.user_id,
+        type: req.type,
+        content: req.content,
+        platform: req.platform,
+        environment: req.environment,
+        version: req.version || '',
+        entry_point: req.entry_point,
+        bookmark_id: req.bookmark_id || 0,
+        target_url: req.target_url || '',
+        ip_address: req.ip_address || '',
+        allow_follow_up: req.allow_follow_up,
+        diagnostic_log: attachment
+      })
+      if (!res) throw SaveReportError()
+    } catch {
+      if (attachment) {
+        let confirmed = false
+        try {
+          res = await this.reportRepoData.getByDiagnostic(req.user_id, attachment.id)
+          confirmed = true
+        } catch {}
+        if (confirmed && !res) await ctx.env.DIAGNOSTICS!.delete(attachment.key).catch(() => console.error('Diagnostic rollback failed'))
+      }
+      if (!res) throw SaveReportError()
+    }
+    if (attachment) {
+      try {
+        await this.userRepoData.requireActiveUser(req.user_id)
+      } catch (error) {
+        if (error && typeof error === 'object' && 'errCode' in error && error.errCode === 401) {
+          await ctx.env.DIAGNOSTICS!.delete(attachment.key).catch(() => console.error('Diagnostic revoked upload cleanup failed'))
+          throw UnauthorizedError()
+        }
+        console.error('Diagnostic ownership recheck unavailable')
+      }
+    }
+    await this.notifyReport(ctx, req, res, attachment).catch(() => console.error(`Report notification unavailable: ${res!.id}`))
+    const feedbackScope = [reportEntryPoint.BOOKMARK_DETAIL, reportEntryPoint.SHARE, reportEntryPoint.COLLECTION, reportEntryPoint.ORIGINAL_WEBSITE].includes(req.entry_point)
+      ? 'bookmark'
+      : 'app'
+    ctx.execution.waitUntil(this.ga4Client.trackEvent(req.user_id, 'feedback_submit_complete', { scope: feedbackScope }).catch(() => {}))
+  }
 
-    if (!res) throw SaveReportError()
+  public async downloadDiagnostic(ctx: ContextManager, request: Request): Promise<Response> {
+    return downloadDiagnostic(
+      ctx.env,
+      request,
+      id => this.reportRepoData.getReportDetail(id),
+      id => this.userRepoData.requireActiveUser(id)
+    )
+  }
 
+  private async notifyReport(ctx: ContextManager, req: saveReportReq, res: { id: number; created_at: Date }, attachment?: DiagnosticAttachment): Promise<void> {
     const user = await this.userRepoData.getInfoByUserId(req.user_id)
     const bm = await this.bookmarkRepo.getBookmarkById(req.bookmark_id || 0)
 
@@ -525,16 +564,10 @@ export class UserService {
       allow_follow_up: req.allow_follow_up ? t.reportAllowFollowUp({}) : t.reportDenyFollowUp({})
     })
 
-    await new SlaxAlertBotClient(ctx.env).report.pushMessage(content)
-
-    const feedbackScope = [reportEntryPoint.BOOKMARK_DETAIL, reportEntryPoint.SHARE, reportEntryPoint.COLLECTION, reportEntryPoint.ORIGINAL_WEBSITE].includes(req.entry_point)
-      ? 'bookmark'
-      : 'app'
-    ctx.execution.waitUntil(
-      this.ga4Client.trackEvent(req.user_id, 'feedback_submit_complete', {
-        scope: feedbackScope
-      })
-    )
+    const diagnosticLink = attachment
+      ? `[Download diagnostic log](${await diagnosticDownloadUrl(ctx.env, res.id, attachment)})\nExpires: ${attachment.expires_at} (anyone holding this link can download)\n\n`
+      : ''
+    ctx.execution.waitUntil(new SlaxAlertBotClient(ctx.env).report.pushMessage(diagnosticLink + content).catch(() => console.error(`Report notification unavailable: ${res.id}`)))
   }
 
   public async getUserSubscriptionInfo(ctx: ContextManager): Promise<subscription> {

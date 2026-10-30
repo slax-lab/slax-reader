@@ -3,20 +3,27 @@ import Foundation
 
 /// Shared read contract with SlaxLegacy. A new signed-out store never falls back to stale legacy authentication.
 enum SharedPreferences {
-  static func read() throws -> [String: Any] {
-    guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.slax.reader") else { throw CocoaError(.fileReadNoPermission) }
-    let descriptor = open(root.appendingPathComponent(".slax-preferences.lock").path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
-    guard descriptor >= 0 else { throw CocoaError(.fileReadUnknown) }
-    defer { flock(descriptor, LOCK_UN); close(descriptor) }
-    guard flock(descriptor, LOCK_SH) == 0 else { throw CocoaError(.fileReadUnknown) }
-    let current = root.appendingPathComponent("slax.preferences.v1.json")
-    if FileManager.default.fileExists(atPath: current.path) {
-      guard let json = try JSONSerialization.jsonObject(with: Data(contentsOf: current)) as? [String: Any], let values = json["values"] as? [String: Any] else { throw CocoaError(.fileReadCorruptFile) }
-      return values
-    }
-    let original = root.appendingPathComponent("user.preferences_pb")
-    if !FileManager.default.fileExists(atPath: original.path) { return [:] }
-    return try LegacyStringPreferences.decode(Data(contentsOf: original))
+  static func read() throws -> [String: Any] { try read(report: { _, _ in }) }
+  static func read(report: (String, String?) -> Void) throws -> [String: Any] {
+    var store = "none"
+    do {
+      guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.slax.reader") else { throw CocoaError(.fileReadNoPermission) }
+      let descriptor = open(root.appendingPathComponent(".slax-preferences.lock").path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
+      guard descriptor >= 0 else { throw CocoaError(.fileReadUnknown) }
+      defer { flock(descriptor, LOCK_UN); close(descriptor) }
+      guard flock(descriptor, LOCK_SH) == 0 else { throw CocoaError(.fileReadUnknown) }
+      let current = root.appendingPathComponent("slax.preferences.v1.json")
+      if FileManager.default.fileExists(atPath: current.path) {
+        store = "v1"
+        guard let json = try JSONSerialization.jsonObject(with: Data(contentsOf: current)) as? [String: Any], let values = json["values"] as? [String: Any] else { throw CocoaError(.fileReadCorruptFile) }
+        report(store, nil); return values
+      }
+      let original = root.appendingPathComponent("user.preferences_pb")
+      if !FileManager.default.fileExists(atPath: original.path) { report(store, nil); return [:] }
+      store = "legacy"
+      let values = try LegacyStringPreferences.decode(Data(contentsOf: original))
+      report(store, nil); return values
+    } catch { report(store, String(describing: type(of: error))); throw error }
   }
 }
 

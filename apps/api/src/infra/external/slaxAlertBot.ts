@@ -74,7 +74,7 @@ const pushFeiShuMessage = async (url: string, str: string) => {
       ]
     }
   })
-  console.log(`push:`, await resp.text())
+  await resp.body?.cancel().catch(() => {})
 }
 
 const withEnvTag = (str: string, label: EnvLabel): string => {

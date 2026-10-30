@@ -8,6 +8,7 @@ import type { XHSData, WeiboData } from '@/const/moreapi/base'
 import type { RedditData } from '@/const/moreapi/reddit'
 import { isWeixinImageShower, isWeixinLegacyImageShower } from '@/const/moreapi/weixin'
 import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
+import { BookmarkForkService, type ForkWorkflowJob } from '@/domain/bookmarkFork'
 import { BookmarkService } from '@/domain/bookmark'
 import { LabService } from '@/domain/lab'
 import { Hashid } from '@/utils/hashids'
@@ -29,6 +30,8 @@ import { PodcastService, PODCAST_LAB } from '@/domain/podcast'
 import { classifyPodcastUrl } from '@/utils/podcastSource'
 
 export interface CrawlWorkflowParams {
+  fork?: ForkWorkflowJob
+  captureRevision?: string
   eventContext?: EventRequestContext
   url: string
   bookmarkId: number
@@ -43,14 +46,40 @@ export interface CrawlWorkflowParams {
 }
 
 type FetchedPayload =
-  | { kind: 'twitter' | 'twitter_article'; resolvedUrl: string; data: TwitterFetched; isSocialMedia: true }
+  | {
+      kind: 'twitter' | 'twitter_article'
+      resolvedUrl: string
+      data: TwitterFetched
+      isSocialMedia: true
+    }
   | { kind: 'xhs'; resolvedUrl: string; data: XHSData; isSocialMedia: true }
   | { kind: 'weibo'; resolvedUrl: string; data: WeiboData; isSocialMedia: true }
-  | { kind: 'reddit'; resolvedUrl: string; data: RedditData; isSocialMedia: true }
-  | { kind: 'zhihu'; resolvedUrl: string; data: ZhihuFetched; isSocialMedia: true }
-  | { kind: 'pdf'; resolvedUrl: string; isSocialMedia: false }
-  | { kind: 'parsed'; resolvedUrl: string; data: CrawlResult; isSocialMedia: boolean; podcast?: boolean }
-  | { kind: 'shortCircuit'; resolvedUrl: string; data: { title: string; textContent: string; byline: string }; isSocialMedia: false }
+  | {
+      kind: 'reddit'
+      resolvedUrl: string
+      data: RedditData
+      isSocialMedia: true
+    }
+  | {
+      kind: 'zhihu'
+      resolvedUrl: string
+      data: ZhihuFetched
+      isSocialMedia: true
+    }
+  | { kind: 'pdf'; resolvedUrl: string; isSocialMedia: false; publishedRevision?: string }
+  | {
+      kind: 'parsed'
+      resolvedUrl: string
+      data: CrawlResult
+      isSocialMedia: boolean
+      podcast?: boolean
+    }
+  | {
+      kind: 'shortCircuit'
+      resolvedUrl: string
+      data: { title: string; textContent: string; byline: string }
+      isSocialMedia: boolean
+    }
 
 export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> {
   async run(event: WorkflowEvent<CrawlWorkflowParams>, step: WorkflowStep) {
@@ -62,7 +91,22 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     ctxManager.setUserInfo(event.payload.userId, event.payload.enUserId, '', event.payload.userLang)
     ctxManager.setHashIds(hashids)
     if (event.payload.eventContext) ctxManager.set(EVENT_CONTEXT_KEY, event.payload.eventContext)
+    ctxManager.set('snapshotCaptureRevision', event.payload.captureRevision)
     initializeInfrastructure(ctxManager, currentContainer)
+
+    if (event.payload.fork) {
+      const service = currentContainer.resolve(BookmarkForkService)
+      const job = event.payload.fork
+      try {
+        await step.do('copy-fork', { retries: { limit: 2, delay: '1 second', backoff: 'constant' }, timeout: '5 minutes' }, () =>
+          service.execute(ctxManager, event.payload.bookmarkId, job)
+        )
+      } catch (error) {
+        await step.do('fail-fork', () => service.failExecution(event.payload.bookmarkId, job))
+        throw error
+      }
+      return
+    }
 
     const bookmarkService = currentContainer.resolve(BookmarkService)
     const labService = currentContainer.resolve(LabService)
@@ -83,6 +127,18 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     const userBookmark = await bookmarkService.getUserBookmark(bookmarkId, userId)
     if (!userBookmark) throw new NonRetryableError(`user_bookmark not found: bookmark=${bookmarkId} user=${userId}`)
     const userBookmarkUuid = userBookmark.uuid
+    if (!event.payload.captureRevision) {
+      const revision = await step.do('legacy-capture-revision', async () => {
+        const raw = await bookmarkService.getBookmarkById(bookmarkId)
+        if (!raw || !['pending', 'pending_retry'].includes(raw.status)) return null
+        return raw.updated_at.toISOString()
+      })
+      if (!revision) return
+      ctxManager.set('snapshotCaptureRevision', revision)
+    }
+
+    const claimed = await step.do('claim-capture', () => crawlService.claimCapture(ctxManager, bookmarkId))
+    if (!claimed) return
 
     const alertFailure = (scope: string, meta: Record<string, unknown>) =>
       crawlService.pushBookmarkFailureAlert(userId, scope, meta).catch(e => console.error(`alertFailure ${scope} failed: ${e}`))
@@ -119,11 +175,12 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           timeout: '5 minutes'
         },
         async (): Promise<FetchedPayload> => {
+          if (!(await crawlService.ownsCapture(ctxManager, bookmarkId))) throw new NonRetryableError('Capture revision superseded')
           await assertUrlCaptureAllowed(url)
           const stored = await bookmarkService.getBookmarkById(bookmarkId)
           if (stored?.content_key?.startsWith('pdf/body/')) {
-            await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url)
-            return { kind: 'pdf', resolvedUrl: url, isSocialMedia: false }
+            if (!(await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, url))) throw new Error('Stored PDF could not be acquired')
+            return { kind: 'pdf', resolvedUrl: url, isSocialMedia: false, publishedRevision: ctxManager.get('snapshotPublishedRevision') }
           }
           // 检查是否已有内容
           const existingData = await bookmarkService.getBookmarkTitleAndTextContentTry(bookmarkId)
@@ -137,8 +194,6 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             }
           }
 
-          await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.PARSEING)
-
           const resolvedUrl = await crawlService.resolveShortLink(ctxManager, url)
           if (resolvedUrl !== url) {
             console.log(`Resolved short link: ${url} -> ${resolvedUrl}`)
@@ -148,7 +203,8 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           const route = detectRoute(resolvedUrl)
           if (route === 'regular') {
             try {
-              if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, resolvedUrl)) return { kind: 'pdf', resolvedUrl, isSocialMedia: false }
+              if (await bookmarkService.capturePdf(ctxManager, bookmarkId, userBookmarkUuid, resolvedUrl))
+                return { kind: 'pdf', resolvedUrl, isSocialMedia: false, publishedRevision: ctxManager.get('snapshotPublishedRevision') }
             } catch (error) {
               if (error instanceof MultiLangError && error.name === ErrorName.LAB_FEATURE_DISABLED) throw new NonRetryableError(`pdf_lab_disabled:${error.getMessage}`)
               throw error
@@ -167,6 +223,12 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
               // The seed migration turns the switch on for accounts that already save podcasts; this
               // line keeps the silent-page fallback visible for anyone who still has it off.
               console.log(`Podcast link saved as a page for bookmark ${bookmarkId}: podcast Labs is off`)
+            } else if (classifyPodcastUrl(resolvedUrl) === 'pocketcasts' && (await crawlService.keepsAnnotatedBody(ctxManager, bookmarkId))) {
+              // Marks anchor to the current body, so a recapture keeps it. No page is fetched, and the
+              // claimed capture is released as success below, the same as a cached body.
+              console.log(`Pocket Casts recapture kept the annotated body of bookmark ${bookmarkId}`)
+              const textContent = stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : ''
+              return { kind: 'shortCircuit', resolvedUrl, data: { title: stored?.title ?? '', textContent, byline: stored?.byline ?? '' }, isSocialMedia: true }
             } else {
               const info = await trackStep('podcast_fetching', () => crawlService.fetchPodcastData(resolvedUrl, ctxManager))
               if (info) {
@@ -236,7 +298,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`Crawl workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)
 
-      await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
+      if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED))) return
 
       const scope = err instanceof NonRetryableError ? 'workflow_fetch.business_terminal' : 'workflow_fetch.exhausted'
       if (!errMsg.startsWith('pdf_lab_disabled:') && !errMsg.startsWith('url_lab_disabled:'))
@@ -261,14 +323,22 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
 
     if (fetched.kind === 'pdf') {
       const stored = await bookmarkService.getBookmarkById(bookmarkId)
-      crawlResult = { title: stored?.title || '', textContent: stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : '', byline: '' }
+      crawlResult = {
+        publishedRevision: fetched.publishedRevision,
+        title: stored?.title || '',
+        textContent: stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : '',
+        byline: ''
+      }
     } else if (fetched.kind === 'shortCircuit') {
+      const publishedRevision = await step.do('release-cached-capture', () => crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.SUCCESS))
+      if (!publishedRevision) return
       // bookmark 已有内容，跳过 parse
       crawlResult = {
         title: fetched.data.title,
         textContent: fetched.data.textContent,
         byline: fetched.data.byline,
-        siteName: ''
+        siteName: '',
+        publishedRevision
       }
     } else if (fetched.kind === 'parsed') {
       // dajiala/regular 已在 fetch step 内完成 parse+save
@@ -313,7 +383,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
         const errMsg = err instanceof Error ? err.message : String(err)
         console.error(`Crawl workflow parse failed for bookmark ${bookmarkId}: ${errMsg}`)
 
-        await bookmarkService.updateBookmarkStatus(bookmarkId, queueStatus.FAILED)
+        if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED))) return
         await alertFailure('workflow_parse.error', {
           bookmark_id: bookmarkId,
           url,
@@ -348,15 +418,15 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     // 命中黄网域名直接标记为色情；否则投递「标题 + 正文文本 + 前 20 张图片 URL」做分级并落库。
     // 命中（>0）：关闭分享 + 推飞书告警；审核失败不阻塞后续（默认 moderation_result=0）。
     let moderationResult: ModerationResult = ModerationResult.NORMAL
-    if (crawlResult && !isSoft404) {
+    if (crawlResult?.publishedRevision && !isSoft404) {
       try {
-        moderationResult = await step.do(
+        const moderated = await step.do(
           'content-moderation',
           {
             retries: { limit: 2, delay: '30 seconds' as const, backoff: 'constant' as const },
             timeout: '3 minutes'
           },
-          async (): Promise<ModerationResult> => {
+          async (): Promise<ModerationResult | null> => {
             let result: ModerationResult
             if (isProhibitedContentUrl(url)) {
               result = ModerationResult.PORN
@@ -373,26 +443,39 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
               console.log(`Moderation result for bookmark ${bookmarkId}: ${result} (images=${imageUrls.length})`)
             }
 
-            await bookmarkService.updateBookmarkModerationResult(bookmarkId, result)
+            const applied = await bookmarkService.updateBookmarkModerationResult(bookmarkId, result, {
+              revision: new Date(crawlResult!.publishedRevision!),
+              userId
+            })
+            if (!applied) return null
 
-            if (result !== ModerationResult.NORMAL) {
-              // 命中审核内容：关闭分享（无记录则创建全关闭记录），并推飞书。=1 色情=提醒(蓝)，=2 极度危险=警告(橙)
-              await bookmarkService.disableBookmarkShare(bookmarkId, userId)
-              const isDanger = result === ModerationResult.DANGEROUS
-              const header = isDanger ? '⚠️ **Content Moderation 警告**' : '🔍 **Content Moderation 提醒**'
-              const label = isDanger ? '极度危险内容(2)' : '色情内容(1)'
-              await alertBot.crawl.pushMessage(
-                `${header}\n**级别**: ${label}\n**Title**: ${crawlResult!.title}\n**URL**: ${url}\n**处理**: 已禁止分享、仅创建者可访问` +
-                  (isDanger ? '（危险内容待人工确认是否删除）' : '')
-              )
-            }
             return result
           }
         )
+        if (moderated === null) return
+        moderationResult = moderated
       } catch (moderationErr) {
         const errMsg = moderationErr instanceof Error ? moderationErr.message : String(moderationErr)
         console.error(`Content moderation failed for bookmark ${bookmarkId}: ${errMsg}`)
         await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'content_moderation', 'failed', errMsg, ctxManager)
+      }
+    }
+
+    // Persist the policy result before retrying notification; a webhook failure must not
+    // replay the guarded write with its now-consumed publication timestamp.
+    if (moderationResult !== ModerationResult.NORMAL) {
+      try {
+        await step.do('content-moderation-alert', { retries: { limit: 2, delay: '30 seconds' as const, backoff: 'constant' as const }, timeout: '3 minutes' }, async () => {
+          const isDanger = moderationResult === ModerationResult.DANGEROUS
+          const header = isDanger ? '⚠️ **Content Moderation 警告**' : '🔍 **Content Moderation 提醒**'
+          const label = isDanger ? '极度危险内容(2)' : '色情内容(1)'
+          await alertBot.crawl.pushMessage(
+            `${header}\n**级别**: ${label}\n**Title**: ${crawlResult!.title}\n**URL**: ${url}\n**处理**: 已禁止分享、仅创建者可访问` +
+              (isDanger ? '（危险内容待人工确认是否删除）' : '')
+          )
+        })
+      } catch (error) {
+        console.error(`Content moderation alert failed for bookmark ${bookmarkId}: ${error}`)
       }
     }
 

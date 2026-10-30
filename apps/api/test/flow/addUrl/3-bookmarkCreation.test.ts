@@ -16,6 +16,12 @@ function wire() {
 }
 
 describe('addUrlBookmark 返回值处理', () => {
+  test('completed Fork does not masquerade as a shortcut or start crawling', async () => {
+    const { orch, bs } = wire()
+    bs.addUrlBookmark.mockResolvedValue({ kind: 'completed', bookmark_id: 42, bookmark_uid: 'copy', disposition: 'created' })
+    const result = await orch.addByUrl(createMockCtx(), { target_url: 'https://reader.test/b/abc', tags: [] })
+    expect(result).toMatchObject({ bookmarkId: 42, isShortcut: false, workflowParams: null })
+  })
   test('返回 number → isShortcut=true, workflowParams=null', async () => {
     const { orch, bs } = wire()
     bs.addUrlBookmark.mockResolvedValue(42)
