@@ -143,7 +143,6 @@ onUnmounted(() => {
     0 0 0 1px rgba(var(--slax-overlay-white-rgb), 0.85) inset,
     0 1px 0 rgba(var(--slax-overlay-white-rgb), 1) inset;
   backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
 }
 
 .history-section__header {
@@ -221,7 +220,6 @@ onUnmounted(() => {
   box-shadow: inset 0 1px 0 rgba(var(--slax-overlay-white-rgb), 0.8);
   padding: 6px 12px;
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   transition: opacity 0.15s;
 
   &.is-loading {

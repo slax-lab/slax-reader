@@ -785,7 +785,6 @@ const formatNumber = (value: number) => {
   background: rgba(15, 20, 25, 0.88); /* dark overlay background */
   box-shadow: 0 8px 24px rgba(15, 20, 25, 0.22);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   white-space: pre-line;
 }
 
@@ -954,7 +953,6 @@ const formatNumber = (value: number) => {
   background: rgba(15, 20, 25, 0.55); /* dark overlay bg; rgba needed for opacity */
   color: #ffffff; /* white icon on dark overlay */
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 
   &:hover {
     background: rgba(15, 20, 25, 0.72);

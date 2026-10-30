@@ -82,8 +82,15 @@ const isNarrow = computed(() => windowWidth.value <= 600)
   background: var(--slax-surface);
   border: 1px solid var(--slax-border);
   border-radius: 16px;
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  // Standard property only: the production minifier (Lightning CSS, only on minified
+  // builds; preview/development set minify: false) treats a hand-written
+  // backdrop-filter + -webkit-backdrop-filter pair as two prefix candidates for the
+  // same property and merges them, keeping whichever is listed last — with the
+  // standard property listed first here, it was the one being dropped, breaking the
+  // blur in production. Lightning CSS adds the -webkit- prefix automatically from
+  // cssTarget (nuxt.config.ts's build.target: es2022) when only the standard property
+  // is present, so both survive minification. Do not hand-write -webkit-backdrop-filter.
+  backdrop-filter: var(--slax-blur);
   box-shadow: var(--slax-shadow-warm);
   z-index: 20;
 

@@ -98,7 +98,6 @@ const t = (text: string) => useNuxtApp().$i18n.t(text)
   &.appear {
     background: color-mix(in srgb, var(--slax-text) 22%, transparent);
     backdrop-filter: var(--slax-blur);
-    -webkit-backdrop-filter: var(--slax-blur);
   }
 }
 
