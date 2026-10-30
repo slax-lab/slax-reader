@@ -95,6 +95,10 @@ mockNuxtImport('navigateTo', () => mockNavigateTo)
 mockNuxtImport('postChannelMessage', () => mockPostChannelMessage)
 mockNuxtImport('request', () => mockRequest)
 mockNuxtImport('useI18n', () => mockUseI18n)
+// This file verifies the disabled-switch fallback rendering; pin the config so it
+// does not silently follow whatever default the active build profile sets.
+const mockAppConfig = vi.hoisted(() => ({ lcp: { articleImagePriority: false, anonymousPublicStartup: false } }))
+mockNuxtImport('useAppConfig', () => () => mockAppConfig)
 
 vi.mock('~/composables/bookmark/useArticle', () => ({
   useArticleDetail: (...args: unknown[]) => mockUseArticleDetail(...args)

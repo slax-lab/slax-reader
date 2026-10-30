@@ -35,7 +35,7 @@ Source constraints:
 
 ### 1. Use one reviewed implementation change with independent milestones
 
-Use branch `perf/optimize-web-lcp`, change ID `optimize-web-lcp`, and one eventual PR to `dev`. Commit and verify the article policy separately from the startup bypass. Two build-time app-config booleans, `lcp.articleImagePriority` and `lcp.anonymousPublicStartup`, start disabled and can be enabled separately through reviewed source changes. No environment secret, remote flag service, or persisted user flag is introduced. Deployment is a later authorized operation.
+Use branch `perf/optimize-web-lcp`, change ID `optimize-web-lcp`, and one eventual PR to `dev`. Commit and verify the article policy separately from the startup bypass. Two build-time app-config booleans, `lcp.articleImagePriority` and `lcp.anonymousPublicStartup`, can be enabled separately. Their defaults are build-time constants (`nuxt.config.ts` → `vite.define`): disabled for `production` and `beta`, enabled for `preview` and `development`, so the measurement gates below can run on the test environment before production enablement. No environment secret, remote flag service, or persisted user flag is introduced. Deployment is a later authorized operation.
 
 This avoids packaging speculative backend work into the same release. Separate milestones remain independently reviewable and disableable, even if the final approved PR contains both implementations.
 
