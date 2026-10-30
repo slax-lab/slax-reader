@@ -11,7 +11,7 @@ import { BookmarkService } from '@/domain/bookmark'
 import { parseCSV, parseCSVLine } from '@/utils/csv'
 import { RedisClient } from '@/infra/repository/redisClient'
 import { Hashid } from '@/utils/hashids'
-import { importPreview, isNewImportSource, parseImport, type ImportRecord } from '@/utils/importFormats'
+import { importPreview, isNewImportSource, parseImport, savedDate, type ImportRecord } from '@/utils/importFormats'
 import { getEventContext } from '@/domain/events'
 
 export interface importProcessResponse {
@@ -367,7 +367,9 @@ export class ImportService {
         description: item.description,
         tags: item.labels,
         target_title: item.title,
-        is_archive: false
+        is_archive: false,
+        saved_at: savedDate(item.savedAt, false),
+        import_only: true
       }))
     } else if (message.info.type === 'pocket') {
       return message.info.data.map(item => ({
@@ -376,7 +378,9 @@ export class ImportService {
         description: '',
         tags: !!item.tags && item.tags && item.tags.length > 0 ? item.tags.split('|') : [],
         target_title: !!item.title && item.title && item.title.length > 0 ? item.title : '',
-        is_archive: !!item && item.status === 'archive' ? true : false
+        is_archive: !!item && item.status === 'archive' ? true : false,
+        saved_at: savedDate(item.time_added, true),
+        import_only: true
       }))
     } else if (message.info.type === 'fetch_retry') {
       return message.info.data.map(item => ({
