@@ -1,7 +1,8 @@
 export const appMessages = {
   en: {
     feedback_dismiss_keyboard: 'Dismiss keyboard',
-    feedback_attach_logs: 'Attach recent seven-day diagnostic logs (optional)',
+    feedback_follow_up: 'Allow follow-up at {email}',
+    feedback_attach_logs: 'Attach diagnostic logs from the last seven days, only for troubleshooting',
     feedback_attach_logs_disclosure: 'Upload only when checked, for support troubleshooting. Logs are retained for seven days and anyone with the support download link can download them.',
     feedback_logs_failed: 'The attachment or submission failed. Your draft and choice are kept. Retry, or deliberately uncheck logs before submitting without them.',
     feedback_logs_too_large: 'The diagnostic file exceeds 12 MiB. Your draft and choice are kept. Review the logs, or uncheck the attachment before submitting.',
@@ -124,7 +125,8 @@ export const appMessages = {
   },
   zh: {
     feedback_dismiss_keyboard: '收起键盘',
-    feedback_attach_logs: '附加最近七天的诊断日志（可选）',
+    feedback_follow_up: '允许通过 {email} 进行跟进',
+    feedback_attach_logs: '附带最近七天的诊断日志，仅用于定位问题',
     feedback_attach_logs_disclosure: '仅在勾选后上传，用于排查问题。日志保留七天，持有支持下载链接的任何人均可下载。',
     feedback_logs_failed: '附加日志或提交失败，内容和勾选状态已保留。请重试，或自行取消勾选后再提交。',
     feedback_logs_too_large: '诊断文件超过 12 MiB，内容和勾选状态已保留。请检查日志，或自行取消勾选后再提交。',

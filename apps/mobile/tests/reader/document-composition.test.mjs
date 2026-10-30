@@ -18,7 +18,7 @@ function previousComposeReaderDocument(html, options) {
   return document.replace('<head>', `<head><meta http-equiv="Content-Security-Policy" content="${READER_CSP}"><meta name="referrer" content="strict-origin-when-cross-origin">\n<script>${host}</script>`)
 }
 
-test('precomputed Reader template composes byte-identical documents for the same article and options', async () => {
+test('precomputed Reader template preserves source composition with Mobile selection styling', async () => {
   const mixed = await readFile(new URL('./fixtures/mixed-article.html', import.meta.url), 'utf8')
   const articles = [
     mixed, '', '<p>Plain</p>',
@@ -33,7 +33,7 @@ test('precomputed Reader template composes byte-identical documents for the same
     {pageId: '</script><b>', platform: 'ios', imageProxyOrigins: ['https://proxy.slax.example'], controlledFixture: true, observeInput: true},
   ]
   for (const html of articles) for (const options of optionSets) {
-    const expected = previousComposeReaderDocument(html, options)
+    const expected = previousComposeReaderDocument(html, options).replace('<meta name="referrer" content="strict-origin-when-cross-origin">', '<meta name="referrer" content="strict-origin-when-cross-origin"><style>:root{caret-color:#8AD8A8}</style>')
     assert.ok(expected.length > readerAssets.template.length)
     assert.equal(composeReaderDocument(html, options), expected, `${options.pageId}: ${html.slice(0, 40)}`)
   }
