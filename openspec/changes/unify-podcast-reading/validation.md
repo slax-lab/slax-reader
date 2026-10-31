@@ -155,6 +155,8 @@ The `/review` gate on `6144089` reported three Important findings.
 - Chinese editing fails exact coverage: the check is fixed and covered by `mediaEditing.test.ts`. A real Chinese episode is not run again yet, so Chinese publication stays unverified.
 - Human hands-on acceptance: still pending. The YouTube body now keeps the design accepted on 2026-10-29 in `fix-youtube-style`. The Podcast article keeps its earlier look. They now differ in heading and paragraph timestamps; hands-on acceptance must decide the Podcast look.
 
+A local pre-push Bugs pass found no Important bug. It found two Nits, now fixed: a stale kept article after a version change, and an unused fetch when the body holds an older article.
+
 Commands after the rebase: API `tsc --noEmit`, `vitest run` (200 files passed, 14 skipped), and `eslint src`. Web `vue-tsc` and `vitest run` (224 files passed, 1 skipped) with the CI placeholder environment. `openspec validate --all --strict` passed.
 
 ## Next verification

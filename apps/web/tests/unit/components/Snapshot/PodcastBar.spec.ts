@@ -228,6 +228,24 @@ describe('PodcastBar', () => {
     expect(statusCalls()).toBe(1)
   })
 
+  it('a new kept article version replaces the old article, even when its fetch fails', async () => {
+    // A running translation keeps the status polling, so the next status can carry a new version
+    const kept = (version: string) =>
+      state({ transcript: 'ready', article: 'ready', body_mode: 'transcript', article_version: version, translation: { status: 'generating', language: 'zh', version: null } })
+    const statuses = [kept('v-en'), kept('v-en2')]
+    mockGet.mockImplementation(({ url, query }: { url: string; query?: { version?: string } }) => {
+      if (url.endsWith('/translation')) return query?.version === 'v-en' ? Promise.resolve(ORIGINAL) : Promise.reject(new Error('gone'))
+      return Promise.resolve(statuses.length > 1 ? statuses.shift() : statuses[0])
+    })
+    const w = await mount()
+    await flushPromises()
+    expect(w.emitted('article')!.at(-1)).toEqual([ORIGINAL])
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(w.emitted('article')!.at(-1)).toEqual([null])
+    expect(w.text()).not.toContain('Highlights and comments keep the show notes')
+  })
+
   it('a translation in progress shows its own line', async () => {
     routeGet([state({ transcript: 'ready', article: 'ready', body_ready: true, translation: { status: 'generating', language: 'zh', version: null } })])
     const w = await mount({ bodyHasArticle: true })

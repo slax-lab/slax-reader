@@ -210,10 +210,10 @@ export class PodcastService {
     const original = rows.find(r => r.target_language === lang)
     if (!enabled && original?.status !== 'ready') return unavailable
     res.article = (original?.status as PodcastArticleApiStatus) ?? 'pending'
-    res.body_ready =
-      original?.status === 'ready' &&
-      !!(await this.bodies.readBody(access.bookmarkId))?.includes(`data-slax-derived="podcast-article" data-article-version="${this.versionOf(original)}"`)
-    if (original?.status === 'ready' && !res.body_ready && (await this.bodies.hasMarks(access.bookmarkId, access.ownerId))) {
+    const body = original?.status === 'ready' ? await this.bodies.readBody(access.bookmarkId) : null
+    res.body_ready = !!body?.includes(`data-slax-derived="podcast-article" data-article-version="${this.versionOf(original!)}"`)
+    // A body with an older article keeps showing it; only show notes need the article below
+    if (original?.status === 'ready' && !body?.includes('data-slax-derived="podcast-article"') && (await this.bodies.hasMarks(access.bookmarkId, access.ownerId))) {
       res.body_mode = 'transcript'
       res.article_version = this.versionOf(original)
     }
@@ -241,9 +241,8 @@ export class PodcastService {
   }
 
   /** Marks keep the show notes as the body, so the original article is not in it. */
-  private async keptBody(access: Access, original: mediaArticlePO): Promise<boolean> {
-    const body = await this.bodies.readBody(access.bookmarkId)
-    if (body?.includes(`data-slax-derived="podcast-article" data-article-version="${this.versionOf(original)}"`)) return false
+  private async keptBody(access: Access): Promise<boolean> {
+    if ((await this.bodies.readBody(access.bookmarkId))?.includes('data-slax-derived="podcast-article"')) return false
     return this.bodies.hasMarks(access.bookmarkId, access.ownerId)
   }
 
@@ -313,7 +312,7 @@ export class PodcastService {
     const row = rows.find(r => r.status === 'ready' && r.article_key && this.versionOf(r) === version)
     if (!row) throw BookmarkNotFoundError()
     // The original article is the body; it is served here only when marks keep the show notes instead
-    if (row.target_language === podcastLanguage(ep.language) && !(await this.keptBody(access, row))) throw BookmarkNotFoundError()
+    if (row.target_language === podcastLanguage(ep.language) && !(await this.keptBody(access))) throw BookmarkNotFoundError()
     const [docObj, transcriptObj] = await Promise.all([this.bucket().R2Bucket.get(row.article_key!), ep.transcript_key ? this.bucket().R2Bucket.get(ep.transcript_key) : null])
     if (!docObj || !transcriptObj) throw BookmarkNotFoundError()
     const doc = JSON.parse(await docObj.text()) as YoutubeArticleDocument

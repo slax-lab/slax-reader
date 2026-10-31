@@ -680,3 +680,14 @@ test('a published or unmarked body offers no article below it', async () => {
   expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ body_ready: true, body_mode: 'article', article_version: null })
   await expect(w.service.getTranslation(w.ctx(VISITOR), UUID, `${HASH.slice(0, 12)}-en-1-v1`)).rejects.toMatchObject({ name: ErrorName.BOOKMARK_NOT_FOUND })
 })
+
+test('a body with an older article keeps showing it, with no article below', async () => {
+  const w = wire()
+  const { en } = w.readyEpisode()
+  await w.service.publishBodies(w.ctx(OWNER), SOURCE)
+  w.markRepo.bodyHasMarks.mockResolvedValue(true)
+  en.prompt_version = 'v2'
+  const version = `${HASH.slice(0, 12)}-en-1-v2`
+  expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ body_ready: false, body_mode: 'article', article_version: null })
+  await expect(w.service.getTranslation(w.ctx(OWNER), UUID, version)).rejects.toMatchObject({ name: ErrorName.BOOKMARK_NOT_FOUND })
+})

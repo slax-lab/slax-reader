@@ -121,8 +121,11 @@ export const usePodcast = (bookmarkUid: () => string) => {
     state.value = next
     if (next.translation?.status === 'ready' && next.translation.version) await loadTranslation(next.translation.version)
     const kept = keptArticleVersion(next)
+    if (kept !== (article.value?.version ?? null)) {
+      article.value = null
+      articleFailures = 0
+    }
     if (kept) await loadArticle(kept)
-    else article.value = null
     schedule()
   }
 
