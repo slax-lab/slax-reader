@@ -314,11 +314,14 @@ describe('rendering', () => {
     expect(HtmlBuilder.buildYoutubeArticleBody('"><script>', [], article)).not.toContain('<script>')
   })
 
-  test('YouTube labels match the Web locale strings of the separate article view', () => {
+  test.each([
+    ['youtube', 'youtube_article'],
+    ['podcast', 'podcast']
+  ] as const)('%s labels match the Web locale strings of the separate article view', (kind, key) => {
     const doc = cleanedDoc()
     for (const [lang, file] of [['en', 'en.json'], ['zh', 'zh.json']] as const) {
-      const locale = JSON.parse(readFileSync(join(__dirname, '../../../web/i18n/locales', file), 'utf8')).component.youtube_article
-      const article = renderMediaArticle({ ...doc, language: lang, lede: 'Lede' }, 'v2', transcript.cues, 'youtube')
+      const locale = JSON.parse(readFileSync(join(__dirname, '../../../web/i18n/locales', file), 'utf8')).component[key]
+      const article = renderMediaArticle({ ...doc, language: lang, lede: 'Lede' }, 'v2', transcript.cues, kind)
       expect(article).toContain(`<p class="slax-yt-edition">${locale.edited_transcript}</p>`)
       expect(article).toContain(`<span class="slax-yt-label">${locale.introduction}</span>`)
       expect(article).toContain(`<summary>${locale.contents} <span>`)

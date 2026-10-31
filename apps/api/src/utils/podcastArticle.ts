@@ -598,6 +598,18 @@ export function renderPodcastBody(input: {
   return out.join('\n')
 }
 
+/** The same notes as component.youtube_article.method_note and component.podcast.method_note in the Web locales. */
+const METHOD_NOTES: Record<'youtube' | 'podcast', Record<PodcastLanguage, string>> = {
+  youtube: {
+    zh: '正文根据视频字幕整理，保留原有顺序。导读单独生成。字幕和整理稿可能存在错误，请通过时间戳核对原视频。',
+    en: 'The article follows the video captions in their original order. The introduction is generated separately. Captions and editing can contain errors. Use timestamps to check the video.'
+  },
+  podcast: {
+    zh: '正文根据来源转写稿整理，保留原有顺序。导读单独生成。转写稿和整理稿可能存在错误，请通过时间戳核对来源。',
+    en: 'The article follows the source transcript in its original order. The introduction is generated separately. Transcription and editing can contain errors. Use timestamps to check the source.'
+  }
+}
+
 /**
  * The cleaned article of a podcast episode or a YouTube video, as body HTML. Both media use the same
  * classes, so the client's seek, follow-along and "listen from here" work for both; only
@@ -647,7 +659,7 @@ export function renderMediaArticle(
     out.push('</section>')
   }
   out.push(
-    `<footer class="slax-yt-method"><strong>${lang === 'zh' ? '方法与来源' : 'Method and source'}</strong><p>${lang === 'zh' ? '正文根据来源转写稿整理，保留原有顺序。导读单独生成。转写稿和整理稿可能存在错误，请通过时间戳核对来源。' : 'The article follows the source transcript in its original order. The introduction is generated separately. Transcription and editing can contain errors. Use timestamps to check the source.'}</p></footer>`
+    `<footer class="slax-yt-method"><strong>${lang === 'zh' ? '方法与来源' : 'Method and source'}</strong><p>${METHOD_NOTES[kind][lang]}</p></footer>`
   )
   if (captionSource)
     out.push(

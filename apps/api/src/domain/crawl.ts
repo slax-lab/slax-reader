@@ -786,18 +786,6 @@ export class CrawlService {
     return null
   }
 
-  /**
-   * Whether a Pocket Casts recapture must keep the current body: the bookmark already has one, and a
-   * reader left a highlight or comment on it. A first capture has no body, so nothing is protected.
-   * The caller decides this before any page fetch, so a kept body costs no provider call. The check
-   * reads content_md_key because the kept payload reads the same key for its text.
-   */
-  public async keepsAnnotatedBody(ctx: ContextManager, bookmarkId: number): Promise<boolean> {
-    const stored = await this.bookmarkRepo.getBookmarkById(bookmarkId)
-    if (!stored?.content_md_key) return false
-    return this.markRepo.bodyHasMarks(bookmarkId, ctx.getUserId())
-  }
-
   private async readPublicPodcastEpisode(url: string, pageFetcher: () => Promise<{ content: string; url: string }>): Promise<PodcastEpisodeInfo | null> {
     const page = await pageFetcher()
     const parsed = parsePublicPodcastPage(page.url, page.content)
