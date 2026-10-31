@@ -19,6 +19,14 @@ function fakeFetch(responses: { status: number; body: unknown }[]) {
 }
 
 describe('AssemblyAIClient.submit', () => {
+  test('does not bind fetch to the client instance', async () => {
+    const fetcher = async function (this: unknown) {
+      if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation')
+      return Response.json({ id: 'job-context', status: 'queued' })
+    }
+    await expect(new AssemblyAIClient('key', fetcher as typeof fetch).submit('https://cdn.example.com/a.mp3', 'zh')).resolves.toBe('job-context')
+  })
+
   test('sends the audio URL, models, speaker labels and the known language', async () => {
     const { fn, calls } = fakeFetch([{ status: 200, body: { id: 'job1', status: 'queued' } }])
     expect(await new AssemblyAIClient('key', fn).submit('https://cdn.example.com/a.mp3', 'zh')).toBe('job1')
