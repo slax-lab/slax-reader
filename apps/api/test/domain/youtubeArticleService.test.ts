@@ -74,11 +74,12 @@ function memRepo() {
       const status = base.status === 'takedown' ? 'takedown' : eligibilityDecision(base) === 'generate' ? 'pending' : 'skipped'
       return repo.add({ ...base, id: undefined as any, target_language: lang, prompt_version: promptVersion, status, article_key: null, retry_count: 0, next_retry_at: null })
     }),
-    requeue: vi.fn(async (rid: number, reset: boolean) => {
+    requeue: vi.fn(async (rid: number, reset: boolean, options: { recoverBudget?: boolean } = {}) => {
       const r = rows.find(x => x.id === rid)
       if (!r || !(reset ? ['failed'] : ['skipped', 'failed']).includes(r.status)) return false
-      if ((reset ? ['too_long'] : ['budget_exceeded', 'too_long']).some(c => (r.error_message ?? '').startsWith(c))) return false
-      Object.assign(r, { status: 'pending', next_retry_at: now(), error_message: null }, reset ? { retry_count: 0, cost_usd: 0 } : {})
+      const recover = reset && options.recoverBudget === true
+      if ((recover ? ['too_long'] : ['budget_exceeded', 'too_long']).some(c => (r.error_message ?? '').startsWith(c))) return false
+      Object.assign(r, { status: 'pending', next_retry_at: now(), error_message: null }, reset ? { retry_count: 0 } : {}, recover ? { cost_usd: 0 } : {})
       return true
     }),
     defer: vi.fn(async (rid: number, at: Date) => {
@@ -568,6 +569,7 @@ describe('manual generate and retry', () => {
     const row = w.repo.add({ status: 'failed', error_message: 'budget_exceeded', retry_count: 3, cost_usd: 0.69 })
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ can_retry: true, can_generate: false })
     const res = await w.service.request(w.ctx(OWNER), UUID, 'retry')
+    expect(w.repo.requeue).toHaveBeenCalledWith(row.id, true, { recoverBudget: true })
     expect(row).toMatchObject({ status: 'pending', retry_count: 0, cost_usd: 0, error_message: null })
     expect(res.status).toBe('pending')
     expect(w.create.mock.calls[0][0]).toMatchObject({ params: { trigger: 'retry' } })

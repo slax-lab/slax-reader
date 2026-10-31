@@ -11,7 +11,9 @@ const REEVALUABLE_STATUSES: MediaArticleStatus[] = ['pending', 'skipped']
 const RUNNING_STATUSES: MediaArticleStatus[] = ['generating', 'validating']
 /**
  * Outcomes no new attempt can change: the version is too long for the budget, or spent it.
- * Such rows are never queued again and the client offers no generate or retry for them.
+ * Such rows are never queued again and the client offers no generate or retry for them. One
+ * exception: a caller that passes `recoverBudget` to `requeue` (YouTube's explicit retry) lets
+ * the owner start a `budget_exceeded` version again with a fresh allowance.
  */
 export const FINAL_ERRORS = ['budget_exceeded', 'too_long'] as const
 
@@ -20,9 +22,9 @@ export function isFinalError(error: string | null | undefined): boolean {
 }
 
 /**
- * Only a version too long for the budget blocks the owner's explicit retry. A version that ran
- * out of budget may have been bankrupted by our own failed attempts, so the retry starts its
- * spend again; the daily manual limit and the site-wide cap bound that.
+ * For a retry that recovers the budget, only a version too long for the budget blocks it. A
+ * version that ran out of budget may have been bankrupted by our own failed attempts, so that
+ * retry starts its spend again; the caller's daily manual limit and the site-wide cap bound it.
  */
 export function blocksRetry(error: string | null | undefined): boolean {
   return (error ?? '').startsWith('too_long')
@@ -359,13 +361,14 @@ export abstract class MediaArticleRepo {
 
   /**
    * Owner asked for an article: skipped/failed → pending. `resetAttempts` is the explicit retry,
-   * which starts the attempt count and the spent amount again and is refused only for `too_long`.
-   * The generate path keeps every final error. next_retry_at is set to now: the row is a real
-   * request, so the sweep starts it if the immediate start does not happen. False when the row
-   * is in any other state.
+   * which starts the attempt count again. With `recoverBudget` the retry also starts the spent
+   * amount again and is refused only for `too_long`; without it every final error stays final.
+   * next_retry_at is set to now: the row is a real request, so the sweep starts it if the
+   * immediate start does not happen. False when the row is in any other state.
    */
-  public async requeue(id: number, resetAttempts: boolean): Promise<boolean> {
-    const blocked = resetAttempts ? ['too_long'] : FINAL_ERRORS
+  public async requeue(id: number, resetAttempts: boolean, options: { recoverBudget?: boolean } = {}): Promise<boolean> {
+    const recover = resetAttempts && options.recoverBudget === true
+    const blocked = recover ? ['too_long'] : FINAL_ERRORS
     const res = await this.prismaPg().sr_media_article.updateMany({
       where: {
         id,
@@ -373,7 +376,7 @@ export abstract class MediaArticleRepo {
         // NOT LIKE alone would drop rows whose error_message is NULL (SQL three-valued logic)
         OR: [{ error_message: null }, { AND: blocked.map(code => ({ NOT: { error_message: { startsWith: code } } })) }]
       },
-      data: { status: 'pending', next_retry_at: new Date(), error_message: null, ...(resetAttempts ? { retry_count: 0, cost_usd: 0 } : {}) }
+      data: { status: 'pending', next_retry_at: new Date(), error_message: null, ...(resetAttempts ? { retry_count: 0 } : {}), ...(recover ? { cost_usd: 0 } : {}) }
     })
     return res.count === 1
   }

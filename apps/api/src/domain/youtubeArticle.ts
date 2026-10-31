@@ -398,7 +398,7 @@ export class YoutubeArticleService {
       if (row.status !== 'failed') throw ErrorParam()
       // The retry starts the version's spend again, so it takes a manual start like generate
       if (!(await this.takeDaily(access.ownerId, 'manual'))) return { ...(await this.getStatus(ctx, bookmarkUid)), status: 'limit_reached', can_retry: false }
-      if (!(await this.repo.requeue(row.id, true))) {
+      if (!(await this.repo.requeue(row.id, true, { recoverBudget: true }))) {
         await this.giveBackDaily(access.ownerId, 'manual')
         throw ErrorParam()
       }

@@ -3,7 +3,7 @@
 ## 1. Truncation recovery in the runner
 
 - [x] 1.1 Add failing runner tests: a model that truncates the whole chunk and answers each half; a chunk that still truncates at 4 parts ends `failed` with `chunk_truncated` and no automatic retry; part output joins in cue order.
-- [x] 1.2 Implement `callInParts` for the v1 call and the v2 edit and translation calls; make the 4-part truncation a `YoutubeArticleStop`; keep step results small.
+- [x] 1.2 Implement `inParts` for the v1 call and the v2 edit and translation calls; make the 4-part truncation a `YoutubeArticleStop`; keep step results small.
 - [x] 1.3 Add failing tests for `maxOutputTokens` at 10,000 for a 2,500-token user message and 4,000 at the floor; implement the clamp.
 
 ## 2. Truncation telemetry

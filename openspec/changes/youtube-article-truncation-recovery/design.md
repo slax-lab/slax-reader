@@ -52,7 +52,7 @@ Part-level results are not cached in R2. The step engine still retries the whole
 
 ### 4. Explicit retry after `budget_exceeded`
 
-`requeue(id, resetAttempts = true)` keeps the `too_long` exclusion but drops the `budget_exceeded` exclusion, and sets `cost_usd: 0` with `retry_count: 0`. `isFinalError` keeps both codes, so `can_generate` (the "generate anyway" path, which does not reset) is unchanged; `can_retry` becomes `status === 'failed' && !error.startsWith('too_long')`. `requestArticle` in `retry` mode calls `takeDaily(owner, 'manual')` and gives it back when the requeue or start does not happen, the same as the `manual` path. The per-user manual limit (5 per day) and the site-wide daily cap bound the extra spend.
+`requeue(id, resetAttempts = true, { recoverBudget: true })` keeps the `too_long` exclusion but drops the `budget_exceeded` exclusion, and sets `cost_usd: 0` with `retry_count: 0`. `MediaArticleRepo` is shared with podcast articles, so the recovery is an explicit option that only the YouTube retry passes; the podcast retry (`requeue(id, true)`) keeps every final error. `isFinalError` keeps both codes, so `can_generate` (the "generate anyway" path, which does not reset) is unchanged; `can_retry` becomes `status === 'failed' && !error.startsWith('too_long')`. `requestArticle` in `retry` mode calls `takeDaily(owner, 'manual')` and gives it back when the requeue or start does not happen, the same as the `manual` path. The per-user manual limit (5 per day) and the site-wide daily cap bound the extra spend.
 
 Alternative: exclude truncated-call cost from `cost_usd`. Rejected: the money is spent; hiding it breaks the site-wide cap's meaning.
 
