@@ -19,6 +19,15 @@ export function isFinalError(error: string | null | undefined): boolean {
   return FINAL_ERRORS.some(code => (error ?? '').startsWith(code))
 }
 
+/**
+ * Only a version too long for the budget blocks the owner's explicit retry. A version that ran
+ * out of budget may have been bankrupted by our own failed attempts, so the retry starts its
+ * spend again; the daily manual limit and the site-wide cap bound that.
+ */
+export function blocksRetry(error: string | null | undefined): boolean {
+  return (error ?? '').startsWith('too_long')
+}
+
 /** Attempts before a row stays failed. */
 export const MEDIA_ARTICLE_MAX_ATTEMPTS = 3
 
@@ -350,19 +359,21 @@ export abstract class MediaArticleRepo {
 
   /**
    * Owner asked for an article: skipped/failed → pending. `resetAttempts` is the explicit retry,
-   * which starts the attempt count again. next_retry_at is set to now: the row is a real request,
-   * so the sweep starts it if the immediate start does not happen. A version that ran out of
-   * budget is never queued again. False when the row is in any other state.
+   * which starts the attempt count and the spent amount again and is refused only for `too_long`.
+   * The generate path keeps every final error. next_retry_at is set to now: the row is a real
+   * request, so the sweep starts it if the immediate start does not happen. False when the row
+   * is in any other state.
    */
   public async requeue(id: number, resetAttempts: boolean): Promise<boolean> {
+    const blocked = resetAttempts ? ['too_long'] : FINAL_ERRORS
     const res = await this.prismaPg().sr_media_article.updateMany({
       where: {
         id,
         status: { in: resetAttempts ? ['failed'] : ['skipped', 'failed'] },
         // NOT LIKE alone would drop rows whose error_message is NULL (SQL three-valued logic)
-        OR: [{ error_message: null }, { AND: FINAL_ERRORS.map(code => ({ NOT: { error_message: { startsWith: code } } })) }]
+        OR: [{ error_message: null }, { AND: blocked.map(code => ({ NOT: { error_message: { startsWith: code } } })) }]
       },
-      data: { status: 'pending', next_retry_at: new Date(), error_message: null, ...(resetAttempts ? { retry_count: 0 } : {}) }
+      data: { status: 'pending', next_retry_at: new Date(), error_message: null, ...(resetAttempts ? { retry_count: 0, cost_usd: 0 } : {}) }
     })
     return res.count === 1
   }

@@ -77,8 +77,8 @@ function memRepo() {
     requeue: vi.fn(async (rid: number, reset: boolean) => {
       const r = rows.find(x => x.id === rid)
       if (!r || !(reset ? ['failed'] : ['skipped', 'failed']).includes(r.status)) return false
-      if (['budget_exceeded', 'too_long'].some(c => (r.error_message ?? '').startsWith(c))) return false
-      Object.assign(r, { status: 'pending', next_retry_at: now(), error_message: null }, reset ? { retry_count: 0 } : {})
+      if ((reset ? ['too_long'] : ['budget_exceeded', 'too_long']).some(c => (r.error_message ?? '').startsWith(c))) return false
+      Object.assign(r, { status: 'pending', next_retry_at: now(), error_message: null }, reset ? { retry_count: 0, cost_usd: 0 } : {})
       return true
     }),
     defer: vi.fn(async (rid: number, at: Date) => {
@@ -563,12 +563,35 @@ describe('manual generate and retry', () => {
     expect((await w.service.getStatus(w.ctx(OWNER), UUID)).can_generate).toBe(false)
   })
 
-  test('a version that ran out of budget can not be retried', async () => {
+  test('a version that ran out of budget can be retried, not generated: the retry starts its spend again', async () => {
     const w = wire()
-    w.repo.add({ status: 'failed', error_message: 'budget_exceeded' })
-    expect((await w.service.getStatus(w.ctx(OWNER), UUID)).can_retry).toBe(false)
+    const row = w.repo.add({ status: 'failed', error_message: 'budget_exceeded', retry_count: 3, cost_usd: 0.69 })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ can_retry: true, can_generate: false })
+    const res = await w.service.request(w.ctx(OWNER), UUID, 'retry')
+    expect(row).toMatchObject({ status: 'pending', retry_count: 0, cost_usd: 0, error_message: null })
+    expect(res.status).toBe('pending')
+    expect(w.create.mock.calls[0][0]).toMatchObject({ params: { trigger: 'retry' } })
+    expect(w.redis.store.get(`yt_article:${OWNER}:${today()}:manual`)).toBe(1)
+  })
+
+  test('a retry over the manual limit is refused and changes nothing', async () => {
+    const w = wire()
+    w.redis.store.set(`yt_article:${OWNER}:${today()}:manual`, YOUTUBE_ARTICLE_DAILY_LIMITS.manual)
+    const row = w.repo.add({ status: 'failed', error_message: 'budget_exceeded' })
+    const res = await w.service.request(w.ctx(OWNER), UUID, 'retry')
+    expect(res).toMatchObject({ status: 'limit_reached', can_retry: false })
+    expect(row.status).toBe('failed')
+    expect(w.create).not.toHaveBeenCalled()
+  })
+
+  test('a version too long for the budget offers neither retry nor generate', async () => {
+    const w = wire()
+    w.repo.add({ status: 'failed', error_message: 'too_long' })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ can_retry: false, can_generate: false })
     await expect(w.service.request(w.ctx(OWNER), UUID, 'retry')).rejects.toMatchObject({ name: ErrorName.ERROR_PARAM })
     expect(w.create).not.toHaveBeenCalled()
+    // the refused retry gives its manual start back
+    expect(w.redis.store.get(`yt_article:${OWNER}:${today()}:manual`) ?? 0).toBe(0)
   })
 
   test('a requested row whose start is blocked by the lock is deferred, so the sweep still runs it', async () => {
@@ -581,16 +604,18 @@ describe('manual generate and retry', () => {
     expect(row.next_retry_at).toBeInstanceOf(Date)
   })
 
-  test('retry needs a failed row, resets attempts and does not count', async () => {
+  test('retry needs a failed row, resets attempts and counts as a manual start', async () => {
     const w = wire()
     const row = w.repo.add({ status: 'failed', retry_count: 3 })
     await w.service.request(w.ctx(OWNER), UUID, 'retry')
     expect(row).toMatchObject({ status: 'pending', retry_count: 0 })
     expect(w.create.mock.calls[0][0]).toMatchObject({ params: { trigger: 'retry' } })
-    expect(w.redis.store.get(`yt_article:${OWNER}:${today()}:manual`)).toBeUndefined()
+    expect(w.redis.store.get(`yt_article:${OWNER}:${today()}:manual`)).toBe(1)
 
     row.status = 'ready'
     await expect(w.service.request(w.ctx(OWNER), UUID, 'retry')).rejects.toMatchObject({ name: ErrorName.ERROR_PARAM })
+    // the refused retry gives its manual start back
+    expect(w.redis.store.get(`yt_article:${OWNER}:${today()}:manual`)).toBe(1)
   })
 
   test('generate on a ready or running row changes nothing', async () => {

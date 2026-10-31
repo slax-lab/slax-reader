@@ -1,0 +1,39 @@
+# Validation
+
+Date: 2026-10-31. Branch `fix/youtube-article-truncation`, cut from `origin/dev` at `6deae73c`.
+
+## Baseline
+
+Production evidence (Cloudflare Workflows, `wrangler workflows instances describe`):
+
+- `youtube-article-workflow` has 5 instances since the feature shipped. Every one ends in `finish-retry` or `finish-failed`; no article was ever published.
+- Video `H9Bdv3t5VtQ` (zh, v2): chunks 0–3 complete in 23–27 s with 5.6k–5.9k output tokens each. Chunk 4 ends with `Error: chunk_truncated` on all 3 step attempts in 4 runs (prod `mvvoihba` 08:44, beta `mvvp91su` 09:05, beta `mvvpypkr` 09:25, prod `mvvqib4d` 09:40), 12 identical calls. Run `mvvr8aa5` (10:00) stops in `prepare` with `budget_exceeded`.
+- R2 (`slax-reader-backend`): `…-zh-v2/3.json.source` exists, `…-zh-v2/4.json.source` does not, so the English edit call is the one that truncates. The chunk's input is ordinary: 224 cues, 7,133 characters.
+- Videos `d9y30vB88zg` (chunk 0, v1) and `WdWVlQgkVe4` (chunk 21, v1) fail the same way.
+
+Before the fix, the new runner tests failed as expected: `outputTokenLimit`/`repetitionRatio` did not exist (7 failures), and a truncating model drove the row to `pending` with 3 identical calls instead of a split.
+
+## Automated checks
+
+Run from `apps/api` on the final diff:
+
+- `pnpm vitest run --config vitest.config.ts`: 199 files passed, 14 skipped; 2,709 tests passed, 113 skipped. Two earlier runs showed one timing-dependent failure each in `test/script` (dev port guard, gen-config offline path); both pass in this run and on `origin/dev`, and neither touches this change.
+- `pnpm vitest run test/domain/youtubeArticleRunner.test.ts`: 40 passed. New: whole-chunk truncation → 3 calls and a complete article; multi-chunk split keeps the overlap on the first part only and covers all 300 cues once; always-truncating model → `failed`, `chunk_truncated`, 3 calls (whole, half, quarter), `retry_count` 1; `maxOutputTokens` equals `outputTokenLimit(estimateTokens(user))` on every call (10,000 at 2,500 tokens, 4,000 floor, 16,000 ceiling); `youtube_article_truncated` log carries `article_id`, `chunk`, `parts`, `input_tokens`, `candidate_tokens`, `thought_tokens`, `repetition_ratio` and no transcript words; v2 edit split with translation per part (3 edit calls, 2 translation calls, 40 cue ids in order); a single-section translation that truncates fails with one call; repetition ratio > 0.9 for a loop and < 0.1 for prose.
+- `pnpm vitest run test/domain/youtubeArticleService.test.ts`: 114 passed. New: `budget_exceeded` row → `can_retry: true`, `can_generate: false`; retry resets `retry_count` and `cost_usd`, takes one manual start; 6th manual start → `limit_reached`, row unchanged; `too_long` → neither flag, retry refused, no start taken; a refused retry gives its manual start back.
+- `pnpm vitest run test/infra/vertexAIUsage.test.ts`: 2 passed (`thoughtTokens` mapping).
+- `RUN_PG_INTEGRATION_TESTS=1 pnpm vitest run test/infra/youtubeArticleRepo.integration.test.ts` against the local `dev-postgres` container (port 15432, all 57 `pg_migrations` applied with `prisma migrate deploy`): 15 passed, including `requeue(id, true)` on a `budget_exceeded` row → `pending`, `retry_count` 0, `cost_usd` 0, and `too_long` refused for both paths.
+- `pnpm exec tsc --project tsconfig.json --noEmit`: passed.
+- `pnpm exec eslint` on the six changed source files: 0 errors; 13 pre-existing `no-explicit-any` warnings in untouched code (`vertexAIClient.ts` `chatStream`, `youtubeArticle.ts`).
+- `pnpm exec openspec validate --all --strict`: 90 passed, 0 failed.
+- `git diff --check`: passed.
+
+## Exercised in a running environment
+
+- Repository behavior on a real PostgreSQL (integration test above): the explicit retry recovers a `budget_exceeded` row and refuses `too_long`.
+- Runner replay against the real model was prepared: the production caption and chunks 0–3 of `H9Bdv3t5VtQ` were loaded from R2 into an in-memory bucket and the new runner started with `VertexAIClient`. The run reused chunks 0–3 and reached chunk 4, then stopped with `Authentication is not set up`: this machine has no `VERTEX_API_KEY`. Scenario "One split recovers the chunk" is therefore covered by the runner tests only.
+
+## Not verified, and why
+
+- The real model's reply to chunk 4 after the split (whether halves of that passage complete). No Vertex credential is available locally; the API deploys from `dev`/`beta`/`main` pushes only. Planned: after this merges and reaches beta, retry `H9Bdv3t5VtQ` from a Labs account and read the `youtube_article_truncated` and `youtube_article_chunk` events in the workflow instance (task 4.2). The truncation telemetry exists for this purpose.
+- Site-wide daily cap and alert: unchanged code, covered by existing service tests.
+- UI: no Web code changes. The existing retry button appears for one more failure reason (`budget_exceeded`); the only such rows live in production, so hands-on acceptance of that state happens on beta with the production database after the merge.

@@ -6,6 +6,7 @@ import { MediaArticleRepo, type MediaKind } from '@/infra/repository/dbMediaArti
 
 export {
   FINAL_ERRORS,
+  blocksRetry,
   isFinalError,
   eligibilityDecision,
   MEDIA_ARTICLE_MAX_ATTEMPTS as YOUTUBE_ARTICLE_MAX_ATTEMPTS,

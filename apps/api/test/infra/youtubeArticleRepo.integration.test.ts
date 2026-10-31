@@ -158,7 +158,7 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     expect((await repo.findById(other.id))?.retry_count).toBe(0)
   })
 
-  test('requeue: generate takes skipped/failed, retry takes failed only; both mark the row as requested; never after the budget ran out', async () => {
+  test('requeue: generate takes skipped/failed, retry takes failed only; both mark the row as requested; only the retry recovers a spent budget', async () => {
     const row = await repo.recordEvaluation(evaluation({ status: 'skipped' }))
     expect(await repo.requeue(row.id, true)).toBe(false)
     expect(await repo.requeue(row.id, false)).toBe(true)
@@ -169,9 +169,12 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     expect(await repo.requeue(row.id, true)).toBe(true)
     expect(await repo.findById(row.id)).toMatchObject({ status: 'pending', retry_count: 0, error_message: null })
 
-    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'failed', error_message: 'budget_exceeded' } })
-    expect(await repo.requeue(row.id, true)).toBe(false)
+    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'failed', error_message: 'budget_exceeded', retry_count: 3, cost_usd: 0.69 } })
     expect(await repo.requeue(row.id, false)).toBe(false)
+    expect(await repo.requeue(row.id, true)).toBe(true)
+    expect(await repo.findById(row.id)).toMatchObject({ status: 'pending', retry_count: 0, cost_usd: 0, error_message: null })
+    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'failed', error_message: 'too_long' } })
+    expect(await repo.requeue(row.id, true)).toBe(false)
     await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'skipped', error_message: 'too_long' } })
     expect(await repo.requeue(row.id, false)).toBe(false)
   })

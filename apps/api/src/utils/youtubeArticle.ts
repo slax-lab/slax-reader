@@ -110,6 +110,28 @@ export function expectedChunkCostUsd(promptTokens: number): number {
   return estimateCostUsd(promptTokens, Math.min(YOUTUBE_ARTICLE_LIMITS.maxOutputTokens, promptTokens * 2 + 500))
 }
 
+/**
+ * Output limit of one model call from the size of its user message. A healthy edit reply is
+ * about 1.3 times the user message and a one-shot Chinese reply about 2.4 times (thinking
+ * included), so 4 times leaves room while a looping reply stops well before the 16k ceiling.
+ */
+export function outputTokenLimit(userTokens: number): number {
+  return Math.min(YOUTUBE_ARTICLE_LIMITS.maxOutputTokens, Math.max(4000, userTokens * 4))
+}
+
+/**
+ * Share of repeated 40-character windows in the last 4,000 characters of a reply: near 1 for a
+ * reply stuck in a loop, near 0 for prose. Logged as a count on truncation; the text never is.
+ */
+export function repetitionRatio(text: string, window = 40, tail = 4000): number {
+  const sample = text.slice(-tail)
+  const total = sample.length - window + 1
+  if (total <= 0) return 0
+  const seen = new Set<string>()
+  for (let i = 0; i < total; i++) seen.add(sample.slice(i, i + window))
+  return 1 - seen.size / total
+}
+
 export function formatTimestamp(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000))
   const h = Math.floor(total / 3600)
