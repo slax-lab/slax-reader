@@ -657,3 +657,26 @@ test('publication preserves an annotated legacy body and reports it as unpublish
   expect(w.objects.get('html/body/u1.html')).toBe(before)
   expect((await w.service.getStatus(w.ctx(OWNER), UUID)).body_ready).toBe(false)
 })
+
+test('an annotated body keeps its notes and offers the original article below it', async () => {
+  const w = wire()
+  w.readyEpisode()
+  w.markRepo.bodyHasMarks.mockResolvedValue(true)
+  await w.service.publishBodies(w.ctx(OWNER), SOURCE)
+  const version = `${HASH.slice(0, 12)}-en-1-v1`
+  for (const viewer of [OWNER, VISITOR]) {
+    expect(await w.service.getStatus(w.ctx(viewer), UUID)).toMatchObject({ article: 'ready', body_ready: false, body_mode: 'transcript', article_version: version })
+    const article = await w.service.getTranslation(w.ctx(viewer), UUID, version)
+    expect(article).toMatchObject({ version, language: 'en', lede: 'Lede.' })
+    expect(article.sections[0].paragraphs[0]).toMatchObject({ text: 'Second.', start_ms: 12_000 })
+  }
+})
+
+test('a published or unmarked body offers no article below it', async () => {
+  const w = wire()
+  w.readyEpisode()
+  expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ body_ready: false, body_mode: 'article', article_version: null })
+  await w.service.publishBodies(w.ctx(OWNER), SOURCE)
+  expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ body_ready: true, body_mode: 'article', article_version: null })
+  await expect(w.service.getTranslation(w.ctx(VISITOR), UUID, `${HASH.slice(0, 12)}-en-1-v1`)).rejects.toMatchObject({ name: ErrorName.BOOKMARK_NOT_FOUND })
+})

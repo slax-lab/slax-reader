@@ -622,6 +622,7 @@
       "translating": "正在翻译成{language}……",
       "ready_reload": "文字稿已整理好。",
       "show_article": "显示文字稿",
+      "kept_body": "划线和评论保留在节目简介上，文字稿在下方。",
       "limit_reached": "今天的新节目数已用完，明天再试。",
       "failed": "文字稿整理失败。",
       "retry": "重试",

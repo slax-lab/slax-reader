@@ -429,6 +429,10 @@ export interface PodcastState {
   article: PodcastArticleStatus
   /** The bookmark body is the cleaned transcript */
   body_ready: boolean
+  /** 'transcript': marks keep the show notes as the body, so the article shows below it */
+  body_mode?: 'article' | 'transcript'
+  /** With body_mode 'transcript': the original article version for /v1/podcast/translation */
+  article_version?: string | null
   language: 'en' | 'zh' | null
   /** too_long, no_speech, language_unsupported, moderation, limit_reached, ... */
   reason: string | null

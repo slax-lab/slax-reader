@@ -31,9 +31,11 @@ const state = (o: Record<string, unknown> = {}) => ({
 
 const TRANSLATION = { version: 'v-zh', language: 'zh', lede: '导读', sections: [{ heading: '标题', start_ms: 0, paragraphs: [{ speaker: null, text: '译文', start_ms: 1000 }] }] }
 
+const ORIGINAL = { version: 'v-en', language: 'en', lede: 'Lede', sections: [{ heading: 'Heading', start_ms: 0, paragraphs: [{ speaker: null, text: 'Original', start_ms: 1000 }] }] }
+
 function routeGet(statuses: unknown[]) {
-  mockGet.mockImplementation(({ url }: { url: string }) => {
-    if (url.endsWith('/translation')) return Promise.resolve(TRANSLATION)
+  mockGet.mockImplementation(({ url, query }: { url: string; query?: { version?: string } }) => {
+    if (url.endsWith('/translation')) return Promise.resolve(query?.version === 'v-en' ? ORIGINAL : TRANSLATION)
     const next = statuses.length > 1 ? statuses.shift() : statuses[0]
     return Promise.resolve(next)
   })
@@ -202,6 +204,28 @@ describe('PodcastBar', () => {
     const [original] = w.findAll('.pod-switch button')
     await original!.trigger('click')
     expect(w.emitted('update:mode')!.at(-1)).toEqual(['original'])
+  })
+
+  it('marks keep the show notes: says so, sends the original article below, and keeps the switch', async () => {
+    routeGet([
+      state({
+        transcript: 'ready',
+        article: 'ready',
+        body_ready: false,
+        body_mode: 'transcript',
+        article_version: 'v-en',
+        translation: { status: 'ready', language: 'zh', version: 'v-zh' }
+      })
+    ])
+    const w = await mount({ mode: 'original', 'onUpdate:mode': (v: string) => w.setProps({ mode: v }) })
+    await flushPromises()
+    expect(w.emitted('article')!.at(-1)).toEqual([ORIGINAL])
+    expect(w.text()).toContain('Highlights and comments keep the show notes')
+    expect(w.emitted('refresh-body')).toBeUndefined()
+    expect(w.emitted('update:mode')!.at(-1)).toEqual(['translation'])
+    expect(w.findAll('.pod-switch button')).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(statusCalls()).toBe(1)
   })
 
   it('a translation in progress shows its own line', async () => {

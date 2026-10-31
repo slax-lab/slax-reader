@@ -20,6 +20,9 @@ Human hands-on acceptance remains pending. Screenshots do not establish acceptan
 - Recognize additional platform episode URLs and parse public episode metadata.
 - Match feed items by exact audio URL or title, date, and duration. Reject title-only matches.
 - Decode RSS URL entities once. The previous Apple test hid a mismatch through title-only selection.
+- 2026-10-31: Rebase onto `dev` after #405 and #406 merged. Keep the accepted `fix-youtube-style` YouTube processor and styles. Scope the shared reading styles and contents links to Podcast articles.
+- 2026-10-31: Accept a cue that repeats directly after itself, when its text is split across adjacent paragraphs. A missing, reordered, later repeated, or invented cue still fails. The Podcast runner uses the shared length band.
+- 2026-10-31: An annotated body that keeps the show notes reports `body_mode: 'transcript'` and `article_version`. The status bar gives the reason. The original article shows below the body, and the translation switch stays available.
 
 ## Automated evidence
 
@@ -144,9 +147,19 @@ Web and API do not use package-version increments under `docs/release/VERSIONING
 - Compliance: **Important — human hands-on acceptance is pending.** Keep the PR in draft.
 - Completion: the live source and platform gaps above remain open. They do not count as completed tasks.
 
+## Review round 3 — 2026-10-31
+
+The `/review` gate on `6144089` reported three Important findings.
+
+- Annotated body never shows the article: fixed. `podcastService.test.ts` covers owner and visitor status and the original-article read. `PodcastBar.spec.ts` covers the reason line, the article below, the switch, and the end of polling.
+- Chinese editing fails exact coverage: the check is fixed and covered by `mediaEditing.test.ts`. A real Chinese episode is not run again yet, so Chinese publication stays unverified.
+- Human hands-on acceptance: still pending. The YouTube body now keeps the design accepted on 2026-10-29 in `fix-youtube-style`. The Podcast article keeps its earlier look. They now differ in heading and paragraph timestamps; hands-on acceptance must decide the Podcast look.
+
+Commands after the rebase: API `tsc --noEmit`, `vitest run` (200 files passed, 14 skipped), and `eslint src`. Web `vue-tsc` and `vitest run` (224 files passed, 1 skipped) with the CI placeholder environment. `openspec validate --all --strict` passed.
+
 ## Next verification
 
-1. Correct Chinese article editing without weakening coverage or readability checks; reuse the saved transcript.
+1. Run a real Chinese episode again with the corrected coverage check; reuse the saved transcript.
 2. Verify live playback with an accessible complete episode.
 3. Verify each additional platform through a real episode, including its unavailable state.
 4. Test translated articles and deployed visitor reads.

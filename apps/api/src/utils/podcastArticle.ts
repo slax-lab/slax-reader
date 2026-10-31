@@ -658,9 +658,7 @@ export function renderMediaArticle(
     }
     out.push('</section>')
   }
-  out.push(
-    `<footer class="slax-yt-method"><strong>${lang === 'zh' ? '方法与来源' : 'Method and source'}</strong><p>${METHOD_NOTES[kind][lang]}</p></footer>`
-  )
+  out.push(`<footer class="slax-yt-method"><strong>${lang === 'zh' ? '方法与来源' : 'Method and source'}</strong><p>${METHOD_NOTES[kind][lang]}</p></footer>`)
   if (captionSource)
     out.push(
       `<p class="slax-yt-method">${lang === 'zh' ? '转写来源：YouTube 字幕。时间戳打开视频，不跳转播客音频。' : 'Transcript source: YouTube captions. Timestamps open the video, not the podcast audio.'} <a href="${escapeHtml(captionSource)}" target="_blank" rel="noopener noreferrer">YouTube</a></p>`

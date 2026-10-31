@@ -87,6 +87,11 @@ Existing private access, moderation, owner-only retry, budget, and annotation pr
 - **WHEN** owner recapture would replace a body with existing annotations
 - **THEN** the system preserves that body and its annotations instead of silently replacing them
 
+#### Scenario: Article ready for an annotated body
+- **WHEN** the original article is ready, but annotations keep the show notes as the bookmark body
+- **THEN** the status reports that the body keeps the show notes and identifies the original article version
+- **AND** the reader sees a reason and reads the article below the kept body, with the translation switch still available
+
 
 ### Requirement: Verified alternate transcript source
 

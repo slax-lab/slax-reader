@@ -621,6 +621,7 @@
       "translating": "Translating into {language}…",
       "ready_reload": "The readable transcript is ready.",
       "show_article": "Show it",
+      "kept_body": "Highlights and comments keep the show notes. The readable transcript is below.",
       "limit_reached": "You reached today’s limit of new episodes. Try again tomorrow.",
       "failed": "Could not make the readable transcript.",
       "retry": "Retry",

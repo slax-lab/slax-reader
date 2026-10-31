@@ -25,11 +25,16 @@ export const podcastPhase = (s: PodcastState | null): PodcastPhase => {
   return 'writing'
 }
 
+/** The original article version to show below the body, when marks keep the show notes. */
+const keptArticleVersion = (s: PodcastState | null) => (s?.article === 'ready' && s.body_mode === 'transcript' && s.article_version) || null
+
 const translationWorking = (s: PodcastState | null) => !!s?.translation && ['pending', 'generating', 'validating'].includes(s.translation.status)
 
 export const usePodcast = (bookmarkUid: () => string) => {
   const state = ref<PodcastState | null>(null)
   const translation = ref<PodcastTranslation | null>(null)
+  /** The original article, when marks keep the show notes as the body (body_mode 'transcript') */
+  const article = ref<PodcastTranslation | null>(null)
   const acting = ref(false)
 
   let timer: ReturnType<typeof setTimeout> | null = null
@@ -39,6 +44,7 @@ export const usePodcast = (bookmarkUid: () => string) => {
   let stopped = false
   let failures = 0
   let translationFailures = 0
+  let articleFailures = 0
 
   // Polling gave up (failed requests, or the time cap) while work was still running; the reader can check again
   const stalled = ref(false)
@@ -50,7 +56,11 @@ export const usePodcast = (bookmarkUid: () => string) => {
     // Not started (daily limit, or never requested): it waits for the owner's retry, not for a poll
     if (s.transcript === 'pending' && s.can_retry) return false
     if (phase.value === 'queued' || phase.value === 'transcribing' || phase.value === 'writing') return true
-    return translationWorking(s) || (s.translation?.status === 'ready' && !translation.value && translationFailures < MAX_FAILURES)
+    return (
+      translationWorking(s) ||
+      (s.translation?.status === 'ready' && !translation.value && translationFailures < MAX_FAILURES) ||
+      (!!keptArticleVersion(s) && !article.value && articleFailures < MAX_FAILURES)
+    )
   }
 
   const clearTimer = () => {
@@ -58,11 +68,26 @@ export const usePodcast = (bookmarkUid: () => string) => {
     timer = null
   }
 
-  const loadTranslation = async (version: string) => {
-    if (!version || version === loadedVersion) return
-    const res = await request()
+  const fetchContent = (version: string) =>
+    request()
       .get<PodcastTranslation>({ url: RESTMethodPath.PODCAST_TRANSLATION, query: { bookmark_uid: bookmarkUid(), version }, errorInterceptors: silent })
       .catch(() => null)
+
+  const loadArticle = async (version: string) => {
+    if (article.value?.version === version) return
+    const res = await fetchContent(version)
+    if (stopped) return
+    if (!res) {
+      articleFailures++
+      return
+    }
+    articleFailures = 0
+    article.value = res
+  }
+
+  const loadTranslation = async (version: string) => {
+    if (!version || version === loadedVersion) return
+    const res = await fetchContent(version)
     if (stopped) return
     if (!res) {
       translationFailures++
@@ -95,6 +120,9 @@ export const usePodcast = (bookmarkUid: () => string) => {
     }
     state.value = next
     if (next.translation?.status === 'ready' && next.translation.version) await loadTranslation(next.translation.version)
+    const kept = keptArticleVersion(next)
+    if (kept) await loadArticle(kept)
+    else article.value = null
     schedule()
   }
 
@@ -144,7 +172,7 @@ export const usePodcast = (bookmarkUid: () => string) => {
     }
   }
 
-  return { state, translation, phase, acting, stalled, start, stop, refresh, retry }
+  return { state, translation, article, phase, acting, stalled, start, stop, refresh, retry }
 }
 
 export default usePodcast

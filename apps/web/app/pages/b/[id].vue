@@ -53,6 +53,7 @@
                 :bookmark-uid="bookmarkUid"
                 :body-has-article="podcastBodyHasArticle"
                 @translation="podcastTranslation = $event"
+                @article="podcastArticle = $event"
                 @refresh-body="refreshBody"
               />
               <YoutubeArticleBar
@@ -68,7 +69,7 @@
         <template #after-body>
           <ClientOnly>
             <div>
-              <PodcastTranslation v-if="podcastShowsTranslation && podcastTranslation" :content="podcastTranslation" />
+              <PodcastTranslation v-if="podcastBelow" :content="podcastBelow" />
               <YoutubeAiArticle
                 v-if="youtubeArticleView === 'below'"
                 :bookmark-uid="bookmarkUid"
@@ -578,6 +579,9 @@ const podcastBodyHasArticle = computed(() => /class="slax-pod-article"/.test(det
 const podcastMode = ref<'original' | 'translation'>('original')
 const podcastTranslation = ref<PodcastTranslationContent | null>(null)
 const podcastShowsTranslation = computed(() => isPodcast.value && podcastMode.value === 'translation' && !!podcastTranslation.value)
+// Marks keep the show notes as the body: the original article shows below it
+const podcastArticle = ref<PodcastTranslationContent | null>(null)
+const podcastBelow = computed(() => (podcastShowsTranslation.value ? podcastTranslation.value : isPodcast.value && !podcastBodyHasArticle.value ? podcastArticle.value : null))
 // The cleaned transcript replaced the player-only body: load it and mount the article again, so the
 // processors run and marks are drawn on the new body
 const bodyKey = ref(0)

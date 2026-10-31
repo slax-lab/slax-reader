@@ -18,6 +18,9 @@
         {{ failureText }}
         <button v-if="state?.can_retry" type="button" class="pod-action" :disabled="acting" @click="retry">{{ $t('component.podcast.retry') }}</button>
       </p>
+      <p v-else-if="keptBody" class="pod-status">
+        {{ $t('component.podcast.kept_body') }}
+      </p>
       <p v-else-if="awaitingBody" class="pod-status">
         {{ $t('component.podcast.ready_reload') }}
         <button type="button" class="pod-action" @click="emit('refresh-body')">{{ $t('component.podcast.show_article') }}</button>
@@ -32,7 +35,7 @@
       </p>
     </div>
 
-    <div v-if="translation && bodyHasArticle" class="pod-switch" role="group" :aria-label="$t('component.podcast.view')">
+    <div v-if="translation && (bodyHasArticle || keptBody)" class="pod-switch" role="group" :aria-label="$t('component.podcast.view')">
       <button type="button" :class="{ active: mode === 'original' }" :aria-pressed="mode === 'original'" @click="setMode('original')">
         {{ $t('component.podcast.original') }}
       </button>
@@ -61,10 +64,12 @@ const emit = defineEmits<{
   /** The cleaned transcript is ready but the body on screen is the player-only one */
   'refresh-body': []
   translation: [value: PodcastTranslation | null]
+  /** The original article to show below the body, when marks keep the show notes */
+  article: [value: PodcastTranslation | null]
 }>()
 
 const { t } = useI18n()
-const { state, translation, phase, acting, stalled, start, stop, retry } = usePodcast(() => props.bookmarkUid)
+const { state, translation, article, phase, acting, stalled, start, stop, retry } = usePodcast(() => props.bookmarkUid)
 
 const visible = computed(() => phase.value !== 'hidden')
 // The owner's episode that never started (daily limit reached when it was saved)
@@ -72,6 +77,8 @@ const notStarted = computed(() => state.value?.transcript === 'pending' && !!sta
 const working = computed(() => phase.value === 'queued' || phase.value === 'transcribing' || phase.value === 'writing')
 const translationWorking = computed(() => !!state.value?.translation && ['pending', 'generating', 'validating'].includes(state.value.translation.status))
 const awaitingBody = computed(() => phase.value === 'done' && !!state.value?.body_ready && !props.bodyHasArticle)
+// Marks keep the show notes as the body; the article shows below it, as for YouTube
+const keptBody = computed(() => phase.value === 'done' && !props.bodyHasArticle && !!article.value)
 
 const languageName = (lang?: string | null) => (lang ? t(`component.podcast.lang.${lang}`) : '')
 
@@ -88,7 +95,8 @@ const setMode = (next: 'original' | 'translation') => {
   mode.value = next
 }
 watch(translation, value => emit('translation', value))
-watch([translation, () => props.bodyHasArticle], ([value, hasArticle]) => {
+watch(article, value => emit('article', value))
+watch([translation, () => props.bodyHasArticle || keptBody.value], ([value, hasArticle]) => {
   if (value && hasArticle && !chosen) mode.value = 'translation'
 })
 

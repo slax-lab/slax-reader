@@ -1,1 +1,11 @@
-export { editingInstruction, translationInstruction, TRANSLATION_SCHEMA, parseTranslation, EDITED_LENGTH_BOUNDS, EDITING_CONTEXT_CHARS, editingContext, completeCueCoverage, editedLengthRatio } from './mediaEditing'
+export {
+  editingInstruction,
+  translationInstruction,
+  TRANSLATION_SCHEMA,
+  parseTranslation,
+  EDITED_LENGTH_BOUNDS,
+  EDITING_CONTEXT_CHARS,
+  editingContext,
+  completeCueCoverage,
+  editedLengthRatio
+} from './mediaEditing'
