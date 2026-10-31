@@ -14,8 +14,9 @@
 ## 3. Explicit retry after budget_exceeded
 
 - [x] 3.1 Add failing repository tests: `requeue(id, true)` accepts `budget_exceeded`, rejects `too_long`, and resets `cost_usd` and `retry_count`.
-- [x] 3.2 Add failing service tests: `can_retry` for a `budget_exceeded` row, retry takes one manual daily start, `limit_reached` when none is left, and the allowance is given back when nothing starts.
+- [x] 3.2 Add failing service tests: `can_retry` for a `budget_exceeded` row and the reset of run spend and attempts (the daily-start rule was replaced in 3.4).
 - [x] 3.3 Implement the repository and service changes.
+- [x] 3.4 Add `lifetime_cost_usd` with an expand-only migration; stop a version at $2.00 total with `lifetime_budget_exceeded`; the retry takes no daily start (Luca, 2026-10-31). Tests: runner stop before and during a run, service retry after 5 manual starts and refusal at the cap, private-variant retry gate per reason, PG integration for the column and the requeue.
 
 ## 4. Verification and delivery
 

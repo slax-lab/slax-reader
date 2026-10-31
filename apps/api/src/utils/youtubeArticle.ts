@@ -26,6 +26,8 @@ export const YOUTUBE_ARTICLE_LIMITS = {
   // chunkTargetTokens each cost about $0.95 at the list price. $0.30 silently
   // turned every video longer than about 1.5 hours into a "too_long" skip.
   maxCostUsd: 1,
+  // Hard cap per version across every explicit retry: each retry restarts the $1 run budget
+  maxLifetimeCostUsd: 2,
   dailyCostUsd: 20,
   maxConcurrent: 4,
   leaseMs: 10 * 60 * 1000

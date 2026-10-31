@@ -364,8 +364,9 @@ export class YoutubeArticleService {
   // ---------- write ----------
 
   /**
-   * Owner actions. `generate` runs a skipped or failed version; `retry` runs a failed version again
-   * from zero attempts and zero spend. Both count against the daily manual limit.
+   * Owner actions. `generate` runs a skipped or failed version and counts against the daily manual
+   * limit; `retry` runs a failed version again from zero attempts and zero run spend, does not
+   * count, and stops at the version's lifetime cap.
    */
   public async request(ctx: ContextManager, bookmarkUid: string, mode: 'generate' | 'retry'): Promise<YoutubeArticleStatusResponse> {
     const access = await this.resolveAccess(ctx, bookmarkUid)
@@ -396,12 +397,8 @@ export class YoutubeArticleService {
 
     if (mode === 'retry') {
       if (row.status !== 'failed') throw ErrorParam()
-      // The retry starts the version's spend again, so it takes a manual start like generate
-      if (!(await this.takeDaily(access.ownerId, 'manual'))) return { ...(await this.getStatus(ctx, bookmarkUid)), status: 'limit_reached', can_retry: false }
-      if (!(await this.repo.requeue(row.id, true, { recoverBudget: true }))) {
-        await this.giveBackDaily(access.ownerId, 'manual')
-        throw ErrorParam()
-      }
+      // The retry restarts the run budget; the version's lifetime cap and the site-wide cap bound it
+      if (!(await this.repo.requeue(row.id, true, { recoverBudget: true }))) throw ErrorParam()
     } else {
       if (row.status !== 'skipped' && row.status !== 'failed') return this.getStatus(ctx, bookmarkUid)
       if (!(await this.takeDaily(access.ownerId, 'manual'))) return { ...(await this.getStatus(ctx, bookmarkUid)), status: 'limit_reached', can_generate: false }

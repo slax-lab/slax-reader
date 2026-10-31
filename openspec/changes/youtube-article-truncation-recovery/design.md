@@ -52,7 +52,9 @@ Part-level results are not cached in R2. The step engine still retries the whole
 
 ### 4. Explicit retry after `budget_exceeded`
 
-`requeue(id, resetAttempts = true, { recoverBudget: true })` keeps the `too_long` exclusion but drops the `budget_exceeded` exclusion, and sets `cost_usd: 0` with `retry_count: 0`. `MediaArticleRepo` is shared with podcast articles, so the recovery is an explicit option that only the YouTube retry passes; the podcast retry (`requeue(id, true)`) keeps every final error. `isFinalError` keeps both codes, so `can_generate` (the "generate anyway" path, which does not reset) is unchanged; `can_retry` becomes `status === 'failed' && !error.startsWith('too_long')`. `requestArticle` in `retry` mode calls `takeDaily(owner, 'manual')` and gives it back when the requeue or start does not happen, the same as the `manual` path. The per-user manual limit (5 per day) and the site-wide daily cap bound the extra spend.
+`requeue(id, resetAttempts = true, { recoverBudget: true })` keeps the `too_long` exclusion but drops the `budget_exceeded` exclusion, and sets `cost_usd: 0` with `retry_count: 0`. `MediaArticleRepo` is shared with podcast articles, so the recovery is an explicit option that only the YouTube retry passes; the podcast retry (`requeue(id, true)`) keeps every final error. `isFinalError` keeps both codes, so `can_generate` (the "generate anyway" path, which does not reset) is unchanged; `can_retry` becomes `status === 'failed' && !error.startsWith('too_long')`. The retry takes no daily start (decision by Luca, 2026-10-31). A new column `lifetime_cost_usd` bounds the extra spend instead: `addCost` increments it with `cost_usd`, the recovering retry never resets it, and the runner stops with the final code `lifetime_budget_exceeded` before a call or a run that would raise it above $2.00 (`YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd`). The lifetime check runs before the per-run check, so a version at both limits reports the final code. `blocksRetry` covers `too_long` and `lifetime_budget_exceeded`.
+
+Alternative considered: count the retry against the 5 manual starts. Rejected: it bounds spend per user per day, not per video, and it blocks a user whose other videos used the starts.
 
 Alternative: exclude truncated-call cost from `cost_usd`. Rejected: the money is spent; hiding it breaks the site-wide cap's meaning.
 
@@ -65,11 +67,11 @@ Record in `media-article-reliability` that YouTube calls use `thinkingLevel: 'LO
 - [Splitting does not stop a content-driven loop] → telemetry (decision 3) shows the mode; the part limit caps spend at about 1 + 2 + 4 smaller calls; the version fails without automatic retries.
 - [4× output limit too tight for some chunk] → the call returns `MAX_TOKENS`, the split halves the input, and the limit never drops below 4,000 tokens. Runner tests cover a part at the floor.
 - [Part boundaries cut a sentence] → cue slices keep order and ids; `completeCueCoverage` and the length-ratio check still run on the joined chunk. A heading may repeat at the seam; the existing merge step already tolerates adjacent sections.
-- [A user retries a bankrupt version 5 times a day] → bounded by the manual limit and the $20 site cap; each retry after the fix costs about $0.40, not $1.
+- [A user retries a bankrupt version again and again] → the $2.00 lifetime cap ends the version; the $20 site cap bounds the day.
 
 ## Migration Plan
 
-1. Deploy the API. No schema change: `cost_usd`, `retry_count` and `error_message` already exist.
+1. Deploy the API. One expand-only migration (`20261031000000_media_article_lifetime_cost`) adds `lifetime_cost_usd DOUBLE PRECISION NOT NULL DEFAULT 0` and copies `cost_usd` into it. Code that does not know the column keeps working. While the old production code runs after beta applies the migration, its `addCost` does not increment the new column, so the lifetime total of rows spent in that window lags by what that code spent; the per-run $1.00 cap still applies to them.
 2. The three failed production rows show `can_retry`; Luca retries them from the bookmark page, which also verifies the fix on real data.
 3. Rollback: revert the deploy. Rows reset by a retry keep working under the old code.
 

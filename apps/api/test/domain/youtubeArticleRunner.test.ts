@@ -55,6 +55,7 @@ function memRow(over: Partial<youtubeArticlePO> = {}) {
     retry_count: 0,
     run_id: null as string | null,
     cost_usd: 0,
+    lifetime_cost_usd: 0,
     quality_json: null as object | null,
     article_key: null as string | null,
     error_message: null as string | null,
@@ -76,7 +77,10 @@ function memRow(over: Partial<youtubeArticlePO> = {}) {
       row.status = status
       return true
     }),
-    addCost: vi.fn(async (_id: number, usd: number) => (row.cost_usd += usd)),
+    addCost: vi.fn(async (_id: number, usd: number) => {
+      row.lifetime_cost_usd += usd
+      return (row.cost_usd += usd)
+    }),
     publish: vi.fn(async (_id: number, runId: string, hash: string, lang: string, data: { article_key: string; quality: object }) => {
       if (running() && row.run_id === runId && hash === row.source_hash && lang === row.target_language) {
         Object.assign(row, { status: 'ready', article_key: data.article_key, quality_json: data.quality })
@@ -383,7 +387,8 @@ describe('model failures', () => {
     // whole, first half, first quarter: each smaller than the last, never the same call twice
     expect(s.model.chat).toHaveBeenCalledTimes(3)
     expect(s.repo.row).toMatchObject({ status: 'failed', retry_count: 1 })
-    expect(s.repo.row.error_message).toBe('chunk_truncated')
+    // the stored error keeps the code first (the snapshot reason) and the split depth after it
+    expect(s.repo.row.error_message).toBe('chunk_truncated: parts=4')
   })
 
   test('the output limit follows the user message size, between 4,000 and 16,000 tokens', async () => {
@@ -452,6 +457,23 @@ describe('limits and gates', () => {
     await s.run()
     expect(s.repo.addCost).toHaveBeenCalledTimes(3)
     expect(s.repo.row.cost_usd).toBeGreaterThan(0)
+  })
+
+  test('the lifetime cap ends a retried version before the call that could cross it', async () => {
+    // a retry reset the run budget to 0, but the version already spent $1.99 in total
+    const s = setup({ row: { cost_usd: 0, lifetime_cost_usd: 1.99 } })
+    expect(await s.run()).toBe('failed')
+    expect(s.model.chat).not.toHaveBeenCalled()
+    expect(s.repo.row.error_message).toBe('lifetime_budget_exceeded')
+  })
+
+  test('the lifetime cap also stops mid-run, with its own final code', async () => {
+    // the plan fits at the start; the first call's spend pushes the lifetime over the cap
+    const s = setup({ cues: 300, row: { lifetime_cost_usd: 1.5 }, model: faithfulModel({ outputTokens: 200_000 }) })
+    expect(await s.run()).toBe('failed')
+    expect(s.model.chat).toHaveBeenCalledTimes(1)
+    expect(s.repo.row.error_message).toBe('lifetime_budget_exceeded')
+    expect(s.repo.row.lifetime_cost_usd).toBeGreaterThan(1.5)
   })
 
   test('a long video within the duration and chunk limits starts instead of being skipped as too_long', async () => {
@@ -692,7 +714,7 @@ describe('versioned transcript editing', () => {
     s.params.targetLanguage = 'zh'
     s.repo.row.target_language = 'zh'
     expect(await s.run()).toBe('failed')
-    expect(s.repo.row.error_message).toBe('chunk_truncated')
+    expect(s.repo.row.error_message).toBe('chunk_truncated: parts=1')
     expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Translate the edited'))).toHaveLength(1)
   })
 

@@ -68,7 +68,7 @@ export type RunnerOutcome = 'ready' | 'not_claimed' | 'gone' | 'skipped' | 'fail
 /** Never retried by the workflow engine and never retried by the sweeper. */
 export class YoutubeArticleStop extends Error {
   constructor(
-    public readonly code: 'budget_exceeded' | 'lease_lost' | 'caption_missing' | 'chunk_truncated',
+    public readonly code: 'budget_exceeded' | 'lifetime_budget_exceeded' | 'lease_lost' | 'caption_missing' | 'chunk_truncated',
     message?: string
   ) {
     // The code leads the message: the workflow engine may rewrap the error, the message survives
@@ -194,9 +194,14 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
   }
 
   const ask = async (system: string, user: string, opts: { introduction?: boolean; translation?: boolean; chunk?: number; parts?: number } = {}) => {
-    const spent = (await deps.repo.findById(p.articleId))?.cost_usd ?? 0
+    const row = await deps.repo.findById(p.articleId)
+    const spent = row?.cost_usd ?? 0
+    const lifetime = row?.lifetime_cost_usd ?? 0
     const userTokens = estimateTokens(user)
     const next = expectedChunkCostUsd(estimateTokens(system) + userTokens)
+    // The lifetime cap is checked first: it is the one no retry can lift
+    if (lifetime + next > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd)
+      throw new YoutubeArticleStop('lifetime_budget_exceeded', `lifetime=${lifetime.toFixed(4)} next=${next.toFixed(4)}`)
     if (spent + next > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) throw new YoutubeArticleStop('budget_exceeded', `spent=${spent.toFixed(4)} next=${next.toFixed(4)}`)
 
     const reply = await deps.model.chat(
@@ -270,7 +275,18 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         return { kind: 'skip' as const, reason: 'too_long' as const }
       }
       // Earlier attempts already spent part of the budget: do not start a run the rest cannot pay for
-      const spent = (await deps.repo.findById(p.articleId))?.cost_usd ?? 0
+      const row = await deps.repo.findById(p.articleId)
+      const spent = row?.cost_usd ?? 0
+      const lifetime = row?.lifetime_cost_usd ?? 0
+      if (lifetime + expected > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd) {
+        log('skipped', p, {
+          reason: 'lifetime_budget_exceeded',
+          lifetime_cost_usd: Number(lifetime.toFixed(5)),
+          expected_cost_usd: Number(expected.toFixed(5)),
+          max_lifetime_cost_usd: YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd
+        })
+        return { kind: 'skip' as const, reason: 'lifetime_budget_exceeded' as const }
+      }
       if (spent + expected > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) {
         log('skipped', p, {
           reason: 'budget_exceeded',
@@ -498,7 +514,8 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
       const code =
         err instanceof YoutubeArticleStop
           ? err.code
-          : (['budget_exceeded', 'lease_lost', 'caption_missing', 'chunk_truncated'].find(c => message.includes(c)) as YoutubeArticleStop['code'])
+          : // lifetime_budget_exceeded contains budget_exceeded, so it is matched first
+            (['lifetime_budget_exceeded', 'budget_exceeded', 'lease_lost', 'caption_missing', 'chunk_truncated'].find(c => message.includes(c)) as YoutubeArticleStop['code'])
       if (code === 'lease_lost') {
         // Another run took the row (its chunks stay, it reuses them), or the video was taken down
         // while this run was writing: then nobody else will delete what this run wrote
@@ -509,7 +526,8 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         log('lease_lost', p)
         return 'gone'
       }
-      return await finish('failed', code)
+      // A truncation keeps its detail (parts=N or introduction); budget codes stay bare for isFinalError
+      return await finish('failed', code === 'chunk_truncated' && message.startsWith(code) ? message.slice(0, 200) : code)
     }
     return await finish('retry', message.slice(0, 200))
   }
