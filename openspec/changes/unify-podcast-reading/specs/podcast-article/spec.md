@@ -50,12 +50,16 @@ Short links SHALL resolve through bounded, URL-checked redirects. Show pages SHA
 ### Requirement: Complete Podcast article editing
 
 The system SHALL edit speech in its original language before translation. Editing SHALL preserve claims, questions, examples, numbers, qualifications, and order.
-Every source cue SHALL map once to the edited paragraphs in source order. Excessive shortening or truncated output SHALL prevent publication.
+Every source cue SHALL map to the edited paragraphs in source order. A cue MAY repeat only directly after itself, when its text is split across adjacent paragraphs. Excessive shortening or truncated output SHALL prevent publication.
 The introduction SHALL use the complete edited article and remain distinct from the speech. Translation SHALL preserve paragraph structure and source references.
 
 #### Scenario: Missing or reordered source passage
 - **WHEN** edited output omits or reorders source references, or fails the source-length check
 - **THEN** the system rejects the output before publication and preserves any previously saved article
+
+#### Scenario: One cue split across two paragraphs
+- **WHEN** edited output references every source cue in order, and one cue is referenced by two adjacent paragraphs
+- **THEN** the cue-coverage check accepts the output, and the source-length check still applies
 
 #### Scenario: Topic near the end
 - **WHEN** the source discusses a major topic near the end of a long episode

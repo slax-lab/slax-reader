@@ -1,6 +1,6 @@
 import type { YoutubeCaptionDocument } from '@/utils/youtubeCaption'
 import { extractYoutubeVideoId } from '@/utils/platformDetector'
-import { completeCueCoverage, editedLengthRatio } from '@/utils/mediaEditing'
+import { completeCueCoverage, EDITED_LENGTH_BOUNDS, editedLengthRatio } from '@/utils/mediaEditing'
 import type { VertexAIConfig } from '@/infra/external/vertexAIClient'
 import type { AssemblyJobState } from '@/infra/external/assemblyAI'
 import type { PodcastArticleRepo, PodcastEpisodeRepo, podcastEpisodePO } from '@/infra/repository/dbPodcastArticle'
@@ -586,7 +586,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
           )
             throw new Error('chunk_incomplete_coverage')
           const ratio = editedLengthRatio(parsed.value.sections, own.map(c => c.text).join(' '))
-          if (ratio < 0.72 || ratio > 1.15) throw new Error('edited_length_ratio')
+          if (ratio < EDITED_LENGTH_BOUNDS[0] || ratio > EDITED_LENGTH_BOUNDS[1]) throw new Error('edited_length_ratio')
           const stored: StoredPolishChunk = { index: i, lede: parsed.value.lede, sections: parsed.value.sections, usage: reply.usage }
           await deps.bucket.put(key, JSON.stringify(stored))
           return { reused: false, cost: reply.usage.cost_usd }

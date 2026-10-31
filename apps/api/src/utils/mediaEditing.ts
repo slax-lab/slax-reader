@@ -101,9 +101,21 @@ export function editingContext(sections: ArticleSection[]): string {
   return JSON.stringify([{ ...last, paragraphs: kept }])
 }
 
+/**
+ * Every supplied cue is referenced, in source order, with no invented id. A cue can repeat only
+ * directly after itself: the model splits the text of one cue across two paragraphs. A skipped,
+ * reordered or later repeated cue fails. EDITED_LENGTH_BOUNDS stops a shortened edit separately.
+ */
 export function completeCueCoverage(sections: ArticleSection[], ids: string[]): boolean {
-  const actual = sections.flatMap(s => s.paragraphs.flatMap(p => p.source_cue_ids))
-  return new Set(ids).size === ids.length && actual.length === ids.length && actual.every((id, index) => id === ids[index])
+  const indexOf = new Map(ids.map((id, i) => [id, i]))
+  if (indexOf.size !== ids.length) return false
+  let last = -1
+  for (const id of sections.flatMap(s => s.paragraphs.flatMap(p => p.source_cue_ids))) {
+    const index = indexOf.get(id)
+    if (index === undefined || (index !== last && index !== last + 1)) return false
+    last = index
+  }
+  return last === ids.length - 1
 }
 
 /** Detect excessive shortening before translation can hide it behind language length differences. */
