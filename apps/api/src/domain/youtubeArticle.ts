@@ -364,8 +364,8 @@ export class YoutubeArticleService {
   // ---------- write ----------
 
   /**
-   * Owner actions. `generate` runs a skipped or failed version and counts against the daily manual
-   * limit; `retry` runs a failed version again from zero attempts and does not count.
+   * Owner actions. `generate` runs a skipped or failed version; `retry` runs a failed version again
+   * from zero attempts and zero spend. Both count against the daily manual limit.
    */
   public async request(ctx: ContextManager, bookmarkUid: string, mode: 'generate' | 'retry'): Promise<YoutubeArticleStatusResponse> {
     const access = await this.resolveAccess(ctx, bookmarkUid)

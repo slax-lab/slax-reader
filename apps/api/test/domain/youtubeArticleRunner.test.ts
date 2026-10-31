@@ -371,8 +371,10 @@ describe('model failures', () => {
     const ids = doc.sections.flatMap((x: any) => x.paragraphs.flatMap((p: any) => p.source_cue_ids))
     expect(new Set(ids).size).toBe(ids.length)
     expect(new Set(ids).size).toBe(300)
-    const later = s.model.chat.mock.calls.filter(c => /the first 0 cues were already covered/.test(c[2].systemInstruction))
+    const later = s.model.chat.mock.calls.filter(c => /Continue from the previous part of this chunk/.test(c[2].systemInstruction))
     expect(later.length).toBeGreaterThan(0)
+    // a later part never asks for a lede and never claims covered cues
+    for (const c of later) expect(c[2].systemInstruction).not.toMatch(/lede for the whole video|already covered/)
   })
 
   test('a chunk still truncated at 4 parts fails the version with no automatic retry', async () => {

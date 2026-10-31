@@ -213,10 +213,12 @@ export function planYoutubeArticle(caption: YoutubeCaptionDocument | null): Yout
 
 // ---------- prompt ----------
 
-export function buildSystemInstruction(lang: YoutubeArticleLanguage, chunk: YoutubeArticleChunk, chunkCount: number): string {
+/** `continuation`: a later part of a split chunk; it writes no lede and carries no overlap cues. */
+export function buildSystemInstruction(lang: YoutubeArticleLanguage, chunk: YoutubeArticleChunk, chunkCount: number, continuation = false): string {
   const name = youtubeArticleLanguageName(lang)
-  const position =
-    chunk.index === 0
+  const position = continuation
+    ? 'Do not write a lede. Continue from the previous part of this chunk; every cue below is new.'
+    : chunk.index === 0
       ? 'Start with a 3 to 5 sentence lede for the whole video, based on the video title and this chunk.'
       : `Do not write a lede. Continue from the previous chunk; the first ${chunk.overlap} cues were already covered.`
   return [

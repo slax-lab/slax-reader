@@ -32,6 +32,10 @@ Run from `apps/api` on the final diff:
 - Repository behavior on a real PostgreSQL (integration test above): the explicit retry recovers a `budget_exceeded` row and refuses `too_long`.
 - Runner replay against the real model was prepared: the production caption and chunks 0–3 of `H9Bdv3t5VtQ` were loaded from R2 into an in-memory bucket and the new runner started with `VertexAIClient`. The run reused chunks 0–3 and reached chunk 4, then stopped with `Authentication is not set up`: this machine has no `VERTEX_API_KEY`. Scenario "One split recovers the chunk" is therefore covered by the runner tests only.
 
+## Review round 2 (2026-10-31)
+
+The automated review on `932c67f8` found no Bugs or Security issue. Nits fixed in the next commit: later parts of a split chunk get a continuation instruction (no lede, no "already covered" clause); the `chunk-N` step timeout grows to the 10-minute lease because a split step can make several calls; the `request()` doc comment states that a retry counts as a manual start; `design.md` and the delta spec name the real helper and field. The remaining Important finding is a Compliance judgement about UI acceptance, recorded below for the human reviewer.
+
 ## Not verified, and why
 
 - The real model's reply to chunk 4 after the split (whether halves of that passage complete). No Vertex credential is available locally; the API deploys from `dev`/`beta`/`main` pushes only. Planned: after this merges and reaches beta, retry `H9Bdv3t5VtQ` from a Labs account and read the `youtube_article_truncated` and `youtube_article_chunk` events in the workflow instance (task 4.2). The truncation telemetry exists for this purpose.

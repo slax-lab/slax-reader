@@ -31,7 +31,7 @@ Non-Goals:
 
 ### 1. Split the chunk on truncation instead of retrying it
 
-In the `chunk-i` step, wrap the edit call (v2) or the single call (v1) in `callInParts(cues, parts)`. Start with `parts = 1`. On `MAX_TOKENS`, double `parts` (2, then 4) and call the model once per equal cue slice; join the parts' `sections` in order. The translation call (v2, other-language target) runs per part on the part's edited sections, so its output stays bounded too. The chunk's `lede` comes from the first part. The step stores one chunk object as today.
+In the `chunk-i` step, wrap the edit call (v2) or the single call (v1) in `inParts(cues, run)`. Start with `parts = 1`. On `MAX_TOKENS`, double `parts` (2, then 4) and call the model once per equal cue slice; join the parts' `sections` in order. The translation call (v2, other-language target) runs per part on the part's edited sections, so its output stays bounded too. The chunk's `lede` comes from the first part. The step stores one chunk object as today.
 
 At `parts = 4` a truncated part throws `YoutubeArticleStop('chunk_truncated')`, so the outer handler finishes the row as `failed`, not `retry`. `YoutubeArticleStop.code` gains that value. `chunk_truncated` is not added to `FINAL_ERRORS`, so the owner's explicit retry stays possible.
 

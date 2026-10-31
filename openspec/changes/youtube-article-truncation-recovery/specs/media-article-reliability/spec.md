@@ -32,7 +32,7 @@ Each chunk model call SHALL set `maxOutputTokens` to 4 times the estimated token
 
 ### Requirement: Truncation telemetry
 
-For every reply that ends with `MAX_TOKENS`, the run SHALL log one event with the article id, chunk index, part count, input token count, candidate token count, thinking token count and a repetition ratio of the reply text. The log SHALL carry no caption or reply text.
+For every reply that ends with `MAX_TOKENS`, the run SHALL log one event with the article id, chunk index, part count, input token count, candidate token count, thought token count and a repetition ratio of the reply text. The log SHALL carry no caption or reply text.
 
 #### Scenario: Truncated reply logged
 

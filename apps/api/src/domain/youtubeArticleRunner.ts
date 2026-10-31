@@ -122,7 +122,9 @@ interface StoredChunk {
 }
 
 const DB_STEP = { retries: { limit: 3, delay: '5 seconds', backoff: 'exponential' as const }, timeout: '1 minute' }
-const CHUNK_STEP = { retries: { limit: 2, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '5 minutes' }
+// A split chunk can make several calls in one step (up to 4 edits and their translations), so the
+// step gets the whole lease instead of the 5 minutes that fit the former 1 to 2 calls
+const CHUNK_STEP = { retries: { limit: 2, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '10 minutes' }
 const ASSEMBLE_STEP = { retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' as const }, timeout: '3 minutes' }
 const PUBLISH_STEP = { retries: { limit: 3, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '5 minutes' }
 
@@ -310,7 +312,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
           value = joinParts(
             await inParts(cues.slice(chunk.overlap), async (partCues, parts, offset) => {
               const first = offset === 0
-              const system = buildSystemInstruction(p.targetLanguage, first ? chunk : { ...chunk, overlap: 0 }, plan.chunks.length)
+              const system = buildSystemInstruction(p.targetLanguage, chunk, plan.chunks.length, !first)
               const result = await ask(system, buildUserMessage(p.title, first ? [...overlapCues, ...partCues] : partCues), { chunk: i, parts })
               count(result)
               const parsed = parseChunkOutput(result.reply.text)
