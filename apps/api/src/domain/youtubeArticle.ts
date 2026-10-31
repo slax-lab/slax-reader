@@ -15,7 +15,7 @@ import { HtmlBuilder, isSafeVideoId, type YoutubeCue } from '@/utils/htmlBuilder
 import { renderMediaArticle } from '@/utils/podcastArticle'
 import { toCompatCues, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
 import { normalizeYoutubeUrl } from '@/utils/platformDetector'
-import { YoutubeArticleRepo, eligibilityDecision, isFinalError, type youtubeArticlePO, type YoutubeArticleStatus } from '@/infra/repository/dbYoutubeArticle'
+import { YoutubeArticleRepo, blocksRetry, eligibilityDecision, isFinalError, type youtubeArticlePO, type YoutubeArticleStatus } from '@/infra/repository/dbYoutubeArticle'
 import {
   YOUTUBE_ARTICLE_LIMITS,
   escapeHtml,
@@ -303,7 +303,7 @@ export class YoutubeArticleService {
     const ready = variant?.status === 'ready'
     const status = !access.isOwner && !ready ? 'unavailable' : (variant?.status ?? 'unavailable')
     const version = ready ? privateMediaVersion(snapshot, language) : null
-    const canRequest = acquisitionEnabled && access.isOwner && snapshot.mode === 'capture' && !isFinalError(variant?.reason)
+    const canRequest = acquisitionEnabled && access.isOwner && snapshot.mode === 'capture'
     return {
       status,
       language: variant ? language : null,
@@ -311,8 +311,8 @@ export class YoutubeArticleService {
       eligibility: variant?.eligibility ?? null,
       version,
       format: ready ? variant.content!.format : null,
-      can_generate: canRequest && (status === 'failed' || status === 'skipped'),
-      can_retry: canRequest && status === 'failed',
+      can_generate: canRequest && (status === 'failed' || status === 'skipped') && !isFinalError(variant?.reason),
+      can_retry: canRequest && status === 'failed' && !blocksRetry(variant?.reason),
       article_url: version ? `/v1/youtube_article/content?bookmark_uid=${encodeURIComponent(access.bookmarkUid)}&version=${encodeURIComponent(version)}` : null,
       updated_at: null,
       body_mode: snapshot.bodyLanguage ? 'article' : 'transcript',
@@ -353,7 +353,7 @@ export class YoutubeArticleService {
       version: ready ? version : null,
       format: ready ? format : null,
       can_generate: access.isOwner && canManual && (status === 'skipped' || status === 'failed') && !isFinalError(row.error_message),
-      can_retry: access.isOwner && status === 'failed' && !isFinalError(row.error_message),
+      can_retry: access.isOwner && status === 'failed' && !blocksRetry(row.error_message),
       article_url: ready ? `/v1/youtube_article/content?bookmark_uid=${encodeURIComponent(access.bookmarkUid)}&version=${encodeURIComponent(version)}` : null,
       updated_at: row.updated_at.toISOString(),
       body_mode: 'article',
@@ -365,7 +365,8 @@ export class YoutubeArticleService {
 
   /**
    * Owner actions. `generate` runs a skipped or failed version and counts against the daily manual
-   * limit; `retry` runs a failed version again from zero attempts and does not count.
+   * limit; `retry` runs a failed version again from zero attempts and zero run spend, does not
+   * count, and stops at the version's lifetime cap.
    */
   public async request(ctx: ContextManager, bookmarkUid: string, mode: 'generate' | 'retry'): Promise<YoutubeArticleStatusResponse> {
     const access = await this.resolveAccess(ctx, bookmarkUid)
@@ -389,14 +390,15 @@ export class YoutubeArticleService {
     const privateVariant = snapshot?.variants[language]
     if (snapshot?.mode === 'capture' && row.status !== 'failed' && row.status !== 'skipped') {
       const eligible = privateVariant?.status === 'failed' || (mode === 'generate' && privateVariant?.status === 'skipped')
-      if (!eligible || isFinalError(privateVariant?.reason)) throw ErrorParam()
+      if (!eligible || (mode === 'retry' ? blocksRetry(privateVariant?.reason) : isFinalError(privateVariant?.reason))) throw ErrorParam()
       await this.snapshots.openRequest(access.bookmarkId, language)
       return this.getStatus(ctx, bookmarkUid)
     }
 
     if (mode === 'retry') {
       if (row.status !== 'failed') throw ErrorParam()
-      if (!(await this.repo.requeue(row.id, true))) throw ErrorParam()
+      // The retry restarts the run budget; the version's lifetime cap and the site-wide cap bound it
+      if (!(await this.repo.requeue(row.id, true, { recoverBudget: true }))) throw ErrorParam()
     } else {
       if (row.status !== 'skipped' && row.status !== 'failed') return this.getStatus(ctx, bookmarkUid)
       if (!(await this.takeDaily(access.ownerId, 'manual'))) return { ...(await this.getStatus(ctx, bookmarkUid)), status: 'limit_reached', can_generate: false }
