@@ -779,7 +779,7 @@ export class CrawlService {
   }
 
   /**
-   * Whether a Pocket Casts recapture must keep the current body: the bookmark already has one, and a
+   * Whether a podcast recapture must keep the current body: the bookmark already has one, and a
    * reader left a highlight or comment on it. A first capture has no body, so nothing is protected.
    * The caller decides this before any page fetch, so a kept body costs no provider call. The check
    * reads content_md_key because the kept payload reads the same key for its text.
