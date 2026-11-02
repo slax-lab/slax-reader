@@ -20,7 +20,7 @@
 ## 4. Notification bridge prerequisite
 
 - [x] 4.1 In `slax-notify-bridge`, create its own proposal for the observed archive-bot roster identity, including Non-goals, failure direction, documentation and real-event verification; obtain human approval before changing configuration and verify the proposed recipient remains the existing Feishu group with `slax-lab/reader-core` mentioned through the archive PR's team review request. Approved by Alex Lee on 2026-11-02 with the `slax-lab/reader-core` team reviewer model and no individual Feishu mention.
-- [x] 4.2 Implement the approved bridge roster configuration and current README/operations/verification updates without adding runtime dependencies or changing card routing; run `npm run verify`, deliver one reviewed PR, and verify after merge that the Deploy workflow succeeds before the main repository PR opens. Bridge PR #69 merged after review, all 325 tests and strict checks passed, and Deploy run 41433106389 succeeded. A separate follow-up PR #70 carries only test/documentation refinements that raced the merge and does not affect the deployed behavior.
+- [x] 4.2 Implement the approved bridge roster configuration and current README/operations/verification updates without adding runtime dependencies or changing card routing; run `npm run verify`, deliver one reviewed PR, and verify after merge that the Deploy workflow succeeds before the main repository PR opens. Bridge PR #69 merged after review, all 326 tests and strict checks passed, and Deploy run 41433106389 succeeded. A separate follow-up PR #70 carries only test/documentation refinements that raced the merge and does not affect the deployed behavior.
 
 ## 5. End-to-end verification and delivery
 
