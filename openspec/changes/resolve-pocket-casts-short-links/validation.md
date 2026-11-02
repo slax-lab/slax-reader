@@ -140,3 +140,21 @@ Compliance: the implementation matches the delta. Runtime gaps remain explicit; 
 8. Record the deployment commit, tester, date, status results, screenshots, and any required corrections here.
 
 Do not treat the temporary local preview as server acceptance. It is excluded from the PR.
+
+## Live local transcription: 2026-11-02
+
+Luca supplied an AssemblyAI key and requested local testing. The key was passed through hidden terminal input and was not stored in files.
+The existing `AssemblyAIClient` submitted the real episode once and polled the same job to completion.
+Result: Chinese, duration 8,458 seconds, 38,128 recognized segments, and estimated transcription cost USD 0.3994.
+The existing cue converter produced 807 cues and preserved all 49,755 non-whitespace characters.
+The cues start at 0 ms and end at 8,451,550 ms. Speech density is 319 characters per minute and passes the existing threshold.
+Checks passed for nonempty output, supported language, ordered timestamps, full word preservation, and coverage into the final five percent.
+These checks establish temporal coverage, not word-level transcription accuracy.
+
+The local preview now displays all 807 raw transcript paragraphs through the existing renderer.
+Its heading identifies the content as raw transcription without article generation. The preview uses temporary local response storage.
+The complete raw transcript is available locally; it is not a model-edited article or proof of database publication.
+
+Luca explicitly allowed local use of the existing runtime configuration for the article step.
+Automatic approval review nevertheless rejected the command because it accesses `deploy/local/.dev.vars`.
+The rejected command did not run. Article generation, moderation, database publication, and full human acceptance remain unverified.
