@@ -82,3 +82,61 @@ The local preview logs a missing backend service for ancillary visit tracking; t
 No client package or contract changed. API releases do not require package-version increments.
 
 Luca approved implementation on 2026-11-02. Human hands-on acceptance remains pending.
+
+## Acceptance correction: 2026-11-02
+
+Luca inspected the local preview and reported that it still lacks the complete transcript.
+The preview supplies a generated player body through temporary middleware. It does not run the podcast workflow.
+The earlier request for acceptance was premature. Task 3.1 is open again.
+
+A live request to `/v1/podcast/status` for the reported bookmark returned:
+
+```json
+{"transcript":"unavailable","article":"unavailable","body_ready":false,"language":null,"reason":null,"translation":null,"can_retry":false}
+```
+
+The public Pocket Casts transcript page requires a Plus subscription. Its visible text contains placeholder Latin paragraphs.
+This page is not a usable publisher transcript. Do not import its placeholder text.
+The existing workflow must use its AssemblyAI fallback, then generate and publish the complete article.
+A complete transcript and the resulting bookmark body remain unverified. Human acceptance and PR creation remain pending.
+
+## Transcript runtime prerequisites: 2026-11-02
+
+The local launcher supports only the Crawl Workflow in isolated mode. It rejects a Podcast Workflow binding.
+The normal launcher requires configured database, storage, moderation, AssemblyAI, and article-model services.
+No local API, PostgreSQL, or Redis listener was found on the checked standard ports.
+The task worktree has no runtime configuration. The main checkout has configuration files and belongs to another task.
+Secret files were not read or copied. Their existence does not prove valid service access.
+
+The existing cost helper evaluated the observed 8,458-second duration with transcription and one translation.
+Estimates were USD 0.9048 for unknown or English language and USD 0.9759 for Chinese.
+All estimates pass the USD 1 episode limit. The duration also passes the three-hour limit.
+These checks do not prove provider execution or successful transcript publication.
+
+## Colleague deployment handoff: 2026-11-02
+
+Luca instructed the author to finish the code and request colleague deployment to `dev` for testing.
+This explicit task instruction defers human acceptance until server testing. It supersedes the earlier pre-PR acceptance sequence for this task.
+The author does not claim transcript generation succeeded. The server already has keys, according to Luca.
+The remaining requirement is execution of this branch with those services, followed by evidence of the complete article.
+
+Transcription regression checks: three files passed, with 59 tests passed.
+Command: `SLAX_API_SKIP_DOTENV=1 pnpm exec vitest run test/domain/podcastRunner.test.ts test/domain/podcastService.test.ts test/infra/assemblyAI.test.ts`.
+
+Final local review used `resolve-pocket-casts-short-links` as the change ID.
+Bugs: the one-host resolver addition retains fallback behavior and starts the existing podcast workflow. No Important findings.
+Security: public redirect validation remains intact. The change adds no credential, dependency, or outbound destination beyond the requested provider. No Important findings.
+Compliance: the implementation matches the delta. Runtime gaps remain explicit; Luca deferred acceptance to colleague testing. No Important code findings.
+
+### Dev test procedure
+
+1. Review and deploy this task through the repository release process. The normal API workflow deploys only merged PRs.
+2. Use an owner account with podcast Labs enabled. Save `https://pca.st/6rpkp8cj` or recapture an unannotated existing bookmark.
+3. Confirm that the initial bookmark contains the audio player. Record the bookmark UUID and capture logs.
+4. Inspect podcast status until transcription and the article are ready. Record any failure reason and workflow logs without credentials or transcript text.
+5. Confirm that `body_ready` is true and that the bookmark body contains the complete transcript article, rather than episode notes alone.
+6. Compare article passages near the beginning, middle, and end with the audio. Confirm paragraph playback and reload persistence.
+7. Confirm that recapture preserves the existing bookmark UUID. Keep annotated bookmarks protected.
+8. Record the deployment commit, tester, date, status results, screenshots, and any required corrections here.
+
+Do not treat the temporary local preview as server acceptance. It is excluded from the PR.

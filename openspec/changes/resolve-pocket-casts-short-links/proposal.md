@@ -26,7 +26,7 @@ None.
 ## Impact
 
 The implementation affects the API capture resolver and its tests. It needs no dependency, API contract, database, or client package change.
-The existing player and notes presentation remains the expected result.
+The initial capture shows the existing player and notes. The existing workflow then generates the complete transcript article.
 Web and API releases do not require package-version increments.
 
 ## Non-goals
@@ -41,4 +41,6 @@ Archive this delta after `capture-pocket-casts` and its recorded `add-bookmark-f
 Classify pending tasks before archive. Do not archive this change before its task PR merges.
 
 Luca approved implementation on 2026-11-02 by instructing work to continue after the proposal review request.
-Prepare runtime evidence and human hands-on acceptance before opening the PR, as required by the repository.
+Luca later directed the author to finish the code and request colleague deployment to `dev` for testing.
+This task-specific instruction defers full runtime verification and human acceptance until the colleague deploys the change.
+It does not claim that the local player preview passes transcript acceptance.
