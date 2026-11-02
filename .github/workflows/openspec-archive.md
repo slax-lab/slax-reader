@@ -1,14 +1,14 @@
 ---
 name: OpenSpec Change Archiving
 description: Evaluate merged task PRs and create reviewed OpenSpec archive PRs.
-run-name: "OpenSpec archive for #${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}"
+run-name: "OpenSpec archive for #${{ github.event.pull_request.number || inputs.issue_number || github.run_id }}"
 on:
   pull_request:
     types: [closed]
     branches: [dev]
   workflow_dispatch:
     inputs:
-      pr_number:
+      issue_number:
         description: Merged task pull request number to re-evaluate
         required: true
         type: number
@@ -60,7 +60,7 @@ You evaluate one merged task pull request and, only when eligible, request one d
 
 ## Resolve the source and change
 
-1. Resolve the source PR number from `github.event.pull_request.number` for an automatic run or `inputs.pr_number` for a manual replay. Read that PR with the GitHub tools. Confirm that it is merged into `dev`; if it is open or closed without merge, stop with `noop`.
+1. Resolve the source PR number from `github.event.pull_request.number` for an automatic run or `inputs.issue_number` for a manual replay. Read that PR with the GitHub tools. Confirm that it is merged into `dev`; if it is open or closed without merge, stop with `noop`.
 2. Read the PR body and find exactly one line matching `OpenSpec: <change-id>`. For `OpenSpec: n/a`, a missing or malformed line, or multiple conflicting identities, stop with `noop`. Do not infer a change from the branch name or title.
 3. Search for an existing open archive pull request whose title is `docs(openspec): archive <change-id>`. If one exists, report its URL on the source PR with `add_comment` and stop. Do not create a duplicate.
 4. Work from the checked-out merged `dev` state. If `openspec/changes/<change-id>/` is absent, the change is already archived or invalid; stop with `noop`. Never use a local task worktree or the original agent session as an input.

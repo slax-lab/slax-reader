@@ -15,7 +15,7 @@ const source = () => {
 test('archive evaluation runs only for merged dev PRs or an explicit replay and is globally serialized', () => {
   const { config } = source()
   assert.deepEqual(config.on.pull_request, { types: ['closed'], branches: ['dev'] })
-  const replay = config.on.workflow_dispatch.inputs.pr_number
+  const replay = config.on.workflow_dispatch.inputs.issue_number
   assert.equal(replay.description, 'Merged task pull request number to re-evaluate')
   assert.equal(replay.required, true)
   assert.equal(replay.type, 'number')
