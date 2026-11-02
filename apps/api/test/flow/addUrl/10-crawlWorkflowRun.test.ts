@@ -998,6 +998,47 @@ describe('CrawlWorkflow → podcast route', () => {
     expect(lab.isEnabled).not.toHaveBeenCalled()
   })
 
+  test.each([
+    { labs: true, annotated: false },
+    { labs: false, annotated: false },
+    { labs: true, annotated: true }
+  ])('resolves a Pocket Casts share through the real resolver: %o', async ({ labs, annotated }) => {
+    const short = 'https://pca.st/6rpkp8cj'
+    const episode = 'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2/episode/d5287eb5-5416-4c58-9b7c-d1ba6d7f8fc8'
+    const info = { ...INFO, kind: 'pocketcasts', pageUrl: episode }
+    const { wf, cs, bs, pod } = wirePodcast(labs)
+    cs.resolveShortLink.mockImplementation((ctx, url) => CrawlService.prototype.resolveShortLink.call(cs as unknown as CrawlService, ctx, url))
+    cs.keepsAnnotatedBody.mockResolvedValue(annotated)
+    cs.fetchPodcastData.mockResolvedValue(info)
+    bs.getUserBookmark.mockResolvedValue({ id: 1, uuid: 'existing-uuid', user_id: 1, bookmark_id: 42 })
+    if (annotated) {
+      bs.getBookmarkById.mockResolvedValue({ id: 42, title: 'Kept', content_md_key: 'md/kept.md' })
+      bs.getBookmarkContent.mockResolvedValue('Existing annotated notes')
+    }
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 302, headers: { Location: episode } }))
+    try {
+      await runWorkflow(wf, { url: short })
+      expect(fetch).toHaveBeenCalledExactlyOnceWith(short, expect.objectContaining({ redirect: 'manual' }))
+      if (labs && !annotated) {
+        expect(cs.fetchPodcastData).toHaveBeenCalledWith(episode, expect.anything())
+        expect(cs.parseAndSavePodcast).toHaveBeenCalledWith(expect.anything(), info, 42, 'existing-uuid')
+        expect(cs.fetchRegular).not.toHaveBeenCalled()
+        expect(pod.triggerAfterCrawl).toHaveBeenCalledWith(expect.anything(), 42, 1)
+      } else {
+        expect(cs.fetchPodcastData).not.toHaveBeenCalled()
+        expect(pod.triggerAfterCrawl).not.toHaveBeenCalled()
+        if (annotated) {
+          expect(cs.fetchRegular).not.toHaveBeenCalled()
+          expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), 42, 'success')
+        } else {
+          expect(cs.parseAndSaveContent).toHaveBeenCalled()
+        }
+      }
+    } finally {
+      fetch.mockRestore()
+    }
+  })
+
   describe.each([
     ['Pocket Casts', 'https://pca.st/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'],
     ['Xiaoyuzhou', XYZ]
