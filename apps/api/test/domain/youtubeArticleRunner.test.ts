@@ -8,7 +8,7 @@ import { runYoutubeArticle, type ArticleModel, type RunnerDeps, type StepLike } 
 import type { YoutubeArticleWorkflowParams } from '@/domain/youtubeArticle'
 import type { youtubeArticlePO } from '@/infra/repository/dbYoutubeArticle'
 import { buildYoutubeCaptionDocument, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
-import { YOUTUBE_ARTICLE_LIMITS } from '@/utils/youtubeArticle'
+import { YOUTUBE_ARTICLE_LIMITS, estimateTokens, outputTokenLimit, repetitionRatio } from '@/utils/youtubeArticle'
 
 const VIDEO = 'dQw4w9WgXcQ'
 const HASH = 'a'.repeat(64)
@@ -55,6 +55,7 @@ function memRow(over: Partial<youtubeArticlePO> = {}) {
     retry_count: 0,
     run_id: null as string | null,
     cost_usd: 0,
+    lifetime_cost_usd: 0,
     quality_json: null as object | null,
     article_key: null as string | null,
     error_message: null as string | null,
@@ -76,7 +77,10 @@ function memRow(over: Partial<youtubeArticlePO> = {}) {
       row.status = status
       return true
     }),
-    addCost: vi.fn(async (_id: number, usd: number) => (row.cost_usd += usd)),
+    addCost: vi.fn(async (_id: number, usd: number) => {
+      row.lifetime_cost_usd += usd
+      return (row.cost_usd += usd)
+    }),
     publish: vi.fn(async (_id: number, runId: string, hash: string, lang: string, data: { article_key: string; quality: object }) => {
       if (running() && row.run_id === runId && hash === row.source_hash && lang === row.target_language) {
         Object.assign(row, { status: 'ready', article_key: data.article_key, quality_json: data.quality })
@@ -121,7 +125,14 @@ function engine(opts: { rewrap?: boolean } = {}) {
 
 /** Faithful fake: one paragraph per 3 new cues, the cue text with a capital and a full stop. */
 function faithfulModel(
-  over: { language?: 'en' | 'zh'; outputTokens?: number; failOn?: (call: number) => string | null; finishReason?: string } = {}
+  over: {
+    language?: 'en' | 'zh'
+    outputTokens?: number
+    failOn?: (call: number) => string | null
+    finishReason?: string
+    /** The reply ends with MAX_TOKENS when the user message carries more than this many cues. */
+    truncateOver?: number
+  } = {}
 ): ArticleModel & { chat: ReturnType<typeof vi.fn> } {
   let call = 0
   return {
@@ -132,6 +143,8 @@ function faithfulModel(
       const user = (contents[0].parts?.[0] as { text: string }).text
       const overlap = Number(/the first (\d+) cues were already covered/.exec(options.systemInstruction)?.[1] ?? 0)
       const cues = [...user.matchAll(/^(c\d{4}) \[[^\]]+\] (.*)$/gm)].map(m => ({ id: m[1], text: m[2] })).slice(overlap)
+      if (over.truncateOver !== undefined && cues.length > over.truncateOver)
+        return { text: '{"lede":"", "sections": [{"heading": "loop', usage: { inputTokens: 3000, outputTokens: 16000, thoughtTokens: 500 }, finishReason: 'MAX_TOKENS' }
       const paragraphs = []
       for (let i = 0; i < cues.length; i += 3) {
         const group = cues.slice(i, i + 3)
@@ -329,10 +342,65 @@ describe('model failures', () => {
     expect(s.repo.row.error_message).toContain('chunk_invalid_json')
   })
 
-  test('a truncated reply (MAX_TOKENS) is retried like invalid output', async () => {
+  test('a truncated chunk is split in two and both halves recover it; the parts join in cue order', async () => {
+    const s = setup({ cues: 40, model: faithfulModel({ truncateOver: 25 }) })
+    const logs = vi.spyOn(console, 'log').mockImplementation(() => {})
+    expect(await s.run()).toBe('ready')
+    // whole chunk (truncated) + two halves
+    expect(s.model.chat).toHaveBeenCalledTimes(3)
+    const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0])!)
+    const ids = doc.sections.flatMap((x: any) => x.paragraphs.flatMap((p: any) => p.source_cue_ids))
+    expect(ids).toEqual(caption(40).cues.map(c => c.id))
+    expect(doc.lede).toBe('This talk explains attention.')
+    const line = logs.mock.calls.map(c => String(c[0])).find(l => l.includes('youtube_article_truncated'))!
+    expect(JSON.parse(line)).toMatchObject({
+      article_id: 1,
+      chunk: 0,
+      parts: 1,
+      input_tokens: 3000,
+      candidate_tokens: 15500,
+      thought_tokens: 500,
+      repetition_ratio: expect.any(Number)
+    })
+    expect(line).not.toContain('transformer')
+    expect(line).not.toContain('attention')
+    logs.mockRestore()
+  })
+
+  test('only the first part of a split chunk carries the overlap cues; later chunks still cover every cue once', async () => {
+    // 300 cues → 3 chunks of about 108 cues with overlap; the whole chunk truncates, halves pass
+    const s = setup({ cues: 300, model: faithfulModel({ truncateOver: 70 }) })
+    expect(await s.run()).toBe('ready')
+    const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0])!)
+    const ids = doc.sections.flatMap((x: any) => x.paragraphs.flatMap((p: any) => p.source_cue_ids))
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(new Set(ids).size).toBe(300)
+    const later = s.model.chat.mock.calls.filter(c => /Continue from the previous part of this chunk/.test(c[2].systemInstruction))
+    expect(later.length).toBeGreaterThan(0)
+    // a later part never asks for a lede and never claims covered cues
+    for (const c of later) expect(c[2].systemInstruction).not.toMatch(/lede for the whole video|already covered/)
+  })
+
+  test('a chunk still truncated at 4 parts fails the version with no automatic retry', async () => {
     const s = setup({ cues: 40, model: faithfulModel({ finishReason: 'MAX_TOKENS' }) })
-    expect(await s.run()).toBe('retry')
-    expect(s.repo.row.error_message).toContain('chunk_truncated')
+    expect(await s.run()).toBe('failed')
+    // whole, first half, first quarter: each smaller than the last, never the same call twice
+    expect(s.model.chat).toHaveBeenCalledTimes(3)
+    expect(s.repo.row).toMatchObject({ status: 'failed', retry_count: 1 })
+    // the stored error keeps the code first (the snapshot reason) and the split depth after it
+    expect(s.repo.row.error_message).toBe('chunk_truncated: parts=4')
+  })
+
+  test('the output limit follows the user message size, between 4,000 and 16,000 tokens', async () => {
+    const s = setup({ cues: 40, model: faithfulModel({ truncateOver: 25 }) })
+    expect(await s.run()).toBe('ready')
+    for (const call of s.model.chat.mock.calls) {
+      const user = call[0][0].parts[0].text as string
+      expect(call[1].maxOutputTokens).toBe(outputTokenLimit(estimateTokens(user)))
+    }
+    expect(outputTokenLimit(2500)).toBe(10_000)
+    expect(outputTokenLimit(600)).toBe(4000)
+    expect(outputTokenLimit(5000)).toBe(16_000)
   })
 
   test('one bad reply then a good one: the step retry recovers', async () => {
@@ -389,6 +457,23 @@ describe('limits and gates', () => {
     await s.run()
     expect(s.repo.addCost).toHaveBeenCalledTimes(3)
     expect(s.repo.row.cost_usd).toBeGreaterThan(0)
+  })
+
+  test('the lifetime cap ends a retried version before the call that could cross it', async () => {
+    // a retry reset the run budget to 0, but the version already spent $1.99 in total
+    const s = setup({ row: { cost_usd: 0, lifetime_cost_usd: 1.99 } })
+    expect(await s.run()).toBe('failed')
+    expect(s.model.chat).not.toHaveBeenCalled()
+    expect(s.repo.row.error_message).toBe('lifetime_budget_exceeded')
+  })
+
+  test('the lifetime cap also stops mid-run, with its own final code', async () => {
+    // the plan fits at the start; the first call's spend pushes the lifetime over the cap
+    const s = setup({ cues: 300, row: { lifetime_cost_usd: 1.5 }, model: faithfulModel({ outputTokens: 200_000 }) })
+    expect(await s.run()).toBe('failed')
+    expect(s.model.chat).toHaveBeenCalledTimes(1)
+    expect(s.repo.row.error_message).toBe('lifetime_budget_exceeded')
+    expect(s.repo.row.lifetime_cost_usd).toBeGreaterThan(1.5)
   })
 
   test('a long video within the duration and chunk limits starts instead of being skipped as too_long', async () => {
@@ -594,6 +679,45 @@ describe('versioned transcript editing', () => {
     expect(s.publishBodies).not.toHaveBeenCalled()
   })
 
+  test('a truncated edit call is split and the translation follows the parts', async () => {
+    const model = editedModel()
+    const original = model.chat.getMockImplementation()!
+    model.chat.mockImplementation(async (contents, config, options) => {
+      const cueLines = (contents[0].parts[0].text as string).match(/^c\d{4} \[/gm)?.length ?? 0
+      if (options.systemInstruction.startsWith('Edit this transcript') && cueLines > 25)
+        return { text: '{"lede":"", "sections": [{"heading": "loop', usage: { inputTokens: 3000, outputTokens: 16000 }, finishReason: 'MAX_TOKENS' }
+      return original(contents, config, options)
+    })
+    const s = setup({ cues: 40, model })
+    s.params.promptVersion = 'v2'
+    s.params.targetLanguage = 'zh'
+    s.repo.row.target_language = 'zh'
+    expect(await s.run()).toBe('ready')
+    const edits = model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Edit this transcript'))
+    const translations = model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Translate the edited'))
+    expect(edits).toHaveLength(3)
+    expect(translations).toHaveLength(2)
+    const translated = JSON.parse(s.bucket.objects.get(articleKeys('zh')[0].replace('v1', 'v2'))!)
+    const ids = translated.sections.flatMap((section: any) => section.paragraphs.flatMap((p: any) => p.source_cue_ids))
+    expect(ids).toEqual(caption(40).cues.map(c => c.id))
+  })
+
+  test('a translation that truncates on a single section fails without an identical repeat', async () => {
+    const model = editedModel()
+    const original = model.chat.getMockImplementation()!
+    model.chat.mockImplementation(async (contents, config, options) => {
+      if (options.systemInstruction.startsWith('Translate the edited')) return { text: '{"sections": [', usage: { inputTokens: 100, outputTokens: 4000 }, finishReason: 'MAX_TOKENS' }
+      return original(contents, config, options)
+    })
+    const s = setup({ cues: 40, model })
+    s.params.promptVersion = 'v2'
+    s.params.targetLanguage = 'zh'
+    s.repo.row.target_language = 'zh'
+    expect(await s.run()).toBe('failed')
+    expect(s.repo.row.error_message).toBe('chunk_truncated: parts=1')
+    expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Translate the edited'))).toHaveLength(1)
+  })
+
   test('rejects an omitted passage before caching or translating it', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
@@ -608,5 +732,14 @@ describe('versioned transcript editing', () => {
     expect(await s.run()).toBe('retry')
     expect(s.repo.row.error_message).toContain('chunk_incomplete_coverage')
     expect(s.publishBodies).not.toHaveBeenCalled()
+  })
+})
+
+describe('repetition ratio', () => {
+  test('a looping tail scores near 1 and ordinary prose near 0', () => {
+    expect(repetitionRatio('{"text": "the same sentence again", '.repeat(300))).toBeGreaterThan(0.9)
+    const prose = Array.from({ length: 200 }, (_, i) => `Sentence number ${i} says something new about topic ${i * 7}.`).join(' ')
+    expect(repetitionRatio(prose)).toBeLessThan(0.1)
+    expect(repetitionRatio('')).toBe(0)
   })
 })

@@ -26,6 +26,8 @@ export const YOUTUBE_ARTICLE_LIMITS = {
   // chunkTargetTokens each cost about $0.95 at the list price. $0.30 silently
   // turned every video longer than about 1.5 hours into a "too_long" skip.
   maxCostUsd: 1,
+  // Hard cap per version across every explicit retry: each retry restarts the $1 run budget
+  maxLifetimeCostUsd: 2,
   dailyCostUsd: 20,
   maxConcurrent: 4,
   leaseMs: 10 * 60 * 1000
@@ -110,6 +112,28 @@ export function expectedChunkCostUsd(promptTokens: number): number {
   return estimateCostUsd(promptTokens, Math.min(YOUTUBE_ARTICLE_LIMITS.maxOutputTokens, promptTokens * 2 + 500))
 }
 
+/**
+ * Output limit of one model call from the size of its user message. A healthy edit reply is
+ * about 1.3 times the user message and a one-shot Chinese reply about 2.4 times (thinking
+ * included), so 4 times leaves room while a looping reply stops well before the 16k ceiling.
+ */
+export function outputTokenLimit(userTokens: number): number {
+  return Math.min(YOUTUBE_ARTICLE_LIMITS.maxOutputTokens, Math.max(4000, userTokens * 4))
+}
+
+/**
+ * Share of repeated 40-character windows in the last 4,000 characters of a reply: near 1 for a
+ * reply stuck in a loop, near 0 for prose. Logged as a count on truncation; the text never is.
+ */
+export function repetitionRatio(text: string, window = 40, tail = 4000): number {
+  const sample = text.slice(-tail)
+  const total = sample.length - window + 1
+  if (total <= 0) return 0
+  const seen = new Set<string>()
+  for (let i = 0; i < total; i++) seen.add(sample.slice(i, i + window))
+  return 1 - seen.size / total
+}
+
 export function formatTimestamp(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000))
   const h = Math.floor(total / 3600)
@@ -191,10 +215,12 @@ export function planYoutubeArticle(caption: YoutubeCaptionDocument | null): Yout
 
 // ---------- prompt ----------
 
-export function buildSystemInstruction(lang: YoutubeArticleLanguage, chunk: YoutubeArticleChunk, chunkCount: number): string {
+/** `continuation`: a later part of a split chunk; it writes no lede and carries no overlap cues. */
+export function buildSystemInstruction(lang: YoutubeArticleLanguage, chunk: YoutubeArticleChunk, chunkCount: number, continuation = false): string {
   const name = youtubeArticleLanguageName(lang)
-  const position =
-    chunk.index === 0
+  const position = continuation
+    ? 'Do not write a lede. Continue from the previous part of this chunk; every cue below is new.'
+    : chunk.index === 0
       ? 'Start with a 3 to 5 sentence lede for the whole video, based on the video title and this chunk.'
       : `Do not write a lede. Continue from the previous chunk; the first ${chunk.overlap} cues were already covered.`
   return [

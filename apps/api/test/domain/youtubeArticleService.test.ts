@@ -74,11 +74,13 @@ function memRepo() {
       const status = base.status === 'takedown' ? 'takedown' : eligibilityDecision(base) === 'generate' ? 'pending' : 'skipped'
       return repo.add({ ...base, id: undefined as any, target_language: lang, prompt_version: promptVersion, status, article_key: null, retry_count: 0, next_retry_at: null })
     }),
-    requeue: vi.fn(async (rid: number, reset: boolean) => {
+    requeue: vi.fn(async (rid: number, reset: boolean, options: { recoverBudget?: boolean } = {}) => {
       const r = rows.find(x => x.id === rid)
       if (!r || !(reset ? ['failed'] : ['skipped', 'failed']).includes(r.status)) return false
-      if (['budget_exceeded', 'too_long'].some(c => (r.error_message ?? '').startsWith(c))) return false
-      Object.assign(r, { status: 'pending', next_retry_at: now(), error_message: null }, reset ? { retry_count: 0 } : {})
+      const recover = reset && options.recoverBudget === true
+      if ((recover ? ['too_long', 'lifetime_budget_exceeded'] : ['budget_exceeded', 'too_long', 'lifetime_budget_exceeded']).some(c => (r.error_message ?? '').startsWith(c)))
+        return false
+      Object.assign(r, { status: 'pending', next_retry_at: now(), error_message: null }, reset ? { retry_count: 0 } : {}, recover ? { cost_usd: 0 } : {})
       return true
     }),
     defer: vi.fn(async (rid: number, at: Date) => {
@@ -563,10 +565,40 @@ describe('manual generate and retry', () => {
     expect((await w.service.getStatus(w.ctx(OWNER), UUID)).can_generate).toBe(false)
   })
 
-  test('a version that ran out of budget can not be retried', async () => {
+  test('a version that ran out of budget can be retried, not generated: the retry starts its run spend again', async () => {
     const w = wire()
-    w.repo.add({ status: 'failed', error_message: 'budget_exceeded' })
-    expect((await w.service.getStatus(w.ctx(OWNER), UUID)).can_retry).toBe(false)
+    const row = w.repo.add({ status: 'failed', error_message: 'budget_exceeded', retry_count: 3, cost_usd: 0.69, lifetime_cost_usd: 0.69 })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ can_retry: true, can_generate: false })
+    const res = await w.service.request(w.ctx(OWNER), UUID, 'retry')
+    expect(w.repo.requeue).toHaveBeenCalledWith(row.id, true, { recoverBudget: true })
+    // the lifetime spend is never reset: it carries the hard cap
+    expect(row).toMatchObject({ status: 'pending', retry_count: 0, cost_usd: 0, lifetime_cost_usd: 0.69, error_message: null })
+    expect(res.status).toBe('pending')
+    expect(w.create.mock.calls[0][0]).toMatchObject({ params: { trigger: 'retry' } })
+    expect(w.redis.store.get(`yt_article:${OWNER}:${today()}:manual`)).toBeUndefined()
+  })
+
+  test('a retry does not use the manual limit: it works after 5 manual starts', async () => {
+    const w = wire()
+    w.redis.store.set(`yt_article:${OWNER}:${today()}:manual`, YOUTUBE_ARTICLE_DAILY_LIMITS.manual)
+    const row = w.repo.add({ status: 'failed', error_message: 'budget_exceeded' })
+    expect((await w.service.request(w.ctx(OWNER), UUID, 'retry')).status).toBe('pending')
+    expect(row.status).toBe('pending')
+    expect(w.create).toHaveBeenCalledTimes(1)
+  })
+
+  test('a version that spent its lifetime cap offers no retry and refuses one', async () => {
+    const w = wire()
+    w.repo.add({ status: 'failed', error_message: 'lifetime_budget_exceeded', lifetime_cost_usd: 2 })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ can_retry: false, can_generate: false })
+    await expect(w.service.request(w.ctx(OWNER), UUID, 'retry')).rejects.toMatchObject({ name: ErrorName.ERROR_PARAM })
+    expect(w.create).not.toHaveBeenCalled()
+  })
+
+  test('a version too long for the budget offers neither retry nor generate', async () => {
+    const w = wire()
+    w.repo.add({ status: 'failed', error_message: 'too_long' })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ can_retry: false, can_generate: false })
     await expect(w.service.request(w.ctx(OWNER), UUID, 'retry')).rejects.toMatchObject({ name: ErrorName.ERROR_PARAM })
     expect(w.create).not.toHaveBeenCalled()
   })
@@ -1004,6 +1036,28 @@ describe('private capture requests', () => {
     expect(snapshots.openRequest).toHaveBeenCalledWith(BOOKMARK, 'en')
     expect(w.repo.requeue).not.toHaveBeenCalled()
     expect(w.create).not.toHaveBeenCalled()
+  })
+
+  test('a private variant: retry reopens budget_exceeded but not too_long or the lifetime cap; generate keeps every final error', async () => {
+    const capture = (reason: string) => ({
+      media: { kind: 'youtube', mode: 'capture', revision: 'r', sourceId: VIDEO, sourceHash: HASH, defaultLanguage: 'en', bodyLanguage: null, variants: { en: { status: 'failed', reason } } }
+    })
+    for (const [reason, retry] of [
+      ['budget_exceeded', true],
+      ['too_long', false],
+      ['lifetime_budget_exceeded', false]
+    ] as const) {
+      const w = wire()
+      w.repo.add({ status: 'ready', article_key: 'ready.json' })
+      const snapshots = (w.service as any).snapshots
+      snapshots.load.mockResolvedValue(capture(reason))
+      expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ can_retry: retry, can_generate: false })
+      if (retry) {
+        await w.service.request(w.ctx(OWNER), UUID, 'retry')
+        expect(snapshots.openRequest).toHaveBeenCalledWith(BOOKMARK, 'en')
+      } else await expect(w.service.request(w.ctx(OWNER), UUID, 'retry')).rejects.toMatchObject({ name: ErrorName.ERROR_PARAM })
+      await expect(w.service.request(w.ctx(OWNER), UUID, 'generate')).rejects.toMatchObject({ name: ErrorName.ERROR_PARAM })
+    }
   })
 
   test('a pending private capture held by the daily limit exposes that status', async () => {
