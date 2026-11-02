@@ -9,6 +9,10 @@ const repositoryPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
 export const gateContext = 'PR review gate'
 export const defaultReadyLabel = 'ready-for-human-review'
 
+// Fail closed when an unconfirmed comment, an unfamiliar stage outcome, or an
+// unpublished agent result tries to clear a merge. A cancelled run stays silent
+// only when a newer review for the same pull request owns the current head.
+
 export function parseRunTitle(title) {
   const text = String(title ?? '')
   const pullRequests = [...text.matchAll(/#([0-9]+)(?![0-9])/g)]
@@ -127,7 +131,14 @@ function githubClient(token, fetchImpl) {
       signal: AbortSignal.timeout(30_000)
     })
     const text = await response.text()
-    if (!response.ok) throw new Error(`GitHub API request failed (HTTP ${response.status})`)
+    if (!response.ok) {
+      let detail = ''
+      try {
+        const error = JSON.parse(text)
+        if (typeof error.message === 'string' && error.message) detail = `: ${error.message}`
+      } catch {}
+      throw new Error(`GitHub API request failed (HTTP ${response.status})${detail}`)
+    }
     if (!text) return undefined
     try {
       return JSON.parse(text)

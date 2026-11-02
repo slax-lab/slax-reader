@@ -217,6 +217,44 @@ test('unknown pre-agent outcomes fail closed rather than passing as skips', () =
   assert.match(result.description, /pre_activation/)
 })
 
+test('draft, closed, and fork pull requests never gain readiness', async () => {
+  const cases = [
+    openPull({ draft: true }),
+    openPull({ state: 'closed' }),
+    openPull({ head: { sha: headSha, repo: { full_name: 'fork/reader' } } })
+  ]
+  for (const pull of cases) {
+    const fixtureData = fixture({ pull })
+    const result = await runReviewGate(fixtureData.options)
+    assert.equal(result.state, 'success')
+    assert.equal(fixtureData.statuses[0].state, 'success')
+    assert.equal(fixtureData.labelCreates.length, 0)
+    assert.equal(fixtureData.labelAdditions.length, 0)
+    assert.equal(fixtureData.labelDeletions.length, 1)
+  }
+})
+
+test('a cancelled final run with no successor fails closed', async () => {
+  const fixtureData = fixture({
+    run: automaticRun({ conclusion: 'cancelled' }),
+    jobs: reviewJobs({ agent: 'cancelled', review_verdict: 'skipped' }),
+    reviews: []
+  })
+  const result = await runReviewGate(fixtureData.options)
+  assert.equal(result.state, 'failure')
+  assert.equal(result.description, 'Review did not complete (agent job: cancelled); failing closed')
+  assert.equal(fixtureData.statuses[0].state, 'failure')
+  assert.equal(fixtureData.labelDeletions.length, 1)
+})
+
+test('GitHub error messages retain their safe diagnostic detail', async () => {
+  const fetchImpl = async () => response({ message: 'Resource not accessible by integration' }, 403)
+  await assert.rejects(
+    runReviewGate({ runId, repository, token: 'fixture-token', fetchImpl, log: () => {} }),
+    /HTTP 403\): Resource not accessible by integration/
+  )
+})
+
 test('the workflow is a thin default-branch caller of the tested module', () => {
   const source = readFileSync(new URL('../.github/workflows/pr-review-gate.yml', import.meta.url), 'utf8')
   assert.match(source, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/)
