@@ -1,5 +1,19 @@
 # Validation
 
+## Current acceptance status: 2026-11-02
+
+Luca confirmed that he reviewed the UI-visible presentation changes in PR #469 and that they meet his requirements.
+His response to the Important acceptance finding was: “这个我看过了符合我的要求”.
+This confirmation applies to the presentation at commit `8de09aec`, including the shared YouTube reading layout.
+Reviewer: Luca. Date: 2026-11-02. Result: accepted; no further UI adjustment requested.
+Earlier adjustments added complete transcript coverage, direct guest access, and the requested reading presentation.
+This confirmation supersedes all pending UI-acceptance statements in the chronological records below.
+Acceptance occurred after the original PR opened. The record preserves that timing and does not claim prior acceptance.
+The latest Agent finding concerned this missing record; the human has now explicitly confirmed acceptance of the visible changes.
+Live edited-article generation and the final theme matrix remain separate agent-executable verification gaps.
+This documentation update changes no runtime behavior. Code tests are unchanged; strict OpenSpec validation and the diff check apply.
+
+
 ## Change log: 2026-11-02
 
 Added `pca.st` to the existing short-link resolver. The classifier and capture workflow remain unchanged.

@@ -58,3 +58,6 @@ Keep all paragraph cue references and playback behavior. Do not present edited e
 On 2026-11-02, Luca accepted the complete raw-transcript guest page and requested PR submission.
 This approval replaces the earlier submission deferral. It does not verify the generated article or translation.
 The author records the remaining live-generation gaps in `validation.md` for human review.
+
+Luca subsequently confirmed that he reviewed the UI-visible presentation in PR #469 and that it meets his requirements.
+This 2026-11-02 confirmation resolves the pending presentation acceptance record; live-generation verification remains separate.
