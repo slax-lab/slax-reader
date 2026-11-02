@@ -35,7 +35,7 @@ Source constraints:
 
 ### 1. Use one reviewed implementation change with independent milestones
 
-Use branch `perf/optimize-web-lcp`, change ID `optimize-web-lcp`, and one eventual PR to `dev`. Commit and verify the article policy separately from the startup bypass. Two build-time app-config booleans, `lcp.articleImagePriority` and `lcp.anonymousPublicStartup`, start disabled and can be enabled separately through reviewed source changes. No environment secret, remote flag service, or persisted user flag is introduced. Deployment is a later authorized operation.
+Use branch `perf/optimize-web-lcp`, change ID `optimize-web-lcp`, and one eventual PR to `dev`. Commit and verify the article policy separately from the startup bypass. Two app-config booleans, `lcp.articleImagePriority` and `lcp.anonymousPublicStartup`, can be toggled independently. Both default to `true` in every profile (deliberate decision, 2026-11-02): the switches ship enabled, and an environment restriction is added later only if one turns out to be needed. No environment secret, remote flag service, or persisted user flag is introduced. Deployment is a later authorized operation.
 
 This avoids packaging speculative backend work into the same release. Separate milestones remain independently reviewable and disableable, even if the final approved PR contains both implementations.
 
