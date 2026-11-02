@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- At most one eligible article image gets eager/high priority. No stored-body, image signature, source URL, API, database, or visual-design migration.
+- At most two adjacent eligible early images load eagerly, with at most one high-priority image (follow-up approved 2026-11-02; see the current design). No stored-body, image signature, source URL, API, database, or visual-design migration.
 - Anonymous bypass is exactly top-level `/login` or `/guide`, with optional trailing slash and no token. Keep PowerSync static imports and its normal initializer context.
 - Preserve image-preview eligibility, WeChat icons/frames, selection anchors, PDF/custom media, account ownership, recovery, extension bridge, and onboarding readiness.
 - Both app-config flags default to `true` in every profile as of `optimize-web-lcp` task 1.4 (no environment gating; see `design.md`). Flags do not necessarily remove parser download cost or revert lifecycle corrections. Compare against pre-change, not just flags off.
@@ -116,3 +116,7 @@
 TTFB, image cache refill, historical beta-host objects, responsive variants, video/guide tails, and any later SDK splitting remain evidence-gated follow-up changes. They do not enlarge the first-release implementation tasks automatically.
 
 Revised effort: **4.5–8 engineering days**, plus at least 7 calendar days of field observation. The extra lifecycle, browser-repair, and rollback checks replace the earlier 3–6-day estimate. All tasks are pending; only the planning artifacts have been revised.
+
+## Approved follow-up on PR #449 — 2026-11-02
+
+The current optimize-web-lcp design owns the refined banner/hero bounds. Add regressions before changing selection; preserve source-only edits and conservative unknown/responsive behavior. Reuse only the author nickname/avatar already read during visitor authorization. SQL, permissions, cache revalidation and telemetry stay unchanged. Transfer the approved promotion change under bookmarks-promo-eager, verify all additions, and independently review before updating the existing PR.

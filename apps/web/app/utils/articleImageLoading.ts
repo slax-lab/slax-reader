@@ -1,5 +1,5 @@
-import { defaultTreeAdapter, html as parse5Html, parseFragment } from 'parse5'
 import type { DefaultTreeAdapterTypes } from 'parse5'
+import { defaultTreeAdapter, html as parse5Html, parseFragment } from 'parse5'
 
 type Element = DefaultTreeAdapterTypes.Element
 type Node = DefaultTreeAdapterTypes.Node
@@ -7,6 +7,8 @@ type Node = DefaultTreeAdapterTypes.Node
 const HTML_NS = parse5Html.NS.HTML
 const TEXT_LIMIT = 600
 const SMALL_IMAGE_LIMIT = 96
+const READER_WIDTH_ESTIMATE = 800
+const ADJACENT_TEXT_LIMIT = 160
 const ASCII_SPACE = /[\t\n\f\r ]/
 const IMAGE_CLASSES = new Set(['avatar', 'icon', 'emoji', 'logo', 'profile-image', 'zhihu-qa-avatar'])
 const HEADER_CLASSES = new Set(['tweet-header', 'quote-header', 'zhihu-qa-user'])
@@ -111,9 +113,35 @@ function responsive(element: Element): boolean {
     && parent.childNodes.some(child => isElement(child) && child.namespaceURI === HTML_NS && child.tagName === 'source' && attr(child, 'srcset')?.trim()))
 }
 
-function selectImages(fragment: DefaultTreeAdapterTypes.DocumentFragment): { images: Element[]; selected: Element | null } {
+// Saved dimensions only guide priority; they never change the rendered layout.
+function estimatedSize(element: Element, declarations: Map<string, Declaration>) {
+  for (const axis of ['width', 'height']) {
+    const maximum = declarations.get(`max-${axis}`)?.value
+    const minimum = declarations.get(`min-${axis}`)?.value
+    if (maximum && maximum !== 'none' && !(axis === 'width' && maximum === '100%') && positivePx(maximum) === undefined) return null
+    if (minimum && !['0', '0px'].includes(minimum)) return null
+  }
+  const styledWidth = declarations.get('width')?.value
+  const styledHeight = declarations.get('height')?.value
+  if (styledWidth && !['auto', '100%'].includes(styledWidth) && positivePx(styledWidth) === undefined) return null
+  if (styledHeight && styledHeight !== 'auto' && positivePx(styledHeight) === undefined) return null
+  const intrinsicWidth = positiveDimension(attr(element, 'width'))
+  const width = positivePx(styledWidth) ?? positiveDimension(attr(element, 'data-w')) ?? intrinsicWidth
+  if (width === undefined) return null
+  const estimatedWidth = Math.min(width, positivePx(declarations.get('max-width')?.value) ?? width, READER_WIDTH_ESTIMATE)
+  const intrinsicHeight = positiveDimension(attr(element, 'height'))
+  const ratio = positiveDimension(attr(element, 'data-ratio')) ?? (intrinsicWidth && intrinsicHeight ? intrinsicHeight / intrinsicWidth : undefined)
+  const height = positivePx(styledHeight) ?? (ratio === undefined ? undefined : estimatedWidth * ratio)
+  if (height === undefined || !Number.isFinite(height) || height <= 0) return null
+  return { width: estimatedWidth, height: Math.min(height, positivePx(declarations.get('max-height')?.value) ?? height) }
+}
+
+function selectImages(fragment: DefaultTreeAdapterTypes.DocumentFragment) {
   const images: Element[] = []
+  const eager = new Set<Element>()
   let selected: Element | null = null
+  let firstSize: ReturnType<typeof estimatedSize> = null
+  let firstText = 0
   let stopped = false
   let text = 0
   const stack: { node: Node; hidden: boolean; header: boolean; inert: boolean }[] = [{ node: fragment, hidden: false, header: false, inert: false }]
@@ -130,14 +158,31 @@ function selectImages(fragment: DefaultTreeAdapterTypes.DocumentFragment): { ima
         images.push(node)
         const source = attr(node, 'src')?.trim() || ''
         const hasSource = source !== '' && !/^(?:data:|blob:)/i.test(source)
-        if (!selected && !stopped && text < TEXT_LIMIT && !hidden && !header && !isSmall(node, declarations) && !tokens.some(token => IMAGE_CLASSES.has(token))) {
+        if (!stopped && text < TEXT_LIMIT && !hidden && !header && !isSmall(node, declarations) && !tokens.some(token => IMAGE_CLASSES.has(token))) {
           // A source-only picture is still a real responsive resource: do not leap over it.
           if (responsive(node) && (hasSource || !source)) stopped = true
-          else if (hasSource) selected = node
+          else if (hasSource) {
+            const size = estimatedSize(node, declarations)
+            if (!selected) {
+              selected = node
+              eager.add(node)
+              firstSize = size
+              firstText = text
+              stopped = !size || size.width < 320 || size.height > 256 || size.height / size.width > 1 / 3
+            } else {
+              if (firstSize && size && text - firstText <= ADJACENT_TEXT_LIMIT
+                && size.width >= firstSize.width * 0.75 && size.height >= firstSize.height * 1.5
+                && size.height / size.width >= 0.5 && firstSize.height + size.height <= 800) {
+                selected = node
+                eager.add(node)
+              }
+              stopped = true
+            }
+          }
         }
       }
       header ||= tokens.some(token => HEADER_CLASSES.has(token))
-    } else if (node.nodeName === '#text' && !hidden && !inert && !selected && !stopped) {
+    } else if (node.nodeName === '#text' && !hidden && !inert && !stopped) {
       for (const point of (node as DefaultTreeAdapterTypes.TextNode).value) {
         if (!/\s/u.test(point)) text++
         if (text >= TEXT_LIMIT) break
@@ -147,12 +192,12 @@ function selectImages(fragment: DefaultTreeAdapterTypes.DocumentFragment): { ima
       for (let index = node.childNodes.length - 1; index >= 0; index--) stack.push({ node: node.childNodes[index]!, hidden, header, inert })
     }
   }
-  return { images, selected }
+  return { images, selected, eager }
 }
 
 // Attribute tokenization follows HTML's ASCII whitespace and quote rules, including
 // slash characters in unquoted values. Only policy tokens are replaced or removed.
-function imagePatches(html: string, image: Element, eager: boolean): Patch[] {
+function imagePatches(html: string, image: Element, eager: boolean, highPriority: boolean): Patch[] {
   const location = image.sourceCodeLocation?.startTag
   if (!location || !Number.isInteger(location.startOffset) || !Number.isInteger(location.endOffset)
     || location.startOffset < 0 || location.endOffset <= location.startOffset || location.endOffset > html.length
@@ -163,7 +208,7 @@ function imagePatches(html: string, image: Element, eager: boolean): Patch[] {
   const tag = html.slice(location.startOffset, location.endOffset)
   const opening = /^<(?:img|image)(?=[\t\n\f\r />])/i.exec(tag)
   if (!opening || !tag.endsWith('>')) throw new Error('Ambiguous image source span')
-  const values = new Map([['loading', eager ? 'eager' : 'lazy'], ['fetchpriority', eager ? 'high' : 'auto']])
+  const values = new Map([['loading', eager ? 'eager' : 'lazy'], ['fetchpriority', highPriority ? 'high' : 'auto']])
   const patches: Patch[] = []
   let index = opening[0].length
   const seen = new Set<string>()
@@ -212,8 +257,8 @@ export function applyArticleImageLoading(html: string, options: ArticleImageLoad
   try {
     const context = defaultTreeAdapter.createElement('div', HTML_NS, [])
     const fragment = parseFragment(context, html, { scriptingEnabled: true, sourceCodeLocationInfo: true })
-    const { images, selected } = selectImages(fragment)
-    const patches = images.flatMap(image => imagePatches(html, image, image === selected)).sort((a, b) => b.start - a.start)
+    const { images, selected, eager } = selectImages(fragment)
+    const patches = images.flatMap(image => imagePatches(html, image, eager.has(image), image === selected)).sort((a, b) => b.start - a.start)
     let boundary = html.length
     let result = ''
     for (const patch of patches) {

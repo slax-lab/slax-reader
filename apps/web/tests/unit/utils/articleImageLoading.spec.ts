@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as parser from 'parse5'
 import { applyArticleImageLoading } from '~/utils/articleImageLoading'
+
+import * as parser from 'parse5'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('parse5', async importOriginal => ({ ...await importOriginal<typeof import('parse5')>() }))
 const enabled = { enabled: true, excludedPresentation: false }
@@ -22,6 +23,62 @@ function promoted(html: string) {
 }
 
 afterEach(() => vi.restoreAllMocks())
+
+describe('adjacent banner and hero loading', () => {
+  const banner = '<img src="banner" data-w="1080" data-ratio="0.16" style="width:661px;height:auto">'
+  const bodyImage = '<img src="body" data-w="1080" data-ratio="0.8" style="width:661px;height:auto">'
+  const policies = (html: string) => images(applyArticleImageLoading(html, enabled)).map(({ src, loading, fetchpriority }) => ({ src, loading, fetchpriority }))
+
+  it.each([
+    [banner, bodyImage, ''],
+    ['<img src="banner" data-w="592" data-ratio="0.184">', '<img src="body" data-w="1009" data-ratio="0.566">', 'x'.repeat(140)],
+    ['<img src="banner" data-w="1078" data-ratio="0.313" style="width:100%;height:auto">', '<img src="body" data-w="1280" data-ratio="0.668" style="width:100%;height:auto">', ''],
+    ['<img src="banner" width="1000" height="200">', '<img src="body" width="1200" height="800">', '']
+  ])('prioritizes a nearby substantive hero while eager-loading its opening banner', (first, second, text) => {
+    const html = first + text + second + '<img src="later" width="1200" height="800">'
+    expect(policies(html)).toEqual([
+      { src: 'banner', loading: 'eager', fetchpriority: 'auto' },
+      { src: 'body', loading: 'eager', fetchpriority: 'high' },
+      { src: 'later', loading: 'lazy', fetchpriority: 'auto' }
+    ])
+    const once = applyArticleImageLoading(html, enabled)
+    expect(applyArticleImageLoading(once, enabled)).toBe(once)
+    expect(policies(parser.serialize(parser.parseFragment(once)))).toEqual(policies(html))
+  })
+
+  it.each([
+    ['<img src="first">', bodyImage],
+    [banner, '<img src="unknown">' + bodyImage],
+    [banner, '<img src="responsive" srcset="other 2x">' + bodyImage],
+    [banner, 'x'.repeat(161) + bodyImage],
+    ['x'.repeat(599) + banner, 'x' + bodyImage],
+    [banner, '<img src="small-body" width="200" height="200">' + bodyImage],
+    [banner, '<img src="tall" width="800" height="1600">'],
+    [bodyImage, '<img src="next-body" width="1200" height="900">'],
+    ['<img src="first" data-w="1080" data-ratio="0.16" style="width:661px;height:400px">', bodyImage],
+    ['<img src="first" data-w="1080" data-ratio="0.16" style="width:50%">', bodyImage],
+    ...['30%', '10rem', 'calc(100% - 600px)'].map(maximum => [banner, `<img src="thumbnail" data-w="800" data-ratio="0.75" style="max-width:${maximum};height:auto">`]),
+    [banner, '<img src="thumbnail" data-w="800" data-ratio="0.75" style="max-height:10rem">'],
+    ['<img src="first" data-w="800" data-ratio="0.2" style="min-height:400px">', bodyImage]
+  ])('keeps a single conservative choice when the pair is not established', (first, rest) => {
+    const result = policies(first + rest)
+    expect(result.filter(img => img.loading === 'eager')).toEqual([{ src: result[0]!.src, loading: 'eager', fetchpriority: 'high' }])
+    expect(result.slice(1).every(img => img.loading === 'lazy' && img.fetchpriority === 'auto')).toBe(true)
+  })
+
+  it.each(['0', '-1', 'NaN', 'Infinity', '1e999', '0.1junk'])('does not infer a pair from invalid ratio %s', ratio => {
+    expect(promoted(`<img src="first" data-w="1080" data-ratio="${ratio}">` + bodyImage)).toEqual(['first'])
+  })
+
+  it('counts visible intervening text but ignores hidden text and excluded icons', () => {
+    const html = banner + '<div hidden>' + 'x'.repeat(600) + '</div><img src="icon" class="oc-icon">' + 'x'.repeat(160) + bodyImage
+    expect(policies(html)).toEqual([
+      { src: 'banner', loading: 'eager', fetchpriority: 'auto' },
+      { src: 'icon', loading: 'lazy', fetchpriority: 'auto' },
+      { src: 'body', loading: 'eager', fetchpriority: 'high' }
+    ])
+  })
+})
 
 describe('article image selection', () => {
   it('promotes one early image, resets incoming priority, and leaves later images lazy', () => {

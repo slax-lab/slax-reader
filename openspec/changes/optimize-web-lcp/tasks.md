@@ -1,6 +1,6 @@
 # Tasks
 
-Execution details and file ownership are in [the implementation plan](../../../docs/superpowers/plans/2026-10-19-optimize-web-lcp.md). All implementation tasks remain pending; planning review is not implementation completion.
+Execution details and file ownership are in [the implementation plan](../../../docs/superpowers/plans/2026-10-19-optimize-web-lcp.md). Checked tasks record completed work; outstanding field/release tasks remain separate from the bounded follow-up.
 
 ## 1. Baseline and feasibility
 
@@ -31,6 +31,12 @@ Execution details and file ownership are in [the implementation plan](../../../d
 - [ ] 4.4 Record per-switch enablement and rollback decisions and prepare the `dev` PR with `OpenSpec: optimize-web-lcp`; distinguish flag rollback from implementation/deployment rollback and obtain later deployment authorization.
 - [ ] 4.5 After authorized release, verify effective builds before collecting matched 7-day cohorts and 30-day trends; keep mixed-build, small, or shifted samples inconclusive and retain the outcome record.
 
-## 5. Archive
+## 5. Approved bounded follow-up (2026-11-02)
 
-- [ ] 5.1 After the task pull request merges, archive this change through a docs pull request.
+- [x] 5.1 Add failing banner/hero and author-read regressions, then implement bounded two-image loading and author-profile reuse without changing permissions or SQL.
+- [x] 5.2 Validate raw/SSR/restored markup, reviewed article samples, promotion breakpoints, source identity, and parser overhead in running fixtures; record limitations.
+- [x] 5.3 Run Web/API tests, type checks, Web build, backend generators, strict spec validation, and independent Bugs/Security/Compliance review; resolve Important findings and update PR #449.
+
+## 6. Archive
+
+- [ ] 6.1 After the task pull request merges, archive this change through a docs pull request.

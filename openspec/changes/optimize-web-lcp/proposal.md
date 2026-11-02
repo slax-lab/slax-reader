@@ -7,12 +7,13 @@ The reviewed 30-day Cloudflare report for `r.slax.com` shows LCP P75 near 3.34 s
 ## What Changes
 
 - Establish a reproducible baseline tied to the deployed revision, representative article/login/guide pages, and separate cold/warm navigation conditions.
-- Replace blanket article-image lazy loading with a shared HTML5 policy that promotes at most one early substantive image, recognizes SSR-isolated icon classes, and preserves candidate identity through browser parsing. Catch up already-loaded/failed images without changing preview eligibility.
+- Replace blanket article-image lazy loading with a shared HTML5 policy that eager-loads at most two adjacent early images with one high-priority substantive image, recognizes SSR-isolated icon classes, and preserves candidate identity through browser parsing. Catch up already-loaded/failed images without changing preview eligibility.
 - Give anonymous top-level `/login` and `/guide` documents an early bypass in the existing PowerSync plugin, retaining static imports and avoiding a new serial runtime request. Preserve normal initialization for authenticated sessions, reader routes, and the extension bridge.
 - Use a full document navigation when a bypassed public document enters another application surface. A companion BFCache restore listener re-enters normal startup if that document's token has appeared or cannot be read; unchanged anonymous restores keep the bypass. Preserve the current setup-time database injection model and keep local queries unavailable in the bypassed document for its entire lifetime.
 - Deliver the article and public-startup policies behind two independent app-config switches.
 - **Decision revised 2026-11-02 (human, during implementation review):** both switches ship enabled by default in every profile (`true`), with no build-environment gating. The four-combination comparison, the beta cached-share rollback drill, and the login/guide/account-switch flow checks move from pre-enablement gates to post-release verification; they are tracked in `tasks.md` 2.4, 3.4, 4.1 and 4.2 and remain open. Rollback is therefore a source change to `apps/web/app/app.config.ts` plus a deployment, not a flag flip. Parser bytes and lifecycle fixes require implementation/deployment rollback when a flag is insufficient.
-- Record an evidence-gated follow-up plan for document TTFB, image-cache tiers, historical beta-host URLs, and responsive media. Those backend/media changes are not implementation scope of this change.
+- Reuse the author nickname/avatar already read during visitor access validation when assembling metadata. Preserve owner behavior, permission checks, SQL, API responses, and cache validation.
+- Record an evidence-gated follow-up plan for document TTFB, image-cache tiers, historical beta-host URLs, and responsive media. Broader backend/media changes remain outside implementation scope.
 
 ## Capabilities
 
@@ -40,3 +41,7 @@ Blanket eager loading; assigning high priority to every image; switching all rou
 ## Review boundary
 
 This package is a proposal for human review. It does not establish that the source findings explain all historical slow visits. Implementation begins only after review; deployment and production effectiveness are separate later checkpoints.
+
+## Approved bounded follow-up — 2026-11-02
+
+The user approved implementation on existing PR #449: improve markup-based hero selection, permit at most two early eager images with only one high-priority request, and reuse the author profile within metadata generation. The separately approved bookmarks promotion change joins the same PR under `bookmarks-promo-eager`. SQL aggregation, pool tuning, metadata reuse across cache/SSR, cache version redesign, image conversion, and production telemetry are explicitly deferred. This refines the existing article-image capability without a parallel delta.
