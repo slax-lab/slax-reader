@@ -185,3 +185,14 @@ describe('VertexAIClient.chatStream first-byte budget', () => {
     expect(signal?.aborted).toBe(false)
   })
 })
+
+test('chat forwards cancellation to the SDK and does not add it for other callers', async () => {
+  const client = new VertexAIClient({ VERTEX_API_KEY: 'test-key' } as never)
+  const generateContent = vi.fn(async (_params: any) => ({ text: 'done', candidates: [{ finishReason: 'STOP' }] }))
+  ;(client as unknown as { getAIClient: () => Promise<unknown> }).getAIClient = async () => ({ models: { generateContent } })
+  const controller = new AbortController()
+  await client.chat(contents, { abortSignal: controller.signal })
+  expect(generateContent.mock.calls[0][0].config.abortSignal).toBe(controller.signal)
+  await client.chat(contents)
+  expect(generateContent.mock.calls[1][0].config).not.toHaveProperty('abortSignal')
+})
