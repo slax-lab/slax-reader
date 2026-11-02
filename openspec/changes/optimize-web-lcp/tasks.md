@@ -13,7 +13,7 @@ Execution details and file ownership are in [the implementation plan](../../../d
 
 - [x] 2.1 Implement and test the shared HTML5/source-location policy; verify early-content limits, class-prefix exclusions, responsive-substantive-image stop boundaries, attribute uniqueness, unchanged non-policy bytes, and no browser-repair candidate switch.
 - [x] 2.2 Correct image processor completion ordering and repeat safety; test load before/after setup, prefailed images, later reload, repeated processing, source normalization, preserved preview eligibility, and current WeChat frames/icons.
-- [x] 2.3 Integrate `BookmarkArticle.vue` and two initially disabled app-config switches; verify actual SSR processing, browser body restoration, `/s/**`, client refresh, and PDF/PhotoSwipe behavior with real-browser hydration coverage.
+- [x] 2.3 Integrate `BookmarkArticle.vue` and the two app-config switches (gated by build environment per task 1.4); verify actual SSR processing, browser body restoration, `/s/**`, client refresh, and PDF/PhotoSwipe behavior with real-browser hydration coverage.
 - [ ] 2.4 Verify image preview, selection/highlights, visual themes, request identity, layout shifts, and parser/route-byte gates after integration; retain evidence and keep image enablement pending if any gate fails.
 
 ## 3. Anonymous public startup

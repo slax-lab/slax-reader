@@ -87,9 +87,11 @@ const isNarrow = computed(() => windowWidth.value <= 600)
   // -webkit- + standard pair into one declaration and keeps the *last* one, so writing
   // the standard property first silently dropped it from the production bundle. Writing
   // the prefix first makes Lightning CSS keep both. preview/development set
-  // minify: false, so no prefixer runs at all there and the hand-written prefix is what
-  // Safari 15.4–17 (still in build.target: es2022) relies on. Keep both lines, prefix
-  // first; see openspec/changes/fix-web-ui-render-defects/validation.md.
+  // minify: false, so no CSS minifier runs there and autoprefixer is the only
+  // prefixer — it keeps this pair because apps/web/package.json declares a
+  // browserslist matching build.target (Safari 15.4+ supports backdrop-filter only
+  // with the prefix). Keep both lines, prefix first; see
+  // openspec/changes/fix-web-ui-render-defects/validation.md.
   -webkit-backdrop-filter: var(--slax-blur);
   backdrop-filter: var(--slax-blur);
   box-shadow: var(--slax-shadow-warm);
