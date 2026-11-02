@@ -8,7 +8,7 @@ import { compareMobileVersion, validateMobileAppConfig } from './mobile-eas-rele
 
 const require = createRequire(import.meta.url)
 const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
-const validationWorkflows = ['frontend-ci', 'api-ci', 'mobile-ci', 'cli-ci', 'tooling-ci', 'agent-config']
+const validationWorkflows = ['frontend-ci', 'api-ci', 'mobile-ci', 'cli-ci', 'tooling-ci', 'config-ci']
 // Terminal gate job ids and exact names per application workflow: the names are
 // required status contexts in the dev and beta rulesets, so renaming one strands
 // the context at "Expected" until the ruleset is updated.
@@ -145,7 +145,7 @@ test('full mode skips detection and enables every scope even when the detector h
         assert.equal(evaluate(w.jobs[id].if, { ...context, cancelled: () => true }), false)
       }
     }
-    const guard = workflow('agent-config').jobs.guard
+    const guard = workflow('config-ci').jobs.guard
     const steps = { scope: { outputs } }
     assert.equal(evaluate(guard.steps[1].if, { ...context, steps }), false)
     for (const step of guard.steps.slice(2)) assert.equal(evaluate(step.if, { ...context, steps }), true, step.name || step.run || step.uses)
@@ -200,7 +200,7 @@ test('actual frontend and tooling job conditions avoid unrelated application wor
 })
 
 test('required configuration context performs detection directly and gates all expensive steps', () => {
-  const w = workflow('agent-config'), job = w.jobs.guard
+  const w = workflow('config-ci'), job = w.jobs.guard
   assert.equal(job.name, 'agent-config drift check')
   assertValidationTriggers(w)
   assert.equal(job.needs, undefined)

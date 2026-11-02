@@ -1,4 +1,4 @@
-name: Mobile EAS Build
+name: Mobile release
 
 on:
   push:

@@ -71,7 +71,10 @@ test('design, icons and configuration guards retain their exact validation input
   for (const path of ['openspec/changes/example/tasks.md', '.agents/skills/openspec-propose/SKILL.md', '.claude/skills/openspec-propose/SKILL.md', '.claude/commands/opsx/propose.md']) assert.equal(selectScopes([path]).scopes.openspec, true)
   for (const path of ['.github/workflows/pr-review.md', '.github/workflows/shared/pr-review-core.md', '.github/workflows/pr-review.lock.yml', '.github/aw/actions-lock.json', '.github/workflows/aw.json', 'tooling/check-gh-aw-drift.sh']) assert.equal(selectScopes([path]).scopes.ghAw, true)
   const plain = selectScopes(['apps/web/app/pages/index.vue']).scopes
-  for (const guard of ['rulesync', 'openspec', 'ghAw']) assert.equal(plain[guard], false)
+  for (const guard of ['rulesync', 'openspec', 'ghAw']) {
+    assert.equal(plain[guard], false)
+    assert.equal(selectScopes(['.github/workflows/config-ci.yml']).scopes[guard], true)
+  }
   for (const input of ['tooling/ci-scope.mjs', '.github/actions/ci-scope/action.yml']) assert.ok(Object.values(selectScopes([input]).scopes).every(Boolean))
 })
 

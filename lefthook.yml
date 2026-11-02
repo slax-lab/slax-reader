@@ -1,6 +1,6 @@
 # Commit-time guards: reject direct commits on the long-lived environment
 # branches, and keep generated artifacts and OpenSpec specs valid — the latter
-# checks CI runs in the agent-config workflow, kept in step by hand.
+# checks CI runs in the Config CI workflow, kept in step by hand.
 # To change these rules: edit this file, not .git/hooks/ (hooks are installed
 # by `lefthook install`, which runs via the root `prepare` script on pnpm install).
 pre-commit:
@@ -23,7 +23,7 @@ pre-commit:
       # a .md source still invalidates the lock files and needs a recompile.
       # Deliberately narrower than .github/workflows/**: the hand-written
       # workflows there (this file's neighbours, pr-review-gate.yml, the paused
-      # notice, agentic-noise-cleanup.yml) are never compiled and cannot drift,
+      # notice, pr-review-bookkeeping-cleanup.yml) are never compiled and cannot drift,
       # so they must not require a pinned gh-aw to commit. aw.json is here
       # because it *is* a compile input (it sets `strict` and `help_command`).
       glob: "{.github/workflows/*.md,.github/workflows/*.lock.yml,.github/workflows/*.json,.github/workflows/shared/**,.github/aw/**}"

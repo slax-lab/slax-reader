@@ -51,8 +51,8 @@ jobs:
     uses: ./.github/workflows/tooling-ci.yml
     with:
       full_validation: true
-  agent-config:
+  config-ci:
     needs: source
-    uses: ./.github/workflows/agent-config.yml
+    uses: ./.github/workflows/config-ci.yml
     with:
       full_validation: true
