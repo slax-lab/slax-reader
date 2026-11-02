@@ -41,4 +41,4 @@ The key is supplied to the same DeepSeek engine configuration already used by PR
 6. Before human archive review, record the archive PR's `ready-for-human-review` label, the single Feishu group card mentioning `slax-lab/reader-core`, and the absence of a duplicate archive PR.
 7. After the human merges the archive PR, remove only this task's worktree and merged local branch.
 
-Steps 1-7 are pending. No live trigger, real archive PR, bridge deployment, or Feishu delivery is claimed by the local checks above.
+Steps 1-2 are complete: the bridge proposal was approved, bridge PR #69 merged after review, and Deploy run 41433106389 succeeded. Step 3 is in progress in an isolated trial. Steps 4-7 remain pending. No live trigger, real archive PR, or Feishu delivery is claimed by the local checks above.
