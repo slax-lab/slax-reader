@@ -34,11 +34,9 @@ used.
   reason (see next section); after both fixes, a `loading` knob keeps its
   surface background and only gains the spinner overlay, and the on/off
   transform computes correctly.
-- Not verified: human visual/hands-on acceptance of the restored knob
-  animation in a real browser session, across light/dark/e-ink themes.
-  This is a UI-visible change; `DESIGN.md` §10.2 hands-on acceptance has
-  no declared-gap path and must happen before this pull request leaves
-  draft.
+- Human visual/hands-on acceptance of the restored knob animation is
+  recorded in the acceptance section at the end of this file (`DESIGN.md`
+  §10.2).
 
 ## `backdrop-filter` prefix fix — verification
 

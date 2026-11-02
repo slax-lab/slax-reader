@@ -1,7 +1,8 @@
 # Validation evidence
 
-This file records the evidence for the branch-environment gating added to
-`lcp.articleImagePriority` and `lcp.anonymousPublicStartup` (task 1.4). All
+This file records the evidence for making `lcp.articleImagePriority` and
+`lcp.anonymousPublicStartup` default to `true` in every profile with no
+build-environment gating (task 1.4). All
 commands were run on branch `fix/web-ui-switch-toolbar-lcp` locally with
 synthetic environment values (`https://example.test`,
 `https://api.example.test`); no real credentials or production data were
@@ -29,7 +30,7 @@ any `optimize-web-lcp` capability and are tracked on their own change,
   `false` for that file, matching its actual intent (verifying the fallback
   path, not the enabled path).
 - `npx eslint` on the changed files (`app.config.ts`, `nuxt.config.ts`,
-  `index.d.ts`, `BookmarkArticle.spec.ts`) — clean.
+  `BookmarkArticle.spec.ts`) — clean.
 
 ## Switch defaults (task 1.4) — build-profile verification
 
