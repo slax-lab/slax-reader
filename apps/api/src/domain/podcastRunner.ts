@@ -444,7 +444,7 @@ interface StoredPolishChunk {
 interface StoredTranslationChunk {
   index: number
   texts: Record<string, string>
-  /** Glossary after this chunk (rolling). */
+  /** Glossary for this chunk. */
   glossary: GlossaryEntry[]
   usage: { input_tokens: number; output_tokens: number; cost_usd: number }
 }

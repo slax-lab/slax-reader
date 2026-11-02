@@ -65,3 +65,22 @@ It SHALL retain cue references, quality checks, retry reuse, and the episode cos
 #### Scenario: Accounting failure
 - **WHEN** a model cost cannot be recorded
 - **THEN** the workflow admits no further model requests in that attempt
+
+### Requirement: Complete podcast reading presentation
+
+The Web reader SHALL present complete generated podcast articles with the YouTube reading hierarchy and styles.
+It SHALL show an introduction, contents, topic headings, and chapter playback controls without visible timestamps on every paragraph.
+Original and translated articles SHALL retain ordered text and playback references.
+
+#### Scenario: Complete article
+- **WHEN** podcast article generation succeeds
+- **THEN** the page displays the complete article with introduction, contents, and topic sections
+- **AND** each chapter playback control seeks to its source time
+
+#### Scenario: Contents navigation
+- **WHEN** the reader selects a contents entry
+- **THEN** the reader scrolls to that topic within the current article
+
+#### Scenario: Preserved paragraph references
+- **WHEN** the reading presentation hides paragraph timestamps
+- **THEN** paragraph cue and timing metadata remain available for playback and annotations

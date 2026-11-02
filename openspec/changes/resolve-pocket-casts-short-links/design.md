@@ -69,3 +69,13 @@ Serialize budget admission and cost writes. Reserve the input estimate and maxim
 Wait for active reservations when they alone prevent admission. Reject new calls when the settled budget is insufficient.
 Stop admitting calls after an accounting failure. Release every reservation when its call settles.
 Tests must prove concurrency, the limit of five, ordered output, retry reuse, and safe budget admission.
+
+## YouTube reading presentation
+
+The Web podcast article uses the existing YouTube reading styles and hierarchy.
+The full original-language article and translated article show an introduction, contents, and topic sections.
+Playback controls appear beside topic headings. Paragraph timestamps remain as metadata rather than visible buttons.
+Keep media-kind markers, paragraph nodes, cue references, and annotation boundaries intact.
+The renderer uses podcast-specific labels and source notes. Styles and chapter navigation are shared with YouTube.
+Verify the complete generated document, chapter playback, contents navigation, and all themes at narrow and desktop widths.
+No excerpt or manually rewritten passage substitutes for full generation evidence.

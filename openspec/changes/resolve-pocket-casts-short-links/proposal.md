@@ -49,3 +49,12 @@ It does not claim that the local player preview passes transcript acceptance.
 
 Luca requested readable articles after transcription and explicitly required concurrent generation based on the YouTube code.
 This scope extension preserves the existing article editor and adds bounded concurrency with safe accounting.
+
+Luca rejected the excerpt preview and requested the complete generated article in the YouTube reading presentation.
+Reuse its introduction, contents, typography, topic headings, and chapter controls for podcasts.
+Keep all paragraph cue references and playback behavior. Do not present edited excerpts as full workflow output.
+
+
+On 2026-11-02, Luca accepted the complete raw-transcript guest page and requested PR submission.
+This approval replaces the earlier submission deferral. It does not verify the generated article or translation.
+The author records the remaining live-generation gaps in `validation.md` for human review.

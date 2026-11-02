@@ -1,6 +1,7 @@
 @mixin youtube-reading {
-  // Edited YouTube content keeps the existing paragraph nodes and highlight targets.
-  [data-slax-derived='youtube-article'] {
+  // Edited media content keeps the existing paragraph nodes and highlight targets.
+  [data-slax-derived='youtube-article'],
+  [data-slax-derived='podcast-article'] {
     font-family: var(--slax-font-sans);
     font-size: 18px;
     line-height: 1.85;

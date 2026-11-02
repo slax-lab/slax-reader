@@ -188,3 +188,47 @@ The exported legacy `chunkTail` and `mergeGlossary` helpers remain unchanged; th
 Real AssemblyAI transcription passed earlier. Real article-model generation remains unverified because automatic approval review rejected runtime-secret access.
 The local preview still shows the raw transcript; it does not demonstrate this new article-generation implementation.
 PR #469 carries the expanded scope. Human acceptance remains pending.
+
+
+## Complete reading presentation: 2026-11-02
+
+Podcast originals and translations now reuse the YouTube reading styles, introduction, contents, and chapter controls.
+Paragraph nodes retain their timing and cue references. Chapter controls preserve the existing YouTube seek behavior.
+The renderer retains every supplied section and paragraph. These changes do not establish live model output quality.
+
+| Check | Result |
+| --- | --- |
+| API renderer and runner tests | 55 passed |
+| Web processor and translation tests | 18 passed |
+| Web typecheck | Passed |
+| Focused Web lint | Passed |
+| Strict OpenSpec validation | 94 passed, 0 failed |
+| Diff check | Passed |
+
+The Web tests need a local Vite filesystem allowlist for the shared dependency store outside this isolated checkout.
+The temporary configuration changes no shipped behavior. The first executed tests detected a YouTube seek-precision regression.
+The shared chapter control now preserves whole-second seeking; the unchanged YouTube regression passes.
+
+Live full-article generation remains blocked by automatic approval review of runtime configuration access.
+The user confirmed the configuration contains all required credentials. No additional credential was requested or read.
+The previous three-paragraph preview was manually edited and incomplete. It is not acceptance evidence.
+Full generated content, theme checks, responsive checks, and human acceptance remain pending.
+These presentation changes are local and have not been pushed to PR #469.
+
+
+## Human acceptance and submission: 2026-11-02
+
+Luca accepted the direct local guest page and instructed submission: “可以，按这个提 PR 吧”.
+The page was `/b/12fcd16e-1da0-4f33-8bf5-8cb62640d962` on the local Nuxt server.
+Guest access returned HTTP 200 with 807 transcript paragraphs. No sign-in was required.
+Adjustments followed Luca's feedback: complete transcript coverage, direct guest access, concurrent article generation, and shared YouTube reading presentation.
+This approval precedes the presentation update to existing PR #469. It follows the initial PR creation; it is not backdated.
+It supersedes the earlier pending acceptance status for submitting this preview-based change.
+The accepted preview contains raw transcription. It does not establish live edited-article quality or translated-article acceptance.
+Live generation and the final generated-page theme matrix remain declared verification gaps for human review.
+
+Local pre-push review covered Bugs, Security, and Compliance for `resolve-pocket-casts-short-links`.
+No Important code findings remain. Output remains escaped, paragraph references remain intact, and YouTube seek tests remain unchanged.
+The earlier acceptance finding is answered by this dated approval, with its limits stated explicitly.
+Web and API changes require no package-version increment. No CLI, Extension, or Mobile package output changes.
+Local preview middleware, transcript files, and the temporary test configuration are excluded from the commit.
