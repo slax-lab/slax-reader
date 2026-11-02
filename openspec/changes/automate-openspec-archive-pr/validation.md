@@ -18,6 +18,7 @@ The historical active-change backlog is outside this change's archive scope.
 - `pnpm agent:check`: rulesync doctor and generation checks passed, strict OpenSpec validation passed 94 items, and the gh-aw drift check passed.
 - `git diff HEAD --check`: passed with no whitespace errors.
 - `gh aw trial ./.github/workflows/openspec-archive.md --clone-repo slax-lab/slax-reader --delete-host-repo-after --dry-run --yes --json`: dry-run completed without creating a repository. The actual trial uses `--trigger-context https://github.com/slax-lab/slax-reader/pull/341`; gh-aw forwards that PR number as `issue_number`, so no production replay default exists.
+- The first real trial attempt cloned the host but failed before execution because the relative workflow path was not resolved during installation. Automatic host cleanup also failed with HTTP 403 because the token lacks `delete_repo`. A retry uses the absolute workflow path and the existing private trial host, without creating another repository or claiming cleanup.
 
 ## Compiler security review
 
