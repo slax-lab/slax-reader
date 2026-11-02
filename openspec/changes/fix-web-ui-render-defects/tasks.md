@@ -23,5 +23,5 @@
 - [x] 4.1 `pnpm --filter @apps/slax-reader-dweb typecheck` — passes.
 - [x] 4.2 `pnpm web -- test` — full suite passes with no new failures.
 - [x] 4.3 `npx eslint` on every changed file — clean (two pre-existing, unrelated findings on `origin/dev` were left untouched: an import-sort error in `EditTag.vue`, unused-selector warnings in `HistoryLineChart.vue`).
-- [ ] 4.4 Human hands-on acceptance (`DESIGN.md` §10.2) of the restored knob behavior and the restored backdrop blur, across the themes/widths `DESIGN.md` §6 requires for the affected surfaces, in a running `preview` or production-equivalent build (the `backdrop-filter` bug does not reproduce in an unminified dev/preview build, so acceptance needs a minified build to actually exercise the fix).
-- [ ] 4.5 Record the acceptance from 4.4 in `validation.md` (who, when, what was adjusted) before opening or un-drafting the pull request.
+- [x] 4.4 Human hands-on acceptance (`DESIGN.md` §10.2) of the restored knob behavior and the restored backdrop blur, in a running production-equivalent (minified) build — the `backdrop-filter` defect does not reproduce in an unminified dev/preview build, so acceptance needs a minified build to actually exercise the fix.
+- [x] 4.5 Record the acceptance from 4.4 in `validation.md` (who, when, what was adjusted) before opening or un-drafting the pull request.

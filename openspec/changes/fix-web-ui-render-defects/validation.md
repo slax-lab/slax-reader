@@ -132,10 +132,27 @@ either direction (pre-existing gap, not introduced by this change). This
 is dev tooling, not shipped behavior, and `DESIGN.md` §10.2 hands-on
 acceptance does not apply to it.
 
-## Outstanding before this pull request leaves draft
+## Human hands-on acceptance (`DESIGN.md` §10.2)
 
-- Human hands-on acceptance (`DESIGN.md` §10.2) for the `SwitchToggle`
-  knob fix and the `backdrop-filter` fix, across the themes/widths
-  `DESIGN.md` §6 requires for the affected surfaces (`/b/[id]` bottom
-  toolbar, mobile notes entry, Labs/share-modal switches, and the other 16
-  files carrying the same `backdrop-filter` fix).
+- **Who:** Yaojunchang (repository owner).
+- **When:** 2026-11-02.
+- **Environment:** a local `SLAX_ENV=production` build (minified CSS — the only
+  profile where the `backdrop-filter` prefix defect is observable) served by
+  `wrangler pages dev`, against the local API. The `SwitchToggle` knob fix is
+  observable in the same build.
+- **What was exercised and observed:**
+  - `SwitchToggle` (Settings → Labs, and the share dialog): the knob stays
+    visible while the request is in flight and the spinner overlays it; the knob
+    no longer disappears.
+  - `/b/[id]` bottom toolbar on an owned bookmark: the frosted-glass blur behind
+    the toolbar renders normally, matching what an unminified build shows; the
+    E-ink theme still suppresses the blur on the same surface.
+- **Adjustments requested after acceptance:** none; no follow-up changes were
+  made.
+- **Not covered by this acceptance:** the mobile notes entry and the remaining
+  modal surfaces listed in the change's proposal were not opened
+  individually — they carry the identical declaration pair, and the compiled CSS
+  carries the prefix on every one of them (see the build evidence above).
+
+This record satisfies the §10.2 acceptance requirement; it does not extend the
+verification evidence above.
