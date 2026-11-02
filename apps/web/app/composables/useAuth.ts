@@ -1,14 +1,15 @@
 import { configuredCookieName, requireConfiguredCookieName } from '~/utils/authCookie'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 
 const { set, remove } = useCookies()
 
 const useAuth = {
-  async requestAuth(options: { redirect: string; affCode: string }) {
-    const { redirect, affCode } = options
+  async requestAuth(options: { redirect: string; affCode: string; authAttribution?: CollectionAuthAttribution }) {
+    const { redirect, affCode, authAttribution } = options
     const $config = useRuntimeConfig().public
     const url = `https://accounts.google.com/o/oauth2/v2/auth`
     const params = {
@@ -21,7 +22,8 @@ const useAuth = {
         redirectUrl: `${$config.AUTH_BASE_URL}/auth`,
         target: redirect,
         affCode: affCode,
-        platform: 'google'
+        platform: 'google',
+        auth_attribution: authAttribution
       })
     }
 
@@ -47,7 +49,7 @@ const useAuth = {
 
     location.href = url + '?' + new URLSearchParams(params)
   },
-  async grantAuth(code: string, redirectUri: string, affCode: string, platformType: 'google' | 'apple' = 'google'): Promise<string> {
+  async grantAuth(code: string, redirectUri: string, affCode: string, platformType: 'google' | 'apple' = 'google', authAttribution?: unknown): Promise<string> {
     const $config = useRuntimeConfig().public
     const clientIdRef = {
       apple: `${$config.APPLE_OAUTH_CLIENT_ID}`,
@@ -61,7 +63,8 @@ const useAuth = {
         aff_code: affCode,
         redirect_uri: redirectUri,
         type: platformType,
-        client_id: clientIdRef[platformType]
+        client_id: clientIdRef[platformType],
+        ...(platformType === 'google' && authAttribution !== undefined ? { auth_attribution: authAttribution } : {})
       }
     })
 
