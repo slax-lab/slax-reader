@@ -158,3 +158,33 @@ The complete raw transcript is available locally; it is not a model-edited artic
 Luca explicitly allowed local use of the existing runtime configuration for the article step.
 Automatic approval review nevertheless rejected the command because it accesses `deploy/local/.dev.vars`.
 The rejected command did not run. Article generation, moderation, database publication, and full human acceptance remain unverified.
+
+## Concurrent readable article implementation: 2026-11-02
+
+Luca requested the readable version after transcription, with concurrent generation based on the YouTube code.
+The existing podcast editor already removes filler, corrects punctuation, groups paragraphs, and retains cue references.
+The runner now processes up to five editing or translation chunks concurrently. It assembles results in source order.
+Source context replaces dependencies on previous generated chunks. The existing article version stays unchanged to preserve access to existing articles.
+Cost admission reserves input and maximum-output estimates. Active reservations count toward the episode limit.
+Accounting failures stop further admission. Every started sibling settles before the attempt can finish.
+Retries reuse completed chunks. Existing quality checks still prevent publication of rejected articles.
+The live 807-cue transcript produces 14 chunks, scheduled in three batches of at most five.
+
+Two concurrency regressions failed before implementation. All five new regressions pass after implementation.
+They cover five active calls, ordered output, sibling completion after failure, retry reuse, translation concurrency, budget admission, and accounting failures.
+
+| Final check | Result |
+| --- | --- |
+| Full API suite | 199 files passed, 14 skipped; 2,733 tests passed, 113 skipped |
+| API typecheck | Passed |
+| API lint | 0 errors, 344 existing warnings |
+| Diff check | Passed |
+
+The first full-suite run had one unrelated local-listener startup failure. The isolated test and the final full suite passed.
+No schema, API contract, client package, or generated artifact changed.
+Local review: Bugs, Security, and Compliance found no Important code findings for the expanded change.
+The exported legacy `chunkTail` and `mergeGlossary` helpers remain unchanged; the runner no longer needs them.
+
+Real AssemblyAI transcription passed earlier. Real article-model generation remains unverified because automatic approval review rejected runtime-secret access.
+The local preview still shows the raw transcript; it does not demonstrate this new article-generation implementation.
+PR #469 carries the expanded scope. Human acceptance remains pending.

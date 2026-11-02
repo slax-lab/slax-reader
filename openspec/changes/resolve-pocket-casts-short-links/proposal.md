@@ -12,6 +12,8 @@ The resolver excludes `pca.st`, so podcast detection receives the unresolved sho
 - Preserve normal page capture for show links, unresolved links, and accounts without podcast Labs.
 - Preserve URL safety checks, bookmark identity, and annotation protection during recapture.
 - Add regression coverage for the reported link and its redirect destination.
+- Generate the readable podcast article and translations with up to five concurrent chunks, following the YouTube implementation.
+- Preserve full transcript coverage, ordered assembly, retry reuse, and the episode cost limit.
 
 ## Capabilities
 
@@ -25,14 +27,14 @@ None.
 
 ## Impact
 
-The implementation affects the API capture resolver and its tests. It needs no dependency, API contract, database, or client package change.
+The implementation affects the API capture resolver, podcast article runner, prompts, and tests. It needs no dependency, API contract, database, or client package change.
 The initial capture shows the existing player and notes. The existing workflow then generates the complete transcript article.
 Web and API releases do not require package-version increments.
 
 ## Non-goals
 
 This change does not enable Labs, replace annotated bodies, introduce a new player, or automatically recapture stored bookmarks.
-It does not change transcript providers, spending limits, or generation rules.
+It does not change transcript providers or spending limits.
 
 ## Sequencing and review
 
@@ -44,3 +46,6 @@ Luca approved implementation on 2026-11-02 by instructing work to continue after
 Luca later directed the author to finish the code and request colleague deployment to `dev` for testing.
 This task-specific instruction defers full runtime verification and human acceptance until the colleague deploys the change.
 It does not claim that the local player preview passes transcript acceptance.
+
+Luca requested readable articles after transcription and explicitly required concurrent generation based on the YouTube code.
+This scope extension preserves the existing article editor and adds bounded concurrency with safe accounting.

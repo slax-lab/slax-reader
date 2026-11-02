@@ -56,3 +56,16 @@ Verify player output and record the transcript state.
 Revert the task commit to remove the resolver change; no database rollback is needed.
 
 Archive after the merged Pocket Casts change and its existing archive dependencies.
+
+## Concurrent readable articles
+
+Use the YouTube task implementation at `0af2185f` as the reference for five concurrent chunk steps.
+Run original-language editing and translation in bounded batches. Wait for every started step before handling a batch failure.
+Assemble cached results by chunk index, independent of completion order. Retain the existing quality gate and timestamp renderer.
+Remove dependencies on the previous generated chunk. Editing uses the existing source-cue overlap and episode context.
+Translation uses the immutable source article and episode context. Each chunk starts with an empty generated glossary and tail.
+Keep the article version unchanged so existing articles remain readable. Previously completed chunks remain valid and reusable.
+Serialize budget admission and cost writes. Reserve the input estimate and maximum output cost before each model call.
+Wait for active reservations when they alone prevent admission. Reject new calls when the settled budget is insufficient.
+Stop admitting calls after an accounting failure. Release every reservation when its call settles.
+Tests must prove concurrency, the limit of five, ordered output, retry reuse, and safe budget admission.

@@ -40,3 +40,28 @@ Show links and unresolved short codes SHALL retain normal page handling.
 #### Scenario: Existing unannotated bookmark
 - **WHEN** an owner with podcast Labs requests recapture of an unannotated short-code episode bookmark
 - **THEN** podcast capture retains the bookmark identity
+
+### Requirement: Concurrent readable podcast articles
+
+The system SHALL edit complete podcast transcripts into readable articles through the existing article workflow.
+It SHALL process at most five editing or translation chunks concurrently and assemble them in source order.
+It SHALL retain cue references, quality checks, retry reuse, and the episode cost limit.
+
+#### Scenario: Independent chunks
+- **WHEN** an article requires multiple chunks
+- **THEN** up to five model requests can run together without waiting for earlier generated text
+- **AND** the final article follows source order and retains transcript coverage
+
+#### Scenario: Concurrent cost admission
+- **WHEN** model requests overlap
+- **THEN** admission includes settled costs and active reservations
+- **AND** a request waits for reservations or fails before spending beyond the available budget
+
+#### Scenario: Failed chunk
+- **WHEN** a chunk fails while sibling chunks are active
+- **THEN** the workflow waits for the active siblings before ending the attempt
+- **AND** a retry reuses successfully stored chunks
+
+#### Scenario: Accounting failure
+- **WHEN** a model cost cannot be recorded
+- **THEN** the workflow admits no further model requests in that attempt

@@ -516,3 +516,162 @@ describe('review fixes', () => {
     expect(first.deps.model.chat).not.toHaveBeenCalled()
   })
 })
+
+describe('concurrent podcast articles', () => {
+  function readyLong() {
+    const state = setup()
+    const cues = Array.from({ length: 360 }, (_, i) => ({
+      id: `c${String(i + 1).padStart(4, '0')}`,
+      start_ms: i * 10_000,
+      duration_ms: 10_000,
+      text:
+        `Topic ${i}: ` +
+        'The speaker explains how local research changes the choices people make about work, education, transport, housing, public services, and their future. '.repeat(3)
+    }))
+    Object.assign(state.episodes.row, { transcript_status: 'ready', transcript_hash: 'long-hash', transcript_key: 'long-transcript', language: 'en' })
+    state.bucket.objects.set('long-transcript', JSON.stringify({ schema_version: 1, source: 'publisher', language: 'en', speakers: false, duration_ms: 3_600_000, cues }))
+    return { ...state, cues }
+  }
+
+  test('runs five chunks together and assembles in source order', async () => {
+    const { deps, articles, bucket, cues } = readyLong()
+    const original = fakeModel()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let active = 0,
+      maximum = 0,
+      started = 0
+    deps.model = {
+      chat: async (...args) => {
+        const index = started++
+        maximum = Math.max(maximum, ++active)
+        await gate
+        await new Promise(resolve => setTimeout(resolve, (4 - index % 5) * 5))
+        try {
+          return await original.chat(...args)
+        } finally {
+          active--
+        }
+      }
+    }
+    const run = runPodcastEpisode(deps, P, engine().step, 'parallel')
+    try {
+      await vi.waitFor(() => expect(started).toBe(5), { timeout: 1000 })
+      expect(active).toBe(5)
+    } finally {
+      release()
+    }
+    expect(await run).toBe('ready')
+    expect(maximum).toBe(5)
+    const doc = JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!)
+    expect(doc.sections.flatMap(s => s.paragraphs.flatMap(p => p.source_cue_ids))).toEqual(cues.map(c => c.id))
+  })
+
+  test('waits for failed-chunk siblings and reuses them on retry', async () => {
+    const { deps, bucket } = readyLong()
+    const original = fakeModel()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let started = 0,
+      fail = true,
+      finished = false
+    deps.model = {
+      chat: async (...args) => {
+        if (args[2].systemInstruction.includes('This is the first chunk') && fail) throw new Error('first chunk failed')
+        started++
+        await gate
+        return original.chat(...args)
+      }
+    }
+    const run = runPodcastEpisode(deps, P, engine().step, 'failure').then(value => {
+      finished = true
+      return value
+    })
+    try {
+      await vi.waitFor(() => expect(started).toBe(4), { timeout: 1000 })
+      expect(finished).toBe(false)
+    } finally {
+      release()
+    }
+    expect(await run).toBe('retry')
+    expect([...bucket.objects.keys()].filter(k => k.includes('/chunks/'))).toHaveLength(4)
+    fail = false
+    original.chat.mockClear()
+    expect(await runPodcastEpisode(deps, P, engine().step, 'retry')).toBe('ready')
+    expect(original.chat.mock.calls.filter(call => /This is chunk [2-5] of/.test(call[2].systemInstruction))).toHaveLength(0)
+  })
+
+  test('reserves concurrent costs before admitting model calls', async () => {
+    const { deps, articles, episodes } = readyLong()
+    episodes.row.cost_usd = 0.94
+    const original = fakeModel()
+    let active = 0,
+      maximum = 0
+    deps.model = {
+      chat: async (...args) => {
+        maximum = Math.max(maximum, ++active)
+        await new Promise(resolve => setTimeout(resolve, 10))
+        const result = await original.chat(...args)
+        active--
+        return { ...result, usage: { inputTokens: 2000, outputTokens: 16000 } }
+      }
+    }
+    expect(await runPodcastEpisode(deps, P, engine().step, 'budget')).toBe('failed')
+    expect(maximum).toBe(1)
+    expect(original.chat).toHaveBeenCalledOnce()
+    expect(articles.rows[0].error_message).toBe('budget_exceeded')
+    expect(deps.publishBodies).not.toHaveBeenCalled()
+  })
+
+  test('translates five source chunks concurrently', async () => {
+    const { deps, articles } = readyLong()
+    deps.translationTargets.mockResolvedValue(['zh'])
+    const original = fakeModel()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let started = 0,
+      active = 0,
+      maximum = 0
+    deps.model = {
+      chat: async (...args) => {
+        const translation = args[2].systemInstruction.includes('资深译者')
+        if (translation) {
+          started++
+          maximum = Math.max(maximum, ++active)
+          await gate
+        }
+        try {
+          return await original.chat(...args)
+        } finally {
+          if (translation) active--
+        }
+      }
+    }
+    const run = runPodcastEpisode(deps, P, engine().step, 'translation')
+    try {
+      await vi.waitFor(() => expect(started).toBe(5), { timeout: 1000 })
+    } finally {
+      release()
+    }
+    expect(await run).toBe('ready')
+    expect(maximum).toBe(5)
+    expect(articles.rows.find(r => r.target_language === 'zh')?.status).toBe('ready')
+  })
+
+  test('stops admitting calls after a cost write fails', async () => {
+    const { deps, articles } = readyLong()
+    const original = fakeModel()
+    articles.addCost.mockRejectedValue(new Error('cost storage failed'))
+    deps.model = original
+    expect(await runPodcastEpisode(deps, P, engine().step, 'accounting')).toBe('retry')
+    expect(original.chat.mock.calls.length).toBeLessThanOrEqual(5)
+    expect(deps.publishBodies).not.toHaveBeenCalled()
+    expect(articles.rows[0].error_message).toBe('cost storage failed')
+  })
+})
