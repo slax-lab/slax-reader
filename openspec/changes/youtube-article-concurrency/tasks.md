@@ -23,6 +23,6 @@
 ## 4. Review and delivery
 
 - [x] 4.1 Run an independent Bugs, Security, and Compliance review. Resolve Important findings before pushing.
-- [ ] 4.2 Open one PR to dev using the repository template and the validation evidence.
+- [x] 4.2 Open PR #468 to dev using the repository template and the validation evidence.
 - [ ] 4.3 Resolve PR agent findings and CI failures until the agent review gate passes on the final revision.
 - [ ] 4.4 After the task PR merges, classify remaining tasks and archive through a documentation PR after the preceding truncation change.
