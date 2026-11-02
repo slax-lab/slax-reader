@@ -65,7 +65,7 @@ Deployment order:
 
 1. Build and locally validate both repository changes.
 2. Obtain the separate bridge proposal approval, then merge and deploy the bridge roster change.
-3. Exercise the main workflow in an isolated gh-aw trial with a cloned repository and a known merged, archive-eligible change; inspect the generated PR and captured notification-relevant fields.
+3. Exercise the main workflow in an isolated gh-aw trial with a cloned repository and a known merged, archive-eligible change; pass that source PR through `--trigger-context`, which gh-aw maps to the workflow's `issue_number` input, and inspect the generated PR and captured notification-relevant fields.
 4. Open and merge the main workflow PR. Its own merge is the first live trigger and should generate the archive PR for `automate-openspec-archive-pr`.
 5. Confirm the real archive PR, gate readiness, and Feishu group card naming `slax-lab/reader-core`. Human review and merge of that archive PR completes this change.
 

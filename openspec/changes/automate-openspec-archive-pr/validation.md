@@ -17,6 +17,7 @@ The historical active-change backlog is outside this change's archive scope.
 - `pnpm agent:sync`: regenerated `AGENTS.md` and `CLAUDE.md` from the rulesync source.
 - `pnpm agent:check`: rulesync doctor and generation checks passed, strict OpenSpec validation passed 94 items, and the gh-aw drift check passed.
 - `git diff HEAD --check`: passed with no whitespace errors.
+- `gh aw trial ./.github/workflows/openspec-archive.md --clone-repo slax-lab/slax-reader --delete-host-repo-after --dry-run --yes --json`: dry-run completed without creating a repository. The actual trial uses `--trigger-context https://github.com/slax-lab/slax-reader/pull/341`; gh-aw forwards that PR number as `issue_number`, so no production replay default exists.
 
 ## Compiler security review
 
