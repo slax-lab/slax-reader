@@ -79,6 +79,8 @@ No visible or accessibility-affecting UI change is introduced, so the DESIGN.md 
 
 ## Remaining evidence and delivery
 
+Companion draft PRs: [application #473](https://github.com/slax-lab/slax-reader/pull/473), targeting `dev`, and [analytics #1](https://github.com/slax-lab/slax-reader-analytics/pull/1), targeting `main`. Both carry the approved scope, local evidence, and outstanding acceptance work. They are not merged or deployed.
+
 - **4.3, warehouse:** not performed. These local changes have not been deployed and no corresponding real `logs.events` rows or snapshot IDs exist for this verification. No warehouse access or production data query was used.
 - **4.4, production report:** the deterministic query fixture passes, but a Q2 report over ingested real events, actual UA bot classification, and field completeness remains pending deployment and warehouse evidence.
 - **4.5, analytics acceptance:** Alex's post-test-deployment acceptance under handbook C5 remains pending. No message was sent to another person on the user's behalf. Dictionary additions are `implemented`, never `live`.
