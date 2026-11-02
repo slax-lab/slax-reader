@@ -1,4 +1,4 @@
-name: Ready-for-review label
+name: PR review readiness reset
 
 # Companion to the review gate. The `ready-for-human-review` label is the explicit
 # "automated checks finished with no blocker" state consumed by the Feishu
