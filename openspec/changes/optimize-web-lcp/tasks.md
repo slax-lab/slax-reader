@@ -13,8 +13,8 @@ Execution details and file ownership are in [the implementation plan](../../../d
 
 - [x] 2.1 Implement and test the shared HTML5/source-location policy; verify early-content limits, class-prefix exclusions, responsive-substantive-image stop boundaries, attribute uniqueness, unchanged non-policy bytes, and no browser-repair candidate switch.
 - [x] 2.2 Correct image processor completion ordering and repeat safety; test load before/after setup, prefailed images, later reload, repeated processing, source normalization, preserved preview eligibility, and current WeChat frames/icons.
-- [x] 2.3 Integrate `BookmarkArticle.vue` and the two app-config switches (gated by build environment per task 1.4); verify actual SSR processing, browser body restoration, `/s/**`, client refresh, and PDF/PhotoSwipe behavior with real-browser hydration coverage.
-- [ ] 2.4 Verify image preview, selection/highlights, visual themes, request identity, layout shifts, and parser/route-byte gates after integration; retain evidence and keep image enablement pending if any gate fails.
+- [x] 2.3 Integrate `BookmarkArticle.vue` and the two app-config switches; verify actual SSR processing, browser body restoration, `/s/**`, client refresh, and PDF/PhotoSwipe behavior with real-browser hydration coverage.
+- [ ] 2.4 Verify image preview, selection/highlights, visual themes, request identity, layout shifts, and parser/route-byte gates after integration and after release (the switches ship enabled); retain evidence and disable the switch in `apps/web/app/app.config.ts` if any gate fails.
 
 ## 3. Anonymous public startup
 
@@ -25,8 +25,12 @@ Execution details and file ownership are in [the implementation plan](../../../d
 
 ## 4. Integration, release, and review evidence
 
-- [ ] 4.1 Compare pre-change plus off/off, on/off, off/on, and on/on builds; verify image/public mechanisms separately, normal app-mount/local-query timing, LCP/CLS, and interactions against the design's numeric gates.
-- [ ] 4.2 Run the beta/test rollback drill before production enablement; verify warmed owner/visitor and fresh share responses, effective build/attributes, old hashed-asset availability, and measured purge/expiry convergence. Stop release if convergence is unproven.
+- [ ] 4.1 Compare pre-change plus off/off, on/off, off/on, and on/on builds; verify image/public mechanisms separately, normal app-mount/local-query timing, LCP/CLS, and interactions against the design's numeric gates. Since both switches now ship `true` without gating (decision of 2026-11-02), the off/off, on/off and off/on builds can only be produced by editing `apps/web/app/app.config.ts`; record each build's identity.
+- [ ] 4.2 Run the beta/test rollback drill (now a post-release verification rather than a pre-enablement gate, per the 2026-11-02 decision); verify warmed owner/visitor and fresh share responses, effective build/attributes, old hashed-asset availability, and measured purge/expiry convergence. Rollback is a source change to `apps/web/app/app.config.ts` plus a deployment.
 - [x] 4.3 Run Web typecheck, tests, build, and strict OpenSpec validation; document results and resolve Important findings through all local `REVIEW.md` passes before pushing behavior changes.
 - [ ] 4.4 Record per-switch enablement and rollback decisions and prepare the `dev` PR with `OpenSpec: optimize-web-lcp`; distinguish flag rollback from implementation/deployment rollback and obtain later deployment authorization.
 - [ ] 4.5 After authorized release, verify effective builds before collecting matched 7-day cohorts and 30-day trends; keep mixed-build, small, or shifted samples inconclusive and retain the outcome record.
+
+## 5. Archive
+
+- [ ] 5.1 After the task pull request merges, archive this change through a docs pull request.

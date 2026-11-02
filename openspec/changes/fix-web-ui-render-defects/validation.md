@@ -84,17 +84,33 @@ Fixes applied:
    autoprefixer stops deleting the prefix in unminified builds and agrees with
    Lightning CSS.
 
-Verified on real builds of both profiles:
+Verified on real builds of both profiles. The counts below are per **rule**
+(each rule that declares the standard property is either paired or not), so
+they reconcile by construction rather than by subtracting raw text matches:
 
-| profile | `-webkit-backdrop-filter` | `backdrop-filter` | paired rules |
-| --- | ---: | ---: | --- |
-| `SLAX_ENV=production` (minified) | 56 | 56 | every rule carrying the standard property also carries the prefix, including `.bottom-toolbar`, `.login-modal.appear`, and the E-ink `*` override |
-| `SLAX_ENV=preview` (unminified) | 49 | 57 | all real blur rules paired; the 5 unmatched hits are comment text and pdf.js's own `--hcm-highlight-filter` rules, which are not blur surfaces |
+| profile | rules with `backdrop-filter` | paired with `-webkit-` | unpaired |
+| --- | ---: | ---: | ---: |
+| `SLAX_ENV=production` (minified) | 56 | 56 | 0 |
+| `SLAX_ENV=preview` (unminified) | 53 | 48 | 5 |
+
+The production bundle carries the pair on every rule, including
+`.bottom-toolbar`, `.login-modal.appear`, and the E-ink `*` override. In the
+preview bundle the 5 unpaired rules are not blur surfaces: one is comment text
+inside `theme.css`'s token block and four are pdf.js's own
+`--hcm-highlight-filter` rules in `PdfReader.*.css`.
+
+Minifier identity, since an earlier review read `build.minify: 'esbuild'` as the
+CSS minifier: Vite's `cssMinify` resolves to `!!build.minify` for the client
+environment, and `minifyCSS` only takes the esbuild branch when
+`build.cssMinify === 'esbuild'`, which this config never sets — so minified CSS
+goes through Lightning CSS. Reproduced directly: `esbuild.transformSync` with
+`{ loader: 'css', minify: true }` keeps both declarations, while
+`lightningcss.transform` with `{ minify: true }` collapses them to the last one.
+The observed collapse is therefore Lightning CSS's.
 
 Not verified: human visual confirmation of the restored blur on a real
-Safari 15.4–17 device. This is a UI-visible change; `DESIGN.md` §10.2 hands-on
-acceptance has no declared-gap path and must happen before this pull request
-leaves draft.
+Safari 15.4–17 device. The hands-on acceptance that §10.2 requires is recorded
+below; this row is the narrower device-coverage gap.
 
 ## Dev-only UnoCSS preflight fix — verification
 
