@@ -121,8 +121,9 @@ import TagChipDetail from '~/components/BookmarkList/TagChipDetail.vue'
 
 import { computeVisibleTagCount } from '~/utils/tagOverflow'
 
-import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { BookmarkTag } from '@commons/frontend-types/models'
+import type { SetBookmarkTagsRequest } from '@slax-reader/contracts/bookmarks'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { vOnClickOutside, vOnKeyStroke } from '@vueuse/components'
 import Toast, { ToastType } from '~/components/Toast'
 import { type BookmarkTagActions, LocalFirstAdapterKey, SharedUserTagsKey } from '~/composables/local-first/injection'
@@ -144,6 +145,11 @@ const props = defineProps({
     type: String,
     required: false,
     default: ''
+  },
+  // Identity follows the displayed data, not adapter presence or UUID shape.
+  dataSource: {
+    type: String as PropType<'local' | 'rest'>,
+    default: 'rest'
   },
   tags: {
     type: Array as PropType<BookmarkTag[]>,
@@ -182,7 +188,9 @@ const tagActions: BookmarkTagActions | null = props.compact ? (lf?.bookmarkTagAc
 const sharedUserTags = props.compact ? inject(SharedUserTagsKey, null) : null
 // 挂载后再激活 LF，避免水合分叉
 const isMounted = ref(false)
-const localActive = computed(() => isMounted.value && tagSrc.value !== null)
+const localData = computed(() => props.dataSource === 'local')
+const localWriter = computed(() => (localData.value ? tagSrc.value ?? tagActions : null))
+const localActive = computed(() => isMounted.value && localData.value && tagSrc.value !== null)
 
 const add = ref<HTMLButtonElement>()
 const searchList = ref<HTMLDivElement>()
@@ -199,7 +207,7 @@ const restSearchTags = ref<BookmarkTag[]>([])
 const bookmarkTags = computed<BookmarkTag[]>(() => (localActive.value ? tagSrc.value!.tags.value : restBookmarkTags.value))
 const searchTags = computed<BookmarkTag[]>(() => {
   if (localActive.value) return tagSrc.value!.userTags.value
-  if (sharedUserTags) return sharedUserTags.tags.value
+  if (localData.value) return sharedUserTags ? sharedUserTags.tags.value : []
   return restSearchTags.value
 })
 
@@ -377,13 +385,18 @@ const restoreResultScroll = () => {
 }
 
 const searchingTags = async () => {
-  if (localActive.value || sharedUserTags) return // LF：候选来自本地词表
+  if (localData.value) return // Local candidates retain local identifiers; never substitute a REST catalog.
   if (isAddingLoading.value) return
   isAddingLoading.value = true
-  const res = await request().get<BookmarkTag[]>({ url: RESTMethodPath.TAG_LIST })
-  if (res) restSearchTags.value = res
-  isAddingLoading.value = false
-  nextTick(restoreResultScroll)
+  try {
+    const res = await request().get<BookmarkTag[]>({ url: RESTMethodPath.TAG_LIST })
+    if (res) restSearchTags.value = res
+    nextTick(restoreResultScroll)
+  } catch {
+    Toast.showToast({ text: t('common.tips.operate_failed'), type: ToastType.Error })
+  } finally {
+    isAddingLoading.value = false
+  }
 }
 
 const togglePending = (key: string) => {
@@ -416,7 +429,7 @@ const closePanel = () => {
 // 一次提交面板里所有勾选；出错保留 pending 让用户重试
 let isCommitting = false
 const commitPending = async () => {
-  if (isCommitting) return
+  if (props.readonly || isCommitting || isTagLoading.value) return
   if (pending.value.size === 0) {
     closePanel()
     return
@@ -430,27 +443,31 @@ const commitPending = async () => {
   isAddingLoading.value = true
   try {
     let added: BookmarkTag[]
-    if (tagSrc.value || tagActions) {
-      added = await commitLocal(tagSrc.value ?? tagActions!, existingKeys, newNames, byKey)
-    } else if (lf) {
-      // LF 环境但 adapter 没给写入器：uuid 不能落到 REST 的 hashid 解码上
+    if (localWriter.value) {
+      added = await commitLocal(localWriter.value, existingKeys, newNames, byKey)
+    } else if (localData.value) {
+      // A missing local writer must never convert local identifiers into REST identifiers.
       Toast.showToast({ text: t('common.tips.operate_failed'), type: ToastType.Error })
       return
     } else {
       // 非 LF REST：保留 bookmark_uid，owner 在 bookmarkId=0 时靠它增删
       if (!props.bookmarkId && !props.bookmarkUid) {
-        closePanel()
+        Toast.showToast({ text: t('common.tips.operate_failed'), type: ToastType.Error })
         return
       }
-      const res = await request().post<BookmarkTag[]>({
-        url: RESTMethodPath.ADD_BOOKMARK_TAGS,
-        body: {
-          bookmark_id: props.bookmarkId || undefined,
-          bookmark_uid: props.bookmarkUid || undefined,
-          tags: [...existingKeys.map(key => ({ id: byKey.get(key)?.id ?? key })), ...newNames.map(name => ({ name }))]
-        }
-      })
-      if (!res) return // request 层已 toast
+      const body: SetBookmarkTagsRequest = {
+        bookmark_id: props.bookmarkId || undefined,
+        bookmark_uid: props.bookmarkUid || undefined,
+        tags: [
+          ...existingKeys.map(key => {
+            const tag = byKey.get(key)!
+            return { id: tag.id, name: tag.name }
+          }),
+          ...newNames.map(name => ({ name }))
+        ]
+      }
+      const res = await request().post<BookmarkTag[]>({ url: RESTMethodPath.ADD_BOOKMARK_TAGS, body })
+      if (!Array.isArray(res)) return // No successful tag result; preserve the pending selection.
       added = res
       restSearchTags.value = mergeTags(restSearchTags.value, res)
     }
@@ -490,35 +507,33 @@ const commitLocal = async (
 }
 
 const deleteBookmarkTag = async (tagId: number) => {
-  const remaining = () => bookmarkTags.value.filter(tag => tag.id !== tagId)
-
-  // LF：本地解除标签关联
-  const writer = tagSrc.value ?? tagActions
-  if (writer) {
-    const next = remaining()
-    try {
+  if (props.readonly || isTagLoading.value || isCommitting) return
+  isTagLoading.value = true
+  try {
+    const writer = localWriter.value
+    if (writer) {
       await writer.remove(props.bookmarkUuid, String(tagId))
-    } catch {
-      Toast.showToast({ text: t('common.tips.operate_failed'), type: ToastType.Error })
-      return
+    } else {
+      if (localData.value || (!props.bookmarkId && !props.bookmarkUid)) {
+        Toast.showToast({ text: t('common.tips.operate_failed'), type: ToastType.Error })
+        return
+      }
+      // The API's successful deletion envelope contains data: null.
+      // Undefined/no result and the request layer's handled 401 value are not success.
+      const result = await request().post<null>({
+        url: RESTMethodPath.DELETE_BOOKMARK_TAG,
+        body: { bookmark_id: props.bookmarkId || undefined, bookmark_uid: props.bookmarkUid || undefined, tag_id: tagId }
+      })
+      if (result !== null) return
     }
+    const next = bookmarkTags.value.filter(tag => tag.id !== tagId)
     if (!localActive.value) restBookmarkTags.value = next
     emit('change', next)
-    return
-  }
-  if (lf) {
+  } catch {
     Toast.showToast({ text: t('common.tips.operate_failed'), type: ToastType.Error })
-    return
+  } finally {
+    isTagLoading.value = false
   }
-
-  // 非 LF REST：保留 bookmark_uid
-  if (!props.bookmarkId && !props.bookmarkUid) return
-  request().post<{ ok: boolean }>({
-    url: RESTMethodPath.DELETE_BOOKMARK_TAG,
-    body: { bookmark_id: props.bookmarkId || undefined, bookmark_uid: props.bookmarkUid || undefined, tag_id: tagId }
-  })
-  restBookmarkTags.value = remaining()
-  emit('change', restBookmarkTags.value)
 }
 
 // Enter：先把精确命中（或“创建”行）加进 pending，再提交
@@ -540,6 +555,7 @@ const onClickOutside = () => {
 
 const addingTagClick = (e: MouseEvent) => {
   e.stopPropagation()
+  if (props.readonly) return
   // 面板开着时按 + 等同确认：click-outside 也会走一遍 commit，isCommitting 兜底去重
   if (isAddingTag.value) {
     void commitPending()

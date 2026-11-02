@@ -1,4 +1,4 @@
-import { initializePowerSyncWithFallback, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
+import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 type FakeDb = {
@@ -263,6 +263,34 @@ describe('initializePowerSyncWithFallback', () => {
 
     expect(result).toEqual({ database: main, mode: 'main' })
     expect(created).toEqual(['dedicated', 'main'])
+  })
+
+  it.each(['cleanup-error', 'cleanup-timeout', 'initialization-timeout', 'modes-exhausted'] as const)('reports actual terminal reason %s and only attempted modes', async reason => {
+    vi.useFakeTimers()
+    const events: PowerSyncRecoveryEvent[] = []
+    const failed = makeDb(reason === 'initialization-timeout'
+      ? () => new Promise(() => {})
+      : async () => { throw new Error('initialization failed') })
+    const promise = initializePowerSyncWithFallback({
+      createDatabase: () => failed as never,
+      maxSharedAttempts: 1,
+      initTimeoutMs: 20,
+      disposeTimeoutMs: 10,
+      dispose: reason === 'cleanup-timeout'
+        ? () => new Promise(() => {})
+        : reason === 'cleanup-error'
+          ? async () => { throw new Error('cleanup failed') }
+          : async () => {},
+      onEvent: event => events.push(event)
+    })
+    await vi.advanceTimersByTimeAsync(100)
+    expect(await promise).toEqual({ database: null, mode: 'rest' })
+    expect(events.at(-1)).toEqual({
+      type: 'unavailable',
+      attemptedModes: reason === 'modes-exhausted' ? ['shared', 'dedicated', 'main'] : ['shared'],
+      stopReason: reason
+    })
+    expect(failed.close).not.toHaveBeenCalled()
   })
 
   it('emits structured events for retry and success transitions', async () => {

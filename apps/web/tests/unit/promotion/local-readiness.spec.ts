@@ -82,6 +82,7 @@ it.each([
     { global: { plugins: [createPowerSyncPlugin({ database: env.db })] } }
   )
   const query = queries.find(q => q.sql.includes('FROM sr_user_bookmark') && q.sql.includes('archive_status = 0'))!
+  expect(data.bookmarkDataSource.value).toBe('local')
   expect(query).toBeDefined()
   query.emit({ data: [], isLoading: false, isFetching: false })
   await nextTick()

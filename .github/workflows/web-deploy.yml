@@ -16,6 +16,7 @@ on:
       - 'tooling/env-files.d.mts'
       - 'tooling/pnpm-command.mjs'
       - 'tooling/web-pages-deploy*.mjs'
+      - 'tooling/powersync-*.mjs'
       - 'tooling/web-pages-workflow.test.mjs'
       - 'deploy/cloudflare/api.toml.example'
       - 'package.json'
@@ -83,7 +84,7 @@ jobs:
               'packages/frontend-utils/**' 'packages/selection/**' \
               'tooling/web.mjs' 'tooling/run-app.mjs' 'tooling/env-files.mjs' \
               'tooling/env-files.d.mts' 'tooling/pnpm-command.mjs' \
-              'tooling/web-pages-deploy*.mjs' 'tooling/web-pages-workflow.test.mjs' \
+              'tooling/web-pages-deploy*.mjs' 'tooling/powersync-*.mjs' 'tooling/web-pages-workflow.test.mjs' \
               'deploy/cloudflare/api.toml.example' 'package.json' 'pnpm-lock.yaml' \
               'pnpm-workspace.yaml' '.github/workflows/frontend-ci.yml' \
               '.github/workflows/web-deploy.yml')

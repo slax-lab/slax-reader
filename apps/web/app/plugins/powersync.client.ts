@@ -9,8 +9,8 @@ import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
 import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
 import { shouldUsePowerSyncSharedWorker } from '~/local-first/powersync-worker-policy'
+import { isFastPublicPath, type PublicTokenState, shouldBypassPublicDatabase } from '~/local-first/public-startup-policy'
 import { AppSchema } from '~/local-first/schema'
-import { isFastPublicPath, shouldBypassPublicDatabase, type PublicTokenState } from '~/local-first/public-startup-policy'
 import { POWER_SYNC_DATABASE_GENERATION, POWER_SYNC_LOCAL_DATA_VERSION } from '~/local-first/version'
 
 const LAST_USER_KEY = 'slax:powersync:lastUser'
@@ -61,6 +61,12 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
         mode: event.mode,
         attempt: event.attempt,
         error: event.error
+      })
+      break
+    case 'unavailable':
+      powerSyncConsole.error('[powersync] local database initialization unavailable; using REST fallback', {
+        attemptedModes: event.attemptedModes,
+        stopReason: event.stopReason
       })
       break
     case 'fallback':
@@ -189,16 +195,17 @@ export default defineNuxtPlugin({
             await database.init()
             return { database, mode: 'main' as const }
           } catch (error) {
-            powerSyncConsole.error('[powersync] main-thread database initialization failed', { error })
+            powerSyncConsole.error('[powersync] local database initialization unavailable; using REST fallback', {
+              attemptedModes: ['main'],
+              stopReason: 'initialization-error',
+              error
+            })
             return { database: null, mode: 'rest' as const }
           }
         })()
 
     const db = recovery.database
-    if (!db) {
-      powerSyncConsole.error('[powersync] all database modes failed; using REST fallback')
-      return unavailable()
-    }
+    if (!db) return unavailable()
 
     powerSyncConsole.info('[powersync] database ready', { mode: recovery.mode, dbFilename: DATABASE_FILENAME })
 

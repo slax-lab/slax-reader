@@ -18,6 +18,8 @@ export interface ArticleSelectionAdapters {
   markSource?: 'detail' | 'props'
   /** 本地标签库 uuid，仅 LF 下发 */
   tagsBookmarkUuid?: string
+  /** Identity source of the displayed tags, independent of writer availability. */
+  tagsDataSource?: 'local' | 'rest'
   /** 行末评论 icon 开关，仅快照页注入 */
   commentTailIndicator?: boolean
 }

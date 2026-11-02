@@ -148,6 +148,7 @@
             :key="`${filterStatus}:${filterTopicIds.join(',')}:${filterCollectionId}:${activeCollectionCode}:${sourceFilter?.domain || ''}`"
             :filter-status="filterStatus"
             :grouped-bookmarks="groupedBookmarks"
+            :data-source="bookmarkDataSource"
             :highlights="highlights"
             :list-mode="listMode"
             :filter-collection-code="filterCollectionCode"
@@ -299,6 +300,7 @@ const {
   onboardingReady,
   confirmOnboardingEmpty,
   groupedBookmarks,
+  bookmarkDataSource,
   isRefreshLoading,
   lastUpdatedText,
   isDataEmpty,
