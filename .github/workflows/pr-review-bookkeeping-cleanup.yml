@@ -1,4 +1,4 @@
-name: Agentic noise cleanup
+name: PR review bookkeeping cleanup
 
 # gh-aw opens bookkeeping issues for its own runs ("[aw] No-Op Runs",
 # "[aw] Detection Runs", "[aw] Failed jobs: …"). They are automation noise: the
@@ -8,6 +8,8 @@ name: Agentic noise cleanup
 # `safe-outputs.report-failure-as-issue: false` and `report-failed-jobs: false` —
 # tasks 1.8/7.8/7.16), so this deterministic workflow closes those issues,
 # leaving a comment that points at the failing run for anyone who wants the detail.
+# Reevaluate this compensation on every gh-aw upgrade and delete this workflow
+# once supported configuration suppresses all of those issues.
 #
 # There is deliberately **no `issues: [opened]` trigger**. The first version had
 # one and never ran: gh-aw creates these issues with the workflow's own

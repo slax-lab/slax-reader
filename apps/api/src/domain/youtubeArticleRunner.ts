@@ -1,5 +1,6 @@
 import {
   completeCueCoverage,
+  EDITING_CONTEXT_CHARS,
   EDITED_LENGTH_BOUNDS,
   editedLengthRatio,
   editingContext,
@@ -121,6 +122,8 @@ interface StoredChunk {
   usage: { input_tokens: number; output_tokens: number; cost_usd: number }
 }
 
+const CHUNK_CONCURRENCY = 5
+
 const DB_STEP = { retries: { limit: 3, delay: '5 seconds', backoff: 'exponential' as const }, timeout: '1 minute' }
 // A split chunk can make several calls in one step (up to 4 edits and their translations), so the
 // step gets the whole lease instead of the 5 minutes that fit the former 1 to 2 calls
@@ -193,55 +196,107 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
     return { plan: planned.plan, caption: caption! }
   }
 
-  const ask = async (system: string, user: string, opts: { introduction?: boolean; translation?: boolean; chunk?: number; parts?: number } = {}) => {
-    const row = await deps.repo.findById(p.articleId)
-    const spent = row?.cost_usd ?? 0
-    const lifetime = row?.lifetime_cost_usd ?? 0
+  // Only admission and accounting are serialized; provider requests run concurrently.
+  let accounting: Promise<unknown> = Promise.resolve()
+  let accountingError: unknown
+  const reservations = new Map<Promise<void>, number>()
+  const exclusive = <T>(fn: () => Promise<T>): Promise<T> => {
+    const result = accounting.then(fn)
+    accounting = result.catch(() => {})
+    return result
+  }
+
+  const ask = async (system: string, user: string, opts: { introduction?: boolean; translation?: boolean; chunk?: number; parts?: number; deadline?: number } = {}) => {
     const userTokens = estimateTokens(user)
-    const next = expectedChunkCostUsd(estimateTokens(system) + userTokens)
-    // The lifetime cap is checked first: it is the one no retry can lift
-    if (lifetime + next > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd)
-      throw new YoutubeArticleStop('lifetime_budget_exceeded', `lifetime=${lifetime.toFixed(4)} next=${next.toFixed(4)}`)
-    if (spent + next > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) throw new YoutubeArticleStop('budget_exceeded', `spent=${spent.toFixed(4)} next=${next.toFixed(4)}`)
+    const maxOutputTokens = outputTokenLimit(userTokens)
+    const next = estimateCostUsd(estimateTokens(system) + userTokens, maxOutputTokens)
+    let release!: () => void
+    const settled = new Promise<void>(resolve => {
+      release = resolve
+    })
+    for (;;) {
+      const admission = await exclusive(async () => {
+        if (accountingError) throw accountingError
+        const row = await deps.repo.findById(p.articleId)
+        if (!row || row.run_id !== runId || row.status !== 'generating') throw new YoutubeArticleStop('lease_lost')
+        const reserved = [...reservations.values()].reduce((sum, value) => sum + value, 0)
+        const lifetimeExceeded = (row.lifetime_cost_usd ?? 0) + reserved + next > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd
+        const runExceeded = (row.cost_usd ?? 0) + reserved + next > YOUTUBE_ARTICLE_LIMITS.maxCostUsd
+        if (lifetimeExceeded || runExceeded) {
+          if (reservations.size) return { wait: Promise.race(reservations.keys()) }
+          throw new YoutubeArticleStop(lifetimeExceeded ? 'lifetime_budget_exceeded' : 'budget_exceeded')
+        }
+        reservations.set(settled, next)
+        return { wait: null }
+      })
+      if (!admission.wait) break
+      await admission.wait
+    }
+    const startedAt = Date.now()
+    try {
+      const timeoutMs = Math.min(90_000, (opts.deadline ?? Date.now() + 90_000) - Date.now())
+      if (timeoutMs <= 0) throw new Error('youtube_model_deadline')
+      const reply = await deps.model.chat(
+        [{ role: 'user', parts: [{ text: user }] }],
+        {
+          model: YOUTUBE_ARTICLE_MODEL,
+          abortSignal: AbortSignal.timeout(timeoutMs),
+          temperature: 0.2,
+          maxOutputTokens,
+          // Gemini 3 uses thinking levels. Low reasoning leaves more output space for the transcript.
+          thinkingConfig: { thinkingLevel: 'LOW' },
+          responseMimeType: 'application/json',
+          responseSchema: (opts.introduction
+            ? { type: 'OBJECT', properties: { lede: { type: 'STRING' } }, required: ['lede'] }
+            : opts.translation
+              ? TRANSLATION_SCHEMA
+              : YOUTUBE_ARTICLE_RESPONSE_SCHEMA) as unknown as VertexAIConfig['responseSchema']
+        },
+        { systemInstruction: system }
+      )
+      const inputTokens = reply.usage?.inputTokens ?? estimateTokens(system + user)
+      const outputTokens = reply.usage?.outputTokens ?? estimateTokens(reply.text)
+      const costUsd = estimateCostUsd(inputTokens, outputTokens)
+      // Counted before the reply is checked: a truncated or invalid reply still cost money
+      await exclusive(async () => {
+        try {
+          await deps.repo.addCost(p.articleId, costUsd)
+          await deps.addCost(costUsd)
+          const row = await deps.repo.findById(p.articleId)
+          if ((row?.lifetime_cost_usd ?? 0) > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd) throw new YoutubeArticleStop('lifetime_budget_exceeded')
+          if ((row?.cost_usd ?? 0) > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) throw new YoutubeArticleStop('budget_exceeded')
+        } catch (error) {
+          accountingError = error
+          throw error
+        }
+      })
 
-    const reply = await deps.model.chat(
-      [{ role: 'user', parts: [{ text: user }] }],
-      {
-        model: YOUTUBE_ARTICLE_MODEL,
-        temperature: 0.2,
-        maxOutputTokens: outputTokenLimit(userTokens),
-        // Gemini 3 uses thinking levels. Low reasoning leaves more output space for the transcript.
-        thinkingConfig: { thinkingLevel: 'LOW' },
-        responseMimeType: 'application/json',
-        responseSchema: (opts.introduction
-          ? { type: 'OBJECT', properties: { lede: { type: 'STRING' } }, required: ['lede'] }
-          : opts.translation
-            ? TRANSLATION_SCHEMA
-            : YOUTUBE_ARTICLE_RESPONSE_SCHEMA) as unknown as VertexAIConfig['responseSchema']
-      },
-      { systemInstruction: system }
-    )
-    const inputTokens = reply.usage?.inputTokens ?? estimateTokens(system + user)
-    const outputTokens = reply.usage?.outputTokens ?? estimateTokens(reply.text)
-    const costUsd = estimateCostUsd(inputTokens, outputTokens)
-    // Counted before the reply is checked: a truncated or invalid reply still cost money
-    await deps.repo.addCost(p.articleId, costUsd)
-    await deps.addCost(costUsd)
-
-    if (reply.finishReason === 'MAX_TOKENS') {
-      // Counts only: enough to tell a looping reply from thinking that ate the limit
-      const thoughtTokens = reply.usage?.thoughtTokens ?? 0
-      log('truncated', p, {
+      if (reply.finishReason === 'MAX_TOKENS') {
+        // Counts only: enough to tell a looping reply from thinking that ate the limit
+        const thoughtTokens = reply.usage?.thoughtTokens ?? 0
+        log('truncated', p, {
+          chunk: opts.chunk ?? null,
+          parts: opts.parts ?? 1,
+          input_tokens: inputTokens,
+          candidate_tokens: outputTokens - thoughtTokens,
+          thought_tokens: thoughtTokens,
+          repetition_ratio: Number(repetitionRatio(reply.text).toFixed(3))
+        })
+        throw new ChunkTruncated()
+      }
+      return { reply, inputTokens, outputTokens, costUsd }
+    } finally {
+      await exclusive(async () => {
+        reservations.delete(settled)
+        release()
+      })
+      log('call', p, {
         chunk: opts.chunk ?? null,
         parts: opts.parts ?? 1,
-        input_tokens: inputTokens,
-        candidate_tokens: outputTokens - thoughtTokens,
-        thought_tokens: thoughtTokens,
-        repetition_ratio: Number(repetitionRatio(reply.text).toFixed(3))
+        phase: opts.introduction ? 'introduction' : opts.translation ? 'translation' : 'edit',
+        elapsed_ms: Date.now() - startedAt
       })
-      throw new ChunkTruncated()
     }
-    return { reply, inputTokens, outputTokens, costUsd }
   }
 
   try {
@@ -302,8 +357,11 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
 
     log('prepared', p, { chunks: prep.chunkCount, input_chars: prep.inputChars, format: prep.format, expected_cost_usd: Number(prep.expectedCostUsd.toFixed(5)) })
 
-    for (let i = 0; i < prep.chunkCount; i++) {
+    const processChunk = async (i: number) => {
+      const startedAt = Date.now()
       const res = await step.do(`chunk-${i}`, CHUNK_STEP, async () => {
+        const deadline = Date.now() + 8 * 60 * 1000
+        const askChunk: typeof ask = (system, user, opts) => ask(system, user, { ...opts, deadline })
         if (!(await deps.repo.renewLease(p.articleId, runId, lease))) throw new YoutubeArticleStop('lease_lost')
         const key = youtubeArticleChunkKey(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion, i)
         if (await deps.bucket.head(key)) return { key, costUsd: 0, inputTokens: 0, outputTokens: 0, reused: true }
@@ -329,7 +387,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
             await inParts(cues.slice(chunk.overlap), async (partCues, parts, offset) => {
               const first = offset === 0
               const system = buildSystemInstruction(p.targetLanguage, chunk, plan.chunks.length, !first)
-              const result = await ask(system, buildUserMessage(p.title, first ? [...overlapCues, ...partCues] : partCues), { chunk: i, parts })
+              const result = await askChunk(system, buildUserMessage(p.title, first ? [...overlapCues, ...partCues] : partCues), { chunk: i, parts })
               count(result)
               const parsed = parseChunkOutput(result.reply.text)
               if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
@@ -344,14 +402,19 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
           let sourceParts: ChunkResult[]
           if (cached) sourceParts = [JSON.parse(await cached.text())]
           else {
-            const previousSource = i ? await deps.bucket.get(`${youtubeArticleChunkKey(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion, i - 1)}.source`) : null
-            // Continuity: the previous chunk's edit, then the previous part's edit
-            let context = previousSource ? editingContext((JSON.parse(await previousSource.text()) as ChunkResult).sections) : null
+            // Immutable neighboring cues remove the dependency on the previous chunk's output.
+            const sourceContext = plan.cues
+              .slice(Math.max(0, chunk.start - 40), chunk.start + chunk.overlap)
+              .map(cue => cue.text)
+              .join(' ')
+              .slice(-EDITING_CONTEXT_CHARS)
+            let context: string | null = null
             const system = editingInstruction(caption.language, chunk, plan.chunks.length)
             sourceParts = await inParts(ownCues, async (partCues, parts) => {
               let user = buildUserMessage(p.title, partCues)
+              if (sourceContext) user += '\nPrevious source context (do not repeat):\n' + JSON.stringify(sourceContext)
               if (context) user += '\nPrevious edited context (do not repeat):\n' + context
-              const edit = await ask(system, user, { chunk: i, parts })
+              const edit = await askChunk(system, user, { chunk: i, parts })
               count(edit)
               const parsed = parseChunkOutput(edit.reply.text)
               if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
@@ -371,8 +434,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
           }
           if (!needsTranslation) value = joinParts(sourceParts)
           else {
-            const previous = i ? await deps.bucket.get(youtubeArticleChunkKey(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion, i - 1)) : null
-            let context = previous ? editingContext((JSON.parse(await previous.text()) as StoredChunk).sections) : null
+            let context: string | null = null
             const system = translationInstruction(p.targetLanguage)
             const translated: ArticleSection[] = []
             for (const part of sourceParts) {
@@ -380,7 +442,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
               const pieces = await inParts(part.sections, async (sections, parts) => {
                 let user = JSON.stringify({ sections: sections.map(section => ({ heading: section.heading, paragraphs: section.paragraphs.map(p => p.text) })) })
                 if (context) user += '\nPrevious translation (context only):\n' + context
-                const result = await ask(system, user, { chunk: i, parts, translation: true })
+                const result = await askChunk(system, user, { chunk: i, parts, translation: true })
                 count(result)
                 const translatedPart = parseTranslation(result.reply.text, { lede: '', sections })
                 context = editingContext(translatedPart.sections)
@@ -401,7 +463,20 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         await deps.bucket.put(key, JSON.stringify(stored))
         return { key, costUsd: usage.costUsd, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, reused: false }
       })
-      log('chunk', p, { index: i, reused: res.reused, input_tokens: res.inputTokens, output_tokens: res.outputTokens, cost_usd: Number(res.costUsd.toFixed(5)) })
+      log('chunk', p, {
+        elapsed_ms: Date.now() - startedAt,
+        index: i,
+        reused: res.reused,
+        input_tokens: res.inputTokens,
+        output_tokens: res.outputTokens,
+        cost_usd: Number(res.costUsd.toFixed(5))
+      })
+    }
+
+    for (let start = 0; start < prep.chunkCount; start += CHUNK_CONCURRENCY) {
+      const results = await Promise.allSettled(Array.from({ length: Math.min(CHUNK_CONCURRENCY, prep.chunkCount - start) }, (_, offset) => processChunk(start + offset)))
+      const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+      if (failure) throw failure.reason
     }
 
     if (edited)

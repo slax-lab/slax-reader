@@ -1,6 +1,6 @@
 # Detection only: this workflow never mutates rulesets. Drift or an unusable
 # token opens one tracking issue instead of failing silently.
-name: ruleset-drift
+name: Ruleset drift audit
 on:
   schedule:
     # Daily at 03:17 UTC (11:17 Asia/Shanghai), away from the hourly peak.

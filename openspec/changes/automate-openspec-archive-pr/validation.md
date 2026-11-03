@@ -9,14 +9,15 @@ The historical active-change backlog is outside this change's archive scope.
 ## Local verification
 
 - `openspec status --change automate-openspec-archive-pr --json`: all four required planning artifacts were present before implementation.
-- `openspec validate --all --strict`: 94 items passed, 0 failed. Informational long-requirement notices remain non-blocking.
+- `openspec validate --all --strict`: 95 items passed, 0 failed after merging current `dev`. Informational long-requirement notices remain non-blocking.
 - `node --test tooling/openspec-archive-workflow.test.mjs`: all five initial tests failed with ENOENT before `.github/workflows/openspec-archive.md` existed; they passed after implementation. A sixth test now checks the generated checkout behavior.
 - `node --test tooling/openspec-archive-workflow.test.mjs tooling/ci-workflow.test.mjs`: 19 tests passed, 0 failed.
-- `pnpm test:ci`: 73 tests passed, 0 failed. This is the command invoked by `tooling-ci`, and it now includes the archive workflow suite.
+- `pnpm test:ci`: 86 tests passed, 0 failed after merging current `dev`. This is the command invoked by `tooling-ci`, and it now includes the archive workflow suite.
 - `gh aw compile --strict --purge --no-check-update`: three workflows compiled successfully. The single remaining warning reports a shared dispatch conclusion group; global serialization is intentional because same-capability archive writes must not race.
 - `tooling/check-gh-aw-drift.sh` after staging the complete workflow source/generated set: `Compiled workflows match their sources.`
 - `pnpm agent:sync`: regenerated `AGENTS.md` and `CLAUDE.md` from the rulesync source.
-- `pnpm agent:check`: rulesync doctor and generation checks passed, strict OpenSpec validation passed 94 items, and the gh-aw drift check passed.
+- `pnpm agent:check`: rulesync doctor and generation checks passed, strict OpenSpec validation passed 95 items, and the gh-aw drift check passed.
+- Merging current `dev` produced one conflict in `package.json`: both branches added a test suite to `test:ci`. The resolution retains both the archive workflow and PR review gate suites; the combined 86-test result above covers the resolved file.
 - `git diff HEAD --check`: passed with no whitespace errors.
 - `gh aw trial ./.github/workflows/openspec-archive.md --clone-repo slax-lab/slax-reader --delete-host-repo-after --dry-run --yes --json`: dry-run completed without creating a repository. The actual trial uses `--trigger-context https://github.com/slax-lab/slax-reader/pull/341`; gh-aw forwards that PR number as `issue_number`, so no production replay default exists.
 - The first real trial attempt cloned the host but failed before execution because the relative workflow path was not resolved during installation. Automatic host cleanup also failed with HTTP 403 because the token lacks `delete_repo`. A retry uses the absolute workflow path and the existing private trial host, without creating another repository or claiming cleanup.

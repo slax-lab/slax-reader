@@ -44,7 +44,7 @@ export class YoutubeArticleWorkflow extends WorkflowEntrypoint<Env, YoutubeArtic
         repo,
         bucket: this.env.OSS,
         model,
-        addCost: usd => service.addCost(usd).catch(e => console.error(`youtube article cost record failed: ${e}`)),
+        addCost: usd => service.addCost(usd),
         publishBodies: articleId => service.publishBodies(ctxManager, articleId),
         settleSnapshots: sourceId => service.settleSnapshots(ctxManager, sourceId)
       },

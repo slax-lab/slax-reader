@@ -8,6 +8,7 @@ export type ToolDefinition = {
 }
 
 export type VertexAIConfig = {
+  abortSignal?: AbortSignal
   model?: string
   temperature?: number
   maxOutputTokens?: number
@@ -153,6 +154,8 @@ export class VertexAIClient {
       temperature: config.temperature ?? 0.6,
       maxOutputTokens: config.maxOutputTokens ?? 16384
     }
+
+    if (config.abortSignal) generationConfig.abortSignal = config.abortSignal
 
     if (config.responseMimeType) {
       generationConfig.responseMimeType = config.responseMimeType

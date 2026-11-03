@@ -1,7 +1,7 @@
 # Keep the required context stable; select its expensive checks from the complete PR diff.
 # Tool versions in package.json and the action/gh-aw versions below are deliberate pins;
 # update them in dedicated toolchain upgrades rather than aligning action majors here.
-name: agent-config
+name: Config CI
 on:
   pull_request: null
   workflow_call:
@@ -102,5 +102,5 @@ jobs:
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-agent-config-${{ github.event.pull_request.number || github.run_id }}
+  group: ${{ github.workflow }}-config-ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true

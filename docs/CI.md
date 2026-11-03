@@ -2,9 +2,10 @@
 
 ## Scope and change policy
 
-- **Owns:** CI scope selection, workflow and gate mechanics, the promotion-integrity check,
-  ruleset drift detection, the required configuration check, review readiness, daily full
-  validation, Mobile EAS builds, release verification, and local verification commands.
+- **Owns:** CI scope selection, workflow and gate mechanics, workflow evolution and lifecycle,
+  the promotion-integrity check, ruleset drift detection, the required configuration check,
+  review readiness, daily full validation, Mobile EAS builds, release verification, and local
+  verification commands.
 - **Does not own:** branch protection, approvals, promotion, sync-back, or hotfix policy
   (`docs/BRANCHING.md`); review policy (`REVIEW.md`); the verification-evidence procedure
   (`docs/DEFINITION-OF-DONE.md`); the normative CI and branch requirements
@@ -93,7 +94,25 @@ Do not add a workflow-level `paths` filter to this required check. A workflow sk
 
 AI review, its pause control, `PR review gate`, and the watchdog retain their separate policies. CI cancellation is scoped to the same workflow and PR; newer heads cancel obsolete read-only validation without canceling releases or deployments.
 
-Frontend, API, Mobile, CLI, Tooling, and agent-config use the caller workflow name, a distinct suite identity, and the PR number (or run ID outside PRs) as their concurrency key with `cancel-in-progress: true`. A new push cancels older running or pending validation for that same PR and workflow; other PRs and workflows remain independent. The suite identity prevents reusable workflows sharing the Full CI caller from canceling one another. CLI and Extension publication retain their non-canceling branch queues. Already-started runs created before this configuration existed are not retroactively placed in its concurrency groups.
+Frontend, API, Mobile, CLI, Tooling, and Config CI use the caller workflow name, a distinct suite identity, and the PR number (or run ID outside PRs) as their concurrency key with `cancel-in-progress: true`. A new push cancels older running or pending validation for that same PR and workflow; other PRs and workflows remain independent. The suite identity prevents reusable workflows sharing the Full CI caller from canceling one another. CLI and Extension publication retain their non-canceling branch queues. Already-started runs created before this configuration existed are not retroactively placed in its concurrency groups.
+
+## Workflow evolution and lifecycle
+
+A new workflow needs a distinct trigger, trust boundary, or lifecycle; YAML length alone is not a reason to create one. Put complex state decisions and multi-call API logic in tested modules under `tooling/`, leaving YAML to orchestrate triggers, permissions, concurrency, inputs, and invocation. Workflow names, run names, required contexts, labels, and cross-repository markers are protocols: change their producers and consumers together. Every state has an owner, an invalidation path, and a recovery path. Every required check defines terminal behavior for skipped and cancelled runs and for a producer that never starts. Event-driven checks may be absent while a pull request has merge conflicts because GitHub may not create the review merge ref; the conflicts already block merging, and resolving them must produce a new head with fresh checks.
+
+Workflow files use kebab-case. Display names use a clear domain and, where applicable, an action or suite identity, such as `Config CI`, `API deploy`, or `PR review readiness reset`. A name describes the observable responsibility rather than only the underlying tool. Existing required contexts, producer run names, and cross-repository labels remain explicit exceptions until their consumers are migrated in the same change.
+
+Lifecycle follows the workflow's responsibility:
+
+| Type | Retention and retirement |
+| --- | --- |
+| Core validation | Evolve the existing suite rather than creating a parallel one. |
+| Release and deployment | Retire the workflow with its application or publication channel. |
+| Repository governance | Retain an actionable owner for every signal while the protection mechanism exists. |
+| Agentic automation | Prefer deleting a companion when the platform removes the trigger or capability limitation that required it. |
+| Temporary diagnostic or compensating automation | Record the reason and retirement condition in the workflow when it is created; remove or disable it when that condition is met. |
+
+Permanent core workflows need no artificial expiry date. Dependency upgrades include a review of compensating workflows that depend on the upgraded tool's limitations. In particular, `pr-review-bookkeeping-cleanup.yml` exists because gh-aw cannot currently suppress all of its bookkeeping issues; remove it when a supported gh-aw configuration makes that cleanup unnecessary. Temporary workflows on topic branches are cleaned up when their task finishes. GitHub-owned dynamic workflows are outside this repository's file lifecycle.
 
 ## Review readiness label
 
@@ -103,7 +122,7 @@ Frontend, API, Mobile, CLI, Tooling, and agent-config use the caller workflow na
 - The on-demand workflow's run name carries the triggering comment id; `pr-review-gate.yml` parses that id to confirm a declined run before reporting it, because a `workflow_run` payload does not carry the comment. The name format is a cross-workflow contract: changing it requires updating both workflows.
 - The label only ever describes a pull request that can enter human review: the gate adds it only for an open pull request that is not a draft and whose head branch lives in this repository. A draft, a closed pull request (a `/review` run can finish after a merge) and a fork (whose read-only companion could never drop a stale label) never carry it, and any stale label is removed.
 - A result about a superseded commit never touches the label. Only a verdict for the current head may change what the open pull request says about itself.
-- `ready-for-review-label.yml` removes the label on any event that invalidates the verified state: a new head, a reopen, a draft conversion, a ready-for-review transition (which starts a new review) and a close. Removal failures are ignored; a missing label is the normal path.
+- `pr-review-readiness-reset.yml` removes the label on any event that invalidates the verified state: a new head, a reopen, a draft conversion, a ready-for-review transition (which starts a new review) and a close. Removal failures are ignored; a missing label is the normal path.
 - Both workflows carry `pull-requests: write`: a label on a pull request is written through the issues API, but only that permission authorises the write (`issues: write` alone returns `Resource not accessible by integration`, and the gate still needs it to create the label with its colour and description).
 - `slax-notify-bridge` consumes the label's `labeled` event to announce the human review in Feishu, instead of announcing the creation-time review request that CODEOWNERS fires before the automated verdict exists. The label name is a cross-repository contract: changing it requires updating both workflows here and the bridge's per-repository policy.
 
