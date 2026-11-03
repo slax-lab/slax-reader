@@ -40,3 +40,23 @@ No live result for the revised workflow is claimed by the local checks above.
 - **Bugs:** the initial independent review correctly found that workflow approval alone would leave the bot actor unauthorized. The final revision adds the bot only to automatic review and leaves `/review` and the gate unchanged. Source and lock contracts cover this boundary. No additional bug was found in the final self-review.
 - **Security:** human workflow approval remains required; agent token permissions, network allowlists, and Safe Outputs write boundaries are unchanged. No new credential or on-demand bot command is introduced. The accepted whitelist risk and next-live activation check are recorded above.
 - **Compliance:** the implementation matches the revised proposal and both capability deltas. Local checks and the pending live evidence are distinct. The follow-up independent review could not run because the provider returned HTTP 503 twice; this section records the completed self-review rather than treating those failed calls as a successful independent review.
+
+## Archive classification (2026-11-03)
+
+The merge-triggered evaluation for source PR #488 reassessed the merged `dev` state and classified every task in `tasks.md`:
+
+- **Tasks 1.1-1.4 and 2.1 — already checked, evidence unchanged.** The extended archive-workflow contracts, `draft: false` Safe Outputs policy, archive PR-body start instructions, `docs/CI.md` update, and the automatic-review bot allowlist are present in the merged tree; `pr-review-command.md` still has no `bots` entry. The command results recorded under "Local verification" cover these tasks.
+- **Task 2.2 — completed, checked off with evidence.** PR #488 targeted `dev` with `OpenSpec: ready-archive-pr-by-default` and a Test plan that separated local verification from the declared live-rollout gap. The local pre-push review is recorded above. Two automated review rounds at heads `84a26fd` and `d6f1ceb` reported "No Important findings". Human reviewer `boxcounter` merged it into `dev` at 2026-11-03T09:42:45Z, so the task's "do not merge it as an agent" condition holds.
+- **No unchecked tasks.** `npx --yes @fission-ai/openspec@1.13.1 list --json` reported `6/6` tasks complete for this change before archiving. No historical acceptance gap remains unchecked.
+- **No same-capability conflict.** Both delta capabilities (`openspec-change-archiving` and `agentic-pr-review`) were scanned across every other active change; none carries a delta for either capability and none declares an archive order against this change.
+
+## Archive outcome (2026-11-03)
+
+- `npx --yes @fission-ai/openspec@1.13.1 archive ready-archive-pr-by-default --yes` reported `Task status: ✓ Complete`, applied `agentic-pr-review: +1 added` and `openspec-change-archiving: ~2 modified`, and archived the change as `2026-11-03-ready-archive-pr-by-default`.
+- Living spec updates: `agentic-pr-review` gained "Automatic review admits the archive bot after human approval"; `openspec-change-archiving` updated "A valid archive produces one reviewed documentation pull request" (non-draft creation) and "Reviewer notification uses the existing readiness path" (both workflow-start choices and no draft-to-ready transition), plus the new "archive pull request is created" scenario.
+- `npx --yes @fission-ai/openspec@1.13.1 validate --all --strict` passed.
+- `git diff --cached --check` passed after `git add -A`, covering the newly archived files.
+
+## Remaining review considerations
+
+The "Pending rollout evidence" items above stay open and are not claimed as completed work: the first archive PR produced by the revised workflow must still show non-draft creation, an effective `slax-lab/reader-core` team request, actual activation and agent execution after human workflow approval, the readiness label, and the separate bridge's single start-review direct message. This archive PR is itself the first observation opportunity for the non-draft, body, and team-request fields; the review-gate and bridge observations depend on that run and remain for the human reviewers.
