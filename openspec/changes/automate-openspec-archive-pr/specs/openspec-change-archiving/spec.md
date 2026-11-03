@@ -93,7 +93,12 @@ The archive pull request SHALL follow the repository's normal automated review, 
 
 ### Requirement: Reviewer notification uses the existing readiness path
 
-An archive pull request SHALL use the existing automated-review gate and `ready-for-human-review` notification path. When the gate declares readiness, the notification bridge SHALL send the established group card and name `slax-lab/reader-core` as the requested review team without requiring an individual Feishu mention. The archive workflow SHALL NOT call Feishu directly, create a separate reminder channel, or notify before the readiness gate passes.
+An archive pull request SHALL use the existing automated-review gate and `ready-for-human-review` notification path. When no automatic review run is available for the bot-authored pull request, the task pull request author SHALL initiate the existing **PR Review (on demand)** workflow by commenting `/review` on the archive pull request. When the gate declares readiness, the notification bridge SHALL send the established group card and name `slax-lab/reader-core` as the requested review team without requiring an individual Feishu mention. The archive workflow SHALL NOT call Feishu directly, create a separate reminder channel, or notify before the readiness gate passes.
+
+#### Scenario: The task author starts an on-demand review
+
+- **WHEN** the task pull request author comments `/review` on the archive pull request
+- **THEN** the existing on-demand review and `workflow_run` gate evaluate the archive pull request before readiness notification
 
 #### Scenario: An archive pull request becomes ready
 

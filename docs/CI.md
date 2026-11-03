@@ -132,15 +132,15 @@ Permanent core workflows need no artificial expiry date. Dependency upgrades inc
 
 The workflow requires the existing `DEEPSEEK_API_KEY` and no additional publish token. Safe Outputs creates the archive PR as `github-actions[bot]` with the default `GITHUB_TOKEN`. Its body includes `Archive source: #<task-pr-number>`, which cross-links the task PR, and the PR requests `slax-lab/reader-core` review. These GitHub records are the initial visibility path; Feishu notification still waits for review readiness.
 
-The organization and repository **Allow GitHub Actions to create and approve pull requests** workflow-permission settings must allow PR creation; otherwise Safe Outputs cannot create the archive PR. The task PR author owns the archive lifecycle. GitHub's [workflow trigger documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow) states that `opened`, `synchronize`, and `reopened` events produced with the default token create approval-required runs, so that author must open the archive PR and select **Approve workflows to run**. This is the deliberate single manual step, not an error. After approval, the normal automated review, `ready-for-human-review` label, and Feishu group card proceed without a PAT, an empty commit, or a separate notification channel. The task PR author then follows the documentation PR through human review and merge.
+The organization and repository **Allow GitHub Actions to create and approve pull requests** workflow-permission settings must allow PR creation; otherwise Safe Outputs cannot create the archive PR. The task PR author owns the archive lifecycle. After opening the linked archive PR, that author comments `/review` once. This deliberate manual command starts **PR Review (on demand)** through the existing `issue_comment` trigger; it does not depend on an automatic `pull_request` run or an approval-required run. The resulting `workflow_run` drives the normal review gate, `ready-for-human-review` label, and Feishu group card without a PAT, an empty commit, or a separate notification channel. The task PR author then follows the documentation PR through human review and merge.
 
 Set the repository variable `OPENSPEC_ARCHIVE_ENABLED` to `false` to pause new evaluations; any other value resumes them. Existing archive PRs remain ordinary human-reviewed PRs. The concurrency group does not cancel an active evaluation and queues up to 100 pending evaluations. Manual replay is the recovery path for a missed, failed, or platform-cancelled evaluation:
 
 ```bash
-gh workflow run "OpenSpec Change Archiving" --ref dev -f issue_number=478
+gh workflow run "OpenSpec Change Archiving" --ref dev -f issue_number="$TASK_PR_NUMBER"
 ```
 
-Replace `478` with the merged task PR number. Replay re-evaluates that change against current `dev`; it does not reuse the original task branch or bypass unfinished-task and dependency checks.
+Set `TASK_PR_NUMBER` to the merged task PR number first. Replay re-evaluates that change against current `dev`; it does not reuse the original task branch or bypass unfinished-task and dependency checks.
 
 ## Daily full validation
 
