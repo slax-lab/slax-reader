@@ -38,6 +38,12 @@ export const bindMediaText = (context: WebProcessorContext): void => {
   })
 }
 
+/** Localized accessible name for an injected chapter control; falls back to the time text outside a Nuxt context. */
+const seekLabel = (kind: 'podcast' | 'youtube', time: string): string => {
+  const i18n = tryUseNuxtApp()?.$i18n
+  return i18n?.t(kind === 'youtube' ? 'component.youtube_article.seek' : 'component.podcast.seek', { time }) ?? time
+}
+
 /** Shared chapter controls and contents navigation for edited media articles. */
 export const bindReadableMedia = (context: WebProcessorContext, kind: 'podcast' | 'youtube'): void => {
   const articles = context.container.querySelectorAll(`[data-slax-derived="${kind}-article"]`)
@@ -56,6 +62,7 @@ export const bindReadableMedia = (context: WebProcessorContext, kind: 'podcast' 
       button.type = 'button'
       button.className = 'slax-yt-chapter-time'
       button.textContent = time
+      button.setAttribute('aria-label', seekLabel(kind, time))
       const seek = () => seekTo(seconds * 1000)
       button.addEventListener('click', seek)
       heading.appendChild(button)

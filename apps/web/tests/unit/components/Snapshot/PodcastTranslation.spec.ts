@@ -21,7 +21,7 @@ describe('PodcastTranslation', () => {
     expect(w.find('.slax-yt-contents a').attributes('href')).toBe('#pod-translated-topic-0')
     expect(w.find('.slax-pod-p button').exists()).toBe(false)
     expect(w.find('.slax-pod-p').attributes('data-start-ms')).toBe('3725000')
-    expect(w.find('.slax-yt-chapter-time').text()).toBe('00:00')
+    expect(w.find('.slax-yt-chapter-time').text()).toBe('0:00')
     expect(w.find('.slax-pod-speaker').text()).toBe('主持人：')
     const seek = vi.fn()
     window.addEventListener('slax:youtube-seek', seek)

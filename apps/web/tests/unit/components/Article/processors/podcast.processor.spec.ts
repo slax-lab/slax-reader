@@ -1,8 +1,13 @@
 // PodcastProcessor：slax-media 换成播放器、只接受 http(s) 地址、段首时间戳点击和键盘跳转、清理
-import { PodcastProcessor } from '~~/app/components/Article/processors/podcast.processor'
+import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { bindReadableMedia, PodcastProcessor } from '~~/app/components/Article/processors/podcast.processor'
 import type { WebProcessorContext } from '~~/app/components/Article/processors/types'
 import { ArticleStyle } from '~~/app/components/Article/processors/types'
 import { describe, expect, it, vi } from 'vitest'
+
+mockNuxtImport('tryUseNuxtApp', () => () => ({
+  $i18n: { t: (key: string, named?: { time?: string }) => `${key}|${named?.time ?? ''}` }
+}))
 
 vi.mock('~~/app/components/Article/CEComponents', () => {
   class FakePodcastPlayer extends HTMLElement {
@@ -98,6 +103,7 @@ describe('PodcastProcessor', () => {
     const seek = vi.fn()
     window.addEventListener('slax:youtube-seek', seek)
     const button = heading.querySelector<HTMLButtonElement>('button.slax-yt-chapter-time')!
+    expect(button.getAttribute('aria-label')).toBe('component.podcast.seek|0:12')
     button.click()
     expect((seek.mock.calls[0][0] as CustomEvent).detail).toEqual({ t: 12 })
     ctx.container.querySelector<HTMLAnchorElement>('.slax-yt-contents a')!.click()
@@ -107,6 +113,12 @@ describe('PodcastProcessor', () => {
     button.click()
     expect(seek).toHaveBeenCalledOnce()
     window.removeEventListener('slax:youtube-seek', seek)
+  })
+
+  it('labels injected chapter controls with the seek text of the article kind', () => {
+    const ctx = context('<article data-slax-derived="youtube-article"><h2 class="slax-pod-heading" data-start-ms="3725000">Topic</h2></article>')
+    bindReadableMedia(ctx, 'youtube')
+    expect(ctx.container.querySelector('button.slax-yt-chapter-time')?.getAttribute('aria-label')).toBe('component.youtube_article.seek|1:02:05')
   })
 
 })

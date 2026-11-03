@@ -9,6 +9,18 @@ Reviewer: Luca. Date: 2026-11-03. Result: accepted; no further UI adjustment req
 This acceptance supersedes the 2026-11-02 record below. It occurred after the review of `56fddf41`; it is not backdated.
 Live edited-article generation and the final theme matrix remain separate agent-executable verification gaps.
 
+## Review follow-up: 2026-11-03
+
+Branch `fix/podcast-article-review-followup`, from `9a20b3cb`. Scope: the two review Nits and the Web CI failure at that head. The only runtime change is the accessible name of the chapter controls that `bindReadableMedia` injects into captured article bodies.
+
+- `PodcastTranslation.spec.ts` now expects the unpadded chapter time (`0:00`) that `formatTime` renders, matching the accepted presentation and `youtube.processor.spec.ts`.
+- Injected chapter buttons carry a localized `aria-label` (`component.podcast.seek` / `component.youtube_article.seek`) and fall back to the time text when no Nuxt context is available. `podcast.processor.spec.ts` asserts both keys.
+- Web suite: 2,561 passed, 3 skipped, 0 failed (224 test files passed, 1 skipped). Run with `deploy/local/.env.web` created from `deploy/local/.env.web.example`; without that file, `userLocaleFallback.spec.ts` fails on this machine at both `9a20b3cb` and the follow-up branch, which is an environment difference from CI's job-level env, not a code regression.
+- Web typecheck passed. ESLint on the three changed files reported no problems.
+- Strict OpenSpec validation: 94 passed, 0 failed.
+
+The visible presentation is unchanged: no layout, style, or copy edits. The only runtime difference is the accessible name of the chapter buttons that `bindReadableMedia` injects into captured article bodies, which previously had none. The owner's acceptance at `27abc173` (2026-11-03) and `8de09aec` (2026-11-02) therefore still covers this head, so this follow-up requested no new hands-on acceptance.
+
 ## Previous acceptance status: 2026-11-02
 
 Luca confirmed that he reviewed the UI-visible presentation changes in PR #469 and that they meet his requirements.
