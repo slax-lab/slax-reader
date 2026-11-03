@@ -100,10 +100,10 @@ test('mounted RSS uses its retained source identity rather than resetting each t
     listProps = {...props, instance: React.useRef(Symbol('native-rss-list')).current}; React.useImperativeHandle(ref, () => ({scrollToOffset: value => commands.push(value)}), []); return null;
   });
   const {RssFeed} = await load('../../src/components/RssFeed.tsx', {
-    react: React, 'react-native': {FlatList, View: primitive, Pressable: primitive, ScrollView: primitive, Image: nil, TextInput: nil, ActivityIndicator: nil, StyleSheet: {create: value => value}},
-    '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: () => 'Feed'}, '../theme': {mobileColors: {}, mobileTypography: {}},
+    react: React, 'react-native': {FlatList, View: primitive, Pressable: primitive, ScrollView: primitive, Image: nil, TextInput: nil, ActivityIndicator: nil, StyleSheet: {create: value => value}, useWindowDimensions: () => ({width: 400, height: 800, fontScale: 1})},
+    '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: () => 'Feed'}, '../theme': {mobileColors: {}, mobileTypography: {rssSourceLabel: {lineHeight: 14}}},
     './SourceUI': {SourceButton: nil, SourceDialog: nil, SourceIcon: nil, SourceSheet: nil, SourceText: primitive, SourceProgress: nil, TextAction: nil, Divider: nil}, './SourceMenu': {SourceMenu: nil},
-    './AppImage': {AppImage: nil}, './fixture-actions': {}, './feed-scroll': scrolling, './FeedList': await feedList(FlatList),
+    './SourceLine': {SourceLine: nil}, './AppImage': {AppImage: nil}, './fixture-actions': {}, './feed-scroll': scrolling, './FeedList': await feedList(FlatList),
   });
   const state = () => ({enabled: true, selected, subscriptions: [], entries, ready: true, busy: false, hasMore: false});
   const dismiss = () => {}, controller = {};
@@ -148,10 +148,10 @@ test('mounted RSS uses its retained source identity rather than resetting each t
 test('RSS rail offers All first and returns to the combined timeline from a source', async () => mounted(async root => {
   const tabs = [], primitive = ({children}) => React.createElement('div', null, children);
   const {RssFeedSwitcher} = await load('../../src/components/RssFeed.tsx', {
-    react: React, 'react-native': {FlatList: () => null, View: primitive, Pressable: props => {if (props.accessibilityRole === 'tab') tabs.push(props); return primitive(props);}, ScrollView: primitive, Image: () => null, TextInput: null, ActivityIndicator: null, StyleSheet: {create: value => value}},
-    '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: () => 'Feed'}, '../theme': {mobileColors: {}, mobileTypography: {}},
+    react: React, 'react-native': {FlatList: () => null, View: primitive, Pressable: props => {if (props.accessibilityRole === 'tab') tabs.push(props); return primitive(props);}, ScrollView: primitive, Image: () => null, TextInput: null, ActivityIndicator: null, StyleSheet: {create: value => value}, useWindowDimensions: () => ({width: 400, height: 800, fontScale: 1})},
+    '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: () => 'Feed'}, '../theme': {mobileColors: {}, mobileTypography: {rssSourceLabel: {lineHeight: 14}}},
     './SourceUI': {SourceButton: () => null, SourceDialog: () => null, SourceIcon: () => null, SourceText: primitive, SourceProgress: () => null, TextAction: () => null, Divider: () => null}, './SourceMenu': {SourceMenu: () => null},
-    './AppImage': {AppImage: () => null}, './fixture-actions': {}, './feed-scroll': await load('../../src/components/feed-scroll.ts', {react: React}), './FeedList': {FeedList: () => null},
+    './SourceLine': {SourceLine: () => null}, './AppImage': {AppImage: () => null}, './fixture-actions': {}, './feed-scroll': await load('../../src/components/feed-scroll.ts', {react: React}), './FeedList': {FeedList: () => null},
   });
   const calls = [], state = {enabled: true, selected: null, subscriptions: [{id: 'feed-a', title: 'A'}, {id: 'feed-b', title: 'B'}], entries: [], ready: true, busy: false, hasMore: false};
   const controller = {select: id => {calls.push(id); return Promise.resolve(true);}};
@@ -192,10 +192,11 @@ test('actual Library preserves both modes through toggles and gives a new native
   const scrolling = await load('../../src/components/feed-scroll.ts', {react: React});
   const selection = await load('../../src/screens/collection-selection.ts', {});
   const commands = [], lists = {}, menus = [], tabs = [], markedRead = []; let owner = 'account-a', rssPosition, inboxPosition, inboxReset, inboxWatch;
-  const primitive = ({children}) => React.createElement('div', null, children), nil = () => null;
+  const views = new Map();
+  const primitive = props => {if (props.testID) views.set(props.testID, props); return React.createElement('div', null, props.children);}, nil = () => null;
   const FlatList = React.forwardRef((props, ref) => {lists.inbox = {...props, instance: React.useRef(Symbol('native-inbox-list')).current}; React.useImperativeHandle(ref, () => ({scrollToOffset: value => commands.push(['inbox', value.offset])}), []); return props.ListHeaderComponent;});
   const busy = [];
-  function RssFeed({scrollPosition}) {rssPosition = scrollPosition; const scrollTo = React.useCallback(offset => commands.push(['rss', offset]), []); lists.rss = {...scrolling.useFeedScrollPosition(scrollPosition, scrollTo).events, instance: React.useRef(Symbol('rss-component')).current}; return null;}
+  function RssFeed({scrollPosition, header}) {rssPosition = scrollPosition; const scrollTo = React.useCallback(offset => commands.push(['rss', offset]), []); lists.rss = {...scrolling.useFeedScrollPosition(scrollPosition, scrollTo).events, instance: React.useRef(Symbol('rss-component')).current}; return header;}
   const rssState = {enabled: true, selected: 'feed-a', subscriptions: [], entries: [], ready: true, busy: false, hasMore: false};
   class RssController {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}}
   const telemetry = {track() {}, element() {}, firebase() {}}, preferences = {}, api = {};
@@ -208,12 +209,12 @@ test('actual Library preserves both modes through toggles and gives a new native
   const context = {t: value => value, repositories, preferences, runtime, api, sessions: {}, config: {platform: 'android'}, upgrade: {status: 'ready'}};
   const components = Object.fromEntries(['BookmarkRow', 'Divider', 'LinkInputDialog', 'RssFeedSwitcher', 'SourceAvatar', 'SourceButton', 'SourceDialog', 'SourceIcon', 'SourceProgress', 'TextAction'].map(name => [name, nil]));
   const {LibraryScreen} = await load('../../src/screens/LibraryScreen.tsx', {
-    react: React, 'react-native': {View: primitive, Pressable: props => {if (props.accessibilityRole === 'tab') tabs.push(props); return primitive(props);}, ScrollView: primitive, FlatList, ActivityIndicator: nil, Animated: {}, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}, Linking: {}, PixelRatio: {roundToNearestPixel: value => value}, Platform: {OS: 'android', select: values => values.android}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 400, height: 800})},
+    react: React, 'react-native': {View: primitive, Pressable: props => {if (props.accessibilityRole === 'tab') tabs.push(props); return primitive(props);}, ScrollView: primitive, FlatList, ActivityIndicator: nil, Animated: {}, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}, Linking: {}, PixelRatio: {roundToNearestPixel: value => value}, Platform: {OS: 'android', select: values => values.android}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 400, height: 800, fontScale: 1})},
     '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 0, bottom: 0})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
     '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: primitive}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
     './LibraryDataStatus': {LibraryDataStatus: nil}, '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
     '../components': {...components, RssFeed, ScreenSurface: primitive, SourceText: primitive, SourceMenu: props => {menus.push(props); return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => ({...context, nativeResourceOwner: owner})},
-    '../theme': {mobileColors: {}, mobileLayout: {drawerMaximumWidth: 320, librarySwipeActionHeight: 53}, mobileTypography: {}}, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../utils/source-time': await load('../../src/utils/source-time.ts', {}), '../components/feed-scroll': {...scrolling, useFeedScrollPosition: (...args) => {const value = scrolling.useFeedScrollPosition(...args); inboxPosition = args[0]; inboxReset = value.reset; return value;}}, '../components/SourceDrawer': {SourceDrawer: primitive},
+    '../theme': {mobileColors: {}, mobileLayout: {drawerMaximumWidth: 320, librarySwipeActionHeight: 53}, mobileTypography: {rssSourceLabel: {lineHeight: 14}}}, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../utils/source-time': await load('../../src/utils/source-time.ts', {}), '../components/feed-scroll': {...scrolling, useFeedScrollPosition: (...args) => {const value = scrolling.useFeedScrollPosition(...args); inboxPosition = args[0]; inboxReset = value.reset; return value;}}, '../components/SourceDrawer': {SourceDrawer: primitive},
     '../components/FeedList': await feedList(FlatList), '../components/useAppForeground': {useAppForeground: () => true},
   });
   const render = () => React.createElement(LibraryScreen, {navigation: {navigate() {}}, route: {params: {}}});
@@ -222,6 +223,19 @@ test('actual Library preserves both modes through toggles and gives a new native
   const select = label => act(async () => menus.at(-1).items.find(item => item.label === label).onPress());
   await act(async () => root.render(render())); observe('inbox', 0); observe('inbox', 420);
   const firstInbox = lists.inbox.instance, renderBookmark = lists.inbox.renderItem;
+  const viewportLayout = height => views.get('library-feed-viewport').onLayout({nativeEvent: {layout: {height}}});
+  await act(async () => viewportLayout(640));
+  const backdrop = () => views.get('library-source-backdrop');
+  assert.equal(backdrop().style.height, 640, 'The extension uses the list viewport, not the screen height');
+  assert.equal(backdrop().style.position, 'absolute');
+  assert.equal(backdrop().style.bottom, '100%', 'The decoration occupies no header layout space');
+  assert.equal(backdrop().pointerEvents, 'none');
+  assert.equal(backdrop().accessibilityElementsHidden, true);
+  assert.equal(lists.inbox.instance, firstInbox, 'Measuring the viewport does not remount the native list');
+  const nativeScroll = lists.inbox.onScroll;
+  await act(async () => viewportLayout(480));
+  assert.equal(backdrop().style.height, 480, 'Rotation/layout changes update the painted coverage');
+  assert.equal(lists.inbox.onScroll, nativeScroll, 'Background sizing does not replace scroll handling');
   assert.equal(lists.inbox.getItemLayout, undefined, 'Wait for the scrolling collection header measurement');
   await act(async () => lists.inbox.ListHeaderComponent.props.onLayout({nativeEvent: {layout: {height: 104}}}));
   const many = Array.from({length: 6}, (_, index) => ({id: `row-${index}`})), layout = index => lists.inbox.getItemLayout(many, index);
@@ -245,7 +259,9 @@ test('actual Library preserves both modes through toggles and gives a new native
     lists.inbox.onScrollBeginDrag(event); lists.inbox.onScrollEndDrag(event); lists.inbox.onMomentumScrollBegin(event); lists.inbox.onMomentumScrollEnd(event);
   });
   assert.deepEqual(busy, [[true, 'library-scroll'], [false, 'library-scroll']], 'List scroll begin and momentum end report interaction busy state to the runtime');
+  views.delete('library-source-backdrop');
   await select('rss_feeds'); observe('rss', 195); const firstRss = lists.rss;
+  assert.equal(backdrop().style.height, 480, 'RSS receives the same measured upward coverage');
   await select('inbox_title'); observe('inbox', 0); restore('inbox'); assert.deepEqual(commands.at(-1), ['inbox', 420]); observe('inbox', 420);
   await select('rss_feeds'); observe('rss', 0); restore('rss'); assert.deepEqual(commands.at(-1), ['rss', 195]); observe('rss', 195);
   assert.equal(commands.filter(([mode, offset]) => mode === 'inbox' && offset === 0).length, 1, 'The account initialization effect does not run again on a mode switch');
@@ -273,6 +289,12 @@ test('actual Library preserves both modes through toggles and gives a new native
   inboxBeforeCollection.onScrollBeginDrag(); inboxBeforeCollection.onScroll({nativeEvent: {contentOffset: {y: 999}}});
   assert.equal(inboxPosition.offset, 120, 'Captured old collection callbacks cannot overwrite the active collection');
   assert.equal(commands.length, beforeCollection, 'The selected collection begins at top instead of restoring the old Inbox offset');
+  const selectedList = lists.inbox;
+  await act(async () => tabs.at(-2).onPress());
+  assert.equal(lists.inbox.instance, selectedList.instance, 'Changing the visible Collection retains the list and its loaded avatar header');
+  assert.equal(lists.inbox.maintainVisibleContentPosition, undefined, 'Replaced source rows cannot anchor to the previous source');
+  selectedList.onScrollBeginDrag(); selectedList.onScroll({nativeEvent: {contentOffset: {y: 999}}});
+  assert.equal(inboxPosition.offset, 0, 'A retired source callback cannot undo the new source reset');
 }));
 
 test('actual Library holds row publications while the feed scrolls, flushes the latest on rest, ignores replaced scopes and keeps list chrome elements stable', async () => mounted(async root => {
@@ -296,7 +318,7 @@ test('actual Library holds row publications while the feed scrolls, flushes the 
     '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: () => {headerRenders++; return null;}}, '../components/SourceShape': {SourceShape: primitive}, '../components/fixture-actions': {},
     './LibraryDataStatus': {LibraryDataStatus: nil}, '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
     '../components': {...components, ScreenSurface: primitive, SourceText: primitive, SourceMenu: props => {menus.push(props); return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context},
-    '../theme': {mobileColors: {}, mobileLayout: {drawerMaximumWidth: 320, librarySwipeActionHeight: 53}, mobileTypography: {}}, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../utils/source-time': await load('../../src/utils/source-time.ts', {}), '../components/feed-scroll': scrolling, '../components/SourceDrawer': {SourceDrawer: primitive},
+    '../theme': {mobileColors: {}, mobileLayout: {drawerMaximumWidth: 320, librarySwipeActionHeight: 53}, mobileTypography: {rssSourceLabel: {lineHeight: 14}}}, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../utils/source-time': await load('../../src/utils/source-time.ts', {}), '../components/feed-scroll': scrolling, '../components/SourceDrawer': {SourceDrawer: primitive},
     '../components/FeedList': await feedList(FlatList), '../components/useAppForeground': {useAppForeground: () => true},
   });
   const navigation = {navigate() {}, setParams() {}}, render = () => act(async () => root.render(React.createElement(LibraryScreen, {navigation, route: {params: {}}})));

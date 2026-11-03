@@ -14,9 +14,16 @@
     {
       "path": "css/article.css",
       "sourcePath": "public/embedded/css/article.css",
-      "sha256": "eaec206eee3165366c34c8e1cbdd9d33af2bbde4313a698afd62daa6857f5729",
-      "bytes": 9657,
-      "transformation": "byte-for-byte"
+      "sha256": "5b2ad9a0caba3a23eb97ee24a1b9dd91ad5bd4463804642bf0e4166c2d728642",
+      "bytes": 9678,
+      "transformation": "Approved common-image correction: normal-priority default image widths preserve authored dimensions; video rule unchanged",
+      "previousImport": {
+        "path": "css/article.css",
+        "sourcePath": "public/embedded/css/article.css",
+        "sha256": "eaec206eee3165366c34c8e1cbdd9d33af2bbde4313a698afd62daa6857f5729",
+        "bytes": 9657,
+        "transformation": "byte-for-byte"
+      }
     },
     {
       "path": "css/mark.css",
@@ -34,10 +41,64 @@
     },
     {
       "path": "js/webview-bridge.js",
-      "sourcePath": "public/embedded/js/webview-bridge.js",
-      "sha256": "cc943378a1de086b4dfc1c628e50618b187ae515fa256210bf2f51ac26038225",
-      "bytes": 132641,
-      "transformation": "byte-for-byte"
+      "sourcePath": "dist/slax-reader-web-bridge.js",
+      "sha256": "79e73864dc288d03e16ed2cf4968d79bed70f4d47735703f5a89d00dc0b53aab",
+      "bytes": 43145,
+      "transformation": "byte-for-byte from upstream Rollup production build",
+      "sourceRepository": "slax-lab/slax-reader-web-bridge",
+      "sourceCommit": "29dceb3437deae03cd8f5eb7656fb183446ab607",
+      "license": "MIT",
+      "build": {
+        "sourceState": "working tree with approved common preprocessing and native touch-cancellation repair; uncommitted",
+        "command": "NODE_OPTIONS=\"--loader ts-node/esm\" node node_modules/rollup/dist/bin/rollup -c rollup.config.ts",
+        "inputSha256": {
+          "package.json": "2b7cbc8355af3b5162ea11e7d1cfa7b19bea7d2e2066c2f8dc74e6398c66c777",
+          "pnpm-lock.yaml": "ae16fffec16f582ebf392ab23e603bbb70043f3d61dfae23b7117acf5c443859",
+          "rollup.config.ts": "5cb8cc19c8454d72c57c430e6e1ea7d8405b72d21d4bdf93661a40bd3ee46771",
+          "src/bridge/native-bridge.ts": "ca02566b7eafbe7dc95061bf15cdbe4a039ad9728e3a6d688e98e7c7b02860fd",
+          "src/core/slax-webview-bridge.ts": "370344c93872d9c302fe4679c77d9555cdbecec7044122e47ab10839009e8175",
+          "src/features/bookmark-notfound.ts": "e6bb90691e09cdc4db520591d8a6cdf44485671e4522038443057e246536a3c7",
+          "src/features/content.ts": "8f0b29934d8036ff73418edb92075e54e85f2da737c3fce87148e10bec50e2a3",
+          "src/features/highlight.ts": "ca3cf49f285a02af9be34d679b265ccd0ba1180a295f600431ccc999b7a51d32",
+          "src/features/images.ts": "23eb3f843ee886c9eb2d172200f7702e4028f908d7f28e67e5fd76b466ed3065",
+          "src/features/mark-manager.ts": "5d55beb322a4a9c6c67793a58f50b69d369c4c9f17579f0f1c08efe6bf849b0d",
+          "src/features/mark-renderer.ts": "c9cd49e1bc53674872653fc22e85379c7e221fbf8d550331a9de4d51455b663f",
+          "src/features/scroll.ts": "53eaf0c1967df706bb18f24993a0ea5a76e8f641f705aaa7d79b714e595e7b6c",
+          "src/features/search.ts": "d27a4e45a14b5087ed8e3bb0548834e41e44ff15770c6261b1f913697caedb89",
+          "src/features/selection-monitor.ts": "99478ab37c3db85c62b05e3cface62ce14c6140993df9995cc2fd675bde05859",
+          "src/handlers/default-dom-handler.ts": "b0d406fc8ef3096ae285ae20ee0de47426ee49432f6e280bdf4b92f0a3bba3c2",
+          "src/handlers/dom-pipeline.ts": "005542cd374dbc368d8089870a7ed16072d4aa297fc57a6724c9e3690fb3868e",
+          "src/handlers/infopack-dom-handler.ts": "ba2a43aef144e83c61f8833694d2a00f2d1b06eee14e889087f03469ad654ffa",
+          "src/handlers/processors/anchor.processor.ts": "36015768946d4519c8aa4053528e7eb669b3bcbf2da656693bdf4a2b67468511",
+          "src/handlers/processors/blank-mark.processor.ts": "0b5ed57add341556454e446a8a77f43ecfa431705b4c70e2db6e87c32edebac2",
+          "src/handlers/processors/bookmark-notfound.processor.ts": "289fd81720dda8f56a1c6e27a81af5e0df8a4c5f06d0f6ed6ea9e6d06b8cfff3",
+          "src/handlers/processors/details.processor.ts": "b6ab7878fdcc254e659d9248d60f62657facc150f19d97681b57acbebf5002c6",
+          "src/handlers/processors/iframe.processor.ts": "a7716b3c558dc2bf4f6d621fc2003e027d00a6ba86e20e0fc1b338d6b7389c5c",
+          "src/handlers/processors/image-click.processor.ts": "9480f0241233e4d77569e992d610c894703a4aa17237bab4304754226cc35190",
+          "src/handlers/processors/list.processor.ts": "768366909b2690d914286783727172408b7faeb45e746e6d50448a07ee297dbb",
+          "src/handlers/processors/preline.processor.ts": "eea506fd80c68f95e97e3863246fdff9a8305d88afed0eb3b76f4e13d3d8e94e",
+          "src/handlers/processors/span.processor.ts": "ad6b26fe7d9835b307d253ff86cdc1682f923ac71441c5ef10f941d530d341ed",
+          "src/handlers/processors/svg.processor.ts": "e59d2a3bbebcff2df20538ab76da7fb791321c1d1506c025bad023abdd3cb7ec",
+          "src/handlers/processors/table-layout.processor.ts": "0674eeabaa7e61e16c36a41aedcf157ad34c25475f20faf4b1655571fcbb6306",
+          "src/handlers/processors/wechat-header.processor.ts": "b0e6fb8e7c3c6b8f5dcea93f77c07a69339e7be23949475e104a9615e4302bfb",
+          "src/handlers/types.ts": "ed19ae26d0d49c3fc5fd9ae70475264bdb7735ab0faa5cac4e052d423f322fc6",
+          "src/index.ts": "25b2cc7d1dc73180c7254bf94d7c755a6d0d232b795c4bd6aba45f046603eeab",
+          "src/types/dom-anchor-text-position.d.ts": "855234ec0a3202fa3de4ba371af82b5b6240709ca77345e8b2337752805f84eb",
+          "src/types/selection.ts": "67a6a0368f9720c97c891fba0c3c1acd074a09b1d23ad7f70939e6ad52950939",
+          "src/utils/platform.ts": "ec25caf79371b769c5b9ca40a68d0d1c99678f37b1e345e246320a97af920bb0",
+          "src/utils/polyfill.ts": "0326a722fd4611a1d3b3f8d2238960c4687d60573b5327e302fe7f26e6e89533",
+          "src/utils/selection-utils.ts": "7d27ebe1c9d453332e0919cdb9d3d17c1876586df83fe91d48f8e23d1c457986",
+          "tsconfig.json": "4b28f99abebaec0062eebbe1b25adb473234f51238d085a0321eff84659cccc0",
+          "tsconfig.node.json": "444d3daed7ab9a1321f4c31e534a21359b281d5a643518bf2f0fbe7522dbb69f"
+        }
+      },
+      "previousImport": {
+        "path": "js/webview-bridge.js",
+        "sourcePath": "public/embedded/js/webview-bridge.js",
+        "sha256": "cc943378a1de086b4dfc1c628e50618b187ae515fa256210bf2f51ac26038225",
+        "bytes": 132641,
+        "transformation": "byte-for-byte"
+      }
     },
     {
       "path": "html/webview-template.html",

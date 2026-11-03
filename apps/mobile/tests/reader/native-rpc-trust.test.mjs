@@ -14,7 +14,7 @@ const hostSource = await readFile(new URL('../../assets/embedded/js/react-native
 function host(platform = 'ios') {
   const messages = [], media = []
   const window = {addEventListener() {}, removeEventListener() {}, ReactNativeWebView: {postMessage: raw => messages.push(raw)},
-    SlaxWebViewBridge: {captureCurrentSelection: () => JSON.stringify(selection), clearSelection() {}, stopSelectionMonitoring() {}, drawMarks() {}, scrollToAnchor: () => true},
+    SlaxWebViewBridge: {captureCurrentSelection: () => JSON.stringify(selection), clearSelection() {}, destroy() {}, drawMarks() {}, scrollToAnchor: () => true},
     __slaxGetYoutubeTime: () => 42, __slaxSeekYoutube: value => {media.push(value)}}
   window.top = window
   const document = {readyState: 'loading', addEventListener() {}, removeEventListener() {}, querySelectorAll: query => query === 'img' ? [{getAttribute: () => 'https://images.invalid/a.png'}] : []}

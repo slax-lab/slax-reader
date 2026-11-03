@@ -1,6 +1,6 @@
 import {useAvatarResource} from './AvatarResources';
 import React from 'react';
-import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Modal, PixelRatio, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type ImageStyle, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Modal, PixelRatio, Platform, Pressable, StyleSheet, Switch, Text, View, useWindowDimensions, type ImageStyle, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 import {SheetBody} from './SheetBody';
 import {SafeAreaProvider, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import { mobileAssets, type MobileAssetName } from '../../assets';
@@ -63,7 +63,8 @@ export function SourceProgress({value, height = 5, color = C.accent, testID}: {v
   </View>;
 }
 export function SourceSwitch({value, onChange, disabled, label}: {value: boolean; onChange(value: boolean): void; disabled?: boolean; label: string}) {
-  return <Pressable accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{checked: value, disabled: Boolean(disabled)}} disabled={disabled} onPress={() => onChange(!value)} hitSlop={8} style={{width: 52, height: 32, borderRadius: 16, backgroundColor: value ? C.accent : C.switchOff, opacity: disabled ? 0.38 : 1}}><View style={{position: 'absolute', width: value ? 24 : 16, height: value ? 24 : 16, borderRadius: 12, backgroundColor: C.surface, left: value ? 24 : 8, top: value ? 4 : 8}} /></Pressable>;
+  return <Switch hitSlop={8} accessibilityLabel={label} accessibilityState={{checked: value, disabled: Boolean(disabled)}} value={value} onValueChange={onChange} disabled={disabled}
+    trackColor={{false: C.switchOff, true: C.accent}} ios_backgroundColor={C.switchOff} />;
 }
 export function ScreenSurface({children, style, testID, bottomInset = true, sourceAppBar = false}: {children: React.ReactNode; style?: StyleProp<ViewStyle>; testID?: string; bottomInset?: boolean; sourceAppBar?: boolean}) {
   const insets = useSafeAreaInsets();

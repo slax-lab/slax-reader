@@ -73,7 +73,7 @@ export function CommentPanel({visible, mark, text, draft, reply, currentUserAvat
         <View style={styles.commentInputContainer}>
           {!hideProfiles ? <View style={{paddingTop: 7}}><SourceAvatar uri={currentUserAvatar} size={24} label={t('comment_panel_current_user_avatar')} /></View> : null}
           <View style={{flex: 1}}>{reply ? <Pressable onPress={() => onReply(null)}><SourceText style={[T.helper, {color: C.link}]}>{t('comment_panel_reply_prefix')}{reply.username || t('comment_panel_unknown_user')}</SourceText></Pressable> : null}
-            <TextInput ref={input} testID="reader-comment-input" multiline maxLength={1500} value={draft} onChangeText={onDraft} placeholder={t('comment_panel_placeholder')} placeholderTextColor="#BBBBBB" selectionColor={C.textSelection} style={styles.commentInput} />
+            <TextInput selectionColor={C.accent} cursorColor={C.accent} ref={input} testID="reader-comment-input" multiline maxLength={1500} value={draft} onChangeText={onDraft} placeholder={t('comment_panel_placeholder')} placeholderTextColor="#BBBBBB" style={styles.commentInput} />
           </View>
         </View><Pressable testID="reader-comment-send" accessibilityRole="button" disabled={!draft.trim() || busy} accessibilityState={{disabled: !draft.trim() || busy}} onPress={onSubmit} style={({pressed}) => [styles.commentSend, {backgroundColor: draft.trim() ? C.accent : '#99999929', opacity: pressed && draft.trim() ? .7 : 1}]}><SourceText style={{fontSize: 16, lineHeight: 26, color: draft.trim() ? C.surface : C.mutedText}}>{t('comment_panel_send')}</SourceText></Pressable>
       </View> : null}

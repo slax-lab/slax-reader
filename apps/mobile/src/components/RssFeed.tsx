@@ -1,6 +1,6 @@
 import type {ViewInstance} from 'react-native';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ActivityIndicator, type FlatList, PixelRatio, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, type FlatList, PixelRatio, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 import type { RssEntry, RssSubscription } from '@slax-reader/contracts';
 import { useMobile } from '../runtime';
 import { rssDisplayName, type RssController, type RssState } from '../rss/controller';
@@ -11,6 +11,7 @@ import { SourceMenu } from './SourceMenu';
 import {fixtureActions} from './fixture-actions';
 import {FeedScrollPosition, useFeedScrollPosition} from './feed-scroll';
 import {FeedList} from './FeedList';
+import {SourceLine} from './SourceLine';
 
 export function rssImage(raw?: string | null): string | null {
   if (!raw) return null;
@@ -43,17 +44,18 @@ function RssImageTransport({uri, size, sourceName}: {uri: string | null; size: n
   </View>;
 }
 export function RssFeedSwitcher({state, controller, onAdd}: {state: RssState; controller: RssController; onAdd(): void}) {
-  const {t} = useMobile(), all = state.selected === null;
-  return <ScrollView horizontal scrollsToTop={false} showsHorizontalScrollIndicator={false} style={{flexGrow: 0, height: 96}} contentContainerStyle={styles.switcher}>
-    {state.subscriptions.length ? <Pressable accessibilityRole="tab" accessibilityLabel={t('rss_all')} accessibilityState={{selected: all, disabled: state.busy}} disabled={state.busy} onPress={() => void controller.select(null)} style={styles.source}>
+  const {t} = useMobile(), {fontScale} = useWindowDimensions(), all = state.selected === null;
+  const sourceStripHeight = 82 + T.rssSourceLabel.lineHeight * Math.max(1, fontScale);
+  return <ScrollView horizontal scrollsToTop={false} showsHorizontalScrollIndicator={false} style={{flexGrow: 0, height: sourceStripHeight}} contentContainerStyle={[styles.switcher, {minHeight: sourceStripHeight}]}>
+    {state.subscriptions.length ? <Pressable testID="rss-source-all" hitSlop={{left: 3, right: 3}} accessibilityRole="tab" accessibilityLabel={t('rss_all')} accessibilityState={{selected: all, disabled: state.busy}} disabled={state.busy} onPress={() => void controller.select(null)} style={styles.source}>
       <View style={[styles.sourceCircle, {borderColor: all ? C.rssSelectedBorder : 'transparent'}]}><View style={styles.allImage}><SourceIcon name="ic_rss" size={24} style={{tintColor: C.rssAccent}} /></View></View>
-      <SourceText numberOfLines={1} ellipsizeMode="middle" style={[T.rssSourceLabel, {marginTop: 6, fontWeight: all ? '500' : '400', color: all ? C.text : C.mutedText}]}>{t('rss_all')}</SourceText>
+      <SourceLine text={t('rss_all')} testID="rss-source-all-name" fontSize={10} lineHeight={14} fontWeight={all ? 500 : 400} reserveFontWeight={500} fitContent alignment="center" ellipsis="middle" color={all ? C.text : C.mutedText} style={{marginTop: 4, maxWidth: 72}} />
     </Pressable> : null}
-    {state.subscriptions.map(source => <Pressable key={source.id} accessibilityRole="tab" accessibilityState={{selected: state.selected === source.id, disabled: state.busy}} disabled={state.busy} onPress={() => void controller.select(source.id)} style={styles.source}>
-      <View style={[styles.sourceCircle, {borderColor: state.selected === source.id ? C.rssSelectedBorder : 'transparent'}]}><SafeRssImage url={source.icon_url} size={41} sourceName={rssDisplayName(source)} /></View>
-      <SourceText numberOfLines={1} ellipsizeMode="middle" style={[T.rssSourceLabel, {marginTop: 6, fontWeight: state.selected === source.id ? '500' : '400', color: state.selected === source.id ? C.text : C.mutedText}]}>{rssDisplayName(source)}</SourceText>
+    {state.subscriptions.map(source => <Pressable key={source.id} testID={`rss-source-${source.id}`} accessibilityLabel={rssDisplayName(source)} hitSlop={{left: 3, right: 3}} accessibilityRole="tab" accessibilityState={{selected: state.selected === source.id, disabled: state.busy}} disabled={state.busy} onPress={() => void controller.select(source.id)} style={styles.source}>
+      <View style={[styles.sourceCircle, {borderColor: state.selected === source.id ? C.rssSelectedBorder : 'transparent'}]}><SafeRssImage url={source.icon_url} size={32} sourceName={rssDisplayName(source)} /></View>
+      <SourceLine text={rssDisplayName(source)} testID={`rss-source-${source.id}-name`} fontSize={10} lineHeight={14} fontWeight={state.selected === source.id ? 500 : 400} reserveFontWeight={500} fitContent alignment="center" ellipsis="middle" color={state.selected === source.id ? C.text : C.mutedText} style={{marginTop: 4, maxWidth: 72}} />
     </Pressable>)}
-    <Pressable accessibilityRole="button" accessibilityLabel={t('rss_add_source')} onPress={onAdd} style={styles.source}><View style={[styles.sourceCircle, {backgroundColor: '#EDEAE5'}]}><SourceIcon name="ic_xs_inbox_add" size={22} style={{tintColor: C.rssIconMuted}} /></View><SourceText numberOfLines={1} style={[T.rssSourceLabel, {color: C.mutedText, marginTop: 6}]}>{t('rss_add_source')}</SourceText></Pressable>
+    <Pressable testID="rss-source-add" hitSlop={{left: 3, right: 3}} accessibilityRole="button" accessibilityLabel={t('rss_add_source')} onPress={onAdd} style={styles.source}><View style={[styles.sourceCircle, {backgroundColor: '#EDEAE5'}]}><SourceIcon name="ic_xs_inbox_add" size={22} style={{tintColor: C.rssIconMuted}} /></View><SourceLine text={t('rss_add_source')} testID="rss-source-add-name" fontSize={10} lineHeight={14} reserveFontWeight={500} fitContent alignment="center" color={C.mutedText} style={{marginTop: 4, maxWidth: 72}} /></Pressable>
   </ScrollView>;
 }
 function displayTime(raw: string) { const date = new Date(raw); if (!Number.isFinite(date.getTime())) return ''; const pad = (v: number) => String(v).padStart(2, '0'); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`; }
@@ -130,11 +132,11 @@ function RssOutlinedField({label, value, onChangeText, maxLength, busy, placehol
     <View style={{paddingTop: 8}}>
       <View style={[styles.field, {opacity: busy ? 0.38 : 1}]}>
         <View pointerEvents="none" style={[StyleSheet.absoluteFill, {borderRadius: 12, borderColor: !busy && focused ? C.rssAccent : C.switchOff, borderWidth: !busy && focused ? 2 : 1}]} />
-        {onChangeText ? <TextInput accessibilityLabel={label} value={value} onChangeText={onChangeText} maxLength={maxLength} editable={!busy} multiline={false} autoCapitalize={url ? 'none' : 'sentences'} autoCorrect={!url} placeholder={focused ? placeholder : undefined} placeholderTextColor={C.rssIconMuted} selectionColor={C.rssAccent} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={styles.input} /> : <ScrollView horizontal scrollsToTop={false} scrollEnabled={!busy} showsHorizontalScrollIndicator={false} style={{flexGrow: 0}}><SourceText accessibilityLabel={label} accessibilityValue={{text: value}} accessibilityState={{disabled: busy}} selectable={!busy} numberOfLines={1} style={styles.input}>{value}</SourceText></ScrollView>}
+        {onChangeText ? <TextInput selectionColor={C.accent} cursorColor={C.accent} accessibilityLabel={label} value={value} onChangeText={onChangeText} maxLength={maxLength} editable={!busy} multiline={false} autoCapitalize={url ? 'none' : 'sentences'} autoCorrect={!url} placeholder={focused ? placeholder : undefined} placeholderTextColor={C.rssIconMuted} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={styles.input} /> : <ScrollView horizontal scrollsToTop={false} scrollEnabled={!busy} showsHorizontalScrollIndicator={false} style={{flexGrow: 0}}><SourceText accessibilityLabel={label} accessibilityValue={{text: value}} accessibilityState={{disabled: busy}} selectable={!busy} numberOfLines={1} style={styles.input}>{value}</SourceText></ScrollView>}
       </View>
       <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.fieldLabel, floating ? {top: 0, left: 12, paddingHorizontal: 4, backgroundColor: C.readerBackground} : {top: 24, left: 16}]}><SourceText style={{fontSize: floating ? 12 : 16, lineHeight: floating ? 16 : 24, color: !busy && focused ? C.rssAccent : C.rssIconMuted, opacity: busy ? 0.38 : 1}}>{label}</SourceText></View>
     </View>
     {supportingText ? <SourceText style={{fontSize: 12, lineHeight: 16, color: C.rssIconMuted, marginTop: 4, marginHorizontal: 16}}>{supportingText}</SourceText> : null}
   </View>;
 }
-const styles = StyleSheet.create({switcher: {paddingLeft: 20, paddingRight: 20, paddingTop: 12, paddingBottom: 16, gap: 12}, source: {width: 72, alignItems: 'center'}, sourceCircle: {width: 48, height: 48, borderRadius: 24, borderWidth: 0.5, padding: 3, alignItems: 'center', justifyContent: 'center'}, allImage: {width: 41, height: 41, borderRadius: 20.5, backgroundColor: '#F3EAE0', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'}, image: {backgroundColor: '#F3EAE0', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'}, toolbar: {minHeight: 48, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingLeft: 24, paddingRight: 12}, empty: {alignItems: 'center', gap: 16, paddingHorizontal: 32, paddingVertical: 48}, article: {paddingHorizontal: 24, paddingVertical: 14}, articleMain: {flexDirection: 'row', gap: 12}, meta: {fontSize: 11, color: C.mutedText}, save: {flexDirection: 'row', alignItems: 'center'}, field: {minHeight: 56, borderRadius: 12, justifyContent: 'center'}, fieldLabel: {position: 'absolute'}, input: {...T.body, color: C.text, paddingHorizontal: 16, paddingVertical: 16, includeFontPadding: false}});
+const styles = StyleSheet.create({switcher: {paddingHorizontal: 20, alignItems: 'center', gap: 22}, source: {minWidth: 38, flexShrink: 0, alignItems: 'center'}, sourceCircle: {width: 38, height: 38, borderRadius: 19, borderWidth: 0.5, padding: 2.5, alignItems: 'center', justifyContent: 'center'}, allImage: {width: 32, height: 32, borderRadius: 16, backgroundColor: '#F3EAE0', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'}, image: {backgroundColor: '#F3EAE0', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'}, toolbar: {minHeight: 48, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingLeft: 24, paddingRight: 12}, empty: {alignItems: 'center', gap: 16, paddingHorizontal: 32, paddingVertical: 48}, article: {paddingHorizontal: 24, paddingVertical: 14}, articleMain: {flexDirection: 'row', gap: 12}, meta: {fontSize: 11, color: C.mutedText}, save: {flexDirection: 'row', alignItems: 'center'}, field: {minHeight: 56, borderRadius: 12, justifyContent: 'center'}, fieldLabel: {position: 'absolute'}, input: {...T.body, color: C.text, paddingHorizontal: 16, paddingVertical: 16, includeFontPadding: false}});

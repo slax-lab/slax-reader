@@ -18,3 +18,10 @@ Under the existing esbuild 0.28.2 toolchain, all four pre/post extraction artifa
 | PDF LICENSES.txt | edd9e65d3c21a4189f4e60e2b1a20d971c6eab3d429190ffbab239a0cd73b59f |
 
 Mobile resource provenance, bridge, PDF source/interop and HTML5 error-readiness tests exercise the extracted code. Native host adapters are unchanged. Browser or native acceptance is not established by the byte comparison alone.
+
+
+## Approved common-preprocessing update (2026-11-03)
+
+The bridge entry is rebuilt from the sibling `slax-reader-web-bridge` TypeScript/Rollup source, based on upstream commit `29dceb3437deae03cd8f5eb7656fb183446ab607` plus the approved uncommitted common-preprocessing changes. Its per-file manifest entry records build inputs, hashes and original import provenance. The imported anchor-selection suppression is retained; image, span, details, relative-link, table and iframe processing are updated. Media processors and the portable HTML shell are unchanged.
+
+The article stylesheet's default image width now has normal priority so authored inline dimensions survive; the video width rule retains its original important priority. Mobile's application-owned presentation CSS supplies the table-fit class behavior. `generate-assets.mjs` remains the only writer of the generated Mobile payload. The original extraction byte-identity table above records the historical extraction baseline, not this deliberate update.

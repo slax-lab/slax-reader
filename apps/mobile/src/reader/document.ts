@@ -34,7 +34,17 @@ const [templateHead, ...templateTail] = readerAssets.template.split(CONTENT_MARK
 const headAt = templateHead!.indexOf('<head>') + '<head>'.length
 const configurationAt = readerAssets.nativeHostJs.indexOf(CONFIGURATION_MARKER)
 const documentPrefix = `${templateHead!.slice(0, headAt)}<meta http-equiv="Content-Security-Policy" content="${READER_CSP}"><meta name="referrer" content="strict-origin-when-cross-origin"><style>:root{caret-color:${mobileColors.textSelection.slice(0, 7)}}</style>\n<script>${readerAssets.nativeHostJs.slice(0, configurationAt)}`
-const documentHostSuffix = `${readerAssets.nativeHostJs.slice(configurationAt + CONFIGURATION_MARKER.length)}</script>${templateHead!.slice(headAt)}`
+// Mobile presentation overrides follow the pinned source CSS without changing the shared assets.
+const presentationCss = `<style data-slax-mobile-presentation>
+table{width:100%}
+table.slax-table-fit{display:table}
+:root{--slax-mark-border-color:${mobileColors.markStroke};--slax-mark-border-color-alpha:${mobileColors.markStroke}}
+::selection{background:${mobileColors.textSelection}}
+slax-mark{-webkit-tap-highlight-color:${mobileColors.textSelection}}
+.slax-yt-cue-time{border-color:rgba(22,185,152,0.5);background:rgba(22,185,152,0.16);color:${mobileColors.accent}}
+.slax-yt-cue-time:active{background:rgba(22,185,152,0.32)}
+</style>`
+const documentHostSuffix = `${readerAssets.nativeHostJs.slice(configurationAt + CONFIGURATION_MARKER.length)}</script>${templateHead!.slice(headAt).replace('</head>', `${presentationCss}</head>`)}`
 
 export function composeReaderDocument(html: string, options: ReaderDocumentOptions): string {
   const content = rewriteReaderImageTransports(html, undefined, options.imageProxyOrigins)

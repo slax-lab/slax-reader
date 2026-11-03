@@ -264,7 +264,7 @@ final class SlaxReaderView: ExpoView, WKNavigationDelegate, WKUIDelegate, UIScro
     webView.navigationDelegate = self; webView.uiDelegate = self; webView.scrollView.delegate = self
     webView.isOpaque = false; webView.backgroundColor = .clear; webView.scrollView.backgroundColor = .clear
     // Match the opaque hue of mobileColors.textSelection; UIKit controls selection highlight opacity.
-    webView.tintColor = UIColor(red: 138.0 / 255.0, green: 216.0 / 255.0, blue: 168.0 / 255.0, alpha: 1)
+    webView.tintColor = UIColor(red: 254.0 / 255.0, green: 234.0 / 255.0, blue: 194.0 / 255.0, alpha: 1)
     webView.scrollView.showsVerticalScrollIndicator = false; webView.scrollView.showsHorizontalScrollIndicator = false
     webView.scrollView.contentInsetAdjustmentBehavior = .never
     // The Reader draws its own transparent top bar; iOS 26 must not add its automatic scroll-edge blur band at any edge.
