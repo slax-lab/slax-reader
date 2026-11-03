@@ -1,6 +1,15 @@
 # Validation
 
-## Current acceptance status: 2026-11-02
+## Current acceptance status: 2026-11-03
+
+Luca accepted the UI-visible presentation at head `27abc173` on 2026-11-03: “可以，目前看 OK，你提交吧”.
+He opened the complete 807-paragraph transcript page on the local preview served from this head, over the LAN from his second computer.
+The page included the restored playing-paragraph highlight and the aligned timestamp format from the two commits after `8de09aec`.
+Reviewer: Luca. Date: 2026-11-03. Result: accepted; no further UI adjustment requested.
+This acceptance supersedes the 2026-11-02 record below. It occurred after the review of `56fddf41`; it is not backdated.
+Live edited-article generation and the final theme matrix remain separate agent-executable verification gaps.
+
+## Previous acceptance status: 2026-11-02
 
 Luca confirmed that he reviewed the UI-visible presentation changes in PR #469 and that they meet his requirements.
 His response to the Important acceptance finding was: “这个我看过了符合我的要求”.
