@@ -60,7 +60,7 @@ The system SHALL inspect other still-active changes for deltas affecting the sam
 
 ### Requirement: A valid archive produces one reviewed documentation pull request
 
-For an eligible change, the system SHALL apply its delta specs to the living specs, move the change into the dated archive, record the archive evidence, and pass `openspec validate --all --strict` and `git diff --check` before creating a documentation pull request. The pull request SHALL identify the archived change, summarize spec updates and unchecked-task classifications, and explicitly request the `slax-lab/reader-core` review team. A repeated evaluation for the same change SHALL NOT create a duplicate archive pull request.
+For an eligible change, the system SHALL apply its delta specs to the living specs, move the change into the dated archive, record the archive evidence, stage the result, and pass `openspec validate --all --strict` and `git diff --cached --check` before creating a documentation pull request. The pull request SHALL identify the archived change, summarize spec updates and unchecked-task classifications, and explicitly request the `slax-lab/reader-core` review team. A repeated evaluation for the same change SHALL NOT create a duplicate archive pull request.
 
 #### Scenario: An eligible change archives successfully
 

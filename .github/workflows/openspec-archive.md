@@ -98,8 +98,8 @@ For an eligible change:
 
 1. Use the pinned OpenSpec CLI with `npx --yes @fission-ai/openspec@1.13.1`. The required archive operation is `openspec archive <change-id> --yes`; invoke it through that pinned package. Do not hand-move the change or hand-merge delta specs.
 2. Record the archive outcome, task classifications, spec updates, command results, and any remaining accepted gaps in the archived change's `validation.md`. Create that file in the archive when no prior validation record exists.
-3. Run `openspec validate --all --strict` through the same pinned CLI and run `git diff --check`. Both must pass.
-4. Inspect `git status` and the complete diff. It must contain only the intended dated archive, living-spec updates, and archive evidence. If any command fails or the diff is broader or semantically wrong, stop without requesting a PR and report the failure on the source PR.
+3. Run `npx --yes @fission-ai/openspec@1.13.1 validate --all --strict`, then stage the archive result with `git add -A` and run `git diff --cached --check`. All three commands must pass; the staged check covers newly archived files.
+4. Inspect `git status` and the complete staged diff with `git diff --cached`. It must contain only the intended dated archive, living-spec updates, and archive evidence. If any command fails or the diff is broader or semantically wrong, stop without requesting a PR and report the failure on the source PR.
 
 ## Publish
 

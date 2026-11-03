@@ -85,8 +85,9 @@ test('archive prompt validates the result and prevents duplicate archive PRs', (
   const { body } = source()
   for (const expected of [
     'openspec archive <change-id> --yes',
-    'openspec validate --all --strict',
-    'git diff --check',
+    'npx --yes @fission-ai/openspec@1.13.1 validate --all --strict',
+    'git add -A',
+    'git diff --cached --check',
     'existing open archive pull request',
     'Do not create a duplicate',
     'Record the archive outcome',
