@@ -23,6 +23,7 @@ if: vars.OPENSPEC_ARCHIVE_ENABLED != 'false' && (github.event_name != 'pull_requ
 concurrency:
   group: openspec-archive-dev
   cancel-in-progress: false
+  queue: max
 
 timeout-minutes: 30
 
@@ -65,6 +66,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "docs(openspec): archive "
     team-reviewers: [reader-core]
+    fallback-as-issue: false
 ---
 
 # OpenSpec change archiving
@@ -103,7 +105,7 @@ For an eligible change:
 
 For a successful archive, call `create_pull_request` once. Set its title to `<change-id>` so the configured prefix produces `docs(openspec): archive <change-id>`. Its body must use the repository PR structure and include:
 
-- a change summary naming the archived change and source PR;
+- a change summary naming the archived change and an `Archive source: #<source-pr-number>` line that links the task PR;
 - `OpenSpec: n/a` because this is a documentation-only archive PR;
 - the spec updates and every unchecked-task classification;
 - the exact successful validation commands and results;

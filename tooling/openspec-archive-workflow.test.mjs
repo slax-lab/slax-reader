@@ -46,7 +46,8 @@ test('archive evaluation runs only for merged dev PRs or an explicit replay and 
   assert.equal(replay.type, 'number')
   assert.equal(config.env.ARCHIVE_SOURCE_PR_NUMBER, '${{ inputs.issue_number || github.event.pull_request.number }}')
   assert.equal(config.if, "vars.OPENSPEC_ARCHIVE_ENABLED != 'false' && (github.event_name != 'pull_request' || github.event.pull_request.merged == true)")
-  assert.deepEqual(config.concurrency, { group: 'openspec-archive-dev', 'cancel-in-progress': false })
+  assert.deepEqual(config.concurrency, { group: 'openspec-archive-dev', 'cancel-in-progress': false, queue: 'max' })
+  assert.equal(compiled().concurrency.queue, 'max')
 })
 
 test('agent permissions stay read-only and Safe Outputs only create an archive PR or report on the source PR', () => {
@@ -59,6 +60,8 @@ test('agent permissions stay read-only and Safe Outputs only create an archive P
   assert.deepEqual(outputs['add-comment'], { max: 1, target: '*' })
   assert.equal(outputs['create-pull-request']['title-prefix'], 'docs(openspec): archive ')
   assert.deepEqual(outputs['create-pull-request']['team-reviewers'], ['reader-core'])
+  assert.equal(outputs['create-pull-request']['github-token'], undefined)
+  assert.equal(outputs['create-pull-request']['fallback-as-issue'], false)
   assert.equal(outputs['create-pull-request'].reviewers, undefined)
   for (const forbidden of ['merge-pull-request', 'submit-pull-request-review', 'push-to-pull-request-branch', 'create-issue']) {
     assert.equal(outputs[forbidden], undefined, `${forbidden} must not be enabled`)
@@ -87,6 +90,7 @@ test('archive prompt validates the result and prevents duplicate archive PRs', (
     'existing open archive pull request',
     'Do not create a duplicate',
     'Record the archive outcome',
+    'Archive source: #<source-pr-number>',
   ]) assert.ok(body.includes(expected), `missing archive validation contract: ${expected}`)
 })
 

@@ -2,7 +2,7 @@
 
 ## Context
 
-The repository already runs gh-aw with a pinned compiler, a DeepSeek-backed Copilot engine, read-only agent tokens, Safe Outputs, and generated lock-file drift checks. The review gate adds `ready-for-human-review`, and `slax-notify-bridge` announces that label to the existing Feishu group. The bridge currently drops events from `github-actions[bot]` because that login is absent from `TEAM_MEMBERS`.
+The repository already runs gh-aw with a pinned compiler, a DeepSeek-backed Copilot engine, read-only agent tokens, Safe Outputs, and generated lock-file drift checks. The review gate adds `ready-for-human-review`, and `slax-notify-bridge` announces that label to the existing Feishu group. Before rollout, the bridge dropped events from `github-actions[bot]` because that login was absent from `TEAM_MEMBERS`; the separate bridge change added that identity used by the default Safe Outputs author.
 
 OpenSpec archiving needs judgment for unchecked-task classification and same-capability ordering, so a deterministic move-only script is insufficient. A new cloud agent run is required because the original implementation session may no longer exist when the task PR merges. The generated PR, rather than a direct push or automatic merge, is the write boundary.
 
@@ -29,7 +29,7 @@ OpenSpec archiving needs judgment for unchecked-task classification and same-cap
 
 The workflow triggers on `pull_request` `closed` with `branches: [dev]`, and its job requires `github.event.pull_request.merged == true`. The branch filter applies to the PR base. A `workflow_dispatch` input, `issue_number`, allows an operator to replay a merged task PR for recovery and isolated trials without adding a second automatic trigger. `ARCHIVE_SOURCE_PR_NUMBER` exposes that input or the automatic PR number to the agent through an explicit environment variable, so the prompt does not depend on gh-aw's raw-input interpolation.
 
-The agent reads the PR body and resolves the exact `OpenSpec:` line to one active change directory. It skips `n/a`, malformed or ambiguous identities, unmerged closures, missing active changes, and archive PRs. A repository-wide concurrency group serializes evaluations with no cancellation; a per-PR identity is used for logs and duplicate checks.
+The agent reads the PR body and resolves the exact `OpenSpec:` line to one active change directory. It skips `n/a`, malformed or ambiguous identities, unmerged closures, missing active changes, and archive PRs. A repository-wide concurrency group serializes evaluations without cancelling an active run and retains up to 100 pending runs; manual replay recovers a missed or platform-cancelled evaluation. A per-PR identity is used for logs and duplicate checks.
 
 Alternative considered: a `push` trigger on `dev`. Rejected because recovering the originating PR and its change identity is less direct, and batch or promotion pushes do not have the required one-task semantics.
 
@@ -59,7 +59,9 @@ This avoids two copies of model and budget configuration without widening the ar
 
 The archive PR needs no archive-specific notification code. Its `slax-lab/reader-core` team review request is included in the PR payload; after the existing gate adds `ready-for-human-review`, the bridge sends its normal group card naming that team without mentioning an individual.
 
-The default Safe Outputs author is `github-actions[bot]`. A separate `slax-notify-bridge` OpenSpec change will add that actual identity to `TEAM_MEMBERS`, update its current documentation and verification ledger, pass its verification suite, merge, and deploy before the main repository PR is allowed to merge. If the final implementation uses a different token identity, the bridge change uses the observed author login instead of assuming the default.
+The separate `slax-notify-bridge` change added `github-actions[bot]` to `TEAM_MEMBERS` and deployed before the main repository PR. Safe Outputs retains that default author. The reviewer remains only `slax-lab/reader-core`, and the eventual group card names the team without an individual mention.
+
+No PAT or extra empty commit is used. GitHub marks workflows for a PR created with the default `GITHUB_TOKEN` as approval-required. The archive PR body explicitly includes `Archive source: #<task-pr-number>`, creating a visible cross-link on the task PR, and its team review request provides the GitHub review entry. The task PR author owns the archive lifecycle: open the linked archive PR, select **Approve workflows to run**, and follow it through human review and merge. After that single manual approval, the existing automated review, readiness label, and Feishu notification proceed unchanged. Feishu is therefore not the first notification entry. The rejected token alternatives either had one-commit/non-fatal trigger limits or exposed a write token to the agent job. `docs/CI.md` owns this persistent procedure plus pause and replay.
 
 Deployment order:
 
@@ -67,7 +69,7 @@ Deployment order:
 2. Obtain the separate bridge proposal approval, then merge and deploy the bridge roster change.
 3. Exercise the main workflow in an isolated gh-aw trial with a cloned repository and a known merged, archive-eligible change; pass that source PR through `--trigger-context`, which gh-aw maps to the workflow's `issue_number` input, and inspect the generated PR and captured notification-relevant fields.
 4. Open and merge the main workflow PR. Its own merge is the first live trigger and should generate the archive PR for `automate-openspec-archive-pr`.
-5. Confirm the real archive PR, gate readiness, and Feishu group card naming `slax-lab/reader-core`. Human review and merge of that archive PR completes this change.
+5. Confirm the archive PR's source-PR link, team reviewer, and approval-required workflows. The task PR author approves those workflows, then confirm automated review, gate readiness, and the Feishu group card naming `slax-lab/reader-core`. Human review and merge of the archive PR completes this change.
 
 Rollback: set `OPENSPEC_ARCHIVE_ENABLED=false` to stop new evaluations. Existing archive PRs remain ordinary reviewable branches; close an unmerged one to leave `dev` unchanged. Reverting the bridge roster entry is separate and does not delete already sent notifications.
 
