@@ -300,6 +300,20 @@ describe('rendering', () => {
     expect(html.indexOf('slax-pod-article')).toBeLessThan(html.indexOf('slax-pod-notes'))
   })
 
+  test('podcast uses the full YouTube reading hierarchy with podcast labels', () => {
+    const doc = { ...cleanedDoc(), language: 'zh' as const, lede: '完整导读' }
+    const html = renderMediaArticle(doc, 'v1', transcript.cues, 'podcast')
+    expect(html).toContain('播客整理稿')
+    expect(html).toContain('class="slax-yt-introduction"')
+    expect(html).toContain('完整导读')
+    expect(html).toContain('class="slax-yt-contents"')
+    expect(html).toContain('href="#pod-topic-0"')
+    expect(html).toContain('id="pod-topic-0"')
+    expect(html).toContain('方法与来源')
+    expect(html).not.toContain('原视频')
+    expect(html).toContain('data-cue-ids=')
+  })
+
   test('YouTube body: the same article markup, named youtube, after the player; a bad video id is dropped', () => {
     const article = renderMediaArticle(cleanedDoc(), 'v1', transcript.cues, 'youtube')
     expect(article).toContain('class="slax-yt-contents"')
@@ -316,7 +330,10 @@ describe('rendering', () => {
 
   test('YouTube labels match the Web locale strings of the separate article view', () => {
     const doc = cleanedDoc()
-    for (const [lang, file] of [['en', 'en.json'], ['zh', 'zh.json']] as const) {
+    for (const [lang, file] of [
+      ['en', 'en.json'],
+      ['zh', 'zh.json']
+    ] as const) {
       const locale = JSON.parse(readFileSync(join(__dirname, '../../../web/i18n/locales', file), 'utf8')).component.youtube_article
       const article = renderMediaArticle({ ...doc, language: lang, lede: 'Lede' }, 'v2', transcript.cues, 'youtube')
       expect(article).toContain(`<p class="slax-yt-edition">${locale.edited_transcript}</p>`)

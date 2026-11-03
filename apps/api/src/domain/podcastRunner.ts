@@ -25,10 +25,8 @@ import {
   buildPolishUserMessage,
   buildTranslationInstruction,
   buildTranslationUserMessage,
-  chunkTail,
   chunkTranslationUnits,
   expectedEpisodeCostUsd,
-  mergeGlossary,
   parseTranslationOutput,
   planPodcastChunks,
   podcastArticleKeys,
@@ -49,7 +47,6 @@ import {
   checkArticleQuality,
   estimateCostUsd,
   estimateTokens,
-  expectedChunkCostUsd,
   mergeChunkResults,
   parseChunkOutput,
   type ArticleSection,
@@ -112,6 +109,7 @@ export class PodcastStop extends Error {
 
 const DB_STEP = { retries: { limit: 3, delay: '5 seconds', backoff: 'exponential' as const }, timeout: '1 minute' }
 const FETCH_STEP = { retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' as const }, timeout: '2 minutes' }
+const CHUNK_CONCURRENCY = 5
 const CHUNK_STEP = { retries: { limit: 2, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '5 minutes' }
 const ASSEMBLE_STEP = { retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' as const }, timeout: '3 minutes' }
 const PUBLISH_STEP = { retries: { limit: 2, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '10 minutes' }
@@ -446,7 +444,7 @@ interface StoredPolishChunk {
 interface StoredTranslationChunk {
   index: number
   texts: Record<string, string>
-  /** Glossary after this chunk (rolling). */
+  /** Glossary for this chunk. */
   glossary: GlossaryEntry[]
   usage: { input_tokens: number; output_tokens: number; cost_usd: number }
 }
@@ -497,32 +495,72 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     return { ep, transcript, source }
   }
 
-  /** Call the model once, count the cost first, return the text. */
+  // Reserve costs before concurrent calls; serialize accounting, not provider requests.
+  let accounting: Promise<unknown> = Promise.resolve()
+  let accountingError: unknown
+  const reservations = new Map<Promise<void>, number>()
+  const exclusive = <T>(fn: () => Promise<T>): Promise<T> => {
+    const result = accounting.then(fn)
+    accounting = result.catch(() => {})
+    return result
+  }
+
   const call = async (ep: podcastEpisodePO, system: string, user: string, schema: object): Promise<{ text: string; usage: StoredPolishChunk['usage'] }> => {
-    const next = expectedChunkCostUsd(estimateTokens(system + user))
-    const spent = await episodeSpent(deps, ep)
-    if (spent + next > PODCAST_LIMITS.maxEpisodeCostUsd) throw new PodcastStop('budget_exceeded', `spent=${spent.toFixed(4)} next=${next.toFixed(4)}`)
-    const reply = await deps.model.chat(
-      [{ role: 'user', parts: [{ text: user }] }],
-      {
-        model: YOUTUBE_ARTICLE_MODEL,
-        temperature: 0.2,
-        maxOutputTokens: YOUTUBE_ARTICLE_LIMITS.maxOutputTokens,
-        // Thinking tokens share maxOutputTokens; bound them so a long transcript cannot truncate.
-        thinkingConfig: { thinkingBudget: 2048 },
-        responseMimeType: 'application/json',
-        responseSchema: schema as unknown as VertexAIConfig['responseSchema']
-      },
-      { systemInstruction: system }
-    )
-    const input = reply.usage?.inputTokens ?? estimateTokens(system + user)
-    const output = reply.usage?.outputTokens ?? estimateTokens(reply.text)
-    const cost = estimateCostUsd(input, output)
-    // Counted before the reply is checked: a truncated or invalid reply still cost money
-    await deps.articles.addCost(job.articleId, cost)
-    await deps.addCost(cost)
-    if (reply.finishReason === 'MAX_TOKENS') throw new Error('chunk_truncated')
-    return { text: reply.text, usage: { input_tokens: input, output_tokens: output, cost_usd: cost } }
+    const next = estimateCostUsd(estimateTokens(system + user), YOUTUBE_ARTICLE_LIMITS.maxOutputTokens)
+    let release!: () => void
+    const settled = new Promise<void>(resolve => {
+      release = resolve
+    })
+    for (;;) {
+      const admission = await exclusive(async () => {
+        if (accountingError) throw accountingError
+        const row = await deps.articles.findById(job.articleId)
+        if (!row || row.run_id !== runId || row.status !== 'generating') throw new PodcastStop('lease_lost')
+        const reserved = [...reservations.values()].reduce((sum, cost) => sum + cost, 0)
+        if ((await episodeSpent(deps, ep)) + reserved + next > PODCAST_LIMITS.maxEpisodeCostUsd) {
+          if (reservations.size) return { wait: Promise.race(reservations.keys()) }
+          throw new PodcastStop('budget_exceeded')
+        }
+        reservations.set(settled, next)
+        return { wait: null }
+      })
+      if (!admission.wait) break
+      await admission.wait
+    }
+    try {
+      const reply = await deps.model.chat(
+        [{ role: 'user', parts: [{ text: user }] }],
+        {
+          model: YOUTUBE_ARTICLE_MODEL,
+          temperature: 0.2,
+          maxOutputTokens: YOUTUBE_ARTICLE_LIMITS.maxOutputTokens,
+          thinkingConfig: { thinkingBudget: 2048 },
+          responseMimeType: 'application/json',
+          responseSchema: schema as unknown as VertexAIConfig['responseSchema']
+        },
+        { systemInstruction: system }
+      )
+      const input = reply.usage?.inputTokens ?? estimateTokens(system + user)
+      const output = reply.usage?.outputTokens ?? estimateTokens(reply.text)
+      const cost = estimateCostUsd(input, output)
+      await exclusive(async () => {
+        try {
+          await deps.articles.addCost(job.articleId, cost)
+          await deps.addCost(cost)
+          if ((await episodeSpent(deps, ep)) > PODCAST_LIMITS.maxEpisodeCostUsd) throw new PodcastStop('budget_exceeded')
+        } catch (error) {
+          accountingError = error
+          throw error
+        }
+      })
+      if (reply.finishReason === 'MAX_TOKENS') throw new Error('chunk_truncated')
+      return { text: reply.text, usage: { input_tokens: input, output_tokens: output, cost_usd: cost } }
+    } finally {
+      await exclusive(async () => {
+        reservations.delete(settled)
+        release()
+      })
+    }
   }
 
   try {
@@ -535,7 +573,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     })
     if (prep.kind === 'skip') return await finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
 
-    for (let i = 0; i < prep.count; i++) {
+    const processChunk = async (i: number) => {
       const res = await step.do(`${prefix}-chunk-${i}`, CHUNK_STEP, async () => {
         const key = chunkKey(i)
         const { ep, transcript, source } = await load()
@@ -543,9 +581,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
         if (job.mode === 'polish') {
           const chunks = planPodcastChunks(transcript)
           const chunk = chunks[i]
-          const prev = i > 0 ? await readJson<StoredPolishChunk>(deps, chunkKey(i - 1)) : null
-          if (i > 0 && !prev) throw new Error(`chunk_missing:${i - 1}`)
-          const system = buildPolishInstruction(job.lang, contextOf(ep), chunk, chunks.length, prev ? chunkTail(prev) : null)
+          const system = buildPolishInstruction(job.lang, contextOf(ep), chunk, chunks.length, null)
           const reply = await call(ep, system, buildPolishUserMessage(transcript.cues.slice(chunk.start, chunk.end)), YOUTUBE_ARTICLE_RESPONSE_SCHEMA)
           const parsed = parseChunkOutput(reply.text)
           if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
@@ -555,22 +591,24 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
         }
         const chunks = chunkTranslationUnits(translationUnits(source!))
         const chunk = chunks[i]
-        const prev = i > 0 ? await readJson<StoredTranslationChunk>(deps, chunkKey(i - 1)) : null
-        if (i > 0 && !prev) throw new Error(`chunk_missing:${i - 1}`)
-        const prevTail = prev ? Object.values(prev.texts).slice(-2).join('\n') : ''
-        const glossary = prev?.glossary ?? []
-        const system = buildTranslationInstruction(job.from!, job.lang, contextOf(ep), prevTail, glossary)
+        const system = buildTranslationInstruction(job.from!, job.lang, contextOf(ep), '', [])
         const reply = await call(ep, system, buildTranslationUserMessage(chunk), PODCAST_TRANSLATION_RESPONSE_SCHEMA)
         const parsed = parseTranslationOutput(
           reply.text,
           chunk.units.map(u => u.id)
         )
         if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
-        const stored: StoredTranslationChunk = { index: i, texts: Object.fromEntries(parsed.texts), glossary: mergeGlossary(glossary, parsed.glossary), usage: reply.usage }
+        const stored: StoredTranslationChunk = { index: i, texts: Object.fromEntries(parsed.texts), glossary: parsed.glossary, usage: reply.usage }
         await deps.bucket.put(key, JSON.stringify(stored))
         return { reused: false, cost: reply.usage.cost_usd }
       })
       log('chunk', p, { mode: job.mode, lang: job.lang, index: i, reused: res.reused, cost_usd: Number(res.cost.toFixed(5)) })
+    }
+
+    for (let start = 0; start < prep.count; start += CHUNK_CONCURRENCY) {
+      const results = await Promise.allSettled(Array.from({ length: Math.min(CHUNK_CONCURRENCY, prep.count - start) }, (_, offset) => processChunk(start + offset)))
+      const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+      if (failure) throw failure.reason
     }
 
     const assembled = await step.do(`${prefix}-assemble`, ASSEMBLE_STEP, async () => {

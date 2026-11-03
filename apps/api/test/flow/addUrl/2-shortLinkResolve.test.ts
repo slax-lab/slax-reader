@@ -2,10 +2,11 @@
  * /add_url Layer 2: 短链解析 tryResolveShortLink
  * 来源: bookmarkAdd.ts:118-134
  */
-import { describe, test, expect, vi } from 'vitest'
+import { describe, test, expect, vi, afterEach } from 'vitest'
 import { BookmarkAddOrchestrator } from '@/domain/orchestrator/bookmarkAdd'
 import { CrawlService } from '@/domain/crawl'
 import { needsResolve } from '@/utils/platformDetector'
+import { classifyPodcastUrl } from '@/utils/podcastSource'
 import { createMockCtx, createMockBookmarkService, createMockCrawlService } from '@test/helpers/mockFactory'
 
 function wire() {
@@ -84,5 +85,48 @@ describe('CrawlService.shortLinkDomains', () => {
     expect(CrawlService.shortLinkDomains).toEqual(
       expect.arrayContaining(['t.cn', 'xhslink.com', 't.co', 'redd.it', 'mapp.api.weibo.cn'])
     )
+  })
+})
+
+describe('Pocket Casts share resolution', () => {
+  const short = 'https://pca.st/6rpkp8cj'
+  const episode = 'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2/episode/d5287eb5-5416-4c58-9b7c-d1ba6d7f8fc8'
+  const resolve = () => CrawlService.prototype.resolveShortLink.call({} as CrawlService, createMockCtx(), short)
+
+  afterEach(() => vi.restoreAllMocks())
+
+  test('resolves the reported share before episode classification', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 302, headers: { Location: episode } }))
+    const resolved = await resolve()
+    expect(resolved).toBe(episode)
+    expect(classifyPodcastUrl(resolved)).toBe('pocketcasts')
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(short, expect.objectContaining({ method: 'GET', redirect: 'manual' }))
+  })
+
+  test('resolves a show share without classifying it as an episode', async () => {
+    const show = 'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2'
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 302, headers: { Location: show } }))
+    const resolved = await resolve()
+    expect(resolved).toBe(show)
+    expect(classifyPodcastUrl(resolved)).toBeNull()
+  })
+
+  test.each([200, 302])('retains an unresolved share when status %s has no destination', async status => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status }))
+    expect(await resolve()).toBe(short)
+    expect(fetch).toHaveBeenCalledOnce()
+    expect(classifyPodcastUrl(short)).toBeNull()
+  })
+
+  test('retains the share on a transport failure', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
+    expect(await resolve()).toBe(short)
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
+  test.each(['http://127.0.0.1/episode', 'https://user:password@example.com/episode', 'file:///episode'])('does not fetch an unsafe redirect: %s', async location => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 302, headers: { Location: location } }))
+    expect(await resolve()).toBe(short)
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(short, expect.objectContaining({ redirect: 'manual' }))
   })
 })
