@@ -10,9 +10,10 @@ The historical active-change backlog is outside this change's archive scope.
 
 - `openspec status --change automate-openspec-archive-pr --json`: all four required planning artifacts were present before implementation.
 - `openspec validate --all --strict`: 94 items passed, 0 failed. Informational long-requirement notices remain non-blocking.
-- `node --test tooling/openspec-archive-workflow.test.mjs`: all five tests failed with ENOENT before `.github/workflows/openspec-archive.md` existed; all five passed after implementation.
-- `node --test tooling/openspec-archive-workflow.test.mjs tooling/ci-workflow.test.mjs`: 18 tests passed, 0 failed.
-- `gh aw validate`: three workflows compiled successfully. The single remaining warning reports a shared dispatch conclusion group; global serialization is intentional because same-capability archive writes must not race.
+- `node --test tooling/openspec-archive-workflow.test.mjs`: all five initial tests failed with ENOENT before `.github/workflows/openspec-archive.md` existed; they passed after implementation. A sixth test now checks the generated checkout behavior.
+- `node --test tooling/openspec-archive-workflow.test.mjs tooling/ci-workflow.test.mjs`: 19 tests passed, 0 failed.
+- `pnpm test:ci`: 73 tests passed, 0 failed. This is the command invoked by `tooling-ci`, and it now includes the archive workflow suite.
+- `gh aw compile --strict --purge --no-check-update`: three workflows compiled successfully. The single remaining warning reports a shared dispatch conclusion group; global serialization is intentional because same-capability archive writes must not race.
 - `tooling/check-gh-aw-drift.sh` after staging the complete workflow source/generated set: `Compiled workflows match their sources.`
 - `pnpm agent:sync`: regenerated `AGENTS.md` and `CLAUDE.md` from the rulesync source.
 - `pnpm agent:check`: rulesync doctor and generation checks passed, strict OpenSpec validation passed 94 items, and the gh-aw drift check passed.
@@ -24,13 +25,13 @@ The historical active-change backlog is outside this change's archive scope.
 
 The new workflow reuses the repository's existing `DEEPSEEK_API_KEY`; it introduces no new secret value and no new third-party action beyond the pinned gh-aw and standard action set already used by the repository. The compiler's safe-update warning names only `DEEPSEEK_API_KEY` as a newly restricted secret reference for this workflow. Its standard gh-aw token wiring is unchanged.
 
-The key is supplied to the same DeepSeek engine configuration already used by PR review. Network access is limited to gh-aw defaults, `api.deepseek.com`, and `registry.npmjs.org`; the pinned OpenSpec package already used by this repository is fetched through npm. No credential value is printed or added to an artifact. Agent permissions are read-only. The only enabled external writes are one comment and one documentation PR through Safe Outputs, with `slax-lab/reader-core` as reviewer. Merge, approval, direct-push, review-submission, issue-creation, and direct Feishu outputs are not enabled.
+The key is supplied to the same DeepSeek engine configuration already used by PR review. Network access is limited to gh-aw defaults, `api.deepseek.com`, and `registry.npmjs.org`; the pinned OpenSpec package already used by this repository is fetched through npm. No credential value is printed or added to an artifact. Agent permissions are read-only. The explicit checkout sets `persist-credentials: false`. The only enabled external writes are one comment and one documentation PR through Safe Outputs, with `slax-lab/reader-core` as reviewer. Merge, approval, direct-push, review-submission, issue-creation, and direct Feishu outputs are not enabled.
 
 ## Local review
 
-- **Bugs:** the full source and generated diff was inspected. The initial import path error was found by strict gh-aw validation and corrected. A bootstrap dependency in the original task list would have blocked the first archive on its own output; live observations moved to rollout evidence without removing any check. No remaining Important finding.
-- **Security:** the trigger is merged-only and same-repository, the agent token is read-only, publication uses Safe Outputs, no automatic merge or approval exists, and the notification path is unchanged. The new restricted secret reference is reviewed above. No Important finding.
-- **Compliance:** the implementation matches the proposal and `openspec-change-archiving` delta. Rulesync and gh-aw outputs were regenerated through their owners. Task classification, same-capability ordering, duplicate prevention, strict validation, human archive review, and the bridge-first rollout remain in scope. No Important finding.
+- **Bugs:** the automated PR review found that gh-aw's default PR checkout evaluated the closed task branch. The first correction used the source PR's merge commit; independent review then found that this could still be a historical snapshot when later task PRs had merged. The final revision disables the default PR checkout and explicitly checks out current `dev` for both automatic and replay runs. A compiled-lock test verifies the ref, checkout order, credential setting, and absence of `Checkout PR branch`. The follow-up independent review confirmed that both findings were resolved and reported no new Important finding.
+- **Security:** the trigger is merged-only and same-repository, the agent token is read-only, the custom checkout does not persist credentials, publication uses Safe Outputs, no automatic merge or approval exists, and the notification path is unchanged. The new restricted secret reference is reviewed above. No Important finding.
+- **Compliance:** independent review found no Important divergence from the proposal or `openspec-change-archiving` delta. Rulesync and gh-aw outputs were regenerated through their owners. The archive suite runs through the existing Tooling CI command, the OpenSpec commands are pinned, task classification and same-capability ordering remain mandatory, and live rollout observations remain pending rather than being claimed by local checks.
 
 ## Required rollout order and pending evidence
 

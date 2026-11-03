@@ -11,6 +11,31 @@ const source = () => {
   assert.ok(match, 'archive workflow must have a gh-aw frontmatter block')
   return { config: load(match[1]), body: raw.slice(match[0].length) }
 }
+const compiled = () => load(readFileSync(new URL('../.github/workflows/openspec-archive.lock.yml', import.meta.url), 'utf8'))
+
+test('agent starts from current dev rather than a task branch or historical merge snapshot', () => {
+  const { config } = source()
+  assert.equal(config.checkout, false)
+  assert.deepEqual(config.steps, [{
+    name: 'Checkout merged dev state',
+    uses: 'actions/checkout@v7',
+    with: {
+      ref: 'dev',
+      'fetch-depth': 1,
+      'persist-credentials': false,
+    },
+  }])
+
+  const steps = compiled().jobs.agent.steps
+  const checkout = steps.find(step => step.name === 'Checkout merged dev state')
+  assert.ok(checkout, 'compiled workflow must explicitly check out the merged state')
+  assert.match(checkout.uses, /^actions\/checkout@/)
+  assert.equal(checkout.with.ref, 'dev')
+  assert.equal(checkout.with['fetch-depth'], 1)
+  assert.equal(checkout.with['persist-credentials'], false)
+  assert.ok(steps.indexOf(checkout) < steps.findIndex(step => step.name === 'Execute GitHub Copilot CLI'))
+  assert.equal(steps.some(step => step.name === 'Checkout PR branch'), false, 'gh-aw must not overwrite current dev with the task branch')
+})
 
 test('archive evaluation runs only for merged dev PRs or an explicit replay and is globally serialized', () => {
   const { config } = source()

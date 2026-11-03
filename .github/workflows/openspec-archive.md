@@ -29,6 +29,16 @@ timeout-minutes: 30
 env:
   ARCHIVE_SOURCE_PR_NUMBER: ${{ inputs.issue_number || github.event.pull_request.number }}
 
+checkout: false
+
+steps:
+  - name: Checkout merged dev state
+    uses: actions/checkout@v7
+    with:
+      ref: dev
+      fetch-depth: 1
+      persist-credentials: false
+
 imports:
   - shared/deepseek-engine.md
 
@@ -75,7 +85,7 @@ Read `proposal.md`, `tasks.md`, `design.md` when present, `validation.md`, and e
 - Classify every unchecked task before archiving. Only evidence-backed completed work may be checked off, and the evidence must be added to `validation.md`.
 - Preserve an accepted historical gap as unchecked with its reason and acceptance record. Do not present it as completed work.
 - Genuinely unfinished or uncertain work blocks archiving. An unverified post-merge task blocks archiving. Do not silently check off, drop, narrow, or archive around it.
-- Run `openspec list --json` and inspect every other active change for delta specs affecting the same capability. Honor each declared archive order. If the candidate must wait, or no safe order is established, block archiving. Do not invent requirement text or force a spec conflict resolution.
+- Run `npx --yes @fission-ai/openspec@1.13.1 list --json` and inspect every other active change for delta specs affecting the same capability. Honor each declared archive order. If the candidate must wait, or no safe order is established, block archiving. Do not invent requirement text or force a spec conflict resolution.
 - A new evaluation must reassess the current `dev` state even when the source PR merged earlier.
 
 When blocked, do not modify files or request an archive PR. Report the concrete task or dependency and the missing evidence or required order in one `add_comment` on the source PR.
