@@ -3,6 +3,7 @@ import { container } from '../../src/decorators/di'
 import { initializeInfrastructure } from '../../src/di/generated/dependency'
 import { ContextManager } from '../../src/utils/context'
 import { UserDeletionService } from '../../src/domain/userDeletion'
+import { snapshotAiProviderResponse } from './snapshotAiSmoke'
 export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser } from '../../src/entry/core/index'
 
 const sink = 'https://diagnostic-capture.fixture.invalid/report'
@@ -11,6 +12,7 @@ let failNotification = false
 const originalFetch = globalThis.fetch.bind(globalThis)
 globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = input instanceof Request ? input.url : String(input)
+  if (new URL(url).hostname === 'aiplatform.googleapis.com') return snapshotAiProviderResponse(new Request(input, init))
   if (url !== sink) return originalFetch(input, init)
   if (failNotification) return Promise.resolve(new Response('fixture notification rejected', { status: 503 }))
   messages.push(String(init?.body))
@@ -20,7 +22,14 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
 export default {
   async fetch(request: Request, env: Env, execution: ExecutionContext) {
     const url = new URL(request.url)
-    if (!['localhost', '127.0.0.1'].includes(url.hostname)) return new Response('Local fixture only', { status: 403 })
+    if (!['localhost', '127.0.0.1', 'content.internal'].includes(url.hostname)) return new Response('Local fixture only', { status: 403 })
+    const aiFeature = /^\/__fixture\/snapshot-ai\/(outline|overview|chat)$/.exec(url.pathname)?.[1]
+    if (aiFeature) {
+      // The isolated launcher supports Edge-to-Core only. Route to the real Core AI
+      // handlers here; production AiEntry delegates to the same Core worker.
+      url.pathname = aiFeature === 'chat' ? '/v1/aigc/chat' : `/v1/bookmark/${aiFeature}`
+      return core.fetch(new Request(url, request), { ...env, VERTEX_API_KEY: 'snapshot-ai-fixture' }, execution)
+    }
     if (url.pathname === '/__fixture/diagnostic-object-missing') return Response.json((await env.DIAGNOSTICS!.head(url.searchParams.get('key')!)) === null)
     if (url.pathname === '/__fixture/diagnostic-notifications') return Response.json(messages)
     if (url.pathname === '/__fixture/diagnostic-notification-failure') {

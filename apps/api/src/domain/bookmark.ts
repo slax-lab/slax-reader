@@ -42,7 +42,7 @@ import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
 import { BookmarkForkService } from './bookmarkFork'
 import { MediaSnapshotService } from './mediaSnapshot'
-import { snapshotBundleMembers } from '@/utils/snapshotBundle'
+import { snapshotBundleMembers, snapshotText } from '@/utils/snapshotBundle'
 import { forkError } from '@/utils/bookmarkForkError'
 
 type ImportedFork = {
@@ -566,6 +566,11 @@ export class BookmarkService {
     const target = await this.bucket().R2Bucket.get(bmKey)
     if (target) {
       const content = await target.text()
+      const snapshot = !content && /^text\/body\/([^/]+)\.txt$/.exec(bmKey)
+      if (snapshot) {
+        const html = await this.bucket().R2Bucket.get(`html/body/${snapshot[1]}.html`)
+        if (html) return snapshotText(await html.text())
+      }
       return content
     }
     throw new Error('Stored bookmark content is unavailable')
