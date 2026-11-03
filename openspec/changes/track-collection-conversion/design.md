@@ -4,7 +4,7 @@
 
 See [proposal.md](proposal.md) for scope and the human's selection of B. The requesting human approved this design for implementation on 2026-11-02; subscription conversion uses 48 hours and login diagnostics use 30 minutes.
 
-Code baseline: `slax-lab/slax-reader` commit `cfd51f552327edfc9d23dc00e4b1d088ec955fb3` (`origin/dev` when the branch was created). Analytics baseline: `slax-lab/slax-reader-analytics` commit `e38ec3811ca255569c6adb8949def83e3c69858e`.
+Code baseline: `slax-lab/slax-reader` commit `cfd51f552327edfc9d23dc00e4b1d088ec955fb3` (`origin/dev` when the branch was created). Analytics baseline: `slax-lab/slax-reader-event-tracking` commit `e38ec3811ca255569c6adb8949def83e3c69858e`.
 
 Observed seams:
 
@@ -31,7 +31,7 @@ The analytics handbook's current dictionary owns event meanings. Its collection 
 
 ### 1. Reuse canonical events and register only needed additions
 
-The analytics repository's approved Q2 amendment is the authority for field definitions and lifecycle. The following is the implementation mapping, not an alternative dictionary:
+The event-tracking repository's main event dictionary is the authority for field definitions and lifecycle. The following is the implementation mapping, not an alternative dictionary:
 
 | Observation | Writer and event | Added/selected properties |
 | --- | --- | --- |
@@ -95,7 +95,9 @@ Detailed metric definitions live in the approved Q2 tracking plan. Approved wind
 - Browser UV: distinct nonempty `device_id`, per collection and requested interval. This approximates visitors, not cross-device humans. Reloads increase opens, not UV.
 - Modal diagnostics: ordered events for the same collection and device within 30 minutes of modal exposure. Valid attributed Google successes are `user_created` or `user_logged_in` with `method=google`. Multiple attempts may exist; report distinct browser UV separately from event counts. The interval is a query rule, not a persisted session.
 - Q2: anonymous (`user_id=0` at entry) public-page browsers whose first qualifying cohort visit in the interval is followed by `collection_subscribed` for that device and collection within 2 days (48 elapsed hours, independent of calendar-day boundaries). Later ordinary activity is not retroactively assigned to a user merely because they logged in. Reports also show authenticated account counts separately.
-- Report all-public and anonymous-only subscribe-click UV separately. Authenticated users have a direct subscribe branch and are not required to traverse the modal funnel.
+- Report all-public and anonymous-only raw subscribe-click UV separately. These raw identity cuts can overlap. Authenticated users have a direct subscribe branch and are not required to traverse the modal funnel.
+- Click-to-subscription is a separate cohort metric: after delivery deduplication and data-quality/bot filtering, take each device/collection's first eligible public subscribe click in `[start, end)`, requiring an earlier or simultaneous usable public open for the same device/collection within that interval. Missing opens remain an unmatched-click diagnostic and do not enter this rate. Click identity must be 0 or positive; fix the branch from that first click's original `user_id`. Later login or clicks neither reclassify nor restart it.
+- At the data-complete observation cutoff `T`, include only anchors with `click_time + 48h <= T` in both numerator and denominator, even if immature anchors already converted. A qualifying server subscription has positive `user_id`, the same device/collection, and time in the inclusive `[click_time, click_time + 48h]` range. Count each anchor once; return unavailable for a zero denominator. Branch cohorts are mutually exclusive, unlike raw click UV cuts. Account counts remain separate, and this browser metric does not require matching the click and success account IDs.
 - Delivery deduplication follows the warehouse's existing natural key before aggregation. Exclude recognized bots using collected UA; classify missing identities/attribution as gaps, not guessed matches. No retrospective inference of `surface` from `opened_from` on legacy records.
 
 Existing request helpers establish the identity. Runtime acceptance must verify that the initiating public page and the configured authentication callback retain the required browser identity across the actual deployed origins. If identity continuity is unavailable, report collection-attributed server success counts separately and mark the browser-conversion result unavailable; do not claim a joined funnel passed. Changing auth origins or introducing cross-domain identity transport is outside this proposal.
@@ -103,8 +105,8 @@ Existing request helpers establish the identity. Runtime acceptance must verify 
 ### 5. Coordinate two reviewable repositories
 
 - Application change: `track-collection-conversion`, capability `collection-conversion-analytics`; no overlapping `web-login-modal` delta with the presentation change.
-- Analytics companion: append the approved Q2 amendment to `handbook/03-事件词典.md`, add `handbook/plans/Q2-collection-conversion.md`, and link the plan from README. Preserve all existing handbook definitions and statuses. The amendment makes each added property's scope explicit.
-- The complete proposal was approved after the initial B selection. Keep dictionary lifecycle separate from approval: advance additions to `implemented` only after code verification and to `live` only after warehouse acceptance.
+- Event-tracking companion: integrate current event properties, enums, and carriers into the main tables of `handbook/03-事件词典.md`; keep formulas, coverage, and acceptance in `handbook/plans/Q2-collection-conversion.md`. Keep approval history, code baselines, evidence references, and change rationale in `decisions/Q2-合集订阅转化.md`. README navigates to both Q1 and Q2.
+- Maintain only the C3 event-level lifecycle in the main dictionary. The six verified event writers are `implemented`; property/platform/carrier coverage belongs in the plan, without another status vocabulary. No event is promoted to `live` before C5 warehouse evidence and acceptance. Current definitions must not be duplicated in an amendment appendix.
 - Application and analytics PRs are linked parts of the same approved change. Respect each repository's base branch; publish implementation and documentation as companion drafts with verification gaps disclosed. The analytics repo is for definitions and plans, not raw events, sample user data, credentials, or query-result exports.
 
 ## Risks / Trade-offs
@@ -114,7 +116,7 @@ Existing request helpers establish the identity. Runtime acceptance must verify 
 - The warehouse can redeliver records → use documented natural-key deduplication and report removed rows; no new event-ID subsystem.
 - Shared Google/modal components have other callers → optional context only, regression checks for ordinary login, Apple availability, and unchanged redirect behavior.
 - Source attribution cannot prove account ownership or survive arbitrary identity loss → use server identity, retain event-time anonymity, and disclose unjoined records.
-- Proposed 30-minute and 2-day (48-hour) windows affect results → expose them in the human review and every report; do not present them as pre-existing Q2 decisions. The revised Q2 default follows the human's request for a 1–2-day window.
+- The approved 30-minute and 48-hour windows and their distinct anchors affect results → label each report and keep incomplete cohorts separate.
 - An active login-modal presentation change touches the same component → preserve its markup and lifecycle, resolve source conflicts without parallel capability deltas.
 
 ## Migration Plan
@@ -122,7 +124,7 @@ Existing request helpers establish the identity. Runtime acceptance must verify 
 1. Review these artifacts and the companion dictionary/plan locally. Record the approved field definitions and metric defaults before implementation.
 2. Implement the additive backend contract and tests, then the Web instrumentation. Deploy backend support before the client metadata. Other callers remain valid throughout.
 3. Exercise anonymous new-user, anonymous returning-user, cancellation/failure, authenticated subscribe, and post-login auto-subscribe paths in an authorized running environment. Confirm actual events, fields, device continuity, writer ownership, and duplicate handling in `logs.events`.
-4. Record evidence in this change's `validation.md`; keep raw data out of the analytics repository. Mark only verified dictionary entries live after the required human acceptance. Missing live access is an explicit gap, not a live status.
+4. Apply the Q2 plan's controlled-flow acceptance checks: complete required fields, stable nonempty device identity, disclosed raw duplicate rate with deduplicated invariance, and one-to-one reconciliation of business outcomes against success events. Record sample counts, snapshot, time ranges, discrepancies, and unavailable checks. Record evidence in this change's `validation.md`; keep raw data out of the analytics repository. Mark only verified dictionary entries live after the required human acceptance. Missing live access is an explicit gap, not a live status.
 5. Rollback the new client observations/attribution if needed; the server's optional field remains compatible. Do not delete historical warehouse events or rewrite legacy Dashboard queries. Retire live definitions only through the handbook's deprecation procedure.
 
-No production deployment, account registration, subscription side effect, or warehouse query has been performed as part of this planning work.
+No production deployment, real account registration/subscription, or warehouse query is implied by the local implementation and fixtures. The 2026-11-03 follow-up is limited to documentation and query verification; shipped application behavior is unchanged.

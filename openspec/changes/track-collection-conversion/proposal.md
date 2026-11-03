@@ -11,7 +11,7 @@ The public collection page cannot currently distinguish visitors who see a sign-
 - Distinguish the public collection page from Inbox using an additive `surface` property on `collection_opened`. Count a usable page opening once; exclude failed, missing, and closed-page presentations from this conversion denominator.
 - Record the sign-in modal when it becomes visible and the Google button on an actual click, carrying the collection and triggering control. Add a subscription-button click event before authentication branching; automatic post-login subscription is not another click.
 - Carry optional collection attribution through the existing OAuth redirect, callback, and login request. Only the server adds that attribution to a successfully established new-user or returning-user authentication event.
-- Prepare the analytics repository's event-dictionary amendment and Q2 tracking plan, including browser-UV definitions, time windows, duplicate handling, and warehouse acceptance evidence.
+- Prepare the event-tracking repository's main dictionary entries, Q2 tracking plan, and decision record, including browser-UV definitions, time windows, duplicate handling, and warehouse acceptance evidence.
 
 ## Capabilities
 
@@ -28,7 +28,7 @@ None. No existing living capability owns this funnel. The active `login-modal-be
 - Web: public collection and Inbox collection-open call sites; subscription control; modal factory and modal; Google login control; OAuth helpers and callback.
 - API: optional, additive analytics metadata on `POST /v1/user/login`, its runtime validation, and the existing server event construction. Login responses and identity authority stay unchanged.
 - Shared contracts: the narrowly scoped attribution shape and event-property types, with existing callers remaining compatible.
-- Analytics: local review branch in `slax-lab/slax-reader-analytics`; amendment to `handbook/03-事件词典.md`, new `handbook/plans/Q2-collection-conversion.md`, and a README review pointer. Cross-repository changes are linked companions, not a claim that one Git PR spans both repositories.
+- Analytics: local review branch in `slax-lab/slax-reader-event-tracking`; integrated main definitions in `handbook/03-事件词典.md`, `handbook/plans/Q2-collection-conversion.md`, a decision record in `decisions/`, and README navigation. Cross-repository changes are linked companions, not a claim that one Git PR spans both repositories.
 - No dependency, database schema, event-store schema, or application-version changes are proposed. Shipping-impact/version scope was checked before implementation handoff; the exemption is recorded in `validation.md`.
 
 ## Scope and Review Defaults
@@ -45,3 +45,5 @@ GTM/GA4 changes or removal; migration of `user_logs` or existing Dashboard queri
 ## Approval and delivery
 
 Approved by the requesting human in this conversation on 2026-11-02: proceed with this proposal, use 48 hours for subscription conversion and 30 minutes for login diagnostics. Approval covers the companion dictionary and Q2 plan. Implementation is authorized; live warehouse acceptance and deployment are separate evidence and delivery steps. No presentation or accessibility changes are intended. The prior documentation-only exemption applied only to planning; implementation requires the verification recorded in `validation.md`.
+
+On 2026-11-03 the requesting human approved the reviewer follow-up: consolidate current definitions and event-level lifecycle in the dictionary, move decision history out of the handbook, and specify the separate first-click-to-subscription metric. This metric uses 48 hours from the first eligible click per device/collection in the reporting interval, fixes the identity branch at that click, and includes only fully observed cohorts. It does not change the anonymous-visit Q2 anchor or the 30-minute login window. This revision changes documentation and query fixtures only.

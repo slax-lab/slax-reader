@@ -112,6 +112,22 @@ The Q2 tracking plan SHALL define public browser UV by distinct nonempty `device
 
 The approved reporting windows SHALL be an ordered 30-minute modal-to-Google-to-authentication diagnostic window and a 2-day (48-elapsed-hour) anonymous-visit-to-subscription window, with immature cohorts labeled. The Q2 window SHALL be measured from the qualifying entry timestamp rather than calendar-day boundaries. Analysis SHALL respect the existing signup-retrospective/login-forward alias policy and SHALL NOT silently reinterpret anonymous pre-login events as authenticated-user history.
 
+The auxiliary click-to-subscription rate SHALL use each device/collection's first eligible public subscribe click within the reporting interval, after delivery deduplication and data-quality/bot filtering, with a qualifying public open for that device/collection in the same interval at or before the click. Eligible click identity SHALL be zero or positive. The anonymous/authenticated branch SHALL be fixed by the first click's original `user_id`; later clicks or authentication SHALL NOT restart its window or change its branch. Missing public predecessors and unknown click identities SHALL be reported separately rather than guessed into the cohort.
+
+Its numerator and denominator SHALL both exclude anchors without the full 48 elapsed hours of data-complete follow-up, even when a success is already observed. A conversion SHALL require a server `collection_subscribed` with positive `user_id`, the same device and collection, and event time within the inclusive click-to-48-hour interval. Each anchor SHALL count once; a zero denominator SHALL be unavailable, not zero percent. This browser metric SHALL remain distinct from visit-to-subscription and authenticated-account counts.
+
+#### Scenario: Repeated clicks and changing login state
+
+- **WHEN** a browser first clicks anonymously, signs in, and clicks again for the same collection in the reporting interval
+- **THEN** the click cohort contains one anonymous anchor at the first eligible click
+- **AND** a success beyond 48 hours from that anchor is excluded even if within 48 hours of a later click
+
+#### Scenario: Click boundary and maturity
+
+- **WHEN** a same-device, same-collection success occurs exactly 48 hours after the first eligible click and full follow-up is available
+- **THEN** it is counted once; a later success or a success before the click is excluded
+- **AND** anchors without full follow-up are excluded from both primary counts even if they already have a success
+
 #### Scenario: Refreshes and login on the same browser
 
 - **WHEN** a browser opens the collection repeatedly and then authenticates
@@ -124,7 +140,7 @@ The approved reporting windows SHALL be an ordered 30-minute modal-to-Google-to-
 
 ### Requirement: Analytics changes are additive and verifiably live
 
-New observations SHALL use the first-party event system. GTM, legacy operational logs, existing Dashboard queries, and unrelated clients SHALL remain compatible. Telemetry failure SHALL NOT prevent opening a page, authentication, or subscription. The analytics dictionary SHALL register the proposed properties and enum values, and events SHALL NOT be declared live until real warehouse records have been verified for both new-user and returning-user Google flows and subscription outcomes.
+New observations SHALL use the first-party event system. GTM, legacy operational logs, existing Dashboard queries, and unrelated clients SHALL remain compatible. Telemetry failure SHALL NOT prevent opening a page, authentication, or subscription. The event-tracking dictionary SHALL register properties, enum values, and carriers in its main tables and maintain only the C3 event-level lifecycle. Coverage and acceptance SHALL live in the tracking plan, while approval history and code-evidence records SHALL live in decisions. Events SHALL NOT be declared live until real warehouse records have been verified for both new-user and returning-user Google flows and subscription outcomes.
 
 #### Scenario: Analytics delivery fails
 
@@ -135,3 +151,9 @@ New observations SHALL use the first-party event system. GTM, legacy operational
 
 - **WHEN** automated checks pass but real ingestion or identity continuity has not been verified
 - **THEN** the implementation records the gap and the affected dictionary lifecycle entries are not promoted to live
+
+#### Scenario: Controlled warehouse acceptance
+
+- **WHEN** the implemented funnel is assessed for live promotion
+- **THEN** acceptance records required-field validity by scenario, nonempty device continuity across actual origins, raw and deduplicated counts, and reconciliation of successful and failed business operations against server facts
+- **AND** duplicate replay leaves UV and outcomes unchanged, and missing evidence or unexplained mismatches prevent a claim of complete acceptance

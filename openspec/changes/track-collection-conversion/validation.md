@@ -4,7 +4,7 @@ Date: 2026-11-02. Change: `track-collection-conversion`.
 
 ## Approval and scope
 
-The requesting human approved implementation in this conversation on 2026-11-02 and explicitly confirmed **48 hours** for subscription conversion and **30 minutes** for login diagnostics. The proposal, specification, tasks, dictionary amendment, and Q2 plan reflect that decision.
+The requesting human approved implementation in this conversation on 2026-11-02 and explicitly confirmed **48 hours** for subscription conversion and **30 minutes** for login diagnostics. The proposal, specification, tasks, main dictionary definitions, and Q2 plan reflect that decision.
 
 Application baseline: `cfd51f552327edfc9d23dc00e4b1d088ec955fb3`, branch `feat/track-collection-conversion`. Analytics baseline: `e38ec3811ca255569c6adb8949def83e3c69858e`, branch `docs/track-collection-conversion`.
 
@@ -79,12 +79,32 @@ No visible or accessibility-affecting UI change is introduced, so the DESIGN.md 
 
 ## Remaining evidence and delivery
 
-Companion draft PRs: [application #473](https://github.com/slax-lab/slax-reader/pull/473), targeting `dev`, and [analytics #1](https://github.com/slax-lab/slax-reader-analytics/pull/1), targeting `main`. Both carry the approved scope, local evidence, and outstanding acceptance work. They are not merged or deployed.
+Companion draft PRs: [application #473](https://github.com/slax-lab/slax-reader/pull/473), targeting `dev`, and [analytics #1](https://github.com/slax-lab/slax-reader-event-tracking/pull/1), targeting `main`. Both carry the approved scope, local evidence, and outstanding acceptance work. They are not merged or deployed.
 
 - **4.3, warehouse:** not performed. These local changes have not been deployed and no corresponding real `logs.events` rows or snapshot IDs exist for this verification. No warehouse access or production data query was used.
 - **4.4, production report:** the deterministic query fixture passes, but a Q2 report over ingested real events, actual UA bot classification, and field completeness remains pending deployment and warehouse evidence.
-- **4.5, analytics acceptance:** Alex's post-test-deployment acceptance under handbook C5 remains pending. No message was sent to another person on the user's behalf. Dictionary additions are `implemented`, never `live`.
+- **4.5, analytics acceptance:** Alex's post-test-deployment acceptance under handbook C5 remains pending. C5 live acceptance has not been obtained. The six verified event writers are `implemented` in the main dictionary; no event has been promoted to `live`.
 - **Production OAuth:** the actual configured public/callback origins, Google consent/new-account/returning-account exchanges, and cross-origin device continuity remain unverified. The local browser uses synthetic HTTP responses; API tests cover both success facts separately. This gap does not authorize a cross-origin identity redesign.
-- **5.4, archival:** deferred until the implementation PR merges; then classify unchecked tasks and archive through the required docs PR. The analytics plan remains active until its own live/acceptance obligations are satisfied.
+- **5.5, archival:** deferred until the implementation PR merges; then classify unchecked tasks and archive through the required docs PR. The analytics plan remains active until its own live/acceptance obligations are satisfied.
 
 No deployment, merge, or production account/subscription mutation was performed.
+
+
+## 2026-11-03 reviewer follow-up
+
+The requesting human authorized addressing all feedback in event-tracking PR #1 and synchronizing PR #473, including replying to the reviewer. The event-tracking handbook now has a single main definition and event-level lifecycle; decision/approval history is in `decisions/Q2-合集订阅转化.md`. Its six event writers are `implemented` based on the existing code and local evidence, with platform/carrier coverage and pending C5 acceptance in the Q2 plan. No property-level lifecycle or duplicate amendment appendix remains.
+
+The application proposal/design/spec/tasks now match the approved separate first-click conversion contract. The query fixture verifies first rather than last click, identity fixed at that click, inclusive 48-hour endpoints, full maturity for both counts, same device and collection, a preceding public open in the reporting interval, unknown/missing-dimension exclusions, zero-denominator unavailability, and duplicate replay invariance. It also retains the original visit and 30-minute login checks. The hand-authored expected click cohort has 9 mature browsers: 8 anonymous with 3 conversions, and 1 authenticated with 1 conversion; a converted immature browser is excluded from both primary counts.
+
+This follow-up changes documentation and a synthetic query fixture only. There are no Web/API runtime, UI/accessibility, schema, generated-output, dependency, or shipped-package changes. Documentation/test-only verification and version exemptions apply; the earlier browser and application test results are historical evidence, not rerun results. No production query or real account flow was performed. The fixture is not production warehouse SQL and does not model actual ingestion lag, raw-UA bot classification, or timestamp-skew correction.
+
+Checks executed for this revision:
+
+- `python3 apps/web/tests/fixtures/collection-analytics/query-fixture.py`: both the original visit/login checks and the new first-click checks passed.
+- `pnpm exec openspec validate --all --strict`: 94 passed, 0 failed.
+- One-off documentation checks: local Markdown links and table widths passed; six canonical event rows are unique and implemented; all existing APP control registrations remain; Q2 approval/history text is absent from the handbook and retained in decisions.
+- `git diff --check`: passed in both repositories.
+
+Warehouse/report/C5 tasks remain unchecked; documentation restructuring is not live acceptance.
+
+An independent read-only Bugs/Security/Compliance review of the follow-up found no Important issues. One Markdown table delimiter Nit was fixed and rechecked. The reviewer independently ran the query fixture successfully and confirmed dictionary/plan/spec consistency; production and warehouse acceptance were not judged.
