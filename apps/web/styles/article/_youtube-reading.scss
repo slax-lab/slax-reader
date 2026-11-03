@@ -115,4 +115,22 @@
     }
   }
 
+  // The podcast body keeps the follow-along affordance after the shared reset above.
+  // MediaFollower adds .slax-pod-playing to the paragraph being heard.
+  [data-slax-derived='podcast-article'] {
+    p.slax-pod-p {
+      padding: 4px 12px;
+      border-left: 2px solid transparent;
+      border-radius: 6px;
+      transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+      scroll-margin-top: calc(var(--slax-header-h-snapshot, 52px) + 96px);
+    }
+    section.slax-pod-section > p.slax-pod-p { margin: 0 -12px 20px !important; }
+    p.slax-pod-p.slax-pod-playing {
+      border-left-color: var(--slax-accent);
+      background: var(--slax-accent-bg);
+    }
+  }
 }

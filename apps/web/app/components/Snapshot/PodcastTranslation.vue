@@ -70,12 +70,5 @@ onBeforeUnmount(() => {
   @include youtube-reading;
   margin: 0 0 24px;
   color: var(--slax-text);
-
-  // MediaFollower adds this class during playback.
-  // eslint-disable-next-line vue-scoped-css/no-unused-selector
-  .slax-pod-p.slax-pod-playing {
-    border-left-color: var(--slax-accent);
-    background: var(--slax-accent-bg);
-  }
 }
 </style>

@@ -246,3 +246,21 @@ No Important code findings remain. Output remains escaped, paragraph references 
 The earlier acceptance finding is answered by this dated approval, with its limits stated explicitly.
 Web and API changes require no package-version increment. No CLI, Extension, or Mobile package output changes.
 Local preview middleware, transcript files, and the temporary test configuration are excluded from the commit.
+
+## Review finding: playing-paragraph highlight, 2026-11-03
+
+The Agent review of `83dfe0df` found one Important bug: the shared reading mixin reset `p.slax-pod-p` with `padding: 0; border: 0; background: transparent`.
+That reset outranked `.slax-pod-p.slax-pod-playing` in both the original body and the translated article, so the paragraph being heard lost its highlight.
+The fix keeps the follow-along rules inside the mixin, scoped to `[data-slax-derived='podcast-article']`: inset padding, transparent left border, scroll margin, and the `.slax-pod-playing` colors.
+The YouTube article keeps the plain reset. The redundant scoped highlight rule in `PodcastTranslation.vue` is removed.
+
+| Check | Result |
+| --- | --- |
+| Sass compile of the mixin | Passed |
+| Headless Chrome computed styles, podcast idle paragraph | padding 4px 12px, left border 2px transparent, margin 0 -12px 20px |
+| Headless Chrome computed styles, podcast playing paragraph | background `--slax-accent-bg`, left border `--slax-accent` |
+| Headless Chrome computed styles, YouTube paragraph | padding 0, border 0, unchanged |
+| ESLint on `PodcastTranslation.vue` | Passed |
+
+The probe used the compiled mixin and the base `_article.scss` paragraph rules in their production order.
+This restores the highlight the base branch already had. A hands-on check of the highlight during playback on the local preview remains for human review.
