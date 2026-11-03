@@ -19,6 +19,7 @@ test('archive evaluation runs only for merged dev PRs or an explicit replay and 
   assert.equal(replay.description, 'Merged task pull request number to re-evaluate')
   assert.equal(replay.required, true)
   assert.equal(replay.type, 'number')
+  assert.equal(config.env.ARCHIVE_SOURCE_PR_NUMBER, '${{ inputs.issue_number || github.event.pull_request.number }}')
   assert.equal(config.if, "vars.OPENSPEC_ARCHIVE_ENABLED != 'false' && (github.event_name != 'pull_request' || github.event.pull_request.merged == true)")
   assert.deepEqual(config.concurrency, { group: 'openspec-archive-dev', 'cancel-in-progress': false })
 })
