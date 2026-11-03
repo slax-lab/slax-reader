@@ -39,6 +39,14 @@ Earlier exercise failures were resolved: a chat assertion initially searched raw
 
 ## Review and remaining limits
 
+### Owner local acceptance — 2026-11-03
+
+The requesting owner supplied a local test screenshot captured at 17:56:49 (Asia/Shanghai), 2112 × 1526 pixels, light theme. It shows the Fork attribution, the saved article body, a populated overview with takeaways, and a populated outline. No further adjustment was requested with that screenshot. Chat is not visible in the capture; its evidence remains the automated HTTP exercise. The screenshot is attached to PR #490, not committed to Git.
+
+### Initial remote check failure
+
+For commit `fae50a98`, API CI and all application gates passed. The automatic PR review failed after repeated provider errors ending in `503 Service is too busy`; no completed review verdict was produced. The subsequent detection conclusion also failed with `threat-detect binary not found` while detection was skipped after that agent failure. This is recorded as review infrastructure failure, not a passing review or a code-test failure; the review gate must be satisfied by a fresh completed run.
+
 Independent Bugs/Security/Compliance review selected `fork-ai-content`. The reviewer identified one Important finding for historically published bodyless html-root documents; it was reproduced with failing tests, fixed by removing body selection, and explicitly closed on re-review. Final review reported no Important findings or Nits and independently passed the 22 focused regressions. `openspec validate --all --strict` passed all 97 items.
 
 At the owner's explicit pre-PR review request on 2026-11-03, a fresh independent reviewer repeated all three passes against the final working tree, read the callers and runtime fixtures, and found no Important findings or Nits. They independently passed 22 focused tests plus probes for plain text, DOCTYPE/comments, trailing fragment text, content following an empty body, and article priority. The full API suite was rerun before PR delivery: 2763 passed, 113 skipped; final strict OpenSpec validation and diff whitespace checks passed. Product code was unchanged during this review round.
