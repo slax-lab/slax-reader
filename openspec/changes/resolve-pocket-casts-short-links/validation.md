@@ -264,3 +264,14 @@ The YouTube article keeps the plain reset. The redundant scoped highlight rule i
 
 The probe used the compiled mixin and the base `_article.scss` paragraph rules in their production order.
 This restores the highlight the base branch already had. A hands-on check of the highlight during playback on the local preview remains for human review.
+
+## Running-page check of the highlight, 2026-11-03
+
+The local Nuxt preview on M2-MBP served the sample podcast page at `localhost:4391/b/22fcd16e-1da0-4f33-8bf5-8cb62640d962` with head `56fddf41` plus the timestamp alignment below.
+A dispatched `slax:youtube-time` event at the second paragraph's start made `MediaFollower` add `.slax-pod-playing`.
+After the 0.2 s transition, the paragraph computed `background: rgba(180, 88, 55, 0.06)` and `border-left: 2px rgb(180, 88, 55)`, which are `--slax-accent-bg` and `--slax-accent`.
+A screenshot showed the highlighted paragraph with the accent bar; it stays outside Git.
+
+Nit follow-up from the same review: `PodcastTranslation.vue` now formats minutes without zero padding, matching `bindReadableMedia` and `YoutubeAiArticle.vue`.
+The `'******example.com/episode'` case the review quoted is `'https://user:password@example.com/episode'` in the file; the review sandbox masked the credential part.
+The empty glossary and tail per chunk follow `design.md`; the prompt text and the upper-bound reservation stay unchanged in this change.

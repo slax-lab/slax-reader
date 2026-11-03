@@ -50,7 +50,7 @@ const formatTime = (ms: number): string => {
   const total = Math.max(0, Math.floor(ms / 1000))
   const s = String(total % 60).padStart(2, '0')
   const m = Math.floor(total / 60)
-  if (m < 60) return `${String(m).padStart(2, '0')}:${s}`
+  if (m < 60) return `${m}:${s}`
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${s}`
 }
 
