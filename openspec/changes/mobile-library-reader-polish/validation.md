@@ -1,5 +1,14 @@
 # Validation
 
+## Draft PR delivery — 2026-11-03
+
+Created [draft PR #493](https://github.com/slax-lab/slax-reader/pull/493) from `fix/mobile-library-reader-polish` to `dev` after owner hands-on acceptance and local review. The implementation commit is `83bb1279`. The two synthetic Android keyboard-visible comment images were uploaded with `gh --attach` and the body references were rewritten to GitHub-hosted assets. The draft remains a draft; no ready-for-review transition, merge or release is requested.
+
+Final preservation audit confirms that only the 10 original unrelated files remain uncommitted, all byte-for-byte identical to the start of PR review. They comprise the independent iOS runtime repair, Pod/Xcode configuration and that repair’s OpenSpec records. Audit: `/tmp/mobile-polish-pr-final-preservation.json`. No secret files were read or included in the staged verification snapshot. Initial snapshot setup failures were environmental (pnpm requires independent real task-state directories, tests require the existing shared happy-dom dependency, and native Swift storage fixtures require canonical nonsymlink paths); they were resolved entirely outside product source.
+
+The local review loop is closed: both independent reviewers report No Important findings, the sole Debug contrast Nit was fixed and rechecked, and the exact staged application/package files match the passing 1,272-test tree. Remote checks may still be running; local evidence does not assert a remote CI result. Earlier native-verification reports describe their historical delivery state; this section supersedes their pending owner-acceptance/PR statements.
+
+
 ## Owner acceptance and draft-PR preparation — 2026-11-03
 
 The owner exercised the final main-checkout app locally and reported “本地看过，大概没什么问题了”, explicitly authorizing code review followed by a draft PR when no Important findings remain. This is the post-implementation hands-on acceptance for the accumulated Library, Search, Settings, Reader/annotation, Feedback keyboard and adaptive source-strip refinements. The earlier pending-acceptance statements below are historical and superseded by this confirmation. The owner’s existing version decision remains 1.0.26 / build 798 / previous 797.

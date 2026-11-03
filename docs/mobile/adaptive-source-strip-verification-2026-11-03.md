@@ -40,7 +40,7 @@ The existing isolated fixture adapter already used synchronous fixture file writ
 
 An unresponsive task AVD was recovered by a cold boot without wiping data. Alternatives considered were restarting the fixture process, restarting Metro, cold booting the AVD, and creating a fresh isolated AVD; the first process restart did not restore shell/inspector responsiveness. Android's emulator troubleshooting documentation was consulted before cold boot. Failed captures and transient modal/route guards remain in separate rejected diagnostics and are excluded from accepted evidence. Android configuration changes recreate the development entry; test cases must be prepared after the new entry settles.
 
-The native cases fit their viewport, so overflowing horizontal scrolling remains covered by the existing mounted scroll/identity regressions rather than a new native overflow gesture. No new claim is made for dark mode, other locales, or the complete existing polish acceptance matrix. Owner hands-on acceptance and PR delivery tasks remain open; no commit, push or PR was requested.
+The native cases fit their viewport, so overflowing horizontal scrolling remains covered by the existing mounted scroll/identity regressions rather than a new native overflow gesture. No new claim is made for dark mode, other locales, or the complete existing polish acceptance matrix. This native verification preceded owner hands-on acceptance. The owner subsequently accepted the final app and authorized draft PR #493 on 2026-11-03; see the change validation record for review and delivery.
 
 ## Preservation and delivery
 
