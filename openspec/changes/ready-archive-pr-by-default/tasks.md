@@ -10,4 +10,4 @@
 ## 2. Verification and delivery
 
 - [x] 2.1 Run the focused workflow tests, `pnpm test:ci`, `pnpm agent:check`, and `git diff HEAD --check`; record exact results and any remaining live-rollout gaps in `openspec/changes/ready-archive-pr-by-default/validation.md`.
-- [ ] 2.2 Run the local pre-push review required by `REVIEW.md`, resolve Important findings, and open one task PR targeting `dev` with `OpenSpec: ready-archive-pr-by-default` and a Test plan that distinguishes local verification from the next live archive PR evidence; do not merge it as an agent.
+- [x] 2.2 Run the local pre-push review required by `REVIEW.md`, resolve Important findings, and open one task PR targeting `dev` with `OpenSpec: ready-archive-pr-by-default` and a Test plan that distinguishes local verification from the next live archive PR evidence; do not merge it as an agent.
