@@ -27,7 +27,7 @@ OpenSpec archiving needs judgment for unchecked-task classification and same-cap
 
 ### D1. Use `pull_request.closed` plus a bounded manual replay
 
-The workflow triggers on `pull_request` `closed` with `branches: [dev]`, and its job requires `github.event.pull_request.merged == true`. The branch filter applies to the PR base. A `workflow_dispatch` input, `issue_number`, allows an operator to replay a merged task PR for recovery and isolated trials without adding a second automatic trigger.
+The workflow triggers on `pull_request` `closed` with `branches: [dev]`, and its job requires `github.event.pull_request.merged == true`. The branch filter applies to the PR base. A `workflow_dispatch` input, `issue_number`, allows an operator to replay a merged task PR for recovery and isolated trials without adding a second automatic trigger. `ARCHIVE_SOURCE_PR_NUMBER` exposes that input or the automatic PR number to the agent through an explicit environment variable, so the prompt does not depend on gh-aw's raw-input interpolation.
 
 The agent reads the PR body and resolves the exact `OpenSpec:` line to one active change directory. It skips `n/a`, malformed or ambiguous identities, unmerged closures, missing active changes, and archive PRs. A repository-wide concurrency group serializes evaluations with no cancellation; a per-PR identity is used for logs and duplicate checks.
 
