@@ -42,7 +42,7 @@ import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
 import { BookmarkForkService } from './bookmarkFork'
 import { MediaSnapshotService } from './mediaSnapshot'
-import { snapshotBundleMembers, snapshotText } from '@/utils/snapshotBundle'
+import { snapshotBundleMembers, snapshotKeys, snapshotText } from '@/utils/snapshotBundle'
 import { forkError } from '@/utils/bookmarkForkError'
 
 type ImportedFork = {
@@ -568,7 +568,7 @@ export class BookmarkService {
       const content = await target.text()
       const snapshot = !content && /^text\/body\/([^/]+)\.txt$/.exec(bmKey)
       if (snapshot) {
-        const html = await this.bucket().R2Bucket.get(`html/body/${snapshot[1]}.html`)
+        const html = await this.bucket().R2Bucket.get(snapshotKeys(snapshot[1]).content_key)
         if (html) return snapshotText(await html.text())
       }
       return content

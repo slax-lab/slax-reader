@@ -27,6 +27,7 @@ export async function exerciseSnapshotAi(fetch: (path: string, options?: Request
     const text = await response.text()
     assert.equal(response.status, 200, text)
     if (feature === 'chat') {
+      // Slax AigcService.writeChunk emits delta arrays, unlike standard OpenAI chunks.
       const answer = text
         .split('\n')
         .filter(line => line.startsWith('data: {'))
