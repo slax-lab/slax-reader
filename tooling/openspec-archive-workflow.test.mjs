@@ -1,0 +1,107 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+
+const require = createRequire(import.meta.url)
+const { load } = createRequire(require.resolve('rulesync'))('js-yaml')
+const source = () => {
+  const raw = readFileSync(new URL('../.github/workflows/openspec-archive.md', import.meta.url), 'utf8')
+  const match = raw.match(/^---\n([\s\S]*?)\n---\n/)
+  assert.ok(match, 'archive workflow must have a gh-aw frontmatter block')
+  return { config: load(match[1]), body: raw.slice(match[0].length) }
+}
+const compiled = () => load(readFileSync(new URL('../.github/workflows/openspec-archive.lock.yml', import.meta.url), 'utf8'))
+
+test('agent starts from current dev rather than a task branch or historical merge snapshot', () => {
+  const { config } = source()
+  assert.equal(config.checkout, false)
+  assert.deepEqual(config.steps, [{
+    name: 'Checkout merged dev state',
+    uses: 'actions/checkout@v7',
+    with: {
+      ref: 'dev',
+      'fetch-depth': 1,
+      'persist-credentials': false,
+    },
+  }])
+
+  const steps = compiled().jobs.agent.steps
+  const checkout = steps.find(step => step.name === 'Checkout merged dev state')
+  assert.ok(checkout, 'compiled workflow must explicitly check out the merged state')
+  assert.match(checkout.uses, /^actions\/checkout@/)
+  assert.equal(checkout.with.ref, 'dev')
+  assert.equal(checkout.with['fetch-depth'], 1)
+  assert.equal(checkout.with['persist-credentials'], false)
+  assert.ok(steps.indexOf(checkout) < steps.findIndex(step => step.name === 'Execute GitHub Copilot CLI'))
+  assert.equal(steps.some(step => step.name === 'Checkout PR branch'), false, 'gh-aw must not overwrite current dev with the task branch')
+})
+
+test('archive evaluation runs only for merged dev PRs or an explicit replay and is globally serialized', () => {
+  const { config } = source()
+  assert.deepEqual(config.on.pull_request, { types: ['closed'], branches: ['dev'] })
+  const replay = config.on.workflow_dispatch.inputs.issue_number
+  assert.equal(replay.description, 'Merged task pull request number to re-evaluate')
+  assert.equal(replay.required, true)
+  assert.equal(replay.type, 'number')
+  assert.equal(config.env.ARCHIVE_SOURCE_PR_NUMBER, '${{ inputs.issue_number || github.event.pull_request.number }}')
+  assert.equal(config.if, "vars.OPENSPEC_ARCHIVE_ENABLED != 'false' && (github.event_name != 'pull_request' || github.event.pull_request.merged == true)")
+  assert.deepEqual(config.concurrency, { group: 'openspec-archive-dev', 'cancel-in-progress': false, queue: 'max' })
+  assert.equal(compiled().concurrency.queue, 'max')
+})
+
+test('agent permissions stay read-only and Safe Outputs only create an archive PR or report on the source PR', () => {
+  const { config } = source()
+  assert.deepEqual(config.permissions, { contents: 'read', 'pull-requests': 'read', 'copilot-requests': 'none' })
+  const outputs = config.safe_outputs ?? config['safe-outputs']
+  assert.equal(outputs['report-failure-as-issue'], false)
+  assert.equal(outputs['threat-detection']['continue-on-error'], false)
+  assert.equal(outputs.noop['report-as-issue'], false)
+  assert.deepEqual(outputs['add-comment'], { max: 1, target: '*' })
+  assert.equal(outputs['create-pull-request']['title-prefix'], 'docs(openspec): archive ')
+  assert.deepEqual(outputs['create-pull-request']['team-reviewers'], ['reader-core'])
+  assert.equal(outputs['create-pull-request']['github-token'], undefined)
+  assert.equal(outputs['create-pull-request']['fallback-as-issue'], false)
+  assert.equal(outputs['create-pull-request'].reviewers, undefined)
+  for (const forbidden of ['merge-pull-request', 'submit-pull-request-review', 'push-to-pull-request-branch', 'create-issue']) {
+    assert.equal(outputs[forbidden], undefined, `${forbidden} must not be enabled`)
+  }
+})
+
+test('archive prompt requires evidence-based classification and same-capability ordering', () => {
+  const { body } = source()
+  for (const expected of [
+    'Read `proposal.md`, `tasks.md`, `design.md` when present, `validation.md`, and every delta spec',
+    'Only evidence-backed completed work may be checked off',
+    'Genuinely unfinished or uncertain work blocks archiving',
+    'accepted historical gap',
+    'same capability',
+    'declared archive order',
+    'Do not invent requirement text',
+  ]) assert.ok(body.includes(expected), `missing classification contract: ${expected}`)
+})
+
+test('archive prompt validates the result and prevents duplicate archive PRs', () => {
+  const { body } = source()
+  for (const expected of [
+    'openspec archive <change-id> --yes',
+    'npx --yes @fission-ai/openspec@1.13.1 validate --all --strict',
+    'git add -A',
+    'git diff --cached --check',
+    'existing open archive pull request',
+    'Do not create a duplicate',
+    'Record the archive outcome',
+    'Archive source: #<source-pr-number>',
+    'Next step: the task PR author must comment /review',
+  ]) assert.ok(body.includes(expected), `missing archive validation contract: ${expected}`)
+})
+
+test('archive workflow reuses the shared engine without inheriting review publishing behavior', () => {
+  const { config, body } = source()
+  assert.ok(config.imports.includes('shared/deepseek-engine.md'))
+  assert.equal(config.engine, undefined)
+  assert.ok(body.includes('OpenSpec: n/a'))
+  assert.ok(body.includes('merged'))
+  assert.ok(!body.includes('submit_pull_request_review'))
+  assert.ok(!body.includes('merge_pull_request'))
+})
