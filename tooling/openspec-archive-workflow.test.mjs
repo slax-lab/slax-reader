@@ -92,6 +92,7 @@ test('archive prompt validates the result and prevents duplicate archive PRs', (
     'Do not create a duplicate',
     'Record the archive outcome',
     'Archive source: #<source-pr-number>',
+    'Next step: the task PR author must comment /review',
   ]) assert.ok(body.includes(expected), `missing archive validation contract: ${expected}`)
 })
 
