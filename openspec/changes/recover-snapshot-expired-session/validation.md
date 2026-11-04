@@ -62,7 +62,7 @@ An independent reviewer performed Bugs, Security, and Compliance passes and repr
 - PowerSync expiry handling could redirect to login or reload a source snapshot before destination navigation finished: the navigation marker now defers sync side effects until the destination metadata decides; a mounted snapshot owns revalidation and recovery.
 - Shared recovery ownership is tied to a Vue component ID so disposal of an old healthy snapshot cannot clear a newer recovery.
 
-Final independent browser review found no remaining Important Bugs or Security findings: expired-JWT navigation to public and private destinations kept the complete target URL, removed the cookie, reloaded once, and produced no pageerror. The final Compliance pass must also confirm the completed evidence and pre-PR human acceptance.
+Final independent browser review found no remaining Important Bugs or Security findings: expired-JWT navigation to public and private destinations kept the complete target URL, removed the cookie, reloaded once, and produced no pageerror. The final pre-push review completed all three passes with no remaining Important Bugs, Security, or Compliance findings. It confirmed the implementation scope, recorded automated/browser/theme evidence, and the human acceptance below.
 
 ## Verification limits
 
@@ -70,4 +70,11 @@ The harness does not verify production deployment, a real signed JWT's signature
 
 ## Human hands-on acceptance
 
-Pending. The user approved the proposal and requested review/PR delivery, but has not yet exercised the implemented recovery. Before opening the PR, record the accepting person, date, scenarios exercised, and any requested adjustments under `DESIGN.md` section 10.2. Proposal approval does not substitute for this checkpoint.
+Accepted by the requester (the conversation user) on 2026-11-04, Asia/Shanghai, before PR creation. The requester explicitly confirmed that acceptance passed after receiving the public/private fixture entry points and requesting the local dev server on port 3000.
+
+- Public entry: `http://localhost:3000/session-recovery`, which seeds a rejected test cookie and exercises cleanup followed by one reload to readable guest content.
+- Private entry: `http://localhost:3000/session-recovery?scenario=private`, which exercises cleanup followed by the existing inaccessible/not-found result without repeated reloads.
+- Requested adjustment: move the local test server from port 3217 to port 3000; the old service was stopped, the dev service and public URL/API placeholders were restarted on port 3000, and both entries plus the guest article were checked successfully.
+- No further product behavior or visual adjustments were requested after acceptance. The implementation remained unchanged from the independently reviewed and verified version.
+
+This records post-implementation hands-on acceptance separately from the earlier proposal approval.
