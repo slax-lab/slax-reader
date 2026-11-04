@@ -12,5 +12,5 @@
 ## 3. Real-event verification and delivery
 
 - [x] 3.1 Record local commands and the #499 failure evidence in `openspec/changes/start-archive-ci-on-ready/validation.md`, then complete the Bugs, Security, and Compliance pre-push review in `REVIEW.md` with no unresolved Important findings.
-- [ ] 3.2 Push the task branch and open a draft task pull request with `OpenSpec: start-archive-ci-on-ready`; confirm the initial draft state is visible before the lifecycle trial.
+- [x] 3.2 Push the task branch and open a draft task pull request with `OpenSpec: start-archive-ci-on-ready`; confirm the initial draft state is visible before the lifecycle trial.
 - [ ] 3.3 Ask the task author to click **Ready for review** once, without approving workflows or commenting `/review`; confirm that `ready_for_review` starts all six validation workflows and PR Review for the same head, record the run IDs and required gate results in `validation.md`, and deliver the verified pull request for human review and merge.
