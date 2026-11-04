@@ -430,6 +430,13 @@ function numberTokens(text: string): Set<string> {
   return out
 }
 
+const ZH_MAGNITUDE: Record<string, number> = { 万: 1e4, 亿: 1e8 }
+
+/** "5 万" → "50000", "1.5 亿" → "150000000": a faithful Chinese translation writes large numbers this way. */
+function zhMagnitudeNumbers(text: string): string[] {
+  return [...text.matchAll(/(\d+(?:\.\d+)?)\s*(万|亿)/g)].map(m => String(Math.round(Number(m[1]) * ZH_MAGNITUDE[m[2]])))
+}
+
 /** Article characters over caption characters. Bounds depend on whether the article is a translation. */
 export function lengthBounds(captionText: string, lang: YoutubeArticleLanguage): [number, number] {
   const sourceCjk = cjkRatio(captionText) > 0.5
@@ -453,6 +460,16 @@ export interface ArticleQualityOptions {
   speakerText?: string
   /** Minimum CJK share of a zh paragraph. Default 0.5; spoken Chinese with English terms needs less. */
   zhMinCjkRatio?: number
+  /**
+   * Shorter repeated paragraphs are not duplicates unless they come from the same cues. A podcast
+   * speaker says "Yeah." many times; only longer repeats, or repeats of the same cues, point at a
+   * looped or doubled reply. Default 0: every exact repeat counts (YouTube).
+   */
+  minDuplicateChars?: number
+  /** Also read Chinese magnitude words as numbers: "5 万" is 50000, "1 亿" is 100000000. Default false (YouTube). */
+  zhMagnitudes?: boolean
+  /** Require nondecreasing paragraph cue starts. Defaults to false. */
+  requireParagraphOrder?: boolean
 }
 
 /**
@@ -496,6 +513,17 @@ export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCa
     lastFirst = first
   }
 
+  if (options.requireParagraphOrder) {
+    let previousStart = -1
+    for (const paragraph of paragraphs) {
+      const indices = paragraph.source_cue_ids.map(id => cueIndex.get(id))
+      if (!indices.length || indices.some(index => index === undefined)) continue
+      const start = Math.min(...(indices as number[]))
+      if (start < previousStart) failed.add('cue_reference')
+      previousStart = start
+    }
+  }
+
   const okParagraphs = paragraphs.filter(
     p => hasNoLetters(p.text) || (doc.language === 'zh' ? cjkRatio(p.text) >= (options.zhMinCjkRatio ?? 0.5) : cjkRatio(p.text) <= 0.05)
   ).length
@@ -504,6 +532,7 @@ export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCa
 
   const captionNumbers = numberTokens(captionText)
   const articleNumbers = numberTokens(articleText(doc))
+  if (options.zhMagnitudes) for (const n of zhMagnitudeNumbers(articleText(doc))) articleNumbers.add(n)
   const hit = [...captionNumbers].filter(n => articleNumbers.has(n)).length
   const coverage = captionNumbers.size === 0 ? 1 : hit / captionNumbers.size
   if (coverage < 0.85) failed.add('number_coverage')
@@ -518,11 +547,14 @@ export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCa
   const bounds = options.bounds ?? lengthBounds(captionText, doc.language)
   if (ratio < bounds[0] || ratio > bounds[1]) failed.add('length_ratio')
 
-  const seen = new Set<string>()
+  const seen = new Map<string, Set<string>>()
+  const minDuplicateChars = options.minDuplicateChars ?? 0
   for (const p of paragraphs) {
     const key = p.text.trim()
-    if (seen.has(key)) failed.add('duplicate_paragraph')
-    seen.add(key)
+    const earlier = seen.get(key)
+    if (earlier && (key.length >= minDuplicateChars || p.source_cue_ids.some(id => earlier.has(id)))) failed.add('duplicate_paragraph')
+    if (earlier) p.source_cue_ids.forEach(id => earlier.add(id))
+    else seen.set(key, new Set(p.source_cue_ids))
   }
 
   return {
