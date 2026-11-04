@@ -19,7 +19,14 @@ On archive pull request #499, the human `ready_for_review` action started PR Rev
 
 Task PR #510 was created as a draft. The issue-events API records `ready_for_review` by `boxcounter` at 2026-11-04 07:14:10Z. No workflow approval or `/review` comment was used.
 
-On head `e0bcefb7804994e63fb2a51598012c105c408e76`, that transition started and completed all six validation workflows successfully:
+At 07:14:13Z, the transition started these runs on the then-current head `101c3e29f1efb1c1827a2f474466b22fc86b5d02`:
+
+- Frontend CI `41790853989`, API CI `41790854092`, Mobile CI `41790854157`, CLI CI `41790854313`, Tooling CI `41790854098`, and Config CI `41790854013`.
+- PR Review `41790854141`, which completed successfully with no Important findings.
+
+All six validation runs started without `action_required`; they were cancelled when the documentation-only status commit moved the head 18 seconds later. This is the direct evidence that the Ready transition starts every required workflow.
+
+A separate `synchronize` event on head `e0bcefb7804994e63fb2a51598012c105c408e76` then ran the same six workflows to success:
 
 - Frontend CI `41790891568`: Web and Extension gates SUCCESS.
 - API CI `41790891592`: API gate SUCCESS.
@@ -28,7 +35,7 @@ On head `e0bcefb7804994e63fb2a51598012c105c408e76`, that transition started and 
 - Tooling CI `41790891550`: Tooling gate SUCCESS.
 - Config CI `41790891566`: agent-config drift check SUCCESS.
 
-PR Review run `41790891574` also started from the same transition. It reported two compliance findings: the archive-body instruction did not yet mention CI, and this evidence record was still pending. The archive instruction and `docs/CI.md` were updated, and this record received the real run evidence. Follow-up PR Review run `41792952123` then reported No Important findings; the gate succeeded and added `ready-for-human-review`. The PR is delivered for code-owner review and merge.
+The synchronize-triggered PR Review `41790891574` reported an archive-body mismatch and the then-pending evidence record; both were fixed. Follow-up review `41792952123` reported No Important findings. A later review correctly identified that an earlier version of this record had confused the Ready and synchronize run sets; they are now recorded separately above.
 
 Not separately verified before merge: another bot-authored archive PR after this fix, because the trigger change is not on `dev` yet. The #499 failure and the real #510 transition cover the before/after trigger behavior; the next real archive PR will exercise the bot-authored path.
 
@@ -36,4 +43,4 @@ Not separately verified before merge: another bot-authored archive PR after this
 
 - Bugs: no Important findings. The diff only adds the missing event to the six existing triggers and updates the affected workflow assertions; scope selection and gate jobs are unchanged.
 - Security: no Important findings. No credentials, permissions, dependencies, or additional network access were introduced.
-- Compliance: no Important findings. The archive-body and evidence findings were resolved, and follow-up run `41792952123` confirmed compliance. All 6/6 tasks are complete.
+- Compliance: the archive-body mismatch and run-attribution error have been corrected. The direct Ready runs and the successful synchronize runs are separately identified. All 6/6 tasks are complete; final review follows this evidence-only commit.
