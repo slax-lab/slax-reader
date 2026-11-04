@@ -95,7 +95,7 @@ Implementation for 2.1–2.5 is complete. Their remaining native acceptance comb
 - [x] 3J.1 Pin bridge provenance to the published upstream commit and reproduce identical shipped bytes from its 38 committed inputs.
 - [x] 3J.2 Restore primary accent-button pressed feedback with a neutral overlay while preserving #16B998, geometry, disabled/busy states and callbacks; reproduce the collapse in mounted regression tests first.
 - [x] 3J.3 Verify native Android press/cancel rendering, Mobile checks/bundles and preservation of unrelated uncommitted work; record the native iOS follow-up gap.
-- [ ] 3J.4 Confirm the fresh remote review verdict after the follow-up push.
+- [x] 3J.4 Confirm the fresh remote review verdict after the follow-up push: head a1b3b515 reports No Important findings and a passing PR review gate; all 29 active checks pass.
 
 ## 4. Verification and delivery
 
@@ -104,6 +104,6 @@ The main-checkout code is available for local inspection. The earlier copy-link 
 - [x] 4.1 Run `pnpm mobile -- check`, `pnpm mobile -- bundle`, `pnpm exec openspec validate --all --strict`, and `git diff --check`; record results and any concrete limitations in `validation.md`.
 - [x] 4.2 Record native visual/interaction coverage for both platforms, Chinese/English, light/dark system appearance with the fixed-light Mobile profile, and default/increased text scale; capture before/after evidence outside git and explicitly identify unverified combinations.
 - [x] 4.3 The owner exercised the final main-checkout app, accepted the accumulated refinements on 2026-11-03 and authorized review followed by a draft PR; see proposal.md and validation.md.
-- [x] 4.4 The owner declined a Mobile version increment on 2026-11-03. Verified version 1.0.26, build 798, previous build 797 remain unchanged; no metadata regeneration is needed. See `validation.md`.
+- [x] 4.4 The owner initially declined a version increment, then explicitly approved 1.0.27 / build 799 / previous build 798 on 2026-11-04. Update the manifest and regenerate matching native/runtime metadata while preserving unrelated local edits; see `validation.md`.
 - [x] 4.5 Completed Bugs/Security/Compliance review with no remaining Important findings; created draft PR #493 to dev with OpenSpec, owner acceptance, verification evidence and attached synthetic before/after visuals.
 - [ ] 4.6 After the task PR merges, classify every unchecked task, complete or verify predecessor archival (`mobile-native-smoothness`, then `mobile-ui-polish`) and reconcile the resulting main specs, then archive this change through a separate docs PR; verify strict OpenSpec validation passes.

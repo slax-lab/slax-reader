@@ -85,3 +85,7 @@ On 2026-11-03, the owner confirmed local hands-on acceptance after the accumulat
 ## CI review repair (2026-11-04)
 
 The owner requested repairing PR #493's failing checks. The published-source pin resolves the bridge provenance gate. The next review identified the unintended loss of existing primary-button press feedback during green normalization. Restore that existing behavior with the neutral pressed overlay over #16B998, preserving geometry, actions, cancellation and disabled/busy presentation. This is a correction within the approved Mobile palette/interaction scope rather than a new button design.
+
+## Release metadata authorization — 2026-11-04
+
+The owner explicitly superseded the earlier keep-version decision and requested version 1.0.27, buildNumber 799 and previousBuildNumber 798 in PR #493, preserving unrelated main-workspace edits. Regenerate matching iOS main/share, Android and runtime metadata through the existing Expo generators. This request updates the existing PR; it does not request a merge or immediate signing/upload/publication. After a future dev merge, the existing version-increase workflow may trigger EAS builds and submission when its CI/configuration prerequisites pass.
