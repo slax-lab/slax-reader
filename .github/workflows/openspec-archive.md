@@ -65,9 +65,8 @@ safe-outputs:
     target: "*"
   create-pull-request:
     title-prefix: "docs(openspec): archive "
-    team-reviewers: [reader-core]
     fallback-as-issue: false
-    draft: false
+    draft: true
 ---
 
 # OpenSpec change archiving
@@ -107,10 +106,10 @@ For an eligible change:
 For a successful archive, call `create_pull_request` once. Set its title to `<change-id>` so the configured prefix produces `docs(openspec): archive <change-id>`. Its body must use the repository PR structure and include:
 
 - a change summary naming the archived change and an `Archive source: #<source-pr-number>` line that links the task PR;
-- a **Next step** instruction for the task PR author: click **Approve workflows to run** or comment /review when no review is running. If review is already running, no additional start action is needed;
+- a **Next step** instruction for the task PR author: "The feature PR has merged, and this archive PR was created automatically to archive its spec changes. Inspect the archive and click **Ready for review** to start automatic review. After the review passes, the team reviews and merges this PR to complete the archive.";
 - `OpenSpec: n/a` because this is a documentation-only archive PR;
 - the spec updates and every unchecked-task classification;
 - the exact successful validation commands and results;
 - any preserved historical gaps and remaining review considerations.
 
-The configured Safe Output requests `reader-core` as the team reviewer, which the existing notification path names as `slax-lab/reader-core` without an individual Feishu mention. Do not call any merge, approval, direct-push, issue-creation, review-submission, or notification tool. Do not retry automatically and do not create a second archive PR.
+When the task PR author clicks **Ready for review**, GitHub CODEOWNERS requests `slax-lab/reader-core` as the review team; the existing notification path names that team without an individual Feishu mention. Do not call any merge, approval, direct-push, issue-creation, review-submission, or notification tool. Do not retry automatically and do not create a second archive PR.
