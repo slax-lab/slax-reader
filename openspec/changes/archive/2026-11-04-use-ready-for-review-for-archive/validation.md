@@ -35,3 +35,13 @@ No result for the revised workflow is claimed by the local checks above.
 ## Review
 
 The independent pre-push review reported no Important findings. Follow-up corrections removed the draft-incompatible team-review Safe Output, named GitHub CODEOWNERS as the provider of the team request after the ready transition, pinned `draft: true` explicitly, and removed non-executable scenarios from the REMOVED delta. The focused, CI, OpenSpec, compile/drift, and whitespace checks above were rerun after those corrections.
+
+## Archive outcome
+
+- Archive source: task PR #496, merged into `dev`.
+- Task classification: all 5 tasks in `tasks.md` were already checked before archiving, and each is backed by the evidence recorded above. No unchecked task required classification, and no accepted historical gap is preserved as unfinished.
+- Rollout evidence: the pending observations above remain observations rather than archive-eligibility tasks, because they describe the first real draft archive pull request, which can only exist after this change is archived. They stay recorded here and are not claimed as completed work.
+- Delta application: `agentic-pr-review` removed 1 requirement (the archive-bot allowlist); `openspec-change-archiving` modified 2 requirements (draft creation with the CODEOWNERS handoff after the ready transition, and the readiness-path reviewer notification). Totals: 0 added, 2 modified, 1 removed, 0 renamed.
+- Archive command: `npx --yes @fission-ai/openspec@1.13.1 archive use-ready-for-review-for-archive --yes` reported a complete task status, applied both capability updates, and archived the change as `2026-11-04-use-ready-for-review-for-archive`.
+- Validation: `npx --yes @fission-ai/openspec@1.13.1 validate --all --strict` passed; `git diff --cached --check` reported no whitespace errors.
+- Same-capability check: `npx --yes @fission-ai/openspec@1.13.1 list --json` showed no other active change carrying delta specs for `openspec-change-archiving` or `agentic-pr-review`, so no archive order constraint applied.
