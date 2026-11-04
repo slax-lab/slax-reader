@@ -78,3 +78,7 @@ Accepted by the requester (the conversation user) on 2026-11-04, Asia/Shanghai, 
 - No further product behavior or visual adjustments were requested after acceptance. The implementation remained unchanged from the independently reviewed and verified version.
 
 This records post-implementation hands-on acceptance separately from the earlier proposal approval.
+
+## PR delivery
+
+Created [PR #505](https://github.com/slax-lab/slax-reader/pull/505) targeting `dev` after the requester confirmed hands-on acceptance. Verified the published body contains `OpenSpec: recover-snapshot-expired-session`, the validation evidence link, and the uploaded recovery recording. The PR is mergeable and awaits the normal CI/reviewer gates; no merge or pre-merge archive was performed.
