@@ -3,7 +3,8 @@
 # update them in dedicated toolchain upgrades rather than aligning action majors here.
 name: Config CI
 on:
-  pull_request: null
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_call:
     inputs:
       full_validation:

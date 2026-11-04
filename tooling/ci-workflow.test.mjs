@@ -30,7 +30,7 @@ const needs = paths => ({ changes: { result: 'success', outputs: Object.fromEntr
 const group = (w, github) => w.concurrency.group.replace(/\$\{\{\s*([^}]+?)\s*\}\}/g, (_, expression) => evaluate(expression, { github }))
 const assertValidationTriggers = w => {
   assert.deepEqual(Object.keys(w.on).sort(), ['pull_request', 'workflow_call'])
-  assert.equal(w.on.pull_request, null)
+  assert.deepEqual(w.on.pull_request, { types: ['opened', 'synchronize', 'reopened', 'ready_for_review'] })
   assert.equal(w.on.workflow_call.inputs.full_validation.type, 'boolean')
   assert.equal(w.on.workflow_call.inputs.full_validation.default, false)
 }
