@@ -17,10 +17,23 @@ On archive pull request #499, the human `ready_for_review` action started PR Rev
 
 ## Running-environment verification
 
-Pending: create the task pull request as a draft, then have the task author click **Ready for review** once. Verify that the `ready_for_review` event starts all six validation workflows and PR Review for the same head without approving workflows or commenting `/review`. Record the run IDs and required gate results here before delivery.
+Task PR #510 was created as a draft. The issue-events API records `ready_for_review` by `boxcounter` at 2026-11-04 07:14:10Z. No workflow approval or `/review` comment was used.
+
+On head `e0bcefb7804994e63fb2a51598012c105c408e76`, that transition started and completed all six validation workflows successfully:
+
+- Frontend CI `41790891568`: Web and Extension gates SUCCESS.
+- API CI `41790891592`: API gate SUCCESS.
+- Mobile CI `41790891641`: Mobile gate SUCCESS.
+- CLI CI `41790891565`: CLI gate SUCCESS.
+- Tooling CI `41790891550`: Tooling gate SUCCESS.
+- Config CI `41790891566`: agent-config drift check SUCCESS.
+
+PR Review run `41790891574` also started from the same transition. It reported two compliance findings: the archive-body instruction did not yet mention CI, and this evidence record was still pending. The archive instruction and `docs/CI.md` now describe both review and CI, and this record contains the real run evidence. Final re-review is pending before delivery.
+
+Not separately verified before merge: another bot-authored archive PR after this fix, because the trigger change is not on `dev` yet. The #499 failure and the real #510 transition cover the before/after trigger behavior; the next real archive PR will exercise the bot-authored path.
 
 ## Pre-push review
 
 - Bugs: no Important findings. The diff only adds the missing event to the six existing triggers and updates the affected workflow assertions; scope selection and gate jobs are unchanged.
 - Security: no Important findings. No credentials, permissions, dependencies, or additional network access were introduced.
-- Compliance: no Important findings. The implementation matches `start-archive-ci-on-ready`; the real `ready_for_review` exercise is explicitly pending above and is required by task 3.3 before merge.
+- Compliance: the latest review's two findings are addressed by the archive-body instruction and this evidence record. Final re-review is pending; task 3.3 remains open until it passes.

@@ -99,6 +99,7 @@ test('archive prompt validates the result and prevents duplicate archive PRs', (
     'The feature PR has merged',
     'created automatically to archive its spec changes',
     'Ready for review',
+    'start automatic review and the required pull-request CI workflows',
     'team reviews and merges this PR to complete the archive',
   ]) assert.ok(body.includes(expected), `missing archive validation contract: ${expected}`)
   assert.ok(!body.includes('Approve workflows to run'))

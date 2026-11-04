@@ -106,7 +106,7 @@ For an eligible change:
 For a successful archive, call `create_pull_request` once. Set its title to `<change-id>` so the configured prefix produces `docs(openspec): archive <change-id>`. Its body must use the repository PR structure and include:
 
 - a change summary naming the archived change and an `Archive source: #<source-pr-number>` line that links the task PR;
-- a **Next step** instruction for the task PR author: "The feature PR has merged, and this archive PR was created automatically to archive its spec changes. Inspect the archive and click **Ready for review** to start automatic review. After the review passes, the team reviews and merges this PR to complete the archive.";
+- a **Next step** instruction for the task PR author: "The feature PR has merged, and this archive PR was created automatically to archive its spec changes. Inspect the archive and click **Ready for review** to start automatic review and the required pull-request CI workflows. After the automation passes, the team reviews and merges this PR to complete the archive.";
 - `OpenSpec: n/a` because this is a documentation-only archive PR;
 - the spec updates and every unchecked-task classification;
 - the exact successful validation commands and results;
