@@ -12,12 +12,21 @@ const state = vi.hoisted(() => ({
   afterEach: vi.fn(),
   clearAuth: vi.fn()
 }))
+const recoveryState = { value: null as string | null }
+const navigationState = { value: null as string | null }
+const navigation = vi.hoisted(() => ({ refreshContent: vi.fn(), login: vi.fn() }))
+mockNuxtImport('refreshNuxtData', () => navigation.refreshContent)
+mockNuxtImport('navigateTo', () => navigation.login)
 mockNuxtImport('useAppConfig', () => () => ({ lcp: { anonymousPublicStartup: false } }))
 mockNuxtImport('useRuntimeConfig', () => () => ({
   public: { DWEB_API_BASE_URL: 'https://api.test', COOKIE_TOKEN_NAME: 'token', EXTENSION_BRIDGE_IDS: 'allowed-id', slaxEnv: 'production' }
 }))
 const ownership = { value: null as string | null }
-mockNuxtImport('useState', () => () => ownership)
+mockNuxtImport('useState', () => (key: string) => {
+  if (key === 'snapshot-session-recovery-pending') return recoveryState
+  if (key === 'snapshot-session-navigation') return navigationState
+  return ownership
+})
 mockNuxtImport('useRouter', () => () => ({ afterEach: state.afterEach }))
 mockNuxtImport('useAuth', () => () => ({ clearAuth: state.clearAuth }))
 vi.mock('~/utils/request', () => ({ getUserToken: state.cookie, getClientEventHeaders: () => ({}) }))
@@ -39,7 +48,7 @@ vi.mock('~/local-first/powersync-recovery', () => ({
 }))
 
 const token = (id: string, revision = 1) => `header.${btoa(JSON.stringify({ id, revision, exp: Math.floor(Date.now() / 1000) + 3600 }))}.signature`
-const app = { vueApp: { use: vi.fn() } }
+const app = { vueApp: { use: vi.fn() }, runWithContext: (callback: () => unknown) => callback() }
 const start = async () => {
   const plugin = (await import('~~/app/plugins/powersync.client')).default
   const result = await plugin(app as never)
@@ -54,6 +63,8 @@ const getConnector = () => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  recoveryState.value = null
+  navigationState.value = null
   localStorage.clear()
   localStorage.setItem(`slax:powersync:${POWER_SYNC_DATABASE_GENERATION}:dataVersion`, String(POWER_SYNC_LOCAL_DATA_VERSION))
   localStorage.setItem('slax:powersync:lastUser', 'user-a')
@@ -69,12 +80,57 @@ beforeEach(() => {
 })
 afterEach(() => vi.restoreAllMocks())
 
+describe('snapshot session expiry coordination', () => {
+  const expired = `header.${btoa(JSON.stringify({ id: 'user-a', exp: 1 }))}.signature`
+  const topLevel = (path: string) => {
+    vi.spyOn(window, 'parent', 'get').mockReturnValue(window)
+    window.history.replaceState(null, '', path)
+    state.cookie.mockReturnValue(expired)
+  }
+
+  it('defers sync expiry while a destination snapshot is still loading', async () => {
+    topLevel('/b/source')
+    await start()
+    navigationState.value = '/b/destination'
+    await getConnector().fetchCredentials()
+    expect(state.clearAuth).not.toHaveBeenCalled()
+    expect(navigation.refreshContent).not.toHaveBeenCalled()
+    expect(navigation.login).not.toHaveBeenCalled()
+  })
+
+  it('asks an already mounted snapshot to recheck metadata rather than navigating', async () => {
+    topLevel('/b/current?highlight=mark#paragraph')
+    await start()
+    await getConnector().fetchCredentials()
+    expect(navigation.refreshContent).toHaveBeenCalledExactlyOnceWith('content-current')
+    expect(state.clearAuth).not.toHaveBeenCalled()
+    expect(navigation.login).not.toHaveBeenCalled()
+  })
+
+  it('retains the login redirect outside snapshot routes', async () => {
+    topLevel('/bookmarks')
+    await start()
+    await getConnector().fetchCredentials()
+    expect(state.clearAuth).toHaveBeenCalledOnce()
+    expect(navigation.login).toHaveBeenCalledExactlyOnceWith('/login')
+  })
+
+  it('skips database startup for a server-confirmed rejected snapshot session', async () => {
+    topLevel('/b/current')
+    recoveryState.value = 'snapshot-owner'
+    const result = await start()
+    expect(result?.provide?.powersync).toBeNull()
+    expect(state.init).not.toHaveBeenCalled()
+    expect(state.connect).not.toHaveBeenCalled()
+  })
+})
+
 describe('PowerSync in an authenticated extension iframe with no page cookie', () => {
   it('falls back without exposing local data when storage is denied at startup', async () => {
     await import('~~/app/plugins/powersync.client')
     vi.spyOn(window, 'parent', 'get').mockReturnValue(window)
     state.cookie.mockReturnValue(token('user-a'))
-    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    const spy = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
       throw new DOMException('denied', 'SecurityError')
     })
     try {
