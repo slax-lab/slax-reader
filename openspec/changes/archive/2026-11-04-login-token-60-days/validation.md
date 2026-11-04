@@ -41,3 +41,14 @@ The harness closed its owned server after the exercise. No permanent test was ad
 ## Local pre-push review
 
 An independent read-only reviewer completed the Bugs, Security and Compliance passes against `REVIEW.md`, the implementation diff and all change artifacts. Result: no Important findings and no Nits. The reviewer confirmed the 60-day arithmetic, unchanged signed-expiry enforcement, the explicit private-configuration rollout prerequisite, and the absence of client package/version or UI acceptance obligations.
+
+## Archive evaluation
+
+Date: 2026-11-04. Evaluated from the merged `dev` state (`999dc2e`) after the source task pull request merged.
+
+- **Source:** merged task PR #501 (`OpenSpec: login-token-60-days`), merged into `dev` at 2026-11-04T03:27:50Z. The merged tree contains `deploy/cloudflare/api.toml.example` with `JWT_EXPIRES = "5184000"` and the English deployment note in `docs/api/DEV-AND-CI-EN.md`, matching the recorded evidence.
+- **Task classification:** all three tasks (1.1, 2.1, 2.2) are checked and evidence-backed by the automated checks, running-environment exercise and local pre-push review recorded above. No unchecked task, accepted historical gap or unverified post-merge task remains, so no gap is preserved.
+- **Same-capability check:** `npx --yes @fission-ai/openspec@1.13.1 list --json` showed 37 active changes before this archive. Only this change carries a delta for `login-token-lifetime`; no other active change references it or declares an archive order against it. No archive sequence had to be honored and no spec text was invented or force-merged.
+- **Command:** `npx --yes @fission-ai/openspec@1.13.1 archive login-token-60-days --yes` archived the change as `2026-11-04-login-token-60-days` and created `openspec/specs/login-token-lifetime/spec.md` with both ADDED requirements (2 added, 0 modified, 0 removed).
+- **Post-archive validation:** `npx --yes @fission-ai/openspec@1.13.1 validate --all --strict` passed and `git diff --cached --check` reported no whitespace errors.
+- **Remaining considerations:** the private environment `[vars].JWT_EXPIRES` synchronization remains an operator rollout prerequisite before deployment, as documented in the source change; it is a deployment action, not unfinished change work. Previously issued JWTs keep their signed expiration.
