@@ -59,4 +59,21 @@ Production deployment and live Google provider calls are outside this local task
 
 ## Delivery status
 
-Implementation and local verification are complete in the requested worktree. The owner authorized commit, push and a task PR targeting `dev` after the fresh pre-PR review. No remote deployment or archive is part of this delivery. The only unchecked task is 3.5, classified as intentionally deferred until the task PR merges, when a separate human-reviewed docs PR can archive the change.
+Implementation and local verification are complete in the requested worktree. The owner authorized commit, push and a task PR targeting `dev` after the fresh pre-PR review. No remote deployment or archive was part of that delivery. Task 3.5 was intentionally deferred until the task PR merged, when a separate human-reviewed docs PR could archive the change.
+
+## Archive classification (2026-11-03)
+
+The merge-triggered archive evaluation reassessed the merged `dev` state at merge commit `39d3024` and classified every task in `tasks.md`:
+
+- **Task 3.5 — completed, checked off with evidence.** PR #490 (`fix/fork-ai-content`) carried `OpenSpec: fork-ai-content`, targeted `dev`, and human reviewer `DGuang21` merged it at 2026-11-03T10:52:44Z. The merged state still contains the shipped implementation (`apps/api/src/utils/snapshotBundle.ts`, `apps/api/src/domain/bookmark.ts`, `apps/api/test/domain/bookmarkSnapshotText.test.ts`, `apps/api/test/runtime/snapshotAiSmoke.ts`), so the post-merge condition of 3.5 holds. This evaluation classified the remaining task and archived the change through a separate documentation pull request; the archived contract verification is recorded under "Archive outcome" below.
+- **Tasks 1.1-3.4 — already checked, evidence unchanged.** No historical acceptance gap was left unchecked, so none had to be preserved as an accepted gap and no completed work was claimed without evidence.
+- **No same-capability conflict.** `snapshot-ai-text` is a new capability. `npx --yes @fission-ai/openspec@1.13.1 list --json` showed 34 active changes, and no other active change carries a delta for `snapshot-ai-text`, references `fork-ai-content`, or declares an archive order against it. No archive sequence had to be honored and no spec text was invented or force-merged.
+- **Declared gaps remain gaps.** The production deployment, live Google provider availability/quality, and production Edge-to-AIGC service routing were never exercised by this task and are not claimed as verified by this archive.
+
+## Archive outcome (2026-11-03)
+
+- **Command:** `npx --yes @fission-ai/openspec@1.13.1 archive fork-ai-content --yes` reported `Task status: 8/9 tasks` with the expected warning for the deferred task, then `Change 'fork-ai-content' archived as '2026-11-03-fork-ai-content'`.
+- **Spec updates:** created the living capability `openspec/specs/snapshot-ai-text/spec.md` from the delta (`snapshot-ai-text: create`, totals `+ 2, ~ 0, - 0, → 0`). The living spec carries both requirements — "Copied HTML retains usable AI text" and "Existing empty snapshot text remains recoverable" — and all six scenarios from the delta. Task 3.5 was then checked off and recorded here as the archive evidence.
+- **Task classifications:** task 3.5 checked off with the PR #490 merge and archive evidence above; tasks 1.1-3.4 remained checked with unchanged evidence; no task was dropped, narrowed, or archived around.
+- **Validation:** `npx --yes @fission-ai/openspec@1.13.1 validate --all --strict` passed every item after the archive, and `git diff --cached --check` passed on the staged archive result. The archive pull request reports the exact outputs.
+- **Remaining review considerations:** the archived delta reflects the merged API behavior only. Live production deployment, provider availability/answer quality, and production Edge-to-AIGC routing remain outside this change's evidence, as recorded above.
