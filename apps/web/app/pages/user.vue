@@ -298,7 +298,7 @@ const navigateToTelegramChannel = () => {
 
 const contactEmail = 'reader@slax.com'
 const navigateToContactEmail = () => {
-  window.location.href = `mailto:${contactEmail}`
+  window.open(`mailto:${contactEmail}`)
 }
 
 const aiResponseLanguageSelect = async (index: number) => {
