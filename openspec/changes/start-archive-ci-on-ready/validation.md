@@ -28,7 +28,7 @@ On head `e0bcefb7804994e63fb2a51598012c105c408e76`, that transition started and 
 - Tooling CI `41790891550`: Tooling gate SUCCESS.
 - Config CI `41790891566`: agent-config drift check SUCCESS.
 
-PR Review run `41790891574` also started from the same transition. It reported two compliance findings: the archive-body instruction did not yet mention CI, and this evidence record was still pending. The archive instruction and `docs/CI.md` now describe both review and CI, and this record contains the real run evidence. Final re-review is pending before delivery.
+PR Review run `41790891574` also started from the same transition. It reported two compliance findings: the archive-body instruction did not yet mention CI, and this evidence record was still pending. The archive instruction and `docs/CI.md` were updated, and this record received the real run evidence. Follow-up PR Review run `41792952123` then reported No Important findings; the gate succeeded and added `ready-for-human-review`. The PR is delivered for code-owner review and merge.
 
 Not separately verified before merge: another bot-authored archive PR after this fix, because the trigger change is not on `dev` yet. The #499 failure and the real #510 transition cover the before/after trigger behavior; the next real archive PR will exercise the bot-authored path.
 
@@ -36,4 +36,4 @@ Not separately verified before merge: another bot-authored archive PR after this
 
 - Bugs: no Important findings. The diff only adds the missing event to the six existing triggers and updates the affected workflow assertions; scope selection and gate jobs are unchanged.
 - Security: no Important findings. No credentials, permissions, dependencies, or additional network access were introduced.
-- Compliance: the latest review's two findings are addressed by the archive-body instruction and this evidence record. Final re-review is pending; task 3.3 remains open until it passes.
+- Compliance: no Important findings. The archive-body and evidence findings were resolved, and follow-up run `41792952123` confirmed compliance. All 6/6 tasks are complete.
