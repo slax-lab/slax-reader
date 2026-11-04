@@ -19,19 +19,10 @@ import android.widget.TextView
 import java.io.File
 import java.io.RandomAccessFile
 import java.net.SocketTimeoutException
-import java.net.URL
 import java.net.UnknownHostException
 import java.util.concurrent.CancellationException
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import okhttp3.Call
 import okhttp3.EventListener
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.Response
-import okio.BufferedSink
 import org.json.JSONObject
 
 /** Standalone inbound share UI; never boots React Native or a second PowerSync owner. */
@@ -40,7 +31,7 @@ class ShareActivity : Activity() {
   private val main = Handler(Looper.getMainLooper())
   private val requestMutex = Any()
   @Volatile private var active = true
-  private var connection: Call? = null
+  private var connection: ShareSaveTransport? = null
   private var diagnostics: ShareDiagnostics? = null
   private lateinit var card: LinearLayout
   private fun dp(value: Int) = (resources.displayMetrics.density * value).toInt()
@@ -115,45 +106,23 @@ class ShareActivity : Activity() {
     val version = "${metadata.get("SlaxVersionName")} (${metadata.get("SlaxVersionCode")})"
     diagnostics?.stage("request"); diagnostics?.captureNetwork()
     val start = System.nanoTime()
-    val body = JSONObject().put("target_url", url)
-    intent.getStringExtra(Intent.EXTRA_SUBJECT)?.let {body.put("target_title", it)}
-    val bytes = body.toString().toByteArray(Charsets.UTF_8)
-    val payload = object : RequestBody() {
-      override fun contentType() = "application/json".toMediaType()
-      override fun contentLength() = bytes.size.toLong()
-      override fun isOneShot() = true
-      override fun writeTo(sink: BufferedSink) {if (!active) throw CancellationException("Share dismissed"); sink.write(bytes)}
-    }
-    val client = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).writeTimeout(15, TimeUnit.SECONDS)
-      .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(true).protocols(listOf(okhttp3.Protocol.HTTP_1_1))
-      .eventListenerFactory {diagnostics?.let {ShareNetworkListener(it.timings)} ?: EventListener.NONE}
-      .addNetworkInterceptor {chain -> if (!active) throw CancellationException("Share dismissed"); chain.proceed(chain.request())}.build()
-    val request = client.newCall(Request.Builder().url(URL(URL(base), "/v1/bookmark/add_url"))
-      .header("Content-Type", "application/json").header("Authorization", "Bearer $token").header("User-Agent", "SlaxReader/Android $version").post(payload).build())
+    val request = ShareSaveTransport(
+      listener = diagnostics?.let {ShareNetworkListener(it.timings)} ?: EventListener.NONE,
+      onResponse = {code, body, cfRay -> diagnostics?.stage("response"); diagnostics?.http(code, body, cfRay)},
+      onFailure = {diagnostics?.failure(it)},
+      onCreateFinished = {diagnostics?.requestFinished()},
+    )
     synchronized(requestMutex) {
       if (!active) {request.cancel(); throw CancellationException("Share dismissed")}
       connection = request
     }
-    var response: Response? = null
     try {
-      if (!active) throw CancellationException("Share dismissed")
-      response = request.execute()
-      if (!active) throw CancellationException("Share dismissed")
-      diagnostics?.stage("response")
-      val code = response.code
-      val cfRay = response.header("CF-Ray")
-      diagnostics?.http(code, null, cfRay)
-      val result = when (code) {
-        200, 204 -> "ok"
-        401 -> "Auth expired, please reopen the app to login again."
-        400 -> response.body?.byteStream()?.bufferedReader()?.use {reader -> runCatching {JSONObject(reader.readText().also {diagnostics?.http(code, it, cfRay)}).optString("message")}.onFailure {if (it is java.io.IOException) diagnostics?.failure(it)}.getOrNull()}?.takeIf {it.isNotBlank()} ?: "Collection failed, please try again."
-        else -> "Collection failed, please try again."
-      }
-      diagnostics?.reason(when (code) {200, 204 -> "success"; 401 -> "http_401"; 400 -> "http_400"; 429 -> "http_429"; in 500..599 -> "http_5xx"; else -> "http_other"})
-      report(result == "ok", version, (System.nanoTime() - start) / 1_000_000.0)
-      return result
+      val result = request.save(base, token, version, url, intent.getStringExtra(Intent.EXTRA_SUBJECT))
+      diagnostics?.reason(result.reason)
+      report(result.message == "ok", version, (System.nanoTime() - start) / 1_000_000.0)
+      return result.message
     } catch (error: Exception) {report(false, version, null); throw error}
-    finally {request.cancel(); runCatching {response?.close()}; client.connectionPool.evictAll(); synchronized(requestMutex) {if (connection === request) connection = null}}
+    finally {request.cancel(); synchronized(requestMutex) {if (connection === request) connection = null}}
   }
   private fun report(success: Boolean, version: String, duration: Double?) {
     if (!active) return
@@ -166,8 +135,7 @@ class ShareActivity : Activity() {
     }
   }
   private fun cancelRequest() {
-    val request = synchronized(requestMutex) {active = false; diagnostics?.finish(); connection.also {connection = null}}
-    request?.cancel()
+    synchronized(requestMutex) {active = false; connection?.cancel(); diagnostics?.finish(); connection = null}
   }
   private fun dismiss() {if (!active || isFinishing) return; cancelRequest(); card.animate().translationY(card.height.toFloat()).setDuration(250).withEndAction {finish()}.start()}
   override fun onDestroy() {cancelRequest(); main.removeCallbacksAndMessages(null); executor.shutdownNow(); diagnostics?.shutdown(); super.onDestroy()}

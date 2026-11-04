@@ -40,9 +40,71 @@ final class ShareNetworkMetrics: @unchecked Sendable {
   }
 }
 
-final class ShareRequestDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
-  private let metrics: ShareNetworkMetrics
-  init(metrics: ShareNetworkMetrics) { self.metrics = metrics }
+final class ShareRequestDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+  private let lock = NSLock()
+  private let metrics: ShareNetworkMetrics?
+  private let statusOnly: Bool
+  private var session: URLSession?
+  private var continuation: CheckedContinuation<(data: Data, response: HTTPURLResponse, error: Error?), Error>?
+  private var deadline: DispatchWorkItem?
+  private var response: HTTPURLResponse?
+  private var data = Data()
+  private var finished = false
+  init(metrics: ShareNetworkMetrics? = nil, statusOnly: Bool = false) { self.metrics = metrics; self.statusOnly = statusOnly }
+  func send(_ request: URLRequest, budget: TimeInterval) async throws -> (data: Data, response: HTTPURLResponse, error: Error?) {
+    try await withTaskCancellationHandler(operation: {
+      try Task.checkCancellation()
+      return try await withCheckedThrowingContinuation { start(request, budget: budget, continuation: $0) }
+    }, onCancel: { self.finish(error: CancellationError(), cancelled: true) })
+  }
+  private func start(_ request: URLRequest, budget: TimeInterval, continuation: CheckedContinuation<(data: Data, response: HTTPURLResponse, error: Error?), Error>) {
+    lock.lock()
+    guard !finished else { lock.unlock(); continuation.resume(throwing: CancellationError()); return }
+    self.continuation = continuation
+    let configuration = URLSessionConfiguration.ephemeral
+    if #available(iOS 18.4, macOS 15.4, *) { configuration.usesClassicLoadingMode = false }
+    configuration.timeoutIntervalForRequest = budget; configuration.timeoutIntervalForResource = budget
+    let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+    self.session = session
+    let task = session.dataTask(with: request)
+    let deadline = DispatchWorkItem { [weak self] in self?.finish(error: URLError(.timedOut)) }
+    self.deadline = deadline
+    DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + budget, execute: deadline)
+    task.resume()
+    lock.unlock()
+  }
+  private func finish(error: Error? = nil, cancelled: Bool = false) {
+    lock.lock()
+    guard !finished else { lock.unlock(); return }
+    finished = true
+    let continuation = self.continuation; self.continuation = nil
+    let session = self.session; self.session = nil
+    deadline?.cancel(); deadline = nil
+    let response = self.response, data = self.data
+    lock.unlock()
+    metrics?.complete()
+    session?.invalidateAndCancel()
+    if cancelled { continuation?.resume(throwing: CancellationError()) }
+    else if let response { continuation?.resume(returning: (data, response, [200, 204].contains(response.statusCode) ? nil : error)) }
+    else { continuation?.resume(throwing: error ?? URLError(.badServerResponse)) }
+  }
+  func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+    lock.lock()
+    guard !finished, let response = response as? HTTPURLResponse else {
+      lock.unlock(); completionHandler(.cancel); finish(error: URLError(.badServerResponse)); return
+    }
+    self.response = response
+    let accepted = statusOnly || [200, 204].contains(response.statusCode)
+    lock.unlock()
+    if accepted { finish(); completionHandler(.cancel) }
+    else { completionHandler(.allow) }
+  }
+  func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+    lock.lock(); defer { lock.unlock() }
+    guard !finished else { return }
+    self.data.append(data)
+  }
+  func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) { finish(error: error) }
   func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) { completionHandler(nil) }
-  func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) { self.metrics.receive(metrics) }
+  func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) { self.metrics?.receive(metrics) }
 }

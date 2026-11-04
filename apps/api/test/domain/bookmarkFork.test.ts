@@ -47,6 +47,57 @@ describe('Fork service publication boundary', () => {
     })
   })
 
+  it('checks an authorized destination without readiness checks or write side effects', async () => {
+    repo.destinationReceipt = vi.fn().mockResolvedValue(true)
+    repo.destination = vi.fn()
+    repo.admit = vi.fn()
+    const get = vi.spyOn(bucket.bucket, 'get')
+    expect(await service.saveReceipt(ctx, source.uuid)).toBe(true)
+    expect(repo.source).toHaveBeenCalledWith(2, source.uuid)
+    expect(repo.destinationReceipt).toHaveBeenCalledWith(2, source.bookmark.target_url)
+    expect(repo.destination).not.toHaveBeenCalled()
+    expect(repo.existing).not.toHaveBeenCalled()
+    expect(repo.admit).not.toHaveBeenCalled()
+    expect(repo.publish).not.toHaveBeenCalled()
+    expect(get).not.toHaveBeenCalled()
+    expect(effects).not.toHaveBeenCalled()
+  })
+
+  it('uses the receiving owner PDF identity for a receipt', async () => {
+    source.metadata = { pdf_document_id: 'a'.repeat(64) }
+    source.bookmark.target_url = `slax-pdf://1/${'a'.repeat(64)}`
+    repo.destinationReceipt = vi.fn().mockResolvedValue(true)
+    expect(await service.saveReceipt(ctx, source.uuid)).toBe(true)
+    expect(repo.destinationReceipt).toHaveBeenCalledWith(2, `slax-pdf://2/${'a'.repeat(64)}`)
+    expect(repo.existing).not.toHaveBeenCalled()
+  })
+
+  it('does not confirm a saved destination if source access was revoked', async () => {
+    repo.source.mockResolvedValue(null)
+    repo.destinationReceipt = vi.fn().mockResolvedValue(true)
+    expect(await service.saveReceipt(ctx, source.uuid)).toBe(false)
+    expect(repo.destinationReceipt).not.toHaveBeenCalled()
+  })
+
+  it.each(['pending', 'parseing', 'failed'])('confirms an own active %s source but never restores trash', async status => {
+    source.user_id = 2
+    source.bookmark.private_user = 2
+    source.bookmark.status = status
+    repo.ownSource = vi.fn()
+    expect(await service.saveReceipt(ctx, source.uuid)).toBe(true)
+    source.deleted_at = new Date()
+    expect(await service.saveReceipt(ctx, source.uuid)).toBe(false)
+    expect(repo.ownSource).not.toHaveBeenCalled()
+  })
+
+  it('propagates source and destination database errors', async () => {
+    const failure = new Error('database unavailable')
+    repo.source.mockRejectedValueOnce(failure)
+    await expect(service.saveReceipt(ctx, source.uuid)).rejects.toBe(failure)
+    repo.destinationReceipt = vi.fn().mockRejectedValue(failure)
+    await expect(service.saveReceipt(ctx, source.uuid)).rejects.toBe(failure)
+  })
+
   it('applies the acquisition gate to the resolved podcast kind', async () => {
     ;(service as any).media.copyForFork.mockResolvedValue({ ref: { media_kind: 'podcast', source_id: 'episode', source_hash: 'hash' } })
     ;(service as any).labs.assertEnabled.mockRejectedValue(new Error('Podcast Labs disabled'))

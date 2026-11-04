@@ -331,6 +331,23 @@ export class BookmarkController {
     return Successed(res)
   }
 
+  @Post('/save_receipt')
+  public async handleUserBookmarkSaveReceiptRequest(ctx: ContextManager, request: Request) {
+    const req = await RequestUtils.json<AddUrlBookmarkRequest>(request).catch(() => null)
+    if (!req || typeof req.target_url !== 'string' || !req.target_url.trim()) return Failed(ErrorParam())
+
+    let targetUrl = req.target_url
+    if (!targetUrl.startsWith('https://') && !targetUrl.startsWith('http://')) targetUrl = 'https://' + targetUrl
+    try {
+      new URL(targetUrl)
+    } catch {
+      return Failed(ErrorParam())
+    }
+
+    const saved = await this.bookmarkService.saveReceipt(ctx, targetUrl)
+    return new Response(null, { status: saved ? 204 : 404, headers: { 'Cache-Control': 'private, no-store' } })
+  }
+
   /**
    * 判断收藏是否存在
    */

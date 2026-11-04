@@ -274,6 +274,14 @@ export class BookmarkForkService {
     return { bookmark_uid: relation.uuid, bookmark_id: relation.bookmark_id, disposition }
   }
 
+  async saveReceipt(ctx: ContextManager, sourceUuid: string): Promise<boolean> {
+    const userId = ctx.getUserId()
+    const source = await this.repo.source(userId, sourceUuid)
+    if (!source) return false
+    if (source.user_id === userId) return !source.deleted_at && [userId, 0].includes(source.bookmark.private_user)
+    return this.repo.destinationReceipt(userId, this.destinationUrl(source, userId))
+  }
+
   /** Read-only Reader-tab resolution; opening the extension never restores or creates a save. */
   async lookup(ctx: ContextManager, sourceUuid: string) {
     const source = await this.repo.source(ctx.getUserId(), sourceUuid)

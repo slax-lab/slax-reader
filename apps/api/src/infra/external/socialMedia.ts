@@ -494,7 +494,7 @@ export class SocialMediaApi {
   /**
    * 获取Twitter帖子详情
    */
-  public static async fetchTwitter(env: Env, tweetIds: string[]): Promise<TweetInfo[]> {
+  public static async fetchTwitter(env: Env, tweetIds: string[], signal?: AbortSignal): Promise<TweetInfo[]> {
     const url = new URL('https://api.twitterapi.io/twitter/tweets')
     url.searchParams.append('tweet_ids', tweetIds.join(','))
 
@@ -503,7 +503,8 @@ export class SocialMediaApi {
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': env.APIFY_API_TOKEN
-      }
+      },
+      ...(signal ? { signal } : {})
     })) as Response
 
     if (!resp.ok) {

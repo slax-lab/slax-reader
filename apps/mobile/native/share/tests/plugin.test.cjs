@@ -146,7 +146,7 @@ test('standalone share files retain preprocessing and App Group without Firebase
     assert.doesNotMatch(collector, /Firebase|Analytics|GoogleService-Info/);
     assert.match(collector, /SharedPreferences\.read/);
     assert.match(collector, /\/v1\/bookmark\/add_url/);
-    for (const name of ['ShareDiagnosticRecord.swift', 'ShareDiagnostics.swift', 'ShareNetworkMetrics.swift']) {
+    for (const name of ['ShareCollector.swift', 'ShareDiagnosticRecord.swift', 'ShareDiagnostics.swift', 'ShareNetworkMetrics.swift']) {
       assert.equal(fs.readFileSync(path.join(output, 'SlaxShare', name), 'utf8'), fs.readFileSync(path.join(root, 'native/share/ios', name), 'utf8'));
     }
     assert.equal(fs.existsSync(path.join(output, 'SlaxShare/GoogleService-Info.plist')), false);
