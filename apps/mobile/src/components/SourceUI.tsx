@@ -37,10 +37,14 @@ export function SourceButton({label, onPress, disabled, busy, destructive, testI
   style?: StyleProp<ViewStyle>; textStyle?: StyleProp<TextStyle>; tone?: 'accent' | 'surface' | 'rss';
 }) {
   const color = tone === 'surface' ? C.surface : tone === 'rss' ? C.rssAccent : C.accent;
+  const radius = StyleSheet.flatten(style)?.borderRadius ?? styles.button.borderRadius;
   return <Pressable accessibilityRole="button" accessibilityState={{disabled: Boolean(disabled), busy: Boolean(busy)}} testID={testID} disabled={disabled || busy} onPress={onPress}
-    style={({pressed}) => [styles.button, {backgroundColor: disabled ? C.disabledBackground : pressed ? tone === 'accent' ? C.accentPressed : C.pressedOverlay : color}, style]}>
-    {busy ? <ActivityIndicator size="small" color={destructive ? C.danger : tone === 'surface' ? C.text : C.surface} /> :
-      <SourceText style={[T.button, {color: disabled ? C.mutedText : destructive ? C.danger : tone === 'surface' ? C.text : C.surface}, textStyle]}>{label}</SourceText>}
+    style={({pressed}) => [styles.button, {backgroundColor: disabled ? C.disabledBackground : pressed && tone !== 'accent' ? C.pressedOverlay : color}, style]}>
+    {({pressed}) => <>
+      {pressed && tone === 'accent' && !disabled && !busy ? <View testID={testID ? `${testID}-pressed-overlay` : undefined} pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[StyleSheet.absoluteFill, {backgroundColor: C.pressedOverlay, borderRadius: radius}]} /> : null}
+      {busy ? <ActivityIndicator size="small" color={destructive ? C.danger : tone === 'surface' ? C.text : C.surface} /> :
+        <SourceText style={[T.button, {color: disabled ? C.mutedText : destructive ? C.danger : tone === 'surface' ? C.text : C.surface}, textStyle]}>{label}</SourceText>}
+    </>}
   </Pressable>;
 }
 export function TextAction({label, onPress, disabled, color = C.accent, testID, style}: {label: string; onPress(): void; disabled?: boolean; color?: string; testID?: string; style?: StyleProp<TextStyle>}) {

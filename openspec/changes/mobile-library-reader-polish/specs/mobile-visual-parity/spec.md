@@ -158,3 +158,16 @@ Collection and RSS source items SHALL use intrinsic name widths with a minimum i
 - **WHEN** the user selects another source or increases system text size
 - **THEN** selection changes the current label weight without moving items, and scaled names retain the 72-point cap
 - **AND** source avatars, native horizontal scrolling and article selection behavior remain intact
+
+### Requirement: Accent buttons preserve palette-compatible pressed feedback
+
+Enabled primary accent buttons SHALL retain visible pressed feedback by applying the existing neutral pressed overlay over their #16B998 base fill. The overlay SHALL preserve effective corner geometry, remain outside layout/hit testing/accessibility, and disappear on release or cancellation. Disabled and busy buttons SHALL NOT display enabled press feedback. Existing callbacks, cancellation semantics, label/spinner presentation and non-accent tones SHALL remain intact.
+
+#### Scenario: A primary accent button is pressed or cancelled
+- **WHEN** the user presses an enabled accent button
+- **THEN** a visible neutral overlay shades the unchanged green fill without moving content
+- **AND** release invokes the existing action once, while cancellation removes the overlay without activation
+
+#### Scenario: A primary button is busy or disabled
+- **WHEN** the primary button is busy or disabled
+- **THEN** it retains its existing disabled/spinner presentation without enabled press feedback or action dispatch

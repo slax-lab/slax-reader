@@ -81,3 +81,7 @@ The owner approved implementing adaptive Collection and RSS item widths in the m
 ## Pre-PR owner acceptance
 
 On 2026-11-03, the owner confirmed local hands-on acceptance after the accumulated Library, Search, Settings, Reader/annotation, feedback-keyboard and adaptive-source refinements: “本地看过，大概没什么问题了”. They explicitly authorized review and then a draft PR. The small review correction keeps the Debug environment checkmark visible against the normalized green selection background, using the existing primary text color. The change remains scoped to Mobile and the approved portable reader assets.
+
+## CI review repair (2026-11-04)
+
+The owner requested repairing PR #493's failing checks. The published-source pin resolves the bridge provenance gate. The next review identified the unintended loss of existing primary-button press feedback during green normalization. Restore that existing behavior with the neutral pressed overlay over #16B998, preserving geometry, actions, cancellation and disabled/busy presentation. This is a correction within the approved Mobile palette/interaction scope rather than a new button design.

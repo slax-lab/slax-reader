@@ -90,6 +90,13 @@ Implementation for 2.1–2.5 is complete. Their remaining native acceptance comb
 - [x] 3I.2 Implement stable intrinsic label sizing across selection, preserving existing typography, avatars and native scrolling.
 - [x] 3I.3 Run Mobile checks/bundles, native iOS/Android layout and selection verification, strict specs and preservation audit; record evidence.
 
+## 3J. Automated-review follow-up
+
+- [x] 3J.1 Pin bridge provenance to the published upstream commit and reproduce identical shipped bytes from its 38 committed inputs.
+- [x] 3J.2 Restore primary accent-button pressed feedback with a neutral overlay while preserving #16B998, geometry, disabled/busy states and callbacks; reproduce the collapse in mounted regression tests first.
+- [x] 3J.3 Verify native Android press/cancel rendering, Mobile checks/bundles and preservation of unrelated uncommitted work; record the native iOS follow-up gap.
+- [ ] 3J.4 Confirm the fresh remote review verdict after the follow-up push.
+
 ## 4. Verification and delivery
 
 The main-checkout code is available for local inspection. The earlier copy-link evidence is historical and superseded; restored native sharing needs fresh exercise. Task 1.2 remains open for the unavailable non-subscriber baseline measurement.

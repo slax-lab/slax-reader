@@ -104,3 +104,7 @@ Use the installed React Native KeyboardAvoidingView height behavior on Android f
 ## Adaptive Collection and RSS source widths
 
 Use intrinsic name sizing with a 38-point minimum item width, a 72-point name cap and 22-point flex gaps. Keep the 32-point avatar inside its existing 38-point selection clearance. Reserve label width at weight 500 using the platform text renderer and paint the current 400/500 label in that frame, so selection cannot resize or move adjacent items. The measurement is hidden from accessibility and pointer input. Reuse SourceLine on both platforms and both source strips; preserve middle truncation, increased text scale, avatar component identity and native scrolling. Native verification must include short and long names, selection and horizontal scrolling on both platforms.
+
+## Palette-compatible primary button feedback
+
+The palette normalization must retain enabled accent-button press feedback. Keep the authored #16B998 fill and paint the existing #00000014 pressed overlay over it while pressed. The overlay inherits the effective corner radius, is absolute and noninteractive, is hidden from accessibility, and disappears on release/cancellation. Busy/disabled controls never paint enabled feedback. Preserve existing action callbacks, spinner/label states, geometry and non-accent presentation. Remove the collapsed accentPressed token rather than introducing a second green RGB value. This restores the existing primary-button contract identified by automated review.

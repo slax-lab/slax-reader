@@ -8,7 +8,6 @@ export const mobileColors = {
   mutedText: '#999999',
   secondaryText: '#333333CC',
   accent: '#16B998',
-  accentPressed: '#16B998',
   danger: '#F45454',
   validationError: '#E53935',
   warning: '#F3B336',
