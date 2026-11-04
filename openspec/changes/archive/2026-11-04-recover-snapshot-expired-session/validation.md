@@ -82,3 +82,37 @@ This records post-implementation hands-on acceptance separately from the earlier
 ## PR delivery
 
 Created [PR #505](https://github.com/slax-lab/slax-reader/pull/505) targeting `dev` after the requester confirmed hands-on acceptance. Verified the published body contains `OpenSpec: recover-snapshot-expired-session`, the validation evidence link, and the uploaded recovery recording. The PR is mergeable and awaits the normal CI/reviewer gates; no merge or pre-merge archive was performed.
+
+## Archive outcome
+
+Archived on 2026-11-04 from the merged `dev` state at commit `6858f06` (merge of [PR #505](https://github.com/slax-lab/slax-reader/pull/505)) with the pinned CLI:
+
+```sh
+npx --yes @fission-ai/openspec@1.13.1 archive recover-snapshot-expired-session --yes
+```
+
+The command reported `Task status: ✓ Complete`, archived the change as `2026-11-04-recover-snapshot-expired-session`, and created the living specification `openspec/specs/snapshot-session-recovery/spec.md` with 4 added requirements and their scenarios (`+4, ~0, -0, →0`).
+
+### Task classification
+
+All tasks were already checked off in `tasks.md`, and each is backed by evidence in this file; none were checked off during archiving and none remain unchecked:
+
+- 1.1–1.2 (regression coverage): red-phase loader and page recovery failures plus passing regression suites recorded under Automated checks.
+- 2.1–2.3 (content boundary and page recovery): implementation verified by the Web suite, cache-isolation/PDF cases, and the 13 running-browser scenarios.
+- 3.1–3.2 (verification): recorded automated command outcomes and the running-browser exercise.
+- 3.3 (human acceptance): requester acceptance on 2026-11-04, including the port 3000 adjustment.
+- 3.4 (review and PR reference): completed local review passes and the merged PR body's `OpenSpec: recover-snapshot-expired-session` reference.
+
+### Archive ordering
+
+`npx --yes @fission-ai/openspec@1.13.1 list --json` was inspected. No other active change carries a delta for the `snapshot-session-recovery` capability, and this change declares no archive-order dependency, so no sequencing constraint applies. The related `legacy-session-logout` change owns a different capability (`web-session-termination`) and does not modify this specification.
+
+### Post-archive validation
+
+- `npx --yes @fission-ai/openspec@1.13.1 validate --all --strict`: passed.
+- `git add -A` then `git diff --cached --check`: passed.
+- The staged diff contains only the dated archive, the new living specification, and this evidence update.
+
+### Preserved gaps
+
+The verification limits recorded above remain historical declarations, not completed work: production deployment, real signed-token validation, real API/PowerSync connectivity, and non-Web platform behavior were not exercised by this Web-only change. They do not block archiving because the shipped behavior was exercised in the running Web runtime and human hands-on acceptance was recorded.
