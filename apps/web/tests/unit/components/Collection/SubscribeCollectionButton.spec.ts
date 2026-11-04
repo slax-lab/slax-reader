@@ -1,7 +1,7 @@
 import { mountWithApp } from '../../../setup/mount'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // useUserStore（upstream layer alias）—— 同步工厂返回可控 store
 const { useUserStoreMock } = vi.hoisted(() => ({ useUserStoreMock: vi.fn() }))
@@ -31,6 +31,9 @@ mockNuxtImport('useRequestURL', () => () => ({ href: 'https://example.com/c/test
 mockNuxtImport('useRoute', () => () => ({ query: {} }))
 mockNuxtImport('navigateTo', () => vi.fn())
 
+const { eventLog } = vi.hoisted(() => ({ eventLog: vi.fn() }))
+mockNuxtImport('eventLog', () => eventLog)
+
 const makeStore = (overrides = {}) => ({
   userInfo: undefined,
   getUserInfo: vi.fn().mockResolvedValue(null),
@@ -40,6 +43,8 @@ const makeStore = (overrides = {}) => ({
 const importBtn = async () => (await import('~~/app/components/Collection/SubscribeCollectionButton.vue')).default
 
 describe('SubscribeCollectionButton', () => {
+  beforeEach(() => { vi.clearAllMocks(); sessionStorage.clear() })
+  afterEach(() => { sessionStorage.clear(); vi.useRealTimers() })
   it('renders the visitor button (accent) when not subscribed', async () => {
     useUserStoreMock.mockReturnValue(makeStore())
     const Btn = await importBtn()
@@ -103,4 +108,57 @@ describe('SubscribeCollectionButton', () => {
     await flushPromises()
     expect(postMock).toHaveBeenCalled()
   })
+  it('counts intent before authentication lookup and passes the originating collection into the modal', async () => {
+    const { showLoginModal } = await import('~/components/Modal')
+    const store = makeStore()
+    useUserStoreMock.mockReturnValue(store)
+    const Btn = await importBtn()
+    const wrapper = mountWithApp(Btn, { props: { collectionCode: 'Collection123', subscribed: false } })
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(eventLog).toHaveBeenCalledExactlyOnceWith({ event_name: 'element_clicked', properties: { screen_name: 'collection', element_id: 'collection_subscribe_button', collection_id: 'Collection123' } })
+    expect(eventLog.mock.invocationCallOrder[0]).toBeLessThan(store.getUserInfo.mock.invocationCallOrder[0]!)
+    expect(showLoginModal).toHaveBeenCalledWith({ redirect: 'https://example.com/c/test-code?subscribe_after_login=1', authAttribution: { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } })
+    wrapper.unmount()
+  })
+
+  it('does not count a second intent while a logged-in subscription is busy', async () => {
+    let finish!: (value: { subscribe: boolean }) => void
+    requestMock.mockReturnValue({ post: vi.fn(() => new Promise(resolve => { finish = resolve })) })
+    useUserStoreMock.mockReturnValue(makeStore({ getUserInfo: vi.fn().mockResolvedValue({ id: 1 }) }))
+    const Btn = await importBtn()
+    const wrapper = mountWithApp(Btn, { props: { collectionCode: 'Collection123', subscribed: false } })
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    await wrapper.get('button').trigger('click')
+    expect(eventLog).toHaveBeenCalledTimes(1)
+    finish({ subscribe: false })
+    await flushPromises()
+    wrapper.unmount()
+  })
+
+  it('resumes a pending subscription after login without inventing another click', async () => {
+    const post = vi.fn().mockResolvedValue({ subscribe: false })
+    requestMock.mockReturnValue({ post })
+    useUserStoreMock.mockReturnValue(makeStore({ userInfo: { id: 1 } }))
+    sessionStorage.setItem('slax_subscribe_after_login', JSON.stringify({ code: 'Collection123', referrer: '' }))
+    const Btn = await importBtn()
+    const wrapper = mountWithApp(Btn, { props: { collectionCode: 'Collection123', subscribed: false } })
+    await flushPromises()
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(eventLog).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('never treats unsubscribe as subscription intent', async () => {
+    requestMock.mockReturnValue({ post: vi.fn().mockRejectedValue(new Error('fixture failure')) })
+    useUserStoreMock.mockReturnValue(makeStore())
+    const Btn = await importBtn()
+    const wrapper = mountWithApp(Btn, { props: { collectionCode: 'Collection123', subscribed: true } })
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(eventLog).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
 })

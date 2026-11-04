@@ -6,11 +6,18 @@
 </template>
 
 <script lang="ts" setup>
+import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
+import type { PropType } from 'vue'
+
 const t = (text: string) => {
   return useNuxtApp().$i18n.t(text)
 }
 
 const props = defineProps({
+  authAttribution: {
+    type: Object as PropType<CollectionAuthAttribution>,
+    required: false
+  },
   redirect: {
     type: String,
     require: false,
@@ -25,6 +32,12 @@ const props = defineProps({
 const auth = useAuth()
 
 const loginClick = async () => {
+  if (props.authAttribution) {
+    eventLog({
+      event_name: 'element_clicked',
+      properties: { screen_name: 'signup', element_id: 'login_google_button', ...props.authAttribution }
+    })
+  }
   analyticsLog({
     event: 'user_login_start',
     method: 'google'
@@ -37,7 +50,11 @@ const loginClick = async () => {
 }
 
 const login = async (params?: { redirect?: string; affcode?: string }) => {
-  await auth.requestAuth({ redirect: params?.redirect || props.redirect, affCode: params?.affcode || (props.affcode as string) || '' })
+  await auth.requestAuth({
+    redirect: params?.redirect || props.redirect,
+    affCode: params?.affcode || (props.affcode as string) || '',
+    ...(props.authAttribution ? { authAttribution: props.authAttribution } : {})
+  })
 }
 
 defineExpose({

@@ -10,16 +10,18 @@ import { flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockAnalyticsLog, mockRequestAuth, mockUseAuth } = vi.hoisted(() => {
+const { mockAnalyticsLog, mockEventLog, mockRequestAuth, mockUseAuth } = vi.hoisted(() => {
   const mockRequestAuth = vi.fn(() => Promise.resolve())
   return {
     mockAnalyticsLog: vi.fn(),
+    mockEventLog: vi.fn(),
     mockRequestAuth,
     mockUseAuth: vi.fn(() => ({ requestAuth: mockRequestAuth }))
   }
 })
 
 mockNuxtImport('analyticsLog', () => mockAnalyticsLog)
+mockNuxtImport('eventLog', () => mockEventLog)
 mockNuxtImport('useAuth', () => mockUseAuth)
 
 describe('GoogleLoginButton', () => {
@@ -78,4 +80,21 @@ describe('GoogleLoginButton', () => {
       affCode: 'def'
     })
   })
+  it('records a contextual click before OAuth navigation and passes collection provenance', async () => {
+    const authAttribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } as const
+    const wrapper = mountWithApp(GoogleLoginButton, { props: { redirect: '/c/Collection123', authAttribution } })
+    await wrapper.get('button').trigger('click')
+    expect(mockEventLog).toHaveBeenCalledExactlyOnceWith({ event_name: 'element_clicked', properties: { screen_name: 'signup', element_id: 'login_google_button', ...authAttribution } })
+    expect(mockRequestAuth).toHaveBeenCalledWith({ redirect: '/c/Collection123', affCode: '', authAttribution })
+    expect(mockEventLog.mock.invocationCallOrder[0]).toBeLessThan(mockRequestAuth.mock.invocationCallOrder[0]!)
+    wrapper.unmount()
+  })
+
+  it('leaves normal login first-party clicks to the existing route listener', async () => {
+    const wrapper = mountWithApp(GoogleLoginButton, { props: { redirect: '/bookmarks' } })
+    await wrapper.get('button').trigger('click')
+    expect(mockEventLog).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
 })
