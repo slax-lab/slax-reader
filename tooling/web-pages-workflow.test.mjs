@@ -69,7 +69,7 @@ test('trigger and freshness scopes agree and tooling CI covers release workflow 
   assert.ok(!paths.some(path => path.startsWith('apps/api/') || path.startsWith('apps/extension/') || path.startsWith('docs/')))
   const tooling = load(readFileSync(new URL('../.github/workflows/tooling-ci.yml', import.meta.url), 'utf8'))
   assert.deepEqual(Object.keys(tooling.on).sort(), ['pull_request', 'workflow_call'])
-  assert.equal(tooling.on.pull_request, null)
+  assert.deepEqual(tooling.on.pull_request, { types: ['opened', 'synchronize', 'reopened', 'ready_for_review'] })
   assert.equal(selectScopes(['.github/workflows/web-deploy.yml']).scopes.tooling, true)
   assert.ok(tooling.jobs.check.steps.some(step => step.run === 'pnpm test:preflight'))
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))

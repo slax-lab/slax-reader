@@ -8,6 +8,9 @@ On archive pull request #499, the human `ready_for_review` action started PR Rev
 
 - Before the workflow edits, `node --test tooling/ci-workflow.test.mjs` failed two tests as expected: the new assertion required four explicit activities but observed `pull_request: null`.
 - After the workflow edits, the same focused command passed 13/13 tests.
+- The first draft-PR run also exposed two legacy assertions in `extension-release-workflow.test.mjs` and `web-pages-workflow.test.mjs`; both now require the same four-event contract.
+- `pnpm test:preflight` passed 104 tests with 2 environment-dependent skips.
+- `pnpm test:extension-tooling` passed 18/18 tests.
 - `pnpm test:ci` passed 87/87 tests.
 - `pnpm agent:check` passed: rulesync doctor and generation check, 102/102 OpenSpec strict validations, and gh-aw compiled-output drift check.
 - `git diff --check` passed.
@@ -18,6 +21,6 @@ Pending: create the task pull request as a draft, then have the task author clic
 
 ## Pre-push review
 
-- Bugs: no Important findings. The diff only adds the missing event to the six existing triggers and tightens their shared contract test; scope selection and gate jobs are unchanged.
+- Bugs: no Important findings. The diff only adds the missing event to the six existing triggers and updates the affected workflow assertions; scope selection and gate jobs are unchanged.
 - Security: no Important findings. No credentials, permissions, dependencies, or additional network access were introduced.
 - Compliance: no Important findings. The implementation matches `start-archive-ci-on-ready`; the real `ready_for_review` exercise is explicitly pending above and is required by task 3.3 before merge.
