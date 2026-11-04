@@ -1270,6 +1270,7 @@
       "subscription_stripe_portal": "Stripe 客户中心",
       "telegram": "Telegram",
       "telegram_channel": "Telegram Channel",
+      "contact_email": "联系邮箱",
       "twitter": "Twitter",
       "third_party_binding": "第三方绑定",
       "update_account_error": "更新账户失败",

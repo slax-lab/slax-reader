@@ -81,6 +81,7 @@
             <div class="settings-card">
               <div class="support">
                 <NavigateStyleButton :title="$t('page.user.telegram_channel')" @action="navigateToTelegramChannel" />
+                <NavigateStyleButton :title="`${$t('page.user.contact_email')}: ${contactEmail}`" @action="navigateToContactEmail" />
               </div>
             </div>
             <UserDeleteAccountSection v-if="userInfo" />
@@ -293,6 +294,11 @@ const feedbackClick = () => {
 
 const navigateToTelegramChannel = () => {
   window.open(`https://t.me/slax_app`)
+}
+
+const contactEmail = 'reader@slax.com'
+const navigateToContactEmail = () => {
+  window.location.href = `mailto:${contactEmail}`
 }
 
 const aiResponseLanguageSelect = async (index: number) => {
@@ -540,6 +546,7 @@ const localeSelect = async (index: number) => {
 
 // 帮助支持
 .support {
+  --style: flex flex-col gap-12px;
   margin-top: 0;
 }
 </style>
