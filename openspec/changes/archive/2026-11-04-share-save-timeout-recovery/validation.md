@@ -61,3 +61,12 @@ The independent Bugs, Security, and Compliance review and its final follow-up fo
 ## Delivery boundary
 
 Make the additive API receipt route available before distributed clients depend on it. A missing route gives bounded timeout feedback, not false success or an automatic create retry. The version/build increment can trigger the repository's existing EAS build/auto-submit workflow after a qualifying dev merge. Opening this PR does not merge, deploy, sign, upload, or publish the app.
+
+## Archive record
+
+- Archived on 2026-11-04 as `openspec/changes/archive/2026-11-04-share-save-timeout-recovery` after task PR #509 merged into `dev` (merge commit `fe0bc43`). Archive source: #509.
+- Task classification: all 17 tasks were already checked with recorded evidence in this file; no unchecked task remained, so no task was checked off, narrowed, or dropped during archiving. Verified against the merged `dev` state: `apps/api/src/handler/http/bookmarkController.ts` registers `@Post('/save_receipt')` with the generated route in `apps/api/src/di/generated/readerRouter.ts`, and `apps/mobile/package.json` holds `1.0.28` / `800` / `799`.
+- Capability check: `mobile-share-save-recovery` is new; no other active change carried a delta for it, so no archive ordering constraint applied and no other delta was overwritten.
+- Spec update: `npx --yes @fission-ai/openspec@1.13.1 archive share-save-timeout-recovery --yes` created `openspec/specs/mobile-share-save-recovery/spec.md` with 7 added requirements (create, 0 modified, 0 removed) and moved the change into the archive.
+- Validation: `npx --yes @fission-ai/openspec@1.13.1 validate --all --strict` passed, and `git diff --cached --check` reported no whitespace errors.
+- Accepted gaps carried forward unchanged: no native build, device, or manual UI acceptance was performed (owner-approved automated gate); iOS 16.4–18.3 header-delivery behavior was not device-tested; the earlier full API run's runner timeout and the unresolved expanded-runtime 500 assertion remain disclosed and are not claimed as passing evidence.
