@@ -9,7 +9,7 @@
 
 - [x] 2.1 Verify TypeScript parsing and transpilation and check the diff for whitespace errors.
 - [x] 2.2 Validate all OpenSpec artifacts with `pnpm exec openspec validate --all --strict` and perform the Bugs, Security, and Compliance passes from `REVIEW.md`.
-- [ ] 2.3 Obtain human review of the proposal and supplied implementation in the pull request before merge.
+- [x] 2.3 Obtain human review of the proposal and supplied implementation in the pull request before merge.
 
 ## Initial four-profile validation
 
