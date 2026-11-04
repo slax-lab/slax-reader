@@ -1,5 +1,14 @@
 # Validation
 
+## Automated-review provenance correction — 2026-11-04
+
+The failing checks on head `7755be17` were `review_verdict` and `PR review gate`, not build/test checks. The automated review raised one Important provenance finding: the minified bridge was pinned only to a base commit plus unpublished working-tree input hashes. This follow-up fixes that record without altering shipped script bytes or Mobile behavior.
+
+The approved bridge source is now published as commit [`5277f31909a66f86ed753c0dd3c43080f2b922c1`](https://github.com/slax-lab/slax-reader-web-bridge/tree/5277f31909a66f86ed753c0dd3c43080f2b922c1) in [Bridge PR #2](https://github.com/slax-lab/slax-reader-web-bridge/pull/2). The manifest now pins that actual source commit and its immutable source URL, replacing the historical uncommitted-source description. All 38 recorded inputs were read from that Git commit, independently hash-checked, and materialized into an isolated build directory. Running the recorded Rollup production command there produced the same 43,145-byte script with SHA-256 `79e73864dc288d03e16ed2cf4968d79bed70f4d47735703f5a89d00dc0b53aab`. Build log: `/tmp/pr493-published-bridge-build.log`. The earlier uncommitted-source statements are historical and superseded by this published pin.
+
+The import and original `previousImport` provenance remain intact. The Mobile embedding generator is rerun through its existing entry point; the generated payload must remain byte-identical because only provenance metadata changed. This metadata/documentation-only correction needs no new native/UI acceptance or version increment. Existing native and owner acceptance evidence remains applicable. Other uncommitted files are protected by `/tmp/pr493-ci-preserved.json`. Focused imported-asset/hash/embedding regression passed (1/1), generator drift verification passed, strict OpenSpec validation passed 100/100, and whitespace checks passed. Local Bugs/Security/Compliance review confirms that the source pin is addressable, all committed input hashes match, and only provenance/documentation changed. All 10 unrelated dirty files and the generated Mobile payload remain byte-identical.
+
+
 ## Draft PR delivery — 2026-11-03
 
 Created [draft PR #493](https://github.com/slax-lab/slax-reader/pull/493) from `fix/mobile-library-reader-polish` to `dev` after owner hands-on acceptance and local review. The implementation commit is `83bb1279`. The two synthetic Android keyboard-visible comment images were uploaded with `gh --attach` and the body references were rewritten to GitHub-hosted assets. The draft remains a draft; no ready-for-review transition, merge or release is requested.

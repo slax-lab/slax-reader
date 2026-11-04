@@ -46,10 +46,10 @@
       "bytes": 43145,
       "transformation": "byte-for-byte from upstream Rollup production build",
       "sourceRepository": "slax-lab/slax-reader-web-bridge",
-      "sourceCommit": "29dceb3437deae03cd8f5eb7656fb183446ab607",
+      "sourceCommit": "5277f31909a66f86ed753c0dd3c43080f2b922c1",
       "license": "MIT",
       "build": {
-        "sourceState": "working tree with approved common preprocessing and native touch-cancellation repair; uncommitted",
+        "sourceState": "published Git commit; rebuilt from its recorded source inputs without working-tree overlays",
         "command": "NODE_OPTIONS=\"--loader ts-node/esm\" node node_modules/rollup/dist/bin/rollup -c rollup.config.ts",
         "inputSha256": {
           "package.json": "2b7cbc8355af3b5162ea11e7d1cfa7b19bea7d2e2066c2f8dc74e6398c66c777",
@@ -98,7 +98,8 @@
         "sha256": "cc943378a1de086b4dfc1c628e50618b187ae515fa256210bf2f51ac26038225",
         "bytes": 132641,
         "transformation": "byte-for-byte"
-      }
+      },
+      "sourceUrl": "https://github.com/slax-lab/slax-reader-web-bridge/tree/5277f31909a66f86ed753c0dd3c43080f2b922c1"
     },
     {
       "path": "html/webview-template.html",
