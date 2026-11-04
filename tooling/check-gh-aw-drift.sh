@@ -2,7 +2,7 @@
 # Fails when the agentic workflows in a commit cannot be reproduced from the
 # sources committed alongside them: the compiled *.lock.yml — and the actions lock
 # gh-aw maintains — must match what those sources compile to. CI enforces the same
-# invariant in agent-config.yml; this copy exists because `pnpm agent:check` and
+# invariant in config-ci.yml; this copy exists because `pnpm agent:check` and
 # the lefthook pre-commit hook have to see the drift locally, where otherwise the
 # only signal was a red PR.
 #
@@ -15,7 +15,7 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-# agent-config.yml pins the CLI that CI compiles with, and that pin is the only
+# config-ci.yml pins the CLI that CI compiles with, and that pin is the only
 # version whose output matches what CI expects. Read it first: both failure
 # messages below need it, and an unreadable pin must not silently skip the check.
 #
@@ -32,9 +32,9 @@ PINNED=$(awk '
     print
     exit
   }
-' .github/workflows/agent-config.yml)
+' .github/workflows/config-ci.yml)
 if [ -z "$PINNED" ]; then
-  echo "Could not read the pinned gh-aw version from .github/workflows/agent-config.yml." >&2
+  echo "Could not read the pinned gh-aw version from .github/workflows/config-ci.yml." >&2
   exit 1
 fi
 INSTALL_HINT="gh extension install github/gh-aw --pin $PINNED"
@@ -72,7 +72,7 @@ fi
 
 # A *full* compile is required: compiling single files does not purge orphaned
 # lock files, so a per-file check would miss exactly the drift that matters.
-# Mirrors the "gh-aw compile drift check" step of agent-config.yml — same flags.
+# Mirrors the "gh-aw compile drift check" step of config-ci.yml — same flags.
 # CI compares only the generated files, because its checkout is clean and the
 # sources it compiles are therefore the committed ones; this script does not have
 # that guarantee, so its path list reaches the compile inputs as well.

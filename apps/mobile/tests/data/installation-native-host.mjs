@@ -16,6 +16,7 @@ function run(command, args) {
 }
 try {
   run(process.env.SLAX_KOTLINC ?? 'kotlinc', ['-include-runtime', '-classpath', json, '-d', jar,
+    fileURLToPath(new URL('../../modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/DatabaseDirectory.kt', import.meta.url)),
     fileURLToPath(new URL('../../modules/slax-legacy/android/src/main/java/com/slax/reader/legacy/InstallationDatabase.kt', import.meta.url)),
     fileURLToPath(new URL('./installation-native-host.kt', import.meta.url))]);
   run(java, ['-cp', [jar, json].join(delimiter), 'com.slax.reader.legacy.Installation_native_hostKt', output]);

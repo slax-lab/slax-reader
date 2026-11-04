@@ -65,11 +65,7 @@ export class PodcastWorkflow extends WorkflowEntrypoint<Env, PodcastWorkflowPara
         settleSnapshots: sourceId => service.settleSnapshots(ctxManager, sourceId),
         translationTargets: (sourceId, original) => service.translationTargets(sourceId, original),
         // One retry: a missed amount lets the site-wide budget gate under-count
-        addCost: usd =>
-          service
-            .addCost(usd)
-            .catch(() => service.addCost(usd))
-            .catch(e => console.error(`podcast cost record failed after a retry: ${e}`))
+        addCost: usd => service.addCost(usd).catch(() => service.addCost(usd))
       },
       event.payload,
       stepLike,

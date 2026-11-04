@@ -16,7 +16,7 @@ Slax Reader is an AI-powered read-it-later app: save web pages, highlight, comme
 
 Observable behavior goes through propose → human review of the proposal → implement → archive after merge. Implementation-only changes (refactors, typos, comment or documentation tweaks) may skip the proposal. Review proposals in conversation or local files, never in a pull request. Run `openspec validate --all --strict` before merge; it must pass.
 
-The author archives through a docs pull request after the task pull request merges, and every `tasks.md` ends with that item. Before archiving, classify every unchecked task instead of archiving around it. Parallel tasks must not carry delta specs for the same capability; changes touching one capability are archived together or sequenced.
+A merged task pull request is archived through a docs pull request reviewed and merged by a human; `tasks.md` does not require an archive checkbox. Before archiving, classify every unchecked task instead of archiving around it. Parallel tasks must not carry delta specs for the same capability; changes touching one capability are archived together or sequenced.
 
 ## Design checkpoints
 

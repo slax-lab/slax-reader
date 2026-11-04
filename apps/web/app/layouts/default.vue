@@ -22,6 +22,7 @@ const route = useRoute()
 const showPwaManifest = computed(() => route.path === '/' || route.path === '/bookmarks')
 
 const userStore = useUserStore()
+const recoveringSnapshotSession = useSnapshotSessionRecoveryPending()
 const { locale } = useI18n()
 const preferredLang = getPreferredLanguage()
 
@@ -31,7 +32,7 @@ if (isSlaxReaderApp() && preferredLang && ['zh', 'en'].includes(preferredLang)) 
   void userStore.changeLocalLocale(userStore.currentLocale).catch(error => console.warn('[locale] display initialization failed', error))
 }
 
-if (isClient) {
+if (isClient && !recoveringSnapshotSession.value) {
   userStore.checkAndRefreshUserToken()
 }
 

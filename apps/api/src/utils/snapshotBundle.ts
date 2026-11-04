@@ -18,6 +18,18 @@ export function snapshotKeys(uuid: string, pdf = false) {
 }
 
 const MARKER = 'slax-private-snapshot'
+export function snapshotText(html: string): string {
+  const { document } = parseHTML(html)
+  document.querySelectorAll('script,style,noscript,head').forEach(node => node.remove())
+  // Historical publication can leave a synthetic empty body before visible content.
+  const root = document.querySelector('article') || document
+  return Array.from(root.childNodes)
+    .filter(node => node.nodeType === 1 || node.nodeType === 3)
+    .map(node => node.textContent || '')
+    .join('')
+    .trim()
+}
+
 export function readEmbeddedSnapshot(html: string): {
   managed: boolean
   manifest: unknown
@@ -141,9 +153,7 @@ export class SnapshotBundle {
 
   async copyHtml(source: string) {
     const html = await this.readHtml(source)
-    const { document } = parseHTML(html)
-    document.querySelectorAll('script,style,noscript').forEach(node => node.remove())
-    const text = (document.querySelector('article') || document.body || document.documentElement).textContent?.trim() || ''
+    const text = snapshotText(html)
     const content_key = await this.write('body.html', html, 'text/html; charset=utf-8')
     const content_md_key = await this.write('body.txt', text, 'text/plain; charset=utf-8')
     return { content_key, content_md_key, content_word_count: text.length }

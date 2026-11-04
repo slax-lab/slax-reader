@@ -93,6 +93,11 @@ const doSubscribe = async (referrer?: string) => {
 }
 
 const subscribe = async () => {
+  if (busy.value) return
+  eventLog({
+    event_name: 'element_clicked',
+    properties: { screen_name: 'collection', element_id: 'collection_subscribe_button', collection_id: props.collectionCode }
+  })
   const referrer = safeReferrer(document.referrer)
   // 未登录 getUserInfo 抛错→引导登录
   const user = await userStore.getUserInfo().catch(() => null)
@@ -103,7 +108,15 @@ const subscribe = async () => {
       sessionStorage.setItem(PENDING_KEY, JSON.stringify({ code: props.collectionCode, referrer }))
     } catch {}
     const sep = redirectHref.value.includes('?') ? '&' : '?'
-    showLoginModal({ redirect: `${redirectHref.value}${sep}subscribe_after_login=1` })
+    showLoginModal({
+      redirect: `${redirectHref.value}${sep}subscribe_after_login=1`,
+      authAttribution: {
+        collection_id: props.collectionCode,
+        source_screen: 'collection',
+        presentation: 'modal',
+        trigger_element_id: 'collection_subscribe_button'
+      }
+    })
     return
   }
   await doSubscribe(referrer)

@@ -18,9 +18,9 @@ import {linkedAbortTimeout} from '../utils/abort';
 interface Diagnostic {name: string; status: 'idle'|'testing'|'success'|'failed'; message: string}
 type MaintenanceState = 'idle' | 'refreshing' | 'clearing';
 const names = ['Public IP (cip.cc)', 'Public IP (Cloudflare)', 'Google DNS', 'Slax API', 'DNS (System)', 'DNS (8.8.8.8)', 'DNS (1.1.1.1)', 'PowerSync'];
-const categoryColors = {article: '#B45837', images: '#16A085', other: '#D39B35'} as const;
+const categoryColors = {article: '#B45837', images: '#16B998', other: '#D39B35'} as const;
 const categoryKeys = {article: 'articles', images: 'images', other: 'other'} as const;
-const resultColors = {idle: '#BDBDBD', testing: '#FFA726', success: '#4CAF50', failed: '#E53935'} as const;
+const resultColors = {idle: '#BDBDBD', testing: '#FFA726', success: '#16B998', failed: '#E53935'} as const;
 const mono = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
 export function DebugScreen({navigation}: MobileScreenProps<'Debug'>) {
@@ -128,7 +128,7 @@ export function DebugScreen({navigation}: MobileScreenProps<'Debug'>) {
     </SourceSheet>
     <SourceDialog visible={environment} onDismiss={() => setEnvironment(false)} title="切换环境" actions={<TextAction label="取消" onPress={() => setEnvironment(false)}/>}>
       <SourceText style={{fontSize: 14, color: '#666666', marginBottom: 12}}>当前：{currentEnvironment === 'PRODUCTION' ? '生产' : currentEnvironment === 'BETA' ? 'beta' : '默认（编译期）'}</SourceText>
-      {(['PRODUCTION','BETA'] as const).map(value => <Pressable key={value} accessibilityRole="button" accessibilityState={{selected: currentEnvironment === value}} style={{paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: currentEnvironment === value ? '#E8F5F1' : '#F0F0F0', marginBottom: value === 'PRODUCTION' ? 8 : 0, flexDirection: 'row', justifyContent: 'space-between'}} onPress={() => {setEnvironment(false); void preferences.update(next => {next.selected_env = value;}).then(() => {if (!stopped.current) setRestart(true);}).catch(error => {if (!stopped.current) setSnackbar(String(error));});}}><SourceText style={{fontSize: 16}}>{value === 'PRODUCTION' ? '生产' : 'beta'}</SourceText>{currentEnvironment === value ? <SourceText style={{fontSize: 16, color: C.accent}}>✓</SourceText> : null}</Pressable>)}
+      {(['PRODUCTION','BETA'] as const).map(value => <Pressable key={value} accessibilityRole="button" accessibilityState={{selected: currentEnvironment === value}} style={{paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: currentEnvironment === value ? '#16B998' : '#F0F0F0', marginBottom: value === 'PRODUCTION' ? 8 : 0, flexDirection: 'row', justifyContent: 'space-between'}} onPress={() => {setEnvironment(false); void preferences.update(next => {next.selected_env = value;}).then(() => {if (!stopped.current) setRestart(true);}).catch(error => {if (!stopped.current) setSnackbar(String(error));});}}><SourceText style={{fontSize: 16}}>{value === 'PRODUCTION' ? '生产' : 'beta'}</SourceText>{currentEnvironment === value ? <SourceText style={{fontSize: 16, color: C.text}}>✓</SourceText> : null}</Pressable>)}
     </SourceDialog>
     <SourceDialog visible={restart} onDismiss={() => setRestart(false)} title="已切换环境" actions={<TextAction label="我知道了" onPress={() => setRestart(false)}/>}><SourceText>请完全关闭并重启 App 后生效。</SourceText></SourceDialog>
     {snackbar ? <View accessibilityLiveRegion="polite" style={styles.snackbar}><SourceText style={{fontSize: 14, color: '#F5EFF7'}}>{snackbar}</SourceText></View> : null}

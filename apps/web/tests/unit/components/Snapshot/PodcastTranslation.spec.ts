@@ -12,18 +12,21 @@ const CONTENT = {
 }
 
 describe('PodcastTranslation', () => {
-  it('renders text only, with a seek button per paragraph', async () => {
+  it('renders text only, with chapter navigation and preserved paragraph timing', async () => {
     const w = await mountWithApp(PodcastTranslation, { props: { content: CONTENT }, attachTo: document.body })
     expect(w.find('img').exists()).toBe(false)
     expect(w.find('script').exists()).toBe(false)
     expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined()
-    expect(w.find('.pod-tr-p').attributes('data-start-ms')).toBe('3725000')
-    expect(w.find('.pod-tr-time').text()).toBe('1:02:05')
-    expect(w.find('.pod-tr-speaker').text()).toBe('主持人：')
+    expect(w.find('.slax-yt-introduction').exists()).toBe(true)
+    expect(w.find('.slax-yt-contents a').attributes('href')).toBe('#pod-translated-topic-0')
+    expect(w.find('.slax-pod-p button').exists()).toBe(false)
+    expect(w.find('.slax-pod-p').attributes('data-start-ms')).toBe('3725000')
+    expect(w.find('.slax-yt-chapter-time').text()).toBe('0:00')
+    expect(w.find('.slax-pod-speaker').text()).toBe('主持人：')
     const seek = vi.fn()
     window.addEventListener('slax:youtube-seek', seek)
-    await w.find('.pod-tr-time').trigger('click')
-    expect((seek.mock.calls[0]![0] as CustomEvent).detail).toEqual({ t: 3725 })
+    await w.find('.slax-yt-chapter-time').trigger('click')
+    expect((seek.mock.calls[0]![0] as CustomEvent).detail).toEqual({ t: 0 })
     window.removeEventListener('slax:youtube-seek', seek)
     w.unmount()
   })

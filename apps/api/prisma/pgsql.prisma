@@ -753,6 +753,8 @@ model sr_media_article {
     retry_count      Int       @default(0)
     run_id           String?
     cost_usd         Float     @default(0)
+    /// Total spend across explicit retries; never reset. Carries the per-version hard cap.
+    lifetime_cost_usd Float    @default(0)
     lease_until      DateTime?
     next_retry_at    DateTime?
     error_message    String?

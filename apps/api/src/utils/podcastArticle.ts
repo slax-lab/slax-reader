@@ -1,4 +1,5 @@
 import {
+  checkArticleQuality,
   chunkCues,
   escapeHtml,
   estimateCostUsd,
@@ -8,6 +9,7 @@ import {
   YOUTUBE_ARTICLE_LIMITS,
   type ArticleQualityOptions,
   type ArticleSection,
+  type YoutubeArticleCheck,
   type YoutubeArticleChunk,
   type YoutubeArticleDocument
 } from '@/utils/youtubeArticle'
@@ -29,11 +31,26 @@ export const PODCAST_ARTICLE_SCHEMA_VERSION = 1
 export const PODCAST_LIMITS = {
   maxDurationSec: 3 * 60 * 60,
   maxEpisodeCostUsd: 1.0,
+  /** Calls of one indivisible part per attempt before it fails as retryable. */
+  singletonTries: 3,
+  /** Repeated paragraphs shorter than this are a speaker's backchannel, not a doubled reply. */
+  minDuplicateChars: 40,
+  /** A part with fewer source numbers than this skips the number check: one dropped number is not a signal. */
+  partMinNumbers: 5,
+  /** A part with fewer source characters than this skips the length check: filler removal swings small ratios. */
+  partMinChars: 400,
   dailyCostUsd: 30,
   userDailyEpisodes: 5,
   chunkTargetTokens: YOUTUBE_ARTICLE_LIMITS.chunkTargetTokens,
   maxChunks: 80,
   translationChunkTokens: 3_000,
+  maxOutputTokens: 65_536,
+  requestInputTokens: 6_000,
+  outputExpansion: 4,
+  outputHeadroomTokens: 8_192,
+  chunkAttemptMs: 8 * 60 * 1000,
+  modelTimeoutMs: 120_000,
+  maxChunkCalls: 128,
   glossaryMax: 80,
   prevTailChars: 300,
   shownotesPromptChars: 2_000,
@@ -145,6 +162,41 @@ export function planPodcastChunks(transcript: PodcastTranscriptDocument): Youtub
   return chunkCues(transcript.cues, PODCAST_LIMITS.chunkTargetTokens)
 }
 
+export function podcastRequestSize(system: string, user: string, schema: object) {
+  const systemTokens = estimateTokens(system)
+  const userTokens = estimateTokens(user)
+  const inputTokens = estimateTokens(JSON.stringify({ systemInstruction: system, contents: [{ role: 'user', parts: [{ text: user }] }], responseSchema: schema }))
+  const outputTokens = userTokens * PODCAST_LIMITS.outputExpansion
+  return {
+    systemTokens,
+    userTokens,
+    inputTokens,
+    outputTokens,
+    /** Requested output ceiling: a healthy edit is about 1.4x its input, so a looping reply stops early instead of running to the model maximum. */
+    outputLimit: Math.min(PODCAST_LIMITS.maxOutputTokens, outputTokens + PODCAST_LIMITS.outputHeadroomTokens),
+    oversized:
+      userTokens > PODCAST_LIMITS.chunkTargetTokens ||
+      inputTokens > PODCAST_LIMITS.requestInputTokens ||
+      outputTokens + PODCAST_LIMITS.outputHeadroomTokens > PODCAST_LIMITS.maxOutputTokens
+  }
+}
+
+export function podcastSplitIndex(weights: number[]): number | null {
+  if (weights.length < 2) return null
+  const half = weights.reduce((sum, weight) => sum + weight, 0) / 2
+  let sum = 0
+  let best = 1
+  let distance = Infinity
+  for (let i = 1; i < weights.length; i++) {
+    sum += weights[i - 1]
+    if (Math.abs(sum - half) < distance) {
+      distance = Math.abs(sum - half)
+      best = i
+    }
+  }
+  return best
+}
+
 function tail(text: string, chars: number): string {
   return text.length <= chars ? text : text.slice(text.length - chars)
 }
@@ -159,13 +211,14 @@ export function buildPolishInstruction(
   ctx: PodcastEpisodeContext,
   chunk: YoutubeArticleChunk,
   chunkCount: number,
-  prev: { tail: string; heading: string } | null
+  prev: { tail: string; heading: string } | null,
+  continuation = false
 ): string {
   const notes = (ctx.shownotes || '').slice(0, PODCAST_LIMITS.shownotesPromptChars)
   const prevTail = prev ? tail(prev.tail, PODCAST_LIMITS.prevTailChars) : ''
   if (lang === 'zh') {
     const position =
-      chunk.index === 0
+      chunk.index === 0 && !continuation
         ? '这是第一块：在 lede 里写三到五句导读，概括这一集聊了什么，只用本集标题、节目笔记和这一块里出现的内容。'
         : `这不是第一块：lede 留空字符串。前 ${chunk.overlap} 条 cue 上一块已经整理过，只用来衔接，不要再输出。` +
           (prev?.heading ? `如果开头还在聊上一块最后的话题，第一个 section 的 heading 原样写“${prev.heading}”。` : '')
@@ -204,7 +257,7 @@ export function buildPolishInstruction(
     ].join('\n')
   }
   const position =
-    chunk.index === 0
+    chunk.index === 0 && !continuation
       ? 'This is the first chunk: write a 3 to 5 sentence lede about what the episode covers, using only the episode title, the notes and this chunk.'
       : `This is not the first chunk: set lede to an empty string. The first ${chunk.overlap} cues were cleaned in the previous chunk; use them for context only and do not output them again.` +
         (prev?.heading ? ` If the chunk opens on the previous topic, use the heading "${prev.heading}" exactly for the first section.` : '')
@@ -262,7 +315,44 @@ export function podcastSpeakerText(transcript: PodcastTranscriptDocument, ctx: P
 }
 
 export function polishQualityOptions(transcript: PodcastTranscriptDocument, ctx: PodcastEpisodeContext): ArticleQualityOptions {
-  return { bounds: POLISH_LENGTH_BOUNDS, speakerText: podcastSpeakerText(transcript, ctx), zhMinCjkRatio: 0.2 }
+  return {
+    bounds: POLISH_LENGTH_BOUNDS,
+    speakerText: podcastSpeakerText(transcript, ctx),
+    zhMinCjkRatio: 0.2,
+    minDuplicateChars: PODCAST_LIMITS.minDuplicateChars,
+    zhMagnitudes: true,
+    requireParagraphOrder: true
+  }
+}
+
+/**
+ * The final article checks applied to one generated part or chunk against its own cues, before it
+ * is cached, so a bad reply is asked again on its own instead of failing the whole article later.
+ * Number and length checks are skipped on samples too small for them to mean anything.
+ */
+export function polishPartFailures(
+  sections: ArticleSection[],
+  cues: PodcastCue[],
+  transcript: PodcastTranscriptDocument,
+  ctx: PodcastEpisodeContext,
+  lang: PodcastLanguage,
+  lede = '-'
+): YoutubeArticleCheck[] {
+  const doc: YoutubeArticleDocument = {
+    schema_version: 1,
+    language: lang,
+    format: transcript.speakers ? 'dialogue' : 'article',
+    // Only the first part owns the introduction; other parts use the default placeholder.
+    lede,
+    sections: structuredClone(sections)
+  }
+  const text = cues.map(c => c.text).join(transcript.language === 'zh' ? '' : ' ')
+  const quality = checkArticleQuality(doc, cues, text, polishQualityOptions(transcript, ctx))
+  return quality.failed.filter(
+    check =>
+      !(check === 'number_coverage' && quality.metrics.caption_numbers < PODCAST_LIMITS.partMinNumbers) &&
+      !(check === 'length_ratio' && quality.metrics.caption_chars < PODCAST_LIMITS.partMinChars)
+  )
 }
 
 // ---------- translation ----------
@@ -401,6 +491,41 @@ export function buildTranslationUserMessage(chunk: TranslationChunk): string {
   return chunk.units.map(u => `${u.id}: ${u.text}`).join('\n\n')
 }
 
+/**
+ * Gemini response schema of a polish chunk. Unlike the YouTube schema it has no integer fields:
+ * section times come from the cue ids when chunks are merged, and a free integer field let the
+ * model run on emitting digits until the output limit.
+ */
+export const PODCAST_POLISH_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    lede: { type: 'STRING' },
+    sections: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          heading: { type: 'STRING' },
+          paragraphs: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                speaker: { type: 'STRING', nullable: true },
+                text: { type: 'STRING' },
+                source_cue_ids: { type: 'ARRAY', items: { type: 'STRING' } }
+              },
+              required: ['text', 'source_cue_ids']
+            }
+          }
+        },
+        required: ['heading', 'paragraphs']
+      }
+    }
+  },
+  required: ['lede', 'sections']
+} as const
+
 /** Gemini response schema of a translation chunk. */
 export const PODCAST_TRANSLATION_RESPONSE_SCHEMA = {
   type: 'OBJECT',
@@ -502,7 +627,10 @@ export function translationQualityOptions(from: PodcastLanguage, to: PodcastLang
   return {
     bounds: translationBounds(from, to),
     speakerText: [...source.sections.flatMap(s => s.paragraphs.map(p => p.speaker ?? '')), '主持人 嘉宾 Host Guest'].join(' '),
-    zhMinCjkRatio: 0.3
+    zhMinCjkRatio: 0.3,
+    minDuplicateChars: PODCAST_LIMITS.minDuplicateChars,
+    zhMagnitudes: true,
+    requireParagraphOrder: true
   }
 }
 
@@ -598,25 +726,23 @@ export function renderMediaArticle(
   const startOf = new Map(cues.map(c => [c.id, c.start_ms]))
   const lang: PodcastLanguage = doc.language === 'zh' ? 'zh' : 'en'
   const out: string[] = [`<article class="slax-pod-article" data-slax-derived="${kind}-article" data-article-version="${escapeHtml(version)}" lang="${lang}">`]
-  if (kind === 'youtube') {
-    // The same labels as component.youtube_article.* in the Web locales; podcastArticle.test.ts checks both
-    out.push(`<p class="slax-yt-edition">${lang === 'zh' ? '视频整理稿' : 'Edited transcript'}</p>`)
-    if (doc.lede)
-      out.push(
-        `<aside class="slax-yt-introduction"><span class="slax-yt-label">${lang === 'zh' ? '导读 · 自动生成' : 'Introduction · generated'}</span><p>${escapeHtml(doc.lede)}</p></aside>`
-      )
+  const topicPrefix = kind === 'youtube' ? 'yt' : 'pod'
+  // The same labels as component.youtube_article.* in the Web locales; podcastArticle.test.ts checks both
+  out.push(`<p class="slax-yt-edition">${lang === 'zh' ? (kind === 'youtube' ? '视频整理稿' : '播客整理稿') : 'Edited transcript'}</p>`)
+  if (doc.lede)
     out.push(
-      `<details class="slax-yt-contents"><summary>${lang === 'zh' ? '本文目录' : 'Contents'} <span>${doc.sections.length}</span></summary><nav aria-label="${lang === 'zh' ? '本文目录' : 'Contents'}">`
+      `<aside class="slax-yt-introduction"><span class="slax-yt-label">${lang === 'zh' ? '导读 · 自动生成' : 'Introduction · generated'}</span><p>${escapeHtml(doc.lede)}</p></aside>`
     )
-    for (const [i, section] of doc.sections.entries())
-      out.push(`<a href="#yt-topic-${i}"><span>${escapeHtml(section.heading)}</span><time>${formatTimestamp(section.start_ms)}</time></a>`)
-    out.push('</nav></details>')
-  } else if (doc.lede) out.push(`<p class="slax-pod-lede">${escapeHtml(doc.lede)}</p>`)
+  out.push(
+    `<details class="slax-yt-contents"><summary>${lang === 'zh' ? '本文目录' : 'Contents'} <span>${doc.sections.length}</span></summary><nav aria-label="${lang === 'zh' ? '本文目录' : 'Contents'}">`
+  )
+  for (const [i, section] of doc.sections.entries())
+    out.push(`<a href="#${topicPrefix}-topic-${i}"><span>${escapeHtml(section.heading)}</span><time>${formatTimestamp(section.start_ms)}</time></a>`)
+  out.push('</nav></details>')
+
   for (const [sectionIndex, section] of doc.sections.entries()) {
     out.push('<section class="slax-pod-section">')
-    out.push(
-      `<h2${kind === 'youtube' ? ` id="yt-topic-${sectionIndex}"` : ''} class="slax-pod-heading" data-start-ms="${safeInt(section.start_ms)}">${escapeHtml(section.heading)}</h2>`
-    )
+    out.push(`<h2 id="${topicPrefix}-topic-${sectionIndex}" class="slax-pod-heading" data-start-ms="${safeInt(section.start_ms)}">${escapeHtml(section.heading)}</h2>`)
     for (const [paragraphIndex, p] of section.paragraphs.entries()) {
       const starts = p.source_cue_ids.map(id => startOf.get(id)).filter((n): n is number => n !== undefined)
       const start = paragraphStarts?.[sectionIndex]?.[paragraphIndex] ?? (starts.length ? Math.min(...starts) : section.start_ms)
@@ -627,10 +753,9 @@ export function renderMediaArticle(
     }
     out.push('</section>')
   }
-  if (kind === 'youtube')
-    out.push(
-      `<footer class="slax-yt-method"><strong>${lang === 'zh' ? '方法与来源' : 'Method and source'}</strong><p>${lang === 'zh' ? '正文根据视频字幕整理，保留原有顺序。导读单独生成。字幕和整理稿可能存在错误，请通过时间戳核对原视频。' : 'The article follows the video captions in their original order. The introduction is generated separately. Captions and editing can contain errors. Use timestamps to check the video.'}</p></footer>`
-    )
+  out.push(
+    `<footer class="slax-yt-method"><strong>${lang === 'zh' ? '方法与来源' : 'Method and source'}</strong><p>${kind === 'youtube' ? (lang === 'zh' ? '正文根据视频字幕整理，保留原有顺序。导读单独生成。字幕和整理稿可能存在错误，请通过时间戳核对原视频。' : 'The article follows the video captions in their original order. The introduction is generated separately. Captions and editing can contain errors. Use timestamps to check the video.') : lang === 'zh' ? '正文根据播客转录整理，保留原有顺序。转录和整理稿可能存在错误，请通过章节时间核对原音频。' : 'The article follows the podcast transcript in its original order. Transcription and editing can contain errors. Use chapter times to check the audio.'}</p></footer>`
+  )
   out.push('</article>')
   return out.join('\n')
 }

@@ -1,8 +1,13 @@
 // PodcastProcessor：slax-media 换成播放器、只接受 http(s) 地址、段首时间戳点击和键盘跳转、清理
-import { PodcastProcessor } from '~~/app/components/Article/processors/podcast.processor'
+import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { bindReadableMedia, PodcastProcessor } from '~~/app/components/Article/processors/podcast.processor'
 import type { WebProcessorContext } from '~~/app/components/Article/processors/types'
 import { ArticleStyle } from '~~/app/components/Article/processors/types'
 import { describe, expect, it, vi } from 'vitest'
+
+mockNuxtImport('tryUseNuxtApp', () => () => ({
+  $i18n: { t: (key: string, named?: { time?: string }) => `${key}|${named?.time ?? ''}` }
+}))
 
 vi.mock('~~/app/components/Article/CEComponents', () => {
   class FakePodcastPlayer extends HTMLElement {
@@ -86,4 +91,34 @@ describe('PodcastProcessor', () => {
     expect(seek).not.toHaveBeenCalled()
     window.removeEventListener('slax:youtube-seek', seek)
   })
+
+  it('uses chapter playback and scoped contents navigation without replacing paragraphs', () => {
+    const ctx = context(BODY.replace('<article class="slax-pod-article">', '<article class="slax-pod-article" data-slax-derived="podcast-article"><details class="slax-yt-contents"><summary>Contents</summary><nav><a href="#pod-topic-0">Topic</a></nav></details><h2 id="pod-topic-0" class="slax-pod-heading" data-start-ms="12000">Topic</h2>'))
+    const paragraph = ctx.container.querySelector('.slax-pod-p')
+    const heading = ctx.container.querySelector('h2')!
+    const scroll = vi.fn()
+    heading.scrollIntoView = scroll
+    processor.process(ctx)
+    expect(ctx.container.querySelector('.slax-pod-p')).toBe(paragraph)
+    const seek = vi.fn()
+    window.addEventListener('slax:youtube-seek', seek)
+    const button = heading.querySelector<HTMLButtonElement>('button.slax-yt-chapter-time')!
+    expect(button.getAttribute('aria-label')).toBe('component.podcast.seek|0:12')
+    button.click()
+    expect((seek.mock.calls[0][0] as CustomEvent).detail).toEqual({ t: 12 })
+    ctx.container.querySelector<HTMLAnchorElement>('.slax-yt-contents a')!.click()
+    expect(scroll).toHaveBeenCalledWith({ block: 'start' })
+    ctx.cleanups.forEach(fn => fn())
+    expect(heading.querySelector('button')).toBeNull()
+    button.click()
+    expect(seek).toHaveBeenCalledOnce()
+    window.removeEventListener('slax:youtube-seek', seek)
+  })
+
+  it('labels injected chapter controls with the seek text of the article kind', () => {
+    const ctx = context('<article data-slax-derived="youtube-article"><h2 class="slax-pod-heading" data-start-ms="3725000">Topic</h2></article>')
+    bindReadableMedia(ctx, 'youtube')
+    expect(ctx.container.querySelector('button.slax-yt-chapter-time')?.getAttribute('aria-label')).toBe('component.youtube_article.seek|1:02:05')
+  })
+
 })
