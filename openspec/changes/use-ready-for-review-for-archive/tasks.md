@@ -9,4 +9,4 @@
 ## 2. Verification and delivery
 
 - [x] 2.1 Run focused workflow tests, `pnpm test:ci`, `pnpm agent:check`, and `git diff HEAD --check`; record exact results and pending live evidence in `openspec/changes/use-ready-for-review-for-archive/validation.md`.
-- [ ] 2.2 Run the local pre-push review required by `REVIEW.md`, resolve Important findings, and open one task PR targeting `dev` with `OpenSpec: use-ready-for-review-for-archive` and a Test plan that separates local verification from the next real draft-archive observation; do not merge it as an agent.
+- [x] 2.2 Run the local pre-push review required by `REVIEW.md`, resolve Important findings, and open one task PR targeting `dev` with `OpenSpec: use-ready-for-review-for-archive` and a Test plan that separates local verification from the next real draft-archive observation; do not merge it as an agent.
