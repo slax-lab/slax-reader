@@ -59,13 +59,13 @@ test('agent permissions stay read-only and Safe Outputs only create an archive P
   assert.equal(outputs.noop['report-as-issue'], false)
   assert.deepEqual(outputs['add-comment'], { max: 1, target: '*' })
   assert.equal(outputs['create-pull-request']['title-prefix'], 'docs(openspec): archive ')
-  assert.deepEqual(outputs['create-pull-request']['team-reviewers'], ['reader-core'])
+  assert.equal(outputs['create-pull-request']['team-reviewers'], undefined, 'draft archives rely on CODEOWNERS after the human ready transition')
   assert.equal(outputs['create-pull-request']['github-token'], undefined)
   assert.equal(outputs['create-pull-request']['fallback-as-issue'], false)
-  assert.equal(outputs['create-pull-request'].draft, false)
+  assert.equal(outputs['create-pull-request'].draft, true)
   const processStep = compiled().jobs.safe_outputs.steps.find(step => step.name === 'Process Safe Outputs')
   const handlerConfig = JSON.parse(processStep.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG)
-  assert.equal(handlerConfig.create_pull_request.draft, false)
+  assert.equal(handlerConfig.create_pull_request.draft, true)
   assert.equal(outputs['create-pull-request'].reviewers, undefined)
   for (const forbidden of ['merge-pull-request', 'submit-pull-request-review', 'push-to-pull-request-branch', 'create-issue']) {
     assert.equal(outputs[forbidden], undefined, `${forbidden} must not be enabled`)
@@ -96,10 +96,13 @@ test('archive prompt validates the result and prevents duplicate archive PRs', (
     'Do not create a duplicate',
     'Record the archive outcome',
     'Archive source: #<source-pr-number>',
-    'Approve workflows to run',
-    'comment /review when no review is running',
-    'no additional start action is needed',
+    'The feature PR has merged',
+    'created automatically to archive its spec changes',
+    'Ready for review',
+    'team reviews and merges this PR to complete the archive',
   ]) assert.ok(body.includes(expected), `missing archive validation contract: ${expected}`)
+  assert.ok(!body.includes('Approve workflows to run'))
+  assert.ok(!body.includes('comment /review'))
 })
 
 test('archive workflow reuses the shared engine without inheriting review publishing behavior', () => {
@@ -112,13 +115,14 @@ test('archive workflow reuses the shared engine without inheriting review publis
   assert.ok(!body.includes('merge_pull_request'))
 })
 
-test('automatic review admits the archive bot without enabling bot slash commands', () => {
+test('archive review uses a human ready-for-review transition without a bot allowlist', () => {
   const automaticRaw = readFileSync(new URL('../.github/workflows/pr-review.md', import.meta.url), 'utf8')
   const automatic = load(automaticRaw.match(/^---\n([\s\S]*?)\n---\n/)[1])
-  assert.deepEqual(automatic.on.bots, ['github-actions[bot]'])
+  assert.equal(automatic.on.bots, undefined)
+  assert.ok(automatic.on.pull_request.types.includes('ready_for_review'))
 
   const automaticLock = readFileSync(new URL('../.github/workflows/pr-review.lock.yml', import.meta.url), 'utf8')
-  assert.match(automaticLock, /GH_AW_ALLOWED_BOTS: "github-actions\[bot\]"/)
+  assert.doesNotMatch(automaticLock, /GH_AW_ALLOWED_BOTS/)
 
   const commandRaw = readFileSync(new URL('../.github/workflows/pr-review-command.md', import.meta.url), 'utf8')
   const command = load(commandRaw.match(/^---\n([\s\S]*?)\n---\n/)[1])

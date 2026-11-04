@@ -14,7 +14,6 @@ on:
     # Drafts are excluded: `opened` also fires for drafts, which would review the
     # same pull request twice (once as a draft, once at ready_for_review).
     draft: false
-  bots: ["github-actions[bot]"]
 
 permissions:
   contents: read
