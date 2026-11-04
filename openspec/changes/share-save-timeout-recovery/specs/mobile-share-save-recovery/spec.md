@@ -2,116 +2,84 @@
 
 ## Purpose
 
-Ensure native sharing finishes promptly and can confirm a saved bookmark when the creation acknowledgement is lost or delayed, without resubmitting the save or confusing persistence with completed parsing.
+Bound native share waiting and recover a timed-out creation acknowledgement through the existing bookmark-existence endpoint without adding server behavior or retrying the save.
 
 ## ADDED Requirements
 
-### Requirement: Native create acknowledgement has a total deadline
+### Requirement: Creation has a five-second total deadline
 
-The iOS share extension and Android incoming-share activity SHALL bound each add-URL attempt to five seconds of elapsed network time from dispatch, including connection establishment, upload, and acknowledgement. Receiving partial network data MUST NOT restart that overall deadline. Receipt of HTTP 200 or 204 from the authenticated creation endpoint SHALL complete the save acknowledgement without waiting for an unused response body.
+The iOS and Android incoming-share clients SHALL bound an add-URL attempt to five seconds of total elapsed network time. Partial traffic SHALL NOT reset that deadline. Delivered HTTP 200/204 creation headers SHALL permit the existing success outcome without waiting for an unused body. A definitive creation rejection SHALL retain its existing error behavior and SHALL NOT trigger existence recovery merely because its error body stalls.
 
-#### Scenario: Success headers arrive but the body stalls
-- **WHEN** the creation endpoint returns HTTP 200 headers before the deadline but does not finish its response body
-- **THEN** the share presents the existing success outcome without waiting for the body
-- **AND** no confirmation request or second creation request is sent
+#### Scenario: Creation response body stalls
+- **WHEN** successful creation headers arrive before the deadline but its body stalls
+- **THEN** the client displays the existing success state without waiting for the unused body
+- **AND** it sends no existence request
 
-#### Scenario: No acknowledgement arrives within five seconds
-- **WHEN** the creation attempt reaches its five-second deadline without success or a definitive server rejection
-- **THEN** the client stops waiting for that attempt and enters URL confirmation
-- **AND** partial response traffic does not extend the create budget
+#### Scenario: Creation times out without acknowledgement
+- **WHEN** creation reaches its five-second total deadline without success or a definitive rejection
+- **THEN** the client enters the one-shot existence recheck
+- **AND** it does not submit creation again
 
-### Requirement: Create timeout triggers one bounded confirmation
+### Requirement: Recheck uses the existing exists endpoint unchanged
 
-A create timeout SHALL trigger at most one read-only saved-state confirmation using the extracted shared URL, the same API origin, and the same authenticated owner as the creation attempt. Confirmation SHALL have its own three-second total network deadline. The client SHALL keep the existing collecting state until confirmation finishes, use the existing success state only on a positive confirmation, and otherwise present the existing network-timeout message. It MUST NOT automatically resend the creation request, poll, or schedule background save retries.
+After an ambiguous create timeout, the client SHALL call existing authenticated `POST /v1/bookmark/exists` once, passing the original extracted shared URL as `target_url` with the same captured token and selected API origin. HTTP 200 with JSON `data.exists` equal to boolean true SHALL produce the existing success state. All other lookup outcomes SHALL produce the existing network-timeout message. The client SHALL keep Collecting visible until that decision.
 
-#### Scenario: Creation was saved but its acknowledgement was lost
-- **WHEN** creation times out and confirmation finds the user's active saved bookmark
-- **THEN** the share displays success rather than a timeout
-- **AND** exactly one create and one confirmation request were initiated
+#### Scenario: Existing endpoint reports true
+- **WHEN** a timed-out create is followed by a complete HTTP 200 response containing `data.exists: true`
+- **THEN** the client displays success
+- **AND** exactly one creation and one existence request are initiated
 
-#### Scenario: Confirmation does not find a saved bookmark
-- **WHEN** creation times out and confirmation reports no matching active saved relation
-- **THEN** the share displays the network-timeout message
-- **AND** it does not claim that the original request can never finish or submit another save
+#### Scenario: Existing endpoint reports false or invalid data
+- **WHEN** lookup returns false, missing data, malformed JSON, string/number values instead of a boolean, or an unexpected HTTP status
+- **THEN** the client displays the network-timeout message
+- **AND** it does not retry lookup or creation
 
-#### Scenario: Confirmation cannot complete
-- **WHEN** confirmation encounters a transport error, unsupported response, rejection, or its own three-second deadline
-- **THEN** the share exits Collecting with the network-timeout message rather than claiming success
-- **AND** total network waiting is bounded by the five-second create and three-second confirmation budgets
+#### Scenario: Account and selected environment are preserved
+- **WHEN** a share uses the beta API origin and times out
+- **THEN** the existence request uses that same origin, authentication, and original shared URL
+- **AND** it sends no title and performs no extra URL normalization
 
-#### Scenario: Environment selection is retained
-- **WHEN** a share is dispatched against the selected beta API origin and times out
-- **THEN** confirmation uses that beta origin and the same captured authentication
-- **AND** it does not silently switch environments or use an unauthenticated lookup
+### Requirement: Lookup body consumption is bounded
 
-### Requirement: Confirmation proves an active owner-scoped save
+The existence request SHALL have a three-second total deadline covering connection, request, response headers, and the complete JSON response body. A timeout or transport error SHALL NOT be treated as success based on status or partial JSON. Neither body progress nor status receipt SHALL restart the deadline.
 
-The confirmation contract SHALL report success only when a matching bookmark and a nontrashed saved relation belonging to the authenticated caller are persisted. It SHALL NOT wait for article processing or workflow completion; pending, parsing, and failed processing states SHALL remain eligible if the active saved relation exists. An already-saved active URL SHALL count as saved regardless of which invocation first created it. Confirmation SHALL NOT create or restore bookmarks, mutate user relations, or create or retry workflows.
+#### Scenario: Existence headers arrive but the body stalls
+- **WHEN** lookup returns HTTP 200 headers but does not finish its body within three seconds
+- **THEN** the client stops the request and displays the network-timeout message
+- **AND** the total network waiting remains bounded by five seconds plus three seconds
 
-#### Scenario: Bookmark exists without the caller's relation
-- **WHEN** a matching bookmark row exists but the caller has no saved relation
-- **THEN** confirmation does not report saved
-- **AND** another user's relation cannot satisfy confirmation
+#### Scenario: Partial response resembles a success document
+- **WHEN** lookup delivers JSON-like success bytes without completing the HTTP response before its deadline
+- **THEN** the timeout remains unconfirmed rather than success
 
-#### Scenario: Bookmark is in the caller's trash
-- **WHEN** the only matching relation for the caller is trashed or permanently deleted
-- **THEN** confirmation does not report saved
-- **AND** lookup does not restore that relation
+### Requirement: Backend existence semantics remain unchanged
 
-#### Scenario: Article processing is incomplete or failed
-- **WHEN** the matching active saved relation has committed but processing is pending, parsing, or failed
-- **THEN** confirmation reports saved without waiting for processing or retrying it
+This capability SHALL reuse the existing `/exists` implementation and response contract without adding an API or special server queries. It SHALL NOT change URL normalization, aliases, deletion/trash handling, Reader-fork readiness, processing states, or authentication semantics. The superseded receipt endpoint and its supporting server additions SHALL be removed.
 
-#### Scenario: Reader-link destination is still parsing
-- **WHEN** sharing a Reader link has committed the caller's destination and active relation but destination parsing is unfinished
-- **THEN** save confirmation recognizes that destination
-- **AND** existing Reader navigation or fork-readiness behavior for other callers remains unchanged
+#### Scenario: Existing lookup behavior affects a shared URL
+- **WHEN** the existing endpoint returns true or false according to its current URL, deletion, or Reader-processing rules
+- **THEN** native recovery uses that returned boolean as-is
+- **AND** no client or server workaround changes those rules
 
-### Requirement: Confirmation uses creation URL identity without changing legacy lookup
+### Requirement: Cancellation and diagnostics retain existing ownership
 
-Confirmation SHALL use the same supported URL identity rules as creation, including existing X/Twitter normalization and rewrite behavior, WeChat parameter normalization, and supported Reader-link identity. URL resolution failure SHALL remain unconfirmed rather than produce an invented success. The existing bookmark-existence API behavior for clients that do not opt into the new confirmation contract SHALL remain backward compatible.
+Dismissal SHALL cancel the currently owned create or lookup request and prevent late feedback or further dispatch. Recovery SHALL retain the original create timeout and network metrics, existing presentation, standalone operation, and exactly one sanitized terminal record. No full URLs, credentials, titles, or response bodies SHALL be added to diagnostics.
 
-#### Scenario: A shared URL is normalized before saving
-- **WHEN** creation persists an X/Twitter URL with disposable parameters removed or a WeChat URL with its transient token removed
-- **THEN** confirmation of the original shared URL locates that same saved identity
+#### Scenario: Dismissal occurs during lookup
+- **WHEN** the user dismisses while the existence response is pending
+- **THEN** lookup is cancelled and no later success/error state is displayed
+- **AND** no additional request or terminal record is created
 
-#### Scenario: A supported Twitter status alias was rewritten
-- **WHEN** creation resolves a supported status alias to a canonical article URL
-- **THEN** confirmation reuses the creation identity rule rather than testing only the unprocessed alias
-- **AND** failure to resolve within the confirmation budget is unconfirmed, not success
+#### Scenario: Existence recovers the timed-out share
+- **WHEN** a complete positive existence response recovers the create timeout
+- **THEN** the normal success feedback appears without launching the main app
+- **AND** diagnostics retain the original create timeout evidence
 
-#### Scenario: An existing client uses the legacy existence endpoint
-- **WHEN** a client makes its existing bookmark-existence request without the new confirmation contract
-- **THEN** its request, response shape, and lookup semantics remain unchanged
+### Requirement: Approved version metadata remains consistent
 
-### Requirement: Definite errors and cancellation retain ownership
+The correction SHALL retain the approved Mobile version 1.0.28, build 800, and previous source-build bound 799 across authoritative and generated metadata. It SHALL NOT claim native-build, signing, upload, or publication acceptance from bundle or host-test success.
 
-Validation failure, missing authentication, explicit non-success creation status, and non-timeout transport failures SHALL retain their existing error behavior without triggering saved-state recovery. An explicit creation rejection SHALL NOT become recoverable merely because its optional error body stalls. Dismissing either native share surface SHALL cancel the currently owned operation and prevent subsequent confirmation, stale result presentation, or additional terminal outcomes.
-
-#### Scenario: Creation is explicitly rejected
-- **WHEN** the creation endpoint returns an authentication, parameter, rate-limit, or server-error status
-- **THEN** the share follows its existing status-specific failure behavior
-- **AND** it does not turn an older saved bookmark into success through confirmation
-
-#### Scenario: User dismisses while creation or confirmation is pending
-- **WHEN** the user dismisses the share UI during either network phase
-- **THEN** the active operation is cancelled
-- **AND** no later callback displays success or error, dispatches another request, or adds another terminal record
-
-### Requirement: Recovery preserves standalone UX and diagnostic evidence
-
-Both native share surfaces SHALL retain their existing presentation, successful dismissal behavior, input extraction, and standalone operation without starting the main app. Each invocation SHALL retain exactly one sanitized terminal diagnostic record. Recovery SHALL preserve the original create timeout and network timing evidence instead of overwriting it with the confirmation request's measurements; diagnostics MUST NOT record full URLs, titles, credentials, or response bodies and MUST NOT delay user feedback.
-
-#### Scenario: Recovery succeeds with the main app closed
-- **WHEN** an authenticated share recovers a timed-out save while the main app is closed
-- **THEN** the existing share UI displays success without opening the main app
-- **AND** its single terminal diagnostic reflects the final outcome while retaining the original create timeout evidence
-
-### Requirement: Approved Mobile version increment is consistent across native targets
-
-This change SHALL advance Mobile from version 1.0.27 and build 799 to version 1.0.28 and build 800, with the previous source-build bound advanced from 798 to 799. Main iOS, iOS share extension, Android, and runtime version metadata SHALL agree after generation through the repository tooling. These metadata changes SHALL NOT be presented as evidence of signing, upload, publication, or store acceptance.
-
-#### Scenario: Updated metadata is generated
-- **WHEN** native projects and runtime configuration are generated for this change
-- **THEN** the main app and share extension expose version 1.0.28 and build 800, and Android uses versionCode 800
-- **AND** previousBuildNumber is 799 in the authoritative manifest
+#### Scenario: Corrected native sources are generated
+- **WHEN** the config plugin updates the share source copies
+- **THEN** main/share iOS, Android, and runtime metadata remain 1.0.28 (800)
+- **AND** no additional version bump is introduced for this scope correction

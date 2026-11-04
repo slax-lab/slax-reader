@@ -19,7 +19,7 @@ const jars = [
 ];
 const classpath = process.env.SLAX_SHARE_TRANSPORT_CLASSPATH ?? (jars.every(Boolean) ? jars.join(path.delimiter) : null);
 
-test('actual Kotlin share HTTP transport enforces deadlines, receipt recovery and cancellation', {
+test('actual Kotlin share HTTP transport enforces deadlines, exists recovery and cancellation', {
   skip: !classpath && 'Supply SLAX_SHARE_TRANSPORT_CLASSPATH or populate the existing OkHttp 4.9.2, Okio 2.8.0 and org.json Gradle caches',
 }, t => {
   const output = mkdtempSync(path.join(tmpdir(), 'slax-share-android-transport-'));
@@ -30,7 +30,7 @@ test('actual Kotlin share HTTP transport enforces deadlines, receipt recovery an
     execFileSync(process.env.SLAX_KOTLINC ?? 'kotlinc', ['-classpath', classpath, '-include-runtime', '-d', jar, ...sources, path.join(__dirname, 'android-transport-host.kt')], {encoding: 'utf8', timeout: 120000});
     const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin/java') : 'java';
     const result = execFileSync(java, ['-cp', [jar, classpath].join(path.delimiter), 'com.slax.reader.extension.Android_transport_hostKt'], {encoding: 'utf8', timeout: 120000});
-    assert.match(result, /Kotlin HTTP transport checks passed: 27 scenarios/);
+    assert.match(result, /Kotlin HTTP transport checks passed: 36 scenarios/);
     t.diagnostic(result.trim());
   } finally {rmSync(output, {recursive: true, force: true});}
 });

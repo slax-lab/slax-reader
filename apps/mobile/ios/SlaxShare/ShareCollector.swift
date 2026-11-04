@@ -92,13 +92,21 @@ enum ShareCollector {
       let native = error as NSError
       if native.domain == NSURLErrorDomain && native.code == NSURLErrorTimedOut {
         diagnostics?.update(result)
-        var receipt = request
-        receipt.url = url.deletingLastPathComponent().appendingPathComponent("save_receipt")
-        receipt.timeoutInterval = 3
-        receipt.httpBody = try JSONSerialization.data(withJSONObject: ["target_url": String(content[range])])
-        let confirmation = try? await ShareRequestDelegate(statusOnly: true).send(receipt, budget: 3)
+        var lookup = request
+        lookup.url = url.deletingLastPathComponent().appendingPathComponent("exists")
+        lookup.timeoutInterval = 3
+        lookup.httpBody = try JSONSerialization.data(withJSONObject: ["target_url": String(content[range])])
+        let confirmation = try? await ShareRequestDelegate(successOnHeaders: false).send(lookup, budget: 3)
         if Task.isCancelled { result.reason = "cancelled"; throw CancellationError() }
-        if confirmation?.1.statusCode == 204 { result.stage = "done"; result.reason = "success"; return result }
+        struct ExistsResponse: Decodable {
+          struct Payload: Decodable { let exists: Bool }
+          let code: Int
+          let data: Payload
+        }
+        if let confirmation, confirmation.response.statusCode == 200, confirmation.error == nil,
+          let response = try? JSONDecoder().decode(ExistsResponse.self, from: confirmation.data), response.code == 200, response.data.exists {
+          result.stage = "done"; result.reason = "success"; return result
+        }
         throw ShareFailure.message("Request timed out, please try again.")
       }
       if [NSURLErrorCannotFindHost, NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost].contains(native.code) { throw ShareFailure.message("Network unavailable, please check your connection.") }

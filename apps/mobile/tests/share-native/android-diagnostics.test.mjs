@@ -12,7 +12,7 @@ const record = source('ShareDiagnosticRecord');
 const timings = source('ShareNetworkTimings');
 const transport = source('ShareSaveTransport');
 
-test('Android activity owns cancellable transport with bounded create and receipt calls', () => {
+test('Android activity owns cancellable transport with bounded create and exists calls', () => {
   assert.match(read('build.gradle'), /implementation 'com.squareup.okhttp3:okhttp:4\.9\.2'/);
   assert.match(transport, /callTimeout\(5, TimeUnit.SECONDS\)/);
   assert.match(transport, /callTimeout\(3, TimeUnit.SECONDS\)/);
@@ -20,6 +20,10 @@ test('Android activity owns cancellable transport with bounded create and receip
   assert.match(transport, /retryOnConnectionFailure\(false\)\.eventListener\(EventListener.NONE\)/);
   assert.ok(transport.includes('.protocols(listOf(Protocol.HTTP_1_1))'));
   assert.match(transport, /override fun isOneShot\(\) = true/);
+  assert.ok(transport.includes('request(base, "/v1/bookmark/exists", token, version, JSONObject().put("target_url", url))'));
+  assert.ok(transport.includes('if (response.code != 200) false'));
+  assert.ok(transport.includes('optJSONObject("data")?.opt("exists") == true'));
+  assert.doesNotMatch(transport, /save_receipt|optBoolean|getBoolean/);
   assert.match(activity, /private var connection: ShareSaveTransport\?/);
   assert.match(activity, /synchronized\(requestMutex\) \{\s*if \(!active\) \{request.cancel\(\); throw CancellationException/);
   assert.match(activity, /synchronized\(requestMutex\) \{active = false; connection\?\.cancel\(\); diagnostics\?\.finish\(\); connection = null\}/);
@@ -56,7 +60,7 @@ test('Android terminal logging is independent, bounded and credential-redacted',
   assert.match(diagnostics, /writeFailures >= 3/);
   assert.doesNotMatch(diagnostics, /peekBody|okhttp3.Response|fun response\(/);
   assert.doesNotMatch(activity + transport, /peekBody/);
-  assert.equal((transport.match(/response.body\?\.string\(\)/g) ?? []).length, 1);
+  assert.equal((transport.match(/response.body\?\.string\(\)/g) ?? []).length, 2);
   assert.match(transport, /400 -> \{\s*val errorBody = try \{response.body\?\.string\(\)\}/);
   assert.match(activity, /diagnostics\?\.http\(code, body, cfRay\)/);
   assert.match(activity, /onCreateFinished = \{diagnostics\?\.requestFinished\(\)\}/);

@@ -267,17 +267,6 @@ export class BookmarkRepo {
     return { bookmark_id: res.id, ...res }
   }
 
-  public async hasActiveSave(userId: number, targetUrl: string): Promise<boolean> {
-    return !!(await this.prismaPg().sr_user_bookmark.findFirst({
-      where: {
-        user_id: userId,
-        deleted_at: null,
-        bookmark: { target_url: targetUrl, private_user: { in: [userId, 0] } }
-      },
-      select: { id: true }
-    }))
-  }
-
   public async getUserBookmark(bmId: number, userId: number) {
     return await this.prismaPg().sr_user_bookmark.findFirst({ where: { bookmark_id: bmId, user_id: userId } })
   }

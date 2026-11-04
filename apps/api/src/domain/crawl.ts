@@ -275,9 +275,9 @@ export class CrawlService {
     return tweetId
   }
 
-  private async fetchTweet(env: Env, url: string, signal?: AbortSignal) {
+  private async fetchTweet(env: Env, url: string) {
     const tweetId = CrawlService.extractTweetId(url)
-    const tweets = await SocialMediaApi.fetchTwitter(env, [tweetId], signal)
+    const tweets = await SocialMediaApi.fetchTwitter(env, [tweetId])
     if (tweets.length === 0) throw FetchThreePartyError('Failed to fetch tweet')
     return { tweetId, tweetInfo: tweets[0] }
   }
@@ -406,9 +406,9 @@ export class CrawlService {
     return null
   }
 
-  public async resolveFinalUrl(ctx: ContextManager, url: string, signal?: AbortSignal): Promise<string> {
+  public async resolveFinalUrl(ctx: ContextManager, url: string): Promise<string> {
     if (TWITTER_SHORT_STATUS_RE.test(url)) {
-      const { tweetId, tweetInfo } = await this.fetchTweet(ctx.env, url, signal)
+      const { tweetId, tweetInfo } = await this.fetchTweet(ctx.env, url)
       return `https://x.com/${tweetInfo.author.userName}/status/${tweetId}`
     }
 
