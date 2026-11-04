@@ -44,6 +44,7 @@ import { BookmarkForkService } from './bookmarkFork'
 import { MediaSnapshotService } from './mediaSnapshot'
 import { snapshotBundleMembers, snapshotKeys, snapshotText } from '@/utils/snapshotBundle'
 import { forkError } from '@/utils/bookmarkForkError'
+import { needsResolve } from '@/utils/platformDetector'
 
 type ImportedFork = {
   kind: 'completed'
@@ -486,6 +487,30 @@ export class BookmarkService {
     await this.searchService.clearSearchCache(ctx, ctx.getUserId())
 
     return 'ok'
+  }
+
+  public async saveReceipt(ctx: ContextManager, targetUrl: string): Promise<boolean> {
+    const readerUuid = readerBookmarkUuid(targetUrl, [ctx.env.FRONT_END_URL])
+    if (readerUuid) return this.forkService.saveReceipt(ctx, readerUuid)
+
+    const normalized = processTargetUrl(new URL(targetUrl))
+    const userId = ctx.getUserId()
+    if (await this.bookmarkRepo.hasActiveSave(userId, normalized)) return true
+    if (!needsResolve(normalized)) return false
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 2000)
+    let resolved: string
+    try {
+      const url = await this.crawlService.resolveFinalUrl(ctx, normalized, controller.signal)
+      if (!url || controller.signal.aborted) return false
+      resolved = processTargetUrl(new URL(url))
+    } catch {
+      return false
+    } finally {
+      clearTimeout(timer)
+    }
+    return resolved !== normalized && this.bookmarkRepo.hasActiveSave(userId, resolved)
   }
 
   /** 收藏是否存在  */

@@ -38,7 +38,7 @@ enum ShareCollector {
     guard let base = info[endpointKey] as? String, let url = URL(string: "/v1/bookmark/add_url", relativeTo: URL(string: base))?.absoluteURL else { throw ShareFailure.message("Collection failed, please try again.") }
     let version = "\(info["CFBundleShortVersionString"] as? String ?? "") (\(info["CFBundleVersion"] as? String ?? ""))"
     var request = URLRequest(url: url)
-    request.httpMethod = "POST"; request.timeoutInterval = 15
+    request.httpMethod = "POST"; request.timeoutInterval = 5
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
     request.setValue("SlaxReader/iOS \(version)", forHTTPHeaderField: "User-Agent")
@@ -49,17 +49,13 @@ enum ShareCollector {
     diagnostics?.request(host: url.host, metrics: metrics)
     result.reason = "network_other"
     let requestStarted = Date()
-    defer { result.ms["request"] = ShareDiagnosticRecord.milliseconds(requestStarted, Date()) }
     do {
-      let configuration = URLSessionConfiguration.ephemeral
-      configuration.timeoutIntervalForRequest = 8; configuration.timeoutIntervalForResource = 15
-      let session = URLSession(configuration: configuration, delegate: ShareRequestDelegate(metrics: metrics), delegateQueue: nil)
-      defer { session.invalidateAndCancel() }
-      let (data, response) = try await session.data(for: request)
-      metrics.complete()
+      let (data, response, error) = try await ShareRequestDelegate(metrics: metrics).send(request, budget: 5)
+      result.ms["request"] = ShareDiagnosticRecord.milliseconds(requestStarted, Date())
+      if let error { result.error = ShareDiagnosticRecord.error(error as NSError) }
+      try Task.checkCancellation()
       result.stage = "response"; result.reason = "http_other"
       diagnostics?.advance(result.stage, reason: result.reason)
-      guard let response = response as? HTTPURLResponse else { throw ShareFailure.message("Collection failed, please try again.") }
       let json: [String: Any]? = [200, 204].contains(response.statusCode) ? nil : (try? JSONSerialization.jsonObject(with: data) as? [String: Any])
       let responseCode: Any = (json?["code"] as? NSNumber).map { $0 as Any } ?? ShareDiagnosticRecord.value(ShareDiagnosticRecord.identifier(json?["code"] as? String))
       result.http = ["status": response.statusCode, "errorName": ShareDiagnosticRecord.value(ShareDiagnosticRecord.identifier(json?["data"] as? String)), "code": responseCode, "cfRay": ShareDiagnosticRecord.value(ShareDiagnosticRecord.identifier(response.value(forHTTPHeaderField: "CF-Ray")))]
@@ -75,10 +71,10 @@ enum ShareCollector {
       if response.statusCode == 400, let json, let message = json["message"] as? String, !message.isEmpty { throw ShareFailure.message(message) }
       guard response.statusCode == 200 || response.statusCode == 204 else { throw ShareFailure.message("Collection failed, please try again.") }
       result.stage = "done"
-      result.ms["request"] = ShareDiagnosticRecord.milliseconds(requestStarted, Date())
       return result
     } catch {
       metrics.complete()
+      result.ms["request"] = ShareDiagnosticRecord.milliseconds(requestStarted, Date())
       if !(error is ShareFailure) {
         let native = error as NSError
         result.error = ShareDiagnosticRecord.error(native)
@@ -93,9 +89,19 @@ enum ShareCollector {
       }
       if Task.isCancelled { result.reason = "cancelled"; throw CancellationError() }
       if let failure = error as? ShareFailure { throw failure }
-      let code = (error as NSError).code
-      if code == NSURLErrorTimedOut { throw ShareFailure.message("Request timed out, please try again.") }
-      if [NSURLErrorCannotFindHost, NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost].contains(code) { throw ShareFailure.message("Network unavailable, please check your connection.") }
+      let native = error as NSError
+      if native.domain == NSURLErrorDomain && native.code == NSURLErrorTimedOut {
+        diagnostics?.update(result)
+        var receipt = request
+        receipt.url = url.deletingLastPathComponent().appendingPathComponent("save_receipt")
+        receipt.timeoutInterval = 3
+        receipt.httpBody = try JSONSerialization.data(withJSONObject: ["target_url": String(content[range])])
+        let confirmation = try? await ShareRequestDelegate(statusOnly: true).send(receipt, budget: 3)
+        if Task.isCancelled { result.reason = "cancelled"; throw CancellationError() }
+        if confirmation?.1.statusCode == 204 { result.stage = "done"; result.reason = "success"; return result }
+        throw ShareFailure.message("Request timed out, please try again.")
+      }
+      if [NSURLErrorCannotFindHost, NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost].contains(native.code) { throw ShareFailure.message("Network unavailable, please check your connection.") }
       throw ShareFailure.message("Collection failed, please try again.")
     }
   }

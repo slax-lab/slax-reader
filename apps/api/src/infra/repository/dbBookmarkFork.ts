@@ -134,6 +134,17 @@ export class BookmarkForkRepo {
     return source?.id === id ? source : null
   }
 
+  async destinationReceipt(userId: number, targetUrl: string): Promise<boolean> {
+    return !!(await this.client().sr_user_bookmark.findFirst({
+      where: {
+        user_id: userId,
+        deleted_at: null,
+        bookmark: { target_url: targetUrl, private_user: { in: [userId, 0] } }
+      },
+      select: { id: true }
+    }))
+  }
+
   async destination(userId: number, targetUrl: string, db: Database = this.client()) {
     const raw = await db.sr_bookmark.findUnique({ where: { target_url_private_user: { target_url: targetUrl, private_user: userId } } })
     if (!raw) return null

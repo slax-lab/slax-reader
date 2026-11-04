@@ -11,7 +11,6 @@ import android.os.Bundle
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.net.SocketTimeoutException
 import java.net.URI
 import java.net.UnknownHostException
 import java.util.concurrent.CancellationException
@@ -58,12 +57,13 @@ internal class ShareDiagnostics private constructor(private val activity: Activi
   }
   fun reason(value: String) = update {it.reason = value}
   fun http(status: Int, body: String?, cfRay: String?) = update {it.http = ShareDiagnosticRecord.http(status, body, cfRay)}
+  fun requestFinished() {val now = System.nanoTime(); update {it.finishRequest(now)}}
   fun failure(error: Exception) = update {
     it.error = JSONObject().put("class", error.javaClass.simpleName)
     it.reason = when {
       it.stage == "prefs" -> {it.prefs.put("error", error.javaClass.simpleName); if (error is IOException) "prefs_unavailable" else "prefs_corrupt"}
       error is CancellationException -> "cancelled"
-      error is SocketTimeoutException -> "network_timeout"
+      error.isShareTimeout() -> "network_timeout"
       error is UnknownHostException -> "network_dns"
       error is SSLException -> "network_tls"
       error is IOException && network?.isNull("transport") == true && network?.isNull("validated") == false -> "network_offline"

@@ -14,6 +14,14 @@ import { UserDeletionService } from '@/domain/userDeletion'
 import { MediaSnapshotService } from '@/domain/mediaSnapshot'
 import { memoryBucket } from '../utils/snapshotBucket'
 import { readEmbeddedSnapshot, snapshotKeys } from '@/utils/snapshotBundle'
+import { BookmarkController } from '@/handler/http/bookmarkController'
+import { getRouter } from '@/di/generated/readerRouter'
+import { ContextManager } from '@/utils/context'
+import { Auth } from '@/utils/jwt'
+import { Hashid } from '@/utils/hashids'
+import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
+
+vi.mock('@/handler/http/mcpController', () => ({ McpServerController: class {} }))
 
 const url = process.env.FORK_TEST_DATABASE_URL
 describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
@@ -67,6 +75,112 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     const { content_key, content_md_key } = snapshotKeys(uuid)
     return { userId: users[1], source: source!, targetUrl: target, uuid, content: { content_key, content_md_key, content_word_count: 4 } }
   }
+
+  describe('Read-only save receipts', () => {
+    const bookmarks = new BookmarkRepo({} as any, () => client)
+    const receipts = async (userId: number, targetUrl: string) => {
+      const before = await client.sr_user_bookmark.findMany({ where: { user_id: { in: users } } })
+      const result = await Promise.all([bookmarks.hasActiveSave(userId, targetUrl), repo.destinationReceipt(userId, targetUrl)])
+      expect(await client.sr_user_bookmark.findMany({ where: { user_id: { in: users } } })).toEqual(before)
+      return result
+    }
+    const raw = async (privateUser: number, status = 'pending') => {
+      const bookmark = await client.sr_bookmark.create({
+        data: { title: 'Receipt', target_url: `https://receipt.test/${crypto.randomUUID()}`, private_user: privateUser, status, created_at: new Date(), updated_at: new Date(), published_at: new Date() }
+      })
+      raws.push(bookmark.id)
+      return bookmark
+    }
+
+    it('serves bodyless owner-scoped receipts through generated authenticated routing', async () => {
+      const forkService = Object.assign(Object.create(BookmarkForkService.prototype), { repo }) as BookmarkForkService
+      const service = Object.assign(Object.create(BookmarkService.prototype), { bookmarkRepo: bookmarks, forkService }) as BookmarkService
+      const controller = Object.assign(Object.create(BookmarkController.prototype), { bookmarkService: service }) as BookmarkController
+      const router = getRouter({ resolve: (key: unknown) => {
+        if (key === PRISIMA_HYPERDRIVE_CLIENT) return client
+        if (key === BookmarkController) return controller
+        throw new Error('Unexpected receipt dependency')
+      } } as any)
+      const env = { RUN_ENV: 'development', FRONT_END_URL: 'https://reader.test', HASH_IDS_SALT: 'receipt-test', JWT_SECRET_TEXT: 'receipt-test-secret', JWT_ISSUER: 'receipt-test', JWT_EXPIRES: '60', JWT_ALGORITHMS: 'HS256' } as Env
+      const target = await raw(users[1])
+      const relation = await client.sr_user_bookmark.create({ data: { user_id: users[1], bookmark_id: target.id, updated_at: new Date() } })
+      const request = async (userId: number) => {
+        const token = await new Auth(env).sign({ id: String(new Hashid(env).encodeId(userId)), email: 'receipt@example.test', lang: 'en' })
+        const ctx = new ContextManager({ waitUntil: (promise: Promise<unknown>) => promise.catch(() => {}) } as ExecutionContext, env)
+        return router.fetch(new Request('https://api.test/v1/bookmark/save_receipt', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ target_url: target.target_url }) }), ctx) as Promise<Response>
+      }
+      const saved = await request(users[1])
+      expect(saved.status).toBe(204)
+      expect(saved.body).toBeNull()
+      expect(saved.headers.get('Cache-Control')).toBe('private, no-store')
+      expect((await request(users[0])).status).toBe(404)
+      await client.sr_user_bookmark.update({ where: { id: relation.id }, data: { deleted_at: new Date() } })
+      const trashed = await request(users[1])
+      expect(trashed.status).toBe(404)
+      expect(await trashed.text()).toBe('')
+      expect(trashed.headers.get('Cache-Control')).toBe('private, no-store')
+    })
+
+    it.each(['pending', 'parseing', 'failed', 'success'])('confirms private and legacy-public active %s saves', async status => {
+      for (const privateUser of [users[1], 0]) {
+        const bookmark = await raw(privateUser, status)
+        await client.sr_user_bookmark.create({ data: { user_id: users[1], bookmark_id: bookmark.id, updated_at: new Date() } })
+        expect(await receipts(users[1], bookmark.target_url)).toEqual([true, true])
+        expect(await receipts(users[0], bookmark.target_url)).toEqual([false, false])
+      }
+    })
+
+    it('requires a persisted caller relation and rejects another private owner', async () => {
+      const orphan = await raw(users[1])
+      expect(await receipts(users[1], orphan.target_url)).toEqual([false, false])
+      const other = await raw(users[0])
+      await client.sr_user_bookmark.create({ data: { user_id: users[0], bookmark_id: other.id, updated_at: new Date() } })
+      expect(await receipts(users[1], other.target_url)).toEqual([false, false])
+      await client.sr_user_bookmark.create({ data: { user_id: users[1], bookmark_id: other.id, updated_at: new Date() } })
+      expect(await receipts(users[1], other.target_url)).toEqual([false, false])
+    })
+
+    it('does not confirm or restore trash and permanently deleted relations', async () => {
+      const bookmark = await raw(users[1])
+      const relation = await client.sr_user_bookmark.create({ data: { user_id: users[1], bookmark_id: bookmark.id, updated_at: new Date(), deleted_at: new Date() } })
+      expect(await receipts(users[1], bookmark.target_url)).toEqual([false, false])
+      expect((await client.sr_user_bookmark.findUniqueOrThrow({ where: { id: relation.id } })).deleted_at).not.toBeNull()
+      await client.sr_user_bookmark.delete({ where: { id: relation.id } })
+      expect(await receipts(users[1], bookmark.target_url)).toEqual([false, false])
+    })
+
+    it('confirms an uploaded PDF destination by receiving-owner identity while parsing', async () => {
+      const documentId = 'a'.repeat(64)
+      const original = await raw(users[0], 'success')
+      await client.sr_bookmark.update({ where: { id: original.id }, data: { target_url: `slax-pdf://${users[0]}/${documentId}`, content_key: 'pdf/body/source.pdf' } })
+      const sourceRelation = await client.sr_user_bookmark.create({ data: { user_id: users[0], bookmark_id: original.id, type: 2, updated_at: new Date() } })
+      await client.$executeRaw`UPDATE sr_user_bookmark SET metadata = metadata || jsonb_build_object('pdf_document_id', ${documentId}::text) WHERE id = ${sourceRelation.id}`
+      const source = await repo.source(users[1], sourceRelation.uuid)
+      const destination = await repo.admit({ userId: users[1], source: source!, targetUrl: `slax-pdf://${users[1]}/${documentId}`, uuid: crypto.randomUUID() })
+      const service = Object.assign(Object.create(BookmarkForkService.prototype), { repo }) as BookmarkForkService
+      const ctx = { getUserId: () => users[1] } as any
+      expect(destination.relation.bookmark.status).toBe('parseing')
+      expect(await service.saveReceipt(ctx, sourceRelation.uuid)).toBe(true)
+      expect(await service.lookup(ctx, sourceRelation.uuid)).toBeNull()
+      await client.sr_user_bookmark.update({ where: { id: destination.relation.id }, data: { deleted_at: new Date() } })
+      expect(await service.saveReceipt(ctx, sourceRelation.uuid)).toBe(false)
+      expect((await client.sr_user_bookmark.findUniqueOrThrow({ where: { id: destination.relation.id } })).deleted_at).not.toBeNull()
+    })
+
+    it('confirms committed Reader admission while legacy readiness lookup remains unavailable', async () => {
+      const sourceRaw = await raw(users[0], 'success')
+      const sourceRelation = await client.sr_user_bookmark.create({ data: { user_id: users[0], bookmark_id: sourceRaw.id, updated_at: new Date() } })
+      const authorized = await repo.source(users[1], sourceRelation.uuid)
+      await repo.admit({ userId: users[1], source: authorized!, targetUrl: sourceRaw.target_url, uuid: crypto.randomUUID() })
+      const service = Object.assign(Object.create(BookmarkForkService.prototype), { repo }) as BookmarkForkService
+      const ctx = { getUserId: () => users[1] } as any
+      expect(await service.saveReceipt(ctx, sourceRelation.uuid)).toBe(true)
+      expect(await service.lookup(ctx, sourceRelation.uuid)).toBeNull()
+      await client.sr_bookmark_share.create({ data: { user_id: users[0], bookmark_id: sourceRaw.id, is_enable: false } })
+      expect(await service.saveReceipt(ctx, sourceRelation.uuid)).toBe(false)
+      expect(await receipts(users[1], sourceRaw.target_url)).toEqual([true, true])
+    })
+  })
 
   it('returns the committed cached-release timestamp for later moderation', async () => {
     const destination = await publish(input(`https://cached-release.test/${crypto.randomUUID()}`))

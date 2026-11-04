@@ -87,6 +87,10 @@ export function getRouter(container: Container) {
     const controller = container.resolve(BookmarkController)
     return await controller.handleUserGetBookmarkMetadataRequest(ctx, req)
   })
+  router.post('/v1/bookmark/save_receipt', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(BookmarkController)
+    return await controller.handleUserBookmarkSaveReceiptRequest(ctx, req)
+  })
   router.post('/v1/bookmark/exists', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(BookmarkController)
     return await controller.handleUserBookmarkExistsRequest(ctx, req)
