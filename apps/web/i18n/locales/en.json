@@ -1270,6 +1270,7 @@
       "telegram": "Telegram",
       "twitter": "Twitter",
       "telegram_channel": "Telegram Channel",
+      "contact_email": "Contact Email",
       "third_party_binding": "Third-party binding",
       "update_account_error": "Update account failed",
       "update_share_status_failed": "Failed to update sharing status",
