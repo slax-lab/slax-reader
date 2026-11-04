@@ -41,7 +41,7 @@ export function OutlineSheet({status, toolbarVisible, markdown, pending, busy, e
   const backgroundStyle = useAnimatedStyle(() => ({opacity: background.value}))
   const morphStyle = useAnimatedStyle(() => ({opacity: morphAlpha.value, width: 50 + (viewport.width - 50) * morph.value, height: 50 + (height - 50) * morph.value,
     bottom: bottom * (1 - morph.value), borderTopLeftRadius: 25 - 5 * morph.value, borderTopRightRadius: 25 - 5 * morph.value,
-    borderBottomLeftRadius: 25 * (1 - morph.value), borderBottomRightRadius: 25 * (1 - morph.value), transform: [{translateX: -87 * (1 - morph.value)}]}))
+    borderBottomLeftRadius: 25 - 5 * morph.value, borderBottomRightRadius: 25 - 5 * morph.value, transform: [{translateX: -87 * (1 - morph.value)}]}))
   const panelStyle = useAnimatedStyle(() => ({opacity: expanded.value, transform: [{translateY: viewport.height * slide.value}]}))
   const collapsedStyle = useAnimatedStyle(() => ({opacity: collapsed.value, transform: [{translateX: -87}, {translateY: toolbarOffset.value}]}))
   if (status === 'none') return null
@@ -65,6 +65,6 @@ export function OutlineSheet({status, toolbarVisible, markdown, pending, busy, e
 }
 const styles = StyleSheet.create({
   floatingCircle: {width: 50, height: 50, borderRadius: 25, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.16, shadowRadius: 40, shadowOffset: {width: 0, height: 10}, elevation: 8},
-  outlinePanel: {position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: C.surface, overflow: 'hidden'},
+  outlinePanel: {position: 'absolute', left: 0, right: 0, bottom: 0, borderRadius: 20, backgroundColor: C.surface, overflow: 'hidden'},
   outlineFooterAction: {flex: 1, height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6}, center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20}, skeleton: {paddingHorizontal: 20},
 })

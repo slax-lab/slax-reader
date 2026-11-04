@@ -33,7 +33,7 @@ async function mounted(run) {
   }
 }
 
-test('search input clear button resets text and selected tags only when there is something to clear', async () => mounted(async (root, window) => {
+test('search clear only clears typed text and tag selection retains its own controls', async () => mounted(async (root, window) => {
   const pressables = [], inputs = [], views = [], keyboardListeners = new Map();
   const View = props => {views.push(props); return React.createElement('div', {}, props.children);};
   const Pressable = props => {pressables.push(props); return React.createElement('div', {role: 'button', 'aria-label': props.accessibilityLabel, onClick: props.onPress}, props.children);};
@@ -45,7 +45,7 @@ test('search input clear button resets text and selected tags only when there is
     react: React, 'react-native': native, '../theme': theme,
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 59, bottom: 34})},
     '../components/SourceSheetModal': {SourceSheetModal: props => props.visible ? React.createElement(View, {}, props.children) : null},
-    '../components/SourceUI': {SourceText: text},
+    '../components/SourceUI': {SourceText: text, SourceIcon: () => null},
     './SearchSymbols': {SearchCheck: () => null},
   });
   const {SearchInput} = await load('../../src/search/SearchInput.tsx', {
@@ -66,17 +66,23 @@ test('search input clear button resets text and selected tags only when there is
   const clear = pressables.find(props => props.accessibilityLabel === 'search_clear');
   assert.ok(clear, 'nonempty searches expose a clear action');
   await act(async () => clear.onPress());
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 1);
   assert.equal(calls[0][0], 'text');
   assert.equal(calls[0][1], '');
-  assert.equal(calls[1][0], 'tags');
-  assert.deepEqual([...calls[1][1]], []);
+  pressables.length = 0;
+  await act(async () => root.render(render({selected: ['tag-1']})));
+  assert.equal(pressables.some(props => props.accessibilityLabel === 'search_clear'), false, 'Tag-only search has no keyword clear button');
   let cleared = 0;
   await act(async () => root.render(render({sourceLabel: 'My feed', onClearSource: () => {cleared++;}})));
   const removeSource = pressables.find(props => props.accessibilityLabel === 'search_remove_source My feed');
   assert.ok(removeSource, 'a scoped Collection or RSS source is removable like a tag');
   await act(async () => removeSource.onPress());
   assert.equal(cleared, 1);
+  pressables.length = 0; calls.length = 0;
+  await act(async () => root.render(render({text: 'needle', sourceLabel: 'My feed', onClearSource: () => {cleared++;}})));
+  await act(async () => pressables.find(props => props.accessibilityLabel === 'search_clear').onPress());
+  assert.equal(cleared, 1, 'Keyword clear preserves source scope');
+  assert.deepEqual(calls, [['text', '']]);
   pressables.length = 0;
   const tag = {id: 'tag-1', tag_name: 'Work', display: '1'};
   await act(async () => root.render(render({tags: [tag]})));
@@ -99,6 +105,16 @@ test('search input clear button resets text and selected tags only when there is
   assert.deepEqual([...calls.at(-1)[1]], ['tag-1'], 'the sheet applies tag selection through the existing query port');
   const done = pressables.findLast(props => props.accessibilityLabel === 'search_tags_done');
   await act(async () => done.onPress());
+  pressables.length = 0;
+  await act(async () => root.render(render({tags: [tag], selected: ['tag-1']})));
+  assert.equal(pressables.some(props => props.accessibilityLabel === 'search_clear'), false);
+  await act(async () => pressables.find(props => props.testID === 'search-tags-toggle').onPress());
+  const selectedChoice = pressables.findLast(props => props.accessibilityRole === 'checkbox' && props.accessibilityLabel === 'Work');
+  assert.equal(selectedChoice.accessibilityState.checked, true);
+  calls.length = 0;
+  await act(async () => selectedChoice.onPress());
+  assert.deepEqual([...calls.at(-1)[1]], [], 'Selected chips remove their tag through the existing query port');
+  await act(async () => pressables.findLast(props => props.accessibilityLabel === 'search_tags_done').onPress());
   pressables.length = 0;
   await act(async () => root.render(render({tags: [tag], selected: ['tag-1'], sourceLabel: 'My feed', onClearSource: () => {}})));
   assert.equal(pressables.some(props => props.accessibilityRole === 'checkbox'), false, 'a scoped source hides the tag rail');

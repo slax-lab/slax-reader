@@ -8,6 +8,7 @@ export type ToolDefinition = {
 }
 
 export type VertexAIConfig = {
+  abortSignal?: AbortSignal
   model?: string
   temperature?: number
   maxOutputTokens?: number
@@ -22,8 +23,16 @@ export type VertexAIConfig = {
 
 export type OnStepCallback = (toolName: string, args: Record<string, any>) => void
 
-/** Token counts of the final response; thinking tokens are billed as output, so they are added to it. */
-export type ChatUsage = { inputTokens: number; outputTokens: number }
+/**
+ * Token counts of the final response; thinking tokens are billed as output, so they are added to
+ * it. `thoughtTokens` repeats the thinking share for diagnostics.
+ */
+export type ChatUsage = { inputTokens: number; outputTokens: number; thoughtTokens?: number }
+
+export function chatUsageFromMetadata(meta: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number } | undefined): ChatUsage | undefined {
+  if (!meta) return undefined
+  return { inputTokens: meta.promptTokenCount ?? 0, outputTokens: (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0), thoughtTokens: meta.thoughtsTokenCount ?? 0 }
+}
 export type OnTextDeltaCallback = (text: string) => Promise<void>
 
 /** Budget for the provider to produce the first streamed chunk of one request. */
@@ -146,6 +155,8 @@ export class VertexAIClient {
       maxOutputTokens: config.maxOutputTokens ?? 16384
     }
 
+    if (config.abortSignal) generationConfig.abortSignal = config.abortSignal
+
     if (config.responseMimeType) {
       generationConfig.responseMimeType = config.responseMimeType
     }
@@ -209,9 +220,7 @@ export class VertexAIClient {
         continue
       }
 
-      const meta = response.usageMetadata
-      const usage = meta ? { inputTokens: meta.promptTokenCount ?? 0, outputTokens: (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0) } : undefined
-      return { text: response.text || '', usage, finishReason: response.candidates?.[0]?.finishReason }
+      return { text: response.text || '', usage: chatUsageFromMetadata(response.usageMetadata), finishReason: response.candidates?.[0]?.finishReason }
     }
 
     return { text: '' }

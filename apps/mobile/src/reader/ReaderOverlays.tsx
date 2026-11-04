@@ -59,8 +59,8 @@ export function ReaderToolbar({visible, collection, youtube, starred, archived, 
   const inset = useSafeAreaInsets()
   return <SourceSheetModal visible={visible} onDismiss={onDismiss} onDidDismiss={onDidDismiss}>
     <View style={[styles.toolbarSheet, {paddingBottom: inset.bottom + 24}]}><View style={styles.toolbarGrid}>{actions.map(action => <Pressable key={action.id} onPress={() => {if (!action.disabled) onAction(action.id)}} disabled={action.disabled} accessibilityState={{disabled: Boolean(action.disabled)}} style={[styles.toolbarItem, action.disabled && {opacity: .4}]} accessibilityRole="button" accessibilityLabel={action.label} testID={`reader-toolbar-${action.id}`}>
-      <View style={styles.toolbarIcon}><SourceIcon name={action.icon} size={24} />{action.pro ? <SourceIcon name="ic_bottom_panel_pro" size={24} style={styles.toolbarPro} /> : null}</View>
-      <SourceText style={[T.toolbarLabel, {marginTop: 8}]}>{action.label}</SourceText>
+      {({pressed}) => <><View style={styles.toolbarIcon}>{pressed && !action.disabled ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, {borderRadius: 16, backgroundColor: C.pressedOverlay}]} /> : null}<SourceIcon name={action.icon} size={24} />{action.pro ? <SourceIcon name="ic_bottom_panel_pro" size={24} style={styles.toolbarPro} /> : null}</View>
+      <SourceText style={[T.toolbarLabel, {marginTop: 8}]}>{action.label}</SourceText></>}
     </Pressable>)}</View></View>
   </SourceSheetModal>
 }
@@ -80,10 +80,7 @@ export function ImageActionSheet({visible, t, onSave, onShare, onCancel, onDidDi
     </View>
   </SourceSheetModal>
 }
-export function ImageActionNotice({message}: {message: string | null}) {
-  if (!message) return null
-  return <View pointerEvents="none" accessibilityLiveRegion="polite" style={styles.imageNotice}><SourceText style={[T.helper, {color: C.surface}]}>{message}</SourceText></View>
-}
+export {ReaderNotice as ImageActionNotice} from './components/ReaderNotice'
 
 export {CommentPanel, type CommentMenuAnchor} from './components/CommentPanel'
 
@@ -98,7 +95,7 @@ export function TranscriptSheet({visible, cues, currentTime, t, onSeek, onClose}
     <SourceText style={{fontSize: 16, fontWeight: '500', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8}}>{t('transcript_dialog_title')}</SourceText>
     {cues.length ? <FlatList ref={list} data={cues} keyExtractor={(cue, index) => `${index}:${cue.t}`} style={{flex: 1}} contentContainerStyle={{paddingHorizontal: 16, paddingBottom: 40}}
       onScrollToIndexFailed={info => {list.current?.scrollToOffset({offset: Math.max(0, info.averageItemLength * info.index - 200), animated: false})}}
-      renderItem={({item, index}) => <Pressable onPress={() => onSeek(item.t)} style={[styles.cue, index === active && {backgroundColor: '#8AD8A814'}]} accessibilityRole="button">
+      renderItem={({item, index}) => <Pressable onPress={() => onSeek(item.t)} style={[styles.cue, index === active && {backgroundColor: '#16B99814'}]} accessibilityRole="button">
         <SourceText style={styles.cueTime}>{cueTime(item.t)}</SourceText><SourceText style={{flex: 1, fontSize: 14, lineHeight: 21}}>{item.text}</SourceText>
       </Pressable>} /> : <View style={styles.center}><SourceText style={[T.helper, {color: C.mutedText}]}>{t('transcript_dialog_empty')}</SourceText></View>}
     <Pressable onPress={onClose} style={styles.closeRow} accessibilityRole="button"><SourceIcon name="ic_outline_dialog_close" size={24} /><SourceText style={T.helper}>{t('btn_close')}</SourceText></Pressable>
@@ -111,12 +108,11 @@ const styles = StyleSheet.create({
   imageActionSheet: {backgroundColor: C.surface, borderTopLeftRadius: 12, borderTopRightRadius: 12, overflow: 'hidden'},
   imageActionRow: {height: 56, alignItems: 'center', justifyContent: 'center'}, imageActionText: {fontSize: 17, lineHeight: 22, color: C.text},
   imageActionDivider: {height: StyleSheet.hairlineWidth, backgroundColor: C.border}, imageActionGap: {height: 8, backgroundColor: C.background},
-  imageNotice: {position: 'absolute', top: 120, alignSelf: 'center', backgroundColor: C.bodyText, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10},
   readerSheet: {borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: C.readerBackground, overflow: 'hidden', maxHeight: '96%'},
   toolbarSheet: {backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 24, paddingHorizontal: 12}, toolbarGrid: {flexDirection: 'row', flexWrap: 'wrap', rowGap: 24}, toolbarItem: {width: '25%', alignItems: 'center'}, toolbarIcon: {width: 56, height: 56, borderRadius: 16, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center'},
   toolbarPro: {position: 'absolute', top: 0, alignSelf: 'center', height: 9.6},
   commentMeta: {fontSize: 12, lineHeight: 16.5, color: C.mutedText}, commentAction: {flexDirection: 'row', alignItems: 'center', gap: 5},
   commentEditor: {flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 8, backgroundColor: C.background}, commentInputContainer: {flex: 1, flexDirection: 'row', gap: 8, minHeight: 38, borderRadius: 8, backgroundColor: C.surface, paddingHorizontal: 8}, commentInput: {paddingVertical: 9, paddingHorizontal: 0, fontSize: 14, lineHeight: 20, minHeight: 38, maxHeight: 100, color: C.bodyText, includeFontPadding: false},
   commentSend: {height: 38, borderRadius: 8, paddingHorizontal: 11.5, alignItems: 'center', justifyContent: 'center'}, commentMenu: {position: 'absolute', flexDirection: 'row', alignItems: 'center', backgroundColor: C.selectionMenu, borderRadius: 12, paddingHorizontal: 6}, commentMenuItem: {height: 32, flexDirection: 'row', alignItems: 'center', gap: 1, paddingLeft: 6, paddingRight: 10, borderRadius: 6}, commentMenuText: {fontSize: 15, lineHeight: 21, fontWeight: '500', color: C.selectionText},
-  outlinePanel: {position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: C.surface, overflow: 'hidden'}, outlineFooterAction: {flex: 1, height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6}, center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20}, cue: {padding: 6, flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 6}, cueTime: {fontSize: 12, lineHeight: 18, fontWeight: '500', color: '#2F9E5E', backgroundColor: '#8AD8A829', borderWidth: 1, borderColor: '#8AD8A880', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3}, closeRow: {height: 55, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 6},
+  outlinePanel: {position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: C.surface, overflow: 'hidden'}, outlineFooterAction: {flex: 1, height: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6}, center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20}, cue: {padding: 6, flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 6}, cueTime: {fontSize: 12, lineHeight: 18, fontWeight: '500', color: '#16B998', backgroundColor: '#16B99829', borderWidth: 1, borderColor: '#16B99880', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3}, closeRow: {height: 55, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 6},
 })

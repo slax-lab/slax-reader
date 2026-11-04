@@ -39,7 +39,7 @@ export function ReaderSheet({visible, onDismiss, children, testID, inline = fals
   }, [comment])
   const backdropStyle = useAnimatedStyle(() => ({opacity: comment ? motion.value : 1}))
   const sheetStyle = useAnimatedStyle(() => ({transform: [{translateY: (1 - motion.value) * sheetHeight.value}]}))
-  const content = <KeyboardAvoidingView style={{flex: 1, justifyContent: 'flex-end'}} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  const content = <KeyboardAvoidingView style={{flex: 1, justifyContent: 'flex-end'}} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <Reanimated.View style={[StyleSheet.absoluteFill, {backgroundColor: C.scrim}, backdropStyle]}><Pressable accessible={false} onPress={onDismiss} style={StyleSheet.absoluteFill} /></Reanimated.View>
     <Reanimated.View testID={testID} accessibilityViewIsModal onLayout={comment ? event => {sheetHeight.value = event.nativeEvent.layout.height} : undefined} style={[styles.readerSheet, {marginTop: inset.top + 36, paddingBottom: inset.bottom}, comment && {maxHeight: '80%', flexShrink: 1, marginTop: 0, backgroundColor: C.background, paddingBottom: keyboardVisible ? 8 : inset.bottom}, comment && sheetStyle]}>{comment && !visible ? retained.current : children}</Reanimated.View>
   </KeyboardAvoidingView>

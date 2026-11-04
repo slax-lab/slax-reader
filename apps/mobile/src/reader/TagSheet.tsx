@@ -1,3 +1,4 @@
+import {mobileColors as C} from '../theme'
 import React, {useEffect, useRef, useState} from 'react'
 import {Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions} from 'react-native'
 import {SourceIcon, SourceText, TextAction} from '../components'
@@ -45,7 +46,7 @@ export function ReaderTagSheet({visible, tags, remoteIds, t, onDismiss, onConfir
       </View><View style={{height: 0.5, backgroundColor: '#33333314', marginHorizontal: 24}} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{paddingHorizontal: 24, paddingVertical: 20}}>
         {creating ? <>
-          <TextInput autoFocus value={query} onChangeText={setQuery} placeholder={t('tags_input_placeholder')} placeholderTextColor="#A28D6499" selectionColor="#16B998" returnKeyType="done" onSubmitEditing={() => {void create()}} style={[styles.createInput, {color: '#0F1419', fontWeight: '700'}]} />
+          <TextInput selectionColor={C.accent} cursorColor={C.accent} autoFocus value={query} onChangeText={setQuery} placeholder={t('tags_input_placeholder')} placeholderTextColor="#A28D6499" returnKeyType="done" onSubmitEditing={() => {void create()}} style={[styles.createInput, {color: '#0F1419', fontWeight: '400'}]} />
           {query.trim() && !hasMatch ? <Pressable disabled={busy} onPress={() => {void create()}} accessibilityRole="button" style={styles.createRow}><SourceIcon name="ic_cell_tag" size={14} /><SourceText style={{fontSize: 15, color: '#A28D64', marginLeft: 11}}>{t('tags_create_prefix')}{query}</SourceText></Pressable> : null}
           {query.trim() && matches.length && !hasMatch ? <View style={{height: 0.5, backgroundColor: '#33333314'}} /> : null}
           {matches.map(tag => <Pressable key={tag.id} accessibilityRole="button" onPress={() => add(tag)} style={[styles.createRow, {height: 44}]}><SourceIcon name="ic_cell_tag" size={14} /><SourceText style={{fontSize: 15, lineHeight: 21, color: '#999999', marginLeft: 11}}>{tag.tag_name}</SourceText></Pressable>)}

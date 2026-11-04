@@ -161,3 +161,21 @@ test('outline loading loops stay still under reduced motion', nativeBoundary, as
   await act(async () => ui.advance(16))
   assert.equal(ui.pending(), 0, 'Reduced motion starts no repeating loading animation')
 }))
+
+test('outline lower corners remain rounded throughout expansion and collapse crossfades', nativeBoundary, async () => withNativeHost(async host => {
+  const {render, advance} = await outlineHost(host)
+  await render({status: 'collapsed'}); await advance(700)
+  for (const status of ['expanded', 'collapsed']) {
+    await render({status})
+    for (let frame = 0; frame < 40; frame++) {
+      await advance(16)
+      const shape = flattenStyle(host.props.get('reader-outline-morph').style)
+      if (shape.opacity > 0) {
+        assert.ok(shape.borderBottomLeftRadius > 0, 'Visible morph cannot expose a square lower-left corner')
+        assert.ok(shape.borderBottomRightRadius > 0, 'Visible morph cannot expose a square lower-right corner')
+      }
+      const panel = flattenStyle(host.props.get('reader-outline-panel').style)
+      if (panel.opacity > 0) assert.ok(panel.borderRadius > 0, 'Crossfading panel keeps the rounded lower silhouette')
+    }
+  }
+}))

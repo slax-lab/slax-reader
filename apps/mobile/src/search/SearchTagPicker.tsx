@@ -1,12 +1,11 @@
 import React, {useEffect, useState} from 'react';
 import {Keyboard, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {SourceText} from '../components/SourceUI';
+import {SourceIcon, SourceText} from '../components/SourceUI';
 import {SourceSheetModal} from '../components/SourceSheetModal';
 import type {TagRecord} from '../data/repositories/types';
 import type {MobileContextValue} from '../runtime';
 import {mobileColors as C} from '../theme';
-import {SearchCheck} from './SearchSymbols';
 
 export function SearchTagPicker({visible, tags, selected, onChange, onDismiss, t}: {
   visible: boolean; tags: TagRecord[]; selected: string[]; onChange(ids: string[]): void; onDismiss(): void; t: MobileContextValue['t'];
@@ -39,20 +38,25 @@ export function SearchTagPicker({visible, tags, selected, onChange, onDismiss, t
         </Pressable>
       </View>
       <SourceText style={styles.hint}>{t('search_tags_hint')}</SourceText>
-      <TextInput accessibilityLabel={t('search_find_tag')} placeholder={t('search_find_tag')} placeholderTextColor={C.searchSecondaryText}
+      <TextInput selectionColor={C.accent} cursorColor={C.accent} accessibilityLabel={t('search_find_tag')} placeholder={t('search_find_tag')} placeholderTextColor={C.searchSecondaryText}
         value={filter} onChangeText={setFilter} autoCorrect={false} autoCapitalize="none" style={styles.input}/>
       <ScrollView testID="search-tag-options" style={styles.list} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.listContent}>
-        {choices.map(tag => {
-          const checked = selected.includes(tag.id);
-          return <Pressable key={tag.id} accessibilityRole="checkbox" accessibilityLabel={tag.tag_name} accessibilityState={{checked}}
-            onPress={() => onChange(checked ? selected.filter(id => id !== tag.id) : [...selected, tag.id])}
-            style={({pressed}) => [styles.row, pressed && styles.pressed]}>
-            <SourceText accessible={false} style={styles.hash}>#</SourceText>
-            <SourceText style={[styles.name, checked && styles.selectedName]}>{tag.tag_name}</SourceText>
-            <View style={[styles.check, checked && styles.checked]}>{checked ? <SearchCheck/> : null}</View>
-          </Pressable>;
-        })}
-        {!choices.length ? <SourceText style={styles.empty}>{t('search_tags_empty')}</SourceText> : null}
+        {selected.length ? <>
+          <SourceText style={styles.groupLabel}>{t('tags_added')}</SourceText>
+          <View style={[styles.tagFlow, {marginBottom: 24}]}>{tags.filter(tag => selected.includes(tag.id)).map(tag =>
+            <Pressable key={tag.id} accessibilityRole="checkbox" accessibilityLabel={tag.tag_name} accessibilityState={{checked: true}} hitSlop={{top: 7, bottom: 7}}
+              onPress={() => onChange(selected.filter(id => id !== tag.id))} style={({pressed}) => [styles.tag, pressed && styles.pressed]}>
+              <SourceText numberOfLines={1} style={styles.tagName}>{tag.tag_name}</SourceText>
+              <View style={styles.tagDivider}/><SourceIcon name="ic_xs_tag_close" size={14}/>
+            </Pressable>)}</View>
+        </> : null}
+        <SourceText style={styles.groupLabel}>{t('tags_available')}</SourceText>
+        <View style={styles.tagFlow}>{choices.filter(tag => !selected.includes(tag.id)).map(tag =>
+          <Pressable key={tag.id} accessibilityRole="checkbox" accessibilityLabel={tag.tag_name} accessibilityState={{checked: false}} hitSlop={{top: 7, bottom: 7}}
+            onPress={() => onChange([...selected, tag.id])} style={({pressed}) => [styles.tag, pressed && styles.pressed]}>
+            <SourceText numberOfLines={1} style={styles.tagName}>{tag.tag_name}</SourceText>
+          </Pressable>)}</View>
+        {!choices.some(tag => !selected.includes(tag.id)) ? <SourceText style={styles.empty}>{t('search_tags_empty')}</SourceText> : null}
       </ScrollView>
       {selected.length ? <Pressable accessibilityRole="button" accessibilityLabel={t('search_reset_tags')} onPress={() => onChange([])} style={styles.reset}>
         <SourceText style={styles.resetText}>{t('search_reset_tags')}</SourceText>
@@ -62,24 +66,23 @@ export function SearchTagPicker({visible, tags, selected, onChange, onDismiss, t
 }
 
 const styles = StyleSheet.create({
-  panel: {backgroundColor: C.readerBackground, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, overflow: 'hidden'},
+  panel: {backgroundColor: C.readerBackground, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden'},
   handle: {width: 32, height: 4, borderRadius: 2, backgroundColor: C.buttonBorder, alignSelf: 'center', marginTop: 10, marginBottom: 10},
-  header: {flexDirection: 'row', alignItems: 'center', gap: 12},
-  title: {flex: 1, fontSize: 21, lineHeight: 29, fontWeight: '600', color: C.text},
+  header: {paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', gap: 12},
+  title: {flex: 1, fontSize: 21, lineHeight: 29, fontWeight: '600', color: C.bodyText},
   action: {minHeight: 44, minWidth: 44, paddingLeft: 12, alignItems: 'center', justifyContent: 'center'},
-  done: {fontSize: 15, lineHeight: 22, fontWeight: '600', color: C.searchActionText},
-  hint: {fontSize: 13, lineHeight: 20, color: C.searchSecondaryText, marginTop: 2, marginBottom: 16},
-  input: {minHeight: 46, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, backgroundColor: C.background, color: C.text, fontSize: 15, marginBottom: 12},
+  done: {fontSize: 15, lineHeight: 22, fontWeight: '600', color: C.bodyText},
+  hint: {fontSize: 14, lineHeight: 20, color: C.searchSecondaryText, marginTop: 2, marginBottom: 16, marginHorizontal: 24},
+  input: {minHeight: 46, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 8, backgroundColor: C.background, color: C.bodyText, fontSize: 15, marginBottom: 12, marginHorizontal: 24},
   list: {flex: 1, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border},
-  listContent: {paddingBottom: 8},
-  row: {minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border},
-  hash: {fontSize: 19, lineHeight: 25, color: C.searchSecondaryText, width: 24, textAlign: 'center'},
-  name: {flex: 1, fontSize: 16, lineHeight: 23, color: C.text},
-  selectedName: {fontWeight: '500', color: C.searchActionText},
-  check: {width: 22, height: 22, borderRadius: 7, borderWidth: 1, borderColor: C.buttonBorder, alignItems: 'center', justifyContent: 'center'},
-  checked: {backgroundColor: C.searchSelection, borderColor: C.searchActionText},
-  empty: {fontSize: 14, lineHeight: 21, color: C.searchSecondaryText, paddingVertical: 24},
-  reset: {minHeight: 48, alignItems: 'center', justifyContent: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border},
+  listContent: {paddingHorizontal: 24, paddingTop: 20, paddingBottom: 14},
+  groupLabel: {fontSize: 14, lineHeight: 20, color: C.searchSecondaryText, marginBottom: 12},
+  tagFlow: {flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 16},
+  tag: {minHeight: 30, maxWidth: '100%', borderRadius: 3, borderWidth: 1, borderColor: C.tagBorder, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 6, paddingRight: 8},
+  tagName: {flexShrink: 1, fontSize: 15, lineHeight: 21, color: '#A28D64'},
+  tagDivider: {width: 1, height: 12, backgroundColor: C.border},
+  empty: { fontSize: 14, lineHeight: 21, color: C.searchSecondaryText, paddingVertical: 24},
+  reset: {minHeight: 48, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border},
   resetText: {fontSize: 14, lineHeight: 21, color: C.searchSecondaryText},
   pressed: {backgroundColor: C.pressedOverlay},
 });

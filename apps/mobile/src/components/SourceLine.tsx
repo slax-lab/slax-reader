@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Platform, useWindowDimensions, type StyleProp, type ViewProps, type ViewStyle} from 'react-native';
+import {Platform, StyleSheet, View, useWindowDimensions, type StyleProp, type ViewProps, type ViewStyle} from 'react-native';
 import {requireNativeView} from 'expo';
 import {SourceText} from './SourceUI';
 
@@ -12,11 +12,25 @@ interface NativeTextProps extends ViewProps {
 const NativeText = Platform.OS === 'android' ? requireNativeView<NativeTextProps>('SlaxPlatform', 'SlaxTextView') : null;
 
 /** Plain source labels use Android TextPaint and iOS UIKit text with the requested truncation mode. */
-export function SourceLine({text, fontSize, lineHeight, fontWeight = 400, color, alignment = 'left', centerAsGroup = false, fitContent = false, ellipsis = 'end', style, testID}: {
+interface SourceLineProps {
   text: string; fontSize: number; lineHeight: number; fontWeight?: number; color: string;
   alignment?: NativeTextProps['alignment']; ellipsis?: NativeTextProps['ellipsis']; style?: StyleProp<ViewStyle>; testID?: string;
-  centerAsGroup?: boolean; fitContent?: boolean;
-}) {
+  centerAsGroup?: boolean; fitContent?: boolean; reserveFontWeight?: number;
+}
+
+export function SourceLine({reserveFontWeight, ...props}: SourceLineProps) {
+  const {fontScale} = useWindowDimensions();
+  if (reserveFontWeight === undefined) return <MeasuredSourceLine {...props} />;
+  // Keep the layout measurement at the selected weight so changing selection cannot move neighbouring items.
+  return <View testID={props.testID} style={props.style}>
+    <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{opacity: 0}}>
+      <MeasuredSourceLine {...props} fontWeight={reserveFontWeight} fitContent testID={props.testID ? `${props.testID}-measure` : undefined} style={{maxWidth: StyleSheet.flatten(props.style)?.maxWidth, height: props.lineHeight * fontScale}} />
+    </View>
+    <MeasuredSourceLine {...props} fitContent={false} testID={props.testID ? `${props.testID}-text` : undefined} style={[StyleSheet.absoluteFill, {height: props.lineHeight * fontScale}]} />
+  </View>;
+}
+
+function MeasuredSourceLine({text, fontSize, lineHeight, fontWeight = 400, color, alignment = 'left', centerAsGroup = false, fitContent = false, ellipsis = 'end', style, testID}: SourceLineProps) {
   const {fontScale} = useWindowDimensions();
   const [metrics, setMetrics] = useState<{key: string; height: number; width: number} | null>(null);
   const key = `${fontSize}/${fontWeight}/${fontScale}/${text}`;

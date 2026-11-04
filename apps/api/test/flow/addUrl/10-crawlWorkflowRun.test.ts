@@ -998,16 +998,58 @@ describe('CrawlWorkflow → podcast route', () => {
     expect(lab.isEnabled).not.toHaveBeenCalled()
   })
 
-  describe('Pocket Casts recapture of an annotated body', () => {
-    const PCA = 'https://pca.st/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'
+  test.each([
+    { labs: true, annotated: false },
+    { labs: false, annotated: false },
+    { labs: true, annotated: true }
+  ])('resolves a Pocket Casts share through the real resolver: %o', async ({ labs, annotated }) => {
+    const short = 'https://pca.st/6rpkp8cj'
+    const episode = 'https://pocketcasts.com/podcast/show/642bf450-e9fa-013a-da18-0acc26574db2/episode/d5287eb5-5416-4c58-9b7c-d1ba6d7f8fc8'
+    const info = { ...INFO, kind: 'pocketcasts', pageUrl: episode }
+    const { wf, cs, bs, pod } = wirePodcast(labs)
+    cs.resolveShortLink.mockImplementation((ctx, url) => CrawlService.prototype.resolveShortLink.call(cs as unknown as CrawlService, ctx, url))
+    cs.keepsAnnotatedBody.mockResolvedValue(annotated)
+    cs.fetchPodcastData.mockResolvedValue(info)
+    bs.getUserBookmark.mockResolvedValue({ id: 1, uuid: 'existing-uuid', user_id: 1, bookmark_id: 42 })
+    if (annotated) {
+      bs.getBookmarkById.mockResolvedValue({ id: 42, title: 'Kept', content_md_key: 'md/kept.md' })
+      bs.getBookmarkContent.mockResolvedValue('Existing annotated notes')
+    }
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 302, headers: { Location: episode } }))
+    try {
+      await runWorkflow(wf, { url: short })
+      expect(fetch).toHaveBeenCalledExactlyOnceWith(short, expect.objectContaining({ redirect: 'manual' }))
+      if (labs && !annotated) {
+        expect(cs.fetchPodcastData).toHaveBeenCalledWith(episode, expect.anything())
+        expect(cs.parseAndSavePodcast).toHaveBeenCalledWith(expect.anything(), info, 42, 'existing-uuid')
+        expect(cs.fetchRegular).not.toHaveBeenCalled()
+        expect(pod.triggerAfterCrawl).toHaveBeenCalledWith(expect.anything(), 42, 1)
+      } else {
+        expect(cs.fetchPodcastData).not.toHaveBeenCalled()
+        expect(pod.triggerAfterCrawl).not.toHaveBeenCalled()
+        if (annotated) {
+          expect(cs.fetchRegular).not.toHaveBeenCalled()
+          expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), 42, 'success')
+        } else {
+          expect(cs.parseAndSaveContent).toHaveBeenCalled()
+        }
+      }
+    } finally {
+      fetch.mockRestore()
+    }
+  })
 
+  describe.each([
+    ['Pocket Casts', 'https://pca.st/episode/f7269801-ce3f-48fc-9e57-3783fdbbe7d2'],
+    ['Xiaoyuzhou', XYZ]
+  ])('%s recapture of an annotated body', (_source, url) => {
     test('keeps the body, fetches nothing, and releases the bookmark as success', async () => {
       const { wf, cs, bs, uph, pod } = wirePodcast(true)
       ;(cs as any).keepsAnnotatedBody.mockResolvedValue(true)
       bs.getBookmarkById.mockResolvedValue({ id: 42, title: 'Kept', byline: 'Host', content_key: 'html/body/x.html', content_md_key: 'md/x.md' })
       bs.getBookmarkContent.mockResolvedValue('Existing notes of the kept body')
       const step = createMockStep()
-      await runWorkflow(wf, { url: PCA }, step)
+      await runWorkflow(wf, { url: url }, step)
 
       expect((cs as any).keepsAnnotatedBody).toHaveBeenCalledWith(expect.anything(), 42)
       expect((cs as any).fetchPodcastData).not.toHaveBeenCalled()
@@ -1024,14 +1066,14 @@ describe('CrawlWorkflow → podcast route', () => {
     test('without marks the episode is captured as usual', async () => {
       const { wf, cs } = wirePodcast(true)
       ;(cs as any).keepsAnnotatedBody.mockResolvedValue(false)
-      await runWorkflow(wf, { url: PCA })
-      expect((cs as any).fetchPodcastData).toHaveBeenCalledWith(PCA, expect.anything())
+      await runWorkflow(wf, { url: url })
+      expect((cs as any).fetchPodcastData).toHaveBeenCalledWith(url, expect.anything())
       expect((cs as any).parseAndSavePodcast).toHaveBeenCalled()
     })
 
-    test('other podcast sources never ask', async () => {
-      const { wf, cs } = wirePodcast(true)
-      await runWorkflow(wf, { url: XYZ })
+    test('Labs off never asks', async () => {
+      const { wf, cs } = wirePodcast(false)
+      await runWorkflow(wf, { url: url })
       expect((cs as any).keepsAnnotatedBody).not.toHaveBeenCalled()
     })
   })

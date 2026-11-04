@@ -75,7 +75,7 @@ class ShareActivity : Activity() {
   private fun showResult(result: String) {
     card.removeAllViews()
     val success = result == "ok"
-    val color = if (success) Color.rgb(76, 175, 80) else Color.rgb(244, 67, 54)
+    val color = if (success) Color.rgb(22, 185, 152) else Color.rgb(244, 67, 54)
     val icon = label(if (success) "✓" else "X", Color.WHITE).apply {
       textSize = 32f; letterSpacing = 0f; setLineSpacing(resources.displayMetrics.scaledDensity * 40f - paint.fontSpacing, 1f)
       background = GradientDrawable().apply {shape = GradientDrawable.OVAL; setColor(color)}

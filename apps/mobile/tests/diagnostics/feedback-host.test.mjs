@@ -8,6 +8,7 @@ import {mobileColors, mobileTypography} from '../../src/theme/index.ts';
 
 async function fixture(host, screen = 'Feedback', locale = 'en', platform = 'ios') {
   let epoch = 0, mode = 'success', staged = 0, released = 0, flushed = 0, shares = 0, dialog, navigationOptions, back = 0, deferred;
+  const navigationListeners = new Map();
   const listeners = new Set(), requests = [], events = [], files = [], navigations = [];
   const capture = () => {const value = epoch; return () => {if (epoch !== value) throw new Error('Account changed');};};
   const sessions = {captureIdentity: capture, prepareRequest: async () => {}, captureRequestScope() {return {assertCurrent: capture(), getSession: async () => ({token: 'test-token', userId: 'test-user', refreshedAt: 0})};}, getSession: async () => null, clearIfMatches: async () => false,
@@ -42,7 +43,7 @@ async function fixture(host, screen = 'Feedback', locale = 'en', platform = 'ios
   const route = {key: 'feedback', params: {bookmarkId: 'bookmark', entryPoint: 'reader', targetUrl: 'https://example.org/article'}};
   function MountedScreen() {
     const [options, setOptions] = React.useState({});
-    const navigation = React.useMemo(() => ({setOptions(value) {navigationOptions = value; setOptions(value);}, goBack() {back++;}, navigate(...args) {navigations.push(args);}}), []);
+    const navigation = React.useMemo(() => ({addListener(name, callback) {navigationListeners.set(name, callback); return () => navigationListeners.delete(name);}, setOptions(value) {navigationOptions = value; setOptions(value);}, goBack() {back++;}, navigate(...args) {navigations.push(args);}}), []);
     return React.createElement(React.Fragment, null,
       React.createElement(host.native.View, {testID: 'navigation-header'}, options.headerRight?.()),
       React.createElement(module[`${screen}Screen`], {navigation, route}));
@@ -50,7 +51,8 @@ async function fixture(host, screen = 'Feedback', locale = 'en', platform = 'ios
   const element = () => React.createElement(MountedScreen);
   await host.render(element()); await host.settle();
   return {api, storage, element, requests, files, events, navigations, t, async setLocale(value) {mobile.t = translator(value); await host.render(element());}, setMode(value) {mode = value;}, resolve() {deferred?.();}, replaceAccount() {epoch++; for (const listener of listeners) listener();},
-    stats: () => ({staged, released, flushed, shares, back, listeners: listeners.size}), dialog: () => dialog, options: () => navigationOptions,
+    stats: () => ({staged, released, flushed, shares, back, listeners: listeners.size}),
+    async transition(closing = false) {await act(async () => navigationListeners.get('transitionEnd')?.({data: {closing}}));}, dialog: () => dialog, options: () => navigationOptions,
     async type(value) {await act(async () => host.props.get('feedback_input').onChangeText(value));},
     async press(id) {await act(async () => host.props.get(id).onPress()); await host.settle();},
   };
@@ -61,13 +63,23 @@ for (const locale of ['en', 'zh']) for (const platform of ['ios', 'android']) te
   assert.equal(host.props.get('feedback-attach-logs').accessibilityState.checked, false);
   assert.equal(host.props.get('feedback-follow-up').accessibilityState.checked, true);
   assert.equal(host.props.get('feedback_submit').disabled, true);
-  const input = host.props.get('feedback_input'); assert.equal(input.multiline, true); assert.equal(input.submitBehavior, 'newline'); assert.equal(input.scrollEnabled, true);
+  const input = host.props.get('feedback_input');
+  assert.notEqual(input.autoFocus, true, 'Native mount must not open the keyboard before avoidance geometry is ready');
+  assert.equal(host.focused(), 0, 'Wait for the measured screen offset before focusing');
+  assert.equal(input.multiline, true); assert.equal(input.submitBehavior, 'newline'); assert.equal(input.scrollEnabled, true);
   assert.equal(host.props.get('feedback-scroll').keyboardShouldPersistTaps, 'handled');
   const surfaceStyle = Object.assign({}, ...host.props.get('feedback_screen').style.filter(Boolean));
   assert.equal(surfaceStyle.paddingBottom, platform === 'android' ? 48 : 34);
   assert.equal(host.props.get('feedback-keyboard-layout').behavior, platform === 'ios' ? 'padding' : 'height');
   await act(async () => host.props.get('feedback-measured-surface').onLayout());
+  assert.equal(host.focused(), 0, 'A layout during the native push cannot open the keyboard');
+  await f.transition(true);
+  assert.equal(host.focused(), 0, 'Closing transition completion cannot focus the form');
+  await f.transition();
   assert.equal(host.props.get('feedback-keyboard-layout').keyboardVerticalOffset, 200);
+  assert.equal(host.focused(), 1, 'First focus happens after the avoiding view receives its screen offset');
+  await act(async () => host.props.get('feedback-measured-surface').onLayout());
+  assert.equal(host.focused(), 1, 'Later layout events must not steal focus or reopen the keyboard');
   assert.ok(host.window.document.querySelector('[data-testid="navigation-header"] [data-testid="feedback_submit"]'));
   for (const [value, disabled] of [[' \n ', true], ['a', false], ['', true], ['first\nsecond', false]]) {
     await f.type(value); assert.equal(host.props.get('feedback_submit').disabled, disabled);

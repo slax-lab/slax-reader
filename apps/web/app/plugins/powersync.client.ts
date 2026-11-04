@@ -9,8 +9,8 @@ import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
 import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
 import { shouldUsePowerSyncSharedWorker } from '~/local-first/powersync-worker-policy'
+import { isFastPublicPath, type PublicTokenState,shouldBypassPublicDatabase } from '~/local-first/public-startup-policy'
 import { AppSchema } from '~/local-first/schema'
-import { isFastPublicPath, shouldBypassPublicDatabase, type PublicTokenState } from '~/local-first/public-startup-policy'
 import { POWER_SYNC_DATABASE_GENERATION, POWER_SYNC_LOCAL_DATA_VERSION } from '~/local-first/version'
 
 const LAST_USER_KEY = 'slax:powersync:lastUser'
@@ -105,6 +105,9 @@ export default defineNuxtPlugin({
         powersyncPublicBypass: bypassed
       }
     })
+    const recoveringSnapshotSession = useSnapshotSessionRecoveryPending()
+    const snapshotNavigation = useSnapshotSessionNavigation()
+    if (recoveringSnapshotSession.value) return unavailable()
     const publicStartupEnabled = Boolean(useAppConfig().lcp?.anonymousPublicStartup)
     const initialPathname = window.location.pathname
     const topLevel = window.parent === window
@@ -134,6 +137,13 @@ export default defineNuxtPlugin({
           baseUrl: cfg.DWEB_API_BASE_URL as string,
           authToken,
           onUnauthorized: async () => {
+            if (recoveringSnapshotSession.value || snapshotNavigation.value) return
+            const snapshot = /^\/b\/([^/]+)\/?$/.exec(window.location.pathname)
+            if (window.parent === window && snapshot) {
+              // Let the current snapshot's metadata decide recovery and retain its URL.
+              await nuxtApp.runWithContext(() => refreshNuxtData(`content-${snapshot[1]}`))
+              return
+            }
             await useAuth().clearAuth()
             clearSyncCredsCache()
             notifyExtensionBridgeAuthExpired()

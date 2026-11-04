@@ -12,7 +12,37 @@ import type { ArticleModel } from '@/domain/youtubeArticleRunner'
 import type { podcastEpisodePO } from '@/infra/repository/dbPodcastArticle'
 import type { mediaArticlePO } from '@/infra/repository/dbMediaArticle'
 import type { AssemblyJobState } from '@/infra/external/assemblyAI'
-import { parseVtt } from '@/utils/podcastTranscript'
+import { parseVtt, type PodcastTranscriptDocument } from '@/utils/podcastTranscript'
+import {
+  PODCAST_LIMITS,
+  PODCAST_POLISH_RESPONSE_SCHEMA,
+  buildPolishInstruction,
+  buildPolishUserMessage,
+  buildTranslationInstruction,
+  buildTranslationUserMessage,
+  chunkTranslationUnits,
+  translationUnits,
+  planPodcastChunks,
+  podcastRequestSize,
+  podcastChunkKey,
+  type PodcastEpisodeContext
+} from '@/utils/podcastArticle'
+import { estimateCostUsd } from '@/utils/youtubeArticle'
+
+const sizeOf = (args: Parameters<ArticleModel['chat']>) => podcastRequestSize(args[2].systemInstruction, (args[0][0].parts![0] as { text: string }).text, args[1].responseSchema!)
+const reservationOf = (args: Parameters<ArticleModel['chat']>) => {
+  const size = sizeOf(args)
+  return estimateCostUsd(size.inputTokens, size.outputLimit)
+}
+function polishSize(transcript: PodcastTranscriptDocument, ctx: PodcastEpisodeContext, index = 0) {
+  const chunks = planPodcastChunks(transcript)
+  const chunk = chunks[index]
+  return podcastRequestSize(
+    buildPolishInstruction(transcript.language, ctx, chunk, chunks.length, null),
+    buildPolishUserMessage(transcript.cues.slice(chunk.start, chunk.end)),
+    PODCAST_POLISH_RESPONSE_SCHEMA
+  )
+}
 
 const VTT = readFileSync(join(__dirname, '../fixtures/podcast/buzzsprout.vtt'), 'utf8')
 const SOURCE = 'f'.repeat(32)
@@ -415,11 +445,24 @@ describe('articles', () => {
     expect(first.deps.publishBodies).toHaveBeenCalledTimes(1)
   })
 
-  test('bounds model thinking so a long transcript cannot truncate on thinking tokens', async () => {
+  test('uses podcast output capacity with the default Gemini 3 temperature and LOW thinking', async () => {
     const { deps } = setup({ episode: { publisher_transcripts: VTT_REF } })
     expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('ready')
     expect(deps.model.chat).toHaveBeenCalled()
-    for (const call of deps.model.chat.mock.calls) expect(call[1]).toMatchObject({ thinkingConfig: { thinkingBudget: 2048 } })
+    const types: unknown[] = []
+    const walkSchema = (value: unknown) => {
+      if (!value || typeof value !== 'object') return
+      if ('type' in value) types.push(value.type)
+      Object.values(value).forEach(walkSchema)
+    }
+    for (const call of deps.model.chat.mock.calls) {
+      expect(call[1]).toMatchObject({ maxOutputTokens: sizeOf(call).outputLimit, temperature: 1.0, thinkingConfig: { thinkingLevel: 'LOW' }, abortSignal: expect.any(AbortSignal) })
+      expect(call[1].responseSchema).toEqual(PODCAST_POLISH_RESPONSE_SCHEMA)
+      walkSchema(call[1].responseSchema)
+    }
+    expect(types).toContain('OBJECT')
+    expect(types).toContain('STRING')
+    expect(types).not.toContain('INTEGER')
   })
 
   test('another run holds the episode → not_claimed', async () => {
@@ -427,10 +470,13 @@ describe('articles', () => {
     expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('not_claimed')
   })
 
-  test('a summary instead of a cleanup fails quality: no body, chunks dropped', async () => {
+  test('rejects a summary at the part gate without caching or publishing it', async () => {
     const { deps, articles, bucket } = setup({ episode: { publisher_transcripts: VTT_REF }, model: fakeModel({ summarize: true }) })
-    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('failed')
-    expect(articles.rows[0].error_message).toMatch(/^quality:.*length_ratio/)
+    const e = engine()
+    expect(await runPodcastEpisode(deps, P, e.step, 'run-1')).toBe('retry')
+    expect(articles.rows[0].error_message).toMatch(/^chunk_quality:.*length_ratio/)
+    expect(deps.model.chat).toHaveBeenCalledTimes(3)
+    expect(e.calls).not.toContain('polish-en-assemble')
     expect(deps.publishBodies).not.toHaveBeenCalled()
     expect([...bucket.objects.keys()].filter(k => k.includes('/chunks/'))).toEqual([])
   })
@@ -514,5 +560,1156 @@ describe('review fixes', () => {
     await runPodcastEpisode(first.deps, P, engine().step, 'run-3')
     expect(first.articles.dropRequest).toHaveBeenCalledWith(orphan.id)
     expect(first.deps.model.chat).not.toHaveBeenCalled()
+  })
+})
+
+describe('concurrent podcast articles', () => {
+  function readyLong() {
+    const state = setup()
+    const cues = Array.from({ length: 360 }, (_, i) => ({
+      id: `c${String(i + 1).padStart(4, '0')}`,
+      start_ms: i * 10_000,
+      duration_ms: 10_000,
+      text:
+        `Topic ${i}: ` +
+        'The speaker explains how local research changes the choices people make about work, education, transport, housing, public services, and their future. '.repeat(3)
+    }))
+    Object.assign(state.episodes.row, { transcript_status: 'ready', transcript_hash: 'long-hash', transcript_key: 'long-transcript', language: 'en' })
+    state.bucket.objects.set('long-transcript', JSON.stringify({ schema_version: 1, source: 'publisher', language: 'en', speakers: false, duration_ms: 3_600_000, cues }))
+    return { ...state, cues }
+  }
+
+  test('runs ten chunks together and assembles in source order', async () => {
+    const { deps, articles, bucket, cues } = readyLong()
+    expect(planPodcastChunks(JSON.parse(bucket.objects.get('long-transcript')!)).length).toBeGreaterThan(10)
+    const original = fakeModel()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let active = 0,
+      maximum = 0,
+      started = 0
+    deps.model = {
+      chat: async (...args) => {
+        const index = started++
+        maximum = Math.max(maximum, ++active)
+        await gate
+        await new Promise(resolve => setTimeout(resolve, (9 - (index % 10)) * 5))
+        try {
+          return await original.chat(...args)
+        } finally {
+          active--
+        }
+      }
+    }
+    const run = runPodcastEpisode(deps, P, engine().step, 'parallel')
+    try {
+      await vi.waitFor(() => expect(started).toBe(10), { timeout: 1000 })
+      expect(active).toBe(10)
+    } finally {
+      release()
+    }
+    expect(await run).toBe('ready')
+    expect(maximum).toBe(10)
+    const doc = JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!)
+    expect(doc.sections.flatMap(s => s.paragraphs.flatMap(p => p.source_cue_ids))).toEqual(cues.map(c => c.id))
+  })
+
+  test('waits for failed-chunk siblings and reuses them on retry', async () => {
+    const { deps, bucket } = readyLong()
+    const original = fakeModel()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let started = 0,
+      fail = true,
+      finished = false,
+      failedStep = false
+    const e = engine()
+    const step: PodcastStepLike = {
+      sleep: e.step.sleep,
+      async do(name, config, fn) {
+        try {
+          return await e.step.do(name, config, fn)
+        } catch (error) {
+          if (name === 'polish-en-chunk-0') failedStep = true
+          throw error
+        }
+      }
+    }
+    deps.model = {
+      chat: async (...args) => {
+        if (args[2].systemInstruction.includes('This is the first chunk') && fail) throw Object.assign(new Error('first chunk failed'), { status: 503 })
+        started++
+        await gate
+        return original.chat(...args)
+      }
+    }
+    const run = runPodcastEpisode(deps, P, step, 'failure').then(value => {
+      finished = true
+      return value
+    })
+    try {
+      await vi.waitFor(
+        () => {
+          expect(started).toBe(9)
+          expect(failedStep).toBe(true)
+        },
+        { timeout: 1000 }
+      )
+      expect(finished).toBe(false)
+    } finally {
+      release()
+    }
+    expect(await run).toBe('retry')
+    expect([...bucket.objects.keys()].filter(k => k.includes('/chunks/') && !k.includes('.parts/'))).toHaveLength(9)
+    fail = false
+    original.chat.mockClear()
+    expect(await runPodcastEpisode(deps, P, engine().step, 'retry')).toBe('ready')
+    expect(original.chat.mock.calls.filter(call => /This is chunk ([2-9]|10) of/.test(call[2].systemInstruction))).toHaveLength(0)
+  })
+
+  test('reserves concurrent costs before admitting model calls', async () => {
+    const { deps, articles, episodes, bucket } = readyLong()
+    const transcript = JSON.parse(bucket.objects.get('long-transcript')!)
+    const ctx = { title: episodes.row.title, showName: episodes.row.show_name, shownotes: episodes.row.shownotes }
+    const sizes = Array.from({ length: 10 }, (_, i) => polishSize(transcript, ctx, i))
+    expect(sizes.every(size => !size.oversized)).toBe(true)
+    const minimum = Math.min(...sizes.map(size => estimateCostUsd(size.inputTokens, size.outputLimit)))
+    episodes.row.cost_usd = PODCAST_LIMITS.maxEpisodeCostUsd - minimum * 1.25
+    const original = fakeModel()
+    let active = 0,
+      maximum = 0
+    deps.model = {
+      chat: async (...args) => {
+        maximum = Math.max(maximum, ++active)
+        const size = sizeOf(args)
+        expect(args[1].maxOutputTokens).toBe(size.outputLimit)
+        await new Promise(resolve => setTimeout(resolve, 10))
+        const result = await original.chat(...args)
+        active--
+        return { ...result, usage: { inputTokens: size.inputTokens, outputTokens: size.outputLimit } }
+      }
+    }
+    expect(await runPodcastEpisode(deps, P, engine().step, 'budget')).toBe('failed')
+    expect(maximum).toBe(1)
+    expect(original.chat).toHaveBeenCalledOnce()
+    expect(articles.rows[0].cost_usd).toBeCloseTo(reservationOf(original.chat.mock.calls[0]), 8)
+    expect(articles.rows[0].error_message).toBe('budget_exceeded')
+    expect(deps.publishBodies).not.toHaveBeenCalled()
+  })
+
+  test('reduces translation concurrency when five requested reservations no longer fit', async () => {
+    const { deps, articles, episodes, bucket } = readyLong()
+    deps.translationTargets.mockImplementation(async () => {
+      const source = JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!)
+      const ctx = { title: episodes.row.title, showName: episodes.row.show_name, shownotes: episodes.row.shownotes }
+      const system = buildTranslationInstruction('en', 'zh', ctx, '', [])
+      const { PODCAST_TRANSLATION_RESPONSE_SCHEMA } = await import('@/utils/podcastArticle')
+      const costs = chunkTranslationUnits(translationUnits(source))
+        .slice(0, 5)
+        .map(chunk => {
+          const size = podcastRequestSize(system, buildTranslationUserMessage(chunk), PODCAST_TRANSLATION_RESPONSE_SCHEMA)
+          expect(size.oversized).toBe(false)
+          return estimateCostUsd(size.inputTokens, size.outputLimit)
+        })
+      const remaining = costs.slice(0, 4).reduce((sum, cost) => sum + cost, 0) + Math.min(...costs) / 2
+      expect(remaining).toBeLessThan(costs.reduce((sum, cost) => sum + cost, 0))
+      episodes.row.cost_usd = PODCAST_LIMITS.maxEpisodeCostUsd - articles.rows[0].cost_usd - remaining
+      return ['zh']
+    })
+    const original = fakeModel()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let started = 0,
+      active = 0,
+      maximum = 0
+    deps.model = {
+      chat: async (...args) => {
+        const translation = args[2].systemInstruction.includes('资深译者')
+        if (translation) {
+          started++
+          maximum = Math.max(maximum, ++active)
+          await gate
+        }
+        try {
+          return await original.chat(...args)
+        } finally {
+          if (translation) active--
+        }
+      }
+    }
+    const run = runPodcastEpisode(deps, P, engine().step, 'translation')
+    try {
+      await vi.waitFor(() => expect(started).toBe(4), { timeout: 1000 })
+    } finally {
+      release()
+    }
+    expect(await run).toBe('ready')
+    expect(maximum).toBe(4)
+    expect(articles.rows.find(r => r.target_language === 'zh')?.status).toBe('ready')
+  })
+
+  test('starts later chunks while an earlier chunk remains slow without exceeding ten calls', async () => {
+    const { deps, articles, bucket } = readyLong()
+    expect(planPodcastChunks(JSON.parse(bucket.objects.get('long-transcript')!)).length).toBeGreaterThan(10)
+    const original = fakeModel()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let active = 0,
+      maximum = 0,
+      slowFinished = false
+    const started: number[] = []
+    deps.model = {
+      chat: async (...args) => {
+        const index = Number(/This is chunk (\d+) of/.exec(args[2].systemInstruction)![1]) - 1
+        started.push(index)
+        maximum = Math.max(maximum, ++active)
+        try {
+          if (index === 0) await gate
+          else await new Promise(resolve => setTimeout(resolve, 2))
+          return await original.chat(...args)
+        } finally {
+          active--
+          if (index === 0) slowFinished = true
+        }
+      }
+    }
+    const run = runPodcastEpisode(deps, P, engine().step, 'rolling-slow')
+    try {
+      await vi.waitFor(() => expect(started).toContain(10))
+      expect(slowFinished).toBe(false)
+      expect(articles.publish).not.toHaveBeenCalled()
+      expect(maximum).toBeLessThanOrEqual(10)
+    } finally {
+      release()
+    }
+    expect(await run).toBe('ready')
+    expect(maximum).toBeGreaterThan(1)
+    expect(maximum).toBeLessThanOrEqual(10)
+    expect(active).toBe(0)
+  })
+
+  test('does not start new chunks after failure and drains already running siblings', async () => {
+    const { deps, articles } = readyLong()
+    const original = fakeModel()
+    let release!: () => void, fail!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const failureGate = new Promise<void>(resolve => {
+      fail = resolve
+    })
+    const started: number[] = []
+    let active = 0,
+      finished = false,
+      failedStep = false
+    const step: PodcastStepLike = {
+      sleep: async () => {},
+      do: async (name, _config, fn) => {
+        try {
+          return await fn()
+        } catch (error) {
+          if (name === 'polish-en-chunk-0') failedStep = true
+          throw error
+        }
+      }
+    }
+    deps.model = {
+      chat: async (...args) => {
+        const index = Number(/This is chunk (\d+) of/.exec(args[2].systemInstruction)![1]) - 1
+        started.push(index)
+        active++
+        try {
+          if (index === 0) {
+            await failureGate
+            throw Object.assign(new Error('unavailable'), { status: 503 })
+          }
+          await gate
+          return await original.chat(...args)
+        } finally {
+          active--
+        }
+      }
+    }
+    const run = runPodcastEpisode(deps, P, step, 'rolling-failure').then(result => {
+      finished = true
+      return result
+    })
+    try {
+      await vi.waitFor(() => expect(started).toHaveLength(10))
+      fail()
+      await vi.waitFor(() => expect(failedStep).toBe(true))
+      expect(active).toBe(9)
+      expect(finished).toBe(false)
+      expect(articles.finishAttempt).not.toHaveBeenCalled()
+    } finally {
+      fail()
+      release()
+    }
+    expect(await run).toBe('retry')
+    expect(started.slice().sort((a, b) => a - b)).toEqual(Array.from({ length: 10 }, (_, i) => i))
+    expect(active).toBe(0)
+    expect(articles.publish).not.toHaveBeenCalled()
+  })
+
+  function cachedEngine() {
+    const e = engine()
+    const results = new Map<string, unknown>()
+    const step: PodcastStepLike = {
+      sleep: e.step.sleep,
+      async do<T>(name: string, config: Parameters<PodcastStepLike['do']>[1], fn: () => Promise<T>): Promise<T> {
+        if (results.has(name)) return results.get(name) as T
+        const result = await e.step.do(name, config, fn)
+        results.set(name, result)
+        return result
+      }
+    }
+    return { ...e, step, results }
+  }
+
+  test('strips contextual ids from mixed paragraphs without backward paragraph starts', async () => {
+    const { deps, articles, bucket, cues } = readyLong()
+    const original = fakeModel()
+    let mixed = 0
+    deps.model = {
+      chat: async (...args) => {
+        const reply = await original.chat(...args)
+        const overlap = Number(/The first (\d+) cues were cleaned/.exec(args[2].systemInstruction)?.[1] ?? 0)
+        if (!overlap) return reply
+        const value = JSON.parse(reply.text)
+        const ids = [...(args[0][0].parts![0] as { text: string }).text.matchAll(/^(c\d+) /gm)].slice(0, overlap).map(m => m[1])
+        value.sections[0].paragraphs[0].source_cue_ids.unshift(...ids)
+        mixed++
+        return { ...reply, text: JSON.stringify(value) }
+      }
+    }
+    expect(await runPodcastEpisode(deps, P, engine().step, 'mixed-overlap')).toBe('ready')
+    expect(mixed).toBeGreaterThan(0)
+    const doc = JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!)
+    const paragraphs = doc.sections.flatMap(s => s.paragraphs)
+    expect(paragraphs.flatMap(p => p.source_cue_ids)).toEqual(cues.map(c => c.id))
+    const starts = paragraphs.map(p => cues.find(c => c.id === p.source_cue_ids[0])!.start_ms)
+    expect(starts).toEqual([...starts].sort((a, b) => a - b))
+    const plan = planPodcastChunks(JSON.parse(bucket.objects.get('long-transcript')!))
+    for (const chunk of plan.slice(1)) {
+      const firstOwned = cues[chunk.start + chunk.overlap]
+      expect(paragraphs.find(p => p.source_cue_ids.includes(firstOwned.id))!.source_cue_ids[0]).toBe(firstOwned.id)
+    }
+  })
+
+  test('repairs only the later long duplicate and uses fresh workflow step names', async () => {
+    const { deps, articles, bucket } = readyLong()
+    const original = fakeModel()
+    const calls = new Map<number, number>()
+    const repeated = 'The guest explains how careful local research informs decisions about public services.'
+    deps.model = {
+      chat: async (...args) => {
+        const index = Number(/This is chunk (\d+) of/.exec(args[2].systemInstruction)![1]) - 1
+        const n = (calls.get(index) ?? 0) + 1
+        calls.set(index, n)
+        const reply = await original.chat(...args)
+        if (index > 1 || n > 1) return reply
+        const value = JSON.parse(reply.text)
+        const last = value.sections[0].paragraphs.at(-1)
+        value.sections[0].paragraphs.push({ speaker: null, text: repeated, source_cue_ids: [last.source_cue_ids.at(-1)] })
+        return { ...reply, text: JSON.stringify(value) }
+      }
+    }
+    const e = cachedEngine()
+    expect(await runPodcastEpisode(deps, P, e.step, 'duplicate-repair')).toBe('ready')
+    expect(calls.get(1)).toBe(2)
+    for (const [index, count] of calls) if (index !== 1) expect(count).toBe(1)
+    expect(e.calls.filter(name => /^polish-en-chunk-\d+-r1$/.test(name))).toEqual(['polish-en-chunk-1-r1'])
+    expect(e.results.has('polish-en-assemble')).toBe(true)
+    expect(e.results.has('polish-en-assemble-r1')).toBe(true)
+    expect(e.calls).not.toContain('polish-en-assemble-r2')
+    const doc = JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!)
+    expect(doc.sections.flatMap(s => s.paragraphs).filter(p => p.text === repeated)).toHaveLength(1)
+  })
+
+  test.each([false, true])('retries only the first part when its introduction is empty (persistent: %s)', async persistent => {
+    const { deps, articles, bucket } = readyLong()
+    const original = fakeModel()
+    const calls = new Map<number, number>()
+    deps.model = {
+      chat: async (...args) => {
+        const index = Number(/This is chunk (\d+) of/.exec(args[2].systemInstruction)![1]) - 1
+        const n = (calls.get(index) ?? 0) + 1
+        calls.set(index, n)
+        const reply = await original.chat(...args)
+        if (index !== 0 || (!persistent && n > 1)) return reply
+        const value = JSON.parse(reply.text)
+        value.lede = ''
+        return { ...reply, text: JSON.stringify(value) }
+      }
+    }
+    const count = planPodcastChunks(JSON.parse(bucket.objects.get('long-transcript')!)).length
+    const e = cachedEngine()
+    expect(await runPodcastEpisode(deps, P, e.step, 'missing-introduction')).toBe(persistent ? 'retry' : 'ready')
+    if (!persistent) expect(calls.size).toBe(count)
+    expect(calls.get(0)).toBe(persistent ? 3 : 2)
+    for (const [index, attempts] of calls) if (index !== 0) expect(attempts).toBe(1)
+    expect(e.calls.filter(name => /^polish-en-chunk-\d+-r1$/.test(name))).toHaveLength(0)
+    expect(e.calls).not.toContain('polish-en-assemble-r1')
+    expect(e.calls.some(name => name.endsWith('-r2'))).toBe(false)
+    if (persistent) {
+      expect(articles.rows[0].error_message).toContain('chunk_quality:empty_block')
+      expect(articles.publish).not.toHaveBeenCalled()
+      expect(deps.publishBodies).not.toHaveBeenCalled()
+      expect([...bucket.objects.keys()].some(key => key.includes('/chunks/'))).toBe(true)
+    }
+  })
+
+  test('repairs only the first chunk when a legacy cache has an empty introduction', async () => {
+    const { deps, articles, bucket } = readyLong()
+    const transcript = JSON.parse(bucket.objects.get('long-transcript')!)
+    const plan = planPodcastChunks(transcript)
+    for (const chunk of plan) {
+      const cues = transcript.cues.slice(chunk.start + chunk.overlap, chunk.end)
+      bucket.objects.set(
+        podcastChunkKey(SOURCE, 'long-hash', 'en', chunk.index),
+        JSON.stringify({
+          index: chunk.index,
+          lede: '',
+          usage: { input_tokens: 0, output_tokens: 0, cost_usd: 0 },
+          sections: [{ heading: `Topic ${chunk.index}`, start_ms: 0, end_ms: 0, paragraphs: cues.map(cue => ({ speaker: null, text: cue.text, source_cue_ids: [cue.id] })) }]
+        })
+      )
+    }
+    const e = cachedEngine()
+    expect(await runPodcastEpisode(deps, P, e.step, 'legacy-empty-introduction')).toBe('ready')
+    expect(e.calls.filter(name => /^polish-en-chunk-\d+-r1$/.test(name))).toEqual(['polish-en-chunk-0-r1'])
+    expect(JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!).lede).not.toBe('')
+  })
+
+  test.each([false, true])('repairs untargetable global number coverage once (persistent: %s)', async persistent => {
+    const { deps, articles, bucket, cues } = readyLong()
+    for (const [i, cue] of cues.entries()) {
+      const label = String.fromCharCode(65 + Math.floor(i / 26), 65 + (i % 26))
+      cue.text = cue.text.replace(/^Topic \d+/, `Topic ${label} 50000`)
+    }
+    const transcript = JSON.parse(bucket.objects.get('long-transcript')!)
+    transcript.cues = cues
+    bucket.objects.set('long-transcript', JSON.stringify(transcript))
+    const original = fakeModel()
+    const calls = new Map<number, number>()
+    deps.model = {
+      chat: async (...args) => {
+        const index = Number(/This is chunk (\d+) of/.exec(args[2].systemInstruction)![1]) - 1
+        const n = (calls.get(index) ?? 0) + 1
+        calls.set(index, n)
+        const reply = await original.chat(...args)
+        if (!persistent && n > 1) return reply
+        const value = JSON.parse(reply.text)
+        for (const section of value.sections) for (const paragraph of section.paragraphs) paragraph.text = paragraph.text.replaceAll('50000', '')
+        return { ...reply, text: JSON.stringify(value) }
+      }
+    }
+    const e = cachedEngine()
+    expect(await runPodcastEpisode(deps, P, e.step, 'global-number-coverage')).toBe(persistent ? 'failed' : 'ready')
+    const count = planPodcastChunks(transcript).length
+    expect(calls.size).toBe(count)
+    expect([...calls.values()]).toEqual(Array(count).fill(2))
+    expect(e.calls.filter(name => /^polish-en-chunk-\d+-r1$/.test(name))).toHaveLength(count)
+    expect(e.calls).toContain('polish-en-assemble-r1')
+    expect(e.calls.some(name => name.endsWith('-r2'))).toBe(false)
+    if (persistent) {
+      expect(articles.rows[0].error_message).toBe('quality:number_coverage')
+      expect(deps.publishBodies).not.toHaveBeenCalled()
+      expect([...bucket.objects.keys()].some(key => key.includes('/chunks/'))).toBe(false)
+    }
+  })
+
+  test('repairs all translation chunks once after an assembled translation quality failure', async () => {
+    const { deps, articles, bucket } = readyLong()
+    deps.translationTargets.mockResolvedValue(['zh'])
+    const original = fakeModel()
+    const requests = new Map<string, number>()
+    deps.model = {
+      chat: async (...args) => {
+        const reply = await original.chat(...args)
+        if (!args[2].systemInstruction.includes('资深译者')) return reply
+        const user = (args[0][0].parts![0] as { text: string }).text
+        const n = (requests.get(user) ?? 0) + 1
+        requests.set(user, n)
+        if (n > 1) return reply
+        const items = [...user.matchAll(/^(lede|h\d+|p\d+): (.*)$/gm)].map(m => ({ id: m[1], text: m[2] }))
+        return { ...reply, text: JSON.stringify({ items, glossary: [] }) }
+      }
+    }
+    const e = cachedEngine()
+    expect(await runPodcastEpisode(deps, P, e.step, 'translation-quality-repair')).toBe('ready')
+    expect(articles.rows[1].status).toBe('ready')
+    expect([...requests.values()]).toEqual(Array(requests.size).fill(2))
+    const source = JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!)
+    const count = chunkTranslationUnits(translationUnits(source)).length
+    expect(e.calls.filter(name => /^translate-zh-chunk-\d+-r1$/.test(name))).toHaveLength(count)
+    expect(e.calls).toContain('translate-zh-assemble-r1')
+    expect(e.calls.some(name => /^polish-en-chunk-\d+-r1$/.test(name))).toBe(false)
+  })
+
+  test('stops admitting calls after a cost write fails', async () => {
+    const { deps, articles } = readyLong()
+    const original = fakeModel()
+    articles.addCost.mockRejectedValue(new Error('cost storage failed'))
+    deps.model = original
+    expect(await runPodcastEpisode(deps, P, engine().step, 'accounting')).toBe('retry')
+    expect(original.chat.mock.calls.length).toBeLessThanOrEqual(10)
+    expect(deps.publishBodies).not.toHaveBeenCalled()
+    expect(articles.rows[0].error_message).toBe('cost storage failed')
+  })
+})
+
+describe('podcast truncation recovery', () => {
+  function ready(count = 16, text = 'The speaker explains local research and choices about education and public services.') {
+    const state = setup()
+    const cues = Array.from({ length: count }, (_, i) => ({
+      id: `c${String(i + 1).padStart(4, '0')}`,
+      start_ms: i * 10_000,
+      duration_ms: 10_000,
+      text: `Topic ${i}: ${text}`
+    }))
+    const transcript: PodcastTranscriptDocument = { schema_version: 1, source: 'publisher', language: 'en', speakers: false, duration_ms: count * 10_000, cues }
+    Object.assign(state.episodes.row, { transcript_status: 'ready', transcript_hash: 'recovery-hash', transcript_key: 'recovery-transcript', language: 'en' })
+    state.bucket.objects.set('recovery-transcript', JSON.stringify(transcript))
+    const size = polishSize(transcript, { title: state.episodes.row.title, showName: state.episodes.row.show_name, shownotes: state.episodes.row.shownotes })
+    return { ...state, cues, transcript, size, reservation: estimateCostUsd(size.inputTokens, size.outputLimit) }
+  }
+
+  const once: PodcastStepLike = { do: (_name, _config, fn) => fn(), sleep: async () => {} }
+  const userOf = (args: Parameters<ArticleModel['chat']>) => (args[0][0].parts![0] as { text: string }).text
+  const ownedIds = (args: Parameters<ArticleModel['chat']>) => {
+    const overlap = Number(/The first (\d+) cues were cleaned/.exec(args[2].systemInstruction)?.[1] ?? 0)
+    return [...userOf(args).matchAll(/^(c\d+) /gm)].map(m => m[1]).slice(overlap)
+  }
+  const truncated = () => ({ text: '{incomplete', finishReason: 'MAX_TOKENS', usage: { inputTokens: 100, outputTokens: 100 } })
+
+  test('retries only a bad child part while reusing the successful child and split', async () => {
+    const state = ready()
+    const model = fakeModel()
+    const calls = new Map<string, number>()
+    let rejected = false
+    let badKey = ''
+    state.deps.model = {
+      chat: async (...args) => {
+        const ids = ownedIds(args)
+        const key = ids.join(',')
+        calls.set(key, (calls.get(key) ?? 0) + 1)
+        if (ids.length === state.cues.length) return truncated()
+        const reply = await model.chat(...args)
+        if (!rejected && ids.includes(state.cues.at(-1)!.id)) {
+          rejected = true
+          badKey = key
+          const value = JSON.parse(reply.text)
+          value.sections[0].paragraphs[0].source_cue_ids.push('c9999')
+          return { ...reply, text: JSON.stringify(value) }
+        }
+        return reply
+      }
+    }
+    const e = engine()
+    expect(await runPodcastEpisode(state.deps, P, e.step, 'part-quality-retry')).toBe('ready')
+    expect(rejected).toBe(true)
+    expect(calls.get(badKey)).toBe(2)
+    for (const [key, n] of calls) if (key !== badKey) expect(n).toBe(1)
+    expect(e.calls).not.toContain('polish-en-assemble-r1')
+    for (const [key, value] of state.bucket.put.mock.calls) if (key.includes('.parts/')) expect(value).not.toContain('c9999')
+    const doc = JSON.parse(state.bucket.objects.get(state.articles.rows[0].article_key!)!)
+    expect(doc.sections.flatMap(s => s.paragraphs.flatMap(p => p.source_cue_ids))).toEqual(state.cues.map(c => c.id))
+  })
+
+  test('retries a hallucinated cue reference without caching or publishing it', async () => {
+    const state = ready()
+    const model = fakeModel()
+    state.deps.model = {
+      chat: async (...args) => {
+        const reply = await model.chat(...args)
+        const value = JSON.parse(reply.text)
+        value.sections[0].paragraphs[0].source_cue_ids = ['c9999']
+        return { ...reply, text: JSON.stringify(value) }
+      }
+    }
+    expect(await runPodcastEpisode(state.deps, P, engine().step, 'hallucinated-cue')).toBe('retry')
+    expect(model.chat).toHaveBeenCalledTimes(3)
+    expect(state.articles.rows[0].error_message).toContain('chunk_quality:cue_reference')
+    expect([...state.bucket.objects.keys()].filter(key => key.includes('/chunks/'))).toEqual([])
+    expect(state.articles.publish).not.toHaveBeenCalled()
+  })
+
+  test('keeps multiple paragraphs that reference the same source cues', async () => {
+    const state = ready()
+    const model = fakeModel()
+    state.deps.model = {
+      chat: async (...args) => {
+        const reply = await model.chat(...args)
+        const value = JSON.parse(reply.text)
+        value.sections.forEach(section => {
+          section.paragraphs = section.paragraphs.flatMap(paragraph => {
+            const split = paragraph.text.lastIndexOf(' ', Math.floor(paragraph.text.length / 2))
+            return [
+              { ...paragraph, text: paragraph.text.slice(0, split) },
+              { ...paragraph, text: paragraph.text.slice(split + 1) }
+            ]
+          })
+        })
+        return { ...reply, text: JSON.stringify(value) }
+      }
+    }
+    expect(await runPodcastEpisode(state.deps, P, once, 'shared-cue')).toBe('ready')
+    const doc = JSON.parse(state.bucket.objects.get(state.articles.rows[0].article_key!)!)
+    const ids = doc.sections.flatMap(section => section.paragraphs.flatMap(paragraph => paragraph.source_cue_ids))
+    expect([...new Set(ids)]).toEqual(state.cues.map(cue => cue.id))
+    expect(ids.length).toBeGreaterThan(state.cues.length)
+  })
+
+  test('pre-splits serialized cue metadata without changing top-level cache boundaries', async () => {
+    const state = ready(260, 'Short sentence.')
+    state.cues.forEach(cue => Object.assign(cue, { speaker: 'Speaker label' }))
+    state.bucket.objects.set('recovery-transcript', JSON.stringify(state.transcript))
+    const { planPodcastChunks, PODCAST_LIMITS } = await import('@/utils/podcastArticle')
+    const { estimateTokens } = await import('@/utils/youtubeArticle')
+    const chunks = planPodcastChunks(state.transcript as any)
+    expect(chunks).toHaveLength(1)
+    const model = fakeModel()
+    state.deps.model = model
+    expect(await runPodcastEpisode(state.deps, P, once, 'presplit')).toBe('ready')
+    expect(model.chat.mock.calls.length).toBeGreaterThan(1)
+    expect(model.chat.mock.calls.flatMap(args => ownedIds(args as any))).toEqual(state.cues.map(c => c.id))
+    for (const args of model.chat.mock.calls) expect(estimateTokens(userOf(args as any))).toBeLessThanOrEqual(PODCAST_LIMITS.chunkTargetTokens)
+  })
+
+  test.each([1, 2])('recovers nested editing splits in chunk %i with exact overlap ownership and one lede', async chunkNumber => {
+    const state = ready(100, 'The speaker explains local research and choices about education and public services. '.repeat(3))
+    const model = fakeModel()
+    const successful: Parameters<ArticleModel['chat']>[] = []
+    const failed: string[][] = []
+    state.deps.model = {
+      chat: async (...args) => {
+        const ids = ownedIds(args)
+        if (args[2].systemInstruction.includes(`This is chunk ${chunkNumber} of`) && ids.length > 2) {
+          failed.push(ids)
+          return truncated()
+        }
+        successful.push(args)
+        return { ...(await model.chat(...args)), usage: { inputTokens: 100, outputTokens: 100 } }
+      }
+    }
+    expect(await runPodcastEpisode(state.deps, P, once, `nested-${chunkNumber}`)).toBe('ready')
+    expect(failed.length).toBeGreaterThan(3)
+    expect(new Set(failed.map(ids => ids.join(','))).size).toBe(failed.length)
+    expect(successful.filter(args => args[2].systemInstruction.includes('This is the first chunk'))).toHaveLength(1)
+    const doc = JSON.parse(state.bucket.objects.get(state.articles.rows[0].article_key!)!)
+    expect(doc.sections.flatMap(s => s.paragraphs.flatMap(p => p.source_cue_ids))).toEqual(state.cues.map(c => c.id))
+    expect(doc.lede).toBe('An episode about data centers in Brazil.')
+    expect(doc.sections[0].start_ms).toBe(0)
+    expect(doc.sections.at(-1).end_ms).toBe(state.transcript.duration_ms)
+    expect(state.deps.addCost).toHaveBeenCalledTimes(successful.length + failed.length)
+  })
+
+  test('recovers nested translations while preserving every original unit id and cue reference', async () => {
+    const state = ready(48)
+    state.deps.translationTargets.mockResolvedValue(['zh'])
+    const model = fakeModel()
+    const translated: string[] = []
+    let splits = 0
+    state.deps.model = {
+      chat: async (...args) => {
+        if (args[2].systemInstruction.includes('资深译者')) {
+          const ids = [...userOf(args).matchAll(/^(lede|h\d+|p\d+):/gm)].map(m => m[1])
+          if (ids.length > 2) {
+            splits++
+            return truncated()
+          }
+          translated.push(...ids)
+        }
+        return { ...(await model.chat(...args)), usage: { inputTokens: 100, outputTokens: 100 } }
+      }
+    }
+    expect(await runPodcastEpisode(state.deps, P, once, 'translation-split')).toBe('ready')
+    expect(splits).toBeGreaterThan(3)
+    expect(state.articles.rows[1].status).toBe('ready')
+    const en = JSON.parse(state.bucket.objects.get(state.articles.rows[0].article_key!)!)
+    const zh = JSON.parse(state.bucket.objects.get(state.articles.rows[1].article_key!)!)
+    const { translationUnits } = await import('@/utils/podcastArticle')
+    expect(translated).toEqual(translationUnits(en).map(u => u.id))
+    expect(zh.sections.map(s => [s.start_ms, s.end_ms, s.paragraphs.map(p => p.source_cue_ids)])).toEqual(
+      en.sections.map(s => [s.start_ms, s.end_ms, s.paragraphs.map(p => p.source_cue_ids)])
+    )
+  })
+
+  test.each(['polish', 'translate'])('resumes %s children without retrying the truncated parent or completed sibling', async mode => {
+    const state = ready()
+    if (mode === 'translate') state.deps.translationTargets.mockResolvedValue(['zh'])
+    const model = fakeModel()
+    const seen: string[][] = []
+    let fail = true
+    let root: string[] | undefined
+    state.deps.model = {
+      chat: async (...args) => {
+        const translation = args[2].systemInstruction.includes('资深译者')
+        if (translation === (mode === 'translate')) {
+          const ids = translation ? [...userOf(args).matchAll(/^(lede|h\d+|p\d+):/gm)].map(m => m[1]) : ownedIds(args)
+          root ??= ids
+          seen.push(ids)
+          if (ids.length === root.length) return truncated()
+          if (fail && ids.includes(root.at(-1)!)) throw new Error('temporary sibling failure')
+        }
+        return model.chat(...args)
+      }
+    }
+    expect(await runPodcastEpisode(state.deps, P, once, 'resume-first')).toBe(mode === 'polish' ? 'retry' : 'ready')
+    expect(seen).toHaveLength(3)
+    const firstChild = seen[1]
+    const lastChild = seen[2]
+    expect(state.articles.rows.at(-1)!.status).toBe('pending')
+    fail = false
+    seen.length = 0
+    expect(await runPodcastEpisode(state.deps, P, once, 'resume-second')).toBe('ready')
+    expect(seen).toEqual([lastChild])
+    expect(seen).not.toContainEqual(firstChild)
+    expect(state.articles.rows.at(-1)!.status).toBe('ready')
+  })
+
+  test('reuses the old whole-chunk cache before applying a new internal plan', async () => {
+    const state = ready(260, 'Short sentence.')
+    const { podcastChunkKey } = await import('@/utils/podcastArticle')
+    state.bucket.objects.set(
+      podcastChunkKey(SOURCE, 'recovery-hash', 'en', 0),
+      JSON.stringify({
+        index: 0,
+        lede: 'Cached introduction.',
+        sections: [{ heading: 'Topic', paragraphs: state.cues.map(c => ({ speaker: null, text: c.text, source_cue_ids: [c.id] })) }],
+        usage: { input_tokens: 10, output_tokens: 10, cost_usd: 0.001 }
+      })
+    )
+    expect(await runPodcastEpisode(state.deps, P, once, 'legacy')).toBe('ready')
+    expect(state.deps.model.chat).not.toHaveBeenCalled()
+  })
+
+  test('a truncated singleton is asked again, then ends the attempt as retryable and never publishes', async () => {
+    const state = ready(1, 'An oversized source sentence. '.repeat(1000))
+    const model = vi.fn(async () => truncated())
+    state.deps.model = { chat: model }
+    expect(await runPodcastEpisode(state.deps, P, once, 'singleton')).toBe('retry')
+    expect(model).toHaveBeenCalledTimes(3)
+    expect(state.articles.rows[0].status).toBe('pending')
+    expect(state.articles.rows[0].error_message).toBe('singleton_incomplete:runaway')
+    expect(state.deps.addCost).toHaveBeenCalledTimes(3)
+    expect(state.deps.publishBodies).not.toHaveBeenCalled()
+    expect(state.articles.publish).not.toHaveBeenCalled()
+  })
+
+  test('reserves the full requested output ceiling, including when it prevents any call', async () => {
+    const state = ready()
+    state.episodes.row.cost_usd = PODCAST_LIMITS.maxEpisodeCostUsd - state.reservation * 0.9
+    expect(state.size.outputLimit).toBeLessThan(PODCAST_LIMITS.maxOutputTokens)
+    expect(await runPodcastEpisode(state.deps, P, once, 'full-reservation')).toBe('failed')
+    expect(state.articles.rows[0].error_message).toBe('budget_exceeded')
+    expect(state.deps.model.chat).not.toHaveBeenCalled()
+    expect(state.deps.addCost).not.toHaveBeenCalled()
+  })
+
+  test('charges a full truncated response before admitting its children', async () => {
+    const state = ready()
+    state.episodes.row.cost_usd = PODCAST_LIMITS.maxEpisodeCostUsd - state.reservation * 1.1
+    const model = vi.fn(async (...args: Parameters<ArticleModel['chat']>) => {
+      const size = sizeOf(args)
+      expect(args[1].maxOutputTokens).toBe(size.outputLimit)
+      return { ...truncated(), usage: { inputTokens: size.inputTokens, outputTokens: size.outputLimit } }
+    })
+    state.deps.model = { chat: model }
+    expect(await runPodcastEpisode(state.deps, P, once, 'split-budget')).toBe('failed')
+    expect(model).toHaveBeenCalledOnce()
+    expect(state.articles.rows[0].cost_usd).toBeCloseTo(state.reservation, 8)
+    expect(state.deps.addCost).toHaveBeenCalledWith(state.reservation)
+    expect(state.articles.rows[0].error_message).toBe('budget_exceeded')
+    expect(state.deps.publishBodies).not.toHaveBeenCalled()
+  })
+
+  test('renews the lease between recovery calls and stops before a child on ownership loss', async () => {
+    const state = ready()
+    const model = vi.fn(async () => {
+      state.articles.renewLease.mockResolvedValue(false)
+      return truncated()
+    })
+    state.deps.model = { chat: model }
+    expect(await runPodcastEpisode(state.deps, P, once, 'lease')).toBe('gone')
+    expect(model).toHaveBeenCalledOnce()
+    expect(state.deps.publishBodies).not.toHaveBeenCalled()
+  })
+
+  test('stops recovery when the attempt deadline expires without starting children', async () => {
+    const state = ready()
+    let now = 1_000
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    const model = vi.fn(async () => {
+      now += 11 * 60_000
+      return truncated()
+    })
+    state.deps.model = { chat: model }
+    try {
+      expect(await runPodcastEpisode(state.deps, P, engine().step, 'deadline')).toBe('failed')
+      expect(model).toHaveBeenCalledOnce()
+      expect(state.articles.rows[0].error_message).toBe('chunk_deadline')
+      expect(state.deps.publishBodies).not.toHaveBeenCalled()
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
+  test.each([400, 401, 403, 429, 500, 502, 503])('does not bill or split a rejected HTTP %i model request', async status => {
+    const state = ready()
+    const rejected = Object.assign(new Error(`provider rejected ${status}`), { status })
+    const model = vi.fn(async () => {
+      throw rejected
+    })
+    state.deps.model = { chat: model }
+    expect(await runPodcastEpisode(state.deps, P, engine().step, `reject-${status}`)).toBe('retry')
+    expect(model).toHaveBeenCalledTimes(3)
+    expect(state.articles.rows[0].cost_usd).toBe(0)
+    expect(state.articles.rows[0].error_message).toBe(rejected.message)
+    expect(state.articles.addCost).not.toHaveBeenCalled()
+    expect(state.deps.addCost).not.toHaveBeenCalled()
+    expect([...state.bucket.objects.keys()].filter(key => key.includes('/chunks/'))).toEqual([])
+    expect(state.articles.publish).not.toHaveBeenCalled()
+  })
+
+  test('recognizes wrapped Vertex rejections and definite preconnection failures without billing', async () => {
+    const { AIProviderError } = await import('@/infra/external/vertexAIClient')
+    for (const error of [
+      new AIProviderError('wrapped rate limit', { providerStatus: 429, timedOut: false }),
+      new AIProviderError('wrapped unavailable', { providerStatus: 503, timedOut: false }),
+      Object.assign(new Error('connection refused'), { code: 'ECONNREFUSED' }),
+      Object.assign(new Error('DNS resolution failed'), { code: 'ENOTFOUND' })
+    ]) {
+      const state = ready()
+      state.deps.model = {
+        chat: async () => {
+          throw error
+        }
+      }
+      expect(await runPodcastEpisode(state.deps, P, once, 'definite-rejection')).toBe('retry')
+      expect(state.articles.rows[0].cost_usd).toBe(0)
+      expect(state.deps.addCost).not.toHaveBeenCalled()
+    }
+  })
+
+  test.each(['polish', 'translate'])('persists an aborted %s parent split and reuses children on the next attempt', async mode => {
+    const state = ready()
+    if (mode === 'translate') state.deps.translationTargets.mockResolvedValue(['zh'])
+    const model = fakeModel()
+    const nativeTimeout = AbortSignal.timeout.bind(AbortSignal)
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => nativeTimeout(10))
+    const seen: string[][] = []
+    let root: string[] | undefined
+    let fail = true,
+      aborted = 0,
+      expectedCost = 0
+    state.deps.model = {
+      chat: async (...args) => {
+        const translation = args[2].systemInstruction.includes('资深译者')
+        const target = translation === (mode === 'translate')
+        if (target) {
+          const ids = translation ? [...userOf(args).matchAll(/^(lede|h\d+|p\d+):/gm)].map(m => m[1]) : ownedIds(args)
+          root ??= ids
+          seen.push(ids)
+          if (ids.length === root.length) {
+            expectedCost += reservationOf(args)
+            expect(args[1].maxOutputTokens).toBe(sizeOf(args).outputLimit)
+            await new Promise<void>((_resolve, reject) =>
+              args[1].abortSignal!.addEventListener(
+                'abort',
+                () => {
+                  aborted++
+                  reject(new DOMException('Generation aborted', 'AbortError'))
+                },
+                { once: true }
+              )
+            )
+          }
+          if (fail && ids.includes(root.at(-1)!)) throw Object.assign(new Error('temporary unavailable'), { status: 503 })
+        }
+        const reply = await model.chat(...args)
+        if (target) expectedCost += estimateCostUsd(reply.usage.inputTokens, reply.usage.outputTokens)
+        return reply
+      }
+    }
+    try {
+      expect(await runPodcastEpisode(state.deps, P, once, 'timeout-first')).toBe(mode === 'polish' ? 'retry' : 'ready')
+      expect(aborted).toBe(1)
+      expect(seen).toHaveLength(3)
+      const retryIds = seen[2]
+      expect(state.articles.rows.at(-1)!.cost_usd).toBeCloseTo(expectedCost, 8)
+      expect(state.articles.rows.at(-1)!.status).toBe('pending')
+      fail = false
+      seen.length = 0
+      expect(await runPodcastEpisode(state.deps, P, once, 'timeout-second')).toBe('ready')
+      expect(seen).toEqual([retryIds])
+      expect(aborted).toBe(1)
+      expect(state.articles.rows.at(-1)!.status).toBe('ready')
+      const doc = JSON.parse(state.bucket.objects.get(state.articles.rows.at(-1)!.article_key!)!)
+      expect(doc.sections.flatMap(s => s.paragraphs.flatMap(p => p.source_cue_ids))).toEqual(state.cues.map(c => c.id))
+    } finally {
+      timeout.mockRestore()
+    }
+  })
+
+  test.each([false, true])('owner retries regenerate only failed singletons and preserve known splits (legacy marker: %s)', async legacy => {
+    const state = ready(4)
+    const model = fakeModel()
+    const seen: string[][] = []
+    let fail = true
+    state.deps.model = {
+      chat: async (...args) => {
+        const ids = ownedIds(args)
+        seen.push(ids)
+        if (ids.length === 4 || (ids.length === 2 && ids[0] === 'c0003') || (fail && ids[0] === 'c0003')) return truncated()
+        return model.chat(...args)
+      }
+    }
+    expect(await runPodcastEpisode(state.deps, P, once, 'singleton-first')).toBe('retry')
+    expect(state.articles.rows[0].error_message).toBe('singleton_incomplete:runaway')
+    const savedCost = state.articles.rows[0].cost_usd
+    const singletonKey = state.bucket.get.mock.calls.find(([key]) => key.includes('.parts/2-3-'))![0]
+    expect(state.bucket.objects.has(singletonKey)).toBe(false)
+    if (legacy) state.bucket.objects.set(singletonKey, JSON.stringify({ kind: 'split', at: null, usage: { input_tokens: 100, output_tokens: 100, cost_usd: 0.00035 } }))
+    state.articles.rows[0].status = 'pending'
+    fail = false
+    seen.length = 0
+    expect(await runPodcastEpisode(state.deps, P, engine().step, 'owner-retry')).toBe('ready')
+    expect(seen).toEqual([['c0003'], ['c0004']])
+    expect(state.articles.rows[0].cost_usd).toBeGreaterThan(savedCost)
+  })
+
+  test('a stalled singleton aborts, is asked again, and ends the attempt as retryable', async () => {
+    const state = ready(1)
+    const nativeTimeout = AbortSignal.timeout.bind(AbortSignal)
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => nativeTimeout(10))
+    let aborted = false
+    state.deps.model = {
+      chat: async (_contents, config) => {
+        if (!config.abortSignal) throw new Error('missing abort signal')
+        await new Promise<void>((_resolve, reject) => {
+          config.abortSignal!.addEventListener(
+            'abort',
+            () => {
+              aborted = true
+              reject(new Error('aborted'))
+            },
+            { once: true }
+          )
+        })
+        throw new Error('unreachable')
+      }
+    }
+    try {
+      expect(await runPodcastEpisode(state.deps, P, once, 'abort')).toBe('retry')
+      expect(aborted).toBe(true)
+      expect(state.articles.rows[0].error_message).toBe('singleton_incomplete:stall')
+      expect(state.articles.rows[0].cost_usd).toBeCloseTo(PODCAST_LIMITS.singletonTries * state.reservation, 8)
+      expect(state.deps.addCost).toHaveBeenCalledTimes(3)
+      expect(state.deps.publishBodies).not.toHaveBeenCalled()
+      expect([...state.bucket.objects.keys()].filter(key => key.includes('/chunks/'))).toEqual([])
+      state.articles.rows[0].status = 'pending'
+      const model = fakeModel()
+      state.deps.model = model
+      expect(await runPodcastEpisode(state.deps, P, once, 'timeout-owner-retry')).toBe('ready')
+      expect(model.chat).toHaveBeenCalledOnce()
+    } finally {
+      timeout.mockRestore()
+    }
+  })
+
+  test('keeps concurrent recursive calls within ten and publishes only complete results', async () => {
+    const state = ready(480, 'The speaker explains local research and choices about education and public services. '.repeat(3))
+    expect(planPodcastChunks(state.transcript).length).toBeGreaterThan(10)
+    const model = fakeModel()
+    let active = 0,
+      maximum = 0,
+      splits = 0
+    state.deps.model = {
+      chat: async (...args) => {
+        maximum = Math.max(maximum, ++active)
+        try {
+          await new Promise(resolve => setTimeout(resolve, 2))
+          expect(state.articles.publish).not.toHaveBeenCalled()
+          if (ownedIds(args).length > 6) {
+            splits++
+            return truncated()
+          }
+          return { ...(await model.chat(...args)), usage: { inputTokens: 100, outputTokens: 100 } }
+        } finally {
+          active--
+        }
+      }
+    }
+    expect(await runPodcastEpisode(state.deps, P, once, 'concurrent-splits')).toBe('ready')
+    expect(maximum).toBeGreaterThan(1)
+    expect(maximum).toBeLessThanOrEqual(10)
+    expect(active).toBe(0)
+    expect(splits).toBeGreaterThan(10)
+    const doc = JSON.parse(state.bucket.objects.get(state.articles.rows[0].article_key!)!)
+    expect(doc.sections.flatMap(s => s.paragraphs.flatMap(p => p.source_cue_ids))).toEqual(state.cues.map(c => c.id))
+    expect(state.deps.addCost).toHaveBeenCalledTimes(model.chat.mock.calls.length + splits)
+  })
+
+  test('pre-splits translation requests from the escaped serialized input, preserving unit ids', async () => {
+    const state = ready(72, 'The speaker says \"hello\" about local choices. '.repeat(3))
+    state.deps.translationTargets.mockResolvedValue(['zh'])
+    state.episodes.row.title = 'Episode '.repeat(3000)
+    const model = fakeModel()
+    state.deps.model = { chat: async (...args) => ({ ...(await model.chat(...args)), usage: { inputTokens: 100, outputTokens: 100 } }) }
+    expect(await runPodcastEpisode(state.deps, P, once, 'translation-presplit')).toBe('ready')
+    expect(state.articles.rows[1].status).toBe('ready')
+    const en = JSON.parse(state.bucket.objects.get(state.articles.rows[0].article_key!)!)
+    const { chunkTranslationUnits, translationUnits } = await import('@/utils/podcastArticle')
+    const units = translationUnits(en)
+    const calls = model.chat.mock.calls.filter(args => args[2].systemInstruction.includes('资深译者'))
+    expect(calls.length).toBeGreaterThan(chunkTranslationUnits(units).length)
+    expect(calls.flatMap(args => [...userOf(args as any).matchAll(/^(lede|h\d+|p\d+):/gm)].map(m => m[1])).sort()).toEqual(units.map(u => u.id).sort())
+    const zh = JSON.parse(state.bucket.objects.get(state.articles.rows[1].article_key!)!)
+    expect(zh.sections.map(s => s.paragraphs.map(p => p.source_cue_ids))).toEqual(en.sections.map(s => s.paragraphs.map(p => p.source_cue_ids)))
+  })
+
+  test('part cache keys include source content, not just indices or split paths', async () => {
+    const state = ready()
+    const model = fakeModel()
+    let fail = true
+    let leftCalls = 0
+    state.deps.model = {
+      chat: async (...args) => {
+        const ids = ownedIds(args)
+        if (ids.length === state.cues.length) return truncated()
+        if (ids[0] === state.cues[0].id) leftCalls++
+        if (fail && ids.includes(state.cues.at(-1)!.id)) throw new Error('sibling unavailable')
+        return model.chat(...args)
+      }
+    }
+    expect(await runPodcastEpisode(state.deps, P, once, 'hash-first')).toBe('retry')
+    expect(leftCalls).toBe(1)
+    state.cues[0].text = state.cues[0].text.replace('speaker', 'reader')
+    state.bucket.objects.set('recovery-transcript', JSON.stringify(state.transcript))
+    fail = false
+    expect(await runPodcastEpisode(state.deps, P, once, 'hash-second')).toBe('ready')
+    expect(leftCalls).toBe(2)
+    const doc = JSON.parse(state.bucket.objects.get(state.articles.rows[0].article_key!)!)
+    expect(doc.sections[0].paragraphs[0].text).toContain('reader')
+  })
+
+  test('bounds total provider calls without an arbitrary shallow recursion limit', async () => {
+    const state = ready(128, 'Short sentence.')
+    const model = fakeModel()
+    const calls = vi.fn(async (...args: Parameters<ArticleModel['chat']>) =>
+      ownedIds(args).length > 1 ? truncated() : { ...(await model.chat(...args)), usage: { inputTokens: 100, outputTokens: 100 } }
+    )
+    state.deps.model = { chat: calls }
+    const { PODCAST_LIMITS } = await import('@/utils/podcastArticle')
+    expect(await runPodcastEpisode(state.deps, P, engine().step, 'call-limit')).toBe('failed')
+    expect(calls).toHaveBeenCalledTimes(PODCAST_LIMITS.maxChunkCalls)
+    expect(state.articles.rows[0].error_message).toBe('chunk_call_limit')
+    expect(state.articles.publish).not.toHaveBeenCalled()
+    expect(model.chat.mock.calls.length).toBeGreaterThan(4)
+  })
+
+  test('does not undercount truncation when provider usage is absent', async () => {
+    const state = ready(1)
+    state.deps.model = { chat: async () => ({ text: 'tiny truncated output', finishReason: 'MAX_TOKENS' }) }
+    expect(await runPodcastEpisode(state.deps, P, once, 'missing-usage')).toBe('retry')
+    expect(state.articles.rows[0].error_message).toBe('singleton_incomplete:runaway')
+    expect(state.articles.rows[0].cost_usd).toBeCloseTo(PODCAST_LIMITS.singletonTries * state.reservation, 8)
+    expect(state.deps.addCost).toHaveBeenCalledTimes(3)
+  })
+
+  test('keeps lost connection usage conservative without treating it as a generation timeout', async () => {
+    const state = ready()
+    const error = Object.assign(new Error('connection reset after request'), { code: 'ECONNRESET' })
+    state.deps.model = {
+      chat: async () => {
+        throw error
+      }
+    }
+    expect(await runPodcastEpisode(state.deps, P, once, 'unknown-usage')).toBe('retry')
+    expect(state.articles.rows[0].cost_usd).toBeCloseTo(state.reservation, 8)
+    expect(state.articles.rows[0].error_message).toBe(error.message)
+    expect(state.deps.addCost).toHaveBeenCalledExactlyOnceWith(state.reservation)
+    expect([...state.bucket.objects.keys()].filter(key => key.includes('/chunks/'))).toEqual([])
+  })
+
+  test.each(['deadline', 'budget'])('timeout recovery never starts children after the %s is exhausted', async boundary => {
+    const state = ready()
+    if (boundary === 'budget') state.episodes.row.cost_usd = PODCAST_LIMITS.maxEpisodeCostUsd - state.reservation * 1.1
+    const nativeTimeout = AbortSignal.timeout.bind(AbortSignal)
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => nativeTimeout(10))
+    let now = 1_000
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    const model = vi.fn(async (_contents, config) => {
+      await new Promise<void>((_resolve, reject) =>
+        config.abortSignal.addEventListener(
+          'abort',
+          () => {
+            if (boundary === 'deadline') now += 11 * 60_000
+            reject(new DOMException('aborted', 'AbortError'))
+          },
+          { once: true }
+        )
+      )
+      throw new Error('unreachable')
+    })
+    state.deps.model = { chat: model }
+    try {
+      expect(await runPodcastEpisode(state.deps, P, engine().step, `timeout-${boundary}`)).toBe('failed')
+      expect(model).toHaveBeenCalledOnce()
+      expect(state.articles.rows[0].error_message).toBe(boundary === 'deadline' ? 'chunk_deadline' : 'budget_exceeded')
+      expect(state.deps.addCost).toHaveBeenCalledOnce()
+      expect(state.articles.publish).not.toHaveBeenCalled()
+    } finally {
+      clock.mockRestore()
+      timeout.mockRestore()
+    }
+  })
+
+  test('uses reported usage when a complete provider response arrives after its abort signal', async () => {
+    const state = ready()
+    const model = fakeModel()
+    const nativeTimeout = AbortSignal.timeout.bind(AbortSignal)
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => nativeTimeout(10))
+    let late = 0
+    state.deps.model = {
+      chat: async (...args) => {
+        if (ownedIds(args).length === state.cues.length) {
+          await new Promise<void>(resolve => args[1].abortSignal!.addEventListener('abort', () => resolve(), { once: true }))
+          late++
+        }
+        return { ...(await model.chat(...args)), usage: { inputTokens: 100, outputTokens: 100 } }
+      }
+    }
+    try {
+      expect(await runPodcastEpisode(state.deps, P, once, 'known-late-usage')).toBe('ready')
+      expect(late).toBe(1)
+      expect(model.chat).toHaveBeenCalledTimes(3)
+      expect(state.articles.rows[0].cost_usd).toBeCloseTo(0.00105, 6)
+    } finally {
+      timeout.mockRestore()
+    }
+  })
+
+  test.each(['episode', 'daily'])('closes recovery admission when %s accounting fails', async ledger => {
+    const state = ready()
+    const calls = vi.fn(async () => truncated())
+    state.deps.model = { chat: calls }
+    if (ledger === 'episode') state.articles.addCost.mockRejectedValue(new Error('accounting unavailable'))
+    else state.deps.addCost.mockRejectedValue(new Error('accounting unavailable'))
+    expect(await runPodcastEpisode(state.deps, P, engine().step, 'accounting-failure')).toBe('retry')
+    expect(calls).toHaveBeenCalledOnce()
+    expect(state.articles.rows[0].error_message).toBe('accounting unavailable')
+    expect(state.articles.publish).not.toHaveBeenCalled()
+    expect([...state.bucket.objects.keys()].filter(key => key.includes('/chunks/'))).toEqual([])
   })
 })
