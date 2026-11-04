@@ -9,7 +9,6 @@ vi.mock('@/decorators/di', () => ({
   singleton: () => (target: any) => target,
   inject: () => () => undefined
 }))
-vi.mock('@/handler/http/mcpController', () => ({ McpServerController: class {} }))
 vi.mock('@/decorators/controller', () => ({ Controller: () => (target: any) => target }))
 vi.mock('@/decorators/route', () => ({
   All: () => (_t: any, _k: string, desc: PropertyDescriptor) => desc,
@@ -19,10 +18,6 @@ vi.mock('@/decorators/route', () => ({
 
 import { BookmarkAddOrchestrator } from '@/domain/orchestrator/bookmarkAdd'
 import { processTargetUrl } from '@/utils/urlPolicie'
-import { getRouter } from '@/di/generated/readerRouter'
-import { isWhitelisted } from '@/middleware/auth'
-import { isApiKeyRouteAllowed } from '@/middleware/cliAuth'
-import { Auth } from '@/utils/jwt'
 import {
   createMockCtx, createMockBookmarkService, createMockCrawlService,
   createMockRequest
@@ -130,98 +125,6 @@ describe('BookmarkController.handleUserAddUrlBookmarkRequest URL 预处理', () 
     const resp = await ctrl.handleUserAddUrlBookmarkRequest(ctx, req)
     const body = await resp.json()
     expect(body.code).not.toBe(200)
-  })
-})
-
-describe('BookmarkController save receipt contract', () => {
-  async function wireReceipt() {
-    const { BookmarkController } = await import('@/handler/http/bookmarkController')
-    const saveReceipt = vi.fn()
-    const bookmarkExists = vi.fn()
-    const ctrl = Object.assign(Object.create(BookmarkController.prototype), { bookmarkService: { saveReceipt, bookmarkExists } })
-    return { ctrl, saveReceipt, bookmarkExists, ctx: createMockCtx() }
-  }
-
-  test.each(['missing', 'invalid', 'expired'])('rejects %s authentication before resolving the receipt controller', async kind => {
-    const ctx = createMockCtx()
-    Object.assign(ctx.env, { JWT_SECRET_TEXT: 'receipt-test-secret', JWT_ISSUER: 'receipt-test', JWT_EXPIRES: '60', JWT_ALGORITHMS: 'HS256' })
-    const resolve = vi.fn()
-    const router = getRouter({ resolve } as any)
-    const headers: Record<string, string> = {}
-    if (kind === 'invalid') headers.Authorization = 'Bearer invalid'
-    if (kind === 'expired') {
-      const now = Date.now()
-      try {
-        vi.useFakeTimers()
-        vi.setSystemTime(now - 120000)
-        headers.Authorization = `Bearer ${await new Auth(ctx.env).sign({ id: '100', email: 'receipt@example.test', lang: 'en' })}`
-      } finally {
-        vi.useRealTimers()
-      }
-    }
-    expect(isWhitelisted('/v1/bookmark/save_receipt')).toBe(false)
-    await expect(router.fetch(new Request('https://api.test/v1/bookmark/save_receipt', { method: 'POST', headers, body: JSON.stringify({ target_url: 'https://example.com' }) }), ctx)).rejects.toMatchObject({ errCode: 401 })
-    expect(resolve).not.toHaveBeenCalled()
-  })
-
-  test('does not expand API key permissions for the native receipt', () => {
-    expect(isApiKeyRouteAllowed('/v1/bookmark/add_url', 'POST')).toBe(true)
-    expect(isApiKeyRouteAllowed('/v1/bookmark/save_receipt', 'POST')).toBe(false)
-    expect(isApiKeyRouteAllowed('/v1/bookmark/save_receipt', 'GET')).toBe(false)
-  })
-
-  test.each([[true, 204], [false, 404]])('returns bodyless private receipt for saved=%s', async (saved, status) => {
-    const { ctrl, saveReceipt, ctx } = await wireReceipt()
-    saveReceipt.mockResolvedValue(saved)
-    const response = await ctrl.handleUserBookmarkSaveReceiptRequest(ctx, createMockRequest({ target_url: 'https://example.com/page' }))
-    expect(response.status).toBe(status)
-    expect(response.body).toBeNull()
-    expect(await response.text()).toBe('')
-    expect(response.headers.get('Cache-Control')).toBe('private, no-store')
-    expect(saveReceipt).toHaveBeenCalledExactlyOnceWith(ctx, 'https://example.com/page')
-    expect(ctx.execution.waitUntil).not.toHaveBeenCalled()
-  })
-
-  test.each([null, {}, { target_url: '' }, { target_url: '   ' }, { target_url: 42 }, { target_url: [] }, { target_url: 'http://' }, { target_url: 'http://[invalid' }])(
-    'rejects invalid receipt input %j without lookup', async body => {
-      const { ctrl, saveReceipt, ctx } = await wireReceipt()
-      const response = await ctrl.handleUserBookmarkSaveReceiptRequest(ctx, createMockRequest(body))
-      expect(response.status).toBe(400)
-      expect(saveReceipt).not.toHaveBeenCalled()
-    }
-  )
-
-  test('rejects malformed JSON without lookup', async () => {
-    const { ctrl, saveReceipt, ctx } = await wireReceipt()
-    const response = await ctrl.handleUserBookmarkSaveReceiptRequest(ctx, new Request('https://api.test/v1/bookmark/save_receipt', { method: 'POST', body: '{' }))
-    expect(response.status).toBe(400)
-    expect(saveReceipt).not.toHaveBeenCalled()
-  })
-
-  test.each([['example.com/page', 'https://example.com/page'], ['http://example.com/page', 'http://example.com/page']])(
-    'uses the add_url scheme completion for %s', async (input, expected) => {
-      const { ctrl, saveReceipt, ctx } = await wireReceipt()
-      saveReceipt.mockResolvedValue(false)
-      await ctrl.handleUserBookmarkSaveReceiptRequest(ctx, createMockRequest({ target_url: input }))
-      expect(saveReceipt).toHaveBeenCalledWith(ctx, expected)
-    }
-  )
-
-  test('leaves infrastructure failures to normal error handling', async () => {
-    const { ctrl, saveReceipt, ctx } = await wireReceipt()
-    const failure = new Error('database unavailable')
-    saveReceipt.mockRejectedValue(failure)
-    await expect(ctrl.handleUserBookmarkSaveReceiptRequest(ctx, createMockRequest({ target_url: 'https://example.com' }))).rejects.toBe(failure)
-  })
-
-  test('retains the legacy exists response envelope and lookup', async () => {
-    const { ctrl, saveReceipt, bookmarkExists, ctx } = await wireReceipt()
-    const result = { exists: true, bookmark_uid: 'existing', bookmark_id: 1, parse_type: 0 }
-    bookmarkExists.mockResolvedValue(result)
-    const response = await ctrl.handleUserBookmarkExistsRequest(ctx, createMockRequest({ target_url: 'https://example.com' }))
-    expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({ code: 200, data: result })
-    expect(saveReceipt).not.toHaveBeenCalled()
   })
 })
 

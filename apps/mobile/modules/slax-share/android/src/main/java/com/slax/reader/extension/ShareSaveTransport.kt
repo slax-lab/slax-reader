@@ -78,11 +78,16 @@ internal class ShareSaveTransport(
         onFailure(error)
       }
       ensureActive()
-      val receiptClient = client.newBuilder().callTimeout(3, TimeUnit.SECONDS)
+      val existsClient = client.newBuilder().callTimeout(3, TimeUnit.SECONDS)
         .connectTimeout(3, TimeUnit.SECONDS).readTimeout(3, TimeUnit.SECONDS).writeTimeout(3, TimeUnit.SECONDS)
         .retryOnConnectionFailure(false).eventListener(EventListener.NONE).build()
       val saved = try {
-        execute(receiptClient, request(base, "/v1/bookmark/save_receipt", token, version, JSONObject().put("target_url", url))) {it.code == 204}
+        execute(existsClient, request(base, "/v1/bookmark/exists", token, version, JSONObject().put("target_url", url))) {response ->
+          if (response.code != 200) false else {
+            val responseBody = response.body?.string()
+            runCatching {JSONObject(responseBody ?: "").optJSONObject("data")?.opt("exists") == true}.getOrDefault(false)
+          }
+        }
       } catch (_: IOException) {ensureActive(); false}
       ensureActive()
       return if (saved) Result("ok", "success") else Result(TIMEOUT_MESSAGE, "network_timeout")

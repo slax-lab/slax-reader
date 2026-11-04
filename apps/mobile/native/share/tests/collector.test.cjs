@@ -10,32 +10,39 @@ const execute = promisify(execFile);
 
 test('real Swift collector bounds acknowledgements and recovery while preserving diagnostics and cancellation', {skip: process.platform !== 'darwin', timeout: 180000}, async t => {
   const output = mkdtempSync(path.join(tmpdir(), 'slax-share-collector-'));
-  const recovery = ['recovered', 'absent', 'receipt200', 'receiptUnauthorized', 'receiptUnavailable', 'receiptMalformed', 'receiptDisconnect', 'receiptStall', 'partialHeaders', 'beta', 'cancelReceipt'];
+  const stalledLookups = ['lookupStall', 'lookupBodyStall', 'lookupPartialBody', 'lookupUnfinishedBody'];
+  const recovery = ['recovered', 'absent', 'lookupMissing', 'lookupMalformed', 'lookupNumber', 'lookupString', 'lookup204', 'lookupUnauthorized', 'lookupUnavailable', 'lookupBadCode', 'lookupBadHTTP', 'lookupDisconnect', ...stalledLookups, 'partialHeaders', 'beta', 'cancelLookup'];
   const stalledErrors = ['unauthorizedStall', 'badStall', 'serviceTrickle'];
   let mode = 'success', serverFailure;
   const received = [];
   const respond = environment => (request, response) => {
     let body = ''; request.on('data', value => { body += value; });
     request.on('end', () => {
-      const receipt = request.url === '/v1/bookmark/save_receipt';
+      const lookup = request.url === '/v1/bookmark/exists';
       const record = {environment, path: request.url, at: performance.now(), closedAt: null};
       received.push(record);
       response.on('close', () => { record.closedAt = performance.now(); });
       try {
         assert.equal(environment, mode === 'beta' ? 'beta' : 'production');
         assert.equal(request.method, 'POST');
-        assert.equal(request.url, receipt ? '/v1/bookmark/save_receipt' : '/v1/bookmark/add_url');
+        assert.equal(request.url, lookup ? '/v1/bookmark/exists' : '/v1/bookmark/add_url');
         assert.equal(request.headers.authorization, 'Bearer synthetic-private-token-1234');
         assert.equal(request.headers['content-type'], 'application/json'); assert.equal(request.headers['user-agent'], 'SlaxReader/iOS 1.2.3 (42)');
-        assert.deepEqual(JSON.parse(body), {target_url: 'https://fixture.test/private?secret=123', ...(!receipt ? {target_title: 'Private fixture title'} : {})});
+        assert.deepEqual(JSON.parse(body), {target_url: 'https://fixture.test/private?secret=123', ...(!lookup ? {target_title: 'Private fixture title'} : {})});
       } catch (error) { serverFailure = error; response.destroy(); return; }
-      if (receipt) {
-        if (['receiptStall', 'cancelReceipt'].includes(mode)) return;
-        if (mode === 'receiptDisconnect') { response.destroy(); return; }
-        if (mode === 'receiptMalformed') { response.socket.end('NOT HTTP\r\n\r\n'); return; }
-        const status = {absent: 404, receipt200: 200, receiptUnauthorized: 401, receiptUnavailable: 503}[mode] ?? 204;
-        response.writeHead(status, {'Content-Type': 'application/json', 'Cache-Control': 'private, no-store', 'CF-Ray': 'receipt-must-not-replace-create', ...(mode === 'absent' ? {'Content-Length': '0'} : {})});
+      if (lookup) {
+        if (mode === 'lookupStall') return;
+        if (mode === 'lookupDisconnect') { response.destroy(); return; }
+        if (mode === 'lookupBadHTTP') { response.socket.end('NOT HTTP\r\n\r\n'); return; }
+        const status = {lookup204: 204, lookupUnauthorized: 401, lookupUnavailable: 503}[mode] ?? 200;
+        response.writeHead(status, {'Content-Type': 'application/json', 'CF-Ray': 'lookup-must-not-replace-create'});
         response.flushHeaders();
+        if (['lookupBodyStall', 'cancelLookup'].includes(mode)) return;
+        if (mode === 'lookupPartialBody') { response.write('{"code":200,"data":{"exists":'); return; }
+        const exists = {absent: false, lookupNumber: 1, lookupString: 'true'}[mode] ?? true;
+        const payload = JSON.stringify({code: mode === 'lookupBadCode' ? 500 : 200, message: 'ok', data: mode === 'lookupMissing' ? {} : {exists}});
+        if (mode === 'lookupUnfinishedBody') { response.write(payload); return; }
+        response.end(mode === 'lookupMalformed' ? '{invalid' : payload);
         return;
       }
       if (mode === 'partialHeaders') {
@@ -86,7 +93,7 @@ enum SharedPreferences {
     diagnostics.content("https://fixture.test/private?secret=123", title: "Private fixture title", from: "url")
     let started = DispatchTime.now()
     let task = Task { try await ShareCollector.collect(content: mode == "invalid" ? "not a URL" : "https://fixture.test/private?secret=123", title: "Private fixture title", diagnostics: diagnostics) }
-    if mode == "cancel" || mode == "cancelReceipt" {
+    if mode == "cancel" || mode == "cancelLookup" {
       try? await Task.sleep(nanoseconds: mode == "cancel" ? 200_000_000 : 5_500_000_000)
       diagnostics.end(outcome: "dismissed", shown: "Collecting", reason: "cancelled")
       task.cancel()
@@ -127,7 +134,7 @@ enum SharedPreferences {
       limited: ['http_429', generic], service: ['http_5xx', generic], serviceTrickle: ['http_5xx', generic],
       redirect: ['http_other', generic], disconnect: ['network_offline', generic],
       signedOut: ['signed_out', login], noToken: ['no_token', login], prefs: ['prefs_corrupt', generic], invalid: ['no_url_found', 'Not have URL content to collect.'],
-      cancel: ['cancelled', generic], cancelReceipt: ['cancelled', generic],
+      cancel: ['cancelled', generic], cancelLookup: ['cancelled', generic],
     };
     for (const value of recovery) {
       expectations[value] ??= ['recovered', 'beta', 'partialHeaders'].includes(value)
@@ -143,12 +150,12 @@ enum SharedPreferences {
         const {message, elapsedMs, terminal, events} = JSON.parse(stdout);
         assert.deepEqual(events, ['share.start', 'share.end']);
         assert.deepEqual([terminal.reason, message], expectations[mode]);
-        const cancelled = ['cancel', 'cancelReceipt'].includes(mode);
+        const cancelled = ['cancel', 'cancelLookup'].includes(mode);
         const noRequest = ['signedOut', 'noToken', 'prefs', 'invalid'].includes(mode);
         assert.equal(terminal.outcome, cancelled ? 'dismissed' : message === 'Success!' ? 'success' : 'failed');
         const requests = received.slice(before);
         assert.deepEqual(requests.map(value => value.path), noRequest ? [] : recovery.includes(mode)
-          ? ['/v1/bookmark/add_url', '/v1/bookmark/save_receipt'] : ['/v1/bookmark/add_url']);
+          ? ['/v1/bookmark/add_url', '/v1/bookmark/exists'] : ['/v1/bookmark/add_url']);
         if (terminal.http) {
           assert.equal(terminal.http.cfRay, 'fixture-ray-SJC');
           const noBody = ['success', 'empty', 'successStall', ...stalledErrors].includes(mode);
@@ -159,7 +166,7 @@ enum SharedPreferences {
         else { assert.equal(typeof terminal.net, 'object'); assert.notEqual(terminal.net, null); }
         if (cancelled) { assert.equal(terminal.stage, 'request'); assert.equal(terminal.shown, 'Collecting'); }
         if (recovery.includes(mode)) {
-          assert.equal(terminal.http, null, 'receipt must not replace create HTTP evidence');
+          assert.equal(terminal.http, null, 'lookup must not replace create HTTP evidence');
           assert.equal(terminal.error.domain, 'NSURLErrorDomain');
           assert.equal(terminal.error.code, -1001);
           assert.ok(terminal.ms.request >= 4500 && terminal.ms.request < 6250, JSON.stringify(terminal.ms));
@@ -179,10 +186,10 @@ enum SharedPreferences {
         if (cancelled || recovery.includes(mode) || stalledErrors.includes(mode) || mode === 'successStall') {
           for (const request of requests) assert.notEqual(request.closedAt, null, 'the owned request must be stopped');
         }
-        const max = mode === 'receiptStall' ? 9250 : mode === 'cancelReceipt' ? 6500 : recovery.includes(mode) || stalledErrors.includes(mode) ? 6500 : 2000;
+        const max = stalledLookups.includes(mode) ? 9250 : recovery.includes(mode) || stalledErrors.includes(mode) ? 6500 : 2000;
         assert.ok(elapsedMs < max, `${mode} native elapsed ${elapsedMs}ms exceeded ${max}ms`);
         assert.ok(elapsed < max, `${mode} elapsed ${elapsed}ms exceeded ${max}ms`);
-        if (mode === 'receiptStall') {
+        if (stalledLookups.includes(mode)) {
           assert.ok(terminal.ms.total >= 7500 && terminal.ms.total < 9000);
           assert.ok(terminal.ms.total - terminal.ms.request >= 2500);
         }

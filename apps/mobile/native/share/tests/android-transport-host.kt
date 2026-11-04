@@ -70,14 +70,14 @@ private class HttpFixture(private val handler: (Incoming, Socket, HttpFixture) -
   }
   fun verifyCounts(create: Int, receipt: Int) {
     check(requests.count {it.path == "/v1/bookmark/add_url"} == create) {requests.toString()}
-    check(requests.count {it.path == "/v1/bookmark/save_receipt"} == receipt) {requests.toString()}
+    check(requests.count {it.path == "/v1/bookmark/exists"} == receipt) {requests.toString()}
     check(requests.size == create + receipt)
     for (request in requests) {
       check(request.headers["authorization"] == "Bearer $TOKEN")
       check(request.headers["user-agent"] == "SlaxReader/Android $VERSION")
       check(request.headers["content-type"] == "application/json")
       check(request.body.getString("target_url") == URL)
-      if (request.path.endsWith("save_receipt")) check(request.body.length() == 1)
+      if (request.path.endsWith("exists")) check(request.body.length() == 1)
       else check(request.body.getString("target_title") == TITLE)
     }
   }
@@ -174,19 +174,34 @@ fun main() {
     }
   }
 
-  for (receipt in listOf(204, 404, 200, 401, 503, 302, 0, -1)) scenario("create deadline receipt $receipt") {
+  for (lookup in listOf("true", "false", "malformed", "missing", "string", "number", "204", "404", "401", "503", "302", "disconnect", "stall", "bodyStall", "delayedBody", "partialBody")) scenario("create deadline exists $lookup") {
+    val bounded = lookup in listOf("stall", "bodyStall", "delayedBody", "partialBody")
     HttpFixture {request, socket, server ->
       if (request.path.endsWith("add_url")) server.stall()
-      else when (receipt) {
-        -1 -> server.stall()
-        0 -> Unit
-        204 -> {Thread.sleep(450); socket.respond(204)}
-        else -> {socket.respond(receipt, length = 4096, extra = "Retry-After: 0\r\nLocation: ${server.base}followup\r\n"); server.stall()}
+      else when (lookup) {
+        "stall" -> server.stall()
+        "disconnect" -> Unit
+        "true" -> {Thread.sleep(450); socket.respond(200, "{\"data\":{\"exists\":true}}")}
+        "false" -> socket.respond(200, "{\"data\":{\"exists\":false}}")
+        "malformed" -> socket.respond(200, "{")
+        "missing" -> socket.respond(200, "{\"data\":{}}")
+        "string" -> socket.respond(200, "{\"data\":{\"exists\":\"true\"}}")
+        "number" -> socket.respond(200, "{\"data\":{\"exists\":1}}")
+        "204" -> socket.respond(204)
+        "bodyStall", "delayedBody", "partialBody" -> {
+          if (lookup == "delayedBody") Thread.sleep(2200)
+          socket.respond(200, "{\"data\":{\"exists\":true}}", length = 4096)
+          if (lookup == "partialBody") {
+            val out = socket.getOutputStream()
+            repeat(10) {Thread.sleep(600); out.write(' '.code); out.flush()}
+          } else server.stall()
+        }
+        else -> {socket.respond(lookup.toInt(), length = 4096, extra = "Retry-After: 0\r\nLocation: ${server.base}followup\r\n"); server.stall()}
       }
     }.use {server ->
       val evidence = Evidence(); val start = System.nanoTime(); val result = evidence.save(server)
-      within(elapsed(start), if (receipt == -1) 7700 else 4700, if (receipt == -1) 9300 else 6600)
-      check(result == if (receipt == 204) ShareSaveTransport.Result("ok", "success") else ShareSaveTransport.Result(ShareSaveTransport.TIMEOUT_MESSAGE, "network_timeout"))
+      within(elapsed(start), if (bounded) 7700 else 4700, if (bounded) 9300 else 6600)
+      check(result == if (lookup == "true") ShareSaveTransport.Result("ok", "success") else ShareSaveTransport.Result(ShareSaveTransport.TIMEOUT_MESSAGE, "network_timeout"))
       check(evidence.finishes == 1)
       val failure = evidence.failures.single()
       check(failure is InterruptedIOException && failure.isShareTimeout()) {failure.toString()}
@@ -195,14 +210,14 @@ fun main() {
       check(terminal.isNull("http"))
       within(terminal.getJSONObject("net").getLong("total"), 4700, 6300)
       within(terminal.getJSONObject("ms").getLong("request"), 4700, 6300)
-      if (receipt == 204 || receipt == -1) check(terminal.getJSONObject("ms").getLong("total") - terminal.getJSONObject("ms").getLong("request") >= if (receipt == 204) 400 else 2700)
+      if (lookup == "true" || bounded) check(terminal.getJSONObject("ms").getLong("total") - terminal.getJSONObject("ms").getLong("request") >= if (bounded) 2700 else 400)
       server.verifyCounts(1, 1)
     }
   }
 
   scenario("partial header traffic cannot extend create deadline") {
     HttpFixture {request, socket, _ ->
-      if (request.path.endsWith("save_receipt")) socket.respond(204)
+      if (request.path.endsWith("exists")) socket.respond(200, "{\"data\":{\"exists\":true}}")
       else {
         val out = socket.getOutputStream()
         out.write("HTTP/1.1 200 Fixture\r\nX-Slow: ".toByteArray()); out.flush()
@@ -226,12 +241,12 @@ fun main() {
     }
   }
 
-  scenario("partial receipt traffic cannot extend its deadline") {
+  scenario("partial exists headers cannot extend its deadline") {
     HttpFixture {request, socket, server ->
       if (request.path.endsWith("add_url")) server.stall()
       else {
         val out = socket.getOutputStream()
-        out.write("HTTP/1.1 204 Fixture\r\nX-Slow: ".toByteArray()); out.flush()
+        out.write("HTTP/1.1 200 Fixture\r\nX-Slow: ".toByteArray()); out.flush()
         repeat(10) {Thread.sleep(600); out.write('a'.code); out.flush()}
       }
     }.use {server ->
@@ -243,10 +258,14 @@ fun main() {
     }
   }
 
-  for (phase in listOf("before", "create", "receipt", "transition", "headers", "errorBody")) scenario("cancellation at $phase owns outcome") {
+  for (phase in listOf("before", "create", "exists", "existsBody", "transition", "headers", "errorBody")) scenario("cancellation at $phase owns outcome") {
     val transition = CountDownLatch(1); val resume = CountDownLatch(1); val headers = CountDownLatch(1)
-    HttpFixture {_, socket, server ->
+    HttpFixture {request, socket, server ->
       if (phase == "headers" || phase == "errorBody") socket.respond(if (phase == "headers") 200 else 400, length = 4096)
+      if (phase == "existsBody" && request.path.endsWith("exists")) {
+        socket.respond(200, "{\"data\":{\"exists\":", length = 4096)
+        headers.countDown()
+      }
       server.stall()
     }.use {server ->
       lateinit var transport: ShareSaveTransport
@@ -260,16 +279,16 @@ fun main() {
         val result = worker.submit<Throwable?> {runCatching {transport.save(server.base, TOKEN, VERSION, URL, TITLE)}.exceptionOrNull()}
         when (phase) {
           "create" -> server.createReceived.awaitReady()
-          "receipt" -> server.receiptReceived.awaitReady()
+          "exists" -> server.receiptReceived.awaitReady()
           "transition" -> transition.awaitReady()
-          "errorBody" -> headers.awaitReady()
+          "errorBody", "existsBody" -> headers.awaitReady()
         }
         val start = System.nanoTime()
         if (phase != "headers") transport.cancel()
         resume.countDown()
         check(result.get(2, TimeUnit.SECONDS) is CancellationException)
         within(elapsed(start), 0, 1500)
-        server.verifyCounts(if (phase == "before") 0 else 1, if (phase == "receipt") 1 else 0)
+        server.verifyCounts(if (phase == "before") 0 else 1, if (phase == "exists" || phase == "existsBody") 1 else 0)
       } finally {resume.countDown(); worker.shutdownNow()}
     }
   }

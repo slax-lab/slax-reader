@@ -3,9 +3,7 @@
  * 来源: bookmarkAdd.ts:118-134
  */
 import { describe, test, expect, vi, afterEach } from 'vitest'
-import { createServer } from 'node:http'
 import { BookmarkAddOrchestrator } from '@/domain/orchestrator/bookmarkAdd'
-import { BookmarkService } from '@/domain/bookmark'
 import { CrawlService } from '@/domain/crawl'
 import { needsResolve } from '@/utils/platformDetector'
 import { classifyPodcastUrl } from '@/utils/podcastSource'
@@ -79,128 +77,6 @@ describe('tryResolveShortLink 分支', () => {
       1, 'pre_workflow.resolve_short_link_failed',
       expect.objectContaining({ url: 'https://x.com/i/status/123', error: 'network error' })
     )
-  })
-})
-
-describe('Read-only receipt alias resolution', () => {
-  const alias = 'https://x.com/i/status/123'
-  const canonical = 'https://x.com/author/status/123'
-  function receipt() {
-    const hasActiveSave = vi.fn().mockResolvedValue(false)
-    const crawl = createMockCrawlService()
-    const service = Object.assign(Object.create(BookmarkService.prototype), { bookmarkRepo: { hasActiveSave }, crawlService: crawl }) as BookmarkService
-    return { service, hasActiveSave, crawl, ctx: createMockCtx() }
-  }
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-    vi.useRealTimers()
-  })
-
-  test('finds a canonical identity only after checking the normalized original', async () => {
-    const { service, hasActiveSave, crawl, ctx } = receipt()
-    hasActiveSave.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
-    crawl.resolveFinalUrl.mockResolvedValue(canonical + '?s=20')
-    expect(await service.saveReceipt(ctx, alias + '?s=20')).toBe(true)
-    expect(hasActiveSave.mock.calls).toEqual([[ctx.getUserId(), alias], [ctx.getUserId(), canonical]])
-    expect(crawl.resolveFinalUrl).toHaveBeenCalledExactlyOnceWith(ctx, alias, expect.any(AbortSignal))
-    expect(crawl.pushBookmarkFailureAlert).not.toHaveBeenCalled()
-    expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
-  })
-
-  test('finds the original fallback key without another provider read', async () => {
-    const { service, hasActiveSave, crawl, ctx } = receipt()
-    hasActiveSave.mockResolvedValue(true)
-    expect(await service.saveReceipt(ctx, alias)).toBe(true)
-    expect(crawl.resolveFinalUrl).not.toHaveBeenCalled()
-  })
-
-  test.each(['https://pca.st/6rpkp8cj', 'https://www.toutiao.com/article/123', 'https://t.co/abc', 'https://x.com/author/status/123'])(
-    'does not resolve workflow-side or canonical identity %s', async targetUrl => {
-      const { service, hasActiveSave, crawl, ctx } = receipt()
-      expect(await service.saveReceipt(ctx, targetUrl)).toBe(false)
-      expect(hasActiveSave).toHaveBeenCalledExactlyOnceWith(ctx.getUserId(), targetUrl)
-      expect(crawl.resolveFinalUrl).not.toHaveBeenCalled()
-      expect(crawl.resolveShortLink).not.toHaveBeenCalled()
-    }
-  )
-
-  test('treats resolver failure as unconfirmed without alerts or workflows', async () => {
-    const { service, crawl, ctx } = receipt()
-    crawl.resolveFinalUrl.mockRejectedValue(new Error('provider unavailable'))
-    expect(await service.saveReceipt(ctx, alias)).toBe(false)
-    expect(crawl.pushBookmarkFailureAlert).not.toHaveBeenCalled()
-    expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
-  })
-
-  test('aborts the provider read after two seconds', async () => {
-    vi.useFakeTimers()
-    const { service, crawl, ctx } = receipt()
-    let signal: AbortSignal | undefined
-    crawl.resolveFinalUrl.mockImplementation((_ctx: unknown, _url: string, abort: AbortSignal) => {
-      signal = abort
-      return new Promise((_resolve, reject) => abort.addEventListener('abort', () => reject(abort.reason), { once: true }))
-    })
-    const result = service.saveReceipt(ctx, alias)
-    await vi.advanceTimersByTimeAsync(1999)
-    expect(signal?.aborted).toBe(false)
-    await vi.advanceTimersByTimeAsync(1)
-    expect(await result).toBe(false)
-    expect(signal?.aborted).toBe(true)
-    expect(crawl.resolveFinalUrl).toHaveBeenCalledOnce()
-    expect(crawl.pushBookmarkFailureAlert).not.toHaveBeenCalled()
-  })
-
-  test('propagates canonical lookup database failure instead of reporting absence', async () => {
-    const { service, hasActiveSave, crawl, ctx } = receipt()
-    const failure = new Error('database unavailable')
-    hasActiveSave.mockResolvedValueOnce(false).mockRejectedValueOnce(failure)
-    crawl.resolveFinalUrl.mockResolvedValue(canonical)
-    await expect(service.saveReceipt(ctx, alias)).rejects.toBe(failure)
-  })
-
-  test.each(['headers', 'success-body', 'error-body'])('aborts a real provider response stalled at %s within the receipt budget', async phase => {
-    let requests = 0
-    const server = createServer((_request, response) => {
-      requests++
-      if (phase === 'headers') return
-      response.writeHead(phase === 'success-body' ? 200 : 503, { 'Content-Type': 'application/json' })
-      response.flushHeaders()
-      response.write('{')
-    })
-    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-    const address = server.address()
-    if (!address || typeof address === 'string') throw new Error('Expected a local HTTP port')
-    const nativeFetch = globalThis.fetch.bind(globalThis)
-    let providerSignal: AbortSignal | null | undefined
-    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
-      providerSignal = init?.signal
-      return nativeFetch(`http://127.0.0.1:${address.port}`, init)
-    })
-    const { service, hasActiveSave, ctx } = receipt()
-    Object.assign(service, { crawlService: Object.create(CrawlService.prototype) })
-    const started = performance.now()
-    try {
-      expect(await service.saveReceipt(ctx, alias)).toBe(false)
-      expect(performance.now() - started).toBeGreaterThanOrEqual(1900)
-      expect(performance.now() - started).toBeLessThan(3000)
-      expect(providerSignal?.aborted).toBe(true)
-      expect(requests).toBe(1)
-      expect(fetch).toHaveBeenCalledOnce()
-      expect(hasActiveSave).toHaveBeenCalledOnce()
-      expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
-    } finally {
-      fetch.mockRestore()
-      server.closeAllConnections()
-      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
-    }
-  })
-
-  test('retains default provider options for ordinary resolver callers', async () => {
-    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ status: 'success', tweets: [{ author: { userName: 'author' } }] })))
-    const crawl = Object.create(CrawlService.prototype) as CrawlService
-    expect(await crawl.resolveFinalUrl(createMockCtx(), alias)).toBe(canonical)
-    expect(fetch.mock.calls[0][1]).not.toHaveProperty('signal')
   })
 })
 
