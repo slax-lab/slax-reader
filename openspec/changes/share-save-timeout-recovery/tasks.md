@@ -12,4 +12,4 @@ PR #509 completed the earlier implementation but the owner rejected its new rece
 
 - [x] 2.1 Regenerate authoritative iOS copies through the existing share plugin, verify version metadata unchanged, and confirm no receipt endpoint/method remains in runtime source (a negative test assertion forbids the removed route).
 - [x] 2.2 Run relevant native-language host/unit tests and the dual-platform bundle; record exact results without expanding to native builds, devices, or extra runtime fixtures.
-- [ ] 2.3 Complete Bugs/Security/Compliance review, strict OpenSpec validation and diff checks; commit and push the correction, create a follow-up PR targeting dev, and leave merge/deployment/publication to the owner.
+- [x] 2.3 Complete Bugs/Security/Compliance review, strict OpenSpec validation and diff checks; commit and push the correction, create follow-up PR #513 targeting dev, and leave merge/deployment/publication to the owner.
