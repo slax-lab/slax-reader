@@ -77,7 +77,7 @@ test('composer preserves article markup and literal source-template markers', ()
   const article = '<p>{{ARTICLE-CSS}} `${message}`</p><iframe src="https://www.youtube.com/embed/abcdefghijk"></iframe><table><tr><td>Cell</td></tr></table>'
   const document = composeReaderDocument(article, { pageId: '</script>', platform: 'ios' })
   assert.ok(document.includes(article))
-  assert.ok(document.includes('window.SlaxWebViewBridge = new'))
+  assert.ok(document.includes(readerAssets.bridgeJs), 'The generated bridge is embedded intact regardless of minification')
   assert.ok(document.includes('window.__slaxSeekYoutube = doSeek'))
   assert.ok(document.indexOf('installSlaxReaderHost') < document.indexOf('SlaxReaderWebBridgeExports'))
   const error = composeReaderError('<title>', 'Reason & cause', 'Unsafe <script>')

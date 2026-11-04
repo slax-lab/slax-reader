@@ -51,11 +51,11 @@ export function SearchScreen({navigation}: MobileScreenProps<'Search'>) {
   const pending = searching && !rows.some(row => row.type === 'section' && row.section === 'articles');
   const header = <View>
     {pending ? <View testID="search-results-loading" accessibilityLiveRegion="polite" style={styles.progress}>
-      <ActivityIndicator size="small" color={C.searchActionText}/><SourceText style={styles.helper}>{t(state.busy ? 'search_enriching' : 'search_searching')}</SourceText>
+      <ActivityIndicator size="small" color={C.bodyText}/><SourceText style={styles.helper}>{t(state.busy ? 'search_enriching' : 'search_searching')}</SourceText>
     </View> : null}
     {state.localError ? <View style={styles.error}>
       <SourceText accessibilityRole="alert" style={styles.helper}>{t('search_local_failed')}</SourceText>
-      <TextAction label={t('rss_retry')} color={C.searchActionText} onPress={() => search.controller.retryLocal()}/>
+      <TextAction label={t('rss_retry')} color={C.bodyText} onPress={() => search.controller.retryLocal()}/>
     </View> : null}
   </View>;
   const empty = !searching && !search.invalid && !state.localError && !rows.length ? <View testID="search-empty" style={styles.empty}>
@@ -63,8 +63,8 @@ export function SearchScreen({navigation}: MobileScreenProps<'Search'>) {
     <SourceText style={styles.emptyTitle}>{t(active ? 'search_empty_title' : 'search_start_title')}</SourceText>
     {source ? <SourceText style={styles.emptyScope}>{source.label}</SourceText> : null}
     <SourceText style={styles.emptyHint}>{t(source ? 'search_empty_source' : tagged ? 'search_empty_tags' : active ? 'search_no_local' : 'search_start_hint')}</SourceText>
-    {source ? <TextAction label={t('search_all_sources')} color={C.searchActionText} onPress={() => search.selectSource(undefined)}/> :
-      tagged ? <TextAction label={t('search_reset_tags')} color={C.searchActionText} onPress={() => search.setSelected([])}/> : null}
+    {source ? <TextAction label={t('search_all_sources')} color={C.bodyText} onPress={() => search.selectSource(undefined)}/> :
+      tagged ? <TextAction label={t('search_reset_tags')} color={C.bodyText} onPress={() => search.setSelected([])}/> : null}
   </View> : undefined;
   return <View ref={surface} style={styles.screen} onLayout={() => surface.current?.measureInWindow((_x, y) => setKeyboardOffset(y))}>
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={keyboardOffset}>
@@ -73,23 +73,23 @@ export function SearchScreen({navigation}: MobileScreenProps<'Search'>) {
       <FlatList testID="library-search-results" data={rows} keyExtractor={row => row.key} renderItem={renderRow}
         keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{paddingBottom: insets.bottom + 24}}
         ListHeaderComponent={header} ListEmptyComponent={empty} initialNumToRender={12}
-        ListFooterComponent={canLoadMore ? <TextAction label={t('search_more')} color={C.searchActionText} disabled={searching} onPress={() => search.controller.more()}/> : undefined}/>
+        ListFooterComponent={canLoadMore ? <TextAction label={t('search_more')} color={C.bodyText} disabled={searching} onPress={() => search.controller.more()}/> : undefined}/>
     </KeyboardAvoidingView>
   </View>;
 }
 
 const styles = StyleSheet.create({
   screen: {flex: 1, backgroundColor: C.readerBackground},
-  helper: {fontSize: 13, lineHeight: 20, color: C.searchSecondaryText, flexShrink: 1},
+  helper: {fontSize: 14, lineHeight: 20, color: C.searchSecondaryText, flexShrink: 1},
   heading: {minHeight: 48, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8},
-  headingText: {fontSize: 12, lineHeight: 18, fontWeight: '600', color: C.searchSecondaryText, letterSpacing: 0.2},
-  count: {fontSize: 12, lineHeight: 18, color: C.searchSecondaryText},
+  headingText: {fontSize: 14, lineHeight: 20, fontWeight: '600', color: C.bodyText, letterSpacing: 0.2},
+  count: {fontSize: 14, lineHeight: 20, color: C.searchSecondaryText},
   chevron: {marginLeft: 'auto'},
   progress: {minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 10},
   error: {paddingHorizontal: 20, paddingVertical: 12, alignItems: 'flex-start'},
   empty: {paddingHorizontal: 32, paddingTop: 48, gap: 10, alignItems: 'center'},
   emptyMark: {width: 52, height: 52, borderRadius: 18, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 4},
-  emptyTitle: {fontSize: 17, lineHeight: 25, fontWeight: '500', color: C.text, textAlign: 'center'},
+  emptyTitle: {fontSize: 17, lineHeight: 25, fontWeight: '500', color: C.bodyText, textAlign: 'center'},
   emptyScope: {fontSize: 14, lineHeight: 21, color: C.bodyText, textAlign: 'center'},
   emptyHint: {fontSize: 14, lineHeight: 22, color: C.searchSecondaryText, textAlign: 'center', maxWidth: 280},
   pressed: {backgroundColor: C.pressedOverlay},

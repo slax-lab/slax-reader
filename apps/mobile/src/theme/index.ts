@@ -1,4 +1,4 @@
-/** Values from the pinned mobile source. Native render parity is still unverified. */
+/** Mobile palette, including the owner-approved presentation refinements. */
 export const mobileColors = {
   background: '#F5F5F3',
   readerBackground: '#FCFCFC',
@@ -8,7 +8,6 @@ export const mobileColors = {
   mutedText: '#999999',
   secondaryText: '#333333CC',
   accent: '#16B998',
-  accentPressed: '#14A68F',
   danger: '#F45454',
   validationError: '#E53935',
   warning: '#F3B336',
@@ -17,12 +16,12 @@ export const mobileColors = {
   buttonBorder: '#6A6E8333',
   pressedOverlay: '#00000014',
   selectedOverlay: '#0F14190F',
-  searchSelection: '#E5F3ED',
-  searchActionText: '#08745F',
-  searchSecondaryText: '#646B68',
+  searchSelection: '#16B998',
+  searchActionText: '#16B998',
+  searchSecondaryText: '#999999',
   scrim: '#00000080',
   disabledBackground: '#E0E0E0',
-  switchOff: '#E5E2DD',
+  switchOff: '#0F141914',
   skeleton: '#F0F0F0',
   skeletonBody: '#F5F5F5',
   syncBackground: '#E8EBED',
@@ -33,11 +32,11 @@ export const mobileColors = {
   selectionMenu: '#333333',
   selectionMenuPressed: '#424242',
   selectionText: '#F5F5F3',
-  markStroke: '#F6AF69',
+  markStroke: '#CCB69AFF',
   markHighlight: '#FCF4E8',
-  textSelection: '#8AD8A866',
+  textSelection: '#FEEAC273',
   rssAccent: '#B45837',
-  rssSelectedBorder: '#34C77B',
+  rssSelectedBorder: '#16B998',
   rssIconMuted: '#777777',
   subscriptionGradientStart: '#272220',
   subscriptionGradientEnd: '#4B4441',
@@ -60,7 +59,7 @@ export const mobileTypography = {
   selectionAction: { fontSize: 15, lineHeight: 21, fontWeight: '400' },
   toolbarLabel: { fontSize: 12, lineHeight: 16.5, fontWeight: '400' },
   syncStatus: { fontSize: 11, lineHeight: 15, fontWeight: '400' },
-  rssSourceLabel: { fontSize: 11, lineHeight: 14, fontWeight: '400' },
+  rssSourceLabel: { fontSize: 10, lineHeight: 14, fontWeight: '400' },
 } as const;
 
 /** Logical dp/point values, not asset pixel dimensions. Safe-area insets are runtime values. */

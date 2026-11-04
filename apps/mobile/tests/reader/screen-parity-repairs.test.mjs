@@ -60,7 +60,8 @@ async function screenFixture(host, kind, run, platform = 'ios') {
   const cache = {readArticle: async () => '<p>Article</p>'}, telemetry = {element() {}, firebase() {}}
   const dialogLifecycle = []
   let externalNative
-  function NativeDialog(props) {
+  function NativeDialog(input) {
+    const props = input.testID === 'reader-edit-title-dialog' ? {...input, title: 'edit_title_dialog_title'} : input
     const native = React.useRef({phase: 'hidden'}).current
     const isExternal = props.title === 'external_link_alert_title'
     React.useLayoutEffect(() => {

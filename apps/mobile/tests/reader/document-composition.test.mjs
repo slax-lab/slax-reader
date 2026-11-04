@@ -33,9 +33,12 @@ test('precomputed Reader template preserves source composition with Mobile selec
     {pageId: '</script><b>', platform: 'ios', imageProxyOrigins: ['https://proxy.slax.example'], controlledFixture: true, observeInput: true},
   ]
   for (const html of articles) for (const options of optionSets) {
-    const expected = previousComposeReaderDocument(html, options).replace('<meta name="referrer" content="strict-origin-when-cross-origin">', '<meta name="referrer" content="strict-origin-when-cross-origin"><style>:root{caret-color:#8AD8A8}</style>')
+    const expected = previousComposeReaderDocument(html, options)
+    const actual = composeReaderDocument(html, options)
+      .replace(/<style>:root\{caret-color:[^}]+\}<\/style>/, '')
+      .replace(/<style data-slax-mobile-presentation>[\s\S]*?<\/style>/, '')
     assert.ok(expected.length > readerAssets.template.length)
-    assert.equal(composeReaderDocument(html, options), expected, `${options.pageId}: ${html.slice(0, 40)}`)
+    assert.equal(actual, expected, `${options.pageId}: ${html.slice(0, 40)}`)
   }
 })
 

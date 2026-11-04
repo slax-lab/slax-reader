@@ -18,7 +18,6 @@ export function SearchInput({text, selected, tags, sourceLabel, sourceKind, inva
   const [pickingTags, setPickingTags] = useState(false);
   const suggested = /(?:^|\s)#[^#]*$/.test(text);
   const suggestions = suggested ? tagSuggestions(text, tags).slice(0, 4) : [];
-  const hasFilters = Boolean(sourceLabel || selected.length);
   const selectedNames = selected.map(id => tags.find(tag => tag.id === id)?.tag_name ?? t('search_unknown_tag'));
   function chooseSuggestion(tag: TagRecord) {
     onText(text.replace(/(?:^|\s)#[^#]*$/, '').trim());
@@ -34,7 +33,7 @@ export function SearchInput({text, selected, tags, sourceLabel, sourceKind, inva
     <View style={styles.top}>
       <View style={styles.inputBox}>
         <SearchGlyph/>
-        <TextInput ref={input} testID="search-keyword" autoFocus accessibilityLabel={t('search_input')}
+        <TextInput selectionColor={C.accent} cursorColor={C.accent} ref={input} testID="search-keyword" autoFocus accessibilityLabel={t('search_input')}
           placeholder={sourceLabel ? t('search_scoped_hint') : t('search_hint')} placeholderTextColor={C.searchSecondaryText}
           value={text} onChangeText={onText} autoCorrect={false} autoCapitalize="none" returnKeyType="search" maxLength={1000}
           onSubmitEditing={event => {if (!(event.nativeEvent as typeof event.nativeEvent & {isComposing?: boolean}).isComposing) onSubmit();}}
@@ -43,8 +42,8 @@ export function SearchInput({text, selected, tags, sourceLabel, sourceKind, inva
               if (selected.length) onTags(selected.slice(0, -1)); else if (sourceLabel) onClearSource?.();
             }
           }} style={styles.input}/>
-        {text || hasFilters ? <Pressable accessibilityRole="button" accessibilityLabel={t('search_clear')}
-          onPress={() => {onText(''); onTags([]); onClearSource?.(); input.current?.focus();}} style={styles.clear}>
+        {text ? <Pressable accessibilityRole="button" accessibilityLabel={t('search_clear')}
+          onPress={() => {onText(''); input.current?.focus();}} style={styles.clear}>
           <SearchClose/>
         </Pressable> : null}
         <Pressable accessibilityRole="button" accessibilityLabel={t('search_action')} accessibilityState={{busy, disabled: busy}}
@@ -71,7 +70,7 @@ export function SearchInput({text, selected, tags, sourceLabel, sourceKind, inva
     </View>
     {!sourceLabel && selected.length > 0 ? <View style={styles.selectionSummary}>
       <Pressable accessibilityRole="button" accessibilityLabel={`${t('search_tags')}: ${selectedNames.join(', ')}`} onPress={openTags} style={styles.summaryAction}>
-        <SourceText numberOfLines={2} style={styles.summaryText}>{selectedNames.map(name => `#${name}`).join('  ·  ')}</SourceText>
+        <View style={styles.selectedTags}>{selectedNames.map((name, index) => <View key={selected[index]} style={styles.selectedTag}><SourceText numberOfLines={1} style={styles.selectedTagText}>{name}</SourceText></View>)}</View>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={t('search_reset_tags')} onPress={() => onTags([])} style={styles.filterClear}><SearchClose/></Pressable>
     </View> : null}
@@ -94,30 +93,32 @@ export function SearchInput({text, selected, tags, sourceLabel, sourceKind, inva
 const styles = StyleSheet.create({
   container: {backgroundColor: C.readerBackground, paddingTop: 4, paddingBottom: 0},
   top: {paddingHorizontal: 20},
-  inputBox: {flexDirection: 'row', alignItems: 'center', backgroundColor: C.background, borderRadius: 14, paddingLeft: 12, minHeight: 50},
-  input: {flex: 1, minWidth: 0, minHeight: 48, fontSize: 16, color: C.text, paddingVertical: 12, paddingHorizontal: 8},
+  inputBox: {flexDirection: 'row', alignItems: 'center', backgroundColor: C.background, borderRadius: 8, paddingLeft: 12, minHeight: 50},
+  input: {flex: 1, minWidth: 0, minHeight: 48, fontSize: 15, color: C.bodyText, paddingVertical: 12, paddingHorizontal: 8},
   clear: {width: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center', flexShrink: 0},
   submit: {minWidth: 56, minHeight: 48, paddingHorizontal: 10, paddingVertical: 10, alignItems: 'center', justifyContent: 'center'},
   submitText: {fontSize: 14, lineHeight: 21, fontWeight: '600', color: C.searchActionText},
-  filters: {minHeight: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border},
-  scopeLabel: {flex: 1, fontSize: 13, lineHeight: 20, color: C.searchSecondaryText},
-  tagToggle: {minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 12},
-  tagToggleText: {fontSize: 13, lineHeight: 20, color: C.searchSecondaryText},
-  selectedText: {color: C.searchActionText, fontWeight: '500'},
+  filters: {minHeight: 48, flexDirection: 'row', alignItems: 'center', paddingLeft: 20, gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border},
+  scopeLabel: {flex: 1, fontSize: 14, lineHeight: 20, color: C.bodyText},
+  tagToggle: {minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 12, paddingRight: 20},
+  tagToggleText: {fontSize: 14, lineHeight: 20, color: C.bodyText},
+  selectedText: {color: C.bodyText, fontWeight: '500'},
   sourceScope: {flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10},
-  scopeKind: {fontSize: 11, lineHeight: 16, fontWeight: '600', color: C.searchSecondaryText},
-  sourceName: {flex: 1, fontSize: 13, lineHeight: 20, fontWeight: '500', color: C.text, paddingVertical: 8},
+  scopeKind: {fontSize: 14, lineHeight: 20, fontWeight: '600', color: C.searchSecondaryText},
+  sourceName: {flex: 1, fontSize: 14, lineHeight: 20, fontWeight: '500', color: C.bodyText, paddingVertical: 8},
   filterClear: {width: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center'},
-  selectionSummary: {flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border},
-  summaryAction: {flex: 1, minHeight: 44, justifyContent: 'center', paddingVertical: 8},
-  summaryText: {fontSize: 12, lineHeight: 18, color: C.searchActionText},
-  suggestions: {marginHorizontal: 20, marginTop: 8, marginBottom: 8, borderRadius: 12, backgroundColor: C.background, overflow: 'hidden'},
-  suggestion: {minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10},
+  selectionSummary: {flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border},
+  summaryAction: {flex: 1, paddingLeft: 20, minHeight: 44, justifyContent: 'center', paddingVertical: 8},
+  selectedTags: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
+  selectedTag: {maxWidth: '100%', borderWidth: 1, borderColor: C.tagBorder, borderRadius: 3, paddingHorizontal: 6, paddingVertical: 1},
+  selectedTagText: {fontSize: 14, lineHeight: 20, color: '#A68F5B'},
+  suggestions: {marginTop: 8, marginBottom: 8, backgroundColor: C.background, overflow: 'hidden'},
+  suggestion: {minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 34, paddingVertical: 10},
   suggestionHash: {fontSize: 17, lineHeight: 23, color: C.searchSecondaryText},
-  suggestionName: {flex: 1, fontSize: 15, lineHeight: 22, color: C.text},
-  suggestionHint: {padding: 14, fontSize: 13, lineHeight: 20, color: C.searchSecondaryText},
-  allTags: {minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border},
-  allTagsText: {flex: 1, fontSize: 12, lineHeight: 18, color: C.searchActionText},
-  error: {fontSize: 13, lineHeight: 20, color: C.validationError, paddingHorizontal: 20, paddingVertical: 8},
+  suggestionName: {flex: 1, fontSize: 15, lineHeight: 22, color: C.bodyText},
+  suggestionHint: {paddingVertical: 14, paddingHorizontal: 34, fontSize: 14, lineHeight: 20, color: C.searchSecondaryText},
+  allTags: {minHeight: 44, paddingHorizontal: 34, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border},
+  allTagsText: {flex: 1, fontSize: 14, lineHeight: 20, color: C.bodyText},
+  error: {fontSize: 14, lineHeight: 20, color: C.validationError, paddingHorizontal: 20, paddingVertical: 8},
   pressed: {opacity: 0.5},
 });
