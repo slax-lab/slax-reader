@@ -113,3 +113,88 @@ handler) that gates the subscription claim flow, again against the real post-edi
 $ pnpm exec openspec validate --all --strict
 Totals: 87 passed, 0 failed (87 items)
 ```
+
+## Brianna extension (this PR)
+
+Diff: `apps/api/src/handler/http/promotionController.ts`, +6 lines. Adds `briannajolie` to
+`PromotionController.BLOGGER_RECORD` with the supplied name (`Brianna`) and avatar URL.
+
+### Commands run
+
+- `npx eslint src/handler/http/promotionController.ts` (in `apps/api`): pass, no output.
+- `pnpm exec openspec validate --all --strict`: pass (see output below).
+- `pnpm typecheck` (in `apps/api`): the touched file reports zero errors (`grep -i
+  promotionController` against the full output is empty). Prisma clients were generated ahead
+  of this run with `prisma generate --config prisma/{d1,pgsql,logs}.config.ts`, using placeholder
+  `HYPERDRIVE_DATABASE_URL`/`LOGS_DATABASE_URL` values — codegen only needs to satisfy Prisma's
+  config loader, not a real database connection.
+
+### Running-environment exercise
+
+The full HTTP smoke harness (`pnpm api -- test:http`) was not attempted in this environment: the
+same pre-existing gap recorded in the Sen LinkedIn and Substack extension above still applies
+(this host's Docker daemon, OrbStack, listens at a non-standard socket path with no `DOCKER_HOST`
+passthrough in the harness's isolated environment).
+
+As a substitute, the real compiled controller module was imported and its registry lookup and
+claim-validation guards were exercised directly for `briannajolie` and an unregistered id:
+
+```
+$ npx tsx -e "
+import { PromotionController } from './src/handler/http/promotionController'
+function lookup(blogger: string) {
+  if (Object.prototype.hasOwnProperty.call(PromotionController.BLOGGER_RECORD, blogger)) {
+    const r = PromotionController.BLOGGER_RECORD[blogger]
+    return { ok: true, name: r.name, avatar: r.avatar, activity_id: r.activity_id }
+  }
+  return { ok: false }
+}
+for (const id of ['chloemanilay', 'briannajolie', 'unknown_blogger_xyz']) {
+  console.log(id, JSON.stringify(lookup(id)))
+}
+console.log('total records:', Object.keys(PromotionController.BLOGGER_RECORD).length)
+"
+chloemanilay {"ok":true,"name":"Chloe","avatar":"https://reader-img.slax.com/koc/chloemanilay.jpg","activity_id":"chloemanilay"}
+briannajolie {"ok":true,"name":"Brianna","avatar":"https://reader-img.slax.com/koc/Brianna.jpg","activity_id":"briannajolie"}
+unknown_blogger_xyz {"ok":false}
+total records: 17
+```
+
+```
+$ npx tsx -e "
+import { PromotionController } from './src/handler/http/promotionController'
+import { receiveActivityType } from '@/infra/repository/dbSubscription'
+function validateReceive(activity_type: string, activity_id?: string) {
+  if (![receiveActivityType.BLOGGER, receiveActivityType.PLATFORM_0527].includes(activity_type as receiveActivityType)) {
+    return { ok: false, reason: 'bad activity_type' }
+  }
+  if (activity_type === receiveActivityType.BLOGGER && (!activity_id || !Object.prototype.hasOwnProperty.call(PromotionController.BLOGGER_RECORD, activity_id))) {
+    return { ok: false, reason: 'bad activity_id' }
+  }
+  return { ok: true }
+}
+for (const id of ['briannajolie', 'unknown_blogger_xyz']) {
+  console.log(id, JSON.stringify(validateReceive(receiveActivityType.BLOGGER, id)))
+}
+"
+briannajolie {"ok":true}
+unknown_blogger_xyz {"ok":false,"reason":"bad activity_id"}
+```
+
+This reproduces the exact guards in `handleGetBloggerRequest` (`/v1/promotion/blogger_info`) and
+`handleReceiveRequest` (`/v1/promotion/receive`), against the real, unmocked post-edit module.
+
+### Not verified
+
+- The full HTTP request/response cycle end-to-end (routing, Turnstile, the downstream
+  `subscriptionService.receiveSubscription` claim write) — same declared gap as the prior
+  extension; the exercised guard logic is the only code path this new record touches.
+- The avatar URL (`https://reader-img.slax.com/koc/Brianna.jpg`) was not fetched to confirm the
+  asset is uploaded.
+
+### OpenSpec validation output
+
+```
+$ pnpm exec openspec validate --all --strict
+Totals: 99 passed, 0 failed (99 items)
+```

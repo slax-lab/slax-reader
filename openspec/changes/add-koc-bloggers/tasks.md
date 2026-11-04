@@ -39,3 +39,11 @@ This extension keeps `add-koc-bloggers` as the sole active change for `blogger-p
 - [x] 5.3 Exercise the registry lookup and claim-validation logic from the real compiled module (`PromotionController.BLOGGER_RECORD` hasOwnProperty lookup and the `/receive` activity-id guard) for `senlinkedin`, `sensubstack`, and an unregistered id; record results in `validation.md`.
 
 This extension keeps `add-koc-bloggers` as the sole active change for `blogger-promotions` to avoid a third concurrent delta for the same capability. The full HTTP smoke harness (`pnpm api -- test:http`) could not run in this environment because its Postgres fixture requires Docker at `/var/run/docker.sock`, while this host runs OrbStack's daemon at `~/.orbstack/run/docker.sock` with no `DOCKER_HOST` passthrough in the harness's isolated environment; this is a pre-existing environment gap unrelated to this change's diff, declared here per `docs/DEFINITION-OF-DONE.md` rather than worked around by editing the test harness.
+
+## Brianna extension
+
+- [x] 6.1 Add `briannajolie` with the supplied name (`Brianna`), avatar URL, and activity ID while preserving all 16 profiles present before this extension.
+- [x] 6.2 Run API eslint on the touched file, confirm `add-koc-bloggers` remains the sole active change for `blogger-promotions`, and run strict OpenSpec validation.
+- [x] 6.3 Exercise the registry lookup and claim-validation logic from the real compiled module (`PromotionController.BLOGGER_RECORD` hasOwnProperty lookup and the `/receive` activity-id guard) for `briannajolie` and an unregistered id; record results in `validation.md`.
+
+This extension keeps `add-koc-bloggers` as the sole active change for `blogger-promotions` to avoid a fourth concurrent delta for the same capability. The full HTTP smoke harness (`pnpm api -- test:http`) was not attempted in this environment for the same pre-existing Docker-socket-path gap recorded in the Sen LinkedIn and Substack extension above; this change's two new tasks (6.1-6.3) are limited to the same static-registry shape as prior extensions, so the same substitute verification applies.

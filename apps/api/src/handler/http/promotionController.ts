@@ -93,6 +93,11 @@ export class PromotionController {
       name: 'Chloe',
       avatar: 'https://reader-img.slax.com/koc/chloemanilay.jpg',
       activity_id: 'chloemanilay'
+    },
+    briannajolie: {
+      name: 'Brianna',
+      avatar: 'https://reader-img.slax.com/koc/Brianna.jpg',
+      activity_id: 'briannajolie'
     }
   }
 
