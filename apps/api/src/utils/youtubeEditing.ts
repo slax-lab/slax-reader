@@ -108,11 +108,10 @@ export function completeCueCoverage(sections: ArticleSection[], ids: string[]): 
 
 /** Detect excessive shortening before translation can hide it behind language length differences. */
 export function editedLengthRatio(sections: ArticleSection[], sourceText: string): number {
-  const length = sections
-    .flatMap(s => s.paragraphs)
-    .map(p => p.text)
-    .join('')
-    .replace(/\s+/g, '').length
+  return editedTextLengthRatio(sections.flatMap(s => s.paragraphs.map(p => p.text)).join(''), sourceText)
+}
+
+export function editedTextLengthRatio(text: string, sourceText: string): number {
   const sourceLength = sourceText.replace(/\s+/g, '').length
-  return sourceLength ? length / sourceLength : 0
+  return sourceLength ? text.replace(/\s+/g, '').length / sourceLength : 0
 }

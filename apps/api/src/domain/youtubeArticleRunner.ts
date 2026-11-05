@@ -1,3 +1,4 @@
+import { passageResponseSchema, renderSourcePassages, sourcePassages } from '@/utils/youtubePassages'
 import {
   completeCueCoverage,
   EDITING_CONTEXT_CHARS,
@@ -206,7 +207,11 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
     return result
   }
 
-  const ask = async (system: string, user: string, opts: { introduction?: boolean; translation?: boolean; chunk?: number; parts?: number; deadline?: number } = {}) => {
+  const ask = async (
+    system: string,
+    user: string,
+    opts: { introduction?: boolean; translation?: boolean; chunk?: number; parts?: number; passageKeys?: string[]; deadline?: number } = {}
+  ) => {
     const userTokens = estimateTokens(user)
     const maxOutputTokens = outputTokenLimit(userTokens)
     const next = estimateCostUsd(estimateTokens(system) + userTokens, maxOutputTokens)
@@ -246,11 +251,13 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
           // Gemini 3 uses thinking levels. Low reasoning leaves more output space for the transcript.
           thinkingConfig: { thinkingLevel: 'LOW' },
           responseMimeType: 'application/json',
-          responseSchema: (opts.introduction
-            ? { type: 'OBJECT', properties: { lede: { type: 'STRING' } }, required: ['lede'] }
-            : opts.translation
-              ? TRANSLATION_SCHEMA
-              : YOUTUBE_ARTICLE_RESPONSE_SCHEMA) as unknown as VertexAIConfig['responseSchema']
+          responseSchema: (opts.passageKeys
+            ? passageResponseSchema(opts.passageKeys)
+            : opts.introduction
+              ? { type: 'OBJECT', properties: { lede: { type: 'STRING' } }, required: ['lede'] }
+              : opts.translation
+                ? TRANSLATION_SCHEMA
+                : YOUTUBE_ARTICLE_RESPONSE_SCHEMA) as unknown as VertexAIConfig['responseSchema']
         },
         { systemInstruction: system }
       )
@@ -394,6 +401,24 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
               return parsed.value
             })
           )
+        } else if (p.sourceEditing === 'passages-v1') {
+          const sections = await renderSourcePassages(
+            sourcePassages(cues.slice(chunk.overlap)),
+            caption.language,
+            p.targetLanguage,
+            key,
+            deps.bucket,
+            async (items, run) => {
+              await inParts(items, run)
+            },
+            async (system, user, passageKeys, translation) => {
+              const call = await askChunk(system, user, { chunk: i, passageKeys, translation })
+              count(call)
+              return call.reply.text
+            },
+            (event, count) => log(event, p, { chunk: i, count })
+          )
+          value = { lede: '', sections }
         } else {
           const ownCues = cues.slice(chunk.overlap)
           const editKey = `${key}.source`
