@@ -1,5 +1,6 @@
 import { configuredCookieName, requireConfiguredCookieName } from '~/utils/authCookie'
 
+import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
@@ -47,7 +48,13 @@ const useAuth = {
 
     location.href = url + '?' + new URLSearchParams(params)
   },
-  async grantAuth(code: string, redirectUri: string, affCode: string, platformType: 'google' | 'apple' = 'google'): Promise<string> {
+  async grantAuth(
+    code: string,
+    redirectUri: string,
+    affCode: string,
+    platformType: 'google' | 'apple' = 'google',
+    options: Pick<FetchOptions, 'signal' | 'errorInterceptors'> = {}
+  ): Promise<string> {
     const $config = useRuntimeConfig().public
     const clientIdRef = {
       apple: `${$config.APPLE_OAUTH_CLIENT_ID}`,
@@ -55,6 +62,7 @@ const useAuth = {
     }
 
     const resp = await request().post<{ token: string }>({
+      ...options,
       url: RESTMethodPath.LOGIN,
       body: {
         code,
@@ -64,6 +72,8 @@ const useAuth = {
         client_id: clientIdRef[platformType]
       }
     })
+
+    if (options.signal?.aborted) throw options.signal.reason
 
     if (!resp) {
       throw new Error('login failed')
