@@ -6,7 +6,7 @@
 - `pnpm agent:check`: rulesync doctor and generation check passed; 105 OpenSpec items passed strict validation; gh-aw compiled two remaining workflows and reported that compiled workflows match their sources.
 - `pnpm exec openspec validate remove-automated-openspec-archiving --strict`: passed.
 - `git diff --cached --check`: passed.
-- Repository search for `OPENSPEC_ARCHIVE_ENABLED` and `openspec-archive`: only this change, generated archive-skill documentation, and historical archived changes remain. No live workflow, tooling test, CI runbook, or living-spec reference remains.
+- Repository search for `OPENSPEC_ARCHIVE_ENABLED` and `openspec-archive`: only this change, generated archive-skill documentation, and historical archived changes remain. No live workflow, tooling test, CI runbook, or automatic operational guidance remains. The living spec remains only until the archive PR applies its REMOVED delta.
 
 ## Running-environment evidence and declared gap
 

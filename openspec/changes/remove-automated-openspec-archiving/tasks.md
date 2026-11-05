@@ -7,7 +7,7 @@
 
 ## 2. Verify the removal
 
-- [x] 2.1 Run `pnpm agent:check`, `pnpm exec openspec validate --all --strict`, and `git diff --check`; search non-historical files and confirm no dedicated archive workflow, trigger, variable reference, or living archive requirement remains.
+- [x] 2.1 Run `pnpm agent:check`, `pnpm exec openspec validate --all --strict`, and `git diff --check`; search non-historical files and confirm no dedicated archive workflow, trigger, variable reference, or automatic operational guidance remains. The living spec remains only until the archive PR applies its REMOVED delta.
 - [x] 2.2 Record the exercised checks and the post-merge variable-deletion step in `validation.md`, then complete the local Bugs, Security, and Compliance review with no Important findings.
 
 ## Workflow follow-up
