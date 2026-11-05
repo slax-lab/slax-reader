@@ -25,6 +25,7 @@
         :bookmarkId="bookmarkId || 0"
         :bookmarkUid="bookmarkUid"
         :bookmarkUuid="adapters.tagsBookmarkUuid"
+        :data-source="adapters.tagsDataSource ?? 'rest'"
         :tags="detail.tags ?? []"
         :readonly="!ready || !effAllowTagged"
       />

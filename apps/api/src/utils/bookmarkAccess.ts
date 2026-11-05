@@ -12,5 +12,5 @@ export async function resolveBookmarkReadAccess(bookmarkRepo: BookmarkRepo, user
   const share = await bookmarkRepo.getBookmarkShareByBookmarkId(bookmark.bookmark_id, bookmark.user_id)
   if (share ? !share.is_enable : owner.snapshot_sharing !== true) return null
 
-  return { bookmark, share }
+  return { bookmark, share, ownerProfile: { nick_name: owner.name, avatar: owner.picture } }
 }

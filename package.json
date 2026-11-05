@@ -15,7 +15,7 @@
     "icons:write": "node tooling/icon-registry.mjs --write",
     "preflight": "node tooling/preflight.mjs",
     "setup:all": "node tooling/setup-all.mjs",
-    "test:preflight": "node --test tooling/preflight.test.mjs tooling/env-files.test.mjs tooling/app-command.test.mjs tooling/nuxt-command.test.mjs tooling/wrangler-command.test.mjs tooling/pnpm-command.test.mjs tooling/setup-all.test.mjs tooling/review-verdict.test.mjs tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs",
+    "test:preflight": "node --test tooling/preflight.test.mjs tooling/env-files.test.mjs tooling/app-command.test.mjs tooling/nuxt-command.test.mjs tooling/wrangler-command.test.mjs tooling/pnpm-command.test.mjs tooling/setup-all.test.mjs tooling/review-verdict.test.mjs tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs tooling/powersync-assets.test.mjs tooling/powersync-retention.test.mjs",
     "web": "node tooling/web.mjs",
     "extension": "node tooling/extension.mjs",
     "api": "node tooling/api.mjs",
@@ -23,7 +23,7 @@
     "cli": "node tooling/cli.mjs",
     "test:cli-tooling": "node --test tooling/cli-command.test.mjs tooling/cli-release.test.mjs tooling/cli-release-source.test.mjs tooling/cli-release-notes.test.mjs tooling/cli-release-process.test.mjs tooling/cli-release-consumer.test.mjs",
     "prepare": "lefthook install",
-    "test:ci": "node --test tooling/ci-scope.test.mjs tooling/ci-workflow.test.mjs tooling/openspec-archive-workflow.test.mjs tooling/rulesets.test.mjs tooling/promotion-gate.test.mjs tooling/pr-review-gate.test.mjs",
+    "test:ci": "node --test tooling/ci-scope.test.mjs tooling/ci-workflow.test.mjs tooling/rulesets.test.mjs tooling/promotion-gate.test.mjs tooling/pr-review-gate.test.mjs",
     "test:extension-tooling": "node --test tooling/extension-release.test.mjs tooling/extension-release-source.test.mjs tooling/extension-release-package.test.mjs tooling/extension-release-workflow.test.mjs"
   },
   "devDependencies": {

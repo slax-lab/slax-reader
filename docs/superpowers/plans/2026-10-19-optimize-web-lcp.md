@@ -12,10 +12,10 @@
 
 ## Global Constraints
 
-- At most one eligible article image gets eager/high priority. No stored-body, image signature, source URL, API, database, or visual-design migration.
+- At most two adjacent eligible early images load eagerly, with at most one high-priority image (follow-up approved 2026-11-02; see the current design). No stored-body, image signature, source URL, API, database, or visual-design migration.
 - Anonymous bypass is exactly top-level `/login` or `/guide`, with optional trailing slash and no token. Keep PowerSync static imports and its normal initializer context.
 - Preserve image-preview eligibility, WeChat icons/frames, selection anchors, PDF/custom media, account ownership, recovery, extension bridge, and onboarding readiness.
-- Both app-config flags start false. Flags do not necessarily remove parser download cost or revert lifecycle corrections. Compare against pre-change, not just flags off.
+- Both app-config flags default to `true` in every profile as of `optimize-web-lcp` task 1.4 (no environment gating; see `design.md`). Flags do not necessarily remove parser download cost or revert lifecycle corrections. Compare against pre-change, not just flags off.
 - Article-route incremental gzip ceiling: 50 KiB across its initial dependency closure, including shared chunks once. Report Brotli too. Fixed 100 KB/100-image transform median: below 10 ms. Slow-device traces and LCP gates still apply.
 - Hold repeatable median LCP, app-mount, or first-local-query regressions greater than both 100 ms and 5%, new layout shifts, new interaction long tasks, or functional regressions.
 - Follow `DESIGN.md`, `REVIEW.md`, OpenSpec, and promotion rules. Read no secret files. Durable documentation and commits use English.
@@ -69,7 +69,7 @@
 
 **Files:** Modify `apps/web/app/components/Article/BookmarkArticle.vue`; create `apps/web/app/app.config.ts` and `apps/web/tests/unit/components/Article/article-loading.spec.ts`. Existing class-isolation, SSR runner, strip/restore, and custom-media processors are integration constraints. Capture real-browser hydration evidence in the baseline document using the repository's existing browser/E2E harness.
 
-**Interfaces:** Task 2's shared transform; app-config keys `lcp.articleImagePriority` and `lcp.anonymousPublicStartup`, initially false.
+**Interfaces:** Task 2's shared transform; app-config keys `lcp.articleImagePriority` and `lcp.anonymousPublicStartup`, both defaulting to `true` (see `design.md`).
 
 - [ ] Add failing integration cases covering raw API body → actual SSR class/blank-mark processors → initial HTML → real browser innerHTML → restore plugin → hydration, plus `/s/**`, SPA refresh, disabled, PDF, and PhotoSwipe. A string-only or Happy DOM-only test does not prove browser repair/hydration behavior.
 - [ ] Integrate the computed transform with existing presentation detection and app config. Preserve the prior loading-attribute path when disabled/excluded.
@@ -116,3 +116,7 @@
 TTFB, image cache refill, historical beta-host objects, responsive variants, video/guide tails, and any later SDK splitting remain evidence-gated follow-up changes. They do not enlarge the first-release implementation tasks automatically.
 
 Revised effort: **4.5–8 engineering days**, plus at least 7 calendar days of field observation. The extra lifecycle, browser-repair, and rollback checks replace the earlier 3–6-day estimate. All tasks are pending; only the planning artifacts have been revised.
+
+## Approved follow-up on PR #449 — 2026-11-02
+
+The current optimize-web-lcp design owns the refined banner/hero bounds. Add regressions before changing selection; preserve source-only edits and conservative unknown/responsive behavior. Reuse only the author nickname/avatar already read during visitor authorization. SQL, permissions, cache revalidation and telemetry stay unchanged. Transfer the approved promotion change under bookmarks-promo-eager, verify all additions, and independently review before updating the existing PR.

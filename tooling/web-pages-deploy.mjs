@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 import { pnpmInvocation } from './pnpm-command.mjs'
+import { HistoricalRecoveryError, preparePowerSyncRetention, retentionWarning, writeRetentionSummary } from './powersync-retention.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const webRequire = createRequire(new URL('../apps/web/package.json', import.meta.url))
@@ -96,17 +97,19 @@ export async function buildWeb(env = process.env, { run = runCommand, signal } =
   await run(invocation.program, invocation.args, { cwd: root, env: childEnv, signal })
 }
 
-export async function cloudflareGet(inputs, suffix = '', { fetchImpl = fetch, signal } = {}) {
+export class PagesApiError extends Error {}
+
+export async function cloudflareGet(inputs, suffix = '', { fetchImpl = fetch, signal, includeResultInfo = false } = {}) {
   const url = `https://api.cloudflare.com/client/v4/accounts/${inputs.account}/pages/projects/${inputs.project}${suffix}`
   let response
   try {
     response = await fetchImpl(url, { headers: { Authorization: `Bearer ${inputs.token}` }, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000) })
-  } catch { throw failure('Pages API request failed or timed out; response withheld') }
-  if (!response.ok) throw failure(`Pages API request failed (HTTP ${response.status}); response withheld`)
+  } catch { signal?.throwIfAborted(); throw new PagesApiError('Pages API request failed or timed out; response withheld') }
+  if (!response.ok) throw new PagesApiError(`Pages API request failed (HTTP ${response.status}); response withheld`)
   let body
-  try { body = await response.json() } catch { throw failure('Invalid Pages API response; response withheld') }
-  if (!body?.success || !body.result) throw failure('Pages API rejected request; response withheld')
-  return body.result
+  try { body = await response.json() } catch { signal?.throwIfAborted(); throw new PagesApiError('Invalid Pages API response; response withheld') }
+  if (!body?.success || !body.result) throw new PagesApiError('Pages API rejected request; response withheld')
+  return includeResultInfo ? { result: body.result, resultInfo: body.result_info } : body.result
 }
 
 export function inspectProject(project, expectedName) {
@@ -183,7 +186,7 @@ export async function confirmDeployment(inputs, id, branch, { fetchImpl = fetch,
   throw failure('Pages final deployment status timed out')
 }
 
-export async function deployWeb(env = process.env, { source = join(root, 'apps/web/dist'), run = runCommand, fetchImpl = fetch, signal, temporaryRoot = tmpdir(), wrangler = join(dirname(webRequire.resolve('wrangler/package.json')), 'bin/wrangler.js'), attempts, interval } = {}) {
+export async function deployWeb(env = process.env, { source = join(root, 'apps/web/dist'), run = runCommand, fetchImpl = fetch, signal, temporaryRoot = tmpdir(), wrangler = join(dirname(webRequire.resolve('wrangler/package.json')), 'bin/wrangler.js'), attempts, interval, now = Date.now(), onWarning = warning => console.warn(`::warning::${retentionWarning(warning)}`) } = {}) {
   const inputs = releaseInputs(env, true)
   await validateBuildConfig(env.WEB_BUILD_CONFIG)
   const project = await cloudflareGet(inputs, '', { fetchImpl, signal })
@@ -192,6 +195,18 @@ export async function deployWeb(env = process.env, { source = join(root, 'apps/w
   try {
     assertConfigFree(temporary)
     const assets = stageBuild(source, join(temporary, 'assets'))
+    const retention = await preparePowerSyncRetention({
+      directory: assets, project, now, fetchImpl, signal, onWarning,
+      readPage: async page => {
+        try { return await cloudflareGet(inputs, `/deployments?env=production&page=${page}&per_page=25`, { fetchImpl, signal, includeResultInfo: true }) }
+        catch (error) {
+          if (!(error instanceof PagesApiError)) throw error
+          throw new HistoricalRecoveryError('history-unavailable')
+        }
+      }
+    })
+    const summary = await writeRetentionSummary(retention, env.GITHUB_STEP_SUMMARY)
+    console.log(summary)
     const report = join(temporary, 'wrangler-output.jsonl')
     const childEnv = {
       ...cleanEnvironment(env), CI: 'true',

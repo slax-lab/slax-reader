@@ -46,10 +46,13 @@ const client = await bundle(`
   const initialNodes = [...root.querySelectorAll('img')];
   const initialSources = initialNodes.map(img => img.getAttribute('src'));
   const initialCandidate = [...root.querySelectorAll('img[fetchpriority="high"]')].map(img => img.getAttribute('src'));
+  const eagerSources = root => [...root.querySelectorAll('img[loading="eager"]')].map(img => img.getAttribute('src'));
+  const initialEager = eagerSources(root);
   const payload = { data: { ['content-' + input.fixture]: { body: '__SLAX_SSR_STRIPPED__' } } };
   restorePlugin.setup({ payload });
   const restoredBody = payload.data['content-' + input.fixture].body;
-  const app = createSSRApp({ setup: () => () => h('div', { class: 'html-text', innerHTML: restoredBody }) });
+  const hydrationBody = applyArticleImageLoading(restoredBody, { enabled: true, excludedPresentation: false });
+  const app = createSSRApp({ setup: () => () => h('div', { class: 'html-text', innerHTML: hydrationBody }) });
   app.config.warnHandler = (message, instance, trace) => warnings.push({ message, trace });
   const beforeHydration = [...root.querySelectorAll('img')];
   try { app.mount(document.querySelector('.article-detail'), true); } catch (error) { warnings.push({ message: String(error), hydrationError: true }); }
@@ -57,8 +60,15 @@ const client = await bundle(`
   const repairedCandidate = [...hydratedRoot.querySelectorAll('img[fetchpriority="high"]')].map(img => img.getAttribute('src'));
   const refresh = document.createElement('template'); refresh.innerHTML = applyArticleImageLoading(input.body, { enabled: true, excludedPresentation: false });
   const refreshedCandidate = [...refresh.content.querySelectorAll('img[fetchpriority="high"]')].map(img => img.getAttribute('src'));
+  const repairedEager = eagerSources(hydratedRoot);
+  const refreshedEager = eagerSources(refresh.content);
   const result = {
     fixture: input.fixture, initialCandidate, repairedCandidate, refreshedCandidate,
+    initialEager, repairedEager, refreshedEager,
+    restoredPolicyStable: hydrationBody === restoredBody,
+    sameEagerAfterHydration: JSON.stringify(initialEager) === JSON.stringify(repairedEager),
+    sameEagerAfterRefresh: JSON.stringify(initialEager) === JSON.stringify(refreshedEager),
+    boundedPolicy: initialEager.length <= 2 && initialCandidate.length <= 1,
     restoredBodyMatches: restoredBody === hydratedRoot.innerHTML,
     sameCandidateAfterHydration: JSON.stringify(initialCandidate) === JSON.stringify(repairedCandidate),
     sameCandidateAfterRefresh: JSON.stringify(initialCandidate) === JSON.stringify(refreshedCandidate),
@@ -68,7 +78,7 @@ const client = await bundle(`
     resourceEntries: performance.getEntriesByType('resource').filter(item => item.initiatorType === 'img').map(item => ({ name: item.name, startTime: item.startTime })),
     userAgent: navigator.userAgent,
   };
-  result.pass = result.sameCandidateAfterHydration && result.sameCandidateAfterRefresh && result.sourceIdentityPreserved && result.nodeIdentityPreserved && warnings.length === 0;
+  result.pass = result.restoredPolicyStable && result.sameEagerAfterHydration && result.sameEagerAfterRefresh && result.boundedPolicy && result.sameCandidateAfterHydration && result.sameCandidateAfterRefresh && result.sourceIdentityPreserved && result.nodeIdentityPreserved && warnings.length === 0;
   document.getElementById('results').textContent = JSON.stringify(result, null, 2);
   document.title = (result.pass ? 'PASS ' : 'FAIL ') + input.fixture;
 `, 'browser', { banner: { js: 'const defineNuxtPlugin = value => value;' } })

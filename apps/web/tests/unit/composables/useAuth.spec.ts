@@ -104,6 +104,17 @@ describe('useAuth', () => {
   })
 
   describe('grantAuth', () => {
+    it('does not store a session when a canceled request completes late', async () => {
+      const controller = new AbortController()
+      let finish!: (response: { token: string }) => void
+      mockPost.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+      const login = useAuth().grantAuth('old-code', 'https://auth.test/auth', '', 'google', undefined, { signal: controller.signal })
+      controller.abort()
+      finish({ token: 'late-token' })
+      await expect(login).rejects.toMatchObject({ name: 'AbortError' })
+      expect(cookieSet).not.toHaveBeenCalled()
+    })
+
     it('登录成功 → 写 cookie 并返回 token', async () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-google' })
       const token = await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google')

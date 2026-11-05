@@ -7,7 +7,7 @@ import { dirname, extname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineNuxtModule } from 'nuxt/kit'
 
-const CACHE_SCHEMA = 1
+const CACHE_SCHEMA = 2
 const SOURCE_EXTENSIONS = new Set(['.cjs', '.css', '.html', '.js', '.jsx', '.less', '.md', '.mdc', '.mjs', '.sass', '.scss', '.styl', '.ts', '.tsx', '.vue'])
 const UNO_DEPENDENCIES = [
   'unocss',
@@ -160,12 +160,17 @@ const ensureUnoCache = async (nuxt: Parameters<typeof getProjectPaths>[0]) => {
   const manifestTempPath = `${manifestPath}.${process.pid}.tmp`
   const patterns = paths.appDirs.map(directory => `${relative(paths.projectRoot, directory)}/**/*.{vue,html,md,mdc,js,jsx,ts,tsx,mjs,cjs}`)
 
+  // This cache is the only UnoCSS output in dev (autoImport is disabled), so it must
+  // ship its own preflights: without the default custom properties from
+  // `*,:after,:before{--un-translate-y:0;…}`, every translate/rotate/scale utility
+  // class compiles a transform with an empty var() fallback and is inert in the
+  // browser (production builds are unaffected; this only reproduces in dev).
   await buildUno({
     cwd: paths.projectRoot,
     config: resolve(paths.projectRoot, 'uno.config.ts'),
     patterns,
     outFile: cssTempPath,
-    preflights: false,
+    preflights: true,
     minify: false,
     splitCss: false
   })

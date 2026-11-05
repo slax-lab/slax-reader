@@ -147,7 +147,8 @@ describe('useBookmarkData', () => {
       expect(mockGet).toHaveBeenCalledTimes(2)
       const sourceRequest = mockGet.mock.calls[1]?.[0]
       expect(sourceRequest).toEqual(expect.objectContaining({ query: expect.objectContaining({ page: 1, source: 'example.com' }) }))
-      expect(api.bookmarks.value.map(bookmark => bookmark.id)).toEqual([1])
+      expect(api.bookmarkDataSource.value).toBe('rest')
+    expect(api.bookmarks.value.map(bookmark => bookmark.id)).toEqual([1])
     })
 
     it('加载中途 reset，过期响应丢掉，不重复 push、page 不动', async () => {

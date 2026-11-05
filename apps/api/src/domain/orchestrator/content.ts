@@ -30,7 +30,7 @@ export class ContentOrchestrator {
     if (!access) throw BookmarkNotFoundError()
     const { bookmark: ub, share } = access
     const isOwner = ctx.getUserId() > 0 && ctx.getUserId() === ub.user_id
-    const owner = await this.userService.getOwnerShareInfo(ub.user_id)
+    const owner = access.ownerProfile ?? (await this.userService.getOwnerShareInfo(ub.user_id))
     const showTrace = isOwner || !share || share.show_userinfo
     const showMarks = isOwner || !share || (share.show_comment && share.show_line)
     const trace = showTrace ? await this.loadTrace(ctx, ub.bookmark_id, ub.id, ub.user_id, { nick_name: owner.nick_name, avatar: owner.avatar }, showMarks) : EMPTY_TRACE
