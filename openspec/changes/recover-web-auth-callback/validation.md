@@ -73,3 +73,11 @@ The requested local visual adjustment was implemented: a static, application-aut
 - The standalone fixture does not boot Nuxt's full plugin/PowerSync startup chain. A production-profile full build passed, but plugin stalls before page mount remain outside this callback-scoped correction.
 - Full hosted Extension/CLI/Mobile smoke is not repeated: no shipped package, shared package, API contract, or extension bridge source is changed by this supplement. The original PR's Extension version decision remains unchanged.
 - Human review covers the preview and overall layout, with the requested SVG adjustment re-verified as described above; native phone appearance and production account integration remain unverified.
+
+## Publication receipt
+
+The supplement was committed as `6cedecec` and pushed to the existing `fix/powersync-release-recovery` branch on 2026-11-05. Existing PR #467 was updated in place with both OpenSpec IDs, the human review/adjustment record, verification limits, and two callback before/after attachments. No new branch or PR was created, and no deployment or merge was performed. The final documentation follow-up closes the delivery checkbox.
+
+![OAuth callback before: raw TypeError toast and persistent spinner, light theme, 1280px, synthetic local login disconnect](https://github.com/user-attachments/assets/f458b293-4d5f-4080-ab86-f29535b91c51)
+
+![OAuth callback after: persistent recovery with status SVG and fresh Google sign-in, light theme, 1280px, synthetic local login disconnect](https://github.com/user-attachments/assets/04623412-90ec-4bdf-944a-8af749b5fbc0)

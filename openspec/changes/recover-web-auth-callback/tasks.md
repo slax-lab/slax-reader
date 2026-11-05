@@ -10,4 +10,4 @@
 
 - [x] 2.1 Exercise the real callback/request flow against a local HTTP fault service, including disconnect, pending, provider rejection, success, fresh authorization, and required themes/widths; record evidence and explicit gaps in validation.md.
 - [x] 2.2 Run the Web suite, typecheck, changed-file lint, build, and strict OpenSpec validation; perform the REVIEW.md Bugs/Security/Compliance passes and record results.
-- [ ] 2.3 Prepare the running environment for human hands-on acceptance, record who/date/adjustments after acceptance, then update the existing PR #467 description and branch without opening a new PR.
+- [x] 2.3 Prepare the running environment for human hands-on acceptance, record who/date/adjustments after acceptance, then update the existing PR #467 description and branch without opening a new PR.
