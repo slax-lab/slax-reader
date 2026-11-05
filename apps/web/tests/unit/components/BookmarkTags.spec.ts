@@ -10,6 +10,7 @@ import { computed, ref } from 'vue'
 import BookmarkTags from '~~/app/components/BookmarkTags.vue'
 
 import type { BookmarkTag } from '@commons/frontend-types/models'
+import { FetchRequest } from '@commons/frontend-utils/request'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { LocalFirstAdapterKey, SharedUserTagsKey } from '~~/app/composables/local-first/injection'
@@ -171,6 +172,7 @@ describe('components/BookmarkTags', () => {
 
   describe('删除标签', () => {
     it('调 DELETE_BOOKMARK_TAG + 从列表移除 + emit change', async () => {
+      mockPost.mockResolvedValueOnce(null)
       const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
       await wrapper.findAll('.tag-act.remove')[0]!.trigger('click')
       expect(mockPost).toHaveBeenCalledTimes(1)
@@ -195,7 +197,7 @@ describe('components/BookmarkTags', () => {
       const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
       await openPanel(wrapper)
       expect(mockGet).toHaveBeenCalledTimes(1)
-      expect(mockGet.mock.calls[0]![0]).toEqual({ url: '/v1/tag/list' })
+      expect(mockGet.mock.calls[0]![0]).toEqual(expect.objectContaining({ url: '/v1/tag/list' }))
     })
 
     it('候选分组：mine 标题在前、auto 在后；已绑定的显示但不可选', async () => {
@@ -285,6 +287,47 @@ describe('components/BookmarkTags', () => {
   })
 
   describe('勾选 + Done 提交（REST）', () => {
+    it('shows one error toast when the real request client cannot load the REST catalog', async () => {
+      const client = new FetchRequest({
+        baseUrl: 'https://synthetic-api.test',
+        errorInterceptors: () => mockToast({ text: 'Shared request failure', type: 'error' })
+      })
+      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new TypeError('Load failed'))
+      mockGet.mockImplementation(options => client.get(options))
+      const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
+      await openPanel(wrapper)
+      expect(mockToast).toHaveBeenCalledTimes(1)
+      expect(isPanelHidden()).toBe(false)
+      expect(wrapper.emitted('change')).toBeUndefined()
+    })
+
+    it.each(['add', 'delete'])('shows one error toast for a failed REST %s with the real request client', async action => {
+      const client = new FetchRequest({
+        baseUrl: 'https://synthetic-api.test',
+        errorInterceptors: () => mockToast({ text: 'Shared request failure', type: 'error' })
+      })
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('unavailable', { status: 500 }))
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockPost.mockImplementation(options => client.post(options))
+      const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
+      if (action === 'add') {
+        await openPanel(wrapper)
+        await selectable()[0]!.trigger('click')
+        await panelFind('.confirm-btn').trigger('click')
+      } else {
+        await wrapper.findAll('.tag-act.remove')[0]!.trigger('click')
+      }
+      await flushPromises()
+      expect(mockToast).toHaveBeenCalledTimes(1)
+      expect(wrapper.emitted('change')).toBeUndefined()
+      if (action === 'add') {
+        expect(isPanelHidden()).toBe(false)
+        expect(panelFind('.confirm-btn').text()).toBe('Done (1)')
+      } else {
+        expect(wrapper.findAll('.tag-name').map(tag => tag.text())).toEqual(baseTags.map(tag => tag.name))
+      }
+    })
+
     it('点击候选只切换 pending，不发请求；再点取消', async () => {
       const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
       await openPanel(wrapper)
@@ -298,7 +341,7 @@ describe('components/BookmarkTags', () => {
       expect(panelFind('.confirm-btn').text()).toBe('Done (0)')
     })
 
-    it('Done：一次 ADD_BOOKMARK_TAGS 带 tags:[{id},{id}]，合并列表 + emit change + 关闭', async () => {
+    it('Done：一次 ADD_BOOKMARK_TAGS 带 tags:[{id,name},{id,name}]，合并列表 + emit change + 关闭', async () => {
       mockPost.mockResolvedValueOnce([
         { ...design, added_by: 'user' },
         { ...aiTools, added_by: 'user' }
@@ -312,11 +355,27 @@ describe('components/BookmarkTags', () => {
       expect(mockPost).toHaveBeenCalledTimes(1)
       const call = lastPostBody()
       expect(call.url).toBe('/v1/bookmark/add_tags')
-      expect(call.body).toEqual({ bookmark_id: 7, bookmark_uid: undefined, tags: [{ id: 3 }, { id: 4 }] })
+      expect(call.body).toEqual({ bookmark_id: 7, bookmark_uid: undefined, tags: [{ id: 3, name: 'design' }, { id: 4, name: 'ai-tools' }] })
       expect(wrapper.findAll('.tags-cells .tag-chip')).toHaveLength(4)
       const emitted = wrapper.emitted('change')![0]![0] as BookmarkTag[]
       expect(emitted.map(t => t.id)).toEqual([1, 2, 3, 4])
       expect(isPanelHidden()).toBe(true)
+    })
+
+    it('includes the raw catalog name rather than its display alias when attaching an existing REST tag', async () => {
+      mockGet.mockResolvedValueOnce([{ ...design, name: 'canonical-design', show_name: 'Friendly design' }])
+      mockPost.mockResolvedValueOnce([{ ...design, name: 'canonical-design', show_name: 'canonical-design' }])
+      const wrapper = mountTags({
+        props: { tags: baseTags, bookmarkId: 7, compact: true, dataSource: 'rest' },
+        global: { provide: { [LocalFirstAdapterKey as symbol]: { bookmarkTagActions: () => null } } }
+      })
+      await openPanel(wrapper)
+      expect(candidateNames()).toEqual(['Friendly design'])
+      await selectable()[0]!.trigger('click')
+      await panelFind('.confirm-btn').trigger('click')
+      await flushPromises()
+      expect(lastPostBody().body).toEqual({ bookmark_id: 7, bookmark_uid: undefined, tags: [{ id: 3, name: 'canonical-design' }] })
+      expect(wrapper.findAll('.tags-cells .tag-name').map(tag => tag.text())).toEqual(['tech', 'ai', 'canonical-design'])
     })
 
     it('Done 时 pending 为空：只关闭，不发请求', async () => {
@@ -344,7 +403,7 @@ describe('components/BookmarkTags', () => {
       await selectable()[0]!.trigger('click')
       await panelFind('.confirm-btn').trigger('click')
       await flushPromises()
-      expect(lastPostBody().body).toEqual({ bookmark_id: undefined, bookmark_uid: 'u1', tags: [{ id: 3 }] })
+      expect(lastPostBody().body).toEqual({ bookmark_id: undefined, bookmark_uid: 'u1', tags: [{ id: 3, name: 'design' }] })
     })
 
     it('搜索无精确匹配：出现 create 行，勾选后 body 带 { name }', async () => {
@@ -411,7 +470,7 @@ describe('components/BookmarkTags', () => {
       await input.trigger('keydown', { key: 'Enter' })
       await flushPromises()
       expect(mockPost).toHaveBeenCalledTimes(1)
-      expect(lastPostBody().body.tags).toEqual([{ id: 3 }])
+      expect(lastPostBody().body.tags).toEqual([{ id: 3, name: 'design' }])
       expect(isPanelHidden()).toBe(true)
     })
 
@@ -424,7 +483,7 @@ describe('components/BookmarkTags', () => {
       await input.setValue('brand-new-tag')
       await input.trigger('keydown', { key: 'Enter' })
       await flushPromises()
-      expect(lastPostBody().body.tags).toEqual([{ id: 4 }, { name: 'brand-new-tag' }])
+      expect(lastPostBody().body.tags).toEqual([{ id: 4, name: 'ai-tools' }, { name: 'brand-new-tag' }])
     })
 
     it('面板已关闭：Enter 不调 post', async () => {
@@ -455,6 +514,179 @@ describe('components/BookmarkTags', () => {
     })
   })
 
+  describe('REST fallback after unavailable local startup', () => {
+    const unavailable = {
+      bookmarkTagSource: () => null,
+      bookmarkTagActions: () => null
+    }
+
+    it.each([true, false])('adds existing and new tags with a null writer (compact: %s)', async compact => {
+      const created = { id: 99, name: 'fresh', show_name: 'fresh' }
+      mockPost.mockResolvedValueOnce([design, created])
+      const wrapper = mountTags({
+        props: { tags: baseTags, bookmarkId: 7, bookmarkUuid: 'detail-uuid', compact, dataSource: 'rest' },
+        global: { provide: { [LocalFirstAdapterKey as symbol]: unavailable } }
+      })
+      await openPanel(wrapper)
+      await selectable()[0]!.trigger('click')
+      await panelFind('input').setValue('fresh')
+      await panelFind('.search-tag.create').trigger('click')
+      await panelFind('.confirm-btn').trigger('click')
+      await flushPromises()
+      expect(lastPostBody()).toEqual({ url: '/v1/bookmark/add_tags', errorInterceptors: expect.any(Function), body: { bookmark_id: 7, bookmark_uid: undefined, tags: [{ id: 3, name: 'design' }, { name: 'fresh' }] } })
+      expect(wrapper.emitted('change')).toEqual([[[tech, ai, design, created]]])
+      expect(isPanelHidden()).toBe(true)
+    })
+
+    it.each([true, false])('keeps REST data and catalog identities even when local writers exist (compact: %s)', async compact => {
+      const localTag = { ...design, id: 'local-tag' as unknown as number, show_name: 'local-only' }
+      const writer = { add: vi.fn(), setTags: vi.fn(), remove: vi.fn(), createUserTag: vi.fn() }
+      const source = { ...writer, tags: computed(() => [localTag]), userTags: computed(() => [localTag]) }
+      const wrapper = mountTags({
+        props: { tags: baseTags, bookmarkId: 7, bookmarkUuid: 'detail-uuid', compact, dataSource: 'rest' },
+        global: { provide: {
+          [LocalFirstAdapterKey as symbol]: { bookmarkTagSource: () => source, bookmarkTagActions: () => writer },
+          [SharedUserTagsKey as symbol]: { tags: computed(() => [localTag]), create: vi.fn() }
+        } }
+      })
+      mockPost.mockResolvedValueOnce([design])
+      await openPanel(wrapper)
+      expect(candidateNames()).toEqual(['tech', 'design', 'ai', 'ai-tools'])
+      await selectable()[0]!.trigger('click')
+      await panelFind('.confirm-btn').trigger('click')
+      await flushPromises()
+      expect(lastPostBody().body).toEqual({ bookmark_id: 7, bookmark_uid: undefined, tags: [{ id: 3, name: 'design' }] })
+      expect(wrapper.emitted('change')).toEqual([[[tech, ai, design]]])
+      expect(writer.setTags).not.toHaveBeenCalled()
+      expect(writer.add).not.toHaveBeenCalled()
+    })
+
+    it('supports the REST bookmark-user identity with a null writer', async () => {
+      mockPost.mockResolvedValueOnce([design])
+      const wrapper = mountTags({
+        props: { tags: baseTags, bookmarkUid: 'rest-user-id', dataSource: 'rest' },
+        global: { provide: { [LocalFirstAdapterKey as symbol]: unavailable } }
+      })
+      await openPanel(wrapper)
+      await selectable()[0]!.trigger('click')
+      await panelFind('.confirm-btn').trigger('click')
+      await flushPromises()
+      expect(lastPostBody().body).toEqual({ bookmark_id: undefined, bookmark_uid: 'rest-user-id', tags: [{ id: 3, name: 'design' }] })
+      expect(wrapper.emitted('change')).toEqual([[[tech, ai, design]]])
+    })
+
+    it('waits for successful REST removal before removing visible state', async () => {
+      let resolveRemoval!: (value: null) => void
+      mockPost.mockImplementationOnce(() => new Promise(resolve => { resolveRemoval = resolve }))
+      const wrapper = mountTags({
+        props: { tags: baseTags, bookmarkUid: 'rest-user-id', dataSource: 'rest' },
+        global: { provide: { [LocalFirstAdapterKey as symbol]: unavailable } }
+      })
+      await wrapper.find('.tag-act.remove').trigger('click')
+      await flushPromises()
+      expect(wrapper.findAll('.tags-cells .tag-chip')).toHaveLength(2)
+      expect(wrapper.emitted('change')).toBeUndefined()
+      expect(lastPostBody().body).toEqual({ bookmark_id: undefined, bookmark_uid: 'rest-user-id', tag_id: 1 })
+      resolveRemoval(null)
+      await flushPromises()
+      expect(wrapper.findAll('.tags-cells .tag-chip')).toHaveLength(1)
+      expect(wrapper.emitted('change')).toEqual([[[ai]]])
+    })
+
+    it.each([undefined, false, '', { ok: false }])('preserves removal state without a success result: %j', async result => {
+      mockPost.mockResolvedValueOnce(result)
+      const wrapper = mountTags({ props: { tags: baseTags, bookmarkId: 7 } })
+      await wrapper.find('.tag-act.remove').trigger('click')
+      await flushPromises()
+      expect(wrapper.findAll('.tags-cells .tag-chip')).toHaveLength(2)
+      expect(wrapper.emitted('change')).toBeUndefined()
+      expect(wrapper.find('.loading').exists()).toBe(false)
+      mockPost.mockResolvedValueOnce(null)
+      await wrapper.find('.tag-act.remove').trigger('click')
+      await flushPromises()
+      expect(wrapper.emitted('change')).toEqual([[[ai]]])
+    })
+
+    it('preserves failed removal and allows deliberate retry', async () => {
+      mockPost.mockRejectedValueOnce(new Error('request failed'))
+      const wrapper = mountTags({ props: { tags: baseTags, bookmarkId: 7 } })
+      await wrapper.find('.tag-act.remove').trigger('click')
+      await flushPromises()
+      expect(wrapper.findAll('.tags-cells .tag-chip')).toHaveLength(2)
+      expect(wrapper.emitted('change')).toBeUndefined()
+      expect(wrapper.find('.loading').exists()).toBe(false)
+      mockPost.mockResolvedValueOnce(null)
+      await wrapper.find('.tag-act.remove').trigger('click')
+      await flushPromises()
+      expect(wrapper.emitted('change')).toEqual([[[ai]]])
+    })
+
+    it('releases catalog loading after a failed REST lookup and allows retry', async () => {
+      mockGet.mockRejectedValueOnce(new Error('catalog unavailable'))
+      const wrapper = mountTags({ props: { tags: baseTags, bookmarkId: 7 } })
+      await openPanel(wrapper)
+      expect(document.querySelector('.list-loading')).toBeNull()
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }))
+      await openPanel(wrapper)
+      await openPanel(wrapper)
+      expect(candidateNames()).toEqual(['tech', 'design', 'ai', 'ai-tools'])
+    })
+
+    it('preserves pending new-tag input after no-result add and succeeds on retry', async () => {
+      mockPost.mockResolvedValueOnce(undefined)
+      const wrapper = mountTags({
+        props: { tags: baseTags, bookmarkId: 7, compact: true },
+        global: { provide: { [LocalFirstAdapterKey as symbol]: unavailable } }
+      })
+      await openPanel(wrapper)
+      await selectable()[0]!.trigger('click')
+      await panelFind('input').setValue('fresh')
+      await panelFind('.search-tag.create').trigger('click')
+      await panelFind('.confirm-btn').trigger('click')
+      await flushPromises()
+      expect(panelFind('.confirm-btn').text()).toBe('Done (2)')
+      expect((panelFind('input').element as HTMLInputElement).value).toBe('fresh')
+      expect(document.querySelector('.list-loading')).toBeNull()
+      expect(wrapper.emitted('change')).toBeUndefined()
+      mockPost.mockResolvedValueOnce([design, { id: 99, name: 'fresh', show_name: 'fresh' }])
+      await panelFind('.confirm-btn').trigger('click')
+      await flushPromises()
+      expect(mockPost).toHaveBeenCalledTimes(2)
+      expect(isPanelHidden()).toBe(true)
+      expect(wrapper.emitted('change')).toHaveLength(1)
+    })
+
+    it('does not reinterpret local-only identifiers as REST when its writer is absent', async () => {
+      const localTag = { ...tech, id: 'local-tag' as unknown as number }
+      const wrapper = mountTags({
+        props: { tags: [localTag], bookmarkId: 'local-bookmark' as unknown as number, bookmarkUuid: 'local-bookmark', dataSource: 'local', compact: true },
+        global: { provide: { [LocalFirstAdapterKey as symbol]: unavailable } }
+      })
+      await wrapper.find('.tag-act.remove').trigger('click')
+      await openPanel(wrapper)
+      await panelFind('input').setValue('fresh')
+      await panelFind('.search-tag.create').trigger('click')
+      await panelFind('.confirm-btn').trigger('click')
+      await flushPromises()
+      expect(mockPost).not.toHaveBeenCalled()
+      expect(wrapper.emitted('change')).toBeUndefined()
+      expect(panelFind('.confirm-btn').text()).toBe('Done (1)')
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }))
+    })
+
+    it('does not submit pending work when the surface becomes read-only', async () => {
+      const wrapper = mountTags({ props: { tags: baseTags, bookmarkId: 7 } })
+      await openPanel(wrapper)
+      await selectable()[0]!.trigger('click')
+      const confirm = panelFind('.confirm-btn')
+      await wrapper.setProps({ readonly: true })
+      await confirm.trigger('click')
+      await flushPromises()
+      expect(mockPost).not.toHaveBeenCalled()
+      expect(wrapper.emitted('change')).toBeUndefined()
+    })
+  })
+
   describe('local-first', () => {
     const asId = (id: string) => id as unknown as number
     const lfTech: BookmarkTag = { id: asId('t-1'), name: 'tech', show_name: 'tech', source: 'mine', added_by: 'user' }
@@ -481,7 +713,7 @@ describe('components/BookmarkTags', () => {
       const { src } = makeSource()
       const bookmarkTagSource = vi.fn(() => src)
       const wrapper = mountTags({
-        props: { tags: [lfTech], bookmarkUuid: 'b-1' },
+        props: { tags: [lfTech], bookmarkUuid: 'b-1', dataSource: 'local' },
         global: { provide: { [LocalFirstAdapterKey as symbol]: { bookmarkTagSource } } }
       })
       await flushPromises()
@@ -511,7 +743,7 @@ describe('components/BookmarkTags', () => {
       const { setTags: _drop, ...noSetTags } = src
       void _drop
       const wrapper = mountTags({
-        props: { tags: [lfTech], bookmarkUuid: 'b-1' },
+        props: { tags: [lfTech], bookmarkUuid: 'b-1', dataSource: 'local' },
         global: { provide: { [LocalFirstAdapterKey as symbol]: { bookmarkTagSource: () => noSetTags } } }
       })
       await flushPromises()
@@ -528,7 +760,7 @@ describe('components/BookmarkTags', () => {
     it('非 compact：删除走 source.remove', async () => {
       const { src } = makeSource()
       const wrapper = mountTags({
-        props: { tags: [lfTech], bookmarkUuid: 'b-1' },
+        props: { tags: [lfTech], bookmarkUuid: 'b-1', dataSource: 'local' },
         global: { provide: { [LocalFirstAdapterKey as symbol]: { bookmarkTagSource: () => src } } }
       })
       await flushPromises()
@@ -549,7 +781,7 @@ describe('components/BookmarkTags', () => {
       const bookmarkTagSource = vi.fn()
       const shared = { tags: computed(() => [lfTech, lfDesign, lfAiTools]), create: vi.fn() }
       const wrapper = mountTags({
-        props: { tags: [lfTech], bookmarkUuid: 'b-1', compact: true },
+        props: { tags: [lfTech], bookmarkUuid: 'b-1', dataSource: 'local', compact: true },
         global: {
           provide: {
             [LocalFirstAdapterKey as symbol]: { bookmarkTagSource, bookmarkTagActions: () => actions },
@@ -581,7 +813,7 @@ describe('components/BookmarkTags', () => {
       expect(bookmarkTagSource).not.toHaveBeenCalled()
     })
 
-    it('compact 且没有 SharedUserTagsKey：候选回退到 TAG_LIST', async () => {
+    it('does not mix REST catalog identifiers into local writes when the shared catalog is absent', async () => {
       const actions = {
         setTags: vi.fn().mockResolvedValue(undefined),
         add: vi.fn(),
@@ -589,19 +821,19 @@ describe('components/BookmarkTags', () => {
         createUserTag: vi.fn()
       }
       const wrapper = mountTags({
-        props: { tags: [...baseTags], bookmarkUuid: 'b-1', compact: true },
+        props: { tags: [...baseTags], bookmarkUuid: 'b-1', dataSource: 'local', compact: true },
         global: { provide: { [LocalFirstAdapterKey as symbol]: { bookmarkTagActions: () => actions } } }
       })
       await openPanel(wrapper)
-      expect(mockGet).toHaveBeenCalledTimes(1)
-      expect(candidateNames()).toEqual(['tech', 'design', 'ai', 'ai-tools'])
+      expect(mockGet).not.toHaveBeenCalled()
+      expect(candidateNames()).toEqual([])
     })
 
     it('LF 出错：toast + pending 保留', async () => {
       const { src } = makeSource()
       src.setTags.mockRejectedValueOnce(new Error('offline'))
       const wrapper = mountTags({
-        props: { tags: [lfTech], bookmarkUuid: 'b-1' },
+        props: { tags: [lfTech], bookmarkUuid: 'b-1', dataSource: 'local' },
         global: { provide: { [LocalFirstAdapterKey as symbol]: { bookmarkTagSource: () => src } } }
       })
       await flushPromises()
@@ -612,6 +844,7 @@ describe('components/BookmarkTags', () => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }))
       expect(isPanelHidden()).toBe(false)
       expect(panelFind('.confirm-btn').text()).toBe('Done (1)')
+      expect(mockPost).not.toHaveBeenCalled()
     })
   })
 

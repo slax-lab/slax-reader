@@ -1,12 +1,16 @@
 import { ensureWebWranglerConfig, warnIfApiConfigMissing, writeWebBuildConfig } from './config/backend-binding'
 import { backendStateV3 } from './config/backend-path'
 import { getDWebConfig, getEnv } from './config/env'
+import { scopedPdfStyles } from './config/pdf-assets'
+
+import { createPowerSyncAssetBuild } from '../../tooling/powersync-assets.mjs'
 import { POWER_SYNC_WORKER_GENERATION } from './app/local-first/version'
 import pkg from './package.json'
 import replace from '@rollup/plugin-replace'
 import { fileURLToPath } from 'url'
 import wasm from 'vite-plugin-wasm'
-import { scopedPdfStyles } from './config/pdf-assets'
+
+const powerSyncAssets = createPowerSyncAssetBuild()
 
 const env = getEnv()
 console.log('Current env is:', env)
@@ -283,7 +287,7 @@ export default defineNuxtConfig({
     // build trips an esbuild destructuring transform error.
     worker: {
       format: 'es',
-      plugins: () => [wasm()],
+      plugins: () => [wasm(), powerSyncAssets.plugin()],
       // Worker 入口 URL 是 SharedWorker 的身份标识；同一版本保持稳定，
       // 让不同标签页连接同一个 Worker。内部 chunk 仍使用内容哈希。
       rollupOptions: {
@@ -422,7 +426,7 @@ export default defineNuxtConfig({
       '/c/:id/:cid': { ssr: true, prerender: false, streaming: false }
     },
     cloudflare: {
-      // Write the selected public bindings to dist/wrangler.toml in nitro:compiled.
+      // Write the selected public bindings to dist/wrangler.toml in the Nitro compiled hook.
       deployConfig: false,
       // 关闭 Nitro 的 unenv hybrid node 兼容：开启时 Nitro 会向生成的
       // dist/_worker.js/wrangler.json 强制写入 `no_nodejs_compat_v2`，
@@ -568,8 +572,13 @@ export default defineNuxtConfig({
     }
   },
   hooks: {
-    'nitro:compiled': () => {
-      writeWebBuildConfig(webBinding)
+    'nitro:init': nitro => {
+      if (nitro.options.dev) return
+      // Register on Nitro itself, after the Pages preset's output writers.
+      nitro.hooks.hook('compiled', async nitro => {
+        await powerSyncAssets.write(nitro.options.output.publicDir)
+        writeWebBuildConfig(webBinding)
+      })
     },
     'vite:extendConfig': (config, { isClient }) => {
       // @nuxtjs/mdc 仍生成 pnpm 的 `parent > child` optimizeDeps 语法，Vite 8 无法解析。
