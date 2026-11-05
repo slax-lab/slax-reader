@@ -22,7 +22,7 @@
 
 - [x] 4.1 Run Mobile check/bundle and affected release tests, plus strict OpenSpec and whitespace validation; record exact results in `validation.md` and verify routine Mobile CI still excludes native builds.
 - [ ] 4.2 Build an unsigned iOS Release validation artifact and inspect a device-target Release native output for both symbols; record artifact identity, toolchain, inspected executable coverage, and build limitations in `validation.md`. Gap: dependency Release archives succeeded, but full application packaging requires the absent operator Firebase resource.
-- [ ] 4.3 Exercise cold launch and existing native error/Google Sign-In bridge behavior on available supported iOS targets; record iOS 16/17 evidence separately or declare the precise unavailable-runtime gap without claiming old-system acceptance. Gap: native launch/launcher and artifact inspection succeeded on iOS 18.6, but Mac screen lock blocked interactive opening and no iOS 16/17 target is available.
+- [ ] 4.3 Exercise cold launch and existing native error/Google Sign-In bridge behavior on available supported iOS targets; record iOS 16/17 evidence separately or declare the precise unavailable-runtime gap without claiming old-system acceptance. Gap: native launch, interactive React library startup, and artifact inspection succeeded on iOS 18.6; real Google provider authentication and iOS 16/17 runtime acceptance remain unverified.
 - [x] 4.4 Build and smoke the affected Android integration after the shared Nitro update; verify startup and existing bridge behavior or record the exact unavailable-environment gap.
 
 ## 5. Draft PR Delivery
