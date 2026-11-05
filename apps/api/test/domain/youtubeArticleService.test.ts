@@ -311,7 +311,7 @@ describe('owner opens a bookmark', () => {
       ['zh', YOUTUBE_ARTICLE_PROMPT_VERSION]
     ])
     expect(w.create).toHaveBeenCalledTimes(1)
-    expect(w.create.mock.calls[0][0]).toMatchObject({ params: { targetLanguage: 'zh', promptVersion: YOUTUBE_ARTICLE_PROMPT_VERSION, sourceEditing: 'passages-v1' } })
+    expect(w.create.mock.calls[0][0]).toMatchObject({ params: { targetLanguage: 'zh', promptVersion: YOUTUBE_ARTICLE_PROMPT_VERSION } })
   })
 
   test('switching back to a language that is ready reads it and starts nothing', async () => {

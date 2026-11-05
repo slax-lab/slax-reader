@@ -42,7 +42,6 @@ export interface YoutubeArticleWorkflowParams {
   sourceHash: string
   targetLanguage: YoutubeArticleLanguage
   promptVersion: string
-  sourceEditing?: 'passages-v1'
   title: string
   trigger: YoutubeArticleTrigger
 }
@@ -610,7 +609,6 @@ export class YoutubeArticleService {
       sourceHash: row.source_hash,
       targetLanguage: row.target_language as YoutubeArticleLanguage,
       promptVersion: row.prompt_version,
-      ...(row.prompt_version === 'v2' ? { sourceEditing: 'passages-v1' as const } : {}),
       title,
       trigger
     }

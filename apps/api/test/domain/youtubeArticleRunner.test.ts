@@ -546,25 +546,27 @@ describe('limits and gates', () => {
 describe('versioned transcript editing', () => {
   function editedModel() {
     const model = faithfulModel()
-    const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
+    model.chat.mockImplementation(async (contents, _config, options) => {
       if (options.systemInstruction.startsWith('Write a factual'))
         return { text: JSON.stringify({ lede: 'This talk explains attention.' }), usage: { inputTokens: 100, outputTokens: 30 } }
-      if (options.systemInstruction.startsWith('Translate the edited')) {
-        const source = JSON.parse(contents[0].parts[0].text.split('\nPrevious translation')[0])
-        const sentences = [
-          'Transformer 用注意力替代循环，因此每个词元都能关注其他词元。',
-          '训练在序列上并行执行，长距离依赖关系不再衰减。',
-          '计算成本随序列长度的平方增长，因此出现了稀疏注意力变体。',
-          '位置编码恢复顺序，因为注意力本身忽略顺序。'
-        ]
-        for (const section of source.sections)
-          section.paragraphs = section.paragraphs.map((text: string) =>
-            [...text.matchAll(/part (\d+)/g)].map(match => sentences[Number(match[1]) % 4] + `第 ${match[1]} 部分。`).join('')
-          )
-        return { text: JSON.stringify(source), usage: { inputTokens: 100, outputTokens: 100 } }
-      }
-      return original(contents, config, options)
+      const source: Record<string, { text: string; heading?: string; startsChunk?: boolean }> = JSON.parse(contents[0].parts[0].text.split('\nPrevious source context')[0])
+      const translating = options.systemInstruction.startsWith('Translate each keyed')
+      const sentences = [
+        'Transformer 用注意力替代循环，因此每个词元都能关注其他词元。',
+        '训练在序列上并行执行，长距离依赖关系不再衰减。',
+        '计算成本随序列长度的平方增长，因此出现了稀疏注意力变体。',
+        '位置编码恢复顺序，因为注意力本身忽略顺序。'
+      ]
+      const result = Object.fromEntries(
+        Object.entries(source).map(([key, passage]) => [
+          key,
+          {
+            heading: translating ? (passage.heading ? '注意力机制' : '') : passage.startsChunk ? 'Attention' : '',
+            text: translating ? [...passage.text.matchAll(/part (\d+)/g)].map(match => sentences[Number(match[1]) % 4] + `第 ${match[1]} 部分。`).join('') : passage.text
+          }
+        ])
+      )
+      return { text: JSON.stringify(result), usage: { inputTokens: 100, outputTokens: 100 } }
     })
     return model
   }
@@ -600,7 +602,7 @@ describe('versioned transcript editing', () => {
     const prompts = s.model.chat.mock.calls
     const intro = prompts.find(c => c[2].systemInstruction.startsWith('Write a factual'))!
     expect(intro[0][0].parts[0].text).toContain('part 299')
-    expect(prompts.filter(c => c[2].systemInstruction.startsWith('Edit this transcript')).length).toBeGreaterThan(1)
+    expect(prompts.filter(c => c[2].systemInstruction.startsWith('Edit each keyed')).length).toBeGreaterThan(1)
     expect(prompts[1][0][0].parts[0].text).toContain('Previous source context')
     const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0].replace('v1', 'v2'))!)
     expect(new Set(doc.sections.flatMap((s: any) => s.paragraphs.flatMap((p: any) => p.source_cue_ids))).size).toBe(300)
@@ -611,7 +613,7 @@ describe('versioned transcript editing', () => {
     s.params.promptVersion = 'v2'
     expect(await s.run()).toBe('ready')
     // Chunks are dropped after assembly, so read the write itself
-    const put = s.bucket.put.mock.calls.find(c => String(c[0]).includes('/chunks/') && !String(c[0]).endsWith('.source'))!
+    const put = s.bucket.put.mock.calls.find(c => String(c[0]).includes('/chunks/') && String(c[0]).endsWith('.json'))!
     const stored = JSON.parse(String(put[1]))
     expect(stored.usage.input_tokens).toBeGreaterThan(0)
     expect(stored.usage.cost_usd).toBeGreaterThan(0)
@@ -626,7 +628,7 @@ describe('versioned transcript editing', () => {
     const translated = JSON.parse(s.bucket.objects.get(articleKeys('zh')[0].replace('v1', 'v2'))!)
     const ids = translated.sections.flatMap((section: any) => section.paragraphs.flatMap((p: any) => p.source_cue_ids))
     expect(ids).toEqual(caption(40).cues.map(c => c.id))
-    const call = s.model.chat.mock.calls.find(c => c[2].systemInstruction.startsWith('Translate the edited'))!
+    const call = s.model.chat.mock.calls.find(c => c[2].systemInstruction.startsWith('Translate each keyed'))!
     expect(call[0][0].parts[0].text).not.toContain('source_cue_ids')
   })
 
@@ -635,9 +637,9 @@ describe('versioned transcript editing', () => {
     const original = model.chat.getMockImplementation()!
     model.chat.mockImplementation(async (contents, config, options) => {
       const result = await original(contents, config, options)
-      if (options.systemInstruction.startsWith('Translate the edited')) {
+      if (options.systemInstruction.startsWith('Translate each keyed')) {
         const doc = JSON.parse(result.text)
-        doc.sections[0].paragraphs.pop()
+        delete doc.p0
         return { ...result, text: JSON.stringify(doc) }
       }
       return result
@@ -647,25 +649,9 @@ describe('versioned transcript editing', () => {
     s.params.targetLanguage = 'zh'
     s.repo.row.target_language = 'zh'
     expect(await s.run()).toBe('retry')
-    expect(s.repo.row.error_message).toContain('translation_structure_changed')
+    expect(s.repo.row.error_message).toContain('translation_missing_passages')
     expect(s.publishBodies).not.toHaveBeenCalled()
-    expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Edit this transcript'))).toHaveLength(1)
-  })
-
-  test('rejects condensed text even when every source cue is listed', async () => {
-    const model = editedModel()
-    const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
-      const result = await original(contents, config, options)
-      const doc = JSON.parse(result.text)
-      for (const section of doc.sections) for (const p of section.paragraphs) p.text = 'A short summary.'
-      return { ...result, text: JSON.stringify(doc) }
-    })
-    const s = setup({ cues: 40, model })
-    s.params.promptVersion = 'v2'
-    expect(await s.run()).toBe('retry')
-    expect(s.repo.row.error_message).toContain('edited_length_ratio')
-    expect(s.publishBodies).not.toHaveBeenCalled()
+    expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Edit each keyed'))).toHaveLength(1)
   })
 
   test('a same-language edit inside the chunk band also passes the article check', async () => {
@@ -673,14 +659,13 @@ describe('versioned transcript editing', () => {
     const original = model.chat.getMockImplementation()!
     model.chat.mockImplementation(async (contents, config, options) => {
       const result = await original(contents, config, options)
-      if (!options.systemInstruction.startsWith('Edit this transcript')) return result
+      if (!options.systemInstruction.startsWith('Edit each keyed')) return result
       // Each paragraph grows to about 1.13 of its cue text: inside the chunk band, over the generic article cap
       const doc = JSON.parse(result.text)
-      for (const section of doc.sections)
-        for (const p of section.paragraphs) {
-          const sourceLength = p.text.replace(/\s+/g, '').length
-          p.text += ' ' + 'x'.repeat(Math.round(sourceLength * 0.12))
-        }
+      for (const p of Object.values(doc) as { text: string }[]) {
+        const sourceLength = p.text.replace(/\s+/g, '').length
+        p.text += ' ' + '.'.repeat(Math.round(sourceLength * 0.12))
+      }
       return { ...result, text: JSON.stringify(doc) }
     })
     const s = setup({ cues: 40, model })
@@ -691,28 +676,26 @@ describe('versioned transcript editing', () => {
     expect(ratio).toBeLessThanOrEqual(1.15)
   })
 
-  test('rejects source references in a changed order', async () => {
+  test('restores source order when the model reverses passage keys', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
     model.chat.mockImplementation(async (contents, config, options) => {
       const result = await original(contents, config, options)
-      const doc = JSON.parse(result.text)
-      doc.sections[0].paragraphs.reverse()
-      return { ...result, text: JSON.stringify(doc) }
+      if (!options.systemInstruction.startsWith('Edit each keyed')) return result
+      return { ...result, text: JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(result.text)).reverse())) }
     })
     const s = setup({ cues: 40, model })
     s.params.promptVersion = 'v2'
-    expect(await s.run()).toBe('retry')
-    expect(s.repo.row.error_message).toContain('chunk_incomplete_coverage')
-    expect(s.publishBodies).not.toHaveBeenCalled()
+    expect(await s.run()).toBe('ready')
+    const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0].replace('v1', 'v2'))!)
+    expect(doc.sections.flatMap((section: any) => section.paragraphs.flatMap((p: any) => p.source_cue_ids))).toEqual(caption(40).cues.map(c => c.id))
   })
 
-  test('a truncated edit call is split and the translation follows the parts', async () => {
+  test('splits a truncated edit batch and translates the assembled passages', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
     model.chat.mockImplementation(async (contents, config, options) => {
-      const cueLines = (contents[0].parts[0].text as string).match(/^c\d{4} \[/gm)?.length ?? 0
-      if (options.systemInstruction.startsWith('Edit this transcript') && cueLines > 25)
+      if (options.systemInstruction.startsWith('Edit each keyed') && Object.keys(JSON.parse(contents[0].parts[0].text)).length > 3)
         return { text: '{"lede":"", "sections": [{"heading": "loop', usage: { inputTokens: 3000, outputTokens: 16000 }, finishReason: 'MAX_TOKENS' }
       return original(contents, config, options)
     })
@@ -721,46 +704,50 @@ describe('versioned transcript editing', () => {
     s.params.targetLanguage = 'zh'
     s.repo.row.target_language = 'zh'
     expect(await s.run()).toBe('ready')
-    const edits = model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Edit this transcript'))
-    const translations = model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Translate the edited'))
+    const edits = model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Edit each keyed'))
+    const translations = model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Translate each keyed'))
     expect(edits).toHaveLength(3)
-    expect(translations).toHaveLength(2)
+    expect(translations).toHaveLength(1)
     const translated = JSON.parse(s.bucket.objects.get(articleKeys('zh')[0].replace('v1', 'v2'))!)
     const ids = translated.sections.flatMap((section: any) => section.paragraphs.flatMap((p: any) => p.source_cue_ids))
     expect(ids).toEqual(caption(40).cues.map(c => c.id))
   })
 
-  test('a translation that truncates on a single section fails without an identical repeat', async () => {
+  test('a translation that truncates on a single passage fails without an identical repeat', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
     model.chat.mockImplementation(async (contents, config, options) => {
-      if (options.systemInstruction.startsWith('Translate the edited'))
+      if (options.systemInstruction.startsWith('Translate each keyed'))
         return { text: '{"sections": [', usage: { inputTokens: 100, outputTokens: 4000 }, finishReason: 'MAX_TOKENS' }
       return original(contents, config, options)
     })
-    const s = setup({ cues: 40, model })
+    const s = setup({ cues: 4, model })
     s.params.promptVersion = 'v2'
     s.params.targetLanguage = 'zh'
     s.repo.row.target_language = 'zh'
     expect(await s.run()).toBe('failed')
     expect(s.repo.row.error_message).toBe('chunk_truncated: parts=1')
-    expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Translate the edited'))).toHaveLength(1)
+    expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Translate each keyed'))).toHaveLength(1)
   })
 
-  test('rejects an omitted passage before caching or translating it', async () => {
+  test('translates the source wording when the editor omits or condenses passages', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
-      const result = await original(contents, config, options)
-      const doc = JSON.parse(result.text)
-      doc.sections[0].paragraphs.pop()
-      return { ...result, text: JSON.stringify(doc) }
+    model.chat.mockImplementation(async (...args) => {
+      if (args[2].systemInstruction.startsWith('Edit each keyed'))
+        return { text: JSON.stringify({ p0: { text: 'Short summary.', heading: 'Attention' } }), usage: { inputTokens: 10, outputTokens: 10 } }
+      return original(...args)
     })
     const s = setup({ cues: 40, model })
     s.params.promptVersion = 'v2'
-    expect(await s.run()).toBe('retry')
-    expect(s.repo.row.error_message).toContain('chunk_incomplete_coverage')
-    expect(s.publishBodies).not.toHaveBeenCalled()
+    s.params.targetLanguage = 'zh'
+    s.repo.row.target_language = 'zh'
+    expect(await s.run()).toBe('ready')
+    const edit = model.chat.mock.calls.find(c => c[2].systemInstruction.startsWith('Edit each keyed'))!
+    const translation = model.chat.mock.calls.find(c => c[2].systemInstruction.startsWith('Translate each keyed'))!
+    const source = JSON.parse(edit[0][0].parts[0].text)
+    const translatedInput = JSON.parse(translation[0][0].parts[0].text)
+    for (const key of Object.keys(source)) expect(translatedInput[key].text).toBe(source[key].text)
   })
 })
 

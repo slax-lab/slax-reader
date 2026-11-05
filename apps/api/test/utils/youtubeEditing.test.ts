@@ -1,41 +1,70 @@
-/**
- * Transcript editing helpers: the context passed between chunks and the shared length band.
- * 来源: src/utils/youtubeEditing.ts
- */
-import { describe, expect, test } from 'vitest'
-import { EDITED_LENGTH_BOUNDS, editingContext, EDITING_CONTEXT_CHARS } from '@/utils/youtubeEditing'
-import type { ArticleSection } from '@/utils/youtubeArticle'
+import { describe, expect, it, vi } from 'vitest'
+import { renderSourcePassages, sourcePassages, type SourcePassage } from '@/utils/youtubeEditing'
 
-const paragraph = (i: number, size = 400) => ({ speaker: null, text: `Paragraph ${i} ${'word '.repeat(size / 5)}`.trim(), source_cue_ids: [`c${String(i).padStart(4, '0')}`] })
+const passages: SourcePassage[] = [
+  { key: 'p0', text: 'Welcome. Thanks for having me.', ids: ['c0012', 'c0013', 'c0014'] },
+  { key: 'p1', text: 'That sounds great. Does that work? My balance was -50.', ids: ['c0020', 'c0021'] }
+]
+const batch = async (items: SourcePassage[], run: (items: SourcePassage[]) => Promise<void>) => run(items)
 
-describe('editingContext', () => {
-  test('a short last section is passed whole', () => {
-    const sections: ArticleSection[] = [
-      { heading: 'Earlier', start_ms: 0, end_ms: 1, paragraphs: [paragraph(0)] },
-      { heading: 'Last', start_ms: 1, end_ms: 2, paragraphs: [paragraph(1), paragraph(2)] }
-    ]
-    expect(JSON.parse(editingContext(sections))).toEqual([sections[1]])
+function store() {
+  const data = new Map<string, string>()
+  return {
+    get: async (key: string) => (data.has(key) ? { text: async () => data.get(key)! } : null),
+    put: async (key: string, value: string) => {
+      data.set(key, value)
+    }
+  } as unknown as Pick<R2Bucket, 'get' | 'put'>
+}
+
+describe('source-owned YouTube passages', () => {
+  it('partitions short and long cues once, in input order, even with gaps in cue numbering', () => {
+    const cues = Array.from({ length: 160 }, (_, i) => ({ id: 'c' + 2 * i, start_ms: i, text: '>> One more question.' }))
+    const planned = sourcePassages(cues)
+    expect(planned.length).toBeGreaterThan(1)
+    expect(planned.flatMap(p => p.ids)).toEqual(cues.map(c => c.id))
+    expect(planned.map(p => p.text).join(' ')).toBe(cues.map(c => c.text).join(' '))
   })
 
-  test('a long last section keeps only its trailing paragraphs, as valid JSON within the budget', () => {
-    const paragraphs = Array.from({ length: 40 }, (_, i) => paragraph(i))
-    const sections: ArticleSection[] = [{ heading: 'Last', start_ms: 0, end_ms: 1, paragraphs }]
-    const context = editingContext(sections)
-    expect(context.length).toBeLessThanOrEqual(EDITING_CONTEXT_CHARS)
-    const kept = JSON.parse(context) as ArticleSection[]
-    expect(kept).toHaveLength(1)
-    expect(kept[0].heading).toBe('Last')
-    expect(kept[0].paragraphs.length).toBeGreaterThan(1)
-    expect(kept[0].paragraphs).toEqual(paragraphs.slice(-kept[0].paragraphs.length))
-  })
+  it.each(['That sounds great. My balance was -50.', 'Does that work? That sounds great. My balance was -50.', passages[1].text.replace('-50', '50')])(
+    'restores source for a missing, moved or numerically changed passage: %s',
+    async edit => {
+      const report = vi.fn()
+      const sections = await renderSourcePassages(
+        passages,
+        'en',
+        'en',
+        'chunk',
+        store(),
+        batch,
+        async () =>
+          JSON.stringify({
+            p1: { heading: '', text: edit },
+            p0: { heading: 'Greetings', text: 'Welcome! Thanks for having me.' }
+          }),
+        report
+      )
+      expect(sections[0].paragraphs.map(p => p.text)).toEqual(['Welcome! Thanks for having me.', passages[1].text])
+      expect(sections[0].paragraphs.flatMap(p => p.source_cue_ids)).toEqual(passages.flatMap(p => p.ids))
+      expect(report).toHaveBeenCalledWith('source_fallback', 1)
+    }
+  )
 
-  test('no sections gives an empty list', () => {
-    expect(editingContext([])).toBe('[]')
-  })
-})
-
-describe('edited length band', () => {
-  test('the chunk band is the article band of a same-language edit', () => {
-    expect(EDITED_LENGTH_BOUNDS).toEqual([0.72, 1.15])
+  it('recovers partial translations and a timed-out retry from persisted work', async () => {
+    const bucket = store()
+    const generate = vi
+      .fn()
+      .mockResolvedValueOnce(JSON.stringify(Object.fromEntries(passages.map(p => [p.key, { heading: p.key === 'p0' ? 'Greetings' : '', text: p.text }]))))
+      .mockResolvedValueOnce(JSON.stringify({ p0: { heading: '问候', text: '欢迎。谢谢邀请。' } }))
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockResolvedValueOnce(JSON.stringify({ p1: { heading: '', text: '听起来不错。可以吗？余额是 -50。' } }))
+    const run = () => renderSourcePassages(passages, 'en', 'zh', 'chunk', bucket, batch, generate, vi.fn())
+    await expect(run()).rejects.toThrow('translation_missing_passages')
+    await expect(run()).rejects.toThrow('timeout')
+    const sections = await run()
+    expect(generate.mock.calls.map(c => c[2])).toEqual([['p0', 'p1'], ['p0', 'p1'], ['p1'], ['p1']])
+    expect(sections[0].paragraphs.map(p => p.source_cue_ids)).toEqual(passages.map(p => p.ids))
+    expect(await run()).toEqual(sections)
+    expect(generate).toHaveBeenCalledTimes(4)
   })
 })

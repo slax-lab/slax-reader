@@ -1,15 +1,4 @@
-import { passageResponseSchema, renderSourcePassages, sourcePassages } from '@/utils/youtubePassages'
-import {
-  completeCueCoverage,
-  EDITING_CONTEXT_CHARS,
-  EDITED_LENGTH_BOUNDS,
-  editedLengthRatio,
-  editingContext,
-  editingInstruction,
-  parseTranslation,
-  TRANSLATION_SCHEMA,
-  translationInstruction
-} from '@/utils/youtubeEditing'
+import { EDITED_LENGTH_BOUNDS, passageResponseSchema, renderSourcePassages, sourcePassages } from '@/utils/youtubeEditing'
 import type { Content } from '@google/genai'
 import type { ChatUsage, VertexAIConfig } from '@/infra/external/vertexAIClient'
 import type { YoutubeArticleRepo } from '@/infra/repository/dbYoutubeArticle'
@@ -255,9 +244,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
             ? passageResponseSchema(opts.passageKeys)
             : opts.introduction
               ? { type: 'OBJECT', properties: { lede: { type: 'STRING' } }, required: ['lede'] }
-              : opts.translation
-                ? TRANSLATION_SCHEMA
-                : YOUTUBE_ARTICLE_RESPONSE_SCHEMA) as unknown as VertexAIConfig['responseSchema']
+              : YOUTUBE_ARTICLE_RESPONSE_SCHEMA) as unknown as VertexAIConfig['responseSchema']
         },
         { systemInstruction: system }
       )
@@ -378,7 +365,6 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         const { plan, caption } = loaded
         const chunk = plan.chunks[i]
         const cues = plan.cues.slice(chunk.start, chunk.end)
-        const needsTranslation = edited && caption.language.toLowerCase().split('-')[0] !== p.targetLanguage
         const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 }
         const count = (call: Awaited<ReturnType<typeof ask>>) => {
           usage.inputTokens += call.inputTokens
@@ -401,7 +387,12 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
               return parsed.value
             })
           )
-        } else if (p.sourceEditing === 'passages-v1') {
+        } else {
+          const sourceContext = plan.cues
+            .slice(Math.max(0, chunk.start - 40), chunk.start + chunk.overlap)
+            .map(cue => cue.text)
+            .join(' ')
+            .slice(-6000)
           const sections = await renderSourcePassages(
             sourcePassages(cues.slice(chunk.overlap)),
             caption.language,
@@ -412,6 +403,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
               await inParts(items, run)
             },
             async (system, user, passageKeys, translation) => {
+              if (!translation && sourceContext) user += '\nPrevious source context (do not repeat):\n' + JSON.stringify(sourceContext)
               const call = await askChunk(system, user, { chunk: i, passageKeys, translation })
               count(call)
               return call.reply.text
@@ -419,64 +411,6 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
             (event, count) => log(event, p, { chunk: i, count })
           )
           value = { lede: '', sections }
-        } else {
-          const ownCues = cues.slice(chunk.overlap)
-          const editKey = `${key}.source`
-          const cached = await deps.bucket.get(editKey)
-          // The edit of this chunk, in the parts its calls produced; the translation follows them
-          let sourceParts: ChunkResult[]
-          if (cached) sourceParts = [JSON.parse(await cached.text())]
-          else {
-            // Immutable neighboring cues remove the dependency on the previous chunk's output.
-            const sourceContext = plan.cues
-              .slice(Math.max(0, chunk.start - 40), chunk.start + chunk.overlap)
-              .map(cue => cue.text)
-              .join(' ')
-              .slice(-EDITING_CONTEXT_CHARS)
-            let context: string | null = null
-            const system = editingInstruction(caption.language, chunk, plan.chunks.length)
-            sourceParts = await inParts(ownCues, async (partCues, parts) => {
-              let user = buildUserMessage(p.title, partCues)
-              if (sourceContext) user += '\nPrevious source context (do not repeat):\n' + JSON.stringify(sourceContext)
-              if (context) user += '\nPrevious edited context (do not repeat):\n' + context
-              const edit = await askChunk(system, user, { chunk: i, parts })
-              count(edit)
-              const parsed = parseChunkOutput(edit.reply.text)
-              if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
-              if (
-                !completeCueCoverage(
-                  parsed.value.sections,
-                  partCues.map(c => c.id)
-                )
-              )
-                throw new Error('chunk_incomplete_coverage')
-              const ratio = editedLengthRatio(parsed.value.sections, partCues.map(c => c.text).join(' '))
-              if (ratio < EDITED_LENGTH_BOUNDS[0] || ratio > EDITED_LENGTH_BOUNDS[1]) throw new Error('edited_length_ratio')
-              context = editingContext(parsed.value.sections)
-              return parsed.value
-            })
-            await deps.bucket.put(editKey, JSON.stringify(joinParts(sourceParts)))
-          }
-          if (!needsTranslation) value = joinParts(sourceParts)
-          else {
-            let context: string | null = null
-            const system = translationInstruction(p.targetLanguage)
-            const translated: ArticleSection[] = []
-            for (const part of sourceParts) {
-              // A truncated translation splits by section; one section that still truncates ends the version
-              const pieces = await inParts(part.sections, async (sections, parts) => {
-                let user = JSON.stringify({ sections: sections.map(section => ({ heading: section.heading, paragraphs: section.paragraphs.map(p => p.text) })) })
-                if (context) user += '\nPrevious translation (context only):\n' + context
-                const result = await askChunk(system, user, { chunk: i, parts, translation: true })
-                count(result)
-                const translatedPart = parseTranslation(result.reply.text, { lede: '', sections })
-                context = editingContext(translatedPart.sections)
-                return translatedPart.sections
-              })
-              translated.push(...pieces.flat())
-            }
-            value = { lede: '', sections: translated }
-          }
         }
 
         const stored: StoredChunk = {
