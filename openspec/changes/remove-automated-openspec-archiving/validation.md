@@ -2,7 +2,7 @@
 
 ## Exercised checks
 
-- `pnpm test:ci`: 80 tests passed without the deleted archive workflow contract test.
+- `pnpm test:ci`: 81 tests passed without the deleted archive workflow contract test. The ordinary PR Review ready-transition and no-bot-allowlist assertions were relocated into `tooling/ci-workflow.test.mjs`.
 - `pnpm agent:check`: rulesync doctor and generation check passed; 105 OpenSpec items passed strict validation; gh-aw compiled two remaining workflows and reported that compiled workflows match their sources.
 - `pnpm exec openspec validate remove-automated-openspec-archiving --strict`: passed.
 - `git diff --cached --check`: passed.
