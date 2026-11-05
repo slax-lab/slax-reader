@@ -11,7 +11,19 @@ export function FeedbackScreen({navigation, route}: MobileScreenProps<'Feedback'
   const form = useFeedback(route.params);
   const {t, fixtureOnly, content, setContent, followUp, setFollowUp, attachLogs, setAttachLogs, busy, ownerChanged, user, title, result, setResult, submit} = form;
   const submitDisabled = !content.trim() || busy || ownerChanged;
-  const surface = useRef<React.ComponentRef<typeof View>>(null), [keyboardOffset, setKeyboardOffset] = useState(0);
+  const surface = useRef<React.ComponentRef<typeof View>>(null), input = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const presented = useRef(false);
+  const [keyboardOffset, setKeyboardOffset] = useState<number | null>(null);
+  const keyboardLayoutReady = keyboardOffset !== null;
+  function measureSurface() {surface.current?.measureInWindow((_x, y) => setKeyboardOffset(y));}
+  // Native push animations can report a provisional window offset. Measure after presentation.
+  useEffect(() => navigation.addListener('transitionEnd', event => {
+    if (event.data.closing) return;
+    presented.current = true;
+    measureSurface();
+  }), [navigation]);
+  // Focus only after KeyboardAvoidingView receives the settled screen offset.
+  useEffect(() => {if (keyboardLayoutReady) input.current?.focus();}, [keyboardLayoutReady]);
   useEffect(() => {
     if (!__DEV__ || !fixtureOnly) return;
     return fixtureActions.subscribe('feedback', async action => {
@@ -26,12 +38,12 @@ export function FeedbackScreen({navigation, route}: MobileScreenProps<'Feedback'
   }), [navigation, t, busy, submitDisabled, submit]);
   function dismiss() {const success = result?.ok; setResult(null); if (success) navigation.goBack();}
   return <ScreenSurface testID={IDs.FeedbackScreen} sourceAppBar>
-    <View testID="feedback-measured-surface" ref={surface} style={styles.fill} onLayout={() => surface.current?.measureInWindow((_x, y) => setKeyboardOffset(y))}>
-      <KeyboardAvoidingView testID="feedback-keyboard-layout" style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={keyboardOffset}>
+    <View testID="feedback-measured-surface" ref={surface} style={styles.fill} onLayout={() => {if (presented.current) measureSurface();}}>
+      <KeyboardAvoidingView testID="feedback-keyboard-layout" style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={keyboardOffset ?? 0}>
         <Pressable testID="feedback-form" accessible={false} onPress={Keyboard.dismiss} style={styles.form}>
           <ScrollView testID="feedback-scroll" style={styles.fill} bounces={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.editorContent}>
             {title ? <View style={styles.article}><SourceText numberOfLines={1} style={styles.title}>{title}</SourceText>{route.params?.targetUrl ? <SourceText numberOfLines={1} style={[T.metadata, {color: C.link, marginTop: 4}]}>{route.params.targetUrl}</SourceText> : null}</View> : null}
-            <View style={styles.editor}><TextInput testID={IDs.FeedbackInput} accessibilityLabel={t('feedback_placeholder')} value={content} onChangeText={setContent} multiline submitBehavior="newline" scrollEnabled editable={!busy && !ownerChanged} placeholder={t('feedback_placeholder')} placeholderTextColor="#0000004D" selectionColor={C.accent} style={styles.input} textAlignVertical="top" /></View>
+            <View style={styles.editor}><TextInput selectionColor={C.accent} cursorColor={C.accent} ref={input} testID={IDs.FeedbackInput} accessibilityLabel={t('feedback_placeholder')} value={content} onChangeText={setContent} multiline submitBehavior="newline" scrollEnabled editable={!busy && !ownerChanged} placeholder={t('feedback_placeholder')} placeholderTextColor="#0000004D" style={styles.input} textAlignVertical="top" /></View>
           </ScrollView>
           <View style={styles.options}>
             <Pressable testID="feedback-follow-up" accessibilityRole="checkbox" accessibilityLabel={t('feedback_follow_up', {email: String(user.email ?? '')})} accessibilityState={{checked: followUp, disabled: busy || ownerChanged}} disabled={busy || ownerChanged} onPress={() => setFollowUp(value => !value)} style={styles.checkbox}>

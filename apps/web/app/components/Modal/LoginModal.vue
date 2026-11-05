@@ -25,7 +25,7 @@
           </ul>
 
           <div class="auth-btns">
-            <GoogleLoginButton :redirect="redirect" />
+            <GoogleLoginButton :redirect="redirect" :auth-attribution="authAttribution" />
             <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" />
           </div>
 
@@ -45,7 +45,14 @@
 import AppleLoginButton from '~/components/AppleLoginButton.vue'
 import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
 
-defineProps({
+import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
+import type { PropType } from 'vue'
+
+const props = defineProps({
+  authAttribution: {
+    type: Object as PropType<CollectionAuthAttribution>,
+    required: false
+  },
   redirect: {
     type: String,
     required: true
@@ -58,6 +65,12 @@ const appleLoginEnabled = Boolean(runtimeConfig.APPLE_OAUTH_CLIENT_ID)
 
 const isLocked = useScrollLock(window)
 const appear = ref(false)
+
+watch(appear, visible => {
+  if (visible && props.authAttribution) {
+    eventLog({ event_name: 'screen_viewed', properties: { screen_name: 'signup', ...props.authAttribution } })
+  }
+}, { flush: 'post' })
 
 isLocked.value = true
 

@@ -7,6 +7,7 @@ import SnapshotStatusModal from './SnapshotStatusModal.vue'
 
 import { modalBootloader } from '~/utils/modal'
 
+import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
 import { BookmarkParseStatus } from '@slax-reader/contracts/interface'
 
 export const showFeedbackModal = (options: { title: string; reportType: string; href?: string; email: string; params?: Record<string, string | number> }) => {
@@ -78,11 +79,12 @@ export const showEditTagModal = (options: {
   })
 }
 
-export const showLoginModal = (options: { redirect?: string }) => {
+export const showLoginModal = (options: { redirect?: string; authAttribution?: CollectionAuthAttribution }) => {
   const app = modalBootloader({
     ele: LoginModal,
     props: {
       redirect: options.redirect,
+      authAttribution: options.authAttribution,
       onDismiss: () => {
         app.unmount()
         app._container?.remove()

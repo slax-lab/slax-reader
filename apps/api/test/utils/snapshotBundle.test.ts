@@ -3,6 +3,40 @@ import { SnapshotBundle, snapshotKeys, readEmbeddedSnapshot, loadEmbeddedSnapsho
 import { memoryBucket } from './snapshotBucket'
 
 describe('fixed storage bundles', () => {
+  it.each(['<div>Saved body.</div>', '<html><main>Saved body.</main></html>'])('keeps AI text when copying a previously published fragment: %s', async html => {
+    const { bucket, objects } = memoryBucket()
+    const first = new SnapshotBundle(bucket, 'first')
+    await first.write('body.html', html, 'text/html')
+    await first.write('media.json', JSON.stringify({ schema: 1, kind: 'html' }), 'application/json')
+
+    const result = await new SnapshotBundle(bucket, 'second').copyHtml('html/body/first.html')
+
+    expect(objects.get(result.content_md_key)!.value).toBe('Saved body.')
+  })
+
+  it.each([
+    ['div fragment', '<div><h2>Saved title</h2><p>Saved body.</p></div>', 'Saved titleSaved body.'],
+    ['main fragment', '<main><p>Saved body.</p></main>', 'Saved body.'],
+    ['sibling fragments', '<h2>Saved title</h2><p>Saved body.</p>', 'Saved titleSaved body.'],
+    ['article fragment', '<article><p>Saved body.</p></article>', 'Saved body.'],
+    ['complete document', '<!doctype html><html><head><title>Page title</title></head><body><div>Saved body.</div></body></html>', 'Saved body.'],
+    [
+      'inert metadata',
+      '<div>Saved body.<script id="slax-private-snapshot" type="application/json">{"private":"metadata"}</script><style>hidden css</style><noscript>hidden fallback</noscript></div>',
+      'Saved body.'
+    ]
+  ])('copies AI text from a %s', async (_name, html, expected) => {
+    const { bucket, objects } = memoryBucket()
+    await bucket.put('html/body/source.html', html)
+    await bucket.put('text/body/source.txt', 'Stale source text')
+
+    const result = await new SnapshotBundle(bucket, 'destination').copyHtml('html/body/source.html')
+
+    expect(objects.get(result.content_md_key)!.value).toBe(expected)
+    expect(result.content_word_count).toBe(expected.length)
+    expect(objects.get(result.content_key)!.value).toContain('Saved body.')
+  })
+
   it('keeps original keys across repeated writes and preserves live objects on discard', async () => {
     const { bucket, objects } = memoryBucket()
     const first = new SnapshotBundle(bucket, 'owner', 'one')

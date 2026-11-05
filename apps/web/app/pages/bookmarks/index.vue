@@ -421,7 +421,7 @@ watch(
 watch(
   () => activeCollection.value?.code,
   (code, previous) => {
-    if (code && code !== previous) eventLog({ event_name: 'collection_opened', properties: { collection_id: code, opened_from: 'inbox' } })
+    if (code && code !== previous) eventLog({ event_name: 'collection_opened', properties: { collection_id: code, opened_from: 'inbox', surface: 'inbox' } })
   },
   { immediate: true }
 )

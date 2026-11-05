@@ -123,7 +123,7 @@ interface YoutubeOembed {
 
 @injectable()
 export class CrawlService {
-  static shortLinkDomains = ['t.cn', 'xhslink.com', 't.co', 'redd.it', 'mapp.api.weibo.cn']
+  static shortLinkDomains = ['t.cn', 'xhslink.com', 't.co', 'redd.it', 'mapp.api.weibo.cn', 'pca.st']
   constructor(
     @inject(BucketClient) private bucketClient: LazyInstance<BucketClient>,
     @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,

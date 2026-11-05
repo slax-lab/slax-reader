@@ -248,7 +248,7 @@
         commandResults.forEach(function(entry) { clearTimeout(entry.timer); });
         commandResults.clear();
         window.SlaxWebViewBridge && window.SlaxWebViewBridge.clearSelection();
-        window.SlaxWebViewBridge && window.SlaxWebViewBridge.stopSelectionMonitoring();
+        window.SlaxWebViewBridge && window.SlaxWebViewBridge.destroy();
         if (requestFrame !== null) window.cancelAnimationFrame(requestFrame);
         requestFrame = null;
         if (inputSoon !== null) clearTimeout(inputSoon);

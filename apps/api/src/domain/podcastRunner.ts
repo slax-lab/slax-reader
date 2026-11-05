@@ -1,4 +1,4 @@
-import type { VertexAIConfig } from '@/infra/external/vertexAIClient'
+import { AIProviderError, toProviderFailure, type VertexAIConfig } from '@/infra/external/vertexAIClient'
 import type { AssemblyJobState } from '@/infra/external/assemblyAI'
 import type { PodcastArticleRepo, PodcastEpisodeRepo, podcastEpisodePO } from '@/infra/repository/dbPodcastArticle'
 import type { ArticleModel, StepLike } from '@/domain/youtubeArticleRunner'
@@ -18,6 +18,7 @@ import {
   PODCAST_ARTICLE_PROMPT_VERSION,
   PODCAST_ARTICLE_SCHEMA_VERSION,
   PODCAST_LIMITS,
+  PODCAST_POLISH_RESPONSE_SCHEMA,
   PODCAST_TRANSLATION_RESPONSE_SCHEMA,
   applyTranslation,
   articleParagraphText,
@@ -25,15 +26,17 @@ import {
   buildPolishUserMessage,
   buildTranslationInstruction,
   buildTranslationUserMessage,
-  chunkTail,
   chunkTranslationUnits,
   expectedEpisodeCostUsd,
   mergeGlossary,
   parseTranslationOutput,
   planPodcastChunks,
+  polishPartFailures,
   podcastArticleKeys,
   podcastChunkKey,
   podcastChunkPrefix,
+  podcastRequestSize,
+  podcastSplitIndex,
   podcastTranscriptKey,
   polishQualityOptions,
   renderPodcastText,
@@ -43,15 +46,13 @@ import {
   type PodcastEpisodeContext
 } from '@/utils/podcastArticle'
 import {
-  YOUTUBE_ARTICLE_LIMITS,
   YOUTUBE_ARTICLE_MODEL,
-  YOUTUBE_ARTICLE_RESPONSE_SCHEMA,
   checkArticleQuality,
   estimateCostUsd,
   estimateTokens,
-  expectedChunkCostUsd,
   mergeChunkResults,
   parseChunkOutput,
+  repetitionRatio,
   type ArticleSection,
   type YoutubeArticleDocument,
   type YoutubeArticleQuality
@@ -99,10 +100,12 @@ export interface PodcastRunnerDeps {
 
 export type PodcastOutcome = 'ready' | 'not_claimed' | 'gone' | 'skipped' | 'failed' | 'retry'
 
+const STOP_CODES = ['budget_exceeded', 'lease_lost', 'transcript_missing', 'chunk_truncated', 'chunk_timeout', 'chunk_deadline', 'chunk_call_limit'] as const
+
 /** Never retried by the engine or the sweeper. */
 export class PodcastStop extends Error {
   constructor(
-    public readonly code: 'budget_exceeded' | 'lease_lost' | 'transcript_missing',
+    public readonly code: (typeof STOP_CODES)[number],
     message?: string
   ) {
     super(message ? `${code}: ${message}` : code)
@@ -110,9 +113,22 @@ export class PodcastStop extends Error {
   }
 }
 
+class ChunkIncomplete extends Error {
+  constructor(
+    public readonly code: 'chunk_truncated' | 'chunk_timeout',
+    public readonly usage: StoredPolishChunk['usage']
+  ) {
+    super(code)
+  }
+}
+
 const DB_STEP = { retries: { limit: 3, delay: '5 seconds', backoff: 'exponential' as const }, timeout: '1 minute' }
 const FETCH_STEP = { retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' as const }, timeout: '2 minutes' }
-const CHUNK_STEP = { retries: { limit: 2, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '5 minutes' }
+/** All chunks of an episode at once; cost admission still holds calls back when reservations do not fit the budget. */
+const CHUNK_CONCURRENCY = 10
+/** Assemble-time quality failures redo the affected chunks this many times before the attempt fails. */
+const QUALITY_REPAIR_PASSES = 1
+const CHUNK_STEP = { retries: { limit: 2, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '10 minutes' }
 const ASSEMBLE_STEP = { retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' as const }, timeout: '3 minutes' }
 const PUBLISH_STEP = { retries: { limit: 2, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '10 minutes' }
 
@@ -129,7 +145,7 @@ function log(event: string, p: PodcastWorkflowParams, extra: Record<string, unkn
 function stopCode(err: unknown): PodcastStop['code'] | null {
   if (err instanceof PodcastStop) return err.code
   const message = err instanceof Error ? err.message : String(err)
-  return (['budget_exceeded', 'lease_lost', 'transcript_missing'] as const).find(c => message.includes(c)) ?? null
+  return STOP_CODES.find(c => message.includes(c)) ?? null
 }
 
 async function readJson<T>(deps: PodcastRunnerDeps, key: string | null | undefined): Promise<T | null> {
@@ -446,7 +462,7 @@ interface StoredPolishChunk {
 interface StoredTranslationChunk {
   index: number
   texts: Record<string, string>
-  /** Glossary after this chunk (rolling). */
+  /** Glossary for this chunk. */
   glossary: GlossaryEntry[]
   usage: { input_tokens: number; output_tokens: number; cost_usd: number }
 }
@@ -497,32 +513,177 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     return { ep, transcript, source }
   }
 
-  /** Call the model once, count the cost first, return the text. */
-  const call = async (ep: podcastEpisodePO, system: string, user: string, schema: object): Promise<{ text: string; usage: StoredPolishChunk['usage'] }> => {
-    const next = expectedChunkCostUsd(estimateTokens(system + user))
-    const spent = await episodeSpent(deps, ep)
-    if (spent + next > PODCAST_LIMITS.maxEpisodeCostUsd) throw new PodcastStop('budget_exceeded', `spent=${spent.toFixed(4)} next=${next.toFixed(4)}`)
-    const reply = await deps.model.chat(
-      [{ role: 'user', parts: [{ text: user }] }],
-      {
-        model: YOUTUBE_ARTICLE_MODEL,
-        temperature: 0.2,
-        maxOutputTokens: YOUTUBE_ARTICLE_LIMITS.maxOutputTokens,
-        // Thinking tokens share maxOutputTokens; bound them so a long transcript cannot truncate.
-        thinkingConfig: { thinkingBudget: 2048 },
-        responseMimeType: 'application/json',
-        responseSchema: schema as unknown as VertexAIConfig['responseSchema']
-      },
-      { systemInstruction: system }
-    )
-    const input = reply.usage?.inputTokens ?? estimateTokens(system + user)
-    const output = reply.usage?.outputTokens ?? estimateTokens(reply.text)
-    const cost = estimateCostUsd(input, output)
-    // Counted before the reply is checked: a truncated or invalid reply still cost money
-    await deps.articles.addCost(job.articleId, cost)
-    await deps.addCost(cost)
-    if (reply.finishReason === 'MAX_TOKENS') throw new Error('chunk_truncated')
-    return { text: reply.text, usage: { input_tokens: input, output_tokens: output, cost_usd: cost } }
+  // Reserve costs before concurrent calls; serialize accounting, not provider requests.
+  let accounting: Promise<unknown> = Promise.resolve()
+  let accountingError: unknown
+  const reservations = new Map<Promise<void>, number>()
+  const exclusive = <T>(fn: () => Promise<T>): Promise<T> => {
+    const result = accounting.then(fn)
+    accounting = result.catch(() => {})
+    return result
+  }
+
+  const checkDeadline = (deadline: number) => {
+    if (Date.now() >= deadline) throw new PodcastStop('chunk_deadline')
+  }
+
+  const call = async (
+    ep: podcastEpisodePO,
+    system: string,
+    user: string,
+    schema: object,
+    attempt: { deadline: number; calls: number },
+    index: number
+  ): Promise<{ text: string; usage: StoredPolishChunk['usage'] }> => {
+    const size = podcastRequestSize(system, user, schema)
+    const next = estimateCostUsd(size.inputTokens, size.outputLimit)
+    checkDeadline(attempt.deadline)
+    if (attempt.calls >= PODCAST_LIMITS.maxChunkCalls) throw new PodcastStop('chunk_call_limit')
+    let release!: () => void
+    const settled = new Promise<void>(resolve => {
+      release = resolve
+    })
+    for (;;) {
+      const admission = await exclusive(async () => {
+        checkDeadline(attempt.deadline)
+        if (accountingError) throw accountingError
+        const row = await deps.articles.findById(job.articleId)
+        if (!row || row.run_id !== runId || row.status !== 'generating') throw new PodcastStop('lease_lost')
+        const reserved = [...reservations.values()].reduce((sum, cost) => sum + cost, 0)
+        if ((await episodeSpent(deps, ep)) + reserved + next > PODCAST_LIMITS.maxEpisodeCostUsd) {
+          if (reservations.size) return { wait: Promise.race(reservations.keys()) }
+          throw new PodcastStop('budget_exceeded')
+        }
+        reservations.set(settled, next)
+        return { wait: null }
+      })
+      if (!admission.wait) break
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try {
+        await Promise.race([
+          admission.wait,
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => reject(new PodcastStop('chunk_deadline')), Math.max(0, attempt.deadline - Date.now()))
+          })
+        ])
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+    const charge = (cost: number) =>
+      exclusive(async () => {
+        try {
+          await deps.articles.addCost(job.articleId, cost)
+          await deps.addCost(cost)
+          if ((await episodeSpent(deps, ep)) > PODCAST_LIMITS.maxEpisodeCostUsd) throw new PodcastStop('budget_exceeded')
+        } catch (error) {
+          accountingError = error
+          throw error
+        }
+      })
+    const startedAt = Date.now()
+    const outcome: Record<string, unknown> = { outcome: 'error' }
+    try {
+      if (!(await deps.articles.renewLease(job.articleId, runId, lease))) throw new PodcastStop('lease_lost')
+      const current = await deps.episodes.findById(p.episodeId)
+      if (!current || current.transcript_hash !== job.hash) throw new PodcastStop('lease_lost')
+      checkDeadline(attempt.deadline)
+      if (accountingError) throw accountingError
+      const signal = AbortSignal.timeout(Math.min(PODCAST_LIMITS.modelTimeoutMs, attempt.deadline - Date.now()))
+      attempt.calls++
+      let reply: Awaited<ReturnType<ArticleModel['chat']>>
+      try {
+        reply = await deps.model.chat(
+          [{ role: 'user', parts: [{ text: user }] }],
+          {
+            model: YOUTUBE_ARTICLE_MODEL,
+            abortSignal: signal,
+            // Gemini 3 documents looping below its default temperature of 1.0
+            temperature: 1.0,
+            maxOutputTokens: size.outputLimit,
+            thinkingConfig: { thinkingLevel: 'LOW' },
+            responseMimeType: 'application/json',
+            responseSchema: schema as unknown as VertexAIConfig['responseSchema']
+          },
+          { systemInstruction: system }
+        )
+      } catch (error) {
+        const failure = error instanceof AIProviderError ? error : toProviderFailure(error)
+        const rejected = failure.providerStatus !== undefined && failure.providerStatus >= 400 && failure.providerStatus < 600
+        const notConnected = ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(String(failure.providerCode))
+        Object.assign(outcome, { outcome: rejected ? 'rejected' : signal.aborted ? 'timeout' : 'lost', provider_status: failure.providerStatus ?? null })
+        if (rejected || notConnected) {
+          checkDeadline(attempt.deadline)
+          throw error
+        }
+        // No rejection or usage response: generation may have run before the connection was lost.
+        await charge(next)
+        log('usage_unknown', p, { mode: job.mode, lang: job.lang, index, cost_usd: next, timed_out: signal.aborted })
+        checkDeadline(attempt.deadline)
+        if (signal.aborted) throw new ChunkIncomplete('chunk_timeout', { input_tokens: size.inputTokens, output_tokens: size.outputLimit, cost_usd: next })
+        throw error
+      }
+      const input = Number.isFinite(reply.usage?.inputTokens) && reply.usage!.inputTokens >= 0 ? reply.usage!.inputTokens : size.inputTokens
+      const output = Number.isFinite(reply.usage?.outputTokens) && reply.usage!.outputTokens >= 0 ? reply.usage!.outputTokens : size.outputLimit
+      const cost = estimateCostUsd(input, output)
+      await charge(cost)
+      const usage = { input_tokens: input, output_tokens: output, cost_usd: cost }
+      Object.assign(outcome, {
+        outcome: reply.finishReason === 'MAX_TOKENS' ? 'truncated' : 'ok',
+        finish_reason: reply.finishReason ?? null,
+        output_tokens: output,
+        thought_tokens: reply.usage?.thoughtTokens ?? 0,
+        response_chars: reply.text.length,
+        repetition_ratio: Number(repetitionRatio(reply.text).toFixed(3))
+      })
+      if (reply.finishReason === 'MAX_TOKENS') {
+        log('truncated', p, { mode: job.mode, lang: job.lang, index, input_tokens: input, output_tokens: output, thought_tokens: reply.usage?.thoughtTokens ?? 0 })
+        throw new ChunkIncomplete('chunk_truncated', usage)
+      }
+      checkDeadline(attempt.deadline)
+      if (signal.aborted) throw new ChunkIncomplete('chunk_timeout', usage)
+      return { text: reply.text, usage }
+    } finally {
+      await exclusive(async () => {
+        reservations.delete(settled)
+        release()
+      })
+      log('call', p, {
+        mode: job.mode,
+        lang: job.lang,
+        index,
+        system_tokens: size.systemTokens,
+        user_tokens: size.userTokens,
+        input_tokens: size.inputTokens,
+        max_output_tokens: size.outputLimit,
+        elapsed_ms: Date.now() - startedAt,
+        ...outcome
+      })
+    }
+  }
+
+  /** Chunks to redo after an assemble-time failure: those failing the part checks on their own cues, and later copies of long repeated paragraphs. */
+  const polishRedo = async (transcript: PodcastTranscriptDocument, ctx: PodcastEpisodeContext): Promise<number[]> => {
+    const plan = planPodcastChunks(transcript)
+    const redo = new Set<number>()
+    const seen = new Map<string, number>()
+    for (let i = 0; i < plan.length; i++) {
+      const c = await readJson<StoredPolishChunk>(deps, chunkKey(i))
+      if (!c) {
+        redo.add(i)
+        continue
+      }
+      const own = transcript.cues.slice(plan[i].start + plan[i].overlap, plan[i].end)
+      if (polishPartFailures(c.sections, own, transcript, ctx, job.lang, i === 0 ? c.lede : '-').length) redo.add(i)
+      for (const para of c.sections.flatMap(section => section.paragraphs)) {
+        const key = para.text.trim()
+        if (key.length < PODCAST_LIMITS.minDuplicateChars) continue
+        const first = seen.get(key)
+        if (first !== undefined && first !== i) redo.add(i)
+        else seen.set(key, i)
+      }
+    }
+    return [...redo].sort((a, b) => a - b)
   }
 
   try {
@@ -535,94 +696,233 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     })
     if (prep.kind === 'skip') return await finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
 
-    for (let i = 0; i < prep.count; i++) {
-      const res = await step.do(`${prefix}-chunk-${i}`, CHUNK_STEP, async () => {
+    const processChunk = async (i: number, pass = 0) => {
+      // A repair pass needs new step names: a finished step returns its recorded result instead of running
+      const res = await step.do(`${prefix}-chunk-${i}${pass ? `-r${pass}` : ''}`, CHUNK_STEP, async () => {
+        const attempt = { deadline: Date.now() + PODCAST_LIMITS.chunkAttemptMs, calls: 0 }
         const key = chunkKey(i)
         const { ep, transcript, source } = await load()
         if (await deps.bucket.head(key)) return { reused: true, cost: 0 }
+        const usage: StoredPolishChunk['usage'] = { input_tokens: 0, output_tokens: 0, cost_usd: 0 }
+        const count = (used: StoredPolishChunk['usage']) => {
+          usage.input_tokens += used.input_tokens
+          usage.output_tokens += used.output_tokens
+          usage.cost_usd += used.cost_usd
+        }
+        const inParts = async <I, T>(
+          items: I[],
+          request: (part: I[], offset: number) => { system: string; user: string; schema: object },
+          weight: (item: I) => number,
+          parse: (text: string, part: I[], offset: number) => T,
+          offset = 0
+        ): Promise<T[]> => {
+          checkDeadline(attempt.deadline)
+          if (accountingError) throw accountingError
+          const { system, user, schema } = request(items, offset)
+          const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([items, system, user, schema])))
+          const hash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('')
+          const partKey = `${key}.parts/${offset}-${offset + items.length}-${hash}.json`
+          type Part = { kind: 'done'; value: T; usage: StoredPolishChunk['usage'] } | { kind: 'split'; at: number | null; usage: StoredPolishChunk['usage'] }
+          let cached = await readJson<Part>(deps, partKey)
+          if (cached?.kind === 'done') {
+            count(cached.usage)
+            return [cached.value]
+          }
+          if (cached?.at === null) {
+            await deps.bucket.delete(partKey)
+            cached = null
+          }
+          if (!cached) {
+            const at = podcastSplitIndex(items.map(weight))
+            const size = podcastRequestSize(system, user, schema)
+            let reason = 'request_size'
+            if (size.oversized && at !== null) {
+              cached = { kind: 'split', at, usage: { input_tokens: 0, output_tokens: 0, cost_usd: 0 } }
+            } else {
+              // An indivisible part cannot split further; its stalls and runaway replies are intermittent,
+              // so it is asked again a few times before the attempt gives up as retryable.
+              for (let tries = 1; ; tries++) {
+                try {
+                  const reply = await call(ep, system, user, schema, attempt, i)
+                  const value = parse(reply.text, items, offset)
+                  await deps.bucket.put(partKey, JSON.stringify({ kind: 'done', value, usage: reply.usage } satisfies Part))
+                  count(reply.usage)
+                  return [value]
+                } catch (error) {
+                  if (!(error instanceof ChunkIncomplete)) throw error
+                  if (at === null) {
+                    count(error.usage)
+                    log('singleton_incomplete', p, { mode: job.mode, lang: job.lang, index: i, offset, reason: error.code, tries })
+                    if (tries < PODCAST_LIMITS.singletonTries) continue
+                    throw new Error(`singleton_incomplete:${error.code === 'chunk_timeout' ? 'stall' : 'runaway'}`)
+                  }
+                  reason = error.code
+                  cached = { kind: 'split', at, usage: error.usage }
+                  break
+                }
+              }
+            }
+            await deps.bucket.put(partKey, JSON.stringify(cached))
+            log('split', p, { mode: job.mode, lang: job.lang, index: i, offset, units: items.length, at, reason, input_tokens: size.inputTokens })
+          }
+          count(cached.usage)
+          if (cached.at === null || !Number.isInteger(cached.at) || cached.at < 1 || cached.at >= items.length) throw new Error('chunk_split_invalid')
+          const left = await inParts(items.slice(0, cached.at), request, weight, parse, offset)
+          const right = await inParts(items.slice(cached.at), request, weight, parse, offset + cached.at)
+          return [...left, ...right]
+        }
+        let stored: StoredPolishChunk | StoredTranslationChunk
         if (job.mode === 'polish') {
           const chunks = planPodcastChunks(transcript)
           const chunk = chunks[i]
-          const prev = i > 0 ? await readJson<StoredPolishChunk>(deps, chunkKey(i - 1)) : null
-          if (i > 0 && !prev) throw new Error(`chunk_missing:${i - 1}`)
-          const system = buildPolishInstruction(job.lang, contextOf(ep), chunk, chunks.length, prev ? chunkTail(prev) : null)
-          const reply = await call(ep, system, buildPolishUserMessage(transcript.cues.slice(chunk.start, chunk.end)), YOUTUBE_ARTICLE_RESPONSE_SCHEMA)
-          const parsed = parseChunkOutput(reply.text)
-          if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
-          const stored: StoredPolishChunk = { index: i, lede: parsed.value.lede, sections: parsed.value.sections, usage: reply.usage }
-          await deps.bucket.put(key, JSON.stringify(stored))
-          return { reused: false, cost: reply.usage.cost_usd }
+          const overlap = transcript.cues.slice(chunk.start, chunk.start + chunk.overlap)
+          const overlapIds = new Set(overlap.map(c => c.id))
+          const parts = await inParts(
+            transcript.cues.slice(chunk.start + chunk.overlap, chunk.end),
+            (cues, offset) => ({
+              system: buildPolishInstruction(job.lang, contextOf(ep), { ...chunk, overlap: offset === 0 ? overlap.length : 0 }, chunks.length, null, offset > 0),
+              user: buildPolishUserMessage(offset === 0 ? [...overlap, ...cues] : cues),
+              schema: PODCAST_POLISH_RESPONSE_SCHEMA
+            }),
+            cue => estimateTokens(buildPolishUserMessage([cue])),
+            (text, cues, offset) => {
+              const parsed = parseChunkOutput(text)
+              if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
+              // Overlap cues were cleaned by the previous chunk: drop paragraphs made only of them, and drop
+              // them from mixed paragraphs, so a paragraph's start time is one of this part's own cues
+              const sections = parsed.value.sections
+                .map(s => ({
+                  ...s,
+                  paragraphs: s.paragraphs
+                    .filter(para => !para.source_cue_ids.length || !para.source_cue_ids.every(id => overlapIds.has(id)))
+                    .map(para => ({ ...para, source_cue_ids: para.source_cue_ids.filter(id => !overlapIds.has(id)) }))
+                }))
+                .filter(s => s.paragraphs.length)
+              const failed = polishPartFailures(sections, cues, transcript, contextOf(ep), job.lang, i === 0 && offset === 0 ? parsed.value.lede : '-')
+              if (failed.length) {
+                log('part_rejected', p, { mode: job.mode, lang: job.lang, index: i, offset, units: cues.length, failed })
+                throw new Error(`chunk_quality:${failed.join(',')}`)
+              }
+              return { lede: i === 0 && offset === 0 ? parsed.value.lede : '', sections }
+            }
+          )
+          stored = { index: i, lede: parts[0]?.lede ?? '', sections: parts.flatMap(part => part.sections), usage }
+        } else {
+          const chunk = chunkTranslationUnits(translationUnits(source!))[i]
+          const system = buildTranslationInstruction(job.from!, job.lang, contextOf(ep), '', [])
+          const parts = await inParts(
+            chunk.units,
+            units => ({ system, user: buildTranslationUserMessage({ index: i, units }), schema: PODCAST_TRANSLATION_RESPONSE_SCHEMA }),
+            unit => estimateTokens(buildTranslationUserMessage({ index: i, units: [unit] })),
+            (text, units) => {
+              const parsed = parseTranslationOutput(
+                text,
+                units.map(u => u.id)
+              )
+              if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
+              return { texts: Object.fromEntries(parsed.texts), glossary: parsed.glossary }
+            }
+          )
+          stored = {
+            index: i,
+            texts: Object.assign({}, ...parts.map(part => part.texts)),
+            glossary: parts.reduce((glossary, part) => mergeGlossary(glossary, part.glossary), [] as GlossaryEntry[]),
+            usage
+          }
         }
-        const chunks = chunkTranslationUnits(translationUnits(source!))
-        const chunk = chunks[i]
-        const prev = i > 0 ? await readJson<StoredTranslationChunk>(deps, chunkKey(i - 1)) : null
-        if (i > 0 && !prev) throw new Error(`chunk_missing:${i - 1}`)
-        const prevTail = prev ? Object.values(prev.texts).slice(-2).join('\n') : ''
-        const glossary = prev?.glossary ?? []
-        const system = buildTranslationInstruction(job.from!, job.lang, contextOf(ep), prevTail, glossary)
-        const reply = await call(ep, system, buildTranslationUserMessage(chunk), PODCAST_TRANSLATION_RESPONSE_SCHEMA)
-        const parsed = parseTranslationOutput(
-          reply.text,
-          chunk.units.map(u => u.id)
-        )
-        if (!parsed.ok) throw new Error(`chunk_invalid_json:${parsed.error}`)
-        const stored: StoredTranslationChunk = { index: i, texts: Object.fromEntries(parsed.texts), glossary: mergeGlossary(glossary, parsed.glossary), usage: reply.usage }
+        checkDeadline(attempt.deadline)
+        if (!(await deps.articles.renewLease(job.articleId, runId, lease))) throw new PodcastStop('lease_lost')
         await deps.bucket.put(key, JSON.stringify(stored))
-        return { reused: false, cost: reply.usage.cost_usd }
+        return { reused: false, cost: usage.cost_usd }
       })
       log('chunk', p, { mode: job.mode, lang: job.lang, index: i, reused: res.reused, cost_usd: Number(res.cost.toFixed(5)) })
     }
 
-    const assembled = await step.do(`${prefix}-assemble`, ASSEMBLE_STEP, async () => {
-      const { ep, transcript, source } = await load(true)
-      const ctx = contextOf(ep)
-      let doc: YoutubeArticleDocument
-      let quality: YoutubeArticleQuality
-      if (job.mode === 'polish') {
-        const results: StoredPolishChunk[] = []
-        for (let i = 0; i < prep.count; i++) {
-          const c = await readJson<StoredPolishChunk>(deps, chunkKey(i))
-          if (!c) throw new Error(`chunk_missing:${i}`)
-          results.push(c)
+    // A rolling pool of CHUNK_CONCURRENCY: one slow chunk no longer holds back the rest of a batch.
+    // After a failure no new chunk starts; chunks already running are awaited before it is thrown.
+    const runChunks = async (indices: number[], pass: number) => {
+      let next = 0
+      let failure: { reason: unknown } | null = null
+      const worker = async () => {
+        while (!failure && next < indices.length) {
+          const i = indices[next++]
+          try {
+            await processChunk(i, pass)
+          } catch (reason) {
+            failure ??= { reason }
+          }
         }
-        doc = mergeChunkResults(results, transcript.cues, job.lang, transcript.speakers ? 'dialogue' : 'article')
-        quality = checkArticleQuality(doc, transcript.cues, transcriptPlainText(transcript), polishQualityOptions(transcript, ctx))
-      } else {
-        const texts = new Map<string, string>()
-        for (let i = 0; i < prep.count; i++) {
-          const c = await readJson<StoredTranslationChunk>(deps, chunkKey(i))
-          if (!c) throw new Error(`chunk_missing:${i}`)
-          Object.entries(c.texts).forEach(([id, text]) => texts.set(id, text))
-        }
-        doc = applyTranslation(source!, translationUnits(source!), texts, job.lang)
-        quality = checkArticleQuality(doc, transcript.cues, articleParagraphText(source!), translationQualityOptions(job.from!, job.lang, source!))
       }
-      const spent = (await deps.articles.findById(job.articleId))?.cost_usd ?? 0
-      const summary = { ...quality, mode: job.mode, chunks: prep.count, cost_usd: Number(spent.toFixed(5)), model: YOUTUBE_ARTICLE_MODEL }
-      if (!quality.passed) return { kind: 'quality_failed' as const, quality: summary }
-      await deps.bucket.put(keys.jsonKey, JSON.stringify(doc))
-      await deps.bucket.put(
-        keys.textKey,
-        renderPodcastText({
-          info: {
-            audioUrl: ep.audio_url,
-            title: ep.title,
-            showName: ep.show_name,
-            coverUrl: ep.cover_url,
-            durationSec: ep.duration_sec,
-            shownotes: ep.shownotes,
-            language: job.lang
-          },
-          doc
-        })
-      )
-      const heads = await Promise.all([deps.bucket.head(keys.jsonKey), deps.bucket.head(keys.textKey)])
-      if (heads.some(h => !h)) throw new Error('object_missing_after_write')
-      return { kind: 'ok' as const, quality: summary }
-    })
+      await Promise.all(Array.from({ length: Math.min(CHUNK_CONCURRENCY, indices.length) }, worker))
+      if (failure) throw (failure as { reason: unknown }).reason
+    }
+    await runChunks(
+      Array.from({ length: prep.count }, (_, i) => i),
+      0
+    )
 
+    const assemble = (pass: number) =>
+      step.do(`${prefix}-assemble${pass ? `-r${pass}` : ''}`, ASSEMBLE_STEP, async () => {
+        const { ep, transcript, source } = await load(true)
+        const ctx = contextOf(ep)
+        let doc: YoutubeArticleDocument
+        let quality: YoutubeArticleQuality
+        if (job.mode === 'polish') {
+          const results: StoredPolishChunk[] = []
+          for (let i = 0; i < prep.count; i++) {
+            const c = await readJson<StoredPolishChunk>(deps, chunkKey(i))
+            if (!c) throw new Error(`chunk_missing:${i}`)
+            results.push(c)
+          }
+          doc = mergeChunkResults(results, transcript.cues, job.lang, transcript.speakers ? 'dialogue' : 'article')
+          quality = checkArticleQuality(doc, transcript.cues, transcriptPlainText(transcript), polishQualityOptions(transcript, ctx))
+        } else {
+          const texts = new Map<string, string>()
+          for (let i = 0; i < prep.count; i++) {
+            const c = await readJson<StoredTranslationChunk>(deps, chunkKey(i))
+            if (!c) throw new Error(`chunk_missing:${i}`)
+            Object.entries(c.texts).forEach(([id, text]) => texts.set(id, text))
+          }
+          doc = applyTranslation(source!, translationUnits(source!), texts, job.lang)
+          quality = checkArticleQuality(doc, transcript.cues, articleParagraphText(source!), translationQualityOptions(job.from!, job.lang, source!))
+        }
+        const spent = (await deps.articles.findById(job.articleId))?.cost_usd ?? 0
+        const summary = { ...quality, mode: job.mode, chunks: prep.count, cost_usd: Number(spent.toFixed(5)), model: YOUTUBE_ARTICLE_MODEL }
+        if (!quality.passed) return { kind: 'quality_failed' as const, quality: summary, redo: job.mode === 'polish' ? await polishRedo(transcript, ctx) : null }
+        await deps.bucket.put(keys.jsonKey, JSON.stringify(doc))
+        await deps.bucket.put(
+          keys.textKey,
+          renderPodcastText({
+            info: {
+              audioUrl: ep.audio_url,
+              title: ep.title,
+              showName: ep.show_name,
+              coverUrl: ep.cover_url,
+              durationSec: ep.duration_sec,
+              shownotes: ep.shownotes,
+              language: job.lang
+            },
+            doc
+          })
+        )
+        const heads = await Promise.all([deps.bucket.head(keys.jsonKey), deps.bucket.head(keys.textKey)])
+        if (heads.some(h => !h)) throw new Error('object_missing_after_write')
+        return { kind: 'ok' as const, quality: summary }
+      })
+
+    let assembled = await assemble(0)
+    for (let pass = 1; assembled.kind === 'quality_failed' && pass <= QUALITY_REPAIR_PASSES; pass++) {
+      // Redo only the chunks that fail on their own, or every chunk when no single chunk is to blame
+      const redo = assembled.redo?.length ? assembled.redo : Array.from({ length: prep.count }, (_, i) => i)
+      log('quality_repair', p, { mode: job.mode, lang: job.lang, pass, failed: assembled.quality.failed, redo })
+      await step.do(`${prefix}-drop-chunks-r${pass}`, DB_STEP, async () => {
+        for (const i of redo) await deletePrefix(deps, chunkKey(i))
+      })
+      await runChunks(redo, pass)
+      assembled = await assemble(pass)
+    }
     if (assembled.kind === 'quality_failed') {
-      // The cached chunks produced a bad article; drop them so the next attempt asks the model again
+      // Still bad after the repair: drop the chunks so a later attempt asks the model again
       await step.do(`${prefix}-drop-chunks`, DB_STEP, () => deletePrefix(deps, chunkPrefix))
       return await finish('failed', `quality:${assembled.quality.failed.join(',')}`, assembled.quality)
     }

@@ -23,8 +23,10 @@ out.mkdir(parents=True, exist_ok=True)
 results = []
 
 
-def callback(base, mode, *, theme='light', locale='en', provider='google', malformed=False):
+def callback(base, mode, *, theme='light', locale='en', provider='google', malformed=False, attribution=None):
     state = {'redirectUrl': base + '/auth', 'target': '/__fixture/done?return=preserved', 'affCode': 'synthetic-referral', 'platform': provider}
+    if attribution is not None:
+        state['auth_attribution'] = attribution
     return base + '/auth?' + urlencode({'case': mode, 'code': 'synthetic-' + mode, 'state': '{' if malformed else json.dumps(state), 'theme': theme, 'locale': locale})
 
 
@@ -46,14 +48,15 @@ with sync_playwright() as p:
     results.append({'case': 'baseline-disconnect', 'result': 'raw toast then persistent spinner'})
     context.close()
 
-    for mode in ['disconnect', 'provider-error', 'pending', 'navigation-error', 'malformed', 'apple']:
+    for mode in ['disconnect', 'provider-error', 'pending', 'navigation-error', 'malformed', 'apple', 'collection']:
         context = browser.new_context(viewport={'width': 1280, 'height': 800})
         page = context.new_page()
         errors = []
         page.on('pageerror', lambda error: errors.append(str(error)))
-        actual_mode = 'provider-error' if mode == 'apple' else 'disconnect' if mode == 'malformed' else mode
+        actual_mode = 'provider-error' if mode in ['apple', 'collection'] else 'disconnect' if mode == 'malformed' else mode
+        attribution = {'collection_id': 'Collection123', 'source_screen': 'collection', 'presentation': 'modal', 'trigger_element_id': 'collection_subscribe_button'} if mode == 'collection' else None
         started = time.monotonic()
-        page.goto(callback(args.base, actual_mode, provider='apple' if mode == 'apple' else 'google', malformed=mode == 'malformed'))
+        page.goto(callback(args.base, actual_mode, provider='apple' if mode == 'apple' else 'google', malformed=mode == 'malformed', attribution=attribution))
         expect(page.get_by_role('alert')).to_be_visible(timeout=30000)
         if mode == 'pending':
             assert time.monotonic() - started >= 19.8
@@ -75,6 +78,8 @@ with sync_playwright() as p:
         assert state['target'] == ('/bookmarks' if mode == 'malformed' else '/__fixture/done?return=preserved')
         assert state['affCode'] == ('' if mode == 'malformed' else 'synthetic-referral')
         assert state['platform'] == ('apple' if mode == 'apple' else 'google')
+        if mode == 'collection':
+            assert state['auth_attribution'] == attribution
         results.append({'case': mode, 'result': 'persistent recovery, no raw toast/unhandled rejection, fresh authorization', 'elapsedSeconds': round(time.monotonic() - started, 2)})
         context.close()
 
@@ -119,6 +124,7 @@ with sync_playwright() as p:
 with urlopen(args.base + '/__fixture/requests') as response:
     requests = json.load(response)
 assert any(entry.get('mode') == 'pending' and entry.get('canceled') for entry in requests)
+assert any(entry.get('body', {}).get('auth_attribution', {}).get('collection_id') == 'Collection123' for entry in requests)
 (out / 'results.json').write_text(json.dumps(results, indent=2))
 (out / 'http-requests.json').write_text(json.dumps(requests, indent=2))
 print(json.dumps({'checks': len(results), 'result': 'passed', 'output': str(out)}))

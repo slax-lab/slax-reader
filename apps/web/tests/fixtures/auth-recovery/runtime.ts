@@ -26,4 +26,5 @@ export const navigateTo = async (target: string) => {
 }
 export const useHead = (head: { titleTemplate: string }) => { document.title = head.titleTemplate }
 export const analyticsLog = () => {}
+export const eventLog = () => {}
 export const useUserStore = () => ({ clearUserInfo: async () => {} })

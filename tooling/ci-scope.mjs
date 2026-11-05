@@ -51,7 +51,7 @@ export function selectScopes(paths) {
     if (path.startsWith('openspec/')) add(['openspec'], path)
     if (/^\.agents\/skills\/|^\.claude\/skills\/|^\.claude\/commands\/opsx\//.test(path)) add(['openspec'], path)
     if (/^\.github\/workflows\/(.*\.md|.*\.lock\.yml|aw\.json|shared\/)/.test(path) || path.startsWith('.github/aw/') || path === 'tooling/check-gh-aw-drift.sh') add(['ghAw'], path)
-    if (path === '.github/workflows/agent-config.yml') add(guards, path)
+    if (path === '.github/workflows/config-ci.yml') add(guards, path)
     if (path === '.github/workflows/frontend-ci.yml') add([...frontend, 'design', 'icons', 'tooling'], path)
     if (/^\.github\/workflows\/api-(ci|deploy)\.yml$/.test(path)) add(['api'], path)
     if (path === '.github/workflows/mobile-ci.yml') add(['mobile'], path)

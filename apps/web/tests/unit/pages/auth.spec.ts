@@ -17,6 +17,7 @@ mockNuxtImport('useRoute', () => () => env.route)
 mockNuxtImport('useAuth', () => () => env)
 mockNuxtImport('navigateTo', () => env.navigateTo)
 mockNuxtImport('analyticsLog', () => vi.fn())
+mockNuxtImport('eventLog', () => vi.fn())
 vi.mock('vue-router', async importOriginal => ({
   ...await importOriginal<typeof import('vue-router')>(),
   useRoute: () => env.route
@@ -46,7 +47,7 @@ describe('OAuth callback recovery', () => {
     expect(wrapper.find('[role="alert"]').text()).toMatch(/timed out/i)
     expect(wrapper.find('.i-svg-spinners\\:180-ring-with-bg').exists()).toBe(false)
     expect(wrapper.find('button').exists()).toBe(true)
-    expect(env.grantAuth.mock.calls[0]![4].signal.aborted).toBe(true)
+    expect(env.grantAuth.mock.calls[0]![5].signal.aborted).toBe(true)
     await vi.advanceTimersByTimeAsync(10_000)
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
     expect(env.navigateTo).not.toHaveBeenCalled()
@@ -72,6 +73,30 @@ describe('OAuth callback recovery', () => {
     await flushPromises()
     expect(env.requestAuth).toHaveBeenCalledWith({ redirect: '/bookmarks?filter=unread', affCode: 'referral' })
     expect(env.grantAuth).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves collection attribution on the login request and fresh Google authorization', async () => {
+    const attribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' }
+    env.route.query.state = JSON.stringify({ redirectUrl: 'https://auth.test/auth', target: '/c/Collection123?subscribe_after_login=1', affCode: 'referral', platform: 'google', auth_attribution: attribution })
+    env.grantAuth.mockRejectedValue(new TypeError('Load failed'))
+    const wrapper = mountWithApp(AuthPage)
+    await flushPromises()
+    expect(env.grantAuth.mock.calls[0]![4]).toEqual(attribution)
+    expect(env.grantAuth.mock.calls[0]![5].signal.aborted).toBe(false)
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    expect(env.requestAuth).toHaveBeenCalledWith({ redirect: '/c/Collection123?subscribe_after_login=1', affCode: 'referral', authAttribution: attribution })
+  })
+
+  it('keeps login recovery available when optional collection attribution is malformed', async () => {
+    env.route.query.state = JSON.stringify({ redirectUrl: 'https://auth.test/auth', target: '/bookmarks', platform: 'google', auth_attribution: { collection_id: [] } })
+    env.grantAuth.mockRejectedValue(new TypeError('Load failed'))
+    const wrapper = mountWithApp(AuthPage)
+    await flushPromises()
+    expect(env.grantAuth.mock.calls[0]![4]).toBeUndefined()
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    expect(env.requestAuth).toHaveBeenCalledWith({ redirect: '/bookmarks', affCode: '' })
   })
 
   it('preserves the Apple provider on recovery', async () => {
@@ -102,7 +127,7 @@ describe('OAuth callback recovery', () => {
     await flushPromises()
     expect(env.navigateTo).toHaveBeenCalledWith('/bookmarks?filter=unread', { external: true })
     await vi.advanceTimersByTimeAsync(20_000)
-    expect(env.grantAuth.mock.calls[0]![4].signal.aborted).toBe(false)
+    expect(env.grantAuth.mock.calls[0]![5].signal.aborted).toBe(false)
   })
 
   it.each([() => Promise.reject(new Error('Navigation failed')), () => Promise.resolve(false)])('renders recovery when success navigation fails', async navigate => {
@@ -128,7 +153,7 @@ describe('OAuth callback recovery', () => {
     const schedule = vi.spyOn(globalThis, 'setTimeout')
     const clear = vi.spyOn(globalThis, 'clearTimeout')
     const wrapper = mountWithApp(AuthPage)
-    const signal = env.grantAuth.mock.calls[0]![4].signal
+    const signal = env.grantAuth.mock.calls[0]![5].signal
     const deadline = schedule.mock.results[schedule.mock.calls.findIndex(call => call[1] === 20_000)]!.value
     wrapper.unmount()
     expect(signal.aborted).toBe(true)

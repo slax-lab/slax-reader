@@ -26,6 +26,7 @@ internal class ShareDiagnosticRecord(private val app: String, private val os: St
   var error: JSONObject? = null
   private var extractMs: Long? = null
   private var prefsMs: Long? = null
+  private var requestEnded: Long? = null
   private fun elapsed(start: Long, end: Long) = ((end - start) / 1_000_000).coerceAtLeast(0)
   fun moveTo(next: String, now: Long = clock()) {
     if (stage == "extract") extractMs = elapsed(stageStarted, now)
@@ -33,12 +34,13 @@ internal class ShareDiagnosticRecord(private val app: String, private val os: St
     if (next == "request" && requestStarted == null) requestStarted = now
     stage = next; stageStarted = now
   }
+  fun finishRequest(now: Long = clock()) {if (requestEnded == null) requestEnded = now}
   fun common(event: String, ts: String = timestamp()): JSONObject = JSONObject().put("v", 1).put("ts", ts).put("src", "share-android").put("launch", share).put("event", event)
   fun start(): JSONObject = common("share.start", timestamp(wallTime)).put("share", share).put("app", app).put("os", os)
   fun end(outcome: String, shown: String, net: JSONObject, now: Long = clock(), wallTime: Long = System.currentTimeMillis()): JSONObject {
     return common("share.end", timestamp(wallTime)).put("share", share).put("outcome", outcome).put("stage", stage).put("reason", reason)
       .put("input", input).put("prefs", prefs).put("token", token).put("env", env).field("host", host).field("http", http).field("error", error).put("net", net)
-      .put("ms", JSONObject().field("extract", if (stage == "extract") elapsed(stageStarted, now) else extractMs).field("prefs", if (stage == "prefs") elapsed(stageStarted, now) else prefsMs).field("request", requestStarted?.let {elapsed(it, now)}).put("total", elapsed(started, now)))
+      .put("ms", JSONObject().field("extract", if (stage == "extract") elapsed(stageStarted, now) else extractMs).field("prefs", if (stage == "prefs") elapsed(stageStarted, now) else prefsMs).field("request", requestStarted?.let {elapsed(it, requestEnded ?: now)}).put("total", elapsed(started, now)))
       .put("shown", shownMessage(shown))
   }
   companion object {

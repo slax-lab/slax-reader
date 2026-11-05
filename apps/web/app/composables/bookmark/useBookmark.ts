@@ -1,9 +1,8 @@
 import { ref } from 'vue'
 
-import { isClient } from '@commons/frontend-utils/is'
-
 import type { CommonBookmarkOptions } from './type'
 import { useResize } from './useCommon'
+import { isClient } from '@commons/frontend-utils/is'
 import type { UserInfo } from '@slax-reader/contracts/interface'
 import type { QuoteData } from '~/components/Chat/type'
 import { showLoginModal } from '~/components/Modal'
@@ -20,6 +19,7 @@ interface BookmarkOptions extends CommonBookmarkOptions {
   typeOptions: () => BookmarkTypeOptions
   initialRequestTask?: () => Promise<void>
   initialTasksCompleted?: () => void
+  initialTasksEnabled?: boolean
 }
 
 export const useBookmark = (options: BookmarkOptions) => {
@@ -129,7 +129,7 @@ export const useBookmark = (options: BookmarkOptions) => {
   }
 
   const tasks: Promise<void>[] = []
-  if (isClient) {
+  if (isClient && options.initialTasksEnabled !== false) {
     tasks.push(
       (async () => {
         if (!userStore.isLogin) {
@@ -153,11 +153,12 @@ export const useBookmark = (options: BookmarkOptions) => {
     }
   }
 
-  if (options.initialRequestTask) {
+  if (options.initialRequestTask && options.initialTasksEnabled !== false) {
     tasks.push(options.initialRequestTask())
   }
 
   Promise.allSettled(tasks).then(() => {
+    if (options.initialTasksEnabled === false) return
     setTimeout(() => {
       options?.initialTasksCompleted && options.initialTasksCompleted()
     }, 0)

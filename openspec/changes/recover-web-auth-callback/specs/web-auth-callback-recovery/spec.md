@@ -53,6 +53,11 @@ A recovery action SHALL initiate a new authorization flow with the original vali
 - **THEN** a new Google authorization is initiated with the original valid return destination and referral code
 - **AND** the old code is not submitted again
 
+#### Scenario: Google login originates from a collection
+- **WHEN** a Google callback carries valid collection provenance and login must be restarted
+- **THEN** the original exchange and fresh authorization preserve that provenance alongside the return/referral context
+- **AND** absent or malformed optional provenance does not prevent normal authentication or recovery
+
 #### Scenario: An Apple callback fails
 - **WHEN** a valid Apple callback fails and the user activates recovery
 - **THEN** a new Apple authorization is initiated with its valid return context

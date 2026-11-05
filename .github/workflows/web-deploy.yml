@@ -1,4 +1,4 @@
-name: Web Pages deploy
+name: Web deploy
 
 on:
   pull_request_target:

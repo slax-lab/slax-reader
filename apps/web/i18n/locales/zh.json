@@ -608,6 +608,8 @@
       "error": "这段音频无法在这里播放，请打开原网页收听。"
     },
     "podcast": {
+      "edited_transcript": "播客整理稿",
+      "method_note": "正文根据播客转录整理，保留原有顺序。转录和整理稿可能存在错误，请通过章节时间核对原音频。",
       "stalled": "暂时获取不到最新状态。",
       "check_again": "重新查看",
       "queued": "转写排队中。",
@@ -1271,6 +1273,7 @@
       "subscription_stripe_portal": "Stripe 客户中心",
       "telegram": "Telegram",
       "telegram_channel": "Telegram Channel",
+      "contact_email": "联系邮箱",
       "twitter": "Twitter",
       "third_party_binding": "第三方绑定",
       "update_account_error": "更新账户失败",

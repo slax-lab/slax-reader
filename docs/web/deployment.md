@@ -1,6 +1,6 @@
 # Web Pages deployment
 
-The `Web Pages deploy` GitHub Actions workflow publishes the existing Nuxt Pages output. It does not migrate the application to Workers or create Cloudflare resources.
+The `Web deploy` GitHub Actions workflow publishes the existing Nuxt Pages output. It does not migrate the application to Workers or create Cloudflare resources.
 
 ## Release destinations
 

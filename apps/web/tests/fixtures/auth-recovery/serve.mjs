@@ -46,7 +46,7 @@ import { useAuth, navigateTo, useHead } from '${runtime}'
         .replace('https://accounts.google.com/o/oauth2/v2/auth', '/__fixture/google/authorize')
         .replace('https://appleid.apple.com/auth/authorize', '/__fixture/apple/authorize')
       if (id.endsWith('/app/utils/request.ts')) return `import { useRuntimeConfig, useAuth, navigateTo, tryUseNuxtApp, useRequestHeaders } from '${runtime}';\n${source}`
-      if (/\/app\/components\/(Google|Apple)LoginButton\.vue$/.test(id)) return source.replace('<script lang="ts" setup>', `<script lang="ts" setup>\nimport { useAuth, useNuxtApp, analyticsLog } from '${runtime}'\n`)
+      if (/\/app\/components\/(Google|Apple)LoginButton\.vue$/.test(id)) return source.replace('<script lang="ts" setup>', `<script lang="ts" setup>\nimport { useAuth, useNuxtApp, analyticsLog, eventLog } from '${runtime}'\n`)
     },
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {

@@ -111,6 +111,9 @@ export default defineNuxtPlugin({
         powersyncPublicBypass: bypassed
       }
     })
+    const recoveringSnapshotSession = useSnapshotSessionRecoveryPending()
+    const snapshotNavigation = useSnapshotSessionNavigation()
+    if (recoveringSnapshotSession.value) return unavailable()
     const publicStartupEnabled = Boolean(useAppConfig().lcp?.anonymousPublicStartup)
     const initialPathname = window.location.pathname
     const topLevel = window.parent === window
@@ -140,6 +143,13 @@ export default defineNuxtPlugin({
           baseUrl: cfg.DWEB_API_BASE_URL as string,
           authToken,
           onUnauthorized: async () => {
+            if (recoveringSnapshotSession.value || snapshotNavigation.value) return
+            const snapshot = /^\/b\/([^/]+)\/?$/.exec(window.location.pathname)
+            if (window.parent === window && snapshot) {
+              // Let the current snapshot's metadata decide recovery and retain its URL.
+              await nuxtApp.runWithContext(() => refreshNuxtData(`content-${snapshot[1]}`))
+              return
+            }
             await useAuth().clearAuth()
             clearSyncCredsCache()
             notifyExtensionBridgeAuthExpired()

@@ -14,6 +14,7 @@ import type { YoutubeArticleDocument } from '../../src/utils/youtubeArticle'
 import { normalizedMediaContent, podcastInputFingerprint } from '../../src/utils/mediaSnapshot'
 import { pdfFixture } from '../helpers/pdfFixture'
 import type { LocalResources } from './localResources'
+import { exerciseSnapshotAi } from './snapshotAiSmoke'
 
 type Source = { id: number; uuid: string; url: string; key: string; textKey: string; type: number }
 const sqlString = (value: string) => `'${value.replace(/'/g, "''")}'`
@@ -65,8 +66,8 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
       return (sources[name] = { id, uuid, url, key, textKey, type })
     }
     const html = source('html', 'https://fixture.invalid/article', 'legacy/article.html', 'legacy/article.txt')
-    await bucket.put(html.key, '<article><h1>Independent article</h1><p>Original source body.</p></article>')
-    await bucket.put(html.textKey, 'A stale text object must not be copied.')
+    await bucket.put(html.key, '<div><h1>Independent article</h1><p>Original source body.</p></div>')
+    await bucket.put(html.textKey, 'Stale source text must not be copied.')
     source('shortcut', 'https://fixture.invalid/shortcut', '', '', 1)
     const pdf = pdfFixture(['Independent PDF'], [], 'Snapshot PDF')
     const digest = createHash('sha256').update(pdf).digest('hex')
@@ -222,6 +223,11 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           assert.equal(duplicate.destinationUuid, dest.uuid)
           assert.equal(sql(`SELECT content_key FROM sr_bookmark WHERE id=${dest.bookmark_id}`), dest.content_key)
         }
+        sql(
+          "INSERT INTO sr_user_subscription(user_id,first_subscription_time,subscription_end_time,next_invoice_time) VALUES(1,now(),now()+interval '1 day',now()+interval '1 day')"
+        )
+        assert.equal(await (await bucket.get(saved.html.content_md_key))!.text(), 'Independent articleOriginal source body.')
+        await exerciseSnapshotAi(fetch, headers, saved.html.uuid)
         // A missing copy object cannot prevent HTTP admission. The durable Workflow exhausts
         // its finite retries, then an explicit retry succeeds once the source becomes available.
         const deferred = source('deferred', 'https://fixture.invalid/deferred', 'legacy/deferred.html', '')
@@ -242,7 +248,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         assert.equal((await detail(deferred.uuid)).result.data.viewer_fork_status, 'success')
         assert.equal((await detail(deferred.uuid, true)).result.data.viewer_fork_status, null)
         const originalHtmlKey = saved.html.content_key
-        const refreshedHtml = '<article><h1>Independent article</h1><p>Original source body.</p><p>Refreshed source body.</p></article>'
+        const refreshedHtml = '<div><h1>Independent article</h1><p>Original source body.</p><p>Refreshed source body.</p></div>'
         await bucket.put(html.key, refreshedHtml)
         const refresh = await fork(html.uuid)
         assert.equal(refresh.destinationUuid, saved.html.uuid)
@@ -463,6 +469,11 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         }
         const body = await fetch('/v1/bookmark/content', { method: 'POST', headers, body: JSON.stringify({ bookmark_uid: saved.html.uuid }) })
         assert.match(await body.text(), /Original source body/)
+        // Reproduce a historical empty text object after removing the original source.
+        await bucket.put(saved.html.content_md_key, '')
+        sql(`DELETE FROM sr_bookmark_summary WHERE bookmark_id=${saved.html.bookmark_id}; DELETE FROM sr_user_bookmark_overview WHERE bookmark_id=${saved.html.bookmark_id};`)
+        await exerciseSnapshotAi(fetch, headers, saved.html.uuid)
+        assert.equal(await (await bucket.get(saved.html.content_md_key))!.text(), '', 'recovery must not mutate storage')
         const range = await fetch(`/v1/bookmark/pdf?bookmark_uid=${saved.uploadedPdf.uuid}`, { headers: { ...headers, Range: 'bytes=0-7' } })
         assert.equal(range.status, 206)
         assert.equal(await range.text(), '%PDF-1.7')
@@ -603,6 +614,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           await client.$disconnect()
         }
         // Remove only this fixture's records to preserve the original CRUD smoke's list-empty contract.
+        sql('DELETE FROM sr_user_subscription WHERE user_id=1')
         for (const dest of Object.values(saved)) {
           sql(
             `DELETE FROM sr_youtube_article_ref WHERE bookmark_id=${dest.bookmark_id}; DELETE FROM sr_user_bookmark WHERE bookmark_id=${dest.bookmark_id}; DELETE FROM sr_bookmark WHERE id=${dest.bookmark_id};`
@@ -610,6 +622,8 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         }
         return {
           formats: Object.keys(sources),
+          newForkAi: ['outline', 'overview', 'chat'],
+          existingEmptyForkAiAfterSourceDeletion: ['outline', 'overview', 'chat'],
           asynchronousAdmission: true,
           workflowFailureAndRetry: true,
           supplementalWriteRetryAndStaleRelease: true,

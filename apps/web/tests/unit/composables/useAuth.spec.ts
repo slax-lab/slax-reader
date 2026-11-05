@@ -108,7 +108,7 @@ describe('useAuth', () => {
       const controller = new AbortController()
       let finish!: (response: { token: string }) => void
       mockPost.mockImplementation(() => new Promise(resolve => { finish = resolve }))
-      const login = useAuth().grantAuth('old-code', 'https://auth.test/auth', '', 'google', { signal: controller.signal })
+      const login = useAuth().grantAuth('old-code', 'https://auth.test/auth', '', 'google', undefined, { signal: controller.signal })
       controller.abort()
       finish({ token: 'late-token' })
       await expect(login).rejects.toMatchObject({ name: 'AbortError' })
@@ -142,6 +142,35 @@ describe('useAuth', () => {
       const call = mockPost.mock.calls[0]![0]
       expect(call.body.client_id).toBe('a-client-id')
       expect(call.body.type).toBe('apple')
+    })
+  })
+
+  describe('collection attribution', () => {
+    const attribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } as const
+
+    it('keeps each Google redirect context independent and does not leak it to ordinary login', async () => {
+      const auth = useAuth()
+      await auth.requestAuth({ redirect: '/c/Collection123?subscribe_after_login=1', affCode: 'aff1', authAttribution: attribution })
+      const first = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      await auth.requestAuth({ redirect: '/c/Other456', affCode: '', authAttribution: { ...attribution, collection_id: 'Other456' } })
+      const second = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      await auth.requestAuth({ redirect: '/bookmarks', affCode: '' })
+      const ordinary = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      expect(first).toMatchObject({ auth_attribution: attribution, target: '/c/Collection123?subscribe_after_login=1', affCode: 'aff1', platform: 'google', redirectUrl: 'https://auth.test/auth' })
+      expect(second.auth_attribution.collection_id).toBe('Other456')
+      expect(ordinary).not.toHaveProperty('auth_attribution')
+    })
+
+    it('carries callback provenance into the Google login request without changing credentials', async () => {
+      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
+      await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google', attribution)
+      expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: 'aff3', type: 'google', client_id: 'g-client-id', auth_attribution: attribution })
+    })
+
+    it('does not attach collection attribution to Apple authentication', async () => {
+      mockPost.mockResolvedValueOnce({ token: 'tok-apple' })
+      await useAuth().grantAuth('code-2', 'https://auth.test/auth', '', 'apple', attribution)
+      expect(mockPost.mock.calls[0]![0].body).not.toHaveProperty('auth_attribution')
     })
   })
 

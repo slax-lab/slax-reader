@@ -1,6 +1,6 @@
 import React from 'react'
-import {Pressable, StyleSheet, TextInput} from 'react-native'
-import {SourceDialog, SourceIcon, SourceText, TextAction} from '../../components'
+import {Pressable, StyleSheet, TextInput, View} from 'react-native'
+import {SourceButton, SourceDialog, SourceIcon, SourceText, TextAction} from '../../components'
 import {mobileColors as C, mobileTypography as T} from '../../theme'
 import type {ReaderOverlay, Translate} from '../state/types'
 
@@ -15,9 +15,14 @@ interface DialogProps {
 }
 export function ReaderDialogs({active, overlay, t, closeOverlay, title, deleteBookmark, external, discard, comment, error}: DialogProps) {
   return <>
-    <SourceDialog visible={active && overlay === 'edit'} onDismiss={closeOverlay} title={t('edit_title_dialog_title')} actions={<>
-      <TextAction label={t('btn_cancel')} onPress={closeOverlay} /><TextAction label={t('btn_confirm')} disabled={!title.draft.trim()} onPress={title.confirm} />
-    </>}><TextInput value={title.draft} onChangeText={title.change} multiline autoFocus style={styles.textInput} /></SourceDialog>
+    <SourceDialog testID="reader-edit-title-dialog" compact visible={active && overlay === 'edit'} onDismiss={closeOverlay}>
+      <View style={styles.header}>
+        <SourceText accessibilityRole="header" style={[T.dialogTitle, {fontWeight: '500'}]}>{t('edit_title_dialog_title')}</SourceText>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('btn_close')} hitSlop={10} onPress={closeOverlay}><SourceIcon name="ic_xs_dialog_close" /></Pressable>
+      </View>
+      <TextInput selectionColor={C.accent} cursorColor={C.accent} accessibilityLabel={t('edit_title_dialog_title')} value={title.draft} onChangeText={title.change} multiline autoFocus style={styles.textInput} />
+      <SourceButton label={t('btn_confirm')} disabled={!title.draft.trim()} onPress={title.confirm} style={{marginTop: 24}} />
+    </SourceDialog>
     <SourceDialog visible={active && overlay === 'delete'} onDismiss={closeOverlay} title={t('bookmark_delete_confirm_title')} actions={<>
       <TextAction label={t('btn_cancel')} onPress={closeOverlay} /><TextAction color={C.danger} label={t('btn_confirm')} onPress={deleteBookmark} />
     </>}><SourceText>{t('bookmark_delete_confirm_message')}</SourceText></SourceDialog>
@@ -36,4 +41,7 @@ export function ReaderDialogs({active, overlay, t, closeOverlay, title, deleteBo
     <SourceDialog visible={active && error.message !== null} onDismiss={error.close} title={t('load_bookmark_content_error')} actions={<TextAction label={t('btn_ok')} onPress={error.close} />}><SourceText>{error.message}</SourceText></SourceDialog>
   </>
 }
-const styles = StyleSheet.create({textInput: {fontSize: 16, lineHeight: 24, color: C.bodyText, borderBottomWidth: 1, borderBottomColor: C.border, paddingVertical: 12}})
+const styles = StyleSheet.create({
+  header: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 25, gap: 12},
+  textInput: {borderWidth: 1, borderColor: C.border, borderRadius: 8, minHeight: 50, maxHeight: 200, paddingHorizontal: 12, paddingVertical: 10, marginTop: 25, ...T.body, color: C.bodyText, includeFontPadding: false},
+})

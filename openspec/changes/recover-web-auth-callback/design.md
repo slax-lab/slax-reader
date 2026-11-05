@@ -22,3 +22,7 @@ See proposal.md for the approved scope. `auth.vue` awaits `useAuth().grantAuth()
 ## Verification
 
 Regressions exercise real page rendering and request-option propagation: network/provider failures, pending timeout, cancellation before cookie persistence, malformed state, retry context, successful navigation, missing code, and Android handoff. A browser harness uses the actual Vue page, composable and request client with a synthetic local HTTP service for disconnect, pending, provider error and success. Verify recovery remains visible after the old toast duration, new authorization uses no old code, and themes/widths remain usable. Record commands, running evidence, limitations, and human hands-on acceptance in validation.md.
+
+## Integration with current dev
+
+The CI/review follow-up merges dev's collection provenance and snapshot-session recovery without replacing those behaviors. Preserve the existing fifth `grantAuth` argument for unknown collection attribution; transport options are a separate sixth argument. Callback state parses optional provenance for the typed Google button using the same accepted shape as the existing backend, ignoring malformed optional provenance rather than blocking authentication. Valid provenance is retained on both the initial exchange and a fresh Google authorization. The PowerSync snapshot-session guards from dev remain intact.

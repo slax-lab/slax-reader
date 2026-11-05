@@ -1,6 +1,6 @@
 import {useAvatarResource} from './AvatarResources';
 import React from 'react';
-import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Modal, PixelRatio, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type ImageStyle, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Modal, PixelRatio, Platform, Pressable, StyleSheet, Switch, Text, View, useWindowDimensions, type ImageStyle, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from 'react-native';
 import {SheetBody} from './SheetBody';
 import {SafeAreaProvider, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import { mobileAssets, type MobileAssetName } from '../../assets';
@@ -37,10 +37,14 @@ export function SourceButton({label, onPress, disabled, busy, destructive, testI
   style?: StyleProp<ViewStyle>; textStyle?: StyleProp<TextStyle>; tone?: 'accent' | 'surface' | 'rss';
 }) {
   const color = tone === 'surface' ? C.surface : tone === 'rss' ? C.rssAccent : C.accent;
+  const radius = StyleSheet.flatten(style)?.borderRadius ?? styles.button.borderRadius;
   return <Pressable accessibilityRole="button" accessibilityState={{disabled: Boolean(disabled), busy: Boolean(busy)}} testID={testID} disabled={disabled || busy} onPress={onPress}
-    style={({pressed}) => [styles.button, {backgroundColor: disabled ? C.disabledBackground : pressed ? tone === 'accent' ? C.accentPressed : C.pressedOverlay : color}, style]}>
-    {busy ? <ActivityIndicator size="small" color={destructive ? C.danger : tone === 'surface' ? C.text : C.surface} /> :
-      <SourceText style={[T.button, {color: disabled ? C.mutedText : destructive ? C.danger : tone === 'surface' ? C.text : C.surface}, textStyle]}>{label}</SourceText>}
+    style={({pressed}) => [styles.button, {backgroundColor: disabled ? C.disabledBackground : pressed && tone !== 'accent' ? C.pressedOverlay : color}, style]}>
+    {({pressed}) => <>
+      {pressed && tone === 'accent' && !disabled && !busy ? <View testID={testID ? `${testID}-pressed-overlay` : undefined} pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[StyleSheet.absoluteFill, {backgroundColor: C.pressedOverlay, borderRadius: radius}]} /> : null}
+      {busy ? <ActivityIndicator size="small" color={destructive ? C.danger : tone === 'surface' ? C.text : C.surface} /> :
+        <SourceText style={[T.button, {color: disabled ? C.mutedText : destructive ? C.danger : tone === 'surface' ? C.text : C.surface}, textStyle]}>{label}</SourceText>}
+    </>}
   </Pressable>;
 }
 export function TextAction({label, onPress, disabled, color = C.accent, testID, style}: {label: string; onPress(): void; disabled?: boolean; color?: string; testID?: string; style?: StyleProp<TextStyle>}) {
@@ -63,7 +67,8 @@ export function SourceProgress({value, height = 5, color = C.accent, testID}: {v
   </View>;
 }
 export function SourceSwitch({value, onChange, disabled, label}: {value: boolean; onChange(value: boolean): void; disabled?: boolean; label: string}) {
-  return <Pressable accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{checked: value, disabled: Boolean(disabled)}} disabled={disabled} onPress={() => onChange(!value)} hitSlop={8} style={{width: 52, height: 32, borderRadius: 16, backgroundColor: value ? C.accent : C.switchOff, opacity: disabled ? 0.38 : 1}}><View style={{position: 'absolute', width: value ? 24 : 16, height: value ? 24 : 16, borderRadius: 12, backgroundColor: C.surface, left: value ? 24 : 8, top: value ? 4 : 8}} /></Pressable>;
+  return <Switch hitSlop={8} accessibilityLabel={label} accessibilityState={{checked: value, disabled: Boolean(disabled)}} value={value} onValueChange={onChange} disabled={disabled}
+    trackColor={{false: C.switchOff, true: C.accent}} ios_backgroundColor={C.switchOff} />;
 }
 export function ScreenSurface({children, style, testID, bottomInset = true, sourceAppBar = false}: {children: React.ReactNode; style?: StyleProp<ViewStyle>; testID?: string; bottomInset?: boolean; sourceAppBar?: boolean}) {
   const insets = useSafeAreaInsets();

@@ -1,5 +1,5 @@
 import { YoutubePlayerElement } from '../CEComponents'
-import { bindMediaText } from './podcast.processor'
+import { bindMediaText, bindReadableMedia } from './podcast.processor'
 import type { DOMProcessor, WebProcessorContext } from './types'
 
 export class YoutubeProcessor implements DOMProcessor {
@@ -27,46 +27,8 @@ export class YoutubeProcessor implements DOMProcessor {
       node.parentElement?.replaceChild(element, node)
     })
 
-    const articles = context.container.querySelectorAll('[data-slax-derived="youtube-article"]')
-    for (const article of articles) {
-      for (const heading of article.querySelectorAll<HTMLElement>('h2.slax-pod-heading[data-start-ms]')) {
-        if (heading.querySelector('.slax-yt-chapter-time')) continue
-        const raw = heading.dataset['startMs']
-        if (!raw) continue
-        const ms = Number(raw)
-        if (!Number.isFinite(ms) || ms < 0) continue
-        const seconds = Math.floor(ms / 1000)
-        const minutes = Math.floor(seconds / 60)
-        const suffix = String(seconds % 60).padStart(2, '0')
-        const time = minutes < 60 ? `${minutes}:${suffix}` : `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${suffix}`
-        const button = document.createElement('button')
-        button.type = 'button'
-        button.className = 'slax-yt-chapter-time'
-        button.textContent = time
-        const seek = () => window.dispatchEvent(new CustomEvent('slax:youtube-seek', { detail: { t: seconds } }))
-        button.addEventListener('click', seek)
-        heading.appendChild(button)
-        context.cleanups.push(() => {
-          button.removeEventListener('click', seek)
-          button.remove()
-        })
-      }
-    }
-    if (!articles.length && context.container.querySelector('.slax-pod-article')) bindMediaText(context)
-    for (const contents of context.container.querySelectorAll<HTMLDetailsElement>('.slax-yt-contents')) {
-      // Same boundary as isH5 (width <= 768) in useSnapshotLayout: 768 px is collapsed on both sides
-      contents.open = window.matchMedia('(min-width: 769px)').matches
-      const navigate = (event: Event) => {
-        const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href^="#yt-topic-"]')
-        if (!link) return
-        const heading = context.container.querySelector(link.getAttribute('href')!)
-        if (!heading) return
-        event.preventDefault()
-        heading.scrollIntoView({ block: 'start' })
-      }
-      contents.addEventListener('click', navigate)
-      context.cleanups.push(() => contents.removeEventListener('click', navigate))
-    }
+    bindReadableMedia(context, 'youtube')
+    if (!context.container.querySelector('[data-slax-derived="youtube-article"]') && context.container.querySelector('.slax-pod-article')) bindMediaText(context)
 
     // 正文平铺字幕：时间戳点击/回车跳转。委托绑在容器上，避免逐条监听
     const transcript = context.container.querySelector('.slax-yt-transcript')
