@@ -76,3 +76,7 @@ A fresh reviewer completed Bugs, Security, and Compliance passes against `mobile
 ## Retained Outputs
 
 Task-owned native artifacts, compiler evidence, and logs remain available while full iOS packaging/old-system verification is pending. No global caches or another task's artifacts were removed. The development-signed Android smoke copy is not a distribution deliverable.
+
+## Draft Delivery
+
+Implementation commit `b575a66d` was pushed on `fix/mobile-old-ios-launch`. [Draft PR #523](https://github.com/slax-lab/slax-reader/pull/523) targets `dev`; GitHub returned `isDraft: true`, `state: OPEN`, and the expected head/base. The body uses the repository template, includes `OpenSpec: mobile-old-ios-launch`, links this record, and preserves the incomplete integration tasks and final-suite failures. Initial CI jobs were queued and automatic review was skipped for the draft; no remote review feedback was present at creation.

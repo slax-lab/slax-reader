@@ -29,4 +29,4 @@
 
 - [x] 5.1 After preparing and checking the implementation, obtain the human Mobile version decision, apply any approved metadata change through generators, and verify all native versions and previous-build bounds agree.
 - [x] 5.2 Run and resolve Bugs, Security, and Compliance local review under `REVIEW.md`; verify no Important finding remains and the evidence distinguishes probes, native runtime checks, and declared gaps.
-- [ ] 5.3 Commit and push only this task branch, then open a draft PR targeting `dev` using the repository template and `OpenSpec: mobile-old-ios-launch`; verify the returned PR is draft, has the correct base, and links the verification record.
+- [x] 5.3 Commit and push only this task branch, then open a draft PR targeting `dev` using the repository template and `OpenSpec: mobile-old-ios-launch`; verify the returned PR is draft, has the correct base, and links the verification record.
