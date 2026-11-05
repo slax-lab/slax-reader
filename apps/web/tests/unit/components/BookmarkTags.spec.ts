@@ -301,6 +301,33 @@ describe('components/BookmarkTags', () => {
       expect(wrapper.emitted('change')).toBeUndefined()
     })
 
+    it.each(['add', 'delete'])('shows one error toast for a failed REST %s with the real request client', async action => {
+      const client = new FetchRequest({
+        baseUrl: 'https://synthetic-api.test',
+        errorInterceptors: () => mockToast({ text: 'Shared request failure', type: 'error' })
+      })
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('unavailable', { status: 500 }))
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockPost.mockImplementation(options => client.post(options))
+      const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
+      if (action === 'add') {
+        await openPanel(wrapper)
+        await selectable()[0]!.trigger('click')
+        await panelFind('.confirm-btn').trigger('click')
+      } else {
+        await wrapper.findAll('.tag-act.remove')[0]!.trigger('click')
+      }
+      await flushPromises()
+      expect(mockToast).toHaveBeenCalledTimes(1)
+      expect(wrapper.emitted('change')).toBeUndefined()
+      if (action === 'add') {
+        expect(isPanelHidden()).toBe(false)
+        expect(panelFind('.confirm-btn').text()).toBe('Done (1)')
+      } else {
+        expect(wrapper.findAll('.tag-name').map(tag => tag.text())).toEqual(baseTags.map(tag => tag.name))
+      }
+    })
+
     it('点击候选只切换 pending，不发请求；再点取消', async () => {
       const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
       await openPanel(wrapper)
@@ -506,7 +533,7 @@ describe('components/BookmarkTags', () => {
       await panelFind('.search-tag.create').trigger('click')
       await panelFind('.confirm-btn').trigger('click')
       await flushPromises()
-      expect(lastPostBody()).toEqual({ url: '/v1/bookmark/add_tags', body: { bookmark_id: 7, bookmark_uid: undefined, tags: [{ id: 3, name: 'design' }, { name: 'fresh' }] } })
+      expect(lastPostBody()).toEqual({ url: '/v1/bookmark/add_tags', errorInterceptors: expect.any(Function), body: { bookmark_id: 7, bookmark_uid: undefined, tags: [{ id: 3, name: 'design' }, { name: 'fresh' }] } })
       expect(wrapper.emitted('change')).toEqual([[[tech, ai, design, created]]])
       expect(isPanelHidden()).toBe(true)
     })

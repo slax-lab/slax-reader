@@ -1,6 +1,7 @@
 // Local-only Nuxt boundaries. Authentication, cookies, HTTP and provider buttons are real.
 import auth from '../../../app/composables/useAuth'
 import { getI18nLang } from '../../../i18n/config'
+import { watchEffect } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 const params = new URLSearchParams(location.search)
@@ -24,7 +25,9 @@ export const navigateTo = async (target: string) => {
   if (params.get('case') === 'navigation-error') throw new Error('Synthetic navigation failure')
   location.href = target
 }
-export const useHead = (head: { titleTemplate: string }) => { document.title = head.titleTemplate }
+export const useHead = (head: { titleTemplate: string } | (() => { titleTemplate: string })) => {
+  watchEffect(() => { document.title = (typeof head === 'function' ? head() : head).titleTemplate })
+}
 export const analyticsLog = () => {}
 export const eventLog = () => {}
 export const useUserStore = () => ({ clearUserInfo: async () => {} })

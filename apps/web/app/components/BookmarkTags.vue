@@ -470,7 +470,7 @@ const commitPending = async () => {
           ...newNames.map(name => ({ name }))
         ]
       }
-      const res = await request().post<BookmarkTag[]>({ url: RESTMethodPath.ADD_BOOKMARK_TAGS, body })
+      const res = await request().post<BookmarkTag[]>({ url: RESTMethodPath.ADD_BOOKMARK_TAGS, body, errorInterceptors: () => {} })
       if (!Array.isArray(res)) return // No successful tag result; preserve the pending selection.
       added = res
       restSearchTags.value = mergeTags(restSearchTags.value, res)
@@ -526,6 +526,7 @@ const deleteBookmarkTag = async (tagId: number) => {
       // Undefined/no result and the request layer's handled 401 value are not success.
       const result = await request().post<null>({
         url: RESTMethodPath.DELETE_BOOKMARK_TAG,
+        errorInterceptors: () => {},
         body: { bookmark_id: props.bookmarkId || undefined, bookmark_uid: props.bookmarkUid || undefined, tag_id: tagId }
       })
       if (result !== null) return

@@ -31,10 +31,6 @@ import { z } from 'zod'
 
 const { t } = useI18n()
 
-useHead({
-  titleTemplate: `${t('page.auth.authenticating')} - ${t('common.app.name')}`
-})
-
 const callbackState = z.object({
   redirectUrl: z.string().min(1),
   target: z.string().optional().default('/bookmarks'),
@@ -51,11 +47,15 @@ const callbackState = z.object({
 const route = useRoute()
 const auth = useAuth()
 const status = ref<'loading' | 'failed' | 'timeout'>('loading')
+useHead(() => ({
+  titleTemplate: `${t(status.value === 'loading' ? 'page.auth.authenticating' : 'page.auth.incomplete')} - ${t('common.app.name')}`
+}))
 const recovery = ref({ target: '/bookmarks', affCode: '', platform: 'google' as 'google' | 'apple', authAttribution: undefined as CollectionAuthAttribution | undefined })
 
 if (import.meta.client) {
   const controller = new AbortController()
   let deadline: ReturnType<typeof setTimeout> | undefined
+  let phase: 'parameters' | 'login' | 'navigation' = 'parameters'
 
   onUnmounted(() => {
     clearTimeout(deadline)
@@ -76,20 +76,27 @@ if (import.meta.client) {
       const state = callbackState.parse(JSON.parse(z.string().parse(route.query.state)))
       recovery.value = { target: state.target || '/bookmarks', affCode: state.affCode, platform: state.platform, authAttribution: state.auth_attribution }
       deadline = setTimeout(() => {
+        console.warn('[auth] callback timed out', { phase })
         status.value = 'timeout'
         controller.abort()
       }, 20_000)
+      phase = 'login'
       await auth.grantAuth(code, state.redirectUrl, state.affCode, state.platform, state.auth_attribution, {
         signal: controller.signal,
         // The callback owns persistent recovery instead of the shared request toast.
         errorInterceptors: () => {}
       })
       if (controller.signal.aborted) return
+      phase = 'navigation'
       if (await navigateTo(recovery.value.target, { external: true }) === false) {
         throw new Error('Authentication navigation did not complete')
       }
     } catch {
-      if (!controller.signal.aborted) status.value = 'failed'
+      if (!controller.signal.aborted) {
+        // OAuth parameters and raw errors may contain credentials; record only the phase.
+        console.warn('[auth] callback failed', { phase })
+        status.value = 'failed'
+      }
     } finally {
       clearTimeout(deadline)
     }

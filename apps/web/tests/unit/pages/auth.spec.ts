@@ -28,6 +28,7 @@ enableAutoUnmount(afterEach)
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
   env.grantAuth.mockReset().mockImplementation(() => new Promise(() => {}))
   env.navigateTo.mockReset().mockResolvedValue(undefined)
   env.route.query = {
@@ -36,7 +37,10 @@ beforeEach(() => {
   }
 })
 
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
 
 describe('OAuth callback recovery', () => {
   it('replaces a pending login with persistent recovery at 20 seconds and cancels the request', async () => {
@@ -48,9 +52,17 @@ describe('OAuth callback recovery', () => {
     expect(wrapper.find('.i-svg-spinners\\:180-ring-with-bg').exists()).toBe(false)
     expect(wrapper.find('button').exists()).toBe(true)
     expect(env.grantAuth.mock.calls[0]![5].signal.aborted).toBe(true)
+    expect(console.warn).toHaveBeenCalledWith('[auth] callback timed out', { phase: 'login' })
     await vi.advanceTimersByTimeAsync(10_000)
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
     expect(env.navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('records a safe failure phase without logging OAuth parameters or raw errors', async () => {
+    env.grantAuth.mockRejectedValue(new Error('secret-provider-code-and-token'))
+    mountWithApp(AuthPage)
+    await flushPromises()
+    expect(console.warn).toHaveBeenCalledExactlyOnceWith('[auth] callback failed', { phase: 'login' })
   })
 
   it.each([new TypeError('Load failed'), new Error('Google SSO error')])('renders recovery when login rejects: %s', async failure => {

@@ -16,6 +16,7 @@ function snapshotMetadata(value, projectName) {
   if (value.environment !== 'production' || value.is_skipped) return null
   if (!value.latest_stage || typeof value.latest_stage.name !== 'string' || typeof value.latest_stage.status !== 'string') throw new HistoricalRecoveryError('invalid-history-entry')
   if (value.stages !== undefined && !Array.isArray(value.stages)) throw new HistoricalRecoveryError('invalid-history-entry')
+  if (value.latest_stage.name !== 'deploy' && value.stages === undefined) throw new HistoricalRecoveryError('invalid-history-entry')
   const stage = value.latest_stage.name === 'deploy' ? value.latest_stage : (Array.isArray(value.stages) ? value.stages.find(item => item?.name === 'deploy') : undefined)
   if (stage?.status !== 'success') return null
   const completed = typeof stage.ended_on === 'string' ? Date.parse(stage.ended_on) : NaN

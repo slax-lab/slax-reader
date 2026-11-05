@@ -58,6 +58,7 @@ with sync_playwright() as p:
         started = time.monotonic()
         page.goto(callback(args.base, actual_mode, provider='apple' if mode == 'apple' else 'google', malformed=mode == 'malformed', attribution=attribution))
         expect(page.get_by_role('alert')).to_be_visible(timeout=30000)
+        expect(page).to_have_title('Sign-in not complete - Slax Reader')
         if mode == 'pending':
             assert time.monotonic() - started >= 19.8
             expect(page.get_by_role('alert')).to_contain_text('timed out')
@@ -104,11 +105,13 @@ with sync_playwright() as p:
                         with page.expect_request(lambda request: '/v1/user/login' in request.url):
                             page.goto(callback(args.base, mode, theme=theme, locale=locale))
                         expect(page.get_by_role('status')).to_be_visible()
+                        expect(page).to_have_title(('认证中' if locale == 'zh' else 'Authenticating') + ' - Slax Reader')
                         page.clock.fast_forward(20001)
                     else:
                         page.goto(callback(args.base, mode, theme=theme, locale=locale))
                     expect(page.get_by_role('alert')).to_be_visible()
                     expect(page.get_by_role('heading')).to_contain_text('登录未完成' if locale == 'zh' else 'Sign-in not complete')
+                    expect(page).to_have_title(('登录未完成' if locale == 'zh' else 'Sign-in not complete') + ' - Slax Reader')
                     button = page.get_by_role('button')
                     assert button.is_enabled()
                     bounds = button.bounding_box()

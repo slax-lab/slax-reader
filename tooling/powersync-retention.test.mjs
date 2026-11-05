@@ -79,6 +79,15 @@ test('history failure must not swallow programming errors or cancellation', asyn
   await assert.rejects(discoverSnapshots({ project: cloud(null), now, signal: controller.signal, readPage: async () => { throw new HistoricalRecoveryError('history-unavailable') } }), { name: 'AbortError' })
 })
 
+test('missing stage history cannot report complete coverage for an ambiguous production deployment', async () => {
+  const warnings = []
+  const a = snapshot('a', 1, { latest_stage: { name: 'build', status: 'success' } })
+  const report = await discoverSnapshots({ project: cloud(null), now, readPage: async () => page([a]), onWarning: warning => warnings.push(warning) })
+  assert.equal(report.complete, false)
+  assert.deepEqual(report.selected, [])
+  assert.deepEqual(warnings, [{ category: 'invalid-history-entry' }])
+})
+
 test('malformed historical stage lists warn without blocking a healthy release', async t => {
   const { directory } = staged(t)
   const a = snapshot('a', 1, { latest_stage: { name: 'build', status: 'success' }, stages: {} })

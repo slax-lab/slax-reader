@@ -41,6 +41,7 @@ try {
     await control('http-error')
     await page.locator('.confirm-btn').click()
     await page.locator('#feedback').filter({ hasText: /./ }).waitFor()
+    assert.equal(await page.locator('#feedback').getAttribute('data-toast-count'), '1')
     assert.equal(await page.locator('.search-list input').inputValue(), 'fresh')
     assert.equal(await page.locator('.confirm-btn').innerText(), 'Done (2)')
     assert.equal(await count(), 'Successful changes: 0')
@@ -51,8 +52,10 @@ try {
     assert.deepEqual(await chips().allTextContents(), ['tech', 'design', 'fresh'])
     for (const mode of ['http-error', 'no-result', 'unauthorized']) {
       await control(mode)
+      const previousToasts = Number(await page.locator('#feedback').getAttribute('data-toast-count'))
       await removeTech()
       await page.waitForFunction(() => !document.querySelector('.loading'))
+      if (mode === 'http-error') assert.equal(Number(await page.locator('#feedback').getAttribute('data-toast-count')), previousToasts + 1)
       assert.deepEqual(await chips().allTextContents(), ['tech', 'design', 'fresh'])
       assert.equal(await count(), 'Successful changes: 1')
     }
