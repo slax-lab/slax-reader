@@ -20,7 +20,7 @@ export function OverviewExcerpt({content, prefix, onPress}: {content: string; pr
     onLayout={(event: LayoutChangeEvent) => {const {width, height} = event.nativeEvent.layout; size.current = {width, height}}}>
     {/* Touches resolve to the excerpt itself, so the press location is relative to its frame. */}
     <View pointerEvents="none">
-      <SourceText numberOfLines={3} style={styles.excerptText}><SourceText style={{color: '#999999'}}>{prefix}</SourceText>{content}{' '}<SourceIcon name="ic_xs_blue_down_arrow" size={8} /></SourceText>
+      <SourceText numberOfLines={3} style={styles.excerptText}><SourceText style={[styles.excerptText, {color: '#999999'}]}>{prefix}</SourceText>{content}{' '}<SourceIcon name="ic_xs_blue_down_arrow" size={8} /></SourceText>
     </View>
   </Pressable>
 }

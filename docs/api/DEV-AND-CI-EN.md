@@ -27,6 +27,12 @@ Release files must use the declarative subset enforced by the CI loader:
 
 When adapting `deploy/cloudflare/api.toml.example` for release, remove `localConnectionString` from both Hyperdrive entries, move the selected environment's settings to the top level and remove the `env`/`dev` tables. Supply real database URLs through Actions Secrets. A file can pass Wrangler validation and still fail these release checks. Violations deliberately report only `Private configuration unavailable or invalid; values are withheld`; check the constraints above without printing private file contents in CI.
 
+### Login token lifetime
+
+The public template sets `JWT_EXPIRES = "5184000"` (60 days, in seconds). Before releasing this lifetime change to an environment, update `[vars].JWT_EXPIRES` in its private `api/dev.toml`, `api/beta.toml`, or `api/prod.toml` to the same value. Updating the public template alone does not change an existing local configuration or live installation. Existing local installations update their own `deploy/local/api.toml` explicitly.
+
+New logins and successful renewals through the existing `/v1/user/refresh` endpoint use the deployed value. Already issued JWTs retain their signed `exp`; an expired token still requires a new login. The Web cookie already persists for 60 days, and client renewal scheduling and PowerSync token lifetime remain unchanged. No separate refreshToken or endpoint is added. Reverting the configured value to `2592000` restores 30-day issuance for subsequent tokens without changing already issued expirations.
+
 ## Actions Secrets
 
 Set these deployment access credentials in the public source repository's dev, beta and main GitHub Environments. Their actual values never belong in public YAML, ordinary Actions Variables, configuration files or logs. Runtime credentials belong in the private TOML's `[vars]` instead.

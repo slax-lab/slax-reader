@@ -26,6 +26,8 @@ export const YOUTUBE_ARTICLE_LIMITS = {
   // chunkTargetTokens each cost about $0.95 at the list price. $0.30 silently
   // turned every video longer than about 1.5 hours into a "too_long" skip.
   maxCostUsd: 1,
+  // Hard cap per version across every explicit retry: each retry restarts the $1 run budget
+  maxLifetimeCostUsd: 2,
   dailyCostUsd: 20,
   maxConcurrent: 4,
   leaseMs: 10 * 60 * 1000
@@ -110,6 +112,28 @@ export function expectedChunkCostUsd(promptTokens: number): number {
   return estimateCostUsd(promptTokens, Math.min(YOUTUBE_ARTICLE_LIMITS.maxOutputTokens, promptTokens * 2 + 500))
 }
 
+/**
+ * Output limit of one model call from the size of its user message. A healthy edit reply is
+ * about 1.3 times the user message and a one-shot Chinese reply about 2.4 times (thinking
+ * included), so 4 times leaves room while a looping reply stops well before the 16k ceiling.
+ */
+export function outputTokenLimit(userTokens: number): number {
+  return Math.min(YOUTUBE_ARTICLE_LIMITS.maxOutputTokens, Math.max(4000, userTokens * 4))
+}
+
+/**
+ * Share of repeated 40-character windows in the last 4,000 characters of a reply: near 1 for a
+ * reply stuck in a loop, near 0 for prose. Logged as a count on truncation; the text never is.
+ */
+export function repetitionRatio(text: string, window = 40, tail = 4000): number {
+  const sample = text.slice(-tail)
+  const total = sample.length - window + 1
+  if (total <= 0) return 0
+  const seen = new Set<string>()
+  for (let i = 0; i < total; i++) seen.add(sample.slice(i, i + window))
+  return 1 - seen.size / total
+}
+
 export function formatTimestamp(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000))
   const h = Math.floor(total / 3600)
@@ -191,10 +215,12 @@ export function planYoutubeArticle(caption: YoutubeCaptionDocument | null): Yout
 
 // ---------- prompt ----------
 
-export function buildSystemInstruction(lang: YoutubeArticleLanguage, chunk: YoutubeArticleChunk, chunkCount: number): string {
+/** `continuation`: a later part of a split chunk; it writes no lede and carries no overlap cues. */
+export function buildSystemInstruction(lang: YoutubeArticleLanguage, chunk: YoutubeArticleChunk, chunkCount: number, continuation = false): string {
   const name = youtubeArticleLanguageName(lang)
-  const position =
-    chunk.index === 0
+  const position = continuation
+    ? 'Do not write a lede. Continue from the previous part of this chunk; every cue below is new.'
+    : chunk.index === 0
       ? 'Start with a 3 to 5 sentence lede for the whole video, based on the video title and this chunk.'
       : `Do not write a lede. Continue from the previous chunk; the first ${chunk.overlap} cues were already covered.`
   return [
@@ -404,6 +430,13 @@ function numberTokens(text: string): Set<string> {
   return out
 }
 
+const ZH_MAGNITUDE: Record<string, number> = { 万: 1e4, 亿: 1e8 }
+
+/** "5 万" → "50000", "1.5 亿" → "150000000": a faithful Chinese translation writes large numbers this way. */
+function zhMagnitudeNumbers(text: string): string[] {
+  return [...text.matchAll(/(\d+(?:\.\d+)?)\s*(万|亿)/g)].map(m => String(Math.round(Number(m[1]) * ZH_MAGNITUDE[m[2]])))
+}
+
 /** Article characters over caption characters. Bounds depend on whether the article is a translation. */
 export function lengthBounds(captionText: string, lang: YoutubeArticleLanguage): [number, number] {
   const sourceCjk = cjkRatio(captionText) > 0.5
@@ -427,6 +460,16 @@ export interface ArticleQualityOptions {
   speakerText?: string
   /** Minimum CJK share of a zh paragraph. Default 0.5; spoken Chinese with English terms needs less. */
   zhMinCjkRatio?: number
+  /**
+   * Shorter repeated paragraphs are not duplicates unless they come from the same cues. A podcast
+   * speaker says "Yeah." many times; only longer repeats, or repeats of the same cues, point at a
+   * looped or doubled reply. Default 0: every exact repeat counts (YouTube).
+   */
+  minDuplicateChars?: number
+  /** Also read Chinese magnitude words as numbers: "5 万" is 50000, "1 亿" is 100000000. Default false (YouTube). */
+  zhMagnitudes?: boolean
+  /** Require nondecreasing paragraph cue starts. Defaults to false. */
+  requireParagraphOrder?: boolean
 }
 
 /**
@@ -470,6 +513,17 @@ export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCa
     lastFirst = first
   }
 
+  if (options.requireParagraphOrder) {
+    let previousStart = -1
+    for (const paragraph of paragraphs) {
+      const indices = paragraph.source_cue_ids.map(id => cueIndex.get(id))
+      if (!indices.length || indices.some(index => index === undefined)) continue
+      const start = Math.min(...(indices as number[]))
+      if (start < previousStart) failed.add('cue_reference')
+      previousStart = start
+    }
+  }
+
   const okParagraphs = paragraphs.filter(
     p => hasNoLetters(p.text) || (doc.language === 'zh' ? cjkRatio(p.text) >= (options.zhMinCjkRatio ?? 0.5) : cjkRatio(p.text) <= 0.05)
   ).length
@@ -478,6 +532,7 @@ export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCa
 
   const captionNumbers = numberTokens(captionText)
   const articleNumbers = numberTokens(articleText(doc))
+  if (options.zhMagnitudes) for (const n of zhMagnitudeNumbers(articleText(doc))) articleNumbers.add(n)
   const hit = [...captionNumbers].filter(n => articleNumbers.has(n)).length
   const coverage = captionNumbers.size === 0 ? 1 : hit / captionNumbers.size
   if (coverage < 0.85) failed.add('number_coverage')
@@ -492,11 +547,14 @@ export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCa
   const bounds = options.bounds ?? lengthBounds(captionText, doc.language)
   if (ratio < bounds[0] || ratio > bounds[1]) failed.add('length_ratio')
 
-  const seen = new Set<string>()
+  const seen = new Map<string, Set<string>>()
+  const minDuplicateChars = options.minDuplicateChars ?? 0
   for (const p of paragraphs) {
     const key = p.text.trim()
-    if (seen.has(key)) failed.add('duplicate_paragraph')
-    seen.add(key)
+    const earlier = seen.get(key)
+    if (earlier && (key.length >= minDuplicateChars || p.source_cue_ids.some(id => earlier.has(id)))) failed.add('duplicate_paragraph')
+    if (earlier) p.source_cue_ids.forEach(id => earlier.add(id))
+    else seen.set(key, new Set(p.source_cue_ids))
   }
 
   return {

@@ -37,6 +37,19 @@ import { RequestUtils } from '@/utils/requestUtils'
 import { SlaxAuth } from '@/utils/auth'
 import { hashMD5, hashSHA256 } from '@/utils/strings'
 import { diagnosticDownloadUrl, downloadDiagnostic, uploadDiagnostic, type DiagnosticAttachment } from '@/utils/diagnosticAttachment'
+import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
+import { z } from 'zod'
+
+const collectionAuthAttributionSchema = z.object({
+  collection_id: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-zA-Z0-9]+$/),
+  source_screen: z.literal('collection'),
+  presentation: z.literal('modal'),
+  trigger_element_id: z.literal('collection_subscribe_button')
+}) satisfies z.ZodType<CollectionAuthAttribution>
 
 export interface userBindPlatformItem {
   platform: string
@@ -128,6 +141,7 @@ export interface userShareCollectInfo {
 }
 
 export interface userLoginReq {
+  auth_attribution?: unknown
   id_token?: string
   client_id?: string
   code: string
@@ -186,8 +200,7 @@ export class UserService {
    * @param request
    * @returns
    */
-  private async authenticateUser(ctx: ContextManager, request: Request): Promise<userLoginResp> {
-    const req = await RequestUtils.json<userLoginReq>(request)
+  private async authenticateUser(ctx: ContextManager, request: Request, req: userLoginReq): Promise<userLoginResp> {
     console.log(
       `[login] request ${JSON.stringify({
         type: req?.type,
@@ -697,7 +710,9 @@ export class UserService {
   }
 
   public async userLogin(ctx: ContextManager, request: Request): Promise<userLoginResp> {
-    const result = await this.authenticateUser(ctx, request)
+    const req = await RequestUtils.json<userLoginReq>(request)
+    const attribution = req.type === 'google' ? collectionAuthAttributionSchema.safeParse(req.auth_attribution).data : undefined
+    const result = await this.authenticateUser(ctx, request, req)
 
     ctx.execution.waitUntil(
       this.ga4Client.trackEvent(result.uuid, 'user_login_complete', {
@@ -714,10 +729,10 @@ export class UserService {
     const userId = new Hashid(ctx.env).decodeId(parseInt(result.user_id))
     if (result.is_new_user) {
       ctx.execution.waitUntil(this.logsService.track(userId, 'register', metadata))
-      submitServerEvent(ctx, request, 'user_created', { method: result.login_type }, { userId })
+      submitServerEvent(ctx, request, 'user_created', { ...attribution, method: result.login_type }, { userId })
     } else {
       ctx.execution.waitUntil(this.logsService.track(userId, 'login', metadata))
-      submitServerEvent(ctx, request, 'user_logged_in', { method: result.login_type }, { userId })
+      submitServerEvent(ctx, request, 'user_logged_in', { ...attribution, method: result.login_type }, { userId })
     }
 
     return result

@@ -18,7 +18,6 @@ class SlaxLegacyModule : Module() {
   private val context get() = appContext.reactContext ?: error("Application context unavailable")
   private val storageDirectory get() = context.filesDir
   private val preferenceFile get() = File(storageDirectory, "slax.preferences.v1.json")
-  private val databaseDirectory get() = File(storageDirectory, "slax-react-native")
 
   private fun <T> withPreferenceLock(action: () -> T): T = synchronized(File(storageDirectory, ".slax-preferences.lock").canonicalPath.intern()) {
     RandomAccessFile(File(storageDirectory, ".slax-preferences.lock"), "rw").use { file ->
@@ -125,8 +124,7 @@ class SlaxLegacyModule : Module() {
       }
       try {
         val root = context.dataDir.canonicalFile
-        val newDirectory = databaseDirectory.absoluteFile
-        check(newDirectory.canonicalFile == newDirectory && newDirectory.path.startsWith(root.path + File.separator)) { "Database directory requires recovery" }
+        val newDirectory = resolveDatabaseDirectory(root, storageDirectory)
         val values = withPreferenceLock { readSnapshot().getJSONObject("values") }
         val known = installationDatabase(values, root, newDirectory, context.packageName, storageDirectory)
         val candidates = mutableListOf<String>()
@@ -156,8 +154,7 @@ class SlaxLegacyModule : Module() {
       // Development storage intentionally skips the exclusive ownership lease so a JS reload can reopen it.
       try {
         val root = context.dataDir.canonicalFile
-        val newDirectory = databaseDirectory.absoluteFile
-        check(newDirectory.canonicalFile == newDirectory && newDirectory.path.startsWith(root.path + File.separator)) { "Database directory requires recovery" }
+        val newDirectory = resolveDatabaseDirectory(root, storageDirectory)
         check(newDirectory.exists() || newDirectory.mkdirs()) { "Cannot create database directory" }
         val path = File(newDirectory, "powersync.db").path
         synchronized(ownerMutex) { databaseCandidates = setOf(path) }

@@ -49,7 +49,7 @@ final class ShareViewController: UIViewController {
         let imageView = UIImageView()
         let config = UIImage.SymbolConfiguration(pointSize: 40, weight: .regular)
         imageView.image = UIImage(systemName: "checkmark.circle.fill", withConfiguration: config)
-        imageView.tintColor = .systemGreen
+        imageView.tintColor = UIColor(red: 22.0 / 255.0, green: 185.0 / 255.0, blue: 152.0 / 255.0, alpha: 1)
         imageView.isHidden = true
         imageView.translatesAutoresizingMaskIntoConstraints = false
         return imageView

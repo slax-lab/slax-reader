@@ -1,4 +1,4 @@
-name: Web Pages deploy
+name: Web deploy
 
 on:
   pull_request_target:
@@ -58,6 +58,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           persist-credentials: false
+          allow-unsafe-pr-checkout: true
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

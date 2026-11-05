@@ -166,9 +166,13 @@ fun main(args: Array<String>) {
     diagnostics.stage("extract"); diagnostics.url(url); diagnostics.stage("prefs")
     diagnostics.preferences(JSONObject().put("auth_token", privateToken))
     diagnostics.http(400, JSONObject().put("message", privateBody).toString(), null)
-    diagnostics.stage("request"); diagnostics.reason("network_timeout")
+    diagnostics.stage("request")
+    Thread.sleep(15)
+    diagnostics.failure(java.io.InterruptedIOException("timeout"))
+    diagnostics.requestFinished()
+    Thread.sleep(40)
     if (oversized) diagnostics.store("漢".repeat(5000))
-    diagnostics.finish(result); diagnostics.finish("ok"); diagnostics.shutdown()
+    diagnostics.finish(result); diagnostics.finish("ok"); diagnostics.finish(); diagnostics.shutdown()
     val executorField = diagnostics.javaClass.getDeclaredField("executor").apply {isAccessible = true}
     check((executorField.get(diagnostics) as ExecutorService).awaitTermination(5, TimeUnit.SECONDS))
     val files = File(directory, "diagnostics").listFiles()!!
@@ -189,6 +193,11 @@ fun main(args: Array<String>) {
     check(end.getString("stage") == if (result == "ok") "done" else "request")
     check(end.getString("shown") == when (result) {null -> "Collecting"; "ok" -> "Success!"; else -> result})
     for (key in listOf("extract", "prefs", "request", "total")) check(end.getJSONObject("ms").getLong(key) >= 0)
+    check(end.getJSONObject("ms").getLong("total") - end.getJSONObject("ms").getLong("request") >= 35)
+    if (!oversized) {
+      check(end.getJSONObject("error").getString("class") == "InterruptedIOException")
+      check(end.getJSONObject("http").getInt("status") == 400)
+    }
     for (secret in listOf(privateUrl, hugeUrl, privateTitle, privateToken, privateBody, "/private/article", "secret=hidden")) check(!contents.contains(secret))
     return end
   }
@@ -209,7 +218,7 @@ fun main(args: Array<String>) {
 `,
     };
     for (const [name, contents] of Object.entries(fixtures)) writeFileSync(path.join(output, name), contents);
-    const sources = ['ShareDiagnosticRecord.kt', 'ShareDiagnostics.kt'].map(name => path.resolve(__dirname, '../../../modules/slax-share/android/src/main/java/com/slax/reader/extension', name));
+    const sources = ['ShareDiagnosticRecord.kt', 'ShareDiagnostics.kt', 'ShareRequestFailure.kt'].map(name => path.resolve(__dirname, '../../../modules/slax-share/android/src/main/java/com/slax/reader/extension', name));
     const jar = path.join(output, 'host.jar');
     execFileSync(process.env.SLAX_KOTLINC ?? 'kotlinc', ['-classpath', json, '-include-runtime', '-d', jar, ...sources, ...Object.keys(fixtures).map(name => path.join(output, name))], {encoding: 'utf8', timeout: 120000});
     const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin/java') : 'java';

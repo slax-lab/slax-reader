@@ -30,7 +30,8 @@ RUN_TYPE = "dev"
 # internal tester addresses; replace them with your own. Empty denies every gated request.
 WHITE_EMAILS = "operator@example.com"
 JWT_ALGORITHMS = "HS256"
-JWT_EXPIRES = "2592000"
+# Login JWT lifetime in seconds: 60 days.
+JWT_EXPIRES = "5184000"
 JWT_ISSUER = "slax-reader"
 FRONT_END_URL = "http://localhost:3000"
 BACKEND_API_PREFIX = "http://localhost:8787"

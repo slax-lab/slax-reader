@@ -130,11 +130,12 @@ test('a list of resting rows performs no per-row shared-value writes on mount or
 
 test('closed menus create no native animation or timer, while open/close retains source durations and cancellation', nativeBoundary, async () => withNativeHost(async host => {
   const installed = installedAnimatedHost(host);
-  let timerCalls = 0;
-  const {SourceMenu} = await loadComponent('../../src/components/SourceMenu.tsx', {react: React, 'react-native': {...host.native, Animated: installed.Animated}, '../theme': theme, './SourceUI': host.components}, {setTimeout() {timerCalls++; throw new Error('A menu must not wait on an artificial timer');}});
+  let timerCalls = 0, modal;
+  const {SourceMenu} = await loadComponent('../../src/components/SourceMenu.tsx', {react: React, 'react-native': {...host.native, Animated: installed.Animated, Modal: props => {modal = props; return props.visible ? React.createElement(host.native.View, props) : null;}}, '../theme': theme, './SourceUI': host.components}, {setTimeout() {timerCalls++; throw new Error('A menu must not wait on an artificial timer');}});
   const props = {visible: false, items: [{label: 'Action', onPress() {}}], anchor: {x: 30, y: 40}, onDismiss() {}};
   await host.render(React.createElement(SourceMenu, props)); assert.equal(installed.starts.length, 0); assert.equal(timerCalls, 0); assert.equal(installed.attached(), 0);
-  await host.render(React.createElement(SourceMenu, {...props, visible: true})); assert.equal(installed.starts.at(-1).config.duration, 200);
+  await host.render(React.createElement(SourceMenu, {...props, visible: true})); assert.equal(installed.starts.length, 0);
+  await act(async () => modal.onShow()); assert.equal(installed.starts.at(-1).config.duration, 200);
   await act(async () => installed.advance(80));
   await host.render(React.createElement(SourceMenu, props)); assert.equal(installed.starts.at(-1).config.duration, 150);
   await host.render(React.createElement(SourceMenu, {...props, visible: true})); await act(async () => installed.advance(400)); assert.ok(installed.attached() > 0, 'Cancelled close cannot unmount a reopened menu');

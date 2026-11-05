@@ -116,7 +116,7 @@ export async function withNativeHost(run) {
   const primitive = React.forwardRef(function Primitive(value, ref) {
     React.useImperativeHandle(ref, () => ({focus() {focused++}, measureInWindow(callback) {callback(0, 200, 390, 40)}}), [])
     if (value.testID) props.set(value.testID, value)
-    return React.createElement('div', {'data-testid': value.testID}, value.children)
+    return React.createElement('div', {'data-testid': value.testID}, typeof value.children === 'function' ? value.children({pressed: false}) : value.children)
   })
   const timing = (value, config) => ({start(callback) {animations.push(config); value.setValue(config.toValue); callback?.({finished: true})}, stop() {}})
   const group = children => ({start(callback) {children.forEach(child => child.start()); callback?.({finished: true})}, stop() {children.forEach(child => child.stop())}})
@@ -132,7 +132,7 @@ export async function withNativeHost(run) {
     AppState: {addEventListener: () => ({remove() {}})},
     PanResponder: {create(value) {gestures = value; return {panHandlers: {}}}},
   }
-  const components = {SourceAvatar: primitive, SourceText: primitive, SourceIcon: primitive, TextAction: primitive, SourceDialog: value => value.visible ? React.createElement(primitive, value, value.children, value.actions) : null}
+  const components = {SourceButton: primitive, SourceAvatar: primitive, SourceText: primitive, SourceIcon: primitive, TextAction: primitive, SourceDialog: value => value.visible ? React.createElement(primitive, value, value.children, value.actions) : null}
   try {
     await run({native, components, window, props, animations, values, keyboard, gestures: () => gestures, focused: () => focused, dismisses: () => dismisses,
       render: async element => {props.clear(); await act(async () => root.render(element))},

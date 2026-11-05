@@ -1,3 +1,4 @@
+import {ReaderNotice} from '../reader/components/ReaderNotice'
 import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react'
 import {Platform, Pressable, StyleSheet, View} from 'react-native'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
@@ -214,11 +215,10 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
       comment={{visible: annotations.deletingComment !== null, cancel: annotations.cancelDelete, confirm: () => run(annotations.confirmDelete())}}
       error={{message: life.operationError, close: life.clearError}} />
     {imageActionSheet('document')}{imageActionNotice('document')}
-    {annotations.copied ? <View pointerEvents="none" style={styles.copyToast}><SourceText style={[T.helper, {color: C.surface}]}>{t('comment_panel_copied')}</SourceText></View> : null}
+    <ReaderNotice message={annotations.copied ? t('comment_panel_copied') : null} />
   </View>
 }
 const styles = StyleSheet.create({
   root: {flex: 1, backgroundColor: C.readerBackground},
   pdfPrototypeControl: {minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 8, backgroundColor: C.surface},
-  copyToast: {position: 'absolute', top: 120, alignSelf: 'center', backgroundColor: C.bodyText, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10},
 })

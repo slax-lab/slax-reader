@@ -176,10 +176,11 @@ import SubscribeCollectionButton from '@/components/Collection/SubscribeCollecti
 import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 
 import { eventLog } from '@/utils/analytics'
-import { copyText } from '@commons/frontend-utils/string'
 
-import type { UserShareCollectInfoResp, UserShareCollectListItem, UserSubscribeStatus } from '@slax-reader/contracts/interface'
+import { copyText } from '@commons/frontend-utils/string'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { CollectionOpenedProperties } from '@slax-reader/contracts/events'
+import type { UserShareCollectInfoResp, UserShareCollectListItem, UserSubscribeStatus } from '@slax-reader/contracts/interface'
 import { ClientOnly } from '#components'
 import Toast, { ToastType } from '~/components/Toast'
 import { useUserStore } from '~/stores/user'
@@ -488,12 +489,16 @@ onMounted(() => {
   // is_curator / entry_page 服务端在这条通道上拿不到（不做 DB 往返、SPA 没进过服务端），只能由页面申报
   if (!isSsrEntry) trackCollection('collection_visit', { is_curator: isOwner.value, entry_page: page.value })
 
-  // 埋点：collection_opened
   const openedFrom = consumeEventEntry(['external_link', 'inbox'] as const, 'external_link')
-  eventLog({
-    event_name: 'collection_opened',
-    properties: { collection_id: collectionCode, opened_from: openedFrom }
-  })
+  let opened = false
+  watch(() => !pending.value && !error.value && !notFound.value && !isClosed.value, usable => {
+    if (!usable || opened) return
+    opened = true
+    eventLog({
+      event_name: 'collection_opened',
+      properties: { collection_id: collectionCode, opened_from: openedFrom, surface: 'public_page' } satisfies CollectionOpenedProperties
+    })
+  }, { immediate: true, flush: 'post' })
 })
 
 // Stripe 结账回跳：/c/{code}?status=success|cancel（付费订阅走支付流程后回来）

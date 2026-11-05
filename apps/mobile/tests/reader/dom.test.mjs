@@ -133,8 +133,8 @@ for (const platform of ['android', 'ios']) {
       touch(mark, 'touchcancel', 10, 10)
       await wait()
       assert.equal(latest().pointerDown, false)
-      assert.equal(latest().pendingSelection, true)
-      assert.equal(sourceCount('textSelected'), 0, 'Source touchcancel alone does not drain its pending callback; retain that behavior')
+      assert.equal(latest().pendingSelection, false)
+      assert.equal(sourceCount('textSelected'), 1, 'Native touch cancellation drains the held selection without requiring a later touchend')
       touch(mark, 'touchend', 10, 10)
       await wait()
       assert.equal(sourceCount('textSelected'), 1)
@@ -246,7 +246,10 @@ for (const platform of ['android', 'ios']) {
     const bundle = JSON.parse(await readFile(new URL('../../fixtures/scenarios.json', import.meta.url), 'utf8'))
     const prepared = bundle.scenarios['reader-mixed']
     const content = await readFile(new URL('../../fixtures/articles/mixed.html', import.meta.url), 'utf8')
-    const {window, messages, execute, close} = await fixture(platform, content, () => {}, {controlledFixture: true})
+    const {window, messages, execute, close} = await fixture(platform, content, window => {
+      // Happy DOM has no native custom-scheme image loader; model its pending requests explicitly.
+      Object.defineProperty(window.HTMLImageElement.prototype, 'complete', {get: () => false})
+    }, {controlledFixture: true})
     try {
       const rows = prepared.payload.database
       const profiles = JSON.parse(JSON.parse(rows.ps_data_local__local_bookmark_info.find(row => row.id === bundle.ids.mixed).data).mark_users)

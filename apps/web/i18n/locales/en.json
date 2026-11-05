@@ -343,6 +343,11 @@
       "perk": "60 Free Days of Pro"
     },
     "login_view": {
+      "benefits": {
+        "save": "Save and share without limits",
+        "devices": "Keep reading on any device",
+        "space": "Build your own high-quality, distraction-free reading space"
+      },
       "google_login": "Google Login",
       "share_page_login_tips": "You are not logged in, please log in first",
       "title": "Sign up to start your reading journey",
@@ -627,6 +632,8 @@
       "error": "This audio cannot be played here. Open the original page to listen."
     },
     "podcast": {
+      "edited_transcript": "Edited transcript",
+      "method_note": "The article follows the podcast transcript in its original order. Transcription and editing can contain errors. Use chapter times to check the audio.",
       "stalled": "Could not get the latest status.",
       "check_again": "Check again",
       "queued": "The transcript is queued.",
@@ -1288,6 +1295,7 @@
       "telegram": "Telegram",
       "twitter": "Twitter",
       "telegram_channel": "Telegram Channel",
+      "contact_email": "Contact Email",
       "third_party_binding": "Third-party binding",
       "update_account_error": "Update account failed",
       "update_share_status_failed": "Failed to update sharing status",

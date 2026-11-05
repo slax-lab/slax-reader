@@ -5,13 +5,16 @@
 // closeModal → appear=false
 // onAfterLeave → emit dismiss
 // 子组件 GoogleLoginButton 透传 redirect
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 
 import LoginModal from '~~/app/components/Modal/LoginModal.vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { eventLog } = vi.hoisted(() => ({ eventLog: vi.fn() }))
+mockNuxtImport('eventLog', () => eventLog)
 
 const runtimeConfig = {
   app: { baseURL: '/' },
@@ -86,4 +89,36 @@ describe('Modal/LoginModal', () => {
     transitions[0]!.vm.$emit('after-leave')
     expect(wrapper.emitted('dismiss')).toBeTruthy()
   })
+  it('records one contextual view only when the modal becomes visible', async () => {
+    vi.useFakeTimers()
+    const authAttribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } as const
+    const wrapper = mountWithApp(LoginModal, { props: { redirect: '/c/Collection123', authAttribution } })
+    expect(eventLog).not.toHaveBeenCalled()
+    await vi.runOnlyPendingTimersAsync()
+    await nextTick()
+    expect(wrapper.get('.modal-shell').isVisible()).toBe(true)
+    expect(eventLog).toHaveBeenCalledExactlyOnceWith({ event_name: 'screen_viewed', properties: { screen_name: 'signup', ...authAttribution } })
+    expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).props('authAttribution')).toEqual(authAttribution)
+    await wrapper.setProps({ redirect: '/c/Collection123?subscribe_after_login=1' })
+    await wrapper.get('button.modal-close').trigger('click')
+    expect(eventLog).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    const reopened = mountWithApp(LoginModal, { props: { redirect: '/c/Collection123', authAttribution } })
+    await vi.runOnlyPendingTimersAsync()
+    expect(eventLog).toHaveBeenCalledTimes(2)
+    reopened.unmount()
+  })
+
+  it('does not record an unmounted prompt or an unrelated modal', async () => {
+    vi.useFakeTimers()
+    const wrapper = mountWithApp(LoginModal, { props: { redirect: '/bookmarks' } })
+    await vi.runOnlyPendingTimersAsync()
+    expect(eventLog).not.toHaveBeenCalled()
+    wrapper.unmount()
+    const cancelled = mountWithApp(LoginModal, { props: { redirect: '/c/Collection123', authAttribution: { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } } })
+    cancelled.unmount()
+    await vi.runOnlyPendingTimersAsync()
+    expect(eventLog).not.toHaveBeenCalled()
+  })
+
 })
