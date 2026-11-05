@@ -1,7 +1,7 @@
 import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
-import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
+import { PrismaClient as HyperdrivePrismaClient, type Prisma } from '@prisma/hyperdrive-client'
 
 export interface userLabFeaturePO {
   id: number
@@ -20,8 +20,8 @@ export class LabRepo {
     return this.prismaPg().sr_user_lab_feature.findMany({ where: { user_id: userId } })
   }
 
-  public async isEnabled(userId: number, feature: string): Promise<boolean> {
-    const row = await this.prismaPg().sr_user_lab_feature.findUnique({
+  public async isEnabled(userId: number, feature: string, transaction?: Prisma.TransactionClient): Promise<boolean> {
+    const row = await (transaction ?? this.prismaPg()).sr_user_lab_feature.findUnique({
       where: { user_id_feature: { user_id: userId, feature } },
       select: { enabled: true }
     })

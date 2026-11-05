@@ -64,7 +64,7 @@ describe('assertUrlAllowed', () => {
     expect(err.name).toBe(ErrorName.LAB_FEATURE_DISABLED)
     expect(err.errCode).toBe(400)
     expect(err.getMessage).toBe('YouTube videos are still in Labs. Turn it on in Settings, then save again')
-    expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube')
+    expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube', undefined)
   })
 
   test('message follows the request language', async () => {
@@ -164,7 +164,7 @@ describe('LabService.isEnabled', () => {
     const service = new TestLabService(repo, defs)
 
     expect(await service.isEnabled(userId, 'youtube')).toBe(false)
-    expect(repo.isEnabled).toHaveBeenCalledWith(userId, 'youtube')
+    expect(repo.isEnabled).toHaveBeenCalledWith(userId, 'youtube', undefined)
 
     repo.isEnabled.mockResolvedValue(true)
     expect(await service.isEnabled(userId, 'youtube')).toBe(true)

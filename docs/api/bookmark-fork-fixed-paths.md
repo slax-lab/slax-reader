@@ -45,41 +45,65 @@ Admission reads the private destination once, without loading the unused `userBo
 
 The pre-Fork ordinary-save implementation already awaited search-cache invalidation and bookmark-event attribute lookup. These remain unchanged: the three KV deletions run in parallel and are awaited; event delivery uses the existing background mechanism after attributes have been loaded. Workflow acceptance is still confirmed before response, and R2 copying stays in the Workflow. There is no PowerSync submission change in this optimization. Reduced query dependencies are verified locally; a deployed response-time improvement requires before/after browser and Worker timing measurements.
 
-## Existing save endpoint and workflow
+## Web PowerSync submission — 2026-10-27
 
-The button and Reader URL dialog submit:
+The Web Fork button and Reader URL dialog now reuse ordinary Add URL's local insertion and upload queue. This changes the waiting boundary: the UI acknowledges local SQLite insertion rather than waiting for server admission. It remains online at initiation. A later network interruption uses the existing queue retry behavior.
 
-```http
-POST /v1/bookmark/add_url
-Content-Type: application/json
+1. `useBookmarkFork` uses the existing account/URL save guard and `useLocalBookmarks.createBookmark()`. The latter writes the unchanged pending metadata and a local UUID. Reader URL entry already delegates to this hook, so the modal needs no production change.
+2. The unchanged PowerSync connector uploads that PUT to `/v1/sync/changes`. `forked_from_id` stays server-owned; detail responses already provide attribution and viewer status. No schema, stream/bucket, migration or contract change is necessary.
+3. Sync identifies the trusted Reader origin and executes every ordered bookmark mutation in one transaction. `BookmarkForkService.reserve()` and the existing repository use that same transaction; later edits see the admitted destination. Reader-containing batches reuse Fork Serializable isolation and bounded conflict retries. Any database failure rolls back the entire batch. Only after commit does `dispatch()` reuse the existing Workflow launch. An ordinary-only batch retains its previous isolation and retry count.
+4. A new destination uses the submitted UUID and requested archive flag; later queued personal edits apply in order. An existing destination keeps its canonical UUID and personal state. Explicit repeat submissions generate a fresh local UUID and refresh a completed destination through existing admission.
+5. Deferred dispatch callbacks are reset on each transaction attempt, so rolled-back/conflicting attempts never launch Workflows. The existing Workflow copies all supported types, rechecks source policy and destination ownership, and publishes provenance. None of its R2, finite retry or cleanup code changes in this follow-up.
+6. The local hook marks the button saved without emitting an immediate server-detail refresh, which could otherwise clear the acknowledgement before upload. Later visits retain existing viewer-scoped detail behavior. Local queue acceptance does not guarantee successful copying.
 
-{"target_url":"https://<configured-reader-origin>/b/<source-uuid>","tags":[]}
-```
-
-The existing success envelope carries `data: { "bmId": "" }`. This acknowledges persisted admission and accepted durable dispatch, not completed R2 copying. A failed response envelope is not success. Source/permission/busy/Labs failures retain meaningful existing error conventions. The page refreshes its existing detail once after acceptance; refresh failure does not undo the accepted submission.
-
-`/fork` and `/fork_metadata` are removed from this unreleased change. Reader detection in `add_url`/Extension `add` delegates to the existing Fork domain service before crawling. Ordinary external-URL saves retain their original path. Telegram/import adapters retain actual-completion accounting. Old queued Reader creates retain their explicit compatibility handling rather than crawling the Reader shell.
+If local-first is unavailable, Web retains `POST /v1/bookmark/add_url` with `{ "target_url": "https://<reader>/b/<source-uuid>", "tags": [] }`. Its `{ "bmId": "" }` response still acknowledges admission and durable dispatch; HTTP acceptance still refreshes existing detail once. Extension, Telegram/import adapters and ordinary HTTP saves retain their current behavior. No `/fork` or `/fork_metadata` endpoint returns.
 
 ```mermaid
 flowchart TD
-    A[Fork button or Reader URL input] --> B[Existing add_url]
-    B --> C{Trusted Reader URL?}
-    C -- No --> D[Existing ordinary capture]
-    C -- Yes --> E[Resolve source and check access/type gates]
-    E --> F[Find or reserve personal destination]
-    F --> G{Another write active?}
-    G -- Yes --> H[Return existing pending result or busy failure]
-    G -- No --> I[Persist admission and dispatch existing Crawl Workflow]
-    I --> J[Return 200; stay on source page]
-    I --> K[Workflow claims accepted request]
-    K --> L[Copy saved content to destination fixed keys]
-    L --> M[Recheck source and write ownership; publish success/provenance]
-    M --> N[Immediate search/summary effects; PowerSync delivers row]
-    L -- Failure --> O[Existing bounded retries]
-    O -- Exhausted --> P[Guarded failed state; explicit user retry]
+    A[Fork button or Reader URL input] --> B{Local-first available?}
+    B -- Yes --> C[Existing save guard and local pending INSERT with UUID L]
+    C --> D[End loading; keep source page; no immediate detail refresh]
+    C --> E[Unchanged PowerSync connector uploads PUT]
+    E --> T[One ordered database transaction for the entire batch]
+    T --> G{Reader create already persisted at owned private UUID L?}
+    G -- Yes --> H[Skip readmission]
+    G -- No --> I[Existing source and Labs checks using the same transaction]
+    I --> K[Existing reservation: new UUID L or existing canonical destination]
+    I -- Explicit source rejection --> N[Existing failed placeholder at L]
+    H --> NEXT[Continue remaining operations in the same transaction]
+    K --> NEXT
+    N --> NEXT
+    NEXT --> CMT{Entire transaction commits?}
+    T -- Database or infrastructure failure --> RB[Roll back all mutations; dispatch nothing; existing upload retry]
+    CMT -- No --> RB
+    CMT -- Yes --> JOB[Dispatch only committed reservations and ordinary crawl jobs]
+    JOB --> L[Existing Crawl Workflow copies to fixed R2 keys]
+    L --> M[Guarded publication and normal PowerSync result delivery]
+    B -- No --> HTTP[Existing add_url standalone admission and commit]
+    HTTP --> L
 ```
 
-Database uniqueness on `(target_url, private_user)` and conditional existing-state admission select one destination/writer. Accepted timestamps identify the request; stale execution cannot publish over a newer owner request. `pending`/`pending_retry`/`parseing` and the original retry machinery are reused. Ambiguous dispatch keeps its claim rather than assuming no writer exists. No automatic timeout takeover is added.
+### Replay and failure boundaries
+
+| Situation | Behavior |
+| --- | --- |
+| Later mutation fails in a mixed upload | Roll back prior ordinary saves, Reader reservations and failure placeholders together; dispatch no Workflow. |
+| Transaction conflict | Retry the entire transaction within the existing Fork budget, clearing deferred effects from rolled-back attempts. |
+| Double-click or repeated URL while local save is pending | Existing account/URL guard prevents a second local insert. |
+| Response lost after the submitted UUID persisted | Check UUID plus relation owner plus private resource owner; acknowledge without revalidating a source that may have disappeared. Later queued edits continue. |
+| Source unavailable, denied, not ready, or acquisition gate disabled before admission | Reuse the existing failed Reader placeholder. Preserve its local UUID for personal edits and removal; do not crawl the Reader shell. |
+| Database or other infrastructure error before admission | Reject upload so the unchanged connector retries. |
+| Existing target is busy, or dispatch confirmation is uncertain after admission | Acknowledge the persisted resource, retain its active claim and let other uploads proceed. Do not reset it or launch ordinary crawling. |
+| R2 copy fails | Existing bounded Workflow retries and guarded failure transition. No new rescue or maintenance. |
+| User repeats a completed save through Add URL | A new local command uses existing admission to refresh the same private destination and preserve personal state. |
+
+A later database failure no longer exposes ordinary saves to replay after a partial batch commit. A response lost after a fully successful commit still has the inherited replay behavior.
+
+Database uniqueness on `(target_url, private_user)` and existing conditional admission select one destination/writer. Client UUID ownership remains checked. A fresh local UUID can differ from an existing destination's canonical UUID; dependent edits against that temporary UUID, replay after deletion, repeated refresh on an existing-target replay and account/queue lifecycle boundaries remain the explicitly accepted ordinary-save limitations. There is no UUID alias registry, command receipt, new version, new state or additional recovery job. Uncertain dispatch can remain processing and may require investigation.
+
+Deploy API support before the local-first Web change: an older server still creates failed placeholders for Reader PUTs. Reverting Web restores HTTP submission, but pending local Reader PUTs still require the new API. No database or R2 migration is required.
+
+This follow-up changes eight handwritten production files plus regenerated DI wiring, with seven test files and documentation. Existing Fork admission and own-source restore accept the caller transaction. Labs permission reads also reuse that transaction: the deployed pool has one connection, so using the global client while holding a transaction would otherwise wait on itself. HTTP callers omit this optional transaction and retain their previous behavior. The original fixed-path copying/deletion details below remain applicable.
 
 ## R2 paths, copying and deletion
 

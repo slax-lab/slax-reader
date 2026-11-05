@@ -18,7 +18,10 @@ const source = toRef(props, 'bookmarkUid')
 const { fork, pending, saved, error } = useBookmarkFork(source, toRef(props, 'viewerForkStatus'))
 async function submit() {
   if (!props.ready) return
-  if (await fork(props.bookmarkUid)) emit('accepted')
+  const result = await fork(props.bookmarkUid)
+  // A local save has not reached the server yet; an immediate detail refresh can
+  // still report no copy and undo the optimistic saved state.
+  if (result && !result.queued) emit('accepted')
 }
 </script>
 <style scoped>

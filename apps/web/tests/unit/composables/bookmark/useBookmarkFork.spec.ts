@@ -1,5 +1,6 @@
 import { computed, reactive, ref } from 'vue'
 
+import AddUrlTopModal from '~/components/BookmarkList/AddUrlTopModal.vue'
 import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
@@ -7,10 +8,12 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { useBookmarkFork } from '~/composables/bookmark/useBookmarkFork'
 import { beforeEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ post: vi.fn(), login: vi.fn(), toast: vi.fn(), user: null as any }))
+const mocks = vi.hoisted(() => ({ post: vi.fn(), login: vi.fn(), toast: vi.fn(), user: null as any, localFirst: false, createBookmark: vi.fn(), getSaveState: vi.fn() }))
 vi.mock('~/stores/user', () => ({ useUserStore: () => mocks.user }))
 vi.mock('~/composables/useAccountContext', () => ({ useAccountContext: () => ({ sync: () => {}, context: computed(() => ({ generation: mocks.user.generation })) }) }))
-vi.mock('~/utils/request', () => ({ request: () => ({ post: mocks.post }) }))
+vi.mock('~/utils/request', () => ({ request: () => ({ post: mocks.post, get: async () => ({ features: [] }) }), haveRequestToken: () => true, getUserToken: () => null }))
+vi.mock('~/composables/bookmark/useLocalBookmarks', () => ({ useLocalBookmarks: () => ({ createBookmark: mocks.createBookmark, getSaveState: mocks.getSaveState }) }))
+mockNuxtImport('isLocalFirstEnabled', () => () => mocks.localFirst)
 vi.mock('~/components/Modal', () => ({ showLoginModal: mocks.login }))
 vi.mock('~/components/Toast', () => ({ default: { showToast: mocks.toast }, ToastType: { Error: 'error' } }))
 mockNuxtImport('useI18n', () => () => ({ t: (key: string) => key }))
@@ -19,6 +22,9 @@ beforeEach(() => {
   vi.clearAllMocks()
   useRuntimeConfig().public.PUBLIC_BASE_URL = 'https://reader.test'
   mocks.user = reactive({ isLogin: true, userInfo: { userId: 1 }, generation: 0 })
+  mocks.localFirst = false
+  mocks.getSaveState.mockResolvedValue(null)
+  mocks.createBookmark.mockResolvedValue('local-uuid')
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
 })
 const deferred = () => { let resolve!: (value: any) => void; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
@@ -38,6 +44,66 @@ it('blocks offline and anonymous saves using existing feedback', async () => {
   await action.fork('source')
   expect(mocks.login).toHaveBeenCalledOnce()
   expect(mocks.post).not.toHaveBeenCalled()
+})
+
+it('finishes after local insertion without waiting for HTTP, and does not refresh detail before upload', async () => {
+  mocks.localFirst = true
+  const write = deferred()
+  mocks.createBookmark.mockReturnValueOnce(write.promise)
+  const button = mountButton()
+  await button.get('button').trigger('click')
+  await flushPromises()
+  expect(button.get('button').attributes('aria-busy')).toBe('true')
+  expect(mocks.createBookmark).toHaveBeenCalledWith('https://reader.test/b/source')
+  expect(mocks.post).not.toHaveBeenCalled()
+  write.resolve('local-uuid')
+  await flushPromises()
+  expect(button.get('button').attributes('aria-busy')).toBe('false')
+  expect(button.get('button').element.disabled).toBe(true)
+  expect(button.emitted('accepted')).toBeUndefined()
+  button.unmount()
+})
+
+it('reuses ordinary pending-save protection for a Reader URL already queued from the list', async () => {
+  mocks.localFirst = true
+  mocks.getSaveState.mockResolvedValue({ id: 'local-uuid', status: 'pending', updated_at: 'now' })
+  await useBookmarkFork().fork('source')
+  expect(mocks.createBookmark).not.toHaveBeenCalled()
+  expect(mocks.post).not.toHaveBeenCalled()
+})
+
+it('closes Reader URL entry after local insertion using the same Fork hook as the page button', async () => {
+  mocks.localFirst = true
+  const sourceUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const targetUrl = `https://reader.test/b/${sourceUuid}`
+  const modal = mount(AddUrlTopModal, {
+    props: { show: true },
+    global: { stubs: { Teleport: true }, mocks: { $t: (key: string) => key } }
+  })
+  await modal.get('input.modal-input').setValue(targetUrl)
+  await modal.get('button.modal-btn-primary').trigger('click')
+  await flushPromises()
+  expect(mocks.createBookmark).toHaveBeenCalledWith(targetUrl)
+  expect(mocks.post).not.toHaveBeenCalled()
+  expect(modal.emitted('update:show')).toEqual([[false]])
+  expect(modal.emitted('addUrlSuccess')).toEqual([[targetUrl]])
+  modal.unmount()
+})
+
+it('permits retry after local insertion fails without reporting a saved copy', async () => {
+  mocks.localFirst = true
+  mocks.createBookmark.mockRejectedValueOnce(new Error('local write failed'))
+  const button = mountButton()
+  await button.get('button').trigger('click')
+  await flushPromises()
+  expect(button.get('button').element.disabled).toBe(false)
+  expect(mocks.toast).toHaveBeenCalled()
+  await button.get('button').trigger('click')
+  await flushPromises()
+  expect(mocks.createBookmark).toHaveBeenCalledTimes(2)
+  expect(button.get('button').element.disabled).toBe(true)
+  expect(mocks.post).not.toHaveBeenCalled()
+  button.unmount()
 })
 
 it('uses add_url admission without requiring a destination UUID; shares request and saved state', async () => {

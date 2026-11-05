@@ -36,7 +36,7 @@ Web URL entry, Extension HTML submission, REST URL submission, Telegram collecti
 
 #### Scenario: Web URL entry
 - **WHEN** a connected Web user pastes a Reader article URL in the add dialog
-- **THEN** the dialog uses online Fork without creating an optimistic local bookmark and the completed result synchronizes normally
+- **THEN** the dialog inserts the ordinary local pending bookmark and closes after local persistence, with existing PowerSync uploading and delivering the eventual Fork result; Web without local-first retains online add_url
 
 #### Scenario: Import and Telegram complete a copy
 - **WHEN** an import item or bound Telegram user submits an accessible Reader URL
@@ -130,25 +130,56 @@ Visitor Reader pages SHALL provide a reachable Fork action on desktop and mobile
 - **WHEN** an anonymous visitor uses Fork and completes login
 - **THEN** the same source is restored and no copy is created until the user explicitly activates Fork again
 
-### Requirement: Queued-client compatibility
+### Requirement: PowerSync Reader submission
 
-Older queued Reader-URL creates SHALL have a durable terminal failed-save outcome with no copied body, provenance claim or background crawl. Their acknowledgement SHALL preserve unrelated sync mutations and dependent user edits. Replays SHALL NOT rebind unrelated existing identities, resurrect the failure into pending capture, or discard a successful personal copy. Ordinary external-URL offline saving SHALL remain supported.
+Reader-URL creates SHALL use the existing local bookmark shape, connector and sync endpoint. The server SHALL resolve the trusted source and reuse existing authorized Fork admission and copying. Newly created relations SHALL use the submitted client UUID; existing destinations SHALL retain their UUID and personal state under ordinary-save semantics. No additional schema, bucket or provenance-sync field SHALL be required. All ordered bookmark operations, including Reader reservations and permanent Reader-failure placeholders, SHALL share one database transaction. Workflow dispatch SHALL occur only after successful commit, and rolled-back attempts SHALL not dispatch. Reader-containing transactions SHALL retain existing Fork isolation and bounded conflict retries. Ordinary-only sync batches SHALL retain their existing transaction and retry behavior.
 
-#### Scenario: Mixed old-client batch
-- **WHEN** a queued Reader-URL create and an unrelated note/tag edit upload together
-- **THEN** the Reader save becomes visibly failed and removable, the unrelated edit completes, and neither item is retried forever because of a source-access failure
+#### Scenario: Local acceptance before slow upload
+- **WHEN** a connected user submits a Reader URL or activates Fork while the upload endpoint is slow
+- **THEN** local insertion ends the loading state without waiting for HTTP admission or R2 copying, and no immediate server-detail refresh clears that local acknowledgement
 
-#### Scenario: Delayed dependent edits
-- **WHEN** later queued edits reference the failed placeholder
-- **THEN** they remain attached to that placeholder rather than silently moving to another bookmark
+#### Scenario: Mixed batch and dependent edit
+- **WHEN** a Reader create appears between ordinary operations, including a personal edit of its newly created UUID
+- **THEN** operations execute in order within one transaction, the later edit sees that new destination, and all database mutations commit before any Workflow dispatch
 
-#### Scenario: Lost acknowledgement
-- **WHEN** the same Reader placeholder transaction is replayed after its successful persistence response was lost
-- **THEN** the stable failure state is retained without a new crawl or UUID reassignment
+#### Scenario: New Reader PUT requests archive state
+- **WHEN** a new Reader PUT includes the ordinary archive flag, optionally followed by an archive PATCH
+- **THEN** the new destination retains the requested flag and a later PATCH wins in queue order, before Workflow dispatch
+- **AND** this does not import the source owner's personal archive state
 
-#### Scenario: Two devices queued the same Reader URL
-- **WHEN** two devices upload valid creates for the same source URL with different local bookmark UUIDs
-- **THEN** each UUID retains its own terminal failed placeholder and dependent edits, without violating resource uniqueness, blocking unrelated changes or merging notes into the other placeholder
+#### Scenario: Later operation fails in a mixed batch
+- **WHEN** an ordinary create or refresh, Reader reservation, and later mutation share an upload and the later mutation fails
+- **THEN** the entire ordered transaction rolls back, including prior ordinary and Reader writes; no Workflow is started
+- **AND** retrying the same upload after the failure is removed performs one committed set of mutations and dispatches only that successful attempt
+
+#### Scenario: Retryable transaction conflict
+- **WHEN** a Reader-containing transaction encounters a retryable uniqueness or serialization conflict
+- **THEN** the existing bounded conflict policy retries the whole transaction, discards prior attempt effects, and only the committed attempt dispatches
+
+#### Scenario: Post-commit dispatch failure
+- **WHEN** the database transaction commits but a Reader Workflow cannot be confirmed
+- **THEN** retain the committed changes and uncertain write claim, acknowledge upload like ordinary post-commit scheduling, and introduce no new recovery guarantee
+
+#### Scenario: Source rejected during upload
+- **WHEN** a queued source is missing, unavailable, denied or blocked by an acquisition gate
+- **THEN** the existing terminal Reader failure writer retains its local UUID with no copied content or provenance, and unrelated subsequent mutations continue
+
+#### Scenario: Persisted create is replayed
+- **WHEN** a queued create already has a private relation owned by the submitting user at its client UUID
+- **THEN** acknowledge it without readmitting the source, preserve successful, active or failed state and personal edits, and continue later operations even after source deletion or permission changes
+- **AND** a UUID belonging to another user does not satisfy this check
+
+#### Scenario: Existing destination and lost response
+- **WHEN** a queued create finds an existing personal destination or is replayed after a lost response
+- **THEN** resource uniqueness and existing UUID are preserved using ordinary-save semantics; a terminal save may refresh again, and no permanent UUID alias or exactly-once receipt is introduced
+
+#### Scenario: Busy destination or uncertain dispatch
+- **WHEN** admission finds an active destination or cannot confirm its already reserved Workflow dispatch
+- **THEN** sync acknowledges the existing save, retains its active claim and permits unrelated operations without creating another failure placeholder or starting ordinary URL capture
+
+#### Scenario: Infrastructure failure before admission
+- **WHEN** database or network failure prevents admission
+- **THEN** the sync upload remains retryable through the existing connector and does not execute later operations
 
 #### Scenario: Deliberate repeat after completion
 - **WHEN** the owner Forks a source again after the previous request completes
@@ -176,7 +207,7 @@ Older queued Reader-URL creates SHALL have a durable terminal failed-save outcom
 
 ### Requirement: Shared detail projection and account isolation
 
-Existing public and authenticated private detail queries SHALL supply safe Fork attribution and viewer_fork_status. The button and article SHALL consume the same page detail rather than dedicated Fork metadata requests. The button SHALL submit a configured Reader URL through add_url. Explicit URL submission SHALL retain refresh semantics even when a completed copy disables the button.
+Existing public and authenticated private detail queries SHALL supply safe Fork attribution and viewer_fork_status. The button and article SHALL consume the same page detail rather than dedicated Fork metadata requests. The button SHALL submit a configured Reader URL through ordinary local insertion and PowerSync when available, retaining add_url as the existing non-local-first fallback. Explicit URL submission SHALL retain refresh semantics even when a completed copy disables the button.
 
 #### Scenario: Authenticated SSR cache isolation
 - **WHEN** a Reader request carries a token cookie or Authorization header, including invalid credentials

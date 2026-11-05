@@ -215,14 +215,15 @@ export class BookmarkForkRepo {
     )
   }
 
-  async ownSource(userId: number, uuid: string) {
-    return this.client().$transaction(async db => {
+  async ownSource(userId: number, uuid: string, transaction?: Database) {
+    const execute = async (db: Database) => {
       const source = await this.source(userId, uuid, db)
       if (!source || source.user_id !== userId) throw BookmarkNotFoundError()
       if (source.bookmark.status === 'failed') throw forkError(ErrorName.FORK_DESTINATION_FAILED)
       if (source.bookmark.status !== 'success') throw forkError(ErrorName.FORK_DESTINATION_IN_PROGRESS)
       return this.restore(db, source)
-    })
+    }
+    return transaction ? execute(transaction) : this.client().$transaction(execute)
   }
 
   private async restore(db: Database, relation: NonNullable<Awaited<ReturnType<BookmarkForkRepo['destination']>>>) {
@@ -258,64 +259,63 @@ export class BookmarkForkRepo {
     return current
   }
 
-  /** Admission and the private write claim commit together, before any R2 operation. */
-  async admit(input: { userId: number; source: ForkSource; targetUrl: string; uuid: string }) {
+  /** Admission and the private write claim share the caller transaction when supplied. */
+  async admit(input: { userId: number; source: ForkSource; targetUrl: string; uuid: string }, transaction?: Database) {
+    const execute = async (db: Database) => {
+      const source = await this.validateSource(db, input.userId, input.source)
+      let raw = await db.sr_bookmark.findUnique({ where: { target_url_private_user: { target_url: input.targetUrl, private_user: input.userId } } })
+      if (!raw) raw = (await privatizeLegacyBookmark(db, input.userId, input.targetUrl))?.bookmark ?? null
+      if (raw) {
+        await db.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${raw.id} FOR UPDATE`
+        const relation = await db.sr_user_bookmark.findUnique({ where: { user_id_bookmark_id: { user_id: input.userId, bookmark_id: raw.id } }, include: { bookmark: true } })
+        if (!relation) throw forkError(ErrorName.FORK_DESTINATION_DELETING)
+        if (!['success', 'failed'].includes(relation.bookmark.status)) {
+          if (!relation.deleted_at && relation.forked_from_id === source.id) return { disposition: 'already_saved' as const, relation }
+          throw forkError(ErrorName.FORK_DESTINATION_IN_PROGRESS)
+        }
+        const now = new Date(Math.max(Date.now(), relation.bookmark.updated_at.getTime() + 1))
+        await db.sr_bookmark.update({ where: { id: raw.id }, data: { status: 'parseing', updated_at: now } })
+        // Preserve the existing body's attribution until successful publication.
+        const restored = await this.restore(db, { ...relation, bookmark: { ...relation.bookmark, status: 'parseing', updated_at: now } })
+        return { disposition: 'updated' as const, relation: restored }
+      }
+      const before = source.bookmark
+      const now = new Date()
+      const bookmark = await db.sr_bookmark.create({
+        data: {
+          title: before.title,
+          target_url: input.targetUrl,
+          host_url: before.host_url,
+          site_name: before.site_name,
+          content_icon: before.content_icon,
+          content_cover: before.content_cover,
+          description: before.description,
+          byline: before.byline,
+          published_at: before.published_at,
+          moderation_result: before.moderation_result,
+          private_user: input.userId,
+          status: 'parseing',
+          created_at: now,
+          updated_at: now
+        }
+      })
+      const relation = await db.sr_user_bookmark.create({
+        data: {
+          uuid: input.uuid,
+          user_id: input.userId,
+          bookmark_id: bookmark.id,
+          forked_from_id: source.id,
+          type: source.type,
+          updated_at: now
+        },
+        include: { bookmark: true }
+      })
+      return { disposition: 'created' as const, relation }
+    }
+    if (transaction) return execute(transaction)
     for (let attempt = 0; ; attempt++) {
       try {
-        return await this.client().$transaction(
-          async db => {
-            const source = await this.validateSource(db, input.userId, input.source)
-            let raw = await db.sr_bookmark.findUnique({ where: { target_url_private_user: { target_url: input.targetUrl, private_user: input.userId } } })
-            if (!raw) raw = (await privatizeLegacyBookmark(db, input.userId, input.targetUrl))?.bookmark ?? null
-            if (raw) {
-              await db.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${raw.id} FOR UPDATE`
-              const relation = await db.sr_user_bookmark.findUnique({ where: { user_id_bookmark_id: { user_id: input.userId, bookmark_id: raw.id } }, include: { bookmark: true } })
-              if (!relation) throw forkError(ErrorName.FORK_DESTINATION_DELETING)
-              if (!['success', 'failed'].includes(relation.bookmark.status)) {
-                if (!relation.deleted_at && relation.forked_from_id === source.id) return { disposition: 'already_saved' as const, relation }
-                throw forkError(ErrorName.FORK_DESTINATION_IN_PROGRESS)
-              }
-              const now = new Date(Math.max(Date.now(), relation.bookmark.updated_at.getTime() + 1))
-              await db.sr_bookmark.update({ where: { id: raw.id }, data: { status: 'parseing', updated_at: now } })
-              // Preserve the existing body's attribution until successful publication.
-              const restored = await this.restore(db, { ...relation, bookmark: { ...relation.bookmark, status: 'parseing', updated_at: now } })
-              return { disposition: 'updated' as const, relation: restored }
-            }
-            const before = source.bookmark
-            const now = new Date()
-            const bookmark = await db.sr_bookmark.create({
-              data: {
-                title: before.title,
-                target_url: input.targetUrl,
-                host_url: before.host_url,
-                site_name: before.site_name,
-                content_icon: before.content_icon,
-                content_cover: before.content_cover,
-                description: before.description,
-                byline: before.byline,
-                published_at: before.published_at,
-                moderation_result: before.moderation_result,
-                private_user: input.userId,
-                status: 'parseing',
-                created_at: now,
-                updated_at: now
-              }
-            })
-            const relation = await db.sr_user_bookmark.create({
-              data: {
-                uuid: input.uuid,
-                user_id: input.userId,
-                bookmark_id: bookmark.id,
-                forked_from_id: source.id,
-                type: source.type,
-                updated_at: now
-              },
-              include: { bookmark: true }
-            })
-            return { disposition: 'created' as const, relation }
-          },
-          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 }
-        )
+        return await this.client().$transaction(execute, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 })
       } catch (error) {
         // A competing private-URL insert/claim wins; reload it without changing its timestamp.
         if (attempt >= 2 || !['P2002', 'P2034'].includes((error as { code?: string }).code ?? '')) throw error
@@ -491,8 +491,8 @@ export class BookmarkForkRepo {
     )
   }
 
-  async mediaRef(bookmarkId: number) {
-    return this.client().sr_media_article_ref.findUnique({ where: { bookmark_id: bookmarkId } })
+  async mediaRef(bookmarkId: number, db: Database = this.client()) {
+    return db.sr_media_article_ref.findUnique({ where: { bookmark_id: bookmarkId } })
   }
 
   async mediaDenied(ref: MediaSnapshotRef, db: Database = this.client()) {

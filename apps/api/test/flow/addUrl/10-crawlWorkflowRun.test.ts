@@ -136,7 +136,7 @@ describe('CrawlWorkflow acquisition Labs gates', () => {
 
     await expect(runWorkflow(wf, { url, userId: 7 })).rejects.toMatchObject({ name: 'NonRetryableError', message: expect.stringContaining('url_lab_disabled:') })
 
-    expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube')
+    expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube', undefined)
     expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
     expect(bs.getBookmarkTitleAndTextContentTry).not.toHaveBeenCalled()
     expect(bs.capturePdf).not.toHaveBeenCalled()
@@ -152,7 +152,7 @@ describe('CrawlWorkflow acquisition Labs gates', () => {
 
     await expect(runWorkflow(wf, { url: 'https://bit.ly/video' })).rejects.toMatchObject({ name: 'NonRetryableError', message: expect.stringContaining('url_lab_disabled:') })
 
-    expect(labRepo.isEnabled).toHaveBeenCalledWith(1, 'youtube')
+    expect(labRepo.isEnabled).toHaveBeenCalledWith(1, 'youtube', undefined)
     expect(cs.fetchYoutubeData).not.toHaveBeenCalled()
     expect(cs.fetchRegular).not.toHaveBeenCalled()
     expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
@@ -167,7 +167,7 @@ describe('CrawlWorkflow acquisition Labs gates', () => {
 
     await runWorkflow(wf, { url, userId: 7 })
 
-    expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube')
+    expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube', undefined)
     expect(cs.fetchYoutubeData).toHaveBeenCalledWith(expect.anything(), youtube)
     expect(cs.parseAndSaveYoutube).toHaveBeenCalled()
     expect(uph.processPostHandler).toHaveBeenCalled()

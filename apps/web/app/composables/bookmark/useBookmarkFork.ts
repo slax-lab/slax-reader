@@ -1,10 +1,12 @@
 import { computed, type MaybeRef, reactive, ref, toValue, watch } from 'vue'
 
-import { request } from '~/utils/request'
+import { haveRequestToken, request } from '~/utils/request'
 
 import type { AddBookmarkResponse,BookmarkForkMetadata } from '@slax-reader/contracts'
 import { showLoginModal } from '~/components/Modal'
 import Toast, { ToastType } from '~/components/Toast'
+import { bookmarkSaveGuardFor } from '~/composables/bookmark/useBookmarkSaveGuard'
+import { useLocalBookmarks } from '~/composables/bookmark/useLocalBookmarks'
 import { useAccountContext } from '~/composables/useAccountContext'
 import { useUserStore } from '~/stores/user'
 
@@ -28,6 +30,8 @@ export function useBookmarkFork(source?: MaybeRef<string>, status?: MaybeRef<Boo
   const config = useRuntimeConfig().public
   const { t } = useI18n()
   const state = forkState(user)
+  const local = useLocalBookmarks()
+  const saveGuard = bookmarkSaveGuardFor(user)
   const key = computed(() => `${user.isLogin ? user.userInfo?.userId : 'anonymous'}:${source ? toValue(source) : lastSource.value}`)
   const pending = computed(() => state.requests.has(key.value))
   const saved = computed(() => state.saved.has(key.value))
@@ -37,7 +41,7 @@ export function useBookmarkFork(source?: MaybeRef<string>, status?: MaybeRef<Boo
     else state.saved.delete(current)
   }, { immediate: true, flush: 'sync' })
 
-  async function fork(sourceUuid: string): Promise<AddBookmarkResponse | null> {
+  async function fork(sourceUuid: string): Promise<(AddBookmarkResponse & { queued?: true }) | null> {
     account.sync()
     const generation = account.context.value.generation
     const accountId = user.userInfo?.userId
@@ -55,10 +59,23 @@ export function useBookmarkFork(source?: MaybeRef<string>, status?: MaybeRef<Boo
       return null
     }
     state.requests.add(key)
+    const targetUrl = new URL(`/b/${sourceUuid}`, String(config.PUBLIC_BASE_URL)).href
+    const localFirst = isLocalFirstEnabled() && haveRequestToken()
     try {
+      if (localFirst) {
+        await saveGuard.run(String(accountId ?? ''), targetUrl, () => local.getSaveState(targetUrl), async () => {
+          account.sync()
+          if (account.context.value.generation !== generation || !user.isLogin || user.userInfo?.userId !== accountId) throw new Error('Account changed during save')
+          await local.createBookmark(targetUrl)
+        })
+        account.sync()
+        if (account.context.value.generation !== generation || !user.isLogin || user.userInfo?.userId !== accountId || (source && toValue(source) !== sourceUuid)) return null
+        state.saved.add(key)
+        return { bmId: '', queued: true }
+      }
       const result = await request().post<AddBookmarkResponse>({
         url: '/v1/bookmark/add_url',
-        body: { target_url: new URL(`/b/${sourceUuid}`, String(config.PUBLIC_BASE_URL)).href, tags: [] },
+        body: { target_url: targetUrl, tags: [] },
         errorInterceptors: failure => {
           if (account.context.value.generation !== generation || !user.isLogin || user.userInfo?.userId !== accountId || (source && toValue(source) !== sourceUuid)) return
           error.value = failure instanceof Error ? failure.message : t('bookmark_fork.failed')
@@ -70,7 +87,11 @@ export function useBookmarkFork(source?: MaybeRef<string>, status?: MaybeRef<Boo
       if (account.context.value.generation !== generation || !user.isLogin || user.userInfo?.userId !== accountId || (source && toValue(source) !== sourceUuid)) return null
       state.saved.add(key)
       return result
-    } catch {
+    } catch (failure) {
+      if (localFirst && account.context.value.generation === generation && user.isLogin && user.userInfo?.userId === accountId && (!source || toValue(source) === sourceUuid)) {
+        error.value = failure instanceof Error ? failure.message : t('bookmark_fork.failed')
+        Toast.showToast({ text: error.value, type: ToastType.Error })
+      }
       return null
     } finally {
       state.requests.delete(key)
