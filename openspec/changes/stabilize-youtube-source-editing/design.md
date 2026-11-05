@@ -1,6 +1,6 @@
 ## Design
 
-Assign stable passage keys from ordered, non-overlapping cues. Return passage text by key and derive paragraph references on the server. Reject edits that change substantive lexical order, fall back locally to the source, and keep provider failures retryable under existing spend and truncation limits. Cache edited and translated passages independently. Require the canonical article quality gate before publishing.
+Assign stable passage keys from ordered, non-overlapping cues. Use explicit caption labels to separate named turns and retain the speaker on the translated paragraph. Return passage text by key and derive paragraph references on the server. Reject edits that change substantive lexical order, fall back locally to the source, and keep provider failures retryable under existing spend and truncation limits. Cache edited and translated passages independently. Require the canonical article quality gate before publishing.
 
 ## Recovery
 

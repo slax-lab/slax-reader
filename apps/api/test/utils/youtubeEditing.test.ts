@@ -26,6 +26,27 @@ describe('source-owned YouTube passages', () => {
     expect(planned.map(p => p.text).join(' ')).toBe(cues.map(c => c.text).join(' '))
   })
 
+  it('keeps explicit speakers across cleaned and translated passages and clears the name on an anonymous turn', async () => {
+    const cues = ['[Alice]: First?', 'And another?', '>> Bob: Certainly.', 'Bob: Yes.', '>> Thanks.'].map((text, i) => ({ id: 'c' + i, start_ms: i, text }))
+    const planned = sourcePassages(cues)
+    const generate = async (_system: string, user: string, _keys: string[], translating: boolean) => {
+      const output = Object.fromEntries(
+        Object.entries(JSON.parse(user) as Record<string, { text: string }>).map(([key, p]) => [
+          key,
+          { text: translating ? '译文' : p.text, heading: key === 'p0' ? 'Interview' : '' }
+        ])
+      )
+      return JSON.stringify(output)
+    }
+    expect(planned.map(p => p.text)).toEqual(['First? And another?', 'Certainly. Yes.', '>> Thanks.'])
+    const result = await renderSourcePassages(planned, 'en', 'zh', 'chunk', store(), batch, generate, vi.fn())
+    expect(result.flatMap(s => s.paragraphs.map(p => [p.speaker, p.source_cue_ids]))).toEqual([
+      ['Alice', ['c0', 'c1']],
+      ['Bob', ['c2', 'c3']],
+      [null, ['c4']]
+    ])
+  })
+
   it.each(['That sounds great. My balance was -50.', 'Does that work? That sounds great. My balance was -50.', passages[1].text.replace('-50', '50')])(
     'restores source for a missing, moved or numerically changed passage: %s',
     async edit => {

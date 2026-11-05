@@ -18,9 +18,13 @@ Ran the changed runYoutubeArticle locally on the full authenticated R2 input wit
 
 In the earlier passage-editor comparison, read the existing English article for UNzCG3lw6O0 and replayed its canonical captions locally with the new editor. Both results reference the same 597 cues in the same order. The old article has eight sections and 50 paragraphs. The local result has seven sections and 36 paragraphs, matching seek anchors and passing the quality gate with full numeric coverage. Compared the opening and later section headings against their source ranges. The local runner used four responses in 13.9 seconds and an estimated USD 0.02676. The older published workflow recorded USD 0.05122. These individual runs use different execution environments.
 
+## Explicit speakers
+
+Added two explicit speaker labels to a 100-cue excerpt and generated the Chinese article using live Gemini. The runner reached ready in 18.5 seconds. Both source names survived in the rendered HTML and all 100 references were present. The full incident input contains anonymous turns and zero explicit speaker names.
+
 ## Automated verification
 
-- API Vitest suite: 2,845 passed; 117 environment-dependent or explicitly skipped tests.
+- API Vitest suite: 2,846 passed; 117 environment-dependent or explicitly skipped tests.
 - API and contract typechecks passed. Changed source ESLint passed. API gen:all produced no tracked output drift.
 - Strict repository-wide OpenSpec validation: 108 passed. Staged diff whitespace check passed.
 - Forced omitted sentences, reordered text and a changed negative number to exercise source fallback. Returned translation fields in partial batches, then threw a timeout, reconstructed the stage from storage and checked only the outstanding key was requested. Completed stage replay issued zero provider calls.

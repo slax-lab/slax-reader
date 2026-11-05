@@ -1,4 +1,4 @@
-import { estimateTokens, type ArticleSection } from './youtubeArticle'
+import { SPEAKER_RE, estimateTokens, type ArticleSection } from './youtubeArticle'
 import type { YoutubeCaptionCue } from './youtubeCaption'
 
 export const EDITED_LENGTH_BOUNDS: [number, number] = [0.72, 1.15]
@@ -12,6 +12,7 @@ export interface SourcePassage {
   key: string
   text: string
   ids: string[]
+  speaker?: string
 }
 
 export function sourcePassages(cues: YoutubeCaptionCue[]): SourcePassage[] {
@@ -19,13 +20,16 @@ export function sourcePassages(cues: YoutubeCaptionCue[]): SourcePassage[] {
   let size = 0
   for (const cue of cues) {
     let current = passages.at(-1)
-    if (!current || size >= 180 || (size >= 75 && (/[.!?。！？]["'”’]?$/.test(current.text) || /^\s*>>/.test(cue.text)))) {
-      current = { key: 'p' + passages.length, text: '', ids: [] }
+    const marker = SPEAKER_RE.exec(cue.text)
+    const speaker = marker ? (marker[1] ?? marker[2])?.trim() : current?.speaker
+    const text = marker && speaker ? cue.text.slice(marker[0].length).trim() || cue.text : cue.text
+    if (!current || speaker !== current.speaker || size >= 180 || (size >= 75 && (/[.!?。！？]["'”’]?$/.test(current.text) || /^\s*>>/.test(cue.text)))) {
+      current = { key: 'p' + passages.length, text: '', ids: [], speaker }
       passages.push(current)
       size = 0
     }
     current.ids.push(cue.id)
-    current.text += (current.text ? ' ' : '') + cue.text
+    current.text += (current.text ? ' ' : '') + text
     size += estimateTokens(cue.text)
   }
   return passages
@@ -119,7 +123,7 @@ export async function renderSourcePassages(
   for (const p of passages) {
     const { heading, text } = output[p.key]
     if (heading || !sections.length) sections.push({ heading, start_ms: 0, end_ms: 0, paragraphs: [] })
-    sections[sections.length - 1].paragraphs.push({ text, speaker: null, source_cue_ids: p.ids })
+    sections[sections.length - 1].paragraphs.push({ text, speaker: p.speaker ?? null, source_cue_ids: p.ids })
   }
   return sections
 }
