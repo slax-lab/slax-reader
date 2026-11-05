@@ -9,10 +9,10 @@ Ran the changed runYoutubeArticle locally on the full authenticated R2 input wit
 | Final run | Result |
 | --- | --- |
 | Chinese article | 17 chapters, 129 paragraphs |
-| Calls and elapsed time | 17 replies from 22 attempts in 68.8 seconds (five transport errors retried) |
-| Estimated model spend | USD 0.12873 |
-| Gate | No failed checks. Language ratio 1.0, number coverage 0.895 and length ratio 0.420 |
-| Conservative source fallback | 27 passages used caption wording. Such passages can retain speech markers or disfluencies. |
+| Calls and elapsed time | 17 replies from 17 attempts in 55.8 seconds |
+| Estimated model spend | USD 0.12785 |
+| Gate | No failed checks. Language ratio 1.0, number coverage 0.947 and length ratio 0.420 |
+| Conservative source fallback | 36 passages used caption wording. Such passages can retain speech markers or disfluencies. |
 
 ## Previously successful article
 
@@ -24,9 +24,10 @@ Added two explicit speaker labels to a 100-cue excerpt and generated the Chinese
 
 ## Automated verification
 
-- API Vitest suite: 2,846 passed; 117 environment-dependent or explicitly skipped tests.
+- API Vitest suite: 2,849 passed; 117 environment-dependent or explicitly skipped tests.
 - API and contract typechecks passed. Changed source ESLint passed. API gen:all produced no tracked output drift.
 - Strict repository-wide OpenSpec validation: 108 passed. Staged diff whitespace check passed.
+- Verified contractions, grouped numbers, and punctuation repairs in Chinese and Japanese.
 - Forced omitted sentences, reordered text and a changed negative number to exercise source fallback. Returned translation fields in partial batches, then threw a timeout, reconstructed the stage from storage and checked only the outstanding key was requested. Completed stage replay issued zero provider calls.
 - The runner suite exercises the existing workflow payload directly, including v2 source fallback, keyed response reordering, truncation, translation retry and bounded source context.
 

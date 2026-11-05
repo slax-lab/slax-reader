@@ -42,11 +42,15 @@ interface PassageText {
 
 // Permit punctuation/case edits and deletion of explicit speech fillers. Retain source
 // wording when the editor drops, invents or rearranges substantive words or numbers.
-function words(text: string): string {
+function words(text: string, language: string): string {
+  // A comma separates thousands in English and Chinese captions, but can be a decimal elsewhere.
+  if (/^(en|zh)(-|$)/i.test(language)) text = text.replace(/\b\d{1,3}(?:,\d{3})+\b/g, number => number.replace(/,/g, ''))
   return (
     text
       .toLowerCase()
       .replace(/\[music\]/gi, '')
+      .replace(/(?<=\p{L})['’](?=\p{L})/gu, '')
+      .replace(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu, ' $& ')
       .match(/[+−-]?\p{N}+(?:[.,]\p{N}+)*%?|[\p{Sc}]|[\p{L}\p{M}]+/gu) ?? []
   )
     .filter(word => !['um', 'uh', 'umm', 'uhh'].includes(word))
@@ -99,7 +103,7 @@ export async function renderSourcePassages(
           if (!source[p.key].heading) heading = ''
         } else {
           const ratio = editedTextLengthRatio(text, p.text)
-          if (!text || ratio < EDITED_LENGTH_BOUNDS[0] || ratio > EDITED_LENGTH_BOUNDS[1] || words(text) !== words(p.text)) {
+          if (!text || ratio < EDITED_LENGTH_BOUNDS[0] || ratio > EDITED_LENGTH_BOUNDS[1] || words(text, sourceLanguage) !== words(p.text, sourceLanguage)) {
             text = p.text
             fallback++
           }

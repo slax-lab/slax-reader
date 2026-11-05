@@ -47,6 +47,26 @@ describe('source-owned YouTube passages', () => {
     ])
   })
 
+  it.each([
+    ['en', 'We dont need 1000 votes.', "We don't need 1,000 votes."],
+    ['zh', '大家好欢迎回来今天我们继续讨论昨天的问题', '大家好，欢迎回来今天我们继续讨论昨天的问题！'],
+    ['ja', '今日は元気です昨日と同じ道を歩きます', '今日は、元気です昨日と同じ道を歩きます。']
+  ])('accepts punctuation repairs in %s without dropping words', async (lang, original, edited) => {
+    const report = vi.fn()
+    const result = await renderSourcePassages(
+      [{ key: 'p0', ids: ['c0'], text: original }],
+      lang,
+      lang,
+      'chunk',
+      store(),
+      batch,
+      async () => JSON.stringify({ p0: { heading: 'Topic', text: edited } }),
+      report
+    )
+    expect(result[0].paragraphs[0].text).toBe(edited)
+    expect(report).not.toHaveBeenCalled()
+  })
+
   it.each(['That sounds great. My balance was -50.', 'Does that work? That sounds great. My balance was -50.', passages[1].text.replace('-50', '50')])(
     'restores source for a missing, moved or numerically changed passage: %s',
     async edit => {
