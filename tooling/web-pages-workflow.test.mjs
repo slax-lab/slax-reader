@@ -42,6 +42,7 @@ test('release accepts only merged pull requests and selects one protected Enviro
   const checkout = job.steps.find(step => step.uses?.startsWith('actions/checkout@'))
   assert.equal(checkout.with.ref, '${{ github.event.pull_request.merge_commit_sha }}')
   assert.equal(checkout.with['persist-credentials'], false)
+  assert.equal(checkout.with['allow-unsafe-pr-checkout'], true)
   assert.equal(job.concurrency['cancel-in-progress'], false)
   assert.match(job.concurrency.group, /base\.ref/)
   assert.deepEqual(workflow.permissions, { contents: 'read' })
