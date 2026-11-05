@@ -70,7 +70,10 @@ import { useTagChipInteraction } from '~/composables/useTagChipInteraction'
           return json({ mode, requests })
         }
         if (!url.pathname.startsWith('/v1/')) return next()
-        if (url.pathname === '/v1/tag/list') return json({ code: 200, message: 'ok', data: catalog })
+        if (url.pathname === '/v1/tag/list') {
+          if (mode === 'catalog-error') return json({ code: 500, message: 'Synthetic catalog failure', data: 'fixture-error' }, 500)
+          return json({ code: 200, message: 'ok', data: catalog })
+        }
         let body = ''
         for await (const chunk of req) body += chunk
         const parsed = JSON.parse(body || '{}')

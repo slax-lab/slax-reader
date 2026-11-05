@@ -87,6 +87,16 @@ try {
   assert.deepEqual((await control('success')).requests, [])
   assert.deepEqual(errors, [])
   console.log(`Local-only UUID guard passed; screenshots: ${output}`)
+  await control('catalog-error', true)
+  await page.goto(`${origin}/?surface=list`)
+  await page.locator('.tag-add').click()
+  await page.waitForFunction(() => document.querySelector('#feedback')?.dataset.toastCount === '1')
+  assert.equal(await page.locator('#feedback').getAttribute('data-toast-count'), '1')
+  assert.equal(await page.locator('.search-list').isVisible(), true)
+  assert.equal(await count(), 'Successful changes: 0')
+  assert.deepEqual(errors, [])
+  await page.screenshot({ path: `${output}/catalog-error.png` })
+  console.log('Catalog HTTP failure produces one error notification and keeps the panel usable')
 } finally {
   await browser.close()
 }

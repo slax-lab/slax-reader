@@ -38,7 +38,7 @@
               :index="item.index"
               :is-subscribe="filterStatus === 'collections'"
               :bookmark="item.bookmark"
-                :data-source="dataSource"
+              :data-source="dataSource"
               :collection-code="filterCollectionCode"
               :source-filterable="filterStatus === 'inbox'"
               :text-mode="effectiveMode === 'text'"

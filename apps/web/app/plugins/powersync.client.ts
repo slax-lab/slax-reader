@@ -197,7 +197,7 @@ export default defineNuxtPlugin({
           } catch (error) {
             powerSyncConsole.error('[powersync] local database initialization unavailable; using REST fallback', {
               attemptedModes: ['main'],
-              stopReason: 'initialization-error',
+              reason: 'initialization-error',
               error
             })
             return { database: null, mode: 'rest' as const }

@@ -10,6 +10,7 @@ import { computed, ref } from 'vue'
 import BookmarkTags from '~~/app/components/BookmarkTags.vue'
 
 import type { BookmarkTag } from '@commons/frontend-types/models'
+import { FetchRequest } from '@commons/frontend-utils/request'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { LocalFirstAdapterKey, SharedUserTagsKey } from '~~/app/composables/local-first/injection'
@@ -196,7 +197,7 @@ describe('components/BookmarkTags', () => {
       const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
       await openPanel(wrapper)
       expect(mockGet).toHaveBeenCalledTimes(1)
-      expect(mockGet.mock.calls[0]![0]).toEqual({ url: '/v1/tag/list' })
+      expect(mockGet.mock.calls[0]![0]).toEqual(expect.objectContaining({ url: '/v1/tag/list' }))
     })
 
     it('候选分组：mine 标题在前、auto 在后；已绑定的显示但不可选', async () => {
@@ -286,6 +287,20 @@ describe('components/BookmarkTags', () => {
   })
 
   describe('勾选 + Done 提交（REST）', () => {
+    it('shows one error toast when the real request client cannot load the REST catalog', async () => {
+      const client = new FetchRequest({
+        baseUrl: 'https://synthetic-api.test',
+        errorInterceptors: () => mockToast({ text: 'Shared request failure', type: 'error' })
+      })
+      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new TypeError('Load failed'))
+      mockGet.mockImplementation(options => client.get(options))
+      const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
+      await openPanel(wrapper)
+      expect(mockToast).toHaveBeenCalledTimes(1)
+      expect(isPanelHidden()).toBe(false)
+      expect(wrapper.emitted('change')).toBeUndefined()
+    })
+
     it('点击候选只切换 pending，不发请求；再点取消', async () => {
       const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
       await openPanel(wrapper)

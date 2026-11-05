@@ -389,7 +389,11 @@ const searchingTags = async () => {
   if (isAddingLoading.value) return
   isAddingLoading.value = true
   try {
-    const res = await request().get<BookmarkTag[]>({ url: RESTMethodPath.TAG_LIST })
+    const res = await request().get<BookmarkTag[]>({
+      url: RESTMethodPath.TAG_LIST,
+      // This panel presents the catalog failure once in its catch handler.
+      errorInterceptors: () => {}
+    })
     if (res) restSearchTags.value = res
     nextTick(restoreResultScroll)
   } catch {
