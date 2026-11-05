@@ -34,8 +34,8 @@
         <TabsSidebar ref="tabsSidebar" :tabType="rssActive ? 'rss' : searchText ? '' : filterStatus" @change-tab="inboxClick" />
         <!-- fork-only：领取订阅入口 -->
         <div v-if="showReceiveSubscribe && !kocFlow.state.value.pending && !kocFlow.blocksOnboarding.value" class="sidebar-promo" @click="receiveActivity">
-          <img loading="lazy" src="@internal/images/tips-receive-subscribe-cn.png" alt="" v-if="$i18n.locale === 'zh'" />
-          <img loading="lazy" src="@internal/images/tips-receive-subscribe-en.png" alt="" v-else />
+          <img :loading="isDesktopSidebar ? 'eager' : 'lazy'" src="@internal/images/tips-receive-subscribe-cn.png" alt="" v-if="$i18n.locale === 'zh'" />
+          <img :loading="isDesktopSidebar ? 'eager' : 'lazy'" src="@internal/images/tips-receive-subscribe-en.png" alt="" v-else />
         </div>
       </template>
       <template v-slot:content-header>
@@ -213,6 +213,7 @@ import { useOwnerInfo } from '@/composables/bookmark/useOwnerInfo'
 import type { BookmarkTag } from '@commons/frontend-types/models'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { UserInfo } from '@slax-reader/contracts/interface'
+import { useMediaQuery } from '@vueuse/core'
 import { showFeedbackModal } from '~/components/Modal'
 import Toast from '~/components/Toast'
 import { useBookmarkFilter } from '~/composables/bookmark/useBookmarkFilter'
@@ -234,6 +235,7 @@ useHead({
 })
 
 const bookmarksLayout = ref<InstanceType<typeof BookmarksLayout>>()
+const isDesktopSidebar = useMediaQuery('(min-width: 921px)')
 const tabsSidebar = ref<InstanceType<typeof TabsSidebar>>()
 const route = useRoute()
 const router = useRouter()

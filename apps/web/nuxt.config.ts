@@ -294,6 +294,8 @@ export default defineNuxtConfig({
       }
     },
     build: {
+      // Keep in sync with the "browserslist" field in apps/web/package.json, which
+      // gives autoprefixer the same target set this drives for Lightning CSS.
       target: 'es2022',
       sourcemap: profile.sourcemap,
       minify: profile.minify ? 'esbuild' : false
