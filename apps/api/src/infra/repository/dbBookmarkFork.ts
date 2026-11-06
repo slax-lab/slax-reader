@@ -37,8 +37,10 @@ export type ForkPublication = {
   destination?: { id: number; bookmark_id: number; updated_at: Date; requireLive?: boolean }
 }
 
+export type BookmarkRebinding = { userId: number; previousBookmarkId: number; bookmarkId: number }
+
 /** Convert only an explicitly saved historical relation; preserve its public identity and personal references. */
-export async function privatizeLegacyBookmark(db: Database, userId: number, targetUrl: string) {
+export async function privatizeLegacyBookmark(db: Database, userId: number, targetUrl: string, onRebound?: (identity: BookmarkRebinding) => void) {
   const legacy = await db.sr_user_bookmark.findFirst({
     where: {
       user_id: userId,
@@ -102,6 +104,7 @@ export async function privatizeLegacyBookmark(db: Database, userId: number, targ
   await db.sr_user_bookmark_overview.deleteMany({
     where: { user_id: userId, bookmark_id: legacy.bookmark_id }
   })
+  onRebound?.({ userId, previousBookmarkId: legacy.bookmark_id, bookmarkId: bookmark.id })
   return db.sr_user_bookmark.findUniqueOrThrow({
     where: { id: legacy.id },
     include: { bookmark: true }
@@ -145,8 +148,10 @@ export class BookmarkForkRepo {
 
   async existing(userId: number, targetUrl: string) {
     return this.client().$transaction(async db => {
+      const rebindings: BookmarkRebinding[] = []
       const existing = await this.destination(userId, targetUrl, db)
-      return existing ?? (await privatizeLegacyBookmark(db, userId, targetUrl)) ?? this.destination(userId, targetUrl, db)
+      const relation = existing ?? (await privatizeLegacyBookmark(db, userId, targetUrl, identity => rebindings.push(identity))) ?? (await this.destination(userId, targetUrl, db))
+      return relation ? { ...relation, rebindings } : null
     })
   }
 
@@ -265,21 +270,22 @@ export class BookmarkForkRepo {
         return await this.client().$transaction(
           async db => {
             const source = await this.validateSource(db, input.userId, input.source)
+            const rebindings: BookmarkRebinding[] = []
             let raw = await db.sr_bookmark.findUnique({ where: { target_url_private_user: { target_url: input.targetUrl, private_user: input.userId } } })
-            if (!raw) raw = (await privatizeLegacyBookmark(db, input.userId, input.targetUrl))?.bookmark ?? null
+            if (!raw) raw = (await privatizeLegacyBookmark(db, input.userId, input.targetUrl, identity => rebindings.push(identity)))?.bookmark ?? null
             if (raw) {
               await db.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${raw.id} FOR UPDATE`
               const relation = await db.sr_user_bookmark.findUnique({ where: { user_id_bookmark_id: { user_id: input.userId, bookmark_id: raw.id } }, include: { bookmark: true } })
               if (!relation) throw forkError(ErrorName.FORK_DESTINATION_DELETING)
               if (!['success', 'failed'].includes(relation.bookmark.status)) {
-                if (!relation.deleted_at && relation.forked_from_id === source.id) return { disposition: 'already_saved' as const, relation }
+                if (!relation.deleted_at && relation.forked_from_id === source.id) return { disposition: 'already_saved' as const, relation, rebindings }
                 throw forkError(ErrorName.FORK_DESTINATION_IN_PROGRESS)
               }
               const now = new Date(Math.max(Date.now(), relation.bookmark.updated_at.getTime() + 1))
               await db.sr_bookmark.update({ where: { id: raw.id }, data: { status: 'parseing', updated_at: now } })
               // Preserve the existing body's attribution until successful publication.
               const restored = await this.restore(db, { ...relation, bookmark: { ...relation.bookmark, status: 'parseing', updated_at: now } })
-              return { disposition: 'updated' as const, relation: restored }
+              return { disposition: 'updated' as const, relation: restored, rebindings }
             }
             const before = source.bookmark
             const now = new Date()
@@ -312,7 +318,7 @@ export class BookmarkForkRepo {
               },
               include: { bookmark: true }
             })
-            return { disposition: 'created' as const, relation }
+            return { disposition: 'created' as const, relation, rebindings }
           },
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 }
         )

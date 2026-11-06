@@ -234,8 +234,8 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick))
   border-radius: 18px;
   background: rgba(var(--slax-overlay-white-rgb), 0.88);
   border: 1px solid rgba(var(--slax-overlay-white-rgb), 0.75);
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   box-shadow:
     0 20px 60px rgba(var(--slax-modal-overlay-rgb), 0.14),
     0 4px 16px rgba(var(--slax-modal-overlay-rgb), 0.08),

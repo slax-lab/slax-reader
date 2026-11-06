@@ -77,4 +77,11 @@ describe('AppleLoginButton', () => {
       affCode: 'def'
     })
   })
+
+  it('passes HackerLinks acquisition through Apple authorization', async () => {
+    const authAttribution = { source: 'hackerlinks', medium: 'resource_detail', campaign: 'mvp' } as const
+    const wrapper = mountWithApp(AppleLoginButton, { props: { redirect: '/bookmarks', authAttribution } })
+    await wrapper.get('button').trigger('click')
+    expect(mockRequestAppleAuth).toHaveBeenCalledWith({ redirect: '/bookmarks', affCode: '', authAttribution })
+  })
 })

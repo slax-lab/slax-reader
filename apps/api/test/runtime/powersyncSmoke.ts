@@ -60,7 +60,9 @@ async function main() {
     const port = address.split(':').at(-1)
     assert.equal(await resources.migrate('main', `postgresql://admin:admin@127.0.0.1:${port}/slax-reader-backend-internal`, 'pgsql'), 0)
     assert.equal(await resources.migrate('logs', `postgresql://admin:admin@127.0.0.1:${port}/slax-reader-logs`, 'logs'), 0)
-    assert.equal(await resources.run('powersync', 'bash', [script]), 0)
+    const syncStarted = await resources.run('powersync', 'bash', [script])
+    if (syncStarted !== 0) console.error(resources.command('docker', [...compose, 'logs', '--tail', '60', 'powersync']))
+    assert.equal(syncStarted, 0)
     for (const service of ['powersync', 'powersync-api']) {
       const address = resources.command('docker', [...compose, 'port', service, '8080'])
       const response = await fetch(`http://${address}/probes/liveness`, { signal: AbortSignal.timeout(5000) })

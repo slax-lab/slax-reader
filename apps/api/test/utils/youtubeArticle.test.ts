@@ -462,9 +462,9 @@ describe('keys, ids and cost', () => {
   })
 
   test('cost uses the per-million list price', () => {
-    expect(estimateCostUsd(1_000_000, 0)).toBeCloseTo(0.5)
-    expect(estimateCostUsd(0, 1_000_000)).toBeCloseTo(3)
-    expect(estimateCostUsd(3000, 4000)).toBeCloseTo(0.0135)
+    expect(estimateCostUsd(1_000_000, 0)).toBeCloseTo(0.3)
+    expect(estimateCostUsd(0, 1_000_000)).toBeCloseTo(1.2)
+    expect(estimateCostUsd(3000, 4000)).toBeCloseTo(0.0057)
   })
 })
 

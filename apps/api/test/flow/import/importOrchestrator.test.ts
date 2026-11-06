@@ -45,6 +45,17 @@ describe('processImportBookmarkSlow', () => {
     expect(is.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 100, 1, 0)
   })
 
+  test('completed cached re-save keeps the import relation and progress without a parse workflow', async () => {
+    const { orch, is, bs, cs } = wire()
+    is.processImportBookmark.mockResolvedValue([{ target_url: 'https://a.com', target_title: 'A', tags: [] }])
+    bs.batchAddUrlBookmark.mockResolvedValue([{ kind: 'completed', bookmarkId: 1, targetUrl: 'https://a.com', userId: 1, skipParse: true, ignoreGenerateTag: true }])
+    await orch.processImportBookmarkSlow(createMockCtx(), msg())
+    expect(bs.createBookmarkImportRelation).toHaveBeenCalledWith(1, 1, 100)
+    expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 1, 100, 1)
+    expect(cs.createImportParseWorkflow).not.toHaveBeenCalled()
+    expect(is.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 100, 1, 0)
+  })
+
   test('null item → 跳过', async () => {
     const { orch, is, bs, cs } = wire()
     is.processImportBookmark.mockResolvedValue([{ target_url: 'https://a.com', target_title: 'A', tags: [] }])

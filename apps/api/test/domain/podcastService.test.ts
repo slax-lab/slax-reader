@@ -226,8 +226,21 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
   const users = opts.users ?? { [OWNER]: { ai_lang: '', lang: 'en' }, [VISITOR]: { ai_lang: 'zh', lang: 'zh' } }
   const labOn = new Set(opts.labOn ?? [OWNER])
   const ub = { user_id: OWNER, deleted_at: null as Date | null, metadata: { share: { is_enable: true } } as unknown, moderation_result: 0 }
-  const bookmarks = new Map<number, { title: string; content_key: string | null; content_md_key: string | null; moderation_result: number }>([
-    [BOOKMARK, { title: 'Ep', content_key: 'html/body/u1.html', content_md_key: 'text/body/u1.txt', moderation_result: 0 }]
+  const bookmarks = new Map<number, any>([
+    [
+      BOOKMARK,
+      {
+        id: BOOKMARK,
+        title: 'Ep',
+        content_key: 'html/body/u1.html',
+        content_md_key: 'text/body/u1.txt',
+        moderation_result: 0,
+        status: 'success',
+        private_user: OWNER,
+        updated_at: new Date('2026-01-01'),
+        userBookmarks: [{ uuid: UUID, user_id: OWNER }]
+      }
+    ]
   ])
   const bookmarkService = {
     getUserBookmarkByUuidWithDetail: vi.fn(async (uuid: string) =>
@@ -243,7 +256,12 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
           }
         : null
     ),
-    getBookmarkById: vi.fn(async (id: number) => bookmarks.get(id) ?? null),
+    getBookmarkById: vi.fn(async (id: number) => {
+      const row = bookmarks.get(id)
+      return row
+        ? { id, status: 'success', private_user: OWNER, updated_at: new Date('2026-01-01'), userBookmarks: [{ uuid: UUID, user_id: OWNER }], ...row }
+        : null
+    }),
     updateBookmarkModerationResult: vi.fn(async () => ({})),
     disableBookmarkShare: vi.fn(async () => ({})),
     // The real access rule; the share record comes from ub.metadata.share
@@ -259,8 +277,19 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
       )
     )
   }
-  const bookmarkRepo = { updateBookmarkWordCount: vi.fn(async () => ({})), deleteBookmarkSummary: vi.fn(async () => ({})) }
-  const forkRepo = { claimWrite: vi.fn(async () => true), releaseWrite: vi.fn(async () => true), failWrite: vi.fn(async () => true), publishRevision: vi.fn(async () => true) }
+  const bookmarkRepo = {
+    updateBookmarkWordCount: vi.fn(async () => ({})),
+    deleteBookmarkSummary: vi.fn(async () => ({})),
+    getUserBookmark: vi.fn(async () => ({ id: BOOKMARK, uuid: UUID, deleted_at: null, type: 0 }))
+  }
+  const forkRepo = {
+    claimWrite: vi.fn(async () => true),
+    releaseWrite: vi.fn(async () => true),
+    failWrite: vi.fn(async () => true),
+    publishRevision: vi.fn(async () => true),
+    mediaRef: vi.fn(async () => ({ media_kind: 'podcast', source_id: SOURCE, source_hash: HASH })),
+    mediaDenied: vi.fn(async () => false)
+  }
   const searchService = { addSearchRecord: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
   const labService = {
     isEnabled: vi.fn(async (userId: number) => labOn.has(userId)),
@@ -288,6 +317,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     }
   }
   const alertBot = { crawl: { pushMessage: vi.fn(async () => {}) } }
+  const snapshots = createMockMediaSnapshots()
   const service = new (PodcastService as any)(
     eps,
     arts,
@@ -305,8 +335,13 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     () => redis,
     () => bucket,
     alertBot,
-    createMockMediaSnapshots()
+    snapshots
   ) as PodcastService
+  snapshots.load.mockImplementation(async () => ({
+    raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
+    media: null,
+    managed: false
+  }))
   const create = vi.fn(async () => ({}))
   const ctx = (userId: number) => {
     const c = createMockCtx({ userId })
@@ -567,6 +602,7 @@ describe('private podcast requests', () => {
     w.readyEpisode()
     const snapshots = (w.service as any).snapshots
     snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: {
         kind: 'podcast',
         mode: 'capture',
@@ -592,6 +628,7 @@ describe('private podcast requests', () => {
     w.redis.store.set(`podcast:${OWNER}:${today()}`, 5)
     const snapshots = (w.service as any).snapshots
     snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: {
         kind: 'podcast',
         mode: 'capture',
@@ -630,7 +667,11 @@ describe('fixed body reference filtering', () => {
     w.arts.refs.unshift({ bookmark_id: 201, user_id: OWNER, source_id: SOURCE, source_hash: HASH } as any)
     ;(w.service as any).snapshots.load.mockImplementation(async (id: number) => {
       if (id === 201) throw new Error('broken manifest')
-      return null
+      return {
+        managed: false,
+        media: null,
+        raw: { id, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] }
+      }
     })
     await expect(w.service.publishBodies(w.ctx(OWNER), SOURCE)).rejects.toThrow('Media body publication incomplete')
     expect(w.objects.get('html/body/u1.html')).toContain('slax-pod-article')

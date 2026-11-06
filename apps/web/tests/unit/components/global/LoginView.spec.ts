@@ -63,4 +63,11 @@ describe('global/LoginView', () => {
 
     expect(wrapper.find('.auth-btns').exists()).toBe(true)
   })
+
+  it('passes the same acquisition context to both enabled providers', () => {
+    const authAttribution = { source: 'hackerlinks', medium: 'header', campaign: 'mvp' } as const
+    const wrapper = mountWithApp(LoginView, { props: { authAttribution } })
+    expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).props('authAttribution')).toEqual(authAttribution)
+    expect(wrapper.findComponent({ name: 'AppleLoginButton' }).props('authAttribution')).toEqual(authAttribution)
+  })
 })

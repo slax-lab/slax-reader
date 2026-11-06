@@ -7,6 +7,7 @@ vi.mock('@/decorators/di', () => ({
 }))
 
 import { ContentOrchestrator } from '@/domain/orchestrator/content'
+import { UserService } from '@/domain/user'
 import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
 import { createMockCtx } from '@test/helpers/mockFactory'
 
@@ -31,6 +32,8 @@ const share = (o: Record<string, any> = {}) => ({
   show_userinfo: true, allow_comment: false, allow_line: false, ...o
 })
 
+const OWNER = { id: 10, name: 'Alice', picture: 'avatar.jpg', snapshot_sharing: true, deleted_at: null, email: 'private@example.invalid' }
+
 function wire() {
   const bs = {
     getForkMetadata: vi.fn().mockResolvedValue({ has_fork: false, fork: null, viewer_fork_status: null }),
@@ -38,9 +41,8 @@ function wire() {
     getUserBookmarkByUuidWithDetail: vi.fn(),
     getBookmarkOutline: vi.fn().mockResolvedValue(null)
   }
-  const us = {
-    getOwnerShareInfo: vi.fn().mockResolvedValue({ nick_name: 'Alice', avatar: '', snapshot_sharing: true })
-  }
+  const userRepo = { getInfoByUserId: vi.fn().mockResolvedValue(OWNER) }
+  const us = new (UserService as any)(userRepo) as UserService
   const ts = { getBookmarkTags: vi.fn().mockResolvedValue([{ id: 't1', name: 'tech', show_name: 'tech' }]) }
   const ms = { getFirstComment: vi.fn().mockResolvedValue('我的首条评论') }
   const cs = { getBookmarkCollectionRef: vi.fn().mockResolvedValue(null) }
@@ -51,13 +53,32 @@ function wire() {
       return resolveBookmarkReadAccess({
         getUserBookmarkByUuidWithDetail: async () => row,
         getBookmarkShareByBookmarkId: async () => row?.metadata?.share ?? null
-      } as any, { getInfoByUserId: () => us.getOwnerShareInfo() } as any, ctx.getUserId(), uuid)
+      } as any, userRepo as any, ctx.getUserId(), uuid)
     }
   }
-  return { orch: new (ContentOrchestrator as any)(service, us, ts, ms, cs) as ContentOrchestrator, bs, us, ts, ms, cs }
+  return { orch: new (ContentOrchestrator as any)(service, us, ts, ms, cs) as ContentOrchestrator, bs, us, userRepo, ts, ms, cs }
 }
 
 describe('getContentMeta', () => {
+  test.each([0, 20, 10])('reads the author once and preserves the public profile for viewer %s', async userId => {
+    const { orch, bs, userRepo } = wire()
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ metadata: { share: share() } }))
+    const result = await orch.getContentMeta(createMockCtx({ userId }), 'ub-uuid')
+    expect(result.user_info).toEqual({ nick_name: 'Alice', avatar: 'avatar.jpg', show_userinfo: true })
+    expect(userRepo.getInfoByUserId).toHaveBeenCalledTimes(1)
+    expect(userRepo.getInfoByUserId).toHaveBeenCalledWith(10)
+    expect(JSON.stringify(result)).not.toContain('private@example.invalid')
+    expect(result).not.toHaveProperty('ownerProfile')
+  })
+
+  test('keeps the already-read author private when profile display is disabled', async () => {
+    const { orch, bs, userRepo } = wire()
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ metadata: { share: share({ show_userinfo: false }) } }))
+    const result = await orch.getContentMeta(createMockCtx({ userId: 0 }), 'ub-uuid')
+    expect(result.user_info).toEqual({ nick_name: '', avatar: '', show_userinfo: false })
+    expect(userRepo.getInfoByUserId).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(result)).not.toMatch(/Alice|avatar\.jpg|private@example/)
+  })
   test.each([10, 0])('includes the PDF type and descriptor for permitted viewer %s', async userId => {
     const { orch, bs } = wire()
     const pdf = { url: '/api/content/ub-uuid/pdf', document_id: 'a'.repeat(64), text_status: 'ready' }
@@ -132,16 +153,16 @@ describe('getContentMeta', () => {
   })
 
   test('share=null + 全局 snapshot 关 → 404', async () => {
-    const { orch, bs, us } = wire()
+    const { orch, bs, userRepo } = wire()
     bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ metadata: { share: null } }))
-    us.getOwnerShareInfo.mockResolvedValue({ nick_name: 'Alice', avatar: '', snapshot_sharing: false })
+    userRepo.getInfoByUserId.mockResolvedValue({ ...OWNER, snapshot_sharing: false })
     await expect(orch.getContentMeta(createMockCtx({ userId: 0 }), 'x')).rejects.toThrow()
   })
 
   test('文章显式开启 + 全局 snapshot 关 → 允许（文章覆盖全局）', async () => {
-    const { orch, bs, us } = wire()
+    const { orch, bs, userRepo } = wire()
     bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ metadata: { share: share() } }))
-    us.getOwnerShareInfo.mockResolvedValue({ nick_name: 'Alice', avatar: '', snapshot_sharing: false })
+    userRepo.getInfoByUserId.mockResolvedValue({ ...OWNER, snapshot_sharing: false })
     const res = await orch.getContentMeta(createMockCtx({ userId: 0 }), 'x')
     expect(res.role).toBe('visitor')
     expect(res.user_info?.nick_name).toBe('Alice')

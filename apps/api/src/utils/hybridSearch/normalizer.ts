@@ -30,10 +30,14 @@ export class Normalizer {
     // this.jbObject = jbObj.get(jbObj.idFromName('0'))
   }
 
-  async cut(text: string, hmm?: boolean): Promise<any[]> {
-    const res = await this.jbObject.fetch('http://cut_for_search', { method: 'POST', body: JSON.stringify({ text: text, hmm: hmm }) })
-    if (!res.ok) return []
+  async cut(text: string, hmm?: boolean, options?: { signal?: AbortSignal; strict?: boolean }): Promise<any[]> {
+    const res = await this.jbObject.fetch('http://cut_for_search', { method: 'POST', body: JSON.stringify({ text: text, hmm: hmm }), signal: options?.signal })
+    if (!res.ok) {
+      if (options?.strict) throw new Error('search_tokenizer_failed')
+      return []
+    }
     const result = await res.json<{ data: string[] }>()
+    if (options?.strict && (!Array.isArray(result.data) || result.data.some(item => typeof item !== 'string'))) throw new Error('search_tokenizer_failed')
     return result.data
   }
 

@@ -15,6 +15,7 @@ import { ErrorMarkTypeError, ErrorParam, SyncTableRuleError, SyncTableTagNameErr
 import { SignJWT } from 'jose'
 import { markType } from '@/infra/repository/dbMark'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
+import { dispatchVectorMaintenance, type VectorMaintenanceEvent } from '@/domain/vectorMaintenanceHooks'
 
 export type SyncExecOperation = 'PUT' | 'PATCH' | 'DELETE'
 
@@ -197,7 +198,7 @@ export class SyncOrchestrator {
       if (source) operation.data.readerSourceUuid = source
     }
     const observer = this.syncCommitObserver(ctx)
-    const result = observer ? await this.dbSyncBatch.executeOrderedOperations(orderedOperations, observer) : await this.dbSyncBatch.executeOrderedOperations(orderedOperations)
+    const result = await this.dbSyncBatch.executeOrderedOperations(orderedOperations, observer)
     for (const newBookmark of result) {
       await this.sendRetryParseEvent(ctx, newBookmark)
     }
@@ -399,6 +400,21 @@ export class SyncOrchestrator {
 
   protected syncCommitObserver(ctx: ContextManager): SyncCommitObserver {
     return (mutations, committedAt) => {
+      const targets: VectorMaintenanceEvent[] = []
+      for (const { operation, before, after, rebindings } of mutations) {
+        for (const { userId, previousBookmarkId } of rebindings ?? []) {
+          targets.push({ kind: 'article', userId, id: previousBookmarkId })
+        }
+        if (operation.type === 'update_bookmark' && (operation.data.is_starred === undefined || before?.is_starred === after?.is_starred)) continue
+        if (!['create_bookmark', 'update_bookmark', 'delete_bookmark', 'restore_bookmark', 'update_share'].includes(operation.type)) continue
+        if (operation.type === 'create_bookmark' && after?.bookmark?.status !== 'success') continue
+        for (const relation of [before, after]) {
+          if (relation?.bookmark_id && [0, 2].includes(relation.type) && (operation.type === 'delete_bookmark' || relation.bookmark?.status === 'success')) {
+            targets.push({ kind: 'article', userId: relation.user_id, id: relation.bookmark_id })
+          }
+        }
+      }
+      if (targets.length) dispatchVectorMaintenance(ctx, ...targets)
       const context = getEventContext(ctx)
       for (const { operation, before, after } of mutations) {
         const options = { userId: operation.userId, occurredAt: committedAt }

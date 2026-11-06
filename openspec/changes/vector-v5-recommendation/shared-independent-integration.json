@@ -1,0 +1,72 @@
+{
+  "snapshot": "/Users/daguang/project/slax-reader-vector-backfill/.local/vector-backfill/handoff-independent-preferences-46-of-59/",
+  "manifestSha256": "e78b61eea4bedc3cce32e028a921132a3d8022af3805fab8ad786a3c3762d0d9",
+  "verifiedSnapshotFiles": 26,
+  "profileVersion": "independent-r1",
+  "base": "cfd51f552327edfc9d23dc00e4b1d088ec955fb3",
+  "decisions": {
+    "sharedProduction": "All 13 shared production paths including unchanged index.ts match the frozen C input byte-for-byte; no active C source or planning delta imported. Existing files merged using exact edits; only the new independent smoke file was copied.",
+    "apps/api/test/utils/vectorV5.test.ts": "C independent normalization/identity test added; B manual-redirect rejection regression retained.",
+    "apps/api/test/runtime/vectorBackfillSuccessSmoke.ts": "C separate targets and article snapshot stability integrated; B two stored-image coverage assertions retained.",
+    "DDL": "No DDL or Prisma source changes. All 65 historical migration hashes match shared-stable-integration.json.",
+    "BMaintenance": "Preserved maintenance flag, native legacy/v5 dual indexing and REST/sync hook. Reused C changeTargetPage and versioned the live consumer. Separate bounded all-user initialization and per-user branch stage use existing sr_recommendation_work.",
+    "deferredProducts": "Daily/ranking/curation code and tests retained; daily job only receives minimum typed checkpoint compatibility. No re-fusion or product activation."
+  },
+  "sharedFiles": {
+    "apps/api/src/utils/vectorV5/index.ts": "3ab0a645dfea560afaee29fe03a77be4f954fe56bccb21948cff41a71286374f",
+    "apps/api/src/utils/vectorV5/contract.ts": "b4625479068964b4b2b75ad4610b6ff8dcdb2a2248042038068a3ca462cc3e31",
+    "apps/api/src/utils/vectorV5/recipe.ts": "7d6414254b881a886af26d6242baae6dcf20b46779e48c390b324271f1532d43",
+    "apps/api/src/utils/vectorV5/runtime.ts": "6ea5564789bbb879259508ce5763c28c8f772ec9e3095d57248ed83299545974",
+    "apps/api/src/domain/vectorV5.ts": "57843eb42d440176b434ab2304cd0fc4324b08d9c5a36be4e97b8d782fc63d7d",
+    "apps/api/src/domain/vectorBackfill.ts": "9458408fe62a48b23e59a60dc640bbf0b6e8b5686d325ca66fd08454cdd8fb60",
+    "apps/api/src/domain/vectorBackfillVerification.ts": "4ee1fcddda69628d94ff1ac8fa525eeb6511bc735839a20f65bb8547afe3e989",
+    "apps/api/src/infra/repository/dbVectorV5.ts": "3ee21544ed710a8b67ecbdc2abc8c9eca9bbb69c7d1a8b6c910abd8b9fc0f449",
+    "apps/api/src/infra/repository/vectorV5Sources.ts": "3324bcc94cb0ee3538fff73d6189657cd2106b98213f2417807218b7c514e1e7",
+    "apps/api/src/infra/repository/dbVectorBackfill.ts": "77b9b976209c7f4c6847d99ae2cfe55d37fe00fd35b026ad57a117b57fe03c7c",
+    "apps/api/src/infra/repository/vectorBackfillPlan.ts": "385661b00774d808a2f2964e83a2739833b6a757d4adeb67c8ca43e653138af7",
+    "apps/api/src/infra/repository/vectorBackfillChanges.ts": "52fe310fc7ea1a8549af437a606d142f75bc8e324c3a23fdc47377d9609af1fa",
+    "apps/api/src/infra/repository/vectorBackfillCatchup.ts": "c32447f022c8a2c5457b1f17320410a0ab4f5d1c5ab7876c7c55abef35221879"
+  },
+  "sharedTests": {
+    "apps/api/test/runtime/vectorIndependentPreferencesSmoke.ts": "fd4e7e6c6f98be03b684d838592fad1b2fefffea7df110a04318ff22969d7bf9",
+    "apps/api/test/runtime/vectorBackfillSuccessSmoke.ts": "dbb87d6a377dc48dbcb6fd077e1221a487e67f245e2840ff29abbf9beff4c29c",
+    "apps/api/test/runtime/vectorBackfillContinuationScenarios.ts": "49ed4cc1498d4dcaddc18f8ed417e044d847aefa9b592f08c43a25fb946c4c65",
+    "apps/api/test/infra/vectorV5.test.ts": "a0d2bcd97f088eb0c612edfdb88e50e40c59577d45024572c5c7b464cd6085a2",
+    "apps/api/test/domain/vectorV5Repairs.test.ts": "158a03e58d7718fc9463e588c461fce4aa20cb87ffe74f4928fd0d3ddf7f3a15",
+    "apps/api/test/script/vectorBackfillLifecycle.test.ts": "63c011ee7ebe4142f3778b1ade12679b513493d6bf21331fb461b0743b470b51",
+    "apps/api/test/utils/vectorV5.test.ts": "9cf48c8510e240830bea882a94f6bcb7d0ca623a7a578253e79c686f4bd70629"
+  },
+  "bFiles": {
+    "apps/api/src/domain/independentPreferences.ts": "78e4ab0954d4ba9adf7b569b99f0ab844b541c07e9d19c394419de4d022c2c5c",
+    "apps/api/src/domain/sharedRecommendationMaintenance.ts": "0ef5b04fa4156e3afb27f3afbcaa22d8efc072ddcb74927f84a31e2cfa394993",
+    "apps/api/src/domain/recommendationLifecycle.ts": "221879458149e3825af01eb0d35ca387501c3680a511a0d52930245eeae748b3",
+    "apps/api/src/domain/sourceCollectionActions.ts": "4b570c3107031db276e9038e9043503435ffb90086d8fd855f8274b8bec851a9",
+    "apps/api/src/domain/dailyReadingJobs.ts": "0bce02519a6cfc68b6ebda8bb6fe715ab884002620d395226bea52d1607d7e70",
+    "apps/api/src/domain/vectorMaintenanceInitialization.ts": "01511b3133485ce86c366bb823408af4efba778dfd9fb3535e58d417bcc58b75",
+    "apps/api/src/handler/cron/vectorMaintenanceJob.ts": "e29b51aa5a9c7f79625682a700af256cfcf6e775154bf95eab97934afb3df87f",
+    "apps/api/src/infra/recommendationRuntime.ts": "a93c16baa8f97a1bf9c0bfdfa5f2830dd300503b57d0cde19083fefef6a462c9",
+    "apps/api/test/domain/independentPreferences.test.ts": "617d977fcb7679f2a56f706652bb3561254e141ef50be464a5592dd34531f8a3",
+    "apps/api/test/domain/independentLifecycle.test.ts": "541c9a852573fbdfae2d6b404295acd623311ceb6c140edeee27712338e26b30",
+    "apps/api/test/domain/recommendationRepairConsumption.test.ts": "4fa2dd8c300bb4f827239355f87f96f113679577511933dc5ba3637b40942acd",
+    "apps/api/test/domain/vectorMaintenance.test.ts": "91588a7ac55174e58142e62e4dba638c5c1c791a6862c0e75ae143f35d2faedb",
+    "apps/api/test/domain/vectorMaintenanceInitialization.test.ts": "1454bd2b68fc0ad6f577e4f54b61c924c78844f11714a731be99b1f90adec68e",
+    "apps/api/test/runtime/lifecycleWorker.ts": "c92e2f58dc24e1bb0074cea091d50846db01429c2e835b43b9a2c32c730d401d",
+    "apps/api/test/runtime/lifecycleTransport.ts": "ea2233f8a974caa3485e5ca8223adf339189d160fe91a5b4fc72266aa68e26d9",
+    "apps/api/test/runtime/vectorMaintenanceCases.ts": "6eeee9a9967d0420c616cfdaa6594ff12bd5f78ca33f7b7dfc4c6aac6ed6be53",
+    "apps/api/test/runtime/independentMaintenanceCases.ts": "3ebd5c45e2ceb4a364f038154c0b3b5f33c846f810bf4df717bf9d40aadc5080"
+  },
+  "protectedUnchanged": {
+    "apps/api/prisma/pgsql.prisma": "ba43ec15f0cd350f34dc42c5a94bc6f0ecfc32d27dc8af12f9c0cdf283891e30",
+    "apps/api/script/deploy/dev-local.ts": "ec27f601059abfbbf35ff64e6d4ad9b518e431639eac2b525b1fe26f1514dee7",
+    "apps/api/test/runtime/httpSmoke.ts": "5766f2f4590f8ee6c93af7d9c140b4dd7ce0a0da61b92b0ec2ae77e565683426",
+    "apps/api/src/entry/edge/index.ts": "8be8aa1cfe5177f9de65aeb7b0fa9fcf6718e6c140ab42e6be33fa290ad5e7eb",
+    "apps/api/script/generate-worker-types.ts": "721e54fed106897b0bc97f8826b47bacf933014b75ed54bec7ff46d1f82f4edc",
+    "deploy/cloudflare/api.toml.example": "76dee6f40ddad5921f67499202388f017a6d352c0a31e96646d57e8800e452c9"
+  },
+  "generated": {
+    "apps/api/src/di/generated/cronjob.ts": "edde1bd6693a2b16a6204ba5e745a565093d22729ee83ab4e7a0fb5d2ffaffa2",
+    "apps/api/src/di/generated/dependency.ts": "b080609eb2dca06aa876b13b24d11d9deeee4e7aa6653f17ed0a3d007e9823bb",
+    "apps/api/src/di/generated/readerRouter.ts": "9128d3c102f1deab90828537c292e715a7ccc0d5a3cfa5bcde0557226dd8c2a4",
+    "apps/api/worker-configuration.d.ts": "d963cbb09245d7d10a394ac1eafce0c732c4966dface057a8b11ed03a59ad884"
+  }
+}

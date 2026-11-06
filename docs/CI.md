@@ -126,22 +126,6 @@ Permanent core workflows need no artificial expiry date. Dependency upgrades inc
 - Both workflows carry `pull-requests: write`: a label on a pull request is written through the issues API, but only that permission authorises the write (`issues: write` alone returns `Resource not accessible by integration`, and the gate still needs it to create the label with its colour and description).
 - `slax-notify-bridge` consumes the label's `labeled` event to announce the human review in Feishu, instead of announcing the creation-time review request that CODEOWNERS fires before the automated verdict exists. The label name is a cross-repository contract: changing it requires updating both workflows here and the bridge's per-repository policy.
 
-## OpenSpec change archiving
-
-`openspec-archive.lock.yml` evaluates a merged task PR whose body contains exactly one `OpenSpec: <change-id>` line. It checks out current `dev`, classifies unchecked tasks and same-capability dependencies, and can create one documentation archive PR for `slax-lab/reader-core` review. It never approves or merges that PR.
-
-The workflow requires the existing `DEEPSEEK_API_KEY` and no additional publish token. Safe Outputs creates the archive PR as a draft authored by `github-actions[bot]` with the default `GITHUB_TOKEN`. Its body includes `Archive source: #<task-pr-number>` and explains that the feature PR has merged, this archive PR was created automatically for its spec changes, and the task PR author should inspect the archive before starting review. The separate bridge change sends the same explanation to the author in a direct message.
-
-The organization and repository **Allow GitHub Actions to create and approve pull requests** workflow-permission settings must allow PR creation; otherwise Safe Outputs cannot create it. After inspecting the draft, the task PR author clicks **Ready for review**. That human action starts automatic PR Review without requiring workflow approval or a `/review` comment, and GitHub CODEOWNERS requests `slax-lab/reader-core` review. The resulting `workflow_run` drives the normal review gate, `ready-for-human-review` label, and Feishu group card. The team then performs the final human review and merges the archive PR, completing the archive.
-
-Set the repository variable `OPENSPEC_ARCHIVE_ENABLED` to `false` to pause new evaluations; any other value resumes them. Existing archive PRs remain ordinary human-reviewed PRs. The concurrency group does not cancel an active evaluation and queues up to 100 pending evaluations. Manual replay is the recovery path for a missed, failed, or platform-cancelled evaluation:
-
-```bash
-gh workflow run "OpenSpec Change Archiving" --ref dev -f issue_number="$TASK_PR_NUMBER"
-```
-
-Set `TASK_PR_NUMBER` to the merged task PR number first. Replay re-evaluates that change against current `dev`; it does not reuse the original task branch or bypass unfinished-task and dependency checks.
-
 ## Daily full validation
 
 `full-ci.yml` runs every day at 04:23 Asia/Shanghai (20:23 UTC the previous day), after this workflow is merged into dev. GitHub schedules run from the default branch, currently dev, and may be delayed under load. The workflow requires dev explicitly; keep that default-branch assumption in mind if repository settings change.

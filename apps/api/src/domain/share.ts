@@ -6,6 +6,7 @@ import { hashMD5 } from '@/utils/strings'
 import { BookmarkTag } from '@/domain/tag'
 import { UserRepo } from '@/infra/repository/dbUser'
 import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
+import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
 
 export interface createBookmarkShareResp {
   share_code: string
@@ -89,6 +90,8 @@ export class ShareService {
     if (bmId < 1) throw ErrorParam()
 
     await this.bookmarkRepo.updateBookmarkShareIsEnable(bmId, ctx.getUserId(), false)
+    const bookmark = await this.bookmarkRepo.getBookmarkById(bmId)
+    if (bookmark?.status === 'success') dispatchVectorMaintenance(ctx, { kind: 'article', userId: ctx.getUserId(), id: bmId })
     return
   }
 
@@ -146,6 +149,7 @@ export class ShareService {
     } else {
       await createShare()
     }
+    if (bmDetail?.status === 'success') dispatchVectorMaintenance(ctx, { kind: 'article', userId, id: bmId })
 
     return {
       allow_action: res.allow_comment,

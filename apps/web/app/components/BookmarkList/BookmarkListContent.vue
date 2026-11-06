@@ -15,6 +15,7 @@
                 :index="item.index"
                 :is-subscribe="filterStatus === 'collections'"
                 :bookmark="item.bookmark"
+                :data-source="dataSource"
                 :collection-code="filterCollectionCode"
                 :source-filterable="filterStatus === 'inbox'"
                 :text-mode="effectiveMode === 'text'"
@@ -37,6 +38,7 @@
               :index="item.index"
               :is-subscribe="filterStatus === 'collections'"
               :bookmark="item.bookmark"
+              :data-source="dataSource"
               :collection-code="filterCollectionCode"
               :source-filterable="filterStatus === 'inbox'"
               :text-mode="effectiveMode === 'text'"
@@ -67,8 +69,8 @@ import BookmarkCell from '~/components/BookmarkList/BookmarkCell.vue'
 import BookmarkDateGroup from '~/components/BookmarkList/BookmarkDateGroup.vue'
 import BookmarkHighlightCell from '~/components/BookmarkList/BookmarkHighlightCell.vue'
 
-import type { HighlightItem } from '@slax-reader/contracts/interface'
 import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
+import type { HighlightItem } from '@slax-reader/contracts/interface'
 import { useMediaQuery } from '@vueuse/core'
 import { LocalFirstAdapterKey, SharedUserTagsKey } from '~/composables/local-first/injection'
 import { WindowVirtualizer } from 'virtua/vue'
@@ -76,6 +78,7 @@ import { WindowVirtualizer } from 'virtua/vue'
 type GroupedItem = { type: 'group'; label: string; key: string } | { type: 'bookmark'; bookmark: BookmarkItem; index: number }
 
 const props = defineProps<{
+  dataSource?: 'local' | 'rest'
   filterStatus: string
   groupedBookmarks: GroupedItem[]
   highlights: HighlightItem[]

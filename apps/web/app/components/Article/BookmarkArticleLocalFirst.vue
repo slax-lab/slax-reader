@@ -46,6 +46,9 @@ provide(ArticleSelectionAdaptersKey, {
   get markSource() {
     return props.localFirst ? 'props' : 'detail'
   },
+  get tagsDataSource() {
+    return props.localFirst ? 'local' : 'rest'
+  },
   get tagsBookmarkUuid() {
     return props.localFirst ? props.bookmarkUuid : ''
   },

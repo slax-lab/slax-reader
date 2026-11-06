@@ -295,3 +295,19 @@ test('mobile EAS workflow gates the cloud builds on preflight and Mobile CI, the
   assert.equal(build['working-directory'], 'apps/mobile')
   assert.equal(w.jobs.eas.permissions, undefined)
 })
+
+test('ordinary review workflows retain ready transitions without a bot allowlist', () => {
+  const automaticRaw = readFileSync(new URL('../.github/workflows/pr-review.md', import.meta.url), 'utf8')
+  const automatic = load(automaticRaw.match(/^---\n([\s\S]*?)\n---\n/)[1])
+  assert.equal(automatic.on.bots, undefined)
+  assert.ok(automatic.on.pull_request.types.includes('ready_for_review'))
+
+  const automaticLock = readFileSync(new URL('../.github/workflows/pr-review.lock.yml', import.meta.url), 'utf8')
+  assert.doesNotMatch(automaticLock, /GH_AW_ALLOWED_BOTS/)
+
+  const commandRaw = readFileSync(new URL('../.github/workflows/pr-review-command.md', import.meta.url), 'utf8')
+  const command = load(commandRaw.match(/^---\n([\s\S]*?)\n---\n/)[1])
+  assert.equal(command.on.bots, undefined)
+  const commandLock = readFileSync(new URL('../.github/workflows/pr-review-command.lock.yml', import.meta.url), 'utf8')
+  assert.doesNotMatch(commandLock, /GH_AW_ALLOWED_BOTS/)
+})

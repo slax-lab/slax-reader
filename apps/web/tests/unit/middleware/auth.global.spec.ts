@@ -59,7 +59,7 @@ interface RouteLoc {
   path: string
   fullPath: string
   hash: string
-  query: Record<string, string>
+  query: Record<string, string | string[]>
 }
 
 function makeRoute(partial: Partial<RouteLoc> = {}): RouteLoc {
@@ -169,4 +169,30 @@ it('preserves a direct root KOC invitation through the existing sign-in return U
     makeRoute({ path: '/login', fullPath: '/login' })
   )
   expect(mockNavigateTo).toHaveBeenCalledWith(`${location.origin}${fullPath}`, { external: true })
+})
+
+it.each(['header', 'resource_detail'])('preserves only the supported HackerLinks triplet through login redirect: %s', async medium => {
+  const fullPath = `/?utm_source=hackerlinks&utm_campaign=mvp&utm_medium=${medium}&utm_content=zh`
+  await runMiddleware(makeRoute({
+    path: '/',
+    fullPath,
+    query: { utm_source: 'hackerlinks', utm_campaign: 'mvp', utm_medium: medium, utm_content: 'zh' }
+  }), makeRoute({ path: '/pricing', fullPath: '/pricing' }))
+  const login = new URL(mockNavigateTo.mock.calls[0]![0] as string, location.origin)
+  expect(login.searchParams.get('utm_source')).toBe('hackerlinks')
+  expect(login.searchParams.get('utm_campaign')).toBe('mvp')
+  expect(login.searchParams.get('utm_medium')).toBe(medium)
+  expect(login.searchParams.get('utm_content')).toBeNull()
+  expect(login.searchParams.get('redirect')).toBe(`${location.origin}${fullPath}`)
+})
+
+it.each([
+  { utm_source: 'hackerlinks', utm_campaign: 'mvp' },
+  { utm_source: ['hackerlinks'], utm_campaign: 'mvp', utm_medium: 'header' },
+  { utm_source: 'other', utm_campaign: 'mvp', utm_medium: 'header' }
+])('does not invent attribution during login redirect: %j', async query => {
+  await runMiddleware(makeRoute({ path: '/', fullPath: '/', query }), makeRoute({ path: '/pricing', fullPath: '/pricing' }))
+  const login = new URL(mockNavigateTo.mock.calls[0]![0] as string, location.origin)
+  expect(login.searchParams.get('redirect')).toBe(`${location.origin}/`)
+  expect([...login.searchParams.keys()].filter(key => key.startsWith('utm_'))).toEqual([])
 })

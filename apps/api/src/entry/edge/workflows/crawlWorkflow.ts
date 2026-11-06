@@ -13,6 +13,7 @@ import { BookmarkService } from '@/domain/bookmark'
 import { LabService } from '@/domain/lab'
 import { Hashid } from '@/utils/hashids'
 import { queueStatus } from '@/infra/repository/dbBookmark'
+import { callbackType } from '@/infra/queue/queueClient'
 import { parserType } from '@/utils/urlPolicie'
 import { TelegramBotService } from '@/domain/telegram'
 import { MultiLangError } from '@/utils/multiLangError'
@@ -42,6 +43,8 @@ export interface CrawlWorkflowParams {
   callbackOriginMessageId?: number
   ignoreGenerateTag?: boolean
   inlineContent?: string
+  skipParse?: boolean
+  repairPdfMetadata?: boolean
   importTaskId?: number
 }
 
@@ -97,13 +100,19 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     if (event.payload.fork) {
       const service = currentContainer.resolve(BookmarkForkService)
       const job = event.payload.fork
+      let copied: boolean | undefined
       try {
-        await step.do('copy-fork', { retries: { limit: 2, delay: '1 second', backoff: 'constant' }, timeout: '5 minutes' }, () =>
+        copied = await step.do('copy-fork', { retries: { limit: 2, delay: '1 second', backoff: 'constant' }, timeout: '5 minutes' }, () =>
           service.execute(ctxManager, event.payload.bookmarkId, job)
         )
       } catch (error) {
         await step.do('fail-fork', () => service.failExecution(event.payload.bookmarkId, job))
         throw error
+      }
+      if (copied) {
+        await step.do('vector-maintenance', () =>
+          currentContainer.resolve(UrlParserHandler).processVectorMaintenance(ctxManager, { userId: event.payload.userId, bookmarkId: event.payload.bookmarkId })
+        )
       }
       return
     }
@@ -127,6 +136,45 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     const userBookmark = await bookmarkService.getUserBookmark(bookmarkId, userId)
     if (!userBookmark) throw new NonRetryableError(`user_bookmark not found: bookmark=${bookmarkId} user=${userId}`)
     const userBookmarkUuid = userBookmark.uuid
+    if (event.payload.skipParse) {
+      const stored = await bookmarkService.getBookmarkById(bookmarkId)
+      if (!stored || stored.status !== queueStatus.SUCCESS) return
+      if (event.payload.repairPdfMetadata)
+        await step.do('repair-pdf-metadata', { retries: { limit: 2, delay: '5 seconds', backoff: 'constant' }, timeout: '5 minutes' }, () =>
+          bookmarkService.repairCachedPdfMetadata(ctxManager, stored)
+        )
+      let maintenanceError: unknown
+      try {
+        await step.do('vector-maintenance', () => urlParserHandler.processVectorMaintenance(ctxManager, { userId, bookmarkId }))
+      } catch (error) {
+        maintenanceError = error
+      }
+      await step.do('post-processing', { retries: { limit: 2, delay: '5 seconds', backoff: 'constant' }, timeout: '10 minutes' }, async () => {
+        const cached = await bookmarkService.getBookmarkTitleAndTextContentTry(bookmarkId)
+        if (!cached) return
+        await urlParserHandler.processContentPostProcessing(
+          ctxManager,
+          {
+            id: `cached_${bookmarkId}`,
+            info: {
+              userId,
+              bookmarkId,
+              targetUrl: stored.target_url,
+              resource: '',
+              parserType: parserType.SERVER_FETCH_PARSE,
+              privateUser: stored.private_user,
+              skipParse: true,
+              ignoreGenerateTag: ignoreGenerateTag ?? false,
+              callback: callbackType.NOT_CALLBACK,
+              importTaskId: event.payload.importTaskId
+            }
+          },
+          cached
+        )
+      })
+      if (maintenanceError) throw maintenanceError
+      return
+    }
     if (!event.payload.captureRevision) {
       const revision = await step.do('legacy-capture-revision', async () => {
         const raw = await bookmarkService.getBookmarkById(bookmarkId)
@@ -526,6 +574,16 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       }
     }
 
+    let maintenanceError: Error | undefined
+    if (crawlResult) {
+      try {
+        await step.do('vector-maintenance', () => urlParserHandler.processVectorMaintenance(ctxManager, { userId, bookmarkId }))
+      } catch (error) {
+        maintenanceError = error instanceof Error ? error : new Error(String(error))
+        console.error('[vector-maintenance] crawl admission failed', { userId, bookmarkId }, maintenanceError)
+      }
+    }
+
     try {
       await step.do(
         'post-processing',
@@ -543,7 +601,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           console.log(`Crawl workflow post-processing for bookmark ${bookmarkId}`)
 
           !!callbackChatId && (await telegramBotSvc.initTelegramBot(ctxManager.env))
-          await urlParserHandler.processPostHandler(
+          await urlParserHandler.processContentPostProcessing(
             ctxManager,
             {
               id: `workflow_${bookmarkId}`,
@@ -580,10 +638,6 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'post_processing', 'failed', errMsg, ctxManager)
     }
 
-    if (crawlResult) {
-      crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'complete', 'success').catch(e => console.error(`track bookmark_add_complete failed: ${e}`))
-    }
-
     // 导入追踪：成功
     if (event.payload.importTaskId) {
       try {
@@ -597,6 +651,10 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       }
     }
 
+    if (maintenanceError) throw maintenanceError
+    if (crawlResult) {
+      crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'complete', 'success').catch(e => console.error(`track bookmark_add_complete failed: ${e}`))
+    }
     console.log(`Crawl workflow completed successfully for bookmark ${bookmarkId}`)
   }
 }

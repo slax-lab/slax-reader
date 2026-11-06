@@ -23,7 +23,7 @@ describe('OAuth callback provenance', () => {
     route.query = { code: 'fixture-code', state: JSON.stringify({ redirectUrl: 'https://fixture.test/auth', target: '/c/Collection123?subscribe_after_login=1', affCode: 'affiliate', platform: 'google', auth_attribution: attribution }) }
     mountWithApp(AuthPage)
     await flushPromises()
-    expect(grantAuth).toHaveBeenCalledExactlyOnceWith('fixture-code', 'https://fixture.test/auth', 'affiliate', 'google', attribution)
+    expect(grantAuth).toHaveBeenCalledExactlyOnceWith('fixture-code', 'https://fixture.test/auth', 'affiliate', 'google', attribution, expect.objectContaining({ signal: expect.any(AbortSignal), errorInterceptors: expect.any(Function) }))
     expect(navigate).toHaveBeenCalledWith('/c/Collection123?subscribe_after_login=1', { external: true })
   })
 
@@ -31,7 +31,7 @@ describe('OAuth callback provenance', () => {
     route.query = { code: 'fixture-code', state: JSON.stringify({ redirectUrl: 'https://fixture.test/auth', affCode: '' }) }
     mountWithApp(AuthPage)
     await flushPromises()
-    expect(grantAuth).toHaveBeenCalledWith('fixture-code', 'https://fixture.test/auth', '', 'google', undefined)
+    expect(grantAuth).toHaveBeenCalledWith('fixture-code', 'https://fixture.test/auth', '', 'google', undefined, expect.objectContaining({ signal: expect.any(AbortSignal), errorInterceptors: expect.any(Function) }))
     expect(navigate).toHaveBeenCalledWith('/bookmarks', { external: true })
   })
 

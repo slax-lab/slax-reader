@@ -1,3 +1,4 @@
+import { acquisitionUtmQuery } from '~/utils/acquisitionAttribution'
 import { readStringCookie } from '~/utils/authCookie'
 
 import { isServer } from '@commons/frontend-utils/is'
@@ -45,9 +46,10 @@ export default defineNuxtRouteMiddleware((to, from) => {
   if (needAuth) {
     if (!ignoreAuth) {
       if (!isToLogin && !isFromAuth) {
-        const queryParams: Record<string, string> = {}
-
-        queryParams.redirect = encodeURIComponent(to.fullPath ? `${location.origin}${to.fullPath}` : location?.href)
+        const queryParams: Record<string, string> = {
+          redirect: encodeURIComponent(to.fullPath ? `${location.origin}${to.fullPath}` : location?.href),
+          ...acquisitionUtmQuery(to.query)
+        }
 
         const queryStr = Object.keys(queryParams)
           .map(key => `${key}=${queryParams[key]}`)

@@ -1,10 +1,10 @@
-import { privatizeLegacyBookmark } from './dbBookmarkFork'
+import { privatizeLegacyBookmark, type BookmarkRebinding } from './dbBookmarkFork'
 import { validatePdfSources, isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import { LazyInstance } from '@/decorators/lazy'
 import { Prisma, PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
-import {
+import type {
   CreateCommentData,
   OrderedSyncOperation,
   UpdateShareData,
@@ -33,18 +33,20 @@ export interface SyncEntitySnapshot {
   uuid: string
   user_id: number
   type: number
+  bookmark_id?: number
   user_bookmark_uuid?: string
   archive_status?: number
   is_starred?: boolean
   deleted_at?: Date | null
   is_deleted?: boolean
-  bookmark?: { target_url: string }
+  bookmark?: { target_url: string; status: string }
 }
 
 export interface CommittedSyncMutation {
   operation: OrderedSyncOperation
   before: SyncEntitySnapshot | null
   after: SyncEntitySnapshot | null
+  rebindings?: BookmarkRebinding[]
 }
 
 export type SyncCommitObserver = (mutations: CommittedSyncMutation[], committedAt: string) => Promise<void> | void
@@ -74,9 +76,13 @@ export class DBSyncBatchOperation {
       captureRevision?: string
     }[] = []
     const mutations: CommittedSyncMutation[] = []
+    const rebindings: BookmarkRebinding[] = []
     const executeMap: Record<string, executeFunction> = {
       create_tag: this.executeCreateTag,
-      create_bookmark: this.executeCreateBookmark,
+      create_bookmark: (tx, operation) =>
+        this.executeCreateBookmark(tx, operation, identity => {
+          rebindings.push(identity)
+        }),
       update_bookmark: this.executeUpdateBookmark,
       update_tags: this.executeUpdateTags,
       update_share: this.executeUpdateShare,
@@ -91,12 +97,13 @@ export class DBSyncBatchOperation {
         newBookmarks.length = 0
         mutations.length = 0
         for (const operation of operations) {
+          rebindings.length = 0
           const before = observer ? await this.eventSnapshot(tx, operation) : null
           const result = await executeMap[operation.type].bind(this)(tx, operation)
           if (result) newBookmarks.push(result)
           if (observer) {
             const after = await this.eventSnapshot(tx, operation)
-            if (before || after) mutations.push({ operation, before, after })
+            if (before || after || rebindings.length) mutations.push({ operation, before, after, ...(rebindings.length ? { rebindings: [...rebindings] } : {}) })
           }
         }
       })
@@ -108,7 +115,6 @@ export class DBSyncBatchOperation {
       await execute()
     }
 
-    // A rolled-back batch never reaches this observer. Telemetry cannot fail an already-committed sync.
     if (observer) {
       try {
         await observer(mutations, new Date().toISOString())
@@ -121,10 +127,22 @@ export class DBSyncBatchOperation {
   }
 
   private async eventSnapshot(tx: prismaTx, operation: OrderedSyncOperation): Promise<SyncEntitySnapshot | null> {
-    if (['create_bookmark', 'update_bookmark', 'delete_bookmark'].includes(operation.type) && 'bookmarkUuid' in operation) {
+    if (['create_bookmark', 'update_bookmark', 'delete_bookmark', 'restore_bookmark', 'update_share'].includes(operation.type) && 'bookmarkUuid' in operation) {
       return tx.sr_user_bookmark.findFirst({
-        where: { uuid: operation.bookmarkUuid, user_id: operation.userId },
-        select: { uuid: true, user_id: true, type: true, archive_status: true, is_starred: true, deleted_at: true, bookmark: { select: { target_url: true } } }
+        where:
+          operation.type === 'create_bookmark' && !operation.data.readerSourceUuid
+            ? { user_id: operation.userId, bookmark: { target_url: operation.data.targetUrl, private_user: operation.userId } }
+            : { uuid: operation.bookmarkUuid, user_id: operation.userId },
+        select: {
+          uuid: true,
+          user_id: true,
+          type: true,
+          bookmark_id: true,
+          archive_status: true,
+          is_starred: true,
+          deleted_at: true,
+          bookmark: { select: { target_url: true, status: true } }
+        }
       })
     }
     if (operation.type === 'create_comment' || operation.type === 'delete_comment') {
@@ -164,7 +182,8 @@ export class DBSyncBatchOperation {
   /** create bookmark */
   public async executeCreateBookmark(
     tx: prismaTx,
-    operation: OrderedSyncOperation
+    operation: OrderedSyncOperation,
+    onRebound?: (identity: BookmarkRebinding) => void
   ): Promise<{
     bookmarkId: number
     targetUrl: string
@@ -218,7 +237,7 @@ export class DBSyncBatchOperation {
         }
       }
     })
-    if (!previous) previous = (await privatizeLegacyBookmark(tx, operation.userId, targetUrl))?.bookmark ?? null
+    if (!previous) previous = (await privatizeLegacyBookmark(tx, operation.userId, targetUrl, onRebound))?.bookmark ?? null
     const candidateUuid = crypto.randomUUID()
     let bookmark = await tx.sr_bookmark.upsert({
       where: {
@@ -256,7 +275,7 @@ export class DBSyncBatchOperation {
       }))
     )
       throw ShareActionNotAllowedError()
-    if (!admitted && isNewBookmark && ['success', 'failed'].includes(bookmark.status)) {
+    if (!admitted && isNewBookmark && bookmark.status === 'failed') {
       const updatedAt = new Date(Math.max(Date.now(), bookmark.updated_at.getTime() + 1))
       const status = bookmark.status === 'failed' ? 'pending_retry' : 'pending'
       const changed = await tx.sr_bookmark.updateMany({

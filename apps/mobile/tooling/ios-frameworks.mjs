@@ -11,7 +11,7 @@ export function requiredDylibs(output) {
   });
 }
 
-export function verifyFrameworkClosure(application, inspect = binary => execFileSync('otool', ['-l', binary], {encoding: 'utf8', maxBuffer: 8 * 1024 * 1024})) {
+export function applicationExecutables(application) {
   const root = realpathSync(application), binaries = [];
   const visit = directory => {
     const infoPath = path.join(directory, 'Info.plist');
@@ -24,6 +24,9 @@ export function verifyFrameworkClosure(application, inspect = binary => execFile
         binaries.push(binary);
       }
     }
+    for (const entry of readdirSync(directory, {withFileTypes: true})) {
+      if (entry.isFile() && entry.name.endsWith('.dylib')) binaries.push(path.join(directory, entry.name));
+    }
     for (const subdirectory of ['Frameworks', 'PlugIns']) {
       const container = path.join(directory, subdirectory);
       if (!existsSync(container)) continue;
@@ -35,6 +38,11 @@ export function verifyFrameworkClosure(application, inspect = binary => execFile
   };
   visit(root);
   assert(binaries.length > 0, 'No bundle executables found');
+  return binaries;
+}
+
+export function verifyFrameworkClosure(application, inspect = binary => execFileSync('otool', ['-l', binary], {encoding: 'utf8', maxBuffer: 8 * 1024 * 1024})) {
+  const root = realpathSync(application), binaries = applicationExecutables(root);
   for (const binary of binaries) {
     for (const dependency of requiredDylibs(inspect(binary))) {
       if (dependency.startsWith('/System/Library/') || dependency.startsWith('/usr/lib/') || /^@rpath\/libswift[^/]+\.dylib$/.test(dependency)) continue;

@@ -57,6 +57,7 @@ vi.mock('@/utils/hashids', () => ({
 }))
 
 import { CrawlWorkflow } from '@/entry/edge/workflows/crawlWorkflow'
+import { ImportParseWorkflow } from '@/entry/edge/workflows/importParseWorkflow'
 import { CrawlService, type TwitterFetched } from '@/domain/crawl'
 import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
@@ -143,7 +144,7 @@ describe('CrawlWorkflow acquisition Labs gates', () => {
     expect(cs.resolveShortLink).not.toHaveBeenCalled()
     expect(cs.fetchYoutubeData).not.toHaveBeenCalled()
     expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
-    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
   })
 
   test('rejects a regular short link resolved to YouTube before provider fetch', async () => {
@@ -170,7 +171,7 @@ describe('CrawlWorkflow acquisition Labs gates', () => {
     expect(labRepo.isEnabled).toHaveBeenCalledWith(7, 'youtube')
     expect(cs.fetchYoutubeData).toHaveBeenCalledWith(expect.anything(), youtube)
     expect(cs.parseAndSaveYoutube).toHaveBeenCalled()
-    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).toHaveBeenCalled()
   })
 
   test('keeps ungated articles independent of Labs availability', async () => {
@@ -216,7 +217,7 @@ describe('CrawlWorkflow fetch step 状态转换', () => {
     expect(bs.capturePdf).toHaveBeenCalled()
     expect(cs.fetchRegular).not.toHaveBeenCalled()
     expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
-    expect(uph.processPostHandler).toHaveBeenCalledWith(
+    expect(uph.processContentPostProcessing).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
       expect.objectContaining({ title: 'PDF', textContent: expect.stringContaining('Page 1') })
@@ -228,7 +229,7 @@ describe('CrawlWorkflow fetch step 状态转换', () => {
     bs.getBookmarkById.mockResolvedValue({ title: 'Scan', content_key: 'pdf/body/scan.pdf', content_md_key: '' })
     await runWorkflow(wf)
     expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
-    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
   })
   test('fetch 开始 → 设置 status=parseing', async () => {
     const { wf, cs, bs } = wireWorkflow()
@@ -249,7 +250,7 @@ describe('CrawlWorkflow fetch step 状态转换', () => {
 
     expect(cs.fetchRegular).toHaveBeenCalled()
     expect(cs.parseAndSaveContent).toHaveBeenCalled()
-    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
   })
 })
@@ -268,7 +269,7 @@ describe('Toutiao workflow', () => {
     expect(cs.parseAndSaveToutiao).toHaveBeenCalledWith(expect.anything(), article, 42, expect.any(String))
     expect(step.do.mock.calls.some(call => call[0] === 'parse')).toBe(false)
     expect(env.CONTENT_VALIDATION_WORKFLOW.create).toHaveBeenCalledOnce()
-    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).toHaveBeenCalled()
     expect(cs.fetchRegular).not.toHaveBeenCalled()
   })
 
@@ -280,7 +281,7 @@ describe('Toutiao workflow', () => {
     expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
     expect(cs.fetchRegular).not.toHaveBeenCalled()
     expect(cs.parseAndSaveToutiao).not.toHaveBeenCalled()
-    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
   })
 
   test('short body still follows normal article soft-404 checks', async () => {
@@ -318,7 +319,7 @@ describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
       await runWorkflow(wf, { captureRevision, importTaskId: 77 })
       expect(row.status).toBe('success')
       expect(row.updated_at.getTime()).toBeGreaterThan(new Date(captureRevision).getTime())
-      expect(uph.processPostHandler).toHaveBeenCalledOnce()
+      expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
       expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 77, 1)
       expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 77, 1, 0)
       expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
@@ -337,11 +338,11 @@ describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
     expect(step.do.mock.calls.map(call => call[0])).toContain('release-cached-capture')
     expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), 42, 'success')
     expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'success')
-    expect(cs.setCaptureStatus.mock.invocationCallOrder[0]).toBeLessThan(uph.processPostHandler.mock.invocationCallOrder[0])
+    expect(cs.setCaptureStatus.mock.invocationCallOrder[0]).toBeLessThan(uph.processContentPostProcessing.mock.invocationCallOrder[0])
     expect(cs.fetchRegular).not.toHaveBeenCalled()
     expect(cs.fetchTwitterData).not.toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'content_fetch_cached', 'success')
-    expect(uph.processPostHandler).toHaveBeenCalledWith(
+    expect(uph.processContentPostProcessing).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
       expect.objectContaining({ title: 'Cached', textContent: 'Cached body', byline: 'Author' })
@@ -354,7 +355,7 @@ describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
     cs.setCaptureStatus.mockResolvedValue(false)
     await runWorkflow(wf, { importTaskId: 77 })
     expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), 42, 'success')
-    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
     expect(bs.updateBookmarkImportRelationStatus).not.toHaveBeenCalled()
     expect(imp.incrImportTask).not.toHaveBeenCalled()
     expect(cs.fetchRegular).not.toHaveBeenCalled()
@@ -372,6 +373,58 @@ describe('CrawlWorkflow 缓存命中 (shortCircuit)', () => {
     expect(cs.fetchRegular).toHaveBeenCalled()
     expect(cs.parseAndSaveContent).toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).not.toHaveBeenCalledWith(1, 42, 'example.com', 'content_fetch_cached', 'success')
+  })
+})
+
+describe('CrawlWorkflow skipParse cached re-save branch', () => {
+  const stored = { id: 42, status: 'success', target_url: 'https://example.com/article', private_user: 1, content_key: 'html/body/cached.html' }
+
+  test('repairs stored-original PDF metadata then admits maintenance and post-processing without capture or parse', async () => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    bs.getBookmarkById.mockResolvedValue({ ...stored, content_key: 'pdf/body/cached.pdf' })
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Cached', textContent: 'Cached body' })
+    const step = createMockStep()
+
+    await runWorkflow(wf, { skipParse: true, repairPdfMetadata: true }, step)
+
+    expect(step.do.mock.calls.map(call => call[0])).toEqual(['repair-pdf-metadata', 'vector-maintenance', 'post-processing'])
+    expect(bs.repairCachedPdfMetadata).toHaveBeenCalledOnce()
+    expect(uph.processVectorMaintenance).toHaveBeenCalledExactlyOnceWith(expect.anything(), { userId: 1, bookmarkId: 42 })
+    expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
+    expect(cs.claimCapture).not.toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkStatus).not.toHaveBeenCalled()
+    expect(cs.setCaptureStatus).not.toHaveBeenCalled()
+  })
+
+  test('runs legacy post-processing but still reports a failed v5 maintenance admission', async () => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    bs.getBookmarkById.mockResolvedValue(stored)
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ title: 'Cached', textContent: 'Cached body' })
+    uph.processVectorMaintenance.mockRejectedValueOnce(new Error('admission unavailable'))
+
+    await expect(runWorkflow(wf, { skipParse: true })).rejects.toThrow('admission unavailable')
+
+    expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
+    expect(bs.repairCachedPdfMetadata).not.toHaveBeenCalled()
+    expect(cs.claimCapture).not.toHaveBeenCalled()
+    expect(cs.fetchRegular).not.toHaveBeenCalled()
+    expect(bs.updateBookmarkStatus).not.toHaveBeenCalled()
+  })
+
+  test('does nothing when the stored source is not successful', async () => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    bs.getBookmarkById.mockResolvedValue({ ...stored, status: 'pending' })
+    const step = createMockStep()
+
+    await runWorkflow(wf, { skipParse: true, repairPdfMetadata: true }, step)
+
+    expect(step.do).not.toHaveBeenCalled()
+    expect(uph.processVectorMaintenance).not.toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
+    expect(bs.repairCachedPdfMetadata).not.toHaveBeenCalled()
+    expect(cs.claimCapture).not.toHaveBeenCalled()
   })
 })
 
@@ -471,7 +524,7 @@ describe('CrawlWorkflow weixin 路由', () => {
 
     expect(cs.fetchWeixin).toHaveBeenCalled()
     expect(cs.parseAndSaveWeixin).toHaveBeenCalled()
-    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).toHaveBeenCalled()
   })
 
   test('PDF Labs rejection is terminal, marks the pending save failed, and skips fault alerts and HTML parsing', async () => {
@@ -484,7 +537,7 @@ describe('CrawlWorkflow weixin 路由', () => {
     expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
     expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
     expect(cs.fetchRegular).not.toHaveBeenCalled()
-    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
   })
 
   test('weixin 业务终态 (WEIXIN_ENV_ABNORMAL) → NonRetryableError → FAILED', async () => {
@@ -654,19 +707,64 @@ describe('CrawlWorkflow 软 404 + 内容验证', () => {
     await runWorkflow(wf)
 
     expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'post_processing.content_validation', expect.objectContaining({ bookmark_id: 42 }))
-    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).toHaveBeenCalled()
   })
 })
 
 describe('CrawlWorkflow post-processing step', () => {
-  test('processPostHandler 接收正确参数', async () => {
+  test('admits an empty-text PDF in its own durable step', async () => {
+    const { wf, bs, uph } = wireWorkflow()
+    bs.capturePdf.mockResolvedValue(true)
+    bs.getBookmarkById.mockResolvedValue({ title: 'Scan', content_key: 'pdf/body/scan.pdf', content_md_key: '' })
+    const step = createMockStep()
+    await runWorkflow(wf, {}, step)
+    expect(step.do.mock.calls.map(call => call[0])).toContain('vector-maintenance')
+    expect(uph.processVectorMaintenance).toHaveBeenCalledExactlyOnceWith(expect.anything(), { userId: 1, bookmarkId: 42 })
+    expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+  })
+
+  test('legacy postprocessing failure cannot prevent the independent admission step', async () => {
+    const { wf, cs, uph } = wireWorkflow()
+    cs.fetchRegular.mockResolvedValue({ content: '<p>Article</p>', url: 'https://example.com/article', title: 'Article' })
+    cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
+    uph.processContentPostProcessing.mockRejectedValue(new Error('legacy unavailable'))
+    await runWorkflow(wf)
+    expect(uph.processVectorMaintenance).toHaveBeenCalledTimes(1)
+    expect(cs.parseAndSaveContent.mock.invocationCallOrder[0]).toBeLessThan(uph.processVectorMaintenance.mock.invocationCallOrder[0])
+    expect(uph.processVectorMaintenance.mock.invocationCallOrder[0]).toBeLessThan(uph.processContentPostProcessing.mock.invocationCallOrder[0])
+  })
+
+  test.each(['crawl', 'import'] as const)('%s admission failure preserves postprocessing and import progress without false completion', async kind => {
+    const { wf: crawl, env, cs, bs, uph, imp } = wireWorkflow()
+    const wf = kind === 'crawl' ? crawl : Object.assign(new (ImportParseWorkflow as any)(), { ctx: {}, env })
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, privateUser: 0 })
+    uph.processVectorMaintenance.mockRejectedValue(new Error('admission unavailable'))
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const step = createMockStep()
+    try {
+      await expect(runWorkflow(wf, { importTaskId: 77 }, step)).rejects.toThrow('admission unavailable')
+      expect(cs.setCaptureStatus).not.toHaveBeenCalledWith(expect.anything(), 42, 'failed')
+      expect(cs.fetchRegular).not.toHaveBeenCalled()
+      expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
+      expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 77, 1)
+      expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 77, 1, 0)
+      expect(step.do.mock.calls.map(call => call[0]).slice(-3)).toEqual(['vector-maintenance', 'post-processing', 'update-import'])
+      expect(cs.sendAddBookmarkStepEvent).not.toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
+      expect(log).toHaveBeenCalledWith(`[vector-maintenance] ${kind} admission failed`, { userId: 1, bookmarkId: 42 }, expect.any(Error))
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  test('processContentPostProcessing 接收正确参数', async () => {
     const { wf, cs, uph } = wireWorkflow()
     cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
     cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
 
     await runWorkflow(wf, { callbackChatId: 555, callbackOriginMessageId: 666, ignoreGenerateTag: true })
 
-    expect(uph.processPostHandler).toHaveBeenCalledWith(
+    expect(uph.processContentPostProcessing).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         info: expect.objectContaining({
@@ -687,7 +785,7 @@ describe('CrawlWorkflow post-processing step', () => {
 
     await runWorkflow(wf, { ignoreGenerateTag: false })
 
-    expect(uph.processPostHandler).toHaveBeenCalledWith(
+    expect(uph.processContentPostProcessing).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         info: expect.objectContaining({ ignoreGenerateTag: true })
@@ -720,12 +818,34 @@ describe('CrawlWorkflow post-processing step', () => {
     const { wf, cs, uph } = wireWorkflow()
     cs.fetchRegular.mockResolvedValue({ content: '<p>x</p>', url: 'https://example.com/article', title: 'T' })
     cs.parseAndSaveContent.mockResolvedValue(STANDARD_CRAWL_RESULT)
-    uph.processPostHandler.mockRejectedValue(new Error('post fail'))
+    uph.processContentPostProcessing.mockRejectedValue(new Error('post fail'))
 
     await runWorkflow(wf)
 
     expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'post_processing.failed', expect.objectContaining({ error: 'post fail' }))
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
+  })
+})
+
+describe('ImportParseWorkflow explicit admission', () => {
+  test.each(['empty-pdf', 'legacy-failure'] as const)('admits once before legacy postprocessing: %s', async scenario => {
+    const { env, bs, uph, imp } = wireWorkflow()
+    const wf = new (ImportParseWorkflow as any)()
+    wf.ctx = {}
+    wf.env = env
+    if (scenario === 'empty-pdf') {
+      bs.capturePdf.mockResolvedValue(true)
+      bs.getBookmarkById.mockResolvedValue({ title: 'Scan', content_md_key: '' })
+    } else {
+      bs.getBookmarkTitleAndTextContentTry.mockResolvedValue({ ...STANDARD_CRAWL_RESULT, privateUser: 0 })
+      uph.processContentPostProcessing.mockRejectedValue(new Error('legacy indexing failed'))
+    }
+    const step = createMockStep()
+    await runWorkflow(wf, { importTaskId: 77 }, step)
+    expect(step.do.mock.calls.map(call => call[0])).toEqual(['claim-capture', 'fetch', 'vector-maintenance', 'post-processing', 'update-import'])
+    expect(uph.processVectorMaintenance).toHaveBeenCalledExactlyOnceWith(expect.anything(), { userId: 1, bookmarkId: 42 })
+    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 77, 1, 0)
   })
 })
 
@@ -871,7 +991,7 @@ describe('published capture moderation boundaries', () => {
       expect(attempts.get('content-moderation-alert')).toBe(exhausted ? 3 : 2)
       expect(pushMessage).toHaveBeenCalledTimes(exhausted ? 3 : 2)
       expect(env.CONTENT_VALIDATION_WORKFLOW.create).not.toHaveBeenCalled()
-      expect(uph.processPostHandler).toHaveBeenCalledOnce()
+      expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
       expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
       expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 77, 1)
       expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 77, 1, 0)
@@ -913,7 +1033,7 @@ describe('CrawlWorkflow → YouTube AI article trigger', () => {
       expect((bs as any).updateBookmarkModerationResult).toHaveBeenCalledWith(42, ModerationResult.PORN, { revision: new Date('2026-01-01'), userId: 1 })
       expect((bs as any).disableBookmarkShare).not.toHaveBeenCalled()
       expect(yt.triggerAfterCrawl).not.toHaveBeenCalled()
-      expect(uph.processPostHandler).not.toHaveBeenCalled()
+      expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
     } finally {
       spy.mockRestore()
     }
@@ -939,7 +1059,7 @@ describe('CrawlWorkflow → YouTube AI article trigger', () => {
     const { wf, yt, cs, uph } = wireYoutube()
     yt.triggerAfterCrawl.mockRejectedValue(new Error('pg down'))
     await runWorkflow(wf, { url: YT })
-    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'www.youtube.com', 'complete', 'success')
   })
 })
@@ -1060,7 +1180,7 @@ describe('CrawlWorkflow → podcast route', () => {
       expect(cs.pushBookmarkFailureAlert).not.toHaveBeenCalled()
       expect(pod.triggerAfterCrawl).not.toHaveBeenCalled()
       expect(step.do.mock.calls.map((c: any[]) => c[0])).toContain('release-cached-capture')
-      expect(uph.processPostHandler).toHaveBeenCalled()
+      expect(uph.processContentPostProcessing).toHaveBeenCalled()
     })
 
     test('without marks the episode is captured as usual', async () => {
@@ -1089,7 +1209,7 @@ describe('capture claim admission', () => {
     expect(bs.updateBookmarkStatus).not.toHaveBeenCalled()
     expect(bs.updateBookmarkImportRelationStatus).not.toHaveBeenCalled()
     expect(imp.incrImportTask).not.toHaveBeenCalled()
-    expect(uph.processPostHandler).not.toHaveBeenCalled()
+    expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
   })
 
   test('a normal fetch retry retains its durable claim and checks ownership again', async () => {
@@ -1128,15 +1248,18 @@ describe('Fork Workflow branch', () => {
     created: true
   }
 
-  test('copies through the Fork branch without claiming or fetching an ordinary URL', async () => {
-    const { wf, cs, bs } = wireWorkflow()
-    const execute = vi.fn(async () => {})
+  test.each([true, undefined])('fork admission follows committed copy only: %s', async copied => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    const execute = vi.fn().mockResolvedValue(copied)
     mockResolveMap.set(BookmarkForkService, { execute })
-    await runWorkflow(wf, { fork: job })
+    const step = createMockStep()
+    await runWorkflow(wf, { fork: job }, step)
     expect(execute).toHaveBeenCalledOnce()
     expect(cs.claimCapture).not.toHaveBeenCalled()
     expect(bs.getUserBookmark).not.toHaveBeenCalled()
     expect(cs.resolveShortLink).not.toHaveBeenCalled()
+    expect(uph.processVectorMaintenance).toHaveBeenCalledTimes(copied ? 1 : 0)
+    expect(step.do.mock.calls.map(call => call[0])).toEqual(copied ? ['copy-fork', 'vector-maintenance'] : ['copy-fork'])
   })
 
   test('keeps one admission through retry and marks only exhausted copy attempts failed', async () => {

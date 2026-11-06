@@ -83,9 +83,9 @@ Bypassing anonymous startup SHALL NOT clear stored data, change database identit
 
 ### Requirement: Public startup changes preserve normal-user performance
 
-The bypass SHALL preserve normal authenticated startup sequencing and SHALL NOT introduce a new serial runtime download before existing database initialization. Enablement SHALL be evaluated independently of article priority, against the pre-change application as well as all four switch combinations. A failing functional or normal-startup regression gate SHALL prevent release of the affected change.
+The bypass SHALL preserve normal authenticated startup sequencing and SHALL NOT introduce a new serial runtime download before existing database initialization. Enablement SHALL be evaluated independently of article priority, against the pre-change application as well as all four switch combinations. That comparison, the cached-share rollback drill, and the login/guide/account-switch flow checks are post-release obligations for this change (revised 2026-11-02), not pre-enablement gates: both switches ship enabled by default. A failing functional or normal-startup regression discovered by those obligations SHALL be corrected by disabling the affected switch in `apps/web/app/app.config.ts` and deploying, and SHALL block the change from being archived until resolved.
 
 #### Scenario: Public-only optimization with article priority disabled
 - **WHEN** only anonymous public startup is enabled
 - **THEN** anonymous login and guide avoid database initialization while authenticated Inbox, article, share, guide, and extension-bridge paths retain normal startup
-- **AND** both switch-off rollback combinations remain covered by verification
+- **AND** both switch-off rollback combinations remain covered by the post-release verification obligations

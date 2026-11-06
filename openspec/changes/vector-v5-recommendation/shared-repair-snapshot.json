@@ -1,0 +1,44 @@
+{
+  "snapshot": "authorized-c-eight-findings-2026-11-02",
+  "source": "/Users/daguang/project/slax-reader-vector-backfill",
+  "original_baseline": "shared-import-baseline.json",
+  "note": "C hash changes are authorized subsequent repairs, not ignored concurrent writes. Original hashes remain unchanged in the original baseline. All paths below are repository relative. Default B before hash is the original baseline, except listed B local patches. No source C writes or generated artifact copies.",
+  "b_before_overrides": {
+    "apps/api/src/utils/vectorV5/codec.ts": "c586c6b598cad50f3baf6ca8140d60650be4baec9ee1422dfda061ee45032181",
+    "apps/api/src/infra/repository/vectorV5Sources.ts": "8d6abdff0daeaf2062d9031efcef1e86eb5387f81213aa7bc61c8ac961a94940"
+  },
+  "c_repair_sha256": {
+    "apps/api/src/domain/vectorBackfill.ts": "b9063c1b8075dccab0de7a3646c51a3ee888ab215a9ff77db8436174e64ab3f1",
+    "apps/api/src/domain/vectorV5.ts": "43f92b327b83a33d550dd0937015c23c0db130dc76e12a08870d918933b9ff6d",
+    "apps/api/src/infra/repository/dbVectorBackfill.ts": "99c51f92f01abaebd66dfa1c61e6ccbe5b467f470112664c5e5f5b9603984242",
+    "apps/api/src/infra/repository/dbVectorV5.ts": "af1d8901e233eee90aee79383eeb7d209db3c8b2f45e77dda1115c6baf0b6ff0",
+    "apps/api/src/infra/repository/vectorV5Sources.ts": "055f82d2e589536f466aeb2db0bc1f918d22d7d71ea05ae8c39cfeb9205ce2e3",
+    "apps/api/src/utils/vectorV5/runtime.ts": "e972adad6a6c458c1f5ed37bbaf146ab53ba168eb3f354d999d2c17b2bc5bc72",
+    "apps/api/src/utils/vectorV5/codec.ts": "ec0b568bde0c9bfc7e3f6abbc6db8fdba3067b2985955e60e7fe01433493e2ec",
+    "apps/api/src/utils/vectorV5/buckets.ts": "afa6711cca9f7470dce868ee9b19e960693e33ad9c96303b065173fe7db172fe",
+    "apps/api/src/utils/vectorV5/pdf.ts": "be790579b19a3deeeeea282c24c3b27451634d154c85b34b04e58ceab9830a34",
+    "apps/api/src/utils/vectorV5/contract.ts": "075d11aa6dd8e1983fe2c750872f0f5a9a2879a4aa1d95b1e93d8ea3fd328e82",
+    "apps/api/src/utils/vectorV5/index.ts": "3ab0a645dfea560afaee29fe03a77be4f954fe56bccb21948cff41a71286374f",
+    "apps/api/src/utils/vectorV5/writeGate.ts": "8811f6c10c17c299dbd1c1e5cffb9c0d925d5d61147c7c0cc8affe5b4a9c1d3c",
+    "apps/api/prisma/pg_migrations/20261102130653_vector_v5_write_gate/migration.sql": "e445928cf6b8fd36a06727b6575eb28b3f8bc4d2c44d227e29549e235e900e26",
+    "apps/api/test/domain/vectorV5Repairs.test.ts": "fb8b890c4dcf38e271695dc1ae95ed61fc35ae6238fe9912aeff9917edd5031a",
+    "apps/api/test/infra/vectorWriteGate.test.ts": "7cbab8980c6681b129c37770dd6026a896aaa3b407636218bc6349b784f7d787",
+    "apps/api/test/runtime/vectorRepairsSmoke.ts": "8de2350b6de7c21073e9adbaf506719f9f5d75e977288576c82cf1967978ad82",
+    "apps/api/test/infra/vectorV5.test.ts": "1e80af3ef21eddf6e52b33d631281a81751616b9b7ea15273d1335ad54b66702",
+    "apps/api/test/infra/vectorSourcePublication.test.ts": "f28405ce05ff1dd4130a79db5deddb9474ac505fba853623ae4619d9c5e69de8",
+    "apps/api/test/domain/vectorV5Writer.test.ts": "9c29fb43edbb7a27d54bf40ca5d82ab90013df9699500d68b56a2a8619a21c52",
+    "apps/api/test/utils/vectorV5Inputs.test.ts": "b5175a353eade3a87e28f9d611899db116295040b219b4664d0b536b38805642",
+    "apps/api/test/script/vectorBackfillLifecycle.test.ts": "e4c8511a1ac6a3eed1aefb8ec66fdcc515c1c8754f819633e72ae38d8a0c1aa8",
+    "apps/api/test/runtime/vectorBackfillMigration.ts": "721ff5fb93e9eb152668e2b9abdf2b32b261cc0ebe171eb3063285ba223ed1d8"
+  },
+  "b_merged_overrides_sha256": {
+    "apps/api/src/utils/vectorV5/codec.ts": "d900fb82980c8958d089cca49d68f8c039a2718580d89dc60fec7eaf95e61b33",
+    "apps/api/src/infra/repository/vectorV5Sources.ts": "53681deff2abaa013faf3b7e484d90cd3bfd9ff38b791e2b904529e2c9d7674f",
+    "apps/api/src/domain/vectorV5.ts": "e0b1ba03169e540b9a2f344a98463b9fbcad0cb3562a4d96b2c74619a4d7bdb7"
+  },
+  "return_to_c": {
+    "apps/api/src/utils/vectorV5/codec.ts": "Keep Request redirect manual for Workerd; 3xx rejected, not followed.",
+    "apps/api/src/infra/repository/vectorV5Sources.ts": "Permit active subscription removal only with committed 1024 finite near-zero sums, zero weights and no applied Collection contributions; missing representation alone is insufficient.",
+    "apps/api/src/domain/vectorV5.ts": "Reject aggregate_nonempty_zero_vector before cold-start cleanup so cancelling nonzero-weight inputs cannot purge dependent subscriber contributions."
+  }
+}
