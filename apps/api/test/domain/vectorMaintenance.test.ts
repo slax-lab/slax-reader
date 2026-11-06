@@ -181,6 +181,48 @@ describe('single-target task refresh semantics', () => {
     expect(JSON.parse(provider.mock.calls[0][1].body as string).input).toEqual([{ text: 'Title 41\n\nstored owner article' }])
   })
 
+  test.each([
+    [true, false],
+    [true, true],
+    [false, true],
+    [false, false]
+  ])('empty images preserve text=%s and valid image=%s without empty provider input', async (hasText, hasImage) => {
+    await seed(41, [1], hasText ? 'stored article text' : '')
+    await db.query('UPDATE sr_bookmark SET content_key=$1,content_md_key=$2 WHERE id=41', ['html/41', hasText ? 'text/41' : ''])
+    const emptyKey = 'private-snapshots/uuid-41/images/0'
+    const validKey = 'private-snapshots/uuid-41/images/1'
+    put('html/41', `<img src="https://source-assets.reader.invalid/${emptyKey}">${hasImage ? `<img src="https://source-assets.reader.invalid/${validKey}">` : ''}`)
+    objects.set(emptyKey, { bytes: new Uint8Array(), type: 'image/png' })
+    if (hasImage) objects.set(validKey, { bytes: new Uint8Array([1, 2, 3]), type: 'image/png' })
+    const original = provider.getMockImplementation()!
+    provider.mockImplementation(async (url, request) => {
+      const payload = JSON.parse(request.body as string)
+      const empty = payload.input.some((input: { content?: { image?: string }[]; image?: string }) => input.image === '' || input.content?.some(part => part.image === ''))
+      if (empty) return new Response('empty image rejected', { status: 400 })
+      return original(url, request)
+    })
+    const [output] = await service.refreshArticles([{ userId: 1, id: 41 }])
+    if (hasText || hasImage) {
+      expect(output).toMatchObject({ state: 'written', reason: `images_selected:${hasImage ? 1 : 0};images_skipped:empty:1` })
+      expect(indexes[0].stored.has('a:1:41')).toBe(true)
+      expect(provider).toHaveBeenCalledTimes(Number(hasText) + Number(hasImage))
+    } else {
+      expect(output).toMatchObject({ state: 'failed', reason: 'missing_source_content' })
+      expect(provider).not.toHaveBeenCalled()
+      expect(indexes[0].upsert).not.toHaveBeenCalled()
+    }
+    expect(env.OSS.get).not.toHaveBeenCalledWith(emptyKey)
+    expect(objects.get(emptyKey)?.bytes.byteLength).toBe(0)
+  })
+
+  test('an unrelated provider 400 remains a failure after empty-image filtering', async () => {
+    await seed(41)
+    provider.mockImplementationOnce(async () => new Response('invalid nonempty input', { status: 400 }))
+    const [output] = await service.refreshArticles([{ userId: 1, id: 41 }])
+    expect(output).toMatchObject({ state: 'failed', reason: 'embedding_http_400' })
+    expect(indexes[0].upsert).not.toHaveBeenCalled()
+  })
+
   test('two owners of one original keep independent article identities', async () => {
     await seed(41, [1, 2], 'shared source', { starred: true, published: true })
     const first = (await service.refreshArticles([{ userId: 1, id: 41 }]))[0]

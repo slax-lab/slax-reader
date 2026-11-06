@@ -126,6 +126,10 @@ export class VectorSourceRepo {
           skip(selection, /icon/i.test(contentType) ? 'decorative' : 'unsupported_format')
           continue
         }
+        if (imageHead.size === 0) {
+          skip(selection, 'empty')
+          continue
+        }
         const prefix: ModelInput = { content: [...(source.title ? [{ text: source.title }] : []), { image: '' }] }
         if (Math.ceil(imageHead.size / 3) * 4 + requestBytes([prefix]) > VECTOR_MEDIA_REQUEST_BYTES) {
           skip(selection, 'request_budget')
@@ -136,7 +140,12 @@ export class VectorSourceRepo {
           skip(selection, 'not_stored')
           continue
         }
-        const encoded = Buffer.from(await image.arrayBuffer()).toString('base64')
+        const bytes = Buffer.from(await image.arrayBuffer())
+        if (bytes.byteLength === 0) {
+          skip(selection, 'empty')
+          continue
+        }
+        const encoded = bytes.toString('base64')
         const input: ModelInput = { content: [...(source.title ? [{ text: source.title }] : []), { image: encoded }] }
         if (requestBytes([input]) > VECTOR_MEDIA_REQUEST_BYTES) {
           skip(selection, 'request_budget')

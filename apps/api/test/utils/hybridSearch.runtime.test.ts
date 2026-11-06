@@ -66,7 +66,14 @@ async function bundle(contents: string) {
 
 const text = (value: string) => ({ type: 'text', value })
 
-function workerConfig(name: string, mainModule: string, contents: string, env: Record<string, unknown>, extra: Record<string, unknown> = {}, flags: string[] = ['nodejs_compat', 'enable_request_signal']) {
+function workerConfig(
+  name: string,
+  mainModule: string,
+  contents: string,
+  env: Record<string, unknown>,
+  extra: Record<string, unknown> = {},
+  flags: string[] = ['nodejs_compat', 'enable_request_signal']
+) {
   return {
     config: {
       name,
@@ -267,7 +274,10 @@ describe('actual Workerd unified search stream', () => {
     expect(article.matched_channels.sort()).toEqual(['article_vector', 'fulltext', 'titles'])
     const collection = complete.results.find((result: { type: string }) => result.type === 'collection')
     expect(collection.matched_channels.sort()).toEqual(['collection_vector', 'titles'])
-    const articlePartials = events.filter(event => event.event === 'partial').flatMap(event => event.data.results).filter((result: { type: string }) => result.type === 'article')
+    const articlePartials = events
+      .filter(event => event.event === 'partial')
+      .flatMap(event => event.data.results)
+      .filter((result: { type: string }) => result.type === 'article')
     const navigation = [article, ...articlePartials].flatMap((hit: { origins: Array<{ kind: string; cb_id?: number; bookmark_uuid?: string }> }) =>
       hit.origins.filter(origin => origin.kind === 'collection')
     )
@@ -325,14 +335,16 @@ describe('actual Workerd unified search stream', () => {
     expect(auditState.cleanupCount).toBe(0)
     let firstChunk = ''
     let disconnected = false
-    const connected = new Promise<void>((resolve, reject) => {
+    let request: ReturnType<typeof httpRequest> | undefined
+    const connected = new Promise<import('node:http').IncomingMessage>((resolve, reject) => {
       const payload = JSON.stringify({ keyword: 'reader' })
-      const request = httpRequest(
+      request = httpRequest(
         {
           hostname: edgeUrl.hostname,
           port: edgeUrl.port,
           path: '/v1/search',
           method: 'POST',
+          agent: false,
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -343,14 +355,14 @@ describe('actual Workerd unified search stream', () => {
         response => {
           response.on('data', chunk => {
             firstChunk += String(chunk)
-            if (!disconnected && firstChunk.includes('event: partial')) {
-              disconnected = true
-              response.destroy()
-              request.destroy()
-              resolve()
+            if (firstChunk.includes('event: partial') && firstChunk.includes('\n\n')) {
+              response.pause()
+              resolve(response)
             }
           })
-          response.on('error', () => {})
+          response.on('error', error => {
+            if (!disconnected) reject(error)
+          })
         }
       )
       request.on('error', error => {
@@ -358,9 +370,28 @@ describe('actual Workerd unified search stream', () => {
       })
       request.end(payload)
     })
-    await connected
-    expect(firstChunk).toContain('event: partial')
-    const after = await waitForAudit(state => state.requestAborts === 1 && state.vectorArticleCalls === 0 && state.cleanupCount === 1)
-    expect({ requestAborts: after.requestAborts, vectors: after.vectorArticleCalls, cleanup: after.cleanupCount }).toEqual({ requestAborts: 1, vectors: 0, cleanup: 1 })
+    try {
+      const response = await connected
+      expect(firstChunk).toContain('event: partial')
+      const before = await waitForAudit(state => state.embeddingCalls === 1)
+      expect({ embedding: before.embeddingCalls, vectors: before.vectorArticleCalls, cleanup: before.cleanupCount }).toEqual({ embedding: 1, vectors: 0, cleanup: 0 })
+      const socket = response.socket
+      expect(socket).not.toBeNull()
+      const closed = new Promise<void>(resolve => socket!.once('close', () => resolve()))
+      disconnected = true
+      socket!.resetAndDestroy()
+      await closed
+      const after = await waitForAudit(state => state.embeddingAborts === 1 && state.cleanupCount === 1)
+      expect(firstChunk).not.toContain('event: complete')
+      expect({ embeddingAborts: after.embeddingAborts, vectors: after.vectorArticleCalls, cleanup: after.cleanupCount }).toEqual({
+        embeddingAborts: 1,
+        vectors: 0,
+        cleanup: 1
+      })
+    } finally {
+      disconnected = true
+      request?.destroy()
+      releaseGate()
+    }
   }, 120_000)
 })
