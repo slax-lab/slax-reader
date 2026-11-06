@@ -1,6 +1,8 @@
 /* eslint-disable */
 // Env bindings contain no configuration values; pnpm types preserves declarations and adds optional bindings from script/generate-worker-types.ts.
 interface __BaseEnv_Env {
+  DEEPSEEK_API_KEY?: string
+
   DIAGNOSTIC_DOWNLOAD_SECRET?: string
   DIAGNOSTICS?: R2Bucket
   API_QUEUE_CHANNELS?: string

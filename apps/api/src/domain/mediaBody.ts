@@ -48,7 +48,13 @@ export class MediaBodyService {
    * The cached AI overview was made from the old body: it is deleted, so it is made again from the new one.
    * A flagged bookmark is not written, except with `force` (the takedown restore must reach it too).
    */
-  public async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }, opts: { force?: boolean } = {}): Promise<boolean> {
+  public async writeBody(
+    ctx: ContextManager,
+    bookmarkId: number,
+    userId: number,
+    body: { html: string; text: string },
+    opts: { force?: boolean; deferIndexing?: boolean } = {}
+  ): Promise<boolean> {
     const bookmark = await this.bookmarkService.getBookmarkById(bookmarkId)
     if (!bookmark?.content_key || (bookmark.moderation_result > 0 && !opts.force)) return false
     const bucket = this.bucket().R2Bucket
@@ -84,6 +90,7 @@ export class MediaBodyService {
       throw error
     }
     await this.bookmarkRepo.deleteBookmarkSummary(bookmarkId, userId)
+    if (opts.deferIndexing) return true
     const results = await this.searchService.addSearchRecord(ctx, bookmarkId, bookmark.title || '', body.text).catch(err => [{ status: 'rejected' as const, reason: err }])
     const rejected = (results ?? []).filter(r => r.status === 'rejected')
     if (rejected.length) console.error(`Media body search index failed for bookmark ${bookmarkId}: ${rejected.length} part(s)`)

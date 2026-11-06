@@ -33,6 +33,7 @@ export function environmentTypes(source: string): string {
       '// Env bindings contain no configuration values; pnpm types preserves declarations and adds optional bindings from script/generate-worker-types.ts.'
     )
   for (const [name, type] of [
+    ['DEEPSEEK_API_KEY', 'string'],
     ['DIAGNOSTICS', 'R2Bucket'],
     ['DIAGNOSTIC_DOWNLOAD_SECRET', 'string']
   ]) {

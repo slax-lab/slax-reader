@@ -5,7 +5,7 @@ import { initializeInfrastructure, initializeCore } from '@/di/generated/depende
 import { ContextManager } from '@/utils/context'
 import { Hashid } from '@/utils/hashids'
 import { PodcastArticleRepo, PodcastEpisodeRepo } from '@/infra/repository/dbPodcastArticle'
-import { VertexAIClient } from '@/infra/external/vertexAIClient'
+import { DeepSeekClient } from '@/infra/external/deepseekClient'
 import { AssemblyAIClient } from '@/infra/external/assemblyAI'
 import { OpenAIModerationClient } from '@/infra/external/openaiModeration'
 import { fetchPublicText } from '@/infra/external/podcastFetch'
@@ -43,12 +43,12 @@ export class PodcastWorkflow extends WorkflowEntrypoint<Env, PodcastWorkflowPara
       sleep: (name, ms) => step.sleep(name, ms)
     }
 
-    await runPodcastEpisode(
+    return await runPodcastEpisode(
       {
         episodes: currentContainer.resolve(PodcastEpisodeRepo),
         articles: currentContainer.resolve(PodcastArticleRepo),
         bucket: this.env.OSS,
-        model: new VertexAIClient(this.env),
+        model: new DeepSeekClient(this.env),
         asr: new AssemblyAIClient(this.env.ASSEMBLYAI_API_KEY),
         fetchTranscript: url => fetchPublicText(url, { maxBytes: 5 * 1024 * 1024 }),
         moderate: async (title, text) => {

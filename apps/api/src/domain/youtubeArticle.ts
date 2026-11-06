@@ -34,6 +34,8 @@ export const YOUTUBE_ARTICLE_LAB = 'youtube_article'
 /** Per user per UTC day. */
 export const YOUTUBE_ARTICLE_DAILY_LIMITS = { auto: 20, manual: 5 } as const
 
+const PUBLICATION_RETRY_PREFIX = 'youtube/pending-publication/'
+
 export type YoutubeArticleTrigger = 'crawl' | 'open' | 'manual' | 'retry' | 'sweep'
 
 export interface YoutubeArticleWorkflowParams {
@@ -485,16 +487,17 @@ export class YoutubeArticleService {
    * A version just became ready: write it into the body of every bookmark of this caption version
    * whose owner reads that language and has the switch on. Bookmarks with marks keep their body.
    */
-  public async publishBodies(ctx: ContextManager, articleId: number): Promise<number> {
+  public async publishBodies(ctx: ContextManager, articleId: number, deferIndexing = false): Promise<number> {
     const row = await this.repo.findById(articleId)
     if (!row) return 0
+    if (deferIndexing && row.status === 'ready') await this.bucket().R2Bucket.put(`${PUBLICATION_RETRY_PREFIX}${articleId}.json`, '{}')
     const failures: unknown[] = []
     const complete = (count: number) => {
       if (failures.length) throw new AggregateError(failures, 'Media body publication incomplete')
       return count
     }
     const loaded = new Map<number, LoadedMediaSnapshot | null>()
-    const settled = await this.snapshots.settleSource(ctx, 'youtube', row.source_id, loaded, failures)
+    const settled = await this.snapshots.settleSource(ctx, 'youtube', row.source_id, loaded, failures, deferIndexing)
     if (row.status !== 'ready') return complete(settled)
     let rendered: { html: string; text: string } | null | undefined
     let count = settled
@@ -504,13 +507,51 @@ export class YoutubeArticleService {
         // Rendered once for all bookmarks, and only when one of them takes it
         if (rendered === undefined) rendered = await this.renderBody(row)
         if (!rendered) throw new Error('YouTube publication artifacts missing')
-        if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+        if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered, { deferIndexing })) count++
       } catch (error) {
         failures.push(error)
         console.error(`YouTube article publication failed for bookmark ${ref.bookmark_id}`)
       }
     }
     return complete(count)
+  }
+
+  public async indexBodies(ctx: ContextManager, articleId: number): Promise<number> {
+    const row = await this.repo.findById(articleId)
+    if (row?.status !== 'ready') return 0
+    const results = await Promise.allSettled((await this.repo.listRefs(row.source_id, row.source_hash)).map(ref => this.snapshots.indexSnapshot(ctx, ref.bookmark_id)))
+    if (results.some(result => result.status === 'rejected')) throw new Error('YouTube body indexing incomplete')
+    await this.bucket().R2Bucket.delete(`${PUBLICATION_RETRY_PREFIX}${articleId}.json`)
+    return results.filter(result => result.status === 'fulfilled' && result.value).length
+  }
+
+  private async retryPublications(ctx: ContextManager): Promise<void> {
+    const bucket = this.bucket().R2Bucket
+    let cursor: string | undefined
+    do {
+      const page = await bucket.list({ prefix: PUBLICATION_RETRY_PREFIX, limit: 50, cursor })
+      for (let start = 0; start < page.objects.length; start += 5) {
+        await Promise.all(
+          page.objects.slice(start, start + 5).map(async object => {
+            const id = Number(object.key.slice(PUBLICATION_RETRY_PREFIX.length).replace(/\.json$/, ''))
+            try {
+              const row = Number.isSafeInteger(id) && id > 0 ? await this.repo.findById(id) : null
+              if (!row || ['takedown', 'stale'].includes(row.status)) {
+                await bucket.delete(object.key)
+                return
+              }
+              if (row.status !== 'ready') return
+              await this.publishBodies(ctx, id, true)
+              await this.indexBodies(ctx, id)
+              await this.deletePrefix(youtubeArticleChunkPrefix(row.source_id, row.source_hash, row.target_language, row.prompt_version))
+            } catch {
+              console.error('YouTube publication retry pending', { articleId: id })
+            }
+          })
+        )
+      }
+      cursor = page.truncated ? page.cursor : undefined
+    } while (cursor)
   }
 
   public async settleSnapshots(ctx: ContextManager, sourceId: string) {
@@ -716,6 +757,7 @@ export class YoutubeArticleService {
       takenDown++
       console.log(`YouTube article takedown cleaned: video=${videoId} rows=${res.rows} objects=${res.objects} bodies=${res.bodies}`)
     }
+    await this.retryPublications(ctx)
     if (expired || started || deleted || takenDown) console.log(`YouTube article sweep: expired=${expired} started=${started} deleted=${deleted} takedowns=${takenDown}`)
     return { expired, started, deleted, takenDown }
   }
