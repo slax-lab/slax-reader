@@ -8,13 +8,17 @@ import { DeepSeekClient } from '../../src/infra/external/deepseekClient'
 import { runYoutubeArticle, type RunnerDeps, type StepLike } from '../../src/domain/youtubeArticleRunner'
 import { planYoutubeArticle } from '../../src/utils/youtubeArticle'
 import type { YoutubeCaptionDocument } from '../../src/utils/youtubeCaption'
+import { workerdArticleModel } from './workerdArticleModel'
 
 async function main() {
   const live = process.argv.includes('--live')
   const faults = process.argv.includes('--faults')
-  const files = process.argv.slice(2).filter(arg => !['--live', '--faults'].includes(arg))
+  const workerd = process.argv.includes('--workerd')
+  const files = process.argv.slice(2).filter(arg => !['--live', '--faults', '--workerd'].includes(arg))
+  if (workerd && (!live || faults)) throw new Error('--workerd requires --live without Node fetch fault injection')
   if (!files.length) throw new Error('Pass public caption JSON paths; optionally --live')
   if (live && !process.env.DEEPSEEK_API_KEY) throw new Error('DEEPSEEK_API_KEY must be injected by the operator')
+  const worker = workerd ? await workerdArticleModel(process.env.DEEPSEEK_API_KEY!) : undefined
   let calls = 0,
     active = 0,
     peak = 0
@@ -129,7 +133,7 @@ async function main() {
           },
           list: async ({ prefix }: { prefix: string }) => ({ objects: [...keys].filter(key => key.startsWith(prefix)).map(key => ({ key })), truncated: false })
         } as any,
-        model: new DeepSeekClient(live ? process.env : { DEEPSEEK_API_KEY: 'local-protocol-fixture' }),
+        model: worker?.model ?? new DeepSeekClient(live ? process.env : { DEEPSEEK_API_KEY: 'local-protocol-fixture' }),
         addCost: async cost => {
           assert.ok(Number.isFinite(cost) && cost >= 0)
         },
@@ -193,6 +197,7 @@ async function main() {
         injected_failures: [...injected],
         mode: live ? 'live-provider-local-runner' : 'controlled-http-local-runner',
         video_id: caption.video_id,
+        provider_runtime: workerd ? 'workerd' : 'node',
         outcome,
         elapsed_ms: Math.round(performance.now() - started),
         cues: ids.length,
@@ -208,6 +213,7 @@ async function main() {
       console.log(JSON.stringify(result))
     }
   } finally {
+    await worker?.dispose()
     globalThis.fetch = originalFetch
     if (!live) await new Promise<void>((resolve, reject) => server.close(error => (error ? reject(error) : resolve())))
   }

@@ -236,6 +236,11 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
           { systemInstruction: system }
         )
         .catch(async error => {
+          log('model_error', p, {
+            chunk: opts.chunk ?? null,
+            code: error instanceof DeepSeekError ? error.code : 'unknown',
+            provider_status: error instanceof DeepSeekError ? (error.providerStatus ?? null) : null
+          })
           if (!(error instanceof DeepSeekError && (error.code === 'http' || error.code === 'configuration'))) await charge(next)
           throw new ArticleModelError()
         })

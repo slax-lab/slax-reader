@@ -39,7 +39,8 @@ export class DeepSeekClient implements ArticleModel {
     try {
       response = await fetch(endpoint, {
         method: 'POST',
-        redirect: 'error',
+        // Workerd supports manual/follow only. Reject 3xx below without forwarding the key.
+        redirect: 'manual',
         signal: config.abortSignal,
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
