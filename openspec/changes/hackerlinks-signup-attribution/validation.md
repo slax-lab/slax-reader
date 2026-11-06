@@ -38,3 +38,9 @@ Validated the approved `hackerlinks-signup-attribution` implementation in the ap
 
 - Independent Bugs / Security / Compliance review initially found one Important cross-boundary deduplication issue and one direct-login evidence Nit. The query now deduplicates the complete scoped set before UTC filtering, the exact counterexample passes in the fixture, and direct-login page tests were added.
 - The same reviewer rechecked the actual files and confirmed both findings resolved, with no remaining Important findings and no Security findings. OpenSpec strict validation passed 108/108; both repositories' `git diff --check` passed.
+
+## Delivery links
+
+- Application Draft PR targeting `dev`: https://github.com/slax-lab/slax-reader/pull/526
+- Analytics companion Draft PR targeting `main`: https://github.com/slax-lab/slax-reader-event-tracking/pull/2
+- Both PRs disclose the real-provider and warehouse acceptance gaps. Neither deployment nor merge is implied by Draft PR creation.
