@@ -329,65 +329,40 @@ export class BookmarkRepo {
   }
 
   public async createBookmark(info: bookmarkPO, status: string) {
-    const create = () =>
-      this.prismaPg().$transaction(async db => {
+    const create = async () => {
+      const rebindings: { userId: number; previousBookmarkId: number; bookmarkId: number }[] = []
+      const result = await this.prismaPg().$transaction(async db => {
         if (
           info.private_user &&
           !(await db.sr_bookmark.findUnique({
-            where: {
-              target_url_private_user: {
-                target_url: info.target_url,
-                private_user: info.private_user
-              }
-            }
+            where: { target_url_private_user: { target_url: info.target_url, private_user: info.private_user } }
           }))
         )
-          await privatizeLegacyBookmark(db, info.private_user, info.target_url)
+          await privatizeLegacyBookmark(db, info.private_user, info.target_url, identity => rebindings.push(identity))
         const uuid = crypto.randomUUID()
         const now = new Date()
         const current = await db.sr_bookmark.upsert({
-          where: {
-            target_url_private_user: {
-              target_url: info.target_url,
-              private_user: info.private_user || 0
-            }
-          },
-          create: {
-            ...info,
-            uuid,
-            created_at: now,
-            updated_at: now,
-            published_at: now,
-            status
-          },
+          where: { target_url_private_user: { target_url: info.target_url, private_user: info.private_user || 0 } },
+          create: { ...info, uuid, created_at: now, updated_at: now, published_at: now, status },
           update: {}
         })
-        if (current.uuid === uuid) return { ...current, admitted: true }
-        if (!['success', 'failed'].includes(current.status)) return { ...current, admitted: false }
-        const relation = await db.sr_user_bookmark.findFirst({
-          where: { bookmark_id: current.id, user_id: info.private_user || 0 }
-        })
+        if (current.uuid === uuid || current.status === 'success') return { ...current, admitted: true }
+        if (current.status !== 'failed') return { ...current, admitted: false }
+        const relation = await db.sr_user_bookmark.findFirst({ where: { bookmark_id: current.id, user_id: info.private_user || 0 } })
         if (!relation) return { ...current, admitted: false }
         const updatedAt = new Date(Math.max(Date.now(), current.updated_at.getTime() + 1))
-        const nextStatus = status === 'success' ? status : current.status === 'failed' ? 'pending_retry' : 'pending'
+        const nextStatus = status === 'success' ? status : 'pending_retry'
         const changed = await db.sr_bookmark.updateMany({
-          where: {
-            id: current.id,
-            updated_at: current.updated_at,
-            status: current.status
-          },
+          where: { id: current.id, updated_at: current.updated_at, status: current.status },
           data: { ...info, status: nextStatus, updated_at: updatedAt }
         })
-        return {
-          ...current,
-          ...(changed.count ? { ...info, status: nextStatus, updated_at: updatedAt } : {}),
-          admitted: changed.count === 1
-        }
+        return { ...current, ...(changed.count ? { ...info, status: nextStatus, updated_at: updatedAt } : {}), admitted: changed.count === 1 }
       })
+      return { ...result, rebindings }
+    }
     try {
       return await create()
     } catch (error) {
-      // Concurrent first saves can race Prisma's emulated upsert. Re-read the winner once.
       if ((error as { code?: string }).code !== 'P2002') throw error
       return create()
     }
@@ -690,10 +665,15 @@ export class BookmarkRepo {
   }
 
   public async updateBookmarkShareIsEnable(bmId: number, userId: number, isEnable: boolean) {
-    return await this.prismaPg().sr_bookmark_share.update({
-      where: { bookmark_id_user_id: { bookmark_id: bmId, user_id: userId } },
-      data: { is_enable: isEnable }
-    })
+    try {
+      return await this.prismaPg().sr_bookmark_share.update({
+        where: { bookmark_id_user_id: { bookmark_id: bmId, user_id: userId } },
+        data: { is_enable: isEnable }
+      })
+    } catch (err) {
+      if (!isEnable && (err as { code?: string } | null)?.code === 'P2025') return null
+      throw err
+    }
   }
 
   public async getBookmarkShareByShareCode(shareCode: string) {
@@ -1194,7 +1174,7 @@ export class BookmarkRepo {
   }
 
   // 合集星标列表，按 starred_at 排序，排除违禁
-  private readableCollectionBookmarks(userId: number, viewerId: number) {
+  public readableCollectionBookmarks(userId: number | Prisma.Sql, viewerId: number) {
     return Prisma.sql`
       user_bookmark.user_id = ${userId}
       AND user_bookmark.deleted_at IS NULL

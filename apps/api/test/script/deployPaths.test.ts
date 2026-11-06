@@ -10,6 +10,7 @@ import {
   readConfig,
   workerConfig,
   writeGenerated,
+  checkDeployment,
   checkRemote,
   queueMapping,
   selectEnvironment,
@@ -29,6 +30,22 @@ afterEach(() => {
 })
 
 describe('single API configuration', () => {
+  test.each(['2024-08-06', '2025-05-05'])('preserves request cancellation for Edge and Core at %s', compatibilityDate => {
+    const config = readConfig(template)
+    config.compatibility_date = compatibilityDate
+    expect(config.compatibility_flags).toContain('enable_request_signal')
+    const dir = directory()
+    for (const local of [false, true]) {
+      for (const target of ['core', 'edge'] as const) {
+        const filename = writeGenerated(config, target, dir, local)
+        const output = parse(fs.readFileSync(filename, 'utf8'))
+        expect(output.compatibility_date).toBe(compatibilityDate)
+        expect(output.compatibility_flags).toEqual(config.compatibility_flags)
+        expect(output.compatibility_flags).toContain('enable_request_signal')
+        expect(output.compatibility_flags).not.toContain('disable_request_signal')
+      }
+    }
+  })
   test('diagnostic bindings stay private to responsible Workers and disable URL capture', () => {
     const config = readConfig(template)
     ;(config.vars as TomlTable).DIAGNOSTIC_DOWNLOAD_SECRET = 'synthetic-test-secret'
@@ -93,6 +110,12 @@ describe('single API configuration', () => {
     expect(edge.triggers).toBeDefined()
     expect(core.triggers).toBeUndefined()
     expect((core.queues as TomlTable).consumers).toBeUndefined()
+    for (const output of [core, edge, browser]) expect(output.vectorize).toBeUndefined()
+    expect(ai.vectorize).toEqual(config.vectorize)
+    expect((ai.vectorize as TomlTable[]).map(row => row.binding)).toEqual(expect.arrayContaining(['VECTOR_V5_ARTICLE', 'VECTOR_V5_USER', 'VECTOR_V5_COLLECTION']))
+    for (const row of workerConfig(config, 'ai', true).vectorize as TomlTable[]) expect(row.remote).toBe(true)
+    for (const output of [core, edge])
+      expect(output.services).toContainEqual({ binding: 'VECTOR', service: 'custom-ai', entrypoint: 'AiEntry' })
   })
   test('custom physical queue names retain logical dispatch including DLQ', () => {
     const config = readConfig(template)
@@ -203,7 +226,7 @@ describe('single API configuration', () => {
     expect(queueMapping(config)['slax-reader-parser-dev']).toBeUndefined()
     expect((workerConfig(config, 'edge').queues as any).consumers).toContainEqual({ queue: 'slax-reader-parser-dev' })
   })
-  test('preserves operator resource IDs and migration history and refuses placeholders remotely', () => {
+  test('preserves operator resource IDs and migration history; only deployment preflight requires v5 bindings', () => {
     const config = readConfig(template)
     expect(() => checkRemote(config)).toThrow('HTTPS')
     ;(config.vars as TomlTable).BACKEND_API_PREFIX = 'https://api.example.com'
@@ -218,6 +241,17 @@ describe('single API configuration', () => {
       for (const row of config[name] as TomlTable[]) row[field] = 'operator-resource-id'
     config.migrations = [{ tag: 'existing-v7', new_classes: ['SlaxJieba'] }]
     expect(() => checkRemote(config)).not.toThrow()
+    expect(() => checkDeployment(config)).not.toThrow()
+    for (const binding of ['VECTOR_V5_ARTICLE', 'VECTOR_V5_USER', 'VECTOR_V5_COLLECTION']) {
+      const incomplete = structuredClone(config)
+      incomplete.vectorize = (incomplete.vectorize as TomlTable[]).filter(row => row.binding !== binding)
+      expect(() => checkRemote(incomplete)).not.toThrow()
+      expect(() => checkDeployment(incomplete)).toThrow(`Missing ${binding}`)
+    }
+    const missingWorkflow = structuredClone(config)
+    missingWorkflow.workflows = (missingWorkflow.workflows as TomlTable[]).filter(row => row.binding !== 'VECTOR_V5_MAINTENANCE_WORKFLOW')
+    expect(() => checkRemote(missingWorkflow)).not.toThrow()
+    expect(() => checkDeployment(missingWorkflow)).toThrow('Missing VECTOR_V5_MAINTENANCE_WORKFLOW')
     ;(config.vars as TomlTable).RUN_ENV = 'development'
     expect(() => checkRemote(config)).toThrow('RUN_ENV')
     ;(config.vars as TomlTable).RUN_ENV = 'prod'

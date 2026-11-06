@@ -1,0 +1,519 @@
+{
+  "inputs": [
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "manifestSha256": "fd90e362b67e70cb6877a7a5e2bff3a59e5d501a8a2bb2ed7fa6fb59a13c51e5",
+      "fileCount": 17
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "manifestSha256": "7aac162e9cb24cd453a39ddf00790ca8aafd6305911b3737ef0c2f9696c36cd6",
+      "fileCount": 24
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "manifestSha256": "6b9da56b6b5086727d147c29178156e7c33af7525db55a8bc6173496659790b4",
+      "fileCount": 13
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "manifestSha256": "c85ae137b411cb2dcbc2427183ad9b5058464957e567fcc6436f117570aa8f54",
+      "fileCount": 16
+    }
+  ],
+  "before": {
+    "apps/api/src/utils/vectorV5/codec.ts": "d900fb82980c8958d089cca49d68f8c039a2718580d89dc60fec7eaf95e61b33",
+    "apps/api/src/infra/repository/vectorV5Sources.ts": "53681deff2abaa013faf3b7e484d90cd3bfd9ff38b791e2b904529e2c9d7674f",
+    "apps/api/src/domain/vectorV5.ts": "e0b1ba03169e540b9a2f344a98463b9fbcad0cb3562a4d96b2c74619a4d7bdb7",
+    "apps/api/src/domain/vectorBackfill.ts": "b9063c1b8075dccab0de7a3646c51a3ee888ab215a9ff77db8436174e64ab3f1",
+    "apps/api/script/vector-backfill.ts": "2d9c40f2f9c877f1eae5d00cfba5a5ebcf160e5dd63b9c9eda6d7093054b44cd",
+    "apps/api/test/domain/vectorV5Repairs.test.ts": "fb8b890c4dcf38e271695dc1ae95ed61fc35ae6238fe9912aeff9917edd5031a",
+    "apps/api/test/utils/vectorV5.workers.test.ts": "fb0b5b5d0013ec7f4bdc58ff74be8f178af13d44546bd1d9cfc8427884e142a1",
+    "apps/api/test/utils/vectorV5Inputs.test.ts": "b5175a353eade3a87e28f9d611899db116295040b219b4664d0b536b38805642",
+    "apps/api/test/infra/vectorV5.test.ts": "1e80af3ef21eddf6e52b33d631281a81751616b9b7ea15273d1335ad54b66702",
+    "apps/api/test/infra/vectorWriteGate.test.ts": "7cbab8980c6681b129c37770dd6026a896aaa3b407636218bc6349b784f7d787",
+    "apps/api/test/runtime/vectorRepairsSmoke.ts": "8de2350b6de7c21073e9adbaf506719f9f5d75e977288576c82cf1967978ad82",
+    "apps/api/test/runtime/diagnosticWorker.ts": "4f404bc7e43ffd75ba7528936a5097c0e1ecdf157e6a33ea20f34353095efd00",
+    "apps/api/test/runtime/httpSmoke.ts": "85b4f639e5a5022f294f779b6575fa765a83d43700193e07384b8f4400397641",
+    "apps/api/test/runtime/vectorPdfMemory.ts": "46f085784e9d192dd53b44cdf8efb05c2a962cf88355843e4e53fefac54ee9ed",
+    "apps/api/test/runtime/vectorBackfillFixture.ts": null,
+    "apps/api/test/runtime/vectorBackfillSuccessSmoke.ts": null,
+    "apps/api/test/script/vectorBackfillRunner.test.ts": null,
+    "apps/api/script/deploy/vector-plan.ts": null,
+    "apps/api/script/deploy/gen-config.ts": "c147c93ffd0ae9221d9cbd96486ea2e91cd583e85d28e24b4d8ecd9dc60ccb51",
+    "apps/api/script/deploy/dev-local.ts": "41c9a93a5a9a48b52693a476b546c27aa0f031faef7f08477b2fe03aaf0a99cd",
+    "apps/api/src/domain/vectorBackfillVerification.ts": null,
+    "apps/api/src/infra/repository/dbVectorBackfill.ts": "99c51f92f01abaebd66dfa1c61e6ccbe5b467f470112664c5e5f5b9603984242",
+    "apps/api/src/infra/repository/vectorBackfillPlan.ts": null,
+    "apps/api/src/infra/repository/vectorBackfillChanges.ts": null,
+    "apps/api/src/infra/repository/vectorBackfillCatchup.ts": null,
+    "apps/api/src/infra/vectorBackfillRuntime.ts": "b714ec43ec27e2b0c5456e763968223ce394f59872e3837a25a86b369b8176ba",
+    "apps/api/src/handler/http/vectorBackfillHandler.ts": "e489e85178cd07d08625dec382eee1719752766184d041a2c77fa99bbdc77214",
+    "apps/api/src/entry/core/index.ts": "3dec9c76ea7bae2a380c329f659f7abe525261ac9d29e3fc61eabb880e3fcfe8",
+    "apps/api/test/script/vectorResourcePlan.test.ts": null,
+    "apps/api/test/script/rootDeployment.test.ts": "2be7def897e2de46ab4a4f81376b79e48af21f972b45daf296b256e179f757d1",
+    "apps/api/test/script/envFiles.test.ts": "61d7b7f0ee8a334dc4894f39d72a35087af6f62fdecd67b51b534a587c869909",
+    "apps/api/test/script/devLocal.test.ts": "0b271adcfdcca50175d6e2035db1b1b7f81530e4b535d730da1e0c34a19744b6",
+    "apps/api/test/runtime/vectorBackfillContinuationScenarios.ts": null,
+    "apps/api/src/utils/vectorV5/pdf.ts": "be790579b19a3deeeeea282c24c3b27451634d154c85b34b04e58ceab9830a34",
+    "apps/api/test/script/devLocalProcess.test.ts": null,
+    "apps/api/test/infra/vectorV5ImageMatrix.test.ts": null,
+    "apps/api/test/utils/vectorV5PdfMatrix.test.ts": null,
+    "apps/api/test/helpers/vectorPdfFixtures.ts": null,
+    "apps/api/test/helpers/vectorPdfStress.ts": null,
+    "apps/api/test/runtime/vectorPdfWorker.ts": "0409a24ae39ef3749973c41c85efe0374c86ee3d8319b81cd2acb5393c8f8b44",
+    "apps/api/test/runtime/vectorCaptureMatrix.ts": null,
+    "apps/api/test/infra/bookmarkFork.integration.test.ts": "39aeb34981bf2ec0b4c23af8d1f0a2dbba2b88be4901e666ec0321be86972f35",
+    "apps/api/prisma/pgsql.prisma": "b681b2851e6efb4782571ba60b2b8a29aa6d179dfa44200ec48443a5b243db23",
+    "apps/api/prisma/pg_migrations/20261102195457_vector_v5_pdf_stage/migration.sql": null,
+    "apps/api/src/infra/repository/vectorPdfStage.ts": null,
+    "apps/api/src/utils/vectorV5/contract.ts": "075d11aa6dd8e1983fe2c750872f0f5a9a2879a4aa1d95b1e93d8ea3fd328e82",
+    "apps/api/src/entry/edge/index.ts": "7a31d73869bc3a04681ae9e7fa2d5498a9a7c2f3dc2fbbf9fa102a10c8e40a23",
+    "apps/api/test/runtime/vectorBackfillMigration.ts": "721ff5fb93e9eb152668e2b9abdf2b32b261cc0ebe171eb3063285ba223ed1d8",
+    "apps/api/test/runtime/vectorPdfStageWorker.ts": null,
+    "apps/api/test/runtime/vectorPdfStageSmoke.ts": null,
+    "apps/api/test/entry/edge.test.ts": "436ba1e2a8dd108150ad59c6ba51ca22452ac6580377e90035a3e21aac3d74f7"
+  },
+  "imports": [
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/src/domain/vectorBackfill.ts",
+      "sha256": "9e8b5933126670c73e6660e53d354d45d9b2732e79b5ad6dae80db712d78e057"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/script/vector-backfill.ts",
+      "sha256": "60eae2c2d7c7da04ead73da331223bf7a2b35d86a6234e28bb266fb40652b65b"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/domain/vectorV5Repairs.test.ts",
+      "sha256": "7d792eea1b5f7fe50606504e82bc74722befe5f9463dd71fce9c044ddc9e89b5"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/utils/vectorV5.workers.test.ts",
+      "sha256": "145dc41e5581cbf29c24ae7e1060af6007c3d1f86e6e8667dd4a21eef6364f31"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/utils/vectorV5Inputs.test.ts",
+      "sha256": "13952c270127f090e58dd400dd8b2ae7aac20beb276abeb2ad2d0e195ad05f83"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/infra/vectorV5.test.ts",
+      "sha256": "6ffb816d476a3abeb12fea6e4a77622eefedd953480837d98328087c6b2ba4b7"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/infra/vectorWriteGate.test.ts",
+      "sha256": "f3f61720d8e0c5381b1d7a517a777809bd834f33a8ab787ef37561c0b13853c6"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/runtime/vectorRepairsSmoke.ts",
+      "sha256": "9407fbfdf2f5b33e93cc7eca062140ec4cec19afe36be95566ab729aaeed404c"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/runtime/diagnosticWorker.ts",
+      "sha256": "40da8e55337c04986527d6a67db4c3f026cb12a6471c5091f10992c89d1c1cf6"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/runtime/vectorPdfMemory.ts",
+      "sha256": "4038dcbdba37bb887a40dc87955e2d8dd18ff92233d474a3ccef388b70d0c0d4"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/runtime/vectorBackfillFixture.ts",
+      "sha256": "6b88ed3fa11862b03c9daa0e2f9bbc36aa038a6c892c4014323c2bb633f34b0e"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/runtime/vectorBackfillSuccessSmoke.ts",
+      "sha256": "5fbe95ce6845dc67cc68547316e5babe9b27a4b67ceb660685d95828bc44fb9d"
+    },
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "path": "apps/api/test/script/vectorBackfillRunner.test.ts",
+      "sha256": "290f96d4eb03615003b0050fe4aee0099b17d02f45ff460adc78f1e161dc2119"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/script/deploy/vector-plan.ts",
+      "sha256": "02dea3ed28e4a2c3c63946016711d4d59f23d06d458faa0568bf2a5ea44c41c1"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/script/vector-backfill.ts",
+      "sha256": "dd5223dd73e4032e8893366b6082d71a5adc59469cef23750966ee8909ea80b8"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/src/domain/vectorBackfill.ts",
+      "sha256": "3af56913d19c4a95a888063666ca341ffa23ee8fada40fce4bb0c329bab6d2d9"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/src/domain/vectorBackfillVerification.ts",
+      "sha256": "acfb002fd91f466df570926c308f4c09a5b796d0f7fd5896c8467d98afefc54f"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/src/infra/repository/dbVectorBackfill.ts",
+      "sha256": "dfe4eab2448aec9e76b7417bd46792569dac598c908072cf322f881c95f06082"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/src/infra/repository/vectorBackfillPlan.ts",
+      "sha256": "6f086ea7237299751795fddf5865994c87865f0812a5c1c3506a4d86f85800b4"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/src/infra/repository/vectorBackfillChanges.ts",
+      "sha256": "e4bd924ee14f9b1c4122f5e221479b55b372d4d786447a65b188373d6cffed82"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/src/infra/repository/vectorBackfillCatchup.ts",
+      "sha256": "60ebf380cf3a0ef2afddf5776bdb53531836b0b036438faad8011a5ad7eac265"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/src/infra/vectorBackfillRuntime.ts",
+      "sha256": "0b6e2be7a481fbfd7abf004b5f8836b430bc75e8b5fcbb7755dd291a24bb86d1"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/src/handler/http/vectorBackfillHandler.ts",
+      "sha256": "43e7ad3c24aedf673be6711acbb36463359c4dce66e87d45620ee64fef10bb1a"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/script/vectorResourcePlan.test.ts",
+      "sha256": "21071d46745df1b818b74bf852fc1791d14f5e2e1be7b959aaf1015f1f87521b"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/script/rootDeployment.test.ts",
+      "sha256": "d017f72fddcd268c58dd3aaa9a7f5ff5335b1fe9e750dcef8bf91a2a3b7e541d"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/script/envFiles.test.ts",
+      "sha256": "823d5053f89fb638269efbefe36bd6ccc06aca1bf6267c19a2218ea0f0e21741"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/script/devLocal.test.ts",
+      "sha256": "aee707f3632511f8c88a8a7c141f66c4a6fbb77c69ba09783ac084251c244ef2"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/infra/vectorV5.test.ts",
+      "sha256": "ccc3051880cffaf654542a98abe430a6e5cce661371595e3ea88ff171390fabf"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/domain/vectorV5Repairs.test.ts",
+      "sha256": "5079919a621d87565edd301239663a24adb2217276e41c7ba6da95cc2c783312"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/runtime/vectorRepairsSmoke.ts",
+      "sha256": "376b9112b720302a8b13f2496683850d2764768ae5c354364274bcf9d49e3469"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/runtime/vectorBackfillFixture.ts",
+      "sha256": "3621f5d3e30566c8c3fcac89ee35852225b3583065eabc96d93eab8cc66f1756"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/runtime/diagnosticWorker.ts",
+      "sha256": "64a2737e6326f66aff2110796c1ed4f3f8ae3120f2f1ab4502c82d4ea3e1cf21"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/runtime/vectorBackfillSuccessSmoke.ts",
+      "sha256": "c31bae91da810dd4753ad88a48eca8bdea693574df646aa27c13e0294b566713"
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "path": "apps/api/test/runtime/vectorBackfillContinuationScenarios.ts",
+      "sha256": "8a9ec47447c278e5c913b32acbcb95a847f19a66544c6eb2d545086872b23a69"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/src/utils/vectorV5/pdf.ts",
+      "sha256": "e41ff47ec71bdddb256de3807b5697ecd6d688ce395680bbcb4003720ac12b20"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/script/devLocalProcess.test.ts",
+      "sha256": "5e691aff1d622a20fa960ffa1e0d20cd20b899839c991b4ea90ec6a01fbcd56e"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/infra/vectorV5ImageMatrix.test.ts",
+      "sha256": "7e96258b83fbeba74862aa4daa94ee78b8705638c3999b35a08a2c824a317645"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/utils/vectorV5PdfMatrix.test.ts",
+      "sha256": "5a4fee695fa2ed010b2a7965045f332ef2bab5bf62d68b46bd0a81b50c7742ab"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/helpers/vectorPdfFixtures.ts",
+      "sha256": "3b31715901a885031dbcf8fa96619aef8fc3c8fab9cf714ebbd2ad5c5b73a81d"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/helpers/vectorPdfStress.ts",
+      "sha256": "11f4424165ff7d9f48cb9ca665349ff9e811fb3aba8c0f9fb94ecf22ce415e35"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/runtime/vectorPdfWorker.ts",
+      "sha256": "7eeb78456dfa1e9203c8af461945b295707ac78933227cc8b973c34be2dea6d8"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/runtime/vectorPdfMemory.ts",
+      "sha256": "e28b01ef714a1b84d065a12614ab0721d77b375ce2a7c69f0c0db5f741caacff"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/runtime/vectorCaptureMatrix.ts",
+      "sha256": "879824de0cb6ae52aaaa54e93a7626d2374b2ed58b63bd322e2b21f9c21cd747"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/infra/bookmarkFork.integration.test.ts",
+      "sha256": "894cf2d925f539569ced2674a2e2e8693eab0216ff704978ab783618bc84fc3b"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/utils/vectorV5.workers.test.ts",
+      "sha256": "5e920f4b917517b2a37c32d1f661bb0290f2fedac7dc9952a73ee88bbce69d59"
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "path": "apps/api/test/domain/vectorV5Repairs.test.ts",
+      "sha256": "02a478ee09a08397bd368576a6bcf6c640bc283fd6e56564d556867e352ca6dd"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/prisma/pg_migrations/20261102195457_vector_v5_pdf_stage/migration.sql",
+      "sha256": "a24266b9369ae0ec561e47e2d92f3fd04e9b043bc15b47bb6dfefa4416ae7ab9"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/src/infra/repository/vectorPdfStage.ts",
+      "sha256": "b58cfabb728d4ca8aba35485b4225d8541e18654b05682436198985cc9c3e700"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/src/infra/repository/vectorV5Sources.ts",
+      "sha256": "595c2071c74584269e560fc5a275afda9541d6976f01e7cf0f3cddff0e2235e9"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/src/domain/vectorV5.ts",
+      "sha256": "3f61edbc32e0fa05aeb0b48d36b1743e76e5555ee753db39205504ae262f91d9"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/src/utils/vectorV5/contract.ts",
+      "sha256": "f242b6a5cf82b15a440f4e6b479571c10d2d3894ec4d6b5b708cb23f67b1a3c5"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/src/infra/vectorBackfillRuntime.ts",
+      "sha256": "e910384f9bb1e09dc25fd146531cb695757a5d64a51b11db0f14abe11b621b22"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/src/handler/http/vectorBackfillHandler.ts",
+      "sha256": "727326935f05e9ae236b27b8c93fbcdb355be105f7fed8e9b56ed490ae712954"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/test/runtime/vectorBackfillMigration.ts",
+      "sha256": "55dd4dfe7f3fccf3a984f546b60d9ef51bf06b8b1a409deb9fc860ad2b015d23"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/test/runtime/vectorPdfStageWorker.ts",
+      "sha256": "fc44e2fedf23024260ea49d385d3dc976515b190e431131ba7b69492fce22e34"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/test/runtime/vectorPdfStageSmoke.ts",
+      "sha256": "1a25d2a8fc3aa1e6c5da0ff9c93062a4595631e80820632015ee2bb1e82282a7"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/test/domain/vectorV5Repairs.test.ts",
+      "sha256": "c76c99ebe4cc91957c3a135a026b77af88459f4de67f4d04755497cf136b7b55"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/test/infra/vectorV5.test.ts",
+      "sha256": "da698f42422dabee8922ee7405a5c63eaf03e9f2df2b289ef3ec011f0b86ac53"
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "path": "apps/api/test/entry/edge.test.ts",
+      "sha256": "f390cdb6cf86c6e5790c42ac1ae02b995439508b3ab039ee3323be39e9c92bc1"
+    }
+  ],
+  "manual": [
+    {
+      "path": "apps/api/test/runtime/httpSmoke.ts",
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "inputHash": "4ee5359d352463e76109fd3bb3fda5794eec3cbf32e3ef71d4b9f77e9986a219"
+    },
+    {
+      "path": "apps/api/script/deploy/gen-config.ts",
+      "snapshot": "handoff-continuation-39-of-56",
+      "inputHash": "611e8c5f563d1af14254797ce8486bda7e605a38f1309d43b409e86509961268"
+    },
+    {
+      "path": "apps/api/script/deploy/dev-local.ts",
+      "snapshot": "handoff-acceptance-43-of-56",
+      "inputHash": "ec27f601059abfbbf35ff64e6d4ad9b518e431639eac2b525b1fe26f1514dee7"
+    },
+    {
+      "path": "apps/api/src/entry/core/index.ts",
+      "snapshot": "handoff-continuation-39-of-56",
+      "inputHash": "c7d66d4c94b475289ded6578c74903e6af3f312a567b5190825392fef62f0ae8"
+    },
+    {
+      "path": "apps/api/prisma/pgsql.prisma",
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "inputHash": "22fe460d389cab8a39411f9033dbb291c86048fb853d2044299f52326fa5c19a"
+    },
+    {
+      "path": "apps/api/src/entry/edge/index.ts",
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "inputHash": "1461e3e95e693630654e99ddbc312207242e892f8ee5d929ecfcb31e58274057"
+    }
+  ],
+  "historicalSql": {
+    "apps/api/prisma/pg_migrations/20250911063331_init_database/migration.sql": "415e4c73ebe9e0ee5bdf1ef0740f97b77a1ba4167464ff10ce4a10763a7733b9",
+    "apps/api/prisma/pg_migrations/20250911063409_add_auto_fill_user_bookmark_comment_metadata/migration.sql": "5443375180039a46a5355c40f4ad961aff89b51379805b18548ba7282c689454",
+    "apps/api/prisma/pg_migrations/20250911065013_remove_notification_metadata_field/migration.sql": "b542bd01d91cb3df20a1778736c8300e1d897c778331f67e963288e349977aa8",
+    "apps/api/prisma/pg_migrations/20250917093711_drop_user_deleted_bookmark_metadata/migration.sql": "5ffd5b516d6c3d895a0fcd564816927ff74871a0fb4250e6c9c70364e92afa51",
+    "apps/api/prisma/pg_migrations/20250918095429_replace_overview_index_to_unique_index/migration.sql": "46cb9ce1f18a4bad73a48033c9bfa0c22630caa705d35d05c8d818ea72294952",
+    "apps/api/prisma/pg_migrations/20250922032257_add_receive_record_metadata_json/migration.sql": "3c7b6a0e43059b5812fea2b2c209de026633782289c90fc7574d72e0db03f013",
+    "apps/api/prisma/pg_migrations/20251117091407_update_sr_user_bookmark_index/migration.sql": "fa801dbb683df04ef522b417031cd56317f8ebeb10f510251f829cb6419b0f31",
+    "apps/api/prisma/pg_migrations/20251208053934_add_apple_iap_data/migration.sql": "b916c9ff7452a988ca7986d93487e1119a9be03e905f4ddf96cf82550b153954",
+    "apps/api/prisma/pg_migrations/20251208085345_update_apple_notification_event_table/migration.sql": "07da6878c10658f7c5d8dd1594a5409898b71e71797072e9ab3351dfe3beb57f",
+    "apps/api/prisma/pg_migrations/20251208085544_diff_pgsql_table/migration.sql": "7d1b0e046c997134ece02cc00c65f89532b6acd801eca93e827554551a5666de",
+    "apps/api/prisma/pg_migrations/20251209054319_add_sr_user_delete_account_flag/migration.sql": "14117308316a1fbb34421cb28065e2f5ac88ad4dbb4dfc5b1230a98b59473d85",
+    "apps/api/prisma/pg_migrations/20251211100034_add_uuid_notification/migration.sql": "f571f14260716551ab2294cf46d80c2d8573e2c5237f40dc00e74f07573e8f32",
+    "apps/api/prisma/pg_migrations/20251215075445_add_user_bookmark_comment_relation/migration.sql": "ac6716083b6a62abc9b526e741c40e8e98786975ecc6c12aacd175a9fa4a7990",
+    "apps/api/prisma/pg_migrations/20251223043933_add_apple_transaction_process_record/migration.sql": "3106b5eee4a589275ff481472f57a05131ae84b960c54a3f8577234dbe0bcec4",
+    "apps/api/prisma/pg_migrations/20260115073542_report_source_and_version/migration.sql": "a07334ed697146060d19b30ebe783eb5be3e49ccee3097c28ae7268a37af0af4",
+    "apps/api/prisma/pg_migrations/20260119070018_sr_user_report_add_extra_data/migration.sql": "dcb5d357608b23d1f905bf5c1dd86b010c22314af83eca0f202b4049560d09e4",
+    "apps/api/prisma/pg_migrations/20260120060454_report_rm_bookmarkid/migration.sql": "1eb3d4ca46cd429cbbc0a92d0cd1d8c057692e10579a68a11240df1067051c2f",
+    "apps/api/prisma/pg_migrations/20260121072605_add_monitor_twitter_record/migration.sql": "c9e1af6c470967421de8d9d270a3c133214ec1d3e081012fa132411385b1f286",
+    "apps/api/prisma/pg_migrations/20260122041322_add_reply_tweet_name/migration.sql": "22386d91394a027372a2dddff8c790326c76ba9aa0ac91c2a22efd52a8c91f98",
+    "apps/api/prisma/pg_migrations/20260401055859_add_starred_at_archived_at/migration.sql": "0f83dec30456b711e3bc2a9d9a1eac6962b8f1c42f68cd7e0411d3f907add71d",
+    "apps/api/prisma/pg_migrations/20260410084523_add_user_api_key_table/migration.sql": "3d0432d035143c199415834b0ed02cc466275bcd49109cbaf7583ad4ca8d8204",
+    "apps/api/prisma/pg_migrations/20260410090000_fix_metadata_remove_starred_archived/migration.sql": "32a9091589abca28137ba73a7e7487ae766f108e234b846ccd3bf8f512bdccd8",
+    "apps/api/prisma/pg_migrations/20260410090000_remove_starred_archived_from_metadata/migration.sql": "998c696c7c3d0287b3c91ff06976091ca310551ee6c4eb86b310cb306bde69bf",
+    "apps/api/prisma/pg_migrations/20260528062352_add_snapshot_sharing/migration.sql": "a5cdbac48099f9c3e8e0e5e6279ba3df17fe828e51f5da666b9f2a851e459b50",
+    "apps/api/prisma/pg_migrations/20260608030507_bookmark_share_index_sharecode/migration.sql": "2185581478c5cc95f0a8be2d5c0c8070a1d3f594307098352404119c4f309e16",
+    "apps/api/prisma/pg_migrations/20260617030000_re_add_uuid_to_bookmark_share/migration.sql": "320407e4b51a9c19f2cb0796731d430de1614e53fa96aad5a292d31e09dfa6d3",
+    "apps/api/prisma/pg_migrations/20260617062907_remove_bookmark_share_user_bookmark_id_unique_index/migration.sql": "ae42c89744c94d32017722d9a3c59bc83b11880525a59f6097d581109493b8b1",
+    "apps/api/prisma/pg_migrations/20260617063145_re_add_share_user_bookmark_unique_index/migration.sql": "2503756d5d97413c2568086ec2b3f893811fb7ff2aea15a9c52cf70e4b8e843c",
+    "apps/api/prisma/pg_migrations/20260706102403_add_moderation_result_to_bookmark/migration.sql": "0d1504eb354dc26506af34b2589a0062a078158b1f57d057fc1770e283a5d91c",
+    "apps/api/prisma/pg_migrations/20260723091841_add_collection_sync_support/migration.sql": "10daeeb6e18fb3a0397a8c57e46173fadb4ebef19bb79c48c95813bc5d7cae0e",
+    "apps/api/prisma/pg_migrations/20260727164535_backfill_collection_avatar/migration.sql": "c1658f873f981d8c03ee56904f8e991eef7e1dbbfad3fe5128880d75d5bad0c3",
+    "apps/api/prisma/pg_migrations/20260730120000_move_collection_policy_to_bookmark/migration.sql": "4825db803303287ed9d4c288cbb927b7dc4b30edf812c9cba70a1ae663939aef",
+    "apps/api/prisma/pg_migrations/20260803040000_replace_paid_collections_with_free/migration.sql": "7e64f1a62d18b61338bce5aa01e51f6f968ba4898648d62b8bf23775cb1ad2e7",
+    "apps/api/prisma/pg_migrations/20260803050000_optimize_collection_sync_indexes/migration.sql": "cba6125f619db12de2fada32734145e2f13a360f0a94fd0882c71b406b19cd91",
+    "apps/api/prisma/pg_migrations/20260803060000_add_collection_stats/migration.sql": "8a838d87c42506d248b61d4e7870d0dff211eccd9b400dbb1aeb4bb030dc081c",
+    "apps/api/prisma/pg_migrations/20260803070000_optimize_metadata_triggers/migration.sql": "1a01bb816a2fd5753f7799e1244d20aae9b7ff701ebaeed82080c4639d28193f",
+    "apps/api/prisma/pg_migrations/20260804010000_refresh_bookmark_stats_on_share_policy_change/migration.sql": "4f920eec5c1bacf6770eaf77b83cb83d084fe610845fdc14745b0d90689ca12d",
+    "apps/api/prisma/pg_migrations/20260805010000_add_collection_id_to_bookmark_stats/migration.sql": "b9808288d0fbd70760c7806dc222d94ad8f16abec76f0d5070769fdea2599724",
+    "apps/api/prisma/pg_migrations/20260814100000_reduce_collection_sync_buckets/migration.sql": "ea4594ab6a1aad454b5703663318a58ef2aa5e316cb3ed60d0156b9fa13d786d",
+    "apps/api/prisma/pg_migrations/20260905000000_add_tag_source_and_last_used/migration.sql": "d552a26e184d8dc063ef6ff8ef9ab381de7961764e8978e31eb1adcdc0afe931",
+    "apps/api/prisma/pg_migrations/20260908000000_add_user_lab_feature/migration.sql": "9a3913008c2f7d5a07b2549736c1527fd965574d8c2d6a3ea91d1d1fb694af37",
+    "apps/api/prisma/pg_migrations/20260908000001_seed_youtube_lab_users/migration.sql": "93232d0968fe0552824f92b3b3e2f50f28b49c71287382344970995db60da6dd",
+    "apps/api/prisma/pg_migrations/20260909000000_add_youtube_article/migration.sql": "cfe23b61247f550fdcd342868d9cb5274b880f8485ca867ce9bf8a0088953f27",
+    "apps/api/prisma/pg_migrations/20260918180000_payment_inbox/migration.sql": "730f1d45adea6ade01965a6fb5155a32485364c8a368bd326c622fcd7829a716",
+    "apps/api/prisma/pg_migrations/20260918200000_payment_scope/migration.sql": "bf6769634f7ff88526811c8274bc8ab7d54313db2a10aeef6c1a665143bc6a53",
+    "apps/api/prisma/pg_migrations/20260923042657_reset_rss_labs_shared_feed/migration.sql": "f8ec75918e2357b1bbea00aa5eeabffc6a1ef2a8a015729bef8a7edaae56c451",
+    "apps/api/prisma/pg_migrations/20260923044137_add_rss_timeline_index/migration.sql": "95999eeba838703993e7f1b12375927a6a8bbb54444d025f57856734adc2d4e9",
+    "apps/api/prisma/pg_migrations/20260923065020/migration.sql": "e5a3b2487ce6a4cecd52ed7ae8372f77620085909347356b286b825ea0619be8",
+    "apps/api/prisma/pg_migrations/20260923071634_add_rss_history_paging/migration.sql": "122d743a0403e77ad7e0ed9447f5b8826f2fbdbc55612d936eff004dd13c2eec",
+    "apps/api/prisma/pg_migrations/20261014000000_youtube_article_target_language/migration.sql": "e1b31b74c488c2f89bd515fce0f788abf4f421c5ec2f785bada65e04872c0e28",
+    "apps/api/prisma/pg_migrations/20261015000000_media_article/migration.sql": "c98e9f4ceb92ccc26c7341580bda6c3df8525d7638f97761d5fc31670b3642d4",
+    "apps/api/prisma/pg_migrations/20261019090000_rss_local_first/migration.sql": "9b35569d001e7ed83d686d765fdde00000f0a852a98382140e67a585914e3522",
+    "apps/api/prisma/pg_migrations/20261022043051_local_first_ddl/migration.sql": "9175bdca588962393ab1a7dc869d085c31ec9a6a108abeaad926638785e0ea3a",
+    "apps/api/prisma/pg_migrations/20261022053704_add_bookmark_fork/migration.sql": "9460ab706a5be89ba3c7efcd28de8e5ccf317f9b57a04e82c1bf1edd6f2aadf5",
+    "apps/api/prisma/pg_migrations/20261022140000_seed_podcast_lab_users/migration.sql": "67b7a6d2cf70bbed090e43ea47b671d0eb2bac500bc912635e6ae24ee7e45c14",
+    "apps/api/prisma/pg_migrations/20261027040000_collection_owner_hard_delete/migration.sql": "5d1cf7abd0d96b11246bf83b8465e5a81cf3f2258ea7492950f89d32cc8b3d9d",
+    "apps/api/prisma/pg_migrations/20261031000000_media_article_lifetime_cost/migration.sql": "303bca07248158b706759300c874740424e262eca0eb95cb5ec7ea09bab66fcf",
+    "apps/api/prisma/pg_migrations/20261102101529_vector_v5_foundation/migration.sql": "046a948b905db60bc99fa06a73e8ff6dd0dd733b12086283c7a51e2ea23470fe",
+    "apps/api/prisma/pg_migrations/20261102111126_source_ingestion_jobs/migration.sql": "a062e87a88762c39e2f0b01154bedb233637e85a1f7f59e63920a2061f9bb58c",
+    "apps/api/prisma/pg_migrations/20261102120124_vector_v5_source_publication/migration.sql": "a02dd5d4a06fe2df3f49bbc1b9290cec048f7f0e3b3de51c27f3a2908bcabe4f",
+    "apps/api/prisma/pg_migrations/20261102124759_recommendation_curation_daily/migration.sql": "21fac80e89069aaabe150a9714082af3089d7bbf0ee45760cac3ae07bb443915",
+    "apps/api/prisma/pg_migrations/20261102130653_vector_v5_write_gate/migration.sql": "e445928cf6b8fd36a06727b6575eb28b3f8bc4d2c44d227e29549e235e900e26",
+    "apps/api/prisma/pg_migrations/20261102153945_recommendation_business_jobs/migration.sql": "b9576ec824df13128ff79c7366042fec3db014c87644abbc4a4ebe142fa555e4",
+    "apps/api/prisma/pg_migrations/20261102172720_source_processing_private_copy/migration.sql": "0869afa074eaf3b29afc5d224969523383a7eb073ed2b554979eb26505d1e1dd"
+  },
+  "final": {
+    "apps/api/src/utils/vectorV5/codec.ts": "d900fb82980c8958d089cca49d68f8c039a2718580d89dc60fec7eaf95e61b33",
+    "apps/api/src/infra/repository/vectorV5Sources.ts": "595c2071c74584269e560fc5a275afda9541d6976f01e7cf0f3cddff0e2235e9",
+    "apps/api/src/domain/vectorV5.ts": "3f61edbc32e0fa05aeb0b48d36b1743e76e5555ee753db39205504ae262f91d9",
+    "apps/api/src/domain/vectorBackfill.ts": "3af56913d19c4a95a888063666ca341ffa23ee8fada40fce4bb0c329bab6d2d9",
+    "apps/api/script/vector-backfill.ts": "dd5223dd73e4032e8893366b6082d71a5adc59469cef23750966ee8909ea80b8",
+    "apps/api/test/domain/vectorV5Repairs.test.ts": "c76c99ebe4cc91957c3a135a026b77af88459f4de67f4d04755497cf136b7b55",
+    "apps/api/test/utils/vectorV5.workers.test.ts": "5e920f4b917517b2a37c32d1f661bb0290f2fedac7dc9952a73ee88bbce69d59",
+    "apps/api/test/utils/vectorV5Inputs.test.ts": "13952c270127f090e58dd400dd8b2ae7aac20beb276abeb2ad2d0e195ad05f83",
+    "apps/api/test/infra/vectorV5.test.ts": "da698f42422dabee8922ee7405a5c63eaf03e9f2df2b289ef3ec011f0b86ac53",
+    "apps/api/test/infra/vectorWriteGate.test.ts": "f3f61720d8e0c5381b1d7a517a777809bd834f33a8ab787ef37561c0b13853c6",
+    "apps/api/test/runtime/vectorRepairsSmoke.ts": "376b9112b720302a8b13f2496683850d2764768ae5c354364274bcf9d49e3469",
+    "apps/api/test/runtime/diagnosticWorker.ts": "64a2737e6326f66aff2110796c1ed4f3f8ae3120f2f1ab4502c82d4ea3e1cf21",
+    "apps/api/test/runtime/vectorPdfMemory.ts": "e28b01ef714a1b84d065a12614ab0721d77b375ce2a7c69f0c0db5f741caacff",
+    "apps/api/test/runtime/vectorBackfillFixture.ts": "3621f5d3e30566c8c3fcac89ee35852225b3583065eabc96d93eab8cc66f1756",
+    "apps/api/test/runtime/vectorBackfillSuccessSmoke.ts": "c31bae91da810dd4753ad88a48eca8bdea693574df646aa27c13e0294b566713",
+    "apps/api/test/script/vectorBackfillRunner.test.ts": "290f96d4eb03615003b0050fe4aee0099b17d02f45ff460adc78f1e161dc2119",
+    "apps/api/script/deploy/vector-plan.ts": "02dea3ed28e4a2c3c63946016711d4d59f23d06d458faa0568bf2a5ea44c41c1",
+    "apps/api/src/domain/vectorBackfillVerification.ts": "acfb002fd91f466df570926c308f4c09a5b796d0f7fd5896c8467d98afefc54f",
+    "apps/api/src/infra/repository/dbVectorBackfill.ts": "dfe4eab2448aec9e76b7417bd46792569dac598c908072cf322f881c95f06082",
+    "apps/api/src/infra/repository/vectorBackfillPlan.ts": "6f086ea7237299751795fddf5865994c87865f0812a5c1c3506a4d86f85800b4",
+    "apps/api/src/infra/repository/vectorBackfillChanges.ts": "e4bd924ee14f9b1c4122f5e221479b55b372d4d786447a65b188373d6cffed82",
+    "apps/api/src/infra/repository/vectorBackfillCatchup.ts": "60ebf380cf3a0ef2afddf5776bdb53531836b0b036438faad8011a5ad7eac265",
+    "apps/api/src/infra/vectorBackfillRuntime.ts": "e910384f9bb1e09dc25fd146531cb695757a5d64a51b11db0f14abe11b621b22",
+    "apps/api/src/handler/http/vectorBackfillHandler.ts": "727326935f05e9ae236b27b8c93fbcdb355be105f7fed8e9b56ed490ae712954",
+    "apps/api/test/script/vectorResourcePlan.test.ts": "21071d46745df1b818b74bf852fc1791d14f5e2e1be7b959aaf1015f1f87521b",
+    "apps/api/test/script/rootDeployment.test.ts": "d017f72fddcd268c58dd3aaa9a7f5ff5335b1fe9e750dcef8bf91a2a3b7e541d",
+    "apps/api/test/script/envFiles.test.ts": "823d5053f89fb638269efbefe36bd6ccc06aca1bf6267c19a2218ea0f0e21741",
+    "apps/api/test/script/devLocal.test.ts": "aee707f3632511f8c88a8a7c141f66c4a6fbb77c69ba09783ac084251c244ef2",
+    "apps/api/test/runtime/vectorBackfillContinuationScenarios.ts": "8a9ec47447c278e5c913b32acbcb95a847f19a66544c6eb2d545086872b23a69",
+    "apps/api/src/utils/vectorV5/pdf.ts": "e41ff47ec71bdddb256de3807b5697ecd6d688ce395680bbcb4003720ac12b20",
+    "apps/api/test/script/devLocalProcess.test.ts": "5e691aff1d622a20fa960ffa1e0d20cd20b899839c991b4ea90ec6a01fbcd56e",
+    "apps/api/test/infra/vectorV5ImageMatrix.test.ts": "7e96258b83fbeba74862aa4daa94ee78b8705638c3999b35a08a2c824a317645",
+    "apps/api/test/utils/vectorV5PdfMatrix.test.ts": "5a4fee695fa2ed010b2a7965045f332ef2bab5bf62d68b46bd0a81b50c7742ab",
+    "apps/api/test/helpers/vectorPdfFixtures.ts": "3b31715901a885031dbcf8fa96619aef8fc3c8fab9cf714ebbd2ad5c5b73a81d",
+    "apps/api/test/helpers/vectorPdfStress.ts": "11f4424165ff7d9f48cb9ca665349ff9e811fb3aba8c0f9fb94ecf22ce415e35",
+    "apps/api/test/runtime/vectorPdfWorker.ts": "7eeb78456dfa1e9203c8af461945b295707ac78933227cc8b973c34be2dea6d8",
+    "apps/api/test/runtime/vectorCaptureMatrix.ts": "879824de0cb6ae52aaaa54e93a7626d2374b2ed58b63bd322e2b21f9c21cd747",
+    "apps/api/test/infra/bookmarkFork.integration.test.ts": "894cf2d925f539569ced2674a2e2e8693eab0216ff704978ab783618bc84fc3b",
+    "apps/api/prisma/pg_migrations/20261102195457_vector_v5_pdf_stage/migration.sql": "a24266b9369ae0ec561e47e2d92f3fd04e9b043bc15b47bb6dfefa4416ae7ab9",
+    "apps/api/src/infra/repository/vectorPdfStage.ts": "b58cfabb728d4ca8aba35485b4225d8541e18654b05682436198985cc9c3e700",
+    "apps/api/src/utils/vectorV5/contract.ts": "f242b6a5cf82b15a440f4e6b479571c10d2d3894ec4d6b5b708cb23f67b1a3c5",
+    "apps/api/test/runtime/vectorBackfillMigration.ts": "55dd4dfe7f3fccf3a984f546b60d9ef51bf06b8b1a409deb9fc860ad2b015d23",
+    "apps/api/test/runtime/vectorPdfStageWorker.ts": "fc44e2fedf23024260ea49d385d3dc976515b190e431131ba7b69492fce22e34",
+    "apps/api/test/runtime/vectorPdfStageSmoke.ts": "1a25d2a8fc3aa1e6c5da0ff9c93062a4595631e80820632015ee2bb1e82282a7",
+    "apps/api/test/entry/edge.test.ts": "f390cdb6cf86c6e5790c42ac1ae02b995439508b3ab039ee3323be39e9c92bc1"
+  }
+}

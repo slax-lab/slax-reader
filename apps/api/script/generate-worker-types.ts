@@ -27,6 +27,7 @@ export function environmentTypes(source: string): string {
   }
   check(ast)
   let declarations = env
+    .replace(/^[ \t]*(?:VECTOR_V5_\w+|VECTOR_BACKFILL_\w+|SOURCE_INGESTION_\w+|DAILY_READING_ENABLED)\??:[^\r\n]*\r?\n(?:[ \t]*\r?\n)*/gm, '')
     .replace(/^\/\/ Runtime types generated.*\n/m, '')
     .replace(
       '// Env bindings are maintained manually without configuration values; pnpm types refreshes runtime types only.',
@@ -35,7 +36,13 @@ export function environmentTypes(source: string): string {
   for (const [name, type] of [
     ['DEEPSEEK_API_KEY', 'string'],
     ['DIAGNOSTICS', 'R2Bucket'],
-    ['DIAGNOSTIC_DOWNLOAD_SECRET', 'string']
+    ['DIAGNOSTIC_DOWNLOAD_SECRET', 'string'],
+    ['JINA_API_KEY', 'string'],
+    ['VECTOR_REFRESH_SECRET', 'string'],
+    ['VECTOR_V5_MAINTENANCE_WORKFLOW', 'Workflow<import("./src/domain/vectorMaintenanceHooks").VectorMaintenanceWorkflowParams>'],
+    ['VECTOR_V5_ARTICLE', 'Vectorize'],
+    ['VECTOR_V5_USER', 'Vectorize'],
+    ['VECTOR_V5_COLLECTION', 'Vectorize']
   ]) {
     if (!new RegExp(`\\b${name}\\??\\s*:`).test(declarations)) {
       if (!/interface (?:__BaseEnv_)?Env \{/.test(declarations)) throw new Error('Environment interface is missing')

@@ -73,7 +73,38 @@ export class ContextManager {
     this.cleanupCallbacks.push(callback)
   }
 
+  private streamWork?: Promise<void>
+  private cleanupScheduled = false
+  private cleanupWork?: Promise<void>
+
+  deferCleanupUntil(work: Promise<unknown>) {
+    if (this.cleanupScheduled || this.cleanupWork) throw new Error('cleanup_already_started')
+    this.streamWork = Promise.allSettled([this.streamWork, work]).then(() => {})
+  }
+
+  private releaseResources(): Promise<void> {
+    this.cleanupWork ??= Promise.all(
+      this.cleanupCallbacks.map(async callback => {
+        try {
+          await callback()
+        } catch (error) {
+          console.error('Cleanup error:', error)
+        }
+      })
+    ).then(() => {
+      this.cleanupCallbacks = []
+    })
+    return this.cleanupWork
+  }
+
   async cleanup() {
-    await Promise.all(this.cleanupCallbacks.map(cb => cb().catch(err => console.error('Cleanup error:', err))))
+    if (this.streamWork) {
+      if (!this.cleanupScheduled) {
+        this.cleanupScheduled = true
+        this.execution.waitUntil(this.streamWork.then(() => this.releaseResources()))
+      }
+      return
+    }
+    await this.releaseResources()
   }
 }

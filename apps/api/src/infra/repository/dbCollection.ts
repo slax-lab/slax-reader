@@ -220,11 +220,15 @@ export class CollectionRepo {
     `
   }
 
-  public async recomputeSubscriberActive() {
-    return await this.prismaPg().$executeRaw`
-      UPDATE sr_user_collection_subscriber
-      SET is_active = (subscription_end_time > now()), updated_at = now()
-      WHERE is_active IS DISTINCT FROM (subscription_end_time > now())
+  public async recomputeSubscriberActive(): Promise<{ user_id: number }[]> {
+    return this.prismaPg().$queryRaw<{ user_id: number }[]>`
+      WITH changed AS (
+        UPDATE sr_user_collection_subscriber
+        SET is_active = (subscription_end_time > now()), updated_at = now()
+        WHERE is_active IS DISTINCT FROM (subscription_end_time > now())
+        RETURNING user_id
+      )
+      SELECT DISTINCT user_id FROM changed
     `
   }
 

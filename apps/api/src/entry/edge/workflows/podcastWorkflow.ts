@@ -11,6 +11,7 @@ import { OpenAIModerationClient } from '@/infra/external/openaiModeration'
 import { fetchPublicText } from '@/infra/external/podcastFetch'
 import { moderationSlices } from '@/utils/podcastTranscript'
 import { PodcastService } from '@/domain/podcast'
+import { MediaSnapshotService } from '@/domain/mediaSnapshot'
 import { runPodcastEpisode, PodcastStop, type PodcastStepLike, type PodcastWorkflowParams } from '@/domain/podcastRunner'
 
 /**
@@ -63,6 +64,8 @@ export class PodcastWorkflow extends WorkflowEntrypoint<Env, PodcastWorkflowPara
         publishBodies: sourceId => service.publishBodies(ctxManager, sourceId),
         setRefsHash: (sourceId, hash) => service.setRefsHash(sourceId, hash),
         settleSnapshots: sourceId => service.settleSnapshots(ctxManager, sourceId),
+        processVectorMaintenance: (sourceId, sourceHash) =>
+          currentContainer.resolve(MediaSnapshotService).processSourceVectorMaintenance(ctxManager, 'podcast', sourceId, sourceHash),
         translationTargets: (sourceId, original) => service.translationTargets(sourceId, original),
         // One retry: a missed amount lets the site-wide budget gate under-count
         addCost: usd => service.addCost(usd).catch(() => service.addCost(usd))

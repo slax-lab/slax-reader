@@ -161,7 +161,16 @@ function setup(opts: { cues?: number; model?: ArticleModel; row?: Partial<youtub
   const model = opts.model ?? faithfulModel()
   const addCost = vi.fn(async () => {})
   const publishBodies = vi.fn(async (_articleId: number) => 2)
-  const deps: RunnerDeps = { repo, bucket: bucket as any, model, addCost, publishBodies, indexBodies: vi.fn(async () => 2), settleSnapshots: vi.fn(async () => 0) }
+  const deps: RunnerDeps = {
+    repo,
+    bucket: bucket as any,
+    model,
+    addCost,
+    publishBodies,
+    indexBodies: vi.fn(async () => 2),
+    settleSnapshots: vi.fn(async () => 0),
+    processVectorMaintenance: vi.fn(async () => {})
+  }
   const params: YoutubeArticleWorkflowParams = { articleId: 1, videoId: VIDEO, sourceHash: HASH, targetLanguage: 'en', promptVersion: 'v1', title: 'Attention', trigger: 'open' }
   const { step, calls } = engine({ rewrap: opts.rewrap })
   const runId = opts.runId ?? 'run-1'
@@ -191,7 +200,8 @@ describe('happy path', () => {
 
     const chunkSteps = s.calls.filter(c => c.startsWith('chunk-'))
     expect(chunkSteps.length).toBeGreaterThan(1)
-    expect(s.calls).toEqual(['claim', 'prepare', ...chunkSteps, 'introduction', 'assemble', 'publish', 'publish-body', 'index-bodies', 'drop-chunks'])
+    expect(s.calls).toEqual(['claim', 'prepare', ...chunkSteps, 'introduction', 'assemble', 'publish', 'publish-body', 'vector-maintenance', 'index-bodies', 'drop-chunks'])
+    expect(s.deps.processVectorMaintenance).toHaveBeenCalledWith(VIDEO, HASH)
     expect(s.publishBodies).toHaveBeenCalledWith(1)
     expect(s.model.chat).toHaveBeenCalledTimes(chunkSteps.length + 1)
     expect(s.addCost).toHaveBeenCalledTimes(chunkSteps.length + 1)
@@ -219,7 +229,7 @@ describe('happy path', () => {
     logs.mockRestore()
   })
 
-  test('uses the supported Gemini 3 thinking level', async () => {
+  test('bounds the article model output', async () => {
     const s = setup()
     await s.run()
     expect(s.model.chat).toHaveBeenCalled()
@@ -263,6 +273,9 @@ describe('duplicates and races', () => {
     s.publishBodies.mockRejectedValue(new Error('r2 down'))
     expect(await s.run()).toBe('publication_pending')
     expect(s.repo.row.status).toBe('ready')
+    expect(s.publishBodies).toHaveBeenCalledTimes(4)
+    expect(s.deps.processVectorMaintenance).toHaveBeenCalledOnce()
+    expect(s.repo.finishAttempt).not.toHaveBeenCalled()
     expect(logs.mock.calls.some(c => String(c[0]).includes('youtube_article_bodies_failed'))).toBe(true)
     logs.mockRestore()
   })
@@ -277,6 +290,53 @@ describe('duplicates and races', () => {
 })
 
 describe('idempotency and run ownership', () => {
+  test.each(['ready', 'failed'] as const)('failed admission replays after %s publication without repeating successful steps', async status => {
+    const s = setup({ cues: 40, noCaption: status === 'failed' })
+    const admission = vi.mocked(s.deps.processVectorMaintenance).mockRejectedValue(new Error('admission unavailable'))
+    const completed = new Map<string, unknown>()
+    const step: StepLike = {
+      async do(name, config, fn) {
+        if (completed.has(name)) return completed.get(name) as any
+        const result = await s.step.do(name, config, fn)
+        completed.set(name, result)
+        return result
+      }
+    }
+    await expect(s.run(step)).rejects.toThrow('admission unavailable')
+    expect(admission).toHaveBeenCalledTimes(4)
+    expect(s.repo.row.status).toBe(status)
+    expect(s.publishBodies).toHaveBeenCalledTimes(status === 'ready' ? 1 : 0)
+    expect(s.repo.finishAttempt).toHaveBeenCalledTimes(status === 'failed' ? 1 : 0)
+    const modelCalls = s.model.chat.mock.calls.length
+    admission.mockResolvedValue(undefined)
+    expect(await s.run(step)).toBe(status)
+    expect(admission).toHaveBeenCalledTimes(5)
+    expect(s.model.chat).toHaveBeenCalledTimes(modelCalls)
+    expect(s.publishBodies).toHaveBeenCalledTimes(status === 'ready' ? 1 : 0)
+    expect(s.deps.settleSnapshots).toHaveBeenCalledTimes(status === 'failed' ? 1 : 0)
+    expect(s.repo.finishAttempt).toHaveBeenCalledTimes(status === 'failed' ? 1 : 0)
+  })
+
+  test('a transient admission failure retries only admission and keeps the article ready', async () => {
+    const s = setup({ cues: 40 })
+    vi.mocked(s.deps.processVectorMaintenance).mockRejectedValueOnce(new Error('admission unavailable'))
+    expect(await s.run()).toBe('ready')
+    expect(s.deps.processVectorMaintenance).toHaveBeenCalledTimes(2)
+    expect(s.publishBodies).toHaveBeenCalledOnce()
+    expect(s.repo.publish).toHaveBeenCalledOnce()
+    expect(s.repo.finishAttempt).not.toHaveBeenCalled()
+  })
+
+  test('a terminal settlement failure is not converted into a second finish or gone result', async () => {
+    const s = setup({ noCaption: true })
+    vi.mocked(s.deps.settleSnapshots).mockRejectedValue(new Error('settlement unavailable'))
+    await expect(s.run()).rejects.toThrow('settlement unavailable')
+    expect(s.repo.row.status).toBe('failed')
+    expect(s.repo.finishAttempt).toHaveBeenCalledOnce()
+    expect(s.deps.settleSnapshots).toHaveBeenCalledTimes(4)
+    expect(s.deps.processVectorMaintenance).not.toHaveBeenCalled()
+  })
+
   test('publish committed but the step is retried → still ready, nothing deleted', async () => {
     const s = setup()
     const real = s.repo.publish.getMockImplementation()!

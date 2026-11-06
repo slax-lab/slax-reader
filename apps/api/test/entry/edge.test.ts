@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('cloudflare:workers', () => ({ WorkerEntrypoint: class {} }))
 vi.mock('@/handler/http/imageProxy', () => ({ handleImageProxy: mocks.handleImageProxy }))
+vi.mock('@/di/generated/dependency', () => ({ initializeCore: vi.fn(), initializeInfrastructure: vi.fn() }))
 vi.mock('@/entry/core', () => {
   const WorkerClass = class {}
   return {
@@ -25,6 +26,7 @@ vi.mock('@/entry/edge/workflows/contentValidationWorkflow', () => ({ ContentVali
 vi.mock('@/entry/edge/workflows/importParseWorkflow', () => ({ ImportParseWorkflow: class {} }))
 vi.mock('@/entry/edge/workflows/youtubeArticleWorkflow', () => ({ YoutubeArticleWorkflow: class {} }))
 vi.mock('@/entry/edge/workflows/podcastWorkflow', () => ({ PodcastWorkflow: class {} }))
+vi.mock('@/entry/edge/workflows/vectorMaintenanceWorkflow', () => ({ VectorMaintenanceWorkflow: class {} }))
 
 import edge from '@/entry/edge'
 import { Auth } from '@/utils/jwt'
@@ -149,6 +151,106 @@ describe('edge routing', () => {
     expect(coreFetch).toHaveBeenCalledOnce()
     expect(aiFetch).not.toHaveBeenCalled()
     expect(await response.text()).toBe('core')
+  })
+
+  describe('task refresh forwarding', () => {
+    const SECRET = 'temporary-task-secret-edge'
+    const tasks = [
+      ['/v1/bookmark/vector/refresh', { user_id: 7, bookmark_id: 12 }],
+      ['/v1/bookmark/preference/refresh', { user_id: 7 }],
+      ['/v1/collection/vector/refresh', { collection_id: 30 }],
+      ['/v1/collection/preference/refresh', { user_id: 7 }]
+    ] as const
+
+    const buildEnv = (coreFetch: (request: Request) => Promise<Response>) =>
+      ({
+        JWT_SECRET_TEXT: 'test-secret-32-bytes-minimum-long-string',
+        JWT_ALGORITHMS: 'HS256',
+        JWT_ISSUER: 'test',
+        JWT_EXPIRES: '3600',
+        HASH_IDS_SALT: 'test',
+        EDGE_SHARED_SECRET: 'shared',
+        CORE: { fetch: coreFetch } as never
+      }) as unknown as Env
+
+    const requestFor = (pathname: string, body: unknown, headers: Record<string, string>) =>
+      new Request(`https://api-reader.slax.com${pathname}`, { method: 'POST', headers, body: JSON.stringify(body) })
+
+    test.each(tasks)('%s forwards the custom header anonymously without a user identity', async (pathname, body) => {
+      const coreFetch = vi.fn().mockResolvedValue(Response.json({ code: 200, data: { state: 'written' } }))
+      const response = await edge.fetch(requestFor(pathname, body, { 'X-Vector-Refresh-Secret': SECRET }), buildEnv(coreFetch), {} as ExecutionContext)
+      expect(response.status).toBe(200)
+      expect(coreFetch).toHaveBeenCalledOnce()
+      const forwarded = coreFetch.mock.calls[0][0] as Request
+      expect(forwarded.headers.get('X-Vector-Refresh-Secret')).toBe(SECRET)
+      expect(forwarded.headers.has('Authorization')).toBe(false)
+      expect(forwarded.headers.has(EDGE_IDENTITY_HEADER)).toBe(false)
+      expect(await forwarded.json()).toEqual(body)
+    })
+
+    test.each(tasks)('%s is not gated at Edge: any or missing header is forwarded to Core', async (pathname, body) => {
+      for (const header of [undefined, '', 'wrong-task-secret']) {
+        const coreFetch = vi.fn().mockResolvedValue(Response.json({ code: 200, data: { state: 'written' } }))
+        const headers = header === undefined ? {} : { 'X-Vector-Refresh-Secret': header }
+        const response = await edge.fetch(requestFor(pathname, body, headers), buildEnv(coreFetch), {} as ExecutionContext)
+        expect(response.status).toBe(200)
+        expect(coreFetch).toHaveBeenCalledOnce()
+        expect((coreFetch.mock.calls[0][0] as Request).headers.get('X-Vector-Refresh-Secret')).toBe(header ?? null)
+      }
+    })
+
+    test('a valid Reader JWT is forwarded in user mode and keeps the custom header', async () => {
+      const coreFetch = vi.fn().mockResolvedValue(Response.json({ code: 200, data: { state: 'written' } }))
+      const env = buildEnv(coreFetch)
+      const token = await new Auth(env).sign({ id: String(new Hashid(env).encodeId(7)), email: 'reader@example.com', lang: 'en' })
+      const response = await edge.fetch(
+        requestFor(tasks[0][0], tasks[0][1], { Authorization: `Bearer ${token}`, 'X-Vector-Refresh-Secret': SECRET }),
+        env,
+        {} as ExecutionContext
+      )
+      expect(response.status).toBe(200)
+      const forwarded = coreFetch.mock.calls[0][0] as Request
+      expect(forwarded.headers.has('Authorization')).toBe(false)
+      expect(forwarded.headers.has(EDGE_IDENTITY_HEADER)).toBe(true)
+      expect(forwarded.headers.get('X-Vector-Refresh-Secret')).toBe(SECRET)
+    })
+
+    test('a trailing-slash task path stays whitelisted and forwards the header', async () => {
+      const coreFetch = vi.fn().mockResolvedValue(Response.json({ code: 400, data: 'ERROR_PARAM' }))
+      const response = await edge.fetch(
+        requestFor(`${tasks[0][0]}/`, tasks[0][1], { 'X-Vector-Refresh-Secret': SECRET }),
+        buildEnv(coreFetch),
+        {} as ExecutionContext
+      )
+      expect(response.status).toBe(200)
+      expect(coreFetch).toHaveBeenCalledOnce()
+      expect((coreFetch.mock.calls[0][0] as Request).headers.get('X-Vector-Refresh-Secret')).toBe(SECRET)
+    })
+
+    test('an API key is forwarded as apikey with the header retained', async () => {
+      const coreFetch = vi.fn().mockResolvedValue(Response.json({ code: 403 }))
+      const response = await edge.fetch(
+        requestFor(tasks[0][0], tasks[0][1], { 'X-API-Key': 'reader-api-key', 'X-Vector-Refresh-Secret': SECRET }),
+        buildEnv(coreFetch),
+        {} as ExecutionContext
+      )
+      expect(response.status).toBe(200)
+      expect(coreFetch).toHaveBeenCalledOnce()
+      const forwarded = coreFetch.mock.calls[0][0] as Request
+      expect(forwarded.headers.get('X-API-Key')).toBe('reader-api-key')
+      expect(forwarded.headers.get('X-Vector-Refresh-Secret')).toBe(SECRET)
+    })
+
+    test('the custom header does not make an unrelated route anonymous', async () => {
+      const coreFetch = vi.fn()
+      const response = await edge.fetch(
+        new Request('https://api-reader.slax.com/v1/bookmark/list', { headers: { 'X-Vector-Refresh-Secret': SECRET } }),
+        buildEnv(coreFetch),
+        {} as ExecutionContext
+      )
+      expect(response.status).toBe(401)
+      expect(coreFetch).not.toHaveBeenCalled()
+    })
   })
 
   test('propagates the Cloudflare ray id to core', async () => {

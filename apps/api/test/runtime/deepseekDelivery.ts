@@ -154,6 +154,7 @@ async function main() {
           events.push('index')
           return 1
         },
+        processVectorMaintenance: async () => {},
         settleSnapshots: async () => 0
       }
       const steps: string[] = []

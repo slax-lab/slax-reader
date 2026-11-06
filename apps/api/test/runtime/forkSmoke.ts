@@ -19,7 +19,7 @@ import { exerciseSnapshotAi } from './snapshotAiSmoke'
 type Source = { id: number; uuid: string; url: string; key: string; textKey: string; type: number }
 const sqlString = (value: string) => `'${value.replace(/'/g, "''")}'`
 
-export async function prepareForkSmoke(resources: LocalResources, container: string, state: string, databaseUrl: string) {
+export async function prepareForkSmoke(resources: LocalResources, container: string, state: string, databaseUrl: string, edgeService: string) {
   const config = resolve(resources.workspace, 'fork-r2.json')
   writeFileSync(
     config,
@@ -157,7 +157,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           JSON.stringify({
             name: 'fork-content-client',
             compatibility_date: '2025-05-05',
-            services: [{ binding: 'BACKEND', service: 'root-tooling-local-edge', entrypoint: 'ContentEntry' }]
+            services: [{ binding: 'BACKEND', service: edgeService, entrypoint: 'ContentEntry' }]
           })
         )
         // Connect only to this harness's isolated Wrangler registry, never the user's dev workers.

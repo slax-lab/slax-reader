@@ -1,6 +1,6 @@
 # Validation
 
-Date: November 6, 2026. Branch: `fix/youtube-translation-delivery`, based on `origin/dev` at `dd30199e`.
+Date: November 6, 2026. Branch: `fix/youtube-translation-delivery`, originally based on `origin/dev` at `dd30199e`; synchronized with `origin/dev` at `b63b379c` before the final push.
 
 ## Configuration and scope
 
@@ -8,12 +8,12 @@ All text generation in YouTube and podcast article workflows uses `deepseek-flas
 
 ## Automated verification
 
-- `pnpm api -- test`: 2,906 passed, 116 skipped across 202 passing and 14 skipped files. Skipped tests require separately enabled integration/database environments or optional import fixtures.
+- `pnpm api -- test`: 3,795 passed, 117 skipped across 240 passing and 15 skipped files after synchronization with dev. Skipped tests require separately enabled integration/database environments or optional import fixtures.
 - `pnpm api -- typecheck`: passed.
 - `pnpm api -- gen:all`: passed using non-secret localhost placeholder database URLs for generation and the checked-in API template. No migration was run.
 - Worker environment declarations regenerated from the baseline through `generateWorkerTypes` after removing the proposed API-base option; only `DEEPSEEK_API_KEY` remains.
 - Targeted ESLint: zero errors; four existing `any` warnings in the two Workflow adapters.
-- `pnpm exec openspec validate --all --strict`: 110 items passed.
+- `pnpm exec openspec validate --all --strict`: 112 items passed after synchronization with dev.
 - `git diff --check`: passed.
 
 Fault tests cover malformed/empty responses, missing paragraphs, wrong language, truncation, amount/year diagnostics, provider rejection and timeout, saved-passage reuse, interrupted assembly repair, ownership loss, budget reservations, accounting failure, body publication failure, indexing failure, cleanup failure and sweep catch-up. Numeric differences remain diagnostic; this does not prove semantic accuracy.
@@ -60,4 +60,17 @@ Bugs: checked provider finish reasons and usage before acceptance, bounded recov
 
 Security: fixed outbound provider endpoint, bearer key only in the request header, redirect rejection, sanitized provider errors, no source text or credentials in routine logs; no dependency additions.
 
-Compliance: change `deliver-youtube-translations` implements the conversation-approved redesign and later DeepSeek-only provider choice. Real model and controlled verification are reported separately; skipped integrations and deployment limits are explicit. No Important findings remain in these passes; automated PR review remains pending until the PR opens.
+Compliance: change `deliver-youtube-translations` implements the conversation-approved redesign and later DeepSeek-only provider choice. Real model and controlled verification are reported separately; skipped integrations and deployment limits are explicit. No Important findings remain in these passes; PR #527 is open; automated PR review is pending on the synchronized head.
+
+## Synchronization with current dev
+
+Merged `origin/dev` at `b63b379c` (including #525), resolved the eight conflicting files, and compared the final patch against that base. Preserved its media revision/ownership guards, failed-capture recovery and source vector-maintenance calls. The publication recovery sweep also invokes the new vector-maintenance path before indexing. No compatibility selector was introduced. Repeated Bugs, Security and Compliance review of the resolved files found no Important findings.
+
+Repeated the full API suite, typecheck, generation and strict OpenSpec validation after resolution. Both incident fixtures also passed another actual DeepSeek run with exactly one injection each of HTTP 429, empty output, truncation, storage failure, publication failure and indexing failure:
+
+| Video | Result | Local elapsed | Cues / paragraphs | Estimated upper-bound cost |
+| --- | --- | --- | --- | --- |
+| fsTtKywmWlU | Ready, Chinese | 25.184 s | 1,687 / 129 | $0.032877 |
+| yP176MBG9Tk | Ready, Chinese | 24.447 s | 1,318 / 70 | $0.0275007 |
+
+Artifacts: `/tmp/slax-deepseek-delivery/ff18bc6bff1b-live-1793957433388` and `/tmp/slax-deepseek-delivery/3ffbbdd12114-live-1793957458599`. The harness supplies a no-op vector-maintenance callback; remote Jina behavior is covered by the merged regression suites, not claimed as live integration evidence. The other verification limits above still apply.

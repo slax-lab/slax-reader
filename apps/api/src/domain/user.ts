@@ -39,6 +39,7 @@ import { hashMD5, hashSHA256 } from '@/utils/strings'
 import { diagnosticDownloadUrl, downloadDiagnostic, uploadDiagnostic, type DiagnosticAttachment } from '@/utils/diagnosticAttachment'
 import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
 import { z } from 'zod'
+import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
 
 const collectionAuthAttributionSchema = z.object({
   collection_id: z
@@ -415,6 +416,8 @@ export class UserService {
 
   public async updateShareEnabled(ctx: ContextManager, enabled: boolean) {
     await this.userRepo.updateShareEnabled(ctx.getUserId(), enabled)
+    const collection = await this.collectionRepo.getUserShareCollect(ctx.getUserId())
+    if (collection) dispatchVectorMaintenance(ctx, { kind: 'collection', id: collection.id })
   }
 
   public async getShareEnabled(userId: number): Promise<boolean> {
@@ -668,6 +671,7 @@ export class UserService {
     if (setting === 'share_collect') {
       const user = await this.userRepoData.getInfoByUserId(ctx.getUserId())
       const res = await this.collectionRepo.enableUserShareCollect(ctx.getUserId(), enable, user.name, 1)
+      dispatchVectorMaintenance(ctx, { kind: 'collection', id: res.id })
       return {
         show_name: res.display_name,
         avatar: res.avatar,

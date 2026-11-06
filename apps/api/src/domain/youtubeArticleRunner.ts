@@ -63,6 +63,7 @@ export interface RunnerDeps {
   publishBodies: (articleId: number) => Promise<number>
   indexBodies: (articleId: number) => Promise<number>
   settleSnapshots: (sourceId: string) => Promise<number>
+  processVectorMaintenance: (sourceId: string, sourceHash: string) => Promise<void>
 }
 
 export type RunnerOutcome = 'ready' | 'not_claimed' | 'gone' | 'skipped' | 'failed' | 'retry' | 'superseded' | 'publication_pending' | 'indexing_pending' | 'cleanup_pending'
@@ -139,7 +140,10 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
     const status = await step.do(`finish-${kind}`, DB_STEP, () => deps.repo.finishAttempt(p.articleId, { kind, error, quality }, { runId }))
     log('finished', p, { kind, error, status })
     if (status === null) return 'gone'
-    if (status !== 'pending') await step.do(`settle-${kind}`, PUBLISH_STEP, () => deps.settleSnapshots(p.videoId))
+    if (status !== 'pending') {
+      await step.do(`settle-${kind}`, PUBLISH_STEP, () => deps.settleSnapshots(p.videoId))
+      await step.do(`vector-maintenance-${kind}`, PUBLISH_STEP, () => deps.processVectorMaintenance(p.videoId, p.sourceHash))
+    }
     return status === 'pending' ? 'retry' : (status as RunnerOutcome)
   }
 
@@ -326,7 +330,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
       }
       return { kind: 'ok' as const, chunkCount: plan.chunks.length, format: plan.format, inputChars: plan.inputChars, durationMs: plan.durationMs, expectedCostUsd: expected }
     })
-    if (prep.kind === 'skip') return await finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
+    if (prep.kind === 'skip') return finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
 
     log('prepared', p, { chunks: prep.chunkCount, input_chars: prep.inputChars, format: prep.format, expected_cost_usd: Number(prep.expectedCostUsd.toFixed(5)) })
 
@@ -552,7 +556,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
       await introduction('introduction-repaired')
       assembled = await assemble('assemble-repaired')
     }
-    if (assembled.kind === 'quality_failed') return await finish('failed', `quality:${assembled.quality.failed.join(',')}`, assembled.quality)
+    if (assembled.kind === 'quality_failed') return finish('failed', `quality:${assembled.quality.failed.join(',')}`, assembled.quality)
 
     const published = await step.do('publish', DB_STEP, () =>
       deps.repo.publish(p.articleId, runId, p.sourceHash, p.targetLanguage, {
@@ -575,27 +579,6 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
       return 'superseded'
     }
     log('ready', p, { cost_usd: assembled.quality.cost_usd, paragraphs: assembled.quality.metrics.paragraphs })
-    try {
-      const bookmarks = await step.do('publish-body', PUBLISH_STEP, () => deps.publishBodies(p.articleId))
-      log('bodies_published', p, { bookmarks })
-    } catch (err) {
-      // The article is ready and served below the body; the owner's next status request writes the body
-      log('bodies_failed', p, { error: (err instanceof Error ? err.message : String(err)).slice(0, 120) })
-      return 'publication_pending'
-    }
-    try {
-      await step.do('index-bodies', PUBLISH_STEP, () => deps.indexBodies(p.articleId))
-    } catch {
-      log('indexing_pending', p)
-      return 'indexing_pending'
-    }
-    try {
-      await step.do('drop-chunks', DB_STEP, () => deletePrefix(deps, youtubeArticleChunkPrefix(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion)))
-    } catch {
-      log('cleanup_pending', p)
-      return 'cleanup_pending'
-    }
-    return 'ready'
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     if (
@@ -621,10 +604,35 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         return 'gone'
       }
       // A truncation keeps its detail (parts=N or introduction); budget codes stay bare for isFinalError
-      return await finish('failed', code === 'chunk_truncated' && message.startsWith(code) ? message.slice(0, 200) : code)
+      return finish('failed', code === 'chunk_truncated' && message.startsWith(code) ? message.slice(0, 200) : code)
     }
-    return await finish('retry', message.slice(0, 200))
+    return finish('retry', message.slice(0, 200))
   }
+
+  let outcome: RunnerOutcome = 'ready'
+  try {
+    const bookmarks = await step.do('publish-body', PUBLISH_STEP, () => deps.publishBodies(p.articleId))
+    log('bodies_published', p, { bookmarks })
+  } catch (err) {
+    // The article is ready and served below the body; the owner's next status request writes the body
+    log('bodies_failed', p, { error: (err instanceof Error ? err.message : String(err)).slice(0, 120) })
+    outcome = 'publication_pending'
+  }
+  await step.do('vector-maintenance', PUBLISH_STEP, () => deps.processVectorMaintenance(p.videoId, p.sourceHash))
+  if (outcome !== 'ready') return outcome
+  try {
+    await step.do('index-bodies', PUBLISH_STEP, () => deps.indexBodies(p.articleId))
+  } catch {
+    log('indexing_pending', p)
+    return 'indexing_pending'
+  }
+  try {
+    await step.do('drop-chunks', DB_STEP, () => deletePrefix(deps, youtubeArticleChunkPrefix(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion)))
+  } catch {
+    log('cleanup_pending', p)
+    return 'cleanup_pending'
+  }
+  return outcome
 }
 
 async function deletePrefix(deps: RunnerDeps, prefix: string): Promise<number> {

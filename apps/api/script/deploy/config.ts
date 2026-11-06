@@ -195,7 +195,7 @@ export function workerConfig(config: ApiConfig, target: Target, local = false): 
     })
     if (target === 'edge') delete output.migrations
   }
-  if (target === 'core') delete output.vectorize
+  if (target !== 'ai') delete output.vectorize
   if (target === 'ai') {
     for (const key of ['ai', 'browser', 'migrations', 'workflows', 'rules', 'placement']) delete output[key]
     const jieba = bindings.find(binding => binding.name === 'SLAX_JIEBA')
@@ -283,6 +283,14 @@ export function checkRemote(config: ApiConfig): void {
       for (const row of rows(workerConfig(config, target)[list]))
         if (!row[field] || /^0{8}/.test(String(row[field]))) throw new Error(`${list}: replace placeholder resource IDs before deploying`)
   }
+}
+
+export function checkDeployment(config: ApiConfig): void {
+  checkRemote(config)
+  for (const binding of ['VECTOR_V5_ARTICLE', 'VECTOR_V5_USER', 'VECTOR_V5_COLLECTION'])
+    if (!rows(config.vectorize).some(row => row.binding === binding && row.index_name)) throw new Error(`Missing ${binding} Vectorize binding`)
+  if (!rows(config.workflows).some(row => row.binding === 'VECTOR_V5_MAINTENANCE_WORKFLOW' && row.class_name === 'VectorMaintenanceWorkflow'))
+    throw new Error('Missing VECTOR_V5_MAINTENANCE_WORKFLOW binding')
 }
 
 export function parseArgs(args: string[], allow: string[] = []) {

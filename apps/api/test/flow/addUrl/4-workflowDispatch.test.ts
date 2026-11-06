@@ -131,6 +131,61 @@ describe('CrawlService.createWorkflow 重试', () => {
   })
 })
 
+describe('CrawlService.createWorkflow skipParse', () => {
+  const revision = new Date('2026-10-22T00:00:00Z')
+
+  test('requires a successful stored source and never claims or resets capture state', async () => {
+    const { svc, br } = wireCrawlService()
+    const env = createMockCtx().env
+    const snapshot = (svc as any).snapshotRepo.snapshot as ReturnType<typeof vi.fn>
+    snapshot.mockResolvedValueOnce({ status: 'pending', updated_at: revision })
+    await svc.createWorkflow(env, { url: 'https://a.com', bookmarkId: 42, userId: 1, skipParse: true } as any)
+    expect(env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
+    expect(br.updateBookmarkStatus).not.toHaveBeenCalled()
+
+    snapshot.mockResolvedValueOnce({ status: 'success', updated_at: revision })
+    await svc.createWorkflow(env, { url: 'https://a.com', bookmarkId: 42, userId: 1, skipParse: true } as any)
+    expect(env.CRAWL_WORKFLOW.create).toHaveBeenCalledOnce()
+    expect(br.updateBookmarkStatus).not.toHaveBeenCalled()
+  })
+
+  test('a failed cached-workflow creation reports the error without failDispatch', async () => {
+    const { svc, br, ab } = wireCrawlService()
+    const env = createMockCtx().env
+    const snapshot = (svc as any).snapshotRepo.snapshot as ReturnType<typeof vi.fn>
+    snapshot.mockResolvedValue({ status: 'success', updated_at: revision })
+    env.CRAWL_WORKFLOW.create.mockRejectedValue(new Error('workflow create failed'))
+    await expect(svc.createWorkflow(env, { url: 'https://a.com', bookmarkId: 42, userId: 1, skipParse: true } as any, 1)).rejects.toThrow('workflow create failed')
+    expect(br.updateBookmarkStatus).not.toHaveBeenCalled()
+    expect(ab.crawl.pushMessage).toHaveBeenCalledWith(expect.stringContaining('workflow_creation Failed'))
+  })
+})
+
+describe('cached-workflow admission exhaustion', () => {
+  test('three rejected attempts emit the failed step event and alert without failDispatch', async () => {
+    const { svc, br, ls, ab } = wireCrawlService()
+    const env = createMockCtx().env
+    const snapshot = (svc as any).snapshotRepo.snapshot as ReturnType<typeof vi.fn>
+    snapshot.mockResolvedValue({ status: 'success', updated_at: new Date('2026-10-22T00:00:00Z') })
+    env.CRAWL_WORKFLOW.create.mockRejectedValue(new Error('admission unavailable'))
+    vi.useFakeTimers()
+    try {
+      const action = svc.createWorkflow(env, { url: 'https://a.com', bookmarkId: 42, userId: 1, skipParse: true } as any, 3)
+      const settled = action.catch(error => error as Error)
+      await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(1000)
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(await settled).toMatchObject({ message: 'admission unavailable' })
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(env.CRAWL_WORKFLOW.create).toHaveBeenCalledTimes(3)
+    expect(ls.track).toHaveBeenCalledWith(1, 'bookmark_add_step', expect.objectContaining({ step_name: 'workflow_creation', status: 'failed' }))
+    expect(ab.crawl.pushMessage).toHaveBeenCalledWith(expect.stringContaining('workflow_creation Failed'))
+    expect(br.updateBookmarkStatus).not.toHaveBeenCalled()
+  })
+})
+
 describe('CrawlService.createImportParseWorkflow 重试', () => {
   test('首次成功', async () => {
     const { svc } = wireCrawlService()
