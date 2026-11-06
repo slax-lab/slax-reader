@@ -1,7 +1,7 @@
 <template>
   <div class="auth-wrap">
     <div class="auth-stack">
-      <LoginView :redirect="redirect" :affcode="affcode" :has-invite="hasInvite">
+      <LoginView :redirect="redirect" :affcode="affcode" :has-invite="hasInvite" :auth-attribution="authAttribution">
         <template v-if="hasInvite" #invite>
           <LoginKocBanner :blogger-info="kocBloggerInfo" />
         </template>
@@ -14,10 +14,13 @@
 import LoginView from '~/components/global/LoginView.vue'
 import LoginKocBanner from '~/components/Login/LoginKocBanner.vue'
 
-import type { BloggerInfo } from '@slax-reader/contracts/interface'
+import { acquisitionAttributionFromQuery } from '~/utils/acquisitionAttribution'
+
 import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { BloggerInfo } from '@slax-reader/contracts/interface'
 
 const route = useRoute()
+const authAttribution = computed(() => acquisitionAttributionFromQuery(route.query))
 const redirect = `${route.query.redirect || ''}`
 const affcode = `${route.query.aff || ''}`
 const bloggerParam = `${route.query.blogger || ''}`

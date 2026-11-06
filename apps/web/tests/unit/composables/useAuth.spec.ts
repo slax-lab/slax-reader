@@ -174,6 +174,33 @@ describe('useAuth', () => {
     })
   })
 
+  describe('acquisition attribution', () => {
+    const header = { source: 'hackerlinks', medium: 'header', campaign: 'mvp' } as const
+    const resource = { source: 'hackerlinks', medium: 'resource_detail', campaign: 'mvp' } as const
+
+    it('keeps Google and Apple authorization contexts independent and omits ordinary attempts', async () => {
+      const auth = useAuth()
+      await auth.requestAuth({ redirect: '/bookmarks', affCode: '', authAttribution: header })
+      const google = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      await auth.requestAppleAuth({ redirect: '/bookmarks', affCode: '', authAttribution: resource })
+      const apple = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      await auth.requestAppleAuth({ redirect: '/bookmarks', affCode: '' })
+      const ordinary = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      expect(google).toMatchObject({ platform: 'google', target: '/bookmarks', auth_attribution: header })
+      expect(apple).toMatchObject({ platform: 'apple', target: '/bookmarks', auth_attribution: resource })
+      expect(ordinary).not.toHaveProperty('auth_attribution')
+    })
+
+    it.each([
+      { provider: 'google', clientId: 'g-client-id', attribution: header },
+      { provider: 'apple', clientId: 'a-client-id', attribution: resource }
+    ] as const)('carries acquisition into the $provider login request', async ({ provider, clientId, attribution }) => {
+      mockPost.mockResolvedValueOnce({ token: 'tok-acquisition' })
+      await useAuth().grantAuth('code-1', 'https://auth.test/auth', '', provider, attribution)
+      expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: '', type: provider, client_id: clientId, auth_attribution: attribution })
+    })
+  })
+
   describe('clearAuth', () => {
     it('clears user state when the configured cookie name is invalid', async () => {
       runtimeConfig.public.COOKIE_TOKEN_NAME = { token: 'token' } as never
