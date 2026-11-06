@@ -27,6 +27,7 @@ Executed the actual runner in a separate Node process with filesystem storage, a
 | Introduction timeout | Extractive introduction, then ready |
 | Malformed introduction | Extractive introduction, then ready |
 | Process interruption after body generation | Resume with one introduction call, no body requests |
+| Same-language body with exhausted run and lifetime budgets | No model calls, complete source wording and ordered references, then ready |
 | Model budget exhausted after accepted body | No introduction model call, extractive introduction and ready |
 | Storage errors writing introduction | No premature publication, retained body, then ready after storage recovery |
 | Lease loss | Gone, zero publication calls |
@@ -34,11 +35,11 @@ Executed the actual runner in a separate Node process with filesystem storage, a
 | Structural reference corruption | Failed, retained progress, zero publication calls |
 | Persistently omitted content | Bounded repair exhaustion, retained accepted work, zero publication calls |
 
-The replay report is local at /tmp/slax-cue-2f114e/faults-9B7mIb/results.json. The committed runner and utility tests cover the same failure classes and additionally cover persisted sentence-split children, interrupted final repair, exhausted budget with unfinished translation, optional same-language editor failure, accounting failures and named speaker continuation across chunks.
+The replay report is local at /tmp/slax-cue-2f114e/faults-AN98Vj/results.json. The committed runner and utility tests cover the same failure classes and additionally cover persisted sentence-split children, interrupted final repair, exhausted budget with unfinished translation, optional same-language editor failure, accounting failures and named speaker continuation across chunks.
 
 ## Automated checks
 
-- API Vitest suite passed 2,883 tests, with 116 environment-dependent or explicitly skipped tests. The focused runner and passage suites passed 93 tests.
+- API Vitest suite passed 2,883 tests, with 116 environment-dependent or explicitly skipped tests. The focused runner and passage suites passed 95 tests after adding two budget-boundary regressions during PR review.
 - API/contracts typechecks and changed-source ESLint passed. API gen:all produced no tracked drift. Strict repository-wide OpenSpec validation passed all 108 items. Diff whitespace checks passed.
 - Checked digits, signs, magnitude units, decimal/grouping conventions, Chinese number spellings, short names and acknowledgements.
 - Verified request bounds, counter persistence, missing-only retries, source-wording fallback and stored child reuse. A subsequent run retains accepted output while resetting the bounded content-repair allowance for unresolved work.
@@ -49,3 +50,7 @@ The replay report is local at /tmp/slax-cue-2f114e/faults-9B7mIb/results.json. T
 Live model execution and rendered JSON/HTML/text were exercised locally. Database writes and publication callbacks were simulated. The durable Cloudflare Workflows engine, production scheduling, production deployment and a production retry were not exercised. Source-aware heuristic checks detect observable errors. They do not prove semantic translation fidelity. Optional heading and introduction fallbacks are extracts and may be less polished.
 
 Bugs review checked partial persistence, repair invalidation across step retries, child reconstruction, numeric false positives, remaining-work estimation and optional-model error boundaries. Security review checked the unchanged model/storage destinations, untrusted prompt inputs, escaping and count-only logs. Compliance review checked the user-approved direct-generation design, absence of new compatibility selectors and the evidence above.
+
+## PR review follow-up
+
+The review of head 5911e889 identified an unconditional exhausted-budget scenario that contradicted the approved optional same-language editing fallback. Narrowed that scenario to unfinished required translation and specified that same-language request-admission rejection preserves accepted edits and fills outstanding passages with cleaned source wording. This clarifies the existing implementation rather than changing runtime behavior. Re-ran all 16 filesystem-backed fault scenarios and the 95 focused tests. Run-budget and lifetime-budget admission rejection each make zero model or accounting calls and publish complete ordered source wording. Accounting errors still stop publication. Local Bugs, Security and Compliance review found no Important issues in this follow-up.

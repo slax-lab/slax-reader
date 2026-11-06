@@ -25,8 +25,13 @@ The service SHALL persist accepted results and repair state within the existing 
 - **THEN** persist bounded child work and join successful children in source order under the original references
 
 #### Scenario: Repeated content failure or exhausted budget
-- **WHEN** the content repair allowance or spend cap is exhausted
+- **WHEN** required translation remains unaccepted and the content repair allowance or spend cap is exhausted
 - **THEN** stop with an explicit error and retain accepted progress
+
+#### Scenario: Same-language editing has no remaining model budget
+- **WHEN** the source already matches the target language and request admission rejects optional editing because the run or lifetime budget is exhausted
+- **THEN** retain accepted edits, use cleaned source wording for outstanding passages, and publish only after the complete body passes acceptance without further model spend
+- **AND** storage, ownership and accounting failures still stop publication
 
 ### Requirement: Complete publication with presentation fallbacks
 

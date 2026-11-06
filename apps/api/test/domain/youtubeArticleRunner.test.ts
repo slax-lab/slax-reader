@@ -734,6 +734,27 @@ describe('source-owned transcript generation', () => {
     )
   })
 
+  test.each([
+    { cost_usd: 1, lifetime_cost_usd: 1 },
+    { cost_usd: 0, lifetime_cost_usd: 2 }
+  ])('same-language source can publish without model spend at an exhausted cap: %j', async cap => {
+    const s = setup({ cues: 40, model: editedModel() })
+    s.params.promptVersion = 'v2'
+    Object.assign(s.repo.row, cap)
+    expect(await s.run()).toBe('ready')
+    expect(s.model.chat).not.toHaveBeenCalled()
+    expect(s.repo.addCost).not.toHaveBeenCalled()
+    const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0].replace('v1', 'v2'))!)
+    const paragraphs = doc.sections.flatMap((section: any) => section.paragraphs)
+    expect(paragraphs.map((p: any) => p.text).join(' ')).toBe(
+      caption(40)
+        .cues.map(c => c.text)
+        .join(' ')
+    )
+    expect(paragraphs.flatMap((p: any) => p.source_cue_ids)).toEqual(caption(40).cues.map(c => c.id))
+    expect(doc.lede).toBeTruthy()
+  })
+
   test('a truncated batch splits its request and preserves original reference order', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
