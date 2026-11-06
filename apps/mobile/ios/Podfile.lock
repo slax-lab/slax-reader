@@ -465,7 +465,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - NitroModules (0.37.1):
+  - NitroModules (0.37.2):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2752,8 +2752,8 @@ DEPENDENCIES:
   - glog (from `build/rndeps-facades/glog`)
   - GoogleUtilities
   - "hermes-engine (from `../../../node_modules/.pnpm/react-native@0.88.0_@babel+core@7.29.7_supports-color@10.2.2__@react-native+metro-confi_8b001ce26e000c6c7d232e8db08e755b/node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)"
-  - "NitroGoogleSignin (from `../../../node_modules/.pnpm/react-native-nitro-google-signin@2.3.0_expo@58.0.16_react-native-nitro-modules@0.37.1_r_680ab4acce4c0c08013f947fea16cba6/node_modules/react-native-nitro-google-signin`)"
-  - "NitroModules (from `../../../node_modules/.pnpm/react-native-nitro-modules@0.37.1_react-native@0.88.0_@babel+core@7.29.7_supports-color_d91e8d43f088c4fed12d561e65d911df/node_modules/react-native-nitro-modules`)"
+  - "NitroGoogleSignin (from `../../../node_modules/.pnpm/react-native-nitro-google-signin@2.3.0_expo@58.0.16_react-native-nitro-modules@0.37.2_r_d719c50cc7fc564d6ab4a93af33c0216/node_modules/react-native-nitro-google-signin`)"
+  - "NitroModules (from `../../../node_modules/.pnpm/react-native-nitro-modules@0.37.2_react-native@0.88.0_@babel+core@7.29.7_supports-color_e1c9a39a7c1f18ba2a3977427dc0e6ef/node_modules/react-native-nitro-modules`)"
   - "op-sqlite (from `../../../node_modules/.pnpm/@op-engineering+op-sqlite@18.2.5_react-native@0.88.0_@babel+core@7.29.7_supports-color@_b3a3f56b9130e37c84187fc8bb4916e7/node_modules/@op-engineering/op-sqlite`)"
   - "powersync-react-native (from `../../../node_modules/.pnpm/@powersync+react-native@2.3.1_@op-engineering+op-sqlite@18.2.5_react-native@0.88.0_@bab_72014b7483d84e1bfd57cbc7ad35433f/node_modules/@powersync/react-native`)"
   - RCT-Folly (from `build/rndeps-facades/RCT-Folly`)
@@ -2969,9 +2969,9 @@ EXTERNAL SOURCES:
     :podspec: "../../../node_modules/.pnpm/react-native@0.88.0_@babel+core@7.29.7_supports-color@10.2.2__@react-native+metro-confi_8b001ce26e000c6c7d232e8db08e755b/node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-v260318099.0.2
   NitroGoogleSignin:
-    :path: "../../../node_modules/.pnpm/react-native-nitro-google-signin@2.3.0_expo@58.0.16_react-native-nitro-modules@0.37.1_r_680ab4acce4c0c08013f947fea16cba6/node_modules/react-native-nitro-google-signin"
+    :path: "../../../node_modules/.pnpm/react-native-nitro-google-signin@2.3.0_expo@58.0.16_react-native-nitro-modules@0.37.2_r_d719c50cc7fc564d6ab4a93af33c0216/node_modules/react-native-nitro-google-signin"
   NitroModules:
-    :path: "../../../node_modules/.pnpm/react-native-nitro-modules@0.37.1_react-native@0.88.0_@babel+core@7.29.7_supports-color_d91e8d43f088c4fed12d561e65d911df/node_modules/react-native-nitro-modules"
+    :path: "../../../node_modules/.pnpm/react-native-nitro-modules@0.37.2_react-native@0.88.0_@babel+core@7.29.7_supports-color_e1c9a39a7c1f18ba2a3977427dc0e6ef/node_modules/react-native-nitro-modules"
   op-sqlite:
     :path: "../../../node_modules/.pnpm/@op-engineering+op-sqlite@18.2.5_react-native@0.88.0_@babel+core@7.29.7_supports-color@_b3a3f56b9130e37c84187fc8bb4916e7/node_modules/@op-engineering/op-sqlite"
   powersync-react-native:
@@ -3187,7 +3187,7 @@ SPEC CHECKSUMS:
   ExpoLocalization: ed930f5d68e7b3c2073a04787358839e1a8e1680
   ExpoLogBox: 14c42e5429c85e1e2acfb9316b4e821db8e40d42
   ExpoMediaLibrary: 536f542d5fc1266c99627f66bdee9493b8139de9
-  ExpoModulesCore: bd6d4f79201e3d73aecd9ff4fa1f16d8fd1b9d49
+  ExpoModulesCore: d2624c5e4024b45d02e2c4c773c5966d8eb67e32
   ExpoModulesJSI: e5d1a819a2f39a87aeb4c1ced02357d3a55b400c
   ExpoModulesWorklets: a09d8313cdc714c0e539f5f432445d6a9783d2e2
   ExpoModulesWorkletsAdapter: af28304098cadef4feae172c37c0a4d2771c0416
@@ -3222,7 +3222,7 @@ SPEC CHECKSUMS:
   hermes-engine: 82e398b5bff0e418fd1246e00069d4ec594ea60a
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   NitroGoogleSignin: 8577186bf83e0203b95f02d7820e3ca50623562e
-  NitroModules: 92c2f230ec822ce8be72c8330fe292cdcf24e3a4
+  NitroModules: 7bf29af7ff79c45abd39262df30a18b23dd5b04a
   op-sqlite: 883eed16d1f0c8b54a294ea71e5f0696d96e6142
   openiap: 747dcba2469b11bbf3028dec8d61c30f7955492e
   powersync-react-native: f75671607295da2a2d28fda73f2ed8b7d1f57544
