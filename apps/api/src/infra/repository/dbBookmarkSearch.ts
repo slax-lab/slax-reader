@@ -51,6 +51,18 @@ export class BookmarkSearchRepo {
     }
   }
 
+  async searchCandidatePage(keyword: string, offset: number, limit: number) {
+    return this.prisma().$queryRaw<{ row_id: number; bookmark_id: number; score: number; excerpt: string }[]>`
+      SELECT slax_fts_bookmark.rowid AS row_id, raw.bookmark_id, bm25(slax_fts_bookmark) AS score,
+        snippet(slax_fts_bookmark, 0, '', '', '...', 32) AS excerpt
+      FROM slax_fts_bookmark
+      JOIN slax_bookmark_raw raw ON raw.id = slax_fts_bookmark.rowid
+      WHERE slax_fts_bookmark MATCH ${keyword}
+      ORDER BY score ASC, raw.bookmark_id ASC, slax_fts_bookmark.rowid ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `
+  }
+
   async seachBM25(rowIds: number[], keyword: string) {
     try {
       const t1 = performance.now()

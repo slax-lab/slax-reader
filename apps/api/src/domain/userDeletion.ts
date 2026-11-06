@@ -6,26 +6,60 @@ import { UserRepo } from '../infra/repository/dbUser'
 import { snapshotBundleMembers } from '../utils/snapshotBundle'
 import { removeDiagnosticObjects } from '../utils/diagnosticAttachment'
 import { BucketClient } from '../infra/repository/bucketClient'
+import { enqueueVectorMaintenanceBatch, type VectorMaintenanceEvent } from './vectorMaintenanceHooks'
+import { VectorMaintenanceRepo } from '../infra/repository/dbVectorMaintenance'
 
 @injectable()
 export class UserDeletionService {
   constructor(
     @inject(PRISIMA_HYPERDRIVE_CLIENT) private prismaPg: LazyInstance<HyperdrivePrismaClient>,
     @inject(UserRepo) private userRepo: UserRepo,
-    @inject(BucketClient) private bucket: LazyInstance<BucketClient>
+    @inject(BucketClient) private bucket: LazyInstance<BucketClient>,
+    @inject(VectorMaintenanceRepo) private vectorRepo: VectorMaintenanceRepo
   ) {}
 
   public async ensureUserNotDeleted(userId: number): Promise<void> {
     await this.userRepo.requireActiveUser(userId)
   }
 
-  public async cleanupUserData(userId: number, env?: Pick<Env, 'DIAGNOSTICS'>): Promise<void> {
+  private async dispatchVectorCleanup(userId: number, env?: Pick<Env, 'VECTOR_V5_MAINTENANCE_WORKFLOW'>) {
+    const dispatch = async (targets: VectorMaintenanceEvent[]) => {
+      if (!targets.length) return
+      if (!env) throw new Error('missing_vector_maintenance_workflow')
+      await enqueueVectorMaintenanceBatch(env, targets)
+    }
+    let cursor = 0
+    for (;;) {
+      const rows = await this.vectorRepo.listUserBookmarkIds(userId, cursor, 50)
+      await dispatch(rows.map(row => ({ kind: 'article', userId, id: row.bookmark_id })))
+      if (rows.length < 50) break
+      cursor = rows[rows.length - 1].id
+    }
+    const collections = await this.vectorRepo.listOwnerCollections(userId)
+    await dispatch(collections.map(collection => ({ kind: 'collection', id: collection.id })))
+    for (const collection of collections) {
+      cursor = 0
+      for (;;) {
+        const rows = await this.vectorRepo.listSubscriberUsers(collection.id, cursor, 50)
+        await dispatch(rows.map(row => ({ kind: 'user', id: row.user_id, preference: 'collection' })))
+        if (rows.length < 50) break
+        cursor = rows[rows.length - 1].id
+      }
+    }
+    await dispatch([
+      { kind: 'user', id: userId, preference: 'article' },
+      { kind: 'user', id: userId, preference: 'collection' }
+    ])
+  }
+
+  public async cleanupUserData(userId: number, env?: Pick<Env, 'DIAGNOSTICS' | 'VECTOR_V5_MAINTENANCE_WORKFLOW'>): Promise<void> {
     console.log(`Starting data cleanup for user ${userId}`)
     if (userId < 1) {
       throw new Error(`Invalid userId: ${userId}`)
     }
 
     try {
+      await this.dispatchVectorCleanup(userId, env)
       const reports = await this.prismaPg().sr_user_report.findMany({ where: { user_id: userId }, select: { user_id: true, extra_data: true } })
       await removeDiagnosticObjects(env, reports)
       await this.prismaPg().$executeRaw`DELETE FROM sr_rss_subscription WHERE user_id = ${userId}`

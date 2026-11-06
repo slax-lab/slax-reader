@@ -1,0 +1,381 @@
+{
+  "inputs": [
+    {
+      "snapshot": "handoff-33-of-56-20261103T010115",
+      "manifestSha256": "fd90e362b67e70cb6877a7a5e2bff3a59e5d501a8a2bb2ed7fa6fb59a13c51e5",
+      "fileCount": 17
+    },
+    {
+      "snapshot": "handoff-continuation-39-of-56",
+      "manifestSha256": "7aac162e9cb24cd453a39ddf00790ca8aafd6305911b3737ef0c2f9696c36cd6",
+      "fileCount": 24
+    },
+    {
+      "snapshot": "handoff-acceptance-43-of-56",
+      "manifestSha256": "6b9da56b6b5086727d147c29178156e7c33af7525db55a8bc6173496659790b4",
+      "fileCount": 13
+    },
+    {
+      "snapshot": "handoff-pdf-lifecycle-44-of-56-final",
+      "manifestSha256": "c85ae137b411cb2dcbc2427183ad9b5058464957e567fcc6436f117570aa8f54",
+      "fileCount": 16
+    }
+  ],
+  "decisions": {
+    "apps/api/prisma/pgsql.prisma": "Append sr_vector_pdf_stage only; retain every prior B/C model and all historical SQL.",
+    "apps/api/script/deploy/gen-config.ts": "Accept two additive planner lines; matches immutable 39 snapshot.",
+    "apps/api/script/deploy/dev-local.ts": "Merge diagnostic-only queue allowlist; retain short owned TMPDIR/finally cleanup; matches immutable 43 snapshot.",
+    "apps/api/src/entry/core/index.ts": "Retain B maintainAfterMutation; add C scheduled recovery invocation.",
+    "apps/api/src/entry/edge/index.ts": "Retain B source machine authorization and exact routing; merge awaited backfill binding and safe failure category.",
+    "apps/api/test/runtime/httpSmoke.ts": "Retain B source/daily assertions, unique service names and authenticated readiness; add malformed POST/status assertions and pre-termination evidence."
+  },
+  "files": {
+    "apps/api/src/utils/vectorV5/codec.ts": {
+      "before": "d900fb82980c8958d089cca49d68f8c039a2718580d89dc60fec7eaf95e61b33",
+      "after": "d900fb82980c8958d089cca49d68f8c039a2718580d89dc60fec7eaf95e61b33",
+      "changed": false
+    },
+    "apps/api/src/infra/repository/vectorV5Sources.ts": {
+      "before": "53681deff2abaa013faf3b7e484d90cd3bfd9ff38b791e2b904529e2c9d7674f",
+      "after": "595c2071c74584269e560fc5a275afda9541d6976f01e7cf0f3cddff0e2235e9",
+      "changed": true
+    },
+    "apps/api/src/domain/vectorV5.ts": {
+      "before": "e0b1ba03169e540b9a2f344a98463b9fbcad0cb3562a4d96b2c74619a4d7bdb7",
+      "after": "3f61edbc32e0fa05aeb0b48d36b1743e76e5555ee753db39205504ae262f91d9",
+      "changed": true
+    },
+    "apps/api/src/domain/vectorBackfill.ts": {
+      "before": "b9063c1b8075dccab0de7a3646c51a3ee888ab215a9ff77db8436174e64ab3f1",
+      "after": "3af56913d19c4a95a888063666ca341ffa23ee8fada40fce4bb0c329bab6d2d9",
+      "changed": true
+    },
+    "apps/api/script/vector-backfill.ts": {
+      "before": "2d9c40f2f9c877f1eae5d00cfba5a5ebcf160e5dd63b9c9eda6d7093054b44cd",
+      "after": "dd5223dd73e4032e8893366b6082d71a5adc59469cef23750966ee8909ea80b8",
+      "changed": true
+    },
+    "apps/api/test/domain/vectorV5Repairs.test.ts": {
+      "before": "fb8b890c4dcf38e271695dc1ae95ed61fc35ae6238fe9912aeff9917edd5031a",
+      "after": "c76c99ebe4cc91957c3a135a026b77af88459f4de67f4d04755497cf136b7b55",
+      "changed": true
+    },
+    "apps/api/test/utils/vectorV5.workers.test.ts": {
+      "before": "fb0b5b5d0013ec7f4bdc58ff74be8f178af13d44546bd1d9cfc8427884e142a1",
+      "after": "5e920f4b917517b2a37c32d1f661bb0290f2fedac7dc9952a73ee88bbce69d59",
+      "changed": true
+    },
+    "apps/api/test/utils/vectorV5Inputs.test.ts": {
+      "before": "b5175a353eade3a87e28f9d611899db116295040b219b4664d0b536b38805642",
+      "after": "13952c270127f090e58dd400dd8b2ae7aac20beb276abeb2ad2d0e195ad05f83",
+      "changed": true
+    },
+    "apps/api/test/infra/vectorV5.test.ts": {
+      "before": "1e80af3ef21eddf6e52b33d631281a81751616b9b7ea15273d1335ad54b66702",
+      "after": "da698f42422dabee8922ee7405a5c63eaf03e9f2df2b289ef3ec011f0b86ac53",
+      "changed": true
+    },
+    "apps/api/test/infra/vectorWriteGate.test.ts": {
+      "before": "7cbab8980c6681b129c37770dd6026a896aaa3b407636218bc6349b784f7d787",
+      "after": "f3f61720d8e0c5381b1d7a517a777809bd834f33a8ab787ef37561c0b13853c6",
+      "changed": true
+    },
+    "apps/api/test/runtime/vectorRepairsSmoke.ts": {
+      "before": "8de2350b6de7c21073e9adbaf506719f9f5d75e977288576c82cf1967978ad82",
+      "after": "376b9112b720302a8b13f2496683850d2764768ae5c354364274bcf9d49e3469",
+      "changed": true
+    },
+    "apps/api/test/runtime/diagnosticWorker.ts": {
+      "before": "4f404bc7e43ffd75ba7528936a5097c0e1ecdf157e6a33ea20f34353095efd00",
+      "after": "64a2737e6326f66aff2110796c1ed4f3f8ae3120f2f1ab4502c82d4ea3e1cf21",
+      "changed": true
+    },
+    "apps/api/test/runtime/httpSmoke.ts": {
+      "before": "85b4f639e5a5022f294f779b6575fa765a83d43700193e07384b8f4400397641",
+      "after": "5766f2f4590f8ee6c93af7d9c140b4dd7ce0a0da61b92b0ec2ae77e565683426",
+      "changed": true
+    },
+    "apps/api/test/runtime/vectorPdfMemory.ts": {
+      "before": "46f085784e9d192dd53b44cdf8efb05c2a962cf88355843e4e53fefac54ee9ed",
+      "after": "e28b01ef714a1b84d065a12614ab0721d77b375ce2a7c69f0c0db5f741caacff",
+      "changed": true
+    },
+    "apps/api/test/runtime/vectorBackfillFixture.ts": {
+      "before": null,
+      "after": "3621f5d3e30566c8c3fcac89ee35852225b3583065eabc96d93eab8cc66f1756",
+      "changed": true
+    },
+    "apps/api/test/runtime/vectorBackfillSuccessSmoke.ts": {
+      "before": null,
+      "after": "c31bae91da810dd4753ad88a48eca8bdea693574df646aa27c13e0294b566713",
+      "changed": true
+    },
+    "apps/api/test/script/vectorBackfillRunner.test.ts": {
+      "before": null,
+      "after": "290f96d4eb03615003b0050fe4aee0099b17d02f45ff460adc78f1e161dc2119",
+      "changed": true
+    },
+    "apps/api/script/deploy/vector-plan.ts": {
+      "before": null,
+      "after": "02dea3ed28e4a2c3c63946016711d4d59f23d06d458faa0568bf2a5ea44c41c1",
+      "changed": true
+    },
+    "apps/api/script/deploy/gen-config.ts": {
+      "before": "c147c93ffd0ae9221d9cbd96486ea2e91cd583e85d28e24b4d8ecd9dc60ccb51",
+      "after": "611e8c5f563d1af14254797ce8486bda7e605a38f1309d43b409e86509961268",
+      "changed": true
+    },
+    "apps/api/script/deploy/dev-local.ts": {
+      "before": "41c9a93a5a9a48b52693a476b546c27aa0f031faef7f08477b2fe03aaf0a99cd",
+      "after": "ec27f601059abfbbf35ff64e6d4ad9b518e431639eac2b525b1fe26f1514dee7",
+      "changed": true
+    },
+    "apps/api/src/domain/vectorBackfillVerification.ts": {
+      "before": null,
+      "after": "acfb002fd91f466df570926c308f4c09a5b796d0f7fd5896c8467d98afefc54f",
+      "changed": true
+    },
+    "apps/api/src/infra/repository/dbVectorBackfill.ts": {
+      "before": "99c51f92f01abaebd66dfa1c61e6ccbe5b467f470112664c5e5f5b9603984242",
+      "after": "dfe4eab2448aec9e76b7417bd46792569dac598c908072cf322f881c95f06082",
+      "changed": true
+    },
+    "apps/api/src/infra/repository/vectorBackfillPlan.ts": {
+      "before": null,
+      "after": "6f086ea7237299751795fddf5865994c87865f0812a5c1c3506a4d86f85800b4",
+      "changed": true
+    },
+    "apps/api/src/infra/repository/vectorBackfillChanges.ts": {
+      "before": null,
+      "after": "e4bd924ee14f9b1c4122f5e221479b55b372d4d786447a65b188373d6cffed82",
+      "changed": true
+    },
+    "apps/api/src/infra/repository/vectorBackfillCatchup.ts": {
+      "before": null,
+      "after": "60ebf380cf3a0ef2afddf5776bdb53531836b0b036438faad8011a5ad7eac265",
+      "changed": true
+    },
+    "apps/api/src/infra/vectorBackfillRuntime.ts": {
+      "before": "b714ec43ec27e2b0c5456e763968223ce394f59872e3837a25a86b369b8176ba",
+      "after": "e910384f9bb1e09dc25fd146531cb695757a5d64a51b11db0f14abe11b621b22",
+      "changed": true
+    },
+    "apps/api/src/handler/http/vectorBackfillHandler.ts": {
+      "before": "e489e85178cd07d08625dec382eee1719752766184d041a2c77fa99bbdc77214",
+      "after": "727326935f05e9ae236b27b8c93fbcdb355be105f7fed8e9b56ed490ae712954",
+      "changed": true
+    },
+    "apps/api/src/entry/core/index.ts": {
+      "before": "3dec9c76ea7bae2a380c329f659f7abe525261ac9d29e3fc61eabb880e3fcfe8",
+      "after": "2fe219d2f327b56a9dc4a6c45b147de0379ee4858d583e3b370ecb73ed5de16f",
+      "changed": true
+    },
+    "apps/api/test/script/vectorResourcePlan.test.ts": {
+      "before": null,
+      "after": "21071d46745df1b818b74bf852fc1791d14f5e2e1be7b959aaf1015f1f87521b",
+      "changed": true
+    },
+    "apps/api/test/script/rootDeployment.test.ts": {
+      "before": "2be7def897e2de46ab4a4f81376b79e48af21f972b45daf296b256e179f757d1",
+      "after": "d017f72fddcd268c58dd3aaa9a7f5ff5335b1fe9e750dcef8bf91a2a3b7e541d",
+      "changed": true
+    },
+    "apps/api/test/script/envFiles.test.ts": {
+      "before": "61d7b7f0ee8a334dc4894f39d72a35087af6f62fdecd67b51b534a587c869909",
+      "after": "823d5053f89fb638269efbefe36bd6ccc06aca1bf6267c19a2218ea0f0e21741",
+      "changed": true
+    },
+    "apps/api/test/script/devLocal.test.ts": {
+      "before": "0b271adcfdcca50175d6e2035db1b1b7f81530e4b535d730da1e0c34a19744b6",
+      "after": "aee707f3632511f8c88a8a7c141f66c4a6fbb77c69ba09783ac084251c244ef2",
+      "changed": true
+    },
+    "apps/api/test/runtime/vectorBackfillContinuationScenarios.ts": {
+      "before": null,
+      "after": "8a9ec47447c278e5c913b32acbcb95a847f19a66544c6eb2d545086872b23a69",
+      "changed": true
+    },
+    "apps/api/src/utils/vectorV5/pdf.ts": {
+      "before": "be790579b19a3deeeeea282c24c3b27451634d154c85b34b04e58ceab9830a34",
+      "after": "e41ff47ec71bdddb256de3807b5697ecd6d688ce395680bbcb4003720ac12b20",
+      "changed": true
+    },
+    "apps/api/test/script/devLocalProcess.test.ts": {
+      "before": null,
+      "after": "5e691aff1d622a20fa960ffa1e0d20cd20b899839c991b4ea90ec6a01fbcd56e",
+      "changed": true
+    },
+    "apps/api/test/infra/vectorV5ImageMatrix.test.ts": {
+      "before": null,
+      "after": "7e96258b83fbeba74862aa4daa94ee78b8705638c3999b35a08a2c824a317645",
+      "changed": true
+    },
+    "apps/api/test/utils/vectorV5PdfMatrix.test.ts": {
+      "before": null,
+      "after": "5a4fee695fa2ed010b2a7965045f332ef2bab5bf62d68b46bd0a81b50c7742ab",
+      "changed": true
+    },
+    "apps/api/test/helpers/vectorPdfFixtures.ts": {
+      "before": null,
+      "after": "3b31715901a885031dbcf8fa96619aef8fc3c8fab9cf714ebbd2ad5c5b73a81d",
+      "changed": true
+    },
+    "apps/api/test/helpers/vectorPdfStress.ts": {
+      "before": null,
+      "after": "11f4424165ff7d9f48cb9ca665349ff9e811fb3aba8c0f9fb94ecf22ce415e35",
+      "changed": true
+    },
+    "apps/api/test/runtime/vectorPdfWorker.ts": {
+      "before": "0409a24ae39ef3749973c41c85efe0374c86ee3d8319b81cd2acb5393c8f8b44",
+      "after": "7eeb78456dfa1e9203c8af461945b295707ac78933227cc8b973c34be2dea6d8",
+      "changed": true
+    },
+    "apps/api/test/runtime/vectorCaptureMatrix.ts": {
+      "before": null,
+      "after": "879824de0cb6ae52aaaa54e93a7626d2374b2ed58b63bd322e2b21f9c21cd747",
+      "changed": true
+    },
+    "apps/api/test/infra/bookmarkFork.integration.test.ts": {
+      "before": "39aeb34981bf2ec0b4c23af8d1f0a2dbba2b88be4901e666ec0321be86972f35",
+      "after": "894cf2d925f539569ced2674a2e2e8693eab0216ff704978ab783618bc84fc3b",
+      "changed": true
+    },
+    "apps/api/prisma/pgsql.prisma": {
+      "before": "b681b2851e6efb4782571ba60b2b8a29aa6d179dfa44200ec48443a5b243db23",
+      "after": "ba43ec15f0cd350f34dc42c5a94bc6f0ecfc32d27dc8af12f9c0cdf283891e30",
+      "changed": true
+    },
+    "apps/api/prisma/pg_migrations/20261102195457_vector_v5_pdf_stage/migration.sql": {
+      "before": null,
+      "after": "a24266b9369ae0ec561e47e2d92f3fd04e9b043bc15b47bb6dfefa4416ae7ab9",
+      "changed": true
+    },
+    "apps/api/src/infra/repository/vectorPdfStage.ts": {
+      "before": null,
+      "after": "b58cfabb728d4ca8aba35485b4225d8541e18654b05682436198985cc9c3e700",
+      "changed": true
+    },
+    "apps/api/src/utils/vectorV5/contract.ts": {
+      "before": "075d11aa6dd8e1983fe2c750872f0f5a9a2879a4aa1d95b1e93d8ea3fd328e82",
+      "after": "f242b6a5cf82b15a440f4e6b479571c10d2d3894ec4d6b5b708cb23f67b1a3c5",
+      "changed": true
+    },
+    "apps/api/src/entry/edge/index.ts": {
+      "before": "7a31d73869bc3a04681ae9e7fa2d5498a9a7c2f3dc2fbbf9fa102a10c8e40a23",
+      "after": "8be8aa1cfe5177f9de65aeb7b0fa9fcf6718e6c140ab42e6be33fa290ad5e7eb",
+      "changed": true
+    },
+    "apps/api/test/runtime/vectorBackfillMigration.ts": {
+      "before": "721ff5fb93e9eb152668e2b9abdf2b32b261cc0ebe171eb3063285ba223ed1d8",
+      "after": "55dd4dfe7f3fccf3a984f546b60d9ef51bf06b8b1a409deb9fc860ad2b015d23",
+      "changed": true
+    },
+    "apps/api/test/runtime/vectorPdfStageWorker.ts": {
+      "before": null,
+      "after": "fc44e2fedf23024260ea49d385d3dc976515b190e431131ba7b69492fce22e34",
+      "changed": true
+    },
+    "apps/api/test/runtime/vectorPdfStageSmoke.ts": {
+      "before": null,
+      "after": "1a25d2a8fc3aa1e6c5da0ff9c93062a4595631e80820632015ee2bb1e82282a7",
+      "changed": true
+    },
+    "apps/api/test/entry/edge.test.ts": {
+      "before": "436ba1e2a8dd108150ad59c6ba51ca22452ac6580377e90035a3e21aac3d74f7",
+      "after": "f390cdb6cf86c6e5790c42ac1ae02b995439508b3ab039ee3323be39e9c92bc1",
+      "changed": true
+    }
+  },
+  "unchangedB": [
+    {
+      "path": "apps/api/src/infra/recommendationRuntime.ts",
+      "sha256": "a93c16baa8f97a1bf9c0bfdfa5f2830dd300503b57d0cde19083fefef6a462c9"
+    },
+    {
+      "path": "apps/api/src/domain/orchestrator/urlParser.ts",
+      "sha256": "a2d55a4338f0b901f5b6d5bdc76246be2f3e59de57c39ed057d554fbeac813ea"
+    },
+    {
+      "path": "apps/api/src/domain/search.ts",
+      "sha256": "40d22c2b2cadbfad7ccad0547253e31ccbcb224275397f0d2509543b3d879d6f"
+    },
+    {
+      "path": "apps/api/src/utils/snapshotBundle.ts",
+      "sha256": "ca0cdec6df903fc2b399bd1bd0b3bad2d4d233cc4f388269155476c1fb379d96"
+    },
+    {
+      "path": "apps/api/src/utils/sourceSnapshot.ts",
+      "sha256": "872df66b34206e04e18313cf304200ee97432a93b1ff823fa5d9507dc8d68bbe"
+    },
+    {
+      "path": "apps/api/src/domain/bookmarkFork.ts",
+      "sha256": "8102e6f2adab4a8f529dfc66c5e6ee42560fddfe0b9b4297c768fcfb0a970767"
+    },
+    {
+      "path": "apps/api/src/infra/repository/dbBookmarkFork.ts",
+      "sha256": "a0836d79212e6332ad45c392ec0f718fbc3a9e80f2bda296c2feb692f635622a"
+    },
+    {
+      "path": "packages/contracts/src/bookmarks.ts",
+      "sha256": "a6d2aac1f804353bb3688b92702c961c4b614c569235461d09aba97767cdf212"
+    }
+  ],
+  "migrations": [
+    {
+      "path": "apps/api/prisma/pg_migrations/20261102101529_vector_v5_foundation/migration.sql",
+      "sha256": "046a948b905db60bc99fa06a73e8ff6dd0dd733b12086283c7a51e2ea23470fe"
+    },
+    {
+      "path": "apps/api/prisma/pg_migrations/20261102111126_source_ingestion_jobs/migration.sql",
+      "sha256": "a062e87a88762c39e2f0b01154bedb233637e85a1f7f59e63920a2061f9bb58c"
+    },
+    {
+      "path": "apps/api/prisma/pg_migrations/20261102120124_vector_v5_source_publication/migration.sql",
+      "sha256": "a02dd5d4a06fe2df3f49bbc1b9290cec048f7f0e3b3de51c27f3a2908bcabe4f"
+    },
+    {
+      "path": "apps/api/prisma/pg_migrations/20261102124759_recommendation_curation_daily/migration.sql",
+      "sha256": "21fac80e89069aaabe150a9714082af3089d7bbf0ee45760cac3ae07bb443915"
+    },
+    {
+      "path": "apps/api/prisma/pg_migrations/20261102130653_vector_v5_write_gate/migration.sql",
+      "sha256": "e445928cf6b8fd36a06727b6575eb28b3f8bc4d2c44d227e29549e235e900e26"
+    },
+    {
+      "path": "apps/api/prisma/pg_migrations/20261102153945_recommendation_business_jobs/migration.sql",
+      "sha256": "b9576ec824df13128ff79c7366042fec3db014c87644abbc4a4ebe142fa555e4"
+    },
+    {
+      "path": "apps/api/prisma/pg_migrations/20261102172720_source_processing_private_copy/migration.sql",
+      "sha256": "0869afa074eaf3b29afc5d224969523383a7eb073ed2b554979eb26505d1e1dd"
+    },
+    {
+      "path": "apps/api/prisma/pg_migrations/20261102195457_vector_v5_pdf_stage/migration.sql",
+      "sha256": "a24266b9369ae0ec561e47e2d92f3fd04e9b043bc15b47bb6dfefa4416ae7ab9"
+    }
+  ],
+  "generated": [
+    {
+      "path": "apps/api/src/di/generated/consumer.ts",
+      "sha256": "9c4b0ef6e8f1d4e6048996664cf496e66317b0d77eefd0b0d579c71eeb3cb6ac"
+    },
+    {
+      "path": "apps/api/src/di/generated/cronjob.ts",
+      "sha256": "73ee1e4714f62dc2e17367fb18813dcfc7d8a47f94cc086fde349397464c5849"
+    },
+    {
+      "path": "apps/api/src/di/generated/dependency.ts",
+      "sha256": "1fcddb6cc610b3f7b790912af972fda329b8ec4061683fc6769c5bad6b7971e1"
+    },
+    {
+      "path": "apps/api/src/di/generated/readerRouter.ts",
+      "sha256": "9128d3c102f1deab90828537c292e715a7ccc0d5a3cfa5bcde0557226dd8c2a4"
+    },
+    {
+      "path": "apps/api/worker-configuration.d.ts",
+      "sha256": "dc535745e3dd0d401eed331fd43de3b0175c830fe2fa96ccdf43fc8a025daefe"
+    }
+  ],
+  "historicalSqlVerified": 64,
+  "scope": "B local integration only; HTTP remains red; representative PDF and 50 MiB safety not certified"
+}

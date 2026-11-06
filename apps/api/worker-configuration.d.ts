@@ -1,6 +1,16 @@
 /* eslint-disable */
 // Env bindings contain no configuration values; pnpm types preserves declarations and adds optional bindings from script/generate-worker-types.ts.
 interface __BaseEnv_Env {
+  VECTOR_V5_COLLECTION?: Vectorize
+
+  VECTOR_V5_USER?: Vectorize
+
+  VECTOR_V5_ARTICLE?: Vectorize
+
+  VECTOR_V5_MAINTENANCE_WORKFLOW?: Workflow<import('./src/domain/vectorMaintenanceHooks').VectorMaintenanceWorkflowParams>
+
+  VECTOR_REFRESH_SECRET?: string
+
   DIAGNOSTIC_DOWNLOAD_SECRET?: string
   DIAGNOSTICS?: R2Bucket
   API_QUEUE_CHANNELS?: string

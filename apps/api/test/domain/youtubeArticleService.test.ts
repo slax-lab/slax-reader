@@ -183,7 +183,12 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
           }
         : null
     ),
-    getBookmarkById: vi.fn(async (id: number) => bookmarks.get(id) ?? null),
+    getBookmarkById: vi.fn(async (id: number) => {
+      const row = bookmarks.get(id)
+      return row
+        ? { id, status: 'success', private_user: 0, updated_at: new Date('2026-01-01'), userBookmarks: [{ uuid: UUID, user_id: OWNER }], ...row }
+        : null
+    }),
     // The real access rule; the share record comes from bookmark.metadata.share
     getBookmarkReadAccess: vi.fn(async (ctx: { getUserId(): number }, uuid: string) =>
       resolveBookmarkReadAccess(
@@ -197,8 +202,21 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
       )
     )
   }
-  const bookmarks = new Map<number, { title: string; content_key: string | null; content_md_key: string | null; moderation_result: number }>([
-    [BOOKMARK, { title: 'Attention', content_key: 'html/body/u1.html', content_md_key: 'text/body/u1.txt', moderation_result: 0 }]
+  const bookmarks = new Map<number, any>([
+    [
+      BOOKMARK,
+      {
+        id: BOOKMARK,
+        title: 'Attention',
+        content_key: 'html/body/u1.html',
+        content_md_key: 'text/body/u1.txt',
+        moderation_result: 0,
+        status: 'success',
+        private_user: OWNER,
+        updated_at: new Date('2026-01-01'),
+        userBookmarks: [{ uuid: UUID, user_id: OWNER }]
+      }
+    ]
   ])
   /** Live marks per user bookmark id: the owner's copy is the bookmark id + 1000, a co-reader's + 2000. */
   const marks = new Map<number, { is_deleted: boolean }[]>()
@@ -211,7 +229,14 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
     // No copy of the bookmark counts as marked, like the real query
     bodyHasMarks: vi.fn(async (bmId: number) => !bookmarks.has(bmId) || [bmId + 1000, bmId + 2000].some(id => (marks.get(id) ?? []).some(m => !m.is_deleted)))
   }
-  const forkRepo = { claimWrite: vi.fn(async () => true), releaseWrite: vi.fn(async () => true), failWrite: vi.fn(async () => true), publishRevision: vi.fn(async () => true) }
+  const forkRepo = {
+    claimWrite: vi.fn(async () => true),
+    releaseWrite: vi.fn(async () => true),
+    failWrite: vi.fn(async () => true),
+    publishRevision: vi.fn(async () => true),
+    mediaRef: vi.fn(async () => ({ media_kind: 'youtube', source_id: VIDEO, source_hash: HASH })),
+    mediaDenied: vi.fn(async () => false)
+  }
   const searchService = { addSearchRecord: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
   const labService = {
     isEnabled: vi.fn(async (userId: number) => labOn.has(userId)),
@@ -245,6 +270,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
       repo.refs.push({ id: 99, bookmark_id: bookmarkId, user_id: ctx.getUserId(), source_id: fetched.videoId, source_hash: 'h', created_at: new Date(), updated_at: new Date() })
     })
   }
+  const snapshots = createMockMediaSnapshots()
   const service = new (YoutubeArticleService as any)(
     repo,
     bookmarkService,
@@ -255,8 +281,13 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
     alertBot,
     crawlService,
     new MediaBodyService(bookmarkService as any, bookmarkRepo as any, searchService as any, markRepo as any, (() => bucket) as any, forkRepo as any),
-    createMockMediaSnapshots()
+    snapshots
   ) as YoutubeArticleService
+  snapshots.load.mockImplementation(async () => ({
+    raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
+    media: null,
+    managed: false
+  }))
   const create = vi.fn(async () => ({}))
   const ctx = (userId: number) => {
     const c = createMockCtx({ userId })
@@ -1021,6 +1052,7 @@ describe('private capture requests', () => {
     w.repo.add({ status: 'ready', article_key: 'ready.json' })
     const snapshots = (w.service as any).snapshots
     snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: {
         kind: 'youtube',
         mode: 'capture',
@@ -1040,6 +1072,7 @@ describe('private capture requests', () => {
 
   test('a private variant: retry reopens budget_exceeded but not too_long or the lifetime cap; generate keeps every final error', async () => {
     const capture = (reason: string) => ({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: { kind: 'youtube', mode: 'capture', revision: 'r', sourceId: VIDEO, sourceHash: HASH, defaultLanguage: 'en', bodyLanguage: null, variants: { en: { status: 'failed', reason } } }
     })
     for (const [reason, retry] of [
@@ -1066,6 +1099,7 @@ describe('private capture requests', () => {
     w.redis.store.set(`yt_article:${OWNER}:${today()}:auto`, 20)
     const snapshots = (w.service as any).snapshots
     snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: {
         kind: 'youtube',
         mode: 'capture',
@@ -1088,6 +1122,7 @@ describe('frozen copied languages', () => {
     w.users[OWNER] = { ai_lang: 'zh', lang: 'zh' }
     const snapshots = (w.service as any).snapshots
     snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       managed: true,
       media: {
         kind: 'youtube',
@@ -1121,7 +1156,10 @@ describe('fixed body media compatibility', () => {
     w.repo.listBackfillCandidates.mockResolvedValue([
       { user_bookmark_id: 1, bookmark_id: BOOKMARK, user_id: OWNER, target_url: `https://youtube.com/watch?v=${VIDEO}`, lang: 'en', ai_lang: '' }
     ])
-    ;(w.service as any).snapshots.load.mockResolvedValue({ managed: true })
+    ;(w.service as any).snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
+      managed: true
+    })
     expect(await w.service.backfill(w.ctx(OWNER), 10)).toMatchObject({ processed: 1, linked: 0, failed: 0 })
     expect(w.crawlService.fetchYoutubeData).not.toHaveBeenCalled()
   })
@@ -1131,7 +1169,10 @@ describe('private capture recovery guidance', () => {
   test.each([true, false])('an empty capture explains acquisition with Labs %s', async enabled => {
     const w = wire({ labOn: enabled ? [OWNER] : [] })
     const snapshots = (w.service as any).snapshots
-    snapshots.load.mockResolvedValue({ media: { kind: 'youtube', mode: 'capture', sourceId: VIDEO, sourceHash: HASH, defaultLanguage: 'en', bodyLanguage: null, variants: {} } })
+    snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
+      media: { kind: 'youtube', mode: 'capture', sourceId: VIDEO, sourceHash: HASH, defaultLanguage: 'en', bodyLanguage: null, variants: {} }
+    })
     expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ status: 'unavailable', unavailable_reason: enabled ? 'source_missing' : 'labs_disabled' })
     expect((await w.service.getStatus(w.ctx(VISITOR), UUID)).unavailable_reason).toBeUndefined()
     expect(w.create).not.toHaveBeenCalled()
@@ -1141,6 +1182,7 @@ describe('private capture recovery guidance', () => {
     const w = wire()
     w.users[OWNER] = { ai_lang: 'zh', lang: 'zh' }
     ;(w.service as any).snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: {
         kind: 'youtube',
         mode: 'capture',
@@ -1163,6 +1205,7 @@ describe('private capture recovery guidance', () => {
     const w = wire({ labOn: [] })
     w.users[OWNER] = { ai_lang: 'zh', lang: 'zh' }
     ;(w.service as any).snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: {
         kind: 'youtube',
         mode: 'capture',
@@ -1183,6 +1226,7 @@ describe('private capture recovery guidance', () => {
     const w = wire()
     w.users[OWNER] = { ai_lang: 'zh', lang: 'zh' }
     ;(w.service as any).snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: {
         kind: 'youtube',
         mode: 'capture',
@@ -1201,6 +1245,7 @@ describe('private capture recovery guidance', () => {
     const w = wire({ labOn: [] })
     const snapshots = (w.service as any).snapshots
     snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: {
         kind: 'youtube',
         mode: 'capture',

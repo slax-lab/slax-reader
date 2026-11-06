@@ -163,6 +163,14 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
       throw err
     }
 
+    let maintenanceError: Error | undefined
+    try {
+      await step.do('vector-maintenance', () => urlParserHandler.processVectorMaintenance(ctxManager, { userId, bookmarkId }))
+    } catch (error) {
+      maintenanceError = error instanceof Error ? error : new Error(String(error))
+      console.error('[vector-maintenance] import admission failed', { userId, bookmarkId }, maintenanceError)
+    }
+
     // Step 2: Post-processing（搜索索引、标签生成、概览、Telegram 回调）
     try {
       await step.do(
@@ -178,7 +186,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
             crawlResult.textContent = stored?.content_md_key ? (await bookmarkService.getBookmarkContent(stored.content_md_key)) || '' : ''
             if (!crawlResult.textContent) return
           }
-          await urlParserHandler.processPostHandler(
+          await urlParserHandler.processContentPostProcessing(
             ctxManager,
             {
               id: `import_workflow_${bookmarkId}`,
@@ -226,6 +234,7 @@ export class ImportParseWorkflow extends WorkflowEntrypoint<Env, ImportParseWork
       console.error(`Import tracking failed for bookmark ${bookmarkId}: ${err}`)
     }
 
+    if (maintenanceError) throw maintenanceError
     console.log(`ImportParse workflow completed for bookmark ${bookmarkId}`)
   }
 }

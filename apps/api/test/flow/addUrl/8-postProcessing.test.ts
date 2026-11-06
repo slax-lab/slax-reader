@@ -13,9 +13,16 @@ vi.mock('@/decorators/di', () => ({
 
 import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
 import {
-  createMockMediaSnapshots, createMockSearchService, createMockUserService, createMockTagService,
-  createMockAigcService, createMockTelegramBotService, createMockBookmarkService,
-  createMockCrawlService, createMockLogsService, createMockCtx
+  createMockMediaSnapshots,
+  createMockSearchService,
+  createMockUserService,
+  createMockTagService,
+  createMockAigcService,
+  createMockTelegramBotService,
+  createMockBookmarkService,
+  createMockCrawlService,
+  createMockLogsService,
+  createMockCtx
 } from '@test/helpers/mockFactory'
 
 function wireHandler() {
@@ -65,9 +72,72 @@ const parseRes = { title: 'Test', textContent: 'Test content', byline: 'Author' 
 
 async function callAndAwait(handler: UrlParserHandler, ctx: any, taskInfo: any, res = parseRes) {
   await handler.processPostHandler(ctx, taskInfo, res)
-  const waitPromise = ctx.execution.waitUntil.mock.calls[0]?.[0]
-  if (waitPromise) await waitPromise
+  await Promise.all(ctx.execution.waitUntil.mock.calls.map(([work]: [Promise<unknown>]) => work))
 }
+
+describe('explicit vector postprocessing', () => {
+  test('enqueues exactly one actor article after legacy embedding fails', async () => {
+    const { handler, search } = wireHandler()
+    const ctx = createMockCtx()
+    search.addSearchRecord.mockRejectedValue(new Error('legacy embedding unavailable'))
+    await handler.processPostHandler(ctx, makeTaskInfo(), parseRes)
+    expect(ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.create).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ params: expect.objectContaining({ target: { kind: 'article', userId: 1, id: 42 } }) })
+    )
+    expect(ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.createBatch).not.toHaveBeenCalled()
+    expect(ctx.execution.waitUntil).not.toHaveBeenCalled()
+  })
+
+  test('propagates durable admission failure instead of detaching it', async () => {
+    const { handler } = wireHandler()
+    const ctx = createMockCtx()
+    ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.create.mockRejectedValue(new Error('admission unavailable'))
+    await expect(handler.processPostHandler(ctx, makeTaskInfo(), parseRes)).rejects.toThrow('admission unavailable')
+  })
+
+  test.each([false, true])('cached queue completion admits explicit owners without refetching: retry=%s', async retry => {
+    const { handler, bs } = wireHandler()
+    const ctx = createMockCtx()
+    Object.assign(handler, { bookmarkService: bs })
+    bs.getBookmarkById.mockResolvedValue({ status: 'success', private_user: 1 })
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue(parseRes)
+    const callback = vi.fn().mockRejectedValue(new Error('legacy callback failed'))
+    const fetch = vi.spyOn(UrlParserHandler, 'fetchContent')
+    try {
+      const message = retry ? { ...makeTaskInfo().info, userId: undefined, retry: { userIds: [1, 2, 1], retryCount: 1 } } : makeTaskInfo().info
+      if (retry) delete message.userId
+      await handler.parseUrl(ctx, 'queue', message, [callback])
+      expect(fetch).not.toHaveBeenCalled()
+      expect(ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.create.mock.calls.map(([args]: any[]) => args.params.target)).toEqual(
+        retry
+          ? [
+              { kind: 'article', userId: 1, id: 42 },
+              { kind: 'article', userId: 2, id: 42 }
+            ]
+          : [{ kind: 'article', userId: 1, id: 42 }]
+      )
+    } finally {
+      fetch.mockRestore()
+    }
+  })
+
+  test('cached third party completion uses the same posthandler without fetching', async () => {
+    const { handler, bs, crawl } = wireHandler()
+    const ctx = createMockCtx()
+    bs.getBookmarkById.mockResolvedValue({ status: 'success', private_user: 1 })
+    bs.getBookmarkTitleAndTextContentTry.mockResolvedValue(parseRes)
+    await handler.processThirdPartyMessages(ctx, [makeTaskInfo({ targetUrl: 'https://x.com/u/status/42' })])
+    expect(ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.create).toHaveBeenCalledTimes(1)
+    expect(crawl.fetchTwitterData).not.toHaveBeenCalled()
+  })
+
+  test('legacy-only workflow callback cannot enqueue a duplicate article event', async () => {
+    const { handler } = wireHandler()
+    const ctx = createMockCtx()
+    await handler.processContentPostProcessing(ctx, makeTaskInfo(), parseRes)
+    expect(ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.create).not.toHaveBeenCalled()
+  })
+})
 
 describe('telegramCallback', () => {
   test('callback === 1 (CALLBACK_TELEGRAM) → telegramBotSvc.callback 调用', async () => {
@@ -98,9 +168,14 @@ describe('searchCallback', () => {
     await callAndAwait(handler, ctx, makeTaskInfo())
 
     expect(search.addSearchRecord).toHaveBeenCalledWith(ctx, 42, 'Test', 'Test content')
-    expect(logs.track).toHaveBeenCalledWith(1, 'bookmark_add_step', expect.objectContaining({
-      step_name: 'embedding', status: 'success'
-    }))
+    expect(logs.track).toHaveBeenCalledWith(
+      1,
+      'bookmark_add_step',
+      expect.objectContaining({
+        step_name: 'embedding',
+        status: 'success'
+      })
+    )
   })
 
   test('addSearchRecord 内部 rejected（embedding 真失败）→ track(embedding, failed) + pushBookmarkFailureAlert', async () => {
@@ -113,12 +188,22 @@ describe('searchCallback', () => {
 
     await callAndAwait(handler, ctx, makeTaskInfo())
 
-    expect(logs.track).toHaveBeenCalledWith(1, 'bookmark_add_step', expect.objectContaining({
-      step_name: 'embedding', status: 'failed', error_reason: 'vector db error'
-    }))
-    expect(crawl.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'embedding', expect.objectContaining({
-      error: 'vector db error'
-    }))
+    expect(logs.track).toHaveBeenCalledWith(
+      1,
+      'bookmark_add_step',
+      expect.objectContaining({
+        step_name: 'embedding',
+        status: 'failed',
+        error_reason: 'vector db error'
+      })
+    )
+    expect(crawl.pushBookmarkFailureAlert).toHaveBeenCalledWith(
+      1,
+      'embedding',
+      expect.objectContaining({
+        error: 'vector db error'
+      })
+    )
   })
 
   test('addSearchRecord 全 fulfilled → track(embedding, success)', async () => {
@@ -131,9 +216,14 @@ describe('searchCallback', () => {
 
     await callAndAwait(handler, ctx, makeTaskInfo())
 
-    expect(logs.track).toHaveBeenCalledWith(1, 'bookmark_add_step', expect.objectContaining({
-      step_name: 'embedding', status: 'success'
-    }))
+    expect(logs.track).toHaveBeenCalledWith(
+      1,
+      'bookmark_add_step',
+      expect.objectContaining({
+        step_name: 'embedding',
+        status: 'success'
+      })
+    )
   })
 })
 
@@ -300,12 +390,21 @@ describe('tagsAndOverviewCallback', () => {
 
     await callAndAwait(handler, ctx, makeTaskInfo())
 
-    expect(logs.track).toHaveBeenCalledWith(1, 'bookmark_add_step', expect.objectContaining({
-      step_name: 'generate_overview_and_tags', status: 'failed'
-    }))
-    expect(crawl.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'generate_overview_and_tags', expect.objectContaining({
-      error: 'AIGC timeout'
-    }))
+    expect(logs.track).toHaveBeenCalledWith(
+      1,
+      'bookmark_add_step',
+      expect.objectContaining({
+        step_name: 'generate_overview_and_tags',
+        status: 'failed'
+      })
+    )
+    expect(crawl.pushBookmarkFailureAlert).toHaveBeenCalledWith(
+      1,
+      'generate_overview_and_tags',
+      expect.objectContaining({
+        error: 'AIGC timeout'
+      })
+    )
   })
 })
 
@@ -349,9 +448,13 @@ describe('hostname 提取', () => {
 
     await callAndAwait(handler, ctx, makeTaskInfo({ targetTitle: 'Title', targetUrl: 'https://github.com/repo' }))
 
-    expect(logs.track).toHaveBeenCalledWith(1, 'bookmark_add_step', expect.objectContaining({
-      domain: 'github.com'
-    }))
+    expect(logs.track).toHaveBeenCalledWith(
+      1,
+      'bookmark_add_step',
+      expect.objectContaining({
+        domain: 'github.com'
+      })
+    )
   })
 
   test('targetTitle 为空 → hostname="unknown"', async () => {
@@ -360,8 +463,12 @@ describe('hostname 提取', () => {
 
     await callAndAwait(handler, ctx, makeTaskInfo({ targetTitle: '' }))
 
-    expect(logs.track).toHaveBeenCalledWith(1, 'bookmark_add_step', expect.objectContaining({
-      domain: 'unknown'
-    }))
+    expect(logs.track).toHaveBeenCalledWith(
+      1,
+      'bookmark_add_step',
+      expect.objectContaining({
+        domain: 'unknown'
+      })
+    )
   })
 })
