@@ -185,9 +185,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string; sn
     ),
     getBookmarkById: vi.fn(async (id: number) => {
       const row = bookmarks.get(id)
-      return row
-        ? { id, status: 'success', private_user: 0, updated_at: new Date('2026-01-01'), userBookmarks: [{ uuid: UUID, user_id: OWNER }], ...row }
-        : null
+      return row ? { id, status: 'success', private_user: 0, updated_at: new Date('2026-01-01'), userBookmarks: [{ uuid: UUID, user_id: OWNER }], ...row } : null
     }),
     // The real access rule; the share record comes from bookmark.metadata.share
     getBookmarkReadAccess: vi.fn(async (ctx: { getUserId(): number }, uuid: string) =>
@@ -1073,7 +1071,16 @@ describe('private capture requests', () => {
   test('a private variant: retry reopens budget_exceeded but not too_long or the lifetime cap; generate keeps every final error', async () => {
     const capture = (reason: string) => ({
       raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
-      media: { kind: 'youtube', mode: 'capture', revision: 'r', sourceId: VIDEO, sourceHash: HASH, defaultLanguage: 'en', bodyLanguage: null, variants: { en: { status: 'failed', reason } } }
+      media: {
+        kind: 'youtube',
+        mode: 'capture',
+        revision: 'r',
+        sourceId: VIDEO,
+        sourceHash: HASH,
+        defaultLanguage: 'en',
+        bodyLanguage: null,
+        variants: { en: { status: 'failed', reason } }
+      }
     })
     for (const [reason, retry] of [
       ['budget_exceeded', true],
@@ -1260,6 +1267,31 @@ describe('private capture recovery guidance', () => {
     const state = await w.service.getStatus(w.ctx(OWNER), UUID)
     expect(state.status).toBe('ready')
     expect(state.unavailable_reason).toBeUndefined()
+    expect(w.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('durable publication catch-up', () => {
+  test('a failed indexing attempt stays queued for the next sweep without regenerating text', async () => {
+    const w = wire()
+    const row = w.repo.add({ status: 'ready' })
+    const key = `youtube/pending-publication/${row.id}.json`
+    w.objects.set(key, '{}')
+    const publish = vi.spyOn(w.service, 'publishBodies').mockResolvedValue(1)
+    const index = vi
+      .spyOn(w.service, 'indexBodies')
+      .mockRejectedValueOnce(new Error('index offline'))
+      .mockImplementation(async () => {
+        w.objects.delete(key)
+        return 1
+      })
+    await w.service.sweep(w.ctx(0))
+    expect(w.objects.has(key)).toBe(true)
+    expect(row.status).toBe('ready')
+    await w.service.sweep(w.ctx(0))
+    expect(w.objects.has(key)).toBe(false)
+    expect(publish).toHaveBeenCalledTimes(2)
+    expect(index).toHaveBeenCalledTimes(2)
     expect(w.create).not.toHaveBeenCalled()
   })
 })

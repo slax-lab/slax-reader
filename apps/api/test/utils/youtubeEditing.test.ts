@@ -85,11 +85,11 @@ describe('source-owned passages', () => {
     const bucket = store()
     const generate = vi
       .fn()
-      .mockResolvedValueOnce(JSON.stringify({ p0: { text: translations[0] }, p1: { text: '我的余额是 50。' } }))
+      .mockResolvedValueOnce(JSON.stringify({ p0: { text: translations[0] }, p1: { text: 'This is not translated.' } }))
       .mockResolvedValueOnce(JSON.stringify({ p1: { text: translations[1] } }))
     const result = await renderSourcePassages(passages, 'en', 'zh', 'chunk', bucket as any, 'run', generate, vi.fn())
     expect(generate.mock.calls.map(c => c[2])).toEqual([['p0', 'p1'], ['p1']])
-    expect(JSON.parse(generate.mock.calls[1][1]).p1).toMatchObject({ repair: 'numbers:-50', previous: '我的余额是 50。' })
+    expect(JSON.parse(generate.mock.calls[1][1]).p1).toMatchObject({ repair: 'wrong_language', previous: 'This is not translated.' })
     expect(result[0].heading).toBeTruthy()
     expect(result.flatMap(s => s.paragraphs.map(p => p.text))).toEqual(translations)
     expect(result.flatMap(s => s.paragraphs.flatMap(p => p.source_cue_ids))).toEqual(passages.flatMap(p => p.ids))
@@ -128,9 +128,9 @@ describe('source-owned passages', () => {
     const generate = vi
       .fn()
       .mockResolvedValueOnce('not json')
-      .mockResolvedValueOnce(JSON.stringify({ p0: { text: translations[0] }, p1: { text: translations[1] } }))
+      .mockResolvedValue(JSON.stringify({ p0: { text: translations[0] }, p1: { text: translations[1] } }))
     await renderSourcePassages(passages, 'en', 'zh', 'chunk', store() as any, 'run', generate, vi.fn())
-    expect(generate).toHaveBeenCalledTimes(2)
+    expect(generate).toHaveBeenCalledTimes(3)
     expect(JSON.parse(generate.mock.calls[1][1]).p0.repair).toBe('missing')
   })
 
@@ -162,7 +162,7 @@ describe('source-owned passages', () => {
     const repair = () => renderSourcePassages(passages, 'en', 'zh', 'chunk', bucket as any, 'run', generate, vi.fn(), { p0: 'wrong_language', p1: 'wrong_language' })
     await expect(repair()).rejects.toThrow('model_request_failed')
     await repair()
-    expect(generate.mock.calls.map(c => c[2])).toEqual([['p0', 'p1'], ['p0', 'p1'], ['p1'], ['p1']])
+    expect(generate.mock.calls.map(c => c[2])).toEqual([['p0', 'p1'], ['p0'], ['p1'], ['p1']])
   })
 
   it('isolates repeated long output while accepting real short repeated replies', async () => {
@@ -234,4 +234,25 @@ describe('source-owned passages', () => {
     bucket.put.mockRejectedValueOnce(new Error('storage_unavailable'))
     await expect(renderSourcePassages(passages, 'en', 'en', 'chunk', bucket as any, 'run', generate, vi.fn())).rejects.toThrow('storage_unavailable')
   })
+})
+
+it('retains an ambiguous year as a diagnostic without generating the same passage again', async () => {
+  const bucket = store()
+  const report = vi.fn()
+  const generate = vi.fn().mockResolvedValue(JSON.stringify({ p0: { text: '我们在 2010 年开始这个项目。', heading: '' } }))
+  const result = await renderSourcePassages(
+    [{ key: 'p0', text: 'We started in 2019 2010 and our goal was this project.', ids: ['c0105', 'c0106'] }],
+    'en',
+    'zh',
+    'ambiguous',
+    bucket as any,
+    'run',
+    generate,
+    report
+  )
+  expect(generate).toHaveBeenCalledOnce()
+  expect(result[0].paragraphs[0].source_cue_ids).toEqual(['c0105', 'c0106'])
+  expect(report).toHaveBeenCalledWith('passage_diagnostic', expect.any(Number))
+  const stored = await bucket.get('ambiguous.passages')
+  expect(JSON.parse(await stored!.text()).items[0].diagnostics).toContain('numbers:2019')
 })

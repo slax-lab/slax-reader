@@ -5,7 +5,7 @@ import { initializeInfrastructure, initializeCore } from '@/di/generated/depende
 import { ContextManager } from '@/utils/context'
 import { Hashid } from '@/utils/hashids'
 import { YoutubeArticleRepo } from '@/infra/repository/dbYoutubeArticle'
-import { VertexAIClient } from '@/infra/external/vertexAIClient'
+import { DeepSeekClient } from '@/infra/external/deepseekClient'
 import { YoutubeArticleService, type YoutubeArticleWorkflowParams } from '@/domain/youtubeArticle'
 import { runYoutubeArticle, YoutubeArticleStop, type StepLike } from '@/domain/youtubeArticleRunner'
 import { MediaSnapshotService } from '@/domain/mediaSnapshot'
@@ -26,7 +26,7 @@ export class YoutubeArticleWorkflow extends WorkflowEntrypoint<Env, YoutubeArtic
 
     const repo = currentContainer.resolve(YoutubeArticleRepo)
     const service = currentContainer.resolve(YoutubeArticleService)
-    const model = new VertexAIClient(this.env)
+    const model = new DeepSeekClient(this.env)
 
     const stepLike: StepLike = {
       do: (name, config, fn) =>
@@ -40,13 +40,14 @@ export class YoutubeArticleWorkflow extends WorkflowEntrypoint<Env, YoutubeArtic
         }) as any
     }
 
-    await runYoutubeArticle(
+    return await runYoutubeArticle(
       {
         repo,
         bucket: this.env.OSS,
         model,
         addCost: usd => service.addCost(usd),
-        publishBodies: articleId => service.publishBodies(ctxManager, articleId),
+        publishBodies: articleId => service.publishBodies(ctxManager, articleId, true),
+        indexBodies: articleId => service.indexBodies(ctxManager, articleId),
         settleSnapshots: sourceId => service.settleSnapshots(ctxManager, sourceId),
         processVectorMaintenance: (sourceId, sourceHash) =>
           currentContainer.resolve(MediaSnapshotService).processSourceVectorMaintenance(ctxManager, 'youtube', sourceId, sourceHash)

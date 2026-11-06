@@ -242,7 +242,7 @@ export class MediaSnapshotService {
   }
 
   /** Completed successful and frozen requests need no publication; failed captures retry cached media. */
-  async settle(ctx: ContextManager, bookmarkId: number, loaded?: LoadedMediaSnapshot | null): Promise<boolean> {
+  async settle(ctx: ContextManager, bookmarkId: number, loaded?: LoadedMediaSnapshot | null, deferIndexing = false): Promise<boolean> {
     loaded = loaded === undefined ? await this.load(bookmarkId) : loaded
     if (!loaded?.media || loaded.media.mode !== 'capture' || !(await this.readable(loaded.media))) return false
     const recovering = loaded.raw.status === 'failed'
@@ -263,11 +263,18 @@ export class MediaSnapshotService {
     )
       media.bodyLanguage = original
     const published = await this.publish(loaded, media, undefined, bundle, false, input)
-    if (published) await this.effects(ctx, bookmarkId).catch(error => console.error('Private media indexing failed', error))
+    if (published) await this.effects(ctx, bookmarkId, deferIndexing).catch(error => console.error('Private media indexing failed', error))
     return published
   }
 
-  async settleSource(ctx: ContextManager, kind: 'youtube' | 'podcast', sourceId: string, loaded?: Map<number, LoadedMediaSnapshot | null>, failures?: unknown[]) {
+  async settleSource(
+    ctx: ContextManager,
+    kind: 'youtube' | 'podcast',
+    sourceId: string,
+    loaded?: Map<number, LoadedMediaSnapshot | null>,
+    failures?: unknown[],
+    deferIndexing = false
+  ) {
     const errors = failures ?? []
     const refs = kind === 'youtube' ? await this.youtube.listRefs(sourceId) : await this.podcasts.listEpisodeRefs(sourceId)
     let count = 0
@@ -275,7 +282,7 @@ export class MediaSnapshotService {
       try {
         const snapshot = await this.load(ref.bookmark_id)
         loaded?.set(ref.bookmark_id, snapshot)
-        if (await this.settle(ctx, ref.bookmark_id, snapshot)) {
+        if (await this.settle(ctx, ref.bookmark_id, snapshot, deferIndexing)) {
           count++
           if (loaded) loaded.set(ref.bookmark_id, await this.load(ref.bookmark_id))
         }
@@ -498,11 +505,11 @@ export class MediaSnapshotService {
     }
   }
 
-  private async effects(ctx: ContextManager, bookmarkId: number) {
+  private async effects(ctx: ContextManager, bookmarkId: number, deferIndexing = false) {
     const current = await this.repo.snapshot(bookmarkId)
     if (!current) return
     await this.bookmarks.deleteBookmarkSummary(bookmarkId, current.private_user)
-    await this.indexSnapshot(ctx, bookmarkId)
+    if (!deferIndexing) await this.indexSnapshot(ctx, bookmarkId)
   }
 
   async indexSnapshot(ctx: ContextManager, bookmarkId: number, managedOnly = false) {

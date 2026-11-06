@@ -9,6 +9,8 @@ interface __BaseEnv_Env {
 
   VECTOR_V5_MAINTENANCE_WORKFLOW?: Workflow<import('./src/domain/vectorMaintenanceHooks').VectorMaintenanceWorkflowParams>
 
+  DEEPSEEK_API_KEY?: string
+
   VECTOR_REFRESH_SECRET?: string
 
   DIAGNOSTIC_DOWNLOAD_SECRET?: string

@@ -53,7 +53,7 @@ export class MediaBodyService {
     bookmarkId: number,
     userId: number,
     body: { html: string; text: string },
-    opts: { force?: boolean; mediaRef?: MediaSnapshotRef; expectedUpdatedAt?: Date } = {}
+    opts: { force?: boolean; deferIndexing?: boolean; mediaRef?: MediaSnapshotRef; expectedUpdatedAt?: Date } = {}
   ): Promise<boolean> {
     const bookmark = await this.bookmarkService.getBookmarkById(bookmarkId)
     if (!bookmark?.content_key || (bookmark.moderation_result > 0 && !opts.force)) return false
@@ -123,6 +123,7 @@ export class MediaBodyService {
     await this.bookmarkRepo.deleteBookmarkSummary(bookmarkId, userId).catch(() => {
       console.error(`Media body summary cleanup failed for bookmark ${bookmarkId}`)
     })
+    if (opts.deferIndexing) return true
     const results = await this.searchService.addSearchRecord(ctx, bookmarkId, bookmark.title || '', body.text).catch(err => [{ status: 'rejected' as const, reason: err }])
     const rejected = (results ?? []).filter(r => r.status === 'rejected')
     if (rejected.length) console.error(`Media body search index failed for bookmark ${bookmarkId}: ${rejected.length} part(s)`)

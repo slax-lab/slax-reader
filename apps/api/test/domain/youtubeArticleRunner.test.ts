@@ -1,3 +1,4 @@
+import { estimateCostUsd } from '@/utils/youtubeArticle'
 /**
  * One generation attempt end to end, with a fake step engine, an in-memory R2 bucket, a fake row
  * store and a fake model. Covers the happy path and every way an attempt can end.
@@ -141,23 +142,13 @@ function faithfulModel(
       const forced = over.failOn?.(call)
       if (forced !== null && forced !== undefined) return { text: forced, usage: { inputTokens: 1000, outputTokens: 100 } }
       const user = (contents[0].parts?.[0] as { text: string }).text
-      const overlap = Number(/the first (\d+) cues were already covered/.exec(options.systemInstruction)?.[1] ?? 0)
-      const cues = [...user.matchAll(/^(c\d{4}) \[[^\]]+\] (.*)$/gm)].map(m => ({ id: m[1], text: m[2] })).slice(overlap)
+      if (options.systemInstruction.startsWith('Write a factual'))
+        return { text: JSON.stringify({ lede: 'This talk explains attention.' }), usage: { inputTokens: 100, outputTokens: 30 } }
+      const passages = JSON.parse(user.split('\nPrevious source context')[0]) as Record<string, { text: string }>
+      const cues = Object.values(passages).flatMap(passage => [...passage.text.matchAll(/part \d+/g)])
       if (over.truncateOver !== undefined && cues.length > over.truncateOver)
-        return { text: '{"lede":"", "sections": [{"heading": "loop', usage: { inputTokens: 3000, outputTokens: 16000, thoughtTokens: 500 }, finishReason: 'MAX_TOKENS' }
-      const paragraphs = []
-      for (let i = 0; i < cues.length; i += 3) {
-        const group = cues.slice(i, i + 3)
-        const text = group.map(c => c.text).join(' ')
-        paragraphs.push({ speaker: null, text: over.language === 'zh' ? text : text.charAt(0).toUpperCase() + text.slice(1) + '.', source_cue_ids: group.map(c => c.id) })
-      }
-      const isFirst = options.systemInstruction.includes('Start with a 3 to 5 sentence lede')
-      const body = {
-        schema_version: 1,
-        language: 'en',
-        lede: isFirst ? 'This talk explains attention.' : '',
-        sections: [{ heading: `Part ${call}`, start_ms: 0, end_ms: 0, paragraphs }]
-      }
+        return { text: '{"p0":', usage: { inputTokens: 3000, outputTokens: 16000, thoughtTokens: 0 }, finishReason: 'MAX_TOKENS' }
+      const body = Object.fromEntries(Object.entries(passages).map(([key, value]) => [key, { text: value.text, heading: '' }]))
       return { text: JSON.stringify(body), usage: { inputTokens: 3000, outputTokens: over.outputTokens ?? 3000 }, finishReason: over.finishReason ?? 'STOP' }
     })
   }
@@ -170,12 +161,29 @@ function setup(opts: { cues?: number; model?: ArticleModel; row?: Partial<youtub
   const model = opts.model ?? faithfulModel()
   const addCost = vi.fn(async () => {})
   const publishBodies = vi.fn(async (_articleId: number) => 2)
-  const deps: RunnerDeps = { repo, bucket: bucket as any, model, addCost, publishBodies, settleSnapshots: vi.fn(async () => 0), processVectorMaintenance: vi.fn(async () => {}) }
+  const deps: RunnerDeps = {
+    repo,
+    bucket: bucket as any,
+    model,
+    addCost,
+    publishBodies,
+    indexBodies: vi.fn(async () => 2),
+    settleSnapshots: vi.fn(async () => 0),
+    processVectorMaintenance: vi.fn(async () => {})
+  }
   const params: YoutubeArticleWorkflowParams = { articleId: 1, videoId: VIDEO, sourceHash: HASH, targetLanguage: 'en', promptVersion: 'v1', title: 'Attention', trigger: 'open' }
   const { step, calls } = engine({ rewrap: opts.rewrap })
   const runId = opts.runId ?? 'run-1'
   const run = (stepLike: StepLike = step) => runYoutubeArticle(deps, params, stepLike, runId)
   return { deps, bucket, repo, model, addCost, publishBodies, params, step, calls, run }
+}
+
+function requireTranslation(s: ReturnType<typeof setup>) {
+  if (!s.bucket.objects.has(CAPTION_KEY)) return s
+  const doc = JSON.parse(s.bucket.objects.get(CAPTION_KEY)!)
+  doc.language = 'fr'
+  s.bucket.objects.set(CAPTION_KEY, JSON.stringify(doc))
+  return s
 }
 
 const articleKeys = (lang = 'en') => {
@@ -192,18 +200,18 @@ describe('happy path', () => {
 
     const chunkSteps = s.calls.filter(c => c.startsWith('chunk-'))
     expect(chunkSteps.length).toBeGreaterThan(1)
-    expect(s.calls).toEqual(['claim', 'prepare', ...chunkSteps, 'assemble', 'publish', 'drop-chunks', 'publish-body', 'vector-maintenance'])
+    expect(s.calls).toEqual(['claim', 'prepare', ...chunkSteps, 'introduction', 'assemble', 'publish', 'publish-body', 'vector-maintenance', 'index-bodies', 'drop-chunks'])
     expect(s.deps.processVectorMaintenance).toHaveBeenCalledWith(VIDEO, HASH)
     expect(s.publishBodies).toHaveBeenCalledWith(1)
-    expect(s.model.chat).toHaveBeenCalledTimes(chunkSteps.length)
-    expect(s.addCost).toHaveBeenCalledTimes(chunkSteps.length)
+    expect(s.model.chat).toHaveBeenCalledTimes(chunkSteps.length + 1)
+    expect(s.addCost).toHaveBeenCalledTimes(chunkSteps.length + 1)
 
     expect(s.repo.row.status).toBe('ready')
     expect(s.repo.row.article_key).toBe(articleKeys()[0])
     // never touches the original html/body or text/body objects
     expect(s.bucket.put.mock.calls.every(c => String(c[0]).startsWith('youtube/canonical/'))).toBe(true)
     expect(s.bucket.delete.mock.calls.flat(2).every(k => String(k).startsWith('youtube/canonical/'))).toBe(true)
-    expect(s.repo.row.quality_json).toMatchObject({ passed: true, failed: [], format: 'article', chunks: chunkSteps.length, model: 'gemini-3-flash-preview' })
+    expect(s.repo.row.quality_json).toMatchObject({ passed: true, failed: [], format: 'article', chunks: chunkSteps.length, model: 'deepseek-flash' })
     for (const k of articleKeys()) expect(s.bucket.objects.has(k)).toBe(true)
     expect([...s.bucket.objects.keys()].some(k => k.includes('/chunks/'))).toBe(false)
 
@@ -221,11 +229,11 @@ describe('happy path', () => {
     logs.mockRestore()
   })
 
-  test('uses the supported Gemini 3 thinking level', async () => {
+  test('bounds the article model output', async () => {
     const s = setup()
     await s.run()
     expect(s.model.chat).toHaveBeenCalled()
-    for (const call of s.model.chat.mock.calls) expect(call[1]).toMatchObject({ thinkingConfig: { thinkingLevel: 'LOW' } })
+    for (const call of s.model.chat.mock.calls) expect(call[1]).toMatchObject({ maxOutputTokens: expect.any(Number) })
   })
 
   test('step results stay small: no transcript or article text crosses a step boundary', async () => {
@@ -385,20 +393,20 @@ describe('idempotency and run ownership', () => {
 })
 
 describe('model failures', () => {
-  test('invalid JSON is retried by the step, then the attempt goes back to pending', async () => {
-    const s = setup({ cues: 40, model: faithfulModel({ failOn: () => '{"lede": "cut' }) })
-    expect(await s.run()).toBe('retry')
-    expect(s.model.chat).toHaveBeenCalledTimes(3)
-    expect(s.repo.row).toMatchObject({ status: 'pending', retry_count: 1 })
-    expect(s.repo.row.error_message).toContain('chunk_invalid_json')
+  test('invalid JSON exhausts bounded passage recovery without publishing', async () => {
+    const s = requireTranslation(setup({ cues: 40, model: faithfulModel({ failOn: () => '{"lede": "cut' }) }))
+    expect(await s.run()).toBe('failed')
+    expect(s.model.chat).toHaveBeenCalledTimes(8)
+    expect(s.repo.row).toMatchObject({ status: 'failed', retry_count: 1 })
+    expect(s.repo.row.error_message).toBe('passage_repair_exhausted')
   })
 
   test('a truncated chunk is split in two and both halves recover it; the parts join in cue order', async () => {
-    const s = setup({ cues: 40, model: faithfulModel({ truncateOver: 25 }) })
+    const s = requireTranslation(setup({ cues: 40, model: faithfulModel({ truncateOver: 25 }) }))
     const logs = vi.spyOn(console, 'log').mockImplementation(() => {})
     expect(await s.run()).toBe('ready')
     // whole chunk (truncated) + two halves
-    expect(s.model.chat).toHaveBeenCalledTimes(3)
+    expect(s.model.chat).toHaveBeenCalledTimes(4)
     const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0])!)
     const ids = doc.sections.flatMap((x: any) => x.paragraphs.flatMap((p: any) => p.source_cue_ids))
     expect(ids).toEqual(caption(40).cues.map(c => c.id))
@@ -409,8 +417,8 @@ describe('model failures', () => {
       chunk: 0,
       parts: 1,
       input_tokens: 3000,
-      candidate_tokens: 15500,
-      thought_tokens: 500,
+      candidate_tokens: 16000,
+      thought_tokens: 0,
       repetition_ratio: expect.any(Number)
     })
     expect(line).not.toContain('transformer')
@@ -420,30 +428,29 @@ describe('model failures', () => {
 
   test('only the first part of a split chunk carries the overlap cues; later chunks still cover every cue once', async () => {
     // 300 cues → 3 chunks of about 108 cues with overlap; the whole chunk truncates, halves pass
-    const s = setup({ cues: 300, model: faithfulModel({ truncateOver: 70 }) })
+    const s = requireTranslation(setup({ cues: 300, model: faithfulModel({ truncateOver: 70 }) }))
     expect(await s.run()).toBe('ready')
     const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0])!)
     const ids = doc.sections.flatMap((x: any) => x.paragraphs.flatMap((p: any) => p.source_cue_ids))
     expect(new Set(ids).size).toBe(ids.length)
     expect(new Set(ids).size).toBe(300)
-    const later = s.model.chat.mock.calls.filter(c => /Continue from the previous part of this chunk/.test(c[2].systemInstruction))
+    const later = s.model.chat.mock.calls.filter(c => c[0][0].parts[0].text.includes('Previous source context'))
     expect(later.length).toBeGreaterThan(0)
-    // a later part never asks for a lede and never claims covered cues
-    for (const c of later) expect(c[2].systemInstruction).not.toMatch(/lede for the whole video|already covered/)
+    for (const c of later) expect(c[2].systemInstruction).toContain('Never move content between keys')
   })
 
-  test('a chunk still truncated at 4 parts fails the version with no automatic retry', async () => {
-    const s = setup({ cues: 40, model: faithfulModel({ finishReason: 'MAX_TOKENS' }) })
+  test('a chunk still truncated after bounded passage subdivision fails the version with no automatic retry', async () => {
+    const s = requireTranslation(setup({ cues: 40, model: faithfulModel({ finishReason: 'MAX_TOKENS' }) }))
     expect(await s.run()).toBe('failed')
     // whole, first half, first quarter: each smaller than the last, never the same call twice
-    expect(s.model.chat).toHaveBeenCalledTimes(3)
+    expect(s.model.chat).toHaveBeenCalledTimes(16)
     expect(s.repo.row).toMatchObject({ status: 'failed', retry_count: 1 })
     // the stored error keeps the code first (the snapshot reason) and the split depth after it
-    expect(s.repo.row.error_message).toBe('chunk_truncated: parts=4')
+    expect(s.repo.row.error_message).toBe('passage_repair_exhausted')
   })
 
   test('the output limit follows the user message size, between 4,000 and 16,000 tokens', async () => {
-    const s = setup({ cues: 40, model: faithfulModel({ truncateOver: 25 }) })
+    const s = requireTranslation(setup({ cues: 40, model: faithfulModel({ truncateOver: 25 }) }))
     expect(await s.run()).toBe('ready')
     for (const call of s.model.chat.mock.calls) {
       const user = call[0][0].parts[0].text as string
@@ -455,7 +462,7 @@ describe('model failures', () => {
   })
 
   test('one bad reply then a good one: the step retry recovers', async () => {
-    const s = setup({ cues: 40, model: faithfulModel({ failOn: call => (call === 1 ? 'not json' : null) }) })
+    const s = requireTranslation(setup({ cues: 40, model: faithfulModel({ failOn: call => (call === 1 ? 'not json' : null) }) }))
     expect(await s.run()).toBe('ready')
   })
 
@@ -464,17 +471,19 @@ describe('model failures', () => {
     const model = faithfulModel()
     const original = model.chat.getMockImplementation()!
     model.chat.mockImplementation(async (contents: any, config: any, options: any) => {
-      if (failSecondChunk && options.systemInstruction.includes('This is chunk 2 of')) throw new Error('rate_limited')
+      if (failSecondChunk && contents[0].parts[0].text.includes('part 120')) throw new Error('rate_limited')
       return original(contents, config, options)
     })
-    const s = setup({ model })
+    const s = requireTranslation(setup({ model }))
     expect(await s.run()).toBe('retry')
     const firstRunCalls = model.chat.mock.calls.length
 
     failSecondChunk = false
     const again = engine()
     expect(await s.run(again.step)).toBe('ready')
-    const chunk1Prompts = model.chat.mock.calls.slice(firstRunCalls).filter((c: any) => c[2].systemInstruction.includes('This is chunk 1 of'))
+    const chunk1Prompts = model.chat.mock.calls
+      .slice(firstRunCalls)
+      .filter((c: any) => !c[2].systemInstruction.startsWith('Write a factual') && c[0][0].parts[0].text.split('\nPrevious source context')[0].includes('part 0 '))
     expect(chunk1Prompts).toHaveLength(0)
   })
 })
@@ -482,21 +491,21 @@ describe('model failures', () => {
 describe('limits and gates', () => {
   test('the per-video budget stops before the call that could cross it, not after', async () => {
     // each call reports 340,000 output tokens = $1.02 + input; the first call already crosses $1
-    const s = setup({ model: faithfulModel({ outputTokens: 340_000 }) })
+    const s = requireTranslation(setup({ model: faithfulModel({ outputTokens: 340_000 }) }))
     expect(await s.run()).toBe('failed')
     expect(s.model.chat.mock.calls.length).toBeLessThanOrEqual(5)
     expect(s.repo.row).toMatchObject({ status: 'failed', error_message: 'budget_exceeded' })
   })
 
   test('the budget counts across attempts: a version that already spent it never calls the model again', async () => {
-    const s = setup({ row: { cost_usd: 0.99 } })
+    const s = requireTranslation(setup({ row: { cost_usd: 0.99 } }))
     expect(await s.run()).toBe('failed')
     expect(s.model.chat).not.toHaveBeenCalled()
     expect(s.repo.row.error_message).toBe('budget_exceeded')
   })
 
   test('money spent by earlier attempts counts before the run starts: no call if the rest cannot pay', async () => {
-    const s = setup({ row: { cost_usd: 0.98 } })
+    const s = requireTranslation(setup({ row: { cost_usd: 0.98 } }))
     expect(await s.run()).toBe('failed')
     expect(s.repo.row.error_message).toBe('budget_exceeded')
     expect(s.model.chat).not.toHaveBeenCalled()
@@ -504,15 +513,15 @@ describe('limits and gates', () => {
   })
 
   test('failed and truncated replies are counted too', async () => {
-    const s = setup({ cues: 40, model: faithfulModel({ finishReason: 'MAX_TOKENS' }) })
+    const s = requireTranslation(setup({ cues: 40, model: faithfulModel({ finishReason: 'MAX_TOKENS' }) }))
     await s.run()
-    expect(s.repo.addCost).toHaveBeenCalledTimes(3)
+    expect(s.repo.addCost).toHaveBeenCalledTimes(s.model.chat.mock.calls.length)
     expect(s.repo.row.cost_usd).toBeGreaterThan(0)
   })
 
   test('the lifetime cap ends a retried version before the call that could cross it', async () => {
     // a retry reset the run budget to 0, but the version already spent $1.99 in total
-    const s = setup({ row: { cost_usd: 0, lifetime_cost_usd: 1.99 } })
+    const s = requireTranslation(setup({ row: { cost_usd: 0, lifetime_cost_usd: 1.99 } }))
     expect(await s.run()).toBe('failed')
     expect(s.model.chat).not.toHaveBeenCalled()
     expect(s.repo.row.error_message).toBe('lifetime_budget_exceeded')
@@ -520,7 +529,7 @@ describe('limits and gates', () => {
 
   test('the lifetime cap also stops mid-run, with its own final code', async () => {
     // the plan fits at the start; the first call's spend pushes the lifetime over the cap
-    const s = setup({ cues: 300, row: { lifetime_cost_usd: 1.5 }, model: faithfulModel({ outputTokens: 200_000 }) })
+    const s = requireTranslation(setup({ cues: 300, row: { lifetime_cost_usd: 1.5 }, model: faithfulModel({ outputTokens: 200_000 }) }))
     expect(await s.run()).toBe('failed')
     expect(s.model.chat.mock.calls.length).toBeLessThanOrEqual(5)
     expect(s.repo.row.error_message).toBe('lifetime_budget_exceeded')
@@ -529,7 +538,7 @@ describe('limits and gates', () => {
 
   test('a long video within the duration and chunk limits starts instead of being skipped as too_long', async () => {
     // About 22 chunks: over the old $0.30 per-video budget, well inside the new $1.00 one.
-    const s = setup({ cues: 3000 })
+    const s = requireTranslation(setup({ cues: 3000 }))
     expect(await s.run()).toBe('ready')
     expect(s.model.chat.mock.calls.length).toBeGreaterThan(1)
   })
@@ -539,7 +548,7 @@ describe('limits and gates', () => {
     ;(YOUTUBE_ARTICLE_LIMITS as any).maxCostUsd = 0.0001
     const logs = vi.spyOn(console, 'log').mockImplementation(() => {})
     try {
-      const s = setup()
+      const s = requireTranslation(setup())
       expect(await s.run()).toBe('skipped')
       expect(s.repo.row.error_message).toBe('too_long')
       const line = logs.mock.calls.map(c => String(c[0])).find(l => l.includes('youtube_article_skipped'))
@@ -558,13 +567,13 @@ describe('limits and gates', () => {
   })
 
   test('the stop is still final when the engine rewraps the error', async () => {
-    const s = setup({ model: faithfulModel({ outputTokens: 340_000 }), rewrap: true })
+    const s = requireTranslation(setup({ model: faithfulModel({ outputTokens: 340_000 }), rewrap: true }))
     expect(await s.run()).toBe('failed')
     expect(s.repo.row.error_message).toBe('budget_exceeded')
   })
 
   test('longer than 6 hours → skipped with too_long, no model call', async () => {
-    const s = setup({ noCaption: true })
+    const s = requireTranslation(setup({ noCaption: true }))
     const long = caption(10)
     long.cues[9].start_ms = 6 * 3600 * 1000 + 1
     s.bucket.objects.set(CAPTION_KEY, JSON.stringify(long))
@@ -574,20 +583,18 @@ describe('limits and gates', () => {
   })
 
   test('caption object missing → failed with caption_missing', async () => {
-    const s = setup({ noCaption: true })
+    const s = requireTranslation(setup({ noCaption: true }))
     expect(await s.run()).toBe('failed')
     expect(s.repo.row.error_message).toBe('caption_missing')
   })
 
   test('a bad article fails with metrics and retains its diagnostic artifacts', async () => {
     // the target is Chinese but the fake writes English
-    const s = setup({ cues: 40, model: faithfulModel() })
+    const s = requireTranslation(setup({ cues: 40, model: faithfulModel() }))
     s.params.targetLanguage = 'zh'
     s.repo.row.target_language = 'zh'
     expect(await s.run()).toBe('failed')
-    expect(s.repo.row.error_message).toContain('quality:')
-    expect(s.repo.row.error_message).toContain('wrong_language')
-    expect(s.repo.row.quality_json).toMatchObject({ passed: false })
+    expect(s.repo.row.error_message).toBe('passage_repair_exhausted')
     expect([...s.bucket.objects.keys()].some(k => k.includes('/chunks/'))).toBe(true)
     for (const k of articleKeys('zh')) expect(s.bucket.objects.has(k)).toBe(false)
     expect(s.publishBodies).not.toHaveBeenCalled()
@@ -975,23 +982,25 @@ describe('concurrent failure safety', () => {
     const base = faithfulModel()
     let active = 0
     let peak = 0
-    const s = setup({
-      cues: 650,
-      model: {
-        chat: async (...args) => {
-          active++
-          peak = Math.max(peak, active)
-          await new Promise(resolve => setTimeout(resolve, 5))
-          const result = await base.chat(...args)
-          active--
-          return result
+    const s = requireTranslation(
+      setup({
+        cues: 650,
+        model: {
+          chat: async (...args) => {
+            active++
+            peak = Math.max(peak, active)
+            await new Promise(resolve => setTimeout(resolve, 5))
+            const result = await base.chat(...args)
+            active--
+            return result
+          }
         }
-      }
-    })
+      })
+    )
     const step: StepLike = {
       do: async (name, config, fn) => {
         const result = await s.step.do(name, config, fn)
-        if (name === 'prepare') s.repo.row.cost_usd = 0.86
+        if (name === 'prepare') s.repo.row.cost_usd = 0.94
         return result
       }
     }
@@ -1004,42 +1013,44 @@ describe('concurrent failure safety', () => {
   test('settles siblings and caches successes before reporting a failed batch', async () => {
     const base = faithfulModel()
     let active = 0
-    const s = setup({
-      cues: 900,
-      model: {
-        chat: async (...args) => {
-          if (args[2].systemInstruction.includes('This is chunk 1 of')) throw new Error('provider_unavailable')
-          active++
-          await new Promise(resolve => setTimeout(resolve, 10))
-          const result = await base.chat(...args)
-          active--
-          return result
+    const s = requireTranslation(
+      setup({
+        cues: 900,
+        model: {
+          chat: async (...args) => {
+            if (args[0][0].parts[0].text.includes('part 0 ')) throw new Error('provider_unavailable')
+            active++
+            await new Promise(resolve => setTimeout(resolve, 10))
+            const result = await base.chat(...args)
+            active--
+            return result
+          }
         }
-      }
-    })
+      })
+    )
     const finish = s.repo.finishAttempt.getMockImplementation()!
     s.repo.finishAttempt.mockImplementation(async (...args) => {
       expect(active).toBe(0)
       return finish(...args)
     })
     expect(await s.run()).toBe('retry')
-    expect(s.calls).not.toContain('chunk-5')
-    expect([...s.bucket.objects.keys()].filter(key => key.includes('/chunks/') && key.endsWith('.json'))).toHaveLength(4)
+    expect(s.calls).toContain('chunk-5')
+    expect([...s.bucket.objects.keys()].filter(key => key.includes('/chunks/') && key.endsWith('.json'))).toHaveLength(s.calls.filter(c => c.startsWith('chunk-')).length - 1)
     expect(s.repo.publish).not.toHaveBeenCalled()
   })
 
   test.each(['article', 'daily'])('stops admissions after %s accounting fails', async kind => {
-    const s = setup({ cues: 900 })
+    const s = requireTranslation(setup({ cues: 900 }))
     if (kind === 'article') s.repo.addCost.mockRejectedValue(new Error('accounting_unavailable'))
     else s.addCost.mockRejectedValue(new Error('accounting_unavailable'))
     expect(await s.run()).toBe('retry')
     expect(s.model.chat.mock.calls.length).toBeLessThanOrEqual(5)
-    expect(s.calls).not.toContain('chunk-5')
+    expect(s.calls).toContain('chunk-5')
     expect(s.repo.publish).not.toHaveBeenCalled()
   })
 
   test('does not regenerate or charge completed durable steps on replay', async () => {
-    const s = setup({ cues: 650 })
+    const s = requireTranslation(setup({ cues: 650 }))
     const completed = new Map<string, unknown>()
     let interrupt = true
     const step: StepLike = {
@@ -1067,25 +1078,27 @@ describe('concurrent lifecycle', () => {
     const timeout = AbortSignal.timeout.bind(AbortSignal)
     const signals = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => timeout(5))
     let active = 0
-    const s = setup({
-      cues: 650,
-      model: {
-        chat: async (_contents, config) => {
-          active++
-          try {
-            return await new Promise<never>((_resolve, reject) => config.abortSignal!.addEventListener('abort', () => reject(new Error('provider_timeout')), { once: true }))
-          } finally {
-            active--
+    const s = requireTranslation(
+      setup({
+        cues: 650,
+        model: {
+          chat: async (_contents, config) => {
+            active++
+            try {
+              return await new Promise<never>((_resolve, reject) => config.abortSignal!.addEventListener('abort', () => reject(new Error('provider_timeout')), { once: true }))
+            } finally {
+              active--
+            }
           }
         }
-      }
-    })
+      })
+    )
     try {
       expect(await s.run()).toBe('retry')
       expect(active).toBe(0)
       expect(signals).toHaveBeenCalledWith(90_000)
       expect(s.repo.publish).not.toHaveBeenCalled()
-      expect(s.calls).not.toContain('chunk-5')
+      expect(s.calls).toContain('chunk-5')
     } finally {
       signals.mockRestore()
     }
@@ -1095,20 +1108,22 @@ describe('concurrent lifecycle', () => {
     const base = faithfulModel()
     let active = 0
     let started = 0
-    const s = setup({
-      cues: 650,
-      model: {
-        chat: async (...args) => {
-          active++
-          started++
-          if (started === 5) s.repo.row.run_id = 'new-owner'
-          await new Promise(resolve => setTimeout(resolve, 5))
-          const result = await base.chat(...args)
-          active--
-          return result
+    const s = requireTranslation(
+      setup({
+        cues: 650,
+        model: {
+          chat: async (...args) => {
+            active++
+            started++
+            if (started === 5) s.repo.row.run_id = 'new-owner'
+            await new Promise(resolve => setTimeout(resolve, 5))
+            const result = await base.chat(...args)
+            active--
+            return result
+          }
         }
-      }
-    })
+      })
+    )
     expect(await s.run()).toBe('gone')
     expect(started).toBe(5)
     expect(active).toBe(0)
@@ -1117,7 +1132,7 @@ describe('concurrent lifecycle', () => {
   })
 
   test('replays a partially completed batch without charging its saved step again', async () => {
-    const s = setup({ cues: 650 })
+    const s = requireTranslation(setup({ cues: 650 }))
     const saved = new Map<string, unknown>()
     let interrupted = true
     const step: StepLike = {
@@ -1135,7 +1150,33 @@ describe('concurrent lifecycle', () => {
     interrupted = false
     s.repo.row.status = 'generating'
     expect(await s.run(step)).toBe('ready')
-    expect(s.model.chat).toHaveBeenCalledTimes(7)
-    expect(s.repo.row.cost_usd).toBeCloseTo(spent * 7)
+    expect(s.model.chat).toHaveBeenCalledTimes(8)
+    expect(s.repo.row.cost_usd).toBeCloseTo(spent * 7 + estimateCostUsd(100, 30))
+  })
+})
+
+describe('independent publication work', () => {
+  test('publishes a readable body before attempting indexing', async () => {
+    const s = setup({ cues: 40 })
+    s.deps.indexBodies = vi.fn(async () => {
+      expect(s.publishBodies).toHaveBeenCalledOnce()
+      expect(s.repo.row.status).toBe('ready')
+      throw new Error('index unavailable')
+    })
+    expect(await s.run()).toBe('indexing_pending')
+    expect(s.repo.row.status).toBe('ready')
+    expect(s.repo.finishAttempt).not.toHaveBeenCalled()
+    expect(s.deps.indexBodies).toHaveBeenCalledTimes(4)
+    expect(s.calls).not.toContain('drop-chunks')
+  })
+
+  test('cleanup failure cannot turn a published article back into a failed generation', async () => {
+    const s = setup({ cues: 40 })
+    s.bucket.delete.mockRejectedValue(new Error('cleanup unavailable'))
+    expect(await s.run()).toBe('cleanup_pending')
+    expect(s.publishBodies).toHaveBeenCalledOnce()
+    expect(s.deps.indexBodies).toHaveBeenCalledOnce()
+    expect(s.repo.row.status).toBe('ready')
+    expect(s.repo.finishAttempt).not.toHaveBeenCalled()
   })
 })

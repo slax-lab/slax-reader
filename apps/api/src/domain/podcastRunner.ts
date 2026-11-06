@@ -1,4 +1,4 @@
-import { AIProviderError, toProviderFailure, type VertexAIConfig } from '@/infra/external/vertexAIClient'
+import { DeepSeekError } from '@/infra/external/deepseekClient'
 import type { AssemblyJobState } from '@/infra/external/assemblyAI'
 import type { PodcastArticleRepo, PodcastEpisodeRepo, podcastEpisodePO } from '@/infra/repository/dbPodcastArticle'
 import type { ArticleModel, StepLike } from '@/domain/youtubeArticleRunner'
@@ -605,22 +605,18 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
         reply = await deps.model.chat(
           [{ role: 'user', parts: [{ text: user }] }],
           {
-            model: YOUTUBE_ARTICLE_MODEL,
             abortSignal: signal,
-            // Gemini 3 documents looping below its default temperature of 1.0
-            temperature: 1.0,
+            temperature: 0.2,
             maxOutputTokens: size.outputLimit,
-            thinkingConfig: { thinkingLevel: 'LOW' },
-            responseMimeType: 'application/json',
-            responseSchema: schema as unknown as VertexAIConfig['responseSchema']
+            responseSchema: schema
           },
           { systemInstruction: system }
         )
       } catch (error) {
-        const failure = error instanceof AIProviderError ? error : toProviderFailure(error)
-        const rejected = failure.providerStatus !== undefined && failure.providerStatus >= 400 && failure.providerStatus < 600
-        const notConnected = ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(String(failure.providerCode))
-        Object.assign(outcome, { outcome: rejected ? 'rejected' : signal.aborted ? 'timeout' : 'lost', provider_status: failure.providerStatus ?? null })
+        const failure = error instanceof DeepSeekError ? error : undefined
+        const rejected = failure?.providerStatus !== undefined && failure?.providerStatus >= 400 && failure?.providerStatus < 600
+        const notConnected = failure?.code === 'configuration'
+        Object.assign(outcome, { outcome: rejected ? 'rejected' : signal.aborted ? 'timeout' : 'lost', provider_status: failure?.providerStatus ?? null })
         if (rejected || notConnected) {
           checkDeadline(attempt.deadline)
           throw error
