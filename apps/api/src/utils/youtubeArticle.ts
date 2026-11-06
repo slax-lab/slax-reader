@@ -164,7 +164,7 @@ export interface YoutubeArticlePlan {
 
 export type YoutubeArticlePlanResult = { ok: true; plan: YoutubeArticlePlan } | { ok: false; reason: 'too_long' | 'caption_missing' }
 
-const SPEAKER_RE = /^\s*(?:>>|\[[^\]]{1,40}\]\s*:|[A-Z][\w.' -]{0,30}:\s)/
+export const SPEAKER_RE = /^\s*(?:(?:>>\s*)?(?:\[([^\]]{1,40})\]\s*:|([A-Z][\w.' -]{0,30}):\s)|>>)/
 
 /** Dialogue when more than 20% of cues carry a speaker mark (">>", "[Name]:" or "Name: "). */
 export function detectArticleFormat(cues: YoutubeCaptionCue[]): 'article' | 'dialogue' {

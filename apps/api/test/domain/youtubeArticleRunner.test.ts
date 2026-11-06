@@ -528,7 +528,7 @@ describe('limits and gates', () => {
     expect(s.repo.row.error_message).toBe('caption_missing')
   })
 
-  test('a bad article fails the quality check: failed with the metrics, cached chunks dropped', async () => {
+  test('a bad article fails with metrics and retains its diagnostic artifacts', async () => {
     // the target is Chinese but the fake writes English
     const s = setup({ cues: 40, model: faithfulModel() })
     s.params.targetLanguage = 'zh'
@@ -537,39 +537,52 @@ describe('limits and gates', () => {
     expect(s.repo.row.error_message).toContain('quality:')
     expect(s.repo.row.error_message).toContain('wrong_language')
     expect(s.repo.row.quality_json).toMatchObject({ passed: false })
-    expect([...s.bucket.objects.keys()].some(k => k.includes('/chunks/'))).toBe(false)
+    expect([...s.bucket.objects.keys()].some(k => k.includes('/chunks/'))).toBe(true)
     for (const k of articleKeys('zh')) expect(s.bucket.objects.has(k)).toBe(false)
     expect(s.publishBodies).not.toHaveBeenCalled()
   })
 })
 
-describe('versioned transcript editing', () => {
+describe('source-owned transcript generation', () => {
   function editedModel() {
     const model = faithfulModel()
-    const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
+    model.chat.mockImplementation(async (contents, _config, options) => {
       if (options.systemInstruction.startsWith('Write a factual'))
         return { text: JSON.stringify({ lede: 'This talk explains attention.' }), usage: { inputTokens: 100, outputTokens: 30 } }
-      if (options.systemInstruction.startsWith('Translate the edited')) {
-        const source = JSON.parse(contents[0].parts[0].text.split('\nPrevious translation')[0])
-        const sentences = [
-          'Transformer 用注意力替代循环，因此每个词元都能关注其他词元。',
-          '训练在序列上并行执行，长距离依赖关系不再衰减。',
-          '计算成本随序列长度的平方增长，因此出现了稀疏注意力变体。',
-          '位置编码恢复顺序，因为注意力本身忽略顺序。'
-        ]
-        for (const section of source.sections)
-          section.paragraphs = section.paragraphs.map((text: string) =>
-            [...text.matchAll(/part (\d+)/g)].map(match => sentences[Number(match[1]) % 4] + `第 ${match[1]} 部分。`).join('')
-          )
-        return { text: JSON.stringify(source), usage: { inputTokens: 100, outputTokens: 100 } }
-      }
-      return original(contents, config, options)
+      const source: Record<string, { text: string; heading?: string; startsChunk?: boolean }> = JSON.parse(contents[0].parts[0].text.split('\nPrevious source context')[0])
+      const translating = options.systemInstruction.startsWith('Translate each keyed')
+      const sentences = [
+        'Transformer 用注意力替代循环，因此每个词元都能关注其他词元。',
+        '训练在序列上并行执行，长距离依赖关系不再衰减。',
+        '计算成本随序列长度的平方增长，因此出现了稀疏注意力变体。',
+        '位置编码恢复顺序，因为注意力本身忽略顺序。'
+      ]
+      const result = Object.fromEntries(
+        Object.entries(source).map(([key, passage]) => [
+          key,
+          {
+            heading: passage.startsChunk ? (translating ? '注意力机制' : 'Attention') : '',
+            text: translating ? [...passage.text.matchAll(/part (\d+)/g)].map(match => sentences[Number(match[1]) % 4] + `第 ${match[1]} 部分。`).join('') : passage.text
+          }
+        ])
+      )
+      return { text: JSON.stringify(result), usage: { inputTokens: 100, outputTokens: 100 } }
     })
     return model
   }
 
-  test('edits and translates five chunks concurrently with deterministic context', async () => {
+  function translated(cues = 40, model = editedModel()) {
+    const s = setup({ cues, model })
+    s.params.promptVersion = 'v2'
+    s.params.targetLanguage = 'zh'
+    s.repo.row.target_language = 'zh'
+    return s
+  }
+
+  const input = (call: any) => JSON.parse(call[0][0].parts[0].text.split('\nPrevious source context')[0])
+  const translations = (model: any) => model.chat.mock.calls.filter((c: any) => c[2].systemInstruction.startsWith('Translate each keyed'))
+
+  test('translates five chunks concurrently directly from source, with complete references', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
     let active = 0
@@ -582,184 +595,293 @@ describe('versioned transcript editing', () => {
       active--
       return result
     })
-    const s = setup({ cues: 650, model })
-    s.params.promptVersion = 'v2'
-    s.params.targetLanguage = 'zh'
-    s.repo.row.target_language = 'zh'
+    const s = translated(650, model)
     expect(await s.run()).toBe('ready')
     expect(peak).toBe(5)
+    expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Edit each keyed'))).toHaveLength(0)
+    expect(model.chat.mock.calls.length).toBe(s.calls.filter(c => c.startsWith('chunk-')).length + 1)
     const doc = JSON.parse(s.bucket.objects.get(articleKeys('zh')[0].replace('v1', 'v2'))!)
     expect(doc.sections.flatMap((section: any) => section.paragraphs.flatMap((p: any) => p.source_cue_ids))).toEqual(caption(650).cues.map(cue => cue.id))
     for (const call of model.chat.mock.calls) expect(call[1].abortSignal).toBeInstanceOf(AbortSignal)
+    expect(translations(model)[1][0][0].parts[0].text).toContain('Previous source context')
   })
 
-  test('edits all chunks before the complete introduction and preserves every cue', async () => {
-    const s = setup({ model: editedModel() })
-    s.params.promptVersion = 'v2'
-    expect(await s.run()).toBe('ready')
-    const prompts = s.model.chat.mock.calls
-    const intro = prompts.find(c => c[2].systemInstruction.startsWith('Write a factual'))!
-    expect(intro[0][0].parts[0].text).toContain('part 299')
-    expect(prompts.filter(c => c[2].systemInstruction.startsWith('Edit this transcript')).length).toBeGreaterThan(1)
-    expect(prompts[1][0][0].parts[0].text).toContain('Previous source context')
-    const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0].replace('v1', 'v2'))!)
-    expect(new Set(doc.sections.flatMap((s: any) => s.paragraphs.flatMap((p: any) => p.source_cue_ids))).size).toBe(300)
-  })
-
-  test('a same-language edited chunk stores the usage of its edit call', async () => {
-    const s = setup({ model: editedModel() })
-    s.params.promptVersion = 'v2'
-    expect(await s.run()).toBe('ready')
-    // Chunks are dropped after assembly, so read the write itself
-    const put = s.bucket.put.mock.calls.find(c => String(c[0]).includes('/chunks/') && !String(c[0]).endsWith('.source'))!
-    const stored = JSON.parse(String(put[1]))
-    expect(stored.usage.input_tokens).toBeGreaterThan(0)
-    expect(stored.usage.cost_usd).toBeGreaterThan(0)
-  })
-
-  test('translation changes text while the application retains source references', async () => {
-    const s = setup({ cues: 40, model: editedModel() })
-    s.params.promptVersion = 'v2'
-    s.params.targetLanguage = 'zh'
-    s.repo.row.target_language = 'zh'
-    expect(await s.run()).toBe('ready')
-    const translated = JSON.parse(s.bucket.objects.get(articleKeys('zh')[0].replace('v1', 'v2'))!)
-    const ids = translated.sections.flatMap((section: any) => section.paragraphs.flatMap((p: any) => p.source_cue_ids))
-    expect(ids).toEqual(caption(40).cues.map(c => c.id))
-    const call = s.model.chat.mock.calls.find(c => c[2].systemInstruction.startsWith('Translate the edited'))!
-    expect(call[0][0].parts[0].text).not.toContain('source_cue_ids')
-  })
-
-  test('translation receives the edited source, and changed paragraph counts fail', async () => {
+  test('a missing translation is repaired once, with accepted passages kept', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
-      const result = await original(contents, config, options)
-      if (options.systemInstruction.startsWith('Translate the edited')) {
-        const doc = JSON.parse(result.text)
-        doc.sections[0].paragraphs.pop()
-        return { ...result, text: JSON.stringify(doc) }
+    let missing = true
+    model.chat.mockImplementation(async (...args) => {
+      const result = await original(...args)
+      if (missing && args[2].systemInstruction.startsWith('Translate each keyed')) {
+        missing = false
+        const values = JSON.parse(result.text)
+        delete values.p0
+        return { ...result, text: JSON.stringify(values) }
       }
       return result
     })
-    const s = setup({ cues: 40, model })
-    s.params.promptVersion = 'v2'
-    s.params.targetLanguage = 'zh'
-    s.repo.row.target_language = 'zh'
-    expect(await s.run()).toBe('retry')
-    expect(s.repo.row.error_message).toContain('translation_structure_changed')
-    expect(s.publishBodies).not.toHaveBeenCalled()
-    expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Edit this transcript'))).toHaveLength(1)
-  })
-
-  test('rejects condensed text even when every source cue is listed', async () => {
-    const model = editedModel()
-    const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
-      const result = await original(contents, config, options)
-      const doc = JSON.parse(result.text)
-      for (const section of doc.sections) for (const p of section.paragraphs) p.text = 'A short summary.'
-      return { ...result, text: JSON.stringify(doc) }
-    })
-    const s = setup({ cues: 40, model })
-    s.params.promptVersion = 'v2'
-    expect(await s.run()).toBe('retry')
-    expect(s.repo.row.error_message).toContain('edited_length_ratio')
-    expect(s.publishBodies).not.toHaveBeenCalled()
-  })
-
-  test('a same-language edit inside the chunk band also passes the article check', async () => {
-    const model = editedModel()
-    const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
-      const result = await original(contents, config, options)
-      if (!options.systemInstruction.startsWith('Edit this transcript')) return result
-      // Each paragraph grows to about 1.13 of its cue text: inside the chunk band, over the generic article cap
-      const doc = JSON.parse(result.text)
-      for (const section of doc.sections)
-        for (const p of section.paragraphs) {
-          const sourceLength = p.text.replace(/\s+/g, '').length
-          p.text += ' ' + 'x'.repeat(Math.round(sourceLength * 0.12))
-        }
-      return { ...result, text: JSON.stringify(doc) }
-    })
-    const s = setup({ cues: 40, model })
-    s.params.promptVersion = 'v2'
+    const s = translated(40, model)
     expect(await s.run()).toBe('ready')
-    const ratio = (s.repo.row.quality_json as { metrics: { length_ratio: number } }).metrics.length_ratio
-    expect(ratio).toBeGreaterThan(1.1)
-    expect(ratio).toBeLessThanOrEqual(1.15)
+    expect(Object.keys(input(translations(model)[1]))).toEqual(['p0'])
+    expect(input(translations(model)[1]).p0.repair).toBe('missing')
   })
 
-  test('rejects source references in a changed order', async () => {
+  test('wrong-language output is repaired before final caching and publication', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
-      const result = await original(contents, config, options)
-      const doc = JSON.parse(result.text)
-      doc.sections[0].paragraphs.reverse()
-      return { ...result, text: JSON.stringify(doc) }
+    let corrupt = true
+    model.chat.mockImplementation(async (...args) => {
+      const result = await original(...args)
+      if (corrupt && args[2].systemInstruction.startsWith('Translate each keyed')) {
+        corrupt = false
+        const values = JSON.parse(result.text)
+        values.p0.text = input(args).p0.text
+        return { ...result, text: JSON.stringify(values) }
+      }
+      return result
     })
-    const s = setup({ cues: 40, model })
-    s.params.promptVersion = 'v2'
-    expect(await s.run()).toBe('retry')
-    expect(s.repo.row.error_message).toContain('chunk_incomplete_coverage')
-    expect(s.publishBodies).not.toHaveBeenCalled()
-  })
-
-  test('a truncated edit call is split and the translation follows the parts', async () => {
-    const model = editedModel()
-    const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
-      const cueLines = (contents[0].parts[0].text as string).match(/^c\d{4} \[/gm)?.length ?? 0
-      if (options.systemInstruction.startsWith('Edit this transcript') && cueLines > 25)
-        return { text: '{"lede":"", "sections": [{"heading": "loop', usage: { inputTokens: 3000, outputTokens: 16000 }, finishReason: 'MAX_TOKENS' }
-      return original(contents, config, options)
-    })
-    const s = setup({ cues: 40, model })
-    s.params.promptVersion = 'v2'
-    s.params.targetLanguage = 'zh'
-    s.repo.row.target_language = 'zh'
+    const s = translated(40, model)
     expect(await s.run()).toBe('ready')
-    const edits = model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Edit this transcript'))
-    const translations = model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Translate the edited'))
-    expect(edits).toHaveLength(3)
-    expect(translations).toHaveLength(2)
-    const translated = JSON.parse(s.bucket.objects.get(articleKeys('zh')[0].replace('v1', 'v2'))!)
-    const ids = translated.sections.flatMap((section: any) => section.paragraphs.flatMap((p: any) => p.source_cue_ids))
-    expect(ids).toEqual(caption(40).cues.map(c => c.id))
+    expect(Object.keys(input(translations(model)[1]))).toEqual(['p0'])
+    expect(input(translations(model)[1]).p0.repair).toContain('wrong_language')
   })
 
-  test('a translation that truncates on a single section fails without an identical repeat', async () => {
+  test('a provider outage preserves accepted paragraphs and resumes after recovery', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
-      if (options.systemInstruction.startsWith('Translate the edited'))
-        return { text: '{"sections": [', usage: { inputTokens: 100, outputTokens: 4000 }, finishReason: 'MAX_TOKENS' }
-      return original(contents, config, options)
+    let first = true
+    let down = true
+    model.chat.mockImplementation(async (...args) => {
+      if (!args[2].systemInstruction.startsWith('Translate each keyed')) return original(...args)
+      if (!first && down) throw new Error('provider_timeout')
+      const result = await original(...args)
+      if (first) {
+        first = false
+        const value = JSON.parse(result.text)
+        delete value.p0
+        return { ...result, text: JSON.stringify(value) }
+      }
+      return result
     })
-    const s = setup({ cues: 40, model })
-    s.params.promptVersion = 'v2'
-    s.params.targetLanguage = 'zh'
-    s.repo.row.target_language = 'zh'
+    const s = translated(40, model)
+    expect(await s.run()).toBe('retry')
+    expect(s.repo.row.error_message).toBe('model_request_failed')
+    const calls = translations(model).length
+    down = false
+    expect(await s.run(engine().step)).toBe('ready')
+    expect(
+      translations(model)
+        .slice(calls)
+        .map((c: any) => Object.keys(input(c)))
+    ).toEqual([['p0']])
+  })
+
+  test('persistently invalid content stops after three replies and retains successful work for a new run', async () => {
+    const model = editedModel()
+    const original = model.chat.getMockImplementation()!
+    let missing = true
+    model.chat.mockImplementation(async (...args) => {
+      const result = await original(...args)
+      if (missing && args[2].systemInstruction.startsWith('Translate each keyed')) {
+        const value = JSON.parse(result.text)
+        delete value.p0
+        return { ...result, text: JSON.stringify(value) }
+      }
+      return result
+    })
+    const s = translated(40, model)
     expect(await s.run()).toBe('failed')
-    expect(s.repo.row.error_message).toBe('chunk_truncated: parts=1')
-    expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Translate the edited'))).toHaveLength(1)
+    expect(s.repo.row.error_message).toBe('passage_repair_exhausted')
+    expect(translations(model)).toHaveLength(3)
+    expect([...s.bucket.objects.keys()].some(k => k.endsWith('.passages'))).toBe(true)
+    expect(s.publishBodies).not.toHaveBeenCalled()
+    missing = false
+    s.repo.row.status = 'pending'
+    expect(await runYoutubeArticle(s.deps, s.params, engine().step, 'run-2')).toBe('ready')
+    expect(Object.keys(input(translations(model).at(-1)))).toEqual(['p0'])
   })
 
-  test('rejects an omitted passage before caching or translating it', async () => {
+  test.each(['timeout', 'malformed', 'empty', 'truncated', 'wrong-language'])('publishes accepted body with an extractive introduction on %s', async mode => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
-    model.chat.mockImplementation(async (contents, config, options) => {
-      const result = await original(contents, config, options)
-      const doc = JSON.parse(result.text)
-      doc.sections[0].paragraphs.pop()
-      return { ...result, text: JSON.stringify(doc) }
+    model.chat.mockImplementation(async (...args) => {
+      if (!args[2].systemInstruction.startsWith('Write a factual')) return original(...args)
+      if (mode === 'timeout') throw new Error('provider_timeout')
+      return {
+        text: mode === 'empty' ? '{"lede":""}' : mode === 'wrong-language' ? '{"lede":"This introduction is in the wrong language."}' : 'invalid',
+        finishReason: mode === 'truncated' ? 'MAX_TOKENS' : 'STOP'
+      }
     })
+    const s = translated(40, model)
+    expect(await s.run()).toBe('ready')
+    const doc = JSON.parse(s.bucket.objects.get(articleKeys('zh')[0].replace('v1', 'v2'))!)
+    expect(doc.lede).toContain('Transformer')
+    expect(doc.lede).not.toBe('invalid')
+    expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Write a factual'))).toHaveLength(1)
+  })
+
+  test('an optional same-language editor outage preserves complete source wording', async () => {
+    const model = editedModel()
+    model.chat.mockRejectedValue(new Error('provider_timeout'))
     const s = setup({ cues: 40, model })
     s.params.promptVersion = 'v2'
+    expect(await s.run()).toBe('ready')
+    const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0].replace('v1', 'v2'))!)
+    expect(doc.sections.flatMap((section: any) => section.paragraphs.map((p: any) => p.text)).join(' ')).toBe(
+      caption(40)
+        .cues.map(c => c.text)
+        .join(' ')
+    )
+  })
+
+  test.each([
+    { cost_usd: 1, lifetime_cost_usd: 1 },
+    { cost_usd: 0, lifetime_cost_usd: 2 }
+  ])('same-language source can publish without model spend at an exhausted cap: %j', async cap => {
+    const s = setup({ cues: 40, model: editedModel() })
+    s.params.promptVersion = 'v2'
+    Object.assign(s.repo.row, cap)
+    expect(await s.run()).toBe('ready')
+    expect(s.model.chat).not.toHaveBeenCalled()
+    expect(s.repo.addCost).not.toHaveBeenCalled()
+    const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0].replace('v1', 'v2'))!)
+    const paragraphs = doc.sections.flatMap((section: any) => section.paragraphs)
+    expect(paragraphs.map((p: any) => p.text).join(' ')).toBe(
+      caption(40)
+        .cues.map(c => c.text)
+        .join(' ')
+    )
+    expect(paragraphs.flatMap((p: any) => p.source_cue_ids)).toEqual(caption(40).cues.map(c => c.id))
+    expect(doc.lede).toBeTruthy()
+  })
+
+  test('a truncated batch splits its request and preserves original reference order', async () => {
+    const model = editedModel()
+    const original = model.chat.getMockImplementation()!
+    model.chat.mockImplementation(async (...args) => {
+      if (args[2].systemInstruction.startsWith('Translate each keyed') && Object.keys(input(args)).length > 3)
+        return { text: 'truncated', finishReason: 'MAX_TOKENS', usage: { inputTokens: 100, outputTokens: 4000 } }
+      return original(...args)
+    })
+    const s = translated(40, model)
+    expect(await s.run()).toBe('ready')
+    expect(translations(model).length).toBeGreaterThan(1)
+    const doc = JSON.parse(s.bucket.objects.get(articleKeys('zh')[0].replace('v1', 'v2'))!)
+    expect(doc.sections.flatMap((section: any) => section.paragraphs.flatMap((p: any) => p.source_cue_ids))).toEqual(caption(40).cues.map(c => c.id))
+  })
+
+  test('localized final corruption repairs only the affected passage', async () => {
+    const model = editedModel()
+    const s = translated(40, model)
+    const step: StepLike = {
+      do: async (name, config, fn) => {
+        if (name === 'assemble') {
+          const key = [...s.bucket.objects.keys()].find(k => k.includes('/chunks/') && /\/0\.json$/.test(k))!
+          const chunk = JSON.parse(s.bucket.objects.get(key)!)
+          chunk.sections[0].paragraphs[0].text = 'Wrong language.'
+          s.bucket.objects.set(key, JSON.stringify(chunk))
+        }
+        return s.step.do(name, config, fn)
+      }
+    }
+    expect(await s.run(step)).toBe('ready')
+    expect(Object.keys(input(translations(model).at(-1)))).toEqual(['p0'])
+    expect(s.calls).toContain('repair-chunk-0')
+    expect(s.calls).toContain('assemble-repaired')
+  })
+
+  test('structural final corruption stops publication and retains progress', async () => {
+    const s = translated()
+    const step: StepLike = {
+      do: async (name, config, fn) => {
+        if (name === 'assemble') {
+          const key = [...s.bucket.objects.keys()].find(k => k.includes('/chunks/') && /\/0\.json$/.test(k))!
+          const chunk = JSON.parse(s.bucket.objects.get(key)!)
+          chunk.sections[0].paragraphs[0].source_cue_ids = ['c9999']
+          s.bucket.objects.set(key, JSON.stringify(chunk))
+        }
+        return s.step.do(name, config, fn)
+      }
+    }
+    expect(await s.run(step)).toBe('failed')
+    expect(s.repo.row.error_message).toContain('cue_reference')
+    expect([...s.bucket.objects.keys()].some(k => k.endsWith('.passages'))).toBe(true)
+    expect(s.publishBodies).not.toHaveBeenCalled()
+  })
+
+  test('resume estimates only unfinished work and can publish when model budget is exhausted', async () => {
+    const s = translated()
+    const step: StepLike = {
+      do: async (name, config, fn) => {
+        if (name === 'introduction') throw new Error('worker_interrupted')
+        return s.step.do(name, config, fn)
+      }
+    }
+    expect(await s.run(step)).toBe('retry')
+    const calls = s.model.chat.mock.calls.length
+    s.repo.row.cost_usd = 1
+    s.repo.row.lifetime_cost_usd = 2
+    expect(await s.run(engine().step)).toBe('ready')
+    expect(s.model.chat.mock.calls.length).toBe(calls)
+    expect(s.repo.row.cost_usd).toBe(1)
+  })
+
+  test('an exhausted budget with unfinished translation retains progress and makes no new model call', async () => {
+    const s = translated()
+    const step: StepLike = {
+      do: async (name, config, fn) => {
+        if (name === 'introduction') throw new Error('worker_interrupted')
+        return s.step.do(name, config, fn)
+      }
+    }
+    expect(await s.run(step)).toBe('retry')
+    const key = [...s.bucket.objects.keys()].find(key => key.endsWith('.passages'))!
+    const progress = JSON.parse(s.bucket.objects.get(key)!)
+    delete progress.items[0].result
+    s.bucket.objects.set(key, JSON.stringify(progress))
+    s.repo.row.cost_usd = 1
+    s.repo.row.lifetime_cost_usd = 2
+    const calls = s.model.chat.mock.calls.length
+    expect(await s.run(engine().step)).toBe('failed')
+    expect(s.repo.row.error_message).toBe('lifetime_budget_exceeded')
+    expect(s.model.chat.mock.calls.length).toBe(calls)
+    expect(
+      JSON.parse(s.bucket.objects.get(key)!)
+        .items.slice(1)
+        .every((item: any) => item.result)
+    ).toBe(true)
+    expect(s.publishBodies).not.toHaveBeenCalled()
+  })
+
+  test('accounting errors are never swallowed by optional generation fallback', async () => {
+    const s = translated()
+    s.repo.addCost.mockRejectedValue(new Error('accounting_unavailable'))
     expect(await s.run()).toBe('retry')
-    expect(s.repo.row.error_message).toContain('chunk_incomplete_coverage')
+    expect(s.publishBodies).not.toHaveBeenCalled()
+    expect(s.repo.row.error_message).toBe('accounting_unavailable')
+  })
+
+  test('storage errors while saving an introduction stop publication', async () => {
+    const s = translated()
+    const original = s.bucket.put.getMockImplementation()!
+    s.bucket.put.mockImplementation(async (key, value) => {
+      if (key.endsWith('introduction.json')) throw new Error('storage_unavailable')
+      return original(key, value)
+    })
+    expect(await s.run()).toBe('retry')
+    expect(s.publishBodies).not.toHaveBeenCalled()
+    expect(s.repo.row.error_message).toBe('storage_unavailable')
+  })
+
+  test('lease loss after body completion cannot be converted into a presentation fallback', async () => {
+    const s = translated()
+    const step: StepLike = {
+      do: async (name, config, fn) => {
+        if (name === 'introduction') s.repo.row.run_id = 'another-run'
+        return s.step.do(name, config, fn)
+      }
+    }
+    expect(await s.run(step)).toBe('gone')
     expect(s.publishBodies).not.toHaveBeenCalled()
   })
 })
