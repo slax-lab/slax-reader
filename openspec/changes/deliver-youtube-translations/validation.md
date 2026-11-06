@@ -4,7 +4,7 @@ Date: November 6, 2026. Branch: `fix/youtube-translation-delivery`, originally b
 
 ## Configuration and scope
 
-All text generation in YouTube and podcast article workflows uses `deepseek-flash` at the fixed `https://api.deepseek.com/chat/completions` endpoint. The only new binding is `DEEPSEEK_API_KEY`. The operator supplies it to the Edge Worker: `slax-read-backend` in production and `reader-backend-dev` in test. Local Worker configuration belongs in `deploy/local/.dev.vars`. No credentials were printed or committed. Unrelated summaries, chat, moderation, transcription and embeddings retain their providers. No schema, client contract or app package version changes.
+All text generation in YouTube and podcast article workflows uses `deepseek-flash` at the fixed `https://api.deepseek.com/chat/completions` endpoint. The only new binding is `DEEPSEEK_API_KEY`. The operator supplies it to the Edge Worker: `slax-read-backend` in production and `reader-backend` in the test account (the deployed service behind `reader-api.slax.dev`, verified through Cloudflare domain bindings). Local Worker configuration belongs in `deploy/local/.dev.vars`. No credentials were printed or committed. Unrelated summaries, chat, moderation, transcription and embeddings retain their providers. No schema, client contract or app package version changes.
 
 ## Automated verification
 
