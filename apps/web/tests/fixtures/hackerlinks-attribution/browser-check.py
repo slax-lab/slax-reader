@@ -1,9 +1,14 @@
+import argparse
 from urllib.parse import parse_qs, urlparse
 from playwright.sync_api import sync_playwright, expect
 
-BASE = 'http://localhost:3215'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--base', default='http://localhost:3215')
+parser.add_argument('--executable', default='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+args = parser.parse_args()
+BASE = args.base.rstrip('/')
 with sync_playwright() as p:
-    browser = p.chromium.launch(headless=True, executable_path='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+    browser = p.chromium.launch(headless=True, executable_path=args.executable)
     for medium in ['header', 'resource_detail']:
         context = browser.new_context()
         page = context.new_page()

@@ -116,9 +116,23 @@ WITH scoped AS (
     END AS effective_at
   FROM logs.events
   WHERE __ingest_ts >= :partition_start AND __ingest_ts < :partition_end
-), deduplicated AS (
-  SELECT DISTINCT user_id, event_name, properties, occurred_at, device_id, effective_at
+), ranked AS (
+  SELECT
+    user_id,
+    event_name,
+    properties,
+    occurred_at,
+    device_id,
+    effective_at,
+    row_number() OVER (
+      PARTITION BY user_id, event_name, properties, occurred_at, device_id
+      ORDER BY effective_at ASC NULLS LAST
+    ) AS rn
   FROM scoped
+), deduplicated AS (
+  SELECT user_id, event_name, properties, occurred_at, device_id, effective_at
+  FROM ranked
+  WHERE rn = 1
 )
 SELECT COUNT(DISTINCT user_id) AS attributed_registrations
 FROM deduplicated
