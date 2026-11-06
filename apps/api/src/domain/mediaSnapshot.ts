@@ -5,6 +5,7 @@ import { BookmarkNotFoundError } from '@/const/err'
 import { BookmarkForkRepo, type MediaSnapshotRef } from '@/infra/repository/dbBookmarkFork'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { BookmarkSearchRepo } from '@/infra/repository/dbBookmarkSearch'
+import { VectorMaintenanceRepo } from '@/infra/repository/dbVectorMaintenance'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import { MarkRepo } from '@/infra/repository/dbMark'
 import { UserRepo } from '@/infra/repository/dbUser'
@@ -32,6 +33,7 @@ import { toCompatCues, type YoutubeCaptionDocument } from '@/utils/youtubeCaptio
 import type { PodcastCue, PodcastTranscriptDocument } from '@/utils/podcastTranscript'
 import { HtmlBuilder } from '@/utils/htmlBuilder'
 import type { ContextManager } from '@/utils/context'
+import { enqueueVectorMaintenance } from './vectorMaintenanceHooks'
 
 type RawSnapshot = NonNullable<Awaited<ReturnType<BookmarkForkRepo['snapshot']>>>
 export type LoadedMediaSnapshot = {
@@ -54,7 +56,8 @@ export class MediaSnapshotService {
     @inject(MarkRepo) private marks: MarkRepo,
     @inject(BookmarkRepo) private bookmarks: BookmarkRepo,
     @inject(SearchService) private search: SearchService,
-    @inject(BookmarkSearchRepo) private searchRepo: BookmarkSearchRepo
+    @inject(BookmarkSearchRepo) private searchRepo: BookmarkSearchRepo,
+    @inject(VectorMaintenanceRepo) private vectors: VectorMaintenanceRepo
   ) {}
 
   async load(bookmarkId: number): Promise<LoadedMediaSnapshot | null> {
@@ -238,15 +241,17 @@ export class MediaSnapshotService {
       }
   }
 
-  /** Returns false for a completed/frozen request; callers keep the legacy path for unmanaged rows. */
-  async settle(ctx: ContextManager, bookmarkId: number, loaded?: LoadedMediaSnapshot | null): Promise<boolean> {
+  /** Completed successful and frozen requests need no publication; failed captures retry cached media. */
+  async settle(ctx: ContextManager, bookmarkId: number, loaded?: LoadedMediaSnapshot | null, deferIndexing = false): Promise<boolean> {
     loaded = loaded === undefined ? await this.load(bookmarkId) : loaded
     if (!loaded?.media || loaded.media.mode !== 'capture' || !(await this.readable(loaded.media))) return false
+    const recovering = loaded.raw.status === 'failed'
     const media = structuredClone(loaded.media)
-    if (media.transcript !== 'pending' && !Object.values(media.variants).some(v => v.status === 'pending')) return false
+    const pending = media.transcript === 'pending' || Object.values(media.variants).some(v => v.status === 'pending')
+    if (!recovering && !pending) return false
     const bundle = new SnapshotBundle(this.bucket().R2Bucket, loaded.raw.content_key.match(/^html\/body\/([^/]+)\.html$/)?.[1] ?? loaded.raw.userBookmarks[0].uuid)
-    const input = await this.collect(media, bundle)
-    if (JSON.stringify(media) === JSON.stringify(loaded.media)) return false
+    const input = pending ? await this.collect(media, bundle) : undefined
+    if (!recovering && JSON.stringify(media) === JSON.stringify(loaded.media)) return false
     const original = media.kind === 'podcast' ? media.player?.language : media.defaultLanguage
     if (
       original &&
@@ -258,11 +263,18 @@ export class MediaSnapshotService {
     )
       media.bodyLanguage = original
     const published = await this.publish(loaded, media, undefined, bundle, false, input)
-    if (published) await this.effects(ctx, bookmarkId).catch(error => console.error('Private media indexing failed', error))
+    if (published) await this.effects(ctx, bookmarkId, deferIndexing).catch(error => console.error('Private media indexing failed', error))
     return published
   }
 
-  async settleSource(ctx: ContextManager, kind: 'youtube' | 'podcast', sourceId: string, loaded?: Map<number, LoadedMediaSnapshot | null>, failures?: unknown[]) {
+  async settleSource(
+    ctx: ContextManager,
+    kind: 'youtube' | 'podcast',
+    sourceId: string,
+    loaded?: Map<number, LoadedMediaSnapshot | null>,
+    failures?: unknown[],
+    deferIndexing = false
+  ) {
     const errors = failures ?? []
     const refs = kind === 'youtube' ? await this.youtube.listRefs(sourceId) : await this.podcasts.listEpisodeRefs(sourceId)
     let count = 0
@@ -270,7 +282,7 @@ export class MediaSnapshotService {
       try {
         const snapshot = await this.load(ref.bookmark_id)
         loaded?.set(ref.bookmark_id, snapshot)
-        if (await this.settle(ctx, ref.bookmark_id, snapshot)) {
+        if (await this.settle(ctx, ref.bookmark_id, snapshot, deferIndexing)) {
           count++
           if (loaded) loaded.set(ref.bookmark_id, await this.load(ref.bookmark_id))
         }
@@ -285,6 +297,61 @@ export class MediaSnapshotService {
     }
     if (!failures && errors.length) throw new AggregateError(errors, 'Private media publication incomplete')
     return count
+  }
+
+  async processVectorMaintenance(ctx: ContextManager, bookmarkId: number, expected: { kind: 'youtube' | 'podcast'; sourceId: string; sourceHash: string }) {
+    const loaded = await this.load(bookmarkId)
+    if (!loaded || loaded.raw.status !== 'success' || loaded.raw.moderation_result > 0 || !loaded.raw.userBookmarks.length) return
+    if (loaded.managed) {
+      const media = loaded.media
+      if (
+        !media ||
+        media.mode !== 'capture' ||
+        media.policyDenied ||
+        media.kind !== expected.kind ||
+        media.sourceId !== expected.sourceId ||
+        media.sourceHash !== expected.sourceHash
+      )
+        return
+      if (!(await this.readable(media))) return
+    } else {
+      const ref = await this.repo.mediaRef(bookmarkId)
+      if (!ref || ref.media_kind !== expected.kind || ref.source_id !== expected.sourceId || ref.source_hash !== expected.sourceHash || (await this.repo.mediaDenied(ref))) return
+    }
+    const failures: unknown[] = []
+    const admitted = new Set<number>()
+    const pageSize = 100
+    let after = 0
+    for (;;) {
+      const owners = await this.vectors.listContentOwners(bookmarkId, after, pageSize)
+      if (!owners.length) break
+      const articles = await this.vectors.findArticles(owners.map(owner => ({ userId: owner.user_id, id: bookmarkId })))
+      for (const article of articles) {
+        if (article.status !== 'success' || (loaded.raw.private_user > 0 && article.user_id !== loaded.raw.private_user) || admitted.has(article.user_id)) continue
+        admitted.add(article.user_id)
+        try {
+          await enqueueVectorMaintenance(ctx.env, { kind: 'article', userId: article.user_id, id: bookmarkId })
+        } catch (error) {
+          failures.push(error)
+        }
+      }
+      after = owners[owners.length - 1].id
+      if (owners.length < pageSize) break
+    }
+    if (failures.length) throw new AggregateError(failures, 'Media vector maintenance admission incomplete')
+  }
+
+  async processSourceVectorMaintenance(ctx: ContextManager, kind: 'youtube' | 'podcast', sourceId: string, sourceHash: string) {
+    const refs = kind === 'youtube' ? await this.youtube.listRefs(sourceId, sourceHash) : await this.podcasts.listEpisodeRefs(sourceId)
+    const failures: unknown[] = []
+    for (const ref of refs) {
+      try {
+        await this.processVectorMaintenance(ctx, ref.bookmark_id, { kind, sourceId, sourceHash })
+      } catch (error) {
+        failures.push(error)
+      }
+    }
+    if (failures.length) throw new AggregateError(failures, 'Media vector maintenance admission incomplete')
   }
 
   /** Explicit owner retry opens only that owner's revision; prior captures settle before requeue. */
@@ -354,13 +421,36 @@ export class MediaSnapshotService {
     bundle: SnapshotBundle,
     options: NonNullable<Parameters<BookmarkForkRepo['publishRevision']>[3]>
   ) {
-    const claimed = options.clearForkProvenance ? await this.repo.ownsWrite(raw.id, raw.updated_at) : await this.repo.claimWrite(raw.id, raw.updated_at, ['success'], options.force)
+    const recovering = !options.clearForkProvenance && raw.status === 'failed'
+    if (recovering) {
+      if (!media || (media.mode !== 'capture' && !options.force)) return null
+      const owners = await this.vectors.findArticles([{ userId: raw.private_user, id: raw.id }])
+      if (!owners.some(owner => owner.user_id === raw.private_user && owner.updated_at.getTime() === raw.updated_at.getTime())) return null
+      const ref = await this.repo.mediaRef(raw.id)
+      if (
+        !ref ||
+        ref.media_kind !== media.kind ||
+        ref.source_id !== media.sourceId ||
+        (ref.source_hash !== media.sourceHash && (media.kind !== 'podcast' || ref.source_hash !== ''))
+      )
+        return null
+      if (media.kind === 'podcast' && !options.force) {
+        const episode = await this.episodes.findBySourceId(media.sourceId)
+        if (!episode || (await podcastInputFingerprint(episode)) !== media.inputFingerprint || (media.sourceHash && episode.transcript_hash !== media.sourceHash)) return null
+        options = { ...options, mediaInput: { sourceId: media.sourceId, fingerprint: media.inputFingerprint, transcriptHash: episode.transcript_hash } }
+      }
+    }
+    const claimed = options.clearForkProvenance
+      ? await this.repo.ownsWrite(raw.id, raw.updated_at)
+      : await this.repo.claimWrite(raw.id, raw.updated_at, recovering ? ['failed'] : ['success'], options.force)
     if (!claimed) return null
+    let writing = false
     try {
       if (media && !options.force && !(await this.readable(media))) throw BookmarkNotFoundError()
       if (media) {
-        media.revision = bundle.attempt
-        const variant = media.bodyLanguage ? media.variants[media.bodyLanguage] : undefined
+        const keepMarkedBody = recovering && media.kind === 'youtube' && !options.force && (await this.marks.bodyHasMarks(raw.id, raw.private_user))
+        if (!keepMarkedBody) media.revision = bundle.attempt
+        const variant = media.bodyLanguage && !keepMarkedBody ? media.variants[media.bodyLanguage] : undefined
         if (!body && variant?.document) {
           const version = privateMediaVersion(media, media.bodyLanguage!)
           body =
@@ -395,6 +485,7 @@ export class MediaSnapshotService {
         document.querySelectorAll('script,style,noscript').forEach(node => node.remove())
         body = { html, text: (document.querySelector('article') || document.body || document.documentElement).textContent?.trim() || '' }
       }
+      writing = true
       const content = await bundle.writeBody(body, media ?? { schema: 1, kind: 'html' })
       await bundle.assertUnchanged()
       const publishedUpdatedAt = new Date(Math.max(Date.now(), raw.updated_at.getTime() + 1))
@@ -404,23 +495,21 @@ export class MediaSnapshotService {
         expectedUpdatedAt: raw.updated_at,
         mediaRef: media ? this.ref(media) : undefined
       })
-      if (!published && !options.clearForkProvenance) await this.repo.releaseWrite(raw.id, raw.updated_at)
+      if (!published && !options.clearForkProvenance) await this.repo.failWrite(raw.id, raw.updated_at)
       return published ? { ...content, publishedRevision: publishedUpdatedAt.toISOString() } : null
     } catch (error) {
-      // A fixed-key write cannot be rolled back or inferred committed from its path.
-      // Supplemental publication restores the completed base to eligibility for the original
-      // publisher retry. The timestamp guard cannot release a newer owner acquisition.
+      // Preserve uncertain fixed objects; only the old supplemental claim can become failed.
       // Workflow acquisition retains its claim until its finite retries are exhausted.
-      if (!options.clearForkProvenance) await this.repo.releaseWrite(raw.id, raw.updated_at).catch(() => {})
+      if (!options.clearForkProvenance) await (writing || recovering ? this.repo.failWrite(raw.id, raw.updated_at) : this.repo.releaseWrite(raw.id, raw.updated_at)).catch(() => {})
       throw error
     }
   }
 
-  private async effects(ctx: ContextManager, bookmarkId: number) {
+  private async effects(ctx: ContextManager, bookmarkId: number, deferIndexing = false) {
     const current = await this.repo.snapshot(bookmarkId)
     if (!current) return
     await this.bookmarks.deleteBookmarkSummary(bookmarkId, current.private_user)
-    await this.indexSnapshot(ctx, bookmarkId)
+    if (!deferIndexing) await this.indexSnapshot(ctx, bookmarkId)
   }
 
   async indexSnapshot(ctx: ContextManager, bookmarkId: number, managedOnly = false) {

@@ -92,7 +92,41 @@ A failed build, project check, upload, final deployment status, or cache purge f
 
 On first rollout, check that the log reports Cloudflare accepted the purge, then request a previously cached asset and inspect its version and `CF-Cache-Status`. API acceptance alone does not prove a particular asset was evicted, and other traffic can refill the cache before verification.
 
-For rollback, restore a known-good deployment through the existing Pages deployment history and pause or revert the faulty release workflow/change as appropriate. Do not delete or recreate the Pages project.
+## PowerSync Worker compatibility across releases
+
+The Worker stays split into its existing entry and content-hashed JavaScript/WASM dependencies. Every build writes `/_nuxt/powersync-assets.json` from the actual PowerSync Worker graph. This public file contains only root paths, dependency paths, and SHA-256 digests for that build. It contains no release timestamps, deployment identifiers, credentials, or environment configuration and is not fetched during browser startup. Unrelated application/PDF assets are outside this retention policy unless a PowerSync Worker actually references them.
+
+Before upload, the release helper validates the current index, dependency graph and file bytes. It then lists successful production deployments in the selected Pages project, following all API pages, and selects:
+
+- Every deployment completed in the preceding **7 × 24 hours**, using the successful deploy stage's `ended_on` time.
+- The immediately preceding successful deployment before that window, so an old build replaced recently remains covered.
+- The canonical production deployment, regardless of its age.
+
+This covers multiple releases in a day, not only the immediately previous release. Requests use each original deployment's unique HTTPS `*.pages.dev` URL, never a mutable branch alias or custom domain. The Cloudflare API token is sent only to the API and is never forwarded to static asset requests. Keep the original deployment snapshots accessible; no additional storage service is used.
+
+Eligible original dependency bytes are verified and copied to their original `/_nuxt/` paths in the new publication. Identical paths/bytes are stored once. Current files remain authoritative, including the mutable Worker entry. Conflicting historical files are skipped with a warning; a path with conflicting historical bytes and no current authoritative file is omitted. Old server code, HTML, configuration, routing, and release metadata are never copied. The current-only index is not expanded by these copies, so carrying an old dependency forward does not restart its retention period. A subsequent release omits expired dependencies no longer referenced by an eligible runtime; there is no scheduled deletion job.
+
+### Failure policy and first rollout
+
+Historical recovery is **best effort**. Missing or inaccessible history, failed pagination, invalid indexes, unsupported legacy references, download failures, HTML responses, invalid JS/WASM, and digest conflicts generate GitHub Actions warning annotations and do not stop an otherwise valid release. Independently verified resources are still retained. Even a release with no recoverable history can proceed, with coverage reported as unknown rather than falsely empty.
+
+For older deployments without an index, the helper parses the original `worker-v4.js` and its static imports, literal dynamic imports, and static asset URLs, including the emitted nested WASM URL form. It never executes old JavaScript or rebuilds old source to invent historical bytes. Missing or unsupported references reduce reported coverage. An unavailable snapshot cannot be reconstructed merely from its commit SHA.
+
+The current build remains a separate mandatory check before and after historical merging. A missing, invalid, inconsistent, or incomplete current index/resource set stops publication before upload, including when historical warnings have already occurred. Project identity, bindings, credentials, freshness, upload, final status, and purge retain their existing failure rules. A deployment followed by purge failure still participates in later history because Pages successfully published it.
+
+The release log and Actions step summary report current and added historical file counts/bytes, selected and fully recovered runtimes, legacy inventories, observed expired snapshots, and each known recovery gap. Coverage is `complete`, `partial`, or `unknown`; a partial/unknown release must not be described as a guaranteed seven-day compatibility window. Expired file counts/bytes are explicitly unknown: expired snapshots are not downloaded solely to measure bytes that will not be shipped. Raw API responses, resource bodies, and credentials are withheld.
+
+### Cache ownership and verification
+
+The generated `_headers` detaches the broad inherited `Cache-Control` value for mutable PowerSync entries and the index, then applies `no-cache, max-age=0, must-revalidate`. ETag/304 validation remains available. Content-hashed dependencies retain immutable caching, and `/_nuxt/*` remains excluded from the server Worker route. Inspect actual entry, index, old dependency and new dependency responses on the test Pages project after publication/purge; matching multiple Pages header rules can otherwise combine conflicting values.
+
+This policy cannot retroactively invalidate an already fresh one-year browser cache or restart a running SharedWorker. Preserved dependencies protect later requests only while the corresponding history is recoverable and eligible. Already cached HTML or an aborted Worker may still require an ordinary page reload/reopen; never clear the user's database or pending mutations as part of this repair.
+
+### Managed rollback
+
+Restore earlier application behavior with an approved revert/recovery revision through the normal merged-PR release process. Keep the repaired index generator, retention preparation, and cache headers in that revision. The same pipeline validates the rollback build, recovers eligible dependencies of the newer runtime as well as older ones, warns on historical gaps, confirms publication, and purges the selected hostname. There is no alternate rollback command or freshness bypass.
+
+A direct Pages deployment-pointer rollback immediately exposes the old snapshot and bypasses retention preparation; assets introduced after that snapshot may disappear. Treat it as an emergency action with that limitation, then restore a managed publication and inspect its coverage. Its intervening serving timeline cannot be fully reconstructed from original deployment completion times alone. Do not delete or recreate the Pages project.
 
 ## Local and PR verification
 
@@ -112,13 +146,13 @@ pnpm exec openspec validate --all --strict
 Focused release checks:
 
 ```sh
-node --test tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs
+node --test tooling/powersync-assets.test.mjs tooling/powersync-retention.test.mjs tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs
 ```
 
 These use synthetic configuration, temporary build trees, mocked Cloudflare responses, and a fake deployment subprocess. After a successful build, also verify the actual staged output and render it through the installed workerd runtime:
 
 ```sh
-SLAX_TEST_PAGES_BUILD=1 node --test tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs
+SLAX_TEST_PAGES_BUILD=1 node --test tooling/powersync-assets.test.mjs tooling/powersync-retention.test.mjs tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs
 ```
 
 The pinned Wrangler 4.127.0 local `pages dev --no-bundle` path has been observed to fail while locating its generated middleware facade on macOS. This does not change the upload command; the explicit workerd smoke test checks the precompiled application independently of that dev wrapper. It is not a claim that the Wrangler local preview command passes.

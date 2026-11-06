@@ -25,6 +25,7 @@ import { Imager } from '@/utils/imager'
 import { HtmlBuilder } from '@/utils/htmlBuilder'
 import { parseHTML } from 'linkedom'
 import { TweetInfo } from '@/const/twitterapi/struct'
+import { enqueueVectorMaintenance } from '@/domain/vectorMaintenanceHooks'
 
 export type PostHandler = (meta: { parseRes: { title: string; textContent: string; byline?: string } }) => Promise<void>
 export type receiveRetryParseMesaage = receiveParseMessage<queueRetryParseMessage>
@@ -97,48 +98,34 @@ export class UrlParserHandler {
       published_at: parseRes.publishedTime ?? new Date()
     }
 
-    await Promise.allSettled([
+    await Promise.all([
       this.bucketClient().putIfKeyExists(newBookmark.content_md_key, parseRes.textContent),
-      this.bucketClient().putIfKeyExists(newBookmark.content_key, parseRes.contentDocument.documentElement.outerHTML),
-      this.bookmarkService.updateBookmark(bookmarkId, newBookmark)
+      this.bucketClient().putIfKeyExists(newBookmark.content_key, parseRes.contentDocument.documentElement.outerHTML)
     ])
+    await this.bookmarkService.updateBookmark(bookmarkId, newBookmark)
 
     return newBookmark
   }
 
-  public async parseUrl(ctx: ContextManager, messageId: string, message: parseMessage, postHandlers: PostHandler[]) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { resource, ...taskInfo } = message
-    const bookmarkId = taskInfo.bookmarkId
-
-    try {
-      if (message.parserType === parserType.SERVER_PUPPETEER_PARSE) {
-        const res = await this.bookmarkService.getBookmarkTitleAndTextContentTry(bookmarkId)
-        if (res) {
-          await Promise.allSettled(postHandlers.map(handler => handler({ parseRes: { title: res.title, textContent: res.textContent } })))
-          return
-        }
-      }
-    } catch (err) {
-      console.log(`parse ${messageId} with cache failed: ${err}`)
+  public async parseUrl(ctx: ContextManager, messageId: string, message: queueParseMessage | queueRetryParseMessage, postHandlers: PostHandler[]) {
+    const bookmarkId = message.bookmarkId
+    const complete = async (parseRes?: { title: string; textContent: string; byline?: string } | null) => {
+      if (parseRes) await Promise.allSettled(postHandlers.map(handler => handler({ parseRes })))
+      const userIds = 'userId' in message ? [message.userId] : message.retry.userIds
+      for (const userId of new Set(userIds)) await this.processVectorMaintenance(ctx, { userId, bookmarkId })
+    }
+    const existing = await this.bookmarkService.getBookmarkById(bookmarkId)
+    if (existing?.status === queueStatus.SUCCESS) {
+      await complete(await this.bookmarkService.getBookmarkTitleAndTextContentTry(bookmarkId))
+      return
     }
 
     const fetchRes = await UrlParserHandler.fetchContent(ctx.env, message)
-
     const uUrl = new URL(fetchRes.url)
     const parseRes = await ContentParser.parse({ url: uUrl, content: fetchRes.content, title: fetchRes.title })
-
     await new Imager(ctx.env).batchReplaceImage(uUrl, parseRes.contentDocument)
-
-    try {
-      await this.saveBookmark(messageId, bookmarkId, parseRes)
-      await Promise.allSettled(postHandlers.map(handler => handler({ parseRes: { title: parseRes.title, textContent: parseRes.textContent, byline: parseRes.byline || '' } })))
-    } catch (err) {
-      console.log(`parse ${messageId} failed: ${err}`)
-      throw err
-    } finally {
-      console.log(`parse ${message.targetUrl} done.`)
-    }
+    await this.saveBookmark(messageId, bookmarkId, parseRes)
+    await complete({ title: parseRes.title, textContent: parseRes.textContent, byline: parseRes.byline || '' })
   }
 
   public async parseTweet(env: Env, message: receiveThirdPartyMessage, tweetInfo: TweetInfo) {
@@ -255,6 +242,7 @@ export class UrlParserHandler {
       return { success: true, bookmarkId: message.info.bookmarkId }
     } catch (err) {
       console.error(`processParseMessage ${id} failed: ${err}`)
+      if ((await this.bookmarkService.getBookmarkById(info.bookmarkId))?.status === queueStatus.SUCCESS) throw err
       await this.bookmarkService.updateBookmarkStatus(info.bookmarkId, queueStatus.FAILED)
       return { success: false, bookmarkId: message.info.bookmarkId }
     }
@@ -276,6 +264,7 @@ export class UrlParserHandler {
 
       await this.parseUrl(ctx, id, info, callbacks)
     } catch (err) {
+      if ((await this.bookmarkService.getBookmarkById(info.bookmarkId))?.status === queueStatus.SUCCESS) throw err
       await this.bookmarkService.updateBookmarkStatus(info.bookmarkId, queueStatus.PENDING_RETRY)
       await this.bookmarkService.updateBookmarkParseQueueRetry(info.bookmarkId, [info.userId], {
         status: bookmarkFetchRetryStatus.PENDING,
@@ -323,6 +312,7 @@ export class UrlParserHandler {
       }
     } catch (err) {
       console.error(`process retry message ${id} failed: ${err}`)
+      if ((await this.bookmarkService.getBookmarkById(info.bookmarkId))?.status === queueStatus.SUCCESS) throw err
       await this.bookmarkService.updateBookmarkStatus(info.bookmarkId, queueStatus.FAILED)
       await this.bookmarkService.updateBookmarkParseQueueRetry(info.bookmarkId, info.retry.userIds || [], {
         status: bookmarkFetchRetryStatus.FAILED
@@ -330,8 +320,23 @@ export class UrlParserHandler {
     }
   }
 
-  // 处理回调
+  async processVectorMaintenance(ctx: ContextManager, info: { userId: number; bookmarkId: number }) {
+    await enqueueVectorMaintenance(ctx.env, { kind: 'article', userId: info.userId, id: info.bookmarkId })
+  }
+
   async processPostHandler(ctx: ContextManager, taskInfo: receiveQueueParseMessage | receiveThirdPartyMessage, parseRes: { title: string; textContent: string; byline?: string }) {
+    try {
+      await this.processContentPostProcessing(ctx, taskInfo, parseRes)
+    } finally {
+      await this.processVectorMaintenance(ctx, taskInfo.info)
+    }
+  }
+
+  async processContentPostProcessing(
+    ctx: ContextManager,
+    taskInfo: receiveQueueParseMessage | receiveThirdPartyMessage,
+    parseRes: { title: string; textContent: string; byline?: string }
+  ) {
     const userId = taskInfo.info.userId
     const bookmarkId = taskInfo.info.bookmarkId
     const hostname = taskInfo.info.targetTitle ? new URL(taskInfo.info.targetUrl).hostname || 'unknown' : 'unknown'
@@ -488,13 +493,12 @@ export class UrlParserHandler {
 
     // 处理回调；导入的书签保留导入时写入的保存时间，不再把 created_at 改成解析完成时间
     const callbacks = [telegramCallback(), searchCallback(), tagsAndOverviewCallback()]
-    if (!taskInfo.info.importTaskId) callbacks.push(updateUserBookmarkCreateAtCallback())
-    ctx.execution.waitUntil(Promise.allSettled(callbacks))
+    if (!taskInfo.info.importTaskId && !('skipParse' in taskInfo.info && taskInfo.info.skipParse)) callbacks.push(updateUserBookmarkCreateAtCallback())
+    await Promise.allSettled(callbacks)
   }
 
-  // 第三方 parse 失败时的统一处理：设 FAILED + 推飞书。
-  // 不抛错，让批处理的下一条继续。
   private async handleThirdPartyParseError(platform: string, m: receiveThirdPartyMessage, err: unknown) {
+    if ((await this.bookmarkSvc.getBookmarkById(m.info.bookmarkId))?.status === queueStatus.SUCCESS) throw err
     const errMsg = err instanceof Error ? err.message : String(err)
     console.error(`fetch ${platform} failed: ${errMsg}`)
     await this.bookmarkSvc.updateBookmarkStatus(m.info.bookmarkId, queueStatus.FAILED)
@@ -603,28 +607,17 @@ export class UrlParserHandler {
     console.log(`processThirdPartyMessages: ${messages.length}`)
     if (messages.length < 1) return
 
-    // 检查是否有已经解析过的内容
-    const res = await Promise.allSettled(
-      messages.map(async message => {
-        try {
-          const res = await this.bookmarkSvc.getBookmarkTitleAndTextContentTry(message.info.bookmarkId)
-          if (!res) return message.info.targetUrl
-
-          if (message.info.callback === callbackType.CALLBACK_TELEGRAM) {
-            const hashid = new Hashid(ctx.env, message.info.userId)
-            const encodeBmId = hashid.encodeId(message.info.bookmarkId)
-            await this.telegramBotSvc.callback(encodeBmId, message.info.callbackPayload)
-          }
-        } catch (err) {
-          console.log(`parse ${message.id} ${message.info.targetUrl} cache failed: ${err}`)
-          return message.info.targetUrl
-        }
-        return null
-      })
-    )
-
-    // 过滤出没解析过的内容
-    const unparsedMessages = messages.filter(m => res.some(r => r.status === 'fulfilled' && r.value === m.info.targetUrl))
+    const unparsedMessages: receiveThirdPartyMessage[] = []
+    for (const message of messages) {
+      const stored = await this.bookmarkSvc.getBookmarkById(message.info.bookmarkId)
+      if (stored?.status !== queueStatus.SUCCESS) {
+        unparsedMessages.push(message)
+        continue
+      }
+      const cached = await this.bookmarkSvc.getBookmarkTitleAndTextContentTry(message.info.bookmarkId)
+      if (cached) await this.processPostHandler(ctx, message, cached)
+      else await this.processVectorMaintenance(ctx, message.info)
+    }
 
     // 按平台分组（使用 platformDetector 统一路由）
     const twitterMsgs: receiveThirdPartyMessage[] = []

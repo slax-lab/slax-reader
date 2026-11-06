@@ -262,8 +262,8 @@ const closeModal = () => {
   position: fixed;
   inset: 0;
   background: color-mix(in srgb, var(--slax-text) 22%, transparent);
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   z-index: 1000;
   display: flex;
   align-items: center;

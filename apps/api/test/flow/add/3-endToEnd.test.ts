@@ -35,6 +35,24 @@ describe('content 空 → kickoffWorkflow without inlineContent', () => {
   })
 })
 
+describe('completed re-save → not a shortcut and no workflow', () => {
+  test('addByContent maps { kind: completed } to the bookmark id without workflow params', async () => {
+    const { orch, bs, cs } = wire()
+    bs.addBookmark.mockResolvedValue({ kind: 'completed', bookmark_id: 11 })
+    const result = await orch.addByContent(createMockCtx(), { target_url: 'https://a.com' } as any)
+    expect(result).toEqual({ bookmarkId: 11, isShortcut: false, workflowParams: null })
+    expect(cs.createWorkflow).not.toHaveBeenCalled()
+  })
+
+  test('addByUrl maps { kind: completed } to the bookmark id without workflow params', async () => {
+    const { orch, bs, cs } = wire()
+    bs.addUrlBookmark.mockResolvedValue({ kind: 'completed', bookmark_id: 12 })
+    const result = await orch.addByUrl(createMockCtx(), { target_url: 'https://a.com', target_title: '', tags: [] })
+    expect(result).toEqual({ bookmarkId: 12, isShortcut: false, workflowParams: null })
+    expect(cs.createWorkflow).not.toHaveBeenCalled()
+  })
+})
+
 describe('shortcut → 不触发 workflow', () => {
   test('isShortcut=true, workflowParams=null', async () => {
     const { orch, bs } = wire()

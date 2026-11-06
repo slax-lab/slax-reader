@@ -49,9 +49,15 @@ import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
 import { TelegramBotService } from '@/domain/telegram'
 import { ImportService } from '@/domain/import'
 import {
-  createMockEnv, createMockCrawlService, createMockBookmarkService,
-  createMockUrlParserHandler, createMockTelegramBotService, createMockImportService,
-  createMockStep, createMockWorkflowEvent, STANDARD_CRAWL_RESULT
+  createMockEnv,
+  createMockCrawlService,
+  createMockBookmarkService,
+  createMockUrlParserHandler,
+  createMockTelegramBotService,
+  createMockImportService,
+  createMockStep,
+  createMockWorkflowEvent,
+  STANDARD_CRAWL_RESULT
 } from '@test/helpers/mockFactory'
 
 function wireAndRun(eventOverrides: Record<string, unknown> = {}, crawlResultOverrides: Record<string, unknown> = {}) {
@@ -94,9 +100,7 @@ describe('软 404 检测', () => {
   test('textContent < 15 + 非社交媒体 → alert(soft_404)', async () => {
     const { run, cs } = wireAndRun({}, { textContent: 'Error' })
     await run()
-    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(
-      1, 'workflow_parse.soft_404', expect.objectContaining({ text_content_length: 5 })
-    )
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'workflow_parse.soft_404', expect.objectContaining({ text_content_length: 5 }))
   })
 
   test('textContent >= 15 → 不触发 soft 404', async () => {
@@ -180,9 +184,7 @@ describe('内容验证 Workflow 触发', () => {
 
     await run()
 
-    expect(env.CONTENT_VALIDATION_WORKFLOW.create).toHaveBeenCalledWith(
-      expect.objectContaining({ params: expect.objectContaining({ qualityReview }) })
-    )
+    expect(env.CONTENT_VALIDATION_WORKFLOW.create).toHaveBeenCalledWith(expect.objectContaining({ params: expect.objectContaining({ qualityReview }) }))
   })
 
   test('soft 404 → 不触发', async () => {
@@ -201,38 +203,36 @@ describe('内容验证 Workflow 触发', () => {
     const { run, env, cs, uph } = wireAndRun()
     env.CONTENT_VALIDATION_WORKFLOW.create.mockRejectedValue(new Error('create fail'))
     await run()
-    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(
-      1, 'post_processing.content_validation', expect.objectContaining({ error: 'create fail' })
-    )
-    expect(uph.processPostHandler).toHaveBeenCalled()
+    expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(1, 'post_processing.content_validation', expect.objectContaining({ error: 'create fail' }))
+    expect(uph.processContentPostProcessing).toHaveBeenCalled()
   })
 })
 
 describe('ignoreGenerateTag 逻辑', () => {
-  test('用户设 false + soft404 → processPostHandler 收到 true', async () => {
+  test('用户设 false + soft404 → processContentPostProcessing 收到 true', async () => {
     const { run, uph } = wireAndRun({ ignoreGenerateTag: false }, { textContent: 'Tiny' })
     await run()
-    expect(uph.processPostHandler).toHaveBeenCalledWith(
+    expect(uph.processContentPostProcessing).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ info: expect.objectContaining({ ignoreGenerateTag: true }) }),
       expect.anything()
     )
   })
 
-  test('用户设 true + 无 soft404 → processPostHandler 收到 true', async () => {
+  test('用户设 true + 无 soft404 → processContentPostProcessing 收到 true', async () => {
     const { run, uph } = wireAndRun({ ignoreGenerateTag: true })
     await run()
-    expect(uph.processPostHandler).toHaveBeenCalledWith(
+    expect(uph.processContentPostProcessing).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ info: expect.objectContaining({ ignoreGenerateTag: true }) }),
       expect.anything()
     )
   })
 
-  test('用户设 false + 无 soft404 → processPostHandler 收到 false', async () => {
+  test('用户设 false + 无 soft404 → processContentPostProcessing 收到 false', async () => {
     const { run, uph } = wireAndRun({ ignoreGenerateTag: false })
     await run()
-    expect(uph.processPostHandler).toHaveBeenCalledWith(
+    expect(uph.processContentPostProcessing).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ info: expect.objectContaining({ ignoreGenerateTag: false }) }),
       expect.anything()

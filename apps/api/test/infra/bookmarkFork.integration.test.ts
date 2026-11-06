@@ -89,16 +89,36 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
       'pending'
     )
     expect(admitted!.admitted).toBe(true)
-    expect(await repo.claimWrite(raw.id, admitted!.updated_at!, ['pending'], true)).toBe(true)
+    expect(admitted!.id).toBe(raw.id)
+    expect(admitted!.status).toBe('success')
+    expect(admitted!.updated_at!.getTime()).toBe(raw.updated_at.getTime())
+    const activeRevision = new Date(Math.max(Date.now(), raw.updated_at.getTime() + 1))
+    await client.sr_bookmark.update({ where: { id: raw.id }, data: { status: 'pending', updated_at: activeRevision } })
+    expect(await repo.claimWrite(raw.id, activeRevision, ['pending'], true)).toBe(true)
     expect(await bookmarks.updateBookmarkModerationResult(raw.id, 1, { revision: raw.updated_at, userId: users[1] })).toBe(false)
-    expect(await repo.snapshot(raw.id)).toMatchObject({ status: 'parseing', moderation_result: 0, updated_at: admitted!.updated_at })
+    expect(await repo.snapshot(raw.id)).toMatchObject({ status: 'parseing', moderation_result: 0, updated_at: activeRevision })
     expect(await client.sr_bookmark_share.findUnique({ where: { bookmark_id_user_id: { bookmark_id: raw.id, user_id: users[1] } } })).toBeNull()
     if (outcome === 'publish') {
-      expect(await repo.publishRevision(raw.id, raw.content_key, input().content, { expectedUpdatedAt: admitted!.updated_at })).toBe(true)
+      expect(await repo.publishRevision(raw.id, raw.content_key, input().content, { expectedUpdatedAt: activeRevision })).toBe(true)
     } else {
-      expect(await repo.failWrite(raw.id, admitted!.updated_at!)).toBe(true)
+      expect(await repo.failWrite(raw.id, activeRevision)).toBe(true)
     }
     expect((await repo.snapshot(raw.id))!.status).toBe(outcome === 'publish' ? 'success' : 'failed')
+  })
+
+  it('reuses the same successful row and revision for an existing-content re-save', async () => {
+    const destination = await publish(input(`https://resave-success.test/${crypto.randomUUID()}`))
+    const raw = destination.relation.bookmark
+    const bookmarks = new BookmarkRepo({} as any, () => client)
+    const before = (await repo.snapshot(raw.id))!
+    const admitted = await bookmarks.createBookmark(
+      { title: 'B', host_url: '', target_url: raw.target_url, content_icon: '', content_cover: '', private_user: users[1] },
+      'pending'
+    )
+    expect(admitted).toMatchObject({ admitted: true, id: raw.id, status: 'success' })
+    expect(admitted!.updated_at!.getTime()).toBe(before.updated_at.getTime())
+    expect(await repo.snapshot(raw.id)).toMatchObject({ status: 'success', updated_at: before.updated_at, content_key: before.content_key })
+    expect(await client.sr_bookmark.count({ where: { target_url: raw.target_url, private_user: users[1] } })).toBe(1)
   })
 
   it.each(['pending', 'pending_retry', 'parseing'])('global podcast moderation preserves the active %s revision and finite failure path', async status => {
@@ -126,10 +146,13 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
         'pending'
       )
       expect(admitted!.admitted).toBe(true)
-      if (status === 'pending_retry') await client.sr_bookmark.update({ where: { id: raw.id }, data: { status, updated_at: admitted!.updated_at } })
-      if (status === 'parseing') expect(await repo.claimWrite(raw.id, admitted!.updated_at!, ['pending'], true)).toBe(true)
+      expect(admitted!.id).toBe(raw.id)
+      const activeRevision = new Date(Math.max(Date.now(), raw.updated_at.getTime() + 1))
+      const seededStatus = status === 'pending_retry' ? 'pending_retry' : 'pending'
+      await client.sr_bookmark.update({ where: { id: raw.id }, data: { status: seededStatus, updated_at: activeRevision } })
+      if (status === 'parseing') expect(await repo.claimWrite(raw.id, activeRevision, ['pending'], true)).toBe(true)
       expect(await podcasts.flagBookmarks(sourceId, 1)).toBe(2)
-      expect(await repo.snapshot(raw.id)).toMatchObject({ status, moderation_result: 1, updated_at: admitted!.updated_at })
+      expect(await repo.snapshot(raw.id)).toMatchObject({ status, moderation_result: 1, updated_at: activeRevision })
       expect(await repo.mediaDenied(mediaRef)).toBe(true)
       for (const saved of [destination, idle]) {
         expect(await client.sr_bookmark_share.findUnique({ where: { bookmark_id_user_id: { bookmark_id: saved.relation.bookmark_id, user_id: users[1] } } })).toMatchObject({
@@ -139,11 +162,11 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
       // Completed copies invalidate old moderation results, while active captures keep their claim.
       expect((await repo.snapshot(idle.relation.bookmark_id))!.updated_at.getTime()).toBeGreaterThan(idle.relation.bookmark.updated_at.getTime())
       expect(await bookmarks.updateBookmarkModerationResult(idle.relation.bookmark_id, 0, { revision: idle.relation.bookmark.updated_at, userId: users[1] })).toBe(false)
-      if (status !== 'parseing') expect(await repo.claimWrite(raw.id, admitted!.updated_at!, [status], true)).toBe(true)
-      expect(await repo.publishRevision(raw.id, raw.content_key, input().content, { expectedUpdatedAt: admitted!.updated_at })).toBe(false)
-      await expect(repo.publishRevision(raw.id, raw.content_key, input().content, { expectedUpdatedAt: admitted!.updated_at, mediaRef })).rejects.toThrow()
+      if (status !== 'parseing') expect(await repo.claimWrite(raw.id, activeRevision, [status], true)).toBe(true)
+      expect(await repo.publishRevision(raw.id, raw.content_key, input().content, { expectedUpdatedAt: activeRevision })).toBe(false)
+      await expect(repo.publishRevision(raw.id, raw.content_key, input().content, { expectedUpdatedAt: activeRevision, mediaRef })).rejects.toThrow()
       const crawl = Object.assign(Object.create(CrawlService.prototype), { snapshotRepo: repo }) as CrawlService
-      expect(await crawl.setCaptureStatus({ get: () => admitted!.updated_at!.toISOString() } as any, raw.id, queueStatus.FAILED)).toBe(true)
+      expect(await crawl.setCaptureStatus({ get: () => activeRevision.toISOString() } as any, raw.id, queueStatus.FAILED)).toBe(true)
       expect(await repo.snapshot(raw.id)).toMatchObject({ status: 'failed', moderation_result: 1 })
     } finally {
       await client.sr_podcast_episode.delete({ where: { source_id: sourceId } })
@@ -398,10 +421,12 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
       await memory.bucket.put(content_key, 'owned')
     }
     await memory.bucket.put('html/body/other-one.html', 'keep')
+    const { VectorMaintenanceRepo } = await import('@/infra/repository/dbVectorMaintenance')
     const deletion = new UserDeletionService(
       () => client,
       {} as any,
-      () => ({ R2Bucket: memory.bucket }) as any
+      () => ({ R2Bucket: memory.bucket }) as any,
+      new VectorMaintenanceRepo(() => client)
     )
     await deletion.cleanupUserData(user.id)
     expect([...memory.objects.keys()]).toEqual(['html/body/other-one.html'])
@@ -427,7 +452,8 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
               throw new Error('R2 unavailable')
             }
           }
-        }) as any
+        }) as any,
+      new VectorMaintenanceRepo(() => client)
     )
     await expect(failedR2.cleanupUserData(user.id)).resolves.toBeUndefined()
     expect(await client.sr_bookmark.count({ where: { private_user: user.id } })).toBe(0)

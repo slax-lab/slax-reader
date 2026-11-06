@@ -6,11 +6,18 @@
 </template>
 
 <script lang="ts" setup>
+import type { AcquisitionAuthAttribution } from '@slax-reader/contracts/events'
+import type { PropType } from 'vue'
+
 const t = (text: string) => {
   return useNuxtApp().$i18n.t(text)
 }
 
 const props = defineProps({
+  authAttribution: {
+    type: Object as PropType<AcquisitionAuthAttribution>,
+    required: false
+  },
   redirect: {
     type: String,
     require: false,
@@ -37,7 +44,11 @@ const loginClick = async () => {
 }
 
 const login = async (params?: { redirect?: string; affcode?: string }) => {
-  await auth.requestAppleAuth({ redirect: params?.redirect || props.redirect, affCode: params?.affcode || (props.affcode as string) || '' })
+  await auth.requestAppleAuth({
+    redirect: params?.redirect || props.redirect,
+    affCode: params?.affcode || (props.affcode as string) || '',
+    ...(props.authAttribution ? { authAttribution: props.authAttribution } : {})
+  })
 }
 
 defineExpose({

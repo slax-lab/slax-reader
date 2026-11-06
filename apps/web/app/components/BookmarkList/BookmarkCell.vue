@@ -56,9 +56,10 @@
         <div v-if="showTags" class="article-tags" @click.stop>
           <BookmarkTags
             compact
-            :bookmark-id="lf ? 0 : bookmark.id"
+            :bookmark-id="dataSource === 'local' ? 0 : bookmark.id"
             :bookmark-uid="bookmark.bookmark_user_uuid || ''"
-            :bookmark-uuid="lf ? lfKey() : ''"
+            :bookmark-uuid="dataSource === 'local' ? lfKey() : ''"
+            :data-source="dataSource"
             :tags="bookmark.tags ?? []"
             :readonly="false"
             :variant="textMode ? 'list-text' : 'list-card'"
@@ -128,13 +129,13 @@ import { inject } from 'vue'
 
 import BookmarkTags from '~/components/BookmarkTags.vue'
 
-import { urlHttpString } from '@commons/frontend-utils/string'
 import { getBookmarkSourceDomain } from '~/utils/bookmarkSource'
 import { truncateTitle } from '~/utils/string'
 
+import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
+import { urlHttpString } from '@commons/frontend-utils/string'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { type EmptyBookmarkResp } from '@slax-reader/contracts/interface'
-import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
 import { vOnClickOutside, vOnKeyStroke } from '@vueuse/components'
 import Toast, { ToastType } from '~/components/Toast'
 import { useBookmarkCellNavigation } from '~/composables/bookmark/useBookmarkCellNavigation'
@@ -153,6 +154,10 @@ const props = defineProps({
   isSubscribe: {
     type: Boolean,
     required: true
+  },
+  dataSource: {
+    type: String as PropType<'local' | 'rest'>,
+    default: 'rest'
   },
   collectionCode: {
     type: String,

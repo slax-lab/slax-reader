@@ -41,26 +41,25 @@ export class VectorizeRepo {
     const topK = 30
     const idBatches = VectorizeRepo.chunkIdsByFilterSize(userBookmarkIds)
 
-    const settled = await Promise.allSettled(
-      idBatches.map(batch =>
-        vectorize.query(searchContent, {
-          topK,
-          filter: { bookmark_id: { $in: batch } } as unknown as VectorizeVectorMetadataFilter
-        })
+    let matches: VectorizeMatches['matches'] = []
+    for (let offset = 0; offset < idBatches.length; offset += 4) {
+      const settled = await Promise.allSettled(
+        idBatches.slice(offset, offset + 4).map(batch =>
+          vectorize.query(searchContent, {
+            topK,
+            returnValues: false,
+            returnMetadata: 'none',
+            filter: { bookmark_id: { $in: batch } } as unknown as VectorizeVectorMetadataFilter
+          })
+        )
       )
-    )
-
-    const rejected = settled.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-    if (rejected.length > 0) {
-      const reasons = rejected.map(r => (r.reason instanceof Error ? r.reason.message : String(r.reason))).join(' | ')
-      console.error(`seachVector shard ${shardIdx}: ${rejected.length}/${idBatches.length} 批查询失败: ${reasons}`)
+      for (const result of settled) {
+        if (result.status === 'rejected') console.error(`seachVector shard ${shardIdx}: query batch failed`)
+        else matches.push(...(result.value?.matches ?? []).map(hit => ({ id: hit.id, score: hit.score })))
+      }
+      matches.sort((a, b) => b.score - a.score)
+      matches = matches.slice(0, topK)
     }
-
-    const matches = settled
-      .filter((r): r is PromiseFulfilledResult<VectorizeMatches> => r.status === 'fulfilled' && !!r.value)
-      .flatMap(r => r.value.matches ?? [])
-      .sort((a, b) => b.score - a.score)
-      .slice(0, topK)
 
     console.log(`seachVector time: ${performance.now() - t1}ms, shard: ${shardIdx}, batches: ${idBatches.length}, matches: ${matches.length}`)
     return { count: matches.length, matches }

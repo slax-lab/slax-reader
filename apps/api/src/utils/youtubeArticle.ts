@@ -12,7 +12,7 @@ export type YoutubeArticleLanguage = (typeof YOUTUBE_ARTICLE_LANGUAGES)[number]
 
 const LANGUAGE_NAMES: Record<YoutubeArticleLanguage, string> = { en: 'English', zh: 'Simplified Chinese' }
 
-export const YOUTUBE_ARTICLE_MODEL = 'gemini-3-flash-preview'
+export { DEEPSEEK_ARTICLE_MODEL as YOUTUBE_ARTICLE_MODEL } from '@/infra/external/deepseekClient'
 
 /** Hard limits of one video. All first-version values, calibrated in P3. */
 export const YOUTUBE_ARTICLE_LIMITS = {
@@ -23,8 +23,7 @@ export const YOUTUBE_ARTICLE_LIMITS = {
   maxChunks: 40,
   maxOutputTokens: 16_000,
   // Must cover the most expensive plan the other limits allow: 40 chunks of
-  // chunkTargetTokens each cost about $0.95 at the list price. $0.30 silently
-  // turned every video longer than about 1.5 hours into a "too_long" skip.
+  // chunkTargetTokens must fit before attempting model calls.
   maxCostUsd: 1,
   // Hard cap per version across every explicit retry: each retry restarts the $1 run budget
   maxLifetimeCostUsd: 2,
@@ -34,11 +33,11 @@ export const YOUTUBE_ARTICLE_LIMITS = {
 } as const
 
 /**
- * Gemini 3 Flash preview list price per million tokens (USD), thinking tokens billed as output.
- * debt: hardcoded list price; the cost caps are only as good as this number. Move it to config
- * when a second model is used, and re-check it against the Vertex price page on every model change.
+ * DeepSeek Flash peak, uncached USD rates per million tokens, verified 2026-11-06.
+ * https://api-docs.deepseek.com/quick_start/pricing/
+ * Accounting is a conservative estimate: cache hits and off-peak discounts can lower the bill.
  */
-export const YOUTUBE_ARTICLE_PRICE_PER_MTOK = { input: 0.5, output: 3.0 } as const
+export const YOUTUBE_ARTICLE_PRICE_PER_MTOK = { input: 0.3, output: 1.2 } as const
 
 /** Same rule as the summaries: ai_lang, else the first two letters of lang, else English; then limited to en/zh. */
 export function youtubeArticleLanguage(aiLang?: string | null, lang?: string | null): YoutubeArticleLanguage {
@@ -164,7 +163,7 @@ export interface YoutubeArticlePlan {
 
 export type YoutubeArticlePlanResult = { ok: true; plan: YoutubeArticlePlan } | { ok: false; reason: 'too_long' | 'caption_missing' }
 
-const SPEAKER_RE = /^\s*(?:>>|\[[^\]]{1,40}\]\s*:|[A-Z][\w.' -]{0,30}:\s)/
+export const SPEAKER_RE = /^\s*(?:(?:>>\s*)?(?:\[([^\]]{1,40})\]\s*:|([A-Z][\w.' -]{0,30}):\s)|>>)/
 
 /** Dialogue when more than 20% of cues carry a speaker mark (">>", "[Name]:" or "Name: "). */
 export function detectArticleFormat(cues: YoutubeCaptionCue[]): 'article' | 'dialogue' {

@@ -19,8 +19,8 @@
 
       <!-- 登录按钮 -->
       <div v-if="showLoginBtn" class="auth-btns">
-        <GoogleLoginButton ref="googleLoginBtn" :redirect="redirect" :affcode="affcode" />
-        <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" :affcode="affcode" />
+        <GoogleLoginButton ref="googleLoginBtn" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" />
+        <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" />
       </div>
 
       <!-- 服务条款 -->
@@ -38,7 +38,14 @@
 import AppleLoginButton from '~/components/AppleLoginButton.vue'
 import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
 
+import type { AcquisitionAuthAttribution } from '@slax-reader/contracts/events'
+import type { PropType } from 'vue'
+
 const props = defineProps({
+  authAttribution: {
+    type: Object as PropType<AcquisitionAuthAttribution>,
+    required: false
+  },
   redirect: {
     type: String,
     default: ''

@@ -26,7 +26,7 @@ import {
   speakerDisplay,
   type PodcastPlayerInfo
 } from '@/utils/podcastArticle'
-import { youtubeArticleLanguage, type YoutubeArticleDocument } from '@/utils/youtubeArticle'
+import { escapeHtml, youtubeArticleLanguage, type YoutubeArticleDocument } from '@/utils/youtubeArticle'
 import type { PodcastTrigger, PodcastWorkflowParams } from '@/domain/podcastRunner'
 import { BookmarkNotFoundError, ErrorParam } from '@/const/err'
 
@@ -157,17 +157,25 @@ export class PodcastService {
       can_retry: false
     }
     if (access.flagged) return unavailable
-    const loaded = await this.snapshots.load(access.bookmarkId)
+    let loaded = await this.snapshots.load(access.bookmarkId)
     let snapshot = loaded?.media
     if (snapshot?.kind === 'podcast') {
       if (!(await this.snapshots.readable(snapshot))) return unavailable
       if (access.isOwner) {
+        let published = false
         try {
-          if (await this.snapshots.settle(ctx, access.bookmarkId, loaded)) snapshot = (await this.snapshots.load(access.bookmarkId))!.media!
+          published = await this.snapshots.settle(ctx, access.bookmarkId, loaded)
         } catch (error) {
           console.error('Private media status catch-up failed', error)
         }
-      }
+        loaded = await this.snapshots.load(access.bookmarkId)
+        if (loaded?.raw.status !== 'success' || loaded.media?.kind !== 'podcast' || !(await this.snapshots.readable(loaded.media))) return unavailable
+        snapshot = loaded.media
+        if (published && snapshot.mode === 'capture')
+          ctx.execution.waitUntil(
+            this.snapshots.processVectorMaintenance(ctx, access.bookmarkId, snapshot).catch(error => console.error('Media status vector maintenance failed', error))
+          )
+      } else if (loaded?.raw.status !== 'success') return unavailable
       const wanted = await this.languageOf(ctx.getUserId() || access.ownerId)
       const enabled = await this.labService.isEnabled(access.ownerId, PODCAST_LAB)
       const result = this.privateStatus(snapshot, wanted, access, enabled)
@@ -200,7 +208,7 @@ export class PodcastService {
     const rows = await this.articles.listForSource(ep.source_id, ep.transcript_hash)
     const original = rows.find(r => r.target_language === lang)
     res.article = (original?.status as PodcastArticleApiStatus) ?? 'pending'
-    res.body_ready = original?.status === 'ready'
+    res.body_ready = original?.status === 'ready' && (await this.bodies.readBody(access.bookmarkId, true))?.includes(this.bodyMarker(original)) === true
     if (original && (original.status === 'failed' || original.status === 'skipped')) res.reason = (original.error_message ?? '').split(':')[0] || null
     if (original?.status === 'failed' && access.isOwner && !isFinalError(original.error_message)) res.can_retry = true
     // Same visitor rule for the article stage: a running article is shown as running, a failed or
@@ -221,6 +229,21 @@ export class PodcastService {
       }
     }
     if (!access.isOwner) res.can_retry = false
+    else if (original?.status === 'ready') {
+      try {
+        const written = await this.publishBodyFor(ctx, access.bookmarkId, access.ownerId, ep, original)
+        res.body_ready = written || (await this.bodies.readBody(access.bookmarkId, true))?.includes(this.bodyMarker(original)) === true
+        if (written)
+          ctx.execution.waitUntil(
+            this.snapshots
+              .processVectorMaintenance(ctx, access.bookmarkId, { kind: 'podcast', sourceId: ep.source_id, sourceHash: ep.transcript_hash })
+              .catch(error => console.error('Media status vector maintenance failed', error))
+          )
+      } catch (error) {
+        res.body_ready = false
+        console.error('Podcast body status catch-up failed', error)
+      }
+    }
     return res
   }
 
@@ -264,9 +287,10 @@ export class PodcastService {
     if (!version) throw ErrorParam()
     const access = await this.resolveAccess(ctx, bookmarkUid)
     if (access.flagged) throw BookmarkNotFoundError()
-    const snapshot = (await this.snapshots.load(access.bookmarkId))?.media
+    const loaded = await this.snapshots.load(access.bookmarkId)
+    const snapshot = loaded?.media
     if (snapshot?.kind === 'podcast') {
-      if (!(await this.snapshots.readable(snapshot))) throw BookmarkNotFoundError()
+      if (loaded?.raw.status !== 'success' || !(await this.snapshots.readable(snapshot))) throw BookmarkNotFoundError()
       const language = (['en', 'zh'] as const).find(
         lang => lang !== snapshot.player?.language && privateMediaVersion(snapshot, lang) === version && snapshot.variants[lang]?.status === 'ready'
       )
@@ -317,7 +341,9 @@ export class PodcastService {
     if (!(await this.labService.isEnabled(access.ownerId, PODCAST_LAB))) throw this.labService.disabledError(PODCAST_LAB)
     const ep = await this.findEpisodeFor(access.bookmarkId)
     if (!ep) throw BookmarkNotFoundError()
-    await this.snapshots.settleSource(ctx, 'podcast', ep.source_id)
+    const settled = await this.snapshots.settleSource(ctx, 'podcast', ep.source_id)
+    if (settled || ['ready', 'failed', 'skipped'].includes(ep.transcript_status))
+      await this.snapshots.processSourceVectorMaintenance(ctx, 'podcast', ep.source_id, ep.transcript_hash ?? '')
     let requestedLanguage = await this.languageOf(access.ownerId)
     const snapshot = (await this.snapshots.load(access.bookmarkId))?.media
     const changedInput =
@@ -376,12 +402,28 @@ export class PodcastService {
   /**
    * After a podcast save passed moderation. A new episode counts against the daily limit and starts
    * transcription; an episode that is already done gets its article copied into this bookmark at once,
-   * and a missing translation for this reader is queued. Never throws: the bookmark is already saved.
+   * and a missing translation for this reader is queued. Vector admission failures propagate.
    */
   public async triggerAfterCrawl(ctx: ContextManager, bookmarkId: number, userId: number): Promise<void> {
+    let vectorSource: Pick<MediaSnapshot, 'kind' | 'sourceId' | 'sourceHash'> | undefined
     try {
-      const snapshot = (await this.snapshots.load(bookmarkId))?.media
-      if (snapshot && (snapshot.mode === 'fork' || (snapshot.transcript !== 'pending' && !Object.values(snapshot.variants).some(variant => variant.status === 'pending')))) return
+      let loaded = await this.snapshots.load(bookmarkId)
+      let snapshot = loaded?.media
+      if (snapshot?.mode === 'fork') return
+      if (snapshot && loaded?.raw.status === 'failed') {
+        if (!(await this.snapshots.settle(ctx, bookmarkId, loaded))) return
+        loaded = await this.snapshots.load(bookmarkId)
+        if (loaded?.raw.status !== 'success' || !loaded.media) return
+        snapshot = loaded.media
+      }
+      if (snapshot) {
+        if (
+          ['ready', 'failed', 'skipped'].includes(snapshot.transcript) ||
+          Object.values(snapshot.variants).some(variant => ['ready', 'failed', 'skipped'].includes(variant.status))
+        )
+          vectorSource = snapshot
+        if (snapshot.transcript !== 'pending' && !Object.values(snapshot.variants).some(variant => variant.status === 'pending')) return
+      }
       if (!(await this.labService.isEnabled(userId, PODCAST_LAB))) return
       const ep = await this.findEpisodeFor(bookmarkId)
       if (!ep) return
@@ -399,16 +441,30 @@ export class PodcastService {
         console.log(`Podcast trigger after crawl: bookmark=${bookmarkId} episode=${ep.id} result=${result}`)
         return
       }
+      if (ep.transcript_status === 'failed' || ep.transcript_status === 'skipped') {
+        await this.snapshots.settle(ctx, bookmarkId)
+        vectorSource = { kind: 'podcast', sourceId: ep.source_id, sourceHash: ep.transcript_hash ?? '' }
+        return
+      }
       const lang = podcastLanguage(ep.language)
       if (ep.transcript_status !== 'ready' || !lang) return
       const original = await this.ensureArticleRow(ep, lang)
-      if (original.status === 'ready') await this.publishBodyFor(ctx, bookmarkId, userId, ep, original)
+      const written = original.status === 'ready' && (await this.publishBodyFor(ctx, bookmarkId, userId, ep, original))
+      if (original.status === 'ready' && (written || (await this.bodies.readBody(bookmarkId, true))?.includes(this.bodyMarker(original))))
+        vectorSource = { kind: 'podcast', sourceId: original.source_id, sourceHash: original.source_hash }
+      if (original.status === 'failed' || original.status === 'skipped') {
+        await this.snapshots.settle(ctx, bookmarkId)
+        vectorSource = { kind: 'podcast', sourceId: original.source_id, sourceHash: original.source_hash }
+        return
+      }
       let needed = original.status === 'pending'
       const wanted = await this.languageOf(userId)
       if (wanted !== lang) needed = (await this.ensureArticleRow(ep, wanted)).status === 'pending' || needed
       if (needed) console.log(`Podcast trigger after crawl: bookmark=${bookmarkId} episode=${ep.id} result=${await this.start(ctx, ep, 'crawl')}`)
     } catch (err) {
       console.error(`Podcast trigger after crawl failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      if (vectorSource) await this.snapshots.processVectorMaintenance(ctx, bookmarkId, vectorSource)
     }
   }
 
@@ -457,9 +513,17 @@ export class PodcastService {
     let count = settled
     for (const ref of await this.articles.listEpisodeRefs(sourceId)) {
       try {
-        if ((loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : await this.snapshots.load(ref.bookmark_id))?.managed) continue
+        const current = loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : await this.snapshots.load(ref.bookmark_id)
+        if (!current || current.managed || !['success', 'failed'].includes(current.raw.status)) continue
         if (ref.source_hash !== ep.transcript_hash) continue
-        if (await this.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+        if ((await this.bodies.readBody(ref.bookmark_id, true))?.includes(this.bodyMarker(row))) continue
+        if (
+          await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered, {
+            mediaRef: { media_kind: 'podcast', source_id: row.source_id, source_hash: row.source_hash },
+            expectedUpdatedAt: current.raw.updated_at
+          })
+        )
+          count++
       } catch (error) {
         failures.push(error)
         console.error(`Podcast publication failed for bookmark ${ref.bookmark_id}`)
@@ -490,8 +554,19 @@ export class PodcastService {
   private async publishBodyFor(ctx: ContextManager, bookmarkId: number, userId: number, ep: podcastEpisodePO, row: mediaArticlePO): Promise<boolean> {
     const loaded = await this.snapshots.load(bookmarkId)
     if (loaded?.managed) return this.snapshots.settle(ctx, bookmarkId, loaded)
+    if (!loaded || !['success', 'failed'].includes(loaded.raw.status)) return false
+    if ((await this.bodies.readBody(bookmarkId, true))?.includes(this.bodyMarker(row))) return false
     const rendered = await this.renderBody(ep, row)
-    return rendered ? this.writeBody(ctx, bookmarkId, userId, rendered) : false
+    return rendered
+      ? this.bodies.writeBody(ctx, bookmarkId, userId, rendered, {
+          mediaRef: { media_kind: 'podcast', source_id: row.source_id, source_hash: row.source_hash },
+          expectedUpdatedAt: loaded.raw.updated_at
+        })
+      : false
+  }
+
+  private bodyMarker(row: mediaArticlePO): string {
+    return `data-slax-derived="podcast-article" data-article-version="${escapeHtml(this.versionOf(row))}"`
   }
 
   private async renderBody(ep: podcastEpisodePO, row: mediaArticlePO): Promise<{ html: string; text: string } | null> {
@@ -503,11 +578,6 @@ export class PodcastService {
     const transcript = JSON.parse(await transcriptObj.text()) as PodcastTranscriptDocument
     const info = playerInfo(ep)
     return { html: renderPodcastBody({ info, article: { doc, version: this.versionOf(row), cues: transcript.cues } }), text: renderPodcastText({ info, doc }) }
-  }
-
-  /** The cached AI overview was made from the show notes: writeBody deletes it, so it is made again from the article. */
-  private async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }): Promise<boolean> {
-    return this.bodies.writeBody(ctx, bookmarkId, userId, body)
   }
 
   /** Transcript moderation hit: every bookmark of the episode is flagged and loses its share, like a crawl hit. */

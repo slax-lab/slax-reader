@@ -5,12 +5,13 @@ import { initializeInfrastructure, initializeCore } from '@/di/generated/depende
 import { ContextManager } from '@/utils/context'
 import { Hashid } from '@/utils/hashids'
 import { PodcastArticleRepo, PodcastEpisodeRepo } from '@/infra/repository/dbPodcastArticle'
-import { VertexAIClient } from '@/infra/external/vertexAIClient'
+import { DeepSeekClient } from '@/infra/external/deepseekClient'
 import { AssemblyAIClient } from '@/infra/external/assemblyAI'
 import { OpenAIModerationClient } from '@/infra/external/openaiModeration'
 import { fetchPublicText } from '@/infra/external/podcastFetch'
 import { moderationSlices } from '@/utils/podcastTranscript'
 import { PodcastService } from '@/domain/podcast'
+import { MediaSnapshotService } from '@/domain/mediaSnapshot'
 import { runPodcastEpisode, PodcastStop, type PodcastStepLike, type PodcastWorkflowParams } from '@/domain/podcastRunner'
 
 /**
@@ -43,12 +44,12 @@ export class PodcastWorkflow extends WorkflowEntrypoint<Env, PodcastWorkflowPara
       sleep: (name, ms) => step.sleep(name, ms)
     }
 
-    await runPodcastEpisode(
+    return await runPodcastEpisode(
       {
         episodes: currentContainer.resolve(PodcastEpisodeRepo),
         articles: currentContainer.resolve(PodcastArticleRepo),
         bucket: this.env.OSS,
-        model: new VertexAIClient(this.env),
+        model: new DeepSeekClient(this.env),
         asr: new AssemblyAIClient(this.env.ASSEMBLYAI_API_KEY),
         fetchTranscript: url => fetchPublicText(url, { maxBytes: 5 * 1024 * 1024 }),
         moderate: async (title, text) => {
@@ -63,6 +64,8 @@ export class PodcastWorkflow extends WorkflowEntrypoint<Env, PodcastWorkflowPara
         publishBodies: sourceId => service.publishBodies(ctxManager, sourceId),
         setRefsHash: (sourceId, hash) => service.setRefsHash(sourceId, hash),
         settleSnapshots: sourceId => service.settleSnapshots(ctxManager, sourceId),
+        processVectorMaintenance: (sourceId, sourceHash) =>
+          currentContainer.resolve(MediaSnapshotService).processSourceVectorMaintenance(ctxManager, 'podcast', sourceId, sourceHash),
         translationTargets: (sourceId, original) => service.translationTargets(sourceId, original),
         // One retry: a missed amount lets the site-wide budget gate under-count
         addCost: usd => service.addCost(usd).catch(() => service.addCost(usd))

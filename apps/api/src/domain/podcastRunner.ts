@@ -1,4 +1,4 @@
-import { AIProviderError, toProviderFailure, type VertexAIConfig } from '@/infra/external/vertexAIClient'
+import { DeepSeekError } from '@/infra/external/deepseekClient'
 import type { AssemblyJobState } from '@/infra/external/assemblyAI'
 import type { PodcastArticleRepo, PodcastEpisodeRepo, podcastEpisodePO } from '@/infra/repository/dbPodcastArticle'
 import type { ArticleModel, StepLike } from '@/domain/youtubeArticleRunner'
@@ -91,6 +91,7 @@ export interface PodcastRunnerDeps {
   /** Write the ready article into the body of every bookmark of the episode. Returns the count. */
   publishBodies(sourceId: string): Promise<number>
   settleSnapshots(sourceId: string): Promise<number>
+  processVectorMaintenance(sourceId: string, sourceHash: string): Promise<void>
   setRefsHash(sourceId: string, sourceHash: string): Promise<number>
   /** Article languages the episode's readers need besides the original. */
   translationTargets(sourceId: string, original: PodcastLanguage): Promise<PodcastLanguage[]>
@@ -192,7 +193,7 @@ export async function runPodcastEpisode(deps: PodcastRunnerDeps, p: PodcastWorkf
     if (!row) return { kind: 'gone' as const }
     if (row.transcript_status === 'ready') return { kind: 'ready' as const }
     if (row.transcript_status !== 'pending' && !(row.transcript_status === 'transcribing' && row.run_id === runId)) return { kind: 'busy' as const }
-    return (await deps.episodes.claim(row.id, runId, PODCAST_LIMITS.leaseMs)) ? { kind: 'claimed' as const } : { kind: 'busy' as const }
+    return (await deps.episodes.claim(row.id, runId, PODCAST_LIMITS.leaseMs)) ? { kind: 'claimed' as const, hash: row.transcript_hash ?? '' } : { kind: 'busy' as const }
   })
   if (start.kind === 'gone') return 'gone'
   if (start.kind === 'busy') {
@@ -201,7 +202,11 @@ export async function runPodcastEpisode(deps: PodcastRunnerDeps, p: PodcastWorkf
   }
   if (start.kind === 'claimed') {
     const transcribed = await transcribe(deps, p, step, runId)
-    if (transcribed !== 'ready') return transcribed
+    if (transcribed !== 'ready') {
+      if (transcribed === 'failed' || transcribed === 'skipped')
+        await step.do('episode-vector-maintenance', PUBLISH_STEP, () => deps.processVectorMaintenance(p.sourceId, start.hash))
+      return transcribed
+    }
   }
   return writeArticles(deps, p, step, runId)
 }
@@ -256,7 +261,7 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
       if (row.cost_usd + expected > PODCAST_LIMITS.maxEpisodeCostUsd) return { kind: 'skip' as const, reason: 'budget_exceeded' }
       return { kind: 'ok' as const, ref: choice?.ref.url ?? null, format: choice?.format ?? null, language, expected }
     })
-    if (gate.kind === 'skip') return await finish('skipped', gate.reason)
+    if (gate.kind === 'skip') return finish('skipped', gate.reason)
     log('gate', p, { publisher: !!gate.ref, expected_cost_usd: Number(gate.expected.toFixed(4)) })
 
     let transcript: StoredTranscript | null = null
@@ -277,7 +282,7 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
         const doc = buildTranscriptDocument('publisher', language, segments, row.duration_sec ? row.duration_sec * 1000 : undefined)
         return { kind: 'ok' as const, transcript: await storeTranscript(deps, p.sourceId, doc) }
       })
-      if (pub.kind === 'unsupported') return await finish('skipped', 'language_unsupported')
+      if (pub.kind === 'unsupported') return finish('skipped', 'language_unsupported')
       if (pub.kind === 'ok') transcript = pub.transcript
     }
 
@@ -316,10 +321,10 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
           transcript = res.transcript
           break
         }
-        if (res.kind === 'error') return await finish('retry', `asr_error:${res.error}`, true)
-        if (res.kind === 'unsupported') return await finish('skipped', 'language_unsupported')
-        if (res.kind === 'too_long') return await finish('skipped', 'too_long')
-        if (waited >= PODCAST_LIMITS.maxPollMs) return await finish('failed', 'asr_timeout')
+        if (res.kind === 'error') return finish('retry', `asr_error:${res.error}`, true)
+        if (res.kind === 'unsupported') return finish('skipped', 'language_unsupported')
+        if (res.kind === 'too_long') return finish('skipped', 'too_long')
+        if (waited >= PODCAST_LIMITS.maxPollMs) return finish('failed', 'asr_timeout')
       }
     }
 
@@ -346,7 +351,7 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
       if (!(await deps.episodes.markReady(p.episodeId, runId, t))) throw new PodcastStop('lease_lost')
       return { kind: 'ok' as const }
     })
-    if (checked.kind === 'skip') return await finish('skipped', checked.reason)
+    if (checked.kind === 'skip') return finish('skipped', checked.reason)
     log('transcript_ready', p, { source: t.source, language: t.language, speakers: t.speakers, hash: t.hash.slice(0, 12) })
     return 'ready'
   } catch (err) {
@@ -355,8 +360,8 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
       log('lease_lost', p)
       return 'gone'
     }
-    if (code) return await finish('failed', code)
-    return await finish('retry', (err instanceof Error ? err.message : String(err)).slice(0, 200))
+    if (code) return finish('failed', code)
+    return finish('retry', (err instanceof Error ? err.message : String(err)).slice(0, 200))
   }
 }
 
@@ -389,7 +394,10 @@ async function writeArticles(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, 
 
   let outcome: PodcastOutcome = base.status === 'ready' ? 'ready' : 'not_claimed'
   if (base.status === 'pending') outcome = await runArticle(deps, p, step, runId, { mode: 'polish', articleId: base.articleId, lang: base.lang, hash: base.hash })
-  if (outcome !== 'ready') return outcome
+  if (outcome !== 'ready') {
+    if (outcome === 'failed' || outcome === 'skipped') await step.do('article-vector-maintenance', PUBLISH_STEP, () => deps.processVectorMaintenance(p.sourceId, base.hash))
+    return outcome
+  }
 
   try {
     const published = await step.do('publish-body', PUBLISH_STEP, async () => {
@@ -440,6 +448,7 @@ async function writeArticles(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, 
     })
     if (row?.status === 'pending') await runArticle(deps, p, step, runId, { mode: 'translate', articleId: row.articleId, lang, hash: base.hash, from: base.lang })
   }
+  await step.do('vector-maintenance', PUBLISH_STEP, () => deps.processVectorMaintenance(p.sourceId, base.hash))
   return 'ready'
 }
 
@@ -596,22 +605,18 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
         reply = await deps.model.chat(
           [{ role: 'user', parts: [{ text: user }] }],
           {
-            model: YOUTUBE_ARTICLE_MODEL,
             abortSignal: signal,
-            // Gemini 3 documents looping below its default temperature of 1.0
-            temperature: 1.0,
+            temperature: 0.2,
             maxOutputTokens: size.outputLimit,
-            thinkingConfig: { thinkingLevel: 'LOW' },
-            responseMimeType: 'application/json',
-            responseSchema: schema as unknown as VertexAIConfig['responseSchema']
+            responseSchema: schema
           },
           { systemInstruction: system }
         )
       } catch (error) {
-        const failure = error instanceof AIProviderError ? error : toProviderFailure(error)
-        const rejected = failure.providerStatus !== undefined && failure.providerStatus >= 400 && failure.providerStatus < 600
-        const notConnected = ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(String(failure.providerCode))
-        Object.assign(outcome, { outcome: rejected ? 'rejected' : signal.aborted ? 'timeout' : 'lost', provider_status: failure.providerStatus ?? null })
+        const failure = error instanceof DeepSeekError ? error : undefined
+        const rejected = failure?.providerStatus !== undefined && failure?.providerStatus >= 400 && failure?.providerStatus < 600
+        const notConnected = failure?.code === 'configuration'
+        Object.assign(outcome, { outcome: rejected ? 'rejected' : signal.aborted ? 'timeout' : 'lost', provider_status: failure?.providerStatus ?? null })
         if (rejected || notConnected) {
           checkDeadline(attempt.deadline)
           throw error
@@ -694,7 +699,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
       if (count > PODCAST_LIMITS.maxChunks) return { kind: 'skip' as const, reason: 'too_long' }
       return { kind: 'ok' as const, count }
     })
-    if (prep.kind === 'skip') return await finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
+    if (prep.kind === 'skip') return finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
 
     const processChunk = async (i: number, pass = 0) => {
       // A repair pass needs new step names: a finished step returns its recorded result instead of running
@@ -924,7 +929,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     if (assembled.kind === 'quality_failed') {
       // Still bad after the repair: drop the chunks so a later attempt asks the model again
       await step.do(`${prefix}-drop-chunks`, DB_STEP, () => deletePrefix(deps, chunkPrefix))
-      return await finish('failed', `quality:${assembled.quality.failed.join(',')}`, assembled.quality)
+      return finish('failed', `quality:${assembled.quality.failed.join(',')}`, assembled.quality)
     }
 
     const published = await step.do(`${prefix}-publish`, DB_STEP, () =>
@@ -951,7 +956,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
       log('lease_lost', p, { mode: job.mode, lang: job.lang })
       return 'gone'
     }
-    if (code) return await finish('failed', code)
-    return await finish('retry', (err instanceof Error ? err.message : String(err)).slice(0, 200))
+    if (code) return finish('failed', code)
+    return finish('retry', (err instanceof Error ? err.message : String(err)).slice(0, 200))
   }
 }

@@ -752,7 +752,10 @@
       "ai_label_summary": "Outline"
     },
     "auth": {
-      "authenticating": "认证中"
+      "authenticating": "认证中",
+      "incomplete": "登录未完成",
+      "failed": "暂时无法完成登录，请重新登录。若持续失败，请检查网络后再试。",
+      "timed_out": "登录等待超时，请检查网络后重新登录。"
     },
     "bookmarks_detail": {
       "ai_analyze": "AI 解析",
@@ -1270,6 +1273,7 @@
       "subscription_stripe_portal": "Stripe 客户中心",
       "telegram": "Telegram",
       "telegram_channel": "Telegram Channel",
+      "contact_email": "联系邮箱",
       "twitter": "Twitter",
       "third_party_binding": "第三方绑定",
       "update_account_error": "更新账户失败",

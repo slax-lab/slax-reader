@@ -509,6 +509,7 @@ export const useBookmarkData = (
 
   return {
     bookmarks,
+    bookmarkDataSource: computed(() => (isLocalCollectionTab.value || isLocalBookmarkTab.value ? ('local' as const) : ('rest' as const))),
     highlights,
     loading,
     ending,

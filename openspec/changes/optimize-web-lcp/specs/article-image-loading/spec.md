@@ -6,9 +6,9 @@ Make early article content available for prompt rendering while bounding image p
 
 ## ADDED Requirements
 
-### Requirement: Prioritize one early substantive article image
+### Requirement: Bound early article loading and prioritize one substantive image
 
-When the article loading policy is enabled, rendered non-PDF article markup SHALL assign eager loading and high fetch priority to at most one eligible early substantive image. Remaining article images SHALL retain lazy loading without application-assigned high priority. Selection SHALL exclude images identifiable from saved markup as hidden, tracking pixels, icons, or avatars, and SHALL NOT prioritize a late image merely because it is the first image in a text-heavy article. Selection SHALL be identical for equivalent raw, server class-isolated, browser-restored, and client-refreshed content and SHALL NOT depend on client mounting or viewport measurement. A visually substantive image SHALL NOT be excluded solely because it is hidden from assistive technology. Responsive images whose source can change during existing startup normalization SHALL retain the established lazy behavior in this release.
+When the article loading policy is enabled, rendered non-PDF article markup SHALL assign high fetch priority to at most one eligible early substantive image and eager loading to at most two adjacent eligible early images. A known short landscape opening image followed closely by a clearly larger substantive image MAY share eager loading while only the latter receives high priority. Unknown geometry SHALL retain the conservative first-image policy. Remaining article images SHALL retain lazy loading without application-assigned high priority. Selection SHALL exclude images identifiable from saved markup as hidden, tracking pixels, icons, or avatars, and SHALL NOT prioritize a late image merely because it is the first image in a text-heavy article. Selection SHALL be identical for equivalent raw, server class-isolated, browser-restored, and client-refreshed content and SHALL NOT depend on client mounting or viewport measurement. A visually substantive image SHALL NOT be excluded solely because it is hidden from assistive technology. Responsive images whose source can change during existing startup normalization SHALL retain the established lazy behavior in this release.
 
 #### Scenario: Early image follows a source icon
 - **WHEN** an article begins with an identifiable small source icon followed by an eligible substantive image
@@ -19,6 +19,16 @@ When the article loading policy is enabled, rendered non-PDF article markup SHAL
 - **WHEN** the opening content contains no eligible substantive image
 - **THEN** no image receives high fetch priority
 - **AND** later article images remain lazy
+
+#### Scenario: Short opening banner followed by a substantive hero
+- **WHEN** saved dimensions identify a short landscape opening image followed closely by a clearly larger substantive image within the bounded opening budget
+- **THEN** both images load eagerly, only the substantive image receives high priority, and subsequent images remain lazy
+- **AND** image URLs, dimensions, layout, and non-policy markup remain unchanged
+
+#### Scenario: Incomplete geometry or separated images
+- **WHEN** size information is incomplete, the second candidate is responsive, or the pair exceeds the opening proximity budget
+- **THEN** the first eligible image remains the only eager/high-priority candidate
+- **AND** the policy does not search farther down the article for a replacement
 
 #### Scenario: Server-rendered article and hydration
 - **WHEN** the same article is server rendered and then hydrated

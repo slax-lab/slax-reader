@@ -751,7 +751,10 @@
       "ai_label_summary": "Outline"
     },
     "auth": {
-      "authenticating": "Authenticating"
+      "authenticating": "Authenticating",
+      "incomplete": "Sign-in not complete",
+      "failed": "We couldn't complete your sign-in. Please sign in again. If this continues, check your connection and try again.",
+      "timed_out": "Sign-in timed out. Please check your connection and sign in again."
     },
     "bookmarks_detail": {
       "ai_analyze": "Analysis",
@@ -1270,6 +1273,7 @@
       "telegram": "Telegram",
       "twitter": "Twitter",
       "telegram_channel": "Telegram Channel",
+      "contact_email": "Contact Email",
       "third_party_binding": "Third-party binding",
       "update_account_error": "Update account failed",
       "update_share_status_failed": "Failed to update sharing status",

@@ -132,7 +132,7 @@ async function main() {
       JSON.stringify(
         {
           ...shared,
-          name: 'root-tooling-local-core',
+          name: `root-tooling-${httpPort}-core`,
           main: localPath('apps/api/test/runtime/diagnosticWorker.ts'),
           hyperdrive: [
             { binding: 'HYPERDRIVE', id: '00000000000000000000000000000002', localConnectionString: url('http_reader') },
@@ -152,7 +152,7 @@ async function main() {
             { binding: 'OSS', bucket_name: 'http-reader' },
             { binding: 'DIAGNOSTICS', bucket_name: 'http-diagnostics' }
           ],
-          workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow', script_name: 'root-tooling-local-edge' }],
+          workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow', script_name: `root-tooling-${httpPort}-edge` }],
           durable_objects: { bindings: [{ name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' }] },
           migrations: [{ tag: 'v1', new_classes: ['SlaxWebSocketServer'] }]
         },
@@ -166,10 +166,10 @@ async function main() {
         {
           ...shared,
           ...JSON.parse(readFileSync(coreConfig, 'utf8')),
-          name: 'root-tooling-local-edge',
+          name: `root-tooling-${httpPort}-edge`,
           workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow' }],
           main: localPath('apps/api/src/entry/edge/index.ts'),
-          services: [{ binding: 'CORE', service: 'root-tooling-local-core' }],
+          services: [{ binding: 'CORE', service: `root-tooling-${httpPort}-core` }],
           ratelimits: [{ name: 'BOOKMARK_ADD_RATE_LIMITER', namespace_id: '1001', simple: { limit: 30, period: 60 } }]
         },
         null,
@@ -198,7 +198,7 @@ async function main() {
       INSERT INTO sr_bookmark_share (user_id,bookmark_id,share_code) VALUES (2,1,'SmokeA1');
     `
     )
-    if (process.env.FORK_SMOKE === '1') forks = await prepareForkSmoke(resources, pg.id, state, url('http_reader'))
+    if (process.env.FORK_SMOKE === '1') forks = await prepareForkSmoke(resources, pg.id, state, url('http_reader'), `root-tooling-${httpPort}-edge`)
     const token = await new Auth(vars as Env).sign({ id: String(new Hashid(vars as Env).encodeId(1)), email: 'saver@smoke.invalid', lang: 'en' })
     worker = spawn(
       'pnpm',
@@ -235,6 +235,19 @@ async function main() {
         return false
       }
     }, 'local Edge ready')
+    let coreReady = 0
+    await poll(async () => {
+      try {
+        const response = await localFetch(`http://localhost:${httpPort}/v1/bookmark/list?page=1&size=20`, { headers: { Authorization: `Bearer ${token}` } })
+        const data = (await response.json()) as { code?: number }
+        coreReady = response.status === 200 && data.code === 200 ? coreReady + 1 : 0
+        if (coreReady < 3) await delay(500)
+        return coreReady >= 3
+      } catch {
+        coreReady = 0
+        return false
+      }
+    }, 'authenticated Core database ready')
     for (const origin of [vars.FRONT_END_URL, vars.FRONT_END_URL + '.attacker.invalid']) {
       const response = await localFetch(`http://localhost:${httpPort}/events`, { method: 'OPTIONS', headers: { Origin: origin } })
       assert.equal(response.status, 204)
@@ -334,10 +347,20 @@ async function main() {
       () => workerLog,
       async key => (await (await localFetch(`http://localhost:${httpPort}/__fixture/diagnostic-object-missing?key=${encodeURIComponent(key)}`, { headers })).json()) as boolean
     )
+    const admissions = (await (await localFetch(`http://localhost:${httpPort}/__fixture/vector-maintenance-admissions`, { headers })).json()) as {
+      target: { kind: string; id: number; userId?: number; preference?: string }
+    }[]
+    assert.ok(admissions.some(({ target }) => target.kind === 'article' && target.userId === 1 && target.id === id))
+    assert.ok(admissions.some(({ target }) => target.kind === 'user' && target.id === 1 && target.preference === 'article'))
+    evidence.vectorMaintenance = { boundary: 'admission-only fixture; no model or Vectorize execution', count: admissions.length, ownerSpecificDeletion: true }
     evidence.status = 'passed'
   } catch (error) {
     evidence.status = 'failed'
     evidence.error = String(error)
+    const beforeCleanup = workerLog.slice(-20000)
+    console.error('HTTP_PRE_TERMINATION_EVIDENCE_BEGIN')
+    console.error(beforeCleanup)
+    console.error('HTTP_PRE_TERMINATION_EVIDENCE_END')
     console.error(error)
     process.exitCode = 1
   } finally {
