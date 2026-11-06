@@ -163,12 +163,39 @@ describe('repository-root generator paths', () => {
         'metrics',
         'youtubeArticle',
         'youtubeArticleAdmin',
-        'podcast'
+        'podcast',
+        'contentRecommendation',
+        'search'
       ].map(name => path.join(API_ROOT, `src/handler/http/${name}Controller.ts`))
     )
-    expect(writes).toHaveBeenCalledWith(path.join(API_ROOT, 'src/di/generated/readerRouter.ts'), expect.stringContaining("from '../../handler/http/podcastController'"))
+    expect(writes).toHaveBeenCalledWith(
+      path.join(API_ROOT, 'src/di/generated/readerRouter.ts'),
+      expect.stringContaining("from '../../handler/http/searchController'")
+    )
     expect(writes.mock.calls[0][1]).toContain("router.get('/fixture/test'")
     expect(writes.mock.calls[0][1]).not.toContain(ROOT)
+  })
+
+  test('registers four task refresh actions on existing controllers after ordinary middleware', async () => {
+    const writes = vi.fn()
+    await runScript('gen-routers.ts', { fs: { existsSync: fs.existsSync, readFileSync: fs.readFileSync, writeFileSync: writes } })
+    const output = writes.mock.calls[0][1] as string
+    const actions = [
+      ['/v1/bookmark/vector/refresh', 'BookmarkController', 'handleUserBookmarkVectorRefreshRequest'],
+      ['/v1/bookmark/preference/refresh', 'BookmarkController', 'handleUserBookmarkPreferenceRefreshRequest'],
+      ['/v1/collection/vector/refresh', 'CollectionController', 'handleUserCollectionVectorRefreshRequest'],
+      ['/v1/collection/preference/refresh', 'CollectionController', 'handleUserCollectionPreferenceRefreshRequest']
+    ]
+    for (const [pathname, controller, handler] of actions) {
+      expect(output).toContain(
+        `router.post('${pathname}', async (req: Request, ctx: ContextManager) => {\n  const controller = container.resolve(${controller})\n  return await controller.${handler}(ctx, req)\n})`
+      )
+      for (const middleware of ['auth(req, ctx, container)', 'requestLog(req, ctx)', 'rateLimit(req, ctx)']) {
+        expect(output.indexOf(middleware)).toBeLessThan(output.indexOf(`router.post('${pathname}'`))
+      }
+    }
+    expect(output).not.toContain('vectorRefreshController')
+    expect(output).not.toContain('/internal/v1/vector-refresh')
   })
 
   test('D1 diff resolves root-relative SQLite input, preserves filtering and exclusive writes', async () => {

@@ -11,6 +11,10 @@ const needWhiteHost = ['api-reader-beta.slax.com']
 const needWhitePathPrefix = ['/m/']
 const whiteEmailExemptPaths = ['/static/image']
 const whiteList = [
+  '/v1/bookmark/vector/refresh',
+  '/v1/bookmark/preference/refresh',
+  '/v1/collection/vector/refresh',
+  '/v1/collection/preference/refresh',
   '/v1/diagnostics/download',
   '/v1/user/login',
   '/v1/share/detail',

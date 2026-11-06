@@ -8,6 +8,8 @@ export function createMockMediaSnapshots(put?: (key: string, value: string) => P
     allowsBody: vi.fn(async () => true),
     settle: vi.fn(async () => false),
     settleSource: vi.fn(async () => 0),
+    processVectorMaintenance: vi.fn(async () => {}),
+    processSourceVectorMaintenance: vi.fn(async () => {}),
     openRequest: vi.fn(),
     indexSnapshot: vi.fn(async () => false),
     denyYoutube: vi.fn(),
@@ -51,7 +53,8 @@ export function createMockCtx(overrides: { userId?: number; encodeUserId?: numbe
     }),
     setUserInfo: vi.fn(),
     setHashIds: vi.fn(),
-    set: vi.fn(),    get: vi.fn(() => undefined),
+    set: vi.fn(),
+    get: vi.fn(() => undefined),
     trace: vi.fn((_stage: string, operation: () => Promise<any>) => operation()),
     env: createMockEnv(overrides.envType),
     execution: { waitUntil: vi.fn((p: Promise<any>) => p.catch(() => {})) },
@@ -75,6 +78,7 @@ export function createMockEnv(runType = 'dev') {
     CRAWL_WORKFLOW: { create: vi.fn().mockResolvedValue(undefined) },
     IMPORT_PARSE_WORKFLOW: { create: vi.fn().mockResolvedValue(undefined) },
     CONTENT_VALIDATION_WORKFLOW: { create: vi.fn().mockResolvedValue(undefined) },
+    VECTOR_V5_MAINTENANCE_WORKFLOW: { create: vi.fn().mockResolvedValue(undefined), createBatch: vi.fn().mockResolvedValue([]) },
     OSS: { put: vi.fn(), get: vi.fn(), head: vi.fn() }
   } as any
 }
@@ -99,6 +103,7 @@ export function createMockBookmarkService() {
     updateUserBookmarkCreateAt: vi.fn().mockResolvedValue(undefined),
     getBookmarkContent: vi.fn().mockResolvedValue(null),
     getBookmarkById: vi.fn().mockResolvedValue(null),
+    repairCachedPdfMetadata: vi.fn().mockResolvedValue('Repaired title'),
     getUserBookmark: vi.fn().mockResolvedValue({ id: 1, uuid: 'ub-test-uuid', user_id: 1, bookmark_id: 42 })
   }
 }
@@ -200,6 +205,8 @@ export function createMockAlertBot() {
 export function createMockUrlParserHandler() {
   return {
     processPostHandler: vi.fn().mockResolvedValue(undefined),
+    processContentPostProcessing: vi.fn().mockResolvedValue(undefined),
+    processVectorMaintenance: vi.fn().mockResolvedValue(undefined),
     handleTagTask: vi.fn().mockResolvedValue(vi.fn()),
     handleSearchTask: vi.fn().mockResolvedValue(vi.fn()),
     processThirdPartyMessages: vi.fn().mockResolvedValue(undefined)
@@ -270,8 +277,7 @@ export function createMockUserRepo() {
 
 export function createMockStep() {
   return {
-    do: vi.fn(async (_name: string, optionsOrCallback: any, callback?: () => Promise<any>) =>
-      (typeof optionsOrCallback === 'function' ? optionsOrCallback : callback)())
+    do: vi.fn(async (_name: string, optionsOrCallback: any, callback?: () => Promise<any>) => (typeof optionsOrCallback === 'function' ? optionsOrCallback : callback)())
   }
 }
 

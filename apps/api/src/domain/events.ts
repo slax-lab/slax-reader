@@ -105,3 +105,17 @@ export const submitServerEvent = (
     .catch(error => console.error(`[events] failed to submit ${eventName}:`, error))
   ctx.execution.waitUntil(pending)
 }
+
+export const submitServerEvents = (
+  ctx: ContextManager,
+  request: Request | undefined,
+  events: { eventName: string; properties: Record<string, unknown>; options?: { userId?: number; occurredAt?: string } }[]
+) => {
+  const env = ctx.env as Env & { SLAX_READER_STREAM_STREAM?: { send: (records: Record<string, unknown>[]) => Promise<unknown> } }
+  if (!events.length || !env.SLAX_READER_STREAM_STREAM || typeof ctx.execution?.waitUntil !== 'function') return
+  const records = events.map(event => createServerEvent(ctx, request, event.eventName, event.properties, event.options))
+  const pending = Promise.resolve()
+    .then(() => env.SLAX_READER_STREAM_STREAM!.send(records))
+    .catch(error => console.error(`[events] failed to submit ${records.length} event(s):`, error))
+  ctx.execution.waitUntil(pending)
+}

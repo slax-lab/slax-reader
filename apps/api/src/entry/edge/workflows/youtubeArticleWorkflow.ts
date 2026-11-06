@@ -8,6 +8,7 @@ import { YoutubeArticleRepo } from '@/infra/repository/dbYoutubeArticle'
 import { VertexAIClient } from '@/infra/external/vertexAIClient'
 import { YoutubeArticleService, type YoutubeArticleWorkflowParams } from '@/domain/youtubeArticle'
 import { runYoutubeArticle, YoutubeArticleStop, type StepLike } from '@/domain/youtubeArticleRunner'
+import { MediaSnapshotService } from '@/domain/mediaSnapshot'
 
 /**
  * YouTube AI article generation for one canonical row. All logic is in runYoutubeArticle; this
@@ -46,7 +47,9 @@ export class YoutubeArticleWorkflow extends WorkflowEntrypoint<Env, YoutubeArtic
         model,
         addCost: usd => service.addCost(usd),
         publishBodies: articleId => service.publishBodies(ctxManager, articleId),
-        settleSnapshots: sourceId => service.settleSnapshots(ctxManager, sourceId)
+        settleSnapshots: sourceId => service.settleSnapshots(ctxManager, sourceId),
+        processVectorMaintenance: (sourceId, sourceHash) =>
+          currentContainer.resolve(MediaSnapshotService).processSourceVectorMaintenance(ctxManager, 'youtube', sourceId, sourceHash)
       },
       event.payload,
       stepLike,

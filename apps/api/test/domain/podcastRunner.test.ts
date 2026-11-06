@@ -281,6 +281,7 @@ function setup(
     flagBookmarks: vi.fn(async () => 2),
     publishBodies: vi.fn(async () => 2),
     settleSnapshots: vi.fn(async () => 0),
+    processVectorMaintenance: vi.fn(async (_sourceId: string, _sourceHash: string) => {}),
     setRefsHash: articles.setRefsHash,
     translationTargets: vi.fn(async () => o.targets ?? []),
     addCost: vi.fn(async () => {})
@@ -507,6 +508,97 @@ describe('articles', () => {
 })
 
 describe('review fixes', () => {
+  test.each(['ready', 'failed', 'skipped'] as const)('admission failure after %s content replays without republishing or regenerating', async outcome => {
+    const { deps, episodes, articles, bucket } = setup({
+      episode: { publisher_transcripts: VTT_REF, ...(outcome === 'skipped' ? { audio_url: '' } : {}) },
+      targets: ['zh']
+    })
+    if (outcome === 'failed') {
+      const ready = episodes.markReady.getMockImplementation()!
+      episodes.markReady.mockImplementation(async (...args) => {
+        const ok = await ready(...args)
+        const transcript = JSON.parse(bucket.objects.get(args[2].key)!)
+        transcript.cues = []
+        bucket.objects.set(args[2].key, JSON.stringify(transcript))
+        return ok
+      })
+    }
+    deps.processVectorMaintenance.mockRejectedValue(new Error('admission unavailable'))
+    const completed = new Map<string, unknown>()
+    const normal = engine().step
+    const step: PodcastStepLike = {
+      sleep: normal.sleep,
+      async do(name, config, fn) {
+        if (completed.has(name)) return completed.get(name) as any
+        const result = await normal.do(name, config, fn)
+        completed.set(name, result)
+        return result
+      }
+    }
+    await expect(runPodcastEpisode(deps, P, step, 'run-admission')).rejects.toThrow('admission unavailable')
+    expect(deps.processVectorMaintenance).toHaveBeenCalledTimes(3)
+    expect(deps.processVectorMaintenance).toHaveBeenLastCalledWith(SOURCE, episodes.row.transcript_hash ?? '')
+    expect(deps.publishBodies).toHaveBeenCalledTimes(outcome === 'ready' ? 1 : 0)
+    expect(articles.finishAttempt).toHaveBeenCalledTimes(outcome === 'failed' ? 1 : 0)
+    expect(episodes.finish).toHaveBeenCalledTimes(outcome === 'skipped' ? 1 : 0)
+    const modelCalls = deps.model.chat.mock.calls.length
+    const settlements = deps.settleSnapshots.mock.calls.length
+    deps.processVectorMaintenance.mockResolvedValue(undefined)
+    expect(await runPodcastEpisode(deps, P, step, 'run-admission')).toBe(outcome)
+    expect(deps.processVectorMaintenance).toHaveBeenCalledTimes(4)
+    expect(deps.model.chat).toHaveBeenCalledTimes(modelCalls)
+    expect(deps.settleSnapshots).toHaveBeenCalledTimes(settlements)
+    expect(deps.publishBodies).toHaveBeenCalledTimes(outcome === 'ready' ? 1 : 0)
+    expect(episodes.markRepublish).not.toHaveBeenCalled()
+    if (outcome === 'ready')
+      expect(articles.rows.map(r => [r.target_language, r.status])).toEqual([
+        ['en', 'ready'],
+        ['zh', 'ready']
+      ])
+  })
+
+  test('a transient admission failure retries only admission after bodies and translations finish', async () => {
+    const { deps, articles, episodes } = setup({ episode: { publisher_transcripts: VTT_REF }, targets: ['zh'] })
+    deps.processVectorMaintenance.mockImplementationOnce(async () => {
+      expect(deps.publishBodies).toHaveBeenCalledOnce()
+      expect(articles.rows.map(r => r.status)).toEqual(['ready', 'ready'])
+      throw new Error('admission unavailable')
+    })
+    expect(await runPodcastEpisode(deps, P, engine().step, 'run-admission')).toBe('ready')
+    expect(deps.processVectorMaintenance).toHaveBeenCalledTimes(2)
+    expect(deps.publishBodies).toHaveBeenCalledOnce()
+    expect(episodes.markRepublish).not.toHaveBeenCalled()
+    expect(articles.finishAttempt).not.toHaveBeenCalled()
+  })
+
+  test.each(['transcript', 'article'])('terminal %s settlement errors are not suppressed as gone', async stage => {
+    const { deps, episodes, articles } = setup({
+      episode: { publisher_transcripts: VTT_REF, ...(stage === 'transcript' ? { audio_url: '' } : {}) }
+    })
+    if (stage === 'article') {
+      const ready = episodes.markReady.getMockImplementation()!
+      episodes.markReady.mockImplementation(async (...args) => {
+        const ok = await ready(...args)
+        episodes.row.cost_usd = 0.999
+        return ok
+      })
+    }
+    deps.settleSnapshots.mockRejectedValue(new Error('settlement unavailable'))
+    await expect(runPodcastEpisode(deps, P, engine().step, 'run-settlement')).rejects.toThrow('settlement unavailable')
+    expect(deps.settleSnapshots).toHaveBeenCalledTimes(3)
+    expect(episodes.finish).toHaveBeenCalledTimes(stage === 'transcript' ? 1 : 0)
+    expect(articles.finishAttempt).toHaveBeenCalledTimes(stage === 'article' ? 1 : 0)
+    expect(deps.processVectorMaintenance).not.toHaveBeenCalled()
+  })
+
+  test('lease loss does not admit stale article maintenance', async () => {
+    const { deps, articles } = setup({ episode: { publisher_transcripts: VTT_REF } })
+    articles.renewLease.mockResolvedValue(false)
+    expect(await runPodcastEpisode(deps, P, engine().step, 'run-stale')).toBe('gone')
+    expect(deps.processVectorMaintenance).not.toHaveBeenCalled()
+    expect(deps.publishBodies).not.toHaveBeenCalled()
+  })
+
   test('saving the job id fails once: the retry saves it, no second paid job', async () => {
     const asr = asrFake([{ status: 'completed', segments: words, language: 'en', durationSec: 180, costUsd: 0.0085 }])
     const { deps, episodes } = setup({ asr })
@@ -541,6 +633,9 @@ describe('review fixes', () => {
     expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('ready')
     expect(episodes.markRepublish).toHaveBeenCalledTimes(1)
     expect(episodes.clearRepublish).not.toHaveBeenCalled()
+    expect(deps.publishBodies).toHaveBeenCalledTimes(3)
+    expect(deps.processVectorMaintenance).toHaveBeenCalledOnce()
+    expect(articles.finishAttempt).not.toHaveBeenCalled()
     expect(articles.rows.map(r => [r.target_language, r.status])).toEqual([
       ['en', 'ready'],
       ['zh', 'ready']

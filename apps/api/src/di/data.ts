@@ -20,10 +20,16 @@ import { PRISMA_LOGS_CLIENT } from '../const/symbol'
 import { GA4AnalyticsClient } from '@/infra/external/ga4Analytics'
 import { VertexAIClient } from '@/infra/external/vertexAIClient'
 import { GEMINI_AGENT } from '@/const/symbol'
+import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
+import { VectorSourceRepo } from '@/infra/repository/vectorSources'
+import { VectorIndexClient } from '@/infra/repository/vectorIndexClient'
 
 @singleton()
 export class DatabaseRegistry {
   public register(ctx: ContextManager, targetContainer: Container): void {
+    targetContainer.register(VectorEmbeddingClient, { useFactory: () => new VectorEmbeddingClient(ctx.env), uncached: false })
+    targetContainer.register(VectorSourceRepo, { useFactory: () => new VectorSourceRepo(ctx.env), uncached: false })
+    targetContainer.register(VectorIndexClient, { useFactory: () => new VectorIndexClient(ctx.env), uncached: false })
     targetContainer.register(PRISIMA_CLIENT, {
       useFactory: () => new PrismaClient({ adapter: new PrismaD1(ctx.env.DB) }),
       uncached: false

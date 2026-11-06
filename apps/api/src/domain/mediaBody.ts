@@ -3,7 +3,7 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { ContextManager } from '@/utils/context'
 import { BookmarkService } from '@/domain/bookmark'
 import { SearchService } from '@/domain/search'
-import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
+import { BookmarkForkRepo, type MediaSnapshotRef } from '@/infra/repository/dbBookmarkFork'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { MarkRepo } from '@/infra/repository/dbMark'
 import { BucketClient } from '@/infra/repository/bucketClient'
@@ -36,9 +36,9 @@ export class MediaBodyService {
   }
 
   /** The current body HTML of a bookmark, or null when it has none. */
-  public async readBody(bookmarkId: number): Promise<string | null> {
+  public async readBody(bookmarkId: number, committedOnly = false): Promise<string | null> {
     const bookmark = await this.bookmarkService.getBookmarkById(bookmarkId)
-    if (!bookmark?.content_key) return null
+    if (!bookmark?.content_key || (committedOnly && bookmark.status !== 'success')) return null
     const obj = await this.bucket().R2Bucket.get(bookmark.content_key)
     return obj ? obj.text() : null
   }
@@ -48,20 +48,51 @@ export class MediaBodyService {
    * The cached AI overview was made from the old body: it is deleted, so it is made again from the new one.
    * A flagged bookmark is not written, except with `force` (the takedown restore must reach it too).
    */
-  public async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }, opts: { force?: boolean } = {}): Promise<boolean> {
+  public async writeBody(
+    ctx: ContextManager,
+    bookmarkId: number,
+    userId: number,
+    body: { html: string; text: string },
+    opts: { force?: boolean; mediaRef?: MediaSnapshotRef; expectedUpdatedAt?: Date } = {}
+  ): Promise<boolean> {
     const bookmark = await this.bookmarkService.getBookmarkById(bookmarkId)
     if (!bookmark?.content_key || (bookmark.moderation_result > 0 && !opts.force)) return false
+    if (opts.expectedUpdatedAt && bookmark.updated_at.getTime() !== opts.expectedUpdatedAt.getTime()) return false
+    if (bookmark.private_user > 0 && bookmark.private_user !== userId) return false
+    if (bookmark.status === 'failed') {
+      const relation = await this.bookmarkRepo.getUserBookmark(bookmarkId, userId)
+      if (!relation || relation.deleted_at || ![0, 2].includes(relation.type)) return false
+      const source = await this.forkRepo.source(userId, relation.uuid)
+      if (!source || source.deleted_at || source.bookmark_id !== bookmarkId || source.bookmark.updated_at.getTime() !== bookmark.updated_at.getTime()) return false
+    }
     const bucket = this.bucket().R2Bucket
-    if (!(await this.forkRepo.claimWrite(bookmarkId, bookmark.updated_at, ['success'], opts.force))) return false
+    if (!(await this.forkRepo.claimWrite(bookmarkId, bookmark.updated_at, bookmark.status === 'failed' ? ['failed'] : ['success'], opts.force))) return false
+    let writing = false
     try {
       // Inspect under the shared write claim: a concurrent acquisition cannot replace this body.
       if ((await loadEmbeddedSnapshot(bucket, bookmark.content_key)).managed) {
-        if (!(await this.forkRepo.releaseWrite(bookmarkId, bookmark.updated_at))) throw new Error('Media body claim changed')
+        const released = await (bookmark.status === 'failed'
+          ? this.forkRepo.failWrite(bookmarkId, bookmark.updated_at)
+          : this.forkRepo.releaseWrite(bookmarkId, bookmark.updated_at))
+        if (!released) throw new Error('Media body claim changed')
         return false
       }
+      const mediaRef = opts.mediaRef ?? (bookmark.status === 'failed' ? await this.forkRepo.mediaRef(bookmarkId) : undefined)
+      if (mediaRef) {
+        const current = await this.forkRepo.mediaRef(bookmarkId)
+        if (
+          !current ||
+          current.media_kind !== mediaRef.media_kind ||
+          current.source_id !== mediaRef.source_id ||
+          current.source_hash !== mediaRef.source_hash ||
+          (!opts.force && (await this.forkRepo.mediaDenied(current)))
+        )
+          throw new Error('Media publication source changed')
+      } else if (bookmark.status === 'failed') throw new Error('Media publication source missing')
       const textKey = bookmark.content_md_key || bookmark.content_key.replace(/^html\//, 'text/').replace(/\.html$/, '.txt')
       if (textKey === bookmark.content_key) throw new Error('Media body text key missing')
       // HTML carries the rendered version marker; both required files precede DB success.
+      writing = true
       if (!(await bucket.put(textKey, body.text))) throw new Error('Media text write failed')
       if (!(await bucket.put(bookmark.content_key, body.html))) throw new Error('Media HTML write failed')
       const published = await this.forkRepo.publishRevision(
@@ -72,18 +103,26 @@ export class MediaBodyService {
           content_md_key: textKey,
           content_word_count: body.text.length
         },
-        { expectedUpdatedAt: bookmark.updated_at, force: opts.force }
+        {
+          expectedUpdatedAt: bookmark.updated_at,
+          force: opts.force,
+          mediaRef: mediaRef ? { media_kind: mediaRef.media_kind, source_id: mediaRef.source_id, source_hash: mediaRef.source_hash } : undefined
+        }
       )
       if (!published) {
-        await this.forkRepo.releaseWrite(bookmarkId, bookmark.updated_at)
+        await this.forkRepo.failWrite(bookmarkId, bookmark.updated_at)
         return false
       }
     } catch (error) {
-      // Existing fixed objects survive failed or uncertain publication acknowledgements.
-      await this.forkRepo.releaseWrite(bookmarkId, bookmark.updated_at).catch(() => {})
+      // Preserve fixed objects; the old claim cannot downgrade an acknowledged newer publication.
+      await (
+        writing || bookmark.status === 'failed' ? this.forkRepo.failWrite(bookmarkId, bookmark.updated_at) : this.forkRepo.releaseWrite(bookmarkId, bookmark.updated_at)
+      ).catch(() => {})
       throw error
     }
-    await this.bookmarkRepo.deleteBookmarkSummary(bookmarkId, userId)
+    await this.bookmarkRepo.deleteBookmarkSummary(bookmarkId, userId).catch(() => {
+      console.error(`Media body summary cleanup failed for bookmark ${bookmarkId}`)
+    })
     const results = await this.searchService.addSearchRecord(ctx, bookmarkId, bookmark.title || '', body.text).catch(err => [{ status: 'rejected' as const, reason: err }])
     const rejected = (results ?? []).filter(r => r.status === 'rejected')
     if (rejected.length) console.error(`Media body search index failed for bookmark ${bookmarkId}: ${rejected.length} part(s)`)
