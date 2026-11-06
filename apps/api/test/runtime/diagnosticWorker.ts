@@ -22,7 +22,9 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
 export default {
   async fetch(request: Request, env: Env, execution: ExecutionContext) {
     const url = new URL(request.url)
-    if (!['localhost', '127.0.0.1', 'content.internal'].includes(url.hostname)) return new Response('Local fixture only', { status: 403 })
+    const local = ['localhost', '127.0.0.1'].includes(url.hostname)
+    const contentBinding = url.hostname === 'content.internal' && url.pathname.startsWith('/content/')
+    if (!local && !contentBinding) return new Response('Local fixture only', { status: 403 })
     const aiFeature = /^\/__fixture\/snapshot-ai\/(outline|overview|chat)$/.exec(url.pathname)?.[1]
     if (aiFeature) {
       // The isolated launcher supports Edge-to-Core only. Route to the real Core AI

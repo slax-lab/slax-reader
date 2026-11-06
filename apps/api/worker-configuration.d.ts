@@ -2,7 +2,10 @@
 // Env bindings contain no configuration values; pnpm types preserves declarations and adds optional bindings from script/generate-worker-types.ts.
 interface __BaseEnv_Env {
   DIAGNOSTIC_DOWNLOAD_SECRET?: string
+
   DIAGNOSTICS?: R2Bucket
+
+  NEWSLETTER_DOMAIN?: string
   API_QUEUE_CHANNELS?: string
   KV: KVNamespace
   OSS: R2Bucket

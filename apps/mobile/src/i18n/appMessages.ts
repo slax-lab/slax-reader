@@ -1,5 +1,6 @@
 export const appMessages = {
   en: {
+    newsletter_source: 'Newsletter',
     feedback_dismiss_keyboard: 'Dismiss keyboard',
     feedback_follow_up: 'Allow follow-up at {email}',
     feedback_attach_logs: 'Attach diagnostic logs from the last seven days, only for troubleshooting',
@@ -124,6 +125,7 @@ export const appMessages = {
     system_entry_unavailable_message: 'This system search result is no longer available in the signed-in library.',
   },
   zh: {
+    newsletter_source: '邮件通讯',
     feedback_dismiss_keyboard: '收起键盘',
     feedback_follow_up: '允许通过 {email} 进行跟进',
     feedback_attach_logs: '附带最近七天的诊断日志，仅用于定位问题',

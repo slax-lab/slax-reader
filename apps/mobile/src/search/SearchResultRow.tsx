@@ -27,7 +27,7 @@ export function SearchSourceRow({row, query, t, onSelect}: {
 }) {
   const {group, kind} = row;
   const source = group.source;
-  const subtitle = row.kind === 'rss' ? searchHost(row.group.source?.site_url ?? row.group.source?.feed_url ?? '') : row.group.source?.description;
+  const subtitle = row.kind === 'rss' ? searchHost(row.group.source?.site_url ?? row.group.source?.feed_url ?? '', t('newsletter_source')) : row.group.source?.description;
   const select = () => {if (source) onSelect({kind, id: source.id, label: group.title, ...(row.kind === 'collection' ? {ownerId: row.group.source?.ownerId} : {})});};
   return <Pressable testID={`search-source-${group.key}`} accessibilityRole="button" disabled={!source}
     accessibilityLabel={`${group.title}${source ? `, ${t('search_within_source')}` : ''}`} onPress={select}
@@ -43,11 +43,11 @@ export function SearchSourceRow({row, query, t, onSelect}: {
   </Pressable>;
 }
 
-export function SearchArticleRow({article, nested, query, onOpen}: {
-  article: SearchArticle; nested: boolean; query: string; onOpen(article: SearchArticle): void;
+export function SearchArticleRow({article, nested, query, t, onOpen}: {
+  article: SearchArticle; nested: boolean; query: string; t: Translate; onOpen(article: SearchArticle): void;
 }) {
   const snippet = searchExcerpt(article.snippet || article.description, query);
-  const site = searchHost(article.url) || article.source;
+  const site = searchHost(article.url, t('newsletter_source')) || article.source;
   const date = /^\d{4}-\d{2}-\d{2}/.exec(article.time)?.[0]?.replace(/-/g, '.');
   return <Pressable testID={`search-result-${article.key}`} accessibilityRole="button" accessibilityLabel={article.title || article.url}
     onPress={() => onOpen(article)} style={({pressed}) => [styles.article, nested && styles.nested, pressed && styles.pressed]}>

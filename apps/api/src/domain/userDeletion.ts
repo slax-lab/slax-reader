@@ -26,6 +26,14 @@ export class UserDeletionService {
     }
 
     try {
+      for (;;) {
+        const rows = await this.prismaPg().$queryRaw<
+          { content_key: string | null }[]
+        >`DELETE FROM sr_newsletter_feed WHERE user_id=${userId} AND id IN (SELECT id FROM sr_newsletter_feed WHERE user_id=${userId} LIMIT 100) RETURNING content_key`
+        if (!rows.length) break
+        const keys = rows.map(row => row.content_key).filter((key): key is string => !!key && key.startsWith('newsletter-content/'))
+        if (keys.length) await this.bucket().R2Bucket.delete(keys)
+      }
       const reports = await this.prismaPg().sr_user_report.findMany({ where: { user_id: userId }, select: { user_id: true, extra_data: true } })
       await removeDiagnosticObjects(env, reports)
       await this.prismaPg().$executeRaw`DELETE FROM sr_rss_subscription WHERE user_id = ${userId}`
@@ -138,7 +146,7 @@ export class UserDeletionService {
 
   private async deletePlatformBinds(userId: number): Promise<void> {
     const result = await this.prismaPg().sr_platform_bind.deleteMany({
-      where: { user_id: userId }
+      where: { user_id: userId, platform: { not: 'newsletter' } }
     })
     console.log(`Deleted ${result.count} platform bindings`)
   }

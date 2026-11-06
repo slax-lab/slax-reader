@@ -260,7 +260,9 @@
        否则换行渲染成空行 */
     --style: 'list-none !whitespace-normal';
 
-    &.has-li {
+    // Raw HTML can render before the Article list processor adds its marker.
+    &.has-li,
+    &:has(li) {
       --style: pl-26px;
     }
 

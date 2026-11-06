@@ -1,3 +1,4 @@
+import { isNewsletterTarget } from '@/utils/newsletterTarget'
 import { parseBookmarkSearchRequest, readerBookmarkUuid } from '@slax-reader/contracts'
 import type {
   AddBookmarkRequest,
@@ -145,6 +146,8 @@ export class BookmarkController {
       this.saveFailed(ctx, request)
       return Failed(ErrorParam())
     }
+    if (isNewsletterTarget(req.target_url)) return Failed(ErrorParam())
+
     console.log(`user ${ctx.getUserId()} add ${req.target_url} ${req.target_title} bookmark`)
 
     try {
@@ -178,6 +181,8 @@ export class BookmarkController {
       this.saveFailed(ctx, request)
       return Failed(ErrorParam())
     }
+
+    if (isNewsletterTarget(req.target_url)) return Failed(ErrorParam())
 
     console.log(`user ${ctx.getUserId()} add ${req.target_url} ${req.target_title} bookmark`)
 

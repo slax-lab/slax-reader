@@ -15,6 +15,7 @@ import { ShareController } from '../../handler/http/shareController'
 import { SubscriptionController } from '../../handler/http/subscriptionController'
 import { TagController } from '../../handler/http/tagController'
 import { RssController } from '../../handler/http/rssController'
+import { FeedController } from '../../handler/http/feedController'
 import { UserController } from '../../handler/http/userController'
 import { DiagnosticController } from '../../handler/http/diagnosticController'
 import { McpServerController } from '../../handler/http/mcpController'
@@ -379,6 +380,22 @@ export function getRouter(container: Container) {
     const controller = container.resolve(RssController)
     return await controller.saveEntry(ctx, req)
   })
+  router.get('/v1/feed/subscriptions', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(FeedController)
+    return await controller.listSubscriptions(ctx, req)
+  })
+  router.get('/v1/feed/entries', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(FeedController)
+    return await controller.listEntries(ctx, req)
+  })
+  router.get('/v1/feed/entries/:id', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(FeedController)
+    return await controller.entry(ctx, req)
+  })
+  router.post('/v1/feed/entries/:id/save', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(FeedController)
+    return await controller.save(ctx, req)
+  })
   router.post('/v1/user/login', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)
     return await controller.handleUserLoginRequest(ctx, req)
@@ -406,6 +423,10 @@ export function getRouter(container: Container) {
   router.post('/v1/user/setting/enable', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)
     return await controller.handleEnableUserSettingRequest(ctx, req)
+  })
+  router.get('/v1/user/newsletter_address', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.newsletterAddress(ctx, req)
   })
   router.post('/v1/user/setting/disable', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)

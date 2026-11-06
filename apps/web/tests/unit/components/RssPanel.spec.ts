@@ -119,7 +119,7 @@ describe('RSS inside Inbox', () => {
     await buttons[1].trigger('click')
     expect(wrapper.emitted('changeTab')?.[0]).toEqual(['rss', 1])
   })
-  it('shows RSS from local rows before the laboratory response and hides it once disabled', async () => {
+  it('keeps the shared Feed entry visible before and after RSS is disabled', async () => {
     const enabled = Vue.ref(false)
     labs = { loaded: Vue.ref(false), isEnabled: () => enabled.value, fetch: vi.fn().mockRejectedValue(new Error('offline')) }
     localDatabase = {}
@@ -130,15 +130,15 @@ describe('RSS inside Inbox', () => {
     expect(wrapper.findAll('button').map(button => button.text())).toContain('rss.title')
     labs.loaded.value = true
     await Vue.nextTick()
-    expect(wrapper.findAll('button').map(button => button.text())).not.toContain('rss.title')
+    expect(wrapper.findAll('button').map(button => button.text())).toContain('rss.title')
   })
-  it('keeps RSS hidden without a laboratory response or local rows', async () => {
+  it('keeps the shared Feed entry visible without a laboratory response or local rows', async () => {
     labs = { loaded: Vue.ref(false), isEnabled: () => true, fetch: vi.fn().mockRejectedValue(new Error('offline')) }
     localDatabase = {}
     const wrapper = mount(TabsSidebar, { global: { mocks: { $t: translate } } })
     mounted.push(wrapper)
     await flushPromises()
-    expect(wrapper.findAll('button').map(button => button.text())).not.toContain('rss.title')
+    expect(wrapper.findAll('button').map(button => button.text())).toContain('rss.title')
   })
   it('reuses Inbox layout controls and keeps article nodes while refreshing or switching tabs', async () => {
     const wrapper = panel(),

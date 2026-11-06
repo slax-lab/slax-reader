@@ -1,6 +1,7 @@
+import { nextTick, ref } from 'vue'
+
 import { mountWithApp } from '../../setup/mount'
 import { BookmarkTabTypes } from '~~/app/composables/useBookmarkRelative'
-import { nextTick, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockLabs = vi.hoisted(() => ({
@@ -15,7 +16,7 @@ vi.mock('~/composables/rss/useRssEnabled', () => ({ useRssEnabled: () => ({ valu
 
 // TabsSidebar 通过 auto-import 读取 BookmarkTabTypes，vi.mock 对 auto-import 无效
 // 直接用 fork 的真实 BookmarkTabTypes（含 collections）验证按钮数量
-const EXPECTED_TAB_COUNT = BookmarkTabTypes.length + 1 // tabs + trash button
+const EXPECTED_TAB_COUNT = BookmarkTabTypes.length + 2 // tabs + Feed + trash button
 
 describe('TabsSidebar', () => {
   beforeEach(() => {
@@ -25,7 +26,7 @@ describe('TabsSidebar', () => {
     mockLabs.isEnabled.mockReturnValue(false)
   })
 
-  it('renders a button for each tab type + 1 trash button', async () => {
+  it('renders a button for each tab type plus Feed and trash', async () => {
     const { default: TabsSidebar } = await import('~/components/BookmarkList/TabsSidebar.vue')
     const wrapper = mountWithApp(TabsSidebar, {
       props: { tabType: 'inbox' }

@@ -1,3 +1,4 @@
+import { assertExternalNewsletterTarget, isNewsletterTarget } from '@/utils/newsletterTarget'
 import { inject, injectable } from '@/decorators/di'
 import { UserService } from '@/domain/user'
 import { DBSyncBatchOperation, type SyncCommitObserver } from '@/infra/repository/dbSyncBatch'
@@ -281,6 +282,7 @@ export class SyncOrchestrator {
     if (change.op === 'PUT' && change.data.hasOwnProperty('metadata')) {
       const bookmarkData = JSON.parse(change.data['metadata'].replaceAll('\\\\', '')) as SyncChangeUserBookmarkMetadata
       if (!bookmarkData.bookmark) throw ErrorParam()
+      assertExternalNewsletterTarget(bookmarkData.bookmark.target_url)
       operations.push({
         type: 'create_bookmark',
         bookmarkUuid: change.id,
@@ -504,7 +506,7 @@ export class SyncOrchestrator {
       captureRevision?: string
     }
   ) {
-    if (readerBookmarkUuid(newBookmark.targetUrl, [ctx.env.FRONT_END_URL])) return
+    if (isNewsletterTarget(newBookmark.targetUrl) || readerBookmarkUuid(newBookmark.targetUrl, [ctx.env.FRONT_END_URL])) return
     try {
       await this.bookmarkSearchRepo.upsertUserBookmark(newBookmark.userId, newBookmark.bookmarkId)
       await this.searchService.clearSearchCache(ctx, newBookmark.userId)

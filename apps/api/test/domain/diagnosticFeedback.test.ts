@@ -288,6 +288,7 @@ describe('diagnostic capability verification and removal', () => {
     ]
     const before = structuredClone(reports)
     const pg = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
       sr_user_report: { findMany: vi.fn().mockResolvedValue(reports), deleteMany: vi.fn(), updateMany: vi.fn() },
       $executeRaw: vi.fn(async () => {
         order.push('remaining cleanup')

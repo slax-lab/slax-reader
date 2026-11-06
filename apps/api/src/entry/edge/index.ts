@@ -10,13 +10,16 @@ import { matchCacheableRequest } from '@/middleware/cacheableRoutes'
 import { applyCacheHeaders } from '@/middleware/cacheHeaders'
 import { ContentEntry } from './contentEntry'
 import { handleImageProxy } from '@/handler/http/imageProxy'
-import { handleQueueEvent, handleScheduledEvent } from '../core'
+import { handleQueueEvent, handleScheduledEvent, handleEmailEvent } from '../core'
 
 type ForwardMode = 'user' | 'anon' | 'apikey'
 
 const AIGC_PATHS = new Set(['/v1/aigc/summaries', '/v1/aigc/chat', '/v1/bookmark/overview', '/v1/bookmark/outline', '/v1/bookmark/search'])
 
 const worker = {
+  async email(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) {
+    await handleEmailEvent(message, env, ctx)
+  },
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     request = new Request(request)
     request.headers.delete(EDGE_SECRET_HEADER)

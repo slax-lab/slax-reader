@@ -14,6 +14,9 @@ import { BookmarkOrchestrator } from '../../domain/orchestrator/bookmark'
 import { QueueClient } from '../../infra/queue/queueClient'
 import { UserDeletionService } from '../../domain/userDeletion'
 import { LabService } from '../../domain/lab'
+import { NewsletterService } from '@/domain/newsletter'
+import { configuredNewsletterDomain, NEWSLETTER_LOCAL_PREFIX, NewsletterError } from '@/utils/newsletter'
+import { isNewsletterAccount, type NewsletterEnableSettingRequest } from '@slax-reader/contracts'
 
 @Controller('/v1/user')
 export class UserController {
@@ -26,7 +29,8 @@ export class UserController {
     @inject(BookmarkOrchestrator) private bmOrch: BookmarkOrchestrator,
     @inject(QueueClient) private queueClient: QueueClient,
     @inject(UserDeletionService) private userDeletionService: UserDeletionService,
-    @inject(LabService) private labService: LabService
+    @inject(LabService) private labService: LabService,
+    @inject(NewsletterService) private newsletter: NewsletterService
   ) {
     this.bookmarkOrchestrator = bmOrch
   }
@@ -123,7 +127,7 @@ export class UserController {
   @Post('/setting')
   public async handleUserSettingRequest(ctx: ContextManager, request: Request) {
     const req = await RequestUtils.json<{ key: string; value: string }>(request)
-    if (!req) return Failed(ErrorParam())
+    if (!req || typeof req.key !== 'string' || typeof req.value !== 'string') return Failed(ErrorParam())
 
     await this.userService.saveUserSetting(ctx, req)
     return Successed('ok')
@@ -134,11 +138,45 @@ export class UserController {
    */
   @Post('/setting/enable')
   public async handleEnableUserSettingRequest(ctx: ContextManager, request: Request) {
-    const req = await RequestUtils.json<{ key: string }>(request)
-    if (!req) return Failed(ErrorParam())
+    const req = await RequestUtils.json<{ key: string } & Pick<NewsletterEnableSettingRequest, 'newsletter_address'>>(request)
+    if (!req || typeof req.key !== 'string') return Failed(ErrorParam())
 
-    const res = await this.userService.enableUserSetting(ctx, req.key, true)
-    return Successed(res)
+    try {
+      if (req.key === 'lab:newsletter' && req.newsletter_address !== undefined) {
+        const domain = configuredNewsletterDomain(ctx.env)
+        if (!domain) throw new NewsletterError('unavailable', 503)
+        const address = req.newsletter_address
+        if (
+          typeof address !== 'string' ||
+          !address.startsWith(NEWSLETTER_LOCAL_PREFIX) ||
+          !address.endsWith('@' + domain) ||
+          !isNewsletterAccount(address.slice(NEWSLETTER_LOCAL_PREFIX.length, -(domain.length + 1)))
+        ) {
+          throw new NewsletterError('invalid_account')
+        }
+      }
+      const res = await this.userService.enableUserSetting(ctx, req.key, true)
+      if (req.key === 'lab:newsletter' && req.newsletter_address !== undefined) {
+        await this.newsletter.address(ctx, true, req.newsletter_address)
+      }
+      return Successed(res)
+    } catch (error) {
+      if (!(error instanceof NewsletterError)) throw error
+      return Failed({ error: error.code }, error.status, error.code)
+    }
+  }
+
+  @Get('/newsletter_address')
+  public async newsletterAddress(ctx: ContextManager, _request: Request) {
+    let response: Response
+    try {
+      response = Successed(await this.newsletter.address(ctx, false))
+    } catch (error) {
+      if (!(error instanceof NewsletterError)) throw error
+      response = Failed({ error: error.code }, error.status, error.code)
+    }
+    response.headers.set('Cache-Control', 'private, no-store')
+    return response
   }
 
   /**

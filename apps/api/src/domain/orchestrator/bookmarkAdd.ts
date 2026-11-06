@@ -1,3 +1,4 @@
+import { assertExternalNewsletterTarget } from '@/utils/newsletterTarget'
 import { inject, injectable } from '../../decorators/di'
 import { ContextManager } from '@/utils/context'
 import { BookmarkService } from '../bookmark'
@@ -27,6 +28,7 @@ export class BookmarkAddOrchestrator {
   ) {}
 
   public async addByUrl(ctx: ContextManager, req: addUrlBookmarkReq, opts: { callback?: callbackType; callbackPayload?: any } = {}): Promise<PreWorkflowResult> {
+    assertExternalNewsletterTarget(req?.target_url)
     try {
       // 解短链降级：失败时仍用原 URL，但同步告警
       await this.tryResolveShortLink(ctx, req)
@@ -69,6 +71,7 @@ export class BookmarkAddOrchestrator {
   }
 
   public async addByContent(ctx: ContextManager, req: addBookmarkReq): Promise<PreWorkflowResult & { resource?: string }> {
+    assertExternalNewsletterTarget(req?.target_url)
     try {
       const res = await this.bookmarkService.addBookmark(ctx, req)
 

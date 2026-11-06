@@ -5,6 +5,7 @@ import {openInAppBrowser, shareArticle} from '../../native/platform'
 import {jsonArray, jsonObject, subscriptionActive} from '../model'
 import {readerShareImage} from '../share'
 import {useVisibleSnapshot} from '../../components/useVisibleSnapshot'
+import {httpOriginalUrl} from '../../utils/source-url'
 import type {MobileContext, ReaderPresentationIdentity, ReaderScope, ReaderTelemetry} from './types'
 
 interface BookmarkPorts {
@@ -63,7 +64,7 @@ export function useReaderBookmark(scope: ReaderScope, ports: BookmarkPorts) {
     clearSelection(); void repositories.updateBookmark(bookmarkId, {[field]: record[field] ? 0 : 1}).catch(fail)
   }
   const openOriginal = (originalUrl: string) => {
-    if (!/^https?:\/\//i.test(originalUrl) || !isAccountActive()) return
+    if (!httpOriginalUrl(originalUrl) || !isAccountActive()) return
     if (fixtureOnly) {fail(new Error('External navigation is unavailable in controlled UI fixtures')); return}
     if (!isPreview) telemetry.firebase('bookmark', 'view', {}, 'original')
     void openInAppBrowser(originalUrl).catch(fail)
@@ -103,6 +104,6 @@ export function readerPresentationIdentity(record: BookmarkRecord | null, input:
   const pdfTitle = [record?.aliasTitle, record?.title, routeTitle].find(value => value?.trim() && value.trim() !== pdf?.filename && !/^(?:https?|slax-pdf):\/\//i.test(value.trim()))?.trim()
   const title = isPdf ? pdfTitle || t('pdf_reader') : record ? bookmarkDisplayTitle(record) : rss?.title || routeTitle || ''
   const sourceUrl = record?.url || rss?.article_url || ''
-  const originalUrl = isPdf && (pdf?.source !== 'url' || !/^https?:\/\//i.test(sourceUrl)) ? '' : sourceUrl
+  const originalUrl = isPdf && pdf?.source !== 'url' ? '' : httpOriginalUrl(sourceUrl)
   return {title, originalUrl, isPdf, pdf, rss}
 }

@@ -32,7 +32,6 @@
 import AppIcon from '~/components/AppIcon.vue'
 
 import { useSidebarCollapsed } from '~/composables/bookmark/useSidebarCollapsed'
-import { useRssEnabled } from '~/composables/rss/useRssEnabled'
 import { useLabFeatures } from '~/composables/useLabFeatures'
 import { resolveTabIconKey } from '~/icons/registry'
 
@@ -43,7 +42,6 @@ const sidebarEl = ref<HTMLElement>()
 const { collapsed } = useSidebarCollapsed()
 const labs = useLabFeatures()
 const user = useUserStore()
-const rssEnabled = useRssEnabled(labs)
 onMounted(() => {
   void labs.fetch().catch(() => {})
 })
@@ -72,7 +70,7 @@ const emits = defineEmits(['changeTab'])
 const tabList = computed(() =>
   BookmarkTabTypes.flatMap(type => {
     const item = { type, title: t(`page.bookmarks_index.${type}`), icon: resolveTabIconKey(type, TabIcons[type]) }
-    if (type !== 'inbox' || !rssEnabled.value) return [item]
+    if (type !== 'inbox') return [item]
     return [
       item,
       { type: 'rss', title: t('rss.title'), icon: 'bookmark.rss' }
