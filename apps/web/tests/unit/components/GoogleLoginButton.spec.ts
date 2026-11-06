@@ -97,4 +97,12 @@ describe('GoogleLoginButton', () => {
     wrapper.unmount()
   })
 
+  it('passes acquisition provenance without emitting a collection click', async () => {
+    const authAttribution = { source: 'hackerlinks', medium: 'header', campaign: 'mvp' } as const
+    const wrapper = mountWithApp(GoogleLoginButton, { props: { redirect: '/bookmarks', authAttribution } })
+    await wrapper.get('button').trigger('click')
+    expect(mockRequestAuth).toHaveBeenCalledWith({ redirect: '/bookmarks', affCode: '', authAttribution })
+    expect(mockEventLog).not.toHaveBeenCalled()
+  })
+
 })

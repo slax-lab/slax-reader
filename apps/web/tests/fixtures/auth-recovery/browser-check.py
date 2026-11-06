@@ -48,15 +48,18 @@ with sync_playwright() as p:
     results.append({'case': 'baseline-disconnect', 'result': 'raw toast then persistent spinner'})
     context.close()
 
-    for mode in ['disconnect', 'provider-error', 'pending', 'navigation-error', 'malformed', 'apple', 'collection']:
+    for mode in ['disconnect', 'provider-error', 'pending', 'navigation-error', 'malformed', 'apple', 'collection', 'acquisition-google', 'acquisition-apple']:
         context = browser.new_context(viewport={'width': 1280, 'height': 800})
         page = context.new_page()
         errors = []
         page.on('pageerror', lambda error: errors.append(str(error)))
-        actual_mode = 'provider-error' if mode in ['apple', 'collection'] else 'disconnect' if mode == 'malformed' else mode
+        actual_mode = 'provider-error' if mode in ['apple', 'collection', 'acquisition-google', 'acquisition-apple'] else 'disconnect' if mode == 'malformed' else mode
         attribution = {'collection_id': 'Collection123', 'source_screen': 'collection', 'presentation': 'modal', 'trigger_element_id': 'collection_subscribe_button'} if mode == 'collection' else None
+        if mode.startswith('acquisition-'):
+            attribution = {'source': 'hackerlinks', 'medium': 'resource_detail' if mode == 'acquisition-apple' else 'header', 'campaign': 'mvp'}
+        provider = 'apple' if mode in ['apple', 'acquisition-apple'] else 'google'
         started = time.monotonic()
-        page.goto(callback(args.base, actual_mode, provider='apple' if mode == 'apple' else 'google', malformed=mode == 'malformed', attribution=attribution))
+        page.goto(callback(args.base, actual_mode, provider=provider, malformed=mode == 'malformed', attribution=attribution))
         expect(page.get_by_role('alert')).to_be_visible(timeout=30000)
         expect(page).to_have_title('Sign-in not complete - Slax Reader')
         if mode == 'pending':
@@ -78,8 +81,8 @@ with sync_playwright() as p:
         state = json.loads(query['state'][0])
         assert state['target'] == ('/bookmarks' if mode == 'malformed' else '/__fixture/done?return=preserved')
         assert state['affCode'] == ('' if mode == 'malformed' else 'synthetic-referral')
-        assert state['platform'] == ('apple' if mode == 'apple' else 'google')
-        if mode == 'collection':
+        assert state['platform'] == provider
+        if mode in ['collection', 'acquisition-google', 'acquisition-apple']:
             assert state['auth_attribution'] == attribution
         results.append({'case': mode, 'result': 'persistent recovery, no raw toast/unhandled rejection, fresh authorization', 'elapsedSeconds': round(time.monotonic() - started, 2)})
         context.close()
@@ -128,6 +131,8 @@ with urlopen(args.base + '/__fixture/requests') as response:
     requests = json.load(response)
 assert any(entry.get('mode') == 'pending' and entry.get('canceled') for entry in requests)
 assert any(entry.get('body', {}).get('auth_attribution', {}).get('collection_id') == 'Collection123' for entry in requests)
+assert any(entry.get('body', {}).get('type') == 'google' and entry.get('body', {}).get('auth_attribution') == {'source': 'hackerlinks', 'medium': 'header', 'campaign': 'mvp'} for entry in requests)
+assert any(entry.get('body', {}).get('type') == 'apple' and entry.get('body', {}).get('auth_attribution') == {'source': 'hackerlinks', 'medium': 'resource_detail', 'campaign': 'mvp'} for entry in requests)
 (out / 'results.json').write_text(json.dumps(results, indent=2))
 (out / 'http-requests.json').write_text(json.dumps(requests, indent=2))
 print(json.dumps({'checks': len(results), 'result': 'passed', 'output': str(out)}))

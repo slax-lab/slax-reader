@@ -8,6 +8,18 @@ export type CollectionAuthAttribution = {
   trigger_element_id: 'collection_subscribe_button'
 }
 
+export type AcquisitionAuthAttribution = {
+  source: 'hackerlinks'
+  medium: 'header' | 'resource_detail'
+  campaign: 'mvp'
+}
+
+export type WebAuthAttribution = CollectionAuthAttribution | AcquisitionAuthAttribution
+
+export const isCollectionAuthAttribution = (value: WebAuthAttribution | undefined): value is CollectionAuthAttribution => !!value && 'collection_id' in value
+
+export const isAcquisitionAuthAttribution = (value: WebAuthAttribution | undefined): value is AcquisitionAuthAttribution => !!value && !isCollectionAuthAttribution(value)
+
 export type CollectionOpenedProperties = {
   collection_id: string
   opened_from: 'external_link' | 'inbox'
