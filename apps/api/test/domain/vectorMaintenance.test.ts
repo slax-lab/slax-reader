@@ -340,7 +340,7 @@ describe('single-target task refresh semantics', () => {
     await seed(41)
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'missing_dependency:a:1:41' })
+      expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 1, used: 0, missing: 1 } })
       expect(provider).not.toHaveBeenCalled()
       expect(indexes[0].upsert).not.toHaveBeenCalled()
       expect(indexes[2].upsert).not.toHaveBeenCalled()
@@ -1097,10 +1097,114 @@ describe('minimal per-user vector maintenance', () => {
     }
   })
 
-  test('missing dependencies fail instead of publishing a silently partial user profile', async () => {
-    await seed()
-    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'missing_dependency:a:1:1' })
+  test('partial article preferences use the same available inputs for raw, centered and interests', async () => {
+    await seed(1, [1], 'first', { starred: true })
+    await seed(2, [1], 'missing')
+    await seed(3, [1], 'third')
+    const tilted = unit().map((value, index) => (index === 0 ? 0.8 : index === 1 ? 0.6 : value))
+    indexes[0].stored.set('a:1:1', { id: 'a:1:1', values: unit() })
+    indexes[0].stored.set('a:1:3', { id: 'a:1:3', values: tilted })
+    const output = await service.refreshUser(1, 'article')
+    expect(output).toMatchObject({ state: 'written', coverage: { eligible: 3, used: 2, missing: 1 } })
+    expect(indexes[2].upsert).toHaveBeenCalledOnce()
+    const raw = indexes[2].stored.get('u:1:article')!
+    const centered = indexes[2].stored.get('u:1:article:centered')!
+    const expectedRaw = weightedNormalizedSum([unit(), tilted], [2, 1])!
+    const expectedCentered = weightedNormalizedSum([referenceCenter(unit()), referenceCenter(tilted)], [2, 1])!
+    raw.values.forEach((value, index) => expect(value).toBeCloseTo(expectedRaw[index], 10))
+    centered.values.forEach((value, index) => expect(value).toBeCloseTo(expectedCentered[index], 10))
+    const partialInterests = raw.metadata!.interests
+    await db.exec('UPDATE sr_user_bookmark SET deleted_at=now() WHERE bookmark_id=2')
+    const complete = await service.refreshUser(1, 'article')
+    expect(complete.coverage).toEqual({ eligible: 2, used: 2, missing: 0 })
+    expect(indexes[2].stored.get('u:1:article')?.metadata?.interests).toBe(partialInterests)
+    expect(complete.writeToken).toBe(output.writeToken)
+    expect(provider).not.toHaveBeenCalled()
+    expect(env.OSS.get).not.toHaveBeenCalled()
+    expect(indexes[0].upsert).not.toHaveBeenCalled()
+  })
+
+  test.each(['article', 'collection'] as const)('%s preference continues after an entirely missing first page', async preference => {
+    const rows = Array.from({ length: 103 }, (_, index) => ({ id: index + 1, is_starred: false }))
+    const page = async (_user: number, after: number, limit: number) => rows.filter(row => row.id > after).slice(0, limit)
+    const member = vi.spyOn(repo, preference === 'article' ? 'listUserArticles' : 'listUserCollections').mockImplementation(page)
+    const sourceIndex = preference === 'article' ? indexes[0] : indexes[1]
+    for (let id = 101; id <= 103; id++) {
+      const key = preference === 'article' ? `a:1:${id}` : `c:${id}`
+      sourceIndex.stored.set(key, { id: key, values: unit(1) })
+    }
+    try {
+      const output = await service.refreshUser(1, preference)
+      expect(output).toMatchObject({ state: 'written', coverage: { eligible: 103, used: 3, missing: 100 } })
+      expect(member.mock.calls.map(call => call[1])).toEqual([0, 100])
+      expect(sourceIndex.getByIds.mock.calls.flatMap(call => call[0])).toHaveLength(103)
+      expect(await service.readUser(1, preference)).toEqual(unit(1))
+      expect(provider).not.toHaveBeenCalled()
+    } finally {
+      member.mockRestore()
+    }
+  })
+
+  test.each(['article', 'collection'] as const)('all missing %s inputs preserve the previous profile', async preference => {
+    const rows = [
+      { id: 41, is_starred: false },
+      { id: 42, is_starred: true }
+    ]
+    const member = vi.spyOn(repo, preference === 'article' ? 'listUserArticles' : 'listUserCollections').mockResolvedValue(rows)
+    const keys = preference === 'article' ? ['u:1:article', 'u:1:article:centered'] : ['u:1:collection']
+    for (const key of keys) indexes[2].stored.set(key, { id: key, values: unit(2), namespace: `user-${preference}`, metadata: { original: true } })
+    const original = structuredClone([...indexes[2].stored.entries()])
+    try {
+      const output = await service.refreshUser(1, preference)
+      expect(output).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 2, used: 0, missing: 2 }, vectorIds: [], mutationIds: [] })
+      expect([...indexes[2].stored.entries()]).toEqual(original)
+      expect(indexes[2].upsert).not.toHaveBeenCalled()
+      expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
+      expect(provider).not.toHaveBeenCalled()
+    } finally {
+      member.mockRestore()
+    }
+  })
+
+  test.each(['article', 'collection'] as const)('empty eligible %s history still removes stale profiles with zero coverage', async preference => {
+    const key = `u:1:${preference}`
+    indexes[2].stored.set(key, { id: key, values: unit(), namespace: `user-${preference}` })
+    const output = await service.refreshUser(1, preference)
+    expect(output).toMatchObject({ state: 'deleted', coverage: { eligible: 0, used: 0, missing: 0 } })
+    expect(indexes[2].stored.has(key)).toBe(false)
+    expect(provider).not.toHaveBeenCalled()
+  })
+
+  test.each(['article', 'collection'] as const)('%s read errors after valid contributions never publish a partial replacement', async preference => {
+    const member = vi
+      .spyOn(repo, preference === 'article' ? 'listUserArticles' : 'listUserCollections')
+      .mockResolvedValue(Array.from({ length: 21 }, (_, i) => ({ id: i + 1, is_starred: false })))
+    const sourceIndex = preference === 'article' ? indexes[0] : indexes[1]
+    const key = `u:1:${preference}`
+    indexes[2].stored.set(key, { id: key, values: unit(2), namespace: `user-${preference}` })
+    const original = structuredClone(indexes[2].stored.get(key))
+    sourceIndex.getByIds.mockImplementation(async ids => {
+      if (ids.some(id => id.endsWith(':21'))) throw new Error('storage_unavailable')
+      return ids.map(id => ({ id, values: unit() }))
+    })
+    try {
+      expect(await service.refreshUser(1, preference)).toMatchObject({ state: 'failed', reason: 'storage_unavailable', coverage: { missing: 0 } })
+      expect(indexes[2].stored.get(key)).toEqual(original)
+      expect(indexes[2].upsert).not.toHaveBeenCalled()
+      expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
+    } finally {
+      member.mockRestore()
+    }
+  })
+
+  test('invalid present vectors are errors rather than missing contributions', async () => {
+    await seed(1)
+    await seed(2)
+    indexes[0].stored.set('a:1:1', { id: 'a:1:1', values: unit() })
+    indexes[0].stored.set('a:1:2', { id: 'a:1:2', values: [NaN] })
+    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'invalid_vector_dimensions', coverage: { missing: 0 } })
     expect(indexes[2].upsert).not.toHaveBeenCalled()
+    expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
   })
 
   test.each(['pending', 'failed'])('a %s capture is not a preference dependency until its source completes', async status => {
@@ -1118,8 +1222,9 @@ describe('minimal per-user vector maintenance', () => {
       { id: 41, is_starred: false },
       { id: 42, is_starred: false }
     ])
-    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'missing_dependency:a:1:42' })
+    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 1, missing: 1 } })
     expect((await service.refreshArticles([{ userId: 1, id: 42 }]))[0]).toMatchObject({ state: 'written', target: { kind: 'article', userId: 1, id: 42 } })
+    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 2, missing: 0 } })
   })
 
   test('Collection reads only its owners readable starred vector identities', async () => {
@@ -1182,7 +1287,7 @@ describe('minimal per-user vector maintenance', () => {
     await seed(1, [2], 'published PDF member', { starred: true, published: true, privateUser: 2 })
     await db.exec('UPDATE sr_user_bookmark SET type=2; INSERT INTO sr_user_collection_subscriber(user_id,collection_id) VALUES(1,2)')
     const result = await service.refreshUser(1, 'collection')
-    expect(result).toMatchObject({ state: 'failed', reason: 'missing_dependency:c:2' })
+    expect(result).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 1, used: 0, missing: 1 } })
     expect(indexes[2].upsert).not.toHaveBeenCalled()
     expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
   })

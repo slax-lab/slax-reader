@@ -129,6 +129,15 @@ function summarizeResult(value: unknown): { result: Record<string, unknown>; pen
       /^missing_dependency:(?:a:[1-9]\d*:[1-9]\d*(?::c:(?:0|[1-9]\d*))?|c:[1-9]\d*|u:[1-9]\d*:(?:article(?::centered)?|collection))$/.test(value.reason))
   )
     result.reason = value.reason
+  if (record(value.coverage)) {
+    const { eligible, used, missing } = value.coverage
+    if (
+      [eligible, used, missing].every(count => typeof count === 'number' && Number.isSafeInteger(count) && count >= 0) &&
+      (used as number) <= (eligible as number) &&
+      (missing as number) <= (eligible as number) - (used as number)
+    )
+      result.coverage = { eligible, used, missing }
+  }
   return { result, pending, failed }
 }
 

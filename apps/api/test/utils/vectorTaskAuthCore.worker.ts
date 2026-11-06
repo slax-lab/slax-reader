@@ -18,7 +18,10 @@ import { CrawlService } from '@/domain/crawl'
 import { LogsService } from '@/domain/logs'
 
 const unit = (axis = 0) => Array.from({ length: 1024 }, (_, index) => (index === axis ? 1 : 0))
-const stored = new Map<string, VectorizeVector>()
+const stored = new Map<string, VectorizeVector>([
+  ['a:8:101', { id: 'a:8:101', values: unit(1) }],
+  ['c:201', { id: 'c:201', values: unit(2) }]
+])
 
 const repo = {
   findArticles: async (pairs: Array<{ userId: number; id: number }>) =>
@@ -35,10 +38,18 @@ const repo = {
       recommendable: true
     })),
   findCollection: async (id: number) => ({ id, owner_id: 7, published_at: 1 }),
-  listUserArticles: async () => [],
+  listUserArticles: async (userId: number) =>
+    userId === 8
+      ? [
+          { id: 101, is_starred: true },
+          { id: 102, is_starred: false }
+        ]
+      : userId === 9
+        ? [{ id: 103, is_starred: false }]
+        : [],
   listRecentUserActions: async () => [],
   listCollectionMembers: async () => [],
-  listUserCollections: async () => []
+  listUserCollections: async (userId: number) => (userId === 8 ? [{ id: 201 }, { id: 202 }] : userId === 9 ? [{ id: 203 }] : [])
 }
 
 const sources = {

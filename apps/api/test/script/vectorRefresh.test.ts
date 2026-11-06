@@ -138,9 +138,10 @@ describe('sequential operator enumeration', () => {
   test('Collection enumeration keeps active collections by default and explicit closed cleanup IDs', async () => {
     expect(await enumeratePage(db, 'collection', 0, parseRefreshOptions([]))).toEqual({ cursor: 31, rows: collectionRows })
     expect((await enumeratePage(db, 'collection', 0, parseRefreshOptions(['--kind', 'collection', '--user', '1']))).rows).toEqual([{ cursor: 31, collectionId: 31 }])
-    expect(
-      (await enumeratePage(db, 'collection', 0, parseRefreshOptions(['--kind', 'collection', '--ids', '30,31,32,33,34', '--user', '1']))).rows
-    ).toEqual([{ cursor: 31, collectionId: 31 }, { cursor: 32, collectionId: 32 }])
+    expect((await enumeratePage(db, 'collection', 0, parseRefreshOptions(['--kind', 'collection', '--ids', '30,31,32,33,34', '--user', '1']))).rows).toEqual([
+      { cursor: 31, collectionId: 31 },
+      { cursor: 32, collectionId: 32 }
+    ])
     expect((await enumeratePage(db, 'collection', 0, parseRefreshOptions(['--kind', 'collection', '--ids', '30,31,32,33,34', '--user', '2']))).rows).toEqual([
       { cursor: 30, collectionId: 30 },
       { cursor: 34, collectionId: 34 }
@@ -277,6 +278,34 @@ describe('response and option safety', () => {
       const result = readRefreshResponse(accepted({ state: 'failed', reason }))
       expect(result.result).toEqual({ state: 'failed' })
       expect(JSON.stringify(result)).not.toContain('secret')
+    }
+  })
+
+  test('preserves only validated numeric preference coverage', () => {
+    expect(readRefreshResponse(accepted({ state: 'written', coverage: { eligible: 3, used: 2, missing: 1, token: 'secret' } }))).toEqual({
+      result: { state: 'written', coverage: { eligible: 3, used: 2, missing: 1 } },
+      pending: false,
+      failed: false
+    })
+    expect(readRefreshResponse(accepted({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 2, used: 0, missing: 2 } })).result).toEqual({
+      state: 'failed',
+      reason: 'no_usable_preference_vectors',
+      coverage: { eligible: 2, used: 0, missing: 2 }
+    })
+    expect(readRefreshResponse(accepted({ state: 'deleted', coverage: { eligible: 0, used: 0, missing: 0 } })).result.coverage).toEqual({ eligible: 0, used: 0, missing: 0 })
+    for (const coverage of [
+      null,
+      [],
+      {},
+      { eligible: '3', used: 2, missing: 1 },
+      { eligible: 1, used: 2, missing: 0 },
+      { eligible: 2, used: 2, missing: 1 },
+      { eligible: -1, used: 0, missing: 0 },
+      { eligible: 2.5, used: 2, missing: 0 },
+      { eligible: Infinity, used: 0, missing: 0 },
+      { eligible: 1, used: 0, missing: NaN }
+    ]) {
+      expect(readRefreshResponse(accepted({ state: 'written', coverage })).result).toEqual({ state: 'written' })
     }
   })
 

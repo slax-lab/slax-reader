@@ -518,7 +518,8 @@ export class VectorMaintenanceService implements VectorMaintenance {
     load: (after: number, limit: number) => Promise<{ id: number; weight: number }[]>,
     kind: 'article' | 'collection',
     userId?: number,
-    visit?: (id: number, values: ArrayLike<number>, weight: number) => void
+    visit?: (id: number, values: ArrayLike<number>, weight: number) => void,
+    coverage?: VectorRefreshResult['coverage']
   ): Promise<number[] | null> {
     const sum = new Float64Array(VECTOR_DIMENSIONS)
     let count = 0
@@ -526,14 +527,20 @@ export class VectorMaintenanceService implements VectorMaintenance {
     for (;;) {
       const rows = await load(after, VECTOR_READ_BATCH_SIZE)
       if (!rows.length) break
+      if (coverage) coverage.eligible += rows.length
       const ids = rows.map(row => (kind === 'article' ? articleVectorId({ userId: userId!, id: row.id }) : `c:${row.id}`))
       const values = await this.get(kind, ids)
       for (let i = 0; i < rows.length; i++) {
         const vector = values.get(ids[i])
-        if (!vector) throw new Error(`missing_dependency:${ids[i]}`)
+        if (!vector) {
+          if (!coverage) throw new Error(`missing_dependency:${ids[i]}`)
+          coverage.missing++
+          continue
+        }
         addVector(sum, vector.values, rows[i].weight)
         visit?.(rows[i].id, vector.values, rows[i].weight)
         count++
+        if (coverage) coverage.used++
       }
       const last = rows[rows.length - 1].id
       if (last <= after) throw new Error('invalid_dependency_page')
@@ -578,6 +585,8 @@ export class VectorMaintenanceService implements VectorMaintenance {
     positiveId(id)
     if (preference !== 'article' && preference !== 'collection') throw new Error('invalid_preference_kind')
     const output = result({ kind: 'user', id, preference })
+    const coverage = { eligible: 0, used: 0, missing: 0 }
+    output.coverage = coverage
     const key = `u:${id}:${preference}`
     const keys = preference === 'article' ? [key, `${key}:centered`] : [key]
     try {
@@ -597,10 +606,18 @@ export class VectorMaintenanceService implements VectorMaintenance {
                 const centered = center(unit)
                 for (let index = 0; index < centeredSum.length; index++) centeredSum[index] += weight * centered[index]
                 if (recentIds.has(bookmarkId)) representatives.set(bookmarkId, unit)
-              }
+              },
+              coverage
             )
-          : await this.aggregate(async (after, limit) => (await this.repo.listUserCollections(id, after, limit)).map(row => ({ id: row.id, weight: 1 })), 'collection')
+          : await this.aggregate(
+              async (after, limit) => (await this.repo.listUserCollections(id, after, limit)).map(row => ({ id: row.id, weight: 1 })),
+              'collection',
+              undefined,
+              undefined,
+              coverage
+            )
       if (!vector) {
+        if (coverage.eligible > 0) throw new Error('no_usable_preference_vectors')
         await this.remove('user', keys, output)
         output.state = 'deleted'
       } else {
