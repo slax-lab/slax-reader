@@ -115,6 +115,43 @@ describe('bounded source image selection', () => {
   })
 })
 
+describe('empty source images', () => {
+  test.each([0, 16])('skips empty images with reported size %i without consuming valid-image slots', async reportedSize => {
+    const entries = new Map<string, { bytes: Uint8Array; contentType: string }>()
+    const emptyKeys: string[] = []
+    let html = ''
+    for (let i = 0; i < 8; i++) {
+      const key = `private-snapshots/${uuid}/images/${i}`
+      entries.set(key, { bytes: i < 4 ? new Uint8Array() : new Uint8Array([1, 2, 3]), contentType: 'image/png' })
+      if (i < 4) emptyKeys.push(key)
+      html += `<img src="https://source-assets.reader.invalid/${key}">`
+    }
+    const { env } = fixture(html, entries)
+    const head = vi.mocked(env.OSS.head)
+    const original = head.getMockImplementation()!
+    head.mockImplementation(async key => (emptyKeys.includes(key) ? ({ size: reportedSize, httpMetadata: { contentType: 'image/png' } } as R2Object) : original(key)))
+    const selection: ImageSelection = { selected: 0, skipped: {} }
+    const inputs = []
+    for await (const input of new VectorSourceRepo(env).articleInputs(source, selection)) inputs.push(input)
+    expect(inputs).toEqual([{ text: 'Title\n\ncomplete article' }, ...Array.from({ length: 4 }, () => ({ content: [{ text: 'Title' }, { image: 'AQID' }] }))])
+    expect(selection).toEqual({ selected: 4, skipped: { empty: 4 } })
+    for (const key of emptyKeys) {
+      if (reportedSize === 0) expect(env.OSS.get).not.toHaveBeenCalledWith(key)
+      else expect(env.OSS.get).toHaveBeenCalledWith(key)
+    }
+  })
+
+  test.each([0, 16])('retains missing_source_content for image-only empty bytes with reported size %i', async reportedSize => {
+    const key = `private-snapshots/${uuid}/images/0`
+    const { env } = fixture(`<img src="https://source-assets.reader.invalid/${key}">`, new Map([[key, { bytes: new Uint8Array(), contentType: 'image/png' }]]))
+    vi.mocked(env.OSS.head).mockResolvedValue({ size: reportedSize, httpMetadata: { contentType: 'image/png' } } as R2Object)
+    const selection: ImageSelection = { selected: 0, skipped: {} }
+    const inputs = new VectorSourceRepo(env).articleInputs({ ...source, content_md_key: '' }, selection)
+    await expect(inputs.next()).rejects.toThrow('missing_source_content')
+    expect(selection).toEqual({ selected: 0, skipped: { empty: 1 } })
+  })
+})
+
 describe('pdf input preparation', () => {
   test('returns the exact original base64 without parsing PDF structure', async () => {
     const fixture = pdfFixture(['Page one', 'Page two'])
