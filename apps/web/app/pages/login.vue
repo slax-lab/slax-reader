@@ -20,7 +20,7 @@ import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { BloggerInfo } from '@slax-reader/contracts/interface'
 
 const route = useRoute()
-const authAttribution = acquisitionAttributionFromQuery(route.query)
+const authAttribution = computed(() => acquisitionAttributionFromQuery(route.query))
 const redirect = `${route.query.redirect || ''}`
 const affcode = `${route.query.aff || ''}`
 const bloggerParam = `${route.query.blogger || ''}`

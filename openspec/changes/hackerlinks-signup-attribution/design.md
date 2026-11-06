@@ -111,6 +111,9 @@ WITH scoped AS (
     occurred_at,
     device_id,
     CASE
+      WHEN occurred_at IS NULL AND received_at IS NULL THEN NULL
+      WHEN occurred_at IS NULL THEN received_at
+      WHEN received_at IS NULL THEN occurred_at
       WHEN abs(epoch(received_at) - epoch(occurred_at)) > 300 THEN received_at
       ELSE occurred_at
     END AS effective_at

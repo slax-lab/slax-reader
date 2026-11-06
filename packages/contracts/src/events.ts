@@ -18,7 +18,15 @@ export type WebAuthAttribution = CollectionAuthAttribution | AcquisitionAuthAttr
 
 export const isCollectionAuthAttribution = (value: WebAuthAttribution | undefined): value is CollectionAuthAttribution => !!value && 'collection_id' in value
 
-export const isAcquisitionAuthAttribution = (value: WebAuthAttribution | undefined): value is AcquisitionAuthAttribution => !!value && !isCollectionAuthAttribution(value)
+export const isAcquisitionAuthAttribution = (value: WebAuthAttribution | undefined): value is AcquisitionAuthAttribution =>
+  !!value &&
+  !isCollectionAuthAttribution(value) &&
+  'source' in value &&
+  value.source === 'hackerlinks' &&
+  'medium' in value &&
+  ['header', 'resource_detail'].includes(value.medium) &&
+  'campaign' in value &&
+  value.campaign === 'mvp'
 
 export type CollectionOpenedProperties = {
   collection_id: string
