@@ -1,4 +1,5 @@
 import { estimateCostUsd } from '@/utils/youtubeArticle'
+import { DeepSeekError } from '@/infra/external/deepseekClient'
 /**
  * One generation attempt end to end, with a fake step engine, an in-memory R2 bucket, a fake row
  * store and a fake model. Covers the happy path and every way an attempt can end.
@@ -702,6 +703,27 @@ describe('source-owned transcript generation', () => {
     expect(await s.run()).toBe('ready')
     expect(Object.keys(input(translations(model)[1]))).toEqual(['p0'])
     expect(input(translations(model)[1]).p0.repair).toContain('wrong_language')
+  })
+
+  test.each([new DeepSeekError('http', 401), new Error('private-provider-message')])('records safe provider failure diagnostics', async error => {
+    const logs = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const model = editedModel()
+      model.chat.mockRejectedValue(error)
+      const s = translated(40, model)
+      expect(await s.run()).toBe('retry')
+      const entries = logs.mock.calls.map(call => JSON.parse(String(call[0])))
+      expect(entries).toContainEqual(
+        expect.objectContaining({
+          event: 'youtube_article_model_error',
+          code: error instanceof DeepSeekError ? 'http' : 'unknown',
+          provider_status: error instanceof DeepSeekError ? 401 : null
+        })
+      )
+      expect(JSON.stringify(entries)).not.toContain('private-provider-message')
+    } finally {
+      logs.mockRestore()
+    }
   })
 
   test('a provider outage preserves accepted paragraphs and resumes after recovery', async () => {

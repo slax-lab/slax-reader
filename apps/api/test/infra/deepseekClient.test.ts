@@ -17,7 +17,7 @@ describe('DeepSeek article client', () => {
     const result = await new DeepSeekClient({ DEEPSEEK_API_KEY: 'test-key' }).chat(input, { ...config, abortSignal: signal }, options)
     const [url, request] = fetcher.mock.calls[0]
     expect(url.href).toBe('https://api.deepseek.com/chat/completions')
-    expect(request).toMatchObject({ method: 'POST', redirect: 'error', signal, headers: { Authorization: 'Bearer test-key' } })
+    expect(request).toMatchObject({ method: 'POST', redirect: 'manual', signal, headers: { Authorization: 'Bearer test-key' } })
     const body = JSON.parse(request.body)
     expect(body).toMatchObject({ model: 'deepseek-flash', thinking: { type: 'disabled' }, response_format: { type: 'json_object' }, max_tokens: 4000, stream: false })
     expect(body).not.toHaveProperty('thinkingConfig')
@@ -49,7 +49,7 @@ describe('DeepSeek article client', () => {
     expect((await new DeepSeekClient({ DEEPSEEK_API_KEY: 'test-key' }).chat(input, config, options)).usage).toBeUndefined()
   })
 
-  it.each([401, 429, 500])('exposes HTTP %i without response content', async status => {
+  it.each([301, 302, 303, 307, 308, 401, 429, 500])('exposes HTTP %i without response content', async status => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('secret-key and source text', { status })))
     await expect(new DeepSeekClient({ DEEPSEEK_API_KEY: 'test-key' }).chat(input, config, options)).rejects.toMatchObject({
       message: `deepseek_http:${status}`,

@@ -74,3 +74,27 @@ Repeated the full API suite, typecheck, generation and strict OpenSpec validatio
 | yP176MBG9Tk | Ready, Chinese | 24.447 s | 1,318 / 70 | $0.0275007 |
 
 Artifacts: `/tmp/slax-deepseek-delivery/ff18bc6bff1b-live-1793957433388` and `/tmp/slax-deepseek-delivery/3ffbbdd12114-live-1793957458599`. The harness supplies a no-op vector-maintenance callback; remote Jina behavior is covered by the merged regression suites, not claimed as live integration evidence. The other verification limits above still apply.
+
+## Workers redirect incident after PR #527
+
+On November 6, bookmark `f4f6746f-d2b2-49a9-94fc-0fd510cf9433` (video `5_0dVHMpJlo`) failed on the deployed test Worker. Its article Workflow started at 09:59:40.496 UTC and ended at 10:02:51.659 UTC with business output `retry`. All seven chunks exhausted three attempts, reporting `model_request_failed`; two waves of 30 s / 60 s retry delays accounted for approximately 180 s. The 47.964 s bookmark update interval was not translation completion.
+
+The defect was introduced in the DeepSeek client: Workerd rejects `redirect: 'error'` when constructing the outbound request. A direct Workerd reproduction reported `Invalid redirect value, must be one of "follow" or "manual"`. Node accepts this option, so the earlier Node-only live calls and fetch mocks missed the deployment failure. The actual deployed Worker has the DeepSeek key binding; this runtime failure occurs before contacting the provider.
+
+The follow-up uses `redirect: 'manual'` and rejects non-2xx responses through the existing sanitized HTTP error path. Credentials are never forwarded to a redirect destination. Added an actual Workerd regression using the production client and the runtime's outbound-service boundary (no JavaScript fetch stub): it failed before the fix and passes after it. It covers successful JSON, 301/302/303/307/308 rejection, and 401/429/500 errors, asserting exactly one outbound request to the approved endpoint. Added safe provider-code/status logging and a regression proving arbitrary error messages are not logged.
+
+Real provider verification now runs the client inside Workerd with its actual outbound fetch. The surrounding article runner, repository, object storage and publication remain local stand-ins. Command from apps/api:
+
+```sh
+node --env-file=../../deploy/local/.dev.vars --import tsx test/runtime/deepseekDelivery.ts --live --workerd /tmp/slax-monitor-f4f6746f/caption.json /tmp/slax-cue-2f114e/caption.json /tmp/slax-dev-stall/new-caption.json
+```
+
+| Video | Provider runtime | Result | Local elapsed | Cues / paragraphs |
+| --- | --- | --- | --- | --- |
+| 5_0dVHMpJlo | Workerd | Ready, Chinese | 29.817 s | 1,321 / 72 |
+| fsTtKywmWlU | Workerd | Ready, Chinese | 25.447 s | 1,687 / 129 |
+| yP176MBG9Tk | Workerd | Ready, Chinese | 34.995 s | 1,318 / 70 |
+
+Artifacts: `/tmp/slax-deepseek-delivery/dc1d08008673-live-1793960093899`, `/tmp/slax-deepseek-delivery/ff18bc6bff1b-live-1793960123724` and `/tmp/slax-deepseek-delivery/3ffbbdd12114-live-1793960149176`. Complete ordered source coverage and local publication were asserted. These timings still exclude Cloudflare deployment scheduling and remote PostgreSQL/R2/Jina. No remote fix or article retry has been performed yet; test-environment recovery remains unverified pending operator authorization for deployment.
+
+Follow-up checks: `pnpm api -- test` passed 3,803 tests with 117 environment-dependent skips; typecheck, generation, targeted source lint, diff whitespace checks and all 112 strict OpenSpec validations passed. Generated output has no residual diff. Local Bugs/Security/Compliance review of this follow-up found no Important issues; the fixed endpoint, manual redirect rejection, unchanged delivery rules, sanitized diagnostics and explicit runtime evidence match the existing approved change. API-only change; no client package version bump applies.
