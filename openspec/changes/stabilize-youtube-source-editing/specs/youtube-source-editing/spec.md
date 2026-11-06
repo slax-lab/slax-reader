@@ -1,15 +1,45 @@
 ## ADDED Requirements
 
-### Requirement: Source-bound editing and resumable translation
+### Requirement: Source-owned generation and acceptance
 
-Edited YouTube article runs SHALL assign each cleaned cue to exactly one ordered passage before asking the model to edit. The service SHALL retain source wording when an edit loses substantive words or changes their order. Publishing SHALL require complete translated content and the existing article checks.
+The service SHALL bind every cleaned subtitle to exactly one ordered passage, generate target-language text directly from its source, and accept each passage only after source-aware checks. Speakers and seek references SHALL be program-owned. Same-language editing SHALL retain source wording when unavailable or unfaithful.
 
-#### Scenario: A guest interjects during a question
+#### Scenario: Direct translation
+- **WHEN** the caption language differs from the target
+- **THEN** generate the translation directly without a mandatory source-edit call
 
-- **WHEN** one cue crosses a speaker boundary or a guest interjects between two parts of a question
-- **THEN** passage references follow source order and an invalid edit is replaced with its source text
+#### Scenario: Partial or invalid response
+- **WHEN** a batch omits passages or returns invalid language, numbers, length or duplicate content
+- **THEN** persist accepted passages and repair only rejected passages with their rejection reasons
 
-#### Scenario: Partial translation is retried
+### Requirement: Bounded resumable repair
 
-- **WHEN** a translation batch supplies only some valid passage results
-- **THEN** persist valid results and request only outstanding passages on retry
+The service SHALL persist accepted results and repair state within the existing chunk prefix, bound content repairs and request costs, and estimate remaining work from unresolved passages.
+
+#### Scenario: Interrupted generation
+- **WHEN** a transport failure or process restart interrupts generation
+- **THEN** reuse accepted results and request only outstanding work with the existing backoff and spend limits
+
+#### Scenario: Truncated passage
+- **WHEN** a single-passage request truncates and sentence boundaries permit a smaller request
+- **THEN** persist bounded child work and join successful children in source order under the original references
+
+#### Scenario: Repeated content failure or exhausted budget
+- **WHEN** the content repair allowance or spend cap is exhausted
+- **THEN** stop with an explicit error and retain accepted progress
+
+### Requirement: Complete publication with presentation fallbacks
+
+The service SHALL publish only complete accepted target-language content with valid references. Missing or unavailable headings and introductions SHALL use extracts of accepted text. Publication SHALL still respect ownership, storage and accounting failures.
+
+#### Scenario: Introduction failure
+- **WHEN** all body passages are accepted but introduction generation fails
+- **THEN** use an extractive introduction and publish the accepted body
+
+#### Scenario: Localized assembly failure
+- **WHEN** final validation identifies invalid passages
+- **THEN** repair only those passages and preserve the accepted remainder
+
+#### Scenario: Structural assembly failure
+- **WHEN** a failure cannot safely be localized or repair is exhausted
+- **THEN** retain progress and report failure instead of deleting completed work

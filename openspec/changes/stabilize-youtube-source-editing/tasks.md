@@ -1,7 +1,7 @@
 ## 1. Implementation and verification
 
-- [x] 1.1 Add source-owned editing and resumable translations.
-- [x] 1.2 Cover interrupted, reordered and omitted data; run automated checks.
-- [x] 1.3 Exercise the incident in the running generator and record results.
-- [x] 1.4 Complete the local pre-push review for delivery to dev.
+- [x] 1.1 Implement direct generation, source-aware passage acceptance, bounded repairs and persisted children.
+- [x] 1.2 Integrate remaining-work budgets, optional presentation fallback and localized assembly recovery.
+- [x] 1.3 Exercise omissions, wrong content, transport failures, truncation, interruption, budgets and publication guards.
+- [x] 1.4 Run live incident replay, automated checks and local Bugs/Security/Compliance review; update the existing PR.
 - [ ] 1.5 After merge, archive through a separate documentation PR.

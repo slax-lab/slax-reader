@@ -1,38 +1,51 @@
 # Verification
 
-## Incident replay
+Verified on November 6, 2026.
 
-On November 5, 2026, the original Gemini 3 Flash preview prompt returned 242 references for 241 cues in the first chunk of fsTtKywmWlU. It attributed a mixed-speaker cue to two paragraphs and moved a guest interjection after the host's question. The earlier workflow rejected six responses in production. Those historical responses were unavailable for inspection.
+## Live incident replay
 
-Ran the changed runYoutubeArticle locally on the full authenticated R2 input with an empty temporary object store and the production model, schema, thinking level, temperature and token limits. With the ordinary v2 payload, the workflow runner planned eight chunks, edited, translated, wrote its introduction, passed quality checks, rendered JSON/HTML/text, verified object presence and reached ready. A separate read of the generated JSON and HTML found all 1,687 cue IDs exactly once in input order. All 17 chapter seek times matched their first cue. Inspection of c0013 and c0020 confirmed the greeting, reply, interjection and subsequent question stayed in order.
+Ran the changed runYoutubeArticle from an empty filesystem object store against Gemini 3 Flash preview with the complete 1,687-cue input for fsTtKywmWlU. Used the configured model, schemas, temperature, thinking level and request budgets.
 
-| Final run | Result |
+The runner reached ready with eight chunks, 129 paragraphs and 34 chapter headings. It made ten successful model calls, including one localized repair, in 28.4 seconds. Estimated model spend was USD 0.06707. An independent read of the generated JSON confirmed that all 1,687 cue IDs occur exactly once in source order and that all 34 chapter seek times match their first cue. Read the opening and interview passages in the generated Chinese text.
+
+The article passed structural and source-aware passage checks. Diagnostic aggregate metrics were a 0.395 text-length ratio, 0.947 numeric coverage before per-passage unit equivalence, and a 1.0 language ratio.
+
+An earlier live run exposed false rejections of correctly translated "70 grand", "15 mil ARR", a shared currency magnitude and a percentage range. Added numeric normalization and regression cases. After that correction, resumed its existing store with a new run identity and retained lifetime spend. It reused accepted bodies, requested one outstanding passage and the introduction, and reached ready in 3.7 seconds with two calls. This was recovery after a validator correction. Provider outage recovery was injected separately below.
+
+## Runtime fault replay
+
+Executed the actual runner in a separate Node process with filesystem storage, an in-memory repository and model replies reconstructed from a live Gemini article. This allowed reproducible failures without claiming a real provider outage. The harness asserted that recovered requests exclude already accepted source passages. Every ready result had all 1,687 references in order.
+
+| Injected condition | Observed outcome |
 | --- | --- |
-| Chinese article | 17 chapters, 129 paragraphs |
-| Calls and elapsed time | 17 replies from 17 attempts in 55.8 seconds |
-| Estimated model spend | USD 0.12785 |
-| Gate | No failed checks. Language ratio 1.0, number coverage 0.947 and length ratio 0.420 |
-| Conservative source fallback | 36 passages used caption wording. Such passages can retain speech markers or disfluencies. |
+| Missing passage | One targeted repair, then ready |
+| Wrong output language | One targeted repair, then ready |
+| Changed year | One targeted repair, then ready |
+| Malformed batch JSON | Bounded repair, then ready |
+| Provider errors after partial success | Retry with saved progress, then ready after recovery |
+| Batch truncation | Smaller requests; complete ordered output |
+| Introduction timeout | Extractive introduction, then ready |
+| Malformed introduction | Extractive introduction, then ready |
+| Process interruption after body generation | Resume with one introduction call, no body requests |
+| Model budget exhausted after accepted body | No introduction model call, extractive introduction and ready |
+| Storage errors writing introduction | No premature publication, retained body, then ready after storage recovery |
+| Lease loss | Gone, zero publication calls |
+| Localized corruption before assembly | Repair the affected passage, reassemble and publish |
+| Structural reference corruption | Failed, retained progress, zero publication calls |
+| Persistently omitted content | Bounded repair exhaustion, retained accepted work, zero publication calls |
 
-## Previously successful article
+The replay report is local at /tmp/slax-cue-2f114e/faults-9B7mIb/results.json. The committed runner and utility tests cover the same failure classes and additionally cover persisted sentence-split children, interrupted final repair, exhausted budget with unfinished translation, optional same-language editor failure, accounting failures and named speaker continuation across chunks.
 
-In the earlier passage-editor comparison, read the existing English article for UNzCG3lw6O0 and replayed its canonical captions locally with the new editor. Both results reference the same 597 cues in the same order. The old article has eight sections and 50 paragraphs. The local result has seven sections and 36 paragraphs, matching seek anchors and passing the quality gate with full numeric coverage. Compared the opening and later section headings against their source ranges. The local runner used four responses in 13.9 seconds and an estimated USD 0.02676. The older published workflow recorded USD 0.05122. These individual runs use different execution environments.
+## Automated checks
 
-## Explicit speakers
+- API Vitest suite passed 2,883 tests, with 116 environment-dependent or explicitly skipped tests. The focused runner and passage suites passed 93 tests.
+- API/contracts typechecks and changed-source ESLint passed. API gen:all produced no tracked drift. Strict repository-wide OpenSpec validation passed all 108 items. Diff whitespace checks passed.
+- Checked digits, signs, magnitude units, decimal/grouping conventions, Chinese number spellings, short names and acknowledgements.
+- Verified request bounds, counter persistence, missing-only retries, source-wording fallback and stored child reuse. A subsequent run retains accepted output while resetting the bounded content-repair allowance for unresolved work.
+- Existing workflow tests cover claim, lease loss, request cancellation, concurrent cost reservations, truncation, durable-step replay, publication and takedown cleanup.
 
-Added two explicit speaker labels to a 100-cue excerpt and generated the Chinese article using live Gemini. The runner reached ready in 18.5 seconds. Both source names survived in the rendered HTML and all 100 references were present. The full incident input contains anonymous turns and zero explicit speaker names.
+## Boundaries and local review
 
-## Automated verification
+Live model execution and rendered JSON/HTML/text were exercised locally. Database writes and publication callbacks were simulated. The durable Cloudflare Workflows engine, production scheduling, production deployment and a production retry were not exercised. Source-aware heuristic checks detect observable errors. They do not prove semantic translation fidelity. Optional heading and introduction fallbacks are extracts and may be less polished.
 
-- API Vitest suite: 2,849 passed; 117 environment-dependent or explicitly skipped tests.
-- API and contract typechecks passed. Changed source ESLint passed. API gen:all produced no tracked output drift.
-- Strict repository-wide OpenSpec validation: 108 passed. Staged diff whitespace check passed.
-- Verified contractions, grouped numbers, and punctuation repairs in Chinese and Japanese.
-- Forced omitted sentences, reordered text and a changed negative number to exercise source fallback. Returned translation fields in partial batches, then threw a timeout, reconstructed the stage from storage and checked only the outstanding key was requested. Completed stage replay issued zero provider calls.
-- The runner suite exercises the existing workflow payload directly, including v2 source fallback, keyed response reordering, truncation, translation retry and bounded source context.
-
-## Boundaries and pre-push review
-
-Local replay used a filesystem object store, a step adapter, an in-memory row and publication callbacks. Live Gemini, article generation and rendered outputs were exercised. Production scheduling, database writes, browser playback and deployment were outside this run. The existing production bookmark has not been restarted. Passing the structural and language checks does not establish word-for-word translation accuracy.
-
-Local Bugs/Security/Compliance review covered retry boundaries, old payloads, budgets and cleanup, source references, private input handling, rendering, the approved scope and evidence. Reviewed the direct v2 replacement, including final-chunk reuse and unversioned intermediate checkpoints. No remaining Important findings.
+Bugs review checked partial persistence, repair invalidation across step retries, child reconstruction, numeric false positives, remaining-work estimation and optional-model error boundaries. Security review checked the unchanged model/storage destinations, untrusted prompt inputs, escaping and count-only logs. Compliance review checked the user-approved direct-generation design, absence of new compatibility selectors and the evidence above.

@@ -4,7 +4,7 @@ In video fsTtKywmWlU the editor cited a mixed-speaker cue twice and moved a shor
 
 ## What Changes
 
-Assign ordered passages before editing. Batch model work, preserve questionable passages verbatim and checkpoint completed translations. Keep article rendering, ownership, spend caps and publication gates.
+Generate target-language text directly from ordered source passages. Accept and checkpoint passages individually, repair only failed work with bounded retries, preserve progress across failures, and use extractive headings and introductions when optional model work fails. Preserve references, ownership and spend caps. The user approved this revised design in conversation on November 6, 2026.
 
 ## Capabilities
 
