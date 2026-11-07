@@ -39,8 +39,7 @@ const nodeOnlyStubs = {
     buildApi.onResolve({ filter: /^pg$/ }, () => ({ path: 'pg-stub', namespace: 'stub' }))
     buildApi.onResolve({ filter: /^@prisma\/adapter-pg$/ }, () => ({ path: 'pg-adapter-stub', namespace: 'stub' }))
     buildApi.onLoad({ filter: /.*/, namespace: 'stub' }, (args: { path: string }) => ({
-      contents:
-        args.path === 'pg-stub' ? 'export class Pool { constructor() {} }\nexport default { Pool }' : 'export class PrismaPg { constructor() {} }',
+      contents: args.path === 'pg-stub' ? 'export class Pool { constructor() {} }\nexport default { Pool }' : 'export class PrismaPg { constructor() {} }',
       loader: 'js'
     }))
   }
@@ -187,6 +186,25 @@ test('actual Workerd serves the fixed-key task routes through Edge and Core', as
         expect(body.data.state).toBe(action.state)
         expect(body.data.target).toEqual(action.target)
         expect(body.data.vectorIds).toEqual(action.vectorIds)
+      }
+    }
+
+    for (const worker of [core, edge]) {
+      for (const [path, preference] of [
+        ['/v1/bookmark/preference/refresh', 'article'],
+        ['/v1/collection/preference/refresh', 'collection']
+      ] as const) {
+        const response = await post(worker, path, { user_id: 8 }, task)
+        expect(response.status).toBe(200)
+        expect(await response.json()).toMatchObject({
+          code: 200,
+          data: { state: 'written', target: { kind: 'user', id: 8, preference }, coverage: { eligible: 2, used: 1, missing: 1 } }
+        })
+        const unavailable = await post(worker, path, { user_id: 9 }, task)
+        expect(await unavailable.json()).toMatchObject({
+          code: 200,
+          data: { state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 1, used: 0, missing: 1 }, vectorIds: [], mutationIds: [] }
+        })
       }
     }
 

@@ -24,6 +24,7 @@ import { estimatedTokens, requestBytes, VECTOR_MODEL, VECTOR_REQUEST_BYTES } fro
 import { EMBEDDING_MEAN_VERSION } from '@/utils/recommendationAlgorithms'
 import { referenceCenter, weightedNormalizedSum } from '../helpers/recommendationReference'
 import { pdfFixture } from '../helpers/pdfFixture'
+import { memoryPreferenceStates } from '../helpers/preferenceStateMemory'
 
 const unit = (axis = 0) => Array.from({ length: 1024 }, (_, i) => (i === axis ? 1 : 0))
 let db: PGlite
@@ -34,6 +35,7 @@ let pdfVectors: number
 let env: Env
 let service: VectorMaintenanceService
 let repo: VectorMaintenanceRepo
+let states: ReturnType<typeof memoryPreferenceStates>
 
 const prismaAdapter = {
   async $queryRaw(strings: TemplateStringsArray, ...values: unknown[]) {
@@ -141,7 +143,8 @@ beforeEach(async () => {
   } as unknown as Env
   env.VECTOR = new AiEntry({} as ExecutionContext, env) as unknown as Env['VECTOR']
   repo = new VectorMaintenanceRepo(() => prismaAdapter)
-  service = new VectorMaintenanceService(repo, new VectorSourceRepo(env), new VectorEmbeddingClient(env), new VectorIndexClient(env))
+  states = memoryPreferenceStates()
+  service = new VectorMaintenanceService(repo, new VectorSourceRepo(env), new VectorEmbeddingClient(env), new VectorIndexClient(env), states)
 })
 
 afterAll(async () => {
@@ -340,7 +343,7 @@ describe('single-target task refresh semantics', () => {
     await seed(41)
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'missing_dependency:a:1:41' })
+      expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 1, used: 0, missing: 1 } })
       expect(provider).not.toHaveBeenCalled()
       expect(indexes[0].upsert).not.toHaveBeenCalled()
       expect(indexes[2].upsert).not.toHaveBeenCalled()
@@ -464,8 +467,13 @@ describe('minimal per-user vector maintenance', () => {
     await db.exec('UPDATE sr_user_bookmark SET is_starred=true WHERE bookmark_id=2')
     const changed = await service.refreshUser(1, 'article')
     expect(changed.writeToken).not.toBe(first.writeToken)
-    expect(await service.verifyRefresh(first)).toBe(false)
+    expect(changed.stateVersion).toBeGreaterThan(first.stateVersion!)
+    expect(await service.verifyRefresh(first)).toBe(true)
     expect(await service.verifyRefresh(changed)).toBe(true)
+    const visible = structuredClone(indexes[2].stored.get('u:1:article')!)
+    indexes[2].stored.set('u:1:article', { ...visible, metadata: { ...visible.metadata, write_token: first.writeToken, state_version: first.stateVersion } })
+    expect(await service.verifyRefresh(changed)).toBe(false)
+    indexes[2].stored.set('u:1:article', visible)
     await db.exec('UPDATE sr_user_bookmark SET is_starred=false')
     expect((await service.refreshUser(1, 'article')).writeToken).toBe(first.writeToken)
   })
@@ -1097,10 +1105,114 @@ describe('minimal per-user vector maintenance', () => {
     }
   })
 
-  test('missing dependencies fail instead of publishing a silently partial user profile', async () => {
-    await seed()
-    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'missing_dependency:a:1:1' })
+  test('partial article preferences use the same available inputs for raw, centered and interests', async () => {
+    await seed(1, [1], 'first', { starred: true })
+    await seed(2, [1], 'missing')
+    await seed(3, [1], 'third')
+    const tilted = unit().map((value, index) => (index === 0 ? 0.8 : index === 1 ? 0.6 : value))
+    indexes[0].stored.set('a:1:1', { id: 'a:1:1', values: unit() })
+    indexes[0].stored.set('a:1:3', { id: 'a:1:3', values: tilted })
+    const output = await service.refreshUser(1, 'article')
+    expect(output).toMatchObject({ state: 'written', coverage: { eligible: 3, used: 2, missing: 1 } })
+    expect(indexes[2].upsert).toHaveBeenCalledOnce()
+    const raw = indexes[2].stored.get('u:1:article')!
+    const centered = indexes[2].stored.get('u:1:article:centered')!
+    const expectedRaw = weightedNormalizedSum([unit(), tilted], [2, 1])!
+    const expectedCentered = weightedNormalizedSum([referenceCenter(unit()), referenceCenter(tilted)], [2, 1])!
+    raw.values.forEach((value, index) => expect(value).toBeCloseTo(expectedRaw[index], 10))
+    centered.values.forEach((value, index) => expect(value).toBeCloseTo(expectedCentered[index], 10))
+    const partialInterests = raw.metadata!.interests
+    await db.exec('UPDATE sr_user_bookmark SET deleted_at=now() WHERE bookmark_id=2')
+    const complete = await service.refreshUser(1, 'article')
+    expect(complete.coverage).toEqual({ eligible: 2, used: 2, missing: 0 })
+    expect(indexes[2].stored.get('u:1:article')?.metadata?.interests).toBe(partialInterests)
+    expect(complete.writeToken).toBe(output.writeToken)
+    expect(provider).not.toHaveBeenCalled()
+    expect(env.OSS.get).not.toHaveBeenCalled()
+    expect(indexes[0].upsert).not.toHaveBeenCalled()
+  })
+
+  test.each(['article', 'collection'] as const)('%s preference continues after an entirely missing first page', async preference => {
+    const rows = Array.from({ length: 103 }, (_, index) => ({ id: index + 1, is_starred: false }))
+    const page = async (_user: number, after: number, limit: number) => rows.filter(row => row.id > after).slice(0, limit)
+    const member = vi.spyOn(repo, preference === 'article' ? 'listUserArticles' : 'listUserCollections').mockImplementation(page)
+    const sourceIndex = preference === 'article' ? indexes[0] : indexes[1]
+    for (let id = 101; id <= 103; id++) {
+      const key = preference === 'article' ? `a:1:${id}` : `c:${id}`
+      sourceIndex.stored.set(key, { id: key, values: unit(1) })
+    }
+    try {
+      const output = await service.refreshUser(1, preference)
+      expect(output).toMatchObject({ state: 'written', coverage: { eligible: 103, used: 3, missing: 100 } })
+      expect(member.mock.calls.map(call => call[1])).toEqual([0, 100])
+      expect(sourceIndex.getByIds.mock.calls.flatMap(call => call[0])).toHaveLength(103)
+      expect(await service.readUser(1, preference)).toEqual(unit(1))
+      expect(provider).not.toHaveBeenCalled()
+    } finally {
+      member.mockRestore()
+    }
+  })
+
+  test.each(['article', 'collection'] as const)('all missing %s inputs preserve the previous profile', async preference => {
+    const rows = [
+      { id: 41, is_starred: false },
+      { id: 42, is_starred: true }
+    ]
+    const member = vi.spyOn(repo, preference === 'article' ? 'listUserArticles' : 'listUserCollections').mockResolvedValue(rows)
+    const keys = preference === 'article' ? ['u:1:article', 'u:1:article:centered'] : ['u:1:collection']
+    for (const key of keys) indexes[2].stored.set(key, { id: key, values: unit(2), namespace: `user-${preference}`, metadata: { original: true } })
+    const original = structuredClone([...indexes[2].stored.entries()])
+    try {
+      const output = await service.refreshUser(1, preference)
+      expect(output).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 2, used: 0, missing: 2 }, vectorIds: [], mutationIds: [] })
+      expect([...indexes[2].stored.entries()]).toEqual(original)
+      expect(indexes[2].upsert).not.toHaveBeenCalled()
+      expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
+      expect(provider).not.toHaveBeenCalled()
+    } finally {
+      member.mockRestore()
+    }
+  })
+
+  test.each(['article', 'collection'] as const)('empty eligible %s history still removes stale profiles with zero coverage', async preference => {
+    const key = `u:1:${preference}`
+    indexes[2].stored.set(key, { id: key, values: unit(), namespace: `user-${preference}` })
+    const output = await service.refreshUser(1, preference)
+    expect(output).toMatchObject({ state: 'deleted', coverage: { eligible: 0, used: 0, missing: 0 } })
+    expect(indexes[2].stored.has(key)).toBe(false)
+    expect(provider).not.toHaveBeenCalled()
+  })
+
+  test.each(['article', 'collection'] as const)('%s read errors after valid contributions never publish a partial replacement', async preference => {
+    const member = vi
+      .spyOn(repo, preference === 'article' ? 'listUserArticles' : 'listUserCollections')
+      .mockResolvedValue(Array.from({ length: 21 }, (_, i) => ({ id: i + 1, is_starred: false })))
+    const sourceIndex = preference === 'article' ? indexes[0] : indexes[1]
+    const key = `u:1:${preference}`
+    indexes[2].stored.set(key, { id: key, values: unit(2), namespace: `user-${preference}` })
+    const original = structuredClone(indexes[2].stored.get(key))
+    sourceIndex.getByIds.mockImplementation(async ids => {
+      if (ids.some(id => id.endsWith(':21'))) throw new Error('storage_unavailable')
+      return ids.map(id => ({ id, values: unit() }))
+    })
+    try {
+      expect(await service.refreshUser(1, preference)).toMatchObject({ state: 'failed', reason: 'storage_unavailable', coverage: { missing: 0 } })
+      expect(indexes[2].stored.get(key)).toEqual(original)
+      expect(indexes[2].upsert).not.toHaveBeenCalled()
+      expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
+    } finally {
+      member.mockRestore()
+    }
+  })
+
+  test('invalid present vectors are errors rather than missing contributions', async () => {
+    await seed(1)
+    await seed(2)
+    indexes[0].stored.set('a:1:1', { id: 'a:1:1', values: unit() })
+    indexes[0].stored.set('a:1:2', { id: 'a:1:2', values: [NaN] })
+    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'invalid_vector_dimensions', coverage: { missing: 0 } })
     expect(indexes[2].upsert).not.toHaveBeenCalled()
+    expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
   })
 
   test.each(['pending', 'failed'])('a %s capture is not a preference dependency until its source completes', async status => {
@@ -1118,8 +1230,9 @@ describe('minimal per-user vector maintenance', () => {
       { id: 41, is_starred: false },
       { id: 42, is_starred: false }
     ])
-    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'missing_dependency:a:1:42' })
+    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 1, missing: 1 } })
     expect((await service.refreshArticles([{ userId: 1, id: 42 }]))[0]).toMatchObject({ state: 'written', target: { kind: 'article', userId: 1, id: 42 } })
+    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 2, missing: 0 } })
   })
 
   test('Collection reads only its owners readable starred vector identities', async () => {
@@ -1182,7 +1295,7 @@ describe('minimal per-user vector maintenance', () => {
     await seed(1, [2], 'published PDF member', { starred: true, published: true, privateUser: 2 })
     await db.exec('UPDATE sr_user_bookmark SET type=2; INSERT INTO sr_user_collection_subscriber(user_id,collection_id) VALUES(1,2)')
     const result = await service.refreshUser(1, 'collection')
-    expect(result).toMatchObject({ state: 'failed', reason: 'missing_dependency:c:2' })
+    expect(result).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 1, used: 0, missing: 1 } })
     expect(indexes[2].upsert).not.toHaveBeenCalled()
     expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
   })
@@ -1466,5 +1579,172 @@ describe('minimal per-user vector maintenance', () => {
     await expect(rpc.getVectorsByIds('article', ['a:1'])).rejects.toThrow('invalid_v5_ids')
     await expect(rpc.upsertVectors('user', [{ id: 'u:1:article', namespace: 'user-collection', values: unit() }])).rejects.toThrow('invalid_v5_namespace')
     expect(indexes[0].query).not.toHaveBeenCalled()
+  })
+})
+
+describe('incremental preference maintenance', () => {
+  const spread = (seed: number) => Array.from({ length: 1024 }, (_, i) => Math.sin(seed * 12.9898 + i * 78.233) + (i % 7 === seed % 7 ? 2 : 0))
+  const store = (userId: number, id: number, values = spread(id)) => indexes[0].stored.set(`a:${userId}:${id}`, { id: `a:${userId}:${id}`, values })
+  const full = () => new VectorMaintenanceService(repo, new VectorSourceRepo(env), new VectorEmbeddingClient(env), new VectorIndexClient(env), memoryPreferenceStates())
+  const event = async (userId: number, id: number, change: () => Promise<unknown> = async () => undefined) => {
+    await service.retireArticle({ userId, id })
+    await change()
+    return service.applyUserArticle({ userId, id })
+  }
+  const expectSameProfile = async () => {
+    const incremental = structuredClone([indexes[2].stored.get('u:1:article'), indexes[2].stored.get('u:1:article:centered')])
+    const reference = await full().refreshUser(1, 'article')
+    expect(reference.state).toBe('written')
+    const [raw, centered] = [indexes[2].stored.get('u:1:article')!, indexes[2].stored.get('u:1:article:centered')!]
+    incremental[0]!.values.forEach((value, i) => expect(value).toBeCloseTo(raw.values[i], 10))
+    incremental[1]!.values.forEach((value, i) => expect(value).toBeCloseTo(centered.values[i], 10))
+    const interests = (vector: VectorizeVector) =>
+      (JSON.parse(String(vector.metadata!.interests)) as [number, number][]).map(([id, importance]) => [id, Math.round(importance * 1000)])
+    expect(interests(incremental[0]!)).toEqual(interests(raw))
+  }
+
+  test('save, star, unstar, re-embed and delete events match a full recompute without reading the whole history', async () => {
+    for (const id of [1, 2, 3]) await seed(id, [1], `article ${id}`, { starred: id === 2 })
+    for (const id of [1, 2, 3]) store(1, id)
+    expect((await service.refreshUser(1, 'article')).state).toBe('written')
+    const history = vi.spyOn(repo, 'listUserArticles')
+
+    await seed(4, [1], 'new article')
+    store(1, 4)
+    expect(await event(1, 4)).toMatchObject({ state: 'written', coverage: { eligible: 4, used: 4, missing: 0 } })
+    expect(history).not.toHaveBeenCalled()
+    await expectSameProfile()
+
+    history.mockClear()
+    expect(await event(1, 1, () => db.exec('UPDATE sr_user_bookmark SET is_starred=true WHERE bookmark_id=1'))).toMatchObject({ state: 'written' })
+    expect(await event(1, 2, () => db.exec('UPDATE sr_user_bookmark SET is_starred=false WHERE bookmark_id=2'))).toMatchObject({ state: 'written' })
+    expect(await event(1, 3, async () => store(1, 3, spread(30)))).toMatchObject({ state: 'written' })
+    expect(
+      await event(1, 4, async () => {
+        await db.exec('UPDATE sr_user_bookmark SET deleted_at=now() WHERE bookmark_id=4')
+        indexes[0].stored.delete('a:1:4')
+      })
+    ).toMatchObject({ state: 'written', coverage: { eligible: 3, used: 3, missing: 0 } })
+    expect(history).not.toHaveBeenCalled()
+    await expectSameProfile()
+  })
+
+  test('missing or outdated state rebuilds once, then later events stay incremental', async () => {
+    for (const id of [1, 2]) await seed(id, [1], `article ${id}`)
+    for (const id of [1, 2]) store(1, id)
+    const history = vi.spyOn(repo, 'listUserArticles')
+    expect(await event(1, 1)).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 2, missing: 0 } })
+    expect(history).toHaveBeenCalled()
+    history.mockClear()
+    await seed(3, [1], 'third')
+    store(1, 3)
+    expect(await event(1, 3)).toMatchObject({ state: 'written', coverage: { eligible: 3, used: 3 } })
+    expect(history).not.toHaveBeenCalled()
+    await expectSameProfile()
+
+    const outdated = (await states.read('state:user-article:1'))!
+    await states.update('state:user-article:1', outdated.version, { ...outdated, version: outdated.version + 1, meanVersion: 'previous-mean' })
+    expect(await event(1, 2)).toMatchObject({ state: 'written' })
+    expect(history).toHaveBeenCalled()
+    expect((await states.read('state:user-article:1'))!.meanVersion).toBe(EMBEDDING_MEAN_VERSION)
+  })
+
+  test('a vector replaced outside the event path triggers a rebuild instead of subtracting the wrong contribution', async () => {
+    for (const id of [1, 2]) await seed(id, [1], `article ${id}`)
+    for (const id of [1, 2]) store(1, id)
+    await service.refreshUser(1, 'article')
+    store(1, 1, spread(99))
+    const history = vi.spyOn(repo, 'listUserArticles')
+    expect(await service.applyUserArticle({ userId: 1, id: 1 })).toMatchObject({ state: 'written' })
+    expect(history).toHaveBeenCalled()
+    await expectSameProfile()
+  })
+
+  test('a failed article write restores the old contribution instead of dropping the article', async () => {
+    for (const id of [1, 2]) await seed(id, [1], `article ${id}`, { starred: id === 1 })
+    for (const id of [1, 2]) store(1, id)
+    await service.refreshUser(1, 'article')
+    await service.retireArticle({ userId: 1, id: 1 })
+    expect((await states.read('state:user-article:1'))!.entries.get(1)).toEqual({ weight: 2, token: '' })
+    await service.restoreArticle({ userId: 1, id: 1 })
+    expect((await states.read('state:user-article:1'))!.entries.get(1)!.token).toMatch(/^[0-9a-f]{16}$/)
+    expect(await service.applyUserArticle({ userId: 1, id: 2 })).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 2, missing: 0 } })
+    await expectSameProfile()
+  })
+
+  test('deleting the last article removes the profile and its state', async () => {
+    await seed(1, [1], 'only')
+    store(1, 1)
+    await service.refreshUser(1, 'article')
+    expect(states.rows.has('state:user-article:1')).toBe(true)
+    const output = await event(1, 1, () => db.exec('UPDATE sr_user_bookmark SET deleted_at=now()'))
+    expect(output).toMatchObject({ state: 'deleted', vectorIds: ['u:1:article', 'u:1:article:centered'] })
+    expect(states.rows.has('state:user-article:1')).toBe(false)
+    expect(indexes[2].stored.has('u:1:article')).toBe(false)
+    expect(await service.verifyRefresh(output)).toBe(true)
+  })
+
+  test('concurrent events converge on one state and older publishers stand down', async () => {
+    for (const id of [1, 2, 3]) await seed(id, [1], `article ${id}`)
+    for (const id of [1, 2, 3]) store(1, id)
+    await service.refreshUser(1, 'article')
+    await db.exec('UPDATE sr_user_bookmark SET is_starred=true')
+    const outputs = await Promise.all([1, 2, 3].map(id => service.applyUserArticle({ userId: 1, id })))
+    expect(outputs.every(output => output.state !== 'failed')).toBe(true)
+    for (const output of outputs) expect(await service.verifyRefresh(output)).toBe(true)
+    const state = (await states.read('state:user-article:1'))!
+    expect([...state.entries.values()].map(entry => entry.weight)).toEqual([2, 2, 2])
+    expect(indexes[2].stored.get('u:1:article')!.metadata!.state_version).toBe(state.version)
+    await expectSameProfile()
+  })
+
+  test('an older publisher stands down when a newer state commits just before its write', async () => {
+    for (const id of [1, 2]) await seed(id, [1], `article ${id}`)
+    for (const id of [1, 2]) store(1, id)
+    await service.refreshUser(1, 'article')
+    await db.exec('UPDATE sr_user_bookmark SET is_starred=true')
+    const original = repo.listRecentUserActions.bind(repo)
+    let newer: VectorRefreshResult | undefined
+    vi.spyOn(repo, 'listRecentUserActions').mockImplementationOnce(async (...args) => {
+      newer = await service.applyUserArticle({ userId: 1, id: 2 })
+      return original(...args)
+    })
+    indexes[2].upsert.mockClear()
+    const older = await service.applyUserArticle({ userId: 1, id: 1 })
+    expect(older).toMatchObject({ superseded: true, state: 'empty' })
+    expect(newer).toMatchObject({ state: 'written' })
+    expect(older.stateVersion).toBeLessThan(newer!.stateVersion!)
+    expect(indexes[2].upsert).toHaveBeenCalledOnce()
+    expect(indexes[2].stored.get('u:1:article')!.metadata!.state_version).toBe(newer!.stateVersion)
+    expect(await service.verifyRefresh(older)).toBe(true)
+    expect(await service.verifyRefresh(newer!)).toBe(true)
+    await expectSameProfile()
+  })
+
+  test('owner Collections share one incremental aggregate and stay strict about missing members', async () => {
+    await seed(1, [1], 'member one', { starred: true, published: true })
+    await db.exec("INSERT INTO sr_user_collection(id,owner_id,status,collection_code) VALUES (2,1,1,'second')")
+    store(1, 1)
+    expect((await service.refreshCollection(1)).state).toBe('written')
+    const members = vi.spyOn(repo, 'listCollectionMembers')
+    await seed(2, [1], 'member two', { starred: true })
+    store(1, 2)
+    await service.retireArticle({ userId: 1, id: 2 })
+    const outputs = await service.applyOwnerCollections({ userId: 1, id: 2 })
+    expect(outputs.map(output => [output.target, output.state])).toEqual([
+      [{ kind: 'collection', id: 1 }, 'written'],
+      [{ kind: 'collection', id: 2 }, 'written']
+    ])
+    expect(members).not.toHaveBeenCalled()
+    expect(indexes[1].stored.get('c:1')!.values).toEqual(indexes[1].stored.get('c:2')!.values)
+    const incremental = structuredClone(indexes[1].stored.get('c:1')!.values)
+    expect((await full().refreshCollection(1)).state).toBe('written')
+    incremental.forEach((value, i) => expect(value).toBeCloseTo(indexes[1].stored.get('c:1')!.values[i], 10))
+
+    await seed(3, [1], 'member without vector', { starred: true })
+    const missing = await service.applyOwnerCollections({ userId: 1, id: 3 })
+    expect(missing.map(output => output.reason)).toEqual(['missing_dependency:a:1:3', 'missing_dependency:a:1:3'])
+    store(1, 3)
+    expect((await service.applyOwnerCollections({ userId: 1, id: 3 })).map(output => output.state)).toEqual(['written', 'written'])
   })
 })

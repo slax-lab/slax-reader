@@ -21,6 +21,9 @@ export interface VectorRefreshResult {
   unchanged?: boolean
   removedVectorIds?: string[]
   reason?: string
+  coverage?: { eligible: number; used: number; missing: number }
+  stateVersion?: number
+  superseded?: boolean
 }
 
 export interface VectorCandidate {
