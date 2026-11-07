@@ -52,6 +52,13 @@ export class VectorMaintenanceWorkflow extends WorkflowEntrypoint<Env, VectorMai
     return result
   }
 
+  private async publish(step: WorkflowStep, service: VectorMaintenanceService, name: string, write: () => Promise<VectorRefreshResult[]>) {
+    const results = await step.do(`${name}-write`, retry, async () => (await write()).map(requireRefreshSuccess))
+    await step.do(`${name}-visible`, retry, async () => {
+      for (const result of results) await verifyVectorVisibility(service, result)
+    })
+  }
+
   async run(event: WorkflowEvent<VectorMaintenanceWorkflowParams>, step: WorkflowStep) {
     const { target, eventId } = event.payload
     validateMaintenanceEvent(target)
@@ -66,12 +73,16 @@ export class VectorMaintenanceWorkflow extends WorkflowEntrypoint<Env, VectorMai
       const repo = currentContainer.resolve(VectorMaintenanceRepo)
 
       if (target.kind === 'article') {
-        await this.refresh(service, target, step, 'article')
-        await this.refresh(service, { kind: 'user', id: target.userId, preference: 'article' }, step, 'article-preference')
-        const collections = await step.do('owner-collections', retry, () => repo.listOwnerCollections(target.userId))
-        for (const collection of collections) {
-          await this.refresh(service, { kind: 'collection', id: collection.id }, step, `collection-${collection.id}`)
+        const identity = { userId: target.userId, id: target.id }
+        await step.do('article-retire', retry, () => service.retireArticle(identity))
+        try {
+          await this.refresh(service, target, step, 'article')
+        } catch (error) {
+          await step.do('article-restore', retry, () => service.restoreArticle(identity))
+          throw error
         }
+        await this.publish(step, service, 'article-preference', async () => [await service.applyUserArticle(identity)])
+        await this.publish(step, service, 'owner-collections', () => service.applyOwnerCollections(identity))
         return
       }
 

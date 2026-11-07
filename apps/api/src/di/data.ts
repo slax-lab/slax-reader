@@ -23,6 +23,7 @@ import { GEMINI_AGENT } from '@/const/symbol'
 import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
 import { VectorSourceRepo } from '@/infra/repository/vectorSources'
 import { VectorIndexClient } from '@/infra/repository/vectorIndexClient'
+import { VectorPreferenceStateRepo } from '@/infra/repository/vectorPreferenceState'
 
 @singleton()
 export class DatabaseRegistry {
@@ -30,6 +31,7 @@ export class DatabaseRegistry {
     targetContainer.register(VectorEmbeddingClient, { useFactory: () => new VectorEmbeddingClient(ctx.env), uncached: false })
     targetContainer.register(VectorSourceRepo, { useFactory: () => new VectorSourceRepo(ctx.env), uncached: false })
     targetContainer.register(VectorIndexClient, { useFactory: () => new VectorIndexClient(ctx.env), uncached: false })
+    targetContainer.register(VectorPreferenceStateRepo, { useFactory: () => new VectorPreferenceStateRepo(ctx.env), uncached: false })
     targetContainer.register(PRISIMA_CLIENT, {
       useFactory: () => new PrismaClient({ adapter: new PrismaD1(ctx.env.DB) }),
       uncached: false

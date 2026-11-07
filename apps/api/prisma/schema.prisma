@@ -527,3 +527,13 @@ model slax_user_bookmark_overview {
 
   @@index([bookmark_id, user_id])
 }
+
+model slax_vector_preference_state {
+  target       String   @id
+  version      BigInt
+  mean_version String   @default("")
+  raw          Bytes
+  centered     Bytes
+  entries      Bytes
+  updated_at   DateTime @default(now())
+}

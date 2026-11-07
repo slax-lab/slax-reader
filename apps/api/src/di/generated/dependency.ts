@@ -51,6 +51,7 @@ import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
 import { VectorSourceRepo } from '../../infra/repository/vectorSources'
 import { VectorIndexClient } from '../../infra/repository/vectorIndexClient'
+import { VectorPreferenceStateRepo } from '../../infra/repository/vectorPreferenceState'
 import { AigcService } from '../../domain/aigc'
 import { TagService } from '../../domain/tag'
 import { MarkService } from '../../domain/mark'
@@ -399,7 +400,8 @@ container.register(VectorMaintenanceService, {
       container.resolve(VectorMaintenanceRepo),
       container.resolve(VectorSourceRepo),
       container.resolve(VectorEmbeddingClient),
-      container.resolve(VectorIndexClient)
+      container.resolve(VectorIndexClient),
+      container.resolve(VectorPreferenceStateRepo)
     )
 })
 
@@ -735,6 +737,10 @@ container.register(RedisClient, {
 
 container.register(VectorIndexClient, {
   useClass: VectorIndexClient
+})
+
+container.register(VectorPreferenceStateRepo, {
+  useClass: VectorPreferenceStateRepo
 })
 
 container.register(VectorSourceRepo, {

@@ -76,6 +76,29 @@ export class VectorMaintenanceRepo {
       ) actions ORDER BY acted_at DESC, id DESC LIMIT ${limit}`
   }
 
+  async findUserArticleWeight(userId: number, bookmarkId: number): Promise<number> {
+    const rows = await this.prismaPg().$queryRaw<VectorArticleMember[]>`
+      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred
+      FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id = ub.bookmark_id
+      JOIN sr_user owner ON owner.id = ub.user_id AND owner.deleted_at IS NULL
+      WHERE ub.user_id = ${userId} AND ub.bookmark_id = ${bookmarkId} AND ub.deleted_at IS NULL AND ub.type IN (0, 2) AND ${readable}
+        AND b.status = 'success'
+      GROUP BY ub.bookmark_id`
+    return rows[0] ? (rows[0].is_starred ? 2 : 1) : 0
+  }
+
+  async isCollectionMember(ownerId: number, bookmarkId: number): Promise<boolean> {
+    const rows = await this.prismaPg().$queryRaw<{ id: number }[]>`
+      SELECT ub.bookmark_id AS id FROM sr_user_bookmark ub
+      JOIN sr_bookmark b ON b.id = ub.bookmark_id
+      JOIN sr_user owner ON owner.id = ub.user_id AND owner.deleted_at IS NULL
+      LEFT JOIN sr_bookmark_share share ON share.bookmark_id = ub.bookmark_id AND share.user_id = ub.user_id
+      WHERE ub.user_id = ${ownerId} AND ub.bookmark_id = ${bookmarkId} AND ub.deleted_at IS NULL AND ub.type IN (0, 2) AND ${readable}
+        AND b.status = 'success' AND ${published}
+      LIMIT 1`
+    return rows.length > 0
+  }
+
   listCollectionMembers(ownerId: number, after: number, limit: number): Promise<{ id: number }[]> {
     return this.prismaPg().$queryRaw<{ id: number }[]>`
       SELECT ub.bookmark_id AS id FROM sr_user_bookmark ub

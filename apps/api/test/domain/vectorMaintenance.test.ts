@@ -24,6 +24,7 @@ import { estimatedTokens, requestBytes, VECTOR_MODEL, VECTOR_REQUEST_BYTES } fro
 import { EMBEDDING_MEAN_VERSION } from '@/utils/recommendationAlgorithms'
 import { referenceCenter, weightedNormalizedSum } from '../helpers/recommendationReference'
 import { pdfFixture } from '../helpers/pdfFixture'
+import { memoryPreferenceStates } from '../helpers/preferenceStateMemory'
 
 const unit = (axis = 0) => Array.from({ length: 1024 }, (_, i) => (i === axis ? 1 : 0))
 let db: PGlite
@@ -34,6 +35,7 @@ let pdfVectors: number
 let env: Env
 let service: VectorMaintenanceService
 let repo: VectorMaintenanceRepo
+let states: ReturnType<typeof memoryPreferenceStates>
 
 const prismaAdapter = {
   async $queryRaw(strings: TemplateStringsArray, ...values: unknown[]) {
@@ -141,7 +143,8 @@ beforeEach(async () => {
   } as unknown as Env
   env.VECTOR = new AiEntry({} as ExecutionContext, env) as unknown as Env['VECTOR']
   repo = new VectorMaintenanceRepo(() => prismaAdapter)
-  service = new VectorMaintenanceService(repo, new VectorSourceRepo(env), new VectorEmbeddingClient(env), new VectorIndexClient(env))
+  states = memoryPreferenceStates()
+  service = new VectorMaintenanceService(repo, new VectorSourceRepo(env), new VectorEmbeddingClient(env), new VectorIndexClient(env), states)
 })
 
 afterAll(async () => {
@@ -464,8 +467,13 @@ describe('minimal per-user vector maintenance', () => {
     await db.exec('UPDATE sr_user_bookmark SET is_starred=true WHERE bookmark_id=2')
     const changed = await service.refreshUser(1, 'article')
     expect(changed.writeToken).not.toBe(first.writeToken)
-    expect(await service.verifyRefresh(first)).toBe(false)
+    expect(changed.stateVersion).toBeGreaterThan(first.stateVersion!)
+    expect(await service.verifyRefresh(first)).toBe(true)
     expect(await service.verifyRefresh(changed)).toBe(true)
+    const visible = structuredClone(indexes[2].stored.get('u:1:article')!)
+    indexes[2].stored.set('u:1:article', { ...visible, metadata: { ...visible.metadata, write_token: first.writeToken, state_version: first.stateVersion } })
+    expect(await service.verifyRefresh(changed)).toBe(false)
+    indexes[2].stored.set('u:1:article', visible)
     await db.exec('UPDATE sr_user_bookmark SET is_starred=false')
     expect((await service.refreshUser(1, 'article')).writeToken).toBe(first.writeToken)
   })
@@ -1571,5 +1579,149 @@ describe('minimal per-user vector maintenance', () => {
     await expect(rpc.getVectorsByIds('article', ['a:1'])).rejects.toThrow('invalid_v5_ids')
     await expect(rpc.upsertVectors('user', [{ id: 'u:1:article', namespace: 'user-collection', values: unit() }])).rejects.toThrow('invalid_v5_namespace')
     expect(indexes[0].query).not.toHaveBeenCalled()
+  })
+})
+
+describe('incremental preference maintenance', () => {
+  const spread = (seed: number) => Array.from({ length: 1024 }, (_, i) => Math.sin(seed * 12.9898 + i * 78.233) + (i % 7 === seed % 7 ? 2 : 0))
+  const store = (userId: number, id: number, values = spread(id)) => indexes[0].stored.set(`a:${userId}:${id}`, { id: `a:${userId}:${id}`, values })
+  const full = () => new VectorMaintenanceService(repo, new VectorSourceRepo(env), new VectorEmbeddingClient(env), new VectorIndexClient(env), memoryPreferenceStates())
+  const event = async (userId: number, id: number, change: () => Promise<unknown> = async () => undefined) => {
+    await service.retireArticle({ userId, id })
+    await change()
+    return service.applyUserArticle({ userId, id })
+  }
+  const expectSameProfile = async () => {
+    const incremental = structuredClone([indexes[2].stored.get('u:1:article'), indexes[2].stored.get('u:1:article:centered')])
+    const reference = await full().refreshUser(1, 'article')
+    expect(reference.state).toBe('written')
+    const [raw, centered] = [indexes[2].stored.get('u:1:article')!, indexes[2].stored.get('u:1:article:centered')!]
+    incremental[0]!.values.forEach((value, i) => expect(value).toBeCloseTo(raw.values[i], 10))
+    incremental[1]!.values.forEach((value, i) => expect(value).toBeCloseTo(centered.values[i], 10))
+    const interests = (vector: VectorizeVector) =>
+      (JSON.parse(String(vector.metadata!.interests)) as [number, number][]).map(([id, importance]) => [id, Math.round(importance * 1000)])
+    expect(interests(incremental[0]!)).toEqual(interests(raw))
+  }
+
+  test('save, star, unstar, re-embed and delete events match a full recompute without reading the whole history', async () => {
+    for (const id of [1, 2, 3]) await seed(id, [1], `article ${id}`, { starred: id === 2 })
+    for (const id of [1, 2, 3]) store(1, id)
+    expect((await service.refreshUser(1, 'article')).state).toBe('written')
+    const history = vi.spyOn(repo, 'listUserArticles')
+
+    await seed(4, [1], 'new article')
+    store(1, 4)
+    expect(await event(1, 4)).toMatchObject({ state: 'written', coverage: { eligible: 4, used: 4, missing: 0 } })
+    expect(history).not.toHaveBeenCalled()
+    await expectSameProfile()
+
+    history.mockClear()
+    expect(await event(1, 1, () => db.exec('UPDATE sr_user_bookmark SET is_starred=true WHERE bookmark_id=1'))).toMatchObject({ state: 'written' })
+    expect(await event(1, 2, () => db.exec('UPDATE sr_user_bookmark SET is_starred=false WHERE bookmark_id=2'))).toMatchObject({ state: 'written' })
+    expect(await event(1, 3, async () => store(1, 3, spread(30)))).toMatchObject({ state: 'written' })
+    expect(
+      await event(1, 4, async () => {
+        await db.exec('UPDATE sr_user_bookmark SET deleted_at=now() WHERE bookmark_id=4')
+        indexes[0].stored.delete('a:1:4')
+      })
+    ).toMatchObject({ state: 'written', coverage: { eligible: 3, used: 3, missing: 0 } })
+    expect(history).not.toHaveBeenCalled()
+    await expectSameProfile()
+  })
+
+  test('missing or outdated state rebuilds once, then later events stay incremental', async () => {
+    for (const id of [1, 2]) await seed(id, [1], `article ${id}`)
+    for (const id of [1, 2]) store(1, id)
+    const history = vi.spyOn(repo, 'listUserArticles')
+    expect(await event(1, 1)).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 2, missing: 0 } })
+    expect(history).toHaveBeenCalled()
+    history.mockClear()
+    await seed(3, [1], 'third')
+    store(1, 3)
+    expect(await event(1, 3)).toMatchObject({ state: 'written', coverage: { eligible: 3, used: 3 } })
+    expect(history).not.toHaveBeenCalled()
+    await expectSameProfile()
+
+    const outdated = (await states.read('u:1:article'))!
+    await states.update('u:1:article', outdated.version, { ...outdated, version: outdated.version + 1, meanVersion: 'previous-mean' })
+    expect(await event(1, 2)).toMatchObject({ state: 'written' })
+    expect(history).toHaveBeenCalled()
+    expect((await states.read('u:1:article'))!.meanVersion).toBe(EMBEDDING_MEAN_VERSION)
+  })
+
+  test('a vector replaced outside the event path triggers a rebuild instead of subtracting the wrong contribution', async () => {
+    for (const id of [1, 2]) await seed(id, [1], `article ${id}`)
+    for (const id of [1, 2]) store(1, id)
+    await service.refreshUser(1, 'article')
+    store(1, 1, spread(99))
+    const history = vi.spyOn(repo, 'listUserArticles')
+    expect(await service.applyUserArticle({ userId: 1, id: 1 })).toMatchObject({ state: 'written' })
+    expect(history).toHaveBeenCalled()
+    await expectSameProfile()
+  })
+
+  test('a failed article write restores the old contribution instead of dropping the article', async () => {
+    for (const id of [1, 2]) await seed(id, [1], `article ${id}`, { starred: id === 1 })
+    for (const id of [1, 2]) store(1, id)
+    await service.refreshUser(1, 'article')
+    await service.retireArticle({ userId: 1, id: 1 })
+    expect((await states.read('u:1:article'))!.entries.get(1)).toEqual({ weight: 2, token: '' })
+    await service.restoreArticle({ userId: 1, id: 1 })
+    expect((await states.read('u:1:article'))!.entries.get(1)!.token).toMatch(/^[0-9a-f]{16}$/)
+    expect(await service.applyUserArticle({ userId: 1, id: 2 })).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 2, missing: 0 } })
+    await expectSameProfile()
+  })
+
+  test('deleting the last article removes the profile and its state', async () => {
+    await seed(1, [1], 'only')
+    store(1, 1)
+    await service.refreshUser(1, 'article')
+    expect(states.rows.has('u:1:article')).toBe(true)
+    const output = await event(1, 1, () => db.exec('UPDATE sr_user_bookmark SET deleted_at=now()'))
+    expect(output).toMatchObject({ state: 'deleted', vectorIds: ['u:1:article', 'u:1:article:centered'] })
+    expect(states.rows.has('u:1:article')).toBe(false)
+    expect(indexes[2].stored.has('u:1:article')).toBe(false)
+    expect(await service.verifyRefresh(output)).toBe(true)
+  })
+
+  test('concurrent events converge on one state and older publishers stand down', async () => {
+    for (const id of [1, 2, 3]) await seed(id, [1], `article ${id}`)
+    for (const id of [1, 2, 3]) store(1, id)
+    await service.refreshUser(1, 'article')
+    await db.exec('UPDATE sr_user_bookmark SET is_starred=true')
+    const outputs = await Promise.all([1, 2, 3].map(id => service.applyUserArticle({ userId: 1, id })))
+    expect(outputs.every(output => output.state !== 'failed')).toBe(true)
+    for (const output of outputs) expect(await service.verifyRefresh(output)).toBe(true)
+    const state = (await states.read('u:1:article'))!
+    expect([...state.entries.values()].map(entry => entry.weight)).toEqual([2, 2, 2])
+    expect(indexes[2].stored.get('u:1:article')!.metadata!.state_version).toBe(state.version)
+    await expectSameProfile()
+  })
+
+  test('owner Collections share one incremental aggregate and stay strict about missing members', async () => {
+    await seed(1, [1], 'member one', { starred: true, published: true })
+    await db.exec("INSERT INTO sr_user_collection(id,owner_id,status,collection_code) VALUES (2,1,1,'second')")
+    store(1, 1)
+    expect((await service.refreshCollection(1)).state).toBe('written')
+    const members = vi.spyOn(repo, 'listCollectionMembers')
+    await seed(2, [1], 'member two', { starred: true })
+    store(1, 2)
+    await service.retireArticle({ userId: 1, id: 2 })
+    const outputs = await service.applyOwnerCollections({ userId: 1, id: 2 })
+    expect(outputs.map(output => [output.target, output.state])).toEqual([
+      [{ kind: 'collection', id: 1 }, 'written'],
+      [{ kind: 'collection', id: 2 }, 'written']
+    ])
+    expect(members).not.toHaveBeenCalled()
+    expect(indexes[1].stored.get('c:1')!.values).toEqual(indexes[1].stored.get('c:2')!.values)
+    const incremental = structuredClone(indexes[1].stored.get('c:1')!.values)
+    expect((await full().refreshCollection(1)).state).toBe('written')
+    incremental.forEach((value, i) => expect(value).toBeCloseTo(indexes[1].stored.get('c:1')!.values[i], 10))
+
+    await seed(3, [1], 'member without vector', { starred: true })
+    const missing = await service.applyOwnerCollections({ userId: 1, id: 3 })
+    expect(missing.map(output => output.reason)).toEqual(['missing_dependency:a:1:3', 'missing_dependency:a:1:3'])
+    store(1, 3)
+    expect((await service.applyOwnerCollections({ userId: 1, id: 3 })).map(output => output.state)).toEqual(['written', 'written'])
   })
 })

@@ -7,6 +7,7 @@ import { CollectionController } from '@/handler/http/collectionController'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
 import { VectorMaintenanceRepo } from '@/infra/repository/dbVectorMaintenance'
 import { CollectionJob } from '@/handler/cron/collectionJob'
+import { memoryPreferenceStates } from '../helpers/preferenceStateMemory'
 
 function context() {
   const pending: Promise<unknown>[] = []
@@ -305,7 +306,7 @@ describe('disposable PostgreSQL Collection and expiry subcases', () => {
       index.stored.set('a:7:100:c:1', { id: 'a:7:100:c:1', values: axis(2), metadata: { kind: 'chunk', part_index: 1 } })
       index.stored.set('a:7:100:c:2', { id: 'a:7:100:c:2', values: axis(3), metadata: { kind: 'chunk', part_index: 2 } })
       index.stored.set('a:7:101', { id: 'a:7:101', values: axis(4), metadata: { kind: 'article', part_count: 1 } })
-      const service = new VectorMaintenanceService(new VectorMaintenanceRepo(() => disposablePrisma(pg)), {} as any, {} as any, index as any)
+      const service = new VectorMaintenanceService(new VectorMaintenanceRepo(() => disposablePrisma(pg)), {} as any, {} as any, index as any, memoryPreferenceStates())
       const result = await service.refreshCollection(6)
       expect(result).toMatchObject({ state: 'written', target: { kind: 'collection', id: 6 } })
       expect(index.get.mock.calls).toEqual([
@@ -367,7 +368,7 @@ describe('disposable PostgreSQL Collection and expiry subcases', () => {
       index.stored.set('u:7:article', { id: 'u:7:article', namespace: 'user-article', values: axis(0) })
       index.stored.set('u:7:collection', { id: 'u:7:collection', namespace: 'user-collection', values: axis(1) })
       index.stored.set('c:7', { id: 'c:7', values: axis(1), metadata: { kind: 'collection', recommendable: true, published_at: Date.now() } })
-      const service = new VectorMaintenanceService(new VectorMaintenanceRepo(() => disposablePrisma(pg)), {} as any, {} as any, index as any)
+      const service = new VectorMaintenanceService(new VectorMaintenanceRepo(() => disposablePrisma(pg)), {} as any, {} as any, index as any, memoryPreferenceStates())
       const removed = await service.refreshUser(7, 'collection')
       expect(removed.state).toBe('deleted')
       expect(index.delete.mock.calls).toEqual([['user', ['u:7:collection']]])

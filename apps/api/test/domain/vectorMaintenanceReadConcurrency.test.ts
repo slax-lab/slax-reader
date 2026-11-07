@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import { VectorMaintenanceService } from '../../src/domain/vectorMaintenance'
+import { memoryPreferenceStates } from '../helpers/preferenceStateMemory'
 
 const flush = async (turns = 12) => {
   for (let index = 0; index < turns; index++) await Promise.resolve()
@@ -46,7 +47,7 @@ function trackingIndex() {
   return { index, calls, pending, peak: () => peak, inFlight: () => inFlight }
 }
 
-const service = (index: unknown) => new VectorMaintenanceService({} as never, {} as never, {} as never, index as never)
+const service = (index: unknown) => new VectorMaintenanceService({} as never, {} as never, {} as never, index as never, memoryPreferenceStates())
 
 describe('vector read batching', () => {
   test('101 article identities fan out to at most four concurrent 20-id reads with results merged', async () => {
