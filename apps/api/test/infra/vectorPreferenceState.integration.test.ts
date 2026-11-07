@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { VectorPreferenceStateRepo } from '@/infra/repository/vectorPreferenceState'
-import { emptyPreferenceState, type PreferenceState } from '@/utils/preferenceLedger'
+import { emptyPreferenceState, PREFERENCE_STATE_MAX_ENTRIES, type PreferenceState } from '@/utils/preferenceLedger'
 
 const req = createRequire(import.meta.url)
 const { Miniflare } = createRequire(req.resolve('wrangler/package.json'))('miniflare')
@@ -66,8 +66,8 @@ describe('D1 preference state store', () => {
       [9, 1, ''],
       [3, 2, 'ffffffff00000001']
     ])
-    expect(await repo.insert('u:1:article', written)).toBe(true)
-    const read = (await repo.read('u:1:article'))!
+    expect(await repo.insert('state:user-article:1', written)).toBe(true)
+    const read = (await repo.read('state:user-article:1'))!
     expect(read.version).toBe(written.version)
     expect(read.meanVersion).toBe('mean-v1')
     expect([...read.raw]).toEqual([...written.raw])
@@ -81,29 +81,38 @@ describe('D1 preference state store', () => {
   test('all-zero centered sums are stored compactly and read back as zeros', async () => {
     const owner = state(5)
     owner.centered = new Float64Array(1024)
-    await repo.insert('o:1:collection', owner)
-    expect((await repo.read('o:1:collection'))!.centered.every(value => value === 0)).toBe(true)
+    await repo.insert('state:owner-collection:1', owner)
+    expect((await repo.read('state:owner-collection:1'))!.centered.every(value => value === 0)).toBe(true)
+  })
+
+  test('a ledger at the persistence cap fits in one D1 row', async () => {
+    const full = state(30)
+    full.entries = new Map(Array.from({ length: PREFERENCE_STATE_MAX_ENTRIES }, (_, i) => [i + 1, { weight: 1 + (i % 2), token: (i + 1).toString(16).padStart(16, '0') }]))
+    expect(await repo.insert('state:user-article:4', full)).toBe(true)
+    const read = (await repo.read('state:user-article:4'))!
+    expect(read.entries.size).toBe(PREFERENCE_STATE_MAX_ENTRIES)
+    expect(read.entries.get(PREFERENCE_STATE_MAX_ENTRIES)).toEqual({ weight: 2, token: PREFERENCE_STATE_MAX_ENTRIES.toString(16).padStart(16, '0') })
   })
 
   test('insert, update and delete only succeed against the expected version', async () => {
-    expect(await repo.insert('u:2:article', state(10))).toBe(true)
-    expect(await repo.insert('u:2:article', state(11))).toBe(false)
-    expect(await repo.update('u:2:article', 9, state(12))).toBe(false)
-    expect(await repo.update('u:2:article', 10, state(12))).toBe(true)
-    expect((await repo.read('u:2:article'))!.version).toBe(12)
-    expect(await repo.delete('u:2:article', 10)).toBe(false)
-    expect(await repo.delete('u:2:article', 12)).toBe(true)
-    expect(await repo.read('u:2:article')).toBeNull()
+    expect(await repo.insert('state:user-article:2', state(10))).toBe(true)
+    expect(await repo.insert('state:user-article:2', state(11))).toBe(false)
+    expect(await repo.update('state:user-article:2', 9, state(12))).toBe(false)
+    expect(await repo.update('state:user-article:2', 10, state(12))).toBe(true)
+    expect((await repo.read('state:user-article:2'))!.version).toBe(12)
+    expect(await repo.delete('state:user-article:2', 10)).toBe(false)
+    expect(await repo.delete('state:user-article:2', 12)).toBe(true)
+    expect(await repo.read('state:user-article:2')).toBeNull()
   })
 
   test('two writers racing from the same version produce exactly one winner', async () => {
-    await repo.insert('u:3:article', state(20))
+    await repo.insert('state:user-article:3', state(20))
     const results = await Promise.all([
-      repo.update('u:3:article', 20, state(21, [[1, 1, '1111111111111111']])),
-      repo.update('u:3:article', 20, state(22, [[2, 1, '2222222222222222']]))
+      repo.update('state:user-article:3', 20, state(21, [[1, 1, '1111111111111111']])),
+      repo.update('state:user-article:3', 20, state(22, [[2, 1, '2222222222222222']]))
     ])
     expect(results.filter(Boolean)).toHaveLength(1)
-    const winner = (await repo.read('u:3:article'))!
+    const winner = (await repo.read('state:user-article:3'))!
     expect([21, 22]).toContain(winner.version)
   })
 })

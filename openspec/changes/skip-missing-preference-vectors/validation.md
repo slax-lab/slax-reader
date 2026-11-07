@@ -33,11 +33,11 @@ The D1 migration was produced with `pnpm api -- gen:diff:d1` against the local D
 
 ## Incremental maintenance: automated and runtime evidence
 
-- New Service cases against the real Service, PGlite repository and fixture vector indexes, 7 passed: save, star, unstar, re-embed and delete events each equal an independent full recompute of raw, centered and interest output while `listUserArticles` is never called; absent and outdated-mean state rebuild once, then stay incremental; a vector replaced outside the event path forces a rebuild; a failed article write restores the old contribution; deleting the last article removes the profile and its state; three concurrent events converge with weights `[2, 2, 2]` and the newest `state_version` visible; an owner with two Collections publishes identical vectors equal to a full Collection refresh without enumerating members, reports `missing_dependency:a:1:3` for an absent member, and publishes once that vector exists.
+- New Service cases against the real Service, PGlite repository and fixture vector indexes, 8 passed: save, star, unstar, re-embed and delete events each equal an independent full recompute of raw, centered and interest output while `listUserArticles` is never called; absent and outdated-mean state rebuild once, then stay incremental; a vector replaced outside the event path forces a rebuild; a failed article write restores the old contribution; deleting the last article removes the profile and its state; three concurrent events converge with weights `[2, 2, 2]` and the newest `state_version` visible; an older publisher whose state is overtaken just before its write stands down, the newer state stays visible and both visibility checks pass (removing the pre-write check makes this test fail); an owner with two Collections publishes identical vectors equal to a full Collection refresh without enumerating members, reports `missing_dependency:a:1:3` for an absent member, and publishes once that vector exists.
 - Mutation check: flipping the retire subtraction sign makes the event-sequence equality test fail; the source was restored afterwards.
-- Real local D1 through Miniflare with the actual 00066 migration, 4 passed: exact round-trip of float64 sums, pending ledger entries and a 13-digit version; compact all-zero sums; insert, update and delete only against the expected version; two writers racing from one version produce exactly one winner.
+- Real local D1 through Miniflare with the actual 00066 migration, 5 passed: exact round-trip of float64 sums, pending ledger entries and a 13-digit version; compact all-zero sums; a 120,000-entry ledger at the persistence cap stored and read in one row; insert, update and delete only against the expected version; two writers racing from one version produce exactly one winner.
 - Ledger unit tests, 6 passed. Workflow tests, 15 passed, including the new step order and the restore step on a failed article write. Actual Workerd Edge/Core task route test passed.
-- `pnpm api -- gen:all`, `typecheck`, `lint` (zero errors, 344 existing warnings), full `vitest run` (3,855 passed, 117 existing environment-gated skips; 243 files passed, 15 skipped), `pnpm exec openspec validate --all --strict` (115 passed), `pnpm agent:check`, four-Worker public-template dry-run build (Core, Edge, AI, Browser) and `git diff --check` all passed.
+- `pnpm api -- gen:all`, `typecheck`, `lint` (zero errors, 344 existing warnings), full `vitest run` (3,857 passed, 117 existing environment-gated skips; 243 files passed, 15 skipped), `pnpm exec openspec validate --all --strict` (115 passed), `pnpm agent:check`, four-Worker public-template dry-run build (Core, Edge, AI, Browser) and `git diff --check` all passed.
 - Not verified in a running Workflow with remote D1 and Vectorize: there is no local Vectorize, and remote migration, deployment and test-environment writes are not authorized for this change. The Workflow step order is covered by the Workflow tests, and the state store by the real local D1 run.
 
 ## Incremental maintenance: known limitations
@@ -46,6 +46,16 @@ The D1 migration was produced with `pnpm api -- gen:diff:d1` against the local D
 - State reuses the existing `DB` binding, so no private configuration change is required; each event makes at most four conditional writes to two rows there (the user's row, and the owner row only for Collection owners). A target with more than 120,000 ledger entries is not persisted and rebuilds on every event, as before.
 - If a deleted user's article events permanently fail, that user's state row can remain, as their vectors already could.
 - The remaining per-event history read is interest clustering over the recent window; online clustering is a separate change.
+
+## Pull request review follow-up
+
+The automated reviews of `122a1dd` and `451a105` reported no Important findings and five Nits, handled as follows.
+
+- D1 row limit: the review cited 1 MB; Cloudflare's D1 limits page lists 2,000,000 bytes for a string, BLOB or row, and the real local D1 test now stores and reads a ledger at the 120,000-entry cap (about 1.94 MB). The cap is unchanged.
+- Publish race: the newest-state check now runs immediately before each vector write or delete, covered by a deterministic interleaving test. Vector writes are still not conditional; the remaining window and its effect are recorded in the design.
+- State keys now use `state:user-article:<id>` and `state:owner-collection:<id>`, so they no longer equal vector IDs in logs and errors. Nothing is deployed yet, so no data migration is needed.
+- The operator `--help` text now names the `eligible`, `used` and `missing` coverage counters.
+- The proposal records that archiving `vector-bulk-sync` must narrow its missing-vector preference scenario to the all-missing case.
 
 ## Review and delivery boundaries
 

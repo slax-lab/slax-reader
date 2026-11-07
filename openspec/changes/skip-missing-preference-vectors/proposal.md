@@ -27,7 +27,7 @@ Every article event also recomputes the user's entire article history and every 
 
 ### Modified Capabilities
 
-None in living specs. This human-approved follow-up supersedes the strict missing-source-vector rule for user preferences in the already-merged, not-yet-archived `vector-bulk-sync` and `preference-maintenance` change records, and the `vector-v5-recommendation` design decision to recompute every event from current rows without a vector ledger. Published values still equal a recomputation from current eligible rows. Collection representations remain strict; archive these follow-ups in order.
+None in living specs. This human-approved follow-up supersedes the strict missing-source-vector rule for user preferences in the already-merged, not-yet-archived `vector-bulk-sync` and `preference-maintenance` change records, and the `vector-v5-recommendation` design decision to recompute every event from current rows without a vector ledger. Published values still equal a recomputation from current eligible rows. Collection representations remain strict; archive these follow-ups in order. When `vector-bulk-sync` is archived, its preference-task scenario "Source vector is missing" must be narrowed to the all-missing case so living specs do not contradict `preference-partial-coverage`.
 
 ## Impact
 

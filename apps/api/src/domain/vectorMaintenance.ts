@@ -653,13 +653,15 @@ export class VectorMaintenanceService implements VectorMaintenance {
     id: number,
     state: PreferenceState,
     output: VectorRefreshResult,
-    prepared?: { now: number; recent: { id: number; acted_at: Date }[]; representatives: Map<number, number[]> }
+    prepared?: { now: number; recent: { id: number; acted_at: Date }[]; representatives: Map<number, number[]> },
+    standDown?: () => Promise<boolean>
   ): Promise<VectorRefreshResult> {
     const key = `u:${id}:article`
     const keys = [key, `${key}:centered`]
     output.coverage = preferenceCoverage(state)
     output.stateVersion = state.version
     if (!state.entries.size) {
+      if (await standDown?.()) return supersede(output, state)
       await this.remove('user', keys, output)
       output.vectorIds = keys
       output.state = 'deleted'
@@ -694,6 +696,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
     }
     const identity = { target: key, namespace, centered: await contentWriteToken({ target: keys[1], namespace, embedding_mean_version: EMBEDDING_MEAN_VERSION }, centered) }
     output.writeToken = await contentWriteToken({ ...identity, ...metadata }, vector)
+    if (await standDown?.()) return supersede(output, state)
     await this.upsert(
       'user',
       [
@@ -707,10 +710,16 @@ export class VectorMaintenanceService implements VectorMaintenance {
     return output
   }
 
-  private async publishCollection(collection: VectorCollectionRow, state: PreferenceState, output: VectorRefreshResult): Promise<VectorRefreshResult> {
+  private async publishCollection(
+    collection: VectorCollectionRow,
+    state: PreferenceState,
+    output: VectorRefreshResult,
+    standDown?: () => Promise<boolean>
+  ): Promise<VectorRefreshResult> {
     const key = `c:${collection.id}`
     output.stateVersion = state.version
     if (!state.entries.size) {
+      if (await standDown?.()) return supersede(output, state)
       await this.remove('collection', [key], output)
       output.vectorIds = [key]
       output.state = 'deleted'
@@ -724,7 +733,10 @@ export class VectorMaintenanceService implements VectorMaintenance {
     output.writeToken = await contentWriteToken({ target: key, ...publication }, vector)
     const previous = (await this.get('collection', [key])).get(key)
     if (previous?.metadata?.write_token === output.writeToken) output.unchanged = true
-    else await this.upsert('collection', [{ id: key, values: vector, metadata: { ...publication, state_version: state.version } }], [output])
+    else {
+      if (await standDown?.()) return supersede(output, state)
+      await this.upsert('collection', [{ id: key, values: vector, metadata: { ...publication, state_version: state.version } }], [output])
+    }
     output.state = 'written'
     return output
   }
@@ -824,7 +836,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
     try {
       const state = await this.applyEntry('user-article', identity.userId, identity.id)
       if (await this.superseded('user-article', identity.userId, state)) return supersede(output, state)
-      return await this.publishUserArticle(identity.userId, state, output)
+      return await this.publishUserArticle(identity.userId, state, output, undefined, () => this.superseded('user-article', identity.userId, state))
     } catch (error) {
       return failed(output, error)
     }
@@ -845,7 +857,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
       }
       try {
         const collection = await this.repo.findCollection(id)
-        if (collection?.owner_id === identity.userId) await this.publishCollection(collection, state, output)
+        if (collection?.owner_id === identity.userId) await this.publishCollection(collection, state, output, () => this.superseded('owner-collection', identity.userId, state))
         else {
           output.vectorIds = [`c:${id}`]
           await this.remove('collection', [`c:${id}`], output)

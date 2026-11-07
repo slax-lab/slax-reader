@@ -21,7 +21,7 @@ const SUM_BYTES = VECTOR_DIMENSIONS * Float64Array.BYTES_PER_ELEMENT
 const EMPTY_TOKEN = '0000000000000000'
 export const PREFERENCE_STATE_MAX_ENTRIES = 120_000
 
-export const preferenceStateKey = (kind: PreferenceTargetKind, id: number): string => (kind === 'user-article' ? `u:${id}:article` : `o:${id}:collection`)
+export const preferenceStateKey = (kind: PreferenceTargetKind, id: number): string => `state:${kind}:${id}`
 
 export function emptyPreferenceState(meanVersion: string): PreferenceState {
   return { version: 0, meanVersion, raw: new Float64Array(VECTOR_DIMENSIONS), centered: new Float64Array(VECTOR_DIMENSIONS), entries: new Map() }

@@ -1642,11 +1642,11 @@ describe('incremental preference maintenance', () => {
     expect(history).not.toHaveBeenCalled()
     await expectSameProfile()
 
-    const outdated = (await states.read('u:1:article'))!
-    await states.update('u:1:article', outdated.version, { ...outdated, version: outdated.version + 1, meanVersion: 'previous-mean' })
+    const outdated = (await states.read('state:user-article:1'))!
+    await states.update('state:user-article:1', outdated.version, { ...outdated, version: outdated.version + 1, meanVersion: 'previous-mean' })
     expect(await event(1, 2)).toMatchObject({ state: 'written' })
     expect(history).toHaveBeenCalled()
-    expect((await states.read('u:1:article'))!.meanVersion).toBe(EMBEDDING_MEAN_VERSION)
+    expect((await states.read('state:user-article:1'))!.meanVersion).toBe(EMBEDDING_MEAN_VERSION)
   })
 
   test('a vector replaced outside the event path triggers a rebuild instead of subtracting the wrong contribution', async () => {
@@ -1665,9 +1665,9 @@ describe('incremental preference maintenance', () => {
     for (const id of [1, 2]) store(1, id)
     await service.refreshUser(1, 'article')
     await service.retireArticle({ userId: 1, id: 1 })
-    expect((await states.read('u:1:article'))!.entries.get(1)).toEqual({ weight: 2, token: '' })
+    expect((await states.read('state:user-article:1'))!.entries.get(1)).toEqual({ weight: 2, token: '' })
     await service.restoreArticle({ userId: 1, id: 1 })
-    expect((await states.read('u:1:article'))!.entries.get(1)!.token).toMatch(/^[0-9a-f]{16}$/)
+    expect((await states.read('state:user-article:1'))!.entries.get(1)!.token).toMatch(/^[0-9a-f]{16}$/)
     expect(await service.applyUserArticle({ userId: 1, id: 2 })).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 2, missing: 0 } })
     await expectSameProfile()
   })
@@ -1676,10 +1676,10 @@ describe('incremental preference maintenance', () => {
     await seed(1, [1], 'only')
     store(1, 1)
     await service.refreshUser(1, 'article')
-    expect(states.rows.has('u:1:article')).toBe(true)
+    expect(states.rows.has('state:user-article:1')).toBe(true)
     const output = await event(1, 1, () => db.exec('UPDATE sr_user_bookmark SET deleted_at=now()'))
     expect(output).toMatchObject({ state: 'deleted', vectorIds: ['u:1:article', 'u:1:article:centered'] })
-    expect(states.rows.has('u:1:article')).toBe(false)
+    expect(states.rows.has('state:user-article:1')).toBe(false)
     expect(indexes[2].stored.has('u:1:article')).toBe(false)
     expect(await service.verifyRefresh(output)).toBe(true)
   })
@@ -1692,9 +1692,32 @@ describe('incremental preference maintenance', () => {
     const outputs = await Promise.all([1, 2, 3].map(id => service.applyUserArticle({ userId: 1, id })))
     expect(outputs.every(output => output.state !== 'failed')).toBe(true)
     for (const output of outputs) expect(await service.verifyRefresh(output)).toBe(true)
-    const state = (await states.read('u:1:article'))!
+    const state = (await states.read('state:user-article:1'))!
     expect([...state.entries.values()].map(entry => entry.weight)).toEqual([2, 2, 2])
     expect(indexes[2].stored.get('u:1:article')!.metadata!.state_version).toBe(state.version)
+    await expectSameProfile()
+  })
+
+  test('an older publisher stands down when a newer state commits just before its write', async () => {
+    for (const id of [1, 2]) await seed(id, [1], `article ${id}`)
+    for (const id of [1, 2]) store(1, id)
+    await service.refreshUser(1, 'article')
+    await db.exec('UPDATE sr_user_bookmark SET is_starred=true')
+    const original = repo.listRecentUserActions.bind(repo)
+    let newer: VectorRefreshResult | undefined
+    vi.spyOn(repo, 'listRecentUserActions').mockImplementationOnce(async (...args) => {
+      newer = await service.applyUserArticle({ userId: 1, id: 2 })
+      return original(...args)
+    })
+    indexes[2].upsert.mockClear()
+    const older = await service.applyUserArticle({ userId: 1, id: 1 })
+    expect(older).toMatchObject({ superseded: true, state: 'empty' })
+    expect(newer).toMatchObject({ state: 'written' })
+    expect(older.stateVersion).toBeLessThan(newer!.stateVersion!)
+    expect(indexes[2].upsert).toHaveBeenCalledOnce()
+    expect(indexes[2].stored.get('u:1:article')!.metadata!.state_version).toBe(newer!.stateVersion)
+    expect(await service.verifyRefresh(older)).toBe(true)
+    expect(await service.verifyRefresh(newer!)).toBe(true)
     await expectSameProfile()
   })
 
