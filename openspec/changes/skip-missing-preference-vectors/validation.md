@@ -43,7 +43,7 @@ The D1 migration was produced with `pnpm api -- gen:diff:d1` against the local D
 ## Incremental maintenance: known limitations
 
 - The account-level snapshot-sharing setting and moderation outcomes that arrive without a later article event dispatch no maintenance, so the owner aggregate keeps the old eligibility until that owner's next Collection refresh or bulk refresh. Before this change, the next article event's full recompute absorbed them.
-- State reuses the existing `DB` binding, so no private configuration change is required; each event rewrites up to three small rows there. A target with more than 120,000 ledger entries is not persisted and rebuilds on every event, as before.
+- State reuses the existing `DB` binding, so no private configuration change is required; each event makes at most four conditional writes to two rows there (the user's row, and the owner row only for Collection owners). A target with more than 120,000 ledger entries is not persisted and rebuilds on every event, as before.
 - If a deleted user's article events permanently fail, that user's state row can remain, as their vectors already could.
 - The remaining per-event history read is interest clustering over the recent window; online clustering is a separate change.
 
