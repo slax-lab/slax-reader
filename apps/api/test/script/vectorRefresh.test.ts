@@ -300,6 +300,7 @@ describe('response and option safety', () => {
       { eligible: '3', used: 2, missing: 1 },
       { eligible: 1, used: 2, missing: 0 },
       { eligible: 2, used: 2, missing: 1 },
+      { eligible: 5, used: 1, missing: 1 },
       { eligible: -1, used: 0, missing: 0 },
       { eligible: 2.5, used: 2, missing: 0 },
       { eligible: Infinity, used: 0, missing: 0 },

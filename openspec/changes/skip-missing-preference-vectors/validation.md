@@ -37,7 +37,7 @@ The D1 migration was produced with `pnpm api -- gen:diff:d1` against the local D
 - Mutation check: flipping the retire subtraction sign makes the event-sequence equality test fail; the source was restored afterwards.
 - Real local D1 through Miniflare with the actual 00066 migration, 5 passed: exact round-trip of float64 sums, pending ledger entries and a 13-digit version; compact all-zero sums; a 120,000-entry ledger at the persistence cap stored and read in one row; insert, update and delete only against the expected version; two writers racing from one version produce exactly one winner.
 - Ledger unit tests, 6 passed. Workflow tests, 15 passed, including the new step order and the restore step on a failed article write. Actual Workerd Edge/Core task route test passed.
-- `pnpm api -- gen:all`, `typecheck`, `lint` (zero errors, 344 existing warnings), full `vitest run` (3,857 passed, 117 existing environment-gated skips; 243 files passed, 15 skipped), `pnpm exec openspec validate --all --strict` (115 passed), `pnpm agent:check`, four-Worker public-template dry-run build (Core, Edge, AI, Browser) and `git diff --check` all passed.
+- `pnpm api -- gen:all`, `typecheck`, `lint` (zero errors, 344 existing warnings), full `vitest run` (3,858 passed, 117 existing environment-gated skips; 243 files passed, 15 skipped), `pnpm exec openspec validate --all --strict` (115 passed), `pnpm agent:check`, four-Worker public-template dry-run build (Core, Edge, AI, Browser) and `git diff --check` all passed.
 - Not verified in a running Workflow with remote D1 and Vectorize: there is no local Vectorize, and remote migration, deployment and test-environment writes are not authorized for this change. The Workflow step order is covered by the Workflow tests, and the state store by the real local D1 run.
 
 ## Incremental maintenance: known limitations
@@ -56,6 +56,7 @@ The automated reviews of `122a1dd` and `451a105` reported no Important findings 
 - State keys now use `state:user-article:<id>` and `state:owner-collection:<id>`, so they no longer equal vector IDs in logs and errors. Nothing is deployed yet, so no data migration is needed.
 - The operator `--help` text now names the `eligible`, `used` and `missing` coverage counters.
 - The proposal records that archiving `vector-bulk-sync` must narrow its missing-vector preference scenario to the all-missing case.
+- The review of `22d3eb6` added two Nits. The operator now forwards coverage only when `eligible === used + missing`. The ledger stores an explicit presence flag, so an all-zero fingerprint no longer needs remapping and stays distinct from a pending entry; the residual 64-bit collision risk is recorded in the design. That review run's gate failed on infrastructure: the Copilot API returned repeated HTTP 500 errors, which the harness classified as quota exceeded.
 
 ## Review and delivery boundaries
 

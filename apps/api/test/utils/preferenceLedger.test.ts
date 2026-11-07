@@ -66,11 +66,26 @@ describe('preference ledger', () => {
     expect(firstMissingEntry(state)).toBe(7)
   })
 
+  test('an all-zero fingerprint stays distinct from a pending entry', () => {
+    const entries = new Map([
+      [1, { weight: 1, token: '0000000000000000' }],
+      [2, { weight: 1, token: '0000000000000001' }],
+      [3, { weight: 2, token: '' }]
+    ])
+    expect([...unpackEntries(packEntries(entries))]).toEqual([...entries])
+  })
+
   test('invalid entries and corrupted blobs are rejected', () => {
     expect(() => packEntries(new Map([[0, { weight: 1, token: '' }]]))).toThrow('invalid_preference_entry')
     expect(() => packEntries(new Map([[1, { weight: 0, token: '' }]]))).toThrow('invalid_preference_entry')
     expect(() => packEntries(new Map([[1, { weight: 1, token: 'xyz' }]]))).toThrow('invalid_preference_entry')
     expect(() => unpackEntries(new Uint8Array(15))).toThrow('invalid_preference_state')
+    const corrupt = packEntries(new Map([[1, { weight: 1, token: '' }]]))
+    corrupt[6] = 2
+    expect(() => unpackEntries(corrupt)).toThrow('invalid_preference_state')
+    corrupt[6] = 0
+    corrupt[12] = 1
+    expect(() => unpackEntries(corrupt)).toThrow('invalid_preference_state')
     expect(() => unpackSum(new Uint8Array(16))).toThrow('invalid_preference_state')
   })
 

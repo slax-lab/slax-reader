@@ -18,7 +18,6 @@ export interface PreferenceState {
 
 const ENTRY_BYTES = 16
 const SUM_BYTES = VECTOR_DIMENSIONS * Float64Array.BYTES_PER_ELEMENT
-const EMPTY_TOKEN = '0000000000000000'
 export const PREFERENCE_STATE_MAX_ENTRIES = 120_000
 
 export const preferenceStateKey = (kind: PreferenceTargetKind, id: number): string => `state:${kind}:${id}`
@@ -41,8 +40,7 @@ export function vectorToken(values: ArrayLike<number>): string {
     low = Math.imul(low ^ words[i], 0x5bd1e995)
     low ^= low >>> 15
   }
-  const token = (high >>> 0).toString(16).padStart(8, '0') + (low >>> 0).toString(16).padStart(8, '0')
-  return token === EMPTY_TOKEN ? '0000000000000001' : token
+  return (high >>> 0).toString(16).padStart(8, '0') + (low >>> 0).toString(16).padStart(8, '0')
 }
 
 export function addContribution(state: PreferenceState, kind: PreferenceTargetKind, values: ArrayLike<number>, weight: number) {
@@ -76,12 +74,13 @@ export function packEntries(entries: Map<number, PreferenceEntry>): Uint8Array {
     if (!Number.isSafeInteger(ids[i]) || ids[i] < 1 || ids[i] > 0xffffffff) throw new Error('invalid_preference_entry')
     if (!Number.isInteger(entry.weight) || entry.weight < 1 || entry.weight > 0xffff) throw new Error('invalid_preference_entry')
     if (entry.token && !/^[0-9a-f]{16}$/.test(entry.token)) throw new Error('invalid_preference_entry')
-    const token = entry.token || EMPTY_TOKEN
     const offset = i * ENTRY_BYTES
     view.setUint32(offset, ids[i], true)
     view.setUint16(offset + 4, entry.weight, true)
-    view.setUint32(offset + 8, Number.parseInt(token.slice(0, 8), 16), true)
-    view.setUint32(offset + 12, Number.parseInt(token.slice(8), 16), true)
+    if (!entry.token) continue
+    view.setUint8(offset + 6, 1)
+    view.setUint32(offset + 8, Number.parseInt(entry.token.slice(0, 8), 16), true)
+    view.setUint32(offset + 12, Number.parseInt(entry.token.slice(8), 16), true)
   }
   return bytes
 }
@@ -93,7 +92,13 @@ export function unpackEntries(bytes: Uint8Array): Map<number, PreferenceEntry> {
   for (let offset = 0; offset < bytes.length; offset += ENTRY_BYTES) {
     const id = view.getUint32(offset, true)
     const weight = view.getUint16(offset + 4, true)
-    if (!id || !weight || entries.has(id)) throw new Error('invalid_preference_state')
+    const present = view.getUint8(offset + 6)
+    if (!id || !weight || present > 1 || view.getUint8(offset + 7) || entries.has(id)) throw new Error('invalid_preference_state')
+    if (!present) {
+      if (view.getUint32(offset + 8, true) || view.getUint32(offset + 12, true)) throw new Error('invalid_preference_state')
+      entries.set(id, { weight, token: '' })
+      continue
+    }
     const token =
       view
         .getUint32(offset + 8, true)
@@ -103,7 +108,7 @@ export function unpackEntries(bytes: Uint8Array): Map<number, PreferenceEntry> {
         .getUint32(offset + 12, true)
         .toString(16)
         .padStart(8, '0')
-    entries.set(id, { weight, token: token === EMPTY_TOKEN ? '' : token })
+    entries.set(id, { weight, token })
   }
   return entries
 }
