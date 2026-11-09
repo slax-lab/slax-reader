@@ -104,44 +104,27 @@ describe('useAuth', () => {
   })
 
   describe('grantAuth', () => {
-    it('does not store a session when a canceled request completes late', async () => {
+    it('posts the OAuth code and state to the same-origin endpoint without a JavaScript session write', async () => {
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ target: '/bookmarks?view=unread' }))
+      const signal = new AbortController().signal
+      await expect(useAuth().grantAuth('code-1', 'bound-state', signal)).resolves.toBe('/bookmarks?view=unread')
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/session', expect.objectContaining({
+        method: 'POST',
+        credentials: 'same-origin',
+        body: JSON.stringify({ action: 'login', code: 'code-1', state: 'bound-state' }),
+        signal
+      }))
+      expect(cookieSet.mock.calls.every(([name]) => name !== 'token')).toBe(true)
+    })
+
+    it('rejects a late response after cancellation', async () => {
       const controller = new AbortController()
-      let finish!: (response: { token: string }) => void
-      mockPost.mockImplementation(() => new Promise(resolve => { finish = resolve }))
-      const login = useAuth().grantAuth('old-code', 'https://auth.test/auth', '', 'google', undefined, { signal: controller.signal })
+      let finish!: (response: Response) => void
+      vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise(resolve => { finish = resolve }))
+      const login = useAuth().grantAuth('code-1', 'bound-state', controller.signal)
       controller.abort()
-      finish({ token: 'late-token' })
+      finish(Response.json({ target: '/bookmarks' }))
       await expect(login).rejects.toMatchObject({ name: 'AbortError' })
-      expect(cookieSet).not.toHaveBeenCalled()
-    })
-
-    it('登录成功 → 写 cookie 并返回 token', async () => {
-      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      const token = await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google')
-      expect(token).toBe('tok-google')
-      expect(mockPost).toHaveBeenCalledTimes(1)
-      expect(cookieSet).toHaveBeenCalledWith('token', 'tok-google', expect.objectContaining({ path: '/', domain: '.example.com' }))
-    })
-
-    it('登录返回为空 → 抛 "login failed"', async () => {
-      mockPost.mockResolvedValueOnce(undefined)
-      await expect(useAuth().grantAuth('code-x', 'https://auth.test/auth', '', 'google')).rejects.toThrow('login failed')
-      expect(cookieSet).not.toHaveBeenCalled()
-    })
-
-    it('rejects login success when the configured cookie name is invalid', async () => {
-      runtimeConfig.public.COOKIE_TOKEN_NAME = { token: 'token' } as never
-      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3')).rejects.toThrow(/COOKIE_TOKEN_NAME/)
-      expect(cookieSet).not.toHaveBeenCalled()
-    })
-
-    it('platformType=apple 时使用 apple client_id', async () => {
-      mockPost.mockResolvedValueOnce({ token: 'tok-apple' })
-      await useAuth().grantAuth('code-2', 'https://auth.test/auth', 'aff4', 'apple')
-      const call = mockPost.mock.calls[0]![0]
-      expect(call.body.client_id).toBe('a-client-id')
-      expect(call.body.type).toBe('apple')
     })
   })
 
@@ -156,21 +139,11 @@ describe('useAuth', () => {
       const second = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
       await auth.requestAuth({ redirect: '/bookmarks', affCode: '' })
       const ordinary = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
-      expect(first).toMatchObject({ auth_attribution: attribution, target: '/c/Collection123?subscribe_after_login=1', affCode: 'aff1', platform: 'google', redirectUrl: 'https://auth.test/auth' })
+      expect(first).toMatchObject({ auth_attribution: attribution, target: '/c/Collection123?subscribe_after_login=1', affCode: 'aff1', platform: 'google' })
+      expect(new Set([first.nonce, second.nonce, ordinary.nonce]).size).toBe(3)
+      expect(cookieSet).toHaveBeenCalledWith(`reader-oauth-${first.nonce}`, expect.stringMatching(/^[a-f0-9]{64}$/), expect.objectContaining({ sameSite: 'lax', maxAge: 600 }))
       expect(second.auth_attribution.collection_id).toBe('Other456')
       expect(ordinary).not.toHaveProperty('auth_attribution')
-    })
-
-    it('carries callback provenance into the Google login request without changing credentials', async () => {
-      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google', attribution)
-      expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: 'aff3', type: 'google', client_id: 'g-client-id', auth_attribution: attribution })
-    })
-
-    it('does not attach collection attribution to Apple authentication', async () => {
-      mockPost.mockResolvedValueOnce({ token: 'tok-apple' })
-      await useAuth().grantAuth('code-2', 'https://auth.test/auth', '', 'apple', attribution)
-      expect(mockPost.mock.calls[0]![0].body).not.toHaveProperty('auth_attribution')
     })
   })
 
@@ -189,15 +162,6 @@ describe('useAuth', () => {
       expect(google).toMatchObject({ platform: 'google', target: '/bookmarks', auth_attribution: header })
       expect(apple).toMatchObject({ platform: 'apple', target: '/bookmarks', auth_attribution: resource })
       expect(ordinary).not.toHaveProperty('auth_attribution')
-    })
-
-    it.each([
-      { provider: 'google', clientId: 'g-client-id', attribution: header },
-      { provider: 'apple', clientId: 'a-client-id', attribution: resource }
-    ] as const)('carries acquisition into the $provider login request', async ({ provider, clientId, attribution }) => {
-      mockPost.mockResolvedValueOnce({ token: 'tok-acquisition' })
-      await useAuth().grantAuth('code-1', 'https://auth.test/auth', '', provider, attribution)
-      expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: '', type: provider, client_id: clientId, auth_attribution: attribution })
     })
   })
 

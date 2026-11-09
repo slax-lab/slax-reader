@@ -87,6 +87,12 @@ describe('middleware/auth.global', () => {
     expect(mockNavigateTo).not.toHaveBeenCalled()
   })
 
+  it('allows the OAuth callback to replace an existing account', async () => {
+    mockGet.mockReturnValue('current-token')
+    await runMiddleware(makeRoute({ path: '/auth', fullPath: '/auth?code=test', query: { code: 'test' } }), makeRoute({ path: '/login' }))
+    expect(mockNavigateTo).not.toHaveBeenCalled()
+  })
+
   it('anchor link（同 path 不同 hash）：短路', async () => {
     const result = await runMiddleware(makeRoute({ path: '/x', fullPath: '/x#a', hash: '#a' }), makeRoute({ path: '/x', fullPath: '/x#b', hash: '#b' }))
     expect(result).toBeUndefined()

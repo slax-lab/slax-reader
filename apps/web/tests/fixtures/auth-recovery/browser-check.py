@@ -24,6 +24,13 @@ results = []
 
 
 def callback(base, mode, *, theme='light', locale='en', provider='google', malformed=False, attribution=None):
+    if base != args.baseline:
+        query = {'case': mode, 'theme': theme, 'locale': locale, 'provider': provider}
+        if malformed:
+            query['malformed'] = '1'
+        if attribution:
+            query['attribution'] = json.dumps(attribution)
+        return base + '/__fixture/start?' + urlencode(query)
     state = {'redirectUrl': base + '/auth', 'target': '/__fixture/done?return=preserved', 'affCode': 'synthetic-referral', 'platform': provider}
     if attribution is not None:
         state['auth_attribution'] = attribution
@@ -91,7 +98,7 @@ with sync_playwright() as p:
     page = context.new_page()
     page.goto(callback(args.base, 'success'))
     expect(page.get_by_role('heading', name='Login completed')).to_be_visible()
-    assert any(cookie['name'] == 'slax_auth_probe' and cookie['value'] == 'synthetic-session-token' for cookie in context.cookies())
+    assert any(cookie['name'] == 'slax_auth_probe' and cookie['value'].count('.') == 2 for cookie in context.cookies())
     assert parse_qs(urlparse(page.url).query)['return'] == ['preserved']
     results.append({'case': 'success', 'result': 'real cookie and destination preserved'})
     context.close()
@@ -105,7 +112,7 @@ with sync_playwright() as p:
                     page = context.new_page()
                     if mode == 'pending':
                         page.clock.install()
-                        with page.expect_request(lambda request: '/v1/user/login' in request.url):
+                        with page.expect_request(lambda request: '/api/auth/session' in request.url):
                             page.goto(callback(args.base, mode, theme=theme, locale=locale))
                         expect(page.get_by_role('status')).to_be_visible()
                         expect(page).to_have_title(('认证中' if locale == 'zh' else 'Authenticating') + ' - Slax Reader')

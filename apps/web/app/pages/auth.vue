@@ -26,30 +26,12 @@ import { useRoute } from 'vue-router'
 import AppleLoginButton from '~/components/AppleLoginButton.vue'
 import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
 
+import { digestOAuthState, normalizeOAuthContext, oauthCookieName, oauthCookieOptions, readOAuthState } from '~~/shared/utils/oauthState'
+
 import { isAcquisitionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
-import { z } from 'zod'
+import { useCookies } from '@vueuse/integrations/useCookies'
 
 const { t } = useI18n()
-
-const callbackState = z.object({
-  redirectUrl: z.string().min(1),
-  target: z.string().optional().default('/bookmarks'),
-  affCode: z.string().optional().default(''),
-  platform: z.enum(['google', 'apple']).optional().default('google'),
-  auth_attribution: z.union([
-    z.object({
-      collection_id: z.string().min(1).max(64).regex(/^[a-zA-Z0-9]+$/),
-      source_screen: z.literal('collection'),
-      presentation: z.literal('modal'),
-      trigger_element_id: z.literal('collection_subscribe_button')
-    }),
-    z.object({
-      source: z.literal('hackerlinks'),
-      medium: z.enum(['header', 'resource_detail']),
-      campaign: z.literal('mvp')
-    })
-  ]).optional().catch(undefined)
-})
 
 const route = useRoute()
 const auth = useAuth()
@@ -62,11 +44,19 @@ const recovery = ref({ target: '/bookmarks', affCode: '', platform: 'google' as 
 if (import.meta.client) {
   const controller = new AbortController()
   let deadline: ReturnType<typeof setTimeout> | undefined
+  const cookies = useCookies()
+  const secure = location.protocol === 'https:'
+  let bindingName: string | undefined
+  const clearBinding = () => {
+    if (bindingName) cookies.remove(bindingName, oauthCookieOptions(secure))
+    bindingName = undefined
+  }
   let phase: 'parameters' | 'login' | 'navigation' = 'parameters'
 
   onUnmounted(() => {
     clearTimeout(deadline)
     controller.abort()
+    clearBinding()
   })
 
   const grantAuth = async () => {
@@ -75,37 +65,41 @@ if (import.meta.client) {
         await navigateTo('/login')
         return
       }
-      const code = z.string().parse(route.query.code)
+      const { code, state } = route.query
+      if (typeof code !== 'string') throw new Error('Invalid authorization code')
       if (route.query.platform === 'android') {
-        await navigateTo('slaxrd://auth?code=' + code, { external: true })
+        await navigateTo('slaxrd://auth?code=' + encodeURIComponent(code), { external: true })
         return
       }
-      const state = callbackState.parse(JSON.parse(z.string().parse(route.query.state)))
-      const authAttribution = state.platform === 'apple' && !isAcquisitionAuthAttribution(state.auth_attribution) ? undefined : state.auth_attribution
-      recovery.value = { target: state.target || '/bookmarks', affCode: state.affCode, platform: state.platform, authAttribution }
+      if (typeof state !== 'string') throw new Error('Missing OAuth state')
+      const attempt = readOAuthState(state)
+      if (!attempt) throw new Error('Invalid OAuth state')
+      const name = oauthCookieName(attempt.nonce, secure)
+      if (cookies.get(name, { doNotParse: true }) !== await digestOAuthState(state)) throw new Error('Unbound OAuth state')
+      if (controller.signal.aborted) throw controller.signal.reason
+      bindingName = name
+      const context = normalizeOAuthContext(attempt, location.origin)
+      recovery.value = { target: context.target, affCode: context.affCode, platform: context.platform, authAttribution: context.auth_attribution }
       deadline = setTimeout(() => {
         console.warn('[auth] callback timed out', { phase })
         status.value = 'timeout'
         controller.abort()
       }, 20_000)
       phase = 'login'
-      await auth.grantAuth(code, state.redirectUrl, state.affCode, state.platform, authAttribution, {
-        signal: controller.signal,
-        // The callback owns persistent recovery instead of the shared request toast.
-        errorInterceptors: () => {}
-      })
+      const target = await auth.grantAuth(code, state, controller.signal)
       if (controller.signal.aborted) return
       phase = 'navigation'
-      if (await navigateTo(recovery.value.target, { external: true }) === false) {
+      if (await navigateTo(target, { external: true }) === false) {
         throw new Error('Authentication navigation did not complete')
       }
-    } catch {
+    } catch (error) {
       if (!controller.signal.aborted) {
         // OAuth parameters and raw errors may contain credentials; record only the phase.
         console.warn('[auth] callback failed', { phase })
-        status.value = 'failed'
+        status.value = error instanceof DOMException && error.name === 'TimeoutError' ? 'timeout' : 'failed'
       }
     } finally {
+      clearBinding()
       clearTimeout(deadline)
     }
   }
