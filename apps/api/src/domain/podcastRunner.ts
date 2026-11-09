@@ -8,7 +8,6 @@ import {
   chooseTranscriptRef,
   detectTranscriptLanguage,
   parsePublisherTranscript,
-  speechDensity,
   transcriptHash,
   transcriptPlainText,
   type PodcastTranscriptDocument,
@@ -38,9 +37,7 @@ import {
   podcastRequestSize,
   podcastSplitIndex,
   podcastTranscriptKey,
-  polishQualityOptions,
   renderPodcastText,
-  translationQualityOptions,
   translationUnits,
   type GlossaryEntry,
   type PodcastEpisodeContext
@@ -101,7 +98,7 @@ export interface PodcastRunnerDeps {
 
 export type PodcastOutcome = 'ready' | 'not_claimed' | 'gone' | 'skipped' | 'failed' | 'retry'
 
-const STOP_CODES = ['budget_exceeded', 'lease_lost', 'transcript_missing', 'chunk_truncated', 'chunk_timeout', 'chunk_deadline', 'chunk_call_limit'] as const
+const STOP_CODES = ['lease_lost', 'transcript_missing', 'chunk_truncated', 'chunk_timeout', 'chunk_deadline', 'chunk_call_limit'] as const
 
 /** Never retried by the engine or the sweeper. */
 export class PodcastStop extends Error {
@@ -125,10 +122,8 @@ class ChunkIncomplete extends Error {
 
 const DB_STEP = { retries: { limit: 3, delay: '5 seconds', backoff: 'exponential' as const }, timeout: '1 minute' }
 const FETCH_STEP = { retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' as const }, timeout: '2 minutes' }
-/** All chunks of an episode at once; cost admission still holds calls back when reservations do not fit the budget. */
+/** Maximum concurrently processed chunks per episode. */
 const CHUNK_CONCURRENCY = 10
-/** Assemble-time quality failures redo the affected chunks this many times before the attempt fails. */
-const QUALITY_REPAIR_PASSES = 1
 const CHUNK_STEP = { retries: { limit: 2, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '10 minutes' }
 const ASSEMBLE_STEP = { retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' as const }, timeout: '3 minutes' }
 const PUBLISH_STEP = { retries: { limit: 2, delay: '30 seconds', backoff: 'exponential' as const }, timeout: '10 minutes' }
@@ -170,12 +165,6 @@ async function deletePrefix(deps: PodcastRunnerDeps, prefix: string): Promise<nu
 
 function contextOf(ep: podcastEpisodePO): PodcastEpisodeContext {
   return { title: ep.title, showName: ep.show_name, shownotes: ep.shownotes }
-}
-
-/** Everything spent on the episode so far: transcription plus every article version of the transcript. */
-async function episodeSpent(deps: PodcastRunnerDeps, ep: podcastEpisodePO): Promise<number> {
-  const rows = ep.transcript_hash ? await deps.articles.listForSource(ep.source_id, ep.transcript_hash) : []
-  return ep.cost_usd + rows.reduce((sum, r) => sum + r.cost_usd, 0)
 }
 
 /**
@@ -250,15 +239,10 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     const gate = await step.do('gate', DB_STEP, async () => {
       const row = await renew()
       if (!row.audio_url) return { kind: 'skip' as const, reason: 'no_audio' }
-      if (row.duration_sec && row.duration_sec > PODCAST_LIMITS.maxDurationSec) return { kind: 'skip' as const, reason: 'too_long' }
       const language = podcastLanguage(row.language)
       if (row.language && !language) return { kind: 'skip' as const, reason: 'language_unsupported' }
       const choice = chooseTranscriptRef((row.publisher_transcripts as unknown as PodcastTranscriptRef[] | null) ?? [])
-      // Unknown duration: assume an hour, the transcription result enforces the real limit
       const expected = expectedEpisodeCostUsd({ durationSec: row.duration_sec ?? 3600, language, needsTranscription: !choice && !row.provider_job_id, translations: 1 })
-      if (expected > PODCAST_LIMITS.maxEpisodeCostUsd) return { kind: 'skip' as const, reason: 'too_long' }
-      // Earlier attempts already spent part of the episode's budget
-      if (row.cost_usd + expected > PODCAST_LIMITS.maxEpisodeCostUsd) return { kind: 'skip' as const, reason: 'budget_exceeded' }
       return { kind: 'ok' as const, ref: choice?.ref.url ?? null, format: choice?.format ?? null, language, expected }
     })
     if (gate.kind === 'skip') return finish('skipped', gate.reason)
@@ -313,7 +297,6 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
           if (await deps.episodes.addAsrCost(p.episodeId, jobId, state.costUsd)) await deps.addCost(state.costUsd)
           const language = podcastLanguage(state.language) ?? podcastLanguage(row.language)
           if (!language) return { kind: 'unsupported' as const }
-          if (state.durationSec > PODCAST_LIMITS.maxDurationSec) return { kind: 'too_long' as const }
           const doc = buildTranscriptDocument('assemblyai', language, state.segments, state.durationSec * 1000 || undefined)
           return { kind: 'done' as const, transcript: await storeTranscript(deps, p.sourceId, doc) }
         })
@@ -323,7 +306,6 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
         }
         if (res.kind === 'error') return finish('retry', `asr_error:${res.error}`, true)
         if (res.kind === 'unsupported') return finish('skipped', 'language_unsupported')
-        if (res.kind === 'too_long') return finish('skipped', 'too_long')
         if (waited >= PODCAST_LIMITS.maxPollMs) return finish('failed', 'asr_timeout')
       }
     }
@@ -336,7 +318,7 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
       const row = await renew()
       const doc = await readJson<PodcastTranscriptDocument>(deps, t.key)
       if (!doc) throw new PodcastStop('transcript_missing')
-      if (!speechDensity(doc).enough) {
+      if (!transcriptPlainText(doc).trim()) {
         await deps.bucket.delete(t.key)
         return { kind: 'skip' as const, reason: 'no_speech' }
       }
@@ -486,7 +468,7 @@ interface Loaded {
 /**
  * One generation attempt of one article row: the original-language cleanup (polish) or one
  * translation. Same contract as the YouTube runner: claim with run_id, renew the lease in every
- * step, check the per-episode budget before every model call, keep chunk results in R2 so a retry
+ * step, account for every model call, keep chunk results in R2 so a retry
  * reuses them, read objects back before the row says ready.
  */
 async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, step: PodcastStepLike, runId: string, job: ArticleJob): Promise<PodcastOutcome> {
@@ -522,10 +504,9 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     return { ep, transcript, source }
   }
 
-  // Reserve costs before concurrent calls; serialize accounting, not provider requests.
+  // Serialize usage accounting while provider requests run concurrently.
   let accounting: Promise<unknown> = Promise.resolve()
   let accountingError: unknown
-  const reservations = new Map<Promise<void>, number>()
   const exclusive = <T>(fn: () => Promise<T>): Promise<T> => {
     const result = accounting.then(fn)
     accounting = result.catch(() => {})
@@ -537,7 +518,6 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
   }
 
   const call = async (
-    ep: podcastEpisodePO,
     system: string,
     user: string,
     schema: object,
@@ -548,43 +528,17 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     const next = estimateCostUsd(size.inputTokens, size.outputLimit)
     checkDeadline(attempt.deadline)
     if (attempt.calls >= PODCAST_LIMITS.maxChunkCalls) throw new PodcastStop('chunk_call_limit')
-    let release!: () => void
-    const settled = new Promise<void>(resolve => {
-      release = resolve
+    await exclusive(async () => {
+      checkDeadline(attempt.deadline)
+      if (accountingError) throw accountingError
+      const row = await deps.articles.findById(job.articleId)
+      if (!row || row.run_id !== runId || row.status !== 'generating') throw new PodcastStop('lease_lost')
     })
-    for (;;) {
-      const admission = await exclusive(async () => {
-        checkDeadline(attempt.deadline)
-        if (accountingError) throw accountingError
-        const row = await deps.articles.findById(job.articleId)
-        if (!row || row.run_id !== runId || row.status !== 'generating') throw new PodcastStop('lease_lost')
-        const reserved = [...reservations.values()].reduce((sum, cost) => sum + cost, 0)
-        if ((await episodeSpent(deps, ep)) + reserved + next > PODCAST_LIMITS.maxEpisodeCostUsd) {
-          if (reservations.size) return { wait: Promise.race(reservations.keys()) }
-          throw new PodcastStop('budget_exceeded')
-        }
-        reservations.set(settled, next)
-        return { wait: null }
-      })
-      if (!admission.wait) break
-      let timer: ReturnType<typeof setTimeout> | undefined
-      try {
-        await Promise.race([
-          admission.wait,
-          new Promise<never>((_resolve, reject) => {
-            timer = setTimeout(() => reject(new PodcastStop('chunk_deadline')), Math.max(0, attempt.deadline - Date.now()))
-          })
-        ])
-      } finally {
-        clearTimeout(timer)
-      }
-    }
     const charge = (cost: number) =>
       exclusive(async () => {
         try {
           await deps.articles.addCost(job.articleId, cost)
           await deps.addCost(cost)
-          if ((await episodeSpent(deps, ep)) > PODCAST_LIMITS.maxEpisodeCostUsd) throw new PodcastStop('budget_exceeded')
         } catch (error) {
           accountingError = error
           throw error
@@ -649,10 +603,6 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
       if (signal.aborted) throw new ChunkIncomplete('chunk_timeout', usage)
       return { text: reply.text, usage }
     } finally {
-      await exclusive(async () => {
-        reservations.delete(settled)
-        release()
-      })
       log('call', p, {
         mode: job.mode,
         lang: job.lang,
@@ -667,43 +617,17 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     }
   }
 
-  /** Chunks to redo after an assemble-time failure: those failing the part checks on their own cues, and later copies of long repeated paragraphs. */
-  const polishRedo = async (transcript: PodcastTranscriptDocument, ctx: PodcastEpisodeContext): Promise<number[]> => {
-    const plan = planPodcastChunks(transcript)
-    const redo = new Set<number>()
-    const seen = new Map<string, number>()
-    for (let i = 0; i < plan.length; i++) {
-      const c = await readJson<StoredPolishChunk>(deps, chunkKey(i))
-      if (!c) {
-        redo.add(i)
-        continue
-      }
-      const own = transcript.cues.slice(plan[i].start + plan[i].overlap, plan[i].end)
-      if (polishPartFailures(c.sections, own, transcript, ctx, job.lang, i === 0 ? c.lede : '-').length) redo.add(i)
-      for (const para of c.sections.flatMap(section => section.paragraphs)) {
-        const key = para.text.trim()
-        if (key.length < PODCAST_LIMITS.minDuplicateChars) continue
-        const first = seen.get(key)
-        if (first !== undefined && first !== i) redo.add(i)
-        else seen.set(key, i)
-      }
-    }
-    return [...redo].sort((a, b) => a - b)
-  }
-
   try {
     const prep = await step.do(`${prefix}-prepare`, DB_STEP, async () => {
       const { transcript, source } = await load()
       const count = job.mode === 'polish' ? planPodcastChunks(transcript).length : chunkTranslationUnits(translationUnits(source!)).length
       if (count === 0) return { kind: 'skip' as const, reason: 'transcript_missing' }
-      if (count > PODCAST_LIMITS.maxChunks) return { kind: 'skip' as const, reason: 'too_long' }
       return { kind: 'ok' as const, count }
     })
-    if (prep.kind === 'skip') return finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
+    if (prep.kind === 'skip') return finish('failed', prep.reason)
 
-    const processChunk = async (i: number, pass = 0) => {
-      // A repair pass needs new step names: a finished step returns its recorded result instead of running
-      const res = await step.do(`${prefix}-chunk-${i}${pass ? `-r${pass}` : ''}`, CHUNK_STEP, async () => {
+    const processChunk = async (i: number) => {
+      const res = await step.do(`${prefix}-chunk-${i}`, CHUNK_STEP, async () => {
         const attempt = { deadline: Date.now() + PODCAST_LIMITS.chunkAttemptMs, calls: 0 }
         const key = chunkKey(i)
         const { ep, transcript, source } = await load()
@@ -748,7 +672,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
               // so it is asked again a few times before the attempt gives up as retryable.
               for (let tries = 1; ; tries++) {
                 try {
-                  const reply = await call(ep, system, user, schema, attempt, i)
+                  const reply = await call(system, user, schema, attempt, i)
                   const value = parse(reply.text, items, offset)
                   await deps.bucket.put(partKey, JSON.stringify({ kind: 'done', value, usage: reply.usage } satisfies Part))
                   count(reply.usage)
@@ -803,7 +727,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
                     .map(para => ({ ...para, source_cue_ids: para.source_cue_ids.filter(id => !overlapIds.has(id)) }))
                 }))
                 .filter(s => s.paragraphs.length)
-              const failed = polishPartFailures(sections, cues, transcript, contextOf(ep), job.lang, i === 0 && offset === 0 ? parsed.value.lede : '-')
+              const failed = polishPartFailures(sections, i === 0 && offset === 0 ? parsed.value.lede : '-')
               if (failed.length) {
                 log('part_rejected', p, { mode: job.mode, lang: job.lang, index: i, offset, units: cues.length, failed })
                 throw new Error(`chunk_quality:${failed.join(',')}`)
@@ -845,14 +769,14 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
 
     // A rolling pool of CHUNK_CONCURRENCY: one slow chunk no longer holds back the rest of a batch.
     // After a failure no new chunk starts; chunks already running are awaited before it is thrown.
-    const runChunks = async (indices: number[], pass: number) => {
+    const runChunks = async (indices: number[]) => {
       let next = 0
       let failure: { reason: unknown } | null = null
       const worker = async () => {
         while (!failure && next < indices.length) {
           const i = indices[next++]
           try {
-            await processChunk(i, pass)
+            await processChunk(i)
           } catch (reason) {
             failure ??= { reason }
           }
@@ -861,15 +785,11 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
       await Promise.all(Array.from({ length: Math.min(CHUNK_CONCURRENCY, indices.length) }, worker))
       if (failure) throw (failure as { reason: unknown }).reason
     }
-    await runChunks(
-      Array.from({ length: prep.count }, (_, i) => i),
-      0
-    )
+    await runChunks(Array.from({ length: prep.count }, (_, i) => i))
 
-    const assemble = (pass: number) =>
-      step.do(`${prefix}-assemble${pass ? `-r${pass}` : ''}`, ASSEMBLE_STEP, async () => {
+    const assemble = () =>
+      step.do(`${prefix}-assemble`, ASSEMBLE_STEP, async () => {
         const { ep, transcript, source } = await load(true)
-        const ctx = contextOf(ep)
         let doc: YoutubeArticleDocument
         let quality: YoutubeArticleQuality
         if (job.mode === 'polish') {
@@ -880,7 +800,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
             results.push(c)
           }
           doc = mergeChunkResults(results, transcript.cues, job.lang, transcript.speakers ? 'dialogue' : 'article')
-          quality = checkArticleQuality(doc, transcript.cues, transcriptPlainText(transcript), polishQualityOptions(transcript, ctx))
+          quality = checkArticleQuality(doc, transcriptPlainText(transcript))
         } else {
           const texts = new Map<string, string>()
           for (let i = 0; i < prep.count; i++) {
@@ -889,11 +809,11 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
             Object.entries(c.texts).forEach(([id, text]) => texts.set(id, text))
           }
           doc = applyTranslation(source!, translationUnits(source!), texts, job.lang)
-          quality = checkArticleQuality(doc, transcript.cues, articleParagraphText(source!), translationQualityOptions(job.from!, job.lang, source!))
+          quality = checkArticleQuality(doc, articleParagraphText(source!))
         }
         const spent = (await deps.articles.findById(job.articleId))?.cost_usd ?? 0
         const summary = { ...quality, mode: job.mode, chunks: prep.count, cost_usd: Number(spent.toFixed(5)), model: YOUTUBE_ARTICLE_MODEL }
-        if (!quality.passed) return { kind: 'quality_failed' as const, quality: summary, redo: job.mode === 'polish' ? await polishRedo(transcript, ctx) : null }
+        if (!quality.passed) return { kind: 'quality_failed' as const, quality: summary }
         await deps.bucket.put(keys.jsonKey, JSON.stringify(doc))
         await deps.bucket.put(
           keys.textKey,
@@ -915,19 +835,9 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
         return { kind: 'ok' as const, quality: summary }
       })
 
-    let assembled = await assemble(0)
-    for (let pass = 1; assembled.kind === 'quality_failed' && pass <= QUALITY_REPAIR_PASSES; pass++) {
-      // Redo only the chunks that fail on their own, or every chunk when no single chunk is to blame
-      const redo = assembled.redo?.length ? assembled.redo : Array.from({ length: prep.count }, (_, i) => i)
-      log('quality_repair', p, { mode: job.mode, lang: job.lang, pass, failed: assembled.quality.failed, redo })
-      await step.do(`${prefix}-drop-chunks-r${pass}`, DB_STEP, async () => {
-        for (const i of redo) await deletePrefix(deps, chunkKey(i))
-      })
-      await runChunks(redo, pass)
-      assembled = await assemble(pass)
-    }
+    const assembled = await assemble()
     if (assembled.kind === 'quality_failed') {
-      // Still bad after the repair: drop the chunks so a later attempt asks the model again
+      // Empty cached output must not be reused by a later owner retry.
       await step.do(`${prefix}-drop-chunks`, DB_STEP, () => deletePrefix(deps, chunkPrefix))
       return finish('failed', `quality:${assembled.quality.failed.join(',')}`, assembled.quality)
     }

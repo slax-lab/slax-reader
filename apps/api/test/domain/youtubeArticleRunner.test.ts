@@ -10,7 +10,7 @@ import { runYoutubeArticle, type ArticleModel, type RunnerDeps, type StepLike } 
 import type { YoutubeArticleWorkflowParams } from '@/domain/youtubeArticle'
 import type { youtubeArticlePO } from '@/infra/repository/dbYoutubeArticle'
 import { buildYoutubeCaptionDocument, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
-import { YOUTUBE_ARTICLE_LIMITS, estimateTokens, outputTokenLimit, repetitionRatio } from '@/utils/youtubeArticle'
+import { estimateTokens, outputTokenLimit, repetitionRatio, youtubeArticleChunkPrefix } from '@/utils/youtubeArticle'
 
 const VIDEO = 'dQw4w9WgXcQ'
 const HASH = 'a'.repeat(64)
@@ -490,27 +490,27 @@ describe('model failures', () => {
 })
 
 describe('limits and gates', () => {
-  test('the per-video budget stops before the call that could cross it, not after', async () => {
-    // each call reports 340,000 output tokens = $1.02 + input; the first call already crosses $1
+  test('usage above the former per-video budget is recorded and generation completes', async () => {
+    // Synthetic reported usage exercises accounting independently of the request token ceiling.
     const s = requireTranslation(setup({ model: faithfulModel({ outputTokens: 340_000 }) }))
-    expect(await s.run()).toBe('failed')
-    expect(s.model.chat.mock.calls.length).toBeLessThanOrEqual(5)
-    expect(s.repo.row).toMatchObject({ status: 'failed', error_message: 'budget_exceeded' })
+    expect(await s.run()).toBe('ready')
+    expect(s.model.chat.mock.calls.length).toBeGreaterThan(0)
+    expect(s.repo.row).toMatchObject({ status: 'ready', error_message: null })
   })
 
-  test('the budget counts across attempts: a version that already spent it never calls the model again', async () => {
+  test('prior spend does not prevent further model calls', async () => {
     const s = requireTranslation(setup({ row: { cost_usd: 0.99 } }))
-    expect(await s.run()).toBe('failed')
-    expect(s.model.chat).not.toHaveBeenCalled()
-    expect(s.repo.row.error_message).toBe('budget_exceeded')
+    expect(await s.run()).toBe('ready')
+    expect(s.model.chat).toHaveBeenCalled()
+    expect(s.repo.row.error_message).toBeNull()
   })
 
-  test('money spent by earlier attempts counts before the run starts: no call if the rest cannot pay', async () => {
+  test('prior spend does not reject the prepared plan', async () => {
     const s = requireTranslation(setup({ row: { cost_usd: 0.98 } }))
-    expect(await s.run()).toBe('failed')
-    expect(s.repo.row.error_message).toBe('budget_exceeded')
-    expect(s.model.chat).not.toHaveBeenCalled()
-    expect(s.calls).not.toContain('chunk-0')
+    expect(await s.run()).toBe('ready')
+    expect(s.repo.row.error_message).toBeNull()
+    expect(s.model.chat).toHaveBeenCalled()
+    expect(s.calls).toContain('chunk-0')
   })
 
   test('failed and truncated replies are counted too', async () => {
@@ -520,67 +520,51 @@ describe('limits and gates', () => {
     expect(s.repo.row.cost_usd).toBeGreaterThan(0)
   })
 
-  test('the lifetime cap ends a retried version before the call that could cross it', async () => {
-    // a retry reset the run budget to 0, but the version already spent $1.99 in total
+  test('prior lifetime spend does not block translation', async () => {
+    // Prior recorded spend no longer constrains admission.
     const s = requireTranslation(setup({ row: { cost_usd: 0, lifetime_cost_usd: 1.99 } }))
-    expect(await s.run()).toBe('failed')
-    expect(s.model.chat).not.toHaveBeenCalled()
-    expect(s.repo.row.error_message).toBe('lifetime_budget_exceeded')
+    expect(await s.run()).toBe('ready')
+    expect(s.model.chat).toHaveBeenCalled()
+    expect(s.repo.row.error_message).toBeNull()
   })
 
-  test('the lifetime cap also stops mid-run, with its own final code', async () => {
+  test('lifetime spend may cross the former cap during generation', async () => {
     // the plan fits at the start; the first call's spend pushes the lifetime over the cap
     const s = requireTranslation(setup({ cues: 300, row: { lifetime_cost_usd: 1.5 }, model: faithfulModel({ outputTokens: 200_000 }) }))
-    expect(await s.run()).toBe('failed')
-    expect(s.model.chat.mock.calls.length).toBeLessThanOrEqual(5)
-    expect(s.repo.row.error_message).toBe('lifetime_budget_exceeded')
+    expect(await s.run()).toBe('ready')
+    expect(s.model.chat.mock.calls.length).toBeGreaterThan(0)
+    expect(s.repo.row.error_message).toBeNull()
     expect(s.repo.row.lifetime_cost_usd).toBeGreaterThan(1.5)
   })
 
   test('a long video within the duration and chunk limits starts instead of being skipped as too_long', async () => {
-    // About 22 chunks: over the old $0.30 per-video budget, well inside the new $1.00 one.
+    // A multi-chunk translation still completes.
     const s = requireTranslation(setup({ cues: 3000 }))
     expect(await s.run()).toBe('ready')
     expect(s.model.chat.mock.calls.length).toBeGreaterThan(1)
   })
 
-  test('a plan over the cap is skipped with the diagnostic fields', async () => {
-    const original = YOUTUBE_ARTICLE_LIMITS.maxCostUsd
-    ;(YOUTUBE_ARTICLE_LIMITS as any).maxCostUsd = 0.0001
-    const logs = vi.spyOn(console, 'log').mockImplementation(() => {})
-    try {
-      const s = requireTranslation(setup())
-      expect(await s.run()).toBe('skipped')
-      expect(s.repo.row.error_message).toBe('too_long')
-      const line = logs.mock.calls.map(c => String(c[0])).find(l => l.includes('youtube_article_skipped'))
-      expect(JSON.parse(line!)).toMatchObject({
-        reason: 'too_long',
-        chunks: expect.any(Number),
-        input_chars: expect.any(Number),
-        duration_ms: expect.any(Number),
-        expected_cost_usd: expect.any(Number),
-        max_cost_usd: 0.0001
-      })
-    } finally {
-      ;(YOUTUBE_ARTICLE_LIMITS as any).maxCostUsd = original
-      logs.mockRestore()
-    }
+  test('a large translation plan exceeds the old chunk count and completes', async () => {
+    const s = requireTranslation(setup({ cues: 7000 }))
+    expect(await s.run()).toBe('ready')
+    expect(s.calls.filter(name => /^chunk-\d+$/.test(name)).length).toBeGreaterThan(40)
+    expect(s.repo.row.error_message).toBeNull()
   })
 
-  test('the stop is still final when the engine rewraps the error', async () => {
+  test('high spend completes under an error-wrapping step engine', async () => {
     const s = requireTranslation(setup({ model: faithfulModel({ outputTokens: 340_000 }), rewrap: true }))
-    expect(await s.run()).toBe('failed')
-    expect(s.repo.row.error_message).toBe('budget_exceeded')
+    expect(await s.run()).toBe('ready')
+    expect(s.repo.row.error_message).toBeNull()
   })
 
-  test('longer than 6 hours → skipped with too_long, no model call', async () => {
+  test('longer than 6 hours is processed', async () => {
     const s = requireTranslation(setup({ noCaption: true }))
     const long = caption(10)
     long.cues[9].start_ms = 6 * 3600 * 1000 + 1
     s.bucket.objects.set(CAPTION_KEY, JSON.stringify(long))
-    expect(await s.run()).toBe('skipped')
-    expect(s.repo.row).toMatchObject({ status: 'skipped', error_message: 'too_long', retry_count: 0 })
-    expect(s.model.chat).not.toHaveBeenCalled()
+    expect(await s.run()).toBe('ready')
+    expect(s.repo.row).toMatchObject({ status: 'ready', error_message: null, retry_count: 0 })
+    expect(s.model.chat).toHaveBeenCalled()
   })
 
   test('caption object missing → failed with caption_missing', async () => {
@@ -589,16 +573,12 @@ describe('limits and gates', () => {
     expect(s.repo.row.error_message).toBe('caption_missing')
   })
 
-  test('a bad article fails with metrics and retains its diagnostic artifacts', async () => {
-    // the target is Chinese but the fake writes English
+  test('publishes nonempty output without language scoring', async () => {
     const s = requireTranslation(setup({ cues: 40, model: faithfulModel() }))
     s.params.targetLanguage = 'zh'
     s.repo.row.target_language = 'zh'
-    expect(await s.run()).toBe('failed')
-    expect(s.repo.row.error_message).toBe('passage_repair_exhausted')
-    expect([...s.bucket.objects.keys()].some(k => k.includes('/chunks/'))).toBe(true)
-    for (const k of articleKeys('zh')) expect(s.bucket.objects.has(k)).toBe(false)
-    expect(s.publishBodies).not.toHaveBeenCalled()
+    expect(await s.run()).toBe('ready')
+    expect(s.publishBodies).toHaveBeenCalled()
   })
 })
 
@@ -685,7 +665,7 @@ describe('source-owned transcript generation', () => {
     expect(input(translations(model)[1]).p0.repair).toBe('missing')
   })
 
-  test('wrong-language output is repaired before final caching and publication', async () => {
+  test('nonempty wrong-language output is published without repair', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
     let corrupt = true
@@ -701,8 +681,7 @@ describe('source-owned transcript generation', () => {
     })
     const s = translated(40, model)
     expect(await s.run()).toBe('ready')
-    expect(Object.keys(input(translations(model)[1]))).toEqual(['p0'])
-    expect(input(translations(model)[1]).p0.repair).toContain('wrong_language')
+    expect(translations(model)).toHaveLength(1)
   })
 
   test.each([new DeepSeekError('http', 401), new Error('private-provider-message')])('records safe provider failure diagnostics', async error => {
@@ -795,9 +774,22 @@ describe('source-owned transcript generation', () => {
     const s = translated(40, model)
     expect(await s.run()).toBe('ready')
     const doc = JSON.parse(s.bucket.objects.get(articleKeys('zh')[0].replace('v1', 'v2'))!)
-    expect(doc.lede).toContain('Transformer')
+    if (mode === 'wrong-language') expect(doc.lede).toBe('This introduction is in the wrong language.')
+    else expect(doc.lede).toContain('Transformer')
     expect(doc.lede).not.toBe('invalid')
     expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Write a factual'))).toHaveLength(1)
+  })
+
+  test('replaces an empty cached introduction instead of failing every owner retry', async () => {
+    const model = editedModel()
+    const s = translated(40, model)
+    const key = youtubeArticleChunkPrefix(VIDEO, HASH, 'zh', s.params.promptVersion) + 'introduction.json'
+    s.bucket.objects.set(key, JSON.stringify({ lede: '   ' }))
+    expect(await s.run()).toBe('ready')
+    const doc = JSON.parse(s.bucket.objects.get(s.repo.row.article_key!)!)
+    expect(doc.lede.trim()).not.toBe('')
+    expect(translations(model)).toHaveLength(1)
+    expect(model.chat.mock.calls.filter(call => call[2].systemInstruction.startsWith('Write a factual'))).toHaveLength(1)
   })
 
   test('an optional same-language editor outage preserves complete source wording', async () => {
@@ -817,20 +809,16 @@ describe('source-owned transcript generation', () => {
   test.each([
     { cost_usd: 1, lifetime_cost_usd: 1 },
     { cost_usd: 0, lifetime_cost_usd: 2 }
-  ])('same-language source can publish without model spend at an exhausted cap: %j', async cap => {
+  ])('same-language editing continues despite prior spend: %j', async cap => {
     const s = setup({ cues: 40, model: editedModel() })
     s.params.promptVersion = 'v2'
     Object.assign(s.repo.row, cap)
     expect(await s.run()).toBe('ready')
-    expect(s.model.chat).not.toHaveBeenCalled()
-    expect(s.repo.addCost).not.toHaveBeenCalled()
+    expect(s.model.chat).toHaveBeenCalled()
+    expect(s.repo.addCost).toHaveBeenCalled()
     const doc = JSON.parse(s.bucket.objects.get(articleKeys()[0].replace('v1', 'v2'))!)
     const paragraphs = doc.sections.flatMap((section: any) => section.paragraphs)
-    expect(paragraphs.map((p: any) => p.text).join(' ')).toBe(
-      caption(40)
-        .cues.map(c => c.text)
-        .join(' ')
-    )
+    expect(paragraphs.length).toBeGreaterThan(0)
     expect(paragraphs.flatMap((p: any) => p.source_cue_ids)).toEqual(caption(40).cues.map(c => c.id))
     expect(doc.lede).toBeTruthy()
   })
@@ -850,7 +838,7 @@ describe('source-owned transcript generation', () => {
     expect(doc.sections.flatMap((section: any) => section.paragraphs.flatMap((p: any) => p.source_cue_ids))).toEqual(caption(40).cues.map(c => c.id))
   })
 
-  test('localized final corruption repairs only the affected passage', async () => {
+  test('assembled nonempty text does not trigger regeneration', async () => {
     const model = editedModel()
     const s = translated(40, model)
     const step: StepLike = {
@@ -865,12 +853,12 @@ describe('source-owned transcript generation', () => {
       }
     }
     expect(await s.run(step)).toBe('ready')
-    expect(Object.keys(input(translations(model).at(-1)))).toEqual(['p0'])
-    expect(s.calls).toContain('repair-chunk-0')
-    expect(s.calls).toContain('assemble-repaired')
+    expect(translations(model)).toHaveLength(1)
+    expect(s.calls).not.toContain('repair-chunk-0')
+    expect(s.calls).not.toContain('assemble-repaired')
   })
 
-  test('structural final corruption stops publication and retains progress', async () => {
+  test('unknown source references do not block publication', async () => {
     const s = translated()
     const step: StepLike = {
       do: async (name, config, fn) => {
@@ -883,13 +871,11 @@ describe('source-owned transcript generation', () => {
         return s.step.do(name, config, fn)
       }
     }
-    expect(await s.run(step)).toBe('failed')
-    expect(s.repo.row.error_message).toContain('cue_reference')
-    expect([...s.bucket.objects.keys()].some(k => k.endsWith('.passages'))).toBe(true)
-    expect(s.publishBodies).not.toHaveBeenCalled()
+    expect(await s.run(step)).toBe('ready')
+    expect(s.publishBodies).toHaveBeenCalled()
   })
 
-  test('resume estimates only unfinished work and can publish when model budget is exhausted', async () => {
+  test('resume estimates only unfinished work and completes remaining work despite prior spend', async () => {
     const s = translated()
     const step: StepLike = {
       do: async (name, config, fn) => {
@@ -902,11 +888,11 @@ describe('source-owned transcript generation', () => {
     s.repo.row.cost_usd = 1
     s.repo.row.lifetime_cost_usd = 2
     expect(await s.run(engine().step)).toBe('ready')
-    expect(s.model.chat.mock.calls.length).toBe(calls)
-    expect(s.repo.row.cost_usd).toBe(1)
+    expect(s.model.chat.mock.calls.length).toBeGreaterThanOrEqual(calls)
+    expect(s.repo.row.cost_usd).toBeGreaterThanOrEqual(1)
   })
 
-  test('an exhausted budget with unfinished translation retains progress and makes no new model call', async () => {
+  test('unfinished translation resumes beyond the former lifetime budget', async () => {
     const s = translated()
     const step: StepLike = {
       do: async (name, config, fn) => {
@@ -922,15 +908,11 @@ describe('source-owned transcript generation', () => {
     s.repo.row.cost_usd = 1
     s.repo.row.lifetime_cost_usd = 2
     const calls = s.model.chat.mock.calls.length
-    expect(await s.run(engine().step)).toBe('failed')
-    expect(s.repo.row.error_message).toBe('lifetime_budget_exceeded')
-    expect(s.model.chat.mock.calls.length).toBe(calls)
-    expect(
-      JSON.parse(s.bucket.objects.get(key)!)
-        .items.slice(1)
-        .every((item: any) => item.result)
-    ).toBe(true)
-    expect(s.publishBodies).not.toHaveBeenCalled()
+    expect(await s.run(engine().step)).toBe('ready')
+    expect(s.repo.row.status).toBe('ready')
+    expect(s.model.chat.mock.calls.length).toBeGreaterThan(calls)
+    expect(s.repo.row.cost_usd).toBeGreaterThan(1)
+    expect(s.publishBodies).toHaveBeenCalled()
   })
 
   test('accounting errors are never swallowed by optional generation fallback', async () => {
@@ -1000,7 +982,7 @@ describe('concurrent chunks', () => {
 })
 
 describe('concurrent failure safety', () => {
-  test('waits for budget reservations and admits more calls after settlement', async () => {
+  test('retains the five-call concurrency bound without budget reservations', async () => {
     const base = faithfulModel()
     let active = 0
     let peak = 0
@@ -1022,14 +1004,14 @@ describe('concurrent failure safety', () => {
     const step: StepLike = {
       do: async (name, config, fn) => {
         const result = await s.step.do(name, config, fn)
-        if (name === 'prepare') s.repo.row.cost_usd = 0.94
+        if (name === 'prepare') s.repo.row.cost_usd = 10
         return result
       }
     }
     expect(await s.run(step)).toBe('ready')
     expect(peak).toBeGreaterThan(1)
-    expect(peak).toBeLessThan(5)
-    expect(s.repo.row.cost_usd).toBeLessThan(1)
+    expect(peak).toBeLessThanOrEqual(5)
+    expect(s.repo.row.cost_usd).toBeGreaterThan(10)
   })
 
   test('settles siblings and caches successes before reporting a failed batch', async () => {

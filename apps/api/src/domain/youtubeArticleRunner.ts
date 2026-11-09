@@ -3,17 +3,13 @@ import {
   ChunkTruncated,
   PassageRepairError,
   EDITING_CONTEXT_CHARS,
-  EDITED_LENGTH_BOUNDS,
   extractHeading,
   optionalModelFailure,
-  passageFailures,
-  passageLanguageValid,
   passageResponseSchema,
   pendingPassageText,
   readPassageProgress,
   renderSourcePassages,
-  sourcePassages,
-  type SourcePassage
+  sourcePassages
 } from '@/utils/youtubeEditing'
 import { DeepSeekError, type ArticleModel } from '@/infra/external/deepseekClient'
 export type { ArticleModel } from '@/infra/external/deepseekClient'
@@ -40,7 +36,6 @@ import {
   youtubeArticleKeys,
   youtubeArticleVersion,
   type ArticleSection,
-  type YoutubeArticleCheck,
   type YoutubeArticlePlan
 } from '@/utils/youtubeArticle'
 
@@ -71,7 +66,7 @@ export type RunnerOutcome = 'ready' | 'not_claimed' | 'gone' | 'skipped' | 'fail
 /** Never retried by the workflow engine and never retried by the sweeper. */
 export class YoutubeArticleStop extends Error {
   constructor(
-    public readonly code: 'budget_exceeded' | 'lifetime_budget_exceeded' | 'lease_lost' | 'caption_missing' | 'chunk_truncated' | 'passage_repair_exhausted',
+    public readonly code: 'lease_lost' | 'caption_missing' | 'chunk_truncated' | 'passage_repair_exhausted',
     message?: string
   ) {
     // The code leads the message: the workflow engine may rewrap the error, the message survives
@@ -154,7 +149,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
   }
 
   /** The plan is recomputed inside each step from the immutable caption: deterministic and small to return. */
-  const loadPlan = async (): Promise<{ plan: YoutubeArticlePlan; caption: YoutubeCaptionDocument } | { reason: 'too_long' | 'caption_missing' }> => {
+  const loadPlan = async (): Promise<{ plan: YoutubeArticlePlan; caption: YoutubeCaptionDocument } | { reason: 'caption_missing' }> => {
     const row = await sameRow()
     if (!row) throw new YoutubeArticleStop('lease_lost', 'row changed')
     const caption = await loadCaption(deps, row.caption_key)
@@ -166,7 +161,6 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
   // Only admission and accounting are serialized; provider requests run concurrently.
   let accounting: Promise<unknown> = Promise.resolve()
   let accountingError: unknown
-  const reservations = new Map<Promise<void>, number>()
   const exclusive = <T>(fn: () => Promise<T>): Promise<T> => {
     const result = accounting.then(fn)
     accounting = result.catch(() => {})
@@ -181,36 +175,16 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
     const userTokens = estimateTokens(user)
     const maxOutputTokens = outputTokenLimit(userTokens)
     const next = estimateCostUsd(estimateTokens(system) + userTokens, maxOutputTokens)
-    let release!: () => void
-    const settled = new Promise<void>(resolve => {
-      release = resolve
+    await exclusive(async () => {
+      if (accountingError) throw accountingError
+      const row = await deps.repo.findById(p.articleId)
+      if (!row || row.run_id !== runId || row.status !== 'generating') throw new YoutubeArticleStop('lease_lost')
     })
-    for (;;) {
-      const admission = await exclusive(async () => {
-        if (accountingError) throw accountingError
-        const row = await deps.repo.findById(p.articleId)
-        if (!row || row.run_id !== runId || row.status !== 'generating') throw new YoutubeArticleStop('lease_lost')
-        const reserved = [...reservations.values()].reduce((sum, value) => sum + value, 0)
-        const lifetimeExceeded = (row.lifetime_cost_usd ?? 0) + reserved + next > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd
-        const runExceeded = (row.cost_usd ?? 0) + reserved + next > YOUTUBE_ARTICLE_LIMITS.maxCostUsd
-        if (lifetimeExceeded || runExceeded) {
-          if (reservations.size) return { wait: Promise.race(reservations.keys()) }
-          throw new YoutubeArticleStop(lifetimeExceeded ? 'lifetime_budget_exceeded' : 'budget_exceeded')
-        }
-        reservations.set(settled, next)
-        return { wait: null }
-      })
-      if (!admission.wait) break
-      await admission.wait
-    }
     const charge = (costUsd: number) =>
       exclusive(async () => {
         try {
           await deps.repo.addCost(p.articleId, costUsd)
           await deps.addCost(costUsd)
-          const row = await deps.repo.findById(p.articleId)
-          if ((row?.lifetime_cost_usd ?? 0) > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd) throw new YoutubeArticleStop('lifetime_budget_exceeded')
-          if ((row?.cost_usd ?? 0) > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) throw new YoutubeArticleStop('budget_exceeded')
         } catch (error) {
           accountingError = error
           throw error
@@ -265,10 +239,6 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
       }
       return { reply, inputTokens, outputTokens, costUsd }
     } finally {
-      await exclusive(async () => {
-        reservations.delete(settled)
-        release()
-      })
       log('call', p, {
         chunk: opts.chunk ?? null,
         parts: opts.parts ?? 1,
@@ -287,61 +257,26 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         return { kind: 'skip' as const, reason: loaded.reason }
       }
       const { plan } = loaded
-      // A video whose expected cost does not fit the per-video budget is skipped before any call,
-      // instead of spending most of the budget and failing near the end
       const translating = loaded.caption.language.toLowerCase().split('-')[0] !== p.targetLanguage
       const costs = await Promise.all(
         plan.chunks.map(async chunk => {
           const passages = sourcePassages(plan.cues.slice(chunk.start + chunk.overlap, chunk.end), plan.cues.slice(0, chunk.start + chunk.overlap))
           const key = youtubeArticleChunkKey(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion, chunk.index)
-          const progress = await readPassageProgress(passages, loaded.caption.language, p.targetLanguage, key, deps.bucket, runId)
+          const progress = await readPassageProgress(passages, key, deps.bucket, runId)
           const remaining = pendingPassageText(progress)
           return translating && remaining.length ? expectedChunkCostUsd(estimateTokens(remaining.join(' ')) + 500) : 0
         })
       )
       const expected = costs.reduce((sum, cost) => sum + cost, 0)
-      if (expected > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) {
-        log('skipped', p, {
-          reason: 'too_long',
-          chunks: plan.chunks.length,
-          input_chars: plan.inputChars,
-          duration_ms: plan.durationMs,
-          expected_cost_usd: Number(expected.toFixed(5)),
-          max_cost_usd: YOUTUBE_ARTICLE_LIMITS.maxCostUsd
-        })
-        return { kind: 'skip' as const, reason: 'too_long' as const }
-      }
-      // Earlier attempts already spent part of the budget: do not start a run the rest cannot pay for
-      const row = await deps.repo.findById(p.articleId)
-      const spent = row?.cost_usd ?? 0
-      const lifetime = row?.lifetime_cost_usd ?? 0
-      if (lifetime + expected > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd) {
-        log('skipped', p, {
-          reason: 'lifetime_budget_exceeded',
-          lifetime_cost_usd: Number(lifetime.toFixed(5)),
-          expected_cost_usd: Number(expected.toFixed(5)),
-          max_lifetime_cost_usd: YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd
-        })
-        return { kind: 'skip' as const, reason: 'lifetime_budget_exceeded' as const }
-      }
-      if (spent + expected > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) {
-        log('skipped', p, {
-          reason: 'budget_exceeded',
-          spent_cost_usd: Number(spent.toFixed(5)),
-          expected_cost_usd: Number(expected.toFixed(5)),
-          max_cost_usd: YOUTUBE_ARTICLE_LIMITS.maxCostUsd
-        })
-        return { kind: 'skip' as const, reason: 'budget_exceeded' as const }
-      }
       return { kind: 'ok' as const, chunkCount: plan.chunks.length, format: plan.format, inputChars: plan.inputChars, durationMs: plan.durationMs, expectedCostUsd: expected }
     })
-    if (prep.kind === 'skip') return finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
+    if (prep.kind === 'skip') return finish('failed', prep.reason)
 
     log('prepared', p, { chunks: prep.chunkCount, input_chars: prep.inputChars, format: prep.format, expected_cost_usd: Number(prep.expectedCostUsd.toFixed(5)) })
 
-    const processChunk = async (i: number, invalid: Record<string, string> = {}) => {
+    const processChunk = async (i: number) => {
       const startedAt = Date.now()
-      const res = await step.do(`${Object.keys(invalid).length ? 'repair-chunk' : 'chunk'}-${i}`, CHUNK_STEP, async () => {
+      const res = await step.do(`chunk-${i}`, CHUNK_STEP, async () => {
         const deadline = Date.now() + 8 * 60 * 1000
         const askChunk: typeof ask = (system, user, opts) => ask(system, user, { ...opts, deadline })
         if (!(await deps.repo.renewLease(p.articleId, runId, lease))) throw new YoutubeArticleStop('lease_lost')
@@ -379,8 +314,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
             count(call)
             return call.reply.text
           },
-          (event, count) => log(event, p, { chunk: i, count }),
-          invalid
+          (event, count) => log(event, p, { chunk: i, count })
         ).catch(error => {
           if (error instanceof PassageRepairError) throw new YoutubeArticleStop('passage_repair_exhausted')
           throw error
@@ -433,7 +367,11 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
       await step.do(name, CHUNK_STEP, async () => {
         if (!(await deps.repo.renewLease(p.articleId, runId, lease))) throw new YoutubeArticleStop('lease_lost')
         const key = `${youtubeArticleChunkPrefix(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion)}introduction.json`
-        if (await deps.bucket.head(key)) return { reused: true }
+        const cached = await deps.bucket.get(key)
+        if (cached) {
+          const value = JSON.parse(await cached.text()) as { lede?: unknown }
+          if (typeof value?.lede === 'string' && value.lede.trim()) return { reused: true }
+        }
         const sections = (
           await Promise.all(
             Array.from({ length: prep.chunkCount }, async (_, i) => {
@@ -455,7 +393,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
           } catch {
             /* Use accepted body excerpts. */
           }
-          if (typeof value.lede === 'string' && value.lede.trim() && passageLanguageValid(value.lede, p.targetLanguage)) lede = value.lede.trim()
+          if (typeof value.lede === 'string' && value.lede.trim()) lede = value.lede.trim()
         } catch (error) {
           if (accountingError || !optionalModelFailure(error)) throw error
           log('introduction_fallback', p)
@@ -486,57 +424,11 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         if (!introduction) throw new Error('introduction_missing')
         doc.lede = JSON.parse(await introduction.text()).lede
 
-        // A same-language edit already passed the chunk band; the article check must not use a tighter one
-        const sameLanguage = caption.language.toLowerCase().split('-')[0] === p.targetLanguage
-        const quality = checkArticleQuality(doc, plan.cues, captionPlainText(caption), {
-          requireCompleteCoverage: true,
-          ...(sameLanguage ? { bounds: EDITED_LENGTH_BOUNDS } : {}),
-          requireParagraphOrder: true,
-          minDuplicateChars: 40,
-          zhMagnitudes: true
-        })
-        const repairs: Record<number, Record<string, string>> = {}
-
-        const passages: SourcePassage[] = []
-        const values: Array<{ text: string; heading: string } | undefined> = []
-        for (const chunk of plan.chunks) {
-          const own = sourcePassages(plan.cues.slice(chunk.start + chunk.overlap, chunk.end), plan.cues.slice(0, chunk.start + chunk.overlap))
-          const paragraphs = results[chunk.index].sections.flatMap(section => section.paragraphs)
-          for (let i = 0; i < own.length; i++) {
-            const passage = own[i]
-            const paragraph = paragraphs[i]
-            if (!paragraph || paragraph.source_cue_ids.join(',') !== passage.ids.join(',')) quality.failed.push('cue_reference')
-            passages.push({ ...passage, key: chunk.index + '/' + passage.key })
-            values.push(paragraph ? { text: paragraph.text, heading: '' } : undefined)
-          }
-          if (paragraphs.length !== own.length) quality.failed.push('cue_reference')
-        }
-        const failures = passageFailures(passages, values, caption.language, p.targetLanguage)
-        // Whole-document ratios cannot locate damage or distinguish short terms from wrong language.
-        // Apply the same source-aware content checks used before checkpointing, on every paragraph.
-        const contentChecks = ['wrong_language', 'number_coverage', 'length_ratio', 'duplicate_paragraph']
-        quality.failed = quality.failed.filter(check => !contentChecks.includes(check))
-        for (const [key, reason] of Object.entries(failures)) {
-          const [chunk, passage] = key.split('/')
-          ;(repairs[Number(chunk)] ??= {})[passage] = reason
-          for (const failure of reason.split(';')) {
-            const checks: Record<string, YoutubeArticleCheck> = {
-              numbers: 'number_coverage',
-              length_ratio: 'length_ratio',
-              source_wording: 'length_ratio',
-              duplicate_paragraph: 'duplicate_paragraph',
-              missing: 'empty_block'
-            }
-            const check = checks[failure.split(':')[0]] ?? 'wrong_language'
-            quality.failed.push(check)
-          }
-        }
-        quality.failed = [...new Set(quality.failed)]
-        quality.passed = quality.failed.length === 0
+        const quality = checkArticleQuality(doc, captionPlainText(caption))
 
         const spent = (await deps.repo.findById(p.articleId))?.cost_usd ?? 0
         const summary = { ...quality, format: plan.format, chunks: plan.chunks.length, cost_usd: Number(spent.toFixed(5)), model: YOUTUBE_ARTICLE_MODEL }
-        if (!quality.passed) return { kind: 'quality_failed' as const, quality: summary, repairs }
+        if (!quality.passed) return { kind: 'quality_failed' as const, quality: summary }
 
         const version = youtubeArticleVersion(p.sourceHash, p.targetLanguage, 1, p.promptVersion)
         const html = renderArticleHtml(doc, version)
@@ -548,19 +440,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         return { kind: 'ok' as const, quality: summary }
       })
 
-    let assembled = await assemble('assemble')
-    if (
-      assembled.kind === 'quality_failed' &&
-      Object.keys(assembled.repairs).length &&
-      !assembled.quality.failed.some(check => check === 'cue_reference' || check === 'cue_coverage')
-    ) {
-      for (const [index, invalid] of Object.entries(assembled.repairs)) await processChunk(Number(index), invalid)
-      await step.do('refresh-introduction', DB_STEP, () =>
-        deps.bucket.delete(`${youtubeArticleChunkPrefix(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion)}introduction.json`)
-      )
-      await introduction('introduction-repaired')
-      assembled = await assemble('assemble-repaired')
-    }
+    const assembled = await assemble('assemble')
     if (assembled.kind === 'quality_failed') return finish('failed', `quality:${assembled.quality.failed.join(',')}`, assembled.quality)
 
     const published = await step.do('publish', DB_STEP, () =>
@@ -589,15 +469,12 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
     if (
       err instanceof YoutubeArticleStop ||
       (err instanceof Error && err.name === 'YoutubeArticleStop') ||
-      /YoutubeArticleStop|budget_exceeded|lease_lost|caption_missing|chunk_truncated|passage_repair_exhausted/.test(message)
+      /YoutubeArticleStop|lease_lost|caption_missing|chunk_truncated|passage_repair_exhausted/.test(message)
     ) {
       const code =
         err instanceof YoutubeArticleStop
           ? err.code
-          : // lifetime_budget_exceeded contains budget_exceeded, so it is matched first
-            (['lifetime_budget_exceeded', 'budget_exceeded', 'lease_lost', 'caption_missing', 'chunk_truncated', 'passage_repair_exhausted'].find(c =>
-              message.includes(c)
-            ) as YoutubeArticleStop['code'])
+          : (['lease_lost', 'caption_missing', 'chunk_truncated', 'passage_repair_exhausted'].find(c => message.includes(c)) as YoutubeArticleStop['code'])
       if (code === 'lease_lost') {
         // Another run took the row (its chunks stay, it reuses them), or the video was taken down
         // while this run was writing: then nobody else will delete what this run wrote
@@ -608,7 +485,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         log('lease_lost', p)
         return 'gone'
       }
-      // A truncation keeps its detail (parts=N or introduction); budget codes stay bare for isFinalError
+      // A truncation keeps its detail (parts=N or introduction).
       return finish('failed', code === 'chunk_truncated' && message.startsWith(code) ? message.slice(0, 200) : code)
     }
     return finish('retry', message.slice(0, 200))

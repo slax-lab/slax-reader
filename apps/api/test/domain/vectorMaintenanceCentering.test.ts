@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import { EMBEDDING_MEAN } from '../../src/utils/embeddingMean'
+import { memoryPreferences } from '../helpers/preferenceMemory'
 
 vi.mock('@/entry/core', () => ({ default: { fetch: vi.fn() } }))
 vi.mock('cloudflare:workers', () => ({
@@ -30,6 +31,8 @@ function harness() {
   const repo = {
     listUserArticles: async () => [{ id: 1, is_starred: false }],
     listRecentUserActions: async () => [],
+    listCollectionMembers: async () => [],
+    listOwnerCollections: async () => [],
     listUserCollections: async () => []
   }
   return { stored, index, repo }
@@ -42,7 +45,9 @@ async function runWithVersion(version?: string) {
   const { VectorMaintenanceService } = await import('../../src/domain/vectorMaintenance')
   const { recommendationAlgorithm } = await import('../../src/utils/recommendationFeedback')
   const state = harness()
-  const service = new VectorMaintenanceService(state.repo as any, {} as any, {} as any, state.index as any)
+  const service = (preferences => preferences.bind(new VectorMaintenanceService(state.repo as any, {} as any, {} as any, state.index as any, preferences.client)))(
+    memoryPreferences()
+  )
   const output = await service.refreshUser(1, 'article')
   return { output, state, algorithm: await recommendationAlgorithm() }
 }

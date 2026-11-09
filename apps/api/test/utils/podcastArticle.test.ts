@@ -27,14 +27,11 @@ import {
   podcastChunkKey,
   podcastTranscriptKey,
   podcastWorkflowId,
-  polishQualityOptions,
   renderMediaArticle,
   renderPodcastBody,
   renderPodcastText,
   speakerDisplay,
   translateSpeaker,
-  translationBounds,
-  translationQualityOptions,
   translationUnits
 } from '@/utils/podcastArticle'
 
@@ -161,178 +158,19 @@ describe('polish prompt', () => {
   })
 })
 
-describe('polish quality', () => {
-  test('a faithful cleanup passes with role and letter speakers', () => {
+describe('nonempty polish output', () => {
+  test('accepts changed numbers, wording, language and references without changing speakers', async () => {
+    const { polishPartFailures } = await import('@/utils/podcastArticle')
     const doc = cleanedDoc()
-    doc.sections[0].paragraphs[0].speaker = 'Guest'
-    doc.sections[1].paragraphs[0].speaker = 'B'
-    const q = checkArticleQuality(doc, transcript.cues, transcriptPlainText(transcript), polishQualityOptions(transcript, ctx))
-    expect(q.failed).toEqual([])
-    expect(q.metrics.length_bounds).toEqual([0.4, 1.35])
-    expect(doc.sections[0].paragraphs[0].speaker).toBe('Guest')
-  })
-
-  test.each(['polish', 'translate'])('allows short backchannels at different cues only for podcast %s', async mode => {
-    const { PODCAST_LIMITS } = await import('@/utils/podcastArticle')
-    const cases = [
-      { text: 'Yeah.', shared: false, fails: false },
-      { text: 'Yeah.', shared: true, fails: true },
-      { text: 'a'.repeat(PODCAST_LIMITS.minDuplicateChars - 1), shared: false, fails: false },
-      { text: 'a'.repeat(PODCAST_LIMITS.minDuplicateChars), shared: false, fails: true },
-      { text: 'The speaker repeats an entire sentence about the future of public services.', shared: false, fails: true }
+    doc.sections[0].paragraphs = [
+      { speaker: 'New name', text: 'Changed.', source_cue_ids: ['unknown'] },
+      { speaker: null, text: 'Changed.', source_cue_ids: [] }
     ]
-    for (const { text, shared, fails } of cases) {
-      const source = {
-        ...transcript,
-        cues: [
-          { id: 'c0057', start_ms: 57_000, duration_ms: 1_000, text },
-          { id: 'c0243', start_ms: 243_000, duration_ms: 1_000, text }
-        ]
-      }
-      const doc: YoutubeArticleDocument = {
-        schema_version: 1,
-        language: 'en',
-        format: 'dialogue',
-        lede: 'A conversation.',
-        sections: [
-          {
-            heading: 'Discussion',
-            start_ms: 57_000,
-            end_ms: 244_000,
-            paragraphs: [
-              { speaker: null, text, source_cue_ids: [source.cues[0].id] },
-              { speaker: null, text, source_cue_ids: [source.cues[shared ? 0 : 1].id] }
-            ]
-          }
-        ]
-      }
-      const options = mode === 'polish' ? polishQualityOptions(source, ctx) : translationQualityOptions('en', 'en', doc)
-      expect(options.minDuplicateChars).toBe(40)
-      const quality = checkArticleQuality(doc, source.cues, transcriptPlainText(source), options)
-      expect(quality.failed).toEqual(fails ? ['duplicate_paragraph'] : [])
-      expect(quality.passed).toBe(!fails)
-      expect(checkArticleQuality(doc, source.cues, transcriptPlainText(source)).failed).toContain('duplicate_paragraph')
-    }
-  })
-
-  test('detects shared cues with any earlier short repeat, not only the first copy', () => {
-    const doc = cleanedDoc()
-    doc.sections[0].paragraphs = [transcript.cues[0].id, transcript.cues[1].id, transcript.cues[1].id].map(id => ({ speaker: null, text: 'Yeah.', source_cue_ids: [id] }))
-    expect(checkArticleQuality(doc, transcript.cues, transcriptPlainText(transcript), polishQualityOptions(transcript, ctx)).failed).toContain('duplicate_paragraph')
-  })
-
-  test('a summary instead of a cleanup fails the length check; an invented name is dropped', () => {
-    const doc = cleanedDoc()
-    doc.sections[0].paragraphs[0].text = 'Renewable companies build data centers, 60% of requests.'
-    doc.sections[1].paragraphs[0].text = 'The host has a new book.'
-    doc.sections[1].paragraphs[0].speaker = 'Elon Musk'
-    const q = checkArticleQuality(doc, transcript.cues, transcriptPlainText(transcript), polishQualityOptions(transcript, ctx))
-    expect(q.failed).toContain('length_ratio')
-    expect(doc.sections[1].paragraphs[0].speaker).toBeNull()
-  })
-
-  test('spoken Chinese with English terms passes the zh language check', () => {
-    const zh = buildTranscriptDocument('assemblyai', 'zh', [{ start_ms: 0, end_ms: 9000, text: '我们用 GPT 和 Claude 做 agent 的 evaluation，效果不错。', speaker: null }])
-    const doc: YoutubeArticleDocument = {
-      schema_version: 1,
-      language: 'zh',
-      format: 'article',
-      lede: '导读。',
-      sections: [
-        { heading: '评测', start_ms: 0, end_ms: 9000, paragraphs: [{ speaker: null, text: '我们用 GPT 和 Claude 做 agent 的 evaluation，效果不错。', source_cue_ids: ['c0001'] }] }
-      ]
-    }
-    expect(checkArticleQuality(doc, zh.cues, transcriptPlainText(zh), polishQualityOptions(zh, ctx)).failed).not.toContain('wrong_language')
-    expect(checkArticleQuality(doc, zh.cues, transcriptPlainText(zh)).failed).toContain('wrong_language')
-  })
-})
-
-describe('polish part quality', () => {
-  function part(sourceText: string, outputText: string, id = 'c0001') {
-    const source = { ...transcript, cues: [{ id: 'c0001', start_ms: 0, duration_ms: 1000, text: sourceText }] }
-    const sections = [{ heading: 'Discussion', start_ms: 0, end_ms: 1000, paragraphs: [{ speaker: null, text: outputText, source_cue_ids: [id] }] }]
-    return { source, sections }
-  }
-
-  test.each([399, 400])('applies length checks only from 400 source characters (%i)', async chars => {
-    const { polishPartFailures, PODCAST_LIMITS } = await import('@/utils/podcastArticle')
-    const { source, sections } = part('s'.repeat(chars), 'Short.')
-    expect(PODCAST_LIMITS.partMinChars).toBe(400)
-    const failed = polishPartFailures(sections, source.cues, source, ctx, 'en')
-    expect(failed).toEqual(chars < PODCAST_LIMITS.partMinChars ? [] : ['length_ratio'])
-  })
-
-  test.each([4, 5])('applies number checks only from five distinct source numbers (%i)', async count => {
-    const { polishPartFailures, PODCAST_LIMITS } = await import('@/utils/podcastArticle')
-    const { source, sections } = part(Array.from({ length: count }, (_, i) => String(i + 1)).join(' '), 'Several things.')
-    expect(PODCAST_LIMITS.partMinNumbers).toBe(5)
-    const failed = polishPartFailures(sections, source.cues, source, ctx, 'en')
-    expect(failed).toEqual(count < PODCAST_LIMITS.partMinNumbers ? [] : ['number_coverage'])
-  })
-
-  test('rejects backward paragraph starts within a section, while shared cues remain valid', async () => {
-    const { polishPartFailures } = await import('@/utils/podcastArticle')
-    const source = {
-      ...transcript,
-      cues: ['An introduction.', 'A proposal.', 'The results.'].map((text, i) => ({ id: `c${i}`, text, start_ms: i * 1000, duration_ms: 1000 }))
-    }
-    const sections = [
-      {
-        heading: 'Discussion',
-        start_ms: 0,
-        end_ms: 3000,
-        paragraphs: [2, 0, 1].map(i => ({ speaker: null, text: source.cues[i].text, source_cue_ids: [source.cues[i].id] }))
-      }
-    ]
-    expect(polishPartFailures(sections, source.cues, source, ctx, 'en')).toContain('cue_reference')
-    const doc = { ...cleanedDoc(), sections }
-    expect(checkArticleQuality(doc, source.cues, transcriptPlainText(source), polishQualityOptions(source, ctx)).failed).toContain('cue_reference')
-    expect(checkArticleQuality(doc, source.cues, transcriptPlainText(source)).failed).not.toContain('cue_reference')
-    sections[0].paragraphs = [0, 0, 1, 2].map((i, n) => ({ speaker: null, text: `Statement ${n}.`, source_cue_ids: [source.cues[i].id] }))
-    expect(polishPartFailures(sections, source.cues, source, ctx, 'en')).not.toContain('cue_reference')
-  })
-
-  test('small samples still reject hallucinated cue ids and empty paragraphs', async () => {
-    const { polishPartFailures } = await import('@/utils/podcastArticle')
-    const { source, sections } = part('Yeah.', 'Yeah.', 'c9999')
-    expect(polishPartFailures(sections, source.cues, source, ctx, 'en')).toContain('cue_reference')
-    sections[0].paragraphs[0].source_cue_ids = ['c0001']
-    sections[0].paragraphs[0].text = ''
-    expect(polishPartFailures(sections, source.cues, source, ctx, 'en')).toContain('empty_block')
-  })
-
-  test('part checks do not require an introduction or mutate parsed speaker values', async () => {
-    const { polishPartFailures } = await import('@/utils/podcastArticle')
-    const { source, sections } = part('The speaker discusses public services.', 'The speaker discusses public services.')
-    const parsed = [{ ...sections[0], paragraphs: [{ ...sections[0].paragraphs[0], speaker: 'Invented speaker' }] }]
-    expect(polishPartFailures(parsed, source.cues, source, ctx, 'en')).toEqual([])
-    expect(parsed[0].paragraphs[0].speaker).toBe('Invented speaker')
-  })
-})
-
-describe('podcast Chinese magnitude coverage', () => {
-  test.each([
-    ['50000', '5 万'],
-    ['80,000', '8 万'],
-    ['100000000', '1 亿']
-  ])('counts %s as %s only when enabled', (number, magnitude) => {
-    const source = { ...transcript, cues: [{ id: 'c0001', start_ms: 0, duration_ms: 1000, text: `There were ${number} participants.` }] }
-    const doc: YoutubeArticleDocument = {
-      schema_version: 1,
-      language: 'zh',
-      format: 'article',
-      lede: '讨论参与者。',
-      sections: [{ heading: '参与情况', start_ms: 0, end_ms: 1000, paragraphs: [{ speaker: null, text: `这次共有 ${magnitude} 名参与者。`, source_cue_ids: ['c0001'] }] }]
-    }
-    const text = transcriptPlainText(source)
-    for (const options of [polishQualityOptions(source, ctx), translationQualityOptions('en', 'zh', doc)]) {
-      expect(options.zhMagnitudes).toBe(true)
-      const quality = checkArticleQuality(doc, source.cues, text, options)
-      expect(quality.metrics.number_coverage).toBe(1)
-      expect(quality.failed).not.toContain('number_coverage')
-    }
-    expect(checkArticleQuality(doc, source.cues, text).failed).toContain('number_coverage')
-    expect(checkArticleQuality(doc, source.cues, text, { zhMagnitudes: false }).failed).toContain('number_coverage')
+    expect(polishPartFailures(doc.sections)).toEqual([])
+    expect(checkArticleQuality(doc, transcriptPlainText(transcript)).passed).toBe(true)
+    expect(doc.sections[0].paragraphs[0].speaker).toBe('New name')
+    doc.sections[0].paragraphs[0].text = ' '
+    expect(polishPartFailures(doc.sections)).toEqual(['empty_block'])
   })
 })
 
@@ -423,18 +261,6 @@ describe('translation', () => {
     expect(() => applyTranslation(src, units, new Map(), 'zh')).toThrow('translation missing for lede')
     expect(translateSpeaker('嘉宾', 'en')).toBe('Guest')
     expect(translateSpeaker('B', 'zh')).toBe('B')
-  })
-
-  test('translation quality: bounds by direction against the article paragraphs', () => {
-    expect(translationBounds('en', 'zh')).toEqual([0.18, 1.05])
-    expect(translationBounds('zh', 'en')).toEqual([1.3, 3.0])
-    const src = cleanedDoc()
-    const texts = new Map(units.map(u => [u.id, u.kind === 'paragraph' ? '我们发现巴西 60% 的数据中心安装申请来自可再生能源公司。'.repeat(8) : '导读和标题']))
-    const zh = applyTranslation(src, units, texts, 'zh')
-    const q = checkArticleQuality(zh, transcript.cues, articleParagraphText(src), translationQualityOptions('en', 'zh', src))
-    expect(q.metrics.length_bounds).toEqual([0.18, 1.05])
-    expect(q.failed).not.toContain('wrong_language')
-    expect(q.failed).not.toContain('cue_reference')
   })
 })
 

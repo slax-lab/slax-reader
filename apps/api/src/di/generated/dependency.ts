@@ -51,6 +51,7 @@ import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
 import { VectorSourceRepo } from '../../infra/repository/vectorSources'
 import { VectorIndexClient } from '../../infra/repository/vectorIndexClient'
+import { VectorPreferenceClient } from '../../infra/repository/vectorPreferenceClient'
 import { AigcService } from '../../domain/aigc'
 import { TagService } from '../../domain/tag'
 import { MarkService } from '../../domain/mark'
@@ -399,7 +400,8 @@ container.register(VectorMaintenanceService, {
       container.resolve(VectorMaintenanceRepo),
       container.resolve(VectorSourceRepo),
       container.resolve(VectorEmbeddingClient),
-      container.resolve(VectorIndexClient)
+      container.resolve(VectorIndexClient),
+      container.resolve(VectorPreferenceClient)
     )
 })
 
@@ -412,7 +414,6 @@ container.register(YoutubeArticleService, {
       container.resolve(UserRepo),
       lazy(() => container.resolve(RedisClient)),
       lazy(() => container.resolve(BucketClient)),
-      container.resolve(SlaxAlertBotClient),
       container.resolve(CrawlService),
       container.resolve(MediaBodyService),
       container.resolve(MediaSnapshotService)
@@ -735,6 +736,10 @@ container.register(RedisClient, {
 
 container.register(VectorIndexClient, {
   useClass: VectorIndexClient
+})
+
+container.register(VectorPreferenceClient, {
+  useClass: VectorPreferenceClient
 })
 
 container.register(VectorSourceRepo, {

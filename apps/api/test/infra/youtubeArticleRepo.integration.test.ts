@@ -122,10 +122,10 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     const row = await repo.recordEvaluation(evaluation())
     expect(await repo.addCost(row.id, 0.012)).toBeCloseTo(0.012)
     expect(await repo.addCost(row.id, 0.03)).toBeCloseTo(0.042)
-    // the lifetime total follows every call and survives the retry that resets cost_usd
+    // Both totals survive owner retry.
     await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'failed', error_message: 'budget_exceeded' } })
-    expect(await repo.requeue(row.id, true, { recoverBudget: true })).toBe(true)
-    expect(await repo.addCost(row.id, 0.01)).toBeCloseTo(0.01)
+    expect(await repo.requeue(row.id, true)).toBe(true)
+    expect(await repo.addCost(row.id, 0.01)).toBeCloseTo(0.052)
     expect((await repo.findById(row.id))?.lifetime_cost_usd).toBeCloseTo(0.052)
   })
 
@@ -163,30 +163,29 @@ describePg('YoutubeArticleRepo on Postgres', () => {
     expect((await repo.findById(other.id))?.retry_count).toBe(0)
   })
 
-  test('requeue: generate takes skipped/failed, retry takes failed only; both mark the row as requested; only the retry recovers a spent budget', async () => {
+  test('owner recovery admits cap-rejected failed and skipped rows without resetting cost', async () => {
     const row = await repo.recordEvaluation(evaluation({ status: 'skipped' }))
-    expect(await repo.requeue(row.id, true)).toBe(false)
-    expect(await repo.requeue(row.id, false)).toBe(true)
-    expect((await repo.findById(row.id))?.next_retry_at).toBeInstanceOf(Date)
-    expect(await repo.requeue(row.id, false)).toBe(false)
-
-    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'failed', retry_count: 3, error_message: 'quality:length_ratio' } })
-    expect(await repo.requeue(row.id, true)).toBe(true)
-    expect(await repo.findById(row.id)).toMatchObject({ status: 'pending', retry_count: 0, error_message: null })
-
-    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'failed', error_message: 'budget_exceeded', retry_count: 3, cost_usd: 0.69, lifetime_cost_usd: 0.69 } })
-    // the plain retry (podcast) and generate keep the budget final; only the recovering retry (YouTube) reopens it
-    expect(await repo.requeue(row.id, false)).toBe(false)
-    expect(await repo.requeue(row.id, true)).toBe(false)
-    expect(await repo.requeue(row.id, true, { recoverBudget: true })).toBe(true)
-    expect(await repo.findById(row.id)).toMatchObject({ status: 'pending', retry_count: 0, cost_usd: 0, lifetime_cost_usd: 0.69, error_message: null })
-    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'failed', error_message: 'too_long' } })
-    expect(await repo.requeue(row.id, true, { recoverBudget: true })).toBe(false)
-    await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'failed', error_message: 'lifetime_budget_exceeded' } })
-    expect(await repo.requeue(row.id, true, { recoverBudget: true })).toBe(false)
-    expect(await repo.requeue(row.id, true)).toBe(false)
+    for (const status of ['failed', 'skipped']) {
+      for (const error of ['too_long', 'budget_exceeded', 'lifetime_budget_exceeded', null]) {
+        await pg.sr_media_article.update({ where: { id: row.id }, data: { status, error_message: error, retry_count: 3, cost_usd: 10, lifetime_cost_usd: 20 } })
+        expect(await repo.requeue(row.id, true)).toBe(true)
+        expect(await repo.findById(row.id)).toMatchObject({
+          status: 'pending',
+          retry_count: 0,
+          cost_usd: 10,
+          lifetime_cost_usd: 20,
+          error_message: null,
+          next_retry_at: expect.any(Date)
+        })
+        expect(await repo.requeue(row.id, true)).toBe(false)
+      }
+    }
     await pg.sr_media_article.update({ where: { id: row.id }, data: { status: 'skipped', error_message: 'too_long' } })
-    expect(await repo.requeue(row.id, false)).toBe(false)
+    expect(await repo.requeue(row.id, false)).toBe(true)
+    for (const status of ['generating', 'validating', 'ready', 'stale', 'takedown']) {
+      await pg.sr_media_article.update({ where: { id: row.id }, data: { status } })
+      expect(await repo.requeue(row.id, true)).toBe(false)
+    }
   })
 
   test('runnable rows are only deferred requests whose delay is over; expired leases are listed', async () => {
