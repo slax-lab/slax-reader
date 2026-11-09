@@ -30,7 +30,7 @@ function modules(boundaries, development = false) {
       compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
     }).outputText;
     vm.runInNewContext(code, {
-      exports, __DEV__: development, AbortController, URL, console,
+      exports, __DEV__: development, AbortController, Date, Error, URL, console, setTimeout, clearTimeout,
       require(name) {
         if (Object.hasOwn(boundaries, name)) return boundaries[name];
         assert.ok(name.startsWith('.'), `Unexpected external dependency ${name}`);
@@ -63,7 +63,7 @@ async function mounted(run) {
   }
 }
 
-async function harness(root) {
+async function harness(root, platform = 'ios') {
   const nodes = new Map(), scripts = [], listeners = new Set();
   const native = name => React.forwardRef((props, ref) => {
     const key = React.useRef(Symbol(name)).current;
@@ -76,6 +76,9 @@ async function harness(root) {
     rssRequests: [], mutations: [], deletionRequests: [], navigation: [], headers: [],
     labs: async () => ({features: [{key: 'rss', enabled: false}, {key: 'pdf', enabled: true}]}),
     enable: async () => {}, deletion: async () => ({canDelete: false, reason: 'active_subscription'}),
+    identities: async () => ({enabled: false, email: null, google: false, apple: false}),
+    authorization: [], providerStarts: [], providerFinishes: [], proofs: [],
+    authorize: async type => ({type, platform, code: 'provider-proof', redirect_uri: ''}),
   };
   const store = new PreferenceStore(new MemoryPreferences({auth_token: 'fixture-token', user_id: 'fixture-user'}));
   const sessions = new SessionController(store, {enter: async () => {}, leave: async () => {}});
@@ -88,6 +91,11 @@ async function harness(root) {
     rssEnable(value, signal) {h.mutations.push({value, signal}); return h.enable(value, signal);},
     setLab: async () => {},
     deleteAccount(signal) {h.deletionRequests.push(signal); return h.deletion(signal);},
+    getLoginIdentities: () => h.identities(),
+    startProviderLink(body) {h.providerStarts.push(body); return Promise.resolve({state: 'provider-state', nonce: 'provider-nonce'});},
+    finishProviderLink(body) {h.providerFinishes.push(body); return Promise.resolve({linked: true});},
+    sendBindingEmail: async () => ({request_id: 'binding-challenge', expires_in: 300, resend_after: 60}),
+    verifyBindingEmail: async proof => {h.proofs.push(proof); return {email: proof.email};},
   };
   const t = value => value;
   h.preferences = store;
@@ -95,7 +103,7 @@ async function harness(root) {
   const useMobile = () => ({
     api, runtime, sessions, t, session: sessions.getSnapshot(), nativeResourceOwner: h.owner,
     settings: h.settings, preferences: h.preferences, locale: h.locale ?? 'en',
-    config: {webUrl: 'https://reader.test', apiUrl: h.origin},
+    config: {webUrl: 'https://reader.test', apiUrl: h.origin, platform},
   });
   const appState = {
     currentState: 'active',
@@ -108,14 +116,16 @@ async function harness(root) {
   const ui = Object.fromEntries(['ScreenSurface', 'SourceButton', 'SourceDialog', 'SourceIcon', 'SourceSwitch', 'SourceText', 'TextAction', 'Divider'].map(name => [name, native(name)]));
   const load = modules({
     react: React,
-    'react-native': {AppState: appState, Platform: {OS: 'ios'}, StyleSheet: {create: value => value}, ...Object.fromEntries(['Pressable', 'ScrollView', 'View'].map(name => [name, native(name)]))},
+    'react-native': {AppState: appState, Platform: {OS: platform}, StyleSheet: {create: value => value}, ...Object.fromEntries(['Pressable', 'ScrollView', 'TextInput', 'View'].map(name => [name, native(name)]))},
     'react-native-webview': {WebView: native('WebView')},
     '@react-navigation/native': {useFocusEffect: callback => React.useEffect(() => h.focused ? callback() : undefined, [callback, h.focused])},
     '../runtime': {useMobile, useMobileSettings: () => h.settings},
     '../components': ui,
+    '../components/SourceUI': ui,
     '../components/SourceParagraph': {SourceParagraph: native('SourceParagraph')},
     '../domain/delete-account': {deleteCurrentAccount},
     '../domain/session': {SessionChangedError},
+    '../auth/providers': {authenticate: (type, nonce) => {h.authorization.push([type, nonce]); return h.authorize(type);}},
     'expo-file-system': {File: class {constructor() {assert.fail('Production UI must not access fixture files');}}},
   });
   h.all = name => [...nodes.values()].filter(node => node.name === name).map(node => node.props);
@@ -446,4 +456,44 @@ for (const replacement of ['owner', 'origin']) test(`DeleteAccount ${replacement
   await act(async () => root.render(null));
   await h.renderRoute('DeleteAccountScreen'); await h.readNotice();
   assert.equal(h.button().disabled, false);
+}));
+
+test('Settings links a verified mailbox and a native provider without replacing the active session', async () => mounted(async root => {
+  const h = await harness(root);
+  h.identities = async () => ({enabled: true, email: null, google: true, apple: false});
+  await h.renderRoute('SettingsScreen');
+  const before = h.sessions.getSnapshot();
+  await act(async () => h.one('SourceButton', props => props.label === 'email_auth_bind').onPress());
+  await act(async () => h.one('TextInput', props => props.testID === 'email_code_address').onChangeText('owner@example.test'));
+  await act(async () => h.one('SourceButton', props => props.testID === 'email_code_send').onPress());
+  await act(async () => h.one('TextInput', props => props.testID === 'email_code_value').onChangeText('012345'));
+  await act(async () => h.one('SourceButton', props => props.testID === 'email_code_verify').onPress());
+  assert.deepEqual(h.proofs.map(value => JSON.parse(JSON.stringify(value))), [{email: 'owner@example.test', request_id: 'binding-challenge', code: '012345'}]);
+  assert.ok(h.all('SourceText').some(props => props.children === 'owner@example.test'));
+
+  await act(async () => h.one('SourceButton', props => props.label === 'email_auth_link_apple').onPress());
+  assert.deepEqual(h.providerStarts.map(value => JSON.parse(JSON.stringify(value))), [{type: 'apple', platform: 'ios'}]);
+  assert.deepEqual(h.authorization, [['apple', 'provider-nonce']]);
+  assert.deepEqual(h.providerFinishes.map(value => JSON.parse(JSON.stringify(value))), [{type: 'apple', platform: 'ios', code: 'provider-proof', redirect_uri: '', state: 'provider-state'}]);
+  assert.ok(h.all('SourceText').some(props => props.children === 'email_auth_apple_linked'));
+  assert.deepEqual(h.sessions.getSnapshot(), before);
+}));
+
+test('Android guides Apple linking to the same Web account and ignores late Google authorization after owner replacement', async () => mounted(async root => {
+  const h = await harness(root, 'android'), native = deferred();
+  h.identities = async () => ({enabled: true, email: 'owner@example.test', google: false, apple: false});
+  h.authorize = () => native.promise;
+  await h.renderRoute('SettingsScreen');
+  assert.ok(h.all('SourceText').some(props => props.children === 'email_auth_link_apple_hint'));
+  assert.deepEqual(h.all('SourceButton').filter(props => props.label.includes('apple')), []);
+  assert.deepEqual(h.providerStarts, []);
+  await act(async () => h.one('SourceButton', props => props.label === 'email_auth_link_google').onPress());
+  assert.deepEqual(h.authorization, [['google', 'provider-nonce']]);
+  h.owner = 'owner-b';
+  h.identities = async () => ({enabled: true, email: 'other@example.test', google: false, apple: true});
+  await h.rerender();
+  await act(async () => native.resolve({type: 'google', platform: 'android', code: 'retired-proof', redirect_uri: ''}));
+  assert.deepEqual(h.providerFinishes, []);
+  assert.equal(h.all('SourceText').some(props => props.children === 'owner@example.test'), false);
+  assert.ok(h.all('SourceText').some(props => props.children === 'other@example.test'));
 }));

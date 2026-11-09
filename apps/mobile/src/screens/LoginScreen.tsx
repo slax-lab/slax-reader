@@ -1,5 +1,5 @@
 import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
-import {ActivityIndicator, Alert, Image, Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
+import {ActivityIndicator, Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {WebView} from 'react-native-webview';
 import {mobileAssets} from '../../assets';
@@ -12,23 +12,52 @@ import {fixtureDocument} from '../native/fixture-document';
 import {fixtureActions} from '../components/fixture-actions';
 import {useObserveMarkInteractive} from '../observe';
 import {loginWithProvider} from '../auth/login';
+import {EmailCodeDialog} from '../auth/EmailCodeDialog';
+import {emailAuthError} from '../auth/email-auth-errors';
+import type {LoginResponse} from '../data/api';
+
+type LoginMethod = LoginProvider | 'email';
+interface EmailLoginFlow {
+  isCurrent(): boolean;
+  adoptSessionGuard(assertCurrent: () => void): void;
+}
 
 export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) {
-  const {api, sessions, runtime, t, config, fixtureOnly} = useMobile();
+  const {api, sessions, runtime, t, locale, config, fixtureOnly} = useMobile();
   const telemetry = useTelemetry();
   const {width, height} = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [agreed, setAgreed] = useState(false);
   const [agreement, setAgreement] = useState<'terms'|'privacy'|null>(null);
   const [loading, setLoading] = useState<LoginProvider|null>(null);
+  const [enabledFor, setEnabledFor] = useState<{api: typeof api; origin: string} | null>(null);
+  const [emailFlow, setEmailFlow] = useState<EmailLoginFlow | null>(null);
+  const [emailCommitting, setEmailCommitting] = useState(false);
+  const committingEmail = useRef(false);
   const [agreementId, setAgreementId] = useState(0);
   const agreementSequence = useRef(0);
-  const pending = useRef<{id: number; provider: LoginProvider|null; accepted: boolean; isCurrent(): boolean}|null>(null);
+  const pending = useRef<{id: number; method: LoginMethod|null; accepted: boolean; isCurrent(): boolean}|null>(null);
   const active = useRef(false);
   const providerGeneration = useRef(0);
   const mounted = useRef(true);
   useLayoutEffect(() => {mounted.current = true; return () => {mounted.current = false; pending.current = null; providerGeneration.current++;};}, []);
-  useLayoutEffect(() => () => {pending.current = null; providerGeneration.current++; active.current = false;}, [api, sessions]);
+  useLayoutEffect(() => {
+    setEmailFlow(null);
+    setEmailCommitting(false);
+    committingEmail.current = false;
+    setLoading(null);
+    return () => {pending.current = null; providerGeneration.current++; active.current = false;};
+  }, [api, sessions, config.apiUrl]);
+  useEffect(() => {
+    if (fixtureOnly) return;
+    const request = new AbortController();
+    void api.emailLoginStatus(request.signal).then(
+      ({enabled}) => {if (!request.signal.aborted) setEnabledFor(enabled === true ? {api, origin: config.apiUrl} : null);},
+      () => {if (!request.signal.aborted) setEnabledFor(null);},
+    );
+    return () => request.abort();
+  }, [api, config.apiUrl, fixtureOnly]);
+  const emailEnabled = enabledFor?.api === api && enabledFor.origin === config.apiUrl;
   const markInteractive = useObserveMarkInteractive();
   useEffect(() => {markInteractive();}, [markInteractive]);
   const sessionGuard = () => {
@@ -54,25 +83,42 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
       });
       if (current()) onAuthenticated?.();
     } catch (error) {
-      if (current()) Alert.alert(t('login_failed'), error instanceof Error ? error.message : t('login_failed'), [{text: t('btn_ok')}]);
+      const message = emailAuthError(error);
+      if (current()) Alert.alert(t('login_failed'), message ? t(message) : error instanceof Error ? error.message : t('login_failed'), [{text: t('btn_ok')}]);
     } finally {if (generation === providerGeneration.current) {active.current = false; if (mounted.current) setLoading(null);}}
   }
-  function openAgreement(tab: 'terms'|'privacy', provider: LoginProvider|null = null) {
+  function openAgreement(tab: 'terms'|'privacy', method: LoginMethod|null = null) {
     const id = ++agreementSequence.current;
-    pending.current = {id, provider, accepted: false, isCurrent: sessionGuard()};
+    pending.current = {id, method, accepted: false, isCurrent: sessionGuard()};
     setAgreementId(id); setAgreement(tab);
   }
-  function begin(provider: LoginProvider) {
-    if (active.current || loading || pending.current?.accepted) return;
-    if (!agreed) openAgreement(provider === 'google' ? 'terms' : 'privacy', provider);
-    else void login(provider);
+  function proceed(method: LoginMethod, allowed = sessionGuard()) {
+    if (method !== 'email') {
+      void login(method, allowed);
+      return;
+    }
+    if (!emailEnabled || !mounted.current || !allowed()) return;
+    const generation = ++providerGeneration.current;
+    let isCurrentSession = allowed;
+    telemetry.element('login_email_button', 'signup');
+    setEmailFlow({
+      isCurrent: () => mounted.current && generation === providerGeneration.current && isCurrentSession(),
+      adoptSessionGuard(assertCurrent) {
+        isCurrentSession = () => {try {assertCurrent(); return true;} catch {return false;}};
+      },
+    });
+  }
+  function begin(method: LoginMethod) {
+    if (active.current || loading || emailFlow || pending.current?.accepted) return;
+    if (!agreed) openAgreement(method === 'apple' ? 'privacy' : 'terms', method);
+    else proceed(method);
   }
   function dismissAgreement() {if (pending.current && pending.current.id !== agreementId) return; pending.current = null; setAgreement(null);}
   function agreementDidDismiss() {
     const intent = pending.current;
     if (!intent || intent.id !== agreementId || !intent.accepted) return;
     pending.current = null;
-    if (intent.provider && mounted.current && intent.isCurrent()) void login(intent.provider, intent.isCurrent);
+    if (intent.method && mounted.current && intent.isCurrent()) proceed(intent.method, intent.isCurrent);
   }
   function acceptAgreement() {
     const intent = pending.current;
@@ -95,17 +141,35 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
       return false;
     });
   }, [fixtureOnly, agreement, loading, agreed]);
-  const button = (provider: LoginProvider) => <Pressable
-    accessibilityRole="button" accessibilityLabel={t(`login_${provider}`)}
-    testID={`${mobileTestIds.LoginButton}_${provider}`} disabled={Boolean(loading)}
-    onPress={() => begin(provider)} style={({pressed}) => [styles.provider, {width: Math.min(width - 80, L.loginButtonMaximumWidth)}, provider === 'apple' && {marginTop: 10}, pressed && {backgroundColor: C.pressedOverlay}]}>
-    {loading === provider ? <ActivityIndicator size="small" color={C.text} testID={mobileTestIds.LoginLoadingIndicator}/> : <>
-      <Image source={provider === 'google' ? mobileAssets.ic_sm_google : mobileAssets.ic_sm_apple} style={styles.providerIcon}/>
-      <Text style={styles.providerText}>{t(`login_${provider}`)}</Text>
+  async function acceptEmail(result: LoginResponse, signal: AbortSignal) {
+    if (!emailFlow?.isCurrent()) return;
+    try {
+      await sessions.accept(result.token, result.user_id, assertCurrent => {
+        emailFlow.adoptSessionGuard(assertCurrent);
+        committingEmail.current = true;
+        setEmailCommitting(true);
+      }, signal);
+      if (!emailFlow.isCurrent() || signal.aborted) return;
+      setEmailFlow(null);
+      onAuthenticated?.();
+    } finally {
+      if (emailFlow.isCurrent()) {
+        committingEmail.current = false;
+        setEmailCommitting(false);
+      }
+    }
+  }
+  const button = (method: LoginMethod) => <Pressable
+    accessibilityRole="button" accessibilityLabel={t(`login_${method}`)}
+    testID={`${mobileTestIds.LoginButton}_${method}`} disabled={Boolean(loading || emailFlow)}
+    onPress={() => begin(method)} style={({pressed}) => [styles.provider, {width: Math.min(width - 80, L.loginButtonMaximumWidth)}, method !== 'google' && {marginTop: 10}, pressed && {backgroundColor: C.pressedOverlay}]}>
+    {loading === method ? <ActivityIndicator size="small" color={C.text} testID={mobileTestIds.LoginLoadingIndicator}/> : <>
+      {method !== 'email' && <Image source={method === 'google' ? mobileAssets.ic_sm_google : mobileAssets.ic_sm_apple} style={styles.providerIcon}/>}
+      <Text style={[styles.providerText, method !== 'email' && {marginLeft: 10}]}>{t(`login_${method}`)}</Text>
     </>}
   </Pressable>;
-  return <View style={[styles.root, {paddingBottom: insets.bottom}]}>
-    <View style={styles.top}>
+  const content = <>
+    <View style={emailEnabled ? styles.scrollTop : styles.top}>
       <View style={{height: Math.min(width * 128 / 375, 128)}}/>
       <Text style={styles.title}>{t('login_welcome_title')}</Text>
       <View>
@@ -116,6 +180,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
     <View style={styles.bottom}>
       {button('google')}
       {Platform.OS === 'ios' && button('apple')}
+      {emailEnabled && button('email')}
       <View style={styles.agreementRow}>
         <Pressable accessibilityRole="checkbox" accessibilityState={{checked: agreed}} accessibilityLabel={t('agreement_prefix')} onPress={() => setAgreed(value => !value)} hitSlop={12}>
           <Image source={agreed ? mobileAssets.ic_agree_enable : mobileAssets.ic_agree_disable} style={{width: 12, height: 12}}/>
@@ -127,6 +192,21 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
         </Text>
       </View>
     </View>
+  </>;
+  return <View style={[styles.root, {paddingBottom: insets.bottom}]}>
+    {emailEnabled ? <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView> : content}
+    {emailEnabled && emailFlow && <EmailCodeDialog t={t} locale={locale} mode="login" isCurrent={emailFlow.isCurrent}
+      dismissible={!emailCommitting}
+      send={api.sendLoginEmail}
+      verify={(body, signal) => {
+        telemetry.firebase('user', 'login_start', {method: 'email'});
+        return api.verifyLoginEmail(body, signal);
+      }}
+      onVerified={acceptEmail} onClose={() => {
+        if (committingEmail.current) return false;
+        providerGeneration.current++;
+        setEmailFlow(null);
+      }} />}
     <Modal key={`agreement-${agreementId}`} visible={agreement !== null} transparent animationType="slide" onRequestClose={dismissAgreement} onDismiss={agreementDidDismiss}>
       <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} accessibilityLabel={t('btn_close')} onPress={dismissAgreement}/>
@@ -149,11 +229,12 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
 }
 const styles = StyleSheet.create({
   root: {flex: 1, backgroundColor: C.surface}, top: {flex: 1},
+  scrollContent: {flexGrow: 1}, scrollTop: {flexGrow: 1},
   title: {...T.loginTitle, color: C.text, marginLeft: 40},
   subtitle: {...T.loginSubtitle, color: C.secondaryText, position: 'absolute', left: 40, top: 24},
   bottom: {alignItems: 'center', marginTop: 16, marginBottom: 30},
   provider: {height: 50, borderRadius: 25, borderColor: C.buttonBorder, borderWidth: 0.5, alignItems: 'center', justifyContent: 'center', flexDirection: 'row'},
-  providerIcon: {width: 24, height: 24}, providerText: {fontSize: 15, lineHeight: 21, fontWeight: '500', color: C.bodyText, marginLeft: 10},
+  providerIcon: {width: 24, height: 24}, providerText: {fontSize: 15, lineHeight: 21, fontWeight: '500', color: C.bodyText},
   agreementRow: {marginTop: 30, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24},
   agreementText: {fontSize: 12, lineHeight: 16.5, color: C.secondaryText, marginLeft: 6}, link: {color: C.link},
   modalBackdrop: {flex: 1, backgroundColor: C.scrim, justifyContent: 'flex-end'},

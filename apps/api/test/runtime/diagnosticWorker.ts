@@ -8,11 +8,19 @@ export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser } from
 
 const sink = 'https://diagnostic-capture.fixture.invalid/report'
 const messages: string[] = []
+const emailCodes = new Map<string, string>()
 const maintenanceAdmissions: unknown[] = []
 let failNotification = false
 const originalFetch = globalThis.fetch.bind(globalThis)
 globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = input instanceof Request ? input.url : String(input)
+  if (url === 'https://api.resend.com/emails') {
+    const id = new Headers(init?.headers).get('Idempotency-Key')
+    const code = /\b\d{6}\b/.exec(JSON.parse(String(init?.body)).text)?.[0]
+    if (!id || !code) return Promise.resolve(new Response(null, { status: 400 }))
+    emailCodes.set(id, code)
+    return Promise.resolve(Response.json({ id }))
+  }
   if (new URL(url).hostname === 'aiplatform.googleapis.com') return snapshotAiProviderResponse(new Request(input, init))
   if (url !== sink) return originalFetch(input, init)
   if (failNotification) return Promise.resolve(new Response('fixture notification rejected', { status: 503 }))
@@ -33,6 +41,12 @@ export default {
     }
     if (url.pathname === '/__fixture/diagnostic-object-missing') return Response.json((await env.DIAGNOSTICS!.head(url.searchParams.get('key')!)) === null)
     if (url.pathname === '/__fixture/diagnostic-notifications') return Response.json(messages)
+    if (url.pathname === '/__fixture/email-code' && env.EMAIL_AUTH_ENABLED === 'true') {
+      const id = url.searchParams.get('id') ?? ''
+      const code = emailCodes.get(id)
+      emailCodes.delete(id)
+      return Response.json(code ?? null)
+    }
     if (url.pathname === '/__fixture/diagnostic-notification-failure') {
       failNotification = true
       return new Response('ok')

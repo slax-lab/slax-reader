@@ -9,6 +9,16 @@ interface __BaseEnv_Env {
 
   VECTOR_V5_MAINTENANCE_WORKFLOW?: Workflow<import('./src/domain/vectorMaintenanceHooks').VectorMaintenanceWorkflowParams>
 
+  RESEND_API_KEY?: string
+
+  EMAIL_AUTH_WEB_CALLBACK?: string
+
+  EMAIL_AUTH_HMAC_SECRET?: string
+
+  EMAIL_AUTH_FROM?: string
+
+  EMAIL_AUTH_ENABLED?: string
+
   DEEPSEEK_API_KEY?: string
 
   VECTOR_REFRESH_SECRET?: string

@@ -108,6 +108,113 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
   })
   const createUser = (email = 'user@example.test') => first!.sr_user.create({ data: { email, created_at: new Date(), last_login_at: new Date() } })
 
+  test('concurrent verified email claims share a single new account', async () => {
+    const email = 'Reader@example.test'
+    const results = await Promise.all([
+      userRepo(first!).signInWithEmail('reader@example.test', email, registration(email)),
+      userRepo(second!).signInWithEmail('reader@example.test', email, registration(email))
+    ])
+    expect(results.map(result => result.user.id)).toEqual([results[0].user.id, results[0].user.id])
+    expect(results.filter(result => result.isNew)).toHaveLength(1)
+    expect(await first!.sr_platform_bind.findMany()).toMatchObject([{ platform: 'mail', platform_id: 'reader@example.test', user_name: email }])
+    await expect(userRepo(first!).signInWithEmail('reader@example.test', 'reader@example.test', registration(email))).rejects.toMatchObject({
+      name: 'EMAIL_AUTH_IDENTITY_CONFLICT'
+    })
+  })
+
+  test('historical addresses require explicit binding and keep the profile and mail-collection binding', async () => {
+    const user = await createUser('reader@example.test')
+    const repo = userRepo(first!)
+    await repo.userBindPlatform(user.id, platformBindType.EMAIL, 'reader', 'reader@reader.slax.com')
+    await expect(repo.signInWithEmail(user.email, user.email, registration(user.email))).rejects.toMatchObject({ name: 'EMAIL_AUTH_USE_EXISTING_LOGIN' })
+    await repo.bindLoginEmail(user.id, user.email, user.email)
+    expect(await repo.signInWithEmail(user.email, user.email, registration(user.email))).toMatchObject({ isNew: false, user: { id: user.id, email: user.email } })
+    await repo.unbindPlatform(user.id, platformBindType.EMAIL)
+    expect(await first!.sr_platform_bind.findMany()).toMatchObject([{ platform: 'mail', user_id: user.id }])
+  })
+
+  test('an ambiguous historical email never chooses between different accounts', async () => {
+    const original = await createUser('reader@example.test')
+    await createUser('Reader@example.test')
+    const repo = userRepo(first!)
+    await expect(repo.signInWithEmail('reader@example.test', original.email, registration(original.email))).rejects.toMatchObject({
+      name: 'EMAIL_AUTH_IDENTITY_CONFLICT'
+    })
+    await expect(repo.bindLoginEmail(original.id, 'reader@example.test', original.email)).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    expect(await first!.sr_platform_bind.count()).toBe(0)
+  })
+
+  test('a distinct bound mailbox stays reserved for 30 days after account deletion', async () => {
+    const user = await createUser('placeholder@appleid.apple.com')
+    const email = 'real@example.test'
+    const repo = userRepo(first!)
+    await repo.bindLoginEmail(user.id, email, email)
+    await repo.markUserAsDeleted(user.id)
+    await expect(repo.signInWithEmail(email, email, registration(email))).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    await first!.sr_user.update({ where: { id: user.id }, data: { deleted_at: new Date(Date.now() - 31 * 24 * 3600_000) } })
+    const fresh = await repo.signInWithEmail(email, email, registration(email))
+    expect(fresh.isNew).toBe(true)
+    expect(fresh.user.id).not.toBe(user.id)
+    expect(await first!.sr_platform_bind.findMany({ where: { platform: 'mail' } })).toMatchObject([{ user_id: fresh.user.id }])
+  })
+
+  test('OAuth cannot claim an email-enabled account by email and explicit linking preserves the profile', async () => {
+    const user = await createUser('reader@example.test')
+    const repo = userRepo(first!)
+    await repo.bindLoginEmail(user.id, user.email, user.email)
+    await expect(repo.signInWithProvider('google', 'google-sub', registration(user.email))).rejects.toMatchObject({ name: 'EMAIL_AUTH_USE_EXISTING_LOGIN' })
+    await repo.bindLoginProvider(user.id, 'google', 'google-sub', 'other@example.test')
+    await repo.bindLoginProvider(user.id, 'google', 'google-sub', 'other@example.test')
+    await expect(repo.bindLoginProvider(user.id, 'google', 'different-sub', 'other@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    expect(await repo.signInWithProvider('google', 'google-sub', registration('other@example.test'))).toMatchObject({
+      isNew: false,
+      user: { id: user.id, email: user.email }
+    })
+  })
+
+  test('email and Google cannot create competing accounts for the same address', async () => {
+    const email = 'new-reader@example.test'
+    const results = await Promise.allSettled([
+      userRepo(first!).signInWithEmail(email, email, registration(email)),
+      userRepo(second!).signInWithProvider('google', 'new-google-sub', registration(email))
+    ])
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter(result => result.status === 'rejected')).toMatchObject([{ reason: { name: 'EMAIL_AUTH_USE_EXISTING_LOGIN' } }])
+    expect(await first!.sr_user.count()).toBe(1)
+  })
+
+  test('a legacy Apple subject can recover its placeholder account after email binding', async () => {
+    const original = await createUser('legacy-apple@appleid.apple.com')
+    const another = await createUser('unrelated@example.test')
+    const repo = userRepo(first!)
+    await repo.bindLoginEmail(original.id, 'reader@example.test', 'reader@example.test')
+    await expect(repo.bindLoginProvider(another.id, 'apple', 'legacy-apple', 'relay@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    await expect(repo.signInWithProvider('apple', 'legacy-apple', registration('relay@example.test'))).resolves.toMatchObject({
+      isNew: false,
+      user: { id: original.id, email: original.email }
+    })
+  })
+
+  test('explicit Apple linking respects a deleted legacy placeholder account reservation', async () => {
+    const original = await createUser('legacy-apple@appleid.apple.com')
+    const another = await createUser('unrelated@example.test')
+    const repo = userRepo(first!)
+    await repo.markUserAsDeleted(original.id)
+    await expect(repo.bindLoginProvider(another.id, 'apple', 'legacy-apple', 'relay@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+  })
+
+  test('an established OAuth subject can sign in when its changed address is reserved by another account', async () => {
+    const original = await createUser('original@example.test')
+    const another = await createUser('another@appleid.apple.com')
+    const repo = userRepo(first!)
+    await repo.userBindPlatform(original.id, platformBindType.GOOGLE, 'google-sub', original.email)
+    await repo.bindLoginEmail(another.id, 'reserved@example.test', 'reserved@example.test')
+    await expect(repo.signInWithProvider('google', 'google-sub', registration('reserved@example.test'))).resolves.toMatchObject({
+      isNew: false,
+      user: { id: original.id, email: original.email }
+    })
+  })
+
   test.each(['register', 'register-id', 'key', 'bind'] as const)('deletion winning the row lock blocks a concurrent %s', async operation => {
     const user = await createUser()
     await apiKeyRepo(first!).upsertApiKey(key(user.id))

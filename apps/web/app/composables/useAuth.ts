@@ -1,12 +1,28 @@
-import { configuredCookieName, requireConfiguredCookieName } from '~/utils/authCookie'
+import { configuredCookieName, readStringCookie, requireConfiguredCookieName } from '~/utils/authCookie'
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
+import { EMAIL_AUTH_PATH, type EmailCodeInput } from '@slax-reader/contracts/email-auth'
 import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 
-const { set, remove } = useCookies()
+const cookies = useCookies()
+const { set, remove } = cookies
+
+const completeAuth = (config: ReturnType<typeof useRuntimeConfig>['public'], response: { token: string } | undefined, signal?: AbortSignal) => {
+  signal?.throwIfAborted()
+  if (!response?.token) throw new Error('login failed')
+
+  const cookieName = requireConfiguredCookieName(config.COOKIE_TOKEN_NAME)
+  const cookieDomain = typeof config.COOKIE_DOMAIN === 'string' ? config.COOKIE_DOMAIN : ''
+  set(cookieName, response.token, {
+    path: '/',
+    expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+    ...(cookieDomain ? { domain: cookieDomain } : {})
+  })
+  return response.token
+}
 
 const useAuth = {
   async requestAuth(options: { redirect: string; affCode: string; authAttribution?: WebAuthAttribution }) {
@@ -78,20 +94,23 @@ const useAuth = {
       }
     })
 
-    if (options.signal?.aborted) throw options.signal.reason
-
-    if (!resp) {
-      throw new Error('login failed')
-    }
-
-    const cookieName = requireConfiguredCookieName($config.COOKIE_TOKEN_NAME)
-    const cookieDomain = typeof $config.COOKIE_DOMAIN === 'string' ? $config.COOKIE_DOMAIN : ''
-    set(cookieName, resp.token, {
-      path: '/',
-      expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-      ...(cookieDomain ? { domain: cookieDomain } : {})
+    return completeAuth($config, resp, options.signal)
+  },
+  async verifyEmailAuth(
+    input: EmailCodeInput & { aff_code?: string; auth_attribution?: WebAuthAttribution },
+    options: Pick<FetchOptions, 'signal' | 'errorInterceptors'> = {}
+  ): Promise<string> {
+    const config = useRuntimeConfig().public
+    const cookieName = requireConfiguredCookieName(config.COOKIE_TOKEN_NAME)
+    if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
+    const response = await request().post<{ token: string }>({
+      ...options,
+      url: EMAIL_AUTH_PATH.verify,
+      body: input
     })
-    return resp.token
+    options.signal?.throwIfAborted()
+    if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
+    return completeAuth(config, response)
   },
   async clearAuth(): Promise<void> {
     const $config = useRuntimeConfig().public

@@ -12,6 +12,7 @@ export interface SlaxAuthResult {
   exp: string
   email: string
   email_verified: string
+  nonce?: string
   name?: string
   picture: string
   given_name?: string
@@ -36,9 +37,7 @@ export class SlaxAuth {
       throw RegisterUserError()
     }
     const result = req.type === 'google' ? await this.loginWithGoogle(req) : await this.loginWithApple(req)
-    console.log(
-      `[login] verified ${JSON.stringify({ provider: req.type, platform: req.platform, sub: result.sub, email: result.email, emailVerified: result.email_verified, aud: result.aud, iss: result.iss })}`
-    )
+    console.log(`[login] verified ${JSON.stringify({ provider: req.type, platform: req.platform, aud: result.aud, iss: result.iss })}`)
     return result
   }
 
@@ -64,6 +63,7 @@ export class SlaxAuth {
       azp: '',
       email,
       email_verified: 'true',
+      ...(res.nonce ? { nonce: res.nonce } : {}),
       name: userName,
       picture: '',
       given_name: givenName,

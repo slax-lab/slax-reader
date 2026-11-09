@@ -12,6 +12,7 @@ import { Hashid } from '../../src/utils/hashids'
 import { ROOT } from '../../script/deploy/dev-local'
 import { LocalResources } from './localResources'
 import { prepareForkSmoke } from './forkSmoke'
+import { startEmailRedisFixture } from './emailRedisFixture'
 
 let httpPort = 8787
 
@@ -55,6 +56,10 @@ const localFetch = (url: string, options: RequestInit = {}) =>
 
 async function main() {
   const resources = new LocalResources()
+  if (process.env.DOCKER_HOST) {
+    assert.ok(process.env.DOCKER_HOST.startsWith('unix://'), 'Only a local Docker socket is allowed')
+    resources.env.DOCKER_HOST = process.env.DOCKER_HOST
+  }
   // macOS Unix socket paths are limited to 104 bytes; worktree paths can exceed it.
   const ipcTemp = mkdtempSync(resolve(tmpdir(), 'slax-http-'))
   resources.env.TMPDIR = ipcTemp
@@ -62,6 +67,7 @@ async function main() {
   let worker: ChildProcess | undefined
   let workerLog = ''
   let forks: Awaited<ReturnType<typeof prepareForkSmoke>> | undefined
+  let emailRedis: Awaited<ReturnType<typeof startEmailRedisFixture>> | undefined
   const state = resolve(resources.workspace, 'state')
   const coreConfig = resolve(resources.workspace, 'core.json')
   const edgeConfig = resolve(resources.workspace, 'edge.json')
@@ -103,6 +109,7 @@ async function main() {
       })
     })
     const pg = await resources.container('postgres:17-alpine')
+    if (process.env.EMAIL_AUTH_HTTP_SMOKE === '1') emailRedis = await startEmailRedisFixture()
     for (const database of ['http_reader', 'http_logs']) resources.sql(pg.id, 'postgres', `CREATE DATABASE ${database};`)
     const url = (database: string) => `postgresql://postgres:isolated@127.0.0.1:${pg.port}/${database}`
     const vars = {
@@ -118,7 +125,16 @@ async function main() {
       FRONT_END_URL: 'https://reader.smoke.invalid',
       BACKEND_API_PREFIX: `http://localhost:${httpPort}`,
       IMAGE_PREFIX: `http://localhost:${httpPort}`,
-      PROXY_IMAGE_PREFIX: `http://localhost:${httpPort}`
+      PROXY_IMAGE_PREFIX: `http://localhost:${httpPort}`,
+      ...(emailRedis
+        ? {
+            EMAIL_AUTH_ENABLED: 'true',
+            EMAIL_AUTH_HMAC_SECRET: randomUUID() + randomUUID(),
+            RESEND_API_KEY: 'fixture-only',
+            UPSTASH_REDIS_REST_URL: emailRedis.url,
+            UPSTASH_REDIS_REST_TOKEN: 'fixture-only'
+          }
+        : {})
     }
     const shared = {
       tsconfig: localPath('apps/api/tsconfig.json'),
@@ -248,6 +264,39 @@ async function main() {
         return false
       }
     }, 'authenticated Core database ready')
+    if (emailRedis) {
+      const authCall = async (path: string, body?: object, bearer?: string) => {
+        const response = await localFetch(`http://localhost:${httpPort}${path}`, {
+          method: body ? 'POST' : 'GET',
+          headers: { 'Content-Type': 'application/json', ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
+          body: body ? JSON.stringify(body) : undefined
+        })
+        return response.json() as Promise<{ code: number; data: any }>
+      }
+      const prove = async (path: string, email: string, bearer?: string) => {
+        const sent = await authCall(`${path}/send`, { email }, bearer)
+        assert.equal(sent.code, 200, JSON.stringify(sent))
+        const { request_id } = sent.data
+        const fixture = await localFetch(`http://localhost:${httpPort}/__fixture/email-code?id=${request_id}`, { headers: { Authorization: `Bearer ${token}` } })
+        const code = await fixture.json()
+        assert.match(String(code), /^\d{6}$/)
+        return authCall(`${path}/verify`, { email, request_id, code }, bearer)
+      }
+      const login = '/v1/user/login/email'
+      assert.deepEqual((await authCall(`${login}/status`)).data, { enabled: true })
+      assert.equal((await authCall('/v1/user/auth/identities')).code, 401)
+      assert.equal((await prove(login, 'owner@smoke.invalid')).data, 'EMAIL_AUTH_USE_EXISTING_LOGIN')
+      assert.deepEqual((await prove('/v1/user/auth/email', 'saver@smoke.invalid', token)).data, { email: 'saver@smoke.invalid' })
+      const returning = await prove(login, 'Saver@SMOKE.INVALID')
+      assert.equal(returning.code, 200)
+      assert.equal(returning.data.user_id, String(new Hashid(vars as Env).encodeId(1)))
+      assert.equal(returning.data.is_new_user, false)
+      const fresh = await prove(login, 'new-reader@smoke.invalid')
+      assert.equal(fresh.code, 200)
+      assert.equal(fresh.data.is_new_user, true)
+      assert.equal((await authCall('/v1/user/auth/identities', undefined, fresh.data.token)).data.email, 'new-reader@smoke.invalid')
+      evidence.emailAuthentication = 'anonymous status and access guard, legacy sign-in guidance, binding, existing-account login, and new-account session'
+    }
     for (const origin of [vars.FRONT_END_URL, vars.FRONT_END_URL + '.attacker.invalid']) {
       const response = await localFetch(`http://localhost:${httpPort}/events`, { method: 'OPTIONS', headers: { Origin: origin } })
       assert.equal(response.status, 204)
@@ -347,6 +396,10 @@ async function main() {
       () => workerLog,
       async key => (await (await localFetch(`http://localhost:${httpPort}/__fixture/diagnostic-object-missing?key=${encodeURIComponent(key)}`, { headers })).json()) as boolean
     )
+    if (emailRedis) {
+      assert.equal(resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_platform_bind WHERE user_id=1 AND platform='mail'"), '1')
+      evidence.deletedEmailReservation = 'account cleanup kept the verified mailbox reservation'
+    }
     const admissions = (await (await localFetch(`http://localhost:${httpPort}/__fixture/vector-maintenance-admissions`, { headers })).json()) as {
       target: { kind: string; id: number; userId?: number; preference?: string }
     }[]
@@ -378,6 +431,7 @@ async function main() {
       }
     }
     await forks?.dispose()
+    await emailRedis?.dispose()
     resources.cleanup()
     writeFileSync(resolve(resources.workspace, 'worker.log'), workerLog)
     writeFileSync(resolve(resources.workspace, 'http-results.json'), JSON.stringify(evidence, null, 2))

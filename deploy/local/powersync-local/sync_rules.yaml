@@ -31,7 +31,7 @@ streams:
       - |
         SELECT platform, platform_id, user_name, created_at, uuid AS id
         FROM sr_platform_bind
-        WHERE user_id IN current_user_id
+        WHERE user_id IN current_user_id AND platform != 'mail'
       ## 用户书签列表
       - |
         SELECT is_read, archive_status, is_starred,

@@ -335,3 +335,70 @@ test('account cleanup awaits native cache deletion and retains recovery preferen
   await assert.rejects(clearAccountData({async disconnectAndClear() {}}, {async clearArticles() {throw new Error('Disk removal failed');}}, preferences, async () => {}), /Disk removal failed/);
   assert.equal((await preferences.read()).continue_reading_bookmark, 'recovery');
 });
+
+test('email login verification stays public even with stored credentials and does not retry a consumed challenge', async () => {
+  const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'existing-token', user_id: 'existing'})), {leave: async () => {}, enter: async () => {}});
+  await sessions.restore();
+  const calls: unknown[] = [];
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions,
+    sleep: async () => {},
+    fetch: async (url, request) => {
+      calls.push([String(url), (request?.headers as Record<string, string>).Authorization, JSON.parse(String(request?.body))]);
+      return Response.json({code: 503, message: 'Service unavailable', data: null}, {status: 503});
+    },
+  });
+  const proof = {email: 'reader@example.test', request_id: 'synthetic-challenge', code: '123456'};
+  await assert.rejects(async () => api.verifyLoginEmail(proof), {status: 503});
+  assert.deepEqual(calls, [['https://api.example/v1/user/login/email/verify', undefined, proof]]);
+});
+
+test('email binding sends proof once under the current authenticated owner even when delivery fails', async () => {
+  const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'existing-token', user_id: 'existing'})), {leave: async () => {}, enter: async () => {}});
+  await sessions.restore();
+  const calls: unknown[] = [];
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'android', version: 'test', sessions,
+    sleep: async () => {},
+    fetch: async (url, request) => {
+      calls.push([String(url), (request?.headers as Record<string, string>).Authorization, JSON.parse(String(request?.body))]);
+      throw new Error('Transport lost after dispatch');
+    },
+  });
+  const email = {email: 'reader@example.test', locale: 'zh'};
+  await assert.rejects(async () => api.sendBindingEmail(email), /Transport lost after dispatch/);
+  assert.deepEqual(calls, [['https://api.example/v1/user/auth/email/send', 'Bearer existing-token', email]]);
+});
+
+test('a cancelled verified login cannot commit while waiting for the session store', async () => {
+  const storage = new HeldReadPreferences({});
+  const sessions = new SessionController(new PreferenceStore(storage), {leave: async () => {}, enter: async () => {}});
+  await sessions.restoreLocal();
+  const held = storage.holdNextRead();
+  const cancellation = new AbortController();
+  const acceptance = assert.rejects(sessions.accept('verified-token', 'reader', undefined, cancellation.signal), {name: 'AbortError'});
+  await held.waiting;
+  cancellation.abort();
+  held.release();
+  await acceptance;
+  assert.deepEqual(sessions.getSnapshot(), {status: 'unauthenticated'});
+  assert.equal(await sessions.getSession(), null);
+});
+
+test('email login cancelled before the delayed preference edit leaves credentials untouched', async () => {
+  const storage = new HeldReadPreferences({});
+  const preferences = new PreferenceStore(storage);
+  const sessions = new SessionController(preferences, {leave: async () => {}, enter: async () => {}});
+  await sessions.restoreLocal();
+  const held = storage.holdNextRead(1);
+  const cancellation = new AbortController();
+  let started = false;
+  const acceptance = assert.rejects(sessions.accept('verified-token', 'reader', () => {started = true;}, cancellation.signal), {name: 'AbortError'});
+  await held.waiting;
+  assert.equal(started, true);
+  cancellation.abort();
+  held.release();
+  await acceptance;
+  const values = await preferences.read();
+  assert.equal(values.auth_token, undefined);
+  assert.equal(values.user_id, undefined);
+  assert.deepEqual(sessions.getSnapshot(), {status: 'unauthenticated'});
+});

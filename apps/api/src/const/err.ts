@@ -28,9 +28,12 @@ const translations: { [key in Language]: Partial<Record<ErrorName, string>> } = 
     [ErrorName.SUMMARY_UPDATE_REACH_LIMITED]: '总结刷新次数达到限制',
     [ErrorName.VECTORIZE_FAILED]: '转换向量失败',
     [ErrorName.EMAIL_DAILY_LIMIT]: '今日发送邮件次数达到限制, 请明天再试吧',
-    [ErrorName.EMAIL_VERIFY_CODE_EXISTS]: '重复发送验证码, 请30秒后重试',
-    [ErrorName.EMAIL_VERIFY_CODE_ERROR]: '验证码错误',
+    [ErrorName.EMAIL_VERIFY_CODE_EXISTS]: '请稍后再发送验证码',
+    [ErrorName.EMAIL_VERIFY_CODE_ERROR]: '验证码无效或已过期',
     [ErrorName.EMAIL_VERIFY_CODE_RATE_LIMIT]: '验证码错误次数过多, 请稍后再试',
+    [ErrorName.EMAIL_AUTH_USE_EXISTING_LOGIN]: '请先用原来的方式登录，再到账号设置绑定邮箱或第三方账号',
+    [ErrorName.EMAIL_AUTH_IDENTITY_CONFLICT]: '此登录方式已被占用或暂不可绑定',
+    [ErrorName.EMAIL_AUTH_UNAVAILABLE]: '邮箱登录暂不可用，请稍后重试',
     [ErrorName.TOO_MANY_REQUESTS]: '请求过于频繁, 请稍后再试',
     [ErrorName.QUOTA_EXCEEDED]: '配额已满',
     [ErrorName.SHARE_COLLECTION_NOT_FOUND]: '分享的collection未找到',
@@ -129,9 +132,12 @@ const translations: { [key in Language]: Partial<Record<ErrorName, string>> } = 
     [ErrorName.SUMMARY_UPDATE_REACH_LIMITED]: 'Summary refresh counts reach limited',
     [ErrorName.VECTORIZE_FAILED]: 'Vectorize failed',
     [ErrorName.EMAIL_DAILY_LIMIT]: 'Today email send counts reach limited, please try again tomorrow',
-    [ErrorName.EMAIL_VERIFY_CODE_EXISTS]: 'Repeat send verify code, please try again after 30 seconds',
-    [ErrorName.EMAIL_VERIFY_CODE_ERROR]: 'Verify code error',
+    [ErrorName.EMAIL_VERIFY_CODE_EXISTS]: 'Wait before requesting another verification code',
+    [ErrorName.EMAIL_VERIFY_CODE_ERROR]: 'The verification code is invalid or has expired',
     [ErrorName.EMAIL_VERIFY_CODE_RATE_LIMIT]: 'Verify code error counts too much, please try again later',
+    [ErrorName.EMAIL_AUTH_USE_EXISTING_LOGIN]: 'Sign in with your existing method, then link your email or provider in account settings.',
+    [ErrorName.EMAIL_AUTH_IDENTITY_CONFLICT]: 'This sign-in method is already in use or cannot be linked right now.',
+    [ErrorName.EMAIL_AUTH_UNAVAILABLE]: 'Email sign-in is temporarily unavailable. Try again later.',
     [ErrorName.TOO_MANY_REQUESTS]: 'Too many requests, please try again later',
     [ErrorName.QUOTA_EXCEEDED]: 'Quota exceeded',
     [ErrorName.ERROR_CONNECTION_PARAM]: 'Error connection param',
@@ -272,6 +278,9 @@ export const EmailDailyLimitError = (): MultiLangError => NewError(ErrorName.EMA
 export const EmailVerifyCodeExistsError = (): MultiLangError => NewError(ErrorName.EMAIL_VERIFY_CODE_EXISTS, 400)
 export const EmailVerifyCodeError = (): MultiLangError => NewError(ErrorName.EMAIL_VERIFY_CODE_ERROR, 400)
 export const EmailVerifyCodeRateLimitError = (): MultiLangError => NewError(ErrorName.EMAIL_VERIFY_CODE_RATE_LIMIT, 400)
+export const EmailAuthUseExistingLoginError = (): MultiLangError => NewError(ErrorName.EMAIL_AUTH_USE_EXISTING_LOGIN, 409)
+export const EmailAuthIdentityConflictError = (): MultiLangError => NewError(ErrorName.EMAIL_AUTH_IDENTITY_CONFLICT, 409)
+export const EmailAuthUnavailableError = (): MultiLangError => NewError(ErrorName.EMAIL_AUTH_UNAVAILABLE, 503)
 export const TooManyRequestsError = (): MultiLangError => NewError(ErrorName.TOO_MANY_REQUESTS, 429)
 export const QuotaExceededError = (): MultiLangError => NewError(ErrorName.QUOTA_EXCEEDED, 418)
 export const ErrorConnectionParam = (): MultiLangError => NewError(ErrorName.ERROR_CONNECTION_PARAM, 400)

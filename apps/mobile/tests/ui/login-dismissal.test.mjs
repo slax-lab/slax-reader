@@ -9,7 +9,7 @@ import {FixtureMemoryPreferences} from '../../fixtures/isolation.ts'
 
 const text = node => Array.isArray(node) ? node.map(text).join('') : React.isValidElement(node) ? text(node.props.children) : node ?? ''
 const deferred = () => {let resolve, reject; const promise = new Promise((yes, no) => {resolve = yes; reject = no}); return {promise, resolve, reject}}
-async function loginFixture(host, platform, run, props = {}) {
+async function loginFixture(host, platform, run, props = {}, emailAuth = false) {
   let marks = 0;
   const markInteractive = () => {marks++;};
   const controls = new Map(), providers = [], requests = [], accepted = [], alerts = [], lifecycle = []
@@ -29,19 +29,26 @@ async function loginFixture(host, platform, run, props = {}) {
   }
   let identity = 0
   let loginResponse = {token: 'synthetic', user_id: 'fixture'}
-  const mobile = {api: {login: async request => {requests.push(request); return loginResponse}}, sessions: {getSnapshot: () => session, captureIdentity: () => {const before = identity; return () => {if (before !== identity) throw new Error('Identity changed')}}, accept: async (...values) => accepted.push(values)}, t: key => key, config: {webUrl: 'https://fixture.test'}}
+  let verifyEmail = async () => loginResponse;
+  const mobile = {api: {
+    login: async request => {requests.push(request); return loginResponse},
+    emailLoginStatus: async () => ({enabled: emailAuth}),
+    sendLoginEmail: async request => {requests.push(request); return {request_id: 'challenge', expires_in: 300, resend_after: 60}},
+    verifyLoginEmail: async (request, signal) => {requests.push(request); return verifyEmail(signal)},
+  }, sessions: {getSnapshot: () => session, captureIdentity: () => {const before = identity; return () => {if (before !== identity) throw new Error('Identity changed')}}, accept: async (...values) => accepted.push(values)}, t: key => key, locale: 'en', config: {webUrl: 'https://fixture.test'}}
   const {LoginScreen} = await loadComponent('../../src/screens/LoginScreen.tsx', {
     react: React, 'react-native': {...host.native, Platform: {OS: platform}, useWindowDimensions: () => viewport, Image, Text: primitive, Pressable: primitive, Modal, Alert: {alert: (...args) => alerts.push(args)}},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {bg_login: background}},
     '../auth/providers': {authenticate: provider => {providers.push({provider, phase}); return authenticate(provider)}}, '../runtime': {useMobile: () => mobile},
     '../theme': {mobileColors, mobileLayout, mobileTypography}, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => ({element() {}, firebase() {}})}, '../native/fixture-document': {}, '../components/fixture-actions': {},
     '../observe': {useObserveMarkInteractive: () => markInteractive},
+    '../components/SourceUI': host.components,
   }, {Error})
   const render = () => host.render(React.createElement(LoginScreen, props))
   const press = key => act(async () => controls.get(key).onPress())
   await render()
   await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
-    artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()},
+    artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()}, verifyEmail: value => {verifyEmail = value},
     hydrate: () => {session = {status: 'unauthenticated'}},
     replaceIdentity: () => {identity++; session = {status: 'unauthenticated'}},
     setUser: () => {identity++; session = {status: 'authenticated', session: {userId: 'other', token: 'replacement'}}}, authenticate: value => {authenticate = value}})
@@ -165,3 +172,82 @@ for (const retired of ['unmount', 'identity']) test(`session persistence failure
   await act(async () => writing.resolve())
   assert.deepEqual(fixture.alerts, [])
 })))
+
+test('iOS email waits for agreement dismissal and accepts only a verified login response', nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'ios', async fixture => {
+  await fixture.press('login_email');
+  await fixture.press('agreement_btn_agree');
+  assert.equal(host.props.has('email_code_address'), false);
+  await act(async () => fixture.modal().onDismiss());
+  await act(async () => host.props.get('email_code_address').onChangeText(' reader@example.test '));
+  await act(async () => host.props.get('email_code_send').onPress());
+  assert.deepEqual(fixture.accepted, []);
+  await act(async () => host.props.get('email_code_value').onChangeText('012345'));
+  await act(async () => host.props.get('email_code_verify').onPress());
+  assert.deepEqual(fixture.requests.map(value => JSON.parse(JSON.stringify(value))), [
+    {email: 'reader@example.test', locale: 'en'},
+    {email: 'reader@example.test', request_id: 'challenge', code: '012345'},
+  ]);
+  assert.deepEqual(fixture.accepted.map(values => values.slice(0, 2)), [['synthetic', 'fixture']]);
+}, {}, true)));
+
+test('dismissing Android email verification aborts the request and ignores its eventual session', nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'android', async fixture => {
+  const gate = deferred();
+  let signal;
+  fixture.verifyEmail(value => {signal = value; return gate.promise});
+  await fixture.press('login_email');
+  await fixture.press('agreement_btn_agree');
+  await act(async () => host.props.get('email_code_address').onChangeText('reader@example.test'));
+  await act(async () => host.props.get('email_code_send').onPress());
+  await act(async () => host.props.get('email_code_value').onChangeText('012345'));
+  await act(async () => host.props.get('email_code_verify').onPress());
+  await act(async () => host.props.get('email_code_cancel').onPress());
+  assert.equal(signal.aborted, true);
+  await act(async () => gate.resolve({token: 'retired-token', user_id: 'retired-user'}));
+  assert.deepEqual(fixture.accepted, []);
+}, {}, true)));
+
+test('email login releases a consumed challenge when local session persistence fails', nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'android', async fixture => {
+  const storage = new FixtureMemoryPreferences({});
+  const sessions = new SessionController(new PreferenceStore(storage), {leave: async () => {}, enter: async () => {}});
+  await sessions.restoreLocal();
+  storage.compareAndSwap = async () => {throw new Error('Synthetic preference write failed');};
+  fixture.useSessions(sessions);
+  await fixture.render();
+  await fixture.press('login_email');
+  await fixture.press('agreement_btn_agree');
+  await act(async () => host.props.get('email_code_address').onChangeText('reader@example.test'));
+  await act(async () => host.props.get('email_code_send').onPress());
+  await act(async () => host.props.get('email_code_value').onChangeText('012345'));
+  await act(async () => host.props.get('email_code_verify').onPress());
+  assert.equal(sessions.getSnapshot().status, 'unauthenticated');
+  assert.equal(host.props.get('email_code_verify').busy, false);
+  assert.equal(host.props.get('email_code_verify').disabled, true);
+  assert.match(host.window.document.body.textContent, /email_auth_verify_failed/);
+}, {}, true)));
+
+test('email login keeps the dialog open while a verified session is committing', nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'android', async fixture => {
+  const storage = new FixtureMemoryPreferences({}), gate = deferred();
+  const sessions = new SessionController(new PreferenceStore(storage), {leave: async () => {}, enter: async () => {}});
+  await sessions.restoreLocal();
+  const swap = storage.compareAndSwap.bind(storage);
+  let writing = false;
+  storage.compareAndSwap = async (...args) => {
+    writing = true;
+    await gate.promise;
+    return swap(...args);
+  };
+  fixture.useSessions(sessions);
+  await fixture.render();
+  await fixture.press('login_email');
+  await fixture.press('agreement_btn_agree');
+  await act(async () => host.props.get('email_code_address').onChangeText('reader@example.test'));
+  await act(async () => host.props.get('email_code_send').onPress());
+  await act(async () => host.props.get('email_code_value').onChangeText('012345'));
+  await act(async () => host.props.get('email_code_verify').onPress());
+  assert.equal(writing, true);
+  assert.equal(host.props.get('email_code_cancel').disabled, true);
+  await act(async () => host.props.get('email_code_cancel').onPress());
+  assert.ok(host.window.document.body.textContent.includes('email_auth_sent'));
+  await act(async () => gate.resolve());
+  assert.equal(sessions.getSnapshot().session.userId, 'fixture');
+}, {}, true)));

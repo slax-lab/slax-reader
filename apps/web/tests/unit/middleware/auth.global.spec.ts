@@ -150,6 +150,15 @@ describe('middleware/auth.global', () => {
     expect(mockNavigateTo).toHaveBeenCalledWith('/bookmarks')
   })
 
+  it('allows an authenticated provider link callback to reach the callback page', async () => {
+    mockGet.mockReturnValue('TOKEN_VALUE')
+    await runMiddleware(
+      makeRoute({ path: '/auth', fullPath: '/auth?state=link.synthetic', query: { state: 'link.synthetic' } }),
+      makeRoute({ path: '/', fullPath: '/' })
+    )
+    expect(mockNavigateTo).not.toHaveBeenCalled()
+  })
+
   it('已登录 + 目标普通页：不跳转', async () => {
     mockGet.mockReturnValue('TOKEN_VALUE')
     await runMiddleware(makeRoute({ path: '/bookmarks', fullPath: '/bookmarks' }), makeRoute({ fullPath: '/x' }))

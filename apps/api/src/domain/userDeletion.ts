@@ -172,7 +172,7 @@ export class UserDeletionService {
 
   private async deletePlatformBinds(userId: number): Promise<void> {
     const result = await this.prismaPg().sr_platform_bind.deleteMany({
-      where: { user_id: userId }
+      where: { user_id: userId, platform: { not: 'mail' } }
     })
     console.log(`Deleted ${result.count} platform bindings`)
   }

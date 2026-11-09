@@ -210,123 +210,36 @@ export class UserService {
    * @returns
    */
   private async authenticateUser(ctx: ContextManager, request: Request, req: userLoginReq): Promise<userLoginResp> {
-    console.log(
-      `[login] request ${JSON.stringify({
-        type: req?.type,
-        platform: req?.platform,
-        hasCode: typeof req?.code === 'string' && req.code.length > 0,
-        hasIdToken: typeof req?.id_token === 'string' && req.id_token.length > 0,
-        clientId: req?.client_id || undefined
-      })}`
-    )
-    const authRes = await new SlaxAuth(ctx.env).login(req)
-    console.log(
-      `[login] identity ${JSON.stringify({ type: req.type, sub: authRes.sub, email: authRes.email, emailVerified: authRes.email_verified, aud: authRes.aud, iss: authRes.iss })}`
-    )
-
-    let findRes: userInfoPO | null = null
-    if (!['apple', 'google'].includes(req.type) || !authRes.sub) {
-      console.error(`[login] rejected: unsupported type or missing subject ${JSON.stringify({ type: req.type, sub: authRes.sub, email: authRes.email })}`)
-      throw RegisterUserError()
-    }
-
-    try {
-      const platformBind = await this.userRepo.getUserByPlatform(req.type, authRes.sub)
-      console.log(`[login] platform bind ${JSON.stringify({ type: req.type, bound: !!platformBind?.user_id, userId: platformBind?.user_id })}`)
-      if (platformBind?.user_id) {
-        findRes = await this.userRepo.getInfoByUserId(platformBind.user_id)
-      }
-    } catch (e) {
-      if (!(e instanceof Error) || e.name !== 'UNKNOWN_BIND_USER_ERROR') {
-        console.error('[login] platform bind lookup threw:', e)
-        throw e
-      }
-      console.error(`[login] platform bind lookup unknown: ${e instanceof Error ? e.message : String(e)}`)
-    }
-    if (findRes?.deleted_at) throw UserAccountDeletedError()
-
-    if (!findRes) {
-      const emailRes = await this.userRepo.getInfoByEmail(authRes.email)
-      if (emailRes instanceof Error) {
-        console.error(`[login] rejected: email lookup failed ${JSON.stringify({ email: authRes.email, error: String(emailRes) })}`)
-        throw RegisterUserError()
-      }
-      findRes = emailRes
-    }
-    console.log(`[login] user record ${JSON.stringify({ found: !!findRes, userId: findRes?.id ?? null })}`)
-
-    let userInfo = (!!findRes ? findRes : {}) as userInfoPO
-    const isFirstRegister = !findRes || !findRes.id
-
-    userInfo = UserService.getUserReuqestInfo(request, userInfo)
-
-    const { email, name, picture, given_name, family_name } = authRes
-    Object.assign(userInfo, { email, name, picture, given_name, family_name })
-
+    const identity = await new SlaxAuth(ctx.env).login(req)
+    if ((req.type !== 'apple' && req.type !== 'google') || !identity.sub) throw RegisterUserError()
+    const { email, name, picture, given_name, family_name } = identity
+    const profile = UserService.getUserReuqestInfo(request, { email, name, picture, given_name, family_name, last_login_at: new Date() } as userInfoPO)
     const avatar = await this.bucketClient().putRemoteIfKeyExists(picture, 'image/avartar')
-    if (avatar) userInfo.picture = `${ctx.env.IMAGE_PREFIX}${avatar.key}`
+    if (avatar) profile.picture = `${ctx.env.IMAGE_PREFIX}${avatar.key}`
+    const { user, isNew } = await this.userRepo.signInWithProvider(req.type, identity.sub, profile)
+    return this.completeLogin(ctx, request, user, isNew, req.type)
+  }
 
-    const regRes = await this.userRepo.registerUser(userInfo)
+  public async loginByVerifiedEmail(ctx: ContextManager, request: Request, key: string, deliveryEmail: string, authAttribution?: unknown) {
+    const profile = UserService.getUserReuqestInfo(request, { email: deliveryEmail, lang: 'en', last_login_at: new Date() } as userInfoPO)
+    const { user, isNew } = await this.userRepo.signInWithEmail(key, deliveryEmail, profile)
+    const result = await this.completeLogin(ctx, request, user, isNew, 'email')
+    return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(authAttribution).data)
+  }
 
-    const regInfo = regRes as userInfoPO
-    if (regInfo?.deleted_at) throw UserAccountDeletedError()
-    if (!regInfo || !regInfo.id) {
-      console.error(`[login] rejected: register returned no user ${JSON.stringify({ email: authRes.email, isFirstRegister, result: regInfo ?? null })}`)
-      throw RegisterUserError()
-    }
-    console.log(`[login] registered ${JSON.stringify({ userId: regInfo.id, isFirstRegister, lang: regInfo.lang })}`)
-
-    await this.userRepo.requireActiveUser(regInfo.id)
-    const signUserId = new Hashid(ctx.env).encodeId(regInfo.id)
-    const token = await new Auth(ctx.env).sign({ id: String(signUserId), lang: regInfo.lang, email: regInfo.email })
-
-    if (req.type === 'apple' && authRes.sub && authRes.email && !authRes.email.endsWith('@appleid.apple.com')) {
-      await this.userRepo.userBindPlatform(regInfo.id, platformBindType.APPLE, authRes.sub, authRes.email)
-    }
-
-    if (req.type === 'google' && authRes.sub) {
-      await this.userRepo.userBindPlatform(regInfo.id, platformBindType.GOOGLE, authRes.sub, authRes.email)
-    }
-
-    // 发放邀请奖励
-    //   if (isFirstRegister && req.aff_code) {
-    //     const turnstileToken = req.siteverify_code
-    //     const secretKey = `${env.TURNSTILE_SECRET_KEY}`
-    //     const siteverifyUrl = `${env.TURNSTILE_SITEVERIFY_URL}`
-    //     const resp = (await fetch(siteverifyUrl, {
-    //       method: 'POST',
-    //       body: JSON.stringify({
-    //         secret: secretKey,
-    //         response: turnstileToken
-    //       })
-    //     })) as Response
-
-    //     if (!resp.ok) {
-    //       return RegisterUserError()
-    //     }
-
-    //     const data = (await resp.json()) as { success: boolean }
-    //     if (!data.success) {
-    //       return RegisterUserError()
-    //     }
-    //     await new QueueClient(env).pushInviteMessage({
-    //       affCode: req.aff_code,
-    //       invitedUserId: regInfo.id
-    //     })
-    //   }
-
-    // await new KVClient(env.KV).delete.USER_INFO(regInfo.id)
-
-    this.bindRequestDevice(ctx, request, regInfo.id, isFirstRegister ? 'signup' : 'login')
-
-    return {
-      token,
-      user_id: signUserId.toString(),
-      is_new_user: isFirstRegister,
-      email: regInfo.email,
-      uuid: regInfo.uuid,
-      login_type: req.type || 'unknown'
-    }
+  private async completeLogin(
+    ctx: ContextManager,
+    request: Request,
+    user: Pick<userInfoPO, 'id' | 'email' | 'lang' | 'uuid'>,
+    isNew: boolean,
+    method: 'google' | 'apple' | 'email'
+  ): Promise<userLoginResp> {
+    if (!user.id) throw RegisterUserError()
+    await this.userRepo.requireActiveUser(user.id)
+    const userId = String(new Hashid(ctx.env).encodeId(user.id))
+    const token = await new Auth(ctx.env).sign({ id: userId, lang: user.lang, email: user.email })
+    this.bindRequestDevice(ctx, request, user.id, isNew ? 'signup' : 'login')
+    return { token, user_id: userId, is_new_user: isNew, email: user.email, uuid: user.uuid, login_type: method }
   }
 
   public bindRequestDevice(ctx: ContextManager, request: Request, userId: number, source: 'signup' | 'login') {
@@ -644,13 +557,15 @@ export class UserService {
       avatar: user.picture,
       uuid: user.uuid,
       id: ctx.hashIds.encodeId(ctx.getUserId()),
-      platform: bindList.map(item => {
-        return {
-          platform: item.platform,
-          user_name: item.user_name,
-          created_at: item.created_at
-        }
-      }),
+      platform: bindList
+        .filter(item => item.platform !== platformBindType.MAIL)
+        .map(item => {
+          return {
+            platform: item.platform,
+            user_name: item.user_name,
+            created_at: item.created_at
+          }
+        }),
       // 上线一周后，再把它删除
       share_collect: {
         show_name: shareCollect?.display_name || '',
@@ -730,7 +645,10 @@ export class UserService {
           ? acquisitionAuthAttributionSchema.safeParse(req.auth_attribution).data
           : undefined
     const result = await this.authenticateUser(ctx, request, req)
+    return this.trackLogin(ctx, request, result, attribution)
+  }
 
+  private trackLogin(ctx: ContextManager, request: Request, result: userLoginResp, attribution?: WebAuthAttribution) {
     ctx.execution.waitUntil(
       this.ga4Client.trackEvent(result.uuid, 'user_login_complete', {
         is_new_user: result.is_new_user ? true : false,

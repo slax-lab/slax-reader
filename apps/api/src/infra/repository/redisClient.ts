@@ -103,6 +103,10 @@ export class RedisClient {
     return new RedisOperation<T>(this.client, key)
   }
 
+  eval<T>(script: string, keys: string[], args: string[]): Promise<T> {
+    return this.client.eval<string[], T>(script, keys, args)
+  }
+
   userProfile(userId: string) {
     return this.key<Record<string, any>>(`user_profile:${userId}`)
   }

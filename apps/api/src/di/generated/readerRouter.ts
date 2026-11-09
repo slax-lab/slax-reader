@@ -401,6 +401,38 @@ export function getRouter(container: Container) {
     const controller = container.resolve(UserController)
     return await controller.handleUserLoginRequest(ctx, req)
   })
+  router.get('/v1/user/login/email/status', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.handleEmailAuthStatus(ctx, req)
+  })
+  router.post('/v1/user/login/email/send', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.handleSendLoginCode(ctx, req)
+  })
+  router.post('/v1/user/login/email/verify', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.handleVerifyLoginCode(ctx, req)
+  })
+  router.get('/v1/user/auth/identities', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.handleLoginIdentities(ctx, req)
+  })
+  router.post('/v1/user/auth/email/send', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.handleSendBindingCode(ctx, req)
+  })
+  router.post('/v1/user/auth/email/verify', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.handleVerifyBindingCode(ctx, req)
+  })
+  router.post('/v1/user/auth/provider/start', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.handleStartProviderBinding(ctx, req)
+  })
+  router.post('/v1/user/auth/provider/finish', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.handleFinishProviderBinding(ctx, req)
+  })
   router.get('/v1/user/me', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)
     return await controller.handleUserDetailRequest(ctx, req)

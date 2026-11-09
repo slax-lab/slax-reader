@@ -35,11 +35,8 @@ function fixture(isNew = false) {
   const bindAlias = vi.fn().mockResolvedValue(undefined)
   const service = new UserService(
     {
-      getUserByPlatform: vi.fn().mockResolvedValue(null),
-      getInfoByEmail: vi.fn().mockResolvedValue(isNew ? null : persisted),
-      registerUser: vi.fn().mockResolvedValue(persisted),
+      signInWithProvider: vi.fn().mockResolvedValue({ user: persisted, isNew }),
       requireActiveUser: vi.fn().mockResolvedValue(undefined),
-      userBindPlatform: vi.fn().mockResolvedValue(null),
       bindUserDeviceAlias: bindAlias
     } as never,
     (() => ({ putRemoteIfKeyExists: vi.fn().mockResolvedValue(null) })) as never,

@@ -39,6 +39,7 @@ import { VectorMaintenanceService } from '../../domain/vectorMaintenance'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
+import { UserService } from '../../domain/user'
 import { HybridSearchRepo } from '../../infra/repository/dbHybridSearch'
 import { VectorEmbeddingClient } from '../../infra/external/vectorEmbedding'
 import { BookmarkService } from '../../domain/bookmark'
@@ -56,7 +57,6 @@ import { TagService } from '../../domain/tag'
 import { MarkService } from '../../domain/mark'
 import { CollectionService } from '../../domain/collection'
 import { NotificationService } from '../../domain/notification'
-import { UserService } from '../../domain/user'
 import { ContentRecommendationService } from '../../domain/contentRecommendation'
 import { HybridSearchService } from '../../domain/hybridSearch'
 import { ImportService } from '../../domain/import'
@@ -87,6 +87,7 @@ import { DashboardService } from '../../domain/dashboard'
 import { HybridSearchOrchestrator } from '../../domain/orchestrator/hybridSearch'
 import { ShareOrchestrator } from '../../domain/orchestrator/share'
 import { SyncOrchestrator } from '../../domain/orchestrator/sync'
+import { EmailAuthentication } from '../../domain/emailAuthentication'
 import { ImportOrchestrator } from '../../domain/orchestrator/import'
 import { EmailService } from '../../domain/email'
 import { ContentOrchestrator } from '../../domain/orchestrator/content'
@@ -206,6 +207,15 @@ container.register(DashboardService, {
 
 container.register(EmailService, {
   useFactory: container => new EmailService(container.resolve(UserRepo))
+})
+
+container.register(EmailAuthentication, {
+  useFactory: container =>
+    new EmailAuthentication(
+      container.resolve(UserRepo),
+      container.resolve(UserService),
+      lazy(() => container.resolve(RedisClient))
+    )
 })
 
 container.register(HybridSearchService, {
@@ -860,7 +870,8 @@ container.register(UserController, {
       container.resolve(BookmarkOrchestrator),
       container.resolve(QueueClient),
       container.resolve(UserDeletionService),
-      container.resolve(LabService)
+      container.resolve(LabService),
+      container.resolve(EmailAuthentication)
     )
 })
 

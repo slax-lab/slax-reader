@@ -145,6 +145,37 @@ describe('useAuth', () => {
     })
   })
 
+  describe('verifyEmailAuth', () => {
+    const input = { email: 'reader@example.com', request_id: 'generation', code: '012345', aff_code: 'invite' }
+
+    it('uses the same session cookie for email login and the Extension handoff', async () => {
+      mockPost.mockResolvedValueOnce({ token: 'otp-session' })
+      await expect(useAuth().verifyEmailAuth(input)).resolves.toBe('otp-session')
+      expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/user/login/email/verify', body: input }))
+      expect(cookieSet).toHaveBeenCalledWith('token', 'otp-session', expect.objectContaining({ path: '/', domain: '.example.com' }))
+    })
+
+    it('does not store a session after abandoning a verification', async () => {
+      const controller = new AbortController()
+      let finish!: (response: { token: string }) => void
+      mockPost.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+      const login = useAuth().verifyEmailAuth(input, { signal: controller.signal })
+      controller.abort()
+      finish({ token: 'late-session' })
+      await expect(login).rejects.toMatchObject({ name: 'AbortError' })
+      expect(cookieSet).not.toHaveBeenCalled()
+    })
+
+    it('does not replace a session established during verification', async () => {
+      mockPost.mockImplementation(async () => {
+        cookieGet.mockReturnValue('new-current-session')
+        return { token: 'otp-session' }
+      })
+      await expect(useAuth().verifyEmailAuth(input)).rejects.toThrow()
+      expect(cookieSet).not.toHaveBeenCalled()
+    })
+  })
+
   describe('collection attribution', () => {
     const attribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } as const
 
