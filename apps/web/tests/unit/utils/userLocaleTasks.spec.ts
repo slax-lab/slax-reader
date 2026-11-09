@@ -12,7 +12,7 @@ const deferred = <T>() => {
   })
   return { promise, resolve, reject }
 }
-const fixture = () => {
+const fixture = (writeWebSession?: (token: string, startingToken: string, signal: AbortSignal) => Promise<void>) => {
   let current = token('A'),
     display = 'en'
   const store = { user: makeUser({ lang: 'en' }), locale: 'en', confirmedAccountLocale: null as { accountKey: string; locale: 'en' | 'zh' } | null }
@@ -25,6 +25,7 @@ const fixture = () => {
   const tasks = new UserLocaleTasks(store, {
     api: api as never,
     getToken: () => current,
+    writeWebSession,
     setToken: t => {
       current = t
     },
@@ -227,4 +228,37 @@ it('expires the current token when it becomes expired during an unauthorized ref
   pending.reject(new AccountLocaleUnauthorizedError())
   await refreshing
   expect(f.expire).toHaveBeenCalledOnce()
+})
+
+it('submits only the current renewal to the Web cookie writer', async () => {
+  const write = vi.fn(async () => {})
+  const f = fixture(write)
+  const pending = deferred<string>()
+  f.api.refreshToken.mockImplementationOnce(() => pending.promise)
+  const renewing = f.tasks.refreshToken()
+  f.setToken(token('B'))
+  pending.resolve(token('A', 2))
+  await renewing
+  expect(write).not.toHaveBeenCalled()
+  expect(f.getToken()).toBe(token('B'))
+
+  f.api.refreshToken.mockResolvedValueOnce(token('B', 2))
+  await f.tasks.refreshToken()
+  expect(write).toHaveBeenCalledExactlyOnceWith(token('B', 2), token('B'), expect.any(AbortSignal))
+  expect(f.getToken()).toBe(token('B'))
+})
+
+it('cancels a pending HTTP cookie write when the local session is cleared', async () => {
+  const entered = deferred<AbortSignal>()
+  const write = vi.fn((_: string, __: string, signal: AbortSignal) => new Promise<void>((_, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    entered.resolve(signal)
+  }))
+  const f = fixture(write)
+  const renewing = f.tasks.refreshToken()
+  const signal = await entered.promise
+  f.tasks.clear()
+  await renewing
+  expect(signal.aborted).toBe(true)
+  expect(f.expire).not.toHaveBeenCalled()
 })

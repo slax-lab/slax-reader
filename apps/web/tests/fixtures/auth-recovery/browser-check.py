@@ -27,7 +27,8 @@ def callback(base, mode, *, theme='light', locale='en', provider='google', malfo
     state = {'redirectUrl': base + '/auth', 'target': '/__fixture/done?return=preserved', 'affCode': 'synthetic-referral', 'platform': provider}
     if attribution is not None:
         state['auth_attribution'] = attribution
-    return base + '/auth?' + urlencode({'case': mode, 'code': 'synthetic-' + mode, 'state': '{' if malformed else json.dumps(state), 'theme': theme, 'locale': locale})
+    entry = '/auth' if base == args.baseline else '/__fixture/start'
+    return base + entry + '?' + urlencode({'case': mode, 'code': 'synthetic-' + mode, 'state': '{' if malformed else json.dumps(state), 'theme': theme, 'locale': locale})
 
 
 def no_session(context):

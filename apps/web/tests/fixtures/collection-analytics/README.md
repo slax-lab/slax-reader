@@ -1,6 +1,6 @@
 # Collection analytics runtime fixtures
 
-This manual smoke uses the real Nuxt pages, OAuth callback, request helpers, and modal factory. A local Worker supplies collection content. Playwright intercepts Google and browser API responses, including legacy `/m`; these are synthetic accounts and credentials, not real authentication or warehouse evidence. Keep the fixture backend on localhost. Chrome and the existing `@nuxt/test-utils` Playwright dependency are required. No new dependency is installed.
+This manual smoke uses the real Nuxt pages, OAuth callback, request helpers, and modal factory. A local Worker supplies collection content. Playwright intercepts Google and browser API responses, including legacy `/m` and the cookie writer response; these are synthetic accounts and credentials, not real authentication or warehouse evidence. Keep the fixture backend on localhost. Chrome and the existing `@nuxt/test-utils` Playwright dependency are required. No new dependency is installed.
 
 From the repository root, start the content fixture in one terminal:
 

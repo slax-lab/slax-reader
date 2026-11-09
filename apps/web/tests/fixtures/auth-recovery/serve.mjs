@@ -2,6 +2,7 @@
 // Run: node apps/web/tests/fixtures/auth-recovery/serve.mjs [port] [--baseline]
 // Provider endpoints are redirected to local receipts; no real account or code is used.
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -66,12 +67,27 @@ import { useAuth, navigateTo, useHead } from '${runtime}'
           return html('<h1>Fresh provider authorization started</h1><p>This is a local receipt; no Google or Apple account was contacted.</p><a href="/">Back to scenarios</a>')
         }
         if (url.pathname === '/__fixture/done') return html('<h1>Login completed</h1><p>The real login composable stored a synthetic session and navigated here.</p><a href="/">Back to scenarios</a>')
+        if (url.pathname === '/__fixture/start' && !baseline) {
+          const state = url.searchParams.get('state') || ''
+          const binding = createHash('sha256').update(state).digest('hex')
+          res.writeHead(302, { Location: '/auth' + url.search, 'Set-Cookie': `slax_oauth_attempt=${binding}; Path=/; SameSite=Lax; Max-Age=600` }).end()
+          return
+        }
+        if (url.pathname === '/api/auth/session' && !baseline) {
+          // The Pages Worker fixture covers the real endpoint; this isolates callback recovery.
+          let body = ''
+          for await (const chunk of req) body += chunk
+          const input = JSON.parse(body)
+          if (input.action !== 'login' || input.token !== 'synthetic-session-token') return json({}, 400)
+          res.writeHead(204, { 'Set-Cookie': 'slax_auth_probe=synthetic-session-token; Path=/', 'Cache-Control': 'no-store' }).end()
+          return
+        }
         if (url.pathname === '/login') return html('<h1>Login entry</h1><a href="/">Back to scenarios</a>')
         if (url.pathname === '/') {
           const state = JSON.stringify({ nonce: 'synthetic', redirectUrl: `${url.origin}/auth`, target: '/__fixture/done?return=preserved', affCode: 'synthetic-referral', platform: 'google' })
           const links = ['disconnect', 'pending', 'provider-error', 'success', 'navigation-error'].map(mode => {
             const query = new URLSearchParams({ case: mode, code: 'synthetic-single-use-code', state, locale: url.searchParams.get('locale') || 'en', theme: url.searchParams.get('theme') || 'light' })
-            return `<li><a href="/auth?${query.toString()}">${mode}</a></li>`
+            return `<li><a href="${baseline ? '/auth' : '/__fixture/start'}?${query.toString()}">${mode}</a></li>`
           }).join('')
           return html(`<h1>OAuth callback recovery acceptance</h1><p>Actual callback, HTTP client and cookies; local synthetic API/provider boundaries. Pending takes 20 seconds.</p><ul>${links}</ul>`)
         }

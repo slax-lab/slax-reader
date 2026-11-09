@@ -61,6 +61,14 @@ async function until(fn) {
     await context.route("**/api/collection/track", (r) =>
       r.fulfill({ json: { ok: true } }),
     );
+    await context.route("**/api/auth/session", (r) => {
+      const request = r.request().postDataJSON();
+      assert.equal(request.token, fixtureToken);
+      return r.fulfill({
+        status: 204,
+        headers: { "set-cookie": `slax_test=${request.token}; Path=/` },
+      });
+    });
     await context.route(
       (url) => url.pathname === "/m",
       (r) => r.fulfill({ json: { code: 200, data: null, message: "fixture" } }),
@@ -175,7 +183,8 @@ async function until(fn) {
     await page.locator(".login-modal .google-login-button").click();
     await page.waitForURL("https://accounts.google.com/**");
     await until(() => clicks("login_google_button").length === 1);
-    const state = JSON.parse(new URL(page.url()).searchParams.get("state"));
+    const rawState = new URL(page.url()).searchParams.get("state");
+    const state = JSON.parse(rawState);
     assert.deepEqual(state.auth_attribution, attribution);
     assert(state.target.includes("subscribe_after_login=1"));
     await page.goto(
@@ -183,7 +192,7 @@ async function until(fn) {
         "/auth?" +
         new URLSearchParams({
           code: "local-fixture-code",
-          state: JSON.stringify(state),
+          state: rawState,
         }),
       { waitUntil: "domcontentloaded" },
     );

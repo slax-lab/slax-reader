@@ -11,6 +11,7 @@ interface Deps {
   api: AccountLocaleRequest
   getToken(): string | undefined
   setToken(token: string): void
+  writeWebSession?(token: string, startingToken: string, signal: AbortSignal): Promise<void>
   apply(locale: AppLocale): Promise<unknown>
   notify(): void
   expire(): Promise<unknown>
@@ -34,6 +35,7 @@ export class UserLocaleTasks {
   private revision = 0
   private readId = 0
   private refreshId = 0
+  private refreshWrite?: AbortController
   private saves: Promise<unknown> = Promise.resolve()
   private display: Promise<unknown> = Promise.resolve()
   private targetId = 0
@@ -77,6 +79,7 @@ export class UserLocaleTasks {
     return task
   }
   clear() {
+    this.refreshWrite?.abort()
     ++this.epoch
     ++this.refreshId
     ++this.targetId
@@ -166,6 +169,7 @@ export class UserLocaleTasks {
     return this.store.user!
   }
   async refreshToken(): Promise<void> {
+    this.refreshWrite?.abort()
     const ticket = this.capture(),
       token = this.deps.getToken(),
       id = ++this.refreshId,
@@ -188,12 +192,20 @@ export class UserLocaleTasks {
       })
       const next = await Promise.race([this.deps.api.refreshToken(token, controller.signal), timeout])
       if (localeAccountIdentity(next) !== ticket.account) throw new Error('Invalid refreshed account identity')
-      if (!expired && id === this.refreshId && this.valid(ticket) && revision === this.revision && this.deps.getToken() === token) this.deps.setToken(next)
+      if (!expired && id === this.refreshId && this.valid(ticket) && revision === this.revision && this.deps.getToken() === token) {
+        if (this.deps.writeWebSession) {
+          this.refreshWrite = controller
+          await this.deps.writeWebSession(next, token, controller.signal)
+        } else {
+          this.deps.setToken(next)
+        }
+      }
     } catch (error) {
       if (error instanceof AccountLocaleUnauthorizedError && this.deps.getToken() === token) await this.deps.expire()
-      else console.warn('[locale] token refresh failed', error)
+      else if (!controller.signal.aborted || expired) console.warn('[locale] token refresh failed', error)
     } finally {
       clearTimeout(timer)
+      if (this.refreshWrite === controller) this.refreshWrite = undefined
     }
   }
 }

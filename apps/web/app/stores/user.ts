@@ -1,7 +1,9 @@
 import { AccountLocaleStaleError, createAccountLocaleRequest } from '../utils/accountLocaleRequest'
 import { readStringCookie, requireConfiguredCookieName } from '../utils/authCookie'
+import { isSlaxReaderApp } from '../utils/environment'
 import { notifyExtensionAccountLocaleInvalidated } from '../utils/extensionLocale'
 import { existingUserLocaleTasks, getUserLocaleTasks, type LocaleUserState } from '../utils/userLocaleTasks'
+import { writeWebSession } from '../utils/webSession'
 
 import type { AppLocale } from '@commons/frontend-types/locale'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -239,9 +241,11 @@ export const localeTasksForStore = (store: LocaleUserState) => {
   const cookies = useCookies()
   const serverToken = import.meta.server ? getUserToken() : undefined
   const auth = useAuth()
+  const useHttpCookie = import.meta.client && !isSlaxReaderApp() && !/^\/subscription\/inapp-purchase\/?$/.test(location.pathname)
   return getUserLocaleTasks(store, {
     api: createAccountLocaleRequest(),
     getToken: () => (import.meta.server ? serverToken : readStringCookie(config.COOKIE_TOKEN_NAME, cookies)),
+    writeWebSession: useHttpCookie ? (token, startingToken, signal) => writeWebSession({ action: 'refresh', token, startingToken }, signal) : undefined,
     setToken: token => {
       const cookieName = requireConfiguredCookieName(config.COOKIE_TOKEN_NAME)
       const cookieDomain = typeof config.COOKIE_DOMAIN === 'string' ? config.COOKIE_DOMAIN : ''

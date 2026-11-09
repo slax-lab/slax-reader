@@ -445,7 +445,7 @@ describe('useUserStore - account locale integration', () => {
     haveRequestTokenMock.mockReturnValue(true)
     fetcher = vi.fn(
       async (url: string) =>
-        new Response(JSON.stringify({ code: 200, message: 'ok', data: url.endsWith('/me') ? makeUser({ lang: 'zh' }) : url.endsWith('/refresh') ? { token: token(1, 2) } : 'ok' }))
+        url === '/api/auth/session' ? new Response(null, { status: 204 }) : new Response(JSON.stringify({ code: 200, message: 'ok', data: url.endsWith('/me') ? makeUser({ lang: 'zh' }) : url.endsWith('/refresh') ? { token: token(1, 2) } : 'ok' }))
     )
     vi.stubGlobal('fetch', fetcher)
     apply = vi.spyOn(useNuxtApp().$i18n, 'setLocale').mockResolvedValue(undefined)
@@ -508,10 +508,23 @@ describe('useUserStore - account locale integration', () => {
     expect(store.user).toBeNull()
     expect(store.confirmedAccountLocale).toBeNull()
   })
-  it('writes a valid refresh token with configured cookie scope', async () => {
-    const store = useUserStore()
-    await store.refreshUserToken()
-    expect(cookieSet).toHaveBeenCalledWith('token', token(1, 2), expect.objectContaining({ path: '/', domain: '.example.com' }))
+  it('writes a valid Web renewal through the same-origin cookie endpoint', async () => {
+    await useUserStore().refreshUserToken()
+    expect(fetcher).toHaveBeenNthCalledWith(2, '/api/auth/session', expect.objectContaining({
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token(1)}` },
+      body: JSON.stringify({ action: 'refresh', token: token(1, 2) })
+    }))
+    expect(cookieSet).not.toHaveBeenCalledWith('token', expect.anything(), expect.anything())
+  })
+  it('keeps the configured JavaScript cookie scope for the native subscription WebView', async () => {
+    window.history.replaceState(null, '', '/subscription/inapp-purchase')
+    try {
+      await useUserStore().refreshUserToken()
+      expect(fetcher.mock.calls.some(([url]) => url === '/api/auth/session')).toBe(false)
+      expect(cookieSet).toHaveBeenCalledWith('token', token(1, 2), expect.objectContaining({ path: '/', domain: '.example.com' }))
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
   })
   it('reuses the captured cookie handle while refreshing a token', async () => {
     const store = useUserStore()

@@ -80,7 +80,8 @@ if (import.meta.client) {
         await navigateTo('slaxrd://auth?code=' + code, { external: true })
         return
       }
-      const state = callbackState.parse(JSON.parse(z.string().parse(route.query.state)))
+      const rawState = z.string().parse(route.query.state)
+      const state = callbackState.parse(JSON.parse(rawState))
       const authAttribution = state.platform === 'apple' && !isAcquisitionAuthAttribution(state.auth_attribution) ? undefined : state.auth_attribution
       recovery.value = { target: state.target || '/bookmarks', affCode: state.affCode, platform: state.platform, authAttribution }
       deadline = setTimeout(() => {
@@ -90,6 +91,7 @@ if (import.meta.client) {
       }, 20_000)
       phase = 'login'
       await auth.grantAuth(code, state.redirectUrl, state.affCode, state.platform, authAttribution, {
+        state: rawState,
         signal: controller.signal,
         // The callback owns persistent recovery instead of the shared request toast.
         errorInterceptors: () => {}

@@ -1,4 +1,6 @@
-import { configuredCookieName, requireConfiguredCookieName } from '~/utils/authCookie'
+import { configuredCookieName } from '~/utils/authCookie'
+import { createOAuthNonce, oauthAttemptCookie, oauthAttemptMaxAge, oauthStateDigest } from '~/utils/oauthAttempt'
+import { writeWebSession } from '~/utils/webSession'
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -6,7 +8,15 @@ import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, type Web
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 
-const { set, remove } = useCookies()
+const { get, set, remove } = useCookies()
+const attemptOptions = () => ({ path: '/', secure: location.protocol === 'https:', sameSite: 'lax' as const })
+
+const bindOAuthState = async (fields: Record<string, unknown>) => {
+  const state = JSON.stringify({ nonce: createOAuthNonce(), ...fields })
+  const options = attemptOptions()
+  set(oauthAttemptCookie(options.secure), await oauthStateDigest(state), { ...options, maxAge: oauthAttemptMaxAge })
+  return state
+}
 
 const useAuth = {
   async requestAuth(options: { redirect: string; affCode: string; authAttribution?: WebAuthAttribution }) {
@@ -18,8 +28,7 @@ const useAuth = {
       redirect_uri: `${$config.AUTH_BASE_URL}/auth`,
       scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
       response_type: 'code',
-      state: JSON.stringify({
-        nonce: 'random',
+      state: await bindOAuthState({
         redirectUrl: `${$config.AUTH_BASE_URL}/auth`,
         target: redirect,
         affCode: affCode,
@@ -39,8 +48,7 @@ const useAuth = {
       redirect_uri: `${$config.AUTH_BASE_URL}/auth`,
       response_type: 'code',
       response_mode: 'query',
-      state: JSON.stringify({
-        nonce: 'random',
+      state: await bindOAuthState({
         redirectUrl: `${$config.AUTH_BASE_URL}/auth`,
         target: redirect,
         affCode: affCode,
@@ -55,9 +63,9 @@ const useAuth = {
     code: string,
     redirectUri: string,
     affCode: string,
-    platformType: 'google' | 'apple' = 'google',
-    authAttribution?: WebAuthAttribution,
-    options: Pick<FetchOptions, 'signal' | 'errorInterceptors'> = {}
+    platformType: 'google' | 'apple',
+    authAttribution: WebAuthAttribution | undefined,
+    options: Pick<FetchOptions, 'signal' | 'errorInterceptors'> & { state: string }
   ): Promise<string> {
     const $config = useRuntimeConfig().public
     const clientIdRef = {
@@ -65,33 +73,37 @@ const useAuth = {
       google: `${$config.GOOGLE_OAUTH_CLIENT_ID}`
     }
 
-    const resp = await request().post<{ token: string }>({
-      ...options,
-      url: RESTMethodPath.LOGIN,
-      body: {
-        code,
-        aff_code: affCode,
-        redirect_uri: redirectUri,
-        type: platformType,
-        client_id: clientIdRef[platformType],
-        ...(authAttribution && (platformType === 'google' || isAcquisitionAuthAttribution(authAttribution)) ? { auth_attribution: authAttribution } : {})
-      }
-    })
-
-    if (options.signal?.aborted) throw options.signal.reason
-
-    if (!resp) {
-      throw new Error('login failed')
+    const { state, ...requestOptions } = options
+    const cookieOptions = attemptOptions()
+    const attempt = oauthAttemptCookie(cookieOptions.secure)
+    const binding = await oauthStateDigest(state)
+    if (redirectUri !== `${$config.AUTH_BASE_URL}/auth` || get(attempt, { doNotParse: true }) !== binding) {
+      throw new Error('Invalid OAuth attempt')
     }
 
-    const cookieName = requireConfiguredCookieName($config.COOKIE_TOKEN_NAME)
-    const cookieDomain = typeof $config.COOKIE_DOMAIN === 'string' ? $config.COOKIE_DOMAIN : ''
-    set(cookieName, resp.token, {
-      path: '/',
-      expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-      ...(cookieDomain ? { domain: cookieDomain } : {})
-    })
-    return resp.token
+    try {
+      options.signal?.throwIfAborted()
+      const resp = await request().post<{ token: string }>({
+        ...requestOptions,
+        url: RESTMethodPath.LOGIN,
+        body: {
+          code,
+          aff_code: affCode,
+          redirect_uri: redirectUri,
+          type: platformType,
+          client_id: clientIdRef[platformType],
+          ...(authAttribution && (platformType === 'google' || isAcquisitionAuthAttribution(authAttribution)) ? { auth_attribution: authAttribution } : {})
+        }
+      })
+
+      options.signal?.throwIfAborted()
+      if (!resp) throw new Error('login failed')
+
+      await writeWebSession({ action: 'login', state, token: resp.token }, options.signal)
+      return resp.token
+    } finally {
+      if (get(attempt, { doNotParse: true }) === binding) remove(attempt, cookieOptions)
+    }
   },
   async clearAuth(): Promise<void> {
     const $config = useRuntimeConfig().public

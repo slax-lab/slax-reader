@@ -1,5 +1,7 @@
 // Cookie functions are captured at module load. Keep their hoisted spies
 // stable and replace only the browser-storage boundary in cleanup tests.
+import { oauthStateDigest } from '~~/app/utils/oauthAttempt'
+
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { useNuxtApp } from '#app'
 import useAuth from '~~/app/composables/useAuth'
@@ -60,7 +62,10 @@ const runtimeConfig = {
 mockNuxtImport('useRuntimeConfig', () => () => runtimeConfig)
 
 describe('useAuth', () => {
+  const writer = vi.fn()
   beforeEach(() => {
+    writer.mockReset().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', writer)
     // mockPost 默认无 implementation，用 mockReset 清掉残留 mockResolvedValueOnce
     mockPost.mockReset()
     mockRequest.mockClear()
@@ -77,7 +82,16 @@ describe('useAuth', () => {
     runtimeConfig.public.COOKIE_TOKEN_NAME = 'token'
   })
 
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  const state = '{"nonce":"fixture"}'
+  const bind = async () => {
+    cookieGet.mockReturnValue(await oauthStateDigest(state))
+    return { state }
+  }
 
   describe('requestAuth', () => {
     it('拼接 Google OAuth URL 并跳转', async () => {
@@ -107,38 +121,50 @@ describe('useAuth', () => {
     it('does not store a session when a canceled request completes late', async () => {
       const controller = new AbortController()
       let finish!: (response: { token: string }) => void
-      mockPost.mockImplementation(() => new Promise(resolve => { finish = resolve }))
-      const login = useAuth().grantAuth('old-code', 'https://auth.test/auth', '', 'google', undefined, { signal: controller.signal })
+      const started = Promise.withResolvers<void>()
+      mockPost.mockImplementation(() => new Promise(resolve => { finish = resolve; started.resolve() }))
+      const login = useAuth().grantAuth('old-code', 'https://auth.test/auth', '', 'google', undefined, { ...await bind(), signal: controller.signal })
+      await started.promise
       controller.abort()
       finish({ token: 'late-token' })
       await expect(login).rejects.toMatchObject({ name: 'AbortError' })
-      expect(cookieSet).not.toHaveBeenCalled()
+      expect(writer).not.toHaveBeenCalled()
     })
 
-    it('登录成功 → 写 cookie 并返回 token', async () => {
+    it('writes the token through the cookie endpoint after direct login', async () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      const token = await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google')
+      const token = await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google', undefined, await bind())
       expect(token).toBe('tok-google')
       expect(mockPost).toHaveBeenCalledTimes(1)
-      expect(cookieSet).toHaveBeenCalledWith('token', 'tok-google', expect.objectContaining({ path: '/', domain: '.example.com' }))
+      expect(writer).toHaveBeenCalledExactlyOnceWith('/api/auth/session', expect.objectContaining({
+        method: 'POST', credentials: 'same-origin', body: JSON.stringify({ action: 'login', token: 'tok-google', state })
+      }))
+      expect(mockPost.mock.invocationCallOrder[0]).toBeLessThan(writer.mock.invocationCallOrder[0]!)
+      expect(cookieSet).not.toHaveBeenCalled()
     })
 
     it('登录返回为空 → 抛 "login failed"', async () => {
       mockPost.mockResolvedValueOnce(undefined)
-      await expect(useAuth().grantAuth('code-x', 'https://auth.test/auth', '', 'google')).rejects.toThrow('login failed')
+      await expect(useAuth().grantAuth('code-x', 'https://auth.test/auth', '', 'google', undefined, await bind())).rejects.toThrow('login failed')
       expect(cookieSet).not.toHaveBeenCalled()
     })
 
-    it('rejects login success when the configured cookie name is invalid', async () => {
-      runtimeConfig.public.COOKIE_TOKEN_NAME = { token: 'token' } as never
+    it('rejects an unbound callback before exchanging its code', async () => {
+      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google', undefined, { state })).rejects.toThrow('Invalid OAuth attempt')
+      expect(mockPost).not.toHaveBeenCalled()
+      expect(writer).not.toHaveBeenCalled()
+    })
+
+    it('does not report success when the cookie writer rejects the token', async () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3')).rejects.toThrow(/COOKIE_TOKEN_NAME/)
+      writer.mockResolvedValueOnce(new Response(null, { status: 401 }))
+      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', '', 'google', undefined, await bind())).rejects.toThrow('Session cookie write failed')
       expect(cookieSet).not.toHaveBeenCalled()
     })
 
     it('platformType=apple 时使用 apple client_id', async () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-apple' })
-      await useAuth().grantAuth('code-2', 'https://auth.test/auth', 'aff4', 'apple')
+      await useAuth().grantAuth('code-2', 'https://auth.test/auth', 'aff4', 'apple', undefined, await bind())
       const call = mockPost.mock.calls[0]![0]
       expect(call.body.client_id).toBe('a-client-id')
       expect(call.body.type).toBe('apple')
@@ -163,13 +189,13 @@ describe('useAuth', () => {
 
     it('carries callback provenance into the Google login request without changing credentials', async () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google', attribution)
+      await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google', attribution, await bind())
       expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: 'aff3', type: 'google', client_id: 'g-client-id', auth_attribution: attribution })
     })
 
     it('does not attach collection attribution to Apple authentication', async () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-apple' })
-      await useAuth().grantAuth('code-2', 'https://auth.test/auth', '', 'apple', attribution)
+      await useAuth().grantAuth('code-2', 'https://auth.test/auth', '', 'apple', attribution, await bind())
       expect(mockPost.mock.calls[0]![0].body).not.toHaveProperty('auth_attribution')
     })
   })
@@ -196,7 +222,7 @@ describe('useAuth', () => {
       { provider: 'apple', clientId: 'a-client-id', attribution: resource }
     ] as const)('carries acquisition into the $provider login request', async ({ provider, clientId, attribution }) => {
       mockPost.mockResolvedValueOnce({ token: 'tok-acquisition' })
-      await useAuth().grantAuth('code-1', 'https://auth.test/auth', '', provider, attribution)
+      await useAuth().grantAuth('code-1', 'https://auth.test/auth', '', provider, attribution, await bind())
       expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: '', type: provider, client_id: clientId, auth_attribution: attribution })
     })
   })
