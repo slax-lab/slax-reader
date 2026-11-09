@@ -62,7 +62,6 @@ export const YOUTUBE_ELIGIBILITY_THRESHOLDS = {
   generateMinReadability: 0.6,
   generateMinQuality: 0.5,
   skipMaxReadability: 0.4,
-  maxAutoDurationSec: 4 * 3600,
   /** Only languages the team can check the output of are generated automatically; others go to review. */
   autoLanguages: ['en', 'zh']
 } as const
@@ -208,7 +207,6 @@ export function evaluateYoutubeEligibility(input: YoutubeEligibilityInput): Yout
   if (features.fragment_ratio > T.maxFragmentRatio) soft.push('fragmented_captions')
   if (features.repeat_ratio > T.maxRepeatRatio) soft.push('repetitive_captions')
   if (hints.length) soft.push('title_suggests_visual')
-  if (duration > T.maxAutoDurationSec) soft.push('very_long_video')
   const languageBase = input.language.toLowerCase().split(/[-_]/)[0]
   if (!(T.autoLanguages as readonly string[]).includes(languageBase)) soft.push('language_not_auto')
 
@@ -216,7 +214,7 @@ export function evaluateYoutubeEligibility(input: YoutubeEligibilityInput): Yout
   const reasonCodes = [...hard, ...soft]
   if (hard.length) {
     decision = 'skip'
-  } else if (soft.includes('very_long_video') || soft.includes('title_suggests_visual') || soft.includes('language_not_auto')) {
+  } else if (soft.includes('title_suggests_visual') || soft.includes('language_not_auto')) {
     decision = 'review'
   } else if (standaloneReadability >= T.generateMinReadability && visualDependency <= T.generateMaxVisualDependency && transcriptQuality >= T.generateMinQuality) {
     decision = 'generate'

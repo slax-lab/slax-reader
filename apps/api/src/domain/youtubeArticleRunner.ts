@@ -71,7 +71,7 @@ export type RunnerOutcome = 'ready' | 'not_claimed' | 'gone' | 'skipped' | 'fail
 /** Never retried by the workflow engine and never retried by the sweeper. */
 export class YoutubeArticleStop extends Error {
   constructor(
-    public readonly code: 'budget_exceeded' | 'lifetime_budget_exceeded' | 'lease_lost' | 'caption_missing' | 'chunk_truncated' | 'passage_repair_exhausted',
+    public readonly code: 'lease_lost' | 'caption_missing' | 'chunk_truncated' | 'passage_repair_exhausted',
     message?: string
   ) {
     // The code leads the message: the workflow engine may rewrap the error, the message survives
@@ -154,7 +154,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
   }
 
   /** The plan is recomputed inside each step from the immutable caption: deterministic and small to return. */
-  const loadPlan = async (): Promise<{ plan: YoutubeArticlePlan; caption: YoutubeCaptionDocument } | { reason: 'too_long' | 'caption_missing' }> => {
+  const loadPlan = async (): Promise<{ plan: YoutubeArticlePlan; caption: YoutubeCaptionDocument } | { reason: 'caption_missing' }> => {
     const row = await sameRow()
     if (!row) throw new YoutubeArticleStop('lease_lost', 'row changed')
     const caption = await loadCaption(deps, row.caption_key)
@@ -166,7 +166,6 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
   // Only admission and accounting are serialized; provider requests run concurrently.
   let accounting: Promise<unknown> = Promise.resolve()
   let accountingError: unknown
-  const reservations = new Map<Promise<void>, number>()
   const exclusive = <T>(fn: () => Promise<T>): Promise<T> => {
     const result = accounting.then(fn)
     accounting = result.catch(() => {})
@@ -181,36 +180,16 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
     const userTokens = estimateTokens(user)
     const maxOutputTokens = outputTokenLimit(userTokens)
     const next = estimateCostUsd(estimateTokens(system) + userTokens, maxOutputTokens)
-    let release!: () => void
-    const settled = new Promise<void>(resolve => {
-      release = resolve
+    await exclusive(async () => {
+      if (accountingError) throw accountingError
+      const row = await deps.repo.findById(p.articleId)
+      if (!row || row.run_id !== runId || row.status !== 'generating') throw new YoutubeArticleStop('lease_lost')
     })
-    for (;;) {
-      const admission = await exclusive(async () => {
-        if (accountingError) throw accountingError
-        const row = await deps.repo.findById(p.articleId)
-        if (!row || row.run_id !== runId || row.status !== 'generating') throw new YoutubeArticleStop('lease_lost')
-        const reserved = [...reservations.values()].reduce((sum, value) => sum + value, 0)
-        const lifetimeExceeded = (row.lifetime_cost_usd ?? 0) + reserved + next > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd
-        const runExceeded = (row.cost_usd ?? 0) + reserved + next > YOUTUBE_ARTICLE_LIMITS.maxCostUsd
-        if (lifetimeExceeded || runExceeded) {
-          if (reservations.size) return { wait: Promise.race(reservations.keys()) }
-          throw new YoutubeArticleStop(lifetimeExceeded ? 'lifetime_budget_exceeded' : 'budget_exceeded')
-        }
-        reservations.set(settled, next)
-        return { wait: null }
-      })
-      if (!admission.wait) break
-      await admission.wait
-    }
     const charge = (costUsd: number) =>
       exclusive(async () => {
         try {
           await deps.repo.addCost(p.articleId, costUsd)
           await deps.addCost(costUsd)
-          const row = await deps.repo.findById(p.articleId)
-          if ((row?.lifetime_cost_usd ?? 0) > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd) throw new YoutubeArticleStop('lifetime_budget_exceeded')
-          if ((row?.cost_usd ?? 0) > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) throw new YoutubeArticleStop('budget_exceeded')
         } catch (error) {
           accountingError = error
           throw error
@@ -265,10 +244,6 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
       }
       return { reply, inputTokens, outputTokens, costUsd }
     } finally {
-      await exclusive(async () => {
-        reservations.delete(settled)
-        release()
-      })
       log('call', p, {
         chunk: opts.chunk ?? null,
         parts: opts.parts ?? 1,
@@ -287,8 +262,6 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         return { kind: 'skip' as const, reason: loaded.reason }
       }
       const { plan } = loaded
-      // A video whose expected cost does not fit the per-video budget is skipped before any call,
-      // instead of spending most of the budget and failing near the end
       const translating = loaded.caption.language.toLowerCase().split('-')[0] !== p.targetLanguage
       const costs = await Promise.all(
         plan.chunks.map(async chunk => {
@@ -300,42 +273,9 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         })
       )
       const expected = costs.reduce((sum, cost) => sum + cost, 0)
-      if (expected > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) {
-        log('skipped', p, {
-          reason: 'too_long',
-          chunks: plan.chunks.length,
-          input_chars: plan.inputChars,
-          duration_ms: plan.durationMs,
-          expected_cost_usd: Number(expected.toFixed(5)),
-          max_cost_usd: YOUTUBE_ARTICLE_LIMITS.maxCostUsd
-        })
-        return { kind: 'skip' as const, reason: 'too_long' as const }
-      }
-      // Earlier attempts already spent part of the budget: do not start a run the rest cannot pay for
-      const row = await deps.repo.findById(p.articleId)
-      const spent = row?.cost_usd ?? 0
-      const lifetime = row?.lifetime_cost_usd ?? 0
-      if (lifetime + expected > YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd) {
-        log('skipped', p, {
-          reason: 'lifetime_budget_exceeded',
-          lifetime_cost_usd: Number(lifetime.toFixed(5)),
-          expected_cost_usd: Number(expected.toFixed(5)),
-          max_lifetime_cost_usd: YOUTUBE_ARTICLE_LIMITS.maxLifetimeCostUsd
-        })
-        return { kind: 'skip' as const, reason: 'lifetime_budget_exceeded' as const }
-      }
-      if (spent + expected > YOUTUBE_ARTICLE_LIMITS.maxCostUsd) {
-        log('skipped', p, {
-          reason: 'budget_exceeded',
-          spent_cost_usd: Number(spent.toFixed(5)),
-          expected_cost_usd: Number(expected.toFixed(5)),
-          max_cost_usd: YOUTUBE_ARTICLE_LIMITS.maxCostUsd
-        })
-        return { kind: 'skip' as const, reason: 'budget_exceeded' as const }
-      }
       return { kind: 'ok' as const, chunkCount: plan.chunks.length, format: plan.format, inputChars: plan.inputChars, durationMs: plan.durationMs, expectedCostUsd: expected }
     })
-    if (prep.kind === 'skip') return finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
+    if (prep.kind === 'skip') return finish('failed', prep.reason)
 
     log('prepared', p, { chunks: prep.chunkCount, input_chars: prep.inputChars, format: prep.format, expected_cost_usd: Number(prep.expectedCostUsd.toFixed(5)) })
 
@@ -589,15 +529,12 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
     if (
       err instanceof YoutubeArticleStop ||
       (err instanceof Error && err.name === 'YoutubeArticleStop') ||
-      /YoutubeArticleStop|budget_exceeded|lease_lost|caption_missing|chunk_truncated|passage_repair_exhausted/.test(message)
+      /YoutubeArticleStop|lease_lost|caption_missing|chunk_truncated|passage_repair_exhausted/.test(message)
     ) {
       const code =
         err instanceof YoutubeArticleStop
           ? err.code
-          : // lifetime_budget_exceeded contains budget_exceeded, so it is matched first
-            (['lifetime_budget_exceeded', 'budget_exceeded', 'lease_lost', 'caption_missing', 'chunk_truncated', 'passage_repair_exhausted'].find(c =>
-              message.includes(c)
-            ) as YoutubeArticleStop['code'])
+          : (['lease_lost', 'caption_missing', 'chunk_truncated', 'passage_repair_exhausted'].find(c => message.includes(c)) as YoutubeArticleStop['code'])
       if (code === 'lease_lost') {
         // Another run took the row (its chunks stay, it reuses them), or the video was taken down
         // while this run was writing: then nobody else will delete what this run wrote
@@ -608,7 +545,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         log('lease_lost', p)
         return 'gone'
       }
-      // A truncation keeps its detail (parts=N or introduction); budget codes stay bare for isFinalError
+      // A truncation keeps its detail (parts=N or introduction).
       return finish('failed', code === 'chunk_truncated' && message.startsWith(code) ? message.slice(0, 200) : code)
     }
     return finish('retry', message.slice(0, 200))

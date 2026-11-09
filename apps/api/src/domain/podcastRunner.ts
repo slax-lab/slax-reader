@@ -101,7 +101,7 @@ export interface PodcastRunnerDeps {
 
 export type PodcastOutcome = 'ready' | 'not_claimed' | 'gone' | 'skipped' | 'failed' | 'retry'
 
-const STOP_CODES = ['budget_exceeded', 'lease_lost', 'transcript_missing', 'chunk_truncated', 'chunk_timeout', 'chunk_deadline', 'chunk_call_limit'] as const
+const STOP_CODES = ['lease_lost', 'transcript_missing', 'chunk_truncated', 'chunk_timeout', 'chunk_deadline', 'chunk_call_limit'] as const
 
 /** Never retried by the engine or the sweeper. */
 export class PodcastStop extends Error {
@@ -125,7 +125,7 @@ class ChunkIncomplete extends Error {
 
 const DB_STEP = { retries: { limit: 3, delay: '5 seconds', backoff: 'exponential' as const }, timeout: '1 minute' }
 const FETCH_STEP = { retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' as const }, timeout: '2 minutes' }
-/** All chunks of an episode at once; cost admission still holds calls back when reservations do not fit the budget. */
+/** Maximum concurrently processed chunks per episode. */
 const CHUNK_CONCURRENCY = 10
 /** Assemble-time quality failures redo the affected chunks this many times before the attempt fails. */
 const QUALITY_REPAIR_PASSES = 1
@@ -170,12 +170,6 @@ async function deletePrefix(deps: PodcastRunnerDeps, prefix: string): Promise<nu
 
 function contextOf(ep: podcastEpisodePO): PodcastEpisodeContext {
   return { title: ep.title, showName: ep.show_name, shownotes: ep.shownotes }
-}
-
-/** Everything spent on the episode so far: transcription plus every article version of the transcript. */
-async function episodeSpent(deps: PodcastRunnerDeps, ep: podcastEpisodePO): Promise<number> {
-  const rows = ep.transcript_hash ? await deps.articles.listForSource(ep.source_id, ep.transcript_hash) : []
-  return ep.cost_usd + rows.reduce((sum, r) => sum + r.cost_usd, 0)
 }
 
 /**
@@ -250,15 +244,10 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     const gate = await step.do('gate', DB_STEP, async () => {
       const row = await renew()
       if (!row.audio_url) return { kind: 'skip' as const, reason: 'no_audio' }
-      if (row.duration_sec && row.duration_sec > PODCAST_LIMITS.maxDurationSec) return { kind: 'skip' as const, reason: 'too_long' }
       const language = podcastLanguage(row.language)
       if (row.language && !language) return { kind: 'skip' as const, reason: 'language_unsupported' }
       const choice = chooseTranscriptRef((row.publisher_transcripts as unknown as PodcastTranscriptRef[] | null) ?? [])
-      // Unknown duration: assume an hour, the transcription result enforces the real limit
       const expected = expectedEpisodeCostUsd({ durationSec: row.duration_sec ?? 3600, language, needsTranscription: !choice && !row.provider_job_id, translations: 1 })
-      if (expected > PODCAST_LIMITS.maxEpisodeCostUsd) return { kind: 'skip' as const, reason: 'too_long' }
-      // Earlier attempts already spent part of the episode's budget
-      if (row.cost_usd + expected > PODCAST_LIMITS.maxEpisodeCostUsd) return { kind: 'skip' as const, reason: 'budget_exceeded' }
       return { kind: 'ok' as const, ref: choice?.ref.url ?? null, format: choice?.format ?? null, language, expected }
     })
     if (gate.kind === 'skip') return finish('skipped', gate.reason)
@@ -313,7 +302,6 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
           if (await deps.episodes.addAsrCost(p.episodeId, jobId, state.costUsd)) await deps.addCost(state.costUsd)
           const language = podcastLanguage(state.language) ?? podcastLanguage(row.language)
           if (!language) return { kind: 'unsupported' as const }
-          if (state.durationSec > PODCAST_LIMITS.maxDurationSec) return { kind: 'too_long' as const }
           const doc = buildTranscriptDocument('assemblyai', language, state.segments, state.durationSec * 1000 || undefined)
           return { kind: 'done' as const, transcript: await storeTranscript(deps, p.sourceId, doc) }
         })
@@ -323,7 +311,6 @@ async function transcribe(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
         }
         if (res.kind === 'error') return finish('retry', `asr_error:${res.error}`, true)
         if (res.kind === 'unsupported') return finish('skipped', 'language_unsupported')
-        if (res.kind === 'too_long') return finish('skipped', 'too_long')
         if (waited >= PODCAST_LIMITS.maxPollMs) return finish('failed', 'asr_timeout')
       }
     }
@@ -486,7 +473,7 @@ interface Loaded {
 /**
  * One generation attempt of one article row: the original-language cleanup (polish) or one
  * translation. Same contract as the YouTube runner: claim with run_id, renew the lease in every
- * step, check the per-episode budget before every model call, keep chunk results in R2 so a retry
+ * step, account for every model call, keep chunk results in R2 so a retry
  * reuses them, read objects back before the row says ready.
  */
 async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, step: PodcastStepLike, runId: string, job: ArticleJob): Promise<PodcastOutcome> {
@@ -522,10 +509,9 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     return { ep, transcript, source }
   }
 
-  // Reserve costs before concurrent calls; serialize accounting, not provider requests.
+  // Serialize usage accounting while provider requests run concurrently.
   let accounting: Promise<unknown> = Promise.resolve()
   let accountingError: unknown
-  const reservations = new Map<Promise<void>, number>()
   const exclusive = <T>(fn: () => Promise<T>): Promise<T> => {
     const result = accounting.then(fn)
     accounting = result.catch(() => {})
@@ -537,7 +523,6 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
   }
 
   const call = async (
-    ep: podcastEpisodePO,
     system: string,
     user: string,
     schema: object,
@@ -548,43 +533,17 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
     const next = estimateCostUsd(size.inputTokens, size.outputLimit)
     checkDeadline(attempt.deadline)
     if (attempt.calls >= PODCAST_LIMITS.maxChunkCalls) throw new PodcastStop('chunk_call_limit')
-    let release!: () => void
-    const settled = new Promise<void>(resolve => {
-      release = resolve
+    await exclusive(async () => {
+      checkDeadline(attempt.deadline)
+      if (accountingError) throw accountingError
+      const row = await deps.articles.findById(job.articleId)
+      if (!row || row.run_id !== runId || row.status !== 'generating') throw new PodcastStop('lease_lost')
     })
-    for (;;) {
-      const admission = await exclusive(async () => {
-        checkDeadline(attempt.deadline)
-        if (accountingError) throw accountingError
-        const row = await deps.articles.findById(job.articleId)
-        if (!row || row.run_id !== runId || row.status !== 'generating') throw new PodcastStop('lease_lost')
-        const reserved = [...reservations.values()].reduce((sum, cost) => sum + cost, 0)
-        if ((await episodeSpent(deps, ep)) + reserved + next > PODCAST_LIMITS.maxEpisodeCostUsd) {
-          if (reservations.size) return { wait: Promise.race(reservations.keys()) }
-          throw new PodcastStop('budget_exceeded')
-        }
-        reservations.set(settled, next)
-        return { wait: null }
-      })
-      if (!admission.wait) break
-      let timer: ReturnType<typeof setTimeout> | undefined
-      try {
-        await Promise.race([
-          admission.wait,
-          new Promise<never>((_resolve, reject) => {
-            timer = setTimeout(() => reject(new PodcastStop('chunk_deadline')), Math.max(0, attempt.deadline - Date.now()))
-          })
-        ])
-      } finally {
-        clearTimeout(timer)
-      }
-    }
     const charge = (cost: number) =>
       exclusive(async () => {
         try {
           await deps.articles.addCost(job.articleId, cost)
           await deps.addCost(cost)
-          if ((await episodeSpent(deps, ep)) > PODCAST_LIMITS.maxEpisodeCostUsd) throw new PodcastStop('budget_exceeded')
         } catch (error) {
           accountingError = error
           throw error
@@ -649,10 +608,6 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
       if (signal.aborted) throw new ChunkIncomplete('chunk_timeout', usage)
       return { text: reply.text, usage }
     } finally {
-      await exclusive(async () => {
-        reservations.delete(settled)
-        release()
-      })
       log('call', p, {
         mode: job.mode,
         lang: job.lang,
@@ -696,10 +651,9 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
       const { transcript, source } = await load()
       const count = job.mode === 'polish' ? planPodcastChunks(transcript).length : chunkTranslationUnits(translationUnits(source!)).length
       if (count === 0) return { kind: 'skip' as const, reason: 'transcript_missing' }
-      if (count > PODCAST_LIMITS.maxChunks) return { kind: 'skip' as const, reason: 'too_long' }
       return { kind: 'ok' as const, count }
     })
-    if (prep.kind === 'skip') return finish(prep.reason === 'too_long' ? 'skipped' : 'failed', prep.reason)
+    if (prep.kind === 'skip') return finish('failed', prep.reason)
 
     const processChunk = async (i: number, pass = 0) => {
       // A repair pass needs new step names: a finished step returns its recorded result instead of running
@@ -748,7 +702,7 @@ async function runArticle(deps: PodcastRunnerDeps, p: PodcastWorkflowParams, ste
               // so it is asked again a few times before the attempt gives up as retryable.
               for (let tries = 1; ; tries++) {
                 try {
-                  const reply = await call(ep, system, user, schema, attempt, i)
+                  const reply = await call(system, user, schema, attempt, i)
                   const value = parse(reply.text, items, offset)
                   await deps.bucket.put(partKey, JSON.stringify({ kind: 'done', value, usage: reply.usage } satisfies Part))
                   count(reply.usage)

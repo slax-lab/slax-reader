@@ -2,7 +2,7 @@ import { DeepSeekError } from '@/infra/external/deepseekClient'
 /**
  * One podcast run end to end with fakes: the step engine (with sleep), an in-memory R2 bucket,
  * episode and article stores, the model and AssemblyAI. Covers the publisher and AssemblyAI paths,
- * every gate, moderation, the budget, quality failures and translations.
+ * remaining gates, moderation, usage accounting, quality failures and translations.
  * 来源: src/domain/podcastRunner.ts, docs/podcast-article/spec.md 第 4.2 至 4.6 节、第 9 节
  */
 import { readFileSync } from 'node:fs'
@@ -19,8 +19,6 @@ import {
   PODCAST_POLISH_RESPONSE_SCHEMA,
   buildPolishInstruction,
   buildPolishUserMessage,
-  buildTranslationInstruction,
-  buildTranslationUserMessage,
   chunkTranslationUnits,
   translationUnits,
   planPodcastChunks,
@@ -407,7 +405,6 @@ describe('AssemblyAI path', () => {
 
 describe('gates', () => {
   test.each([
-    [{ duration_sec: 4 * 3600 }, 'too_long'],
     [{ language: 'ja' }, 'language_unsupported'],
     [{ audio_url: '' }, 'no_audio']
   ])('%o → skipped %s before any paid call', async (episode, reason) => {
@@ -483,18 +480,18 @@ describe('articles', () => {
     expect([...bucket.objects.keys()].filter(k => k.includes('/chunks/'))).toEqual([])
   })
 
-  test('the per-episode budget stops a model call before it is made', async () => {
+  test('episode spend above the former cap does not stop polishing', async () => {
     const { deps, articles, episodes } = setup({ episode: { publisher_transcripts: VTT_REF } })
-    // Spent elsewhere after the transcript gate: only the check before the model call can stop it
+    // Spending after transcription must not block model execution.
     const ready = episodes.markReady.getMockImplementation()!
     episodes.markReady.mockImplementation(async (...args) => {
       const ok = await ready(...args)
-      episodes.row.cost_usd = 0.999
+      episodes.row.cost_usd = 10
       return ok
     })
-    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('failed')
-    expect(articles.rows[0].error_message).toBe('budget_exceeded')
-    expect(deps.model.chat).not.toHaveBeenCalled()
+    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('ready')
+    expect(articles.rows[0].status).toBe('ready')
+    expect(deps.model.chat).toHaveBeenCalled()
   })
 
   test('a translation with a missing paragraph id is not published; the original body still is', async () => {
@@ -576,14 +573,7 @@ describe('review fixes', () => {
     const { deps, episodes, articles } = setup({
       episode: { publisher_transcripts: VTT_REF, ...(stage === 'transcript' ? { audio_url: '' } : {}) }
     })
-    if (stage === 'article') {
-      const ready = episodes.markReady.getMockImplementation()!
-      episodes.markReady.mockImplementation(async (...args) => {
-        const ok = await ready(...args)
-        episodes.row.cost_usd = 0.999
-        return ok
-      })
-    }
+    if (stage === 'article') deps.model.chat.mockRejectedValue(new Error('chunk_call_limit'))
     deps.settleSnapshots.mockRejectedValue(new Error('settlement unavailable'))
     await expect(runPodcastEpisode(deps, P, engine().step, 'run-settlement')).rejects.toThrow('settlement unavailable')
     expect(deps.settleSnapshots).toHaveBeenCalledTimes(3)
@@ -621,11 +611,12 @@ describe('review fixes', () => {
     expect(asr.get).toHaveBeenLastCalledWith('job-1')
   })
 
-  test('an episode that already spent most of its budget is skipped before a new paid job', async () => {
-    const { deps, episodes } = setup({ episode: { cost_usd: 0.99 } })
-    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('skipped')
-    expect(episodes.row.error_message).toBe('budget_exceeded')
-    expect(deps.asr.submit).not.toHaveBeenCalled()
+  test('prior episode spend does not block a paid transcription job', async () => {
+    const asr = asrFake([{ status: 'completed', segments: words, language: 'en', durationSec: 180, costUsd: 2 }])
+    const { deps, episodes } = setup({ episode: { cost_usd: 10, duration_sec: 11940 }, asr })
+    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('ready')
+    expect(deps.asr.submit).toHaveBeenCalledOnce()
+    expect(episodes.row.cost_usd).toBe(12)
   })
 
   test('writing the bodies fails: the run still ends ready, the sweep gets a time to write them again, translations go on', async () => {
@@ -767,14 +758,13 @@ describe('concurrent podcast articles', () => {
     expect(original.chat.mock.calls.filter(call => /This is chunk ([2-9]|10) of/.test(call[2].systemInstruction))).toHaveLength(0)
   })
 
-  test('reserves concurrent costs before admitting model calls', async () => {
+  test('retains ten concurrent calls after the former episode cap is exceeded', async () => {
     const { deps, articles, episodes, bucket } = readyLong()
     const transcript = JSON.parse(bucket.objects.get('long-transcript')!)
     const ctx = { title: episodes.row.title, showName: episodes.row.show_name, shownotes: episodes.row.shownotes }
     const sizes = Array.from({ length: 10 }, (_, i) => polishSize(transcript, ctx, i))
     expect(sizes.every(size => !size.oversized)).toBe(true)
-    const minimum = Math.min(...sizes.map(size => estimateCostUsd(size.inputTokens, size.outputLimit)))
-    episodes.row.cost_usd = PODCAST_LIMITS.maxEpisodeCostUsd - minimum * 1.25
+    episodes.row.cost_usd = 10
     const original = fakeModel()
     let active = 0,
       maximum = 0
@@ -789,31 +779,18 @@ describe('concurrent podcast articles', () => {
         return { ...result, usage: { inputTokens: size.inputTokens, outputTokens: size.outputLimit } }
       }
     }
-    expect(await runPodcastEpisode(deps, P, engine().step, 'budget')).toBe('failed')
-    expect(maximum).toBe(1)
-    expect(original.chat).toHaveBeenCalledOnce()
-    expect(articles.rows[0].cost_usd).toBeCloseTo(reservationOf(original.chat.mock.calls[0]), 8)
-    expect(articles.rows[0].error_message).toBe('budget_exceeded')
-    expect(deps.publishBodies).not.toHaveBeenCalled()
+    expect(await runPodcastEpisode(deps, P, engine().step, 'budget')).toBe('ready')
+    expect(maximum).toBe(10)
+    expect(original.chat.mock.calls.length).toBeGreaterThan(10)
+    expect(articles.rows[0].cost_usd).toBeGreaterThan(0)
+    expect(articles.rows[0].status).toBe('ready')
+    expect(deps.publishBodies).toHaveBeenCalled()
   })
 
-  test('reduces translation concurrency when five requested reservations no longer fit', async () => {
+  test('translation retains its concurrency after prior costs exceed the former cap', async () => {
     const { deps, articles, episodes, bucket } = readyLong()
     deps.translationTargets.mockImplementation(async () => {
-      const source = JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!)
-      const ctx = { title: episodes.row.title, showName: episodes.row.show_name, shownotes: episodes.row.shownotes }
-      const system = buildTranslationInstruction('en', 'zh', ctx, '', [])
-      const { PODCAST_TRANSLATION_RESPONSE_SCHEMA } = await import('@/utils/podcastArticle')
-      const costs = chunkTranslationUnits(translationUnits(source))
-        .slice(0, 5)
-        .map(chunk => {
-          const size = podcastRequestSize(system, buildTranslationUserMessage(chunk), PODCAST_TRANSLATION_RESPONSE_SCHEMA)
-          expect(size.oversized).toBe(false)
-          return estimateCostUsd(size.inputTokens, size.outputLimit)
-        })
-      const remaining = costs.slice(0, 4).reduce((sum, cost) => sum + cost, 0) + Math.min(...costs) / 2
-      expect(remaining).toBeLessThan(costs.reduce((sum, cost) => sum + cost, 0))
-      episodes.row.cost_usd = PODCAST_LIMITS.maxEpisodeCostUsd - articles.rows[0].cost_usd - remaining
+      episodes.row.cost_usd = 10
       return ['zh']
     })
     const original = fakeModel()
@@ -841,12 +818,12 @@ describe('concurrent podcast articles', () => {
     }
     const run = runPodcastEpisode(deps, P, engine().step, 'translation')
     try {
-      await vi.waitFor(() => expect(started).toBe(4), { timeout: 1000 })
+      await vi.waitFor(() => expect(started).toBe(10), { timeout: 1000 })
     } finally {
       release()
     }
     expect(await run).toBe('ready')
-    expect(maximum).toBe(4)
+    expect(maximum).toBe(10)
     expect(articles.rows.find(r => r.target_language === 'zh')?.status).toBe('ready')
   })
 
@@ -1402,31 +1379,33 @@ describe('podcast truncation recovery', () => {
     expect(state.articles.publish).not.toHaveBeenCalled()
   })
 
-  test('reserves the full requested output ceiling, including when it prevents any call', async () => {
+  test('keeps output sizing and processes work despite prior episode spend', async () => {
     const state = ready()
-    state.episodes.row.cost_usd = PODCAST_LIMITS.maxEpisodeCostUsd - state.reservation * 0.9
+    state.episodes.row.cost_usd = 10
     expect(state.size.outputLimit).toBeLessThan(PODCAST_LIMITS.maxOutputTokens)
-    expect(await runPodcastEpisode(state.deps, P, once, 'full-reservation')).toBe('failed')
-    expect(state.articles.rows[0].error_message).toBe('budget_exceeded')
-    expect(state.deps.model.chat).not.toHaveBeenCalled()
-    expect(state.deps.addCost).not.toHaveBeenCalled()
+    expect(await runPodcastEpisode(state.deps, P, once, 'full-reservation')).toBe('ready')
+    expect(state.articles.rows[0].status).toBe('ready')
+    expect(state.deps.model.chat).toHaveBeenCalled()
+    expect(state.deps.addCost).toHaveBeenCalled()
   })
 
-  test('charges a full truncated response before admitting its children', async () => {
+  test('charges a truncated response and continues recovery beyond the former cap', async () => {
     const state = ready()
-    state.episodes.row.cost_usd = PODCAST_LIMITS.maxEpisodeCostUsd - state.reservation * 1.1
+    state.episodes.row.cost_usd = 10
+    const original = fakeModel()
+    let first = true
     const model = vi.fn(async (...args: Parameters<ArticleModel['chat']>) => {
+      if (!first) return original.chat(...args)
+      first = false
       const size = sizeOf(args)
-      expect(args[1].maxOutputTokens).toBe(size.outputLimit)
       return { ...truncated(), usage: { inputTokens: size.inputTokens, outputTokens: size.outputLimit } }
     })
     state.deps.model = { chat: model }
-    expect(await runPodcastEpisode(state.deps, P, once, 'split-budget')).toBe('failed')
-    expect(model).toHaveBeenCalledOnce()
-    expect(state.articles.rows[0].cost_usd).toBeCloseTo(state.reservation, 8)
+    expect(await runPodcastEpisode(state.deps, P, once, 'split')).toBe('ready')
+    expect(model.mock.calls.length).toBeGreaterThan(1)
+    expect(state.articles.rows[0].cost_usd).toBeGreaterThan(state.reservation)
     expect(state.deps.addCost).toHaveBeenCalledWith(state.reservation)
-    expect(state.articles.rows[0].error_message).toBe('budget_exceeded')
-    expect(state.deps.publishBodies).not.toHaveBeenCalled()
+    expect(state.deps.publishBodies).toHaveBeenCalled()
   })
 
   test('renews the lease between recovery calls and stops before a child on ownership loss', async () => {
@@ -1732,9 +1711,8 @@ describe('podcast truncation recovery', () => {
     expect([...state.bucket.objects.keys()].filter(key => key.includes('/chunks/'))).toEqual([])
   })
 
-  test.each(['deadline', 'budget'])('timeout recovery never starts children after the %s is exhausted', async boundary => {
+  test('timeout recovery never starts children after the deadline is exhausted', async () => {
     const state = ready()
-    if (boundary === 'budget') state.episodes.row.cost_usd = PODCAST_LIMITS.maxEpisodeCostUsd - state.reservation * 1.1
     const nativeTimeout = AbortSignal.timeout.bind(AbortSignal)
     const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => nativeTimeout(10))
     let now = 1_000
@@ -1744,7 +1722,7 @@ describe('podcast truncation recovery', () => {
         config.abortSignal.addEventListener(
           'abort',
           () => {
-            if (boundary === 'deadline') now += 11 * 60_000
+            now += 11 * 60_000
             reject(new DOMException('aborted', 'AbortError'))
           },
           { once: true }
@@ -1754,9 +1732,9 @@ describe('podcast truncation recovery', () => {
     })
     state.deps.model = { chat: model }
     try {
-      expect(await runPodcastEpisode(state.deps, P, engine().step, `timeout-${boundary}`)).toBe('failed')
+      expect(await runPodcastEpisode(state.deps, P, engine().step, 'timeout-deadline')).toBe('failed')
       expect(model).toHaveBeenCalledOnce()
-      expect(state.articles.rows[0].error_message).toBe(boundary === 'deadline' ? 'chunk_deadline' : 'budget_exceeded')
+      expect(state.articles.rows[0].error_message).toBe('chunk_deadline')
       expect(state.deps.addCost).toHaveBeenCalledOnce()
       expect(state.articles.publish).not.toHaveBeenCalled()
     } finally {

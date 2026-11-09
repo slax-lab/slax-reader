@@ -27,10 +27,8 @@ import { ASSEMBLYAI_USD_PER_HOUR } from '@/infra/external/assemblyAI'
 export const PODCAST_ARTICLE_PROMPT_VERSION = 'v1'
 export const PODCAST_ARTICLE_SCHEMA_VERSION = 1
 
-/** First-version limits (spec 第 6 节). */
+/** Per-request sizing, quality checks, and execution bounds. */
 export const PODCAST_LIMITS = {
-  maxDurationSec: 3 * 60 * 60,
-  maxEpisodeCostUsd: 1.0,
   /** Calls of one indivisible part per attempt before it fails as retryable. */
   singletonTries: 3,
   /** Repeated paragraphs shorter than this are a speaker's backchannel, not a doubled reply. */
@@ -39,10 +37,7 @@ export const PODCAST_LIMITS = {
   partMinNumbers: 5,
   /** A part with fewer source characters than this skips the length check: filler removal swings small ratios. */
   partMinChars: 400,
-  dailyCostUsd: 30,
-  userDailyEpisodes: 5,
   chunkTargetTokens: YOUTUBE_ARTICLE_LIMITS.chunkTargetTokens,
-  maxChunks: 80,
   translationChunkTokens: 3_000,
   maxOutputTokens: 65_536,
   requestInputTokens: 6_000,
