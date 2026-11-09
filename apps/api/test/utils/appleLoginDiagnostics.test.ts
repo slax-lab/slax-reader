@@ -8,6 +8,8 @@ vi.mock('jose', async importOriginal => ({
 }))
 
 import { AppleAuth } from '@/utils/authLogin/authApple'
+import { EmailAuthentication } from '@/domain/emailAuthentication'
+import { ContextManager } from '@/utils/context'
 
 const baseEnv = {
   APPLE_WEB_CLIENT_ID: 'reader.web',
@@ -141,8 +143,8 @@ describe('Apple identity verification diagnostics', () => {
   async function build() {
     const pair = await generateKeyPair('RS256')
     keys.resolve.mockImplementation(createLocalJWKSet({ keys: [{ ...(await exportJWK(pair.publicKey)), kid: 'test' }] }))
-    const sign = (audience = 'app.slax.reader', subject = 'synthetic-user', expiration: string | number = '1h') =>
-      new SignJWT({ email: 'identity-email-do-not-log@example.test', email_verified: true })
+    const sign = (audience = 'app.slax.reader', subject = 'synthetic-user', expiration: string | number = '1h', nonce?: string) =>
+      new SignJWT({ email: 'identity-email-do-not-log@example.test', email_verified: true, nonce })
         .setProtectedHeader({ alg: 'RS256', kid: 'test' })
         .setIssuer('https://appleid.apple.com')
         .setSubject(subject)
@@ -195,5 +197,31 @@ describe('Apple identity verification diagnostics', () => {
     expect(params.get('client_secret')).toBe(clientSecret)
     expect(params.has('redirect_uri')).toBe(false)
     expect(console.error).not.toHaveBeenCalled()
+  })
+
+  test('links iOS Apple with the original nonce from the signed native credential', async () => {
+    const { sign } = await build()
+    vi.spyOn(AppleAuth.prototype as unknown as SigningAccess, 'getClientSecret').mockResolvedValue(clientSecret)
+    const repo = { bindLoginProvider: vi.fn() }
+    const stateKey = { setWithExpire: vi.fn(), consume: vi.fn() }
+    const redis = () => ({ key: () => stateKey })
+    const ctx = new ContextManager({} as ExecutionContext, {
+      ...baseEnv,
+      EMAIL_AUTH_ENABLED: 'true',
+      EMAIL_AUTH_HMAC_SECRET: 'a-long-test-only-verification-secret',
+      RESEND_API_KEY: 'fixture',
+      RUN_TYPE: 'dev'
+    } as Env)
+    ctx.setUserInfo(41, 41, '', 'en')
+    const auth = new EmailAuthentication(repo as never, {} as never, redis as never)
+    const provider = { type: 'apple', platform: 'ios' }
+    const request = (body: object) => new Request('https://api.example.test/', { method: 'POST', body: JSON.stringify(body) })
+    const { state, nonce } = await auth.startProvider(ctx, request(provider))
+    stateKey.consume.mockResolvedValueOnce(stateKey.setWithExpire.mock.calls[0][0])
+    const [exchangedToken, nativeToken] = await Promise.all([sign(), sign('app.slax.reader', 'synthetic-user', '1h', nonce)])
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ id_token: exchangedToken }))
+
+    await expect(auth.finishProvider(ctx, request({ ...provider, state, code, id_token: nativeToken, redirect_uri: '' }))).resolves.toEqual({ linked: true })
+    expect(repo.bindLoginProvider).toHaveBeenCalledExactlyOnceWith(41, 'apple', 'synthetic-user', 'identity-email-do-not-log@example.test')
   })
 })

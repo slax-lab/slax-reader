@@ -40,3 +40,7 @@ On 2026-11-09 the requester accepted the Mobile preview covering iOS email login
 ## Local review
 
 The Bugs, Security, and Compliance passes matched the diff to `add-email-otp-auth`. The final diff addresses stale Web account ownership, cancelled Mobile session completion, provider subject precedence, and frozen Apple placeholder ownership. No unresolved Important finding remained in the local review.
+
+The first automated review questioned whether the iOS Apple SDK hashes the provider nonce. The installed `expo-apple-authentication` 58.0.2 Swift source matched the published package. Its `AppleAuthenticationRequest.swift` sets `request.nonce = options.nonce`. Apple documents that the value sent in the native request returns in the signed identity token. The provider binding therefore compares that value with the server challenge. [Published Expo 58.0.2 package](https://registry.npmjs.org/expo-apple-authentication/-/expo-apple-authentication-58.0.2.tgz) · [Apple's native nonce description](https://developer.apple.com/videos/play/wwdc2020/10173/?time=1699)
+
+The focused API run passed 25 tests, including the iOS provider-binding flow with two locally signed Apple identities and the nonce in the native credential. The nine Mobile provider tests passed, including passing the issued nonce through the Apple adapter. These checks use synthetic identities. Real Apple authorization remains part of configured-environment verification.
