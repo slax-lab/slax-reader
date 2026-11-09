@@ -61,8 +61,7 @@ export class PassageRepairError extends Error {
 }
 
 export function optionalModelFailure(error: unknown): boolean {
-  const code = (error as { code?: string })?.code
-  return error instanceof ArticleModelError || error instanceof ChunkTruncated || code === 'budget_exceeded' || code === 'lifetime_budget_exceeded'
+  return error instanceof ArticleModelError || error instanceof ChunkTruncated
 }
 
 export function cleanCaptionText(text: string): string {

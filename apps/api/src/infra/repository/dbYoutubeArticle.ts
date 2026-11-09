@@ -5,9 +5,6 @@ import { PrismaClient as HyperdrivePrismaClient, Prisma } from '@prisma/hyperdri
 import { MediaArticleRepo, type MediaKind } from '@/infra/repository/dbMediaArticle'
 
 export {
-  FINAL_ERRORS,
-  blocksRetry,
-  isFinalError,
   eligibilityDecision,
   MEDIA_ARTICLE_MAX_ATTEMPTS as YOUTUBE_ARTICLE_MAX_ATTEMPTS,
   type mediaArticlePO as youtubeArticlePO,

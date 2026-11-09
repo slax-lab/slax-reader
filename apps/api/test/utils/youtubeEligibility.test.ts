@@ -140,10 +140,10 @@ describe('evaluateYoutubeEligibility', () => {
     expect(r.reason_codes).toEqual(expect.arrayContaining(['fragmented_captions', 'repetitive_captions']))
   })
 
-  test('a very long video is never auto generated: review with very_long_video', () => {
+  test('a long readable video remains eligible for automatic generation', () => {
     const r = evaluateYoutubeEligibility(input(cuesFrom(LECTURE_LINES, { count: 2500 })))
-    expect(r.decision).toBe('review')
-    expect(r.reason_codes).toContain('very_long_video')
+    expect(r.decision).toBe('generate')
+    expect(r.reason_codes).not.toContain('very_long_video')
   })
 
   test('features are recorded for every decision', () => {

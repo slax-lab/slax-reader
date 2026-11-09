@@ -412,7 +412,6 @@ container.register(YoutubeArticleService, {
       container.resolve(UserRepo),
       lazy(() => container.resolve(RedisClient)),
       lazy(() => container.resolve(BucketClient)),
-      container.resolve(SlaxAlertBotClient),
       container.resolve(CrawlService),
       container.resolve(MediaBodyService),
       container.resolve(MediaSnapshotService)

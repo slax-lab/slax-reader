@@ -6,7 +6,6 @@ import { LabService } from '@/domain/lab'
 import { UserRepo } from '@/infra/repository/dbUser'
 import { RedisClient } from '@/infra/repository/redisClient'
 import { BucketClient } from '@/infra/repository/bucketClient'
-import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { CrawlService } from '@/domain/crawl'
 import { MediaBodyService } from '@/domain/mediaBody'
 import { type LoadedMediaSnapshot, MediaSnapshotService } from '@/domain/mediaSnapshot'
@@ -15,7 +14,7 @@ import { HtmlBuilder, isSafeVideoId, type YoutubeCue } from '@/utils/htmlBuilder
 import { renderMediaArticle } from '@/utils/podcastArticle'
 import { toCompatCues, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
 import { normalizeYoutubeUrl } from '@/utils/platformDetector'
-import { YoutubeArticleRepo, blocksRetry, eligibilityDecision, isFinalError, type youtubeArticlePO, type YoutubeArticleStatus } from '@/infra/repository/dbYoutubeArticle'
+import { YoutubeArticleRepo, eligibilityDecision, type youtubeArticlePO, type YoutubeArticleStatus } from '@/infra/repository/dbYoutubeArticle'
 import {
   YOUTUBE_ARTICLE_LIMITS,
   escapeHtml,
@@ -30,9 +29,6 @@ import {
 import { BookmarkNotFoundError, ErrorParam } from '@/const/err'
 
 export const YOUTUBE_ARTICLE_LAB = 'youtube_article'
-
-/** Per user per UTC day. */
-export const YOUTUBE_ARTICLE_DAILY_LIMITS = { auto: 20, manual: 5 } as const
 
 const PUBLICATION_RETRY_PREFIX = 'youtube/pending-publication/'
 
@@ -91,7 +87,7 @@ export interface YoutubeArticleStatusResponse {
 /** What a body that holds a YouTube article starts with; the version follows. */
 const BODY_MARKER = 'data-slax-derived="youtube-article" data-article-version="'
 
-type StartResult = 'started' | 'locked' | 'busy' | 'over_budget' | 'not_pending' | 'failed'
+type StartResult = 'started' | 'locked' | 'busy' | 'not_pending' | 'failed'
 
 interface Access {
   bookmarkUid: string
@@ -131,7 +127,7 @@ function utcDay(now: Date = new Date()): string {
 
 /**
  * YouTube AI article, P1: who may see which article version, the three ways a generation starts,
- * the daily and budget limits, and the periodic sweep. Article rows are canonical per video; the
+ * the periodic sweep. Article rows are canonical per video; the
  * bookmark always decides visibility.
  */
 @injectable()
@@ -143,7 +139,6 @@ export class YoutubeArticleService {
     @inject(UserRepo) private userRepo: UserRepo,
     @inject(RedisClient) private redis: LazyInstance<RedisClient>,
     @inject(BucketClient) private bucket: LazyInstance<BucketClient>,
-    @inject(SlaxAlertBotClient) private alertBot: SlaxAlertBotClient,
     @inject(CrawlService) private crawlService: CrawlService,
     @inject(MediaBodyService) private bodies: MediaBodyService,
     @inject(MediaSnapshotService) private snapshots: MediaSnapshotService
@@ -184,7 +179,7 @@ export class YoutubeArticleService {
     const access = await this.resolveAccess(ctx, bookmarkUid)
     const viewerId = ctx.getUserId()
     const requested = await this.languageOf(viewerId > 0 ? viewerId : access.ownerId)
-    const unavailable = this.response(requested, null, access, false)
+    const unavailable = this.response(requested, null, access)
 
     if (access.flagged) return unavailable
     let loaded = await this.snapshots.load(access.bookmarkId)
@@ -217,9 +212,7 @@ export class YoutubeArticleService {
       if (enabled && access.isOwner && snapshot.mode === 'capture' && snapshot.variants[requested]?.status === 'pending') {
         const row = await this.repo.findVersion(snapshot.sourceId, snapshot.sourceHash, requested)
         if (row?.status === 'pending' && !row.next_retry_at && eligibilityDecision(row) === 'generate') {
-          if (!(await this.takeDaily(viewerId, 'auto'))) return { ...result, status: 'limit_reached' }
-          const started = await this.start(ctx, row, access.title, 'open')
-          if (started === 'not_pending' || started === 'locked') await this.giveBackDaily(viewerId, 'auto')
+          await this.start(ctx, row, access.title, 'open')
         }
       }
       return result
@@ -235,12 +228,7 @@ export class YoutubeArticleService {
     }
 
     if (enabled && access.isOwner && row && row.status === 'pending' && !row.next_retry_at && eligibilityDecision(row) === 'generate') {
-      const counted = await this.takeDaily(viewerId, 'auto')
-      if (!counted) return { ...this.response(requested, row, access, await this.manualLeft(viewerId)), status: 'limit_reached' }
-      const started = await this.start(ctx, row, access.title, 'open')
-      // Deferred starts (busy, over budget, create failed) still run later through the sweep, so they
-      // keep the count. 'locked' means another start of this row is in flight and already counted.
-      if (started === 'not_pending' || started === 'locked') await this.giveBackDaily(viewerId, 'auto')
+      await this.start(ctx, row, access.title, 'open')
       row = (await this.repo.findById(row.id)) ?? row
     }
 
@@ -256,7 +244,7 @@ export class YoutubeArticleService {
     if (row?.status === 'takedown' || row?.status === 'stale') return unavailable
     if (!enabled && row?.status !== 'ready') return access.isOwner ? { ...unavailable, unavailable_reason: 'labs_disabled' } : unavailable
     if (!row) return access.isOwner ? { ...unavailable, unavailable_reason: 'source_missing' } : unavailable
-    const res = this.response(requested, row, access, access.isOwner ? await this.manualLeft(viewerId) : false)
+    const res = this.response(requested, row, access)
     const body = await this.bodyState(ctx, access, row)
     return { ...res, ...body }
   }
@@ -323,8 +311,8 @@ export class YoutubeArticleService {
       eligibility: variant?.eligibility ?? null,
       version,
       format: ready ? variant.content!.format : null,
-      can_generate: canRequest && (status === 'failed' || status === 'skipped') && !isFinalError(variant?.reason),
-      can_retry: canRequest && status === 'failed' && !blocksRetry(variant?.reason),
+      can_generate: canRequest && (status === 'failed' || status === 'skipped'),
+      can_retry: canRequest && status === 'failed',
       article_url: version ? `/v1/youtube_article/content?bookmark_uid=${encodeURIComponent(access.bookmarkUid)}&version=${encodeURIComponent(version)}` : null,
       updated_at: null,
       body_mode: snapshot.bodyLanguage ? 'article' : 'transcript',
@@ -332,7 +320,7 @@ export class YoutubeArticleService {
     }
   }
 
-  private response(requested: YoutubeArticleLanguage, row: youtubeArticlePO | null, access: Access, canManual: boolean): YoutubeArticleStatusResponse {
+  private response(requested: YoutubeArticleLanguage, row: youtubeArticlePO | null, access: Access): YoutubeArticleStatusResponse {
     if (!row || row.status === 'takedown' || row.status === 'stale') {
       return {
         status: 'unavailable',
@@ -364,8 +352,8 @@ export class YoutubeArticleService {
       eligibility: eligibility ? { decision: eligibilityDecision(row), reason_codes: eligibility.reason_codes ?? [] } : null,
       version: ready ? version : null,
       format: ready ? format : null,
-      can_generate: access.isOwner && canManual && (status === 'skipped' || status === 'failed') && !isFinalError(row.error_message),
-      can_retry: access.isOwner && status === 'failed' && !blocksRetry(row.error_message),
+      can_generate: access.isOwner && (status === 'skipped' || status === 'failed'),
+      can_retry: access.isOwner && status === 'failed',
       article_url: ready ? `/v1/youtube_article/content?bookmark_uid=${encodeURIComponent(access.bookmarkUid)}&version=${encodeURIComponent(version)}` : null,
       updated_at: row.updated_at.toISOString(),
       body_mode: 'article',
@@ -376,9 +364,7 @@ export class YoutubeArticleService {
   // ---------- write ----------
 
   /**
-   * Owner actions. `generate` runs a skipped or failed version and counts against the daily manual
-   * limit; `retry` runs a failed version again from zero attempts and zero run spend, does not
-   * count, and stops at the version's lifetime cap.
+   * Owner actions restart failed or skipped work without discarding accumulated cost.
    */
   public async request(ctx: ContextManager, bookmarkUid: string, mode: 'generate' | 'retry'): Promise<YoutubeArticleStatusResponse> {
     const access = await this.resolveAccess(ctx, bookmarkUid)
@@ -402,21 +388,18 @@ export class YoutubeArticleService {
     const snapshot = (await this.snapshots.load(access.bookmarkId))?.media
     const privateVariant = snapshot?.variants[language]
     if (snapshot?.mode === 'capture' && row.status !== 'failed' && row.status !== 'skipped') {
-      const eligible = privateVariant?.status === 'failed' || (mode === 'generate' && privateVariant?.status === 'skipped')
-      if (!eligible || (mode === 'retry' ? blocksRetry(privateVariant?.reason) : isFinalError(privateVariant?.reason))) throw ErrorParam()
+      const eligible = privateVariant?.status === 'failed' || privateVariant?.status === 'skipped'
+      if (!eligible) throw ErrorParam()
       await this.snapshots.openRequest(access.bookmarkId, language)
       return this.getStatus(ctx, bookmarkUid)
     }
 
     if (mode === 'retry') {
-      if (row.status !== 'failed') throw ErrorParam()
-      // The retry restarts the run budget; the version's lifetime cap and the site-wide cap bound it
-      if (!(await this.repo.requeue(row.id, true, { recoverBudget: true }))) throw ErrorParam()
+      if (row.status !== 'failed' && row.status !== 'skipped') throw ErrorParam()
+      if (!(await this.repo.requeue(row.id, true))) throw ErrorParam()
     } else {
       if (row.status !== 'skipped' && row.status !== 'failed') return this.getStatus(ctx, bookmarkUid)
-      if (!(await this.takeDaily(access.ownerId, 'manual'))) return { ...(await this.getStatus(ctx, bookmarkUid)), status: 'limit_reached', can_generate: false }
       if (!(await this.repo.requeue(row.id, false))) {
-        await this.giveBackDaily(access.ownerId, 'manual')
         return this.getStatus(ctx, bookmarkUid)
       }
     }
@@ -472,13 +455,7 @@ export class YoutubeArticleService {
         return
       }
       if (row.status !== 'pending' || row.next_retry_at || eligibilityDecision(row) !== 'generate') return
-      // A save-triggered start is an automatic start and counts against the same daily limit
-      if (!(await this.takeDaily(userId, 'auto'))) {
-        console.log(`YouTube article trigger after crawl: bookmark=${bookmarkId} article=${row.id} lang=${language} result=limit_reached`)
-        return
-      }
       const result = await this.start(ctx, row, title, 'crawl')
-      if (result === 'not_pending' || result === 'locked') await this.giveBackDaily(userId, 'auto')
       console.log(`YouTube article trigger after crawl: bookmark=${bookmarkId} article=${row.id} lang=${language} result=${result}`)
     } catch (err) {
       console.error(`YouTube article trigger after crawl failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
@@ -676,17 +653,13 @@ export class YoutubeArticleService {
   // ---------- start ----------
 
   /**
-   * Start the workflow for a pending row, or put it off for the sweeper. Over budget or too many
+   * Start the workflow for a pending row, or put it off for the sweeper. Too many
    * running rows → deferred. The short lock stops parallel callers from starting the same row; the
    * claim inside the workflow is what finally guarantees a single run.
    */
   private async start(ctx: ContextManager, row: youtubeArticlePO, title: string, trigger: YoutubeArticleTrigger): Promise<StartResult> {
     if (row.status !== 'pending') return 'not_pending'
 
-    if (await this.overBudget()) {
-      await this.repo.defer(row.id, new Date(Date.now() + 60 * 60 * 1000))
-      return 'over_budget'
-    }
     // debt: count-then-start is not atomic, so a burst can briefly run a few more than maxConcurrent.
     // Upgrade to a Durable Object semaphore if bursts ever matter for cost or rate limits.
     if ((await this.repo.countRunning()) >= YOUTUBE_ARTICLE_LIMITS.maxConcurrent) {
@@ -719,44 +692,7 @@ export class YoutubeArticleService {
     }
   }
 
-  // ---------- limits ----------
-
-  private async takeDaily(userId: number, kind: 'auto' | 'manual'): Promise<boolean> {
-    const counter = this.redis().youtubeArticleDaily(userId, utcDay(), kind)
-    const count = await counter.incrWithExpire(2 * DAY_SECONDS)
-    if (count > YOUTUBE_ARTICLE_DAILY_LIMITS[kind]) {
-      await counter.incrBy(-1)
-      return false
-    }
-    return true
-  }
-
-  private async giveBackDaily(userId: number, kind: 'auto' | 'manual'): Promise<void> {
-    await this.redis().youtubeArticleDaily(userId, utcDay(), kind).incrBy(-1)
-  }
-
-  private async manualLeft(userId: number): Promise<boolean> {
-    const used = Number((await this.redis().youtubeArticleDaily(userId, utcDay(), 'manual').get()) ?? 0)
-    return used < YOUTUBE_ARTICLE_DAILY_LIMITS.manual
-  }
-
-  private async overBudget(): Promise<boolean> {
-    const day = utcDay()
-    const spentMicro = Number((await this.redis().youtubeArticleCost(day).get()) ?? 0)
-    if (spentMicro < YOUTUBE_ARTICLE_LIMITS.dailyCostUsd * 1_000_000) return false
-    if (
-      await this.redis()
-        .youtubeArticleBudgetAlert(day)
-        .setIfAbsent(1, 2 * DAY_SECONDS)
-    ) {
-      await this.alertBot.crawl
-        .pushMessage(`⚠️ **YouTube article budget reached**\n**Day (UTC)**: ${day}\n**Spent**: ${(spentMicro / 1_000_000).toFixed(2)} USD\n**处理**: 新任务已暂停，次日自动恢复`)
-        .catch((e: unknown) => console.error(`budget alert push failed: ${e}`))
-    }
-    return true
-  }
-
-  /** Add the estimated cost of one model call to today's site-wide spend. */
+  /** Record estimated daily spend without gating new work. */
   public async addCost(usd: number): Promise<void> {
     if (!(usd > 0)) return
     const counter = this.redis().youtubeArticleCost(utcDay())
@@ -797,7 +733,7 @@ export class YoutubeArticleService {
         started++
         slots--
       }
-      if (result === 'busy' || result === 'over_budget') break
+      if (result === 'busy') break
     }
 
     let deleted = 0

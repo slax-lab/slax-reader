@@ -14,20 +14,11 @@ const LANGUAGE_NAMES: Record<YoutubeArticleLanguage, string> = { en: 'English', 
 
 export { DEEPSEEK_ARTICLE_MODEL as YOUTUBE_ARTICLE_MODEL } from '@/infra/external/deepseekClient'
 
-/** Hard limits of one video. All first-version values, calibrated in P3. */
+/** Per-request sizing and execution bounds. */
 export const YOUTUBE_ARTICLE_LIMITS = {
-  maxDurationMs: 6 * 60 * 60 * 1000,
-  maxInputChars: 400_000,
   chunkTargetTokens: 3_000,
   overlapRatio: 0.08,
-  maxChunks: 40,
   maxOutputTokens: 16_000,
-  // Must cover the most expensive plan the other limits allow: 40 chunks of
-  // chunkTargetTokens must fit before attempting model calls.
-  maxCostUsd: 1,
-  // Hard cap per version across every explicit retry: each retry restarts the $1 run budget
-  maxLifetimeCostUsd: 2,
-  dailyCostUsd: 20,
   maxConcurrent: 4,
   leaseMs: 10 * 60 * 1000
 } as const
@@ -161,7 +152,7 @@ export interface YoutubeArticlePlan {
   chunks: YoutubeArticleChunk[]
 }
 
-export type YoutubeArticlePlanResult = { ok: true; plan: YoutubeArticlePlan } | { ok: false; reason: 'too_long' | 'caption_missing' }
+export type YoutubeArticlePlanResult = { ok: true; plan: YoutubeArticlePlan } | { ok: false; reason: 'caption_missing' }
 
 export const SPEAKER_RE = /^\s*(?:(?:>>\s*)?(?:\[([^\]]{1,40})\]\s*:|([A-Z][\w.' -]{0,30}):\s)|>>)/
 
@@ -206,9 +197,7 @@ export function planYoutubeArticle(caption: YoutubeCaptionDocument | null): Yout
   const last = caption.cues[caption.cues.length - 1]
   const durationMs = last.start_ms + (last.duration_ms ?? 0)
   const inputChars = cues.reduce((n, c) => n + c.text.length + 1, 0)
-  if (durationMs > YOUTUBE_ARTICLE_LIMITS.maxDurationMs || inputChars > YOUTUBE_ARTICLE_LIMITS.maxInputChars) return { ok: false, reason: 'too_long' }
   const chunks = chunkCues(cues)
-  if (chunks.length > YOUTUBE_ARTICLE_LIMITS.maxChunks) return { ok: false, reason: 'too_long' }
   return { ok: true, plan: { format: detectArticleFormat(cues), durationMs, inputChars, cues, chunks } }
 }
 

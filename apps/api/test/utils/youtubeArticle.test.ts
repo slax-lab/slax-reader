@@ -103,21 +103,22 @@ describe('planYoutubeArticle', () => {
     expect(planYoutubeArticle(captionDoc([]))).toEqual({ ok: false, reason: 'caption_missing' })
   })
 
-  test('longer than 6 hours → too_long', () => {
+  test('longer than 6 hours is admitted', () => {
     const doc = captionDoc([cue(0, LINE), cue(1, LINE, 6 * 3600 * 1000 + 1)])
-    expect(planYoutubeArticle(doc)).toEqual({ ok: false, reason: 'too_long' })
+    expect(planYoutubeArticle(doc).ok).toBe(true)
   })
 
-  test('more than 400,000 characters → too_long', () => {
+  test('more than 400,000 characters is admitted', () => {
     const doc = captionDoc(Array.from({ length: 4100 }, (_, i) => cue(i, `${'word '.repeat(19)}${i}`, i * 1000)))
-    expect(planYoutubeArticle(doc)).toEqual({ ok: false, reason: 'too_long' })
+    expect(planYoutubeArticle(doc).ok).toBe(true)
   })
 
-  test('more than 40 chunks → too_long', () => {
+  test('more than 40 chunks is admitted', () => {
     // CJK: few characters but many tokens per chunk
     const doc = captionDoc(Array.from({ length: 2000 }, (_, i) => cue(i, `${'讲'.repeat(90)}${i}`, i * 1000)))
     const res = planYoutubeArticle(doc)
-    expect(res).toEqual({ ok: false, reason: 'too_long' })
+    expect(res.ok).toBe(true)
+    if (res.ok) expect(res.plan.chunks.length).toBeGreaterThan(40)
   })
 
   test('works on the rolling-caption-cleaned cues and reports duration and size', () => {
@@ -130,7 +131,7 @@ describe('planYoutubeArticle', () => {
     expect(res.plan.format).toBe('article')
   })
 
-  test('the most expensive plan inside the chunk ceiling stays inside the per-article budget', () => {
+  test('cost estimates remain available for admitted plans', () => {
     // ~1,300 × 90 CJK characters ≈ 39 chunks: close to the 40-chunk ceiling, same prompt shape the runner prices.
     const doc = captionDoc(Array.from({ length: 1300 }, (_, i) => cue(i, `${'讲'.repeat(90)}${i}`, i * 1000)))
     const res = planYoutubeArticle(doc)
@@ -141,7 +142,7 @@ describe('planYoutubeArticle', () => {
       const prompt = buildSystemInstruction('zh', chunk, res.plan.chunks.length) + buildUserMessage('title', res.plan.cues.slice(chunk.start, chunk.end))
       return sum + expectedChunkCostUsd(estimateTokens(prompt))
     }, 0)
-    expect(expected).toBeLessThanOrEqual(YOUTUBE_ARTICLE_LIMITS.maxCostUsd)
+    expect(expected).toBeGreaterThan(0)
   })
 })
 
@@ -468,11 +469,23 @@ describe('keys, ids and cost', () => {
   })
 })
 
-
 describe('edited transcript coverage', () => {
   test('rejects a missing source passage even when the length is sufficient', () => {
     const cues = [cue(0, 'A first claim.'), cue(1, 'A missing example.'), cue(2, 'A final claim.')]
-    const doc: YoutubeArticleDocument = { schema_version: 1, language: 'en', format: 'article', lede: 'Introduction.', sections: [{ heading: 'Claims', start_ms: 0, end_ms: 10000, paragraphs: [{ speaker: null, text: 'A first claim. A final claim with more words.', source_cue_ids: ['c0000', 'c0002'] }] }] }
+    const doc: YoutubeArticleDocument = {
+      schema_version: 1,
+      language: 'en',
+      format: 'article',
+      lede: 'Introduction.',
+      sections: [
+        {
+          heading: 'Claims',
+          start_ms: 0,
+          end_ms: 10000,
+          paragraphs: [{ speaker: null, text: 'A first claim. A final claim with more words.', source_cue_ids: ['c0000', 'c0002'] }]
+        }
+      ]
+    }
     expect(checkArticleQuality(doc, cues, cues.map(c => c.text).join(' '), { requireCompleteCoverage: true }).failed).toContain('cue_coverage')
   })
 })
