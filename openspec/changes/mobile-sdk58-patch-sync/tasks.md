@@ -12,9 +12,13 @@
 - [x] 2.2 Regenerate `apps/mobile/android/gradle.properties` with `pnpm mobile -- prebuild` and verify the only upgrade-attributable Android change is the `reactNativeArchitectures` line
 - [x] 2.3 Build an Android release bundle without an architecture override and verify its native library directories are exactly `armeabi-v7a` and `arm64-v8a`
 
-## 3. Verification
+## 3. Version
 
-- [x] 3.1 Run `pnpm mobile -- check`, `pnpm mobile -- test`, `pnpm mobile -- bundle` and `pnpm mobile -- test:native-resources`, and verify each passes
-- [x] 3.2 Build Android release without an architecture override, sign it with the local debug key, install it on an ARM emulator and verify a cold start reaches the first screen without a fatal log entry
-- [x] 3.3 Build the unsigned iOS simulator Release with `pnpm mobile -- build:ios --release --unsigned` (from an unconfigured regeneration when operator Firebase configuration is absent, then restore the committed project), install it on an iOS 27.1 simulator and verify a cold start reaches the first screen with the dark status bar style
-- [x] 3.4 Record commands, results and unverified items in `validation.md`, run `openspec validate --all --strict` and `git diff --check`, and verify both pass
+- [x] 3.1 Set `apps/mobile/package.json` to `1.0.29`, build `803`, previous `802`, regenerate native version metadata with `pnpm mobile -- prebuild`, and verify only version fields change in the Android and iOS projects
+
+## 4. Verification
+
+- [x] 4.1 Run `pnpm mobile -- check`, `pnpm mobile -- test`, `pnpm mobile -- bundle` and `pnpm mobile -- test:native-resources`, and verify each passes
+- [x] 4.2 Build Android release without an architecture override, sign it with a throwaway local test key, install it on an ARM emulator and verify a cold start reaches the first screen without a fatal log entry
+- [x] 4.3 Build the unsigned iOS simulator Release with `pnpm mobile -- build:ios --release --unsigned` (from an unconfigured regeneration when operator Firebase configuration is absent, then restore the committed project), install it on an iOS 27.1 simulator and verify a cold start reaches the first screen with the dark status bar style
+- [x] 4.4 Record commands and results in `validation.md`, run `openspec validate --all --strict` and `git diff --check`, and verify both pass
