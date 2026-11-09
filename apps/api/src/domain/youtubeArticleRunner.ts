@@ -367,7 +367,11 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
       await step.do(name, CHUNK_STEP, async () => {
         if (!(await deps.repo.renewLease(p.articleId, runId, lease))) throw new YoutubeArticleStop('lease_lost')
         const key = `${youtubeArticleChunkPrefix(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion)}introduction.json`
-        if (await deps.bucket.head(key)) return { reused: true }
+        const cached = await deps.bucket.get(key)
+        if (cached) {
+          const value = JSON.parse(await cached.text()) as { lede?: unknown }
+          if (typeof value?.lede === 'string' && value.lede.trim()) return { reused: true }
+        }
         const sections = (
           await Promise.all(
             Array.from({ length: prep.chunkCount }, async (_, i) => {

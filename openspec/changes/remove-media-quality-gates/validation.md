@@ -8,7 +8,7 @@ This changes API generation behavior only. No client implementation, API respons
 
 ## Automated checks
 
-- `SLAX_API_SKIP_DOTENV=1 pnpm api -- test`: **3,781 passed, 118 skipped**, 241 files passed and 15 skipped (final complete run, 51.90 seconds). The removed tests asserted obsolete scoring rules; acceptance, empty output and execution-failure regressions replace them.
+- `SLAX_API_SKIP_DOTENV=1 pnpm api -- test`: **3,781 passed, 118 skipped**, 241 files passed and 15 skipped (complete run at ee1afda8, 51.90 seconds). The removed tests asserted obsolete scoring rules; acceptance, empty output and execution-failure regressions replace them.
 - Focused runner/capture/editing regressions after signature cleanup: **185 passed**.
 - `SLAX_API_SKIP_DOTENV=1 pnpm api -- typecheck`: passed, including contracts typecheck.
 - `SLAX_API_SKIP_DOTENV=1 pnpm api -- lint`: passed with 0 errors and 344 existing warnings.
@@ -58,3 +58,14 @@ The model HTTP responses and ASR results are controlled fixtures, not paid DeepS
 - **Bugs:** No Important findings. Checked nonempty output acceptance without repeated model calls, preserved source-owned YouTube IDs and best-effort cue timing, retained malformed/empty/truncated response recovery, CAS leases, cost accounting and read-after-write publication. Historical failed/skipped rows are not mass-requeued; existing owner retry remains available.
 - **Security:** No Important findings. Moderation, authorization, takedown, HTML escaping and secret handling are unchanged. New telemetry contains counts only. Runtime tests bind HTTP/PostgreSQL to loopback and only clean up their own disposable resources.
 - **Compliance:** No Important findings. Change `remove-media-quality-gates` matches the conversation-approved removal and its delta specs. The earlier cap change is merged, so this is sequenced rather than a parallel capability implementation. Runtime limitations are declared above. No package version decision is needed for this API-only implementation with unchanged client contracts.
+
+## PR review follow-up
+
+The first automated review identified an Important empty-introduction checkpoint issue. A focused runner regression reproduced the old failure before the fix (`quality:empty_block`). The introduction step now reads the checkpoint and only reuses a nonempty string; empty output is regenerated through the existing introduction path, while accepted body passages stay cached. This adds no quality scoring or compatibility branch.
+
+- Updated YouTube runner and eligibility tests: **77 passed**, including the new empty-checkpoint regression.
+- Repeated PostgreSQL/HTTP runtime exercise: **13 scenarios passed**. The added YouTube empty-introduction scenario reaches `ready` with two calls (body and replacement introduction), one publication, and nonempty persisted content.
+- Typecheck, lint (0 errors, 344 warnings), code generation and strict OpenSpec validation rerun for the follow-up.
+- Removed the unused `review` member from the evaluator's decision type. Historical API statuses remain unchanged.
+- Smoke artifacts are intentionally retained for inspection; the exact result path is now printed explicitly. Disposable containers are cleaned up. The diagnostic rules-version field stays unchanged; no versioned behavior or migration is introduced. `no_caption` continues to mean there is no usable nonempty caption input, including an empty cleaned transcript.
+- Local Bugs/Security/Compliance re-review of the follow-up found no remaining Important issue. The regression only changes empty-checkpoint handling, the exception the user explicitly retained.

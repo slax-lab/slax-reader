@@ -11,6 +11,7 @@ import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION } from '../../src/in
 import { DeepSeekClient } from '../../src/infra/external/deepseekClient'
 import { runPodcastEpisode, type PodcastStepLike, type PodcastRunnerDeps } from '../../src/domain/podcastRunner'
 import { runYoutubeArticle, type RunnerDeps } from '../../src/domain/youtubeArticleRunner'
+import { youtubeArticleChunkPrefix } from '../../src/utils/youtubeArticle'
 import { evaluateYoutubeEligibility } from '../../src/utils/youtubeEligibility'
 import type { PodcastEpisodeInfo } from '../../src/utils/podcastSource'
 
@@ -93,8 +94,9 @@ async function main() {
       return nativeFetch(`http://127.0.0.1:${port}/chat/completions`, init)
     }
     const model = new DeepSeekClient({ DEEPSEEK_API_KEY: 'local-fixture-only' } as Env)
-    for (const scenario of ['nonempty', 'empty', 'malformed', 'http', 'truncated', 'missing-write']) {
+    for (const scenario of ['nonempty', 'empty', 'malformed', 'http', 'truncated', 'missing-write', 'empty-introduction']) {
       for (const kind of ['podcast', 'youtube']) {
+        if (scenario === 'empty-introduction' && kind === 'podcast') continue
         mode = scenario
         calls = 0
         publications = 0
@@ -169,6 +171,8 @@ async function main() {
             status: 'pending',
             eligibility
           })
+          if (scenario === 'empty-introduction')
+            objects.set(youtubeArticleChunkPrefix(sourceId, 'source', 'zh', row.prompt_version) + 'introduction.json', JSON.stringify({ lede: '   ' }))
           const deps: RunnerDeps = {
             repo: youtube,
             bucket,
@@ -187,7 +191,7 @@ async function main() {
           )
           rows = [(await youtube.findById(row.id))!]
         }
-        if (scenario === 'nonempty') {
+        if (scenario === 'nonempty' || scenario === 'empty-introduction') {
           assert.equal(outcome, 'ready')
           assert.equal(calls, 2, 'One body request plus one translation/introduction; no quality retries')
           assert.ok(publications > 0)
@@ -210,7 +214,9 @@ async function main() {
     await new Promise<void>(done => server.close(() => done()))
     await pg?.$disconnect()
     resources.cleanup()
-    writeFileSync(resolve(resources.workspace, 'media-quality-results.json'), JSON.stringify(results, null, 2))
+    const resultFile = resolve(resources.workspace, 'media-quality-results.json')
+    writeFileSync(resultFile, JSON.stringify(results, null, 2))
+    console.log(`Smoke evidence retained at: ${resultFile}`)
     console.log(JSON.stringify(results, null, 2))
   }
 }

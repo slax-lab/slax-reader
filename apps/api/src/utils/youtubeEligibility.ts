@@ -1,7 +1,7 @@
 import type { YoutubeCaptionCue, YoutubeCaptionKind } from '@/utils/youtubeCaption'
 
 export const YOUTUBE_ELIGIBILITY_RULES_VERSION = 1 as const
-export type YoutubeEligibilityDecision = 'generate' | 'skip' | 'review'
+export type YoutubeEligibilityDecision = 'generate' | 'skip'
 
 export interface YoutubeEligibilityInput {
   title: string

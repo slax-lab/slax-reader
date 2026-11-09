@@ -10,7 +10,7 @@ import { runYoutubeArticle, type ArticleModel, type RunnerDeps, type StepLike } 
 import type { YoutubeArticleWorkflowParams } from '@/domain/youtubeArticle'
 import type { youtubeArticlePO } from '@/infra/repository/dbYoutubeArticle'
 import { buildYoutubeCaptionDocument, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
-import { estimateTokens, outputTokenLimit, repetitionRatio } from '@/utils/youtubeArticle'
+import { estimateTokens, outputTokenLimit, repetitionRatio, youtubeArticleChunkPrefix } from '@/utils/youtubeArticle'
 
 const VIDEO = 'dQw4w9WgXcQ'
 const HASH = 'a'.repeat(64)
@@ -778,6 +778,18 @@ describe('source-owned transcript generation', () => {
     else expect(doc.lede).toContain('Transformer')
     expect(doc.lede).not.toBe('invalid')
     expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Write a factual'))).toHaveLength(1)
+  })
+
+  test('replaces an empty cached introduction instead of failing every owner retry', async () => {
+    const model = editedModel()
+    const s = translated(40, model)
+    const key = youtubeArticleChunkPrefix(VIDEO, HASH, 'zh', s.params.promptVersion) + 'introduction.json'
+    s.bucket.objects.set(key, JSON.stringify({ lede: '   ' }))
+    expect(await s.run()).toBe('ready')
+    const doc = JSON.parse(s.bucket.objects.get(s.repo.row.article_key!)!)
+    expect(doc.lede.trim()).not.toBe('')
+    expect(translations(model)).toHaveLength(1)
+    expect(model.chat.mock.calls.filter(call => call[2].systemInstruction.startsWith('Write a factual'))).toHaveLength(1)
   })
 
   test('an optional same-language editor outage preserves complete source wording', async () => {
