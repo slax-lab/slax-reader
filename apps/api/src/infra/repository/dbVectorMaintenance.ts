@@ -15,6 +15,7 @@ export type VectorArticleRow = VectorSource & {
 }
 export type VectorCollectionRow = { id: number; owner_id: number; published_at: number }
 export type VectorArticleMember = { id: number; is_starred: boolean }
+export type VectorPreferenceRow = VectorArticleMember & { member: boolean }
 export type VectorRelation = { id: number; user_id: number }
 
 const readable = Prisma.sql`(b.private_user = 0 OR b.private_user = ub.user_id)`
@@ -76,27 +77,15 @@ export class VectorMaintenanceRepo {
       ) actions ORDER BY acted_at DESC, id DESC LIMIT ${limit}`
   }
 
-  async findUserArticleWeight(userId: number, bookmarkId: number): Promise<number> {
-    const rows = await this.prismaPg().$queryRaw<VectorArticleMember[]>`
-      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred
+  findUserPreferenceRows(userId: number, ids: number[]): Promise<VectorPreferenceRow[]> {
+    return this.prismaPg().$queryRaw<VectorPreferenceRow[]>`
+      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred, COALESCE(bool_or(${published}), false) AS member
       FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id = ub.bookmark_id
       JOIN sr_user owner ON owner.id = ub.user_id AND owner.deleted_at IS NULL
-      WHERE ub.user_id = ${userId} AND ub.bookmark_id = ${bookmarkId} AND ub.deleted_at IS NULL AND ub.type IN (0, 2) AND ${readable}
-        AND b.status = 'success'
-      GROUP BY ub.bookmark_id`
-    return rows[0] ? (rows[0].is_starred ? 2 : 1) : 0
-  }
-
-  async isCollectionMember(ownerId: number, bookmarkId: number): Promise<boolean> {
-    const rows = await this.prismaPg().$queryRaw<{ id: number }[]>`
-      SELECT ub.bookmark_id AS id FROM sr_user_bookmark ub
-      JOIN sr_bookmark b ON b.id = ub.bookmark_id
-      JOIN sr_user owner ON owner.id = ub.user_id AND owner.deleted_at IS NULL
       LEFT JOIN sr_bookmark_share share ON share.bookmark_id = ub.bookmark_id AND share.user_id = ub.user_id
-      WHERE ub.user_id = ${ownerId} AND ub.bookmark_id = ${bookmarkId} AND ub.deleted_at IS NULL AND ub.type IN (0, 2) AND ${readable}
-        AND b.status = 'success' AND ${published}
-      LIMIT 1`
-    return rows.length > 0
+      WHERE ub.user_id = ${userId} AND ub.bookmark_id IN (SELECT value::int FROM jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb))
+        AND ub.deleted_at IS NULL AND ub.type IN (0, 2) AND ${readable} AND b.status = 'success'
+      GROUP BY ub.bookmark_id`
   }
 
   listCollectionMembers(ownerId: number, after: number, limit: number): Promise<{ id: number }[]> {

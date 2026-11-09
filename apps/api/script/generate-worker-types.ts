@@ -40,6 +40,7 @@ export function environmentTypes(source: string): string {
     ['JINA_API_KEY', 'string'],
     ['VECTOR_REFRESH_SECRET', 'string'],
     ['VECTOR_V5_MAINTENANCE_WORKFLOW', 'Workflow<import("./src/domain/vectorMaintenanceHooks").VectorMaintenanceWorkflowParams>'],
+    ['VECTOR_V5_PREFERENCE', 'DurableObjectNamespace<import("./src/entry/core/index").VectorPreferenceObject>'],
     ['VECTOR_V5_ARTICLE', 'Vectorize'],
     ['VECTOR_V5_USER', 'Vectorize'],
     ['VECTOR_V5_COLLECTION', 'Vectorize']

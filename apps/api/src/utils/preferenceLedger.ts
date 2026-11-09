@@ -1,32 +1,70 @@
 import { center } from './recommendationAlgorithms'
 import { normalized, VECTOR_DIMENSIONS } from './vectorEmbedding'
+import type { VectorRefreshResult } from './vectorMaintenanceTypes'
 
-export type PreferenceTargetKind = 'user-article' | 'owner-collection'
+export type InterestPair = [medoidBookmarkId: number, importance: number]
 
-export interface PreferenceEntry {
-  weight: number
-  token: string
-}
-
-export interface PreferenceState {
-  version: number
+export interface PreferenceSums {
+  seq: number
   meanVersion: string
   raw: Float64Array
   centered: Float64Array
-  entries: Map<number, PreferenceEntry>
+  owner: Float64Array
+  interests: InterestPair[]
 }
 
-const ENTRY_BYTES = 16
+export interface PreferenceEntry {
+  weight: number
+  member: boolean
+  token: string
+}
+
+export interface PreferenceSummary {
+  eligible: number
+  used: number
+  members: number
+  firstMissingMember?: number
+}
+
+export interface PreferenceStore {
+  read(): PreferenceSums | null
+  entries(ids: number[]): Map<number, PreferenceEntry>
+  summary(): PreferenceSummary
+  commit(sums: PreferenceSums, upserts: Map<number, PreferenceEntry>, deletes: number[]): void
+  replace(sums: PreferenceSums, entries: Map<number, PreferenceEntry>): void
+  clear(): Promise<void>
+}
+
+export type PreferencePublish = { user: boolean; collections: 'all' | number[] }
+
+export type PreferenceCall = { kind: 'apply'; userId: number; id: number; previous?: number[] } | { kind: 'rebuild'; userId: number; publish: PreferencePublish }
+
+export function publicationScope(calls: PreferenceCall[]): PreferencePublish {
+  if (calls.some(call => call.kind === 'apply')) return { user: true, collections: 'all' }
+  const scopes = calls.flatMap(call => (call.kind === 'rebuild' ? [call.publish] : []))
+  if (scopes.some(scope => scope.collections === 'all')) return { user: scopes.some(scope => scope.user), collections: 'all' }
+  return { user: scopes.some(scope => scope.user), collections: [...new Set(scopes.flatMap(scope => scope.collections as number[]))] }
+}
+
 const SUM_BYTES = VECTOR_DIMENSIONS * Float64Array.BYTES_PER_ELEMENT
-export const PREFERENCE_STATE_MAX_ENTRIES = 120_000
+export const PREFERENCE_BATCH_SIZE = 100
 
-export const preferenceStateKey = (kind: PreferenceTargetKind, id: number): string => `state:${kind}:${id}`
-
-export function emptyPreferenceState(meanVersion: string): PreferenceState {
-  return { version: 0, meanVersion, raw: new Float64Array(VECTOR_DIMENSIONS), centered: new Float64Array(VECTOR_DIMENSIONS), entries: new Map() }
+export function emptyPreferenceSums(meanVersion: string, seq: number): PreferenceSums {
+  return {
+    seq,
+    meanVersion,
+    raw: new Float64Array(VECTOR_DIMENSIONS),
+    centered: new Float64Array(VECTOR_DIMENSIONS),
+    owner: new Float64Array(VECTOR_DIMENSIONS),
+    interests: []
+  }
 }
 
-export function nextPreferenceVersion(previous: number): number {
+export function clonePreferenceSums(sums: PreferenceSums): PreferenceSums {
+  return { ...sums, raw: sums.raw.slice(), centered: sums.centered.slice(), owner: sums.owner.slice(), interests: sums.interests.map(pair => [...pair] as InterestPair) }
+}
+
+export function nextPreferenceSeq(previous: number): number {
   return Math.max(previous + 1, Date.now())
 }
 
@@ -43,74 +81,14 @@ export function vectorToken(values: ArrayLike<number>): string {
   return (high >>> 0).toString(16).padStart(8, '0') + (low >>> 0).toString(16).padStart(8, '0')
 }
 
-export function addContribution(state: PreferenceState, kind: PreferenceTargetKind, values: ArrayLike<number>, weight: number) {
-  if (!weight) return
+export function addContribution(sums: PreferenceSums, values: ArrayLike<number>, weight: number, member: boolean, sign: 1 | -1) {
   const unit = normalized(values)
-  for (let i = 0; i < VECTOR_DIMENSIONS; i++) state.raw[i] += weight * unit[i]
-  if (kind !== 'user-article') return
   const centered = center(unit)
-  for (let i = 0; i < VECTOR_DIMENSIONS; i++) state.centered[i] += weight * centered[i]
-}
-
-export function preferenceCoverage(state: PreferenceState): { eligible: number; used: number; missing: number } {
-  let used = 0
-  for (const entry of state.entries.values()) if (entry.token) used++
-  return { eligible: state.entries.size, used, missing: state.entries.size - used }
-}
-
-export function firstMissingEntry(state: PreferenceState): number | undefined {
-  let first: number | undefined
-  for (const [id, entry] of state.entries) if (!entry.token && (first === undefined || id < first)) first = id
-  return first
-}
-
-export function packEntries(entries: Map<number, PreferenceEntry>): Uint8Array {
-  if (entries.size > PREFERENCE_STATE_MAX_ENTRIES) throw new Error('preference_state_too_large')
-  const ids = [...entries.keys()].sort((a, b) => a - b)
-  const bytes = new Uint8Array(ids.length * ENTRY_BYTES)
-  const view = new DataView(bytes.buffer)
-  for (let i = 0; i < ids.length; i++) {
-    const entry = entries.get(ids[i])!
-    if (!Number.isSafeInteger(ids[i]) || ids[i] < 1 || ids[i] > 0xffffffff) throw new Error('invalid_preference_entry')
-    if (!Number.isInteger(entry.weight) || entry.weight < 1 || entry.weight > 0xffff) throw new Error('invalid_preference_entry')
-    if (entry.token && !/^[0-9a-f]{16}$/.test(entry.token)) throw new Error('invalid_preference_entry')
-    const offset = i * ENTRY_BYTES
-    view.setUint32(offset, ids[i], true)
-    view.setUint16(offset + 4, entry.weight, true)
-    if (!entry.token) continue
-    view.setUint8(offset + 6, 1)
-    view.setUint32(offset + 8, Number.parseInt(entry.token.slice(0, 8), 16), true)
-    view.setUint32(offset + 12, Number.parseInt(entry.token.slice(8), 16), true)
+  for (let i = 0; i < VECTOR_DIMENSIONS; i++) {
+    sums.raw[i] += sign * weight * unit[i]
+    sums.centered[i] += sign * weight * centered[i]
+    if (member) sums.owner[i] += sign * unit[i]
   }
-  return bytes
-}
-
-export function unpackEntries(bytes: Uint8Array): Map<number, PreferenceEntry> {
-  if (bytes.length % ENTRY_BYTES) throw new Error('invalid_preference_state')
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-  const entries = new Map<number, PreferenceEntry>()
-  for (let offset = 0; offset < bytes.length; offset += ENTRY_BYTES) {
-    const id = view.getUint32(offset, true)
-    const weight = view.getUint16(offset + 4, true)
-    const present = view.getUint8(offset + 6)
-    if (!id || !weight || present > 1 || view.getUint8(offset + 7) || entries.has(id)) throw new Error('invalid_preference_state')
-    if (!present) {
-      if (view.getUint32(offset + 8, true) || view.getUint32(offset + 12, true)) throw new Error('invalid_preference_state')
-      entries.set(id, { weight, token: '' })
-      continue
-    }
-    const token =
-      view
-        .getUint32(offset + 8, true)
-        .toString(16)
-        .padStart(8, '0') +
-      view
-        .getUint32(offset + 12, true)
-        .toString(16)
-        .padStart(8, '0')
-    entries.set(id, { weight, token })
-  }
-  return entries
 }
 
 export function packSum(sum: Float64Array): Uint8Array {
@@ -125,4 +103,56 @@ export function unpackSum(bytes: Uint8Array): Float64Array {
   const sum = new Float64Array(bytes.slice().buffer)
   if (!sum.every(Number.isFinite)) throw new Error('invalid_preference_state')
   return sum
+}
+
+export function parseInterests(text: string): InterestPair[] {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    throw new Error('invalid_preference_state')
+  }
+  if (!Array.isArray(parsed)) throw new Error('invalid_preference_state')
+  for (const pair of parsed)
+    if (!Array.isArray(pair) || pair.length !== 2 || !Number.isSafeInteger(pair[0]) || pair[0] < 1 || typeof pair[1] !== 'number' || !Number.isFinite(pair[1]))
+      throw new Error('invalid_preference_state')
+  return parsed as InterestPair[]
+}
+
+type Waiter = { call: PreferenceCall; resolve: (results: VectorRefreshResult[]) => void; reject: (error: unknown) => void }
+
+export class PreferenceQueue {
+  private waiting: Waiter[] = []
+  private draining = false
+
+  constructor(private readonly run: (calls: PreferenceCall[]) => Promise<VectorRefreshResult[]>) {}
+
+  submit(call: PreferenceCall): Promise<VectorRefreshResult[]> {
+    return new Promise((resolve, reject) => {
+      this.waiting.push({ call, resolve, reject })
+      if (!this.draining) {
+        this.draining = true
+        void this.drain()
+      }
+    })
+  }
+
+  private async drain() {
+    for (;;) {
+      if (!this.waiting.length) {
+        this.draining = false
+        return
+      }
+      const userId = this.waiting[0].call.userId
+      let count = 0
+      while (count < this.waiting.length && count < PREFERENCE_BATCH_SIZE && this.waiting[count].call.userId === userId) count++
+      const batch = this.waiting.splice(0, count)
+      try {
+        const results = await this.run(batch.map(waiter => waiter.call))
+        for (const waiter of batch) waiter.resolve(results)
+      } catch (error) {
+        for (const waiter of batch) waiter.reject(error)
+      }
+    }
+  }
 }

@@ -16,7 +16,7 @@ import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
 import { UserDeletionService } from '@/domain/userDeletion'
 import { CrawlService } from '@/domain/crawl'
 import { LogsService } from '@/domain/logs'
-import { memoryPreferenceStates } from '../helpers/preferenceStateMemory'
+import { memoryPreferences } from '../helpers/preferenceMemory'
 
 const unit = (axis = 0) => Array.from({ length: 1024 }, (_, index) => (index === axis ? 1 : 0))
 const stored = new Map<string, VectorizeVector>([
@@ -50,6 +50,7 @@ const repo = {
         : [],
   listRecentUserActions: async () => [],
   listCollectionMembers: async () => [],
+  listOwnerCollections: async (userId: number) => (userId === 7 ? [{ id: 81 }] : []),
   listUserCollections: async (userId: number) => (userId === 8 ? [{ id: 201 }, { id: 202 }] : userId === 9 ? [{ id: 203 }] : [])
 }
 
@@ -79,7 +80,9 @@ const index = {
   query: async () => []
 }
 
-const service = new VectorMaintenanceService(repo as never, sources as never, embedding as never, index as never, memoryPreferenceStates())
+const service = (preferences => preferences.bind(new VectorMaintenanceService(repo as never, sources as never, embedding as never, index as never, preferences.client)))(
+  memoryPreferences()
+)
 const prisma = { $queryRaw: async () => [{ id: 7 }] }
 
 for (const dependency of [

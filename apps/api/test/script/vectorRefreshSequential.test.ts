@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { enumeratePage, main, parseRefreshOptions, runVectorRefresh } from '../../script/vector-refresh'
 import { VectorMaintenanceService } from '../../src/domain/vectorMaintenance'
-import { memoryPreferenceStates } from '../helpers/preferenceStateMemory'
+import { memoryPreferences } from '../helpers/preferenceMemory'
 
 const connection = vi.hoisted(() => ({ client: vi.fn(), connect: vi.fn(), query: vi.fn(), end: vi.fn() }))
 vi.mock('pg', () => ({ Client: connection.client }))
@@ -28,7 +28,9 @@ afterEach(() => {
 
 describe('direct single-target service surface', () => {
   test('the compound actor/relation wrappers and preference flag are gone', () => {
-    const service = new VectorMaintenanceService({} as never, {} as never, {} as never, {} as never, memoryPreferenceStates()) as unknown as Record<string, unknown>
+    const service = (preferences => preferences.bind(new VectorMaintenanceService({} as never, {} as never, {} as never, {} as never, preferences.client)))(
+      memoryPreferences()
+    ) as unknown as Record<string, unknown>
     for (const removed of ['refreshBookmark', 'refreshOwnedCollection', 'refreshSubscription']) expect(service[removed]).toBeUndefined()
     for (const direct of ['refreshArticles', 'refreshUser', 'refreshCollection']) expect(typeof service[direct]).toBe('function')
   })

@@ -9,7 +9,7 @@ import { ContentRecommendationRepo } from '../../src/infra/repository/dbContentR
 import { VectorMaintenanceRepo } from '../../src/infra/repository/dbVectorMaintenance'
 import { articleVectorId, type ArticleVectorIdentity } from '../../src/utils/vectorMaintenanceTypes'
 import { EMBEDDING_MEAN } from '../../src/utils/embeddingMean'
-import { memoryPreferenceStates } from '../helpers/preferenceStateMemory'
+import { memoryPreferences } from '../helpers/preferenceMemory'
 
 const axis = (index: number) => Array.from({ length: 1024 }, (_, position) => (position === index ? 1 : 0))
 const withMean = (terms: Array<[number, number]>) => {
@@ -45,7 +45,7 @@ function disposableIndex() {
 }
 
 function maintenance(index: ReturnType<typeof disposableIndex>) {
-  return new VectorMaintenanceService(maintenanceRepo, {} as any, {} as any, index as any, memoryPreferenceStates())
+  return (preferences => preferences.bind(new VectorMaintenanceService(maintenanceRepo, {} as any, {} as any, index as any, preferences.client)))(memoryPreferences())
 }
 
 function articleRuntime(

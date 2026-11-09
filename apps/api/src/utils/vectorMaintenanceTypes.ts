@@ -23,7 +23,6 @@ export interface VectorRefreshResult {
   reason?: string
   coverage?: { eligible: number; used: number; missing: number }
   stateVersion?: number
-  superseded?: boolean
 }
 
 export interface VectorCandidate {

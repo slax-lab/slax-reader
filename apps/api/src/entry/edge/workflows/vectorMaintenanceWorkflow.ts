@@ -6,7 +6,7 @@ import { VectorMaintenanceService } from '@/domain/vectorMaintenance'
 import { VectorMaintenanceRepo } from '@/infra/repository/dbVectorMaintenance'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
 import type { VectorMaintenanceEvent, VectorMaintenanceWorkflowParams } from '@/domain/vectorMaintenanceHooks'
-import type { VectorRefreshResult, VectorTarget } from '@/utils/vectorMaintenanceTypes'
+import { articleVectorId, type VectorRefreshResult, type VectorTarget } from '@/utils/vectorMaintenanceTypes'
 
 const PAGE_SIZE = 25
 const retry = { retries: { limit: 5, delay: '10 seconds' as const, backoff: 'exponential' as const }, timeout: '10 minutes' as const }
@@ -39,24 +39,12 @@ export const verifyVectorVisibility = async (service: VectorMaintenanceService, 
 }
 
 export class VectorMaintenanceWorkflow extends WorkflowEntrypoint<Env, VectorMaintenanceWorkflowParams> {
-  private async refresh(service: VectorMaintenanceService, target: VectorTarget, step: WorkflowStep, name: string) {
-    const result = await step.do(`${name}-write`, retry, async () => {
-      if (target.kind === 'article') {
-        const results = await service.refreshArticles([{ userId: target.userId, id: target.id }])
-        if (results.length !== 1) throw new Error('vector_refresh_missing_result')
-        return requireRefreshSuccess(results[0])
-      }
-      return requireRefreshSuccess(await (target.kind === 'collection' ? service.refreshCollection(target.id) : service.refreshUser(target.id, target.preference)))
-    })
+  private async refresh(service: VectorMaintenanceService, target: Exclude<VectorTarget, { kind: 'article' }>, step: WorkflowStep, name: string) {
+    const result = await step.do(`${name}-write`, retry, async () =>
+      requireRefreshSuccess(await (target.kind === 'collection' ? service.refreshCollection(target.id) : service.refreshUser(target.id, target.preference)))
+    )
     await step.do(`${name}-visible`, retry, () => verifyVectorVisibility(service, result))
     return result
-  }
-
-  private async publish(step: WorkflowStep, service: VectorMaintenanceService, name: string, write: () => Promise<VectorRefreshResult[]>) {
-    const results = await step.do(`${name}-write`, retry, async () => (await write()).map(requireRefreshSuccess))
-    await step.do(`${name}-visible`, retry, async () => {
-      for (const result of results) await verifyVectorVisibility(service, result)
-    })
   }
 
   async run(event: WorkflowEvent<VectorMaintenanceWorkflowParams>, step: WorkflowStep) {
@@ -74,15 +62,15 @@ export class VectorMaintenanceWorkflow extends WorkflowEntrypoint<Env, VectorMai
 
       if (target.kind === 'article') {
         const identity = { userId: target.userId, id: target.id }
-        await step.do('article-retire', retry, () => service.retireArticle(identity))
-        try {
-          await this.refresh(service, target, step, 'article')
-        } catch (error) {
-          await step.do('article-restore', retry, () => service.restoreArticle(identity))
-          throw error
-        }
-        await this.publish(step, service, 'article-preference', async () => [await service.applyUserArticle(identity)])
-        await this.publish(step, service, 'owner-collections', () => service.applyOwnerCollections(identity))
+        const written = await step.do('article-write', retry, async () => {
+          const { results, previous } = await service.refreshArticlesWithPrevious([identity])
+          if (results.length !== 1) throw new Error('vector_refresh_missing_result')
+          return { result: requireRefreshSuccess(results[0]), previous: previous[articleVectorId(identity)] ?? null }
+        })
+        await step.do('article-visible', retry, () => verifyVectorVisibility(service, written.result))
+        await step.do('preference', retry, async () => {
+          for (const result of await service.applyArticle(identity, written.previous ?? undefined)) await verifyVectorVisibility(service, result)
+        })
         return
       }
 
