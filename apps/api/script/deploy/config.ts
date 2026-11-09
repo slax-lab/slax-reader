@@ -291,6 +291,10 @@ export function checkDeployment(config: ApiConfig): void {
     if (!rows(config.vectorize).some(row => row.binding === binding && row.index_name)) throw new Error(`Missing ${binding} Vectorize binding`)
   if (!rows(config.workflows).some(row => row.binding === 'VECTOR_V5_MAINTENANCE_WORKFLOW' && row.class_name === 'VectorMaintenanceWorkflow'))
     throw new Error('Missing VECTOR_V5_MAINTENANCE_WORKFLOW binding')
+  if (!rows((config.durable_objects as TomlTable | undefined)?.bindings).some(row => row.name === 'VECTOR_V5_PREFERENCE' && row.class_name === 'VectorPreferenceObject'))
+    throw new Error('Missing VECTOR_V5_PREFERENCE Durable Object binding')
+  if (!rows(config.migrations).some(row => Array.isArray(row.new_sqlite_classes) && row.new_sqlite_classes.includes('VectorPreferenceObject')))
+    throw new Error('Missing VectorPreferenceObject new_sqlite_classes migration')
 }
 
 export function parseArgs(args: string[], allow: string[] = []) {

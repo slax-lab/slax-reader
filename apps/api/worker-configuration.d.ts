@@ -7,6 +7,8 @@ interface __BaseEnv_Env {
 
   VECTOR_V5_ARTICLE?: Vectorize
 
+  VECTOR_V5_PREFERENCE?: DurableObjectNamespace<import('./src/entry/core/index').VectorPreferenceObject>
+
   VECTOR_V5_MAINTENANCE_WORKFLOW?: Workflow<import('./src/domain/vectorMaintenanceHooks').VectorMaintenanceWorkflowParams>
 
   DEEPSEEK_API_KEY?: string

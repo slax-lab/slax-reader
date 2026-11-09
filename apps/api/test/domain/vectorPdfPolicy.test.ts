@@ -7,6 +7,7 @@ import type { VectorIndexClient } from '@/infra/repository/vectorIndexClient'
 import { VECTOR_MODEL, VECTOR_PDF_MAX_BYTES } from '@/utils/vectorEmbedding'
 import { hashSHA256 } from '@/utils/strings'
 import { pdfFixture } from '../helpers/pdfFixture'
+import { memoryPreferences } from '../helpers/preferenceMemory'
 
 const unit = (axis = 0) => Array.from({ length: 1024 }, (_, i) => (i === axis ? 1 : 0))
 
@@ -125,7 +126,10 @@ beforeEach(() => {
     OSS: oss
   } as unknown as Env
   const repo = { findArticles: async (identities: { userId: number; id: number }[]) => rows.filter(r => identities.some(i => i.userId === r.user_id && i.id === r.id)) }
-  service = new VectorMaintenanceService(repo as never, new VectorSourceRepo(env), new VectorEmbeddingClient(env), index as unknown as VectorIndexClient)
+  service = (preferences =>
+    preferences.bind(
+      new VectorMaintenanceService(repo as never, new VectorSourceRepo(env), new VectorEmbeddingClient(env), index as unknown as VectorIndexClient, preferences.client)
+    ))(memoryPreferences())
 })
 
 afterEach(() => {

@@ -9,6 +9,7 @@ import { ContentRecommendationRepo } from '../../src/infra/repository/dbContentR
 import { VectorMaintenanceRepo } from '../../src/infra/repository/dbVectorMaintenance'
 import { articleVectorId, type ArticleVectorIdentity } from '../../src/utils/vectorMaintenanceTypes'
 import { EMBEDDING_MEAN } from '../../src/utils/embeddingMean'
+import { memoryPreferences } from '../helpers/preferenceMemory'
 
 const axis = (index: number) => Array.from({ length: 1024 }, (_, position) => (position === index ? 1 : 0))
 const withMean = (terms: Array<[number, number]>) => {
@@ -44,7 +45,7 @@ function disposableIndex() {
 }
 
 function maintenance(index: ReturnType<typeof disposableIndex>) {
-  return new VectorMaintenanceService(maintenanceRepo, {} as any, {} as any, index as any)
+  return (preferences => preferences.bind(new VectorMaintenanceService(maintenanceRepo, {} as any, {} as any, index as any, preferences.client)))(memoryPreferences())
 }
 
 function articleRuntime(
@@ -65,7 +66,8 @@ function articleRuntime(
     queryArticles: vi.fn().mockResolvedValue(candidates),
     queryCollections: vi.fn().mockResolvedValue([]),
     readArticles: vi.fn(
-      async (identities: ArticleVectorIdentity[]) => new Map(identities.map(identity => [articleVectorId(identity), vectors.get(`${identity.userId}:${identity.id}`) ?? withMean([[0, 1]])]))
+      async (identities: ArticleVectorIdentity[]) =>
+        new Map(identities.map(identity => [articleVectorId(identity), vectors.get(`${identity.userId}:${identity.id}`) ?? withMean([[0, 1]])]))
     ),
     readCollections: vi.fn(async (ids: number[]) => new Map(ids.map(id => [id, [1, 0]])))
   } as unknown as VectorMaintenance
@@ -390,8 +392,7 @@ describe('Collection recommendation and feedback contracts', () => {
       { id: 40, score: Math.cos(Math.PI / 6) },
       { id: 30, score: Math.cos((31 * Math.PI) / 180) }
     ]
-    const pass =
-      JSON.stringify(actual.map(item => item.id)) === JSON.stringify([20, 40, 30]) && actual.every((item, index) => close(item.score, expected[index].score))
+    const pass = JSON.stringify(actual.map(item => item.id)) === JSON.stringify([20, 40, 30]) && actual.every((item, index) => close(item.score, expected[index].score))
     expect(pass).toBe(true)
   })
 
