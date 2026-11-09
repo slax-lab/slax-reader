@@ -21,6 +21,10 @@ Reader Web writes the session cookie from JavaScript after OAuth login and token
 
 None. Existing OAuth recovery, login token lifetime, and session termination requirements still apply.
 
+## Scope Decision
+
+The requester approved deferring changes to the shared session protocol. A late HTTP renewal response can restore the session after logout or legacy Extension cleanup, or replace a new login. The overlap must occur during that second request. The fixture reproduces it, and its production frequency is unknown. The requester judged a broader Web and Extension migration disproportionate for this change and chose to retain HTTP writes for both sign-in and renewal. The existing [account locale requirement for obsolete responses](../../specs/account-locale-sync/spec.md#requirement-language-state-is-isolated-between-account-sessions) remains relevant to the observed replacement-login failure.
+
 ## Impact
 
 Reader Web adds one Nitro route and changes its two session-cookie write sites. The API continues issuing tokens through the current login and renewal contracts. The Nitro route uses the existing authenticated profile read for token verification. The change requires no new business API, signing key in Web, database field, provider registration, or Cloudflare binding.

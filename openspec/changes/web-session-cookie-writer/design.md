@@ -29,9 +29,13 @@ Use the original JavaScript cookie write only when the request fails at the netw
 
 The fallback uses only the token already returned by the original login or renewal API. Before a login fallback, recheck the OAuth attempt binding and the session cookie present when login started. Before a renewal fallback, repeat the session, task and revision checks. Keep the existing cookie name, domain, path and expiration. Browser cookie lifetime under this fallback follows the previous JavaScript behavior.
 
-### Verify ordering at both stages
+### Check the session before sending a renewal write
 
-A browser-side session check after the original refresh response can skip the cookie write if the session changed during renewal. A session change during the later cookie-writing request can still race its response. The request-time comparison and same-tab cancellation do not provide an atomic browser cookie write. Test late success at both stages for logout, replacement login and legacy Extension removal, as well as a late renewal 401. Keep the release gate open if a delayed response can restore or replace the active session.
+After the original refresh response, the browser rechecks the account and starting token before sending the cookie-writing request. A late 401 only expires the session that sent it. The request-time comparison, same-tab cancellation, and the check before JavaScript fallback cover their respective stages.
+
+### Record the deferred response-ordering risk
+
+If another tab signs out, a new login completes, or a legacy Extension removes the cookie after the writer request has been sent, a delayed successful response can restore or replace the shared cookie. The browser applies the response header before the caller can inspect the result. A reliable fix across these callers requires a change to the shared session protocol. The requester deferred that work for this change and retained HTTP renewal. The two-stage fixture remains the reproduction for this risk. The repository review gate evaluates the result under its existing policy.
 
 ## Rollout
 

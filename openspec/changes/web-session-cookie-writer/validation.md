@@ -1,6 +1,6 @@
 # Validation
 
-The implementation is available for review on `fix/web-session-cookie-writer`. The renewal ordering gate is still open.
+The implementation is available for review on `fix/web-session-cookie-writer`. The requester approved deferring the shared-session ordering fix. The observed failures remain documented for review.
 
 ## Automated checks
 
@@ -27,17 +27,17 @@ To repeat the outage scenario, open the local Worker fixture and choose **Google
 
 ## Renewal ordering
 
-Run `node apps/web/tests/fixtures/web-session-cookie/check.mjs` against the built Worker with port 8790 free. It runs the real renewal client, HTTP handler and legacy Extension cleanup service with a simulated shared cookie jar. It deliberately fails until the release gate passes.
+Run `node apps/web/tests/fixtures/web-session-cookie/check.mjs` against the built Worker with port 8790 free. It runs the real renewal client, HTTP handler and legacy Extension cleanup service with a simulated shared cookie jar. The full fixture exits with a failing result for the deferred cases.
 
 | Delayed response | Same-tab logout | Other-tab logout | Replacement login | Legacy Extension cleanup |
 | --- | --- | --- | --- | --- |
 | Original `/v1/user/refresh` | Pass | Pass | Pass | Pass |
 | Cookie writer waiting for `/v1/user/me` | Pass | Fail | Fail | Fail |
 
-A late 401 from the original renewal preserved the replacement session. When the cookie writer was already waiting on verification, its late response restored or overwrote the cookie in the other three cases. Its request only carries the cookie present when it was sent. Same-tab logout aborted the local writer in the fixture; this does not give other tabs or an old Extension control over an already-sent request.
+A late 401 from the original renewal preserved the replacement session. When the cookie writer was already waiting on verification, its late response restored or overwrote the cookie in the other three cases. Its request only carries the cookie present when it was sent. Same-tab logout aborted the local writer in the fixture. The requester chose to defer broader coordination for the overlap during the cookie-writing request. The fixture establishes that this can happen, and the frequency in production is unknown. The automated review on the previous PR head classified the regression as Important. See the [review finding](https://github.com/slax-lab/slax-reader/pull/552#discussion_r4512385163).
 
 ## Remaining environment checks
 
 - Verify deployed Google and Apple OAuth, the configured Reader callback origin, and HTTPS cookie delivery with test accounts. The fixture uses HTTP on localhost.
 - Verify the installed Extension and the iPad Brave report on a deployed test environment. The fixture runs the Extension cleanup code against simulated browser cookie APIs, not an installed Extension.
-- Repeat the ordering checks on supported browsers before release. Full production bookmark and sync smoke flows require the configured backend and were outside the synthetic authentication fixture.
+- Repeat the ordering checks on supported browsers when the deferred shared-session work is picked up. Full production bookmark and sync smoke flows require the configured backend and were outside the synthetic authentication fixture.

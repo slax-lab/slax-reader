@@ -38,12 +38,16 @@ Reader Web SHALL call the existing login and renewal APIs from the browser. Afte
 - **WHEN** the endpoint rejects the request or token, the request is canceled, or the initiating context changes before fallback
 - **THEN** the browser does not write the session cookie through JavaScript
 
-### Requirement: HTTP writing preserves the existing session transitions
+### Requirement: HTTP writing preserves the login flow and checks the starting session
 
-The Web callback SHALL preserve OAuth recovery, attribution, redirects and Android handoff. The shared cookie SHALL continue to serve installed Extensions, and the native-managed Mobile subscription WebView SHALL keep its existing renewal path. The HTTP renewal candidate SHALL pass the ordering scenarios before release.
+The Web callback SHALL preserve OAuth recovery, attribution, redirects and Android handoff. The shared cookie SHALL continue to serve installed Extensions, and the native-managed Mobile subscription WebView SHALL keep its existing renewal path. Web SHALL check whether the starting session is still current before sending the renewal cookie-writing request. A successful cookie-writing response can still race a session change that occurs after the request was sent. The proposal and validation record track that deferred case.
 
-#### Scenario: An earlier renewal completes after the session changes
+#### Scenario: The original renewal succeeds after the session changes
 
-- **WHEN** a pending renewal API request or cookie-writing response completes after logout, replacement login or existing Extension cleanup
-- **THEN** the old attempt does not restore or replace the current session
-- **AND** a late 401 does not clear a replacement session
+- **WHEN** the original renewal API returns a token after logout, replacement login or existing Extension cleanup
+- **THEN** Web skips the cookie write for the old attempt
+
+#### Scenario: The original renewal returns 401 after the session changes
+
+- **WHEN** the original renewal API returns 401 for a superseded token
+- **THEN** the response does not clear the replacement session

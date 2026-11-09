@@ -10,5 +10,6 @@
 ## 2. Verify compatibility and ordering
 
 - [x] 2.1 Exercise the built Pages Worker and static callback in a browser, verify the two direct browser exchanges followed by the cookie write, and run Web and strict OpenSpec checks.
-- [ ] 2.2 Exercise late success in both renewal stages for same-tab and cross-tab logout, replacement login and existing Extension cleanup. Exercise a late 401 and record the results before release.
+- [x] 2.2 Exercise late success in both renewal stages for same-tab and cross-tab logout, replacement login and existing Extension cleanup. Exercise a late 401 and record the passing and failing cases.
+- Deferred follow-up: prevent a late successful cookie-writing response from restoring or replacing the session after a cross-tab logout, replacement login, or legacy Extension cleanup.
 - [ ] 2.3 Verify deployed OAuth and shared cookie behavior with an installed Extension and iPad Brave. Record the evidence and any remaining environment gaps.
