@@ -7,25 +7,12 @@ import { fetchSyncCredentials } from '~~/app/local-first/connector'
 import authMiddleware from '~~/app/middleware/auth.global'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { cookieSet, cookieGet, cookieRemove, clearUserInfo, mockPost, mockRequest } = vi.hoisted(() => {
-  const post = vi.fn()
-  return {
-    cookieSet: vi.fn(),
-    cookieGet: vi.fn<(name?: string) => string | undefined>(),
-    cookieRemove: vi.fn(),
-    clearUserInfo: vi.fn(),
-    mockPost: post,
-    mockRequest: vi.fn(() => ({
-      post,
-      get: vi.fn(),
-      put: vi.fn(),
-      delete: vi.fn(),
-      stream: vi.fn(),
-      upgrade: vi.fn(),
-      uploadFile: vi.fn()
-    }))
-  }
-})
+const { cookieSet, cookieGet, cookieRemove, clearUserInfo } = vi.hoisted(() => ({
+  cookieSet: vi.fn(),
+  cookieGet: vi.fn<(name?: string) => string | undefined>(),
+  cookieRemove: vi.fn(),
+  clearUserInfo: vi.fn()
+}))
 const { navigateTo } = vi.hoisted(() => ({ navigateTo: vi.fn() }))
 mockNuxtImport('navigateTo', () => navigateTo)
 
@@ -40,8 +27,6 @@ vi.mock('@vueuse/integrations/useCookies', () => ({
 vi.mock('~/stores/user', () => ({
   useUserStore: () => ({ clearUserInfo })
 }))
-
-mockNuxtImport('request', () => mockRequest)
 
 // 注意 mock 必须保留 app.baseURL：nuxt-test-utils 的 setupNuxt 会启动 router plugin，
 // 该 plugin 读取 useRuntimeConfig().app.baseURL，缺失会导致 useRouter() 返回 undefined →
@@ -61,9 +46,6 @@ mockNuxtImport('useRuntimeConfig', () => () => runtimeConfig)
 
 describe('useAuth', () => {
   beforeEach(() => {
-    // mockPost 默认无 implementation，用 mockReset 清掉残留 mockResolvedValueOnce
-    mockPost.mockReset()
-    mockRequest.mockClear()
     cookieSet.mockClear()
     // cookieGet 默认返回 undefined，用 mockReset 清掉用例内的 mockReturnValue 残留后再恢复默认
     cookieGet.mockReset().mockReturnValue(undefined)
@@ -90,7 +72,19 @@ describe('useAuth', () => {
       expect(stateObj.platform).toBe('google')
       expect(stateObj.target).toBe('/home')
       expect(stateObj.affCode).toBe('aff1')
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(state))
+      const binding = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+      expect(cookieSet).toHaveBeenCalledWith('reader-oauth-' + stateObj.nonce, binding, expect.objectContaining({ path: '/', sameSite: 'lax', maxAge: 600 }))
+      expect(stateObj.nonce).not.toBe('random')
     })
+  })
+
+  it('starts OAuth on browsers without crypto.randomUUID and without a device Cookie', async () => {
+    vi.spyOn(crypto, 'randomUUID').mockImplementation(() => { throw new TypeError('randomUUID is unavailable') })
+    await useAuth().requestAuth({ redirect: '/bookmarks', affCode: '' })
+    const state = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+    expect(state.nonce).toMatch(/^[a-f0-9]{32}$/)
+    expect(cookieSet).toHaveBeenCalledWith('reader-oauth-' + state.nonce, expect.any(String), expect.objectContaining({ maxAge: 600 }))
   })
 
   describe('requestAppleAuth', () => {
@@ -100,48 +94,6 @@ describe('useAuth', () => {
       expect(window.location.href).toContain('client_id=a-client-id')
       const state = decodeURIComponent(window.location.href.split('state=')[1] ?? '')
       expect(JSON.parse(state).platform).toBe('apple')
-    })
-  })
-
-  describe('grantAuth', () => {
-    it('does not store a session when a canceled request completes late', async () => {
-      const controller = new AbortController()
-      let finish!: (response: { token: string }) => void
-      mockPost.mockImplementation(() => new Promise(resolve => { finish = resolve }))
-      const login = useAuth().grantAuth('old-code', 'https://auth.test/auth', '', 'google', undefined, { signal: controller.signal })
-      controller.abort()
-      finish({ token: 'late-token' })
-      await expect(login).rejects.toMatchObject({ name: 'AbortError' })
-      expect(cookieSet).not.toHaveBeenCalled()
-    })
-
-    it('登录成功 → 写 cookie 并返回 token', async () => {
-      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      const token = await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google')
-      expect(token).toBe('tok-google')
-      expect(mockPost).toHaveBeenCalledTimes(1)
-      expect(cookieSet).toHaveBeenCalledWith('token', 'tok-google', expect.objectContaining({ path: '/', domain: '.example.com' }))
-    })
-
-    it('登录返回为空 → 抛 "login failed"', async () => {
-      mockPost.mockResolvedValueOnce(undefined)
-      await expect(useAuth().grantAuth('code-x', 'https://auth.test/auth', '', 'google')).rejects.toThrow('login failed')
-      expect(cookieSet).not.toHaveBeenCalled()
-    })
-
-    it('rejects login success when the configured cookie name is invalid', async () => {
-      runtimeConfig.public.COOKIE_TOKEN_NAME = { token: 'token' } as never
-      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3')).rejects.toThrow(/COOKIE_TOKEN_NAME/)
-      expect(cookieSet).not.toHaveBeenCalled()
-    })
-
-    it('platformType=apple 时使用 apple client_id', async () => {
-      mockPost.mockResolvedValueOnce({ token: 'tok-apple' })
-      await useAuth().grantAuth('code-2', 'https://auth.test/auth', 'aff4', 'apple')
-      const call = mockPost.mock.calls[0]![0]
-      expect(call.body.client_id).toBe('a-client-id')
-      expect(call.body.type).toBe('apple')
     })
   })
 
@@ -161,17 +113,6 @@ describe('useAuth', () => {
       expect(ordinary).not.toHaveProperty('auth_attribution')
     })
 
-    it('carries callback provenance into the Google login request without changing credentials', async () => {
-      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google', attribution)
-      expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: 'aff3', type: 'google', client_id: 'g-client-id', auth_attribution: attribution })
-    })
-
-    it('does not attach collection attribution to Apple authentication', async () => {
-      mockPost.mockResolvedValueOnce({ token: 'tok-apple' })
-      await useAuth().grantAuth('code-2', 'https://auth.test/auth', '', 'apple', attribution)
-      expect(mockPost.mock.calls[0]![0].body).not.toHaveProperty('auth_attribution')
-    })
   })
 
   describe('acquisition attribution', () => {
@@ -191,14 +132,6 @@ describe('useAuth', () => {
       expect(ordinary).not.toHaveProperty('auth_attribution')
     })
 
-    it.each([
-      { provider: 'google', clientId: 'g-client-id', attribution: header },
-      { provider: 'apple', clientId: 'a-client-id', attribution: resource }
-    ] as const)('carries acquisition into the $provider login request', async ({ provider, clientId, attribution }) => {
-      mockPost.mockResolvedValueOnce({ token: 'tok-acquisition' })
-      await useAuth().grantAuth('code-1', 'https://auth.test/auth', '', provider, attribution)
-      expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: '', type: provider, client_id: clientId, auth_attribution: attribution })
-    })
   })
 
   describe('clearAuth', () => {

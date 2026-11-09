@@ -10,6 +10,8 @@ export default defineNuxtRouteMiddleware((to, from) => {
     return
   }
 
+  if (to.path === '/auth' && (to.query.platform === 'android' || to.query.result === 'failed' || to.query.result === 'timeout')) return
+
   const isAnchorLink = to.path === from.path && to.hash !== from.hash
 
   if (isAnchorLink) {

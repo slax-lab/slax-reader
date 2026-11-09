@@ -1,13 +1,14 @@
 // Local fixture verification only; no real Google credentials or production subscriptions.
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { createServer } from "node:http";
 const requireWeb = createRequire(import.meta.url);
 const { chromium } = createRequire(requireWeb.resolve("@nuxt/test-utils"))(
   "playwright-core",
 );
 const origin = process.argv[2] || "http://localhost:3215";
 const fixtureToken =
-  Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url") +
+  Buffer.from(JSON.stringify({ alg: "HS256" })).toString("base64url") +
   "." +
   Buffer.from(
     JSON.stringify({
@@ -33,6 +34,7 @@ async function until(fn) {
 }
 (async () => {
   const browser = await chromium.launch({ channel: "chrome", headless: true });
+  let api;
   try {
     const context = await browser.newContext({ serviceWorkers: "block" });
     const page = await context.newPage();
@@ -42,6 +44,23 @@ async function until(fn) {
       errors = [];
     let authenticated = false;
     page.on("pageerror", (e) => errors.push(e.message));
+    api = createServer(async (request, response) => {
+      if (request.method !== "POST" || request.url !== "/v1/user/login") {
+        response.writeHead(404).end();
+        return;
+      }
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      logins.push({
+        body: JSON.parse(Buffer.concat(chunks)),
+        device: request.headers["x-device-id"],
+      });
+      authenticated = true;
+      response
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify({ code: 200, data: { token: fixtureToken } }));
+    });
+    await new Promise((resolve, reject) => api.once("error", reject).listen(8787, "127.0.0.1", resolve));
     await context.route("**/events", (r) => {
       if (r.request().method() === "POST")
         events.push(
@@ -69,14 +88,6 @@ async function until(fn) {
       const path = new URL(r.request().url()).pathname;
       const headers = { "access-control-allow-origin": "*" };
       let data = null;
-      if (path === "/v1/user/login") {
-        logins.push({
-          body: r.request().postDataJSON(),
-          device: r.request().headers()["x-device-id"],
-        });
-        authenticated = true;
-        data = { token: fixtureToken };
-      }
       if (path === "/v1/user/refresh") data = { token: fixtureToken };
       if (path === "/v1/sync/token") data = { token: "", endpoint: "" };
       if (path === "/v1/user/me" && authenticated)
@@ -228,6 +239,7 @@ async function until(fn) {
     );
     await context.close();
   } finally {
+    api?.close();
     await browser.close();
   }
 })().catch((e) => {

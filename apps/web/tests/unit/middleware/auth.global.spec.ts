@@ -87,6 +87,13 @@ describe('middleware/auth.global', () => {
     expect(mockNavigateTo).not.toHaveBeenCalled()
   })
 
+  it.each([{ result: 'failed' }, { result: 'timeout' }, { platform: 'android' }])('allows the callback page with an existing session: %j', async query => {
+    mockGet.mockReturnValue('current-token')
+    const fullPath = '/auth?' + new URLSearchParams(query as Record<string, string>)
+    await runMiddleware(makeRoute({ path: '/auth', fullPath, query: query as Record<string, string> }), makeRoute({ fullPath: '/' }))
+    expect(mockNavigateTo).not.toHaveBeenCalled()
+  })
+
   it('anchor link（同 path 不同 hash）：短路', async () => {
     const result = await runMiddleware(makeRoute({ path: '/x', fullPath: '/x#a', hash: '#a' }), makeRoute({ path: '/x', fullPath: '/x#b', hash: '#b' }))
     expect(result).toBeUndefined()

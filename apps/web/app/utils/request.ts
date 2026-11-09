@@ -107,19 +107,23 @@ export const getDeviceId = (): string => {
   return createId()
 }
 
-export const getClientEventHeaders = (): Record<string, string> => {
-  const config = useRuntimeConfig().public
-  const deviceId = getDeviceId()
-  const incoming = isServer ? useRequestHeaders(['x-client-locale', 'accept-language', 'x-client-version']) : {}
+export const getClientLocale = (incoming: Record<string, string | undefined> = {}): string => {
   // The active app locale is ready before useHead writes <html lang>, including hydration.
   const activeLocale = tryUseNuxtApp()?.$i18n?.locale?.value
   const locale =
     activeLocale || (isClient ? document.documentElement.lang || navigator.language : incoming['x-client-locale'] || incoming['accept-language']?.split(',')[0]) || 'en'
+  return locale.trim().toLowerCase().replaceAll('_', '-').split('-')[0] || 'en'
+}
+
+export const getClientEventHeaders = (): Record<string, string> => {
+  const config = useRuntimeConfig().public
+  const deviceId = getDeviceId()
+  const incoming = isServer ? useRequestHeaders(['x-client-locale', 'accept-language', 'x-client-version']) : {}
   return {
     ...(deviceId ? { 'X-Device-ID': deviceId } : {}),
     'X-CLIENT-TYPE': 'web',
     'X-CLIENT-VERSION': String(incoming['x-client-version'] || config.appVersion || 'unknown'),
-    'X-CLIENT-LOCALE': locale.trim().toLowerCase().replaceAll('_', '-').split('-')[0] || 'en'
+    'X-CLIENT-LOCALE': getClientLocale(incoming)
   }
 }
 

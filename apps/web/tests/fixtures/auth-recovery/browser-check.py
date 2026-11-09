@@ -4,9 +4,11 @@ Run the fixture on 44020 and its --baseline on 44021, then run this script.
 Optional arguments: --base URL --baseline URL --executable PATH --output DIR.
 """
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import time
+import uuid
 from urllib.parse import urlencode, urlparse, parse_qs
 from urllib.request import urlopen
 
@@ -23,11 +25,14 @@ out.mkdir(parents=True, exist_ok=True)
 results = []
 
 
-def callback(base, mode, *, theme='light', locale='en', provider='google', malformed=False, attribution=None):
-    state = {'redirectUrl': base + '/auth', 'target': '/__fixture/done?return=preserved', 'affCode': 'synthetic-referral', 'platform': provider}
+def callback(context, base, mode, *, provider='google', malformed=False, attribution=None):
+    nonce = uuid.uuid4().hex
+    state = {'nonce': nonce, 'redirectUrl': base + '/auth', 'target': '/__fixture/done?return=preserved', 'affCode': 'synthetic-referral', 'platform': provider}
     if attribution is not None:
         state['auth_attribution'] = attribution
-    return base + '/auth?' + urlencode({'case': mode, 'code': 'synthetic-' + mode, 'state': '{' if malformed else json.dumps(state), 'theme': theme, 'locale': locale})
+    raw = '{' if malformed else json.dumps(state)
+    context.add_cookies([{'url': base, 'name': 'reader-oauth-' + nonce, 'value': hashlib.sha256(raw.encode()).hexdigest(), 'sameSite': 'Lax'}])
+    return base + '/auth?' + urlencode({'case': mode, 'code': 'synthetic-' + mode, 'state': raw})
 
 
 def no_session(context):
@@ -39,7 +44,7 @@ with sync_playwright() as p:
     # A before capture of the real previous page, composable and toast implementation.
     context = browser.new_context(viewport={'width': 1280, 'height': 800})
     page = context.new_page()
-    page.goto(callback(args.baseline, 'disconnect'))
+    page.goto(callback(context, args.baseline, 'disconnect'))
     expect(page.locator('.text-toast')).to_contain_text('TypeError', timeout=15000)
     assert page.locator('.i-svg-spinners\\:180-ring-with-bg').is_visible()
     page.screenshot(path=str(out / 'before-light-1280.png'))
@@ -48,7 +53,7 @@ with sync_playwright() as p:
     results.append({'case': 'baseline-disconnect', 'result': 'raw toast then persistent spinner'})
     context.close()
 
-    for mode in ['disconnect', 'provider-error', 'pending', 'navigation-error', 'malformed', 'apple', 'collection', 'acquisition-google', 'acquisition-apple']:
+    for mode in ['disconnect', 'provider-error', 'pending', 'malformed', 'apple', 'collection', 'acquisition-google', 'acquisition-apple']:
         context = browser.new_context(viewport={'width': 1280, 'height': 800})
         page = context.new_page()
         errors = []
@@ -59,7 +64,7 @@ with sync_playwright() as p:
             attribution = {'source': 'hackerlinks', 'medium': 'resource_detail' if mode == 'acquisition-apple' else 'header', 'campaign': 'mvp'}
         provider = 'apple' if mode in ['apple', 'acquisition-apple'] else 'google'
         started = time.monotonic()
-        page.goto(callback(args.base, actual_mode, provider=provider, malformed=mode == 'malformed', attribution=attribution))
+        page.goto(callback(context, args.base, actual_mode, provider=provider, malformed=mode == 'malformed', attribution=attribution))
         expect(page.get_by_role('alert')).to_be_visible(timeout=30000)
         expect(page).to_have_title('Sign-in not complete - Slax Reader')
         if mode == 'pending':
@@ -68,8 +73,7 @@ with sync_playwright() as p:
         assert page.locator('.text-toast').count() == 0
         assert page.get_by_role('status').count() == 0
         assert not errors, errors
-        if mode != 'navigation-error':
-            no_session(context)
+        no_session(context)
         if mode == 'disconnect':
             page.screenshot(path=str(out / 'after-light-1280.png'))
             page.wait_for_timeout(3000)
@@ -89,29 +93,22 @@ with sync_playwright() as p:
 
     context = browser.new_context()
     page = context.new_page()
-    page.goto(callback(args.base, 'success'))
+    page.goto(callback(context, args.base, 'success'))
     expect(page.get_by_role('heading', name='Login completed')).to_be_visible()
-    assert any(cookie['name'] == 'slax_auth_probe' and cookie['value'] == 'synthetic-session-token' for cookie in context.cookies())
+    assert any(cookie['name'] == 'slax_auth_probe' and cookie['value'].endswith('.synthetic') for cookie in context.cookies())
     assert parse_qs(urlparse(page.url).query)['return'] == ['preserved']
     results.append({'case': 'success', 'result': 'real cookie and destination preserved'})
     context.close()
 
-    # Required state/theme/width matrix. Only these pending cases use an accelerated clock.
+    # Exercise both rendered states across themes and widths without repeating the server deadline.
     for theme in ['light', 'dark', 'eink']:
         for width in [320, 768, 1280]:
             for locale in ['en', 'zh']:
                 for mode in ['disconnect', 'pending']:
                     context = browser.new_context(viewport={'width': width, 'height': 800})
                     page = context.new_page()
-                    if mode == 'pending':
-                        page.clock.install()
-                        with page.expect_request(lambda request: '/v1/user/login' in request.url):
-                            page.goto(callback(args.base, mode, theme=theme, locale=locale))
-                        expect(page.get_by_role('status')).to_be_visible()
-                        expect(page).to_have_title(('认证中' if locale == 'zh' else 'Authenticating') + ' - Slax Reader')
-                        page.clock.fast_forward(20001)
-                    else:
-                        page.goto(callback(args.base, mode, theme=theme, locale=locale))
+                    result = 'timeout' if mode == 'pending' else 'failed'
+                    page.goto(args.base + '/auth?' + urlencode({'result': result, 'theme': theme, 'locale': locale}))
                     expect(page.get_by_role('alert')).to_be_visible()
                     expect(page.get_by_role('heading')).to_contain_text('登录未完成' if locale == 'zh' else 'Sign-in not complete')
                     expect(page).to_have_title(('登录未完成' if locale == 'zh' else 'Sign-in not complete') + ' - Slax Reader')

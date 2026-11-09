@@ -228,3 +228,16 @@ it('expires the current token when it becomes expired during an unauthorized ref
   await refreshing
   expect(f.expire).toHaveBeenCalledOnce()
 })
+
+it('preserves the replacement session after an earlier renewal responds with 401', async () => {
+  const f = fixture()
+  const pending = deferred<string>()
+  f.api.refreshToken.mockImplementationOnce(() => pending.promise)
+  const automatic = f.tasks.refreshToken()
+  await vi.advanceTimersByTimeAsync(0)
+  f.setToken(token('B'))
+  pending.reject(new AccountLocaleUnauthorizedError())
+  await automatic
+  expect(f.expire).not.toHaveBeenCalled()
+  expect(f.getToken()).toBe(token('B'))
+})

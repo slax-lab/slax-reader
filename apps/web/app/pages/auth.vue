@@ -13,104 +13,51 @@
       </div>
       <h1 id="auth-error-title">{{ t('page.auth.incomplete') }}</h1>
       <p>{{ t(status === 'timeout' ? 'page.auth.timed_out' : 'page.auth.failed') }}</p>
-      <AppleLoginButton v-if="recovery.platform === 'apple'" :redirect="recovery.target" :affcode="recovery.affCode" :auth-attribution="isAcquisitionAuthAttribution(recovery.authAttribution) ? recovery.authAttribution : undefined" />
-      <GoogleLoginButton v-else :redirect="recovery.target" :affcode="recovery.affCode" :auth-attribution="recovery.authAttribution" />
+      <AppleLoginButton v-if="recovery.platform === 'apple'" :redirect="recovery.target" :affcode="recovery.affCode" :auth-attribution="isAcquisitionAuthAttribution(recovery.auth_attribution) ? recovery.auth_attribution : undefined" />
+      <GoogleLoginButton v-else :redirect="recovery.target" :affcode="recovery.affCode" :auth-attribution="recovery.auth_attribution" />
     </section>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { onUnmounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import AppleLoginButton from '~/components/AppleLoginButton.vue'
 import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
 
-import { isAcquisitionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
-import { z } from 'zod'
+import { readOAuthContext } from '~~/shared/utils/oauthState'
+
+import { isAcquisitionAuthAttribution } from '@slax-reader/contracts/events'
 
 const { t } = useI18n()
-
-const callbackState = z.object({
-  redirectUrl: z.string().min(1),
-  target: z.string().optional().default('/bookmarks'),
-  affCode: z.string().optional().default(''),
-  platform: z.enum(['google', 'apple']).optional().default('google'),
-  auth_attribution: z.union([
-    z.object({
-      collection_id: z.string().min(1).max(64).regex(/^[a-zA-Z0-9]+$/),
-      source_screen: z.literal('collection'),
-      presentation: z.literal('modal'),
-      trigger_element_id: z.literal('collection_subscribe_button')
-    }),
-    z.object({
-      source: z.literal('hackerlinks'),
-      medium: z.enum(['header', 'resource_detail']),
-      campaign: z.literal('mvp')
-    })
-  ]).optional().catch(undefined)
-})
-
 const route = useRoute()
-const auth = useAuth()
 const status = ref<'loading' | 'failed' | 'timeout'>('loading')
 useHead(() => ({
   titleTemplate: `${t(status.value === 'loading' ? 'page.auth.authenticating' : 'page.auth.incomplete')} - ${t('common.app.name')}`
 }))
-const recovery = ref({ target: '/bookmarks', affCode: '', platform: 'google' as 'google' | 'apple', authAttribution: undefined as WebAuthAttribution | undefined })
+
+const recoveryFragment = import.meta.client ? new URLSearchParams(location.hash.slice(1)).get('recovery') : null
+const recovery = readOAuthContext(recoveryFragment ?? '', import.meta.client ? location.origin : '')
+async function leaveCallback(androidCode?: string) {
+  try {
+    if (androidCode) {
+      await navigateTo('slaxrd://auth?code=' + encodeURIComponent(androidCode), { external: true })
+    } else {
+      await navigateTo('/login')
+    }
+  } catch {
+    status.value = 'failed'
+  }
+}
 
 if (import.meta.client) {
-  const controller = new AbortController()
-  let deadline: ReturnType<typeof setTimeout> | undefined
-  let phase: 'parameters' | 'login' | 'navigation' = 'parameters'
-
-  onUnmounted(() => {
-    clearTimeout(deadline)
-    controller.abort()
-  })
-
-  const grantAuth = async () => {
-    try {
-      if (!route.query.code) {
-        await navigateTo('/login')
-        return
-      }
-      const code = z.string().parse(route.query.code)
-      if (route.query.platform === 'android') {
-        await navigateTo('slaxrd://auth?code=' + code, { external: true })
-        return
-      }
-      const state = callbackState.parse(JSON.parse(z.string().parse(route.query.state)))
-      const authAttribution = state.platform === 'apple' && !isAcquisitionAuthAttribution(state.auth_attribution) ? undefined : state.auth_attribution
-      recovery.value = { target: state.target || '/bookmarks', affCode: state.affCode, platform: state.platform, authAttribution }
-      deadline = setTimeout(() => {
-        console.warn('[auth] callback timed out', { phase })
-        status.value = 'timeout'
-        controller.abort()
-      }, 20_000)
-      phase = 'login'
-      await auth.grantAuth(code, state.redirectUrl, state.affCode, state.platform, authAttribution, {
-        signal: controller.signal,
-        // The callback owns persistent recovery instead of the shared request toast.
-        errorInterceptors: () => {}
-      })
-      if (controller.signal.aborted) return
-      phase = 'navigation'
-      if (await navigateTo(recovery.value.target, { external: true }) === false) {
-        throw new Error('Authentication navigation did not complete')
-      }
-    } catch {
-      if (!controller.signal.aborted) {
-        // OAuth parameters and raw errors may contain credentials; record only the phase.
-        console.warn('[auth] callback failed', { phase })
-        status.value = 'failed'
-      }
-    } finally {
-      clearTimeout(deadline)
-    }
+  const { code, platform, result } = route.query
+  if (result === 'failed' || result === 'timeout') {
+    status.value = result
+  } else {
+    void leaveCallback(typeof code === 'string' && platform === 'android' ? code : undefined)
   }
-
-  grantAuth()
 }
 </script>
 

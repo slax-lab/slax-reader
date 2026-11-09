@@ -508,9 +508,9 @@ describe('useUserStore - account locale integration', () => {
     expect(store.user).toBeNull()
     expect(store.confirmedAccountLocale).toBeNull()
   })
-  it('writes a valid refresh token with configured cookie scope', async () => {
-    const store = useUserStore()
-    await store.refreshUserToken()
+  it('renews on the configured API and writes the token under the shared Cookie scope', async () => {
+    await useUserStore().refreshUserToken()
+    expect(String(fetcher.mock.calls[0]?.[0])).toMatch(/^https?:\/\/.+\/v1\/user\/refresh$/)
     expect(cookieSet).toHaveBeenCalledWith('token', token(1, 2), expect.objectContaining({ path: '/', domain: '.example.com' }))
   })
   it('reuses the captured cookie handle while refreshing a token', async () => {
