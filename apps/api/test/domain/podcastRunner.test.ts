@@ -415,12 +415,12 @@ describe('gates', () => {
     expect(deps.model.chat).not.toHaveBeenCalled()
   })
 
-  test('too few words for the duration → no_speech, transcript deleted', async () => {
+  test('accepts sparse nonempty speech', async () => {
     const asr = asrFake([{ status: 'completed', segments: words.slice(0, 3), language: 'en', durationSec: 3000, costUsd: 0.14 }])
     const { deps, episodes, bucket } = setup({ asr, episode: { duration_sec: 3000 } })
-    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('skipped')
-    expect(episodes.row.error_message).toBe('no_speech')
-    expect([...bucket.objects.keys()]).toEqual([])
+    expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('ready')
+    expect(episodes.row.error_message).toBeNull()
+    expect([...bucket.objects.keys()].length).toBeGreaterThan(0)
   })
 
   test('moderation hit → bookmarks flagged, no article, transcript deleted', async () => {
@@ -469,15 +469,12 @@ describe('articles', () => {
     expect(await runPodcastEpisode(deps, P, engine().step, 'run-1')).toBe('not_claimed')
   })
 
-  test('rejects a summary at the part gate without caching or publishing it', async () => {
+  test('publishes a nonempty short result without length scoring', async () => {
     const { deps, articles, bucket } = setup({ episode: { publisher_transcripts: VTT_REF }, model: fakeModel({ summarize: true }) })
     const e = engine()
-    expect(await runPodcastEpisode(deps, P, e.step, 'run-1')).toBe('retry')
-    expect(articles.rows[0].error_message).toMatch(/^chunk_quality:.*length_ratio/)
-    expect(deps.model.chat).toHaveBeenCalledTimes(3)
-    expect(e.calls).not.toContain('polish-en-assemble')
-    expect(deps.publishBodies).not.toHaveBeenCalled()
-    expect([...bucket.objects.keys()].filter(k => k.includes('/chunks/'))).toEqual([])
+    expect(await runPodcastEpisode(deps, P, e.step, 'run-1')).toBe('ready')
+    expect(deps.model.chat).toHaveBeenCalledOnce()
+    expect(deps.publishBodies).toHaveBeenCalled()
   })
 
   test('episode spend above the former cap does not stop polishing', async () => {
@@ -977,7 +974,7 @@ describe('concurrent podcast articles', () => {
     }
   })
 
-  test('repairs only the later long duplicate and uses fresh workflow step names', async () => {
+  test('accepts repeated text without repair', async () => {
     const { deps, articles, bucket } = readyLong()
     const original = fakeModel()
     const calls = new Map<number, number>()
@@ -997,14 +994,14 @@ describe('concurrent podcast articles', () => {
     }
     const e = cachedEngine()
     expect(await runPodcastEpisode(deps, P, e.step, 'duplicate-repair')).toBe('ready')
-    expect(calls.get(1)).toBe(2)
+    expect(calls.get(1)).toBe(1)
     for (const [index, count] of calls) if (index !== 1) expect(count).toBe(1)
-    expect(e.calls.filter(name => /^polish-en-chunk-\d+-r1$/.test(name))).toEqual(['polish-en-chunk-1-r1'])
+    expect(e.calls.filter(name => /^polish-en-chunk-\d+-r1$/.test(name))).toEqual([])
     expect(e.results.has('polish-en-assemble')).toBe(true)
-    expect(e.results.has('polish-en-assemble-r1')).toBe(true)
+    expect(e.results.has('polish-en-assemble-r1')).toBe(false)
     expect(e.calls).not.toContain('polish-en-assemble-r2')
     const doc = JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!)
-    expect(doc.sections.flatMap(s => s.paragraphs).filter(p => p.text === repeated)).toHaveLength(1)
+    expect(doc.sections.flatMap(s => s.paragraphs).filter(p => p.text === repeated)).toHaveLength(2)
   })
 
   test.each([false, true])('retries only the first part when its introduction is empty (persistent: %s)', async persistent => {
@@ -1040,7 +1037,7 @@ describe('concurrent podcast articles', () => {
     }
   })
 
-  test('repairs only the first chunk when a legacy cache has an empty introduction', async () => {
+  test('rejects a cached empty introduction without publishing', async () => {
     const { deps, articles, bucket } = readyLong()
     const transcript = JSON.parse(bucket.objects.get('long-transcript')!)
     const plan = planPodcastChunks(transcript)
@@ -1057,12 +1054,12 @@ describe('concurrent podcast articles', () => {
       )
     }
     const e = cachedEngine()
-    expect(await runPodcastEpisode(deps, P, e.step, 'legacy-empty-introduction')).toBe('ready')
-    expect(e.calls.filter(name => /^polish-en-chunk-\d+-r1$/.test(name))).toEqual(['polish-en-chunk-0-r1'])
-    expect(JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!).lede).not.toBe('')
+    expect(await runPodcastEpisode(deps, P, e.step, 'cached-empty-introduction')).toBe('failed')
+    expect(articles.rows[0].error_message).toBe('quality:empty_block')
+    expect(deps.publishBodies).not.toHaveBeenCalled()
   })
 
-  test.each([false, true])('repairs untargetable global number coverage once (persistent: %s)', async persistent => {
+  test.each([false, true])('accepts changed numeric content without regeneration (persistent: %s)', async persistent => {
     const { deps, articles, bucket, cues } = readyLong()
     for (const [i, cue] of cues.entries()) {
       const label = String.fromCharCode(65 + Math.floor(i / 26), 65 + (i % 26))
@@ -1086,21 +1083,14 @@ describe('concurrent podcast articles', () => {
       }
     }
     const e = cachedEngine()
-    expect(await runPodcastEpisode(deps, P, e.step, 'global-number-coverage')).toBe(persistent ? 'failed' : 'ready')
+    expect(await runPodcastEpisode(deps, P, e.step, 'global-number-coverage')).toBe('ready')
     const count = planPodcastChunks(transcript).length
-    expect(calls.size).toBe(count)
-    expect([...calls.values()]).toEqual(Array(count).fill(2))
-    expect(e.calls.filter(name => /^polish-en-chunk-\d+-r1$/.test(name))).toHaveLength(count)
-    expect(e.calls).toContain('polish-en-assemble-r1')
-    expect(e.calls.some(name => name.endsWith('-r2'))).toBe(false)
-    if (persistent) {
-      expect(articles.rows[0].error_message).toBe('quality:number_coverage')
-      expect(deps.publishBodies).not.toHaveBeenCalled()
-      expect([...bucket.objects.keys()].some(key => key.includes('/chunks/'))).toBe(false)
-    }
+    expect([...calls.values()]).toEqual(Array(count).fill(1))
+    expect(e.calls).not.toContain('polish-en-assemble-r1')
+    expect(deps.publishBodies).toHaveBeenCalled()
   })
 
-  test('repairs all translation chunks once after an assembled translation quality failure', async () => {
+  test('accepts nonempty translation without language or length repair', async () => {
     const { deps, articles, bucket } = readyLong()
     deps.translationTargets.mockResolvedValue(['zh'])
     const original = fakeModel()
@@ -1120,11 +1110,11 @@ describe('concurrent podcast articles', () => {
     const e = cachedEngine()
     expect(await runPodcastEpisode(deps, P, e.step, 'translation-quality-repair')).toBe('ready')
     expect(articles.rows[1].status).toBe('ready')
-    expect([...requests.values()]).toEqual(Array(requests.size).fill(2))
+    expect([...requests.values()]).toEqual(Array(requests.size).fill(1))
     const source = JSON.parse(bucket.objects.get(articles.rows[0].article_key!)!)
     const count = chunkTranslationUnits(translationUnits(source)).length
-    expect(e.calls.filter(name => /^translate-zh-chunk-\d+-r1$/.test(name))).toHaveLength(count)
-    expect(e.calls).toContain('translate-zh-assemble-r1')
+    expect(e.calls.filter(name => /^translate-zh-chunk-\d+-r1$/.test(name))).toHaveLength(0)
+    expect(e.calls).not.toContain('translate-zh-assemble-r1')
     expect(e.calls.some(name => /^polish-en-chunk-\d+-r1$/.test(name))).toBe(false)
   })
 
@@ -1181,7 +1171,7 @@ describe('podcast truncation recovery', () => {
           rejected = true
           badKey = key
           const value = JSON.parse(reply.text)
-          value.sections[0].paragraphs[0].source_cue_ids.push('c9999')
+          value.sections[0].paragraphs[0].text = ''
           return { ...reply, text: JSON.stringify(value) }
         }
         return reply
@@ -1198,7 +1188,7 @@ describe('podcast truncation recovery', () => {
     expect(doc.sections.flatMap(s => s.paragraphs.flatMap(p => p.source_cue_ids))).toEqual(state.cues.map(c => c.id))
   })
 
-  test('retries a hallucinated cue reference without caching or publishing it', async () => {
+  test('accepts unknown cue references without regeneration', async () => {
     const state = ready()
     const model = fakeModel()
     state.deps.model = {
@@ -1209,11 +1199,9 @@ describe('podcast truncation recovery', () => {
         return { ...reply, text: JSON.stringify(value) }
       }
     }
-    expect(await runPodcastEpisode(state.deps, P, engine().step, 'hallucinated-cue')).toBe('retry')
-    expect(model.chat).toHaveBeenCalledTimes(3)
-    expect(state.articles.rows[0].error_message).toContain('chunk_quality:cue_reference')
-    expect([...state.bucket.objects.keys()].filter(key => key.includes('/chunks/'))).toEqual([])
-    expect(state.articles.publish).not.toHaveBeenCalled()
+    expect(await runPodcastEpisode(state.deps, P, engine().step, 'unknown-cue')).toBe('ready')
+    expect(model.chat).toHaveBeenCalledOnce()
+    expect(state.articles.publish).toHaveBeenCalled()
   })
 
   test('keeps multiple paragraphs that reference the same source cues', async () => {

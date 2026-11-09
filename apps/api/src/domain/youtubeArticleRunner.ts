@@ -3,17 +3,13 @@ import {
   ChunkTruncated,
   PassageRepairError,
   EDITING_CONTEXT_CHARS,
-  EDITED_LENGTH_BOUNDS,
   extractHeading,
   optionalModelFailure,
-  passageFailures,
-  passageLanguageValid,
   passageResponseSchema,
   pendingPassageText,
   readPassageProgress,
   renderSourcePassages,
-  sourcePassages,
-  type SourcePassage
+  sourcePassages
 } from '@/utils/youtubeEditing'
 import { DeepSeekError, type ArticleModel } from '@/infra/external/deepseekClient'
 export type { ArticleModel } from '@/infra/external/deepseekClient'
@@ -40,7 +36,6 @@ import {
   youtubeArticleKeys,
   youtubeArticleVersion,
   type ArticleSection,
-  type YoutubeArticleCheck,
   type YoutubeArticlePlan
 } from '@/utils/youtubeArticle'
 
@@ -267,7 +262,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         plan.chunks.map(async chunk => {
           const passages = sourcePassages(plan.cues.slice(chunk.start + chunk.overlap, chunk.end), plan.cues.slice(0, chunk.start + chunk.overlap))
           const key = youtubeArticleChunkKey(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion, chunk.index)
-          const progress = await readPassageProgress(passages, loaded.caption.language, p.targetLanguage, key, deps.bucket, runId)
+          const progress = await readPassageProgress(passages, key, deps.bucket, runId)
           const remaining = pendingPassageText(progress)
           return translating && remaining.length ? expectedChunkCostUsd(estimateTokens(remaining.join(' ')) + 500) : 0
         })
@@ -279,9 +274,9 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
 
     log('prepared', p, { chunks: prep.chunkCount, input_chars: prep.inputChars, format: prep.format, expected_cost_usd: Number(prep.expectedCostUsd.toFixed(5)) })
 
-    const processChunk = async (i: number, invalid: Record<string, string> = {}) => {
+    const processChunk = async (i: number) => {
       const startedAt = Date.now()
-      const res = await step.do(`${Object.keys(invalid).length ? 'repair-chunk' : 'chunk'}-${i}`, CHUNK_STEP, async () => {
+      const res = await step.do(`chunk-${i}`, CHUNK_STEP, async () => {
         const deadline = Date.now() + 8 * 60 * 1000
         const askChunk: typeof ask = (system, user, opts) => ask(system, user, { ...opts, deadline })
         if (!(await deps.repo.renewLease(p.articleId, runId, lease))) throw new YoutubeArticleStop('lease_lost')
@@ -319,8 +314,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
             count(call)
             return call.reply.text
           },
-          (event, count) => log(event, p, { chunk: i, count }),
-          invalid
+          (event, count) => log(event, p, { chunk: i, count })
         ).catch(error => {
           if (error instanceof PassageRepairError) throw new YoutubeArticleStop('passage_repair_exhausted')
           throw error
@@ -395,7 +389,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
           } catch {
             /* Use accepted body excerpts. */
           }
-          if (typeof value.lede === 'string' && value.lede.trim() && passageLanguageValid(value.lede, p.targetLanguage)) lede = value.lede.trim()
+          if (typeof value.lede === 'string' && value.lede.trim()) lede = value.lede.trim()
         } catch (error) {
           if (accountingError || !optionalModelFailure(error)) throw error
           log('introduction_fallback', p)
@@ -426,57 +420,11 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         if (!introduction) throw new Error('introduction_missing')
         doc.lede = JSON.parse(await introduction.text()).lede
 
-        // A same-language edit already passed the chunk band; the article check must not use a tighter one
-        const sameLanguage = caption.language.toLowerCase().split('-')[0] === p.targetLanguage
-        const quality = checkArticleQuality(doc, plan.cues, captionPlainText(caption), {
-          requireCompleteCoverage: true,
-          ...(sameLanguage ? { bounds: EDITED_LENGTH_BOUNDS } : {}),
-          requireParagraphOrder: true,
-          minDuplicateChars: 40,
-          zhMagnitudes: true
-        })
-        const repairs: Record<number, Record<string, string>> = {}
-
-        const passages: SourcePassage[] = []
-        const values: Array<{ text: string; heading: string } | undefined> = []
-        for (const chunk of plan.chunks) {
-          const own = sourcePassages(plan.cues.slice(chunk.start + chunk.overlap, chunk.end), plan.cues.slice(0, chunk.start + chunk.overlap))
-          const paragraphs = results[chunk.index].sections.flatMap(section => section.paragraphs)
-          for (let i = 0; i < own.length; i++) {
-            const passage = own[i]
-            const paragraph = paragraphs[i]
-            if (!paragraph || paragraph.source_cue_ids.join(',') !== passage.ids.join(',')) quality.failed.push('cue_reference')
-            passages.push({ ...passage, key: chunk.index + '/' + passage.key })
-            values.push(paragraph ? { text: paragraph.text, heading: '' } : undefined)
-          }
-          if (paragraphs.length !== own.length) quality.failed.push('cue_reference')
-        }
-        const failures = passageFailures(passages, values, caption.language, p.targetLanguage)
-        // Whole-document ratios cannot locate damage or distinguish short terms from wrong language.
-        // Apply the same source-aware content checks used before checkpointing, on every paragraph.
-        const contentChecks = ['wrong_language', 'number_coverage', 'length_ratio', 'duplicate_paragraph']
-        quality.failed = quality.failed.filter(check => !contentChecks.includes(check))
-        for (const [key, reason] of Object.entries(failures)) {
-          const [chunk, passage] = key.split('/')
-          ;(repairs[Number(chunk)] ??= {})[passage] = reason
-          for (const failure of reason.split(';')) {
-            const checks: Record<string, YoutubeArticleCheck> = {
-              numbers: 'number_coverage',
-              length_ratio: 'length_ratio',
-              source_wording: 'length_ratio',
-              duplicate_paragraph: 'duplicate_paragraph',
-              missing: 'empty_block'
-            }
-            const check = checks[failure.split(':')[0]] ?? 'wrong_language'
-            quality.failed.push(check)
-          }
-        }
-        quality.failed = [...new Set(quality.failed)]
-        quality.passed = quality.failed.length === 0
+        const quality = checkArticleQuality(doc, captionPlainText(caption))
 
         const spent = (await deps.repo.findById(p.articleId))?.cost_usd ?? 0
         const summary = { ...quality, format: plan.format, chunks: plan.chunks.length, cost_usd: Number(spent.toFixed(5)), model: YOUTUBE_ARTICLE_MODEL }
-        if (!quality.passed) return { kind: 'quality_failed' as const, quality: summary, repairs }
+        if (!quality.passed) return { kind: 'quality_failed' as const, quality: summary }
 
         const version = youtubeArticleVersion(p.sourceHash, p.targetLanguage, 1, p.promptVersion)
         const html = renderArticleHtml(doc, version)
@@ -488,19 +436,7 @@ export async function runYoutubeArticle(deps: RunnerDeps, p: YoutubeArticleWorkf
         return { kind: 'ok' as const, quality: summary }
       })
 
-    let assembled = await assemble('assemble')
-    if (
-      assembled.kind === 'quality_failed' &&
-      Object.keys(assembled.repairs).length &&
-      !assembled.quality.failed.some(check => check === 'cue_reference' || check === 'cue_coverage')
-    ) {
-      for (const [index, invalid] of Object.entries(assembled.repairs)) await processChunk(Number(index), invalid)
-      await step.do('refresh-introduction', DB_STEP, () =>
-        deps.bucket.delete(`${youtubeArticleChunkPrefix(p.videoId, p.sourceHash, p.targetLanguage, p.promptVersion)}introduction.json`)
-      )
-      await introduction('introduction-repaired')
-      assembled = await assemble('assemble-repaired')
-    }
+    const assembled = await assemble('assemble')
     if (assembled.kind === 'quality_failed') return finish('failed', `quality:${assembled.quality.failed.join(',')}`, assembled.quality)
 
     const published = await step.do('publish', DB_STEP, () =>

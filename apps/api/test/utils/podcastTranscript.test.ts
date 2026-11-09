@@ -20,7 +20,6 @@ import {
   parsePublisherTranscript,
   parseSrt,
   parseVtt,
-  speechDensity,
   transcriptHash,
   transcriptPlainText,
   type TranscriptSegment
@@ -191,14 +190,6 @@ describe('hash, text and checks', () => {
     expect(detectTranscriptLanguage('今天我们来聊一聊大模型在企业里的落地情况，以及为什么很多用户觉得模型越来越强却没有感觉。这是第二句话，继续说一些内容。')).toBe('zh')
     expect(detectTranscriptLanguage('Bonjour')).toBeNull()
     expect(detectTranscriptLanguage('これは日本語の文章です。'.repeat(10))).toBeNull()
-  })
-
-  test('speech density: normal talk passes, a music episode fails', () => {
-    expect(speechDensity(doc).enough).toBe(true)
-    const music = buildTranscriptDocument('assemblyai', 'en', [{ start_ms: 0, end_ms: 5_000, text: 'Yeah yeah.', speaker: null }], 30 * 60_000)
-    expect(speechDensity(music)).toEqual({ perMinute: 0, enough: false })
-    const zh = buildTranscriptDocument('assemblyai', 'zh', [{ start_ms: 0, end_ms: 60_000, text: '说'.repeat(200), speaker: null }], 60_000)
-    expect(speechDensity(zh)).toEqual({ perMinute: 200, enough: true })
   })
 })
 

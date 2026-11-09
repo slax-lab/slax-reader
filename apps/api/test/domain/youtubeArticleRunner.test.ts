@@ -573,16 +573,12 @@ describe('limits and gates', () => {
     expect(s.repo.row.error_message).toBe('caption_missing')
   })
 
-  test('a bad article fails with metrics and retains its diagnostic artifacts', async () => {
-    // the target is Chinese but the fake writes English
+  test('publishes nonempty output without language scoring', async () => {
     const s = requireTranslation(setup({ cues: 40, model: faithfulModel() }))
     s.params.targetLanguage = 'zh'
     s.repo.row.target_language = 'zh'
-    expect(await s.run()).toBe('failed')
-    expect(s.repo.row.error_message).toBe('passage_repair_exhausted')
-    expect([...s.bucket.objects.keys()].some(k => k.includes('/chunks/'))).toBe(true)
-    for (const k of articleKeys('zh')) expect(s.bucket.objects.has(k)).toBe(false)
-    expect(s.publishBodies).not.toHaveBeenCalled()
+    expect(await s.run()).toBe('ready')
+    expect(s.publishBodies).toHaveBeenCalled()
   })
 })
 
@@ -669,7 +665,7 @@ describe('source-owned transcript generation', () => {
     expect(input(translations(model)[1]).p0.repair).toBe('missing')
   })
 
-  test('wrong-language output is repaired before final caching and publication', async () => {
+  test('nonempty wrong-language output is published without repair', async () => {
     const model = editedModel()
     const original = model.chat.getMockImplementation()!
     let corrupt = true
@@ -685,8 +681,7 @@ describe('source-owned transcript generation', () => {
     })
     const s = translated(40, model)
     expect(await s.run()).toBe('ready')
-    expect(Object.keys(input(translations(model)[1]))).toEqual(['p0'])
-    expect(input(translations(model)[1]).p0.repair).toContain('wrong_language')
+    expect(translations(model)).toHaveLength(1)
   })
 
   test.each([new DeepSeekError('http', 401), new Error('private-provider-message')])('records safe provider failure diagnostics', async error => {
@@ -779,7 +774,8 @@ describe('source-owned transcript generation', () => {
     const s = translated(40, model)
     expect(await s.run()).toBe('ready')
     const doc = JSON.parse(s.bucket.objects.get(articleKeys('zh')[0].replace('v1', 'v2'))!)
-    expect(doc.lede).toContain('Transformer')
+    if (mode === 'wrong-language') expect(doc.lede).toBe('This introduction is in the wrong language.')
+    else expect(doc.lede).toContain('Transformer')
     expect(doc.lede).not.toBe('invalid')
     expect(model.chat.mock.calls.filter(c => c[2].systemInstruction.startsWith('Write a factual'))).toHaveLength(1)
   })
@@ -830,7 +826,7 @@ describe('source-owned transcript generation', () => {
     expect(doc.sections.flatMap((section: any) => section.paragraphs.flatMap((p: any) => p.source_cue_ids))).toEqual(caption(40).cues.map(c => c.id))
   })
 
-  test('localized final corruption repairs only the affected passage', async () => {
+  test('assembled nonempty text does not trigger regeneration', async () => {
     const model = editedModel()
     const s = translated(40, model)
     const step: StepLike = {
@@ -845,12 +841,12 @@ describe('source-owned transcript generation', () => {
       }
     }
     expect(await s.run(step)).toBe('ready')
-    expect(Object.keys(input(translations(model).at(-1)))).toEqual(['p0'])
-    expect(s.calls).toContain('repair-chunk-0')
-    expect(s.calls).toContain('assemble-repaired')
+    expect(translations(model)).toHaveLength(1)
+    expect(s.calls).not.toContain('repair-chunk-0')
+    expect(s.calls).not.toContain('assemble-repaired')
   })
 
-  test('structural final corruption stops publication and retains progress', async () => {
+  test('unknown source references do not block publication', async () => {
     const s = translated()
     const step: StepLike = {
       do: async (name, config, fn) => {
@@ -863,10 +859,8 @@ describe('source-owned transcript generation', () => {
         return s.step.do(name, config, fn)
       }
     }
-    expect(await s.run(step)).toBe('failed')
-    expect(s.repo.row.error_message).toContain('cue_reference')
-    expect([...s.bucket.objects.keys()].some(k => k.endsWith('.passages'))).toBe(true)
-    expect(s.publishBodies).not.toHaveBeenCalled()
+    expect(await s.run(step)).toBe('ready')
+    expect(s.publishBodies).toHaveBeenCalled()
   })
 
   test('resume estimates only unfinished work and completes remaining work despite prior spend', async () => {
