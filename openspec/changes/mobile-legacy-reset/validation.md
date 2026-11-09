@@ -69,3 +69,8 @@ Successful screenshot manifest: `.local/ios-ui-clean-screens/manifest.json`. Loc
 ## Delivery decision and limitations
 
 On 2026-11-09 the owner explicitly authorized direct PR submission after simulator flow verification and confirmed build 804. No manual hands-on test by the owner is claimed. Native crash-at-every-deletion-boundary on both platforms and production Google/Apple/store validation are not claimed: production Kotlin/Swift interruption tests, genuine old SDK producers, actual native app UI, local HTTP login acceptance, real isolated PowerSync refill and cold-start flows are the evidence actually obtained. The remaining exhaustive interruption matrix is tracked in tasks.md and is not marked complete. The PR does not authorize merge, deployment or publication.
+
+
+## Pull request delivery
+
+On 2026-11-09 implementation commit `412294c42bc76f13773877e22a40ceecb42b4893` was committed with normal hooks and pushed to `fix/mobile-legacy-reset`. PR **#547** targets `dev`: https://github.com/slax-lab/slax-reader/pull/547. Its body includes five reviewed Android/iOS screenshots and explicit synthetic-provider/remaining-interruption boundaries. Initial inspection confirmed OPEN, non-draft, MERGEABLE and REVIEW_REQUIRED; CI and remote review were still running. No merge, deployment or store publication occurred. The delivery worktree was clean after the implementation push; this follow-up records the PR receipt.
