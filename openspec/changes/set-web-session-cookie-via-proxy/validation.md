@@ -54,9 +54,12 @@ The previous HTTP renewal prototype passed normal login and renewal, then failed
 
 Run `node apps/web/tests/fixtures/auth-recovery/serve.mjs 44020` and open `http://127.0.0.1:44020/`. The browser exercise used the actual callback handler and recovery page with synthetic providers. The provider-error case showed persistent recovery, the retry reached a fresh local authorization receipt, and successful login returned to the configured target. A timed request to the running callback returned timeout recovery after 20 seconds without issuing a session Cookie. The local smoke uses disposable fixture data.
 
+## Human hands-on acceptance
+
+On 2026-11-09, the requester exercised the local `disconnect` and `provider-error` scenarios and reported a Vite error. The preview process was still running the previous import transform. Restarting it from the reviewed commit resolved the duplicate import. Browser smoke then confirmed that both scenarios show the existing recovery prompt and that the Google action starts a fresh simulated authorization. The requester confirmed the preview looked correct and approved opening the PR. No product code adjustment was needed for the preview process issue.
+
 ## Remaining environment coverage
 
 - Real Google and Apple sign-in, the callback alias redirect, Cloudflare IP and geographic attribution, and bookmark access need a deployed test Worker and disposable accounts.
 - A real installed Extension, iPad Brave reopen or inactivity, and the Mobile subscription WebView have not been exercised on their target devices. The local timing fixture uses the Extension source and a test Cookie API. The full Chrome browser matrix and collection analytics browser smoke have not been rerun in a shell-launched browser.
 - The shared REST request and PowerSync authorization handlers were outside this change. The old renewal 401 case exercises the account-locale client and its existing protection only.
-- Human hands-on acceptance of the callback behavior is pending before opening the pull request under `DESIGN.md` §10.2.
