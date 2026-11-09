@@ -53,4 +53,3 @@ Generation SHALL start only for an owner with the `youtube_article` Labs feature
 #### Scenario: Skipped by eligibility
 - **WHEN** the eligibility rules skip a version under the remaining content-quality or language rules
 - **THEN** nothing starts automatically and the owner can choose "generate anyway"
-
