@@ -1,10 +1,17 @@
 import { requireNativeModule } from 'expo';
 import type { PreferenceSnapshot, PreferenceStorage, PreferenceValues } from './preferences.ts';
 import type { LegacyPreferenceSource } from './legacy-preferences.ts';
-import type { DatabaseOwnership } from './upgrade.ts';
-import type { DatabaseInspector } from './adoption.ts';
 
-export interface SlaxLegacyBridge extends LegacyPreferenceSource, DatabaseOwnership, DatabaseInspector {
+export interface NativeStorageLocation {
+  legacyDataDirectory: string;
+  newDatabaseDirectory: string;
+  legacyReset?: boolean;
+}
+export interface SlaxLegacyBridge extends LegacyPreferenceSource {
+  beginDataOwnership(): Promise<NativeStorageLocation>;
+  beginFreshDataOwnership?(): Promise<NativeStorageLocation>;
+  finishLegacyReset(): Promise<void>;
+  endDataOwnership(): Promise<void>;
   readPreferences(): Promise<PreferenceSnapshot>;
   compareAndSwapPreferences(revision: number, values: PreferenceValues): Promise<boolean>;
   newIdentifier(): string;

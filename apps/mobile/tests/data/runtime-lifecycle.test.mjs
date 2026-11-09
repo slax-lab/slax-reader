@@ -7,8 +7,6 @@ import {PreferenceStore, PREFERENCE_KEYS} from '../../src/data/preferences.ts';
 import {SessionController} from '../../src/domain/session.ts';
 import {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailableError} from '../../src/domain/credential-readiness.ts';
 import {MemoryPreferences} from './helpers.ts';
-import {openVerifiedDatabase} from '../../src/data/adoption.ts';
-import {UpgradeVerificationRequired} from '../../src/data/upgrade.ts';
 
 for (const startup of ['presented', 'interrupted-before-presentation', 'admitted-in-background']) test(`production runtime resumes ${startup} without replacing the authenticated account scope`, async () => {
   const events = [], storage = new MemoryPreferences({auth_token: 'synthetic', user_id: 'account', last_refresh_time: String(Date.now() / 1000)});
@@ -39,10 +37,10 @@ for (const startup of ['presented', 'interrupted-before-presentation', 'admitted
     './native-network.ts': {nativeNetwork: {read: async () => ({}), subscribe: () => () => {}}},
     '../native/reader-image': {loadReaderImage: async () => assert.fail('No image request expected in lifecycle fixture')},
     '../native/platform': {activateReaderResources: async () => {events.push('activate'); await resourcesReady;}, revokeReaderResources: async () => {events.push('revoke');}},
-    './connector.ts': {createSyncConnector: () => ({pause() {}, resume() {}, invalidate() {}, async prepareConnection() {return {endpoint: 'https://sync.example', token: 'synthetic'};}})}, './adoption.ts': {openVerifiedDatabase}, './adoption-profile.ts': {deriveReviewedAdoptionEvidence: () => undefined},
+    './connector.ts': {createSyncConnector: () => ({pause() {}, resume() {}, invalidate() {}, async prepareConnection() {return {endpoint: 'https://sync.example', token: 'synthetic'};}})},
     './legacy-preferences.ts': {migrateLegacyPreferences: async () => {}}, './native-storage.ts': {loadLegacyBridge: () => bridge, nativePreferenceStorage: () => storage},
     './preferences.ts': {PreferenceStore, PREFERENCE_KEYS}, './repositories.ts': {MobileRepositories: class {constructor(lease) {this.lease = lease;}}},
-    './schema.ts': {createMobileSchema: async () => ({}), SYNC_PARAMETERS: {}}, './upgrade.ts': {UpgradeVerificationRequired}, '@powersync/react-native': {PowerSyncDatabase: Database},
+    './schema.ts': {createMobileSchema: async () => ({}), SYNC_PARAMETERS: {}}, '@powersync/react-native': {PowerSyncDatabase: Database},
   });
   const runtime = createMobileDataRuntime({baseUrl: 'https://synthetic.test', platform: 'ios', version: 'fixture', network});
   await assert.rejects(runtime.getArticleContent('book'), /inactive/i);

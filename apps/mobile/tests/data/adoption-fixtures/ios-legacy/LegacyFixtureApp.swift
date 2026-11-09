@@ -13,6 +13,23 @@ final class LegacyFixtureApp: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        true
+    }
+
+    func application(_ application: UIApplication, configurationForConnecting session: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: nil, sessionRole: session.role)
+        configuration.delegateClass = LegacyFixtureScene.self
+        return configuration
+    }
+}
+
+@MainActor
+final class LegacyFixtureScene: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    private let producer = LegacyFixtureProducer()
+
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
+        guard let scene = scene as? UIWindowScene else { return }
         let controller = UIViewController()
         controller.view.backgroundColor = .systemBackground
         let label = UILabel()
@@ -20,7 +37,7 @@ final class LegacyFixtureApp: UIResponder, UIApplicationDelegate {
         label.text = "Creating controlled Kotlin 1.14.1 offline fixture…"
         label.frame = CGRect(x: 24, y: 80, width: 340, height: 320)
         controller.view.addSubview(label)
-        let window = UIWindow(frame: UIScreen.main.bounds)
+        let window = UIWindow(windowScene: scene)
         window.rootViewController = controller
         window.makeKeyAndVisible()
         self.window = window
@@ -61,7 +78,6 @@ final class LegacyFixtureApp: UIResponder, UIApplicationDelegate {
         } catch {
             label.text = "FAILED: \(error.localizedDescription)"
         }
-        return true
     }
 }
 

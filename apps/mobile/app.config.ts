@@ -44,7 +44,7 @@ const config: ExpoConfig = {
   slug: uiFixture ? 'slax-reader-ui-fixture' : 'slax-reader',
   platforms: ['ios', 'android'],
   version: buildVersion.version,
-  runtimeVersion: {policy: 'nativeVersion'},
+  runtimeVersion: fixtureMode ? '1.0.0' : {policy: 'nativeVersion'},
   updates,
   orientation: 'portrait',
   userInterfaceStyle: 'light',

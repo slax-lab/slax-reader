@@ -7,7 +7,7 @@ public final class SlaxLegacyModule: Module {
   private let owner = StorageOwner()
   private var ownsData = false
   private let transition = StorageTransition()
-  private var databaseCandidates = Set<String>()
+  private var reset: LegacyReset?
   private static let preferencesMutex = NSLock()
   private static let ownerMutex = NSLock()
   private func sharedDirectory() throws -> URL {
@@ -37,13 +37,14 @@ public final class SlaxLegacyModule: Module {
   private func readSnapshot(_ root: URL) throws -> [String: Any] {
     let file = root.appendingPathComponent("slax.preferences.v1.json")
     if !FileManager.default.fileExists(atPath: file.path) { return ["revision": 0, "values": [String: Any]()] }
-    guard let snapshot = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any], snapshot["revision"] is NSNumber, snapshot["values"] is [String: Any] else { throw CocoaError(.fileReadCorruptFile) }
-    return snapshot
+    let bytes = try Data(contentsOf: file)
+    if let snapshot = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any], snapshot["revision"] is NSNumber, snapshot["values"] is [String: Any] { return snapshot }
+    guard FileManager.default.fileExists(atPath: root.appendingPathComponent(".slax-legacy-reset").path) else { throw CocoaError(.fileReadCorruptFile) }
+    return ["revision": 0, "values": ["_slax_sign_out_pending_v1": true]]
   }
   private func releaseOwner() {
     Self.ownerMutex.lock(); defer { Self.ownerMutex.unlock() }
-    owner.release(); ownsData = false
-    databaseCandidates = []
+    owner.release(); ownsData = false; reset = nil
   }
   public func definition() -> ModuleDefinition {
     Name("SlaxLegacy")
@@ -64,79 +65,42 @@ public final class SlaxLegacyModule: Module {
     AsyncFunction("readLegacyPreferences") { () -> [String: Any]? in
       let source = try self.sharedDirectory().appendingPathComponent("user.preferences_pb")
       if !FileManager.default.fileExists(atPath: source.path) { return nil }
-      let data = try Data(contentsOf: source)
-      return ["bytes": Array(data), "fingerprint": SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()]
+      return ["bytes": Array(try Data(contentsOf: source))]
     }
     AsyncFunction("beginDataOwnership") { () -> [String: Any] in
       guard Bundle.main.bundleIdentifier == "app.slax.reader" else { throw CocoaError(.fileReadNoPermission) }
-      let shared = try self.sharedDirectory()
       try self.owner.acquire()
       Self.ownerMutex.lock(); self.ownsData = true; Self.ownerMutex.unlock()
       do {
-        let manager = FileManager.default
-        let support = try manager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).resolvingSymlinksInPath()
-        let newDirectory = support.appendingPathComponent("slax-react-native", isDirectory: true)
-        let library = try manager.url(for: .libraryDirectory, in: .userDomainMask, appropriateFor: nil, create: false).resolvingSymlinksInPath()
-        let documents = try manager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false).resolvingSymlinksInPath()
-        let values = try self.withPreferencesLock { root, _ in try self.readSnapshot(root)["values"] as? [String: Any] ?? [:] }
-        let cancellation = DatabaseInspectionCancellation()
-        let activity = try StorageActivity(name: "Slax database inventory", cancel: { cancellation.cancelAndDrain() })
-        defer { activity.finish() }
-        let initialized = try initializedDatabaseCandidate(values: values, support: support, shared: shared, bundleIdentifier: "app.slax.reader")
-        let accepted = initialized == nil ? acceptedDatabaseCandidate(values: values, support: support, shared: shared, bundleIdentifier: "app.slax.reader", cancellation: cancellation) : nil
-        try activity.check()
-        var candidates: [String] = initialized.map { $0.mode == "adopted" ? [$0.path] : [] } ?? accepted.map { [$0] } ?? []
-        var scanError: Error?
-        for root in initialized == nil && accepted == nil ? [library, documents, shared.resolvingSymlinksInPath()] : [] {
-          guard let enumerator = manager.enumerator(at: root, includingPropertiesForKeys: [.isSymbolicLinkKey, .isDirectoryKey], options: [], errorHandler: { _, error in scanError = error; return false }) else { throw CocoaError(.fileReadUnknown) }
-          for case let file as URL in enumerator {
-            try activity.check()
-            let values = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
-            if values.isSymbolicLink == true || file.standardizedFileURL == newDirectory.standardizedFileURL { enumerator.skipDescendants(); continue }
-            if values.isDirectory != true && file.lastPathComponent == "powersync.db" { candidates.append(file.resolvingSymlinksInPath().path) }
-          }
-          if let error = scanError { throw error }
+        let support = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).resolvingSymlinksInPath()
+        let directory = support.appendingPathComponent("slax-react-native")
+        let cleared = try self.withPreferencesLock { shared, activity in
+          let cleanup = LegacyReset(support: support, shared: shared)
+          self.reset = cleanup
+          try activity.check()
+          return try cleanup.prepare()
         }
-        try manager.createDirectory(at: newDirectory, withIntermediateDirectories: true)
-        let allowed = Array(Set(candidates + [newDirectory.appendingPathComponent("powersync.db").path]))
-        Self.ownerMutex.lock(); self.databaseCandidates = Set(allowed); Self.ownerMutex.unlock()
-        var inventory: [String: Any] = ["scanComplete": true, "databaseCandidates": Array(Set(candidates)).sorted(), "legacyDataDirectory": support.path, "newDatabaseDirectory": newDirectory.path,
-                "databaseIdentities": legacyDatabaseIdentities(allowed, support: support, shared: shared, bundleIdentifier: "app.slax.reader")]
-        if let initialized { inventory["initializedDatabase"] = ["path": initialized.path, "mode": initialized.mode] }
-        return inventory
+        guard directory.resolvingSymlinksInPath().path == directory.path else { throw CocoaError(.fileReadNoPermission) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return ["legacyDataDirectory": support.path, "newDatabaseDirectory": directory.path, "legacyReset": cleared]
       } catch { self.releaseOwner(); throw error }
+    }
+    AsyncFunction("finishLegacyReset") {
+      Self.ownerMutex.lock(); defer { Self.ownerMutex.unlock() }
+      guard self.ownsData else { throw CocoaError(.fileLocking) }
+      try self.withPreferencesLock { _, activity in
+        try activity.check()
+        try self.reset?.finish()
+      }
     }
     AsyncFunction("endDataOwnership") { self.releaseOwner() }
     AsyncFunction("beginFreshDataOwnership") { () -> [String: Any] in
       guard Bundle.main.bundleIdentifier == "app.slax.reader" else { throw CocoaError(.fileReadNoPermission) }
-      // Development storage intentionally skips the exclusive ownership lease so a JS reload can reopen it.
-      do {
-        let manager = FileManager.default
-        let support = try manager.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).resolvingSymlinksInPath()
-        let newDirectory = support.appendingPathComponent("slax-react-native", isDirectory: true)
-        try manager.createDirectory(at: newDirectory, withIntermediateDirectories: true)
-        let path = newDirectory.appendingPathComponent("powersync.db").path
-        Self.ownerMutex.lock(); self.databaseCandidates = [path]; Self.ownerMutex.unlock()
-        return ["scanComplete": true, "databaseCandidates": [String](), "legacyDataDirectory": support.path, "newDatabaseDirectory": newDirectory.path]
-      } catch { throw error }
-    }
-    AsyncFunction("inspectLegacyDatabase") { (path: String) -> [String: Any] in
-      let cancellation = DatabaseInspectionCancellation()
-      let activity = try StorageActivity(name: "Slax database verification", cancel: { cancellation.cancelAndDrain() })
-      defer { activity.finish() }
-      Self.ownerMutex.lock(); defer { Self.ownerMutex.unlock() }
-      guard self.ownsData, self.databaseCandidates.contains(path), path.hasPrefix(URL(fileURLWithPath: NSHomeDirectory()).resolvingSymlinksInPath().path + "/"), URL(fileURLWithPath: path).resolvingSymlinksInPath().path == path else { throw CocoaError(.fileLocking) }
-      try activity.check()
-      return try inspectPowerSyncDatabase(path, cancellation: cancellation)
-    }
-    AsyncFunction("inspectAcceptedDatabase") { (path: String) -> [String: Any] in
-      let cancellation = DatabaseInspectionCancellation()
-      let activity = try StorageActivity(name: "Slax database schema", cancel: { cancellation.cancelAndDrain() })
-      defer { activity.finish() }
-      Self.ownerMutex.lock(); defer { Self.ownerMutex.unlock() }
-      guard self.ownsData, self.databaseCandidates.contains(path), path.hasPrefix(URL(fileURLWithPath: NSHomeDirectory()).resolvingSymlinksInPath().path + "/"), URL(fileURLWithPath: path).resolvingSymlinksInPath().path == path else { throw CocoaError(.fileLocking) }
-      try activity.check()
-      return try inspectAcceptedPowerSyncDatabase(path, cancellation: cancellation)
+      let support = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).resolvingSymlinksInPath()
+      let directory = support.appendingPathComponent("slax-react-native")
+      guard directory.resolvingSymlinksInPath().path == directory.path else { throw CocoaError(.fileReadNoPermission) }
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      return ["legacyDataDirectory": support.path, "newDatabaseDirectory": directory.path, "legacyReset": false]
     }
     Function("beginStorageTransition") { try self.transition.begin() }
     Function("checkStorageTransition") { (token: Int) in try self.transition.check(token) }

@@ -97,72 +97,16 @@ import UIKit
     transition.finish(rapidToken)
 
     let root = URL(fileURLWithPath: CommandLine.arguments[1]).resolvingSymlinksInPath()
-    let containers = root.appendingPathComponent("CoreSimulator/Devices/522DD84F-0407-4707-BBAB-0263B4ACE2DA/data/Containers")
-    let support = containers.appendingPathComponent("Data/Application/9F3CD522-89CD-4B8E-9074-F592D18ADCC3/Library/Application Support")
-    let shared = containers.appendingPathComponent("Shared/AppGroup/CA892185-0726-4753-9AD1-B47FF2383CA5")
+    let support = root.appendingPathComponent("support"), shared = root.appendingPathComponent("shared")
     let file = support.appendingPathComponent("databases/powersync.db")
     try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-    var database: OpaquePointer?
-    precondition(sqlite3_open(file.path, &database) == SQLITE_OK)
-    precondition(sqlite3_exec(database, "CREATE TABLE ps_migration(id INTEGER); INSERT INTO ps_migration VALUES(14); PRAGMA user_version=1; CREATE TABLE ps_data__sr_user(id TEXT, data TEXT);", nil, nil, nil) == SQLITE_OK)
-    sqlite3_close(database)
-    let schema = try inspectAcceptedPowerSyncDatabase(file.path)
-    precondition(schema["formatVersion"] as? Int == 14 && schema["userVersion"] as? Int == 1)
-    precondition(schema["storageTables"] as? [String] == ["ps_data__sr_user"])
-    let identity = legacyDatabaseIdentities([file.path], support: support, shared: shared, bundleIdentifier: "app.slax.reader")[file.path]!
-    var journal: [String: Any] = ["path": file.path, "phase": "accepted", "targetSdk": "powersync-react-native-2.3.1", "profile": "slax-powersync-format14-schema2-v1", "schemaVersion": "2", "logicalIdentity": identity, "before": schema]
-    func candidate() throws -> String? {
-      let encoded = String(data: try JSONSerialization.data(withJSONObject: journal), encoding: .utf8)!
-      return acceptedDatabaseCandidate(values: ["_slax_database_adoption_v1": encoded], support: support, shared: shared, bundleIdentifier: "app.slax.reader")
-    }
-    let accepted = try candidate(); precondition(accepted == file.path)
-    for field in ["phase", "targetSdk", "profile", "schemaVersion", "path"] {
-      let saved = journal[field]; journal[field] = "wrong"
-      let rejected = try candidate(); precondition(rejected == nil); journal[field] = saved
-    }
-    journal["logicalIdentity"] = ["owner": "other"]
-    let rejected = try candidate(); precondition(rejected == nil)
-    var binding: [String: Any] = ["version": 1, "state": "ready", "mode": "adopted", "path": file.path, "identity": identity, "targetSdk": "powersync-react-native-2.3.1", "schemaVersion": "2", "profile": "slax-powersync-format14-schema2-v1"]
-    func initialized() throws -> KnownInstallationDatabase? {
-      let encoded = String(data: try JSONSerialization.data(withJSONObject: binding), encoding: .utf8)!
-      return try initializedDatabaseCandidate(values: ["_slax_database_installation_v1": encoded], support: support, shared: shared, bundleIdentifier: "app.slax.reader")
-    }
-    let bound = try initialized(); precondition(bound?.path == file.path && bound?.mode == "adopted")
-    binding["path"] = file.path.replacingOccurrences(of: "9F3CD522-89CD-4B8E-9074-F592D18ADCC3", with: "11111111-1111-4111-8111-111111111111")
-    let relocated = try initialized(); precondition(relocated?.path == file.path)
-    binding["identity"] = ["owner": "other"]
-    do { _ = try initialized(); preconditionFailure("Foreign owner accepted") } catch {}
-    binding["identity"] = identity; binding["path"] = file.path
-    for field in ["state", "mode", "targetSdk", "schemaVersion", "profile"] {
-      let saved = binding[field]; binding[field] = "wrong"
-      do { _ = try initialized(); preconditionFailure("Invalid initialized field accepted") } catch {}
-      binding[field] = saved
-    }
-    let nativeFile = support.appendingPathComponent("slax-react-native/powersync.db")
-    try FileManager.default.createDirectory(at: nativeFile.deletingLastPathComponent(), withIntermediateDirectories: true)
-    try FileManager.default.copyItem(at: file, to: nativeFile)
-    let nativeIdentity = legacyDatabaseIdentities([nativeFile.path], support: support, shared: shared, bundleIdentifier: "app.slax.reader")[nativeFile.path]!
-    binding["mode"] = "native"; binding["path"] = nativeFile.path; binding["identity"] = nativeIdentity; binding["profile"] = "slax-native-format14-schema2-v1"
-    let native = try initialized(); precondition(native?.path == nativeFile.path)
-    try FileManager.default.removeItem(at: nativeFile)
-    do { _ = try initialized(); preconditionFailure("Missing established database accepted") } catch {}
-    var longQuery: OpaquePointer?
-    precondition(sqlite3_open(":memory:", &longQuery) == SQLITE_OK)
-    let cancellation = DatabaseInspectionCancellation()
-    try cancellation.attach(longQuery!)
-    DispatchQueue.global().asyncAfter(deadline: .now() + 0.02) { cancellation.cancel() }
-    let started = Date()
-    let result = sqlite3_exec(longQuery, "WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<100000000) SELECT sum(x) FROM n", nil, nil, nil)
-    precondition(result == SQLITE_INTERRUPT && Date().timeIntervalSince(started) < 1)
-    cancellation.detach()
-    precondition(sqlite3_close(longQuery) == SQLITE_OK)
-    let denied = DatabaseInspectionCancellation(); denied.cancel()
-    do { try inspectPowerSyncDatabase(file.path, cancellation: denied); preconditionFailure("Cancelled inspection accepted") } catch {}
-    precondition(sqlite3_open(file.path, &database) == SQLITE_OK)
-    precondition(sqlite3_exec(database, "CREATE TABLE ps_crud(id INTEGER, tx_id INTEGER, data TEXT); INSERT INTO ps_crud VALUES(1,1,'{\"id\":\"one\",\"type\":\"sr_user\",\"op\":\"PUT\"}');", nil, nil, nil) == SQLITE_OK)
-    sqlite3_close(database)
-    let verified = try inspectPowerSyncDatabase(file.path)
-    precondition(verified["pendingOperations"] as? Int == 1 && verified["pendingTransactions"] as? Int == 1)
-    print("production Swift lifecycle and accepted-schema helpers passed; UIKit assertion boundary is synthetic")
+    try FileManager.default.createDirectory(at: shared, withIntermediateDirectories: true)
+    try Data("unreadable old database".utf8).write(to: file)
+    let reset = LegacyReset(support: support, shared: shared)
+    let cleared = try reset.prepare(); precondition(cleared)
+    precondition(!FileManager.default.fileExists(atPath: file.path))
+    try reset.finish()
+    let repeated = try reset.prepare(); precondition(!repeated)
+    print("production Swift lifecycle and fixed-path reset passed; UIKit assertion boundary is synthetic")
   }
 }
