@@ -12,6 +12,7 @@ enum SharedPreferences {
       guard descriptor >= 0 else { throw CocoaError(.fileReadUnknown) }
       defer { flock(descriptor, LOCK_UN); close(descriptor) }
       guard flock(descriptor, LOCK_SH) == 0 else { throw CocoaError(.fileReadUnknown) }
+      if FileManager.default.fileExists(atPath: root.appendingPathComponent(".slax-legacy-reset").path) { report(store, nil); return [:] }
       let current = root.appendingPathComponent("slax.preferences.v1.json")
       if FileManager.default.fileExists(atPath: current.path) {
         store = "v1"

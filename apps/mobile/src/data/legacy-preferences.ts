@@ -74,16 +74,29 @@ export function decodeLegacyPreferences(bytes: Uint8Array): PreferenceValues {
   }
   return values;
 }
-export interface LegacyPreferenceSource { readLegacyPreferences(): Promise<{bytes: number[]; fingerprint: string} | null> }
-export async function migrateLegacyPreferences(store: PreferenceStore, source: LegacyPreferenceSource, snapshot?: PreferenceValues): Promise<'migrated' | 'already-migrated' | 'new-install'> {
-  const key = '_slax_preferences_migration_v1';
-  if ((snapshot ?? await store.read())[key]) return 'already-migrated';
-  const legacy = await source.readLegacyPreferences();
-  const values = legacy ? decodeLegacyPreferences(new Uint8Array(legacy.bytes)) : {};
+export interface LegacyPreferenceSource { readLegacyPreferences(): Promise<{bytes: number[]; fingerprint?: string} | null> }
+const IDENTITY_KEYS = ['auth_token', 'user_id', 'last_refresh_time', 'selected_env', 'user_language', 'analytics_device_id'] as const;
+export async function migrateLegacyPreferences(store: PreferenceStore, source: LegacyPreferenceSource, snapshot?: PreferenceValues, reset = false): Promise<'migrated' | 'already-migrated' | 'new-install'> {
+  const key = '_slax_preferences_migration_v1', current = snapshot ?? await store.read();
+  if (current[key] && !reset) return 'already-migrated';
+  let legacy: PreferenceValues = {};
+  if (!current[key] && !current.auth_token && !current.user_id && current._slax_sign_out_pending_v1 !== true) {
+    try {
+      const original = await source.readLegacyPreferences();
+      if (original) legacy = decodeLegacyPreferences(new Uint8Array(original.bytes));
+    } catch {}
+  }
   await store.update(next => {
-    if (next[key]) return;
-    for (const [name, value] of Object.entries(values)) if (!(name in next)) next[name] = value;
-    next[key] = legacy?.fingerprint ?? 'new-install';
+    if (next[key] && !reset) return;
+    const sourceValues = next[key] || next.auth_token || next.user_id || next._slax_sign_out_pending_v1 === true ? next : {...legacy, ...next};
+    const identity: PreferenceValues = {};
+    for (const name of IDENTITY_KEYS) if (typeof sourceValues[name] === 'string') identity[name] = sourceValues[name];
+    if (sourceValues._slax_sign_out_pending_v1 === true || !identity.auth_token || !identity.user_id) {
+      delete identity.auth_token; delete identity.user_id; delete identity.last_refresh_time;
+    }
+    if (reset) for (const name of Object.keys(next)) delete next[name];
+    Object.assign(next, identity);
+    next[key] = 'initialized';
   });
-  return legacy ? 'migrated' : 'new-install';
+  return Object.keys(legacy).length ? 'migrated' : 'new-install';
 }

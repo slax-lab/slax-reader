@@ -4,8 +4,6 @@ export * from './repositories.ts';
 export * from './schema.ts';
 export * from './uploader.ts';
 export * from './connector.ts';
-export * from './upgrade.ts';
-export * from './adoption.ts';
 export * from './legacy-preferences.ts';
 export * from './native-storage.ts';
 export * from './cache.ts';
