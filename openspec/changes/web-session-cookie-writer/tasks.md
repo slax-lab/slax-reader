@@ -11,5 +11,6 @@
 
 - [x] 2.1 Exercise the built Pages Worker and static callback in a browser, verify the two direct browser exchanges followed by the cookie write, and run Web and strict OpenSpec checks.
 - [x] 2.2 Exercise late success in both renewal stages for same-tab and cross-tab logout, replacement login and existing Extension cleanup. Exercise a late 401 and record the passing and failing cases.
-- Deferred follow-up: prevent a late successful cookie-writing response from restoring or replacing the session after a cross-tab logout, replacement login, or legacy Extension cleanup.
 - [ ] 2.3 Verify deployed OAuth and shared cookie behavior with an installed Extension and iPad Brave. Record the evidence and any remaining environment gaps.
+- [x] 2.4 Serialize session cookie operations in participating Reader tabs and rerun the logout, account replacement, and stale 401 checks.
+- Deferred follow-up: coordinate direct Extension cookie cleanup with Reader Web.

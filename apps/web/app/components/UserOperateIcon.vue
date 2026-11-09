@@ -39,8 +39,8 @@ onDeactivated(() => {
   isHovered.value = false
 })
 
-const logoutClick = () => {
-  auth.clearAuth()
+const logoutClick = async () => {
+  await auth.clearAuth()
   navigateTo('/login', {
     replace: true
   })

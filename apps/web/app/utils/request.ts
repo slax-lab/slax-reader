@@ -43,8 +43,7 @@ export const request = () => {
       },
       responseInterceptors: async <T = unknown>(response: FetchResult<unknown>) => {
         if (response.status === 401) {
-          await useAuth().clearAuth()
-          await navigateTo('/login')
+          if (await useAuth().clearAuth({ token: getUserToken() }) !== false) await navigateTo('/login')
         }
 
         return response as FetchResult<T>

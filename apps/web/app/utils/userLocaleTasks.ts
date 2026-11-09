@@ -1,5 +1,5 @@
 import { AccountLocaleDisplayError, type AccountLocaleRequest, AccountLocaleStaleError, AccountLocaleUnauthorizedError } from './accountLocaleRequest'
-import type { WebSessionWriteResult } from './webSession'
+import { type WebSessionWriteResult, withWebSessionLock } from './webSession'
 import type { AppLocale } from '@commons/frontend-types/locale'
 import type { UserInfo } from '@slax-reader/contracts/interface'
 
@@ -15,7 +15,7 @@ interface Deps {
   writeWebSession?(token: string, startingToken: string, signal: AbortSignal): Promise<WebSessionWriteResult>
   apply(locale: AppLocale): Promise<unknown>
   notify(): void
-  expire(): Promise<unknown>
+  expire(expectedToken: string): Promise<unknown>
 }
 export const localeAccountIdentity = (token: string | undefined): string | null => {
   if (!token) return null
@@ -61,7 +61,7 @@ export class UserLocaleTasks {
     return Boolean(ticket.account && current.account === ticket.account && current.epoch === ticket.epoch)
   }
   private async unauthorized(error: unknown, token: string): Promise<never> {
-    if (error instanceof AccountLocaleUnauthorizedError && this.deps.getToken() === token) await this.deps.expire()
+    if (error instanceof AccountLocaleUnauthorizedError && this.deps.getToken() === token) await this.deps.expire(token)
     throw error
   }
   local(value: string, displayOnly = false): Promise<void> {
@@ -177,7 +177,7 @@ export class UserLocaleTasks {
       revision = this.revision
     if (!token) return
     if (!ticket.account) {
-      if (this.deps.getToken() === token) await this.deps.expire()
+      if (this.deps.getToken() === token) await this.deps.expire(token)
       return
     }
     const controller = new AbortController()
@@ -195,14 +195,19 @@ export class UserLocaleTasks {
       if (localeAccountIdentity(next) !== ticket.account) throw new Error('Invalid refreshed account identity')
       const canWrite = () => !controller.signal.aborted && id === this.refreshId && this.valid(ticket) && revision === this.revision && this.deps.getToken() === token
       if (!canWrite()) return
-      if (this.deps.writeWebSession) {
-        this.refreshWrite = controller
-        const result = await this.deps.writeWebSession(next, token, controller.signal)
-        if (result !== 'unavailable' || !canWrite()) return
+      const write = this.deps.writeWebSession
+      if (!write) {
+        this.deps.setToken(next)
+        return
       }
-      this.deps.setToken(next)
+      this.refreshWrite = controller
+      await withWebSessionLock(async () => {
+        if (!canWrite()) return
+        const result = await write(next, token, controller.signal)
+        if (result === 'unavailable' && canWrite()) this.deps.setToken(next)
+      }, controller.signal)
     } catch (error) {
-      if (error instanceof AccountLocaleUnauthorizedError && this.deps.getToken() === token) await this.deps.expire()
+      if (error instanceof AccountLocaleUnauthorizedError && this.deps.getToken() === token) await this.deps.expire(token)
       else if (!controller.signal.aborted || expired) console.warn('[locale] token refresh failed', error)
     } finally {
       clearTimeout(timer)

@@ -1,6 +1,7 @@
 // Cookie functions are captured at module load. Keep their hoisted spies
 // stable and replace only the browser-storage boundary in cleanup tests.
 import { oauthStateDigest } from '~~/app/utils/oauthAttempt'
+import { withWebSessionLock } from '~~/app/utils/webSession'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { useNuxtApp } from '#app'
@@ -352,6 +353,32 @@ describe('useAuth', () => {
       } finally {
         publicConfig.COOKIE_TOKEN_NAME = originalName
       }
+    })
+
+    it('keeps a replacement session when automatic cleanup waited for the Reader lock', async () => {
+      let queue = Promise.resolve()
+      const request = (_name: string, _options: LockOptions, run: () => Promise<unknown>) => {
+        const operation = queue.then(run)
+        queue = operation.then(() => {}, () => {})
+        return operation
+      }
+      vi.stubGlobal('navigator', { locks: { request } })
+      seed()
+      const entered = Promise.withResolvers<void>()
+      const release = Promise.withResolvers<void>()
+      const replacing = withWebSessionLock(async () => {
+        entered.resolve()
+        await release.promise
+        cookies = []
+        seed(undefined, 'token', 'replacement')
+      })
+      await entered.promise
+      const expiry = useAuth().clearAuth({ token: 'legacy-token' })
+      release.resolve()
+      await replacing
+      await expect(expiry).resolves.toBe(false)
+      expect(cookieGet('token')).toBe('replacement')
+      expect(clearUserInfo).not.toHaveBeenCalled()
     })
 
     it('waits for user-state cleanup before reporting completion', async () => {

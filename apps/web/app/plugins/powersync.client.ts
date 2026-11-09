@@ -150,7 +150,7 @@ export default defineNuxtPlugin({
               await nuxtApp.runWithContext(() => refreshNuxtData(`content-${snapshot[1]}`))
               return
             }
-            await useAuth().clearAuth()
+            if (await useAuth().clearAuth({ token: isBridgeFrame ? getUserToken() : (authToken ?? undefined) }) === false) return
             clearSyncCredsCache()
             notifyExtensionBridgeAuthExpired()
             bridgeToken = null
@@ -171,10 +171,11 @@ export default defineNuxtPlugin({
           body: JSON.stringify(changes)
         })
         if (res.status === 401) {
-          await useAuth().clearAuth()
-          clearSyncCredsCache()
-          notifyExtensionBridgeAuthExpired()
-          bridgeToken = null
+          if (await useAuth().clearAuth({ token: isBridgeFrame ? getUserToken() : token }) !== false) {
+            clearSyncCredsCache()
+            notifyExtensionBridgeAuthExpired()
+            bridgeToken = null
+          }
         }
         if (!res.ok) throw new Error(`[powersync] upload changes failed: ${res.status}`)
       },

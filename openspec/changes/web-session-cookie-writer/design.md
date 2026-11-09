@@ -29,13 +29,11 @@ Use the original JavaScript cookie write only when the request fails at the netw
 
 The fallback uses only the token already returned by the original login or renewal API. Before a login fallback, recheck the OAuth attempt binding and the session cookie present when login started. Before a renewal fallback, repeat the session, task and revision checks. Keep the existing cookie name, domain, path and expiration. Browser cookie lifetime under this fallback follows the previous JavaScript behavior.
 
-### Check the session before sending a renewal write
+### Serialize the final cookie operations in Reader tabs
 
-After the original refresh response, the browser rechecks the account and starting token before sending the cookie-writing request. A late 401 only expires the session that sent it. The request-time comparison, same-tab cancellation, and the check before JavaScript fallback cover their respective stages.
+Use one exclusive Web Lock for Web sign-in writes, renewal writes, and logout clears. Keep the original login and refresh API calls outside the lock. Recheck the OAuth attempt or the starting session after acquiring the lock. Hold the lock through the HTTP write or JavaScript fallback. A user-initiated logout clears the session and any pending OAuth attempt while it owns the lock. Automatic expiry with an originating token rechecks that token inside the lock. The general API interceptor instead rechecks the cookie it observed when it queued cleanup. A mismatch skips cleanup and navigation.
 
-### Record the deferred response-ordering risk
-
-If another tab signs out, a new login completes, or a legacy Extension removes the cookie after the writer request has been sent, a delayed successful response can restore or replace the shared cookie. The browser applies the response header before the caller can inspect the result. A reliable fix across these callers requires a change to the shared session protocol. The requester deferred that work for this change and retained HTTP renewal. The two-stage fixture remains the reproduction for this risk. The repository review gate evaluates the result under its existing policy.
+Reader tabs in the same Web Locks storage bucket participate. When the browser does not support Web Locks, the current HTTP write and cookie checks still apply. The Extension background clears cookies through browser.cookies and its embedded Reader bridge can have a separate storage bucket. It does not participate in the Reader lock. A late HTTP response can still overwrite a direct Extension cleanup. Retain the fixture as a reproduction for that remaining case.
 
 ## Rollout
 

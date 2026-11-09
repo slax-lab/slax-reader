@@ -1,6 +1,6 @@
 import { configuredCookieName, readStringCookie, setAuthCookie } from '~/utils/authCookie'
 import { createOAuthNonce, oauthAttemptCookie, oauthAttemptMaxAge, oauthStateDigest } from '~/utils/oauthAttempt'
-import { writeWebSession } from '~/utils/webSession'
+import { withWebSessionLock, writeWebSession } from '~/utils/webSession'
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -15,7 +15,8 @@ const attemptOptions = () => ({ path: '/', secure: location.protocol === 'https:
 const bindOAuthState = async (fields: Record<string, unknown>) => {
   const state = JSON.stringify({ nonce: createOAuthNonce(), ...fields })
   const options = attemptOptions()
-  set(oauthAttemptCookie(options.secure), await oauthStateDigest(state), { ...options, maxAge: oauthAttemptMaxAge })
+  const binding = await oauthStateDigest(state)
+  await withWebSessionLock(() => set(oauthAttemptCookie(options.secure), binding, { ...options, maxAge: oauthAttemptMaxAge }))
   return state
 }
 
@@ -101,20 +102,22 @@ const useAuth = {
       options.signal?.throwIfAborted()
       if (typeof resp?.token !== 'string' || !resp.token.trim()) throw new Error('login failed')
 
-      if ((await writeWebSession({ action: 'login', state, token: resp.token }, options.signal)) === 'unavailable') {
+      await withWebSessionLock(async () => {
+        if (get(attempt, { doNotParse: true }) !== binding) throw new Error('OAuth attempt is no longer current')
+        if ((await writeWebSession({ action: 'login', state, token: resp.token }, options.signal)) !== 'unavailable') return
         options.signal?.throwIfAborted()
         const current = readStringCookie($config.COOKIE_TOKEN_NAME, cookies)
-        if (current !== resp.token) {
-          if (current !== startingSession || get(attempt, { doNotParse: true }) !== binding) throw new Error('OAuth attempt is no longer current')
-          setAuthCookie(cookies, $config.COOKIE_TOKEN_NAME, $config.COOKIE_DOMAIN, resp.token)
-        }
-      }
+        if (current === resp.token) return
+        if (current !== startingSession || get(attempt, { doNotParse: true }) !== binding) throw new Error('OAuth attempt is no longer current')
+        setAuthCookie(cookies, $config.COOKIE_TOKEN_NAME, $config.COOKIE_DOMAIN, resp.token)
+      }, options.signal)
       return resp.token
     } finally {
       if (get(attempt, { doNotParse: true }) === binding) remove(attempt, cookieOptions)
     }
   },
-  async clearAuth(): Promise<void> {
+  async clearAuth(expected?: { token: string | undefined }): Promise<void | false> {
+    const app = useNuxtApp()
     const $config = useRuntimeConfig().public
     const cookieName = configuredCookieName($config.COOKIE_TOKEN_NAME)
     const configuredDomain = (typeof $config.COOKIE_DOMAIN === 'string' ? $config.COOKIE_DOMAIN : '').replace(/^\.+/, '').toLowerCase()
@@ -124,21 +127,29 @@ const useAuth = {
     const labels = configuredDomain.split('.')
     if (labels.length > 2 && !isIpAddress(configuredDomain)) domains.add(labels.slice(1).join('.'))
 
-    if (cookieName) {
-      remove(cookieName, { path: '/' })
-      // Host-only deletion does not remove an explicit-domain cookie at the
-      // same hostname. Expire every supported scope, even with duplicate names.
-      for (const domain of domains) {
-        if (!domain || isIpAddress(domain)) continue
-        try {
-          remove(cookieName, { path: '/', domain })
-        } catch {
-          // An inapplicable legacy domain must not prevent the other scopes
-          // from being cleared (for example on a local development host).
+    return withWebSessionLock(async () => {
+      if (expected && readStringCookie(cookieName, cookies) !== expected.token) return false
+      if (typeof window !== 'undefined') {
+        const options = attemptOptions()
+        const attempt = oauthAttemptCookie(options.secure)
+        if (get(attempt, { doNotParse: true })) remove(attempt, options)
+      }
+      if (cookieName) {
+        remove(cookieName, { path: '/' })
+        // Host-only deletion does not remove an explicit-domain cookie at the
+        // same hostname. Expire every supported scope, even with duplicate names.
+        for (const domain of domains) {
+          if (!domain || isIpAddress(domain)) continue
+          try {
+            remove(cookieName, { path: '/', domain })
+          } catch {
+            // An inapplicable legacy domain must not prevent the other scopes
+            // from being cleared (for example on a local development host).
+          }
         }
       }
-    }
-    await useUserStore().clearUserInfo()
+      await app.runWithContext(() => useUserStore().clearUserInfo())
+    })
   }
 }
 

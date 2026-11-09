@@ -8,7 +8,7 @@ import { createServer } from 'node:http'
 const jiti = createJiti(import.meta.url)
 const { createAccountLocaleRequest } = await jiti.import('../../../app/utils/accountLocaleRequest.ts')
 const { UserLocaleTasks } = await jiti.import('../../../app/utils/userLocaleTasks.ts')
-const { writeWebSession } = await jiti.import('../../../app/utils/webSession.ts')
+const { withWebSessionLock, writeWebSession } = await jiti.import('../../../app/utils/webSession.ts')
 const origin = process.env.SESSION_TEST_ORIGIN || 'http://localhost:3320'
 const api = process.env.SESSION_TEST_API || 'http://127.0.0.1:8790'
 const name = 'reader_token'
@@ -25,6 +25,8 @@ const records = []
 let barrier
 let verifierUnavailable = false
 const networkFetch = globalThis.fetch
+// Node Web Locks are shared by the simulated Reader tabs.
+globalThis.window = new Window({ url: origin })
 
 const upstream = createServer(async (req, res) => {
   const { url, method, headers } = req
@@ -101,7 +103,7 @@ function fixture() {
     for (const header of response.headers.getSetCookie()) document.cookie = header
     return response
   }
-  const login = async token => {
+  const login = token => withWebSessionLock(async () => {
     const state = JSON.stringify({ nonce: crypto.randomUUID() })
     document.cookie = 'slax_oauth_attempt=' + digest(state) + '; Path=/; SameSite=Lax'
     const response = await request({
@@ -113,7 +115,7 @@ function fixture() {
     assert.equal(response.headers.get('cache-control'), 'no-store')
     assert.equal(await response.text(), '')
     assert.equal(read(), token)
-  }
+  })
   const tasks = new UserLocaleTasks({ user: null, locale: 'en', confirmedAccountLocale: null }, {
     api: createAccountLocaleRequest({ baseUrl: api, headers: {} }),
     getToken: read,
@@ -131,10 +133,10 @@ function fixture() {
       globalThis.fetch = networkFetch
     }
   }
-  const logout = () => {
+  const logout = () => withWebSessionLock(() => {
     remove()
     tasks.clear()
-  }
+  })
   return { read, login, logout, remove, renew }
 }
 
@@ -149,12 +151,12 @@ async function clearAsExtension({ read, remove }) {
 async function ordering() {
   const cases = [
     ['same-tab logout', 200, f => f.logout(), undefined],
-    ['other-tab logout', 200, f => f.remove(), undefined],
+    ['other-tab logout', 200, f => withWebSessionLock(f.remove), undefined],
     ['replacement login', 200, f => f.login(replacement), replacement],
     ['legacy Extension cleanup', 200, clearAsExtension, undefined],
     ['replacement login before old 401', 401, f => f.login(replacement), replacement]
   ]
-  const failures = []
+  const deferred = []
   for (const stage of ['refresh', 'verify']) {
     for (const [label, status, mutate, expected] of cases) {
       if (stage === 'verify' && status === 401) continue
@@ -164,7 +166,14 @@ async function ordering() {
       const pending = f.renew()
       try {
         await Promise.race([barrier.entered.promise, pending.then(() => { throw new Error('Renewal finished before ' + stage + ' barrier') })])
-        await mutate(f)
+        const mutation = mutate(f)
+        if (stage === 'verify' && label !== 'legacy Extension cleanup') {
+          const { pending: requests } = await navigator.locks.query()
+          assert(requests.some(request => request.name === 'slax-reader:web-session'), 'Reader mutation should wait for the writer')
+          assert.equal(f.read(), old)
+          barrier.released.resolve(status)
+        }
+        await mutation
         assert.equal(f.read(), expected)
       } finally {
         barrier.released.resolve(status)
@@ -173,11 +182,16 @@ async function ordering() {
       }
       const survived = f.read() === expected
       const test = stage + ' / ' + label
-      console.log((survived ? 'PASS: ' : 'FAIL: ') + test)
-      if (!survived) failures.push(test)
+      if (stage === 'verify' && label === 'legacy Extension cleanup' && !survived) {
+        deferred.push(test)
+        console.log('DEFERRED: ' + test + ' still reproduces without the Reader lock')
+      } else {
+        assert(survived, test + ' must preserve the latest session')
+        console.log('PASS: ' + test)
+      }
     }
   }
-  assert.deepEqual(failures, [], 'Late HTTP responses must not restore or replace an ended session')
+  assert.deepEqual(deferred, [], 'Uncoordinated cookie cleanup can still be overwritten by a late response')
 }
 
 await new Promise((resolve, reject) => upstream.once('error', reject).listen(Number(new URL(api).port), '127.0.0.1', resolve))

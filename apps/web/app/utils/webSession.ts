@@ -1,3 +1,11 @@
+export const withWebSessionLock = async <T>(task: () => T | Promise<T>, signal?: AbortSignal): Promise<T> => {
+  signal?.throwIfAborted()
+  if (typeof window !== 'undefined' && window.parent === window && navigator.locks) {
+    return navigator.locks.request('slax-reader:web-session', { signal }, task)
+  }
+  return task()
+}
+
 type SessionWrite = { action: 'login'; token: string; state: string } | { action: 'refresh'; token: string; startingToken: string }
 
 export type WebSessionWriteResult = 'handled' | 'unavailable'

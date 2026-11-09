@@ -40,12 +40,18 @@ Reader Web SHALL call the existing login and renewal APIs from the browser. Afte
 
 ### Requirement: HTTP writing preserves the login flow and checks the starting session
 
-The Web callback SHALL preserve OAuth recovery, attribution, redirects and Android handoff. The shared cookie SHALL continue to serve installed Extensions, and the native-managed Mobile subscription WebView SHALL keep its existing renewal path. Web SHALL check whether the starting session is still current before sending the renewal cookie-writing request. A successful cookie-writing response can still race a session change that occurs after the request was sent. The proposal and validation record track that deferred case.
+The Web callback SHALL preserve OAuth recovery, attribution, redirects and Android handoff. The shared cookie SHALL continue to serve installed Extensions, and the native-managed Mobile subscription WebView SHALL keep its existing renewal path. Web SHALL check whether the starting session is still current before sending the renewal cookie-writing request. Reader top-level tabs that share a Web Locks storage bucket SHALL serialize login and renewal cookie writes and logout clears. The proposal and validation record describe the residual race for callers outside that lock.
 
 #### Scenario: The original renewal succeeds after the session changes
 
 - **WHEN** the original renewal API returns a token after logout, replacement login or existing Extension cleanup
 - **THEN** Web skips the cookie write for the old attempt
+
+#### Scenario: A participating tab logs out or completes a replacement login during renewal
+
+- **WHEN** a Reader tab clears or replaces the session while another participating tab is completing renewal
+- **THEN** the operations run in lock order and the old renewal cannot restore an ended session or overwrite the replacement
+- **AND** a queued automatic cleanup for a superseded token does not clear the replacement
 
 #### Scenario: The original renewal returns 401 after the session changes
 

@@ -1,11 +1,11 @@
 # Validation
 
-The implementation is available for review on `fix/web-session-cookie-writer`. The requester approved deferring the shared-session ordering fix. The observed failures remain documented for review.
+The implementation is available for review on `fix/web-session-cookie-writer`. Reader tabs now coordinate cookie operations through Web Locks. Direct Extension cookie cleanup remains the deferred case.
 
 ## Automated checks
 
 - Web typecheck passed with the repository's documented synthetic Web configuration.
-- Web Vitest suite after the fallback: 2,749 passed and 3 skipped with `--maxWorkers 6 --hookTimeout 60000`. The default run hit five Nuxt setup hook timeouts.
+- Web Vitest suite with session locking: 2,750 passed and 3 skipped with `--maxWorkers 6 --hookTimeout 60000`. The earlier default run hit five Nuxt setup hook timeouts.
 - ESLint passed on changed source and test files. The full Web lint still reports 89 import-order errors on untouched files.
 - Strict OpenSpec validation: 119 passed, 0 failed.
 
@@ -23,21 +23,23 @@ For local review, run `node apps/web/tests/fixtures/auth-recovery/serve.mjs 4402
 
 The focused Web checks cover login and renewal fallback, the accepted HTTP status codes, missing login tokens, validation and authentication failures, cancellation, and a changed session or OAuth attempt. The real Pages Worker returned 503 with no session cookie when the verifier was unavailable. In the browser fixture, the Google callback then wrote the issued cookie through JavaScript and reached its return page. The renewal fixture ran the existing renewal client against the same Worker and confirmed that the fallback updated the cookie. The fallback uses the previous JavaScript persistence behavior. The deployed iPad Brave check applies to the normal HTTP path.
 
-To repeat the outage scenario, open the local Worker fixture and choose **Google callback with unavailable verifier**. For the renewal check, stop the fixture API process and run `node apps/web/tests/fixtures/web-session-cookie/check.mjs --skip-ordering` against the Worker. The fixture accepts `SESSION_TEST_ORIGIN` and `SESSION_TEST_API` overrides. The full fixture reproduced the same three delayed-success failures listed below.
+To repeat the outage scenario, open the local Worker fixture and choose **Google callback with unavailable verifier**. For the renewal check, stop the fixture API process and run `node apps/web/tests/fixtures/web-session-cookie/check.mjs --skip-ordering` against the Worker. The fixture accepts `SESSION_TEST_ORIGIN` and `SESSION_TEST_API` overrides. The full fixture verifies ordering across participating Reader operations and still reports the direct Extension cleanup case below.
 
 ## Renewal ordering
 
-Run `node apps/web/tests/fixtures/web-session-cookie/check.mjs` against the built Worker with port 8790 free. It runs the real renewal client, HTTP handler and legacy Extension cleanup service with a simulated shared cookie jar. The full fixture exits with a failing result for the deferred cases.
+Run `node apps/web/tests/fixtures/web-session-cookie/check.mjs` on Node 24 against the built Worker with the fixture API port free. It runs the real renewal client and HTTP handler using a simulated shared cookie jar, Node's Web Locks for participating tabs, and the existing Extension cleanup service for the out-of-lock case. The full fixture exits with a failing result for the remaining Extension case.
 
 | Delayed response | Same-tab logout | Other-tab logout | Replacement login | Legacy Extension cleanup |
 | --- | --- | --- | --- | --- |
 | Original `/v1/user/refresh` | Pass | Pass | Pass | Pass |
-| Cookie writer waiting for `/v1/user/me` | Pass | Fail | Fail | Fail |
+| Cookie writer waiting for `/v1/user/me` | Pass | Pass | Pass | Fail (direct Extension cleanup) |
 
-A late 401 from the original renewal preserved the replacement session. When the cookie writer was already waiting on verification, its late response restored or overwrote the cookie in the other three cases. Its request only carries the cookie present when it was sent. Same-tab logout aborted the local writer in the fixture. The requester chose to defer broader coordination for the overlap during the cookie-writing request. The fixture establishes that this can happen, and the frequency in production is unknown. The automated review on the previous PR head classified the regression as Important. See the [review finding](https://github.com/slax-lab/slax-reader/pull/552#discussion_r4512385163).
+A late 401 from the original renewal preserved the replacement session. A focused test also confirmed that queued cleanup rechecks its token and skips a replacement session after taking the lock. The fixture confirmed that logout and replacement login queued behind the in-flight HTTP write. Direct Extension cookie removal can still complete while the writer holds the lock, and a late response can restore that cookie. Its production frequency is unknown.
+
+In the local browser, one top-level Reader tab held the native session lock while a second tab completed the synthetic Google token exchange. The lock manager showed the second tab waiting. Releasing the lock let the real callback write the cookie and navigate to its return page. The fixture used a temporary probe page on the Worker origin. On browsers without Web Locks the previous write behavior still applies.
 
 ## Remaining environment checks
 
 - Verify deployed Google and Apple OAuth, the configured Reader callback origin, and HTTPS cookie delivery with test accounts. The fixture uses HTTP on localhost.
 - Verify the installed Extension and the iPad Brave report on a deployed test environment. The fixture runs the Extension cleanup code against simulated browser cookie APIs, not an installed Extension.
-- Repeat the ordering checks on supported browsers when the deferred shared-session work is picked up. Full production bookmark and sync smoke flows require the configured backend and were outside the synthetic authentication fixture.
+- Verify ordering on the deployed iPad browser and revisit direct Extension cleanup when the Extension can coordinate with the Reader lock. Full production bookmark and sync smoke flows require the configured backend and were outside the synthetic authentication fixture.

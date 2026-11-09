@@ -249,9 +249,9 @@ export const localeTasksForStore = (store: LocaleUserState) => {
     setToken: token => setAuthCookie(cookies, config.COOKIE_TOKEN_NAME, config.COOKIE_DOMAIN, token),
     apply: locale => app.runWithContext(() => app.$i18n.setLocale(locale)),
     notify: notifyExtensionAccountLocaleInvalidated,
-    expire: () =>
+    expire: token =>
       app.runWithContext(async () => {
-        await auth.clearAuth()
+        if (await auth.clearAuth({ token }) === false) return
         await app.runWithContext(() => navigateTo('/login'))
       })
   })

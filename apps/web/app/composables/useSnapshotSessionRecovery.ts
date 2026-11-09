@@ -30,14 +30,18 @@ export function useSnapshotSessionRecovery(error: Ref<{ statusCode?: number } | 
     if (!ready || !active || attempted.value || !pending.value) return
     recovering.value = true
     attempted.value = true
-    const currentVersion = nuxtApp.runWithContext(() => tokenFingerprint(getUserToken()))
+    const token = await nuxtApp.runWithContext(() => getUserToken())
+    const currentVersion = tokenFingerprint(token)
     if (currentVersion !== rejectedTokenVersion.value) {
       recovering.value = false
       return
     }
 
     try {
-      await nuxtApp.runWithContext(() => auth.clearAuth())
+      if (await nuxtApp.runWithContext(() => auth.clearAuth({ token })) === false) {
+        recovering.value = false
+        return
+      }
     } catch {
       // Failed cleanup leaves the existing page error visible, without a reload loop.
       recovering.value = false
