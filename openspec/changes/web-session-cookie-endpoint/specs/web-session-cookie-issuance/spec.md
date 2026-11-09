@@ -28,9 +28,23 @@ Reader Web SHALL complete browser OAuth through `POST /api/auth/session`. The en
 - **THEN** the endpoint does not emit a Set-Cookie header
 - **AND** the callback preserves the existing localized recovery and fresh authorization behavior
 
+### Requirement: Reader renews its Web session through the same endpoint
+
+Reader Web SHALL request renewal using the same-origin endpoint with the token that initiated renewal. The endpoint SHALL call the existing authenticated renewal API only when the Bearer matches the current request cookie. It SHALL return the shared cookie without a response body only for an unexpired result for the same account.
+
+#### Scenario: Web renews its current session
+
+- **WHEN** the Bearer matches the session cookie and the existing API issues a valid token for the same account
+- **THEN** the endpoint issues the existing session cookie with `Cache-Control: no-store` and returns 204
+
+#### Scenario: The request session changed or the renewal fails
+
+- **WHEN** the request lacks a matching session, the upstream rejects it, or the result is invalid or belongs to another account
+- **THEN** the endpoint returns an error without issuing a cookie
+
 ### Requirement: HTTP issuance preserves existing clients and session transitions
 
-The login and renewal API contracts SHALL remain available to existing clients. The installed Extension SHALL continue to read the shared cookie. Web SHALL retain guarded renewal until a candidate HTTP renewal implementation preserves the same session transitions.
+The login and renewal API contracts SHALL remain available to existing clients. The installed Extension SHALL continue to read the shared cookie. The HTTP renewal candidate SHALL pass the session transition scenarios before release.
 
 #### Scenario: An existing client uses a shared session
 

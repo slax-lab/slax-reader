@@ -34,6 +34,7 @@ export class UserLocaleTasks {
   private revision = 0
   private readId = 0
   private refreshId = 0
+  private refreshController?: AbortController
   private saves: Promise<unknown> = Promise.resolve()
   private display: Promise<unknown> = Promise.resolve()
   private targetId = 0
@@ -77,6 +78,7 @@ export class UserLocaleTasks {
     return task
   }
   clear() {
+    this.refreshController?.abort()
     ++this.epoch
     ++this.refreshId
     ++this.targetId
@@ -176,6 +178,11 @@ export class UserLocaleTasks {
       return
     }
     const controller = new AbortController()
+    const { api } = this.deps
+    if (api.renewWebSession) {
+      this.refreshController?.abort()
+      this.refreshController = controller
+    }
     let timer: ReturnType<typeof setTimeout> | undefined
     let expired = false
     try {
@@ -186,13 +193,19 @@ export class UserLocaleTasks {
           reject(new Error('Token refresh timeout'))
         }, 5000)
       })
-      const next = await Promise.race([this.deps.api.refreshToken(token, controller.signal), timeout])
+      if (api.renewWebSession) {
+        await Promise.race([api.renewWebSession(token, controller.signal), timeout])
+        return
+      }
+      const next = await Promise.race([api.refreshToken(token, controller.signal), timeout])
       if (localeAccountIdentity(next) !== ticket.account) throw new Error('Invalid refreshed account identity')
       if (!expired && id === this.refreshId && this.valid(ticket) && revision === this.revision && this.deps.getToken() === token) this.deps.setToken(next)
     } catch (error) {
+      if (controller.signal.aborted && !expired) return
       if (error instanceof AccountLocaleUnauthorizedError && this.deps.getToken() === token) await this.deps.expire()
       else console.warn('[locale] token refresh failed', error)
     } finally {
+      if (this.refreshController === controller) this.refreshController = undefined
       clearTimeout(timer)
     }
   }

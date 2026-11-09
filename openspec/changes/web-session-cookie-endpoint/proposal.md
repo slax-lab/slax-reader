@@ -9,7 +9,7 @@ An iPad Brave user reported intermittent sign-outs. Reader Web writes the shared
 - Add the same-origin Nitro POST endpoint `/api/auth/session` and have the client-side `/auth` page use it for Google and Apple OAuth completion.
 - Validate the request origin, JSON payload, browser-bound OAuth state and upstream-issued token. Return `Cache-Control: no-store` on all handled responses.
 - Preserve callback recovery, redirects, referrals, acquisition and collection attribution, the Android handoff, and the existing cookie contract shared with installed Extensions.
-- Use the same endpoint for Web renewal only after browser ordering verification passes for logout, account replacement and legacy Extension cleanup. Keep guarded direct renewal while the gate is open.
+- Implement Web renewal through the same endpoint in the review candidate. Gate release on browser ordering verification for logout, account replacement, legacy Extension cleanup and late authorization failure.
 
 ## Capabilities
 

@@ -8,7 +8,7 @@ import { createJiti } from 'jiti'
 const jiti = createJiti(import.meta.url)
 const { createAccountLocaleRequest } = await jiti.import('../../../app/utils/accountLocaleRequest.ts')
 const { UserLocaleTasks } = await jiti.import('../../../app/utils/userLocaleTasks.ts')
-const origin = 'http://localhost:3000'
+const origin = process.env.WEB_SESSION_FIXTURE_ORIGIN ?? 'http://localhost:3000'
 const apiOrigin = 'http://127.0.0.1:8787'
 const cookieName = 'token'
 const callbackUri = 'http://callback.test/auth'
@@ -24,6 +24,8 @@ const initial = jwt('A', 'login')
 const rotated = jwt('A', 'renewed')
 const replacement = jwt('B', 'login')
 const exchanges = []
+const networkFetch = globalThis.fetch
+const guarded = process.argv.includes('--guarded')
 let delayed
 
 const upstream = createServer(async (request, response) => {
@@ -55,11 +57,11 @@ function cookieJar() {
   const setToken = value => { document.cookie = cookieName + '=' + value + '; Domain=localhost; Path=/' }
   const clearToken = () => { document.cookie = cookieName + '=; Domain=localhost; Path=/; Max-Age=0' }
   const request = async (path, options = {}) => {
-    const response = await fetch(origin + path, {
+    const response = await networkFetch(origin + path, {
       ...options,
       headers: { Cookie: document.cookie, ...options.headers },
       redirect: 'manual',
-      signal: AbortSignal.timeout(10_000)
+      signal: options.signal ?? AbortSignal.timeout(10_000)
     })
     for (const cookie of response.headers.getSetCookie()) document.cookie = cookie
     return response
@@ -76,14 +78,28 @@ function cookieJar() {
     })
   }
   const tasks = new UserLocaleTasks({ user: null, locale: 'en', confirmedAccountLocale: null }, {
-    api: createAccountLocaleRequest({ baseUrl: apiOrigin, headers: {} }),
+    api: createAccountLocaleRequest({ baseUrl: apiOrigin, headers: {}, refreshViaSession: !guarded }),
     getToken,
     setToken,
     apply: async () => {},
     notify: () => {},
     expire: async () => clearToken()
   })
-  return { getToken, clearToken, login, renew: () => tasks.refreshToken() }
+  async function renew() {
+    globalThis.fetch = (url, options) => url === '/api/auth/session'
+      ? request(url, { ...options, headers: { ...options.headers, Origin: origin } })
+      : networkFetch(url, options)
+    try {
+      await tasks.refreshToken()
+    } finally {
+      globalThis.fetch = networkFetch
+    }
+  }
+  const logout = () => {
+    clearToken()
+    tasks.clear()
+  }
+  return { getToken, clearToken, logout, login, renew }
 }
 
 async function verifyHappyPaths() {
@@ -111,7 +127,7 @@ async function verifyHappyPaths() {
   assert.equal(failure.headers.get('cache-control'), 'no-store')
   assert.equal(failure.headers.has('set-cookie'), false)
   assert.equal(jar.getToken(), undefined)
-  console.log('PASS: Google and Apple session issuance, failed exchange, and guarded direct API renewal')
+  console.log('PASS: Google and Apple session issuance, failed exchange, and ' + (guarded ? 'guarded direct' : 'HTTP') + ' renewal')
 }
 
 async function verifyRejections() {
@@ -153,7 +169,8 @@ async function verifyOrdering() {
     assert.equal((await jar.login('google', 'fixture-account-b')).status, 200)
   }
   const cases = [
-    ['Web logout Cookie removal', jar => jar.clearToken(), undefined, 200],
+    ['Web logout in the renewing tab', jar => jar.logout(), undefined, 200],
+    ['Web logout in another tab', jar => jar.clearToken(), undefined, 200],
     ['new OAuth login', switchAccount, replacement, 200],
     ['existing Extension clear', clearAsExtension, undefined, 200],
     ['new OAuth login before old renewal 401', switchAccount, replacement, 401]

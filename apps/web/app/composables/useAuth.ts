@@ -1,5 +1,6 @@
 import { configuredCookieName } from '~/utils/authCookie'
 import { getClientEventHeaders } from '~/utils/request'
+import { postWebSession } from '~/utils/webSessionRequest'
 import { createOAuthNonce, digestOAuthState, oauthCookieName, oauthCookieOptions, oauthRedirectUri } from '~~/shared/utils/oauthState'
 
 import type { AcquisitionAuthAttribution, WebAuthAttribution } from '@slax-reader/contracts/events'
@@ -44,15 +45,7 @@ const useAuth = {
     location.href = url + '?' + new URLSearchParams(params)
   },
   async grantAuth(code: string, state: string, signal: AbortSignal): Promise<string> {
-    const response = await fetch('/api/auth/session', {
-      method: 'POST',
-      mode: 'cors',
-      credentials: 'same-origin',
-      redirect: 'error',
-      headers: { ...getClientEventHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'login', code, state }),
-      signal
-    })
+    const response = await postWebSession({ action: 'login', code, state }, getClientEventHeaders(), signal)
     if (signal.aborted) throw signal.reason
     if (response.status === 504) throw new DOMException('Login timed out', 'TimeoutError')
     if (!response.ok) throw new Error('Login exchange failed')

@@ -1,3 +1,5 @@
+import { isSlaxReaderApp } from './environment'
+import { postWebSession } from './webSessionRequest'
 import type { AppLocale } from '@commons/frontend-types/locale'
 import { FetchRequest } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -22,9 +24,14 @@ export interface AccountLocaleRequest {
   readUser(token: string, signal?: AbortSignal): Promise<UserInfo>
   saveLanguage(token: string, locale: AppLocale): Promise<void>
   refreshToken(token: string, signal: AbortSignal): Promise<string>
+  renewWebSession?(token: string, signal: AbortSignal): Promise<void>
 }
-export const createAccountLocaleRequest = (config?: { baseUrl: string; headers: Record<string, string> }): AccountLocaleRequest => {
-  const options = config ?? { baseUrl: useRuntimeConfig().public.DWEB_API_BASE_URL as string, headers: getClientEventHeaders() }
+export const createAccountLocaleRequest = (config?: { baseUrl: string; headers: Record<string, string>; refreshViaSession?: boolean }): AccountLocaleRequest => {
+  const options = config ?? {
+    baseUrl: useRuntimeConfig().public.DWEB_API_BASE_URL as string,
+    headers: getClientEventHeaders(),
+    refreshViaSession: import.meta.client && !isSlaxReaderApp() && location.pathname.replace(/\/$/, '') !== '/subscription/inapp-purchase'
+  }
   const api = new FetchRequest({
     baseUrl: options.baseUrl,
     responseInterceptors: response => {
@@ -43,6 +50,13 @@ export const createAccountLocaleRequest = (config?: { baseUrl: string; headers: 
     async saveLanguage(token, locale) {
       await api.post({ url: RESTMethodPath.USER_INFO_SETTING, headers: headers(token), body: { key: 'lang', value: locale } })
     },
+    ...(options.refreshViaSession && {
+      async renewWebSession(token: string, signal: AbortSignal) {
+        const response = await postWebSession({ action: 'refresh' }, headers(token), signal)
+        if (response.status === 401) throw new AccountLocaleUnauthorizedError()
+        if (response.status !== 204 && response.status !== 409) throw new Error('Web session renewal failed')
+      }
+    }),
     async refreshToken(token, signal) {
       const data = await api.post<{ token: string }>({ url: RESTMethodPath.TOKEN_REFRESH, headers: headers(token), signal })
       if (typeof data?.token !== 'string' || !data.token.trim()) throw new Error('Invalid refreshed token')

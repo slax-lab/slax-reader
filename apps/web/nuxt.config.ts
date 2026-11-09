@@ -361,11 +361,6 @@ export default defineNuxtConfig({
       failOnError: true
     },
     routeRules: {
-      '/auth': {
-        ssr: false,
-        prerender: false,
-        headers: { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' }
-      },
       '/x/ext-bridge': {
         ssr: false,
         prerender: false,
@@ -374,14 +369,14 @@ export default defineNuxtConfig({
       // i18n 为 no_prefix 策略，/en /zh 不再是有效路由，统一重定向回首页
       '/en': { redirect: '/' },
       '/zh': { redirect: '/' },
-      ...['/', '/bookmarks', '/onboarding', '/user', '/login', '/guide'].reduce(
+      ...['/', '/bookmarks', '/onboarding', '/user', '/login', '/guide', '/auth'].reduce(
         (rules, route) => {
           rules[route] = { ssr: false, prerender: true }
           return rules
         },
         {} as Record<string, { ssr: false; prerender: true }>
       ),
-      ...['/', '/bookmarks', '/onboarding', '/user', '/login', '/guide'].reduce(
+      ...['/', '/bookmarks', '/onboarding', '/user', '/login', '/guide', '/auth'].reduce(
         (rules, route) => {
           rules[route] = { ssr: false, prerender: true }
           return rules
@@ -448,7 +443,6 @@ export default defineNuxtConfig({
             '/api/content/*',
             '/api/collection/*',
             '/api/auth/session',
-            '/auth',
             '/*-reader',
             '/dashboard',
             '/dashboard/**',

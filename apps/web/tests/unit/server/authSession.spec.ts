@@ -28,14 +28,14 @@ const token = (claims: unknown) => `${segment({ alg: 'HS256' })}.${segment(claim
 const issued = token({ id: 'account', exp: 4_000_000_000 })
 const upstream = vi.fn<typeof fetch>()
 
-async function request(options: { origin?: string | null; media?: string; body?: string; state?: string; cookie?: string; signal?: AbortSignal } = {}) {
+async function request(options: { origin?: string | null; media?: string; body?: string; state?: string; cookie?: string; authorization?: string; signal?: AbortSignal } = {}) {
   const app = createApp()
   app.use(sessionRoute)
   const state = options.state ?? oauthState()
   const headers: Record<string, string> = {
     'content-type': options.media ?? 'application/json; charset=utf-8',
     cookie: options.cookie ?? `${binding(state)}; token=existing-account`,
-    authorization: 'Bearer existing-account',
+    authorization: options.authorization ?? 'Bearer existing-account',
     'x-client-locale': 'zh'
   }
   if (options.origin !== null) headers.origin = options.origin ?? origin
@@ -78,7 +78,7 @@ describe('Nitro session endpoint', () => {
     { media: 'text/plain', body: '{}', status: 415 },
     { media: 'application/json', body: '{', status: 400 },
     { media: 'application/json', body: '{"action":"login","token":"arbitrary-token"}', status: 400 },
-    { media: 'application/json', body: '{"action":"refresh"}', status: 400 }
+    { media: 'application/json', body: '{"action":"other"}', status: 400 }
   ])('rejects unsupported input with $status', async ({ status, ...input }) => {
     const response = await request(input)
     expect(response.status).toBe(status)
@@ -163,5 +163,46 @@ describe('Nitro session endpoint', () => {
     expect(response.status).toBe(502)
     expect(response.headers.has('set-cookie')).toBe(false)
     expect(upstream).toHaveBeenCalledOnce()
+  })
+})
+
+describe('Nitro session renewal', () => {
+  const current = token({ id: 'account', exp: 3_900_000_000 })
+  const renew = (cookie = current) => request({
+    body: JSON.stringify({ action: 'refresh' }),
+    cookie: 'token=' + cookie,
+    authorization: 'Bearer ' + current
+  })
+
+  it('renews an authenticated session with a response cookie and no token in the response body', async () => {
+    const response = await renew()
+    expect(response.status).toBe(204)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.getSetCookie().some(value => value.startsWith(`token=${issued};`))).toBe(true)
+    const [url, init] = upstream.mock.calls[0]!
+    expect(url).toBe('https://api.test/prefix/v1/user/refresh')
+    expect(new Headers(init?.headers).get('authorization')).toBe('Bearer ' + current)
+    expect(new Headers(init?.headers).has('cookie')).toBe(false)
+  })
+
+  it('rejects an attempt started for a different session before calling the API', async () => {
+    const response = await renew(issued)
+    expect(response.status).toBe(409)
+    expect(response.headers.has('set-cookie')).toBe(false)
+    expect(upstream).not.toHaveBeenCalled()
+  })
+
+  it('preserves a backend 401 without issuing a cookie', async () => {
+    upstream.mockResolvedValue(Response.json({ code: 401 }))
+    const response = await renew()
+    expect(response.status).toBe(401)
+    expect(response.headers.has('set-cookie')).toBe(false)
+  })
+
+  it('rejects a token for a different account', async () => {
+    upstream.mockResolvedValue(Response.json({ code: 200, data: { token: token({ id: 'other', exp: 4_000_000_000 }) } }))
+    const response = await renew()
+    expect(response.status).toBe(502)
+    expect(response.headers.has('set-cookie')).toBe(false)
   })
 })

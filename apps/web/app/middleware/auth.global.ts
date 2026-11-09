@@ -17,7 +17,6 @@ export default defineNuxtRouteMiddleware((to, from) => {
   }
 
   const isFromAuth = from.fullPath.indexOf('/auth') !== -1
-  if (to.path === '/auth' && to.query.code) return
   const isToAuth = to.fullPath.indexOf('/auth') !== -1
   const isToLogin = to.fullPath.indexOf('/login') !== -1
   // 公开白名单：按 path 前缀匹配，避免 query/子串误命中

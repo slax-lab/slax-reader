@@ -68,7 +68,7 @@ if (import.meta.client) {
       const { code, state } = route.query
       if (typeof code !== 'string') throw new Error('Invalid authorization code')
       if (route.query.platform === 'android') {
-        await navigateTo('slaxrd://auth?code=' + encodeURIComponent(code), { external: true })
+        await navigateTo('slaxrd://auth?code=' + code, { external: true })
         return
       }
       if (typeof state !== 'string') throw new Error('Missing OAuth state')

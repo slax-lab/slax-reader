@@ -3,7 +3,7 @@ import { deleteCookie, getHeader, type H3Event, setCookie } from 'h3'
 
 export const webSessionConfig = (event: H3Event) => useRuntimeConfig(event).public
 
-function sessionCookieName(event: H3Event) {
+export function sessionCookieName(event: H3Event) {
   const name = webSessionConfig(event).COOKIE_TOKEN_NAME
   if (typeof name !== 'string' || !name.trim()) throw new Error('Invalid COOKIE_TOKEN_NAME')
   return name.trim()
@@ -30,7 +30,7 @@ export function setWebSession(event: H3Event, token: string) {
   })
 }
 
-export async function requestWebLogin(event: H3Event, init: RequestInit) {
+export async function requestWebSession(event: H3Event, path: RESTMethodPath.LOGIN | RESTMethodPath.TOKEN_REFRESH, init: RequestInit) {
   const config = webSessionConfig(event)
   const headers = new Headers(init.headers)
   headers.set('Content-Type', 'application/json')
@@ -39,21 +39,23 @@ export async function requestWebLogin(event: H3Event, init: RequestInit) {
     if (value && !headers.has(name)) headers.set(name, value)
   }
   headers.set('X-Client-Type', 'web')
-  const response = await fetch(String(config.DWEB_API_BASE_URL) + RESTMethodPath.LOGIN, { ...init, method: 'POST', headers, redirect: 'manual' })
+  const response = await fetch(String(config.DWEB_API_BASE_URL) + path, { ...init, method: 'POST', headers, redirect: 'manual' })
   if (response.status >= 300 && response.status < 400) throw new Error('Auth API redirected')
   return response
 }
 
-export function isIssuedWebToken(token: unknown): token is string {
-  if (typeof token !== 'string') return false
+export function readIssuedWebToken(token: unknown): { token: string; account: string } | undefined {
+  if (typeof token !== 'string') return undefined
   const parts = token.split('.')
-  if (parts.length !== 3 || parts.some(part => part.length % 4 === 1 || !/^[A-Za-z0-9_-]+$/.test(part))) return false
+  if (parts.length !== 3 || parts.some(part => part.length % 4 === 1 || !/^[A-Za-z0-9_-]+$/.test(part))) return undefined
   try {
     const decode = (part: string) => JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/')))
     const header = decode(parts[0]!)
     const claims = decode(parts[1]!)
-    return ['HS256', 'HS384', 'HS512'].includes(header?.alg) && typeof claims?.id === 'string' && Boolean(claims.id) && Number.isFinite(claims.exp) && claims.exp * 1000 > Date.now()
+    if (!['HS256', 'HS384', 'HS512'].includes(header?.alg) || typeof claims?.id !== 'string' || !claims.id) return undefined
+    if (!Number.isFinite(claims.exp) || claims.exp * 1000 <= Date.now()) return undefined
+    return { token, account: claims.id }
   } catch {
-    return false
+    return undefined
   }
 }

@@ -444,8 +444,11 @@ describe('useUserStore - account locale integration', () => {
     mockPost.mockReset()
     haveRequestTokenMock.mockReturnValue(true)
     fetcher = vi.fn(
-      async (url: string) =>
-        new Response(JSON.stringify({ code: 200, message: 'ok', data: url.endsWith('/me') ? makeUser({ lang: 'zh' }) : url.endsWith('/refresh') ? { token: token(1, 2) } : 'ok' }))
+      async (url: string) => {
+        if (url === '/api/auth/session') return new Response(null, { status: 204 })
+        const data = url.endsWith('/me') ? makeUser({ lang: 'zh' }) : url.endsWith('/refresh') ? { token: token(1, 2) } : 'ok'
+        return new Response(JSON.stringify({ code: 200, message: 'ok', data }))
+      }
     )
     vi.stubGlobal('fetch', fetcher)
     apply = vi.spyOn(useNuxtApp().$i18n, 'setLocale').mockResolvedValue(undefined)
@@ -508,10 +511,25 @@ describe('useUserStore - account locale integration', () => {
     expect(store.user).toBeNull()
     expect(store.confirmedAccountLocale).toBeNull()
   })
-  it('writes a valid refresh token with configured cookie scope', async () => {
-    const store = useUserStore()
-    await store.refreshUserToken()
-    expect(cookieSet).toHaveBeenCalledWith('token', token(1, 2), expect.objectContaining({ path: '/', domain: '.example.com' }))
+  it('renews a Web session through Nitro without writing a cookie from JavaScript', async () => {
+    await useUserStore().refreshUserToken()
+    expect(fetcher).toHaveBeenCalledWith('/api/auth/session', expect.objectContaining({
+      body: JSON.stringify({ action: 'refresh' }),
+      credentials: 'same-origin',
+      headers: expect.objectContaining({ Authorization: 'Bearer ' + token(1) })
+    }))
+    expect(cookieSet).not.toHaveBeenCalledWith('token', expect.anything(), expect.anything())
+  })
+  it('keeps the direct API and configured cookie scope in the native subscription WebView', async () => {
+    const previous = location.href
+    history.replaceState(null, '', '/subscription/inapp-purchase')
+    try {
+      await useUserStore().refreshUserToken()
+      expect(fetcher.mock.calls[0]?.[0]).toMatch(/\/v1\/user\/refresh$/)
+      expect(cookieSet).toHaveBeenCalledWith('token', token(1, 2), expect.objectContaining({ path: '/', domain: '.example.com' }))
+    } finally {
+      history.replaceState(null, '', previous)
+    }
   })
   it('reuses the captured cookie handle while refreshing a token', async () => {
     const store = useUserStore()
