@@ -79,11 +79,6 @@ export function cjkRatio(text: string): number {
   return letters === 0 ? 0 : cjk / letters
 }
 
-/** True when the text has no letters at all (numbers, punctuation): it is fine in any language. */
-function hasNoLetters(text: string): boolean {
-  return cjkCount(text) === 0 && !/[A-Za-z]/.test(text)
-}
-
 /** Rough token count: a CJK character is about 0.75 token, other text about 4 characters per token. */
 export function estimateTokens(text: string): number {
   const cjk = cjkCount(text)
@@ -235,7 +230,7 @@ export function buildSystemInstruction(lang: YoutubeArticleLanguage, chunk: Yout
 export function buildUserMessage(title: string, cues: YoutubeCaptionCue[]): string {
   const lines = cues.map(c => `${c.id} [${formatTimestamp(c.start_ms)}] ${c.text}`)
   // Repeating the chunk's numeric tokens makes the "keep numbers as digits" rule concrete: the
-  // model otherwise tends to render 10,000 as 一万 in Chinese, which fails number_coverage.
+  // model can otherwise change numeric presentation while translating.
   // Capped at 40 so the list cannot push a 40-chunk plan past the per-article budget.
   const required = [...new Set(cues.flatMap(c => [...numberTokens(c.text)]))].slice(0, 40)
   const requiredLine = required.length ? `Required numbers (write each exactly as digits, never as a word): ${required.join(', ')}` : ''
@@ -386,25 +381,14 @@ export function mergeChunkResults(
   return { schema_version: 1, language: lang, format, lede: results[0]?.lede ?? '', sections }
 }
 
-// ---------- quality ----------
+// ---------- output validation ----------
 
-export type YoutubeArticleCheck = 'cue_reference' | 'cue_coverage' | 'wrong_language' | 'number_coverage' | 'length_ratio' | 'duplicate_paragraph' | 'empty_block'
+export type YoutubeArticleCheck = 'empty_block'
 
 export interface YoutubeArticleQuality {
   passed: boolean
   failed: YoutubeArticleCheck[]
-  metrics: {
-    paragraphs: number
-    sections: number
-    article_chars: number
-    caption_chars: number
-    length_ratio: number
-    length_bounds: [number, number]
-    number_coverage: number
-    caption_numbers: number
-    language_ok_ratio: number
-    speaker_dropped: number
-  }
+  metrics: { paragraphs: number; sections: number; article_chars: number; caption_chars: number }
 }
 
 const NUMBER_RE = /\d[\d,]*(?:\.\d+)?/g
@@ -418,147 +402,18 @@ function numberTokens(text: string): Set<string> {
   return out
 }
 
-const ZH_MAGNITUDE: Record<string, number> = { 万: 1e4, 亿: 1e8 }
-
-/** "5 万" → "50000", "1.5 亿" → "150000000": a faithful Chinese translation writes large numbers this way. */
-function zhMagnitudeNumbers(text: string): string[] {
-  return [...text.matchAll(/(\d+(?:\.\d+)?)\s*(万|亿)/g)].map(m => String(Math.round(Number(m[1]) * ZH_MAGNITUDE[m[2]])))
-}
-
-/** Article characters over caption characters. Bounds depend on whether the article is a translation. */
-export function lengthBounds(captionText: string, lang: YoutubeArticleLanguage): [number, number] {
-  const sourceCjk = cjkRatio(captionText) > 0.5
-  const targetCjk = lang === 'zh'
-  if (!sourceCjk && targetCjk) return [0.25, 0.7]
-  if (sourceCjk && !targetCjk) return [1.3, 3.0]
-  return [0.45, 1.1]
-}
-
-function articleText(doc: YoutubeArticleDocument): string {
-  return [doc.lede, ...doc.sections.flatMap(s => [s.heading, ...s.paragraphs.map(p => p.text)])].join('\n')
-}
-
-/** Podcast articles reuse the checks with their own bounds; YouTube uses the defaults. */
-export interface ArticleQualityOptions {
-  /** Allowed article/source length ratio. Default: lengthBounds(captionText, doc.language). */
-  bounds?: [number, number]
-  /** Require every source cue in new edited YouTube articles. */
-  requireCompleteCoverage?: boolean
-  /** Text a speaker name must appear in to be kept. Default: the captions. */
-  speakerText?: string
-  /** Minimum CJK share of a zh paragraph. Default 0.5; spoken Chinese with English terms needs less. */
-  zhMinCjkRatio?: number
-  /**
-   * Shorter repeated paragraphs are not duplicates unless they come from the same cues. A podcast
-   * speaker says "Yeah." many times; only longer repeats, or repeats of the same cues, point at a
-   * looped or doubled reply. Default 0: every exact repeat counts (YouTube).
-   */
-  minDuplicateChars?: number
-  /** Also read Chinese magnitude words as numbers: "5 万" is 50000, "1 亿" is 100000000. Default false (YouTube). */
-  zhMagnitudes?: boolean
-  /** Require nondecreasing paragraph cue starts. Defaults to false. */
-  requireParagraphOrder?: boolean
-}
-
-/**
- * Check the merged article against its captions. Mutates only `speaker`: a name the captions never
- * mention is set to null and counted. Everything else is reported, the caller decides.
- */
-export function checkArticleQuality(doc: YoutubeArticleDocument, cues: YoutubeCaptionCue[], captionText: string, options: ArticleQualityOptions = {}): YoutubeArticleQuality {
-  const failed = new Set<YoutubeArticleCheck>()
-  const cueIndex = new Map(cues.map((c, i) => [c.id, i]))
-  const lowerCaption = (options.speakerText ?? captionText).toLowerCase()
+/** Only empty content prevents publication. Counts are diagnostic, not quality scores. */
+export function checkArticleQuality(doc: YoutubeArticleDocument, captionText: string): YoutubeArticleQuality {
   const paragraphs = doc.sections.flatMap(s => s.paragraphs)
-
-  let speakerDropped = 0
-  for (const p of paragraphs) {
-    if (p.speaker && !lowerCaption.includes(p.speaker.toLowerCase())) {
-      p.speaker = null
-      speakerDropped++
-    }
-  }
-
-  if (doc.sections.length === 0 || paragraphs.length === 0 || !doc.lede.trim()) failed.add('empty_block')
-  for (const s of doc.sections) {
-    if (!s.heading.trim() || s.paragraphs.length === 0) failed.add('empty_block')
-    for (const p of s.paragraphs) if (!p.text.trim()) failed.add('empty_block')
-  }
-
-  if (options.requireCompleteCoverage) {
-    const covered = new Set(paragraphs.flatMap(p => p.source_cue_ids))
-    if (cues.some(c => !covered.has(c.id))) failed.add('cue_coverage')
-  }
-
-  let lastFirst = -1
-  for (const s of doc.sections) {
-    const idx = s.paragraphs.flatMap(p => p.source_cue_ids.map(id => cueIndex.get(id)))
-    if (s.paragraphs.some(p => p.source_cue_ids.length === 0) || idx.some(i => i === undefined)) {
-      failed.add('cue_reference')
-      continue
-    }
-    const first = Math.min(...(idx as number[]))
-    if (first < lastFirst) failed.add('cue_reference')
-    lastFirst = first
-  }
-
-  if (options.requireParagraphOrder) {
-    let previousStart = -1
-    for (const paragraph of paragraphs) {
-      const indices = paragraph.source_cue_ids.map(id => cueIndex.get(id))
-      if (!indices.length || indices.some(index => index === undefined)) continue
-      const start = Math.min(...(indices as number[]))
-      if (start < previousStart) failed.add('cue_reference')
-      previousStart = start
-    }
-  }
-
-  const okParagraphs = paragraphs.filter(
-    p => hasNoLetters(p.text) || (doc.language === 'zh' ? cjkRatio(p.text) >= (options.zhMinCjkRatio ?? 0.5) : cjkRatio(p.text) <= 0.05)
-  ).length
-  const languageOk = paragraphs.length === 0 ? 0 : okParagraphs / paragraphs.length
-  if (languageOk < 0.95) failed.add('wrong_language')
-
-  const captionNumbers = numberTokens(captionText)
-  const articleNumbers = numberTokens(articleText(doc))
-  if (options.zhMagnitudes) for (const n of zhMagnitudeNumbers(articleText(doc))) articleNumbers.add(n)
-  const hit = [...captionNumbers].filter(n => articleNumbers.has(n)).length
-  const coverage = captionNumbers.size === 0 ? 1 : hit / captionNumbers.size
-  if (coverage < 0.85) failed.add('number_coverage')
-
-  // Body only: the lede and headings are additions, and on a short video they would swamp the ratio
-  const articleChars = paragraphs
-    .map(p => p.text)
-    .join('')
-    .replace(/\s+/g, '').length
-  const captionChars = captionText.replace(/\s+/g, '').length
-  const ratio = captionChars === 0 ? 0 : articleChars / captionChars
-  const bounds = options.bounds ?? lengthBounds(captionText, doc.language)
-  if (ratio < bounds[0] || ratio > bounds[1]) failed.add('length_ratio')
-
-  const seen = new Map<string, Set<string>>()
-  const minDuplicateChars = options.minDuplicateChars ?? 0
-  for (const p of paragraphs) {
-    const key = p.text.trim()
-    const earlier = seen.get(key)
-    if (earlier && (key.length >= minDuplicateChars || p.source_cue_ids.some(id => earlier.has(id)))) failed.add('duplicate_paragraph')
-    if (earlier) p.source_cue_ids.forEach(id => earlier.add(id))
-    else seen.set(key, new Set(p.source_cue_ids))
-  }
-
+  const empty = !doc.lede.trim() || !paragraphs.length || doc.sections.some(s => !s.heading.trim() || !s.paragraphs.length || s.paragraphs.some(p => !p.text.trim()))
   return {
-    passed: failed.size === 0,
-    failed: [...failed],
+    passed: !empty,
+    failed: empty ? ['empty_block'] : [],
     metrics: {
       paragraphs: paragraphs.length,
       sections: doc.sections.length,
-      article_chars: articleChars,
-      caption_chars: captionChars,
-      length_ratio: Math.round(ratio * 1000) / 1000,
-      length_bounds: bounds,
-      number_coverage: Math.round(coverage * 1000) / 1000,
-      caption_numbers: captionNumbers.size,
-      language_ok_ratio: Math.round(languageOk * 1000) / 1000,
-      speaker_dropped: speakerDropped
+      article_chars: paragraphs.reduce((n, p) => n + p.text.replace(/\s/g, '').length, 0),
+      caption_chars: captionText.replace(/\s/g, '').length
     }
   }
 }

@@ -105,13 +105,13 @@ describe('parseAndSaveYoutube with captions', () => {
     expect((svc as any).snapshots.capture.mock.invocationCallOrder[0]).toBeGreaterThan(repo.recordEvaluation.mock.invocationCallOrder[0])
   })
 
-  test('a visual video is recorded as skipped with its reason codes', async () => {
+  test('a nonempty visual video is admitted without title scoring', async () => {
     const { svc, repo } = wire()
     await svc.parseAndSaveYoutube(createMockCtx(), fetched({ title: 'My week in Tokyo vlog' }), 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 10, 'ub-10')
     const row = repo.recordEvaluation.mock.calls[0][0]
-    expect(row.status).toBe('skipped')
-    expect(row.eligibility.decision).toBe('review')
-    expect(row.eligibility.reason_codes).toContain('title_suggests_visual')
+    expect(row.status).toBe('pending')
+    expect(row.eligibility.decision).toBe('generate')
+    expect(row.eligibility.reason_codes).toEqual([])
   })
 
   test('two users saving the same captions share one hash, one key and one canonical row', async () => {
