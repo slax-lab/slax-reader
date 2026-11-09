@@ -46,3 +46,7 @@ Reviewed under REVIEW.md: Bugs, Security, Compliance; change ID `remove-media-ge
 ## Limits of evidence
 
 The original production audio was not retranscribed and live DeepSeek language quality/latency was not benchmarked. The local exercise does not reproduce Cloudflare Workflow scheduling, production R2, Redis, Hyperdrive caching, or bookmark publication end to end. Daily start/spend behavior is covered by service tests; actual repository transitions are covered on local PostgreSQL. No deployment or production retry was performed. External provider/platform resource limits still apply, so this change removes application business rejections rather than guaranteeing success for arbitrarily large inputs.
+
+## PR review follow-up
+
+PR #537 targets dev. All CI gates passed for implementation commit `7e345397`. Automated Bugs/Security/Compliance review reported **No Important findings** and two Nits. Both are addressed in the follow-up: the podcast article requeue fake accepts skipped rows and two owner/visitor recovery regressions cover preserved costs; the living reliability Purpose and the eligibility delta no longer describe removed length limits. The follow-up changes only tests and specification/evidence documents; production code is unchanged. The focused podcast service suite and strict spec validation are rerun for this follow-up. Merge, deployment, and post-merge archival remain human-operated.

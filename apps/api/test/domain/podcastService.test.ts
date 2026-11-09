@@ -144,7 +144,7 @@ function articles() {
       return repo.add({ source_id: input.source_id, source_hash: input.source_hash, target_language: input.target_language })
     }),
     requeue: vi.fn(async (id: number) => {
-      const r = rows.find(x => x.id === id && x.status === 'failed')
+      const r = rows.find(x => x.id === id && ['failed', 'skipped'].includes(x.status))
       if (!r) return false
       Object.assign(r, { status: 'pending', retry_count: 0, next_retry_at: new Date(), error_message: null })
       return true
@@ -503,6 +503,19 @@ describe('retry', () => {
     ep.transcript_status = 'failed'
     ep.error_message = 'language_unsupported'
     await expect(w.service.retry(w.ctx(OWNER), UUID)).rejects.toMatchObject({ name: ErrorName.ERROR_PARAM })
+  })
+
+  test.each(['too_long', 'budget_exceeded'])('an owner retries a skipped article with %s without losing its cost', async error => {
+    const w = wire()
+    const { en } = w.readyEpisode()
+    Object.assign(en, { status: 'skipped', error_message: error, cost_usd: 10, lifetime_cost_usd: 12 })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ article: 'skipped', can_retry: true })
+    expect(w.create).not.toHaveBeenCalled()
+    await expect(w.service.retry(w.ctx(VISITOR), UUID)).rejects.toMatchObject({ name: ErrorName.BOOKMARK_NOT_FOUND })
+    await w.service.retry(w.ctx(OWNER), UUID)
+    expect(en).toMatchObject({ status: 'pending', cost_usd: 10, lifetime_cost_usd: 12, error_message: null })
+    expect(w.arts.requeue).toHaveBeenCalledWith(en.id, true)
+    expect(w.create).toHaveBeenCalledOnce()
   })
 
   test('a failed article is requeued; visitors cannot retry', async () => {

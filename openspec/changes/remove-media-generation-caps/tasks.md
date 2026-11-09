@@ -10,4 +10,4 @@
 
 - [x] 2.1 Run backend generators, relevant tests, typecheck, lint, and strict OpenSpec validation; record results.
 - [x] 2.2 Exercise both pipelines in a local running environment, record evidence and any provider-verification gaps in validation.md.
-- [ ] 2.3 Complete Bugs/Security/Compliance pre-push review, create a PR to dev, and address Important review findings.
+- [x] 2.3 Complete Bugs/Security/Compliance pre-push review, create a PR to dev, and address Important review findings.

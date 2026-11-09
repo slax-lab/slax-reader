@@ -37,3 +37,20 @@ The system SHALL process otherwise eligible YouTube articles without rejecting o
 #### Scenario: Long video automatic admission
 - **WHEN** a video longer than four hours meets the remaining language, speech-density, and readability rules
 - **THEN** it is eligible for automatic generation and duration alone does not send it to manual review
+
+### Requirement: Generation triggers and Labs gate
+
+Generation SHALL start only for an owner with the `youtube_article` Labs feature enabled, after a save that passed moderation, when the owner opens a bookmark without a version in the owner's AI language, or on the owner's explicit generate or retry. Visitors SHALL never start generation. Without the feature, YouTube saves SHALL behave as before and the article status SHALL be `unavailable`.
+
+#### Scenario: Labs feature off
+- **WHEN** an owner without `youtube_article` opens a saved YouTube bookmark
+- **THEN** the status is `unavailable`, no row is created and nothing starts
+
+#### Scenario: Visitor opens a shared bookmark
+- **WHEN** a visitor opens a shared bookmark whose article is not ready in the visitor's language
+- **THEN** the visitor gets the owner's ready version if one exists, and no generation starts
+
+#### Scenario: Skipped by eligibility
+- **WHEN** the eligibility rules skip a version under the remaining content-quality or language rules
+- **THEN** nothing starts automatically and the owner can choose "generate anyway"
+
