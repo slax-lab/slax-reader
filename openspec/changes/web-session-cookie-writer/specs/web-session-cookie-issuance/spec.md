@@ -27,6 +27,17 @@ Reader Web SHALL call the existing login and renewal APIs from the browser. Afte
 - **WHEN** Origin is missing or foreign, JSON is invalid, login state is unbound, the renewal session has changed, or the token is malformed, expired or rejected by the API
 - **THEN** the endpoint returns a failure response and issues no session cookie
 
+#### Scenario: The cookie writer is temporarily unavailable
+
+- **WHEN** the browser has an issued token and the cookie endpoint fails with a network error, a missing route or a temporary service error
+- **AND** the operation has not been canceled and the initiating session or OAuth attempt is still current
+- **THEN** the browser writes that token using the existing JavaScript cookie settings
+
+#### Scenario: The cookie writer refuses the request or the initiating context changes
+
+- **WHEN** the endpoint rejects the request or token, the request is canceled, or the initiating context changes before fallback
+- **THEN** the browser does not write the session cookie through JavaScript
+
 ### Requirement: HTTP writing preserves the existing session transitions
 
 The Web callback SHALL preserve OAuth recovery, attribution, redirects and Android handoff. The shared cookie SHALL continue to serve installed Extensions, and the native-managed Mobile subscription WebView SHALL keep its existing renewal path. The HTTP renewal candidate SHALL pass the ordering scenarios before release.

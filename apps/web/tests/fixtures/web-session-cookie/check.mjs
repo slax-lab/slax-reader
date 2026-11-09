@@ -9,8 +9,8 @@ const jiti = createJiti(import.meta.url)
 const { createAccountLocaleRequest } = await jiti.import('../../../app/utils/accountLocaleRequest.ts')
 const { UserLocaleTasks } = await jiti.import('../../../app/utils/userLocaleTasks.ts')
 const { writeWebSession } = await jiti.import('../../../app/utils/webSession.ts')
-const origin = 'http://localhost:3320'
-const api = 'http://127.0.0.1:8790'
+const origin = process.env.SESSION_TEST_ORIGIN || 'http://localhost:3320'
+const api = process.env.SESSION_TEST_API || 'http://127.0.0.1:8790'
 const name = 'reader_token'
 const path = '/api/auth/session'
 const jwt = (id, marker) =>
@@ -23,6 +23,7 @@ const user = { userId: '1', uuid: 'test', name: 'Fixture', lang: 'en', email: 'f
 const attribution = { source: 'hackerlinks', medium: 'header', campaign: 'mvp' }
 const records = []
 let barrier
+let verifierUnavailable = false
 const networkFetch = globalThis.fetch
 
 const upstream = createServer(async (req, res) => {
@@ -37,9 +38,10 @@ const upstream = createServer(async (req, res) => {
   const target = new URL(url, api)
   if (target.pathname === '/fixture') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
-    return res.end('<h1>Reader local OAuth and cookie test</h1><p>All accounts and credentials are synthetic.</p><ul><li><a href="/start?provider=google">Google callback</a></li><li><a href="/start?provider=apple">Apple callback</a></li></ul>')
+    return res.end('<h1>Reader local OAuth and cookie test</h1><p>All accounts and credentials are synthetic.</p><ul><li><a href="/start?provider=google">Google callback</a></li><li><a href="/start?provider=apple">Apple callback</a></li><li><a href="/start?verifier=unavailable">Google callback with unavailable verifier</a></li></ul>')
   }
   if (target.pathname === '/start') {
+    verifierUnavailable = target.searchParams.get('verifier') === 'unavailable'
     const platform = target.searchParams.get('provider') === 'apple' ? 'apple' : 'google'
     const state = JSON.stringify({ nonce: crypto.randomUUID(), platform, redirectUrl: origin + '/auth', target: '/guide?return=fixture', affCode: 'fixture-referral', auth_attribution: attribution })
     const query = new URLSearchParams({ code: 'fixture', state })
@@ -48,7 +50,9 @@ const upstream = createServer(async (req, res) => {
     }).end()
   }
   if (target.pathname === '/observations') {
-    return reply(200, records.map(({ url, origin, body, action }) => ({ url, origin, body, action })))
+    const cookie = headers.cookie?.split('; ').find(value => value.startsWith(name + '='))
+    const session = cookie === name + '=' + fresh ? 'renewed' : cookie === name + '=' + old ? 'signed in' : 'missing'
+    return reply(200, { session, requests: records })
   }
   if (url === '/v1/user/login') {
     const chunks = []
@@ -70,7 +74,10 @@ const upstream = createServer(async (req, res) => {
       barrier.entered.resolve()
       await barrier.released.promise
     }
-    if (!headers.origin) records.push({ url, action: headers.authorization === 'Bearer ' + fresh ? 'refresh' : 'login' })
+    if (!headers.origin) {
+      records.push({ url, action: headers.authorization === 'Bearer ' + fresh ? 'refresh' : 'login', unavailable: verifierUnavailable })
+      if (verifierUnavailable) return reply(503)
+    }
     return [old, fresh, replacement].some(token => headers.authorization === 'Bearer ' + token) ? reply(200, user) : reply(401)
   }
   if (url?.startsWith('/v1/sync/token')) return reply(200, { token: '', endpoint: '' })
@@ -175,7 +182,7 @@ async function ordering() {
 
 await new Promise((resolve, reject) => upstream.once('error', reject).listen(Number(new URL(api).port), '127.0.0.1', resolve))
 if (process.argv.includes('--serve')) {
-  console.log('Synthetic OAuth callbacks: http://localhost:8790/fixture')
+  console.log('Synthetic OAuth callbacks: ' + new URL('/fixture', api).href.replace('127.0.0.1', 'localhost'))
 } else {
   try {
     const f = fixture()
@@ -183,7 +190,17 @@ if (process.argv.includes('--serve')) {
     await f.renew()
     assert.equal(f.read(), fresh)
     console.log('PASS: Pages Worker issues the cookie for login and renewal')
-    await ordering()
+    const degraded = fixture()
+    await degraded.login(old)
+    verifierUnavailable = true
+    try {
+      await degraded.renew()
+      assert.equal(degraded.read(), fresh)
+      console.log('PASS: Renewal falls back to JavaScript when the Worker reports verifier unavailability')
+    } finally {
+      verifierUnavailable = false
+    }
+    if (!process.argv.includes('--skip-ordering')) await ordering()
   } finally {
     upstream.close()
   }

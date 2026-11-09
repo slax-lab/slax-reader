@@ -5,7 +5,7 @@ The implementation is available for review on `fix/web-session-cookie-writer`. T
 ## Automated checks
 
 - Web typecheck passed with the repository's documented synthetic Web configuration.
-- Web Vitest suite: 2,727 passed and 3 skipped. After the final token shape check, all 18 focused route tests passed.
+- Web Vitest suite after the fallback: 2,749 passed and 3 skipped with `--maxWorkers 6 --hookTimeout 60000`. The default run hit five Nuxt setup hook timeouts.
 - ESLint passed on changed source and test files. The full Web lint still reports 89 import-order errors on untouched files.
 - Strict OpenSpec validation: 119 passed, 0 failed.
 
@@ -18,6 +18,12 @@ In a browser, followed the synthetic Google and Apple callbacks into the actual 
 In the existing callback fixture, disconnect and provider errors showed the persistent sign-in recovery view. The successful callback reached the original destination. Unit tests cover callback timeout and cancellation, retry attribution, and Android handoff. Store tests cover the native subscription route retaining its existing JavaScript cookie write.
 
 For local review, run `node apps/web/tests/fixtures/auth-recovery/serve.mjs 44022` and open `http://127.0.0.1:44022/`. To repeat the Pages Worker exercise, build with `PUBLIC_BASE_URL`, `AUTH_BASE_URL` and `SHARE_BASE_URL` set to `http://localhost:3320`, `DWEB_API_BASE_URL=http://127.0.0.1:8790`, `COOKIE_DOMAIN=localhost`, `COOKIE_TOKEN_NAME=reader_token`, and synthetic Google and Apple client IDs. Start the built Pages Worker on port 3320. Run `node apps/web/tests/fixtures/web-session-cookie/check.mjs --serve` and open `http://localhost:8790/fixture`; `/observations` shows which local boundary handled each request. The provider is simulated before the callback.
+
+## JavaScript fallback
+
+The focused Web checks cover login and renewal fallback, the accepted HTTP status codes, missing login tokens, validation and authentication failures, cancellation, and a changed session or OAuth attempt. The real Pages Worker returned 503 with no session cookie when the verifier was unavailable. In the browser fixture, the Google callback then wrote the issued cookie through JavaScript and reached its return page. The renewal fixture ran the existing renewal client against the same Worker and confirmed that the fallback updated the cookie. The fallback uses the previous JavaScript persistence behavior. The deployed iPad Brave check applies to the normal HTTP path.
+
+To repeat the outage scenario, open the local Worker fixture and choose **Google callback with unavailable verifier**. For the renewal check, stop the fixture API process and run `node apps/web/tests/fixtures/web-session-cookie/check.mjs --skip-ordering` against the Worker. The fixture accepts `SESSION_TEST_ORIGIN` and `SESSION_TEST_API` overrides. The full fixture reproduced the same three delayed-success failures listed below.
 
 ## Renewal ordering
 

@@ -143,9 +143,10 @@ describe('useAuth', () => {
       expect(cookieSet).not.toHaveBeenCalled()
     })
 
-    it('登录返回为空 → 抛 "login failed"', async () => {
-      mockPost.mockResolvedValueOnce(undefined)
+    it.each([undefined, {}, { token: '' }])('rejects login responses without a token (%j)', async response => {
+      mockPost.mockResolvedValueOnce(response)
       await expect(useAuth().grantAuth('code-x', 'https://auth.test/auth', '', 'google', undefined, await bind())).rejects.toThrow('login failed')
+      expect(writer).not.toHaveBeenCalled()
       expect(cookieSet).not.toHaveBeenCalled()
     })
 
@@ -159,6 +160,29 @@ describe('useAuth', () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-google' })
       writer.mockResolvedValueOnce(new Response(null, { status: 401 }))
       await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', '', 'google', undefined, await bind())).rejects.toThrow('Session cookie write failed')
+      expect(cookieSet).not.toHaveBeenCalled()
+    })
+
+    it.each([503, 'network'] as const)('uses the issued login token when the cookie writer is unavailable (%s)', async failure => {
+      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
+      if (failure === 'network') writer.mockRejectedValueOnce(new TypeError('Network error'))
+      else writer.mockResolvedValueOnce(new Response(null, { status: failure }))
+      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', '', 'google', undefined, await bind())).resolves.toBe('tok-google')
+      expect(cookieSet).toHaveBeenCalledExactlyOnceWith('token', 'tok-google', expect.objectContaining({ path: '/', domain: '.example.com' }))
+    })
+
+    it.each(['login attempt', 'session', 'canceled'])('skips login fallback when the %s changes during the write', async changed => {
+      const controller = new AbortController()
+      const options = await bind()
+      const binding = await oauthStateDigest(state)
+      cookieGet.mockImplementation(name => name === 'token' ? 'previous-token' : binding)
+      mockPost.mockResolvedValueOnce({ token: 'issued-token' })
+      writer.mockImplementationOnce(async () => {
+        if (changed === 'canceled') controller.abort()
+        else cookieGet.mockImplementation(name => name === 'token' ? (changed === 'session' ? 'replacement-token' : 'previous-token') : (changed === 'login attempt' ? 'replacement-attempt' : binding))
+        return new Response(null, { status: 503 })
+      })
+      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', '', 'google', undefined, { ...options, signal: controller.signal })).rejects.toThrow()
       expect(cookieSet).not.toHaveBeenCalled()
     })
 

@@ -5,6 +5,7 @@
 - [x] 1.1 Add the exact Nitro route and test Origin, JSON, token shape, verification, renewal account checks, no-store and the successful cookie response.
 - [x] 1.2 Replace the Web login cookie write after the existing browser exchange. Verify Google and Apple payloads, callback recovery, attribution, return navigation and Android handoff.
 - [x] 1.3 Replace the Web renewal cookie write after the existing browser refresh and session checks. Verify the Mobile subscription WebView still uses its original path.
+- [x] 1.4 Verify the JavaScript fallback on temporary cookie writer failures for login and renewal, including rejection, cancellation and stale-session cases.
 
 ## 2. Verify compatibility and ordering
 

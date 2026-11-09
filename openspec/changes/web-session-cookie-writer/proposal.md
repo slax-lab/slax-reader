@@ -7,7 +7,7 @@ Reader Web writes the session cookie from JavaScript after OAuth login and token
 ## What Changes
 
 - Add a single Reader Nitro endpoint, `POST /api/auth/session`, for writing an already-issued token to the existing session cookie.
-- Keep the current browser requests to `/v1/user/login` and `/v1/user/refresh`. Replace the subsequent JavaScript writes with calls to the new endpoint.
+- Keep the current browser requests to `/v1/user/login` and `/v1/user/refresh`. Use the new endpoint for the subsequent cookie writes. Fall back to the existing JavaScript write when the endpoint is unavailable and the browser session or login attempt is still current.
 - Require the Reader Origin, JSON, and a valid unexpired token. Verify the submitted token through the existing API authentication and use `Cache-Control: no-store` on every handled response.
 - Preserve the static callback, OAuth recovery and attribution, cookie scope, Android handoff, installed Extension compatibility, and native-managed Mobile subscription WebView.
 

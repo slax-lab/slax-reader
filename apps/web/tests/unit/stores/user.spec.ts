@@ -516,6 +516,14 @@ describe('useUserStore - account locale integration', () => {
     }))
     expect(cookieSet).not.toHaveBeenCalledWith('token', expect.anything(), expect.anything())
   })
+  it.each([404, 405, 503, 504, 400, 401, 403, 409, 415, 500, 502])('handles cookie writer status %s during renewal', async status => {
+    const defaultFetch = fetcher.getMockImplementation()!
+    fetcher.mockImplementation((url, options) => url === '/api/auth/session' ? Promise.resolve(new Response(null, { status })) : defaultFetch(url, options))
+    await useUserStore().refreshUserToken()
+    const unavailable = [404, 405, 503, 504].includes(status)
+    expect(currentToken).toBe(unavailable ? token(1, 2) : token(1))
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual(['https://api.test/v1/user/refresh', '/api/auth/session'])
+  })
   it('keeps the configured JavaScript cookie scope for the native subscription WebView', async () => {
     window.history.replaceState(null, '', '/subscription/inapp-purchase')
     try {

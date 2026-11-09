@@ -69,10 +69,10 @@ describe('Web session cookie writer', () => {
     expect(fetchUser).not.toHaveBeenCalled()
   })
 
-  it.each([401, 302, 500])('does not set any cookies when verification responds %s', async code => {
+  it.each([[401, 401], [302, 502], [500, 503]])('does not set any cookies when verification responds %s', async (code, expected) => {
     fetchUser.mockResolvedValueOnce(Response.json({ code }, { status: code }))
     const { status, cookies } = await call(refresh, sessionHeaders)
-    expect([status, cookies]).toEqual([code === 401 ? 401 : 502, []])
+    expect([status, cookies]).toEqual([expected, []])
   })
 
   it('requires successful verification and writes only the configured, readable cookie on refresh', async () => {

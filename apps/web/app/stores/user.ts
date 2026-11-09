@@ -1,5 +1,5 @@
 import { AccountLocaleStaleError, createAccountLocaleRequest } from '../utils/accountLocaleRequest'
-import { readStringCookie, requireConfiguredCookieName } from '../utils/authCookie'
+import { readStringCookie, setAuthCookie } from '../utils/authCookie'
 import { isSlaxReaderApp } from '../utils/environment'
 import { notifyExtensionAccountLocaleInvalidated } from '../utils/extensionLocale'
 import { existingUserLocaleTasks, getUserLocaleTasks, type LocaleUserState } from '../utils/userLocaleTasks'
@@ -246,15 +246,7 @@ export const localeTasksForStore = (store: LocaleUserState) => {
     api: createAccountLocaleRequest(),
     getToken: () => (import.meta.server ? serverToken : readStringCookie(config.COOKIE_TOKEN_NAME, cookies)),
     writeWebSession: useHttpCookie ? (token, startingToken, signal) => writeWebSession({ action: 'refresh', token, startingToken }, signal) : undefined,
-    setToken: token => {
-      const cookieName = requireConfiguredCookieName(config.COOKIE_TOKEN_NAME)
-      const cookieDomain = typeof config.COOKIE_DOMAIN === 'string' ? config.COOKIE_DOMAIN : ''
-      cookies.set(cookieName, token, {
-        path: '/',
-        expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-        ...(cookieDomain ? { domain: cookieDomain } : {})
-      })
-    },
+    setToken: token => setAuthCookie(cookies, config.COOKIE_TOKEN_NAME, config.COOKIE_DOMAIN, token),
     apply: locale => app.runWithContext(() => app.$i18n.setLocale(locale)),
     notify: notifyExtensionAccountLocaleInvalidated,
     expire: () =>

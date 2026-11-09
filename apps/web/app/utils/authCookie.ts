@@ -21,3 +21,12 @@ export const readStringCookie = (name: unknown, cookies: CookieReader = useCooki
   const value = cookies.get<unknown>(validName, { doNotParse: true })
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
+
+export const setAuthCookie = (cookies: CookieReader, name: unknown, domain: unknown, token: string) => {
+  const cookieName = requireConfiguredCookieName(name)
+  cookies.set(cookieName, token, {
+    path: '/',
+    expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+    ...(typeof domain === 'string' && domain ? { domain } : {})
+  })
+}

@@ -1,4 +1,4 @@
-import { configuredCookieName } from '~/utils/authCookie'
+import { configuredCookieName, readStringCookie, setAuthCookie } from '~/utils/authCookie'
 import { createOAuthNonce, oauthAttemptCookie, oauthAttemptMaxAge, oauthStateDigest } from '~/utils/oauthAttempt'
 import { writeWebSession } from '~/utils/webSession'
 
@@ -8,7 +8,8 @@ import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, type Web
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 
-const { get, set, remove } = useCookies()
+const cookies = useCookies()
+const { get, set, remove } = cookies
 const attemptOptions = () => ({ path: '/', secure: location.protocol === 'https:', sameSite: 'lax' as const })
 
 const bindOAuthState = async (fields: Record<string, unknown>) => {
@@ -81,6 +82,7 @@ const useAuth = {
       throw new Error('Invalid OAuth attempt')
     }
 
+    const startingSession = readStringCookie($config.COOKIE_TOKEN_NAME, cookies)
     try {
       options.signal?.throwIfAborted()
       const resp = await request().post<{ token: string }>({
@@ -97,9 +99,16 @@ const useAuth = {
       })
 
       options.signal?.throwIfAborted()
-      if (!resp) throw new Error('login failed')
+      if (typeof resp?.token !== 'string' || !resp.token.trim()) throw new Error('login failed')
 
-      await writeWebSession({ action: 'login', state, token: resp.token }, options.signal)
+      if ((await writeWebSession({ action: 'login', state, token: resp.token }, options.signal)) === 'unavailable') {
+        options.signal?.throwIfAborted()
+        const current = readStringCookie($config.COOKIE_TOKEN_NAME, cookies)
+        if (current !== resp.token) {
+          if (current !== startingSession || get(attempt, { doNotParse: true }) !== binding) throw new Error('OAuth attempt is no longer current')
+          setAuthCookie(cookies, $config.COOKIE_TOKEN_NAME, $config.COOKIE_DOMAIN, resp.token)
+        }
+      }
       return resp.token
     } finally {
       if (get(attempt, { doNotParse: true }) === binding) remove(attempt, cookieOptions)

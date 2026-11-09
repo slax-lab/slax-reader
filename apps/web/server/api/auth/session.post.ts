@@ -23,21 +23,23 @@ const tokenAccount = (token: string) => {
 }
 
 const verifyToken = async (apiBase: string, token: string) => {
+  let response: Response
   try {
-    const response = await fetch(apiBase.replace(/\/$/, '') + RESTMethodPath.ME, {
+    response = await fetch(apiBase.replace(/\/$/, '') + RESTMethodPath.ME, {
       headers: { Authorization: `Bearer ${token}` },
       redirect: 'manual',
       cache: 'no-store',
       signal: AbortSignal.timeout(2500)
     })
-    if (response.status === 401 || response.status === 403) return 401
-    if (response.status !== 200) return 502
-    const result = await response.json()
-    const code = result && typeof result === 'object' && 'code' in result ? result.code : undefined
-    return code === 200 ? 204 : code === 401 || code === 403 ? 401 : 502
   } catch {
-    return 502
+    return 503
   }
+  if (response.status === 401 || response.status === 403) return 401
+  if (response.status >= 500) return 503
+  if (response.status !== 200) return 502
+  const result = await response.json().catch(() => undefined)
+  const code = result && typeof result === 'object' && 'code' in result ? result.code : undefined
+  return code === 200 ? 204 : code === 401 || code === 403 ? 401 : 502
 }
 
 export default defineEventHandler(async event => {

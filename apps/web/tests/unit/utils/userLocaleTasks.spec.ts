@@ -1,5 +1,6 @@
 import { AccountLocaleUnauthorizedError } from '~~/app/utils/accountLocaleRequest'
 import { UserLocaleTasks } from '~~/app/utils/userLocaleTasks'
+import type { WebSessionWriteResult } from '~~/app/utils/webSession'
 
 import { makeUser } from '~~/tests/fixtures/user'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -12,7 +13,7 @@ const deferred = <T>() => {
   })
   return { promise, resolve, reject }
 }
-const fixture = (writeWebSession?: (token: string, startingToken: string, signal: AbortSignal) => Promise<void>) => {
+const fixture = (writeWebSession?: (token: string, startingToken: string, signal: AbortSignal) => Promise<WebSessionWriteResult>) => {
   let current = token('A'),
     display = 'en'
   const store = { user: makeUser({ lang: 'en' }), locale: 'en', confirmedAccountLocale: null as { accountKey: string; locale: 'en' | 'zh' } | null }
@@ -231,7 +232,7 @@ it('expires the current token when it becomes expired during an unauthorized ref
 })
 
 it('submits only the current renewal to the Web cookie writer', async () => {
-  const write = vi.fn(async () => {})
+  const write = vi.fn(async () => 'handled' as const)
   const f = fixture(write)
   const pending = deferred<string>()
   f.api.refreshToken.mockImplementationOnce(() => pending.promise)
@@ -250,7 +251,7 @@ it('submits only the current renewal to the Web cookie writer', async () => {
 
 it('cancels a pending HTTP cookie write when the local session is cleared', async () => {
   const entered = deferred<AbortSignal>()
-  const write = vi.fn((_: string, __: string, signal: AbortSignal) => new Promise<void>((_, reject) => {
+  const write = vi.fn((_: string, __: string, signal: AbortSignal) => new Promise<WebSessionWriteResult>((_, reject) => {
     signal.addEventListener('abort', () => reject(signal.reason), { once: true })
     entered.resolve(signal)
   }))
@@ -261,4 +262,22 @@ it('cancels a pending HTTP cookie write when the local session is cleared', asyn
   await renewing
   expect(signal.aborted).toBe(true)
   expect(f.expire).not.toHaveBeenCalled()
+})
+
+it.each(['logout', 'replacement', 'cancel'])('does not fall back after %s during the cookie write', async change => {
+  const pending = deferred<WebSessionWriteResult>()
+  const entered = deferred<void>()
+  const f = fixture(() => {
+    entered.resolve()
+    return pending.promise
+  })
+  const refreshing = f.tasks.refreshToken()
+  await entered.promise
+  if (change === 'logout') f.setToken('')
+  if (change === 'replacement') f.setToken(token('B'))
+  if (change === 'cancel') f.tasks.clear()
+  const expected = f.getToken()
+  pending.resolve('unavailable')
+  await refreshing
+  expect(f.getToken()).toBe(expected)
 })

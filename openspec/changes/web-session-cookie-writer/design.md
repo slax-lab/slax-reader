@@ -8,7 +8,7 @@ Use the Nitro route layout from `server/api/collection/track.post.ts`. Register 
 
 ### Keep the browser's two token exchanges
 
-At sign-in, the existing `useAuth.grantAuth` browser request exchanges the OAuth code with `POST /v1/user/login`. Keep the current provider, registered callback URI, referral, attribution, timeout and recovery path. After a successful result, replace its session-cookie assignment with the same-origin cookie writer. Navigate only after the write succeeds.
+At sign-in, the existing `useAuth.grantAuth` browser request exchanges the OAuth code with `POST /v1/user/login`. Keep the current provider, registered callback URI, referral, attribution, timeout and recovery path. After a successful result, replace its session-cookie assignment with the same-origin cookie writer. Navigate after the HTTP write or an eligible JavaScript fallback succeeds.
 
 For renewal, keep `createAccountLocaleRequest.refreshToken` calling `POST /v1/user/refresh` with the starting session token. Keep the existing checks for account, session token, task and revision immediately before the write in `UserLocaleTasks`. After those checks pass, call the cookie writer with the returned token. Preserve the direct cookie assignment in the native-managed Mobile subscription WebView. Existing Extension code continues to read the configured shared cookie.
 
@@ -22,6 +22,12 @@ Send JSON to `POST /api/auth/session` with same-origin credentials. For login, s
 - For renewal, compare the starting bearer with the incoming session cookie and require the new token to belong to that account. Return 409 when the request no longer matches the starting session.
 - Authenticate the submitted token using the fixed existing `GET /v1/user/me` route and its bearer authentication. This adds one read per cookie write and lets the API validate the signature, issuer, audience and account status. Reject redirects, invalid credentials and verification failures. Discard profile data and return no credentials.
 - Return `Cache-Control: no-store` on all handled responses. On success, return 204 and set the configured session cookie with its existing domain, root path, expiry and JavaScript readability. Leave cookie removal to the existing logout path. Keep credentials out of diagnostics.
+
+### Fall back when the cookie writer is unavailable
+
+Use the original JavaScript cookie write only when the request fails at the network layer, the route returns 404 or 405, or it returns 503 or 504. The writer returns 503 when its verifier cannot be reached or reports a server error. Explicit authentication, request validation and stale session responses remain authoritative. Unexpected responses and canceled operations do not trigger a fallback.
+
+The fallback uses only the token already returned by the original login or renewal API. Before a login fallback, recheck the OAuth attempt binding and the session cookie present when login started. Before a renewal fallback, repeat the session, task and revision checks. Keep the existing cookie name, domain, path and expiration. Browser cookie lifetime under this fallback follows the previous JavaScript behavior.
 
 ### Verify ordering at both stages
 
