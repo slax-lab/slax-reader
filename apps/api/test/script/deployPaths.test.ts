@@ -114,8 +114,7 @@ describe('single API configuration', () => {
     expect(ai.vectorize).toEqual(config.vectorize)
     expect((ai.vectorize as TomlTable[]).map(row => row.binding)).toEqual(expect.arrayContaining(['VECTOR_V5_ARTICLE', 'VECTOR_V5_USER', 'VECTOR_V5_COLLECTION']))
     for (const row of workerConfig(config, 'ai', true).vectorize as TomlTable[]) expect(row.remote).toBe(true)
-    for (const output of [core, edge])
-      expect(output.services).toContainEqual({ binding: 'VECTOR', service: 'custom-ai', entrypoint: 'AiEntry' })
+    for (const output of [core, edge]) expect(output.services).toContainEqual({ binding: 'VECTOR', service: 'custom-ai', entrypoint: 'AiEntry' })
   })
   test('custom physical queue names retain logical dispatch including DLQ', () => {
     const config = readConfig(template)
@@ -241,7 +240,18 @@ describe('single API configuration', () => {
       for (const row of config[name] as TomlTable[]) row[field] = 'operator-resource-id'
     config.migrations = [{ tag: 'existing-v7', new_classes: ['SlaxJieba'] }]
     expect(() => checkRemote(config)).not.toThrow()
+    expect(() => checkDeployment(config)).toThrow('Missing VectorPreferenceObject new_sqlite_classes migration')
+    config.migrations = [
+      { tag: 'existing-v7', new_classes: ['SlaxJieba'] },
+      { tag: 'existing-v8', new_sqlite_classes: ['VectorPreferenceObject'] }
+    ]
     expect(() => checkDeployment(config)).not.toThrow()
+    const missingObject = structuredClone(config)
+    ;(missingObject.durable_objects as TomlTable).bindings = ((missingObject.durable_objects as TomlTable).bindings as TomlTable[]).filter(
+      row => row.name !== 'VECTOR_V5_PREFERENCE'
+    )
+    expect(() => checkRemote(missingObject)).not.toThrow()
+    expect(() => checkDeployment(missingObject)).toThrow('Missing VECTOR_V5_PREFERENCE')
     for (const binding of ['VECTOR_V5_ARTICLE', 'VECTOR_V5_USER', 'VECTOR_V5_COLLECTION']) {
       const incomplete = structuredClone(config)
       incomplete.vectorize = (incomplete.vectorize as TomlTable[]).filter(row => row.binding !== binding)

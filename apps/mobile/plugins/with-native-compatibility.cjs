@@ -33,7 +33,7 @@ module.exports = function withNativeCompatibility(config, {fixtureMode = false} 
   config = withXcodeProject(config, mod => {mod.modResults = normalizeAppIntentsGroups(mod.modResults); return mod;});
   config = withNativeBack(config);
   config = withGradleProperties(config, mod => {
-    const values = { 'android.minSdkVersion': '26', 'android.compileSdkVersion': '37', 'android.targetSdkVersion': '36' };
+    const values = { 'android.minSdkVersion': '26', 'android.compileSdkVersion': '37', 'android.targetSdkVersion': '36', reactNativeArchitectures: 'armeabi-v7a,arm64-v8a' };
     for (const [key, value] of Object.entries(values)) {
       const property = mod.modResults.find(item => item.type === 'property' && item.key === key);
       if (property) property.value = value;

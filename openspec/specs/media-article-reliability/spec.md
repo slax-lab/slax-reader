@@ -1,7 +1,7 @@
 # media-article-reliability Specification
 
 ## Purpose
-Keep YouTube and podcast AI articles reachable and faithful for every input the existing duration, input-size and chunk limits accept, and keep podcast capture independent of a publisher's treatment of direct Worker fetches.
+Keep YouTube and podcast AI articles reachable and faithful for eligible source inputs, and keep podcast capture independent of a publisher's treatment of direct Worker fetches.
 
 ## Requirements
 
