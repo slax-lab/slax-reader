@@ -27,14 +27,13 @@ export function environmentTypes(source: string): string {
   }
   check(ast)
   let declarations = env
-    .replace(/^[ \t]*(?:VECTOR_V5_\w+|VECTOR_BACKFILL_\w+|SOURCE_INGESTION_\w+|DAILY_READING_ENABLED)\??:[^\r\n]*\r?\n(?:[ \t]*\r?\n)*/gm, '')
+    .replace(/^[ \t]*(?:VECTOR_V5_\w+|VECTOR_BACKFILL_\w+|SOURCE_INGESTION_\w+|DAILY_READING_ENABLED|EMAIL_AUTH_ENABLED)\??:[^\r\n]*\r?\n(?:[ \t]*\r?\n)*/gm, '')
     .replace(/^\/\/ Runtime types generated.*\n/m, '')
     .replace(
       '// Env bindings are maintained manually without configuration values; pnpm types refreshes runtime types only.',
       '// Env bindings contain no configuration values; pnpm types preserves declarations and adds optional bindings from script/generate-worker-types.ts.'
     )
   for (const [name, type] of [
-    ['EMAIL_AUTH_ENABLED', 'string'],
     ['EMAIL_AUTH_FROM', 'string'],
     ['EMAIL_AUTH_HMAC_SECRET', 'string'],
     ['EMAIL_AUTH_WEB_CALLBACK', 'string'],

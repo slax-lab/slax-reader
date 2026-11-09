@@ -207,7 +207,6 @@ describe('Apple identity verification diagnostics', () => {
     const redis = () => ({ key: () => stateKey })
     const ctx = new ContextManager({} as ExecutionContext, {
       ...baseEnv,
-      EMAIL_AUTH_ENABLED: 'true',
       EMAIL_AUTH_HMAC_SECRET: 'a-long-test-only-verification-secret',
       RESEND_API_KEY: 'fixture',
       RUN_TYPE: 'dev'

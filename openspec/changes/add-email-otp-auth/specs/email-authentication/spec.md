@@ -10,6 +10,12 @@ Allow readers to create or access their accounts with verified email while maint
 
 The system SHALL offer email-code access on Web, iOS and Android and complete the existing login session only after successful verification. Extension users SHALL be able to complete login through the Web handoff. Requesting a code SHALL NOT create a user or reveal whether an account exists.
 
+#### Scenario: An environment has the email credentials
+
+- **WHEN** the API has a Resend API key and a verification secret of at least 32 characters
+- **THEN** the system makes email-code access available by default
+- **AND** the system reports email-code access as unavailable when either credential is missing or the verification secret is too short
+
 #### Scenario: A new reader proves an unclaimed email address
 
 - **WHEN** a reader submits a valid unused code for an unclaimed address

@@ -31,12 +31,12 @@ Keep explicit binding and anonymous login separate at the API boundary. A provid
 ## Risks / Trade-offs
 
 - Duplicate historic ownership or ambiguous legacy OAuth paths can prevent automatic linking. Fail safely and audit before rollout.
-- Beta and production share PostgreSQL. Keep activation off until the compatible OAuth writers and deletion workers are deployed in both environments.
+- Beta and production share PostgreSQL. Provision the email credentials for these environments after the compatible OAuth writers and deletion workers are deployed in both.
 - Resend acceptance confirms queuing, not inbox placement. Verify real delivery to controlled accounts before production activation.
 - Redis or Resend outages can interrupt email login. Users with a linked provider can still sign in with it. Email-only users must wait for service recovery.
 
 ## Migration Plan
 
-Deploy compatible identity lookup, writes and cleanup with email-code access disabled. Validate Redis, Resend domain authentication, sender, and delivery budgets. Verify application paths and owner-only sync behavior before enabling. The activation flag can disable email login and linking while keeping compatible ownership and cleanup code active. After users register with email only, turning off the flag also pauses access to those accounts. Restore the service and re-enable the flag to recover access. Existing verified rows are durable data and do not require a schema migration.
+Deploy compatible identity lookup, writes and cleanup before provisioning credentials in environments that share a database. Validate Redis, Resend domain authentication, sender, delivery budgets, and owner-only sync behavior. Deploy the PowerSync rule that excludes `platform=mail` from the platform-binding stream before provisioning credentials in a hosted environment. Existing verified rows are durable data and do not require a schema migration.
 
-Set `EMAIL_AUTH_ENABLED=true` only after the rollout checks above. Keep `RESEND_API_KEY` and a random `EMAIL_AUTH_HMAC_SECRET` of at least 32 characters in the existing Worker secret provisioning process. `EMAIL_AUTH_FROM` defaults to `Slax Reader <noreply_reader@slax.com>`. Web provider linking is available on the registered callback origin, which shares the initiating tab's session storage. When the registered Web OAuth callback differs from `FRONT_END_URL/auth`, set `EMAIL_AUTH_WEB_CALLBACK` to the exact registered URL. Before enabling a hosted environment, deploy its PowerSync rule that excludes `platform=mail` from the platform-binding stream.
+Email login and linking become available when the API has `RESEND_API_KEY` and a random `EMAIL_AUTH_HMAC_SECRET` of at least 32 characters. For merged releases, provision them through `[vars]` in the private environment TOML. `EMAIL_AUTH_FROM` defaults to `Slax Reader <noreply_reader@slax.com>`. Web provider linking is available on the registered callback origin, which shares the initiating tab's session storage. When the registered Web OAuth callback differs from `FRONT_END_URL/auth`, set `EMAIL_AUTH_WEB_CALLBACK` to the exact registered URL.

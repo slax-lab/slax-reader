@@ -30,11 +30,10 @@ JWT_ALGORITHMS = "HS256"
 JWT_EXPIRES = "5184000"
 JWT_ISSUER = "slax-reader"
 FRONT_END_URL = "http://localhost:3000"
-# Enable only after compatible auth and account-cleanup Workers are deployed.
-EMAIL_AUTH_ENABLED = "false"
+# Provision the email credentials after compatible auth and account-cleanup Workers are deployed.
 EMAIL_AUTH_FROM = "Slax Reader <noreply_reader@slax.com>"
 # If different from FRONT_END_URL/auth, set EMAIL_AUTH_WEB_CALLBACK to the registered Web OAuth callback.
-# Provision EMAIL_AUTH_HMAC_SECRET and RESEND_API_KEY as Worker secrets.
+# Supply EMAIL_AUTH_HMAC_SECRET and RESEND_API_KEY through the private deployment configuration.
 BACKEND_API_PREFIX = "http://localhost:8787"
 IMAGE_PREFIX = "http://localhost:8787/"
 PROXY_IMAGE_PREFIX = "http://localhost:8787/"

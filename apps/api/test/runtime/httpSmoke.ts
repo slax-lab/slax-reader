@@ -128,7 +128,6 @@ async function main() {
       PROXY_IMAGE_PREFIX: `http://localhost:${httpPort}`,
       ...(emailRedis
         ? {
-            EMAIL_AUTH_ENABLED: 'true',
             EMAIL_AUTH_HMAC_SECRET: randomUUID() + randomUUID(),
             RESEND_API_KEY: 'fixture-only',
             UPSTASH_REDIS_REST_URL: emailRedis.url,

@@ -41,7 +41,7 @@ export default {
     }
     if (url.pathname === '/__fixture/diagnostic-object-missing') return Response.json((await env.DIAGNOSTICS!.head(url.searchParams.get('key')!)) === null)
     if (url.pathname === '/__fixture/diagnostic-notifications') return Response.json(messages)
-    if (url.pathname === '/__fixture/email-code' && env.EMAIL_AUTH_ENABLED === 'true') {
+    if (url.pathname === '/__fixture/email-code' && env.RESEND_API_KEY === 'fixture-only') {
       const id = url.searchParams.get('id') ?? ''
       const code = emailCodes.get(id)
       emailCodes.delete(id)

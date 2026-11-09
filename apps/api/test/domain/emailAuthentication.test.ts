@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { EmailAuthentication } from '@/domain/emailAuthentication'
+import { EmailAuthentication, emailAuthEnabled } from '@/domain/emailAuthentication'
 import { SlaxAuth } from '@/utils/auth'
 import { ContextManager } from '@/utils/context'
 
 const env = {
-  EMAIL_AUTH_ENABLED: 'true',
   EMAIL_AUTH_HMAC_SECRET: 'a-long-test-only-verification-secret',
   RESEND_API_KEY: 'fixture',
   FRONT_END_URL: 'https://reader.example.test',
@@ -42,6 +41,12 @@ function fixture() {
 }
 
 afterEach(() => vi.restoreAllMocks())
+
+test('email auth is available as soon as its credentials are configured', () => {
+  expect(emailAuthEnabled(env)).toBe(true)
+  expect(emailAuthEnabled({ ...env, RESEND_API_KEY: undefined })).toBe(false)
+  expect(emailAuthEnabled({ ...env, EMAIL_AUTH_HMAC_SECRET: 'too-short' })).toBe(false)
+})
 
 describe('explicit OAuth binding', () => {
   test('only the initiating account can complete a valid state, once', async () => {

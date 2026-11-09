@@ -47,7 +47,7 @@ async function parse<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
 }
 
 export function emailAuthEnabled(env: Env): boolean {
-  return env.EMAIL_AUTH_ENABLED === 'true' && Boolean(env.RESEND_API_KEY?.trim()) && (env.EMAIL_AUTH_HMAC_SECRET?.trim().length ?? 0) >= 32
+  return Boolean(env.RESEND_API_KEY?.trim()) && (env.EMAIL_AUTH_HMAC_SECRET?.trim().length ?? 0) >= 32
 }
 
 function requireEmailAuth(env: Env) {

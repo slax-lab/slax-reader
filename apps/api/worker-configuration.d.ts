@@ -17,8 +17,6 @@ interface __BaseEnv_Env {
 
   EMAIL_AUTH_FROM?: string
 
-  EMAIL_AUTH_ENABLED?: string
-
   DEEPSEEK_API_KEY?: string
 
   VECTOR_REFRESH_SECRET?: string
