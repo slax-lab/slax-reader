@@ -19,3 +19,7 @@
 - [x] 3.4 Publish one owner aggregate to every owner Collection and keep missing members strict; rebuild the owner on Collection events and refresh routes; verify equality with a full Collection refresh and recovery once the member vector exists.
 - [x] 3.5 Make the article Workflow hand over the previous representative vector and apply then verify in one retried step; verify concurrent applies combine into fewer batches with the expected weights and that a stale visible record is republished.
 - [x] 3.6 Run generation, typecheck, lint, full tests, strict OpenSpec, four-Worker dry-run builds and the scoped pre-push review; record the evidence before updating the pull request.
+
+## 4. Layer architecture test
+
+- [x] 4.1 Add an API-wide layer test with a ratcheting baseline, at the maintainer's direction on this branch; verify every detector on flagged and allowed samples, that a new violation and a fixed baselined one each fail, and that this branch adds no violation.

@@ -50,7 +50,18 @@ On 2026-11-09 the human replaced the D1 conditional-write design with one SQLite
 
 ## Pull request review follow-up
 
-The automated reviews of `122a1dd`, `451a105`, `22d3eb6` and `ebc4831` raised Nits about the D1 row limit, the publish race window, D1 state keys, the operator help text, archive-time narrowing of `vector-bulk-sync`, coverage forwarding and the ledger presence flag. The help text, archive note and coverage forwarding remain in place. The D1 row limit, state keys, presence flag and publish-race findings applied to the replaced D1 design and no longer have code to act on.
+The automated reviews of `122a1dd`, `451a105`, `22d3eb6` and `ebc4831` raised Nits about the D1 row limit, the publish race window, D1 state keys, the operator help text, archive-time narrowing of `vector-bulk-sync`, coverage forwarding and the ledger presence flag. The help text, archive note and coverage forwarding remain in place. The D1 row limit, state keys, presence flag and publish-race findings applied to the replaced D1 design and no longer have code to act on. The review of `12b4394` reported no Important findings and five Nits: unreadable stored state blocks a user until its storage is cleared, a combined batch returns every call's results to each caller, an unchanged Collection keeps its earlier `state_version`, the object trusts the caller's `userId`, and the layer test was not recorded in this change. The last is recorded in section 4 of the tasks and the section above. The batch results and the unchanged Collection path are intended, because every caller verifies every returned record and verification accepts a matching token. Recovering from unreadable state and checking the object identity were left for the maintainer to decide, as hardening for cases that do not occur today.
+
+## Layer architecture test
+
+On 2026-11-09 the maintainer asked for an API-wide architecture test on this branch rather than a separate pull request. It is test-only and changes no runtime behavior. `apps/api/test/script/layerArchitecture.test.ts`, with its analyzer in `apps/api/test/helpers/layerRules.ts`, parses every file under `apps/api/src`:
+
+- Imports follow `entry` > `di` > `handler` > `domain` > `infra` > `utils` > `const`/`decorators`, with `middleware` beside `handler` above `utils`. Static, dynamic, re-export and type-only imports count, and a file in an unknown directory fails.
+- Outside `infra`, the test rejects `fetch`, WebSocket-style globals, Cloudflare bindings read from `worker-configuration.d.ts`, Prisma model and raw calls with models read from the Prisma schemas, raw SQL literals, and value imports of I/O SDKs. `di` may build clients; `entry` may only forward to another Worker or Durable Object.
+- Classes imported from `infra` are constructed only in `infra`, `di` or `entry`.
+- Existing violations, 175 across 105 file and rule entries, are listed in `layerArchitecture.baseline.json`. A new violation or a higher count fails with its file, line and rule; a fixed violation fails until its entry is lowered or removed.
+
+Evidence: the layer test passed 35 cases, including detector self-tests for every rule and a config test that the allowed-dependency map is acyclic. Mutation check on real source, restored afterwards: adding `fetch(...)` and `env.KV.get(...)` to `src/domain/tag.ts` fails the new-violation test with both lines, and removing the `middleware -> domain` import from `src/middleware/requestLog.ts` fails the stale-baseline test. This branch adds no violation. Strict `tsc --noEmit` over the two new files passed. The full API suite passed 3,896 tests with 117 existing environment-gated skips (244 files).
 
 ## Review and delivery boundaries
 
