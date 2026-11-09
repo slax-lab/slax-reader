@@ -23,12 +23,22 @@ final class LegacyReset {
     try files.removeItem(at: file)
   }
 
+  private func validate(_ file: URL) throws {
+    guard file.resolvingSymlinksInPath().path == file.standardizedFileURL.path,
+          (try? files.destinationOfSymbolicLink(atPath: file.path)) == nil else { throw CocoaError(.fileReadNoPermission) }
+    guard exists(file) else { return }
+    if try file.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true {
+      for child in try files.contentsOfDirectory(at: file, includingPropertiesForKeys: [.isDirectoryKey]) { try validate(child) }
+    }
+  }
+
   func prepare() throws -> Bool {
-    guard exists(marker) || suffixes.contains(where: { exists(URL(fileURLWithPath: legacy.path + $0)) }) else { return false }
-    guard marker.resolvingSymlinksInPath().path == marker.standardizedFileURL.path else { throw CocoaError(.fileReadNoPermission) }
+    let legacyFiles = suffixes.map { URL(fileURLWithPath: legacy.path + $0) }
+    guard exists(marker) || legacyFiles.contains(where: { exists($0) }) else { return false }
+    let targets = legacyFiles + ["bookmark", "pdf", "slax-react-native"].map { support.appendingPathComponent($0) }
+    for target in [marker, shared.appendingPathComponent("user.preferences_pb")] + targets { try validate(target) }
     if !exists(marker) { try Data().write(to: marker, options: .atomic) }
-    for path in ["bookmark", "pdf", "slax-react-native"] { try remove(support.appendingPathComponent(path)) }
-    for suffix in suffixes { try remove(URL(fileURLWithPath: legacy.path + suffix)) }
+    for target in targets { try remove(target) }
     return true
   }
 

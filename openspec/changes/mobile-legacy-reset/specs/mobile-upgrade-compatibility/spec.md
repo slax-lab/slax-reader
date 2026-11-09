@@ -37,9 +37,9 @@ On Android and iOS, a recognized old Kotlin installation SHALL discard its old l
 - **AND** it downloads cloud data after connectivity returns without resetting again
 
 #### Scenario: A deletion target is outside the owned storage boundary
-- **WHEN** a historical path or redirected child directory points outside an approved application storage slot
-- **THEN** the application does not delete or open that target
-- **AND** it reports a bounded local I/O recovery condition without treating an unsafe reset as complete
+- **WHEN** any cleanup target or child directory is redirected away from its approved application storage slot
+- **THEN** the application rejects the reset before creating a new reset marker or deleting any old/new database, cache or preference data
+- **AND** repeated attempts preserve the same data until the unsafe path is corrected; a later safe attempt can complete normal reset
 
 ## MODIFIED Requirements
 

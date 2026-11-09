@@ -6,6 +6,16 @@ The owner approved fixed-path legacy reset on 2026-11-09, explicitly accepted lo
 
 Only Android `emulator-5586` and task-created iOS simulator `2E426083-8135-4796-AF54-69A5AA85AAF9` (Slax Legacy Reset 20261109, iOS 27.0) were targeted in this acceptance round. No physical device was inspected, installed, cleared or operated. Private environment/signing/configuration files were not read; builds used `SLAX_MOBILE_NO_LOCAL_CONFIG=1 EXPO_NO_DOTENV=1` and test-only public-debug/ad-hoc signing.
 
+## Human hands-on acceptance — completed
+
+- **Who:** the requesting project owner, directly in the task conversation.
+- **Date confirmed:** 2026-11-09.
+- **What was accepted:** the implemented application running in the simulator. The owner inspected the interface, confirmed it was normal, and explicitly clarified that this inspection was their completed acceptance.
+- **Requested adjustments:** no visual adjustment. The owner requested accurate documentation of the storage-only scope and correction of the reset preflight ordering defect identified during review.
+- **Result:** human hands-on acceptance is complete. The previous statements denying human acceptance or describing it as a waiver were incorrect assistant-authored records and are removed.
+
+This is exceptional local-database upgrade/recovery handling, not a UI redesign. Layout, styles, icons, navigation structure and normal Library/Reader/Login presentation are unchanged. `LibraryDataStatus.tsx` only drops the obsolete migration-verification error branch with its retired database admission mechanism. Automated database fault injection and external-provider test boundaries are documented separately below.
+
 ## Test boundaries
 
 Old database/preferences came from the real pinned PowerSync Kotlin 1.14.1 producers: four operations in two transactions, old cache and AndroidX preference data. These are synthetic fixtures, not the original Play-signed 1.0.24 package or an affected user's database. The iOS wrapper needed UIKit scene lifecycle to launch under the installed Xcode SDK; the old Kotlin data writer and dependencies are unchanged.
@@ -64,13 +74,26 @@ Successful screenshot manifest: `.local/ios-ui-clean-screens/manifest.json`. Loc
 
 - **Bugs:** reviewed marker-before-deletion/finish-before-new-writes ordering, fixed old/new slot separation, pending sign-out precedence, malformed preference fallback and normal Expo negative controls. No unresolved Important implementation finding remains in these reviewed paths; the native interruption matrix below remains an explicit verification gap.
 - **Security:** reviewed fixed app-owned paths, canonical/symlink guards, native ownership, no cloud deletion and no production credential access. The test provider requires development mode plus the exact loopback origin; resolver tests prove production App/runtime/screens are unchanged. Unrelated generated Firebase-mode drift was removed. No unresolved Important security finding identified.
-- **Compliance:** fixed-path simplification and build 804 match explicit owner decisions. Tests distinguish real local synchronization from synthetic external OAuth. After reviewing the reported simulator flows, the owner explicitly instructed that this is not a UI redesign, that separate manual acceptance is not required for these scenarios, and that the agent must open the PR directly. This task-specific instruction supersedes the earlier delivery hold; it is not recorded as human hands-on execution. No unresolved Important implementation finding remains in the reviewed scope.
+- **Compliance:** fixed-path simplification and build 804 match explicit owner decisions. Human hands-on acceptance is complete and recorded above: the owner inspected the running simulator app, confirmed the interface was normal, and explicitly confirmed acceptance. No visual redesign is included. Automated synchronization/authentication tests retain their separately stated boundaries.
 
 ## Delivery decision and limitations
 
-On 2026-11-09 the owner explicitly authorized direct PR submission after simulator flow verification and confirmed build 804. No manual hands-on test by the owner is claimed. Native crash-at-every-deletion-boundary on both platforms and production Google/Apple/store validation are not claimed: production Kotlin/Swift interruption tests, genuine old SDK producers, actual native app UI, local HTTP login acceptance, real isolated PowerSync refill and cold-start flows are the evidence actually obtained. The remaining exhaustive interruption matrix is tracked in tasks.md and is not marked complete. The PR does not authorize merge, deployment or publication.
+On 2026-11-09 the owner confirmed human acceptance, approved build 804 and authorized PR submission. Production Google/Apple/store validation and native crash-at-every-deletion-boundary are not claimed: production Kotlin/Swift interruption tests, genuine old SDK producers, actual native app UI, local HTTP login acceptance, real isolated PowerSync refill and cold-start flows are the automated evidence obtained. The remaining exhaustive interruption matrix is tracked in tasks.md and is not marked complete. The PR does not authorize merge, deployment or publication.
 
 
 ## Pull request delivery
 
 On 2026-11-09 implementation commit `412294c42bc76f13773877e22a40ceecb42b4893` was committed with normal hooks and pushed to `fix/mobile-legacy-reset`. PR **#547** targets `dev`: https://github.com/slax-lab/slax-reader/pull/547. Its body includes five reviewed Android/iOS screenshots and explicit synthetic-provider/remaining-interruption boundaries. Initial inspection confirmed OPEN, non-draft, MERGEABLE and REVIEW_REQUIRED; CI and remote review were still running. No merge, deployment or store publication occurred. The delivery worktree was clean after the implementation push; this follow-up records the PR receipt.
+
+
+## PR review correction: validate before mutation
+
+On 2026-11-09 the owner requested correction of the reviewed reset-order defect. Previously `prepare()` created the marker and deleted cache/new storage before checking a redirected legacy database path. The original tests only protected the external sentinel and missed this internal data loss.
+
+- Added Kotlin and Swift regression assertions for redirected old database, WAL, bookmark cache root, PDF cache root, new database directory, legacy preference file, and nested cache child. Repeated rejection must preserve old/new databases, cache, both preference files and the external sentinel, and must not create a reset marker. After correcting the path, normal reset must succeed.
+- Confirmed the unfixed production Kotlin helper fails the strengthened test with `Rejected reset left a marker` (`.local/reset-order-before.log`).
+- Both production helpers now preflight every cleanup path and directory descendant before creating the marker or deleting any target. There is no new schema migration, recovery framework or speculative race mechanism.
+- Corrected Kotlin and Swift helpers pass all preservation/retry/idempotence cases (`.local/reset-order-after.log`).
+- Full `pnpm mobile -- check` passes **1,205 tests, zero failures/skips** after the fix. `pnpm agent:check` passes generated guidance, 117 strict OpenSpec items and workflow drift.
+- Android native build and clean generated iOS simulator build both pass with the corrected helper (`.local/reset-order-android-build.log`, `.local/reset-order-ios-build.log`). This correction was tested through production filesystem helpers, runtime regression and native compilation; the earlier simulator UI evidence remains separately identified rather than falsely claimed rerun.
+- Human acceptance is complete as recorded above. The owner's simulator acceptance was previously misstated by the assistant; contradictory denial/waiver wording is corrected in all current change artifacts, release notes and PR text.

@@ -21,12 +21,21 @@ internal class LegacyReset(private val root: File, private val files: File, priv
     check(file.delete()) { "Cannot remove legacy application storage" }
   }
 
+  private fun validate(file: File) {
+    check(file.canonicalFile == file.absoluteFile && !Files.isSymbolicLink(file.toPath())) { "Cannot reset redirected application storage" }
+    if (file.isDirectory) {
+      val children = file.listFiles() ?: error("Cannot read application cache directory")
+      children.forEach { validate(it) }
+    }
+  }
+
   fun prepare(): Boolean {
-    if (!exists(marker) && suffixes.none { exists(File(legacy.path + it)) }) return false
-    check(marker.canonicalFile == marker.absoluteFile) { "Cannot reset redirected application storage" }
+    val legacyFiles = suffixes.map { File(legacy.path + it) }
+    if (!exists(marker) && legacyFiles.none { exists(it) }) return false
+    val targets = legacyFiles + listOf(File(root, "bookmark"), File(files, "pdf"), databaseDirectory)
+    (listOf(marker, File(files, "user.preferences_pb")) + targets).forEach { validate(it) }
     if (!exists(marker)) check(marker.createNewFile()) { "Cannot begin legacy storage reset" }
-    listOf(File(root, "bookmark"), File(files, "pdf"), databaseDirectory).forEach { remove(it) }
-    suffixes.forEach { remove(File(legacy.path + it)) }
+    targets.forEach { remove(it) }
     return true
   }
 
