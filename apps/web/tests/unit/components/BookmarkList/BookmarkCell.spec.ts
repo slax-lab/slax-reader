@@ -73,6 +73,7 @@ const BookmarkTagsStub = defineComponent({
     bookmarkUuid: { type: [String, Number], default: '' },
     compact: { type: Boolean, default: false },
     variant: { type: String, default: '' },
+    dataSource: { type: String, default: 'rest' },
     readonly: { type: Boolean, default: false }
   },
   emits: ['change', 'select-tag'],
@@ -497,6 +498,22 @@ describe('components/BookmarkList/BookmarkCell', () => {
       const child = wrapper.findComponent(BookmarkTagsStub)
       // REST 下没有 local-first uuid，传空串；bookmarkId 是 hashid
       expect(child.props()).toMatchObject({ bookmarkId: 1000001, bookmarkUid: 'uid-1', bookmarkUuid: '', compact: true, readonly: false, tags, variant: 'list-card' })
+    })
+
+    it('preserves REST row identity when the injected adapter has no writer', () => {
+      const wrapper = mountWithApp(BookmarkCell, {
+        props: { bookmark: makeBookmarkItem({ tags }), isSubscribe: false, dataSource: 'rest' },
+        global: { stubs: { BookmarkTags: BookmarkTagsStub }, provide: { [LocalFirstAdapterKey as symbol]: { bookmarkActions: () => null } } }
+      })
+      expect(wrapper.findComponent(BookmarkTagsStub).props()).toMatchObject({ bookmarkId: 1000001, bookmarkUuid: '', dataSource: 'rest' })
+    })
+
+    it('keeps a local row identity local even without a writer', () => {
+      const wrapper = mountWithApp(BookmarkCell, {
+        props: { bookmark: makeBookmarkItem({ id: 'local-bookmark' as unknown as number, tags }), isSubscribe: false, dataSource: 'local' },
+        global: { stubs: { BookmarkTags: BookmarkTagsStub }, provide: { [LocalFirstAdapterKey as symbol]: { bookmarkActions: () => null } } }
+      })
+      expect(wrapper.findComponent(BookmarkTagsStub).props()).toMatchObject({ bookmarkId: 0, bookmarkUuid: 'local-bookmark', dataSource: 'local' })
     })
 
     it('无 tags：子组件仍渲染（自带 "+"）', () => {

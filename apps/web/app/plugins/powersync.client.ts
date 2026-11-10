@@ -9,8 +9,8 @@ import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
 import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
 import { shouldUsePowerSyncSharedWorker } from '~/local-first/powersync-worker-policy'
+import { isFastPublicPath, type PublicTokenState, shouldBypassPublicDatabase } from '~/local-first/public-startup-policy'
 import { AppSchema } from '~/local-first/schema'
-import { isFastPublicPath, shouldBypassPublicDatabase, type PublicTokenState } from '~/local-first/public-startup-policy'
 import { POWER_SYNC_DATABASE_GENERATION, POWER_SYNC_LOCAL_DATA_VERSION } from '~/local-first/version'
 
 const LAST_USER_KEY = 'slax:powersync:lastUser'
@@ -63,6 +63,12 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
         error: event.error
       })
       break
+    case 'unavailable':
+      powerSyncConsole.error('[powersync] local database initialization unavailable; using REST fallback', {
+        attemptedModes: event.attemptedModes,
+        stopReason: event.stopReason
+      })
+      break
     case 'fallback':
       powerSyncConsole.warn('[powersync] changing recovery mode', { from: event.from, to: event.to })
       break
@@ -105,6 +111,9 @@ export default defineNuxtPlugin({
         powersyncPublicBypass: bypassed
       }
     })
+    const recoveringSnapshotSession = useSnapshotSessionRecoveryPending()
+    const snapshotNavigation = useSnapshotSessionNavigation()
+    if (recoveringSnapshotSession.value) return unavailable()
     const publicStartupEnabled = Boolean(useAppConfig().lcp?.anonymousPublicStartup)
     const initialPathname = window.location.pathname
     const topLevel = window.parent === window
@@ -134,6 +143,13 @@ export default defineNuxtPlugin({
           baseUrl: cfg.DWEB_API_BASE_URL as string,
           authToken,
           onUnauthorized: async () => {
+            if (recoveringSnapshotSession.value || snapshotNavigation.value) return
+            const snapshot = /^\/b\/([^/]+)\/?$/.exec(window.location.pathname)
+            if (window.parent === window && snapshot) {
+              // Let the current snapshot's metadata decide recovery and retain its URL.
+              await nuxtApp.runWithContext(() => refreshNuxtData(`content-${snapshot[1]}`))
+              return
+            }
             await useAuth().clearAuth()
             clearSyncCredsCache()
             notifyExtensionBridgeAuthExpired()
@@ -189,16 +205,17 @@ export default defineNuxtPlugin({
             await database.init()
             return { database, mode: 'main' as const }
           } catch (error) {
-            powerSyncConsole.error('[powersync] main-thread database initialization failed', { error })
+            powerSyncConsole.error('[powersync] local database initialization unavailable; using REST fallback', {
+              attemptedModes: ['main'],
+              reason: 'initialization-error',
+              error
+            })
             return { database: null, mode: 'rest' as const }
           }
         })()
 
     const db = recovery.database
-    if (!db) {
-      powerSyncConsole.error('[powersync] all database modes failed; using REST fallback')
-      return unavailable()
-    }
+    if (!db) return unavailable()
 
     powerSyncConsole.info('[powersync] database ready', { mode: recovery.mode, dbFilename: DATABASE_FILENAME })
 

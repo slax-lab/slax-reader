@@ -278,7 +278,7 @@ describe('diagnostic capability verification and removal', () => {
     expect(f.objects.size).toBe(1)
     expect(f.bucket.get).not.toHaveBeenCalled()
   })
-  test('account cleanup removes diagnostic objects without deleting or changing feedback rows', async () => {
+  test.each([false, true])('account cleanup admits vector targets before removing diagnostic objects and remaining data (dispatchFailure=%s)', async dispatchFailure => {
     const f = fixture(),
       metadata = await uploadDiagnostic(f.env, 7, bytes),
       order: string[] = []
@@ -294,19 +294,55 @@ describe('diagnostic capability verification and removal', () => {
         throw new Error('stop fixture after diagnostic cleanup')
       })
     }
+    const vectorRepo = {
+      listUserBookmarkIds: vi.fn().mockResolvedValue([{ id: 10, bookmark_id: 42 }]),
+      listOwnerCollections: vi.fn().mockResolvedValue([{ id: 3 }]),
+      listSubscriberUsers: vi.fn().mockResolvedValue([{ id: 20, user_id: 8 }])
+    }
+    const createWorkflow = vi.fn(async (_params: unknown) => {
+      order.push('vector dispatch')
+      if (dispatchFailure) throw new Error('vector admission unavailable')
+      return { id: 'maintenance' }
+    })
+    const env = { ...f.env, VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch: async (items: unknown[]) => Promise.all(items.map(item => createWorkflow(item))) } } as unknown as Env
     f.bucket.delete.mockImplementation(async keys => {
       order.push('objects')
       for (const key of Array.isArray(keys) ? keys : [keys]) f.objects.delete(key)
     })
-    const deletion = new UserDeletionService((() => pg) as never, {} as never, {} as never)
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    await expect(deletion.cleanupUserData(7, f.env)).rejects.toThrow('stop fixture')
-    expect(order).toEqual(['objects', 'remaining cleanup'])
-    expect(f.objects.size).toBe(0)
-    expect(pg.sr_user_report.findMany).toHaveBeenCalledWith({ where: { user_id: 7 }, select: { user_id: true, extra_data: true } })
-    expect(pg.sr_user_report.deleteMany).not.toHaveBeenCalled()
-    expect(pg.sr_user_report.updateMany).not.toHaveBeenCalled()
-    expect(reports).toEqual(before)
+    const deletion = new UserDeletionService((() => pg) as never, {} as never, {} as never, vectorRepo as never)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      if (dispatchFailure) {
+        await expect(deletion.cleanupUserData(7, env)).rejects.toThrow('vector admission unavailable')
+        expect(order).toEqual(['vector dispatch'])
+        expect(createWorkflow).toHaveBeenCalledOnce()
+        expect(vectorRepo.listUserBookmarkIds).toHaveBeenCalledWith(7, 0, 50)
+        expect(vectorRepo.listOwnerCollections).not.toHaveBeenCalled()
+        expect(pg.sr_user_report.findMany).not.toHaveBeenCalled()
+        expect(f.objects.size).toBeGreaterThan(0)
+      } else {
+        await expect(deletion.cleanupUserData(7, env)).rejects.toThrow('stop fixture after diagnostic cleanup')
+        expect(order).toEqual(['vector dispatch', 'vector dispatch', 'vector dispatch', 'vector dispatch', 'vector dispatch', 'objects', 'remaining cleanup'])
+        const targets = createWorkflow.mock.calls.map(([params]) => (params as { params: { target: unknown } }).params.target)
+        expect(targets).toEqual([
+          { kind: 'article', userId: 7, id: 42 },
+          { kind: 'collection', id: 3 },
+          { kind: 'user', id: 8, preference: 'collection' },
+          { kind: 'user', id: 7, preference: 'article' },
+          { kind: 'user', id: 7, preference: 'collection' }
+        ])
+        expect(vectorRepo.listUserBookmarkIds).toHaveBeenCalledWith(7, 0, 50)
+        expect(vectorRepo.listOwnerCollections).toHaveBeenCalledWith(7)
+        expect(vectorRepo.listSubscriberUsers).toHaveBeenCalledWith(3, 0, 50)
+        expect(f.objects.size).toBe(0)
+        expect(pg.sr_user_report.findMany).toHaveBeenCalledWith({ where: { user_id: 7 }, select: { user_id: true, extra_data: true } })
+        expect(pg.sr_user_report.deleteMany).not.toHaveBeenCalled()
+        expect(pg.sr_user_report.updateMany).not.toHaveBeenCalled()
+        expect(reports).toEqual(before)
+      }
+    } finally {
+      log.mockRestore()
+    }
   })
   test('deletion unavailable storage fails for retry rather than losing removal metadata', async () => {
     const f = fixture(),

@@ -357,8 +357,8 @@ onMounted(() => {
   box-shadow:
     0 8px 32px rgba(var(--slax-modal-overlay-rgb), 0.06),
     0 0 0 1px rgba(var(--slax-overlay-white-rgb), 0.85) inset;
-  backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
 }
 
 .kind-card__header {

@@ -1,6 +1,6 @@
 import { isServerTimingEnabled } from './serverTiming'
 import { isPdfContentKey } from '@slax-reader/contracts/pdf'
-import { createError, getCookie, getHeader, getResponseHeader, type H3Event, setResponseHeader } from 'h3'
+import { createError, getCookie, getHeader, getResponseHeader, type H3Event, isError, setResponseHeader } from 'h3'
 
 export interface ContentResult {
   metadata: ContentMeta
@@ -49,6 +49,7 @@ export async function loadContent(event: H3Event, uuid: string): Promise<Content
     if (timingEnabled && serverTiming) setResponseHeader(event, 'Server-Timing', serverTiming)
 
     if (response.status === 404) return null
+    if (response.status === 401 || response.status === 403) throw createError({ statusCode: response.status, message: 'content access denied' })
     if (!response.ok) throw new Error(`content meta returned ${response.status}`)
 
     const parseStartedAt = performance.now()
@@ -63,6 +64,7 @@ export async function loadContent(event: H3Event, uuid: string): Promise<Content
     const [metaResult] = await Promise.allSettled([backendPromise])
 
     if (metaResult.status === 'rejected') {
+      if (isError(metaResult.reason) && (metaResult.reason.statusCode === 401 || metaResult.reason.statusCode === 403)) throw metaResult.reason
       console.error(`[content] get ${uuid} failed to load metadata from BACKEND:`, metaResult.reason)
       throw createError({ statusCode: 500, message: 'content service error' })
     }

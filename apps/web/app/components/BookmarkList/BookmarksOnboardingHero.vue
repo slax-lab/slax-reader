@@ -377,7 +377,8 @@ onUnmounted(() => {
     box-shadow:
       var(--slax-shadow-sm),
       inset 0 1px 0 var(--slax-inset-hi);
-    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: var(--slax-blur);
+    backdrop-filter: var(--slax-blur);
     pointer-events: none;
   }
 

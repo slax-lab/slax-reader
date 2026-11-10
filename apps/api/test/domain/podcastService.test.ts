@@ -1,6 +1,6 @@
 import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 /**
- * PodcastService: visibility, starts after a save, the daily and budget limits, retries, writing
+ * PodcastService: visibility, starts after a save, uncapped starts, retries, writing
  * the article into bookmark bodies, moderation, translations, and the sweep. Repositories are
  * in-memory stand-ins with the same state rules; the SQL is covered by podcastRepo.integration.test.ts.
  * 来源: src/domain/podcast.ts, docs/podcast-article/spec.md 第 4、5、6 节、第 9 节
@@ -71,8 +71,8 @@ function episodes() {
       return true
     }),
     requeue: vi.fn(async (id: number) => {
-      const r = rows.find(x => x.id === id && x.transcript_status === 'failed')
-      if (!r || /^(too_long|no_speech|language_unsupported|moderation|budget_exceeded|no_audio)/.test(r.error_message ?? '')) return false
+      const r = rows.find(x => x.id === id && ['failed', 'skipped'].includes(x.transcript_status))
+      if (!r || /^(no_speech|language_unsupported|moderation|no_audio)/.test(r.error_message ?? '')) return false
       Object.assign(r, { transcript_status: 'pending', retry_count: 0, next_retry_at: new Date(), error_message: null })
       return true
     }),
@@ -144,8 +144,8 @@ function articles() {
       return repo.add({ source_id: input.source_id, source_hash: input.source_hash, target_language: input.target_language })
     }),
     requeue: vi.fn(async (id: number) => {
-      const r = rows.find(x => x.id === id && x.status === 'failed')
-      if (!r || /^(too_long|budget_exceeded)/.test(r.error_message ?? '')) return false
+      const r = rows.find(x => x.id === id && ['failed', 'skipped'].includes(x.status))
+      if (!r) return false
       Object.assign(r, { status: 'pending', retry_count: 0, next_retry_at: new Date(), error_message: null })
       return true
     }),
@@ -226,8 +226,21 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
   const users = opts.users ?? { [OWNER]: { ai_lang: '', lang: 'en' }, [VISITOR]: { ai_lang: 'zh', lang: 'zh' } }
   const labOn = new Set(opts.labOn ?? [OWNER])
   const ub = { user_id: OWNER, deleted_at: null as Date | null, metadata: { share: { is_enable: true } } as unknown, moderation_result: 0 }
-  const bookmarks = new Map<number, { title: string; content_key: string | null; content_md_key: string | null; moderation_result: number }>([
-    [BOOKMARK, { title: 'Ep', content_key: 'html/body/u1.html', content_md_key: 'text/body/u1.txt', moderation_result: 0 }]
+  const bookmarks = new Map<number, any>([
+    [
+      BOOKMARK,
+      {
+        id: BOOKMARK,
+        title: 'Ep',
+        content_key: 'html/body/u1.html',
+        content_md_key: 'text/body/u1.txt',
+        moderation_result: 0,
+        status: 'success',
+        private_user: OWNER,
+        updated_at: new Date('2026-01-01'),
+        userBookmarks: [{ uuid: UUID, user_id: OWNER }]
+      }
+    ]
   ])
   const bookmarkService = {
     getUserBookmarkByUuidWithDetail: vi.fn(async (uuid: string) =>
@@ -243,7 +256,10 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
           }
         : null
     ),
-    getBookmarkById: vi.fn(async (id: number) => bookmarks.get(id) ?? null),
+    getBookmarkById: vi.fn(async (id: number) => {
+      const row = bookmarks.get(id)
+      return row ? { id, status: 'success', private_user: OWNER, updated_at: new Date('2026-01-01'), userBookmarks: [{ uuid: UUID, user_id: OWNER }], ...row } : null
+    }),
     updateBookmarkModerationResult: vi.fn(async () => ({})),
     disableBookmarkShare: vi.fn(async () => ({})),
     // The real access rule; the share record comes from ub.metadata.share
@@ -259,8 +275,19 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
       )
     )
   }
-  const bookmarkRepo = { updateBookmarkWordCount: vi.fn(async () => ({})), deleteBookmarkSummary: vi.fn(async () => ({})) }
-  const forkRepo = { claimWrite: vi.fn(async () => true), releaseWrite: vi.fn(async () => true), failWrite: vi.fn(async () => true), publishRevision: vi.fn(async () => true) }
+  const bookmarkRepo = {
+    updateBookmarkWordCount: vi.fn(async () => ({})),
+    deleteBookmarkSummary: vi.fn(async () => ({})),
+    getUserBookmark: vi.fn(async () => ({ id: BOOKMARK, uuid: UUID, deleted_at: null, type: 0 }))
+  }
+  const forkRepo = {
+    claimWrite: vi.fn(async () => true),
+    releaseWrite: vi.fn(async () => true),
+    failWrite: vi.fn(async () => true),
+    publishRevision: vi.fn(async () => true),
+    mediaRef: vi.fn(async () => ({ media_kind: 'podcast', source_id: SOURCE, source_hash: HASH })),
+    mediaDenied: vi.fn(async () => false)
+  }
   const searchService = { addSearchRecord: vi.fn(async () => [{ status: 'fulfilled', value: [] }]) }
   const labService = {
     isEnabled: vi.fn(async (userId: number) => labOn.has(userId)),
@@ -288,6 +315,7 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     }
   }
   const alertBot = { crawl: { pushMessage: vi.fn(async () => {}) } }
+  const snapshots = createMockMediaSnapshots()
   const service = new (PodcastService as any)(
     eps,
     arts,
@@ -305,8 +333,13 @@ function wire(opts: { users?: Record<number, { ai_lang: string; lang: string }>;
     () => redis,
     () => bucket,
     alertBot,
-    createMockMediaSnapshots()
+    snapshots
   ) as PodcastService
+  snapshots.load.mockImplementation(async () => ({
+    raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
+    media: null,
+    managed: false
+  }))
   const create = vi.fn(async () => ({}))
   const ctx = (userId: number) => {
     const c = createMockCtx({ userId })
@@ -342,25 +375,22 @@ describe('triggerAfterCrawl', () => {
     expect(w2.create).not.toHaveBeenCalled()
   })
 
-  test('a new episode counts against the day and starts the workflow', async () => {
+  test('a new episode starts without a daily counter', async () => {
     const w = wire()
     const ep = w.eps.add()
     await w.service.triggerAfterCrawl(w.ctx(OWNER), BOOKMARK, OWNER)
     expect(w.create).toHaveBeenCalledWith({ id: expect.stringMatching(new RegExp(`^pod-${SOURCE}-`)), params: { episodeId: ep.id, sourceId: SOURCE, trigger: 'crawl' } })
-    expect(w.redis.store.get(`podcast:${OWNER}:${today()}`)).toBe(1)
+    expect(w.redis.store.get(`podcast:${OWNER}:${today()}`)).toBeUndefined()
   })
 
-  test('the sixth new episode of the day does not start; status says limit_reached and offers retry', async () => {
+  test('the sixth new episode starts despite the former daily counter', async () => {
     const w = wire()
     w.eps.add()
     w.redis.store.set(`podcast:${OWNER}:${today()}`, 5)
     await w.service.triggerAfterCrawl(w.ctx(OWNER), BOOKMARK, OWNER)
-    expect(w.create).not.toHaveBeenCalled()
+    expect(w.create).toHaveBeenCalledOnce()
     expect(w.redis.store.get(`podcast:${OWNER}:${today()}`)).toBe(5)
-    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ transcript: 'pending', reason: 'limit_reached', can_retry: true })
-    const retried = await w.service.retry(w.ctx(OWNER), UUID)
-    expect(retried).toMatchObject({ reason: 'limit_reached', can_retry: false })
-    expect(w.create).not.toHaveBeenCalled()
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ transcript: 'pending', reason: null })
   })
 
   test('an episode that is already done: the body is copied at once, no workflow, no daily count', async () => {
@@ -451,10 +481,14 @@ describe('getStatus and getTranslation', () => {
     expect(await w.service.getStatus(w.ctx(VISITOR), UUID)).toMatchObject({ transcript: 'ready', article: 'generating', reason: null, can_retry: false })
   })
 
-  test('skipped episodes report the reason without retry for final ones', async () => {
+  test('episodes skipped by the removed duration cap offer explicit retry', async () => {
     const w = wire()
     w.eps.add({ transcript_status: 'skipped', error_message: 'too_long' })
-    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ transcript: 'skipped', reason: 'too_long', can_retry: false })
+    expect(w.create).not.toHaveBeenCalled()
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ transcript: 'skipped', reason: 'too_long', can_retry: true })
+    await w.service.retry(w.ctx(OWNER), UUID)
+    expect(w.create).toHaveBeenCalledOnce()
+    expect(w.eps.rows[0].transcript_status).toBe('pending')
   })
 })
 
@@ -467,8 +501,21 @@ describe('retry', () => {
     expect(ep.transcript_status).toBe('pending')
     expect(w.create).toHaveBeenCalledWith(expect.objectContaining({ params: { episodeId: ep.id, sourceId: SOURCE, trigger: 'retry' } }))
     ep.transcript_status = 'failed'
-    ep.error_message = 'too_long'
+    ep.error_message = 'language_unsupported'
     await expect(w.service.retry(w.ctx(OWNER), UUID)).rejects.toMatchObject({ name: ErrorName.ERROR_PARAM })
+  })
+
+  test.each(['too_long', 'budget_exceeded'])('an owner retries a skipped article with %s without losing its cost', async error => {
+    const w = wire()
+    const { en } = w.readyEpisode()
+    Object.assign(en, { status: 'skipped', error_message: error, cost_usd: 10, lifetime_cost_usd: 12 })
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ article: 'skipped', can_retry: true })
+    expect(w.create).not.toHaveBeenCalled()
+    await expect(w.service.retry(w.ctx(VISITOR), UUID)).rejects.toMatchObject({ name: ErrorName.BOOKMARK_NOT_FOUND })
+    await w.service.retry(w.ctx(OWNER), UUID)
+    expect(en).toMatchObject({ status: 'pending', cost_usd: 10, lifetime_cost_usd: 12, error_message: null })
+    expect(w.arts.requeue).toHaveBeenCalledWith(en.id, true)
+    expect(w.create).toHaveBeenCalledOnce()
   })
 
   test('a failed article is requeued; visitors cannot retry', async () => {
@@ -523,14 +570,14 @@ describe('bodies, moderation, translations', () => {
 })
 
 describe('limits and sweep', () => {
-  test('over the site budget: deferred an hour, one alert', async () => {
+  test('starts above the former site budget without a pause alert', async () => {
     const w = wire()
     const ep = w.eps.add()
     w.redis.store.set(`podcast_cost:${today()}`, 30 * 1_000_000)
     await w.service.triggerAfterCrawl(w.ctx(OWNER), BOOKMARK, OWNER)
-    expect(w.create).not.toHaveBeenCalled()
-    expect(ep.next_retry_at!.getTime()).toBeGreaterThan(Date.now() + 50 * 60 * 1000)
-    expect(w.alertBot.crawl.pushMessage).toHaveBeenCalledTimes(1)
+    expect(w.create).toHaveBeenCalledOnce()
+    expect(ep.next_retry_at).toBeNull()
+    expect(w.alertBot.crawl.pushMessage).not.toHaveBeenCalled()
   })
 
   test('too many runs: deferred a minute', async () => {
@@ -567,6 +614,7 @@ describe('private podcast requests', () => {
     w.readyEpisode()
     const snapshots = (w.service as any).snapshots
     snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: {
         kind: 'podcast',
         mode: 'capture',
@@ -586,12 +634,13 @@ describe('private podcast requests', () => {
     expect(w.create).not.toHaveBeenCalled()
   })
 
-  test('a pending private transcript held by the daily limit offers an explicit retry', async () => {
+  test('a pending private transcript above the former daily limit offers an explicit retry', async () => {
     const w = wire()
     w.eps.add()
     w.redis.store.set(`podcast:${OWNER}:${today()}`, 5)
     const snapshots = (w.service as any).snapshots
     snapshots.load.mockResolvedValue({
+      raw: { id: BOOKMARK, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] },
       media: {
         kind: 'podcast',
         mode: 'capture',
@@ -605,8 +654,9 @@ describe('private podcast requests', () => {
         variants: { en: { status: 'pending' } }
       }
     })
-    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ reason: 'limit_reached', can_retry: true })
-    expect(w.create).not.toHaveBeenCalled()
+    expect(await w.service.getStatus(w.ctx(OWNER), UUID)).toMatchObject({ reason: null, can_retry: true })
+    await w.service.retry(w.ctx(OWNER), UUID)
+    expect(w.create).toHaveBeenCalledOnce()
   })
 })
 
@@ -630,7 +680,11 @@ describe('fixed body reference filtering', () => {
     w.arts.refs.unshift({ bookmark_id: 201, user_id: OWNER, source_id: SOURCE, source_hash: HASH } as any)
     ;(w.service as any).snapshots.load.mockImplementation(async (id: number) => {
       if (id === 201) throw new Error('broken manifest')
-      return null
+      return {
+        managed: false,
+        media: null,
+        raw: { id, status: 'success', updated_at: new Date('2026-01-01'), private_user: OWNER, moderation_result: 0, userBookmarks: [{ uuid: UUID, user_id: OWNER }] }
+      }
     })
     await expect(w.service.publishBodies(w.ctx(OWNER), SOURCE)).rejects.toThrow('Media body publication incomplete')
     expect(w.objects.get('html/body/u1.html')).toContain('slax-pod-article')

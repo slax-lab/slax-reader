@@ -9,7 +9,11 @@ describe('Fork service publication boundary', () => {
   let repo: any
   let bucket: ReturnType<typeof memoryBucket>
   let effects: any
-  const ctx = { getUserId: () => 2, env: { FRONT_END_URL: 'https://reader.test' }, execution: { waitUntil: vi.fn() } } as any
+  const ctx = {
+    getUserId: () => 2,
+    env: { FRONT_END_URL: 'https://reader.test', VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch: vi.fn().mockResolvedValue([]) } },
+    execution: { waitUntil: vi.fn() }
+  } as any
   beforeEach(async () => {
     bucket = memoryBucket()
     await bucket.bucket.put('original.html', '<html><body><article>Original</article></body></html>')
@@ -62,6 +66,32 @@ describe('Fork service publication boundary', () => {
     expect(result.disposition).toBe('created')
     const input = repo.publish.mock.calls[0][0]
     expect(bucket.objects.has(input.content.content_key)).toBe(true)
+  })
+
+  it.each([false, true])('maintenance dispatch failure preserves committed Fork side effects (existing=%s)', async existing => {
+    const pending: Promise<unknown>[] = []
+    const createBatch = vi.fn().mockRejectedValue(new Error('admission unavailable'))
+    const failedCtx = { ...ctx, env: { ...ctx.env, VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch } }, execution: { waitUntil: (work: Promise<unknown>) => pending.push(work) } }
+    const clearSearchCache = vi.fn().mockResolvedValue(undefined)
+    ;(service as any).search.clearSearchCache = clearSearchCache
+    if (existing) {
+      source.user_id = 2
+      repo.ownSource = vi.fn().mockResolvedValue({ uuid: 'existing', bookmark_id: 20 })
+    }
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(await service.fork(failedCtx, source.uuid)).toMatchObject({ bookmark_id: 20, disposition: existing ? 'already_saved' : 'created' })
+      await Promise.all(pending)
+      expect(createBatch).toHaveBeenCalledOnce()
+      expect(log).toHaveBeenCalledWith('[vector-maintenance] dispatch failed', expect.any(Error))
+      if (existing) expect(clearSearchCache).toHaveBeenCalledWith(failedCtx, 2)
+      else {
+        expect(effects).toHaveBeenCalledOnce()
+        expect(bucket.objects.has(repo.publish.mock.calls[0][0].content.content_key)).toBe(true)
+      }
+    } finally {
+      log.mockRestore()
+    }
   })
 
   it('reconciles COMMIT then timeout as success without deleting published objects', async () => {

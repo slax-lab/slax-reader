@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdi
 import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { releaseInputs, validateBuildConfig, buildWeb, inspectProject, stageBuild, assertConfigFree, cloudflareGet, confirmDeployment, deploymentId, deployWeb, runCommand } from './web-pages-deploy.mjs'
 
 const publicConfig = {
@@ -30,7 +31,13 @@ function fixture(t) {
   put('source/_worker.js/index.js', 'export default { fetch() { return new Response("fixture") } }')
   put('source/_worker.js/chunks/server.mjs', 'export const value = 1')
   put('source/_nuxt/client.js', 'console.log("fixture")')
-  put('source/_nuxt/client.wasm', new Uint8Array([0, 97, 115, 109]))
+  put('source/_nuxt/client.wasm', new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]))
+  const worker = 'export const load = () => import("./client.js")'
+  put('source/_nuxt/worker-v4.js', worker)
+  put('source/_nuxt/powersync-assets.json', JSON.stringify({ roots: ['/_nuxt/worker-v4.js'], assets: [
+    { path: '/_nuxt/worker-v4.js', sha256: createHash('sha256').update(worker).digest('hex') },
+    { path: '/_nuxt/client.js', sha256: createHash('sha256').update('console.log("fixture")').digest('hex') }
+  ] }))
   put('source/_routes.json', JSON.stringify({ version: 1, include: ['/b/*'], exclude: ['/_nuxt/*'] }))
   put('source/_headers', '/*\n  X-Test: fixture')
   put('source/_redirects', '/old /new 302')
@@ -173,7 +180,7 @@ for (const [branch, host] of [['dev', 'r.slax.dev'], ['beta', 'r-beta.slax.com']
     await deployWeb({ ...environment(), TARGET_BRANCH: branch }, { source, wrangler: join(root, 'wrangler.mjs'), temporaryRoot: root, interval: 1, fetchImpl: async (url, options) => {
       requests.push(url)
       if (url.endsWith('/purge_cache')) {
-        assert.equal(requests.length, 4)
+        assert.equal(requests.length, 5)
         assert.equal(url, `https://api.cloudflare.com/client/v4/zones/${'1'.repeat(32)}/purge_cache`)
         assert.equal(options.method, 'POST')
         assert.equal(options.headers.Authorization, 'Bearer fixture-credential')
@@ -183,9 +190,10 @@ for (const [branch, host] of [['dev', 'r.slax.dev'], ['beta', 'r-beta.slax.com']
         assert.deepEqual(JSON.parse(options.body), { hosts: [host] })
         return response({ id: 'purge-fixture' })
       }
-      return response(url.includes('/deployments/') ? deployment(requests.length === 2 ? 'active' : 'success') : cloud)
+      if (url.includes('/deployments?')) return response([])
+      return response(url.includes('/deployments/') ? deployment(requests.length === 3 ? 'active' : 'success') : cloud)
     } })
-    assert.equal(requests.length, 4)
+    assert.equal(requests.length, 5)
     assert.deepEqual(cloud, original)
     assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
   })
@@ -206,7 +214,7 @@ for (const [name, settings] of [
     Object.assign(cloud.deployment_configs.production, settings)
     const original = structuredClone(cloud)
     assert.equal(inspectProject(cloud, 'fixture-web'), 'master')
-    await deployWeb(environment(), { source, wrangler: join(root, 'wrangler.mjs'), temporaryRoot: root, fetchImpl: async url => response(url.includes('/deployments/') ? deployment() : cloud) })
+    await deployWeb(environment(), { source, wrangler: join(root, 'wrangler.mjs'), temporaryRoot: root, fetchImpl: async url => response(url.includes('/deployments?') ? [] : url.includes('/deployments/') ? deployment() : cloud) })
     assert.deepEqual(cloud, original)
     assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
   })
@@ -216,7 +224,7 @@ test('failed upload and failed final status never purge and clean staged output'
   const { root, source, put } = fixture(t)
   const fetchImpl = async url => {
     assert.ok(!url.endsWith('/purge_cache'))
-    return response(url.includes('/deployments/') ? deployment('failure') : project())
+    return response(url.includes('/deployments?') ? [] : url.includes('/deployments/') ? deployment('failure') : project())
   }
   fakeWrangler(put, 'failure')
   await assert.rejects(deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'), fetchImpl }), /exit 7/)
@@ -231,7 +239,7 @@ for (const status of [403, 429, 500, 'network', 'json', 'rejected', 'truthy']) {
     const { root, source, put } = fixture(t)
     fakeWrangler(put)
     await assert.rejects(deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'), fetchImpl: async url => {
-      if (!url.endsWith('/purge_cache')) return response(url.includes('/deployments/') ? deployment() : project())
+      if (!url.endsWith('/purge_cache')) return response(url.includes('/deployments?') ? [] : url.includes('/deployments/') ? deployment() : project())
       if (status === 'network') throw new Error('fixture-private-response')
       if (status === 'json') return new Response('fixture-private-response')
       if (typeof status === 'number') return new Response('fixture-private-response', { status })
@@ -284,7 +292,7 @@ test('interrupted publication cleans the entire staging directory', async t => {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 150)
   t.after(() => clearTimeout(timer))
-  await assert.rejects(deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'waiting.mjs'), signal: controller.signal, fetchImpl: async () => response(project()) }), /interrupted/)
+  await assert.rejects(deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'waiting.mjs'), signal: controller.signal, fetchImpl: async url => response(url.includes('/deployments?') ? [] : project()) }), /interrupted/)
   assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
 })
 
@@ -293,7 +301,7 @@ test('actual Nuxt output survives the offline publication path', { skip: process
   fakeWrangler(put)
   const source = new URL('../apps/web/dist', import.meta.url).pathname
   assert.ok(existsSync(join(source, '_worker.js/index.js')))
-  await deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'), fetchImpl: async url => response(url.includes('/deployments/') ? deployment() : project()) })
+  await deployWeb(environment(), { source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'), fetchImpl: async url => response(url.includes('/deployments?') ? [] : url.includes('/deployments/') ? deployment() : project()) })
   assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
 })
 
@@ -324,4 +332,85 @@ test('CLI fails missing settings without exposing supplied values', () => {
   assert.equal(result.status, 1)
   assert.match(result.stderr, /CLOUDFLARE_ACCOUNT_ID/)
   assert.doesNotMatch(result.stdout + result.stderr, /fixture-private-value|fixture-credential/)
+})
+
+
+test('publication retains an old Worker dependency at its original path without copying old application files', async t => {
+  const { root, source } = fixture(t)
+  const oldId = '12345678-0000-4000-8000-000000000000'
+  const oldCode = 'export const old = true'
+  const oldWorker = 'export const load = () => import("./old-HASH.js")'
+  const snapshot = {
+    id: oldId, short_id: '12345678', project_name: 'fixture-web', environment: 'production',
+    url: 'https://12345678.fixture-web.pages.dev',
+    latest_stage: { name: 'deploy', status: 'success', ended_on: new Date().toISOString() }
+  }
+  const index = { roots: ['/_nuxt/worker-v4.js'], assets: [
+    { path: '/_nuxt/worker-v4.js', sha256: createHash('sha256').update(oldWorker).digest('hex') },
+    { path: '/_nuxt/old-HASH.js', sha256: createHash('sha256').update(oldCode).digest('hex') }
+  ] }
+  await deployWeb(environment(), {
+    source, temporaryRoot: root, wrangler: 'unused',
+    fetchImpl: async url => {
+      if (url.endsWith('/powersync-assets.json')) return new Response(JSON.stringify(index))
+      if (url.endsWith('/worker-v4.js')) return new Response(oldWorker, { headers: { 'content-type': 'text/javascript' } })
+      if (url.endsWith('/old-HASH.js')) return new Response(oldCode, { headers: { 'content-type': 'text/javascript' } })
+      if (url.includes('/deployments?')) return new Response(JSON.stringify({ success: true, result: [snapshot], result_info: { page: 1, per_page: 25, total_pages: 1 } }))
+      if (url.includes('/deployments/')) return response(deployment())
+      if (url.endsWith('/purge_cache')) return response({ id: 'purge-fixture' })
+      return response({ ...project(), canonical_deployment: snapshot })
+    },
+    run: async (_program, args, options) => {
+      assert.equal(readFileSync(join(args[3], '_nuxt/old-HASH.js'), 'utf8'), oldCode)
+      assert.equal(readFileSync(join(args[3], '_nuxt/worker-v4.js'), 'utf8'), 'export const load = () => import("./client.js")')
+      assert.equal(existsSync(join(args[3], '_nuxt/old-page.js')), false)
+      writeFileSync(options.env.WRANGLER_OUTPUT_FILE_PATH, JSON.stringify({ type: 'pages-deploy', version: 1, pages_project: 'fixture-web', deployment_id: id }))
+    }
+  })
+})
+
+test('history outage warns and permits upload of a valid current runtime with an Actions summary', async t => {
+  const { root, source, put } = fixture(t)
+  fakeWrangler(put)
+  const warnings = []
+  const summaryPath = join(root, 'summary.md')
+  await deployWeb({ ...environment(), GITHUB_STEP_SUMMARY: summaryPath }, {
+    source, temporaryRoot: root, wrangler: join(root, 'wrangler.mjs'), onWarning: warning => warnings.push(warning),
+    fetchImpl: async url => {
+      if (url.includes('/deployments?')) return new Response('private-response', { status: 503 })
+      if (url.includes('/deployments/')) return response(deployment())
+      if (url.endsWith('/purge_cache')) return response({ id: 'purge-fixture' })
+      return response(project())
+    }
+  })
+  assert.deepEqual(warnings, [{ category: 'history-unavailable' }])
+  assert.match(readFileSync(summaryPath, 'utf8'), /coverage: \*\*unknown\*\*/)
+  assert.doesNotMatch(readFileSync(summaryPath, 'utf8'), /private-response|fixture-credential/)
+})
+
+test('missing current resources stop upload before history retrieval', async t => {
+  const { root, source } = fixture(t)
+  rmSync(join(source, '_nuxt/client.js'))
+  await assert.rejects(deployWeb(environment(), {
+    source, temporaryRoot: root, wrangler: 'unused',
+    fetchImpl: async url => { assert.ok(!url.includes('/deployments')); return response(project()) },
+    run: async () => assert.fail('must not upload current defects')
+  }), /missing-resource/)
+})
+
+test('history warning cannot hide current-resource corruption before upload', async t => {
+  const { root, source } = fixture(t)
+  const warnings = []
+  await assert.rejects(deployWeb(environment(), {
+    source, temporaryRoot: root, wrangler: 'unused',
+    fetchImpl: async url => url.includes('/deployments?') ? new Response('unavailable', { status: 503 }) : response(project()),
+    onWarning: warning => {
+      warnings.push(warning)
+      const stage = readdirSync(root).find(name => name.startsWith('slax-web-pages-'))
+      writeFileSync(join(root, stage, 'assets/_nuxt/client.js'), 'export const corrupt = true')
+    },
+    run: async () => assert.fail('must not upload current defects')
+  }), /digest-mismatch/)
+  assert.equal(warnings.length, 1)
+  assert.equal(readdirSync(root).some(name => name.startsWith('slax-web-pages-')), false)
 })

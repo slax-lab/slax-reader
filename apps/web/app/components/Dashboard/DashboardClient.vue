@@ -186,8 +186,8 @@ const formatNumber = (value: number) => {
   background: rgba(var(--slax-overlay-white-rgb), 0.75);
   border: 1px solid rgba(var(--slax-overlay-white-rgb), 0.65);
   box-shadow: 0 8px 32px rgba(var(--slax-modal-overlay-rgb), 0.06);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 
 .dashboard-state--error {
@@ -204,8 +204,8 @@ const formatNumber = (value: number) => {
     0 8px 32px rgba(var(--slax-modal-overlay-rgb), 0.06),
     0 0 0 1px rgba(var(--slax-overlay-white-rgb), 0.85) inset,
     0 1px 0 rgba(var(--slax-overlay-white-rgb), 1) inset;
-  backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
 }
 
 .metrics-banner__grid {
@@ -286,8 +286,8 @@ const formatNumber = (value: number) => {
   color: rgba(var(--slax-overlay-white-rgb), 0.92); /* white with alpha — tooltip on dark overlay */
   background: rgba(var(--slax-modal-overlay-rgb), 0.88); /* dark overlay background */
   box-shadow: 0 8px 24px rgba(var(--slax-modal-overlay-rgb), 0.22);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   white-space: pre-line;
 }
 </style>

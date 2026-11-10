@@ -6,7 +6,6 @@ import { LabService } from '@/domain/lab'
 import { UserRepo } from '@/infra/repository/dbUser'
 import { RedisClient } from '@/infra/repository/redisClient'
 import { BucketClient } from '@/infra/repository/bucketClient'
-import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { CrawlService } from '@/domain/crawl'
 import { MediaBodyService } from '@/domain/mediaBody'
 import { type LoadedMediaSnapshot, MediaSnapshotService } from '@/domain/mediaSnapshot'
@@ -15,7 +14,7 @@ import { HtmlBuilder, isSafeVideoId, type YoutubeCue } from '@/utils/htmlBuilder
 import { renderMediaArticle } from '@/utils/podcastArticle'
 import { toCompatCues, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
 import { normalizeYoutubeUrl } from '@/utils/platformDetector'
-import { YoutubeArticleRepo, blocksRetry, eligibilityDecision, isFinalError, type youtubeArticlePO, type YoutubeArticleStatus } from '@/infra/repository/dbYoutubeArticle'
+import { YoutubeArticleRepo, eligibilityDecision, type youtubeArticlePO, type YoutubeArticleStatus } from '@/infra/repository/dbYoutubeArticle'
 import {
   YOUTUBE_ARTICLE_LIMITS,
   escapeHtml,
@@ -31,8 +30,7 @@ import { BookmarkNotFoundError, ErrorParam } from '@/const/err'
 
 export const YOUTUBE_ARTICLE_LAB = 'youtube_article'
 
-/** Per user per UTC day. */
-export const YOUTUBE_ARTICLE_DAILY_LIMITS = { auto: 20, manual: 5 } as const
+const PUBLICATION_RETRY_PREFIX = 'youtube/pending-publication/'
 
 export type YoutubeArticleTrigger = 'crawl' | 'open' | 'manual' | 'retry' | 'sweep'
 
@@ -89,7 +87,7 @@ export interface YoutubeArticleStatusResponse {
 /** What a body that holds a YouTube article starts with; the version follows. */
 const BODY_MARKER = 'data-slax-derived="youtube-article" data-article-version="'
 
-type StartResult = 'started' | 'locked' | 'busy' | 'over_budget' | 'not_pending' | 'failed'
+type StartResult = 'started' | 'locked' | 'busy' | 'not_pending' | 'failed'
 
 interface Access {
   bookmarkUid: string
@@ -129,7 +127,7 @@ function utcDay(now: Date = new Date()): string {
 
 /**
  * YouTube AI article, P1: who may see which article version, the three ways a generation starts,
- * the daily and budget limits, and the periodic sweep. Article rows are canonical per video; the
+ * the periodic sweep. Article rows are canonical per video; the
  * bookmark always decides visibility.
  */
 @injectable()
@@ -141,7 +139,6 @@ export class YoutubeArticleService {
     @inject(UserRepo) private userRepo: UserRepo,
     @inject(RedisClient) private redis: LazyInstance<RedisClient>,
     @inject(BucketClient) private bucket: LazyInstance<BucketClient>,
-    @inject(SlaxAlertBotClient) private alertBot: SlaxAlertBotClient,
     @inject(CrawlService) private crawlService: CrawlService,
     @inject(MediaBodyService) private bodies: MediaBodyService,
     @inject(MediaSnapshotService) private snapshots: MediaSnapshotService
@@ -182,20 +179,28 @@ export class YoutubeArticleService {
     const access = await this.resolveAccess(ctx, bookmarkUid)
     const viewerId = ctx.getUserId()
     const requested = await this.languageOf(viewerId > 0 ? viewerId : access.ownerId)
-    const unavailable = this.response(requested, null, access, false)
+    const unavailable = this.response(requested, null, access)
 
     if (access.flagged) return unavailable
-    const loaded = await this.snapshots.load(access.bookmarkId)
+    let loaded = await this.snapshots.load(access.bookmarkId)
     let snapshot = loaded?.media
     if (snapshot?.kind === 'youtube') {
       if (!(await this.snapshots.readable(snapshot))) return unavailable
       if (access.isOwner) {
+        let published = false
         try {
-          if (await this.snapshots.settle(ctx, access.bookmarkId, loaded)) snapshot = (await this.snapshots.load(access.bookmarkId))!.media!
+          published = await this.snapshots.settle(ctx, access.bookmarkId, loaded)
         } catch (error) {
           console.error('Private media status catch-up failed', error)
         }
-      }
+        loaded = await this.snapshots.load(access.bookmarkId)
+        if (loaded?.raw.status !== 'success' || loaded.media?.kind !== 'youtube' || !(await this.snapshots.readable(loaded.media))) return unavailable
+        snapshot = loaded.media
+        if (published && snapshot.mode === 'capture')
+          ctx.execution.waitUntil(
+            this.snapshots.processVectorMaintenance(ctx, access.bookmarkId, snapshot).catch(error => console.error('Media status vector maintenance failed', error))
+          )
+      } else if (loaded?.raw.status !== 'success') return unavailable
       const enabled = await this.labService.isEnabled(access.ownerId, YOUTUBE_ARTICLE_LAB)
       const result = this.privateStatus(snapshot, requested, access, enabled)
       // A reason belongs only to an unavailable answer; a ready fallback in another language carries none
@@ -207,9 +212,7 @@ export class YoutubeArticleService {
       if (enabled && access.isOwner && snapshot.mode === 'capture' && snapshot.variants[requested]?.status === 'pending') {
         const row = await this.repo.findVersion(snapshot.sourceId, snapshot.sourceHash, requested)
         if (row?.status === 'pending' && !row.next_retry_at && eligibilityDecision(row) === 'generate') {
-          if (!(await this.takeDaily(viewerId, 'auto'))) return { ...result, status: 'limit_reached' }
-          const started = await this.start(ctx, row, access.title, 'open')
-          if (started === 'not_pending' || started === 'locked') await this.giveBackDaily(viewerId, 'auto')
+          await this.start(ctx, row, access.title, 'open')
         }
       }
       return result
@@ -225,12 +228,7 @@ export class YoutubeArticleService {
     }
 
     if (enabled && access.isOwner && row && row.status === 'pending' && !row.next_retry_at && eligibilityDecision(row) === 'generate') {
-      const counted = await this.takeDaily(viewerId, 'auto')
-      if (!counted) return { ...this.response(requested, row, access, await this.manualLeft(viewerId)), status: 'limit_reached' }
-      const started = await this.start(ctx, row, access.title, 'open')
-      // Deferred starts (busy, over budget, create failed) still run later through the sweep, so they
-      // keep the count. 'locked' means another start of this row is in flight and already counted.
-      if (started === 'not_pending' || started === 'locked') await this.giveBackDaily(viewerId, 'auto')
+      await this.start(ctx, row, access.title, 'open')
       row = (await this.repo.findById(row.id)) ?? row
     }
 
@@ -246,8 +244,9 @@ export class YoutubeArticleService {
     if (row?.status === 'takedown' || row?.status === 'stale') return unavailable
     if (!enabled && row?.status !== 'ready') return access.isOwner ? { ...unavailable, unavailable_reason: 'labs_disabled' } : unavailable
     if (!row) return access.isOwner ? { ...unavailable, unavailable_reason: 'source_missing' } : unavailable
-    const res = this.response(requested, row, access, access.isOwner ? await this.manualLeft(viewerId) : false)
-    return { ...res, ...(await this.bodyState(ctx, access, row)) }
+    const res = this.response(requested, row, access)
+    const body = await this.bodyState(ctx, access, row)
+    return { ...res, ...body }
   }
 
   /**
@@ -258,9 +257,10 @@ export class YoutubeArticleService {
     if (!version) throw ErrorParam()
     const access = await this.resolveAccess(ctx, bookmarkUid)
     if (access.flagged) throw BookmarkNotFoundError()
-    const snapshot = (await this.snapshots.load(access.bookmarkId))?.media
+    const loaded = await this.snapshots.load(access.bookmarkId)
+    const snapshot = loaded?.media
     if (snapshot?.kind === 'youtube') {
-      if (!(await this.snapshots.readable(snapshot))) throw BookmarkNotFoundError()
+      if (loaded?.raw.status !== 'success' || !(await this.snapshots.readable(snapshot))) throw BookmarkNotFoundError()
       const language = (['en', 'zh'] as const).find(lang => privateMediaVersion(snapshot, lang) === version && snapshot.variants[lang]?.status === 'ready')
       if (!language) throw BookmarkNotFoundError()
       return { ...snapshot.variants[language]!.content!, version }
@@ -311,8 +311,8 @@ export class YoutubeArticleService {
       eligibility: variant?.eligibility ?? null,
       version,
       format: ready ? variant.content!.format : null,
-      can_generate: canRequest && (status === 'failed' || status === 'skipped') && !isFinalError(variant?.reason),
-      can_retry: canRequest && status === 'failed' && !blocksRetry(variant?.reason),
+      can_generate: canRequest && (status === 'failed' || status === 'skipped'),
+      can_retry: canRequest && status === 'failed',
       article_url: version ? `/v1/youtube_article/content?bookmark_uid=${encodeURIComponent(access.bookmarkUid)}&version=${encodeURIComponent(version)}` : null,
       updated_at: null,
       body_mode: snapshot.bodyLanguage ? 'article' : 'transcript',
@@ -320,7 +320,7 @@ export class YoutubeArticleService {
     }
   }
 
-  private response(requested: YoutubeArticleLanguage, row: youtubeArticlePO | null, access: Access, canManual: boolean): YoutubeArticleStatusResponse {
+  private response(requested: YoutubeArticleLanguage, row: youtubeArticlePO | null, access: Access): YoutubeArticleStatusResponse {
     if (!row || row.status === 'takedown' || row.status === 'stale') {
       return {
         status: 'unavailable',
@@ -352,8 +352,8 @@ export class YoutubeArticleService {
       eligibility: eligibility ? { decision: eligibilityDecision(row), reason_codes: eligibility.reason_codes ?? [] } : null,
       version: ready ? version : null,
       format: ready ? format : null,
-      can_generate: access.isOwner && canManual && (status === 'skipped' || status === 'failed') && !isFinalError(row.error_message),
-      can_retry: access.isOwner && status === 'failed' && !blocksRetry(row.error_message),
+      can_generate: access.isOwner && (status === 'skipped' || status === 'failed'),
+      can_retry: access.isOwner && status === 'failed',
       article_url: ready ? `/v1/youtube_article/content?bookmark_uid=${encodeURIComponent(access.bookmarkUid)}&version=${encodeURIComponent(version)}` : null,
       updated_at: row.updated_at.toISOString(),
       body_mode: 'article',
@@ -364,9 +364,7 @@ export class YoutubeArticleService {
   // ---------- write ----------
 
   /**
-   * Owner actions. `generate` runs a skipped or failed version and counts against the daily manual
-   * limit; `retry` runs a failed version again from zero attempts and zero run spend, does not
-   * count, and stops at the version's lifetime cap.
+   * Owner actions restart failed or skipped work without discarding accumulated cost.
    */
   public async request(ctx: ContextManager, bookmarkUid: string, mode: 'generate' | 'retry'): Promise<YoutubeArticleStatusResponse> {
     const access = await this.resolveAccess(ctx, bookmarkUid)
@@ -385,25 +383,23 @@ export class YoutubeArticleService {
       row = created
     }
     if (row.status === 'takedown') throw BookmarkNotFoundError()
-    await this.snapshots.settleSource(ctx, 'youtube', ref.source_id)
+    const settled = await this.snapshots.settleSource(ctx, 'youtube', ref.source_id)
+    if (settled || ['ready', 'failed', 'skipped'].includes(row.status)) await this.snapshots.processSourceVectorMaintenance(ctx, 'youtube', ref.source_id, ref.source_hash)
     const snapshot = (await this.snapshots.load(access.bookmarkId))?.media
     const privateVariant = snapshot?.variants[language]
     if (snapshot?.mode === 'capture' && row.status !== 'failed' && row.status !== 'skipped') {
-      const eligible = privateVariant?.status === 'failed' || (mode === 'generate' && privateVariant?.status === 'skipped')
-      if (!eligible || (mode === 'retry' ? blocksRetry(privateVariant?.reason) : isFinalError(privateVariant?.reason))) throw ErrorParam()
+      const eligible = privateVariant?.status === 'failed' || privateVariant?.status === 'skipped'
+      if (!eligible) throw ErrorParam()
       await this.snapshots.openRequest(access.bookmarkId, language)
       return this.getStatus(ctx, bookmarkUid)
     }
 
     if (mode === 'retry') {
-      if (row.status !== 'failed') throw ErrorParam()
-      // The retry restarts the run budget; the version's lifetime cap and the site-wide cap bound it
-      if (!(await this.repo.requeue(row.id, true, { recoverBudget: true }))) throw ErrorParam()
+      if (row.status !== 'failed' && row.status !== 'skipped') throw ErrorParam()
+      if (!(await this.repo.requeue(row.id, true))) throw ErrorParam()
     } else {
       if (row.status !== 'skipped' && row.status !== 'failed') return this.getStatus(ctx, bookmarkUid)
-      if (!(await this.takeDaily(access.ownerId, 'manual'))) return { ...(await this.getStatus(ctx, bookmarkUid)), status: 'limit_reached', can_generate: false }
       if (!(await this.repo.requeue(row.id, false))) {
-        await this.giveBackDaily(access.ownerId, 'manual')
         return this.getStatus(ctx, bookmarkUid)
       }
     }
@@ -415,12 +411,24 @@ export class YoutubeArticleService {
 
   /**
    * After a YouTube save passed moderation: queue the saver's language version and start it when
-   * the gate says generate. Never throws; the bookmark is already saved.
+   * the gate says generate. Acquisition errors are logged; vector admission failures propagate.
    */
   public async triggerAfterCrawl(ctx: ContextManager, bookmarkId: number, userId: number, title: string): Promise<void> {
+    let vectorSource: Pick<MediaSnapshot, 'kind' | 'sourceId' | 'sourceHash'> | undefined
     try {
-      const snapshot = (await this.snapshots.load(bookmarkId))?.media
-      if (snapshot && (snapshot.mode === 'fork' || !Object.values(snapshot.variants).some(variant => variant.status === 'pending'))) return
+      let loaded = await this.snapshots.load(bookmarkId)
+      let snapshot = loaded?.media
+      if (snapshot?.mode === 'fork') return
+      if (snapshot && loaded?.raw.status === 'failed') {
+        if (!(await this.snapshots.settle(ctx, bookmarkId, loaded))) return
+        loaded = await this.snapshots.load(bookmarkId)
+        if (loaded?.raw.status !== 'success' || !loaded.media) return
+        snapshot = loaded.media
+      }
+      if (snapshot) {
+        if (Object.values(snapshot.variants).some(variant => ['ready', 'failed', 'skipped'].includes(variant.status))) vectorSource = snapshot
+        if (!Object.values(snapshot.variants).some(variant => variant.status === 'pending')) return
+      }
       if (!(await this.labService.isEnabled(userId, YOUTUBE_ARTICLE_LAB))) return
       const ref = await this.repo.findRef(bookmarkId)
       if (!ref) return
@@ -436,20 +444,23 @@ export class YoutubeArticleService {
       // Already made for an earlier save of this video: this bookmark gets the article at once, no model call
       if (row.status === 'ready') {
         const written = await this.publishBodyFor(ctx, bookmarkId, userId, row)
+        if (written || (await this.bodies.readBody(bookmarkId, true))?.includes(this.bodyMarker(row)) || (await this.bodies.hasMarks(bookmarkId, userId)))
+          vectorSource = { kind: 'youtube', sourceId: row.source_id, sourceHash: row.source_hash }
         console.log(`YouTube article trigger after crawl: bookmark=${bookmarkId} article=${row.id} lang=${language} result=${written ? 'body_written' : 'body_kept'}`)
         return
       }
-      if (row.status !== 'pending' || row.next_retry_at || eligibilityDecision(row) !== 'generate') return
-      // A save-triggered start is an automatic start and counts against the same daily limit
-      if (!(await this.takeDaily(userId, 'auto'))) {
-        console.log(`YouTube article trigger after crawl: bookmark=${bookmarkId} article=${row.id} lang=${language} result=limit_reached`)
+      if (row.status === 'failed' || row.status === 'skipped') {
+        await this.snapshots.settle(ctx, bookmarkId)
+        vectorSource = { kind: 'youtube', sourceId: row.source_id, sourceHash: row.source_hash }
         return
       }
+      if (row.status !== 'pending' || row.next_retry_at || eligibilityDecision(row) !== 'generate') return
       const result = await this.start(ctx, row, title, 'crawl')
-      if (result === 'not_pending' || result === 'locked') await this.giveBackDaily(userId, 'auto')
       console.log(`YouTube article trigger after crawl: bookmark=${bookmarkId} article=${row.id} lang=${language} result=${result}`)
     } catch (err) {
       console.error(`YouTube article trigger after crawl failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      if (vectorSource) await this.snapshots.processVectorMaintenance(ctx, bookmarkId, vectorSource)
     }
   }
 
@@ -465,12 +476,19 @@ export class YoutubeArticleService {
    * falls back instead of failing. Visitors only read.
    */
   private async bodyState(ctx: ContextManager, access: Access, row: youtubeArticlePO): Promise<Pick<YoutubeArticleStatusResponse, 'body_mode' | 'body_ready'>> {
-    const html = row.status === 'ready' ? await this.bodies.readBody(access.bookmarkId) : null
+    const html = row.status === 'ready' ? await this.bodies.readBody(access.bookmarkId, true) : null
     if (html?.includes(this.bodyMarker(row))) return { body_mode: 'article', body_ready: true }
     if (await this.bodies.hasMarks(access.bookmarkId, access.ownerId)) return { body_mode: 'transcript', body_ready: false }
-    if (row.status !== 'ready' || !access.isOwner || html === null) return { body_mode: 'article', body_ready: false }
+    if (row.status !== 'ready' || !access.isOwner) return { body_mode: 'article', body_ready: false }
     try {
-      return { body_mode: 'article', body_ready: await this.publishBodyFor(ctx, access.bookmarkId, access.ownerId, row) }
+      const written = await this.publishBodyFor(ctx, access.bookmarkId, access.ownerId, row)
+      if (written)
+        ctx.execution.waitUntil(
+          this.snapshots
+            .processVectorMaintenance(ctx, access.bookmarkId, { kind: 'youtube', sourceId: row.source_id, sourceHash: row.source_hash })
+            .catch(error => console.error('Media status vector maintenance failed', error))
+        )
+      return { body_mode: 'article', body_ready: written }
     } catch (err) {
       console.error(`YouTube article body write failed for bookmark ${access.bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
       return { body_mode: 'article', body_ready: false }
@@ -485,32 +503,81 @@ export class YoutubeArticleService {
    * A version just became ready: write it into the body of every bookmark of this caption version
    * whose owner reads that language and has the switch on. Bookmarks with marks keep their body.
    */
-  public async publishBodies(ctx: ContextManager, articleId: number): Promise<number> {
+  public async publishBodies(ctx: ContextManager, articleId: number, deferIndexing = false): Promise<number> {
     const row = await this.repo.findById(articleId)
     if (!row) return 0
+    if (deferIndexing && row.status === 'ready') await this.bucket().R2Bucket.put(`${PUBLICATION_RETRY_PREFIX}${articleId}.json`, '{}')
     const failures: unknown[] = []
     const complete = (count: number) => {
       if (failures.length) throw new AggregateError(failures, 'Media body publication incomplete')
       return count
     }
     const loaded = new Map<number, LoadedMediaSnapshot | null>()
-    const settled = await this.snapshots.settleSource(ctx, 'youtube', row.source_id, loaded, failures)
+    const settled = await this.snapshots.settleSource(ctx, 'youtube', row.source_id, loaded, failures, deferIndexing)
     if (row.status !== 'ready') return complete(settled)
     let rendered: { html: string; text: string } | null | undefined
     let count = settled
     for (const ref of await this.repo.listRefs(row.source_id, row.source_hash)) {
       try {
-        if (!(await this.wantsBody(ref.bookmark_id, ref.user_id, row, loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : undefined))) continue
+        const current = loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : await this.snapshots.load(ref.bookmark_id)
+        if (!current || !['success', 'failed'].includes(current.raw.status) || !(await this.wantsBody(ref.bookmark_id, ref.user_id, row, current))) continue
+        if ((await this.bodies.readBody(ref.bookmark_id, true))?.includes(this.bodyMarker(row))) continue
         // Rendered once for all bookmarks, and only when one of them takes it
         if (rendered === undefined) rendered = await this.renderBody(row)
         if (!rendered) throw new Error('YouTube publication artifacts missing')
-        if (await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+        if (
+          await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered, {
+            deferIndexing,
+            mediaRef: { media_kind: 'youtube', source_id: row.source_id, source_hash: row.source_hash },
+            expectedUpdatedAt: current.raw.updated_at
+          })
+        )
+          count++
       } catch (error) {
         failures.push(error)
         console.error(`YouTube article publication failed for bookmark ${ref.bookmark_id}`)
       }
     }
     return complete(count)
+  }
+
+  public async indexBodies(ctx: ContextManager, articleId: number): Promise<number> {
+    const row = await this.repo.findById(articleId)
+    if (row?.status !== 'ready') return 0
+    const results = await Promise.allSettled((await this.repo.listRefs(row.source_id, row.source_hash)).map(ref => this.snapshots.indexSnapshot(ctx, ref.bookmark_id)))
+    if (results.some(result => result.status === 'rejected')) throw new Error('YouTube body indexing incomplete')
+    await this.bucket().R2Bucket.delete(`${PUBLICATION_RETRY_PREFIX}${articleId}.json`)
+    return results.filter(result => result.status === 'fulfilled' && result.value).length
+  }
+
+  private async retryPublications(ctx: ContextManager): Promise<void> {
+    const bucket = this.bucket().R2Bucket
+    let cursor: string | undefined
+    do {
+      const page = await bucket.list({ prefix: PUBLICATION_RETRY_PREFIX, limit: 50, cursor })
+      for (let start = 0; start < page.objects.length; start += 5) {
+        await Promise.all(
+          page.objects.slice(start, start + 5).map(async object => {
+            const id = Number(object.key.slice(PUBLICATION_RETRY_PREFIX.length).replace(/\.json$/, ''))
+            try {
+              const row = Number.isSafeInteger(id) && id > 0 ? await this.repo.findById(id) : null
+              if (!row || ['takedown', 'stale'].includes(row.status)) {
+                await bucket.delete(object.key)
+                return
+              }
+              if (row.status !== 'ready') return
+              await this.publishBodies(ctx, id, true)
+              await this.snapshots.processSourceVectorMaintenance(ctx, 'youtube', row.source_id, row.source_hash)
+              await this.indexBodies(ctx, id)
+              await this.deletePrefix(youtubeArticleChunkPrefix(row.source_id, row.source_hash, row.target_language, row.prompt_version))
+            } catch {
+              console.error('YouTube publication retry pending', { articleId: id })
+            }
+          })
+        )
+      }
+      cursor = page.truncated ? page.cursor : undefined
+    } while (cursor)
   }
 
   public async settleSnapshots(ctx: ContextManager, sourceId: string) {
@@ -520,9 +587,16 @@ export class YoutubeArticleService {
   private async publishBodyFor(ctx: ContextManager, bookmarkId: number, userId: number, row: youtubeArticlePO): Promise<boolean> {
     const loaded = await this.snapshots.load(bookmarkId)
     if (loaded?.managed) return this.snapshots.settle(ctx, bookmarkId, loaded)
+    if (!loaded || !['success', 'failed'].includes(loaded.raw.status)) return false
+    if ((await this.bodies.readBody(bookmarkId, true))?.includes(this.bodyMarker(row))) return false
     if (!(await this.wantsBody(bookmarkId, userId, row, loaded))) return false
     const rendered = await this.renderBody(row)
-    return rendered ? this.bodies.writeBody(ctx, bookmarkId, userId, rendered) : false
+    return rendered
+      ? this.bodies.writeBody(ctx, bookmarkId, userId, rendered, {
+          mediaRef: { media_kind: 'youtube', source_id: row.source_id, source_hash: row.source_hash },
+          expectedUpdatedAt: loaded.raw.updated_at
+        })
+      : false
   }
 
   /** The owner has the switch on and reads this language, and nobody marked the body. Marks are checked last, closest to the write. */
@@ -579,17 +653,13 @@ export class YoutubeArticleService {
   // ---------- start ----------
 
   /**
-   * Start the workflow for a pending row, or put it off for the sweeper. Over budget or too many
+   * Start the workflow for a pending row, or put it off for the sweeper. Too many
    * running rows → deferred. The short lock stops parallel callers from starting the same row; the
    * claim inside the workflow is what finally guarantees a single run.
    */
   private async start(ctx: ContextManager, row: youtubeArticlePO, title: string, trigger: YoutubeArticleTrigger): Promise<StartResult> {
     if (row.status !== 'pending') return 'not_pending'
 
-    if (await this.overBudget()) {
-      await this.repo.defer(row.id, new Date(Date.now() + 60 * 60 * 1000))
-      return 'over_budget'
-    }
     // debt: count-then-start is not atomic, so a burst can briefly run a few more than maxConcurrent.
     // Upgrade to a Durable Object semaphore if bursts ever matter for cost or rate limits.
     if ((await this.repo.countRunning()) >= YOUTUBE_ARTICLE_LIMITS.maxConcurrent) {
@@ -622,44 +692,7 @@ export class YoutubeArticleService {
     }
   }
 
-  // ---------- limits ----------
-
-  private async takeDaily(userId: number, kind: 'auto' | 'manual'): Promise<boolean> {
-    const counter = this.redis().youtubeArticleDaily(userId, utcDay(), kind)
-    const count = await counter.incrWithExpire(2 * DAY_SECONDS)
-    if (count > YOUTUBE_ARTICLE_DAILY_LIMITS[kind]) {
-      await counter.incrBy(-1)
-      return false
-    }
-    return true
-  }
-
-  private async giveBackDaily(userId: number, kind: 'auto' | 'manual'): Promise<void> {
-    await this.redis().youtubeArticleDaily(userId, utcDay(), kind).incrBy(-1)
-  }
-
-  private async manualLeft(userId: number): Promise<boolean> {
-    const used = Number((await this.redis().youtubeArticleDaily(userId, utcDay(), 'manual').get()) ?? 0)
-    return used < YOUTUBE_ARTICLE_DAILY_LIMITS.manual
-  }
-
-  private async overBudget(): Promise<boolean> {
-    const day = utcDay()
-    const spentMicro = Number((await this.redis().youtubeArticleCost(day).get()) ?? 0)
-    if (spentMicro < YOUTUBE_ARTICLE_LIMITS.dailyCostUsd * 1_000_000) return false
-    if (
-      await this.redis()
-        .youtubeArticleBudgetAlert(day)
-        .setIfAbsent(1, 2 * DAY_SECONDS)
-    ) {
-      await this.alertBot.crawl
-        .pushMessage(`⚠️ **YouTube article budget reached**\n**Day (UTC)**: ${day}\n**Spent**: ${(spentMicro / 1_000_000).toFixed(2)} USD\n**处理**: 新任务已暂停，次日自动恢复`)
-        .catch((e: unknown) => console.error(`budget alert push failed: ${e}`))
-    }
-    return true
-  }
-
-  /** Add the estimated cost of one model call to today's site-wide spend. */
+  /** Record estimated daily spend without gating new work. */
   public async addCost(usd: number): Promise<void> {
     if (!(usd > 0)) return
     const counter = this.redis().youtubeArticleCost(utcDay())
@@ -700,7 +733,7 @@ export class YoutubeArticleService {
         started++
         slots--
       }
-      if (result === 'busy' || result === 'over_budget') break
+      if (result === 'busy') break
     }
 
     let deleted = 0
@@ -716,6 +749,7 @@ export class YoutubeArticleService {
       takenDown++
       console.log(`YouTube article takedown cleaned: video=${videoId} rows=${res.rows} objects=${res.objects} bodies=${res.bodies}`)
     }
+    await this.retryPublications(ctx)
     if (expired || started || deleted || takenDown) console.log(`YouTube article sweep: expired=${expired} started=${started} deleted=${deleted} takedowns=${takenDown}`)
     return { expired, started, deleted, takenDown }
   }

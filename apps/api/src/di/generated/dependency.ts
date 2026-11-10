@@ -34,22 +34,31 @@ import { BookmarkForkService } from '../../domain/bookmarkFork'
 import { MediaSnapshotService } from '../../domain/mediaSnapshot'
 import { BookmarkForkRepo } from '../../infra/repository/dbBookmarkFork'
 import { CollectionRepo } from '../../infra/repository/dbCollection'
+import { ContentRecommendationRepo } from '../../infra/repository/dbContentRecommendation'
+import { VectorMaintenanceService } from '../../domain/vectorMaintenance'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
+import { HybridSearchRepo } from '../../infra/repository/dbHybridSearch'
+import { VectorEmbeddingClient } from '../../infra/external/vectorEmbedding'
 import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
+import { VectorMaintenanceRepo } from '../../infra/repository/dbVectorMaintenance'
 import { MediaBodyService } from '../../domain/mediaBody'
 import { RssRepo } from '../../infra/repository/dbRss'
 import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
+import { VectorSourceRepo } from '../../infra/repository/vectorSources'
+import { VectorIndexClient } from '../../infra/repository/vectorIndexClient'
 import { AigcService } from '../../domain/aigc'
 import { TagService } from '../../domain/tag'
 import { MarkService } from '../../domain/mark'
 import { CollectionService } from '../../domain/collection'
 import { NotificationService } from '../../domain/notification'
 import { UserService } from '../../domain/user'
+import { ContentRecommendationService } from '../../domain/contentRecommendation'
+import { HybridSearchService } from '../../domain/hybridSearch'
 import { ImportService } from '../../domain/import'
 import { ShareService } from '../../domain/share'
 import { SubscriptionServiceMain } from '../../domain/subscriptionMain'
@@ -72,8 +81,10 @@ import { BookmarkOrchestrator } from '../../domain/orchestrator/bookmark'
 import { BookmarkAddOrchestrator } from '../../domain/orchestrator/bookmarkAdd'
 import { UrlParserHandler } from '../../domain/orchestrator/urlParser'
 import { CollectionOrchestrator } from '../../domain/orchestrator/collection'
+import { ContentRecommendationOrchestrator } from '../../domain/orchestrator/contentRecommendation'
 import { MarkOrchestrator } from '../../domain/orchestrator/mark'
 import { DashboardService } from '../../domain/dashboard'
+import { HybridSearchOrchestrator } from '../../domain/orchestrator/hybridSearch'
 import { ShareOrchestrator } from '../../domain/orchestrator/share'
 import { SyncOrchestrator } from '../../domain/orchestrator/sync'
 import { ImportOrchestrator } from '../../domain/orchestrator/import'
@@ -98,6 +109,7 @@ import { ApiKeyController } from '../../handler/http/apiKeyController'
 import { BookmarkController } from '../../handler/http/bookmarkController'
 import { CallbackController } from '../../handler/http/callbackController'
 import { CollectionController } from '../../handler/http/collectionController'
+import { ContentRecommendationController } from '../../handler/http/contentRecommendationController'
 import { DiagnosticController } from '../../handler/http/diagnosticController'
 import { EventsController } from '../../handler/http/eventsController'
 import { ImageController } from '../../handler/http/imageController'
@@ -107,6 +119,7 @@ import { MetricsController } from '../../handler/http/metricsController'
 import { PodcastController } from '../../handler/http/podcastController'
 import { PromotionController } from '../../handler/http/promotionController'
 import { RssController } from '../../handler/http/rssController'
+import { SearchController } from '../../handler/http/searchController'
 import { ShareController } from '../../handler/http/shareController'
 import { SubscriptionController } from '../../handler/http/subscriptionController'
 import { SyncController } from '../../handler/http/syncController'
@@ -168,6 +181,10 @@ container.register(CollectionService, {
   useFactory: container => new CollectionService(container.resolve(CollectionRepo), container.resolve(UserRepo), container.resolve(BookmarkRepo))
 })
 
+container.register(ContentRecommendationService, {
+  useFactory: container => new ContentRecommendationService(container.resolve(ContentRecommendationRepo), container.resolve(VectorMaintenanceService))
+})
+
 container.register(CrawlService, {
   useFactory: container =>
     new CrawlService(
@@ -189,6 +206,16 @@ container.register(DashboardService, {
 
 container.register(EmailService, {
   useFactory: container => new EmailService(container.resolve(UserRepo))
+})
+
+container.register(HybridSearchService, {
+  useFactory: container =>
+    new HybridSearchService(
+      container.resolve(HybridSearchRepo),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(VectorEmbeddingClient),
+      container.resolve(VectorMaintenanceService)
+    )
 })
 
 container.register(ImportService, {
@@ -240,7 +267,8 @@ container.register(MediaSnapshotService, {
       container.resolve(MarkRepo),
       container.resolve(BookmarkRepo),
       container.resolve(SearchService),
-      container.resolve(BookmarkSearchRepo)
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(VectorMaintenanceRepo)
     )
 })
 
@@ -360,7 +388,18 @@ container.register(UserDeletionService, {
     new UserDeletionService(
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)),
       container.resolve(UserRepo),
-      lazy(() => container.resolve(BucketClient))
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(VectorMaintenanceRepo)
+    )
+})
+
+container.register(VectorMaintenanceService, {
+  useFactory: container =>
+    new VectorMaintenanceService(
+      container.resolve(VectorMaintenanceRepo),
+      container.resolve(VectorSourceRepo),
+      container.resolve(VectorEmbeddingClient),
+      container.resolve(VectorIndexClient)
     )
 })
 
@@ -373,7 +412,6 @@ container.register(YoutubeArticleService, {
       container.resolve(UserRepo),
       lazy(() => container.resolve(RedisClient)),
       lazy(() => container.resolve(BucketClient)),
-      container.resolve(SlaxAlertBotClient),
       container.resolve(CrawlService),
       container.resolve(MediaBodyService),
       container.resolve(MediaSnapshotService)
@@ -426,6 +464,14 @@ container.register(ContentOrchestrator, {
       container.resolve(MarkService),
       container.resolve(CollectionService)
     )
+})
+
+container.register(ContentRecommendationOrchestrator, {
+  useFactory: container => new ContentRecommendationOrchestrator(container.resolve(ContentRecommendationService))
+})
+
+container.register(HybridSearchOrchestrator, {
+  useFactory: container => new HybridSearchOrchestrator(container.resolve(HybridSearchService))
 })
 
 container.register(ImportOrchestrator, {
@@ -562,6 +608,10 @@ container.register(StripeClient, {
   useClass: StripeClient
 })
 
+container.register(VectorEmbeddingClient, {
+  useClass: VectorEmbeddingClient
+})
+
 container.register(NotificationMessage, {
   useFactory: container => new NotificationMessage(container.resolve(UserRepo))
 })
@@ -596,6 +646,18 @@ container.register(BookmarkSearchRepo, {
 
 container.register(CollectionRepo, {
   useFactory: container => new CollectionRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
+container.register(ContentRecommendationRepo, {
+  useFactory: container => new ContentRecommendationRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
+container.register(HybridSearchRepo, {
+  useFactory: container =>
+    new HybridSearchRepo(
+      lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)),
+      container.resolve(BookmarkRepo)
+    )
 })
 
 container.register(LabRepo, {
@@ -654,6 +716,10 @@ container.register(VectorizeRepo, {
   useFactory: container => new VectorizeRepo(lazy(() => container.resolve(VECTORIZE_CLIENTS)))
 })
 
+container.register(VectorMaintenanceRepo, {
+  useFactory: container => new VectorMaintenanceRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
 container.register(YoutubeArticleRepo, {
   useFactory: container => new YoutubeArticleRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
@@ -664,6 +730,14 @@ container.register(KVClient, {
 
 container.register(RedisClient, {
   useClass: RedisClient
+})
+
+container.register(VectorIndexClient, {
+  useClass: VectorIndexClient
+})
+
+container.register(VectorSourceRepo, {
+  useClass: VectorSourceRepo
 })
 
 container.register(AigcController, {
@@ -687,7 +761,8 @@ container.register(BookmarkController, {
       container.resolve(UrlParserHandler),
       container.resolve(UserDeletionService),
       container.resolve(CrawlService),
-      container.resolve(LogsService)
+      container.resolve(LogsService),
+      container.resolve(VectorMaintenanceService)
     )
 })
 
@@ -707,7 +782,11 @@ container.register(CallbackController, {
 })
 
 container.register(CollectionController, {
-  useFactory: container => new CollectionController(container.resolve(CollectionService), container.resolve(CollectionOrchestrator))
+  useFactory: container => new CollectionController(container.resolve(CollectionService), container.resolve(CollectionOrchestrator), container.resolve(VectorMaintenanceService))
+})
+
+container.register(ContentRecommendationController, {
+  useFactory: container => new ContentRecommendationController(container.resolve(ContentRecommendationOrchestrator))
 })
 
 container.register(DiagnosticController, {
@@ -744,6 +823,10 @@ container.register(PromotionController, {
 
 container.register(RssController, {
   useFactory: container => new RssController(container.resolve(RssService))
+})
+
+container.register(SearchController, {
+  useFactory: container => new SearchController(container.resolve(HybridSearchOrchestrator))
 })
 
 container.register(ShareController, {

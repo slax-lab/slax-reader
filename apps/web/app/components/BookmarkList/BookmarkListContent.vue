@@ -15,6 +15,7 @@
                 :index="item.index"
                 :is-subscribe="filterStatus === 'collections'"
                 :bookmark="item.bookmark"
+                :data-source="dataSource"
                 :collection-code="filterCollectionCode"
                 :source-filterable="filterStatus === 'inbox'"
                 :text-mode="effectiveMode === 'text'"
@@ -38,6 +39,7 @@
               :index="item.index"
               :is-subscribe="filterStatus === 'collections'"
               :bookmark="item.bookmark"
+              :data-source="dataSource"
               :collection-code="filterCollectionCode"
               :source-filterable="filterStatus === 'inbox'"
               :text-mode="effectiveMode === 'text'"
@@ -78,6 +80,7 @@ import { WindowVirtualizer } from 'virtua/vue'
 type GroupedItem = { type: 'group'; label: string; key: string } | { type: 'bookmark'; bookmark: BookmarkItem; index: number }
 
 const props = defineProps<{
+  dataSource?: 'local' | 'rest'
   filterStatus: string
   groupedBookmarks: GroupedItem[]
   highlights: HighlightItem[]

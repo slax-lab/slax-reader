@@ -6,6 +6,7 @@ vi.mock('@prisma/client', () => ({
 }))
 
 vi.mock('@prisma/hyperdrive-client', () => ({
+  Prisma: { sql: vi.fn((strings: TemplateStringsArray) => ({ strings })) },
   PrismaClient: class {}
 }))
 
@@ -38,7 +39,8 @@ describe('bookmark import metadata', () => {
     const createBookmarkRelation = vi.fn().mockResolvedValue({ bookmark_id: 42, created_at: oldDate, deleted_at: null })
     const createBookmarkChangeLog = vi.fn()
     const sendBookmarkChange = vi.fn().mockResolvedValue(undefined)
-    const waitUntil = vi.fn()
+    const createWorkflow = vi.fn().mockResolvedValue({ id: 'maintenance' })
+    const waitUntil = vi.fn((_work: Promise<unknown>) => {})
     Object.assign(service, {
       bookmarkRepo: {
         createBookmark: vi.fn().mockResolvedValue({ id: 42, status: queueStatus.SUCCESS }),
@@ -50,7 +52,7 @@ describe('bookmark import metadata', () => {
       searchService: { clearSearchCache: vi.fn() }
     })
     const ctx = {
-      env: {},
+      env: { VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch: async (items: unknown[]) => Promise.all(items.map(item => createWorkflow(item))) } },
       execution: { waitUntil },
       getUserId: () => 1,
       hashIds: { encodeId: (id: number) => `encoded-${id}` }
@@ -65,11 +67,15 @@ describe('bookmark import metadata', () => {
       type: 0,
       importMetadata: { savedAt: oldDate, starred: false }
     })
+    await Promise.all(waitUntil.mock.calls.map(([work]) => work))
 
     expect(createBookmarkRelation).toHaveBeenCalledWith(1, 42, 0, false, { savedAt: oldDate, starred: false })
     const changeTime = createBookmarkChangeLog.mock.calls[0][4] as Date
     expect(changeTime.getTime()).toBeGreaterThanOrEqual(before)
+    expect(sendBookmarkChange).toHaveBeenCalledTimes(1)
     expect(sendBookmarkChange).toHaveBeenCalledWith(ctx.env, expect.objectContaining({ created_at: changeTime, bookmark_id: 'encoded-42' }))
+    expect(createWorkflow).not.toHaveBeenCalled()
     expect(waitUntil).toHaveBeenCalledTimes(1)
+    expect(waitUntil).toHaveBeenCalledWith(sendBookmarkChange.mock.results[0].value)
   })
 })

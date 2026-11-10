@@ -181,6 +181,9 @@
       </template>
     </SnapshotDetailLayout>
 
+    <div v-else-if="recoveringSession" class="error" role="status" aria-live="polite">
+      <p>{{ $t('common.operate.loading') }}</p>
+    </div>
     <div v-else-if="error" class="error">
       <p>{{ error.statusCode === 404 ? $t('page.bookmarks_detail.error_not_found') : $t('page.bookmarks_detail.error_generic') }}</p>
     </div>
@@ -213,6 +216,7 @@ import { eventLog } from '@/utils/analytics'
 import { extractFirstContentImage } from '@/utils/ogImage'
 import { sortBookmarkTags } from '@/utils/tags'
 import { youtubeArticleView as pickYoutubeArticleView, youtubeBodyHasArticle as bodyHasYoutubeArticle } from '@/utils/youtubeBody'
+import { tokenFingerprint } from '~/utils/accountContext'
 import type { PdfTitlePreview } from '~/utils/pdfPreview'
 import { pdfTitlePreview } from '~/utils/pdfPreview'
 
@@ -262,6 +266,8 @@ const contentRequestHeaders = import.meta.server ? useRequestHeaders(['cookie', 
 const contentRequestEvent = import.meta.server ? useRequestEvent() : undefined
 const fetchContent = useRequestFetch()
 const authenticatedSsr = import.meta.server && (!!useCookie(String(useRuntimeConfig().public.COOKIE_TOKEN_NAME)).value || !!contentRequestHeaders?.authorization)
+// Only a fingerprint crosses SSR hydration; the rejected credential stays in the cookie.
+const rejectedTokenVersion = useState<string | null>(`snapshot-rejected-session-${uuid}`, () => null)
 
 const {
   data: storedPageData,
@@ -271,6 +277,8 @@ const {
 } = await useAsyncData(`content-${uuid}`, async () => {
   account.sync()
   const generation = accountGeneration.value
+  const requestTokenVersion = tokenFingerprint(getUserToken())
+  rejectedTokenVersion.value = null
   const res = await fetchContent<{
     metadata: SnapshotMetadata
     body: string | null
@@ -278,6 +286,7 @@ const {
     headers: contentRequestHeaders,
     onResponse({ response }) {
       contentResponseHeaders = new Headers(response.headers)
+      if (response.status === 401 && !contentRequestHeaders?.authorization) rejectedTokenVersion.value = requestTokenVersion
     }
   })
 
@@ -306,6 +315,11 @@ const {
 })
 // A response for an earlier session is never exposed, even before a watcher runs.
 const pageData = computed(() => storedPageData.value?.generation === accountGeneration.value ? storedPageData.value : undefined)
+const { pending: recoveringSession } = useSnapshotSessionRecovery(error, rejectedTokenVersion, route.path)
+if (import.meta.server && recoveringSession.value) {
+  setResponseStatus(401)
+  useResponseHeader('cache-control').value = 'private, no-store'
+}
 
 
 const clientReady = import.meta.client ? new Promise<void>(resolve => onNuxtReady(resolve)) : undefined
@@ -347,7 +361,7 @@ if (import.meta.server && useRuntimeConfig().public.slaxEnv !== 'production') {
   }
 }
 
-if (error.value) {
+if (error.value && !recoveringSession.value) {
   throw createError({
     statusCode: (error.value as { statusCode?: number }).statusCode ?? 500,
     statusMessage: 'Content unavailable',
@@ -362,20 +376,24 @@ const localReady = ref(false)
 const isOwner = computed(() => (pageData.value?.metadata as { role?: string } | undefined)?.role === 'owner')
 const shareInfo = useShareCollectInfo()
 const showFirstStarCue = useFirstStarCollectionCue()
-const local = import.meta.client && isLocalFirstEnabled() ? useLocalBookmarks() : null
+const local = import.meta.client && !recoveringSession.value && isLocalFirstEnabled() ? useLocalBookmarks() : null
 const localMarksQuery = local ? useLocalMarks().watchMarkDetail(uuid, localFirst) : null
 const canActOnMarks = computed(() => isOwner.value)
 const localRow = local ? local.watchDetail(uuid, localFirst) : null
 
 if (import.meta.client) watch(accountGeneration, () => {
-  clearContent()
+  // Preserve the rejected request's error if cookie cleanup cannot complete.
+  if (!recoveringSession.value) clearContent()
   pdfPlaceholder.value = undefined
   restMarks.value = { mark_list: [], user_list: {} }
   localFirst.value = false
   localReady.value = false
-  if (navigator.onLine) void refreshContent().then(() => initializeClientDetail(false)).catch(() => {})
+  if (!recoveringSession.value && navigator.onLine) void refreshContent().then(() => initializeClientDetail(false)).catch(() => {})
 }, { flush: 'sync' })
-onBeforeUnmount(() => clearContent())
+onBeforeUnmount(() => {
+  clearContent()
+  clearNuxtState(`snapshot-rejected-session-${uuid}`)
+})
 
 // Admission succeeds independently of this optional detail refresh.
 async function refreshForkDetail() {
@@ -518,6 +536,7 @@ const { isSubscriptionExpired, showAnalyzed, showChatbot, chatBotQuote, showFeed
     targetUrl: detail.value?.target_url
   }),
   initialRequestTask: initializeClientDetail,
+  initialTasksEnabled: !recoveringSession.value,
   // 就绪后决定初始侧栏
   initialTasksCompleted: () => {
     if (!isClient) return
@@ -531,7 +550,7 @@ const { isSubscriptionExpired, showAnalyzed, showChatbot, chatBotQuote, showFeed
 })
 
 async function initializeClientDetail(refreshIdentity = true) {
-  if (!isClient) return
+  if (!isClient || recoveringSession.value) return
   const generation = accountGeneration.value
   const userStore = useUserStore()
   if (!pageData.value || (pageData.value?.metadata.type === 'pdf' && !pageData.value.metadata.pdf) || (pageData.value?.metadata.has_fork && pageData.value.metadata.fork == null)) {

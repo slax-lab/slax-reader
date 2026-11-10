@@ -151,7 +151,7 @@ export class CrawlService {
     const raw = await this.snapshotRepo.snapshot(params.bookmarkId)
     if (!raw) throw forkError()
     if (params.captureRevision && params.captureRevision !== raw.updated_at.toISOString()) return
-    if (!['pending', 'pending_retry'].includes(raw.status)) return
+    if (params.skipParse ? raw.status !== 'success' : !['pending', 'pending_retry'].includes(raw.status)) return
     if (readerBookmarkUuid(params.url, [env.FRONT_END_URL])) {
       await this.snapshotRepo.failDispatch(params.bookmarkId, raw.updated_at)
       throw forkError()
@@ -181,7 +181,7 @@ export class CrawlService {
         console.log(`Failed to create workflow for bookmark ${params.bookmarkId} (attempt ${attempt}/${maxRetries}): ${err}`)
 
         if (attempt === maxRetries) {
-          await this.snapshotRepo.failDispatch(params.bookmarkId, new Date(params.captureRevision!))
+          if (!params.skipParse) await this.snapshotRepo.failDispatch(params.bookmarkId, new Date(params.captureRevision!))
           const errMsg = err instanceof MultiLangError ? err.message : err instanceof Error ? err.message : String(err)
           await this.sendAddBookmarkStepEvent(params.userId, params.bookmarkId, hostname, 'workflow_creation', 'failed', errMsg, trackingContext)
           await this.pushBookmarkFailureAlert(params.userId, 'workflow_creation', {

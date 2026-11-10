@@ -14,6 +14,7 @@ import { forkError } from '@/utils/bookmarkForkError'
 import { SnapshotBundle, snapshotKeys } from '@/utils/snapshotBundle'
 import { MediaSnapshotService } from './mediaSnapshot'
 import { NotificationMessage } from '@/infra/message/notification'
+import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
 
 export type ForkWorkflowJob = {
   sourceUuid: string
@@ -42,6 +43,12 @@ export class BookmarkForkService {
     @inject(NotificationMessage) private notifications: NotificationMessage
   ) {}
 
+  private maintainReboundArticles(ctx: ContextManager, result: { rebindings?: { userId: number; previousBookmarkId: number; bookmarkId: number }[] }) {
+    for (const identity of result.rebindings ?? []) {
+      dispatchVectorMaintenance(ctx, { kind: 'article', userId: identity.userId, id: identity.previousBookmarkId })
+    }
+  }
+
   async admit(ctx: ContextManager, sourceUuid: string): Promise<CompletedFork> {
     const userId = ctx.getUserId()
     if (!userId) throw UnauthorizedError()
@@ -58,6 +65,7 @@ export class BookmarkForkService {
     if (source.user_id === userId) return this.existingResult(ctx, await this.repo.ownSource(userId, sourceUuid))
     if (source.bookmark.status !== 'success') throw forkError()
     const admission = await this.repo.admit({ userId, source, targetUrl: this.destinationUrl(source, userId), uuid: crypto.randomUUID() })
+    this.maintainReboundArticles(ctx, admission)
     const { relation, disposition } = admission
     const revision = relation.bookmark.updated_at
     const workflowId = `fork-${relation.bookmark_id}-${revision.getTime()}`
@@ -157,6 +165,7 @@ export class BookmarkForkService {
         pdfDocumentId: pdf ? this.documentId(source) : undefined
       })
       await this.afterCommit(ctx, result.relation).catch(error => console.error('Fork indexing failed', error))
+      return true
     } catch (error) {
       // Unknown COMMIT outcomes may own these keys; only known rollback permits discard.
       // The Workflow retries with the same claim; exhausted retries alone mark it failed.
@@ -188,6 +197,7 @@ export class BookmarkForkService {
     const targetUrl = this.destinationUrl(source, userId)
     if (source.bookmark.status !== 'success') throw forkError()
     const existing = await this.repo.existing(userId, targetUrl)
+    if (existing) this.maintainReboundArticles(ctx, existing)
 
     if (existing && !(await this.repo.claimWrite(existing.bookmark_id, existing.bookmark.updated_at, ['success', 'failed'], true)))
       throw forkError(ErrorName.FORK_DESTINATION_IN_PROGRESS)
@@ -261,11 +271,13 @@ export class BookmarkForkService {
       return this.existingResult(ctx, result.relation)
     }
     // Side effects are outside the rollback scope. Failures must never delete a live bundle.
+    dispatchVectorMaintenance(ctx, { kind: 'article', userId, id: result.relation.bookmark_id })
     await this.afterCommit(ctx, result.relation).catch(error => console.error('Fork indexing failed', error))
     return this.result(result.relation, result.disposition)
   }
 
   private async existingResult(ctx: ContextManager, relation: { uuid: string; bookmark_id: number }) {
+    dispatchVectorMaintenance(ctx, { kind: 'article', userId: ctx.getUserId(), id: relation.bookmark_id })
     await this.search.clearSearchCache(ctx, ctx.getUserId()).catch(error => console.error('Fork cache clearing failed', error))
     return this.result(relation, 'already_saved')
   }

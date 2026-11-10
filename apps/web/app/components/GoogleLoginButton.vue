@@ -6,7 +6,7 @@
 </template>
 
 <script lang="ts" setup>
-import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
+import { isCollectionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import type { PropType } from 'vue'
 
 const t = (text: string) => {
@@ -15,7 +15,7 @@ const t = (text: string) => {
 
 const props = defineProps({
   authAttribution: {
-    type: Object as PropType<CollectionAuthAttribution>,
+    type: Object as PropType<WebAuthAttribution>,
     required: false
   },
   redirect: {
@@ -32,7 +32,7 @@ const props = defineProps({
 const auth = useAuth()
 
 const loginClick = async () => {
-  if (props.authAttribution) {
+  if (isCollectionAuthAttribution(props.authAttribution)) {
     eventLog({
       event_name: 'element_clicked',
       properties: { screen_name: 'signup', element_id: 'login_google_button', ...props.authAttribution }

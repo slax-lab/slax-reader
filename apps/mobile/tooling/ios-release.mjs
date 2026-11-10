@@ -7,6 +7,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {checkProductionEnvironment, checkProductionBundle} from './release-environment.mjs';
 import {verifyFrameworkClosure} from './ios-frameworks.mjs';
+import {verifyIosCompatibility} from './ios-compatibility.mjs';
 import {applyMobileEnvironment} from './deploy-environment.cjs';
 import {parseBuildVersion, readBuildVersion} from './build-version.cjs';
 
@@ -174,12 +175,13 @@ function verifiedBundle(directory, release, bundle, exported) {
 }
 function verifyApplication(directory, release, exported = false) {
   verifyFrameworkClosure(directory);
+  const nativeCompatibility = verifyIosCompatibility(directory);
   checkFirebaseBundleResources(directory);
   const main = verifiedBundle(directory, release, MAIN, exported);
   const extensions = readdirSync(path.join(directory, 'PlugIns')).filter(name => name.endsWith('.appex'));
   assert(extensions.length === 1 && extensions[0] === 'SlaxShare.appex', 'Exactly the original share extension must be embedded');
   const share = verifiedBundle(path.join(directory, 'PlugIns/SlaxShare.appex'), release, SHARE, exported);
-  return {main, share};
+  return {main, share, nativeCompatibility};
 }
 function createOutput(value) {
   assert(!existsSync(value), 'Use a fresh output directory; existing release artifacts are never overwritten');

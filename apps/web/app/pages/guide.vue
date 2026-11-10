@@ -85,12 +85,13 @@ const logoClick = () => {
 .guide {
   --style: w-full flex flex-col items-center overflow-hidden select-none;
 
-  // 内容左侧留白：桌面 128px，移动端收紧到 16px（与顶栏共用，保证 logo 与正文对齐）
+  // Keep the logo and content aligned, including phone safe-area gutters.
   .responsive-width {
     --style: pl-128px;
 
     @media (max-width: 768px) {
-      --style: pl-16px pr-16px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
     }
   }
 
@@ -281,6 +282,109 @@ const logoClick = () => {
 
       &:active {
         transform: translateY(0);
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    .header {
+      height: calc(var(--slax-header-height) + env(safe-area-inset-top));
+      padding-top: env(safe-area-inset-top);
+    }
+
+    .content {
+      padding-top: calc(var(--slax-header-height) + env(safe-area-inset-top));
+      padding-bottom: 32px;
+
+      .guide-container {
+        padding-top: 24px;
+
+        .guide-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 16px;
+
+          img {
+            width: 72px;
+          }
+
+          .text {
+            min-width: 0;
+            margin-left: 0;
+            white-space: normal;
+            overflow-wrap: anywhere;
+
+            h1 {
+              font-size: var(--slax-fs-h2);
+            }
+
+            span {
+              margin-top: 8px;
+            }
+          }
+        }
+
+        .guide-content {
+          &::before,
+          &::after {
+            display: none;
+          }
+
+          .scroll-content {
+            flex-direction: column;
+            gap: 16px;
+            overflow: visible;
+            margin-top: 24px;
+            margin-left: 0;
+            padding: 0;
+            scroll-snap-type: none;
+
+            .guide-card {
+              width: 100%;
+              max-width: none;
+              min-height: 0;
+              padding: 20px;
+              overflow-wrap: anywhere;
+
+              &:not(:first-child) {
+                margin-left: 0;
+              }
+
+              h1 {
+                font-size: var(--slax-fs-h2);
+              }
+
+              img {
+                width: 100%;
+                max-width: 355px;
+                height: auto;
+                align-self: center;
+                margin-top: 20px;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .guide-footer {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 16px;
+      margin-top: 32px;
+
+      .operate {
+        margin-left: 0;
+        width: 100%;
+
+        // eslint-disable-next-line vue-scoped-css/no-unused-selector
+        .google-login-button {
+          width: 100%;
+        }
+      }
+
+      .use {
+        width: 100%;
       }
     }
   }

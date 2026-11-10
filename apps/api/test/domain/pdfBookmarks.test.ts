@@ -437,6 +437,40 @@ describe('PDF upload', () => {
     expect(bucket.put).not.toHaveBeenCalled()
     expect((service as any).crawlService.createWorkflow).not.toHaveBeenCalled()
   })
+  it('completed duplicate upload repairs supplied bytes and disables tag/overview generation in the cached workflow', async () => {
+    const { service, create, repo } = uploadWire()
+    create.mockResolvedValue({ id: 10, status: 'success', updated_at: pdfRevision, content_key: 'pdf/body/saved.pdf', title: 'download', byline: '', target_url: 'slax-pdf://7/hash', private_user: 7 })
+    repo.getUserBookmarkWithDetail.mockResolvedValue({ uuid: 'saved' })
+    ;(service as any).crawlService.createWorkflow.mockResolvedValue(undefined)
+    const result = await service.uploadPdf(
+      createMockCtx({ userId: 7 }),
+      new Request('https://reader.test/upload?filename=download.pdf', { method: 'POST', body: pdfFixture(['Text'], [], 'Actual Paper Title', 'Jane Doe') })
+    )
+    expect(result).toMatchObject({ bookmark_uid: 'saved', title: 'Actual Paper Title' })
+    expect(repo.updatePdfMetadata).toHaveBeenCalledWith(10, { title: 'Actual Paper Title', byline: 'Jane Doe' })
+    const createWorkflow = (service as any).crawlService.createWorkflow
+    expect(createWorkflow).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ skipParse: true, ignoreGenerateTag: true }), 3, expect.anything())
+    expect(createWorkflow.mock.calls[0][1]).not.toHaveProperty('repairPdfMetadata')
+  })
+
+  it('completed duplicate upload still returns the committed save when cached workflow admission is exhausted', async () => {
+    const { service, create, repo } = uploadWire()
+    create.mockResolvedValue({ id: 10, status: 'success', updated_at: pdfRevision, content_key: 'pdf/body/saved.pdf', title: 'download', byline: '', target_url: 'slax-pdf://7/hash', private_user: 7 })
+    repo.getUserBookmarkWithDetail.mockResolvedValue({ uuid: 'saved' })
+    ;(service as any).crawlService.createWorkflow.mockRejectedValue(new Error('admission unavailable'))
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const result = await service.uploadPdf(
+        createMockCtx({ userId: 7 }),
+        new Request('https://reader.test/upload?filename=download.pdf', { method: 'POST', body: pdfFixture(['Text'], [], 'Actual Paper Title', 'Jane Doe') })
+      )
+      expect(result).toMatchObject({ bookmark_uid: 'saved', title: 'Actual Paper Title' })
+      expect(log).toHaveBeenCalledWith('Cached bookmark post-processing admission failed', { bookmarkId: 10 }, expect.any(Error))
+    } finally {
+      log.mockRestore()
+    }
+  })
+
   it('returns a filename fallback when metadata is unreadable without blocking original-file storage', async () => {
     const { service, repo } = uploadWire()
     const result = await service.uploadPdf(createMockCtx(), new Request('https://reader.test/upload?filename=fallback.pdf', { method: 'POST', body: '%PDF-invalid' }))

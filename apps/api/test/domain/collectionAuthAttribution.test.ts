@@ -10,6 +10,12 @@ const attribution = {
   trigger_element_id: 'collection_subscribe_button'
 }
 
+const acquisition = {
+  source: 'hackerlinks',
+  medium: 'header',
+  campaign: 'mvp'
+} as const
+
 function fixture(isNew = false) {
   const pending: Promise<unknown>[] = []
   const send = vi.fn().mockResolvedValue(undefined)
@@ -131,7 +137,6 @@ describe('collection authentication attribution', () => {
   })
 })
 
-
 describe('collection provisioning during authentication', () => {
   test('provisions the default collection after the active account is confirmed', async () => {
     const f = fixture(true)
@@ -143,5 +148,74 @@ describe('collection provisioning during authentication', () => {
     const f = fixture()
     f.collectionRepo.ensureUserShareCollect.mockRejectedValue(new Error('collection unavailable'))
     await expect(f.login(undefined)).resolves.toMatchObject({ is_new_user: false, token: expect.any(String) })
+  })
+})
+
+describe('acquisition authentication attribution', () => {
+  test.each([
+    { type: 'google', isNew: true, medium: 'header' },
+    { type: 'apple', isNew: true, medium: 'resource_detail' },
+    { type: 'google', isNew: false, medium: 'header' },
+    { type: 'apple', isNew: false, medium: 'resource_detail' }
+  ] as const)('attributes only new-account facts ($type, new=$isNew)', async ({ type, isNew, medium }) => {
+    const f = fixture(isNew)
+    const result = await f.login({ ...acquisition, medium, user_id: 999, device_id: 'forged', method: 'other', token: 'discard', utm_content: 'discard' }, type)
+    await f.settled()
+    expect(result).toMatchObject({ is_new_user: isNew, login_type: type })
+    expect(result).not.toHaveProperty('auth_attribution')
+    expect(f.send).toHaveBeenCalledTimes(1)
+    expect(f.send).toHaveBeenCalledWith([
+      expect.objectContaining({
+        event_name: isNew ? 'user_created' : 'user_logged_in',
+        user_id: 7,
+        device_id: 'browser-1',
+        properties: {
+          ...(isNew ? { ...acquisition, medium } : {}),
+          method: type,
+          platform: 'web',
+          locale: 'en',
+          client_version: 'unknown'
+        }
+      })
+    ])
+    expect(f.bindAlias).toHaveBeenCalledWith('browser-1', 7, isNew ? 'signup' : 'login')
+  })
+
+  test.each([
+    undefined,
+    null,
+    'wrong-type',
+    [],
+    {},
+    { source: 'hackerlinks', campaign: 'mvp' },
+    { ...acquisition, source: ['hackerlinks'] },
+    { ...acquisition, source: 'other' },
+    { ...acquisition, medium: 'other' },
+    { ...acquisition, campaign: 'other' }
+  ])('omits invalid acquisition without failing registration: %j', async metadata => {
+    const f = fixture(true)
+    await expect(f.login(metadata)).resolves.toMatchObject({ is_new_user: true })
+    await f.settled()
+    expect(f.send).toHaveBeenCalledWith([
+      expect.objectContaining({
+        event_name: 'user_created',
+        properties: { method: 'google', platform: 'web', locale: 'en', client_version: 'unknown' }
+      })
+    ])
+  })
+
+  test('emits no acquisition success when Apple authentication fails', async () => {
+    const f = fixture(true)
+    f.provider.mockRejectedValue(new Error('authorization rejected'))
+    await expect(f.login(acquisition, 'apple')).rejects.toThrow('authorization rejected')
+    expect(f.send).not.toHaveBeenCalled()
+    expect(f.bindAlias).not.toHaveBeenCalled()
+  })
+
+  test('preserves new-account success when acquisition delivery fails', async () => {
+    const f = fixture(true)
+    f.send.mockRejectedValue(new Error('stream unavailable'))
+    await expect(f.login(acquisition)).resolves.toMatchObject({ is_new_user: true })
+    await expect(f.settled()).resolves.toBeDefined()
   })
 })
