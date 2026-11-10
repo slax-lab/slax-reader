@@ -264,10 +264,10 @@ async function main() {
       }
     }, 'authenticated Core database ready')
     if (emailRedis) {
-      const authCall = async (path: string, body?: object, bearer?: string) => {
+      const authCall = async (path: string, body?: object, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
         const response = await localFetch(`http://localhost:${httpPort}${path}`, {
           method: body ? 'POST' : 'GET',
-          headers: { 'Content-Type': 'application/json', ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
+          headers: { 'Content-Type': 'application/json', 'X-Fixture-Email-Run-Type': runType, ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
           body: body ? JSON.stringify(body) : undefined
         })
         return response.json() as Promise<{ code: number; data: any }>
@@ -284,6 +284,19 @@ async function main() {
       const login = '/v1/user/login/email'
       assert.deepEqual((await authCall(`${login}/status`)).data, { enabled: true })
       assert.equal((await authCall('/v1/user/auth/identities')).code, 401)
+      assert.equal((await authCall('/v1/user/auth/identities', undefined, token)).data.email_binding_enabled, true)
+      for (const runType of ['beta', 'prod'] as const) {
+        assert.deepEqual((await authCall(`${login}/status`, undefined, undefined, runType)).data, { enabled: true })
+        assert.equal((await authCall('/v1/user/auth/identities', undefined, token, runType)).data.email_binding_enabled, false)
+        for (const [path, body] of [
+          ['/v1/user/auth/email/send', { email: 'saver@smoke.invalid' }],
+          ['/v1/user/auth/email/verify', { email: 'saver@smoke.invalid', request_id: 'fixture-challenge', code: '012345' }]
+        ] as const) {
+          const response = await authCall(path, body, token, runType)
+          assert.equal(response.code, 503)
+          assert.equal(response.data, 'EMAIL_AUTH_UNAVAILABLE')
+        }
+      }
       assert.equal((await prove(login, 'owner@smoke.invalid')).data, 'EMAIL_AUTH_USE_EXISTING_LOGIN')
       assert.deepEqual((await prove('/v1/user/auth/email', 'saver@smoke.invalid', token)).data, { email: 'saver@smoke.invalid' })
       const returning = await prove(login, 'Saver@SMOKE.INVALID')
@@ -294,7 +307,7 @@ async function main() {
       assert.equal(fresh.code, 200)
       assert.equal(fresh.data.is_new_user, true)
       assert.equal((await authCall('/v1/user/auth/identities', undefined, fresh.data.token)).data.email, 'new-reader@smoke.invalid')
-      evidence.emailAuthentication = 'anonymous status and access guard, legacy sign-in guidance, binding, existing-account login, and new-account session'
+      evidence.emailAuthentication = 'dev binding, beta and prod binding rejection, legacy sign-in guidance, existing-account login, and new-account session'
     }
     for (const origin of [vars.FRONT_END_URL, vars.FRONT_END_URL + '.attacker.invalid']) {
       const response = await localFetch(`http://localhost:${httpPort}/events`, { method: 'OPTIONS', headers: { Origin: origin } })

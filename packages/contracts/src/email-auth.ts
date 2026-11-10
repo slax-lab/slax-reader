@@ -17,6 +17,7 @@ export interface EmailCodeChallenge {
 
 export interface EmailAuthIdentities {
   enabled: boolean
+  email_binding_enabled: boolean
   email: string | null
   google: boolean
   apple: boolean

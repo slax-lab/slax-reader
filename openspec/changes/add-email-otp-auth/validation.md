@@ -34,6 +34,13 @@
 
 The requester chose to retain Mobile 1.0.29 with build number 803 and previous build number 802.
 
+## Development-only mailbox binding
+
+- The full API suite passed 3,867 tests with 138 opt-in tests skipped. The isolated Edge/Core HTTP smoke used configured fixture credentials and verified the identities capability and successful binding in dev. The same running fixture returned `EMAIL_AUTH_UNAVAILABLE` for binding send and verify requests in beta and production, while email sign-in remained available.
+- The Web account settings, authentication composable, and server session endpoint passed 45 focused tests. The integration with the latest `dev` uses its server-set session cookie for both OAuth and email login. The tests cover canceled verification and an existing session taking precedence.
+- Chromium exercised the account page against a local API fixture at 1280 px in light, 768 px in dark, and 320 px in e-ink. The binding action was hidden when disabled and completed with a verified address when enabled. The original Google binding remained visible in both states.
+- The Mobile settings suite passed 20 tests, including binding on iOS and a hidden binding action with Google linking still available on Android. Mobile type checking and both platform bundles succeeded. The full local Mobile run failed in five unrelated native storage and transport harnesses. The full local Web run was stopped after Nuxt setup hooks timed out. The rollout adjustment has not been exercised on a physical device or a hosted deployment.
+
 ## Hands-on acceptance
 
 On 2026-11-09 the requester exercised the initial Web preview and asked to refine the layout of `/user`. The revision groups profile details and sign-in methods in one card, separates the two email labels, and aligns the methods, status, and actions. The requester accepted the revised Web layout and binding flow in the loopback preview on 2026-11-09.

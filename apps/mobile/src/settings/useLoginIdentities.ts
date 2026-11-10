@@ -49,7 +49,7 @@ export function useLoginIdentities({api, scope, platform, authenticate, fixture}
         const value = await api.getLoginIdentities(read.signal);
         if (generation.current() && !read.signal.aborted) {
           setSnapshot({api, scope, value});
-          if (!value.enabled || value.email !== null) setEmailFlow(null);
+          if (!value.email_binding_enabled || value.email !== null) setEmailFlow(null);
         }
       } catch {
         // Feature availability is unknown on older or temporarily unavailable servers.
@@ -78,7 +78,7 @@ export function useLoginIdentities({api, scope, platform, authenticate, fixture}
 
   function openEmail() {
     const generation = lifetime.current;
-    if (!identities || identities.email !== null || !generation?.current() || generation.mutation) return;
+    if (!identities?.email_binding_enabled || identities.email !== null || !generation?.current() || generation.mutation) return;
     setError(undefined);
     setEmailFlow(generation);
   }

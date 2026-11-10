@@ -52,7 +52,13 @@ export default {
       return new Response('ok')
     }
     if (url.pathname === '/__fixture/vector-maintenance-admissions') return Response.json(maintenanceAdmissions)
-    const fixtureEnv = { ...env, RUN_TYPE: 'beta', REPORT_PUSH_API: sink } as Env
+    // Diagnostics use the beta notification path. Email smoke requests can exercise other rollout environments locally.
+    const runType = request.headers.get('X-Fixture-Email-Run-Type')
+    const fixtureEnv = {
+      ...env,
+      RUN_TYPE: env.RESEND_API_KEY === 'fixture-only' && (runType === 'dev' || runType === 'prod') ? runType : 'beta',
+      REPORT_PUSH_API: sink
+    } as Env
     fixtureEnv.VECTOR_V5_MAINTENANCE_WORKFLOW = {
       async create(options: { id: string; params: unknown }) {
         maintenanceAdmissions.push(options.params)

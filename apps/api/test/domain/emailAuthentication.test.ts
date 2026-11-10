@@ -10,8 +10,8 @@ const env = {
   RUN_TYPE: 'dev'
 } as Env
 
-function context(userId: number) {
-  const ctx = new ContextManager({} as ExecutionContext, env)
+function context(userId: number, workerEnv = env) {
+  const ctx = new ContextManager({} as ExecutionContext, workerEnv)
   ctx.setUserInfo(userId, userId, '', 'en')
   return ctx
 }
@@ -24,7 +24,9 @@ function fixture() {
   const state = new Map<string, unknown>()
   const redis = () => ({
     key: (key: string) => ({
-      setWithExpire: async (value: unknown) => { state.set(key, value) },
+      setWithExpire: async (value: unknown) => {
+        state.set(key, value)
+      },
       consume: async () => {
         const value = state.get(key)
         state.delete(key)
@@ -46,6 +48,28 @@ test('email auth is available as soon as its credentials are configured', () => 
   expect(emailAuthEnabled(env)).toBe(true)
   expect(emailAuthEnabled({ ...env, RESEND_API_KEY: undefined })).toBe(false)
   expect(emailAuthEnabled({ ...env, EMAIL_AUTH_HMAC_SECRET: 'too-short' })).toBe(false)
+})
+
+test.each([
+  ['dev', true],
+  ['beta', false],
+  ['prod', false]
+] as const)('reports mailbox binding availability in %s', async (runType, available) => {
+  const auth = new EmailAuthentication({ getUserBindPlatform: async () => [] } as never, {} as never, (() => {}) as never)
+  const ctx = context(41, { ...env, RUN_TYPE: runType })
+  await expect(auth.identities(ctx)).resolves.toMatchObject({ enabled: true, email_binding_enabled: available })
+})
+
+test.each(['beta', 'prod'])('rejects binding-code requests in %s before sending or consuming a code', async runType => {
+  const redis = vi.fn()
+  const auth = new EmailAuthentication({} as never, {} as never, redis as never)
+  const ctx = context(41, { ...env, RUN_TYPE: runType })
+  const email = 'reader@example.test'
+  await expect(auth.send(ctx, request({ email }), 'bind')).rejects.toMatchObject({ name: 'EMAIL_AUTH_UNAVAILABLE' })
+  await expect(auth.bindEmail(ctx, request({ email, request_id: 'binding-request-123', code: '012345' }))).rejects.toMatchObject({
+    name: 'EMAIL_AUTH_UNAVAILABLE'
+  })
+  expect(redis).not.toHaveBeenCalled()
 })
 
 describe('explicit OAuth binding', () => {

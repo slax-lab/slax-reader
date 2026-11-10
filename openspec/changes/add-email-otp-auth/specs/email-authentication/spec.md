@@ -52,9 +52,15 @@ The system SHALL require an active authenticated session and proof of the added 
 
 #### Scenario: A Google or Apple user binds a mailbox
 
-- **WHEN** an authenticated reader verifies the requested mailbox from account settings
+- **WHEN** an authenticated reader verifies the requested mailbox from account settings in the development environment
 - **THEN** the system binds it to the current user and preserves the original user ID and profile email, including an Apple placeholder
 - **AND** subsequent login using either bound method opens that account
+
+#### Scenario: A reader opens account settings in beta or production
+
+- **WHEN** an authenticated reader opens account settings in beta or production during the initial rollout
+- **THEN** Web, iOS and Android hide the action to bind an email, even if email authentication credentials are configured
+- **AND** the API refuses to issue or verify a code for mailbox binding
 
 #### Scenario: An email-first user links a provider
 

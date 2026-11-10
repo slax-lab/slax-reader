@@ -76,7 +76,7 @@ async function harness(root, platform = 'ios') {
     rssRequests: [], mutations: [], deletionRequests: [], navigation: [], headers: [],
     labs: async () => ({features: [{key: 'rss', enabled: false}, {key: 'pdf', enabled: true}]}),
     enable: async () => {}, deletion: async () => ({canDelete: false, reason: 'active_subscription'}),
-    identities: async () => ({enabled: false, email: null, google: false, apple: false}),
+    identities: async () => ({enabled: false, email_binding_enabled: false, email: null, google: false, apple: false}),
     authorization: [], providerStarts: [], providerFinishes: [], proofs: [],
     authorize: async type => ({type, platform, code: 'provider-proof', redirect_uri: ''}),
   };
@@ -460,7 +460,7 @@ for (const replacement of ['owner', 'origin']) test(`DeleteAccount ${replacement
 
 test('Settings links a verified mailbox and a native provider without replacing the active session', async () => mounted(async root => {
   const h = await harness(root);
-  h.identities = async () => ({enabled: true, email: null, google: true, apple: false});
+  h.identities = async () => ({enabled: true, email_binding_enabled: true, email: null, google: true, apple: false});
   await h.renderRoute('SettingsScreen');
   const before = h.sessions.getSnapshot();
   await act(async () => h.one('SourceButton', props => props.label === 'email_auth_bind').onPress());
@@ -479,9 +479,17 @@ test('Settings links a verified mailbox and a native provider without replacing 
   assert.deepEqual(h.sessions.getSnapshot(), before);
 }));
 
+test('Settings hides the email binding action when the server disables it', async () => mounted(async root => {
+  const h = await harness(root, 'android');
+  h.identities = async () => ({enabled: true, email_binding_enabled: false, email: null, google: false, apple: false});
+  await h.renderRoute('SettingsScreen');
+  assert.ok(h.all('SourceButton').some(props => props.label === 'email_auth_link_google'));
+  assert.ok(!h.all('SourceButton').some(props => props.label === 'email_auth_bind'));
+}));
+
 test('Android guides Apple linking to the same Web account and ignores late Google authorization after owner replacement', async () => mounted(async root => {
   const h = await harness(root, 'android'), native = deferred();
-  h.identities = async () => ({enabled: true, email: 'owner@example.test', google: false, apple: false});
+  h.identities = async () => ({enabled: true, email_binding_enabled: true, email: 'owner@example.test', google: false, apple: false});
   h.authorize = () => native.promise;
   await h.renderRoute('SettingsScreen');
   assert.ok(h.all('SourceText').some(props => props.children === 'email_auth_link_apple_hint'));
@@ -490,7 +498,7 @@ test('Android guides Apple linking to the same Web account and ignores late Goog
   await act(async () => h.one('SourceButton', props => props.label === 'email_auth_link_google').onPress());
   assert.deepEqual(h.authorization, [['google', 'provider-nonce']]);
   h.owner = 'owner-b';
-  h.identities = async () => ({enabled: true, email: 'other@example.test', google: false, apple: true});
+  h.identities = async () => ({enabled: true, email_binding_enabled: true, email: 'other@example.test', google: false, apple: true});
   await h.rerender();
   await act(async () => native.resolve({type: 'google', platform: 'android', code: 'retired-proof', redirect_uri: ''}));
   assert.deepEqual(h.providerFinishes, []);
