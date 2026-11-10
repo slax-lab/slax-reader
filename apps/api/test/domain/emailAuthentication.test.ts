@@ -54,22 +54,10 @@ test.each([
   ['dev', true],
   ['beta', false],
   ['prod', false]
-] as const)('reports mailbox binding availability in %s', async (runType, available) => {
+] as const)('reports whether the settings should show mailbox binding in %s', async (runType, visible) => {
   const auth = new EmailAuthentication({ getUserBindPlatform: async () => [] } as never, {} as never, (() => {}) as never)
   const ctx = context(41, { ...env, RUN_TYPE: runType })
-  await expect(auth.identities(ctx)).resolves.toMatchObject({ enabled: true, email_binding_enabled: available })
-})
-
-test.each(['beta', 'prod'])('rejects binding-code requests in %s before sending or consuming a code', async runType => {
-  const redis = vi.fn()
-  const auth = new EmailAuthentication({} as never, {} as never, redis as never)
-  const ctx = context(41, { ...env, RUN_TYPE: runType })
-  const email = 'reader@example.test'
-  await expect(auth.send(ctx, request({ email }), 'bind')).rejects.toMatchObject({ name: 'EMAIL_AUTH_UNAVAILABLE' })
-  await expect(auth.bindEmail(ctx, request({ email, request_id: 'binding-request-123', code: '012345' }))).rejects.toMatchObject({
-    name: 'EMAIL_AUTH_UNAVAILABLE'
-  })
-  expect(redis).not.toHaveBeenCalled()
+  await expect(auth.identities(ctx)).resolves.toMatchObject({ enabled: true, show_email_binding: visible })
 })
 
 describe('explicit OAuth binding', () => {

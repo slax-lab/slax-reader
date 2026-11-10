@@ -1,7 +1,7 @@
 <template>
   <section v-if="identities?.enabled" class="login-methods" :aria-labelledby="titleId">
     <h3 :id="titleId">{{ t('email_auth.methods_title') }}</h3>
-    <div v-if="identities.email_binding_enabled || identities.email" ref="emailRow" class="login-method-row" tabindex="-1">
+    <div v-if="identities.show_email_binding || identities.email" ref="emailRow" class="login-method-row" tabindex="-1">
       <div class="login-method-label">
         <strong>{{ t('email_auth.login_email') }}</strong>
         <span>{{ signInEmailStatus }}</span>
@@ -11,7 +11,7 @@
       </button>
     </div>
     <EmailCodeForm
-      v-if="identities.email_binding_enabled && emailOpen && !identities.email"
+      v-if="identities.show_email_binding && emailOpen && !identities.email"
       class="login-method-email"
       :send-url="EMAIL_AUTH_PATH.bindSend"
       :client="account.api"

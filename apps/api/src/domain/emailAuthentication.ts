@@ -50,13 +50,8 @@ export function emailAuthEnabled(env: Env): boolean {
   return Boolean(env.RESEND_API_KEY?.trim()) && (env.EMAIL_AUTH_HMAC_SECRET?.trim().length ?? 0) >= 32
 }
 
-function emailBindingEnabled(env: Env): boolean {
-  return env.RUN_TYPE === 'dev' && emailAuthEnabled(env)
-}
-
-function requireEmailAuth(env: Env, purpose: 'login' | 'bind' = 'login') {
-  const enabled = purpose === 'bind' ? emailBindingEnabled(env) : emailAuthEnabled(env)
-  if (!enabled) throw EmailAuthUnavailableError()
+function requireEmailAuth(env: Env) {
+  if (!emailAuthEnabled(env)) throw EmailAuthUnavailableError()
 }
 
 function owner(ctx: ContextManager): number {
@@ -77,9 +72,10 @@ export class EmailAuthentication {
 
   async identities(ctx: ContextManager): Promise<EmailAuthIdentities> {
     const bindings = await this.users.getUserBindPlatform(owner(ctx))
+    const enabled = emailAuthEnabled(ctx.env)
     return {
-      enabled: emailAuthEnabled(ctx.env),
-      email_binding_enabled: emailBindingEnabled(ctx.env),
+      enabled,
+      show_email_binding: enabled && ctx.env.RUN_TYPE === 'dev',
       email: bindings.find(item => item.platform === 'mail')?.user_name ?? null,
       google: bindings.some(item => item.platform === 'google'),
       apple: bindings.some(item => item.platform === 'apple')
@@ -87,7 +83,7 @@ export class EmailAuthentication {
   }
 
   async send(ctx: ContextManager, request: Request, purpose: 'login' | 'bind') {
-    requireEmailAuth(ctx.env, purpose)
+    requireEmailAuth(ctx.env)
     const { email, locale } = await parse(request, sendSchema)
     const userId = purpose === 'bind' ? owner(ctx) : undefined
     const emailKey = email.toLowerCase()
@@ -103,7 +99,7 @@ export class EmailAuthentication {
   }
 
   private async consume(ctx: ContextManager, request: Request, purpose: 'login' | 'bind', userId?: number) {
-    requireEmailAuth(ctx.env, purpose)
+    requireEmailAuth(ctx.env)
     const { email, request_id, code, auth_attribution } = await parse(request, verifySchema)
     const key = email.toLowerCase()
     const delivery = await new EmailCodeService(ctx.env, this.redis()).verifyCode({ purpose, emailKey: key, requestId: request_id, code, userId })

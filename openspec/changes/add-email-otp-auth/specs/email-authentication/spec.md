@@ -60,7 +60,7 @@ The system SHALL require an active authenticated session and proof of the added 
 
 - **WHEN** an authenticated reader opens account settings in beta or production during the initial rollout
 - **THEN** Web, iOS and Android hide the action to bind an email, even if email authentication credentials are configured
-- **AND** the API refuses to issue or verify a code for mailbox binding
+- **AND** an authenticated caller can still issue and verify a mailbox binding code through the API when the email credentials are configured
 
 #### Scenario: An email-first user links a provider
 

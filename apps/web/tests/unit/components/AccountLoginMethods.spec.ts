@@ -25,7 +25,7 @@ const otherToken = `fixture.${btoa('{"id":2}')}.token`
 const accountKey = deriveAccountKey(ownerToken)!
 const fetchMock = vi.fn<typeof fetch>()
 const json = (data: unknown, status = 200) => new Response(JSON.stringify({ data }), { status })
-const identities = { enabled: true, email_binding_enabled: true, email: null, google: true, apple: false }
+const identities = { enabled: true, show_email_binding: true, email: null, google: true, apple: false }
 
 enableAutoUnmount(afterEach)
 
@@ -85,7 +85,7 @@ describe('Account sign-in methods', () => {
   })
 
   it('hides email binding while keeping provider linking available', async () => {
-    fetchMock.mockResolvedValueOnce(json({ ...identities, email_binding_enabled: false, google: false }))
+    fetchMock.mockResolvedValueOnce(json({ ...identities, show_email_binding: false, google: false }))
     const wrapper = mountWithApp(AccountLoginMethods, { props: { accountKey } })
     await flushPromises()
 

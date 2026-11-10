@@ -23,7 +23,7 @@ export function AccountSignInMethods({t, locale, platform, state, api}: AccountS
     {identities.email !== null ? <View>
       <SourceText style={styles.secondary}>{t('email_auth_address')}</SourceText>
       <SourceText selectable>{identities.email}</SourceText>
-    </View> : identities.email_binding_enabled && <SourceButton label={t('email_auth_bind')} tone="surface" style={styles.button}
+    </View> : identities.show_email_binding && <SourceButton label={t('email_auth_bind')} tone="surface" style={styles.button}
       disabled={Boolean(busy)} onPress={state.openEmail} />}
     {identities.google ? <SourceText style={styles.secondary}>{t('email_auth_google_linked')}</SourceText>
       : <SourceButton label={t('email_auth_link_google')} tone="surface" style={styles.button}
@@ -33,7 +33,7 @@ export function AccountSignInMethods({t, locale, platform, state, api}: AccountS
       : <SourceButton label={t('email_auth_link_apple')} tone="surface" style={styles.button}
         busy={busy === 'apple'} disabled={busy === 'google'} onPress={() => {void state.linkProvider('apple');}} />}
     {error && <SourceText accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{t(error)}</SourceText>}
-    {identities.email_binding_enabled && identities.email === null && emailFlow && <EmailCodeDialog mode="binding" t={t} locale={locale}
+    {identities.show_email_binding && identities.email === null && emailFlow && <EmailCodeDialog mode="binding" t={t} locale={locale}
       send={api.sendBindingEmail} verify={api.verifyBindingEmail} isCurrent={emailFlow.current}
       onVerified={state.emailLinked} onClose={state.closeEmail} />}
   </View>;
