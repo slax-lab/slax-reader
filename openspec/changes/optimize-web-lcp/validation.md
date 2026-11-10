@@ -123,3 +123,88 @@ Independent Bugs/Security/Compliance review found one Important issue: relative 
 - The full authenticated promotion/API flow, image preview/highlight interactions, all visual themes, and low-end-device performance were not re-exercised. This supplement changes loading attributes and internal data reuse, not UI design, content, styling, sources, accessibility labels, or click handling. Existing PR switch/toolbar hands-on acceptance remains recorded under `fix-web-ui-render-defects` and is not claimed as acceptance of this supplement.
 - Unknown geometry, unsupported constraints, text-heavy openings, and responsive images retain the existing conservative behavior. Saved geometry remains a heuristic; the selected image is not guaranteed to be the LCP element on every viewport or visit.
 - Broader release/cohort/rollback tasks in this change remain open and are not represented as completed by these local checks.
+
+## Anonymous root follow-up (2026-11-10)
+
+Branch `fix/optimize-web-lcp` starts at `origin/dev` commit `6016ee48`.
+Only an initial top-level `/` document with a confirmed absent token can
+newly bypass PowerSync. Root remains a private destination after sign-in.
+The existing auth middleware takes precedence over the document-exit guard
+for a bypassed anonymous root, including a root whose query or fragment
+resembles an auth route.
+
+### Browser comparison
+
+Compared matched production-profile builds on the same loopback origin, with
+synthetic configuration, fresh Chromium contexts, service-worker bypass,
+and 105 ms of added delay for served non-HTML resources. Each pair alternated
+baseline and changed run order. The baseline Web sources, shared packages,
+tooling, and lockfile match `6016ee48`. Timings are measured from initial
+navigation to `/`. The LCP values below are local browser samples.
+
+| Metric | Baseline median | Changed median | Difference of medians |
+| --- | ---: | ---: | ---: |
+| Login LCP | 2,532 ms | 2,020 ms | 512 ms earlier |
+| Google Login button visible | 2,410 ms | 1,799 ms | 611 ms earlier |
+| PowerSync database worker requested before login | 5/5 | 0/5 | 5 fewer runs |
+
+All five changed navigations reached login in the original document, with no
+Inbox view request. The emitted fetch/image preload hints in `/` and
+`/login` matched the baseline. The SDK imports are still eager.
+
+Built-browser checks also passed for an existing session opening the root
+(Worker initialized and Inbox mounted), direct anonymous login and guide
+entry (no Worker), and anonymous `/bookmarks` (existing startup and redirect).
+A root query containing both `/login` and `/auth` reached login without a
+reload and retained its query and fragment. A simulated Google OAuth return
+entered the real `/auth` page, persisted a fixture session through the
+session endpoint, and opened a fresh authenticated root document with its
+original path, query, and fragment. A cookie appearing inside an already
+bypassed document also required a fresh document when navigating to the root.
+Both return cases initialized the Worker and mounted Inbox. External OAuth,
+session and sync services used fixture responses.
+
+### Automated checks and review
+
+- Four auth middleware regressions reproduced the query, anchor and
+  newly-present-session edge cases before the fix. The policy regression also
+  reproduced anonymous root taking the old startup path.
+- Focused Vitest passed across 18 files: 270 tests passed and 2 skipped.
+  Coverage includes local database startup and recovery, extension bridge,
+  BFCache restoration, login, session, attribution, onboarding, and Inbox.
+- Web production build, Web typecheck, changed-file ESLint, and strict
+  OpenSpec validation passed.
+- Local Bugs, Security and Compliance review found the existing auth
+  query/anchor shortcuts could let a bypassed root reach the exit guard and
+  reload repeatedly. The fix is scoped to a bypassed root and reuses the
+  original login continuation. Review found no remaining Important issues.
+  The bypass does not grant access to local data, and session cookies that
+  are present or throw on read still take normal initialization.
+- The browser fixture exercised the Web callback and Inbox startup with a
+  synthetic session. Real Google authorization, live PowerSync replication,
+  installed-extension integration, and deployed field LCP remain unmeasured.
+  Extension and restore behavior were covered by focused automated checks.
+
+### Same-URL fragment reload regression
+
+An edge-case review reproduced a late session cookie on a bypassed root
+with a fragment. Chromium treated the existing external navigation to
+that exact URL as same-document navigation, so the Inbox did not mount.
+The guard now explicitly reloads the current document when the validated
+destination is its exact URL and it has a fragment.
+
+On the rebuilt production profile, headless Chromium 157 used a test-only
+cookie write immediately after the startup predicate chose bypass. It
+recorded one initial document and one reload, with the Worker requested
+only after the reload. Inbox mounted with the original query and fragment.
+Plain anonymous root and anonymous root with an auth-like query and a
+fragment each reached login in one document without a Worker. Root with
+an existing session mounted Inbox in one document. A simulated OAuth
+callback and a signed-in transition from the bypassed login document each
+entered a fresh Inbox document with the original query and fragment.
+All six runs completed without browser exceptions. OAuth and sync services
+used fixture responses.
+
+The navigation regression failed before the fix and passed afterward.
+The focused suite passed 271 tests with 2 skipped. Production build,
+Web typecheck and ESLint for both files touched by this fix passed.
