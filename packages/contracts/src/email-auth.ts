@@ -1,4 +1,4 @@
-import type { WebAuthAttribution } from './events'
+import type { WebAuthAttribution } from './events.js'
 
 export const BIND_LOGIN_IDENTITY_SETTING = 'bind_login_identity'
 
