@@ -8,23 +8,23 @@ Persist already-issued Reader login and renewal tokens through first-party HTTP 
 
 ### Requirement: Reader stores an already-issued token through a same-origin endpoint
 
-Reader Web SHALL call the existing login and renewal APIs from the browser. After either operation succeeds, Reader Web SHALL send the issued token to `POST /api/auth/session` for the cookie write. The endpoint SHALL verify the submitted token through the existing API and SHALL respond with `Cache-Control: no-store`. It SHALL preserve the session cookie name, domain, path, lifetime and JavaScript readability.
+Reader Web SHALL call the existing login and renewal APIs from the browser. After either operation succeeds, Reader Web SHALL send the issued token to `POST /api/auth/session` for the cookie write. The endpoint SHALL check the token format, expiry and account ID claim locally and SHALL respond with `Cache-Control: no-store`. It SHALL preserve the session cookie name, domain, path, lifetime and JavaScript readability. Protected API requests SHALL retain existing token authentication.
 
 #### Scenario: OAuth completes through the existing callback
 
 - **WHEN** the browser's existing OAuth login request succeeds for a bound attempt
 - **THEN** the browser submits the issued token to the same-origin cookie endpoint
-- **AND** the endpoint authenticates it and responds with the session cookie and no response body
+- **AND** the endpoint checks the bound state and responds with the session cookie and no response body without an additional API request
 
 #### Scenario: Web renewal completes for the same session
 
 - **WHEN** the browser's existing renewal API returns a valid token for the current account
 - **THEN** the browser submits it to the cookie endpoint with the initiating session token
-- **AND** the endpoint writes the cookie only when the starting token matches the request cookie and the issued token belongs to that account
+- **AND** the endpoint writes the cookie only when the starting token matches the request cookie and the tokens carry matching account ID claims
 
-#### Scenario: The request or token fails verification
+#### Scenario: The request or token fails validation
 
-- **WHEN** Origin is missing or foreign, JSON is invalid, login state is unbound, the renewal session has changed, or the token is malformed, expired or rejected by the API
+- **WHEN** Origin is missing or foreign, JSON is invalid, login state is unbound, the renewal session has changed, or the token is malformed or expired
 - **THEN** the endpoint returns a failure response and issues no session cookie
 
 #### Scenario: The cookie writer is temporarily unavailable

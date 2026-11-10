@@ -1,6 +1,5 @@
 import { oauthAttemptCookie, oauthStateDigest } from '../../../app/utils/oauthAttempt'
 
-import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { defineEventHandler, deleteCookie, getCookie, getHeader, readRawBody, sendNoContent, setCookie, setHeader } from 'h3'
 import { z } from 'zod'
 
@@ -20,26 +19,6 @@ const tokenAccount = (token: string) => {
   } catch {
     return undefined
   }
-}
-
-const verifyToken = async (apiBase: string, token: string) => {
-  let response: Response
-  try {
-    response = await fetch(apiBase.replace(/\/$/, '') + RESTMethodPath.ME, {
-      headers: { Authorization: `Bearer ${token}` },
-      redirect: 'manual',
-      cache: 'no-store',
-      signal: AbortSignal.timeout(2500)
-    })
-  } catch {
-    return 503
-  }
-  if (response.status === 401 || response.status === 403) return 401
-  if (response.status >= 500) return 503
-  if (response.status !== 200) return 502
-  const result = await response.json().catch(() => undefined)
-  const code = result && typeof result === 'object' && 'code' in result ? result.code : undefined
-  return code === 200 ? 204 : code === 401 || code === 403 ? 401 : 502
 }
 
 export default defineEventHandler(async event => {
@@ -66,9 +45,6 @@ export default defineEventHandler(async event => {
     const current = getCookie(event, cookieName)
     if (!current || getHeader(event, 'authorization') !== `Bearer ${current}` || tokenAccount(current) !== account) return sendNoContent(event, 409)
   }
-
-  const verified = await verifyToken(String(config.DWEB_API_BASE_URL), input.token)
-  if (verified !== 204) return sendNoContent(event, verified)
 
   setCookie(event, cookieName, input.token, {
     path: '/',

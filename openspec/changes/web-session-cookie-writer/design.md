@@ -17,15 +17,15 @@ For renewal, keep `createAccountLocaleRequest.refreshToken` calling `POST /v1/us
 Send JSON to `POST /api/auth/session` with same-origin credentials. For login, send `{ action: "login", state, token }`. For renewal, send `{ action: "refresh", token }` and put the starting token in `Authorization: Bearer ...`. The browser sends its current cookie automatically. The token in the body is the value already returned by the existing API.
 
 - Require an exact Origin match with the configured Reader origin. Reject missing and null origins with 403. Require `application/json`, allowing parameters such as charset. Reject unsupported media types with 415 and malformed or invalid bodies with 400.
-- Require three non-empty base64url segments, a readable numeric `exp` in the future, and the session account claim. Reject a malformed token before authentication.
+- Require three non-empty base64url segments, a readable numeric `exp` in the future, and a numeric account ID claim.
 - For login, bind the OAuth state to the initiating browser with a short-lived host-only attempt cookie and verify the binding before writing the session. Keep the original provider exchange in the browser. Clear the matching temporary binding when the attempt finishes.
-- For renewal, compare the starting bearer with the incoming session cookie and require the new token to belong to that account. Return 409 when the request no longer matches the starting session.
-- Authenticate the submitted token using the fixed existing `GET /v1/user/me` route and its bearer authentication. This adds one read per cookie write and lets the API validate the signature, issuer, audience and account status. Reject redirects, invalid credentials and verification failures. Discard profile data and return no credentials.
+- For renewal, compare the starting bearer with the incoming session cookie and require matching account ID claims in both tokens. Return 409 when the request no longer matches the starting session.
+- Write the cookie without calling `/v1/user/me`. The format and session checks can accept a token with an invalid signature or an inactive account. The API checks the signature, issuer, audience and account status when that cookie's token is used for a protected request. Return no credentials in the response body.
 - Return `Cache-Control: no-store` on all handled responses. On success, return 204 and set the configured session cookie with its existing domain, root path, expiry and JavaScript readability. Leave cookie removal to the existing logout path. Keep credentials out of diagnostics.
 
 ### Fall back when the cookie writer is unavailable
 
-Use the original JavaScript cookie write only when the request fails at the network layer, the route returns 404 or 405, or it returns 503 or 504. The writer returns 503 when its verifier cannot be reached or reports a server error. Explicit authentication, request validation and stale session responses remain authoritative. Unexpected responses and canceled operations do not trigger a fallback.
+Use the original JavaScript cookie write only when the request fails at the network layer, the route returns 404 or 405, or it returns 503 or 504. Request validation and stale session responses remain authoritative. Unexpected responses and canceled operations do not trigger a fallback.
 
 The fallback uses only the token already returned by the original login or renewal API. Before a login fallback, recheck the OAuth attempt binding and the session cookie present when login started. Before a renewal fallback, repeat the session, task and revision checks. Keep the existing cookie name, domain, path and expiration. Browser cookie lifetime under this fallback follows the previous JavaScript behavior.
 

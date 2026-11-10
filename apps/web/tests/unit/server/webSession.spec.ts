@@ -44,7 +44,7 @@ const refresh = { action: 'refresh', token: refreshed }
 const sessionHeaders = { authorization: `Bearer ${starting}`, cookie: `reader_token=${starting}` }
 
 describe('Web session cookie writer', () => {
-  it.each(['', 'null', 'https://foreign.test', 'https://reader.test:8000'])('rejects Origin %j before verification', async origin => {
+  it.each(['', 'null', 'https://foreign.test', 'https://reader.test:8000'])('rejects Origin %j', async origin => {
     const { status, cookies } = await call(refresh, { ...sessionHeaders, origin })
     expect([status, cookies]).toEqual([403, []])
     expect(fetchUser).not.toHaveBeenCalled()
@@ -69,22 +69,14 @@ describe('Web session cookie writer', () => {
     expect(fetchUser).not.toHaveBeenCalled()
   })
 
-  it.each([[401, 401], [302, 502], [500, 503]])('does not set any cookies when verification responds %s', async (code, expected) => {
-    fetchUser.mockResolvedValueOnce(Response.json({ code }, { status: code }))
-    const { status, cookies } = await call(refresh, sessionHeaders)
-    expect([status, cookies]).toEqual([expected, []])
-  })
-
-  it('requires successful verification and writes only the configured, readable cookie on refresh', async () => {
+  it('writes only the configured, readable cookie on refresh without requesting the API', async () => {
     const { status, cookies, body } = await call(refresh, sessionHeaders)
     expect(status).toBe(204)
     expect(body).toBeFalsy()
     expect(cookies).toEqual([expect.stringContaining(`reader_token=${refreshed}`)])
     expect(cookies[0]).toMatch(/Domain=\.?reader\.test; Path=\/; Expires=.+; Secure/i)
     expect(cookies[0]).not.toMatch(/HttpOnly/i)
-    expect(fetchUser).toHaveBeenCalledExactlyOnceWith('https://api.test/v1/user/me', expect.objectContaining({
-      headers: { Authorization: `Bearer ${refreshed}` }, redirect: 'manual', cache: 'no-store'
-    }))
+    expect(fetchUser).not.toHaveBeenCalled()
   })
 
   it('consumes the exact browser-bound state on login', async () => {
@@ -94,5 +86,6 @@ describe('Web session cookie writer', () => {
     const { status, cookies } = await call({ action: 'login', state, token: refreshed }, { cookie })
     expect(status).toBe(204)
     expect(cookies).toEqual(expect.arrayContaining([expect.stringContaining(`reader_token=${refreshed}`), expect.stringContaining(`${oauthAttemptCookie(true)}=;`)]))
+    expect(fetchUser).not.toHaveBeenCalled()
   })
 })

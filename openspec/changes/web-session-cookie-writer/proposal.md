@@ -8,7 +8,7 @@ Reader Web writes the session cookie from JavaScript after OAuth login and token
 
 - Add a single Reader Nitro endpoint, `POST /api/auth/session`, for writing an already-issued token to the existing session cookie.
 - Keep the current browser requests to `/v1/user/login` and `/v1/user/refresh`. Use the new endpoint for the subsequent cookie writes. Fall back to the existing JavaScript write when the endpoint is unavailable and the browser session or login attempt is still current.
-- Require the Reader Origin, JSON, and a valid unexpired token. Verify the submitted token through the existing API authentication and use `Cache-Control: no-store` on every handled response.
+- Require the Reader Origin, JSON, and a token with the expected structure and an unexpired `exp` claim. Use `Cache-Control: no-store` on every handled response. Protected API requests continue to authenticate the token.
 - Serialize session cookie writes and clears across Reader tabs that share a Web Locks storage bucket.
 - Preserve the static callback, OAuth recovery and attribution, cookie scope, Android handoff, installed Extension compatibility, and native-managed Mobile subscription WebView.
 
@@ -28,4 +28,4 @@ Use Web Locks to coordinate Reader top-level tabs that share a lock manager. An 
 
 ## Impact
 
-Reader Web adds one Nitro route and changes its two session-cookie write sites. The API continues issuing tokens through the current login and renewal contracts. The Nitro route uses the existing authenticated profile read for token verification. The change requires no new business API, signing key in Web, database field, provider registration, or Cloudflare binding.
+Reader Web adds one Nitro route and changes its two session-cookie write sites. The API continues issuing tokens through the current login and renewal contracts. Cookie writing uses the request and session checks locally, so it adds no API request. The change requires no new business API, signing key in Web, database field, provider registration, or Cloudflare binding.

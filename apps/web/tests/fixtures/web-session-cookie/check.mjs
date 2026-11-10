@@ -11,7 +11,7 @@ const { UserLocaleTasks } = await jiti.import('../../../app/utils/userLocaleTask
 const { withWebSessionLock, writeWebSession } = await jiti.import('../../../app/utils/webSession.ts')
 const origin = process.env.SESSION_TEST_ORIGIN || 'http://localhost:3320'
 const api = process.env.SESSION_TEST_API || 'http://127.0.0.1:8790'
-const name = 'reader_token'
+const name = process.env.SESSION_TEST_COOKIE_NAME || 'reader_token'
 const path = '/api/auth/session'
 const jwt = (id, marker) =>
   ['{"alg":"HS256"}', JSON.stringify({ id, exp: Math.floor(Date.now() / 1000) + 3600 }), marker]
@@ -23,7 +23,6 @@ const user = { userId: '1', uuid: 'test', name: 'Fixture', lang: 'en', email: 'f
 const attribution = { source: 'hackerlinks', medium: 'header', campaign: 'mvp' }
 const records = []
 let barrier
-let verifierUnavailable = false
 const networkFetch = globalThis.fetch
 // Node Web Locks are shared by the simulated Reader tabs.
 globalThis.window = new Window({ url: origin })
@@ -40,10 +39,9 @@ const upstream = createServer(async (req, res) => {
   const target = new URL(url, api)
   if (target.pathname === '/fixture') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
-    return res.end('<h1>Reader local OAuth and cookie test</h1><p>All accounts and credentials are synthetic.</p><ul><li><a href="/start?provider=google">Google callback</a></li><li><a href="/start?provider=apple">Apple callback</a></li><li><a href="/start?verifier=unavailable">Google callback with unavailable verifier</a></li></ul>')
+    return res.end('<h1>Reader local OAuth and cookie test</h1><p>All accounts and credentials are synthetic.</p><ul><li><a href="/start?provider=google">Google callback</a></li><li><a href="/start?provider=apple">Apple callback</a></li></ul>')
   }
   if (target.pathname === '/start') {
-    verifierUnavailable = target.searchParams.get('verifier') === 'unavailable'
     const platform = target.searchParams.get('provider') === 'apple' ? 'apple' : 'google'
     const state = JSON.stringify({ nonce: crypto.randomUUID(), platform, redirectUrl: origin + '/auth', target: '/guide?return=fixture', affCode: 'fixture-referral', auth_attribution: attribution })
     const query = new URLSearchParams({ code: 'fixture', state })
@@ -72,14 +70,7 @@ const upstream = createServer(async (req, res) => {
     return headers.authorization === 'Bearer ' + old ? reply(200, { token: fresh }) : reply(401)
   }
   if (url === '/v1/user/me') {
-    if (barrier?.stage === 'verify' && headers.authorization === 'Bearer ' + fresh) {
-      barrier.entered.resolve()
-      await barrier.released.promise
-    }
-    if (!headers.origin) {
-      records.push({ url, action: headers.authorization === 'Bearer ' + fresh ? 'refresh' : 'login', unavailable: verifierUnavailable })
-      if (verifierUnavailable) return reply(503)
-    }
+    records.push({ url, origin: headers.origin })
     return [old, fresh, replacement].some(token => headers.authorization === 'Bearer ' + token) ? reply(200, user) : reply(401)
   }
   if (url?.startsWith('/v1/sync/token')) return reply(200, { token: '', endpoint: '' })
@@ -100,6 +91,10 @@ function fixture() {
       headers: { Origin: origin, Cookie: document.cookie, ...options.headers },
       signal: options.signal ?? AbortSignal.timeout(8000)
     })
+    if (barrier?.stage === 'response' && options.headers?.Authorization) {
+      barrier.entered.resolve()
+      await barrier.released.promise
+    }
     for (const header of response.headers.getSetCookie()) document.cookie = header
     return response
   }
@@ -125,8 +120,12 @@ function fixture() {
     notify: () => {},
     expire: async () => remove()
   })
-  const renew = async () => {
-    globalThis.fetch = (url, options) => url === path ? request(options) : networkFetch(url, options)
+  const renew = async (writerUnavailable = false) => {
+    globalThis.fetch = (url, options) => {
+      if (url !== path) return networkFetch(url, options)
+      if (writerUnavailable) return Promise.resolve(new Response(null, { status: 503 }))
+      return request(options)
+    }
     try {
       await tasks.refreshToken()
     } finally {
@@ -156,10 +155,9 @@ async function ordering() {
     ['legacy Extension cleanup', 200, clearAsExtension, undefined],
     ['replacement login before old 401', 401, f => f.login(replacement), replacement]
   ]
-  const deferred = []
-  for (const stage of ['refresh', 'verify']) {
+  for (const stage of ['refresh', 'response']) {
     for (const [label, status, mutate, expected] of cases) {
-      if (stage === 'verify' && status === 401) continue
+      if (stage === 'response' && status === 401) continue
       const f = fixture()
       await f.login(old)
       barrier = { stage, entered: Promise.withResolvers(), released: Promise.withResolvers() }
@@ -167,7 +165,7 @@ async function ordering() {
       try {
         await Promise.race([barrier.entered.promise, pending.then(() => { throw new Error('Renewal finished before ' + stage + ' barrier') })])
         const mutation = mutate(f)
-        if (stage === 'verify' && label !== 'legacy Extension cleanup') {
+        if (stage === 'response' && label !== 'legacy Extension cleanup') {
           const { pending: requests } = await navigator.locks.query()
           assert(requests.some(request => request.name === 'slax-reader:web-session'), 'Reader mutation should wait for the writer')
           assert.equal(f.read(), old)
@@ -180,18 +178,16 @@ async function ordering() {
         await pending
         barrier = undefined
       }
-      const survived = f.read() === expected
       const test = stage + ' / ' + label
-      if (stage === 'verify' && label === 'legacy Extension cleanup' && !survived) {
-        deferred.push(test)
+      if (stage === 'response' && label === 'legacy Extension cleanup') {
+        assert.equal(f.read(), fresh, 'A delayed response can still overwrite direct Extension cleanup')
         console.log('DEFERRED: ' + test + ' still reproduces without the Reader lock')
       } else {
-        assert(survived, test + ' must preserve the latest session')
+        assert.equal(f.read(), expected, test + ' must preserve the latest session')
         console.log('PASS: ' + test)
       }
     }
   }
-  assert.deepEqual(deferred, [], 'Uncoordinated cookie cleanup can still be overwritten by a late response')
 }
 
 await new Promise((resolve, reject) => upstream.once('error', reject).listen(Number(new URL(api).port), '127.0.0.1', resolve))
@@ -206,15 +202,11 @@ if (process.argv.includes('--serve')) {
     console.log('PASS: Pages Worker issues the cookie for login and renewal')
     const degraded = fixture()
     await degraded.login(old)
-    verifierUnavailable = true
-    try {
-      await degraded.renew()
-      assert.equal(degraded.read(), fresh)
-      console.log('PASS: Renewal falls back to JavaScript when the Worker reports verifier unavailability')
-    } finally {
-      verifierUnavailable = false
-    }
+    await degraded.renew(true)
+    assert.equal(degraded.read(), fresh)
+    console.log('PASS: Renewal falls back to JavaScript when the cookie request returns 503')
     if (!process.argv.includes('--skip-ordering')) await ordering()
+    assert(!records.some(record => record.url === '/v1/user/me'), 'Cookie writes should not request the user profile')
   } finally {
     upstream.close()
   }
