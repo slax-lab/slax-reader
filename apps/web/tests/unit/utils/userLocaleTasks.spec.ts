@@ -18,16 +18,17 @@ const fixture = () => {
   const store = { user: makeUser({ lang: 'en' }), locale: 'en', confirmedAccountLocale: null as { accountKey: string; locale: 'en' | 'zh' } | null }
   const api = { saveLanguage: vi.fn(async () => {}), readUser: vi.fn(async () => ({ ...makeUser(), userId: 'A' })), refreshToken: vi.fn(async () => token('A', 2)) }
   const notify = vi.fn(),
-    expire = vi.fn(async () => {})
+    expire = vi.fn(async () => {}),
+    persist = vi.fn((t: string): unknown => {
+      current = t
+    })
   const apply = vi.fn(async (locale: string) => {
     display = locale
   })
   const tasks = new UserLocaleTasks(store, {
     api: api as never,
     getToken: () => current,
-    setToken: t => {
-      current = t
-    },
+    setToken: persist as never,
     apply,
     notify,
     expire
@@ -38,6 +39,7 @@ const fixture = () => {
     api,
     notify,
     expire,
+    persist,
     apply,
     getToken: () => current,
     setToken: (t: string) => {
@@ -117,6 +119,22 @@ it('releases the queue after auxiliary refresh timeout and rejects late cookie w
   expect(f.getToken()).toBe(after)
   await f.tasks.save('en')
   expect(f.store.locale).toBe('en')
+})
+
+it.each([false, true])('clears a refreshed cookie that lands after logout (logout=%s)', async logout => {
+  const f = fixture(),
+    writing = deferred<void>()
+  f.persist.mockImplementationOnce(async (t: string) => {
+    await writing.promise
+    f.setToken(t)
+  })
+  const refreshing = f.tasks.refreshToken()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(f.persist).toHaveBeenCalledOnce()
+  if (logout) f.tasks.clear()
+  writing.resolve()
+  await refreshing
+  expect(f.expire).toHaveBeenCalledTimes(logout ? 1 : 0)
 })
 
 it.each([false, true])('keeps initial language application when token refresh starts in the same tick (displayOnly=%s)', async displayOnly => {

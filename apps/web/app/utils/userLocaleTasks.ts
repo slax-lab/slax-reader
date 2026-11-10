@@ -188,7 +188,10 @@ export class UserLocaleTasks {
       })
       const next = await Promise.race([this.deps.api.refreshToken(token, controller.signal), timeout])
       if (localeAccountIdentity(next) !== ticket.account) throw new Error('Invalid refreshed account identity')
-      if (!expired && id === this.refreshId && this.valid(ticket) && revision === this.revision && this.deps.getToken() === token) await this.deps.setToken(next)
+      if (!expired && id === this.refreshId && this.valid(ticket) && revision === this.revision && this.deps.getToken() === token) {
+        await this.deps.setToken(next)
+        if (this.epoch !== ticket.epoch) await this.deps.expire()
+      }
     } catch (error) {
       if (error instanceof AccountLocaleUnauthorizedError && this.deps.getToken() === token) await this.deps.expire()
       else console.warn('[locale] token refresh failed', error)

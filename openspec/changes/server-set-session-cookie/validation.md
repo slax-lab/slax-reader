@@ -6,7 +6,7 @@ Worktree: `.local/server-set-session-cookie-worktree`, branch `fix/server-set-se
 
 | Command | Result |
 | --- | --- |
-| `pnpm web -- test` | Passed: 232 files, 2,717 tests (3 skipped), including `tests/unit/server/authSession.spec.ts` |
+| `pnpm web -- test` | Passed: 232 files, 2,719 tests (3 skipped), including `tests/unit/server/authSession.spec.ts` |
 | `pnpm web -- typecheck` | Passed |
 | ESLint on the changed files | Passed |
 | `pnpm web -- lint` | Fails with 89 `simple-import-sort/imports` errors in unchanged files; the same errors occur without this change |
