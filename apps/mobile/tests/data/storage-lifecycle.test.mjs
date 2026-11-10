@@ -19,9 +19,9 @@ test('production Swift ownership, bounded activities and accepted schema execute
   };
   try {
     for (const name of ['UIKit', 'ExpoModulesCore']) run('xcrun', ['swiftc', '-emit-library', '-emit-module', '-module-name', name, resolve(host, `${name}.swift`), '-emit-module-path', resolve(output, `${name}.swiftmodule`), '-o', resolve(output, `lib${name}.dylib`)]);
-    run('xcrun', ['swiftc', '-typecheck', '-I', output, ...['StorageLifecycle.swift', 'DatabaseInspectionCancellation.swift', 'AcceptedDatabase.swift', 'DatabaseIdentity.swift', 'DatabaseInspection.swift', 'SlaxLegacyModule.swift'].map(name => resolve(source, name))]);
-    run('xcrun', ['swiftc', '-I', output, '-L', output, '-lUIKit', '-Xlinker', '-rpath', '-Xlinker', output, ...['StorageLifecycle.swift', 'DatabaseInspectionCancellation.swift', 'AcceptedDatabase.swift', 'DatabaseIdentity.swift', 'DatabaseInspection.swift'].map(name => resolve(source, name)), resolve(host, 'Host.swift'), '-o', resolve(output, 'host')]);
-    assert.match(run(resolve(output, 'host'), [output]), /helpers passed/);
+    run('xcrun', ['swiftc', '-typecheck', '-I', output, ...['StorageLifecycle.swift', 'LegacyReset.swift', 'SlaxLegacyModule.swift'].map(name => resolve(source, name))]);
+    run('xcrun', ['swiftc', '-I', output, '-L', output, '-lUIKit', '-Xlinker', '-rpath', '-Xlinker', output, ...['StorageLifecycle.swift', 'LegacyReset.swift'].map(name => resolve(source, name)), resolve(host, 'Host.swift'), '-o', resolve(output, 'host')]);
+    assert.match(run(resolve(output, 'host'), [output]), /fixed-path reset passed/);
     const module = readFileSync(resolve(source, 'SlaxLegacyModule.swift'), 'utf8');
     assert.doesNotMatch(module, /slax-data-owner\.lock|ownerDescriptor/);
     assert.match(module, /LOCK_EX \| LOCK_NB/);

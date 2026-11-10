@@ -28,7 +28,7 @@ export default function NativeRuntimeLifecycleFixtureApp() {
       const original = await bridge.readPreferences();
       check(Object.keys(original.values).length === 0 && await bridge.readLegacyPreferences() === null, 'Do not replace existing preferences');
       const inventory = await bridge.beginDataOwnership();
-      try {check(inventory.scanComplete && inventory.databaseCandidates.length === 0, 'Do not open an existing database');}
+      try {check(!inventory.legacyReset && !new File(`${inventory.newDatabaseDirectory}/powersync.db`).exists, 'Do not open an existing database');}
       finally {await bridge.endDataOwnership();}
       const requests: string[] = [];
       const runtime = createMobileDataRuntime({platform: 'ios', version: 'controlled-lifecycle', baseUrl: endpoint, betaBaseUrl: endpoint, localSyncEndpoint: endpoint,

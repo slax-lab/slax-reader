@@ -157,7 +157,7 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
     queue.start();
   }, async leave(_id, clear) {await revoke(); if (clear) {await database?.disconnectAndClear(); if (!documents.size) await cache?.clearArticles();}}}, () => payload.session.refreshedAt);
   const api = createMobileApi({baseUrl: apiOrigin, platform: mobileConfig.platform, version: 'fixture (1)', sessions, fetch: transport, ...(httpFixture ? {} : {sleep: async () => undefined})});
-  const upgrade: UpgradeState = payload.upgrade?.ownership === 'verification-required' ? {status: 'verification-required', inventory: {scanComplete: true, databaseCandidates: ['fixture-only/powersync.db'], legacyDataDirectory: scope.uri, newDatabaseDirectory: scope.uri}} : {status: 'ready'};
+  const upgrade: UpgradeState = payload.upgrade?.ownership === 'verification-required' ? {status: 'error', error: new Error('Controlled storage unavailable')} : {status: 'ready'};
   const statusListeners = new Set<(status: SyncStatus) => void>();
   let status = payload.sync as unknown as SyncStatus;
   let identifier = 1000;

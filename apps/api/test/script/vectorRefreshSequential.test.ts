@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { enumeratePage, main, parseRefreshOptions, runVectorRefresh } from '../../script/vector-refresh'
 import { VectorMaintenanceService } from '../../src/domain/vectorMaintenance'
+import { memoryPreferences } from '../helpers/preferenceMemory'
 
 const connection = vi.hoisted(() => ({ client: vi.fn(), connect: vi.fn(), query: vi.fn(), end: vi.fn() }))
 vi.mock('pg', () => ({ Client: connection.client }))
@@ -27,17 +28,16 @@ afterEach(() => {
 
 describe('direct single-target service surface', () => {
   test('the compound actor/relation wrappers and preference flag are gone', () => {
-    const service = new VectorMaintenanceService({} as never, {} as never, {} as never, {} as never) as unknown as Record<string, unknown>
+    const service = (preferences => preferences.bind(new VectorMaintenanceService({} as never, {} as never, {} as never, {} as never, preferences.client)))(
+      memoryPreferences()
+    ) as unknown as Record<string, unknown>
     for (const removed of ['refreshBookmark', 'refreshOwnedCollection', 'refreshSubscription']) expect(service[removed]).toBeUndefined()
     for (const direct of ['refreshArticles', 'refreshUser', 'refreshCollection']) expect(typeof service[direct]).toBe('function')
   })
 
   test('preference enumeration treats ids and cursors as user IDs, not relation or subscription surrogates', async () => {
     const query = vi.fn(async () => ({
-      rows: [
-        { id: 40 },
-        { id: 41 }
-      ]
+      rows: [{ id: 40 }, { id: 41 }]
     }))
     const page = await enumeratePage({ query }, 'subscription', 0, parseRefreshOptions(['--kind', 'subscription', '--ids', '40,41']))
     expect(page.rows).toEqual([
@@ -58,9 +58,7 @@ describe('sequential caller continuation', () => {
     vi.stubEnv('VECTOR_REFRESH_DATABASE_URL', 'postgres://unused.invalid/db')
     vi.stubEnv('VECTOR_REFRESH_URL', 'http://localhost:8787')
     vi.stubEnv('VECTOR_REFRESH_SECRET', SECRET)
-    connection.query.mockImplementation(async (text: string, values: unknown[]) =>
-      text.startsWith('SELECT') && values[0] === 0 ? { rows: [{ id: 1 }, { id: 2 }] } : { rows: [] }
-    )
+    connection.query.mockImplementation(async (text: string, values: unknown[]) => (text.startsWith('SELECT') && values[0] === 0 ? { rows: [{ id: 1 }, { id: 2 }] } : { rows: [] }))
     const fetch = vi
       .fn()
       .mockRejectedValueOnce(new Error('task transport failed'))

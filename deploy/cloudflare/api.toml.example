@@ -141,6 +141,9 @@ class_name = "SlaxBrowser"
 [[durable_objects.bindings]]
 name = "SCREENSHOT_BROWSER"
 class_name = "ScreenshotBrowser"
+[[durable_objects.bindings]]
+name = "VECTOR_V5_PREFERENCE"
+class_name = "VectorPreferenceObject"
 
 [[rules]]
 type = "CompiledWasm"
@@ -152,6 +155,9 @@ new_classes = ["SlaxJieba", "SlaxWebSocketServer", "ScreenshotBrowser"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["SlaxMcpServer"]
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["VectorPreferenceObject"]
 
 [[queues.producers]]
 queue = "slax-reader-parser-twitter"

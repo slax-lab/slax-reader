@@ -1,8 +1,9 @@
 import { isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { inject, injectable } from '@/decorators/di'
 import type { VectorIndexKind } from '@/utils/vectorMaintenanceTypes'
-import { VectorMaintenanceRepo, type VectorArticleRow as ArticleRow } from '@/infra/repository/dbVectorMaintenance'
+import { VectorMaintenanceRepo, type VectorArticleRow as ArticleRow, type VectorCollectionRow } from '@/infra/repository/dbVectorMaintenance'
 import { VectorIndexClient } from '@/infra/repository/vectorIndexClient'
+import { VectorPreferenceClient } from '@/infra/repository/vectorPreferenceClient'
 import { VectorSourceRepo, type SourceFingerprint } from '@/infra/repository/vectorSources'
 import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
 import type { ImageSelection } from '@/utils/vectorSources'
@@ -15,6 +16,20 @@ import {
   type InterestAction,
   type InterestCluster
 } from '@/utils/recommendationAlgorithms'
+import {
+  addContribution,
+  clonePreferenceSums,
+  emptyPreferenceSums,
+  nextPreferenceSeq,
+  publicationScope,
+  vectorToken,
+  type PreferenceCall,
+  type PreferencePublish,
+  type PreferenceEntry,
+  type PreferenceStore,
+  type PreferenceSummary,
+  type PreferenceSums
+} from '@/utils/preferenceLedger'
 import {
   addVector,
   ArticleVectorAccumulator,
@@ -137,7 +152,8 @@ export class VectorMaintenanceService implements VectorMaintenance {
     @inject(VectorMaintenanceRepo) private readonly repo: VectorMaintenanceRepo,
     @inject(VectorSourceRepo) private readonly sources: VectorSourceRepo,
     @inject(VectorEmbeddingClient) private readonly embedding: VectorEmbeddingClient,
-    @inject(VectorIndexClient) private readonly index: VectorIndexClient
+    @inject(VectorIndexClient) private readonly index: VectorIndexClient,
+    @inject(VectorPreferenceClient) private readonly preferences: VectorPreferenceClient
   ) {}
 
   private async get(kind: VectorIndexKind, ids: string[]) {
@@ -247,6 +263,16 @@ export class VectorMaintenanceService implements VectorMaintenance {
   }
 
   async refreshArticles(articles: ArticleVectorIdentity[]): Promise<VectorRefreshResult[]> {
+    return this.writeArticles(articles)
+  }
+
+  async refreshArticlesWithPrevious(articles: ArticleVectorIdentity[]): Promise<{ results: VectorRefreshResult[]; previous: Record<string, number[]> }> {
+    const previous = new Map<string, number[]>()
+    const results = await this.writeArticles(articles, previous)
+    return { results, previous: Object.fromEntries(previous) }
+  }
+
+  private async writeArticles(articles: ArticleVectorIdentity[], previous?: Map<string, number[]>): Promise<VectorRefreshResult[]> {
     const unique = [
       ...new Map(
         articles.map(identity => {
@@ -270,12 +296,16 @@ export class VectorMaintenanceService implements VectorMaintenance {
           const id = articleVectorId(page[i])
           const row = byId.get(id)
           try {
-            if (!row) await this.removeArticle(page[i], old.get(id), current[i])
-            else if (row.status !== 'success') failed(current[i], new Error('source_not_ready'))
+            const stored = old.get(id)
+            if (!row) {
+              if (stored) previous?.set(id, Array.from(stored.values))
+              await this.removeArticle(page[i], stored, current[i])
+            } else if (row.status !== 'success') failed(current[i], new Error('source_not_ready'))
             else {
               const fingerprint = await this.sources.fingerprint(row)
               current[i].writeToken = await contentWriteToken({ target: id, title: row.title, ...fingerprint, ...metadata(row) })
-              if (await this.reuseArticle(row, fingerprint, old.get(id), current[i])) continue
+              if (await this.reuseArticle(row, fingerprint, stored, current[i])) continue
+              if (stored) previous?.set(id, Array.from(stored.values))
               const images: ImageSelection = { selected: 0, skipped: {} }
               work.push({
                 row,
@@ -514,61 +544,234 @@ export class VectorMaintenanceService implements VectorMaintenance {
     return { vector: normalized(stored.values), centered: normalized(centered.values), interests }
   }
 
-  private async aggregate(
-    load: (after: number, limit: number) => Promise<{ id: number; weight: number }[]>,
-    kind: 'article' | 'collection',
-    userId?: number,
-    visit?: (id: number, values: ArrayLike<number>, weight: number) => void
-  ): Promise<number[] | null> {
-    const sum = new Float64Array(VECTOR_DIMENSIONS)
-    let count = 0
+  async maintainPreference(store: PreferenceStore, calls: PreferenceCall[]): Promise<VectorRefreshResult[]> {
+    const userId = positiveId(calls[0]?.userId ?? 0)
+    if (calls.some(call => call.userId !== userId)) throw new Error('invalid_preference_batch')
+    const stored = store.read()
+    let sums: PreferenceSums | null = null
+    if (stored?.meanVersion === EMBEDDING_MEAN_VERSION && calls.every(call => call.kind === 'apply'))
+      sums = await this.applyPreference(store, stored, userId, calls as Extract<PreferenceCall, { kind: 'apply' }>[])
+    if (!sums) sums = await this.rebuildPreference(store, userId, stored?.seq ?? 0)
+    return this.publishPreference(store, userId, sums, publicationScope(calls))
+  }
+
+  private async applyPreference(
+    store: PreferenceStore,
+    stored: PreferenceSums,
+    userId: number,
+    calls: Extract<PreferenceCall, { kind: 'apply' }>[]
+  ): Promise<PreferenceSums | null> {
+    const previous = new Map<number, number[][]>()
+    for (const call of calls) {
+      positiveId(call.id)
+      const list = previous.get(call.id) ?? []
+      if (call.previous?.length === VECTOR_DIMENSIONS) list.push(call.previous)
+      previous.set(call.id, list)
+    }
+    const ids = [...previous.keys()]
+    const applied = store.entries(ids)
+    const rows = new Map((await this.repo.findUserPreferenceRows(userId, ids)).map(row => [row.id, row]))
+    const vectors = await this.get(
+      'article',
+      ids.map(id => articleVectorId({ userId, id }))
+    )
+    const sums = clonePreferenceSums(stored)
+    const upserts = new Map<number, PreferenceEntry>()
+    const deletes: number[] = []
+    for (const id of ids) {
+      const old = applied.get(id)
+      const current = vectors.get(articleVectorId({ userId, id }))?.values
+      const token = current ? vectorToken(current) : ''
+      if (old?.token) {
+        const values = old.token === token ? current : previous.get(id)!.find(candidate => vectorToken(candidate) === old.token)
+        if (!values) return null
+        addContribution(sums, values, old.weight, old.member, -1)
+      }
+      const row = rows.get(id)
+      if (!row || !current) sums.interests = sums.interests.filter(([medoid]) => medoid !== id)
+      if (!row) {
+        if (old) deletes.push(id)
+        continue
+      }
+      const desired = { weight: row.is_starred ? 2 : 1, member: row.member, token }
+      if (current) addContribution(sums, current, desired.weight, desired.member, 1)
+      if (old?.weight !== desired.weight || old?.member !== desired.member || old?.token !== desired.token) upserts.set(id, desired)
+    }
+    sums.seq = nextPreferenceSeq(stored.seq)
+    store.commit(sums, upserts, deletes)
+    return sums
+  }
+
+  private async rebuildPreference(store: PreferenceStore, userId: number, previousSeq: number): Promise<PreferenceSums> {
+    const now = Date.now()
+    const recent = await this.repo.listRecentUserActions(userId, new Date(now - PINNERSAGE_WINDOW_DAYS * 86_400_000), PINNERSAGE_MAX_ACTIONS)
+    const recentIds = new Set(recent.map(action => action.id))
+    const members = new Set<number>()
     let after = 0
     for (;;) {
-      const rows = await load(after, VECTOR_READ_BATCH_SIZE)
+      const rows = await this.repo.listCollectionMembers(userId, after, VECTOR_READ_BATCH_SIZE)
       if (!rows.length) break
-      const ids = rows.map(row => (kind === 'article' ? articleVectorId({ userId: userId!, id: row.id }) : `c:${row.id}`))
-      const values = await this.get(kind, ids)
+      for (const row of rows) members.add(row.id)
+      const last = rows[rows.length - 1].id
+      if (last <= after) throw new Error('invalid_dependency_page')
+      after = last
+      if (rows.length < VECTOR_READ_BATCH_SIZE) break
+    }
+    const sums = emptyPreferenceSums(EMBEDDING_MEAN_VERSION, nextPreferenceSeq(previousSeq))
+    const entries = new Map<number, PreferenceEntry>()
+    const representatives = new Map<number, number[]>()
+    after = 0
+    for (;;) {
+      const rows = await this.repo.listUserArticles(userId, after, VECTOR_READ_BATCH_SIZE)
+      if (!rows.length) break
+      const ids = rows.map(row => articleVectorId({ userId, id: row.id }))
+      const values = await this.get('article', ids)
       for (let i = 0; i < rows.length; i++) {
         const vector = values.get(ids[i])
-        if (!vector) throw new Error(`missing_dependency:${ids[i]}`)
-        addVector(sum, vector.values, rows[i].weight)
-        visit?.(rows[i].id, vector.values, rows[i].weight)
-        count++
+        const entry = { weight: rows[i].is_starred ? 2 : 1, member: members.has(rows[i].id), token: vector ? vectorToken(vector.values) : '' }
+        entries.set(rows[i].id, entry)
+        if (!vector) continue
+        addContribution(sums, vector.values, entry.weight, entry.member, 1)
+        if (recentIds.has(rows[i].id)) representatives.set(rows[i].id, normalized(vector.values))
       }
       const last = rows[rows.length - 1].id
       if (last <= after) throw new Error('invalid_dependency_page')
       after = last
       if (rows.length < VECTOR_READ_BATCH_SIZE) break
     }
-    return count ? normalized(sum) : null
+    const actions: InterestAction[] = recent.flatMap(action => {
+      const vector = representatives.get(action.id)
+      return vector ? [{ bookmarkId: action.id, vector, actedAt: new Date(action.acted_at).getTime() }] : []
+    })
+    sums.interests = interestClusters(actions, now, center).map(cluster => [cluster.medoidBookmarkId, cluster.importance])
+    store.replace(sums, entries)
+    return sums
+  }
+
+  private async publishPreference(store: PreferenceStore, userId: number, sums: PreferenceSums, scope: PreferencePublish): Promise<VectorRefreshResult[]> {
+    const summary = store.summary()
+    const outputs = [
+      ...(scope.user ? [await this.publishUserPreference(userId, sums, summary)] : []),
+      ...(await this.publishOwnerCollections(userId, sums, summary, scope.collections))
+    ]
+    if (!summary.eligible) await store.clear()
+    return outputs
+  }
+
+  private async publishUserPreference(userId: number, sums: PreferenceSums, summary: PreferenceSummary): Promise<VectorRefreshResult> {
+    const output = result({ kind: 'user', id: userId, preference: 'article' })
+    const key = `u:${userId}:article`
+    const keys = [key, `${key}:centered`]
+    output.coverage = { eligible: summary.eligible, used: summary.used, missing: summary.eligible - summary.used }
+    output.stateVersion = sums.seq
+    try {
+      if (!summary.eligible) {
+        await this.remove('user', keys, output)
+        output.vectorIds = keys
+        output.state = 'deleted'
+        return output
+      }
+      if (!summary.used) throw new Error('no_usable_preference_vectors')
+      const namespace = 'user-article'
+      const vector = normalized(sums.raw)
+      const centered = normalized(sums.centered)
+      const metadata: Record<string, string> = { interests: JSON.stringify(sums.interests), embedding_mean_version: EMBEDDING_MEAN_VERSION }
+      const identity = { target: key, namespace, centered: await contentWriteToken({ target: keys[1], namespace, embedding_mean_version: EMBEDDING_MEAN_VERSION }, centered) }
+      output.writeToken = await contentWriteToken({ ...identity, ...metadata }, vector)
+      await this.upsert(
+        'user',
+        [
+          { id: key, namespace, values: vector, metadata: { ...metadata, state_version: sums.seq } },
+          { id: keys[1], namespace, values: centered, metadata: { embedding_mean_version: EMBEDDING_MEAN_VERSION, state_version: sums.seq } }
+        ],
+        [output, output]
+      )
+      output.vectorIds = keys
+      output.state = 'written'
+      return output
+    } catch (error) {
+      return failed(output, error)
+    }
+  }
+
+  private async publishOwnerCollections(userId: number, sums: PreferenceSums, summary: PreferenceSummary, scope: PreferencePublish['collections']): Promise<VectorRefreshResult[]> {
+    const outputs: VectorRefreshResult[] = []
+    if (Array.isArray(scope) && !scope.length) return outputs
+    for (const { id } of await this.repo.listOwnerCollections(userId)) {
+      if (Array.isArray(scope) && !scope.includes(id)) continue
+      const output = result({ kind: 'collection', id })
+      outputs.push(output)
+      output.stateVersion = sums.seq
+      try {
+        const collection = await this.repo.findCollection(id)
+        if (collection?.owner_id === userId && summary.members) await this.publishCollection(collection, sums, summary, output)
+        else {
+          output.vectorIds = [`c:${id}`]
+          await this.remove('collection', [`c:${id}`], output)
+          output.state = 'deleted'
+        }
+      } catch (error) {
+        failed(output, error)
+      }
+    }
+    return outputs
+  }
+
+  private async publishCollection(collection: VectorCollectionRow, sums: PreferenceSums, summary: PreferenceSummary, output: VectorRefreshResult) {
+    const key = `c:${collection.id}`
+    if (summary.firstMissingMember !== undefined) throw new Error(`missing_dependency:${articleVectorId({ userId: collection.owner_id, id: summary.firstMissingMember })}`)
+    output.vectorIds = [key]
+    const vector = normalized(sums.owner)
+    const publication = { collection_id: collection.id, owner_id: collection.owner_id, recommendable: true, published_at: collection.published_at }
+    output.writeToken = await contentWriteToken({ target: key, ...publication }, vector)
+    const previous = (await this.get('collection', [key])).get(key)
+    if (previous?.metadata?.write_token === output.writeToken) output.unchanged = true
+    else await this.upsert('collection', [{ id: key, values: vector, metadata: { ...publication, state_version: sums.seq } }], [output])
+    output.state = 'written'
+  }
+
+  private async aggregateCollections(userId: number, coverage: NonNullable<VectorRefreshResult['coverage']>): Promise<number[] | null> {
+    const sum = new Float64Array(VECTOR_DIMENSIONS)
+    let after = 0
+    for (;;) {
+      const rows = await this.repo.listUserCollections(userId, after, VECTOR_READ_BATCH_SIZE)
+      if (!rows.length) break
+      coverage.eligible += rows.length
+      const ids = rows.map(row => `c:${row.id}`)
+      const values = await this.get('collection', ids)
+      for (const vectorId of ids) {
+        const vector = values.get(vectorId)
+        if (!vector) {
+          coverage.missing++
+          continue
+        }
+        addVector(sum, vector.values, 1)
+        coverage.used++
+      }
+      const last = rows[rows.length - 1].id
+      if (last <= after) throw new Error('invalid_dependency_page')
+      after = last
+      if (rows.length < VECTOR_READ_BATCH_SIZE) break
+    }
+    return coverage.used ? normalized(sum) : null
   }
 
   async refreshCollection(id: number): Promise<VectorRefreshResult> {
     positiveId(id)
     const output = result({ kind: 'collection', id })
-    const key = `c:${id}`
     try {
       const collection = await this.repo.findCollection(id)
-      const vector = collection
-        ? await this.aggregate(
-            async (after, limit) => (await this.repo.listCollectionMembers(collection.owner_id, after, limit)).map(row => ({ id: row.id, weight: 1 })),
-            'article',
-            collection.owner_id
-          )
-        : null
-      if (!vector) {
-        await this.remove('collection', [key], output)
+      if (!collection) {
+        output.vectorIds = [`c:${id}`]
+        await this.remove('collection', [`c:${id}`], output)
         output.state = 'deleted'
-      } else {
-        const publication = { collection_id: id, owner_id: collection!.owner_id, recommendable: true, published_at: collection!.published_at }
-        output.writeToken = await contentWriteToken({ target: key, ...publication }, vector)
-        const previous = (await this.get('collection', [key])).get(key)
-        if (previous?.metadata?.write_token === output.writeToken) output.unchanged = true
-        else await this.upsert('collection', [{ id: key, values: vector, metadata: publication }], [output])
-        output.state = 'written'
+        return output
       }
-      output.vectorIds = [key]
-      return output
+      const published = (await this.preferences.rebuild(collection.owner_id, { user: false, collections: [id] })).find(
+        item => item.target.kind === 'collection' && item.target.id === id
+      )
+      if (!published) throw new Error('vector_refresh_missing_result')
+      return published
     } catch (error) {
       return failed(output, error)
     }
@@ -578,60 +781,35 @@ export class VectorMaintenanceService implements VectorMaintenance {
     positiveId(id)
     if (preference !== 'article' && preference !== 'collection') throw new Error('invalid_preference_kind')
     const output = result({ kind: 'user', id, preference })
-    const key = `u:${id}:${preference}`
-    const keys = preference === 'article' ? [key, `${key}:centered`] : [key]
+    output.coverage = { eligible: 0, used: 0, missing: 0 }
     try {
-      const now = Date.now()
-      const recent = preference === 'article' ? await this.repo.listRecentUserActions(id, new Date(now - PINNERSAGE_WINDOW_DAYS * 86_400_000), PINNERSAGE_MAX_ACTIONS) : []
-      const recentIds = new Set(recent.map(action => action.id))
-      const representatives = new Map<number, number[]>()
-      const centeredSum = new Float64Array(VECTOR_DIMENSIONS)
-      const vector =
-        preference === 'article'
-          ? await this.aggregate(
-              async (after, limit) => (await this.repo.listUserArticles(id, after, limit)).map(row => ({ id: row.id, weight: row.is_starred ? 2 : 1 })),
-              'article',
-              id,
-              (bookmarkId, values, weight) => {
-                const unit = normalized(values)
-                const centered = center(unit)
-                for (let index = 0; index < centeredSum.length; index++) centeredSum[index] += weight * centered[index]
-                if (recentIds.has(bookmarkId)) representatives.set(bookmarkId, unit)
-              }
-            )
-          : await this.aggregate(async (after, limit) => (await this.repo.listUserCollections(id, after, limit)).map(row => ({ id: row.id, weight: 1 })), 'collection')
-      if (!vector) {
-        await this.remove('user', keys, output)
-        output.state = 'deleted'
-      } else {
-        const metadata: Record<string, string> = {}
-        const namespace = `user-${preference}`
-        const identity: Record<string, string> = { target: key, namespace }
-        const records: VectorizeVector[] = [{ id: key, namespace, values: vector, metadata }]
-        if (preference === 'article') {
-          const centered = normalized(centeredSum)
-          const actions: InterestAction[] = recent.flatMap(action => {
-            const vector = representatives.get(action.id)
-            return vector ? [{ bookmarkId: action.id, vector, actedAt: new Date(action.acted_at).getTime() }] : []
-          })
-          metadata.interests = JSON.stringify(interestClusters(actions, now, center).map(cluster => [cluster.medoidBookmarkId, cluster.importance]))
-          metadata.embedding_mean_version = EMBEDDING_MEAN_VERSION
-          identity.centered = await contentWriteToken({ target: keys[1], namespace, embedding_mean_version: EMBEDDING_MEAN_VERSION }, centered)
-          records.push({ id: keys[1], namespace, values: centered, metadata: { embedding_mean_version: EMBEDDING_MEAN_VERSION } })
-        }
-        output.writeToken = await contentWriteToken({ ...identity, ...metadata }, vector)
-        await this.upsert(
-          'user',
-          records,
-          records.map(() => output)
-        )
-        output.state = 'written'
+      if (preference === 'article') {
+        const published = (await this.preferences.rebuild(id, { user: true, collections: [] })).find(item => item.target.kind === 'user')
+        if (!published) throw new Error('vector_refresh_missing_result')
+        return published
       }
-      output.vectorIds = keys
+      const key = `u:${id}:collection`
+      const vector = await this.aggregateCollections(id, output.coverage)
+      if (!vector) {
+        if (output.coverage.eligible > 0) throw new Error('no_usable_preference_vectors')
+        await this.remove('user', [key], output)
+      } else {
+        const namespace = 'user-collection'
+        output.writeToken = await contentWriteToken({ target: key, namespace }, vector)
+        await this.upsert('user', [{ id: key, namespace, values: vector, metadata: {} }], [output])
+      }
+      output.vectorIds = [key]
+      output.state = vector ? 'written' : 'deleted'
       return output
     } catch (error) {
       return failed(output, error)
     }
+  }
+
+  async applyArticle(identity: ArticleVectorIdentity, previous?: number[]): Promise<VectorRefreshResult[]> {
+    positiveId(identity.userId)
+    positiveId(identity.id)
+    return this.preferences.apply(identity.userId, identity.id, previous)
   }
 
   async queryArticles(vector: number[], options: ArticleQueryOptions) {
@@ -662,7 +840,13 @@ export class VectorMaintenanceService implements VectorMaintenance {
         for (let offset = 0; offset < output.vectorIds.length; offset += VECTOR_GET_BATCH_SIZE) {
           const page = output.vectorIds.slice(offset, offset + VECTOR_GET_BATCH_SIZE)
           const vectors = new Map((await this.index.get(kind, page)).map(vector => [vector.id, vector]))
-          if (page.some(id => vectors.get(id)?.metadata?.write_token !== output.writeToken)) return false
+          const current = (id: string) => {
+            const metadata = vectors.get(id)?.metadata
+            if (!metadata) return false
+            if (metadata.write_token === output.writeToken) return true
+            return output.stateVersion !== undefined && Number(metadata.state_version) > output.stateVersion
+          }
+          if (!page.every(current)) return false
         }
       }
       const removed = output.state === 'deleted' ? [...new Set([...output.vectorIds, ...(output.removedVectorIds || [])])] : output.removedVectorIds || []

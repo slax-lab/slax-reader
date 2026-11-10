@@ -11,8 +11,7 @@ import {createMobileApi} from '../../src/data/api.ts';
 import {createSyncConnector} from '../../src/data/connector.ts';
 import {clearAccountData} from '../../src/data/account-cleanup.ts';
 import {MemoryPreferences, testJwt} from './helpers.ts';
-import {openVerifiedDatabase} from '../../src/data/adoption.ts';
-import {UpgradeVerificationRequired} from '../../src/data/upgrade.ts';
+import {migrateLegacyPreferences} from '../../src/data/legacy-preferences.ts';
 
 const deferred = () => {let resolve; const promise = new Promise(yes => {resolve = yes;}); return {promise, resolve};};
 async function until(check) {for (let i = 0; i < 100; i++) {if (check()) return; await setImmediate();} assert(check());}
@@ -32,7 +31,8 @@ async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'ol
     setOnline() {} start() {} async suspend() {} resume() {} setInteractionBusy() {}
     cancel() {this.stop?.();} async close() {this.cancel();} beginForeground() {return () => {};}
   }
-  const bridge = {beginDataOwnership: async () => ({scanComplete: true, databaseCandidates: [], legacyDataDirectory: '/synthetic', newDatabaseDirectory: '/synthetic/new'}), endDataOwnership: async () => {}, newIdentifier: () => `owner-${++owners}`, md5String: value => value};
+  let legacyReset = false;
+  const bridge = {beginDataOwnership: async () => ({legacyReset, legacyDataDirectory: '/synthetic', newDatabaseDirectory: '/synthetic/new'}), finishLegacyReset: async () => {events.push('reset-finished'); legacyReset = false; pending = 0;}, readLegacyPreferences: async () => null, endDataOwnership: async () => {}, newIdentifier: () => `owner-${++owners}`, md5String: value => value};
   const fetch = async (url, request) => {
     const path = new URL(url).pathname, bearer = new Headers(request.headers).get('Authorization'); sent.push({path, bearer});
     if (path === '/v1/user/refresh') {events.push('refresh'); return refresh(request);}
@@ -46,15 +46,46 @@ async function fixture(refresh, storage = new MemoryPreferences({auth_token: 'ol
     './native-network.ts': {nativeNetwork: {read: async () => ({}), subscribe: () => () => {}}},
     '../native/reader-image': {loadReaderImage: async () => assert.fail('No image request expected in credential fixture')},
     '../native/platform': {activateReaderResources: async () => {events.push('activate'); if (activationFailure) throw activationFailure;}, revokeReaderResources: async () => {events.push('revoke');}},
-    './connector.ts': {createSyncConnector}, './adoption.ts': {openVerifiedDatabase}, './adoption-profile.ts': {deriveReviewedAdoptionEvidence: () => undefined},
-    './legacy-preferences.ts': {migrateLegacyPreferences: async () => {if (migrationFailure) throw migrationFailure;}}, './native-storage.ts': {loadLegacyBridge: () => bridge, nativePreferenceStorage: () => storage},
+    './connector.ts': {createSyncConnector},
+    './legacy-preferences.ts': {migrateLegacyPreferences: async (...args) => {if (migrationFailure) throw migrationFailure; return migrateLegacyPreferences(...args);}}, './native-storage.ts': {loadLegacyBridge: () => bridge, nativePreferenceStorage: () => storage},
     './preferences.ts': {PreferenceStore, PREFERENCE_KEYS}, './repositories.ts': {MobileRepositories: class {constructor(lease) {this.lease = lease;}}},
-    './schema.ts': {createMobileSchema: async () => ({}), SYNC_PARAMETERS: {}}, './upgrade.ts': {UpgradeVerificationRequired}, '@powersync/react-native': {PowerSyncDatabase: Database},
+    './schema.ts': {createMobileSchema: async () => ({}), SYNC_PARAMETERS: {}}, '@powersync/react-native': {PowerSyncDatabase: Database},
   }, {Error});
   const diagnostics = [];
   const runtime = createMobileDataRuntime({baseUrl: 'https://api.example', platform: 'ios', version: 'test', fetch, diagnostics: {sink: {record(event, fields) {diagnostics.push({event, fields});}}, storage: null, flush: async () => {}, start: () => () => {}}});
-  return {runtime, diagnostics, sent, events, storage, worker: () => workers.at(-1), setActivationFailure: error => {activationFailure = error;}, setMigrationFailure: error => {migrationFailure = error;}, setCleanupFailure: error => {cleanupFailure = error;}, get pending() {return pending;}, get clears() {return clears;}};
+  return {runtime, diagnostics, sent, events, storage, worker: () => workers.at(-1), setLegacyReset: value => {legacyReset = value;}, setActivationFailure: error => {activationFailure = error;}, setMigrationFailure: error => {migrationFailure = error;}, setCleanupFailure: error => {cleanupFailure = error;}, get pending() {return pending;}, get clears() {return clears;}};
 }
+
+test('legacy reset completes failed logout and permits a new login without opening the old database', async context => {
+  const storage = new MemoryPreferences({auth_token: 'old', user_id: 'account', _slax_sign_out_pending_v1: true, _slax_preferences_migration_v1: 'old', _slax_database_adoption_v1: 'failed', _slax_account_cleanup_required_v1: true});
+  const f = await fixture(async () => assert.fail('Signed-out reset must not refresh'), storage);
+  context.after(() => f.runtime.stop()); f.setLegacyReset(true);
+  await f.runtime.start();
+  assert.equal(f.runtime.getUpgradeSnapshot().status, 'ready');
+  assert.equal(f.runtime.sessions.getSnapshot().status, 'unauthenticated');
+  assert.equal(storage.values._slax_sign_out_pending_v1, undefined);
+  assert.equal(storage.values._slax_database_adoption_v1, undefined);
+  assert(f.events.indexOf('reset-finished') < f.events.indexOf('init'));
+  await f.runtime.sessions.accept('new-login', 'next-account');
+  assert.equal(f.runtime.sessions.getSnapshot().status, 'authenticated');
+  assert(f.runtime.getRepositories());
+  await f.runtime.sessions.signOut();
+  await f.runtime.sessions.accept('second-login', 'next-account');
+  assert.equal(f.runtime.getUpgradeSnapshot().status, 'ready');
+});
+
+test('legacy reset keeps a usable session and does not clear new offline writes on restart', async context => {
+  const storage = new MemoryPreferences({auth_token: 'current', user_id: 'account', last_refresh_time: String(Math.floor(Date.now() / 1000)), _slax_preferences_migration_v1: 'old', _slax_database_installation_v1: 'invalid'});
+  const f = await fixture(async () => assert.fail('Fresh retained token must not refresh'), storage);
+  context.after(() => f.runtime.stop()); f.setLegacyReset(true);
+  await f.runtime.start();
+  assert.equal(f.runtime.sessions.getSnapshot().status, 'authenticated');
+  assert.equal(f.pending, 0); assert.equal(f.clears, 0);
+  await f.runtime.getDatabase().execute();
+  await f.runtime.stop(); await f.runtime.start();
+  assert.equal(f.pending, 1); assert.equal(f.clears, 0);
+  assert.equal(f.events.filter(event => event === 'reset-finished').length, 1);
+});
 
 test('cold startup publishes local account and verified data without awaiting protected network readiness', async context => {
   const gate = deferred(); const f = await fixture(async () => {await gate.promise; return Response.json({code: 200, data: {token: 'new-token'}});});
