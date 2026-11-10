@@ -157,7 +157,7 @@ describe('useAuth', () => {
       mockPost.mockResolvedValueOnce({ token: 'otp-session' })
       const { signal } = new AbortController()
       await expect(useAuth().verifyEmailAuth(input, { signal })).resolves.toBe('otp-session')
-      expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/user/login/email/verify', body: input }))
+      expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/user/login', body: { ...input, type: 'email' } }))
       expect(globalThis.fetch).toHaveBeenCalledWith(
         '/api/auth/session',
         expect.objectContaining({ method: 'POST', body: JSON.stringify({ token: 'otp-session' }), signal })

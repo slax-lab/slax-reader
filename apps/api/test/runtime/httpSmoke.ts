@@ -267,46 +267,55 @@ async function main() {
       const authCall = async (path: string, body?: object, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
         const response = await localFetch(`http://localhost:${httpPort}${path}`, {
           method: body ? 'POST' : 'GET',
-          headers: { 'Content-Type': 'application/json', 'X-Fixture-Email-Run-Type': runType, ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Fixture-Email-Run-Type': runType,
+            'X-Device-ID': 'email-http-smoke',
+            ...(bearer ? { Authorization: `Bearer ${bearer}` } : {})
+          },
           body: body ? JSON.stringify(body) : undefined
         })
         return response.json() as Promise<{ code: number; data: any }>
       }
-      const prove = async (path: string, email: string, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
-        const sent = await authCall(`${path}/send`, { email }, bearer, runType)
+      const prove = async (purpose: 'login' | 'bind', email: string, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
+        const sent = await authCall('/v1/user/login/email/send', { email, purpose }, bearer, runType)
         assert.equal(sent.code, 200, JSON.stringify(sent))
         const { request_id } = sent.data
         const fixture = await localFetch(`http://localhost:${httpPort}/__fixture/email-code?id=${request_id}`, { headers: { Authorization: `Bearer ${token}` } })
         const code = await fixture.json()
         assert.match(String(code), /^\d{6}$/)
-        return authCall(`${path}/verify`, { email, request_id, code }, bearer, runType)
+        return authCall(purpose === 'login' ? '/v1/user/login' : '/v1/user/bind', { type: 'email', email, request_id, code }, bearer, runType)
       }
-      const login = '/v1/user/login/email'
-      assert.deepEqual((await authCall(`${login}/status`)).data, { enabled: true })
-      assert.equal((await authCall('/v1/user/auth/identities')).code, 401)
-      assert.equal((await authCall('/v1/user/auth/identities', undefined, token)).data.show_email_binding, true)
-      assert.equal((await prove(login, 'owner@smoke.invalid')).data, 'EMAIL_AUTH_USE_EXISTING_LOGIN')
+      const userInfo = '/v1/user/userinfo'
+      assert.equal((await authCall(userInfo)).code, 401)
+      assert.equal((await authCall('/v1/user/login/email/send', { email: 'owner@smoke.invalid', purpose: 'bind' })).code, 401)
+      assert.equal((await authCall('/v1/user/bind', { type: 'email' })).code, 401)
+      assert.equal((await authCall(userInfo, undefined, token)).data.login_identities.show_email_binding, true)
+      const provider = await authCall('/v1/user/bind_link', { platform: 'google', client_platform: 'web' }, token)
+      assert.equal(provider.code, 200)
+      assert.match(provider.data.state, /^link\./)
+      assert.match(provider.data.nonce, /^[0-9a-f]{64}$/)
+      assert.equal((await prove('login', 'owner@smoke.invalid')).data, 'EMAIL_AUTH_USE_EXISTING_LOGIN')
       const ownerToken = await new Auth(vars as Env).sign({
         id: String(new Hashid(vars as Env).encodeId(2)),
         email: 'owner@smoke.invalid',
         lang: 'en'
       })
       for (const runType of ['beta', 'prod'] as const) {
-        assert.deepEqual((await authCall(`${login}/status`, undefined, undefined, runType)).data, { enabled: true })
-        assert.equal((await authCall('/v1/user/auth/identities', undefined, ownerToken, runType)).data.show_email_binding, false)
-        const binding = await prove('/v1/user/auth/email', 'rollout-owner@smoke.invalid', ownerToken, runType)
+        assert.equal((await authCall(userInfo, undefined, ownerToken, runType)).data.login_identities.show_email_binding, false)
+        const binding = await prove('bind', 'rollout-owner@smoke.invalid', ownerToken, runType)
         assert.equal(binding.code, 200)
         assert.deepEqual(binding.data, { email: 'rollout-owner@smoke.invalid' })
       }
-      assert.deepEqual((await prove('/v1/user/auth/email', 'saver@smoke.invalid', token)).data, { email: 'saver@smoke.invalid' })
-      const returning = await prove(login, 'Saver@SMOKE.INVALID')
+      assert.deepEqual((await prove('bind', 'saver@smoke.invalid', token)).data, { email: 'saver@smoke.invalid' })
+      const returning = await prove('login', 'Saver@SMOKE.INVALID')
       assert.equal(returning.code, 200)
       assert.equal(returning.data.user_id, String(new Hashid(vars as Env).encodeId(1)))
       assert.equal(returning.data.is_new_user, false)
-      const fresh = await prove(login, 'new-reader@smoke.invalid')
+      const fresh = await prove('login', 'new-reader@smoke.invalid')
       assert.equal(fresh.code, 200)
       assert.equal(fresh.data.is_new_user, true)
-      assert.equal((await authCall('/v1/user/auth/identities', undefined, fresh.data.token)).data.email, 'new-reader@smoke.invalid')
+      assert.equal((await authCall(userInfo, undefined, fresh.data.token)).data.login_identities.email, 'new-reader@smoke.invalid')
       evidence.emailAuthentication = 'binding API works in dev, beta, and prod with a dev-only UI hint; legacy sign-in guidance, existing-account login, and new-account session'
     }
     for (const origin of [vars.FRONT_END_URL, vars.FRONT_END_URL + '.attacker.invalid']) {

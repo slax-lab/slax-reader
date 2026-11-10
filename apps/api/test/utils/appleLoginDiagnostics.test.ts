@@ -203,24 +203,26 @@ describe('Apple identity verification diagnostics', () => {
     const { sign } = await build()
     vi.spyOn(AppleAuth.prototype as unknown as SigningAccess, 'getClientSecret').mockResolvedValue(clientSecret)
     const repo = { bindLoginProvider: vi.fn() }
-    const stateKey = { setWithExpire: vi.fn(), consume: vi.fn() }
-    const redis = () => ({ key: () => stateKey })
-    const ctx = new ContextManager({} as ExecutionContext, {
-      ...baseEnv,
-      EMAIL_AUTH_HMAC_SECRET: 'a-long-test-only-verification-secret',
-      RESEND_API_KEY: 'fixture',
-      RUN_TYPE: 'dev'
-    } as Env)
+    const challenges = { saveProvider: vi.fn(), consumeProvider: vi.fn() }
+    const ctx = new ContextManager(
+      {} as ExecutionContext,
+      {
+        ...baseEnv,
+        EMAIL_AUTH_HMAC_SECRET: 'a-long-test-only-verification-secret',
+        RESEND_API_KEY: 'fixture',
+        RUN_TYPE: 'dev'
+      } as Env
+    )
     ctx.setUserInfo(41, 41, '', 'en')
-    const auth = new EmailAuthentication(repo as never, {} as never, redis as never)
+    const auth = new EmailAuthentication(repo as never, challenges as never)
     const provider = { type: 'apple', platform: 'ios' }
     const request = (body: object) => new Request('https://api.example.test/', { method: 'POST', body: JSON.stringify(body) })
-    const { state, nonce } = await auth.startProvider(ctx, request(provider))
-    stateKey.consume.mockResolvedValueOnce(stateKey.setWithExpire.mock.calls[0][0])
+    const { state, nonce } = await auth.startProvider(ctx, provider)
+    challenges.consumeProvider.mockResolvedValueOnce(challenges.saveProvider.mock.calls[0][3])
     const [exchangedToken, nativeToken] = await Promise.all([sign(), sign('app.slax.reader', 'synthetic-user', '1h', nonce)])
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ id_token: exchangedToken }))
 
-    await expect(auth.finishProvider(ctx, request({ ...provider, state, code, id_token: nativeToken, redirect_uri: '' }))).resolves.toEqual({ linked: true })
+    await expect(auth.bind(ctx, request({ ...provider, state, code, id_token: nativeToken, redirect_uri: '' }))).resolves.toEqual({ linked: true })
     expect(repo.bindLoginProvider).toHaveBeenCalledExactlyOnceWith(41, 'apple', 'synthetic-user', 'identity-email-do-not-log@example.test')
   })
 })

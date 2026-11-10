@@ -26,13 +26,12 @@
 
       <!-- 登录按钮 -->
       <div v-if="showLoginBtn" class="auth-btns">
-        <button v-if="emailEnabled" class="email-login-toggle" type="button" :aria-expanded="emailOpen" @click="toggleEmail">
+        <button class="email-login-toggle" type="button" :aria-expanded="emailOpen" @click="toggleEmail">
           {{ t(emailOpen ? 'email_auth.cancel' : 'email_auth.continue_with_email') }}
         </button>
         <EmailCodeForm
-          v-if="emailEnabled && emailOpen && active"
+          v-if="emailOpen && active"
           ref="emailForm"
-          :send-url="EMAIL_AUTH_PATH.send"
           :verify="verifyEmail"
         />
         <GoogleLoginButton ref="googleLoginBtn" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" @click.capture="cancelEmail" />
@@ -59,7 +58,7 @@ import EmailCodeForm from '~/components/Login/EmailCodeForm.vue'
 
 import { authReturnTarget } from '~/utils/emailAuth'
 
-import { EMAIL_AUTH_PATH, type EmailAuthStatus, type EmailCodeInput } from '@slax-reader/contracts/email-auth'
+import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
 import { isAcquisitionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import type { PropType } from 'vue'
 
@@ -108,21 +107,8 @@ if (!props.modal && useRoute().query.from === 'homepage') {
 }
 
 const appleAttribution = computed(() => isAcquisitionAuthAttribution(props.authAttribution) ? props.authAttribution : undefined)
-const emailEnabled = ref(false)
 const emailOpen = ref(false)
 const emailForm = ref<InstanceType<typeof EmailCodeForm>>()
-
-onMounted(async () => {
-  try {
-    const status = await request().get<EmailAuthStatus>({
-      url: EMAIL_AUTH_PATH.status,
-      errorInterceptors: () => {}
-    })
-    emailEnabled.value = status?.enabled === true
-  } catch {
-    // Existing sign-in providers remain available when the email status cannot be loaded.
-  }
-})
 
 const cancelEmail = () => {
   emailForm.value?.cancel()

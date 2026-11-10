@@ -215,7 +215,7 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
     })
   })
 
-  test.each(['register', 'register-id', 'key', 'bind'] as const)('deletion winning the row lock blocks a concurrent %s', async operation => {
+  test.each(['register', 'register-id', 'key', 'bind'] as const)('deletion winning the lock blocks a concurrent %s', async operation => {
     const user = await createUser()
     await apiKeyRepo(first!).upsertApiKey(key(user.id))
     const result = await orderedRace(
@@ -234,7 +234,7 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
     await expect(requireActiveReaderUser(first!, user.id)).rejects.toMatchObject({ errCode: 401 })
   })
 
-  test.each(['register', 'register-id', 'key', 'bind'] as const)('%s winning the row lock cannot survive subsequent deletion as an active credential', async operation => {
+  test.each(['register', 'register-id', 'key', 'bind'] as const)('%s winning the lock cannot survive subsequent deletion as an active credential', async operation => {
     const user = await createUser()
     const result = await orderedRace(
       db => {

@@ -14,7 +14,7 @@ import { BookmarkOrchestrator } from '../../domain/orchestrator/bookmark'
 import { QueueClient } from '../../infra/queue/queueClient'
 import { UserDeletionService } from '../../domain/userDeletion'
 import { LabService } from '../../domain/lab'
-import { EmailAuthentication, emailAuthEnabled } from '../../domain/emailAuthentication'
+import { EmailAuthentication } from '../../domain/emailAuthentication'
 
 const privateAuthHeaders = { 'Cache-Control': 'no-store' }
 
@@ -41,47 +41,17 @@ export class UserController {
   @Post('/login')
   public async handleUserLoginRequest(ctx: ContextManager, request: Request) {
     const loginRes = await this.userService.userLogin(ctx, request)
-    return Successed(loginRes)
-  }
-
-  @Get('/login/email/status')
-  public async handleEmailAuthStatus(ctx: ContextManager, _request: Request) {
-    return Successed({ enabled: emailAuthEnabled(ctx.env) }, 200, 'ok', privateAuthHeaders)
+    return Successed(loginRes, 200, 'ok', privateAuthHeaders)
   }
 
   @Post('/login/email/send')
-  public async handleSendLoginCode(ctx: ContextManager, request: Request) {
-    return Successed(await this.emailAuth.send(ctx, request, 'login'), 200, 'ok', privateAuthHeaders)
+  public async handleSendEmailCode(ctx: ContextManager, request: Request) {
+    return Successed(await this.emailAuth.send(ctx, request), 200, 'ok', privateAuthHeaders)
   }
 
-  @Post('/login/email/verify')
-  public async handleVerifyLoginCode(ctx: ContextManager, request: Request) {
-    return Successed(await this.emailAuth.login(ctx, request), 200, 'ok', privateAuthHeaders)
-  }
-
-  @Get('/auth/identities')
-  public async handleLoginIdentities(ctx: ContextManager, _request: Request) {
-    return Successed(await this.emailAuth.identities(ctx), 200, 'ok', privateAuthHeaders)
-  }
-
-  @Post('/auth/email/send')
-  public async handleSendBindingCode(ctx: ContextManager, request: Request) {
-    return Successed(await this.emailAuth.send(ctx, request, 'bind'), 200, 'ok', privateAuthHeaders)
-  }
-
-  @Post('/auth/email/verify')
-  public async handleVerifyBindingCode(ctx: ContextManager, request: Request) {
-    return Successed(await this.emailAuth.bindEmail(ctx, request), 200, 'ok', privateAuthHeaders)
-  }
-
-  @Post('/auth/provider/start')
-  public async handleStartProviderBinding(ctx: ContextManager, request: Request) {
-    return Successed(await this.emailAuth.startProvider(ctx, request), 200, 'ok', privateAuthHeaders)
-  }
-
-  @Post('/auth/provider/finish')
-  public async handleFinishProviderBinding(ctx: ContextManager, request: Request) {
-    return Successed(await this.emailAuth.finishProvider(ctx, request), 200, 'ok', privateAuthHeaders)
+  @Post('/bind')
+  public async handleBindLoginIdentity(ctx: ContextManager, request: Request) {
+    return Successed(await this.emailAuth.bind(ctx, request), 200, 'ok', privateAuthHeaders)
   }
 
   /**
@@ -109,14 +79,14 @@ export class UserController {
    */
   @Post('/bind_link')
   public async handleUserBindLinkRequest(ctx: ContextManager, request: Request) {
-    let req = await request.json<{ platform: string }>()
+    const req = await request.json<{ platform: string; client_platform?: string }>()
     if (!req) return Failed(ErrorParam())
 
-    if (req.platform !== 'telegram' && req.platform !== 'twitter') {
+    if (!['telegram', 'twitter', 'google', 'apple'].includes(req.platform)) {
       return Failed(ErrorParam())
     }
 
-    const bindLink = await this.userService.getBindLink(ctx, req.platform)
+    const bindLink = await this.userService.getBindLink(ctx, req.platform, req.client_platform)
     return Successed(bindLink)
   }
 
@@ -214,7 +184,7 @@ export class UserController {
     await this.userDeletionService.ensureUserNotDeleted(ctx.getUserId())
 
     const res = await this.userService.getUserInfo(ctx)
-    return Successed(res)
+    return Successed(res, 200, 'ok', privateAuthHeaders)
   }
 
   /**

@@ -87,10 +87,11 @@ describe('global/LoginView', () => {
     expect(wrapper.findComponent({ name: 'AppleLoginButton' }).props('authAttribution')).toEqual(authAttribution)
   })
 
-  it('leaves OAuth available when email sign-in is disabled', async () => {
+  it('offers email and OAuth without a separate status request', async () => {
     const wrapper = mountWithApp(LoginView)
     await flushPromises()
-    expect(wrapper.find('.email-login-toggle').exists()).toBe(false)
+    expect(wrapper.find('.email-login-toggle').exists()).toBe(true)
+    expect(get).not.toHaveBeenCalled()
     expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).exists()).toBe(true)
     expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(true)
     wrapper.unmount()
@@ -110,7 +111,7 @@ describe('global/LoginView', () => {
     await flushPromises()
     expect(post).toHaveBeenCalledWith(expect.objectContaining({
       url: '/v1/user/login/email/send',
-      body: { email: 'Reader@example.com', locale: 'en' }
+      body: { email: 'Reader@example.com', locale: 'en', purpose: 'login' }
     }))
     expect(wrapper.get('button:disabled').text()).toMatch(/Resend in 60s/)
     await wrapper.get('[autocomplete="one-time-code"]').setValue('012345')

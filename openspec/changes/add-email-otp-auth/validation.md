@@ -48,6 +48,13 @@ On 2026-11-09 the requester exercised the initial Web preview and asked to refin
 
 On 2026-11-09 the requester accepted the Mobile preview covering iOS email login and Android existing-account binding.
 
+## Route and storage rewrite
+
+- The default API suite passed 3,865 tests. The focused API run passed 102 tests with disposable Redis, covering layer boundaries, independent device quota, challenge expiration, concurrent proof redemption, and OAuth state consumption. The local PostgreSQL run passed all 21 account tests, including concurrent signup, binding, deletion, and credential revocation.
+- The isolated Edge/Core HTTP smoke used one send route, the existing login, user information, and provider bind-link routes, and the authenticated bind route. It verified anonymous access boundaries, account reuse, new-account login, and beta and production binding with the UI hint hidden. Resend was simulated.
+- Chromium exercised the updated Web login and settings flows using the local API fixture. It observed the device header on the shared send route, the email proof on the existing login route, the hidden binding action from user information, and successful binding with the Google session preserved. All 71 focused Web tests and 83 focused Mobile tests passed. API, Web, and Mobile type checks passed.
+- The Mobile rewrite was exercised in the mounted host suite. Both platform bundles exported. The full local Mobile run passed 1,215 tests, skipped one, and timed out while the Swift offline engine fixture was waiting for article images. The same fixture passed in isolation. Native-device acceptance for this revision and live Resend delivery remain release verification items.
+
 ## Local review
 
 The Bugs, Security, and Compliance passes matched the diff to `add-email-otp-auth`. The final diff addresses stale Web account ownership, cancelled Mobile session completion, provider subject precedence, and frozen Apple placeholder ownership. No unresolved Important finding remained in the local review.

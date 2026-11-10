@@ -8,7 +8,7 @@ import {throwIfAborted} from '../utils/abort.ts';
 import {SharedRequestCache} from './shared-request.ts';
 import {readArticleBody} from './bounded-body.ts';
 import {PDF_MAX_BYTES} from '@slax-reader/contracts/pdf';
-import {EMAIL_AUTH_PATH, type EmailAuthIdentities, type EmailAuthProviderChallenge, type EmailAuthStatus, type EmailCodeChallenge, type EmailCodeInput} from '@slax-reader/contracts/email-auth';
+import {EMAIL_AUTH_PATH, type EmailAuthIdentities, type EmailAuthProviderChallenge, type EmailCodeChallenge, type EmailCodeInput} from '@slax-reader/contracts/email-auth';
 import {DataTransportError, isNetworkTransportError, httpErrorCode, retryAfterMs, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
 export {DataTransportError, isNetworkTransportError, getDataErrorDiagnostic, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS} from './transport-errors.ts';
 
@@ -45,7 +45,7 @@ export interface FeedbackDiagnosticUpload {file: Blob; filename: string}
 export const FEEDBACK_DIAGNOSTIC_MAX_BYTES = 12582912;
 export const FEEDBACK_MULTIPART_OVERHEAD_BYTES = 65536;
 export interface AiEvent { type: string; data?: { overview?: string; outline?: string; tags?: {id: number; name: string}[]; tag?: {id: number; name: string}; key_takeaways?: string[]; done?: boolean }; message?: string }
-export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; fetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void>; onFailedExchange?: (exchange: DiagnosticExchange) => void; onAccountSuccess?: (exchange: DiagnosticExchange) => void }
+export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; getDeviceId?: () => Promise<string>; fetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void>; onFailedExchange?: (exchange: DiagnosticExchange) => void; onAccountSuccess?: (exchange: DiagnosticExchange) => void }
 function diagnosticExchange(path: string, method: string, response: Response, headers: Record<string, string>, started: number, code?: number, body?: unknown): DiagnosticExchange {
   const provider = path === '/v1/user/login' && body && typeof body === 'object' && 'type' in body && (body.type === 'google' || body.type === 'apple') ? body.type : undefined;
   return {http: {method, path: path.split(/[?#]/)[0]!, status: response.status, code: typeof code === 'number' ? code : null, cfRay: response.headers.get('CF-Ray')?.slice(0, 256) ?? null}, headers: {request: redactHeaders(headers, 'request'), response: redactHeaders(response.headers, 'response')}, durationMs: Math.max(0, Date.now() - started), provider};
@@ -77,10 +77,12 @@ export class SlaxApi {
   private async response(path: string, method: 'GET' | 'POST', body?: unknown, query?: Record<string, string | undefined>, signal?: AbortSignal, timeout = 30000, tokenOverride?: string, accept = 'application/json', extraHeaders?: Record<string, string>): Promise<{response: Response; cleanup: () => void; diagnostic: (code?: number) => DiagnosticExchange | undefined}> {
     throwIfAborted(signal);
     const identity = this.options.sessions.captureIdentity?.(), origin = this.origin;
-    const emailLogin = path === EMAIL_AUTH_PATH.status || path === EMAIL_AUTH_PATH.send || path === EMAIL_AUTH_PATH.verify;
-    const publicLogin = path === '/v1/user/login' || emailLogin;
-    const accountAuth = path.startsWith('/v1/user/auth/');
-    const authRequest = accountAuth || emailLogin;
+    const sendEmail = path === EMAIL_AUTH_PATH.send;
+    const emailLogin = path === '/v1/user/login' && (body as {type?: string} | undefined)?.type === 'email';
+    const bindingCode = sendEmail && (body as {purpose?: string} | undefined)?.purpose === 'bind';
+    const publicLogin = path === '/v1/user/login' || (sendEmail && !bindingCode);
+    const accountAuth = bindingCode || path === EMAIL_AUTH_PATH.bind || path === '/v1/user/bind_link' || path === '/v1/user/userinfo';
+    const authRequest = accountAuth || emailLogin || sendEmail;
     const report = path === '/v1/user/report';
     const noRetry = report || authRequest && method === 'POST';
     const abortableResponse = report || authRequest;
@@ -92,6 +94,7 @@ export class SlaxApi {
     throwIfAborted(signal);
     const scope = publicLogin ? undefined : this.options.sessions.captureRequestScope?.();
     const session = publicLogin ? null : await (scope ? scope.getSession() : this.options.sessions.getSession());
+    const deviceId = sendEmail || emailLogin ? await this.options.getDeviceId?.() : undefined;
     scope?.assertCurrent();
     const requestToken = tokenOverride ?? session?.token;
     const url = this.url(path, query);
@@ -110,7 +113,8 @@ export class SlaxApi {
         if ((report || accountAuth) && !requestToken) throw new ApiError(401, 'Authentication required');
         const headers: Record<string, string> = {
           ...(!multipart ? {'Content-Type': 'application/json'} : {}), Accept: accept, 'User-Agent': `SlaxReader/${this.options.platform} ${this.options.version}`,
-          ...(requestToken ? { Authorization: `Bearer ${requestToken}` } : {}), ...extraHeaders,
+          ...(requestToken ? { Authorization: `Bearer ${requestToken}` } : {}),
+          ...(deviceId ? {'X-Device-ID': deviceId} : {}), ...extraHeaders,
         }, started = Date.now();
         const pending = this.transport(url, {method, headers, body: multipart ? body : body === undefined ? undefined : JSON.stringify(body), signal: controller.signal, redirect: 'error'});
         if (abortableResponse) void pending.then(value => {if (controller.signal.aborted) void value.body?.cancel().catch(() => undefined);}).catch(() => undefined);
@@ -258,14 +262,10 @@ export class SlaxApi {
     finally {this.labs.invalidate();}
   };
   login = (params: LoginRequest, signal?: AbortSignal) => this.request<LoginResponse>('/v1/user/login', 'POST', params, undefined, signal);
-  emailLoginStatus = async (signal?: AbortSignal): Promise<EmailAuthStatus> => {
-    const result = await this.request<EmailAuthStatus>(EMAIL_AUTH_PATH.status, 'GET', undefined, undefined, signal);
-    return {enabled: result?.enabled === true};
-  };
-  sendLoginEmail = (body: SendEmailCode, signal?: AbortSignal) => this.requestEmailCode(EMAIL_AUTH_PATH.send, body, signal);
-  sendBindingEmail = (body: SendEmailCode, signal?: AbortSignal) => this.requestEmailCode(EMAIL_AUTH_PATH.bindSend, body, signal);
-  private async requestEmailCode(path: typeof EMAIL_AUTH_PATH.send | typeof EMAIL_AUTH_PATH.bindSend, body: SendEmailCode, signal?: AbortSignal) {
-    const result = await this.request<EmailCodeChallenge>(path, 'POST', body, undefined, signal);
+  sendLoginEmail = (body: SendEmailCode, signal?: AbortSignal) => this.requestEmailCode('login', body, signal);
+  sendBindingEmail = (body: SendEmailCode, signal?: AbortSignal) => this.requestEmailCode('bind', body, signal);
+  private async requestEmailCode(purpose: 'login' | 'bind', body: SendEmailCode, signal?: AbortSignal) {
+    const result = await this.request<EmailCodeChallenge>(EMAIL_AUTH_PATH.send, 'POST', {...body, purpose}, undefined, signal);
     if (typeof result?.request_id !== 'string' || !result.request_id
       || !Number.isFinite(result.expires_in) || result.expires_in <= 0
       || !Number.isFinite(result.resend_after) || result.resend_after < 0) {
@@ -274,34 +274,34 @@ export class SlaxApi {
     return result;
   }
   verifyLoginEmail = async (body: EmailCodeInput, signal?: AbortSignal) => {
-    const result = await this.request<LoginResponse>(EMAIL_AUTH_PATH.verify, 'POST', body, undefined, signal);
+    const result = await this.request<LoginResponse>('/v1/user/login', 'POST', {...body, type: 'email'}, undefined, signal);
     if (typeof result?.token !== 'string' || !result.token || typeof result.user_id !== 'string' || !result.user_id) {
       throw new ApiError(502, 'Invalid email login session response');
     }
     return result;
   };
   getLoginIdentities = async (signal?: AbortSignal) => {
-    const result = await this.request<EmailAuthIdentities>(EMAIL_AUTH_PATH.identities, 'GET', undefined, undefined, signal);
+    const {login_identities: result} = await this.request<{login_identities?: EmailAuthIdentities}>('/v1/user/userinfo', 'GET', undefined, undefined, signal);
     if (typeof result?.enabled !== 'boolean' || (result.email !== null && typeof result.email !== 'string')
-      || typeof result.google !== 'boolean' || typeof result.apple !== 'boolean') {
+      || typeof result.show_email_binding !== 'boolean' || typeof result.google !== 'boolean' || typeof result.apple !== 'boolean') {
       throw new ApiError(502, 'Invalid sign-in methods response');
     }
     return result;
   };
   verifyBindingEmail = async (body: EmailCodeInput, signal?: AbortSignal) => {
-    const result = await this.request<{email: string}>(EMAIL_AUTH_PATH.bindVerify, 'POST', body, undefined, signal);
+    const result = await this.request<{email: string}>(EMAIL_AUTH_PATH.bind, 'POST', {...body, type: 'email'}, undefined, signal);
     if (typeof result?.email !== 'string' || !result.email) throw new ApiError(502, 'Invalid email binding response');
     return result;
   };
   startProviderLink = async (body: NativeProvider, signal?: AbortSignal) => {
-    const result = await this.request<EmailAuthProviderChallenge>(EMAIL_AUTH_PATH.providerStart, 'POST', body, undefined, signal);
+    const result = await this.request<EmailAuthProviderChallenge>('/v1/user/bind_link', 'POST', {platform: body.type, client_platform: body.platform}, undefined, signal);
     if (typeof result?.state !== 'string' || !result.state || typeof result.nonce !== 'string' || !result.nonce) {
       throw new ApiError(502, 'Invalid provider linking challenge');
     }
     return result;
   };
   finishProviderLink = async (body: LoginRequest & NativeProvider & {state: string}, signal?: AbortSignal) => {
-    const result = await this.request<{linked: true}>(EMAIL_AUTH_PATH.providerFinish, 'POST', body, undefined, signal);
+    const result = await this.request<{linked: true}>(EMAIL_AUTH_PATH.bind, 'POST', body, undefined, signal);
     if (result?.linked !== true) throw new ApiError(502, 'Invalid provider linking response');
     return result;
   };

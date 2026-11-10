@@ -14,11 +14,11 @@ The system SHALL offer email-code access on Web, iOS and Android and complete th
 
 - **WHEN** the API has a Resend API key and a verification secret of at least 32 characters
 - **THEN** the system makes email-code access available by default
-- **AND** the system reports email-code access as unavailable when either credential is missing or the verification secret is too short
+- **AND** sending a code reports email-code access as unavailable when either credential is missing or the verification secret is too short
 
 #### Scenario: A new reader proves an unclaimed email address
 
-- **WHEN** a reader submits a valid unused code for an unclaimed address
+- **WHEN** a reader submits a valid unused code for an unclaimed address to the existing login endpoint
 - **THEN** the system creates exactly one user and verified login-email binding and signs the reader in
 
 #### Scenario: A returning reader proves a verified login email
@@ -34,7 +34,12 @@ The system SHALL offer email-code access on Web, iOS and Android and complete th
 
 ### Requirement: Email verification expires and can be consumed once
 
-The system SHALL deliver a six-digit code with a five-minute lifetime, a 60-second resend cooldown, and a maximum of five wrong attempts per challenge. It SHALL enforce send limits and distinguish login from binding. The system SHALL preserve a valid challenge when the send outcome is ambiguous.
+The system SHALL deliver a six-digit code with a five-minute lifetime, a 60-second resend cooldown, and a maximum of five wrong attempts per challenge. It SHALL enforce send limits by IP address, email address, and device ID and distinguish login from binding. The system SHALL preserve a valid challenge when the send outcome is ambiguous.
+
+#### Scenario: A device requests codes for different addresses
+
+- **WHEN** a device reaches its sending limit while requesting codes for multiple addresses
+- **THEN** the delivery endpoint rejects further requests from that device during the same window
 
 #### Scenario: A challenge expires, is replaced, or is exhausted
 

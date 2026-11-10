@@ -1,6 +1,7 @@
 import type { AccountEmailAuthRequest } from '~/utils/accountEmailAuthRequest'
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { EMAIL_AUTH_PATH, type EmailAuthProviderChallenge } from '@slax-reader/contracts/email-auth'
 
 export type LinkProvider = 'google' | 'apple'
@@ -31,8 +32,8 @@ export const startProviderLink = async (type: LinkProvider, signal: AbortSignal,
   if (new URL(redirectUri).origin !== location.origin) throw new Error('Provider callback must use the settings origin')
 
   const response = await account.api.post<EmailAuthProviderChallenge>({
-    url: EMAIL_AUTH_PATH.providerStart,
-    body: { type, platform: 'web' },
+    url: RESTMethodPath.GET_BIND_LINK,
+    body: { platform: type, client_platform: 'web' },
     signal,
     errorInterceptors: () => {}
   })
@@ -65,7 +66,7 @@ export const finishProviderLink = async (state: string, type: LinkProvider, code
   const { clientId, redirectUri } = providerConfig(type)
   const response = await request().post<{ linked: true }>({
     ...options,
-    url: EMAIL_AUTH_PATH.providerFinish,
+    url: EMAIL_AUTH_PATH.bind,
     body: { state, type, platform: 'web', code, redirect_uri: redirectUri, client_id: clientId }
   })
   if (!response?.linked) throw new Error('Provider linking failed')

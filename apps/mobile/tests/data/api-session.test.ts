@@ -349,23 +349,23 @@ test('email login verification stays public even with stored credentials and doe
   });
   const proof = {email: 'reader@example.test', request_id: 'synthetic-challenge', code: '123456'};
   await assert.rejects(async () => api.verifyLoginEmail(proof), {status: 503});
-  assert.deepEqual(calls, [['https://api.example/v1/user/login/email/verify', undefined, proof]]);
+  assert.deepEqual(calls, [['https://api.example/v1/user/login', undefined, {...proof, type: 'email'}]]);
 });
 
 test('email binding sends proof once under the current authenticated owner even when delivery fails', async () => {
   const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'existing-token', user_id: 'existing'})), {leave: async () => {}, enter: async () => {}});
   await sessions.restore();
   const calls: unknown[] = [];
-  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'android', version: 'test', sessions,
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'android', version: 'test', sessions, getDeviceId: async () => 'test-device',
     sleep: async () => {},
     fetch: async (url, request) => {
-      calls.push([String(url), (request?.headers as Record<string, string>).Authorization, JSON.parse(String(request?.body))]);
+      calls.push([String(url), (request?.headers as Record<string, string>).Authorization, (request?.headers as Record<string, string>)['X-Device-ID'], JSON.parse(String(request?.body))]);
       throw new Error('Transport lost after dispatch');
     },
   });
   const email = {email: 'reader@example.test', locale: 'zh'};
   await assert.rejects(async () => api.sendBindingEmail(email), /Transport lost after dispatch/);
-  assert.deepEqual(calls, [['https://api.example/v1/user/auth/email/send', 'Bearer existing-token', email]]);
+  assert.deepEqual(calls, [['https://api.example/v1/user/login/email/send', 'Bearer existing-token', 'test-device', {...email, purpose: 'bind'}]]);
 });
 
 test('a cancelled verified login cannot commit while waiting for the session store', async () => {

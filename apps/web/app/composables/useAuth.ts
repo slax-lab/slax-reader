@@ -2,7 +2,7 @@ import { configuredCookieName, persistSessionCookie, readStringCookie } from '~/
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import { EMAIL_AUTH_PATH, type EmailCodeInput } from '@slax-reader/contracts/email-auth'
+import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
 import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
@@ -101,8 +101,8 @@ const useAuth = {
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
     const response = await request().post<{ token: string }>({
       ...options,
-      url: EMAIL_AUTH_PATH.verify,
-      body: input
+      url: RESTMethodPath.LOGIN,
+      body: { ...input, type: 'email' }
     })
     options.signal?.throwIfAborted()
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')

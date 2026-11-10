@@ -10,7 +10,7 @@
 
 - [x] 2.1 Implement Redis challenge issue, expiration, cooldown, attempt counting, rate limits and atomic consumption. Exercise expiry, resend, simultaneous submission, and distinct login and binding scopes.
 - [x] 2.2 Implement the Resend sender and localized code templates. Exercise accepted, rejected and ambiguous sends using the local sender test seam.
-- [x] 2.3 Add API endpoints and shared response types for login and authenticated linking. Regenerate backend registration and validate existing session, telemetry and client contracts.
+- [x] 2.3 Add the delivery and authenticated binding endpoints and reuse login, user information, and provider binding initiation. Regenerate backend registration and validate session, telemetry and client contracts.
 
 ## 3. Client integration
 

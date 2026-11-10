@@ -40,10 +40,10 @@
 import { emailAuthErrorKey } from '~/utils/emailAuth'
 
 import type { FetchRequest } from '@commons/frontend-utils/request'
-import type { EmailCodeChallenge, EmailCodeInput } from '@slax-reader/contracts/email-auth'
+import { EMAIL_AUTH_PATH, type EmailCodeChallenge, type EmailCodeInput } from '@slax-reader/contracts/email-auth'
 
 const props = defineProps<{
-  sendUrl: string
+  purpose?: 'login' | 'bind'
   client?: Pick<FetchRequest, 'post'>
   verify: (proof: EmailCodeInput, signal: AbortSignal) => Promise<void>
 }>()
@@ -95,8 +95,8 @@ const sendCode = async () => {
 
   try {
     const response = await (props.client ?? request()).post<EmailCodeChallenge>({
-      url: props.sendUrl,
-      body: { email: email.value, locale: locale.value },
+      url: EMAIL_AUTH_PATH.send,
+      body: { email: email.value, locale: locale.value, purpose: props.purpose ?? 'login' },
       signal: controller.signal,
       errorInterceptors: () => {}
     })

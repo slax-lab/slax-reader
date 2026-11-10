@@ -39,7 +39,7 @@ import { VectorMaintenanceService } from '../../domain/vectorMaintenance'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
-import { UserService } from '../../domain/user'
+import { AuthChallengeRepo } from '../../infra/repository/authChallengeRepo'
 import { HybridSearchRepo } from '../../infra/repository/dbHybridSearch'
 import { VectorEmbeddingClient } from '../../infra/external/vectorEmbedding'
 import { BookmarkService } from '../../domain/bookmark'
@@ -50,6 +50,7 @@ import { RssRepo } from '../../infra/repository/dbRss'
 import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
+import { EmailAuthentication } from '../../domain/emailAuthentication'
 import { VectorSourceRepo } from '../../infra/repository/vectorSources'
 import { VectorIndexClient } from '../../infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '../../infra/repository/vectorPreferenceClient'
@@ -58,6 +59,7 @@ import { TagService } from '../../domain/tag'
 import { MarkService } from '../../domain/mark'
 import { CollectionService } from '../../domain/collection'
 import { NotificationService } from '../../domain/notification'
+import { UserService } from '../../domain/user'
 import { ContentRecommendationService } from '../../domain/contentRecommendation'
 import { HybridSearchService } from '../../domain/hybridSearch'
 import { ImportService } from '../../domain/import'
@@ -88,7 +90,6 @@ import { DashboardService } from '../../domain/dashboard'
 import { HybridSearchOrchestrator } from '../../domain/orchestrator/hybridSearch'
 import { ShareOrchestrator } from '../../domain/orchestrator/share'
 import { SyncOrchestrator } from '../../domain/orchestrator/sync'
-import { EmailAuthentication } from '../../domain/emailAuthentication'
 import { ImportOrchestrator } from '../../domain/orchestrator/import'
 import { EmailService } from '../../domain/email'
 import { ContentOrchestrator } from '../../domain/orchestrator/content'
@@ -211,12 +212,7 @@ container.register(EmailService, {
 })
 
 container.register(EmailAuthentication, {
-  useFactory: container =>
-    new EmailAuthentication(
-      container.resolve(UserRepo),
-      container.resolve(UserService),
-      lazy(() => container.resolve(RedisClient))
-    )
+  useFactory: container => new EmailAuthentication(container.resolve(UserRepo), container.resolve(AuthChallengeRepo))
 })
 
 container.register(HybridSearchService, {
@@ -387,10 +383,11 @@ container.register(UserService, {
       container.resolve(SubscriptionRepo),
       container.resolve(CollectionRepo),
       container.resolve(BookmarkRepo),
-      lazy(() => container.resolve(RedisClient)),
+      container.resolve(AuthChallengeRepo),
       container.resolve(GA4AnalyticsClient),
       container.resolve(LogsService),
-      container.resolve(LabService)
+      container.resolve(LabService),
+      container.resolve(EmailAuthentication)
     )
 })
 
@@ -630,6 +627,10 @@ container.register(NotificationMessage, {
 
 container.register(QueueClient, {
   useClass: QueueClient
+})
+
+container.register(AuthChallengeRepo, {
+  useFactory: container => new AuthChallengeRepo(lazy(() => container.resolve(RedisClient)))
 })
 
 container.register(BucketClient, {

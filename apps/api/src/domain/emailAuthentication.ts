@@ -1,14 +1,13 @@
 import { inject, injectable } from '@/decorators/di'
-import type { LazyInstance } from '@/decorators/lazy'
 import { EmailAuthUnavailableError, ErrorParam, OAuth2StateExpiredError, UnauthorizedError } from '@/const/err'
 import { UserRepo } from '@/infra/repository/dbUser'
-import { RedisClient } from '@/infra/repository/redisClient'
+import { AuthChallengeRepo } from '@/infra/repository/authChallengeRepo'
 import { SlaxAuth } from '@/utils/auth'
 import type { ContextManager } from '@/utils/context'
+import { resolveDeviceId } from '@/utils/eventContext'
 import type { EmailAuthIdentities, EmailAuthProviderChallenge } from '@slax-reader/contracts/email-auth'
 import { z } from 'zod'
 import { EmailCodeService } from './emailCode'
-import { UserService } from './user'
 
 const address = z
   .string()
@@ -20,7 +19,7 @@ const address = z
     return value.slice(0, at) + value.slice(at).toLowerCase()
   })
   .refine(value => !/@(?:appleid\.apple\.com|deleted\.invalid)$/.test(value))
-const sendSchema = z.object({ email: address, locale: z.string().max(32).optional() })
+const sendSchema = z.object({ email: address, locale: z.string().max(32).optional(), purpose: z.enum(['login', 'bind']).default('login') })
 const verifySchema = z.object({
   email: address,
   request_id: z
@@ -28,8 +27,7 @@ const verifySchema = z.object({
     .min(16)
     .max(128)
     .regex(/^[a-zA-Z0-9_-]+$/),
-  code: z.string().regex(/^\d{6}$/),
-  auth_attribution: z.unknown().optional()
+  code: z.string().regex(/^\d{6}$/)
 })
 const providerSchema = z.object({ type: z.enum(['google', 'apple']), platform: z.enum(['web', 'ios', 'android']) })
 const providerFinishSchema = providerSchema.extend({
@@ -41,7 +39,11 @@ const providerFinishSchema = providerSchema.extend({
 })
 
 async function parse<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
-  const result = schema.safeParse(await request.json().catch(() => null))
+  return parseInput(await request.json().catch(() => null), schema)
+}
+
+function parseInput<T>(input: unknown, schema: z.ZodType<T>): T {
+  const result = schema.safeParse(input)
   if (!result.success) throw ErrorParam()
   return result.data
 }
@@ -60,18 +62,14 @@ function owner(ctx: ContextManager): number {
   return id
 }
 
-type ProviderState = z.infer<typeof providerSchema> & { nonce: string }
-
 @injectable()
 export class EmailAuthentication {
   constructor(
     @inject(UserRepo) private users: UserRepo,
-    @inject(UserService) private userService: UserService,
-    @inject(RedisClient) private redis: LazyInstance<RedisClient>
+    @inject(AuthChallengeRepo) private challenges: AuthChallengeRepo
   ) {}
 
-  async identities(ctx: ContextManager): Promise<EmailAuthIdentities> {
-    const bindings = await this.users.getUserBindPlatform(owner(ctx))
+  identities(ctx: ContextManager, bindings: Awaited<ReturnType<UserRepo['getUserBindPlatform']>>): EmailAuthIdentities {
     const enabled = emailAuthEnabled(ctx.env)
     return {
       enabled,
@@ -82,66 +80,64 @@ export class EmailAuthentication {
     }
   }
 
-  async send(ctx: ContextManager, request: Request, purpose: 'login' | 'bind') {
+  async send(ctx: ContextManager, request: Request) {
     requireEmailAuth(ctx.env)
-    const { email, locale } = await parse(request, sendSchema)
+    const { email, locale, purpose } = await parse(request, sendSchema)
     const userId = purpose === 'bind' ? owner(ctx) : undefined
+    const deviceId = resolveDeviceId(request)
+    if (!deviceId || deviceId.length > 128) throw ErrorParam()
     const emailKey = email.toLowerCase()
     const deliveryEmail = purpose === 'login' ? ((await this.users.getLoginEmailRecipient(emailKey)) ?? email) : email
-    return new EmailCodeService(ctx.env, this.redis()).sendCode({
+    return new EmailCodeService(ctx.env, this.challenges).sendCode({
       purpose,
       emailKey,
       deliveryEmail,
       clientIp: request.headers.get('CF-Connecting-IP') ?? 'unknown',
+      deviceId,
       userId,
       locale: locale ?? request.headers.get('Accept-Language')?.split(',')[0]
     })
   }
 
-  private async consume(ctx: ContextManager, request: Request, purpose: 'login' | 'bind', userId?: number) {
+  async verifyEmail(ctx: ContextManager, input: unknown, purpose: 'login' | 'bind', userId?: number) {
     requireEmailAuth(ctx.env)
-    const { email, request_id, code, auth_attribution } = await parse(request, verifySchema)
+    const { email, request_id, code } = parseInput(input, verifySchema)
     const key = email.toLowerCase()
-    const delivery = await new EmailCodeService(ctx.env, this.redis()).verifyCode({ purpose, emailKey: key, requestId: request_id, code, userId })
-    return { key, delivery, auth_attribution }
+    const delivery = await new EmailCodeService(ctx.env, this.challenges).verifyCode({ purpose, emailKey: key, requestId: request_id, code, userId })
+    return { key, delivery }
   }
 
-  async login(ctx: ContextManager, request: Request) {
-    const { key, delivery, auth_attribution } = await this.consume(ctx, request, 'login')
-    return this.userService.loginByVerifiedEmail(ctx, request, key, delivery, auth_attribution)
-  }
-
-  async bindEmail(ctx: ContextManager, request: Request) {
+  async bind(ctx: ContextManager, request: Request) {
     const userId = owner(ctx)
-    const { key, delivery } = await this.consume(ctx, request, 'bind', userId)
-    await this.users.bindLoginEmail(userId, key, delivery)
-    return { email: delivery }
+    const input = await request.json().catch(() => null)
+    if (input?.type === 'email') {
+      const { key, delivery } = await this.verifyEmail(ctx, input, 'bind', userId)
+      await this.users.bindLoginEmail(userId, key, delivery)
+      return { email: delivery }
+    }
+    return this.finishProvider(ctx, input, userId)
   }
 
-  private providerState(ctx: ContextManager, state: string) {
-    return this.redis().key<ProviderState>(`auth:provider:${ctx.env.RUN_TYPE}:${owner(ctx)}:${state}`)
-  }
-
-  async startProvider(ctx: ContextManager, request: Request): Promise<EmailAuthProviderChallenge> {
+  async startProvider(ctx: ContextManager, input: unknown): Promise<EmailAuthProviderChallenge> {
     requireEmailAuth(ctx.env)
-    const { type, platform } = await parse(request, providerSchema)
+    const { type, platform } = parseInput(input, providerSchema)
     if (type === 'apple' && platform === 'android') throw ErrorParam()
     const state = `link.${crypto.randomUUID()}`
     const nonce = (crypto.randomUUID() + crypto.randomUUID()).replaceAll('-', '')
-    await this.providerState(ctx, state).setWithExpire({ type, platform, nonce }, 600)
+    await this.challenges.saveProvider(ctx.env.RUN_TYPE, owner(ctx), state, { type, platform, nonce }, 600)
     return { state, nonce }
   }
 
-  async finishProvider(ctx: ContextManager, request: Request) {
+  private async finishProvider(ctx: ContextManager, proof: unknown, userId: number) {
     requireEmailAuth(ctx.env)
-    const input = await parse(request, providerFinishSchema)
+    const input = parseInput(proof, providerFinishSchema)
     if (input.platform === 'web' && input.redirect_uri !== (ctx.env.EMAIL_AUTH_WEB_CALLBACK || new URL('/auth', ctx.env.FRONT_END_URL).href)) throw ErrorParam()
     if (input.platform !== 'web' && input.redirect_uri !== '') throw ErrorParam()
-    const challenge = await this.providerState(ctx, input.state).consume()
+    const challenge = await this.challenges.consumeProvider(ctx.env.RUN_TYPE, userId, input.state)
     if (!challenge || challenge.type !== input.type || challenge.platform !== input.platform) throw OAuth2StateExpiredError()
     const identity = await new SlaxAuth(ctx.env).login(input)
     if (!identity.sub || identity.nonce !== challenge.nonce) throw OAuth2StateExpiredError()
-    await this.users.bindLoginProvider(owner(ctx), input.type, identity.sub, identity.email)
-    return { linked: true }
+    await this.users.bindLoginProvider(userId, input.type, identity.sub, identity.email)
+    return { linked: true as const }
   }
 }

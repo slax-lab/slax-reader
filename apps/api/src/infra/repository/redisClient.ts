@@ -1,6 +1,5 @@
 import { Redis } from '@upstash/redis/cloudflare'
 import { singleton } from '../../decorators/di'
-import { inject } from '@/decorators/di'
 
 class RedisOperation<T> {
   constructor(
@@ -54,6 +53,20 @@ class RedisOperation<T> {
     return (await this.client.set(this.key, stringValue, { nx: true, ex: seconds })) === 'OK'
   }
 
+  async incrementWithInitialExpiry(seconds: number): Promise<number> {
+    return this.client.eval<[number], number>("local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end; return n", [this.key], [seconds])
+  }
+
+  async deleteIfUnchanged(value: T): Promise<boolean> {
+    return (
+      (await this.client.eval<[string], number>(
+        "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) end; return 0",
+        [this.key],
+        [JSON.stringify(value)]
+      )) === 1
+    )
+  }
+
   async incr(): Promise<number> {
     return this.client.incr(this.key)
   }
@@ -101,10 +114,6 @@ export class RedisClient {
 
   key<T>(key: string): RedisOperation<T> {
     return new RedisOperation<T>(this.client, key)
-  }
-
-  eval<T>(script: string, keys: string[], args: string[]): Promise<T> {
-    return this.client.eval<string[], T>(script, keys, args)
   }
 
   userProfile(userId: string) {

@@ -1,4 +1,5 @@
 import type { PdfDescriptor, PdfMarkSource } from './pdf.js'
+import type { EmailAuthIdentities } from './email-auth.js'
 export enum BookmarkParseStatus {
   FAILED = 'failed',
   PENDING = 'pending',
@@ -374,6 +375,7 @@ export interface UserDetailInfo {
   timezone: string
   id: string
   platform: BindedPlatformInfo[]
+  login_identities?: EmailAuthIdentities
   subscription: UserSubscription
   share_collect: UserShareCollectInfo
   stripe_connect: StripeAccountInfo

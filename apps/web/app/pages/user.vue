@@ -40,6 +40,7 @@
                 :key="loginMethodsAccountKey"
                 :account-key="loginMethodsAccountKey"
                 :profile-email="userInfo.email"
+                :login-identities="userInfo.login_identities"
               />
             </div>
             <UserRelatedInfoSection section="account" :user-info="userInfo" @update="getUserDetailInfo" />
@@ -279,12 +280,14 @@ const aiLanguageOptionIndex = computed(() => {
 
 const getUserDetailInfo = async () => {
   const token = getUserToken()
+  const accountKey = deriveAccountKey(token)
   const res = await request().get<UserDetailInfo>({
     url: RESTMethodPath.USER_INFO,
     headers: token ? { Authorization: `Bearer ${token}` } : undefined
   })
 
-  loginMethodsAccountKey.value = deriveAccountKey(token)
+  if (deriveAccountKey(getUserToken()) !== accountKey) return
+  loginMethodsAccountKey.value = accountKey
   userInfo.value = res
   loading.value = false
 }

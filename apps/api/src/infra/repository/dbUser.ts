@@ -86,10 +86,15 @@ async function lockIdentities(tx: UserTransaction, keys: string[]) {
   }
 }
 
+async function lockAccount(tx: UserTransaction, userId: number) {
+  await lockIdentities(tx, [`account:${userId}`])
+  return tx.sr_user.findUnique({ where: { id: userId } })
+}
+
 async function lockActiveAccount(tx: UserTransaction, userId: number) {
-  const rows = await tx.$queryRaw<{ email: string }[]>`SELECT email FROM sr_user WHERE id = ${userId} AND deleted_at IS NULL FOR UPDATE`
-  if (!rows[0]) throw UserAccountDeletedError()
-  return rows[0]
+  const account = await lockAccount(tx, userId)
+  if (!account || account.deleted_at) throw UserAccountDeletedError()
+  return account
 }
 
 async function findEmailOwners(tx: UserTransaction, key: string) {
@@ -190,21 +195,23 @@ export class UserRepo {
 
   public async registerUser(info: userInfoPO): Promise<userInfoPO> {
     if (!info || !info.email) throw ErrorParam()
-    return this.prismaPg().$transaction(tx => this.saveRegistration(tx, info))
+    return this.prismaPg().$transaction(async tx => {
+      await lockIdentities(tx, [`mail:${info.email.trim().toLowerCase()}`])
+      if (info.id) await lockActiveAccount(tx, info.id)
+      return this.saveRegistration(tx, info)
+    })
   }
 
   private async saveRegistration(tx: UserTransaction, info: userInfoPO): Promise<userInfoPO> {
     const { lang, deleted_at, id, uuid, subscription_info, ...restUserInfo } = info
     if (id) {
-      const users = await tx.$queryRaw<userInfoPO[]>`SELECT *, CURRENT_TIMESTAMP AS checked_at FROM sr_user WHERE id = ${id} FOR UPDATE`
-      const matched = users[0]
-      if (!matched || matched.deleted_at) throw UserAccountDeletedError()
       const collision = await tx.sr_user.findFirst({ where: { email: info.email, id: { not: id } }, select: { id: true } })
       if (collision) throw PlatformAccountBoundToOtherUserError()
       return (await tx.sr_user.update({ where: { id }, data: { ...restUserInfo, last_login_at: new Date() } })) as userInfoPO
     }
-    const users = await tx.$queryRaw<userInfoPO[]>`SELECT *, CURRENT_TIMESTAMP AS checked_at FROM sr_user WHERE email = ${info.email} FOR UPDATE`
-    const existing = users[0]
+    const match = await tx.sr_user.findUnique({ where: { email: info.email }, select: { id: true } })
+    const locked = match ? await lockAccount(tx, match.id) : null
+    const existing = locked?.email === info.email ? locked : null
     if (existing?.deleted_at) {
       const freezeTime = addDays(existing.deleted_at, 30)
       const remainingHours = differenceInHours(freezeTime, new Date())
@@ -372,9 +379,8 @@ export class UserRepo {
   public async userBindPlatform(userId: number, platform: platformBindType, platformId: string, username: string): Promise<null> {
     if (!userId || !platform || !platformId) throw ErrorParam()
     await this.prismaPg().$transaction(async tx => {
-      const users = await tx.$queryRaw<Array<{ id: number }>>`SELECT id FROM sr_user WHERE id = ${userId} AND deleted_at IS NULL FOR UPDATE`
-      if (users.length !== 1) throw UserAccountDeletedError()
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${platform}:${platformId}`}, 0))`
+      await lockIdentities(tx, [`${platform}:${platformId}`])
+      await lockActiveAccount(tx, userId)
       const existing = await tx.sr_platform_bind.findFirst({ where: { platform, platform_id: platformId, user_id: { not: userId } } })
       if (existing) throw PlatformAccountBoundToOtherUserError()
       await tx.sr_platform_bind.upsert({
@@ -512,9 +518,9 @@ export class UserRepo {
   public async markUserAsDeleted(userId: number): Promise<void> {
     if (!Number.isSafeInteger(userId) || userId < 1) throw ErrorParam()
     await this.repoPg().$transaction(async tx => {
-      const users = await tx.$queryRaw<{ id: number; deleted_at: Date | null }[]>`SELECT id, deleted_at FROM sr_user WHERE id = ${userId} FOR UPDATE`
-      if (!users[0]) throw UserNotFoundError()
-      if (!users[0].deleted_at) await tx.sr_user.update({ where: { id: userId }, data: { deleted_at: new Date() } })
+      const user = await lockAccount(tx, userId)
+      if (!user) throw UserNotFoundError()
+      if (!user.deleted_at) await tx.sr_user.update({ where: { id: userId }, data: { deleted_at: new Date() } })
       await tx.sr_user_api_key.deleteMany({ where: { user_id: userId } })
     })
   }

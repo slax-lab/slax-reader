@@ -22,23 +22,22 @@ function request(body: object) {
 
 function fixture() {
   const state = new Map<string, unknown>()
-  const redis = () => ({
-    key: (key: string) => ({
-      setWithExpire: async (value: unknown) => {
-        state.set(key, value)
-      },
-      consume: async () => {
-        const value = state.get(key)
-        state.delete(key)
-        return value
-      }
-    })
-  })
+  const challenges = {
+    saveProvider: async (environment: string, id: number, key: string, value: unknown) => {
+      state.set(`${environment}:${id}:${key}`, value)
+    },
+    consumeProvider: async (environment: string, id: number, key: string) => {
+      const entry = `${environment}:${id}:${key}`
+      const value = state.get(entry)
+      state.delete(entry)
+      return value
+    }
+  }
   const repo = { bindLoginProvider: vi.fn() }
-  const auth = new EmailAuthentication(repo as never, {} as never, redis as never)
-  const start = (id: number) => auth.startProvider(context(id), request({ type: 'google', platform: 'web' }))
+  const auth = new EmailAuthentication(repo as never, challenges as never)
+  const start = (id: number) => auth.startProvider(context(id), { type: 'google', platform: 'web' })
   const finish = (id: number, state: string, redirectUri = 'https://reader.example.test/auth') =>
-    auth.finishProvider(context(id), request({ type: 'google', platform: 'web', code: 'fixture-code', state, redirect_uri: redirectUri }))
+    auth.bind(context(id), request({ type: 'google', platform: 'web', code: 'fixture-code', state, redirect_uri: redirectUri }))
   return { repo, start, finish }
 }
 
@@ -55,9 +54,9 @@ test.each([
   ['beta', false],
   ['prod', false]
 ] as const)('reports whether the settings should show mailbox binding in %s', async (runType, visible) => {
-  const auth = new EmailAuthentication({ getUserBindPlatform: async () => [] } as never, {} as never, (() => {}) as never)
+  const auth = new EmailAuthentication({} as never, {} as never)
   const ctx = context(41, { ...env, RUN_TYPE: runType })
-  await expect(auth.identities(ctx)).resolves.toMatchObject({ enabled: true, show_email_binding: visible })
+  expect(auth.identities(ctx, [])).toMatchObject({ enabled: true, show_email_binding: visible })
 })
 
 describe('explicit OAuth binding', () => {

@@ -1,77 +1,23 @@
+import { timingSafeEqual } from 'node:crypto'
 import type { EmailCodeChallenge } from '@slax-reader/contracts/email-auth'
-import { EmailAuthUnavailableError, EmailVerifyCodeError, EmailVerifyCodeRateLimitError, ErrorParam, ServerError, TooManyRequestsError } from '../const/err'
+import { EmailAuthUnavailableError, EmailVerifyCodeError, EmailVerifyCodeRateLimitError, ErrorParam, TooManyRequestsError } from '../const/err'
 import { resendDeliveryRejected } from '../infra/external/resend'
-import type { RedisClient } from '../infra/repository/redisClient'
+import type { AuthChallengeRepo, EmailChallenge, EmailChallengeKey } from '../infra/repository/authChallengeRepo'
 
 const CHALLENGE_TTL = 300
 const RESEND_COOLDOWN = 60
 const MAX_ATTEMPTS = 5
 const ADDRESS_SEND_LIMIT = 5
 const IP_SEND_LIMIT = 30
+const DEVICE_SEND_LIMIT = 10
 const ENVIRONMENT_SEND_LIMIT = 500
 const HOUR = 60 * 60
 const DAY = 24 * HOUR
 const DEFAULT_FROM = 'Slax Reader <noreply@reader.slax.com>'
 
-const ISSUE_CODE = `
-local challenge, cooldown, addressQuota, ipQuota, environmentQuota = unpack(KEYS)
-local id, email, digest, owner, ttl, cooldownTtl, addressLimit, ipLimit, environmentLimit, hour, day = unpack(ARGV)
-
-local function count(key)
-  return tonumber(redis.call('GET', key) or '0')
-end
-
-local function charge(key, window)
-  if redis.call('INCR', key) == 1 then redis.call('EXPIRE', key, window) end
-end
-
-if redis.call('EXISTS', cooldown) == 1 or
-   count(addressQuota) >= tonumber(addressLimit) or
-   count(ipQuota) >= tonumber(ipLimit) or
-   count(environmentQuota) >= tonumber(environmentLimit) then
-  return 0
-end
-
-charge(addressQuota, hour)
-charge(ipQuota, hour)
-charge(environmentQuota, day)
-redis.call('SET', cooldown, '1', 'EX', cooldownTtl)
-redis.call('HSET', challenge, 'request_id', id, 'recipient', email, 'digest', digest, 'owner', owner, 'attempts', '0')
-redis.call('EXPIRE', challenge, ttl)
-return 1
-`
-
-const VERIFY_CODE = `
-local id, owner, digest, limit = unpack(ARGV)
-local challenge = KEYS[1]
-local stored = redis.call('HMGET', challenge, 'request_id', 'owner', 'digest', 'attempts', 'recipient')
-if stored[1] ~= id or stored[2] ~= owner then return {'invalid'} end
-if tonumber(stored[4]) >= tonumber(limit) then return {'exhausted'} end
-
-local difference = 0
-for i = 1, #digest do
-  difference = bit.bor(difference, bit.bxor(stored[3]:byte(i), digest:byte(i)))
-end
-if difference ~= 0 then
-  if redis.call('HINCRBY', challenge, 'attempts', 1) >= tonumber(limit) then return {'exhausted'} end
-  return {'invalid'}
-end
-
-redis.call('DEL', challenge)
-return {'verified', stored[5]}
-`
-
-const REMOVE_REJECTED_CODE = `
-if redis.call('HGET', KEYS[1], 'request_id') == ARGV[1] then
-  return redis.call('DEL', KEYS[1])
-end
-return 0
-`
-
 type Scope = { purpose: 'login' | 'bind'; emailKey: string; userId?: number }
-type SendInput = Scope & { deliveryEmail: string; clientIp: string; locale?: string }
+type SendInput = Scope & { deliveryEmail: string; clientIp: string; deviceId: string; locale?: string }
 type VerifyInput = Scope & { requestId: string; code: string }
-type VerifyResult = ['invalid' | 'exhausted'] | ['verified', string]
 
 const encoder = new TextEncoder()
 
@@ -104,16 +50,11 @@ function emailContent(code: string, locale?: string) {
 }
 
 export class EmailCodeService {
-  // Keep all keys in one Redis hash slot so admission can update them atomically.
-  private readonly namespace: string
-
   constructor(
     private readonly env: Env,
-    private readonly redis: RedisClient,
+    private readonly challenges: AuthChallengeRepo,
     private readonly send?: typeof fetch
-  ) {
-    this.namespace = `{email-otp:${env.RUN_TYPE}}`
-  }
+  ) {}
 
   async sendCode(input: SendInput): Promise<EmailCodeChallenge> {
     if (input.purpose === 'bind' && input.userId === undefined) throw ErrorParam()
@@ -122,37 +63,26 @@ export class EmailCodeService {
     const key = await this.hmacKey()
     const code = newCode()
     const requestId = crypto.randomUUID()
-    const owner = String(input.userId ?? '')
-    const [addressHash, ipHash, codeDigest] = await Promise.all([
+    const [addressHash, ipHash, deviceHash, codeDigest] = await Promise.all([
       digest(key, 'address', input.emailKey),
       digest(key, 'ip', input.clientIp),
+      digest(key, 'device', input.deviceId),
       digest(key, 'code', input.purpose, input.emailKey, requestId, code)
     ])
-    const challenge = `${this.namespace}:challenge:${input.purpose}:${addressHash}`
-    const admitted = await this.runScript<number>(
-      ISSUE_CODE,
-      [
-        challenge,
-        `${this.namespace}:cooldown:${input.purpose}:${addressHash}`,
-        `${this.namespace}:quota:address:${addressHash}`,
-        `${this.namespace}:quota:ip:${ipHash}`,
-        `${this.namespace}:quota:environment`
-      ],
-      [
-        requestId,
-        input.deliveryEmail,
-        codeDigest,
-        owner,
-        String(CHALLENGE_TTL),
-        String(RESEND_COOLDOWN),
-        String(ADDRESS_SEND_LIMIT),
-        String(IP_SEND_LIMIT),
-        String(ENVIRONMENT_SEND_LIMIT),
-        String(HOUR),
-        String(DAY)
-      ]
-    )
-    if (!admitted) throw TooManyRequestsError()
+    const environment = this.env.RUN_TYPE
+    const scope: EmailChallengeKey = { environment, purpose: input.purpose, addressHash }
+
+    const [ipCount, deviceCount] = await Promise.all([
+      this.challenges.countEmailSend(environment, 'ip', ipHash, HOUR),
+      this.challenges.countEmailSend(environment, 'device', deviceHash, HOUR)
+    ])
+    if (ipCount > IP_SEND_LIMIT || deviceCount > DEVICE_SEND_LIMIT) throw TooManyRequestsError()
+    if (!(await this.challenges.takeEmailCooldown(scope, RESEND_COOLDOWN))) throw TooManyRequestsError()
+    if ((await this.challenges.countEmailSend(environment, 'address', addressHash, HOUR)) > ADDRESS_SEND_LIMIT) throw TooManyRequestsError()
+    if ((await this.challenges.countEmailSend(environment, 'environment', 'all', DAY)) > ENVIRONMENT_SEND_LIMIT) throw TooManyRequestsError()
+
+    const challenge: EmailChallenge = { requestId, recipient: input.deliveryEmail, digest: codeDigest, userId: input.userId }
+    await this.challenges.saveEmail(scope, challenge, CHALLENGE_TTL)
 
     const email = {
       from: this.env.EMAIL_AUTH_FROM?.trim() || DEFAULT_FROM,
@@ -160,7 +90,7 @@ export class EmailCodeService {
       ...emailContent(code, input.locale)
     }
     if (await resendDeliveryRejected(apiKey, requestId, email, this.send)) {
-      await this.runScript(REMOVE_REJECTED_CODE, [challenge], [requestId])
+      await this.challenges.removeEmail(scope, challenge)
       throw EmailAuthUnavailableError()
     }
 
@@ -170,29 +100,26 @@ export class EmailCodeService {
   async verifyCode(input: VerifyInput): Promise<string> {
     if (input.purpose === 'bind' && input.userId === undefined) throw EmailVerifyCodeError()
     const key = await this.hmacKey()
-    const [addressHash, codeDigest] = await Promise.all([digest(key, 'address', input.emailKey), digest(key, 'code', input.purpose, input.emailKey, input.requestId, input.code)])
-    const result = await this.runScript<VerifyResult>(
-      VERIFY_CODE,
-      [`${this.namespace}:challenge:${input.purpose}:${addressHash}`],
-      [input.requestId, String(input.userId ?? ''), codeDigest, String(MAX_ATTEMPTS)]
-    )
-    if (result[0] === 'verified') return result[1]
-    if (result[0] === 'exhausted') throw EmailVerifyCodeRateLimitError()
-    throw EmailVerifyCodeError()
+    const addressHash = await digest(key, 'address', input.emailKey)
+    const environment = this.env.RUN_TYPE
+    const scope: EmailChallengeKey = { environment, purpose: input.purpose, addressHash }
+    const challenge = await this.challenges.readEmail(scope)
+    if (!challenge || challenge.requestId !== input.requestId || challenge.userId !== input.userId) throw EmailVerifyCodeError()
+
+    const attempt = await this.challenges.countEmailAttempt(environment, input.requestId, CHALLENGE_TTL)
+    if (attempt > MAX_ATTEMPTS) throw EmailVerifyCodeRateLimitError()
+    const codeDigest = await digest(key, 'code', input.purpose, input.emailKey, input.requestId, input.code)
+    if (!timingSafeEqual(Buffer.from(challenge.digest, 'hex'), Buffer.from(codeDigest, 'hex'))) {
+      if (attempt === MAX_ATTEMPTS) throw EmailVerifyCodeRateLimitError()
+      throw EmailVerifyCodeError()
+    }
+    if (!(await this.challenges.removeEmail(scope, challenge))) throw EmailVerifyCodeError()
+    return challenge.recipient
   }
 
   private hmacKey(): Promise<CryptoKey> {
     const secret = this.env.EMAIL_AUTH_HMAC_SECRET
     if (!secret?.trim()) throw EmailAuthUnavailableError()
     return crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-  }
-
-  private async runScript<T>(script: string, keys: string[], args: string[]): Promise<T> {
-    try {
-      return await this.redis.eval<T>(script, keys, args)
-    } catch {
-      // An Upstash transport error can include the script arguments, including the recipient.
-      throw ServerError()
-    }
   }
 }

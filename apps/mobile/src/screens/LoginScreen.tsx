@@ -30,7 +30,6 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   const [agreed, setAgreed] = useState(false);
   const [agreement, setAgreement] = useState<'terms'|'privacy'|null>(null);
   const [loading, setLoading] = useState<LoginProvider|null>(null);
-  const [enabledFor, setEnabledFor] = useState<{api: typeof api; origin: string} | null>(null);
   const [emailFlow, setEmailFlow] = useState<EmailLoginFlow | null>(null);
   const [emailCommitting, setEmailCommitting] = useState(false);
   const committingEmail = useRef(false);
@@ -48,16 +47,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
     setLoading(null);
     return () => {pending.current = null; providerGeneration.current++; active.current = false;};
   }, [api, sessions, config.apiUrl]);
-  useEffect(() => {
-    if (fixtureOnly) return;
-    const request = new AbortController();
-    void api.emailLoginStatus(request.signal).then(
-      ({enabled}) => {if (!request.signal.aborted) setEnabledFor(enabled === true ? {api, origin: config.apiUrl} : null);},
-      () => {if (!request.signal.aborted) setEnabledFor(null);},
-    );
-    return () => request.abort();
-  }, [api, config.apiUrl, fixtureOnly]);
-  const emailEnabled = enabledFor?.api === api && enabledFor.origin === config.apiUrl;
+  const emailEnabled = !fixtureOnly;
   const markInteractive = useObserveMarkInteractive();
   useEffect(() => {markInteractive();}, [markInteractive]);
   const sessionGuard = () => {

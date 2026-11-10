@@ -13,7 +13,7 @@
     <EmailCodeForm
       v-if="identities.show_email_binding && emailOpen && !identities.email"
       class="login-method-email"
-      :send-url="EMAIL_AUTH_PATH.bindSend"
+      purpose="bind"
       :client="account.api"
       :verify="bindEmail"
     />
@@ -43,7 +43,7 @@ import { canLinkProvidersHere, type LinkProvider, startProviderLink } from '~/ut
 
 import { EMAIL_AUTH_PATH, type EmailAuthIdentities, type EmailCodeInput } from '@slax-reader/contracts/email-auth'
 
-const props = defineProps<{ accountKey: string; profileEmail?: string }>()
+const props = defineProps<{ accountKey: string; profileEmail?: string; loginIdentities?: EmailAuthIdentities }>()
 const account = createAccountEmailAuthRequest(props.accountKey)
 const { t } = useI18n()
 const titleId = useId()
@@ -55,6 +55,7 @@ const supportedProviders: LinkProvider[] = [
 ]
 
 const identities = ref<EmailAuthIdentities>()
+watch(() => props.loginIdentities, value => { identities.value = value && { ...value } }, { immediate: true })
 const signInEmailStatus = computed(() => {
   const email = identities.value?.email
   if (!email) return t('email_auth.not_linked')
@@ -68,22 +69,10 @@ const providerError = ref('')
 const lifecycle = new AbortController()
 
 onBeforeUnmount(() => lifecycle.abort())
-onMounted(async () => {
-  try {
-    identities.value = await account.api.get<EmailAuthIdentities>({
-      url: EMAIL_AUTH_PATH.identities,
-      signal: lifecycle.signal,
-      errorInterceptors: () => {}
-    })
-  } catch {
-    // The settings card is available only after confirming the feature and its identities.
-  }
-})
-
 const bindEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
   const result = await account.api.post<{ email: string }>({
-    url: EMAIL_AUTH_PATH.bindVerify,
-    body: proof,
+    url: EMAIL_AUTH_PATH.bind,
+    body: { ...proof, type: 'email' },
     signal,
     errorInterceptors: () => {}
   })

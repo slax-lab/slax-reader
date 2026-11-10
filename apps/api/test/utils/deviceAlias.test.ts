@@ -44,6 +44,7 @@ describe('bindUserDeviceAlias', () => {
       {} as never,
       { trackEvent: vi.fn().mockResolvedValue(undefined) } as never,
       { track: vi.fn().mockResolvedValue(undefined) } as never,
+      {} as never,
       {} as never
     )
     const response = await service.userLogin(
@@ -97,6 +98,7 @@ describe('bindUserDeviceAlias', () => {
       {} as never,
       { trackEvent: vi.fn().mockResolvedValue(undefined) } as never,
       { track: vi.fn().mockResolvedValue(undefined) } as never,
+      {} as never,
       {} as never
     )
     await service.userLogin(ctx, new Request('https://reader.test/v1/user/login', { method: 'POST', headers, body: JSON.stringify({ type: 'google', code: 'test-code' }) }))

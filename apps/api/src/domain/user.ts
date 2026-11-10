@@ -19,7 +19,7 @@ import { subscriptionPO, SubscriptionRepo } from '@/infra/repository/dbSubscript
 import { inject, injectable } from '@/decorators/di'
 import type { LazyInstance } from '@/decorators/lazy'
 import { BucketClient } from '@/infra/repository/bucketClient'
-import { RedisClient } from '@/infra/repository/redisClient'
+import { AuthChallengeRepo } from '@/infra/repository/authChallengeRepo'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
 import { i18n } from '@/const/i18n'
 import { ContextManager } from '@/utils/context'
@@ -39,7 +39,9 @@ import { hashMD5, hashSHA256 } from '@/utils/strings'
 import { diagnosticDownloadUrl, downloadDiagnostic, uploadDiagnostic, type DiagnosticAttachment } from '@/utils/diagnosticAttachment'
 import { isCollectionAuthAttribution, type AcquisitionAuthAttribution, type CollectionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import { z } from 'zod'
+import type { EmailAuthIdentities, EmailAuthProviderChallenge, EmailCodeInput } from '@slax-reader/contracts/email-auth'
 import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
+import { EmailAuthentication } from './emailAuthentication'
 
 const collectionAuthAttributionSchema = z.object({
   collection_id: z
@@ -132,6 +134,7 @@ export interface userInfo {
   name: string
   id: number
   platform: userBindPlatformItem[]
+  login_identities: EmailAuthIdentities
   subscription: subscription
   aff_code?: string
   share_collect: userShareCollectInfo
@@ -190,10 +193,11 @@ export class UserService {
     @inject(SubscriptionRepo) private subscriptionRepo: SubscriptionRepo,
     @inject(CollectionRepo) private collectionRepo: CollectionRepo,
     @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
-    @inject(RedisClient) private redisClient: LazyInstance<RedisClient>,
+    @inject(AuthChallengeRepo) private challenges: AuthChallengeRepo,
     @inject(GA4AnalyticsClient) private ga4Client: GA4AnalyticsClient,
     @inject(LogsService) private logsService: LogsService,
-    @inject(LabService) private labService: LabService
+    @inject(LabService) private labService: LabService,
+    @inject(EmailAuthentication) private emailAuth: EmailAuthentication
   ) {
     this.userRepoData = userRepo
     this.reportRepoData = reportRepo
@@ -220,11 +224,10 @@ export class UserService {
     return this.completeLogin(ctx, request, user, isNew, req.type)
   }
 
-  public async loginByVerifiedEmail(ctx: ContextManager, request: Request, key: string, deliveryEmail: string, authAttribution?: unknown) {
+  private async loginByVerifiedEmail(ctx: ContextManager, request: Request, key: string, deliveryEmail: string) {
     const profile = UserService.getUserReuqestInfo(request, { email: deliveryEmail, lang: 'en', last_login_at: new Date() } as userInfoPO)
     const { user, isNew } = await this.userRepo.signInWithEmail(key, deliveryEmail, profile)
-    const result = await this.completeLogin(ctx, request, user, isNew, 'email')
-    return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(authAttribution).data)
+    return this.completeLogin(ctx, request, user, isNew, 'email')
   }
 
   private async completeLogin(
@@ -557,6 +560,7 @@ export class UserService {
       avatar: user.picture,
       uuid: user.uuid,
       id: ctx.hashIds.encodeId(ctx.getUserId()),
+      login_identities: this.emailAuth.identities(ctx, bindList),
       platform: bindList
         .filter(item => item.platform !== platformBindType.MAIL)
         .map(item => {
@@ -637,7 +641,12 @@ export class UserService {
   }
 
   public async userLogin(ctx: ContextManager, request: Request): Promise<userLoginResp> {
-    const req = await RequestUtils.json<userLoginReq>(request)
+    const req = await RequestUtils.json<userLoginReq | (EmailCodeInput & { type: 'email'; auth_attribution?: unknown })>(request)
+    if (req.type === 'email') {
+      const { key, delivery } = await this.emailAuth.verifyEmail(ctx, req, 'login')
+      const result = await this.loginByVerifiedEmail(ctx, request, key, delivery)
+      return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(req.auth_attribution).data)
+    }
     const attribution =
       req.type === 'google'
         ? webAuthAttributionSchema.safeParse(req.auth_attribution).data
@@ -674,7 +683,7 @@ export class UserService {
     return result
   }
 
-  public async getBindLink(ctx: ContextManager, type: string): Promise<string> {
+  public async getBindLink(ctx: ContextManager, type: string, clientPlatform?: unknown): Promise<string | EmailAuthProviderChallenge> {
     if (type === 'telegram') {
       return this.getBindTelegramLink(ctx)
     } else if (type === 'twitter') {
@@ -687,7 +696,8 @@ export class UserService {
       const xSrv = new TwitterOAuth2(ctx.env)
       const authRes = await xSrv.generateAuthUrl()
 
-      await this.redisClient().twitterOAuthState(authRes.state).setWithExpire(
+      await this.challenges.saveTwitter(
+        authRes.state,
         {
           userId: userId,
           codeVerifier: authRes.codeVerifier,
@@ -697,6 +707,8 @@ export class UserService {
       )
 
       return authRes.url
+    } else if (type === 'google' || type === 'apple') {
+      return this.emailAuth.startProvider(ctx, { type, platform: clientPlatform })
     } else {
       throw ErrorParam()
     }
@@ -729,10 +741,8 @@ export class UserService {
       throw ErrorParam()
     }
 
-    const redisClient = new RedisClient(ctx.env)
-
     if (!/^[A-Za-z0-9._~-]{16,128}$/.test(state) || !code) throw OAuth2StateExpiredError()
-    const oauthData = await redisClient.twitterOAuthState(state).consume()
+    const oauthData = await this.challenges.consumeTwitter(state)
     if (!oauthData || !Number.isFinite(oauthData.createdAt) || Date.now() - oauthData.createdAt > 600000 || oauthData.createdAt > Date.now()) throw OAuth2StateExpiredError()
 
     const userId = oauthData.userId
@@ -745,7 +755,6 @@ export class UserService {
       tokenResponse = await twitterOAuth.handleCallback({ code, state }, oauthData.codeVerifier, state)
     } catch (error) {
       console.error('[Twitter OAuth] Token exchange failed:', error)
-      await redisClient.twitterOAuthState(state).delete()
       throw OAuth2TokenExchangeError()
     }
 
@@ -754,27 +763,22 @@ export class UserService {
       twitterUser = await twitterOAuth.getUser(tokenResponse.accessToken)
     } catch (error) {
       console.error('[Twitter OAuth] Get user info failed:', error)
-      await redisClient.twitterOAuthState(state).delete()
       throw OAuth2UserInfoError()
     }
 
     try {
       const existingTwitterUser = await this.userRepoData.getUserByPlatform('twitter', twitterUser.id)
       if (existingTwitterUser) {
-        await redisClient.twitterOAuthState(state).delete()
         throw PlatformAccountBoundToOtherUserError()
       }
     } catch (error: any) {
       if (error.name !== 'UNKNOWN_BIND_USER_ERROR') {
-        await redisClient.twitterOAuthState(state).delete()
         throw error
       }
     }
 
     await this.userRepoData.requireActiveUser(userId)
     await this.userRepoData.userBindPlatform(userId, platformBindType.TWITTER, twitterUser.id, twitterUser.username)
-
-    await redisClient.twitterOAuthState(state).delete()
 
     console.log(`[Twitter OAuth] User ${userId} bound to Twitter @${twitterUser.username}`)
   }
