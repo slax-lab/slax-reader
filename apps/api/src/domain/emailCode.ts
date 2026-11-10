@@ -1,5 +1,6 @@
 import type { EmailCodeChallenge } from '@slax-reader/contracts/email-auth'
 import { EmailAuthUnavailableError, EmailVerifyCodeError, EmailVerifyCodeRateLimitError, ErrorParam, ServerError, TooManyRequestsError } from '../const/err'
+import { resendDeliveryRejected } from '../infra/external/resend'
 import type { RedisClient } from '../infra/repository/redisClient'
 
 const CHALLENGE_TTL = 300
@@ -10,7 +11,6 @@ const IP_SEND_LIMIT = 30
 const ENVIRONMENT_SEND_LIMIT = 500
 const HOUR = 60 * 60
 const DAY = 24 * HOUR
-const RESEND_TIMEOUT_MS = 5000
 const DEFAULT_FROM = 'Slax Reader <noreply@reader.slax.com>'
 
 const ISSUE_CODE = `
@@ -110,7 +110,7 @@ export class EmailCodeService {
   constructor(
     private readonly env: Env,
     private readonly redis: RedisClient,
-    private readonly send: typeof fetch = (...args) => fetch(...args)
+    private readonly send?: typeof fetch
   ) {
     this.namespace = `{email-otp:${env.RUN_TYPE}}`
   }
@@ -154,7 +154,12 @@ export class EmailCodeService {
     )
     if (!admitted) throw TooManyRequestsError()
 
-    if (await this.deliveryRejected(apiKey, requestId, input, code)) {
+    const email = {
+      from: this.env.EMAIL_AUTH_FROM?.trim() || DEFAULT_FROM,
+      to: [input.deliveryEmail],
+      ...emailContent(code, input.locale)
+    }
+    if (await resendDeliveryRejected(apiKey, requestId, email, this.send)) {
       await this.runScript(REMOVE_REJECTED_CODE, [challenge], [requestId])
       throw EmailAuthUnavailableError()
     }
@@ -188,31 +193,6 @@ export class EmailCodeService {
     } catch {
       // An Upstash transport error can include the script arguments, including the recipient.
       throw ServerError()
-    }
-  }
-
-  private async deliveryRejected(apiKey: string, requestId: string, input: SendInput, code: string): Promise<boolean> {
-    const request: RequestInit = {
-      method: 'POST',
-      redirect: 'manual',
-      signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': requestId
-      },
-      body: JSON.stringify({
-        from: this.env.EMAIL_AUTH_FROM?.trim() || DEFAULT_FROM,
-        to: [input.deliveryEmail],
-        ...emailContent(code, input.locale)
-      })
-    }
-    try {
-      const response = await this.send('https://api.resend.com/emails', request)
-      // A timeout, idempotency conflict, or upstream error can follow acceptance.
-      return !response.ok && response.status < 500 && response.status !== 408 && response.status !== 409
-    } catch {
-      return false
     }
   }
 }

@@ -6,6 +6,7 @@
 - The focused API run passed 54 tests with local PostgreSQL and Redis, including concurrent signup, OAuth versus email ownership, legacy Apple placeholders, 30-day reservations, case-preserving delivery, expiry, resend, attempt limits, and one-time consumption. Provider-link tests reject a wrong account, callback URL, or signed nonce, and reject a repeated callback. The API and shared contract type checks passed.
 - After making email authentication available by default with its credentials, all 26 focused API tests passed. The availability test covers configured credentials, an absent Resend key, and a short verification secret. API type checking, lint, and strict OpenSpec validation passed.
 - After changing the default sender to `Slax Reader <noreply@reader.slax.com>`, all 18 email-code tests passed, including the assertion on the outgoing Resend request. The local Worker HTTP acceptance suite also passed with its simulated Resend transport.
+- After moving the Resend HTTP call to `infra/external/resend.ts`, all 35 layer architecture tests and 18 email-code tests passed. The full API suite passed 3,862 tests with 138 opt-in tests skipped. API type checking and the local Worker HTTP acceptance suite also passed.
 - `pnpm api -- lint` exited successfully with warnings and no errors.
 - Strict OpenSpec validation passed all 117 items.
 - The generated agent configuration and workflow drift checks passed.
