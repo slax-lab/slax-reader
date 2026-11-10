@@ -508,10 +508,18 @@ describe('useUserStore - account locale integration', () => {
     expect(store.user).toBeNull()
     expect(store.confirmedAccountLocale).toBeNull()
   })
-  it('writes a valid refresh token with configured cookie scope', async () => {
-    const store = useUserStore()
-    await store.refreshUserToken()
-    expect(cookieSet).toHaveBeenCalledWith('token', token(1, 2), expect.objectContaining({ path: '/', domain: '.example.com' }))
+  it('persists a valid refresh token through the session endpoint', async () => {
+    await useUserStore().refreshUserToken()
+    expect(fetcher).toHaveBeenCalledWith('/api/auth/session', expect.objectContaining({ method: 'POST', body: JSON.stringify({ token: token(1, 2) }) }))
+    expect(cookieSet).not.toHaveBeenCalled()
+  })
+  it('keeps the current cookie when the session endpoint rejects a refreshed token', async () => {
+    fetcher.mockImplementation(async (url: string) =>
+      url === '/api/auth/session' ? new Response(null, { status: 500 }) : new Response(JSON.stringify({ code: 200, message: 'ok', data: { token: token(1, 2) } }))
+    )
+    await useUserStore().refreshUserToken()
+    expect(currentToken).toBe(token(1))
+    expect(cookieSet).not.toHaveBeenCalled()
   })
   it('reuses the captured cookie handle while refreshing a token', async () => {
     const store = useUserStore()

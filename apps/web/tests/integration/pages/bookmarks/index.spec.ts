@@ -5,7 +5,7 @@ import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
 import { initialPromotionState } from '~~/app/utils/promotionFlow'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-// pages/bookmarks/index.vue 集成测试 — 完整覆盖（实测目标 90%+）
+// components/BookmarkList/BookmarksPage.vue 集成测试 — 完整覆盖（实测目标 90%+）
 // 关键约束（spec 修订 1-3 决议）：
 //  - useUserStore 全 vi.mock（mountWithApp 独立 Pinia 让 spyOn 失效）
 //  - useNotification 显式 import → vi.mock
@@ -179,7 +179,8 @@ vi.mock('@vueuse/core', async () => {
   }
 })
 
-import IndexPage from '~~/app/pages/bookmarks/index.vue'
+import IndexPage from '~~/app/components/BookmarkList/BookmarksPage.vue'
+import BookmarksRoute from '~~/app/pages/bookmarks/index.vue'
 
 const baseStubs = {
   BookmarksLayout: {
@@ -221,7 +222,7 @@ const mountIndexPage = () =>
 
 enableAutoUnmount(afterEach)
 
-describe('pages/bookmarks/index.vue', () => {
+describe('components/BookmarkList/BookmarksPage.vue', () => {
   beforeEach(() => {
     useState('onboarding-flags', () => ({})).value = {}
     localStorage.clear()
@@ -286,6 +287,33 @@ describe('pages/bookmarks/index.vue', () => {
     modal.vm.$emit('outcome', 'acknowledged')
     await flushPromises()
     expect(wrapper.findComponent(ReceiveSubscribeModal).exists()).toBe(false)
+  })
+
+  it('uses the new search on the first return to the cached async Inbox route', async () => {
+    const initialRoute = mockUseRoute()
+    const route = reactive({ ...initialRoute, query: { ...initialRoute.query, q: 'initial search' } })
+    mockUseRoute.mockReturnValue(route)
+    const Elsewhere = defineComponent({ render: () => h('div', 'Elsewhere') })
+    const Shell = defineComponent({
+      setup: () => () => h(KeepAlive, { include: ['bookmarks'] }, () => h(route.path === '/bookmarks' ? BookmarksRoute : Elsewhere))
+    })
+    const wrapper = mountWithApp(Shell, { global: { stubs: baseStubs } })
+    await vi.dynamicImportSettled()
+    await flushPromises()
+    const pageId = wrapper.findComponent(IndexPage).vm.$.uid
+    expect(wrapper.findComponent({ name: 'SearchHeader' }).props('defaultSearchText')).toBe('initial search')
+
+    route.path = '/user'
+    route.fullPath = '/user'
+    route.query.q = ''
+    await flushPromises()
+    route.path = '/bookmarks'
+    route.fullPath = '/bookmarks?q=next%20search'
+    route.query.q = 'next search'
+    await flushPromises()
+
+    expect(wrapper.findComponent(IndexPage).vm.$.uid).toBe(pageId)
+    expect(wrapper.findComponent({ name: 'SearchHeader' }).props('defaultSearchText')).toBe('next search')
   })
 
   it.each(['success', 'submitting', 'return-before-settlement', 'return-with-delayed-refresh'])('disposes an ordinary %s modal when leaving and returning to the cached Inbox', async phase => {

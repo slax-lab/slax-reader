@@ -1,4 +1,4 @@
-import { configuredCookieName, readStringCookie, requireConfiguredCookieName } from '~/utils/authCookie'
+import { configuredCookieName, persistSessionCookie, readStringCookie } from '~/utils/authCookie'
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -8,19 +8,14 @@ import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 
 const cookies = useCookies()
-const { set, remove } = cookies
+const { remove } = cookies
 
-const completeAuth = (config: ReturnType<typeof useRuntimeConfig>['public'], response: { token: string } | undefined, signal?: AbortSignal) => {
+const completeAuth = async (response: { token: string } | undefined, signal?: AbortSignal) => {
   signal?.throwIfAborted()
   if (!response?.token) throw new Error('login failed')
-
-  const cookieName = requireConfiguredCookieName(config.COOKIE_TOKEN_NAME)
-  const cookieDomain = typeof config.COOKIE_DOMAIN === 'string' ? config.COOKIE_DOMAIN : ''
-  set(cookieName, response.token, {
-    path: '/',
-    expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-    ...(cookieDomain ? { domain: cookieDomain } : {})
-  })
+  const persisted = await persistSessionCookie(response.token, signal)
+  signal?.throwIfAborted()
+  if (!persisted) throw new Error('login failed')
   return response.token
 }
 
@@ -94,14 +89,15 @@ const useAuth = {
       }
     })
 
-    return completeAuth($config, resp, options.signal)
+    return completeAuth(resp, options.signal)
   },
   async verifyEmailAuth(
     input: EmailCodeInput & { aff_code?: string; auth_attribution?: WebAuthAttribution },
     options: Pick<FetchOptions, 'signal' | 'errorInterceptors'> = {}
   ): Promise<string> {
     const config = useRuntimeConfig().public
-    const cookieName = requireConfiguredCookieName(config.COOKIE_TOKEN_NAME)
+    const cookieName = configuredCookieName(config.COOKIE_TOKEN_NAME)
+    if (!cookieName) throw new Error('Missing valid COOKIE_TOKEN_NAME')
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
     const response = await request().post<{ token: string }>({
       ...options,
@@ -110,7 +106,7 @@ const useAuth = {
     })
     options.signal?.throwIfAborted()
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
-    return completeAuth(config, response)
+    return completeAuth(response, options.signal)
   },
   async clearAuth(): Promise<void> {
     const $config = useRuntimeConfig().public
