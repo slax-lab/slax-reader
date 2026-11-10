@@ -18,6 +18,7 @@
                 :collection-code="filterCollectionCode"
                 :source-filterable="filterStatus === 'inbox'"
                 :text-mode="effectiveMode === 'text'"
+                :local-starred-count="knownStarredCount"
                 :class="{ 'text-mode': effectiveMode === 'text' }"
                 @source-filter="source => emit('source-filter', source)"
                 @select-tag="(tag: BookmarkTag) => emit('select-tag', tag)"
@@ -40,6 +41,7 @@
               :collection-code="filterCollectionCode"
               :source-filterable="filterStatus === 'inbox'"
               :text-mode="effectiveMode === 'text'"
+              :local-starred-count="knownStarredCount"
               :class="{ 'text-mode': effectiveMode === 'text' }"
               @source-filter="source => emit('source-filter', source)"
               @select-tag="(tag: BookmarkTag) => emit('select-tag', tag)"
@@ -67,8 +69,8 @@ import BookmarkCell from '~/components/BookmarkList/BookmarkCell.vue'
 import BookmarkDateGroup from '~/components/BookmarkList/BookmarkDateGroup.vue'
 import BookmarkHighlightCell from '~/components/BookmarkList/BookmarkHighlightCell.vue'
 
-import type { HighlightItem } from '@slax-reader/contracts/interface'
 import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
+import type { HighlightItem } from '@slax-reader/contracts/interface'
 import { useMediaQuery } from '@vueuse/core'
 import { LocalFirstAdapterKey, SharedUserTagsKey } from '~/composables/local-first/injection'
 import { WindowVirtualizer } from 'virtua/vue'
@@ -98,6 +100,11 @@ const effectiveMode = computed<'card' | 'text'>(() => (isH5.value || isTextOnly.
 
 // 文字视图下不按月分段
 const displayItems = computed<GroupedItem[]>(() => (effectiveMode.value === 'text' ? props.groupedBookmarks.filter(item => item.type !== 'group') : props.groupedBookmarks))
+
+// 列表侧本地已知的星标数：首次星标提示只看当前已加载数据，不等待服务端统计
+const knownStarredCount = computed(
+  () => props.groupedBookmarks.filter(item => item.type === 'bookmark' && item.bookmark.starred === 'star').length
+)
 
 const emit = defineEmits<{
   delete: [id: number]

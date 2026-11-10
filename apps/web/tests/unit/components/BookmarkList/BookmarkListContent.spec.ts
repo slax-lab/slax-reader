@@ -31,7 +31,8 @@ const BookmarkCellStub = defineComponent({
     isSubscribe: { type: Boolean, default: false },
     collectionCode: { type: String, default: undefined },
     sourceFilterable: { type: Boolean, default: false },
-    textMode: { type: Boolean, default: false }
+    textMode: { type: Boolean, default: false },
+    localStarredCount: { type: Number, default: undefined }
   },
   emits: ['select-tag', 'selectTag', 'delete', 'archiveUpdate', 'aliasTitleUpdate', 'bookmarkUpdate', 'sourceFilter'],
   setup() {
@@ -39,7 +40,7 @@ const BookmarkCellStub = defineComponent({
     const sharedUserTags = inject(SharedUserTagsKey, undefined)
     return { sharedUserTags }
   },
-  template: `<div class="bookmark-cell" :data-text-mode="String(textMode)" @click="$emit('select-tag', { id: 7, name: 'vue', show_name: 'Vue' })">{{ bookmark.title }}</div>`
+  template: `<div class="bookmark-cell" :data-text-mode="String(textMode)" :data-local-starred-count="String(localStarredCount)" @click="$emit('select-tag', { id: 7, name: 'vue', show_name: 'Vue' })">{{ bookmark.title }}</div>`
 })
 
 const stubs = {
@@ -112,6 +113,20 @@ describe('components/BookmarkList/BookmarkListContent', () => {
     it('inbox + listMode=text：textMode=true', () => {
       const wrapper = mountContent({ filterStatus: 'inbox', listMode: 'text' })
       expect(wrapper.find('.co-default .bookmark-cell').attributes('data-text-mode')).toBe('true')
+    })
+  })
+
+  describe('local starred count', () => {
+    it('passes the locally known starred count to every cell without waiting for server stats', () => {
+      const withStar: GroupedItem[] = [
+        { type: 'bookmark', bookmark: makeBookmarkItem({ id: 1, starred: 'star' }), index: 0 },
+        { type: 'bookmark', bookmark: makeBookmarkItem({ id: 2, starred: 'unstar' }), index: 1 }
+      ]
+      const wrapper = mountContent({ filterStatus: 'inbox', groupedBookmarks: withStar })
+
+      for (const cell of wrapper.findAll('.co-default .bookmark-cell')) {
+        expect(cell.attributes('data-local-starred-count')).toBe('1')
+      }
     })
   })
 

@@ -25,8 +25,9 @@ function fixture(isNew = false) {
     } as unknown as Env
   )
   const provider = vi.spyOn(SlaxAuth.prototype, 'login').mockResolvedValue({ sub: 'provider-id', email: 'fixture@example.test', picture: '', name: 'Fixture' } as never)
-  const persisted = { id: 7, uuid: 'fixture-user', lang: 'en', email: 'fixture@example.test' }
+  const persisted = { id: 7, uuid: 'fixture-user', lang: 'en', email: 'fixture@example.test', name: 'Fixture' }
   const bindAlias = vi.fn().mockResolvedValue(undefined)
+  const collectionRepo = { ensureUserShareCollect: vi.fn().mockResolvedValue(undefined) }
   const service = new UserService(
     {
       getUserByPlatform: vi.fn().mockResolvedValue(null),
@@ -39,7 +40,7 @@ function fixture(isNew = false) {
     (() => ({ putRemoteIfKeyExists: vi.fn().mockResolvedValue(null) })) as never,
     {} as never,
     {} as never,
-    {} as never,
+    collectionRepo as never,
     {} as never,
     {} as never,
     { trackEvent: vi.fn().mockResolvedValue(undefined) } as never,
@@ -55,7 +56,7 @@ function fixture(isNew = false) {
         body: JSON.stringify({ type, code: 'fixture-code', auth_attribution: metadata })
       })
     )
-  return { login, send, provider, bindAlias, settled: () => Promise.all(pending) }
+  return { login, send, provider, bindAlias, collectionRepo, settled: () => Promise.all(pending) }
 }
 
 afterEach(() => vi.restoreAllMocks())
@@ -127,5 +128,20 @@ describe('collection authentication attribution', () => {
     f.send.mockRejectedValue(new Error('stream unavailable'))
     await expect(f.login(attribution)).resolves.toMatchObject({ is_new_user: false })
     await expect(f.settled()).resolves.toBeDefined()
+  })
+})
+
+
+describe('collection provisioning during authentication', () => {
+  test('provisions the default collection after the active account is confirmed', async () => {
+    const f = fixture(true)
+    await expect(f.login(undefined)).resolves.toMatchObject({ is_new_user: true })
+    expect(f.collectionRepo.ensureUserShareCollect).toHaveBeenCalledWith(7, "Fixture's Reading Recommendations")
+  })
+
+  test('preserves login success when collection provisioning fails', async () => {
+    const f = fixture()
+    f.collectionRepo.ensureUserShareCollect.mockRejectedValue(new Error('collection unavailable'))
+    await expect(f.login(undefined)).resolves.toMatchObject({ is_new_user: false, token: expect.any(String) })
   })
 })

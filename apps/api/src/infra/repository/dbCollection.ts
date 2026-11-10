@@ -131,6 +131,37 @@ export class CollectionRepo {
     })
   }
 
+  public async ensureUserShareCollect(userId: number, displayName: string) {
+    const existing = await this.getUserShareCollect(userId)
+    if (existing) return existing
+
+    const now = new Date()
+    try {
+      return await this.prismaPg().sr_user_collection.upsert({
+        where: { owner_id: userId },
+        create: {
+          owner_id: userId,
+          display_name: displayName,
+          type: 1,
+          collection_code: await hashMD5(`${userId}-${now.getTime()}`),
+          status: 1,
+          created_at: now,
+          updated_at: now,
+          show_marks: true,
+          allow_marks: true,
+          show_profile: true
+        },
+        update: {}
+      })
+    } catch (error) {
+      if ((error as { code?: unknown })?.code === 'P2002') {
+        const existing = await this.getUserShareCollect(userId)
+        if (existing) return existing
+      }
+      throw error
+    }
+  }
+
   public async enableUserShareCollect(userId: number, enable: boolean, nickName?: string, _type?: number) {
     return await this.prismaPg().sr_user_collection.upsert({
       where: { owner_id: userId },

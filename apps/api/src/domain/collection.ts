@@ -28,6 +28,12 @@ export type { UpdateShareCollectionRequest as updateUserShareCollectOption } fro
 export type { ShareCollectionSubscribeResponse as shareCollectionSubscribeInfo } from '@slax-reader/contracts'
 export type { MyShareCollectionInfo as myShareCollectInfo } from '@slax-reader/contracts'
 
+export const defaultShareCollectionName = (user: { name?: string; lang?: string }) => {
+  const name = user.name?.trim() ?? ''
+  if (user.lang?.toLowerCase().startsWith('zh')) return name ? `${name} 的阅读推荐` : '我的阅读推荐'
+  return name ? `${name}'s Reading Recommendations` : 'My Reading Recommendations'
+}
+
 export interface collectionBookmarkItem extends bookmarkPO {
   mark_count: number
   first_mark: { content: string; comment: string; source: string } | null
@@ -258,10 +264,10 @@ export class CollectionService {
     return rows.map(r => (r.lastmod ? { code: r.collection_code, lastmod: r.lastmod.toISOString() } : { code: r.collection_code }))
   }
 
-  // 未开启返回 null
-  public async getMyShareCollectInfo(ctx: ContextManager): Promise<myShareCollectInfo | null> {
-    const shareCollect = await this.collectionRepo.getUserShareCollect(ctx.getUserId())
-    if (!shareCollect) return null
+  public async getMyShareCollectInfo(ctx: ContextManager): Promise<myShareCollectInfo> {
+    const user = await this.userRepo.getInfoByUserId(ctx.getUserId())
+    if (!user.id) throw UserNotFoundError()
+    const shareCollect = await this.collectionRepo.ensureUserShareCollect(user.id, defaultShareCollectionName(user))
     const stats = await this.collectionRepo.getCollectionStats(shareCollect.id)
     return {
       show_name: shareCollect.display_name || '',

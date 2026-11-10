@@ -233,6 +233,8 @@ import type { SnapshotPanelId } from '~/components/Snapshot/panels'
 import Toast, { ToastType } from '~/components/Toast'
 import { useBookmark } from '~/composables/bookmark/useBookmark'
 import { useCommentPanel } from '~/composables/useCommentPanel'
+import { isLocallyFirstStar, useFirstStarCollectionCue } from '~/composables/useFirstStarCollectionDiscovery'
+import { useShareCollectInfo } from '~/composables/useShareCollectInfo'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import type { IconKey } from '~/icons/registry'
 import { useUserStore } from '~/stores/user'
@@ -358,6 +360,8 @@ const restMarks = ref<MarkDetail>({ mark_list: [], user_list: {} })
 const localFirst = ref(false)
 const localReady = ref(false)
 const isOwner = computed(() => (pageData.value?.metadata as { role?: string } | undefined)?.role === 'owner')
+const shareInfo = useShareCollectInfo()
+const showFirstStarCue = useFirstStarCollectionCue()
 const local = import.meta.client && isLocalFirstEnabled() ? useLocalBookmarks() : null
 const localMarksQuery = local ? useLocalMarks().watchMarkDetail(uuid, localFirst) : null
 const canActOnMarks = computed(() => isOwner.value)
@@ -720,6 +724,7 @@ const onBottomPanel = (id: SnapshotPanelId) => {
 // panelOpen 为共享 ref，需手动复位
 onMounted(() => {
   panelOpen.value = false
+  if (isOwner.value) shareInfo.ensure()
 
   // 埋点：bookmark_opened
   if (isClient) {
@@ -1011,6 +1016,7 @@ const archiveBookmark = async (trackDom: HTMLElement | null) => {
 
 const starBookmark = async (trackDom: HTMLElement | null) => {
   const status = isStarred.value ? 'unstar' : 'star'
+  const isFirstStar = status === 'star' && isLocallyFirstStar(isStarred.value, shareInfo.info.value?.starred_count)
   try {
     if (localFirst.value && local) {
       await local.setStar(uuid, status === 'star')
@@ -1018,7 +1024,17 @@ const starBookmark = async (trackDom: HTMLElement | null) => {
       await request().post({ url: RESTMethodPath.BOOKMARK_STAR, body: { bookmark_uid: bookmarkUid.value, status } })
       restStarred.value = status
     }
-    showSuccessToast(t(status === 'star' ? 'common.tips.star_success' : 'common.tips.unstar_success'), trackDom)
+
+    if (status === 'star') {
+      const result = await showFirstStarCue({
+        isFirstStar,
+        anchor: trackDom,
+        baseContainer: trackDom?.closest('.bottom-toolbar') as HTMLElement | null
+      })
+      if (result === 'not-applicable') showSuccessToast(t('common.tips.star_success'), trackDom)
+    } else {
+      showSuccessToast(t('common.tips.unstar_success'), trackDom)
+    }
   } catch {
     Toast.showToast({ text: t('common.tips.operate_failed'), type: ToastType.Error })
   }

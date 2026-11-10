@@ -61,7 +61,7 @@
                   <div class="cm-link-value" :class="{ 'is-disabled': !isOpen }" :aria-disabled="!isOpen ? 'true' : 'false'">
                     <span class="cm-link-value-text">{{ collectionUrl }}</span>
                   </div>
-                  <button class="cm-link-copy" type="button" :disabled="!isOpen" @click="copyLink">
+                  <button class="cm-link-copy" type="button" :disabled="!isOpen || !hasCollectionCode" @click="copyLink">
                     {{ copied ? $t('page.collection_manage.copied') : $t('page.collection_manage.copy') }}
                   </button>
                 </div>
@@ -167,14 +167,16 @@
 import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 
 import { copyText } from '@commons/frontend-utils/string'
-
+import type { MyShareCollectionInfo } from '@slax-reader/contracts'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import type { UserEnableCollectShare, UserShareCollectInfo } from '@slax-reader/contracts/interface'
+import type { UserEnableCollectShare } from '@slax-reader/contracts/interface'
 import Toast, { ToastType } from '~/components/Toast'
+import { useShareCollectInfo } from '~/composables/useShareCollectInfo'
 import { useUserStore } from '~/stores/user'
 
 const { t } = useI18n()
 const route = useRoute()
+const sharedCollection = useShareCollectInfo()
 
 // 默认合集名：「xx 的阅读推荐」
 const defaultCollectionName = computed(() => t('page.collection_manage.default_name', { name: useUserStore().userInfo?.name ?? '' }))
@@ -185,13 +187,14 @@ const saveLoading = ref(false)
 const statusLoading = ref(false)
 const copied = ref(false)
 
-const collectInfo = ref<UserShareCollectInfo | null>(null)
+const collectInfo = ref<MyShareCollectionInfo | null>(null)
 const nameInput = ref('')
 const descInput = ref('')
 const descRef = ref<HTMLTextAreaElement>()
 
 // status 1=OPEN 0=CLOSED
 const isOpen = computed(() => collectInfo.value?.status === 1)
+const hasCollectionCode = computed(() => !!collectInfo.value?.collection_code)
 
 const collectionUrl = computed(() => {
   const base = $config.SHARE_BASE_URL || ''
@@ -203,13 +206,13 @@ const subscriberCount = computed(() => collectInfo.value?.subscriber_count ?? 0)
 
 // 返回链接按 ?from 区分
 const backLink = computed(() => {
-  if (route.query.from === 'starred') {
+  if (route.query.from === 'starred' || !collectInfo.value?.collection_code) {
     return { label: t('page.collection_manage.back_to_starred'), to: '/bookmarks?filter=starred' }
   }
-  return { label: t('page.collection_manage.back_to_collection'), to: `/c/${collectInfo.value?.collection_code ?? ''}` }
+  return { label: t('page.collection_manage.back_to_collection'), to: `/c/${collectInfo.value.collection_code}` }
 })
 
-const applyModel = (info: UserShareCollectInfo) => {
+const applyModel = (info: MyShareCollectionInfo) => {
   collectInfo.value = info
   nameInput.value = info.show_name || ''
   descInput.value = info.description || ''
@@ -218,12 +221,9 @@ const applyModel = (info: UserShareCollectInfo) => {
 
 const loadInfo = async () => {
   try {
-    const info = await request().get<UserShareCollectInfo>({ url: RESTMethodPath.COLLECT_MINE })
-    // 无 code→未开启，回引导
-    if (!info?.collection_code) {
-      navigateTo('/bookmarks', { replace: true })
-      return
-    }
+    // Provisioning guarantees an owner collection; treat the response as non-null.
+    const info = await request().get<MyShareCollectionInfo>({ url: RESTMethodPath.COLLECT_MINE })
+    if (!info) throw new Error('collection unavailable')
     applyModel(info)
   } catch {
     navigateTo('/bookmarks', { replace: true })
@@ -241,7 +241,7 @@ const syncDescHeight = () => {
 }
 
 const copyLink = async () => {
-  if (!isOpen.value) return
+  if (!isOpen.value || !hasCollectionCode.value) return
   try {
     await copyText(collectionUrl.value)
     copied.value = true
@@ -274,6 +274,28 @@ const saveSettings = async () => {
   }
 }
 
+const syncSharedCollection = async (res: UserEnableCollectShare) => {
+  let refreshed: MyShareCollectionInfo | null = null
+  try {
+    refreshed = await sharedCollection.refresh()
+  } catch {
+    refreshed = null
+  }
+
+  if (refreshed) {
+    // The toggle response owns visibility; it also protects against an older /mine response
+    // that was already in flight when the owner closed or reopened the collection.
+    sharedCollection.info.value = { ...refreshed, ...res } as MyShareCollectionInfo
+    sharedCollection.loaded.value = true
+    return
+  }
+
+  // /mine refresh failed: keep the shared entry usable and reflect the server's visibility now.
+  const base = collectInfo.value ?? sharedCollection.info.value
+  if (base) sharedCollection.info.value = { ...base, ...res } as MyShareCollectionInfo
+  sharedCollection.loaded.value = true
+}
+
 const setEnabled = async (enable: boolean) => {
   if (statusLoading.value) return
   statusLoading.value = true
@@ -282,6 +304,7 @@ const setEnabled = async (enable: boolean) => {
     const res = await request().post<UserEnableCollectShare>({ url, body: { key: 'share_collect' } })
     if (!res) throw new Error('toggle failed')
     if (collectInfo.value) collectInfo.value = { ...collectInfo.value, ...res }
+    await syncSharedCollection(res)
     Toast.showToast({ text: enable ? t('page.collection_manage.toast_reopened') : t('page.collection_manage.toast_closed') })
     return true
   } catch {

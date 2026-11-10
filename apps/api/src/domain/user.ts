@@ -21,6 +21,7 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import { RedisClient } from '@/infra/repository/redisClient'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
+import { defaultShareCollectionName } from '@/domain/collection'
 import { i18n } from '@/const/i18n'
 import { ContextManager } from '@/utils/context'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
@@ -268,6 +269,11 @@ export class UserService {
     console.log(`[login] registered ${JSON.stringify({ userId: regInfo.id, isFirstRegister, lang: regInfo.lang })}`)
 
     await this.userRepo.requireActiveUser(regInfo.id)
+    try {
+      await this.collectionRepo.ensureUserShareCollect(regInfo.id, defaultShareCollectionName(regInfo))
+    } catch (error) {
+      console.error(`[login] collection provisioning failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
     const signUserId = new Hashid(ctx.env).encodeId(regInfo.id)
     const token = await new Auth(ctx.env).sign({ id: String(signUserId), lang: regInfo.lang, email: regInfo.email })
 

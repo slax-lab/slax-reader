@@ -62,8 +62,6 @@ import { ArticleStyle } from './processors'
 import { ArticleSelectionAdaptersKey } from './Selection/injection'
 import type { MarkDetail } from '@commons/frontend-types/models'
 import type { QuoteData } from '~/components/Chat/type'
-import CursorToast from '~/components/CursorToast'
-import Toast, { ToastType } from '~/components/Toast'
 import { useArticleDetail } from '~/composables/bookmark/useArticle'
 import { useArticleSelection } from '~/composables/bookmark/useArticleSelection'
 
@@ -135,7 +133,7 @@ const pdfCollection = computed(() =>
 )
 
 // 仅调用一次，模板与 composable 共用
-const { bookmarkId, shareCode, bookmarkUid, title, allowTagged, allowAction, bookmarkUserId, updateStarred } = useArticleDetail(detail)
+const { bookmarkId, shareCode, bookmarkUid, title, allowTagged, allowAction, bookmarkUserId } = useArticleDetail(detail)
 // inject 可覆盖，回退 allowTagged
 const effAllowTagged = computed(() => adapters.allowActionOverride ?? allowTagged.value)
 
@@ -190,31 +188,6 @@ onMounted(() => {
 })
 
 onUnmounted(cleanup)
-
-const starBookmark = async (event: MouseEvent, isStar: boolean) => {
-  if (!bookmarkId || !updateStarred.value) {
-    return
-  }
-
-  try {
-    await updateStarred.value(isStar)
-
-    postChannelMessage('star', { id: bookmarkId, cancel: !isStar })
-
-    CursorToast.showToast({
-      text: t(!isStar ? 'common.tips.unstar_success' : 'common.tips.star_success'),
-      trackDom: event.target as HTMLElement
-    })
-
-    emits('bookmarkUpdate', detail.value)
-  } catch (e) {
-    console.log(e)
-    Toast.showToast({
-      text: t('common.tips.operate_failed'),
-      type: ToastType.Error
-    })
-  }
-}
 
 const activeSelection = computed<ReaderSelection | null>(() => (props.detail.pdf ? pdfSelection.value : articleSelectionRef.value))
 const findQuote = (quote: QuoteData) => (props.detail.pdf ? pdfSelection.value?.findQuote(quote) : findHtmlQuote(quote))
