@@ -28,9 +28,9 @@ describe('bindUserDeviceAlias', () => {
       } as unknown as Env
     )
     vi.spyOn(SlaxAuth.prototype, 'login').mockResolvedValue({ sub: 'provider-id', email: 'test@example.test', picture: '', name: 'Test' } as never)
+    const signIn = vi.fn()
     const persisted = { id: 7, uuid: 'user-uuid', lang: 'en', email: 'test@example.test' }
     const repo = {
-      signInWithProvider: vi.fn().mockResolvedValue({ user: persisted, isNew }),
       requireActiveUser: vi.fn().mockResolvedValue(undefined),
       bindUserDeviceAlias: vi.fn().mockResolvedValue(undefined)
     }
@@ -45,6 +45,8 @@ describe('bindUserDeviceAlias', () => {
       { trackEvent: vi.fn().mockResolvedValue(undefined) } as never,
       { track: vi.fn().mockResolvedValue(undefined) } as never,
       {} as never,
+      {} as never,
+      { signInWithProvider: signIn.mockResolvedValue({ user: persisted, isNew }) } as never,
       {} as never
     )
     const response = await service.userLogin(
@@ -54,7 +56,7 @@ describe('bindUserDeviceAlias', () => {
     await Promise.all(pending)
     expect(response.is_new_user).toBe(isNew)
     expect(repo.bindUserDeviceAlias).toHaveBeenCalledWith('browser-1', 7, isNew ? 'signup' : 'login')
-    expect(repo.signInWithProvider.mock.invocationCallOrder[0]).toBeLessThan(repo.bindUserDeviceAlias.mock.invocationCallOrder[0])
+    expect(signIn.mock.invocationCallOrder[0]).toBeLessThan(repo.bindUserDeviceAlias.mock.invocationCallOrder[0])
   })
 
   test('upserts a D1 binding and preserves the first bind source', async () => {
@@ -84,9 +86,9 @@ describe('bindUserDeviceAlias', () => {
     } as unknown as Env
     const ctx = new ContextManager({ waitUntil: (promise: Promise<unknown>) => pending.push(promise) } as unknown as ExecutionContext, env)
     vi.spyOn(SlaxAuth.prototype, 'login').mockResolvedValue({ sub: 'provider-id', email: 'test@example.test', picture: '', name: 'Test' } as never)
+    const signIn = vi.fn()
     const persisted = { id: 7, uuid: 'test-uuid', lang: 'en', email: 'test@example.test' }
     const repo = new UserRepo((() => ({ user_device_alias: { upsert } })) as never, (() => undefined) as never)
-    vi.spyOn(repo, 'signInWithProvider').mockResolvedValue({ user: persisted, isNew } as never)
     vi.spyOn(repo, 'requireActiveUser').mockResolvedValue(undefined)
     const service = new UserService(
       repo as never,
@@ -99,6 +101,8 @@ describe('bindUserDeviceAlias', () => {
       { trackEvent: vi.fn().mockResolvedValue(undefined) } as never,
       { track: vi.fn().mockResolvedValue(undefined) } as never,
       {} as never,
+      {} as never,
+      { signInWithProvider: signIn.mockResolvedValue({ user: persisted, isNew }) } as never,
       {} as never
     )
     await service.userLogin(ctx, new Request('https://reader.test/v1/user/login', { method: 'POST', headers, body: JSON.stringify({ type: 'google', code: 'test-code' }) }))

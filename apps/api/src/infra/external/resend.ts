@@ -7,7 +7,12 @@ type ResendEmail = {
   text: string
 }
 
-export async function resendDeliveryRejected(apiKey: string, requestId: string, email: ResendEmail, send: typeof fetch = (...args) => fetch(...args)): Promise<boolean> {
+export async function sendResendEmail(
+  apiKey: string,
+  requestId: string,
+  email: ResendEmail,
+  send: typeof fetch = (...args) => fetch(...args)
+): Promise<Pick<Response, 'ok' | 'status'> | undefined> {
   const request: RequestInit = {
     method: 'POST',
     redirect: 'manual',
@@ -22,9 +27,8 @@ export async function resendDeliveryRejected(apiKey: string, requestId: string, 
 
   try {
     const response = await send('https://api.resend.com/emails', request)
-    // A timeout, idempotency conflict, or upstream error can follow acceptance.
-    return !response.ok && response.status < 500 && response.status !== 408 && response.status !== 409
+    return { ok: response.ok, status: response.status }
   } catch {
-    return false
+    return undefined
   }
 }

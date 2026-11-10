@@ -277,23 +277,37 @@ async function main() {
         return response.json() as Promise<{ code: number; data: any }>
       }
       const prove = async (purpose: 'login' | 'bind', email: string, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
-        const sent = await authCall('/v1/user/login/email/send', { email, purpose }, bearer, runType)
+        const sent = await authCall('/v1/user/email/send', { email, purpose }, bearer, runType)
         assert.equal(sent.code, 200, JSON.stringify(sent))
         const { request_id } = sent.data
         const fixture = await localFetch(`http://localhost:${httpPort}/__fixture/email-code?id=${request_id}`, { headers: { Authorization: `Bearer ${token}` } })
         const code = await fixture.json()
         assert.match(String(code), /^\d{6}$/)
-        return authCall(purpose === 'login' ? '/v1/user/login' : '/v1/user/bind', { type: 'email', email, request_id, code }, bearer, runType)
+        const proof = { type: 'email', email, request_id, code }
+        return purpose === 'login'
+          ? authCall('/v1/user/login', proof, bearer, runType)
+          : authCall('/v1/user/setting', { key: 'bind_login_identity', value: proof }, bearer, runType)
       }
       const userInfo = '/v1/user/userinfo'
       assert.equal((await authCall(userInfo)).code, 401)
-      assert.equal((await authCall('/v1/user/login/email/send', { email: 'owner@smoke.invalid', purpose: 'bind' })).code, 401)
-      assert.equal((await authCall('/v1/user/bind', { type: 'email' })).code, 401)
+      assert.equal((await authCall('/v1/user/email/send', { email: 'owner@smoke.invalid', purpose: 'bind' })).code, 401)
+      assert.equal((await authCall('/v1/user/setting', { key: 'bind_login_identity', value: { type: 'email' } })).code, 401)
+      assert.deepEqual(await authCall('/v1/user/setting', { key: 'lang', value: 'en' }, token), { code: 200, data: 'ok', message: 'ok' })
       assert.equal((await authCall(userInfo, undefined, token)).data.login_identities.show_email_binding, true)
       const provider = await authCall('/v1/user/bind_link', { platform: 'google', client_platform: 'web' }, token)
       assert.equal(provider.code, 200)
+      assert.equal(provider.data.type, 'google')
       assert.match(provider.data.state, /^link\./)
       assert.match(provider.data.nonce, /^[0-9a-f]{64}$/)
+      const invalidCallback = await authCall(
+        '/v1/user/setting',
+        {
+          key: 'bind_login_identity',
+          value: { type: 'google', platform: 'web', state: provider.data.state, code: 'fixture-code', redirect_uri: 'https://attacker.invalid/auth' }
+        },
+        token
+      )
+      assert.equal(invalidCallback.data, 'ERROR_PARAM')
       assert.equal((await prove('login', 'owner@smoke.invalid')).data, 'EMAIL_AUTH_USE_EXISTING_LOGIN')
       const ownerToken = await new Auth(vars as Env).sign({
         id: String(new Hashid(vars as Env).encodeId(2)),
@@ -417,8 +431,8 @@ async function main() {
       async key => (await (await localFetch(`http://localhost:${httpPort}/__fixture/diagnostic-object-missing?key=${encodeURIComponent(key)}`, { headers })).json()) as boolean
     )
     if (emailRedis) {
-      assert.equal(resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_platform_bind WHERE user_id=1 AND platform='mail'"), '1')
-      evidence.deletedEmailReservation = 'account cleanup kept the verified mailbox reservation'
+      assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_platform_bind WHERE user_id=1'), '0')
+      evidence.deletedAccountBindings = 'account cleanup removed all platform bindings, including the verified mailbox'
     }
     const admissions = (await (await localFetch(`http://localhost:${httpPort}/__fixture/vector-maintenance-admissions`, { headers })).json()) as {
       target: { kind: string; id: number; userId?: number; preference?: string }

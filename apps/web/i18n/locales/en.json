@@ -15,7 +15,6 @@
     "expired": "This code has expired. Request a new one to continue.",
     "invalid_code": "This code is incorrect or has expired. Check the code or request a new one.",
     "too_many_attempts": "Too many attempts. Request a new code when you can resend.",
-    "resend_wait": "Please wait a minute before requesting another code.",
     "use_existing_login": "Sign in with your existing method, then link this email or provider in Account Settings.",
     "identity_conflict": "This sign-in method is already in use or cannot be linked right now.",
     "unavailable": "This sign-in method is temporarily unavailable. Try again later.",

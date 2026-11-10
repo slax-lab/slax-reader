@@ -171,12 +171,4 @@ export class RedisClient {
   userImportFailed(userId: number, id: number) {
     return this.key<number>(`user_import_failed:${userId}:${id}`)
   }
-
-  twitterOAuthState(state: string) {
-    return this.key<{
-      userId: number
-      codeVerifier: string
-      createdAt: number
-    }>(`twitter_oauth_state:${state}`)
-  }
 }

@@ -35,7 +35,6 @@ function fixture(isNew = false) {
   const bindAlias = vi.fn().mockResolvedValue(undefined)
   const service = new UserService(
     {
-      signInWithProvider: vi.fn().mockResolvedValue({ user: persisted, isNew }),
       requireActiveUser: vi.fn().mockResolvedValue(undefined),
       bindUserDeviceAlias: bindAlias
     } as never,
@@ -48,6 +47,8 @@ function fixture(isNew = false) {
     { trackEvent: vi.fn().mockResolvedValue(undefined) } as never,
     { track: vi.fn().mockResolvedValue(undefined) } as never,
     {} as never,
+    {} as never,
+    { signInWithProvider: vi.fn().mockResolvedValue({ user: persisted, isNew }) } as never,
     {} as never
   )
   const login = (metadata: unknown, type = 'google') =>

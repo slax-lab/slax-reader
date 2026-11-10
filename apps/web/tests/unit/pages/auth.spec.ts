@@ -256,8 +256,11 @@ describe('Web provider linking callback', () => {
     await flushPromises()
 
     expect(env.post).toHaveBeenCalledWith(expect.objectContaining({
-      url: '/v1/user/bind',
-      body: expect.objectContaining({ state, type, platform: 'web', code: 'synthetic-link-code' })
+      url: '/v1/user/setting',
+      body: {
+        key: 'bind_login_identity',
+        value: expect.objectContaining({ state, type, platform: 'web', code: 'synthetic-link-code' })
+      }
     }))
     expect(env.grantAuth).not.toHaveBeenCalled()
     expect(env.navigateTo).toHaveBeenCalledWith('/user#account', { replace: true })

@@ -26,7 +26,7 @@
 
 ## Remaining verification and release checks
 
-- Real Resend delivery, Google/Apple authorizations, the deployed PowerSync filter, and native provider behavior require the configured environment and test accounts. No live email was sent.
+- Real Resend delivery, Google/Apple authorizations, and native provider behavior require the configured environment and test accounts. No live email was sent.
 - The Extension handoff was exercised in the Web fixture. The installed Extension was outside the preview environment.
 - The standard iOS app build reached the application resource step and stopped because its Firebase `GoogleService-Info.plist` was unavailable in the worktree. The separate simulator fixture excludes that dependency.
 
@@ -59,6 +59,15 @@ On 2026-11-09 the requester accepted the Mobile preview covering iOS email login
 
 - Removing the secret from the fixtures reproduced the old configuration failure. After the change, all 83 focused API tests passed with disposable Redis, including OTP expiry, failed attempts, one-time redemption, send limits, and provider binding.
 - The local Edge/Core HTTP smoke used a fixture Resend API key alone and exercised email delivery, login, and binding. Resend delivery was captured locally. The default API suite passed 3,865 tests with 139 opt-in tests skipped. API type checking and targeted lint and formatting checks passed.
+
+## Review follow-up
+
+- PowerSync rules and platform-binding cleanup are identical to `dev`. The disposable PostgreSQL suite passed 25 tests, including the previous cleanup implementation's regression case. The current cleanup removes `mail` and other platform rows, permits registration with a distinct freed address, and preserves the original profile-email freeze.
+- The 167 focused API tests passed with disposable Redis. They cover the email challenge's lifetime, rate limits and atomic consumption, provider state and nonce, Twitter replay protection and cleanup, and existing account behavior. The Redis integration tests now run from `test/infra`.
+- The default API suite passed 3,860 tests with 143 skipped on a rerun with three workers. The earlier run encountered local suite and subprocess timeouts during concurrent verification. API type checking and targeted lint passed.
+- `EMAIL_AUTH_HTTP_SMOKE=1 pnpm api -- test:http` passed against the local Edge and Core Workers with isolated PostgreSQL, D1, Redis, and captured Resend delivery. It verified the new send route, the existing login and settings routes, unauthorized binding rejection, the legacy language-setting response, provider challenge type and callback validation, binding in all three environment profiles, and deletion of all platform bindings.
+- The full Web suite passed 2,742 tests, with three skipped. Browser verification exercised the local Nuxt preview with fixture mail: anonymous code issue with a device header, login through the existing session path, authenticated binding through account settings, and the development-only binding hint. Modal unit tests cover the original layout behavior, login cancellation, and collection continuation.
+- Mobile passed 100 focused tests and 76 related host regressions. Both Hermes bundles exported. Full Mobile check passed architecture and type checking and 1,219 tests. The existing Kotlin image and PDF policy host tests timed out during compilation in the full run, then both passed on a serial rerun. The review follow-up used mounted host tests and fixtures. It did not run a new native-device acceptance session or live provider authorization.
 
 ## Local review
 

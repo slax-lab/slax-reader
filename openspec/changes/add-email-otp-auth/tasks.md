@@ -4,13 +4,13 @@
 
 - [x] 1.1 Implement transactional lookup, registration, and explicit mailbox binding using the existing platform table. Exercise new, existing, ambiguous, frozen, and concurrent claims.
 - [x] 1.2 Update Google and Apple account resolution and explicit linking. Exercise subject-first login, Apple placeholder recovery, provider conflicts, and repeated callbacks.
-- [x] 1.3 Preserve deleted-account email reservations and scope mailbox exposure to the owner. Verify cleanup, re-registration after freeze, mail-collection isolation, and PowerSync behavior.
+- [x] 1.3 Verify account cleanup removes every platform binding and preserves the existing profile-email freeze. Verify mail-collection isolation.
 
 ## 2. Email proof and API
 
 - [x] 2.1 Implement Redis challenge issue, expiration, cooldown, attempt counting, rate limits and atomic consumption. Exercise expiry, resend, simultaneous submission, and distinct login and binding scopes.
 - [x] 2.2 Implement the Resend sender and localized code templates. Exercise accepted, rejected and ambiguous sends using the local sender test seam.
-- [x] 2.3 Add the delivery and authenticated binding endpoints and reuse login, user information, and provider binding initiation. Regenerate backend registration and validate session, telemetry and client contracts.
+- [x] 2.3 Add the delivery endpoint and reuse login, account settings, user information, and provider binding initiation. Regenerate backend registration and validate session, telemetry and client contracts.
 - [x] 2.4 Remove the separate verification secret from email authentication and verify delivery and redemption with the Resend API key alone.
 
 ## 3. Client integration

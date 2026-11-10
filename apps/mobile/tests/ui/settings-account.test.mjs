@@ -92,7 +92,7 @@ async function harness(root, platform = 'ios') {
     setLab: async () => {},
     deleteAccount(signal) {h.deletionRequests.push(signal); return h.deletion(signal);},
     getLoginIdentities: () => h.identities(),
-    startProviderLink(body) {h.providerStarts.push(body); return Promise.resolve({state: 'provider-state', nonce: 'provider-nonce'});},
+    startProviderLink(body) {h.providerStarts.push(body); return Promise.resolve({type: body.type, state: 'provider-state', nonce: 'provider-nonce'});},
     finishProviderLink(body) {h.providerFinishes.push(body); return Promise.resolve({linked: true});},
     sendBindingEmail: async () => ({request_id: 'binding-challenge', expires_in: 300, resend_after: 60}),
     verifyBindingEmail: async proof => {h.proofs.push(proof); return {email: proof.email};},

@@ -1,4 +1,4 @@
-import AccountLoginMethods from '~~/app/components/Login/AccountLoginMethods.vue'
+import UserSignInMethodsSection from '~~/app/components/UserSignInMethodsSection.vue'
 
 import { deriveAccountKey } from '~~/app/utils/accountContext'
 
@@ -45,7 +45,7 @@ describe('Account sign-in methods', () => {
     fetchMock.mockResolvedValueOnce(json({ request_id: 'bind-attempt', expires_in: 300, resend_after: 60 }))
     fetchMock.mockResolvedValueOnce(json({ email: 'Reader@example.com' }))
 
-    const wrapper = mountWithApp(AccountLoginMethods, { props: { accountKey, loginIdentities: identities } })
+    const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, loginIdentities: identities } })
     await flushPromises()
     expect(wrapper.text()).toContain('GoogleLinked')
     expect(wrapper.text()).not.toContain('Link Apple')
@@ -57,12 +57,15 @@ describe('Account sign-in methods', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://api.example.test/v1/user/login/email/send', expect.objectContaining({
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://api.example.test/v1/user/email/send', expect.objectContaining({
       body: JSON.stringify({ email: 'Reader@example.com', locale: 'en', purpose: 'bind' }),
       headers: expect.objectContaining({ Authorization: `Bearer ${ownerToken}` })
     }))
-    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://api.example.test/v1/user/bind', expect.objectContaining({
-      body: JSON.stringify({ email: 'Reader@example.com', request_id: 'bind-attempt', code: '012345', type: 'email' }),
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://api.example.test/v1/user/setting', expect.objectContaining({
+      body: JSON.stringify({
+        key: 'bind_login_identity',
+        value: { email: 'Reader@example.com', request_id: 'bind-attempt', code: '012345', type: 'email' }
+      }),
       headers: expect.objectContaining({ Authorization: `Bearer ${ownerToken}` })
     }))
     expect(wrapper.text()).toContain('Reader@example.com')
@@ -72,7 +75,7 @@ describe('Account sign-in methods', () => {
 
   it('keeps email linking available when the provider callback uses a different origin', async () => {
     oauth.callbackOrigin = 'https://auth.example.test'
-    const wrapper = mountWithApp(AccountLoginMethods, { props: { accountKey, loginIdentities: { ...identities, google: false } } })
+    const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, loginIdentities: { ...identities, google: false } } })
     await flushPromises()
 
     expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Link email'])
@@ -80,14 +83,27 @@ describe('Account sign-in methods', () => {
   })
 
   it('hides email binding while keeping provider linking available', async () => {
-    const wrapper = mountWithApp(AccountLoginMethods, { props: { accountKey, loginIdentities: { ...identities, google: false, show_email_binding: false } } })
+    const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, loginIdentities: { ...identities, google: false, show_email_binding: false } } })
     await flushPromises()
 
     expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Link Google'])
   })
 
+  it('does not navigate with a provider challenge for a different sign-in method', async () => {
+    fetchMock.mockResolvedValueOnce(json({ type: 'apple', state: 'link.fixture', nonce: 'nonce' }))
+    const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, loginIdentities: { ...identities, google: false, show_email_binding: false } } })
+    const previousUrl = location.href
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('We couldn’t link this sign-in method')
+    expect(location.href).toBe(previousUrl)
+    expect(sessionStorage.length).toBe(0)
+  })
+
   it('refuses to send a code or start a provider link when another tab switches accounts', async () => {
-    const wrapper = mountWithApp(AccountLoginMethods, { props: { accountKey, loginIdentities: { ...identities, google: false } } })
+    const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, loginIdentities: { ...identities, google: false } } })
     await flushPromises()
 
     getUserToken.mockReturnValue(otherToken)
@@ -107,16 +123,17 @@ describe('Account sign-in methods', () => {
   it.each([200, 401])('discards a pending provider response with status %i after another tab switches accounts', async status => {
     let finish!: (response: Response) => void
     fetchMock.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
-    const wrapper = mountWithApp(AccountLoginMethods, { props: { accountKey, loginIdentities: { ...identities, google: false } } })
+    const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, loginIdentities: { ...identities, google: false } } })
     await flushPromises()
 
     const previousUrl = location.href
     await wrapper.findAll('button')[1]!.trigger('click')
     expect(fetchMock).toHaveBeenLastCalledWith('https://api.example.test/v1/user/bind_link', expect.objectContaining({
+      body: JSON.stringify({ platform: 'google', client_platform: 'web' }),
       headers: expect.objectContaining({ Authorization: `Bearer ${ownerToken}` })
     }))
     getUserToken.mockReturnValue(otherToken)
-    finish(json({ state: 'link.fixture', nonce: 'nonce' }, status))
+    finish(json({ type: 'google', state: 'link.fixture', nonce: 'nonce' }, status))
     await flushPromises()
     expect(wrapper.get('.login-methods-error').text()).toMatch(/session changed or expired/)
     expect(location.href).toBe(previousUrl)

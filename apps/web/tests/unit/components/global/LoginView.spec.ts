@@ -110,7 +110,7 @@ describe('global/LoginView', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(post).toHaveBeenCalledWith(expect.objectContaining({
-      url: '/v1/user/login/email/send',
+      url: '/v1/user/email/send',
       body: { email: 'Reader@example.com', locale: 'en', purpose: 'login' }
     }))
     expect(wrapper.get('button:disabled').text()).toMatch(/Resend in 60s/)

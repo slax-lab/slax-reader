@@ -86,6 +86,7 @@ for (const platform of ['android', 'ios']) test(`mounted ${platform} Login prese
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'react-native-webview': {WebView}, '../../assets': {mobileAssets: {}}, '../auth/providers': {authenticate: async provider => {authentication.push(provider); return {provider};}},
     '../runtime': {useMobile: () => mobile}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => telemetry}, '../native/fixture-document': {}, '../components/fixture-actions': {}, '../auth/login': await load('../../src/auth/login.ts', {'../domain/diagnostics.ts': await load('../../src/domain/diagnostics.ts')}),
     '../auth/EmailCodeDialog': {EmailCodeDialog: () => null}, '../auth/email-auth-errors': await load('../../src/auth/email-auth-errors.ts'),
+    '../auth/useEmailLogin': await load('../../src/auth/useEmailLogin.ts', {react: React}),
   }, {AbortController});
   const render = () => root.render(React.createElement(LoginScreen));
   const press = predicate => act(async () => v.one('Pressable', predicate).onPress());

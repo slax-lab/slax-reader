@@ -15,12 +15,14 @@ describe('Twitter OAuth binding', () => {
     const exchange = vi.spyOn(TwitterOAuth2.prototype, 'handleCallback').mockResolvedValue({ accessToken: 'token' } as never)
     vi.spyOn(TwitterOAuth2.prototype, 'getUser').mockResolvedValue({ id: 'twitter-user', username: 'user' } as never)
     const repo = { requireActiveUser: vi.fn().mockResolvedValue(undefined), getUserByPlatform: vi.fn().mockResolvedValue(null), userBindPlatform: vi.fn().mockResolvedValue(null) }
-    const service = Object.assign(Object.create(UserService.prototype), { userRepoData: repo, challenges: { consumeTwitter: consume } }) as UserService
+    const deleteTwitter = vi.fn()
+    const service = Object.assign(Object.create(UserService.prototype), { userRepoData: repo, oauthState: { consumeTwitter: consume, deleteTwitter } }) as UserService
     const ctx = { env: { UPSTASH_REDIS_REST_URL: 'https://redis.example', UPSTASH_REDIS_REST_TOKEN: 'test' } } as never
     const results = await Promise.allSettled([service.handleOAuth2Bind(ctx, 'twitter', state, 'code'), service.handleOAuth2Bind(ctx, 'twitter', state, 'code')])
     expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
     expect(exchange).toHaveBeenCalledOnce()
     expect(repo.userBindPlatform).toHaveBeenCalledOnce()
+    expect(deleteTwitter).toHaveBeenCalledExactlyOnceWith(state)
     expect(repo.requireActiveUser).toHaveBeenCalledTimes(2)
   })
 })

@@ -2,15 +2,13 @@ import type { AccountEmailAuthRequest } from '~/utils/accountEmailAuthRequest'
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import { EMAIL_AUTH_PATH, type EmailAuthProviderChallenge } from '@slax-reader/contracts/email-auth'
-
-export type LinkProvider = 'google' | 'apple'
+import { BIND_LOGIN_IDENTITY_SETTING, type BindLinkRequest, type EmailAuthProvider, type EmailAuthProviderChallenge } from '@slax-reader/contracts/email-auth'
 
 const pendingLinkKey = 'slax:pending-provider-link'
 
 export const isProviderLinkState = (state: unknown): state is string => typeof state === 'string' && state.startsWith('link.')
 
-const providerConfig = (provider: LinkProvider) => {
+const providerConfig = (provider: EmailAuthProvider) => {
   const config = useRuntimeConfig().public
   return {
     clientId: provider === 'google' ? String(config.GOOGLE_OAUTH_CLIENT_ID) : String(config.APPLE_OAUTH_CLIENT_ID),
@@ -27,18 +25,18 @@ export const canLinkProvidersHere = () => {
   }
 }
 
-export const startProviderLink = async (type: LinkProvider, signal: AbortSignal, account: AccountEmailAuthRequest) => {
+export const startProviderLink = async (type: EmailAuthProvider, signal: AbortSignal, account: AccountEmailAuthRequest) => {
   const { clientId, redirectUri } = providerConfig(type)
   if (new URL(redirectUri).origin !== location.origin) throw new Error('Provider callback must use the settings origin')
 
   const response = await account.api.post<EmailAuthProviderChallenge>({
     url: RESTMethodPath.GET_BIND_LINK,
-    body: { platform: type, client_platform: 'web' },
+    body: { platform: type, client_platform: 'web' } satisfies BindLinkRequest,
     signal,
     errorInterceptors: () => {}
   })
   signal.throwIfAborted()
-  if (!response) throw new Error('Provider linking did not start')
+  if (response?.type !== type) throw new Error('Provider linking did not start')
 
   account.assertCurrentAccount()
   const { state, nonce } = response
@@ -55,19 +53,19 @@ export const startProviderLink = async (type: LinkProvider, signal: AbortSignal,
   location.href = url.href
 }
 
-export const takePendingProviderLink = (state: string): LinkProvider | undefined => {
+export const takePendingProviderLink = (state: string): EmailAuthProvider | undefined => {
   const stored = sessionStorage.getItem(pendingLinkKey)
   const type = stored === `google:${state}` ? 'google' : stored === `apple:${state}` ? 'apple' : undefined
   if (type) sessionStorage.removeItem(pendingLinkKey)
   return type
 }
 
-export const finishProviderLink = async (state: string, type: LinkProvider, code: string, options: Pick<FetchOptions, 'signal' | 'errorInterceptors'>) => {
+export const finishProviderLink = async (state: string, type: EmailAuthProvider, code: string, options: Pick<FetchOptions, 'signal' | 'errorInterceptors'>) => {
   const { clientId, redirectUri } = providerConfig(type)
   const response = await request().post<{ linked: true }>({
     ...options,
-    url: EMAIL_AUTH_PATH.bind,
-    body: { state, type, platform: 'web', code, redirect_uri: redirectUri, client_id: clientId }
+    url: RESTMethodPath.USER_INFO_SETTING,
+    body: { key: BIND_LOGIN_IDENTITY_SETTING, value: { state, type, platform: 'web', code, redirect_uri: redirectUri, client_id: clientId } }
   })
   if (!response?.linked) throw new Error('Provider linking failed')
 }

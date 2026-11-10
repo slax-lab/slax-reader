@@ -1,15 +1,6 @@
 import { PrismaClient } from '@prisma/client'
-import {
-  AccountNotAllowRegisterError,
-  EmailAuthIdentityConflictError,
-  EmailAuthUseExistingLoginError,
-  UserAccountDeletedError,
-  UserNotFoundError,
-  ErrorParam,
-  UnknownBindUserError,
-  PlatformAccountBoundToOtherUserError
-} from '@/const/err'
-import { inject, injectable, singleton } from '@/decorators/di'
+import { AccountNotAllowRegisterError, UserAccountDeletedError, UserNotFoundError, ErrorParam, UnknownBindUserError, PlatformAccountBoundToOtherUserError } from '@/const/err'
+import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_CLIENT, PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import { subscriptionPO } from '@/infra/repository/dbSubscription'
@@ -71,13 +62,26 @@ export interface platformBind {
   created_at: Date
 }
 
-type LoginProvider = 'google' | 'apple'
+export type LoginProvider = 'google' | 'apple'
+type LoginPlatform = LoginProvider | 'mail'
 type UserTransaction = Prisma.TransactionClient
-type EmailOwner = {
+export type LoginEmailOwner = {
   id: number
   deleted_at: Date | null
   login_key: string | null
   delivery_email: string | null
+}
+type SavedUser = Pick<userInfoPO, 'email' | 'lang' | 'uuid'> & { id: number }
+
+export interface LoginIdentityTransaction {
+  lockAccount(userId: number): Promise<(Pick<SavedUser, 'id' | 'email'> & { deleted_at: Date | null }) | null>
+  findEmailOwners(key: string): Promise<LoginEmailOwner[]>
+  findProfileEmail(email: string): Promise<(Pick<SavedUser, 'id'> & { deleted_at: Date | null }) | null>
+  findProviderOwners(provider: LoginProvider, subject: string): Promise<Pick<platformBind, 'user_id'>[]>
+  findBinding(userId: number, platform: LoginPlatform): Promise<Pick<platformBind, 'platform_id' | 'user_name'> | null>
+  createBinding(userId: number, platform: LoginPlatform, key: string, label: string): Promise<void>
+  saveRegistration(profile: userInfoPO): Promise<SavedUser>
+  recordLogin(userId: number, profile: userInfoPO): Promise<SavedUser>
 }
 
 async function lockIdentities(tx: UserTransaction, keys: string[]) {
@@ -98,7 +102,7 @@ async function lockActiveAccount(tx: UserTransaction, userId: number) {
 }
 
 async function findEmailOwners(tx: UserTransaction, key: string) {
-  return tx.$queryRaw<EmailOwner[]>`
+  return tx.$queryRaw<LoginEmailOwner[]>`
     SELECT u.id, u.deleted_at, m.platform_id AS login_key, m.user_name AS delivery_email
     FROM sr_user u
     LEFT JOIN sr_platform_bind m ON m.user_id = u.id AND m.platform = 'mail'
@@ -108,40 +112,6 @@ async function findEmailOwners(tx: UserTransaction, key: string) {
         WHERE p.user_id = u.id AND p.platform IN ('google', 'apple') AND lower(btrim(p.user_name)) = ${key}
       )
   `
-}
-
-function singleEmailOwner(owners: EmailOwner[]) {
-  const active = owners.filter(owner => !owner.deleted_at)
-  if (active.length > 1 || owners.some(owner => isEmailFrozen(owner.deleted_at))) {
-    throw EmailAuthIdentityConflictError()
-  }
-  return active[0]
-}
-
-function isEmailFrozen(deletedAt: Date | null) {
-  return deletedAt !== null && addDays(deletedAt, 30).getTime() >= Date.now()
-}
-
-async function getLegacyAppleOwner(tx: UserTransaction, placeholder: string) {
-  const account = await tx.sr_user.findUnique({ where: { email: placeholder }, select: { id: true, deleted_at: true } })
-  if (!account) return undefined
-  if (isEmailFrozen(account.deleted_at)) throw EmailAuthIdentityConflictError()
-  return account.deleted_at ? undefined : account.id
-}
-
-async function getProviderOwner(tx: UserTransaction, provider: LoginProvider, subject: string) {
-  const matches = await tx.sr_platform_bind.findMany({ where: { platform: provider, platform_id: subject }, select: { user_id: true }, take: 2 })
-  if (matches.length > 1) throw EmailAuthIdentityConflictError()
-  return matches[0]?.user_id
-}
-
-async function attachIdentity(tx: UserTransaction, userId: number, platform: LoginProvider | 'mail', key: string, label: string) {
-  const existing = await tx.sr_platform_bind.findUnique({ where: { user_id_platform: { user_id: userId, platform } } })
-  if (existing) {
-    if (existing.platform_id !== key || (platform === 'mail' && existing.user_name !== label)) throw EmailAuthIdentityConflictError()
-    return
-  }
-  await tx.sr_platform_bind.create({ data: { user_id: userId, platform, platform_id: key, user_name: label } })
 }
 
 export interface userNoticePO {
@@ -198,16 +168,16 @@ export class UserRepo {
     return this.prismaPg().$transaction(async tx => {
       await lockIdentities(tx, [`mail:${info.email.trim().toLowerCase()}`])
       if (info.id) await lockActiveAccount(tx, info.id)
-      return this.saveRegistration(tx, info)
+      return (await this.saveRegistration(tx, info)) as userInfoPO
     })
   }
 
-  private async saveRegistration(tx: UserTransaction, info: userInfoPO): Promise<userInfoPO> {
+  private async saveRegistration(tx: UserTransaction, info: userInfoPO) {
     const { lang, deleted_at, id, uuid, subscription_info, ...restUserInfo } = info
     if (id) {
       const collision = await tx.sr_user.findFirst({ where: { email: info.email, id: { not: id } }, select: { id: true } })
       if (collision) throw PlatformAccountBoundToOtherUserError()
-      return (await tx.sr_user.update({ where: { id }, data: { ...restUserInfo, last_login_at: new Date() } })) as userInfoPO
+      return tx.sr_user.update({ where: { id }, data: { ...restUserInfo, last_login_at: new Date() } })
     }
     const match = await tx.sr_user.findUnique({ where: { email: info.email }, select: { id: true } })
     const locked = match ? await lockAccount(tx, match.id) : null
@@ -220,9 +190,9 @@ export class UserRepo {
       }
       await tx.sr_user.update({ where: { id: existing.id }, data: { email: `deleted-${existing.id}-${crypto.randomUUID()}@deleted.invalid` } })
     } else if (existing) {
-      return (await tx.sr_user.update({ where: { id: existing.id }, data: { ...restUserInfo, last_login_at: new Date() } })) as userInfoPO
+      return tx.sr_user.update({ where: { id: existing.id }, data: { ...restUserInfo, last_login_at: new Date() } })
     }
-    return (await tx.sr_user.create({ data: { ...restUserInfo, lang, created_at: new Date(), last_login_at: new Date() } })) as userInfoPO
+    return tx.sr_user.create({ data: { ...restUserInfo, lang, created_at: new Date(), last_login_at: new Date() } })
   }
 
   public async getLoginEmailRecipient(key: string): Promise<string | undefined> {
@@ -233,96 +203,27 @@ export class UserRepo {
     return matches.length === 1 ? matches[0].user_name : undefined
   }
 
-  private async releaseEmailReservations(tx: UserTransaction, key: string, owners: EmailOwner[]) {
-    const released = owners.filter(owner => owner.deleted_at && owner.login_key === key).map(owner => owner.id)
-    if (released.length) await tx.sr_platform_bind.deleteMany({ where: { platform: 'mail', platform_id: key, user_id: { in: released } } })
-  }
-
-  public async signInWithEmail(key: string, deliveryEmail: string, profile: userInfoPO) {
+  public withLoginIdentityTransaction<T>(
+    { emailKey, provider }: { emailKey: string; provider?: { type: LoginProvider; subject: string } },
+    run: (tx: LoginIdentityTransaction) => Promise<T>
+  ): Promise<T> {
     return this.prismaPg().$transaction(async tx => {
-      await lockIdentities(tx, [`mail:${key}`])
-      const owners = await findEmailOwners(tx, key)
-      const active = singleEmailOwner(owners)
-      if (active) {
-        if (active.login_key !== key) throw EmailAuthUseExistingLoginError()
-        if (active.delivery_email !== deliveryEmail) throw EmailAuthIdentityConflictError()
-        await lockActiveAccount(tx, active.id)
-        const { last_login_ip, last_login_at, country, city, region, timezone, latitude, longitude } = profile
-        const user = await tx.sr_user.update({
-          where: { id: active.id },
-          data: { last_login_ip, last_login_at, country, city, region, timezone, latitude, longitude }
-        })
-        return { user, isNew: false }
-      }
-      await this.releaseEmailReservations(tx, key, owners)
-      const user = await this.saveRegistration(tx, { ...profile, email: deliveryEmail })
-      await attachIdentity(tx, user.id!, 'mail', key, deliveryEmail)
-      return { user, isNew: true }
-    })
-  }
-
-  public async bindLoginEmail(userId: number, key: string, deliveryEmail: string) {
-    await this.prismaPg().$transaction(async tx => {
-      await lockIdentities(tx, [`mail:${key}`])
-      await lockActiveAccount(tx, userId)
-      const owners = await findEmailOwners(tx, key)
-      const active = singleEmailOwner(owners)
-      if (active && active.id !== userId) throw EmailAuthIdentityConflictError()
-      await this.releaseEmailReservations(tx, key, owners)
-      await attachIdentity(tx, userId, 'mail', key, deliveryEmail)
-    })
-  }
-
-  public async signInWithProvider(provider: LoginProvider, subject: string, profile: userInfoPO) {
-    const key = profile.email.trim().toLowerCase()
-    const placeholder = `${subject}@appleid.apple.com`
-    return this.prismaPg().$transaction(async tx => {
-      await lockIdentities(tx, [`mail:${key}`, `${provider}:${subject}`])
-      const subjectOwner = await getProviderOwner(tx, provider, subject)
-      // Earlier Apple logins could leave only a deterministic profile address.
-      const legacyApple = subjectOwner === undefined && provider === 'apple' ? await getLegacyAppleOwner(tx, placeholder) : undefined
-      const legacyOwner = !subjectOwner && !legacyApple ? singleEmailOwner(await findEmailOwners(tx, key)) : undefined
-      const id = subjectOwner ?? legacyApple ?? legacyOwner?.id
-      let email = profile.email
-      let providerEmail = profile.email
-      if (id !== undefined) {
-        const account = await lockActiveAccount(tx, id)
-        const boundEmail = await tx.sr_platform_bind.findUnique({ where: { user_id_platform: { user_id: id, platform: 'mail' } } })
-        if (legacyOwner && (boundEmail || account.email !== profile.email)) throw EmailAuthUseExistingLoginError()
-        if (legacyApple && key !== placeholder.toLowerCase()) {
-          const otherOwners = await findEmailOwners(tx, key)
-          if (otherOwners.some(owner => owner.id !== id && (!owner.deleted_at || isEmailFrozen(owner.deleted_at)))) providerEmail = ''
-        }
-        if (boundEmail || legacyApple || (provider === 'apple' && profile.email === placeholder)) {
-          email = account.email
-        } else if (account.email !== email) {
-          const owners = await findEmailOwners(tx, key)
-          // The verified subject still identifies this account when a new provider email is unavailable.
-          if (owners.some(owner => owner.id !== id && (!owner.deleted_at || isEmailFrozen(owner.deleted_at)))) email = account.email
-        }
-      }
-      const user = await this.saveRegistration(tx, { ...profile, id, email })
-      await attachIdentity(tx, user.id!, provider, subject, providerEmail)
-      return { user, isNew: id === undefined }
-    })
-  }
-
-  public async bindLoginProvider(userId: number, provider: LoginProvider, subject: string, email: string) {
-    const key = email.trim().toLowerCase()
-    return this.prismaPg().$transaction(async tx => {
-      await lockIdentities(tx, [`mail:${key}`, `${provider}:${subject}`])
-      await lockActiveAccount(tx, userId)
-      const subjectOwner = await getProviderOwner(tx, provider, subject)
-      if (subjectOwner !== undefined && subjectOwner !== userId) throw EmailAuthIdentityConflictError()
-      if (subjectOwner === undefined) {
-        const owner = singleEmailOwner(await findEmailOwners(tx, key))
-        if (owner && owner.id !== userId) throw EmailAuthIdentityConflictError()
-        if (provider === 'apple') {
-          const legacy = await getLegacyAppleOwner(tx, `${subject}@appleid.apple.com`)
-          if (legacy !== undefined && legacy !== userId) throw EmailAuthIdentityConflictError()
-        }
-      }
-      await attachIdentity(tx, userId, provider, subject, email)
+      const keys = [`mail:${emailKey}`]
+      if (provider) keys.push(`${provider.type}:${provider.subject}`)
+      await lockIdentities(tx, keys)
+      return run({
+        lockAccount: userId => lockAccount(tx, userId),
+        findEmailOwners: key => findEmailOwners(tx, key),
+        findProfileEmail: email => tx.sr_user.findUnique({ where: { email }, select: { id: true, deleted_at: true } }),
+        findProviderOwners: (platform, platform_id) => tx.sr_platform_bind.findMany({ where: { platform, platform_id }, select: { user_id: true }, take: 2 }),
+        findBinding: (user_id, platform) => tx.sr_platform_bind.findUnique({ where: { user_id_platform: { user_id, platform } }, select: { platform_id: true, user_name: true } }),
+        createBinding: async (user_id, platform, platform_id, user_name) => {
+          await tx.sr_platform_bind.create({ data: { user_id, platform, platform_id, user_name } })
+        },
+        saveRegistration: profile => this.saveRegistration(tx, profile),
+        recordLogin: (id, { last_login_ip, last_login_at, country, city, region, timezone, latitude, longitude }) =>
+          tx.sr_user.update({ where: { id }, data: { last_login_ip, last_login_at, country, city, region, timezone, latitude, longitude } })
+      })
     })
   }
 

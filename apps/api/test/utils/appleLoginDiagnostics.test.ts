@@ -8,7 +8,7 @@ vi.mock('jose', async importOriginal => ({
 }))
 
 import { AppleAuth } from '@/utils/authLogin/authApple'
-import { EmailAuthentication } from '@/domain/emailAuthentication'
+import { LoginIdentityBindingService } from '@/domain/loginIdentityBindingService'
 import { ContextManager } from '@/utils/context'
 
 const baseEnv = {
@@ -213,15 +213,14 @@ describe('Apple identity verification diagnostics', () => {
       } as Env
     )
     ctx.setUserInfo(41, 41, '', 'en')
-    const auth = new EmailAuthentication(repo as never, challenges as never)
+    const auth = new LoginIdentityBindingService(repo as never, {} as never, challenges as never)
     const provider = { type: 'apple', platform: 'ios' }
-    const request = (body: object) => new Request('https://api.example.test/', { method: 'POST', body: JSON.stringify(body) })
-    const { state, nonce } = await auth.startProvider(ctx, provider)
+    const { state, nonce } = await auth.startProvider(ctx, 'apple', 'ios')
     challenges.consumeProvider.mockResolvedValueOnce(challenges.saveProvider.mock.calls[0][3])
     const [exchangedToken, nativeToken] = await Promise.all([sign(), sign('app.slax.reader', 'synthetic-user', '1h', nonce)])
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ id_token: exchangedToken }))
 
-    await expect(auth.bind(ctx, request({ ...provider, state, code, id_token: nativeToken, redirect_uri: '' }))).resolves.toEqual({ linked: true })
+    await expect(auth.bind(ctx, { ...provider, state, code, id_token: nativeToken, redirect_uri: '' })).resolves.toEqual({ linked: true })
     expect(repo.bindLoginProvider).toHaveBeenCalledExactlyOnceWith(41, 'apple', 'synthetic-user', 'identity-email-do-not-log@example.test')
   })
 })

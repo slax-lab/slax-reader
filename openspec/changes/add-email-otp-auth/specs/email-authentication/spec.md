@@ -85,7 +85,7 @@ The system SHALL require an active authenticated session and proof of the added 
 
 ### Requirement: Login email bindings coexist with historical data
 
-The system SHALL keep verified login emails separate from mail collection and historical profile email. It SHALL deny authentication for deleted accounts and preserve a 30-day reservation for their bound email.
+The system SHALL keep verified login emails separate from mail collection and historical profile email. It SHALL deny authentication for deleted accounts and remove all platform bindings during account cleanup. Existing profile-email reservations SHALL follow the existing account-deletion rules.
 
 #### Scenario: An account has a mail-collection binding
 
@@ -93,11 +93,11 @@ The system SHALL keep verified login emails separate from mail collection and hi
 - **THEN** the two bindings remain independently addressable
 - **AND** changing the mail-collection setting does not overwrite or remove the verified login email
 
-#### Scenario: A reader claims a deleted user's bound email
+#### Scenario: Account cleanup removes a deleted reader's bindings
 
-- **WHEN** the email is verified before the 30-day reservation expires
-- **THEN** the system refuses registration or binding
-- **AND** after the reservation expires an otherwise valid registration can create a new account without restoring the deleted user
+- **WHEN** account cleanup runs for a deleted reader
+- **THEN** the system removes the reader's platform bindings, including any login mailbox binding
+- **AND** a distinct bound mailbox may be used in a new account after cleanup without restoring the deleted account
 
 ### Requirement: Clients preserve the existing login and recovery behavior
 

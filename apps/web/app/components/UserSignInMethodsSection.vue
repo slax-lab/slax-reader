@@ -39,9 +39,10 @@ import EmailCodeForm from '~/components/Login/EmailCodeForm.vue'
 
 import { createAccountEmailAuthRequest } from '~/utils/accountEmailAuthRequest'
 import { emailAuthErrorKey } from '~/utils/emailAuth'
-import { canLinkProvidersHere, type LinkProvider, startProviderLink } from '~/utils/providerLink'
+import { canLinkProvidersHere, startProviderLink } from '~/utils/providerLink'
 
-import { EMAIL_AUTH_PATH, type EmailAuthIdentities, type EmailCodeInput } from '@slax-reader/contracts/email-auth'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import { BIND_LOGIN_IDENTITY_SETTING, type EmailAuthIdentities, type EmailAuthProvider, type EmailCodeInput } from '@slax-reader/contracts/email-auth'
 
 const props = defineProps<{ accountKey: string; profileEmail?: string; loginIdentities?: EmailAuthIdentities }>()
 const account = createAccountEmailAuthRequest(props.accountKey)
@@ -49,7 +50,7 @@ const { t } = useI18n()
 const titleId = useId()
 const config = useRuntimeConfig().public
 const providerLinkAvailable = canLinkProvidersHere()
-const supportedProviders: LinkProvider[] = [
+const supportedProviders: EmailAuthProvider[] = [
   ...(config.GOOGLE_OAUTH_CLIENT_ID ? ['google' as const] : []),
   ...(config.APPLE_OAUTH_CLIENT_ID ? ['apple' as const] : [])
 ]
@@ -64,15 +65,15 @@ const signInEmailStatus = computed(() => {
 const emailRow = ref<HTMLElement>()
 const emailOpen = ref(false)
 const emailLinked = ref(false)
-const linking = ref<LinkProvider>()
+const linking = ref<EmailAuthProvider>()
 const providerError = ref('')
 const lifecycle = new AbortController()
 
 onBeforeUnmount(() => lifecycle.abort())
 const bindEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
   const result = await account.api.post<{ email: string }>({
-    url: EMAIL_AUTH_PATH.bind,
-    body: { ...proof, type: 'email' },
+    url: RESTMethodPath.USER_INFO_SETTING,
+    body: { key: BIND_LOGIN_IDENTITY_SETTING, value: { ...proof, type: 'email' } },
     signal,
     errorInterceptors: () => {}
   })
@@ -86,7 +87,7 @@ const bindEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
   emailRow.value?.focus()
 }
 
-const linkProvider = async (provider: LinkProvider) => {
+const linkProvider = async (provider: EmailAuthProvider) => {
   if (linking.value) return
   linking.value = provider
   providerError.value = ''

@@ -14,13 +14,9 @@ import {useObserveMarkInteractive} from '../observe';
 import {loginWithProvider} from '../auth/login';
 import {EmailCodeDialog} from '../auth/EmailCodeDialog';
 import {emailAuthError} from '../auth/email-auth-errors';
-import type {LoginResponse} from '../data/api';
+import {useEmailLogin} from '../auth/useEmailLogin';
 
 type LoginMethod = LoginProvider | 'email';
-interface EmailLoginFlow {
-  isCurrent(): boolean;
-  adoptSessionGuard(assertCurrent: () => void): void;
-}
 
 export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) {
   const {api, sessions, runtime, t, locale, config, fixtureOnly} = useMobile();
@@ -30,9 +26,11 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   const [agreed, setAgreed] = useState(false);
   const [agreement, setAgreement] = useState<'terms'|'privacy'|null>(null);
   const [loading, setLoading] = useState<LoginProvider|null>(null);
-  const [emailFlow, setEmailFlow] = useState<EmailLoginFlow | null>(null);
-  const [emailCommitting, setEmailCommitting] = useState(false);
-  const committingEmail = useRef(false);
+  const email = useEmailLogin({
+    api, sessions, apiOrigin: config.apiUrl, onAuthenticated,
+    onOpen: () => telemetry.element('login_email_button', 'signup'),
+    onVerify: () => telemetry.firebase('user', 'login_start', {method: 'email'}),
+  });
   const [agreementId, setAgreementId] = useState(0);
   const agreementSequence = useRef(0);
   const pending = useRef<{id: number; method: LoginMethod|null; accepted: boolean; isCurrent(): boolean}|null>(null);
@@ -41,9 +39,6 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   const mounted = useRef(true);
   useLayoutEffect(() => {mounted.current = true; return () => {mounted.current = false; pending.current = null; providerGeneration.current++;};}, []);
   useLayoutEffect(() => {
-    setEmailFlow(null);
-    setEmailCommitting(false);
-    committingEmail.current = false;
     setLoading(null);
     return () => {pending.current = null; providerGeneration.current++; active.current = false;};
   }, [api, sessions, config.apiUrl]);
@@ -87,19 +82,10 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
       void login(method, allowed);
       return;
     }
-    if (!emailEnabled || !mounted.current || !allowed()) return;
-    const generation = ++providerGeneration.current;
-    let isCurrentSession = allowed;
-    telemetry.element('login_email_button', 'signup');
-    setEmailFlow({
-      isCurrent: () => mounted.current && generation === providerGeneration.current && isCurrentSession(),
-      adoptSessionGuard(assertCurrent) {
-        isCurrentSession = () => {try {assertCurrent(); return true;} catch {return false;}};
-      },
-    });
+    if (emailEnabled && mounted.current) email.open(allowed);
   }
   function begin(method: LoginMethod) {
-    if (active.current || loading || emailFlow || pending.current?.accepted) return;
+    if (active.current || loading || email.flow || pending.current?.accepted) return;
     if (!agreed) openAgreement(method === 'apple' ? 'privacy' : 'terms', method);
     else proceed(method);
   }
@@ -131,27 +117,9 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
       return false;
     });
   }, [fixtureOnly, agreement, loading, agreed]);
-  async function acceptEmail(result: LoginResponse, signal: AbortSignal) {
-    if (!emailFlow?.isCurrent()) return;
-    try {
-      await sessions.accept(result.token, result.user_id, assertCurrent => {
-        emailFlow.adoptSessionGuard(assertCurrent);
-        committingEmail.current = true;
-        setEmailCommitting(true);
-      }, signal);
-      if (!emailFlow.isCurrent() || signal.aborted) return;
-      setEmailFlow(null);
-      onAuthenticated?.();
-    } finally {
-      if (emailFlow.isCurrent()) {
-        committingEmail.current = false;
-        setEmailCommitting(false);
-      }
-    }
-  }
   const button = (method: LoginMethod) => <Pressable
     accessibilityRole="button" accessibilityLabel={t(`login_${method}`)}
-    testID={`${mobileTestIds.LoginButton}_${method}`} disabled={Boolean(loading || emailFlow)}
+    testID={`${mobileTestIds.LoginButton}_${method}`} disabled={Boolean(loading || email.flow)}
     onPress={() => begin(method)} style={({pressed}) => [styles.provider, {width: Math.min(width - 80, L.loginButtonMaximumWidth)}, method !== 'google' && {marginTop: 10}, pressed && {backgroundColor: C.pressedOverlay}]}>
     {loading === method ? <ActivityIndicator size="small" color={C.text} testID={mobileTestIds.LoginLoadingIndicator}/> : <>
       {method !== 'email' && <Image source={method === 'google' ? mobileAssets.ic_sm_google : mobileAssets.ic_sm_apple} style={styles.providerIcon}/>}
@@ -185,18 +153,8 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   </>;
   return <View style={[styles.root, {paddingBottom: insets.bottom}]}>
     {emailEnabled ? <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView> : content}
-    {emailEnabled && emailFlow && <EmailCodeDialog t={t} locale={locale} mode="login" isCurrent={emailFlow.isCurrent}
-      dismissible={!emailCommitting}
-      send={api.sendLoginEmail}
-      verify={(body, signal) => {
-        telemetry.firebase('user', 'login_start', {method: 'email'});
-        return api.verifyLoginEmail(body, signal);
-      }}
-      onVerified={acceptEmail} onClose={() => {
-        if (committingEmail.current) return false;
-        providerGeneration.current++;
-        setEmailFlow(null);
-      }} />}
+    {emailEnabled && email.flow && <EmailCodeDialog t={t} locale={locale} mode="login" isCurrent={email.flow.isCurrent}
+      dismissible={email.dismissible} send={email.send} verify={email.verify} onVerified={email.accept} onClose={email.close} />}
     <Modal key={`agreement-${agreementId}`} visible={agreement !== null} transparent animationType="slide" onRequestClose={dismissAgreement} onDismiss={agreementDidDismiss}>
       <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} accessibilityLabel={t('btn_close')} onPress={dismissAgreement}/>

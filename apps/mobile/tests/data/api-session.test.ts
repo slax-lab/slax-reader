@@ -340,19 +340,47 @@ test('email login verification stays public even with stored credentials and doe
   const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'existing-token', user_id: 'existing'})), {leave: async () => {}, enter: async () => {}});
   await sessions.restore();
   const calls: unknown[] = [];
-  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions,
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions, getDeviceId: async () => 'test-device',
     sleep: async () => {},
     fetch: async (url, request) => {
-      calls.push([String(url), (request?.headers as Record<string, string>).Authorization, JSON.parse(String(request?.body))]);
+      const headers = new Headers(request?.headers);
+      calls.push([String(url), headers.get('Authorization'), headers.get('X-Device-ID'), JSON.parse(String(request?.body))]);
       return Response.json({code: 503, message: 'Service unavailable', data: null}, {status: 503});
     },
   });
   const proof = {email: 'reader@example.test', request_id: 'synthetic-challenge', code: '123456'};
   await assert.rejects(async () => api.verifyLoginEmail(proof), {status: 503});
-  assert.deepEqual(calls, [['https://api.example/v1/user/login', undefined, {...proof, type: 'email'}]]);
+  assert.deepEqual(calls, [['https://api.example/v1/user/login', null, 'test-device', {...proof, type: 'email'}]]);
 });
 
-test('email binding sends proof once under the current authenticated owner even when delivery fails', async () => {
+test('cancelling email login verification rejects even when the transport ignores abort', async () => {
+  const sessions = new SessionController(new PreferenceStore(new MemoryPreferences()), {leave: async () => {}, enter: async () => {}});
+  let started!: (signal: AbortSignal | null | undefined) => void;
+  let finish!: (response: Response) => void;
+  const dispatched = new Promise<AbortSignal | null | undefined>(resolve => {started = resolve;});
+  const heldResponse = new Promise<Response>(resolve => {finish = resolve;});
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions,
+    fetch: async (_url, request) => {started(request?.signal); return heldResponse;},
+  });
+  const cancellation = new AbortController();
+  const proof = {email: 'reader@example.test', request_id: 'synthetic-challenge', code: '123456'};
+  const result = api.verifyLoginEmail(proof, cancellation.signal);
+  const requestSignal = await dispatched;
+  assert.ok(requestSignal);
+  cancellation.abort();
+  assert.equal(requestSignal.aborted, true);
+  const lateResponse = new Response(JSON.stringify({code: 200, data: {token: 'retired-token', user_id: 'reader'}}));
+  try {
+    const first = await Promise.race([result.catch(error => error.name), new Promise(resolve => setImmediate(() => resolve('pending')))]);
+    assert.equal(first, 'AbortError');
+  } finally {
+    finish(lateResponse);
+  }
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(lateResponse.bodyUsed, true);
+});
+
+test('sending a binding code uses the current authenticated owner and does not retry', async () => {
   const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'existing-token', user_id: 'existing'})), {leave: async () => {}, enter: async () => {}});
   await sessions.restore();
   const calls: unknown[] = [];
@@ -365,7 +393,37 @@ test('email binding sends proof once under the current authenticated owner even 
   });
   const email = {email: 'reader@example.test', locale: 'zh'};
   await assert.rejects(async () => api.sendBindingEmail(email), /Transport lost after dispatch/);
-  assert.deepEqual(calls, [['https://api.example/v1/user/login/email/send', 'Bearer existing-token', 'test-device', {...email, purpose: 'bind'}]]);
+  assert.deepEqual(calls, [['https://api.example/v1/user/email/send', 'Bearer existing-token', 'test-device', {...email, purpose: 'bind'}]]);
+});
+
+test('native binding proofs are posted to the user settings endpoint under the current account', async () => {
+  const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'existing-token', user_id: 'existing'})), {leave: async () => {}, enter: async () => {}});
+  await sessions.restore();
+  const calls: unknown[] = [];
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions,
+    fetch: async (url, request) => {
+      const body = JSON.parse(String(request?.body));
+      calls.push([String(url), new Headers(request?.headers).get('Authorization'), body]);
+      return Response.json({code: 200, data: body.value.type === 'email' ? {email: 'reader@example.test'} : {linked: true}});
+    },
+  });
+  const email = {email: 'reader@example.test', request_id: 'synthetic-challenge', code: '123456'};
+  const provider = {type: 'apple' as const, platform: 'ios' as const, state: 'synthetic-state', code: 'synthetic-code', redirect_uri: ''};
+  assert.deepEqual(await api.verifyBindingEmail(email), {email: 'reader@example.test'});
+  assert.deepEqual(await api.finishProviderLink(provider), {linked: true});
+  assert.deepEqual(calls, [
+    ['https://api.example/v1/user/setting', 'Bearer existing-token', {key: 'bind_login_identity', value: {...email, type: 'email'}}],
+    ['https://api.example/v1/user/setting', 'Bearer existing-token', {key: 'bind_login_identity', value: provider}],
+  ]);
+});
+
+test('native provider linking rejects a challenge for a different provider', async () => {
+  const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'existing-token', user_id: 'existing'})), {leave: async () => {}, enter: async () => {}});
+  await sessions.restore();
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions,
+    fetch: async () => Response.json({code: 200, data: {type: 'google', state: 'synthetic-state', nonce: 'synthetic-nonce'}}),
+  });
+  await assert.rejects(api.startProviderLink({type: 'apple', platform: 'ios'}), {status: 502});
 });
 
 test('a cancelled verified login cannot commit while waiting for the session store', async () => {

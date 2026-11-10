@@ -7,45 +7,29 @@
     <div class="login-section">
       <!-- Logo -->
       <div class="auth-logo">
-        <img src="@images/icon-logo-login.png" :alt="t('common.app.name')" />
+        <img src="@images/icon-logo-login.png" :alt="$t('common.app.name')" />
       </div>
 
       <!-- 标题 + 副标题 -->
-      <h1 class="auth-title">{{ t('common.app.name') }}</h1>
-      <p class="auth-subtitle">{{ t('component.login_view.title') }}</p>
-
-      <ul v-if="modal" class="auth-benefits">
-        <li v-for="benefit in ['save', 'devices', 'space']" :key="benefit">
-          <span class="auth-benefit-check" aria-hidden="true">✓</span>
-          <span>{{ t(`component.login_view.benefits.${benefit}`) }}</span>
-        </li>
-      </ul>
+      <h1 class="auth-title">{{ $t('common.app.name') }}</h1>
+      <p class="auth-subtitle">{{ $t('component.login_view.title') }}</p>
 
       <!-- Turnstile（仅邀请码流程） -->
       <NuxtTurnstile v-if="turnstileEnabled && !!affcode" v-model="turnstileCallbackToken" class="turnstile" :options="{ theme: 'light' }" />
 
       <!-- 登录按钮 -->
       <div v-if="showLoginBtn" class="auth-btns">
-        <button class="email-login-toggle" type="button" :aria-expanded="emailOpen" @click="toggleEmail">
-          {{ t(emailOpen ? 'email_auth.cancel' : 'email_auth.continue_with_email') }}
-        </button>
-        <EmailCodeForm
-          v-if="emailOpen && active"
-          ref="emailForm"
-          :verify="verifyEmail"
-        />
-        <GoogleLoginButton ref="googleLoginBtn" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" @click.capture="cancelEmail" />
-        <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" :affcode="affcode" :auth-attribution="appleAttribution" @click.capture="cancelEmail" />
+        <EmailLoginForm ref="emailLogin" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" />
+        <GoogleLoginButton ref="googleLoginBtn" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" @click.capture="emailLogin?.cancel()" />
+        <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" @click.capture="emailLogin?.cancel()" />
       </div>
 
       <!-- 服务条款 -->
       <p class="auth-tos">
-        {{ t('component.login_view.tos_prefix') }}
-        <a v-if="modal" href="/terms" target="_blank" rel="noopener">{{ t('docs.title.terms') }}</a>
-        <NuxtLink v-else to="/terms">{{ t('docs.title.terms') }}</NuxtLink>
-        {{ t('component.login_view.tos_and') }}
-        <a v-if="modal" href="/privacy" target="_blank" rel="noopener">{{ t('docs.title.privacy') }}</a>
-        <NuxtLink v-else to="/privacy">{{ t('docs.title.privacy') }}</NuxtLink>
+        {{ $t('component.login_view.tos_prefix') }}
+        <NuxtLink to="/terms">{{ $t('docs.title.terms') }}</NuxtLink>
+        {{ $t('component.login_view.tos_and') }}
+        <NuxtLink to="/privacy">{{ $t('docs.title.privacy') }}</NuxtLink>
       </p>
     </div>
   </div>
@@ -54,17 +38,14 @@
 <script lang="ts" setup>
 import AppleLoginButton from '~/components/AppleLoginButton.vue'
 import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
-import EmailCodeForm from '~/components/Login/EmailCodeForm.vue'
+import EmailLoginForm from '~/components/Login/EmailLoginForm.vue'
 
-import { authReturnTarget } from '~/utils/emailAuth'
-
-import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
-import { isAcquisitionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
+import type { AcquisitionAuthAttribution } from '@slax-reader/contracts/events'
 import type { PropType } from 'vue'
 
 const props = defineProps({
   authAttribution: {
-    type: Object as PropType<WebAuthAttribution>,
+    type: Object as PropType<AcquisitionAuthAttribution>,
     required: false
   },
   redirect: {
@@ -75,11 +56,6 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  modal: Boolean,
-  active: {
-    type: Boolean,
-    default: true
-  },
   // 是否存在邀请段：为真时卡片描边换 accent-soft 并下推登录段
   hasInvite: {
     type: Boolean,
@@ -87,9 +63,7 @@ const props = defineProps({
   }
 })
 
-const nuxtApp = useNuxtApp()
-const { t } = nuxtApp.$i18n
-const auth = useAuth()
+const route = useRoute()
 const runtimeConfig = useRuntimeConfig().public
 const appleLoginEnabled = Boolean(runtimeConfig.APPLE_OAUTH_CLIENT_ID)
 const turnstileEnabled = Boolean(runtimeConfig.TURNSTILE_SITE_KEY)
@@ -101,41 +75,10 @@ const showLoginBtn = computed(() => {
 })
 
 const googleLoginBtn = ref<InstanceType<typeof GoogleLoginButton>>()
+const emailLogin = ref<InstanceType<typeof EmailLoginForm>>()
 
-if (!props.modal && useRoute().query.from === 'homepage') {
+if (route.query.from === 'homepage') {
   googleLoginBtn.value?.login()
-}
-
-const appleAttribution = computed(() => isAcquisitionAuthAttribution(props.authAttribution) ? props.authAttribution : undefined)
-const emailOpen = ref(false)
-const emailForm = ref<InstanceType<typeof EmailCodeForm>>()
-
-const cancelEmail = () => {
-  emailForm.value?.cancel()
-  emailOpen.value = false
-}
-
-defineExpose({ cancelEmail })
-
-const toggleEmail = () => {
-  if (emailOpen.value) {
-    cancelEmail()
-  } else {
-    emailOpen.value = true
-    analyticsLog({ event: 'user_login_start', method: 'email' })
-  }
-}
-
-const verifyEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
-  const target = authReturnTarget(props.redirect, location.origin)
-  await auth.verifyEmailAuth({
-    ...proof,
-    ...(props.affcode ? { aff_code: props.affcode } : {}),
-    ...(props.authAttribution ? { auth_attribution: props.authAttribution } : {})
-  }, { signal, errorInterceptors: () => {} })
-
-  signal.throwIfAborted()
-  if (await nuxtApp.runWithContext(() => navigateTo(target, { external: true })) === false) throw new Error('Login navigation did not complete')
 }
 </script>
 
@@ -250,55 +193,6 @@ const verifyEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
   flex-direction: column;
   gap: 10px;
   margin-bottom: 20px;
-}
-
-.auth-benefits {
-  margin: 0 0 22px;
-  padding: 14px 18px;
-  list-style: none;
-  text-align: start;
-  background: var(--slax-accent-bg);
-  border-radius: var(--slax-radius-sm);
-  color: var(--slax-text);
-  font-size: var(--slax-fs-meta);
-  line-height: 1.5;
-
-  li {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 5px 0;
-  }
-}
-
-.auth-benefit-check {
-  flex: 0 0 14px;
-  color: var(--slax-accent);
-  font-weight: 600;
-}
-
-.email-login-toggle {
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--slax-border-strong);
-  border-radius: var(--slax-radius-sm);
-  background: var(--slax-surface-solid);
-  color: var(--slax-text);
-  font-size: var(--slax-fs-meta);
-  font-weight: 500;
-  cursor: pointer;
-
-  &:hover,
-  &[aria-expanded='true'] {
-    background: var(--slax-accent-bg);
-    border-color: var(--slax-accent-soft);
-  }
-}
-
-.auth-btns :deep(button:focus-visible),
-.auth-tos a:focus-visible {
-  outline: 2px solid var(--slax-accent);
-  outline-offset: 3px;
 }
 
 .auth-tos {

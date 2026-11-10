@@ -40,7 +40,8 @@
 import { emailAuthErrorKey } from '~/utils/emailAuth'
 
 import type { FetchRequest } from '@commons/frontend-utils/request'
-import { EMAIL_AUTH_PATH, type EmailCodeChallenge, type EmailCodeInput } from '@slax-reader/contracts/email-auth'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { EmailCodeChallenge, EmailCodeInput, EmailCodeSendInput } from '@slax-reader/contracts/email-auth'
 
 const props = defineProps<{
   purpose?: 'login' | 'bind'
@@ -95,8 +96,8 @@ const sendCode = async () => {
 
   try {
     const response = await (props.client ?? request()).post<EmailCodeChallenge>({
-      url: EMAIL_AUTH_PATH.send,
-      body: { email: email.value, locale: locale.value, purpose: props.purpose ?? 'login' },
+      url: RESTMethodPath.LOGIN_EMAIL_SEND,
+      body: { email: email.value, locale: locale.value, purpose: props.purpose ?? 'login' } satisfies EmailCodeSendInput,
       signal: controller.signal,
       errorInterceptors: () => {}
     })

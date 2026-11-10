@@ -401,13 +401,9 @@ export function getRouter(container: Container) {
     const controller = container.resolve(UserController)
     return await controller.handleUserLoginRequest(ctx, req)
   })
-  router.post('/v1/user/login/email/send', async (req: Request, ctx: ContextManager) => {
+  router.post('/v1/user/email/send', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)
-    return await controller.handleSendEmailCode(ctx, req)
-  })
-  router.post('/v1/user/bind', async (req: Request, ctx: ContextManager) => {
-    const controller = container.resolve(UserController)
-    return await controller.handleBindLoginIdentity(ctx, req)
+    return await controller.handleSendEmailCodeRequest(ctx, req)
   })
   router.get('/v1/user/me', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)

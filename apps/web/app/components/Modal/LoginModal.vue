@@ -8,14 +8,44 @@
           </svg>
         </button>
 
-        <LoginView ref="loginView" class="modal-login-card" modal :active="appear" :redirect="redirect" :auth-attribution="authAttribution" />
+        <!-- 同 LoginView，bootloader 内自包含 -->
+        <div class="auth-card">
+          <div class="auth-logo">
+            <img src="@images/icon-logo-login.png" :alt="t('common.app.name')" />
+          </div>
+
+          <h1 class="auth-title">{{ t('common.app.name') }}</h1>
+          <p class="auth-subtitle">{{ t('component.login_view.title') }}</p>
+
+          <ul class="auth-benefits">
+            <li v-for="benefit in ['save', 'devices', 'space']" :key="benefit">
+              <span class="auth-benefit-check" aria-hidden="true">✓</span>
+              <span>{{ t(`component.login_view.benefits.${benefit}`) }}</span>
+            </li>
+          </ul>
+
+          <div class="auth-btns">
+            <GoogleLoginButton :redirect="redirect" :auth-attribution="authAttribution" @click.capture="emailLogin?.cancel()" />
+            <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" @click.capture="emailLogin?.cancel()" />
+            <EmailLoginForm ref="emailLogin" :redirect="redirect" :auth-attribution="authAttribution" />
+          </div>
+
+          <p class="auth-tos">
+            {{ t('component.login_view.tos_prefix') }}
+            <a href="/terms" target="_blank" rel="noopener">{{ t('docs.title.terms') }}</a>
+            {{ t('component.login_view.tos_and') }}
+            <a href="/privacy" target="_blank" rel="noopener">{{ t('docs.title.privacy') }}</a>
+          </p>
+        </div>
       </div>
     </Transition>
   </div>
 </template>
 
 <script lang="ts" setup>
-import LoginView from '~/components/global/LoginView.vue'
+import AppleLoginButton from '~/components/AppleLoginButton.vue'
+import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
+import EmailLoginForm from '~/components/Login/EmailLoginForm.vue'
 
 import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
 import type { PropType } from 'vue'
@@ -32,9 +62,12 @@ const props = defineProps({
 })
 
 const emits = defineEmits(['close', 'dismiss', 'success'])
+const runtimeConfig = useRuntimeConfig().public
+const appleLoginEnabled = Boolean(runtimeConfig.APPLE_OAUTH_CLIENT_ID)
+
 const isLocked = useScrollLock(window)
 const appear = ref(false)
-const loginView = ref<InstanceType<typeof LoginView>>()
+const emailLogin = ref<InstanceType<typeof EmailLoginForm>>()
 
 watch(appear, visible => {
   if (visible && props.authAttribution) {
@@ -51,7 +84,7 @@ onMounted(() => {
 })
 
 const closeModal = () => {
-  loginView.value?.cancelEmail()
+  emailLogin.value?.cancel()
   appear.value = false
 }
 
@@ -90,6 +123,7 @@ const t = (text: string) => useNuxtApp().$i18n.t(text)
 .modal-shell {
   position: relative;
   width: min(420px, 100%);
+  user-select: none;
 }
 
 .modal-close {
@@ -115,14 +149,131 @@ const t = (text: string) => useNuxtApp().$i18n.t(text)
   }
 }
 
-.modal-login-card {
+/* ── Auth card ── */
+.auth-card {
+  width: 100%;
+  padding: 40px 36px 32px;
   max-height: calc(100dvh - var(--slax-login-inset-top) - var(--slax-login-inset-bottom));
   overflow-y: auto;
   overscroll-behavior: contain;
+  text-align: center;
+  background: var(--slax-surface-solid);
+  border: 1px solid var(--slax-border);
+  border-radius: var(--slax-radius);
   box-shadow: var(--slax-shadow-modal);
+
+  @media (max-width: 540px) {
+    padding: 28px 20px 24px;
+  }
 }
 
-.modal-close:focus-visible {
+.auth-logo {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  @media (max-width: 540px) {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 16px;
+  }
+}
+
+.auth-title {
+  margin: 0 0 12px;
+  font-family: var(--slax-font-serif);
+  font-weight: 600;
+  font-size: var(--slax-fs-display);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--slax-text);
+
+  @media (max-width: 540px) {
+    font-size: var(--slax-fs-h2);
+  }
+}
+
+.auth-subtitle {
+  margin: 0 0 28px;
+  font-size: var(--slax-fs-meta);
+  line-height: 1.6;
+  color: var(--slax-text-muted);
+
+  @media (max-width: 540px) {
+    font-size: var(--slax-fs-aux);
+    margin-bottom: 24px;
+  }
+}
+
+.auth-benefits {
+  margin: 0 0 22px;
+  padding: 14px 18px;
+  list-style: none;
+  text-align: left;
+  background: var(--slax-accent-bg);
+  border-radius: var(--slax-radius-sm);
+  color: var(--slax-text);
+  font-size: var(--slax-fs-meta);
+  line-height: 1.5;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 5px 0;
+  }
+}
+
+.auth-benefit-check {
+  flex: 0 0 14px;
+  color: var(--slax-accent);
+  font-weight: 600;
+}
+
+.auth-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+
+  :deep(button) {
+    transition-timing-function: var(--slax-ease-spring);
+  }
+}
+
+.auth-tos {
+  margin: 0;
+  font-size: var(--slax-fs-tag);
+  line-height: 1.6;
+  color: var(--slax-text-muted);
+
+  a {
+    color: var(--slax-text-muted);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: var(--slax-border-strong);
+    transition: color var(--slax-dur-fast) var(--slax-ease-spring), text-decoration-color var(--slax-dur-fast) var(--slax-ease-spring);
+
+    &:hover {
+      color: var(--slax-accent);
+      text-decoration-color: var(--slax-accent);
+    }
+  }
+}
+
+.modal-close:focus-visible,
+.auth-btns :deep(button:focus-visible),
+.auth-tos a:focus-visible {
   outline: 2px solid var(--slax-accent);
   outline-offset: 3px;
 }
@@ -143,12 +294,15 @@ const t = (text: string) => useNuxtApp().$i18n.t(text)
   .login-modal,
   .modal-close,
   .modal-enter-active,
-  .modal-leave-active {
+  .modal-leave-active,
+  .auth-btns :deep(button),
+  .auth-tos a {
     transition: none;
   }
 
   .modal-enter-from,
-  .modal-leave-to {
+  .modal-leave-to,
+  .auth-btns :deep(button:active) {
     transform: none;
   }
 }

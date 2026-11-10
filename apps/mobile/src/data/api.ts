@@ -8,7 +8,8 @@ import {throwIfAborted} from '../utils/abort.ts';
 import {SharedRequestCache} from './shared-request.ts';
 import {readArticleBody} from './bounded-body.ts';
 import {PDF_MAX_BYTES} from '@slax-reader/contracts/pdf';
-import {EMAIL_AUTH_PATH, type EmailAuthIdentities, type EmailAuthProviderChallenge, type EmailCodeChallenge, type EmailCodeInput} from '@slax-reader/contracts/email-auth';
+import {RESTMethodPath} from '@slax-reader/contracts/const';
+import {BIND_LOGIN_IDENTITY_SETTING, type EmailAuthIdentities, type EmailAuthProviderChallenge, type EmailCodeChallenge, type EmailCodeInput} from '@slax-reader/contracts/email-auth';
 import {DataTransportError, isNetworkTransportError, httpErrorCode, retryAfterMs, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
 export {DataTransportError, isNetworkTransportError, getDataErrorDiagnostic, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS} from './transport-errors.ts';
 
@@ -46,8 +47,17 @@ export const FEEDBACK_DIAGNOSTIC_MAX_BYTES = 12582912;
 export const FEEDBACK_MULTIPART_OVERHEAD_BYTES = 65536;
 export interface AiEvent { type: string; data?: { overview?: string; outline?: string; tags?: {id: number; name: string}[]; tag?: {id: number; name: string}; key_takeaways?: string[]; done?: boolean }; message?: string }
 export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; getDeviceId?: () => Promise<string>; fetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void>; onFailedExchange?: (exchange: DiagnosticExchange) => void; onAccountSuccess?: (exchange: DiagnosticExchange) => void }
-function diagnosticExchange(path: string, method: string, response: Response, headers: Record<string, string>, started: number, code?: number, body?: unknown): DiagnosticExchange {
-  const provider = path === '/v1/user/login' && body && typeof body === 'object' && 'type' in body && (body.type === 'google' || body.type === 'apple') ? body.type : undefined;
+interface RequestOptions {
+  access?: 'public' | 'required';
+  retryable?: boolean;
+  abortable?: boolean;
+  deviceId?: boolean;
+  timeout?: number;
+  accept?: string;
+  headers?: Record<string, string>;
+  accountDiagnostic?: {provider?: LoginRequest['type']};
+}
+function diagnosticExchange(path: string, method: string, response: Response, headers: Record<string, string>, started: number, code?: number, provider?: LoginRequest['type']): DiagnosticExchange {
   return {http: {method, path: path.split(/[?#]/)[0]!, status: response.status, code: typeof code === 'number' ? code : null, cfRay: response.headers.get('CF-Ray')?.slice(0, 256) ?? null}, headers: {request: redactHeaders(headers, 'request'), response: redactHeaders(response.headers, 'response')}, durationMs: Math.max(0, Date.now() - started), provider};
 }
 function observeExchange(observer: ((exchange: DiagnosticExchange) => void) | undefined, exchange: DiagnosticExchange, error?: unknown) {try {observer?.({...exchange, http: {...exchange.http}, error});} catch {}}
@@ -74,29 +84,22 @@ export class SlaxApi {
     Object.entries(query ?? {}).forEach(([key, value]) => { if (value !== undefined) url.searchParams.set(key, value); });
     return url.toString();
   }
-  private async response(path: string, method: 'GET' | 'POST', body?: unknown, query?: Record<string, string | undefined>, signal?: AbortSignal, timeout = 30000, tokenOverride?: string, accept = 'application/json', extraHeaders?: Record<string, string>): Promise<{response: Response; cleanup: () => void; diagnostic: (code?: number) => DiagnosticExchange | undefined}> {
+  private async response(path: string, method: 'GET' | 'POST', body?: unknown, query?: Record<string, string | undefined>, signal?: AbortSignal, options: RequestOptions = {}): Promise<{response: Response; cleanup: () => void; diagnostic: (code?: number) => DiagnosticExchange | undefined}> {
+    const {access, retryable = true, abortable: abortableResponse, timeout = 30000, accept = 'application/json'} = options;
     throwIfAborted(signal);
     const identity = this.options.sessions.captureIdentity?.(), origin = this.origin;
-    const sendEmail = path === EMAIL_AUTH_PATH.send;
-    const emailLogin = path === '/v1/user/login' && (body as {type?: string} | undefined)?.type === 'email';
-    const bindingCode = sendEmail && (body as {purpose?: string} | undefined)?.purpose === 'bind';
-    const publicLogin = path === '/v1/user/login' || (sendEmail && !bindingCode);
-    const accountAuth = bindingCode || path === EMAIL_AUTH_PATH.bind || path === '/v1/user/bind_link' || path === '/v1/user/userinfo';
-    const authRequest = accountAuth || emailLogin || sendEmail;
-    const report = path === '/v1/user/report';
-    const noRetry = report || authRequest && method === 'POST';
-    const abortableResponse = report || authRequest;
-    if (tokenOverride === undefined && !publicLogin) {
+    if (access !== 'public') {
       const preparation = this.options.sessions.prepareRequest?.() ?? Promise.resolve();
       await (signal ? abortable(preparation, signal) : preparation);
     }
     identity?.(); if (origin !== this.origin) throw new Error('API environment changed');
     throwIfAborted(signal);
-    const scope = publicLogin ? undefined : this.options.sessions.captureRequestScope?.();
-    const session = publicLogin ? null : await (scope ? scope.getSession() : this.options.sessions.getSession());
-    const deviceId = sendEmail || emailLogin ? await this.options.getDeviceId?.() : undefined;
+    const scope = access === 'public' ? undefined : this.options.sessions.captureRequestScope?.();
+    const session = access === 'public' ? null : await (scope ? scope.getSession() : this.options.sessions.getSession());
+    const deviceId = options.deviceId ? await this.options.getDeviceId?.() : undefined;
     scope?.assertCurrent();
-    const requestToken = tokenOverride ?? session?.token;
+    const requestToken = session?.token;
+    if (access === 'required' && !requestToken) throw new ApiError(401, 'Authentication required');
     const url = this.url(path, query);
     for (let attempt = 0; ; attempt++) {
       identity?.(); if (origin !== this.origin) throw new Error('API environment changed');
@@ -110,11 +113,10 @@ export class SlaxApi {
       const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', aborted); };
       const multipart = typeof FormData !== 'undefined' && body instanceof FormData;
       try {
-        if ((report || accountAuth) && !requestToken) throw new ApiError(401, 'Authentication required');
         const headers: Record<string, string> = {
           ...(!multipart ? {'Content-Type': 'application/json'} : {}), Accept: accept, 'User-Agent': `SlaxReader/${this.options.platform} ${this.options.version}`,
           ...(requestToken ? { Authorization: `Bearer ${requestToken}` } : {}),
-          ...(deviceId ? {'X-Device-ID': deviceId} : {}), ...extraHeaders,
+          ...(deviceId ? {'X-Device-ID': deviceId} : {}), ...options.headers,
         }, started = Date.now();
         const pending = this.transport(url, {method, headers, body: multipart ? body : body === undefined ? undefined : JSON.stringify(body), signal: controller.signal, redirect: 'error'});
         if (abortableResponse) void pending.then(value => {if (controller.signal.aborted) void value.body?.cancel().catch(() => undefined);}).catch(() => undefined);
@@ -123,10 +125,10 @@ export class SlaxApi {
           try {identity?.(); scope?.assertCurrent(); if (origin !== this.origin) throw new Error('API environment changed'); throwIfAborted(signal);}
           catch (error) {void response.body?.cancel().catch(() => undefined); throw error;}
         }
-        const diagnostic = (code?: number) => {try {return diagnosticExchange(path, method, response, headers, started, code, multipart ? undefined : body);} catch {return undefined;}};
+        const diagnostic = (code?: number) => {try {return diagnosticExchange(path, method, response, headers, started, code, options.accountDiagnostic?.provider);} catch {return undefined;}};
         if (response.status === 401 && requestToken && new URL(url).origin === this.origin) await this.options.sessions.rejectIfMatches?.(requestToken, scope, diagnostic()?.http);
         const retryAfter = retryAfterMs(response.headers.get('Retry-After'));
-        if (!noRetry && response.status >= 500 && attempt < 2 && !retryAfter) { await response.body?.cancel(); cleanup(); await this.delay(attempt, signal); continue; }
+        if (retryable && response.status >= 500 && attempt < 2 && !retryAfter) { await response.body?.cancel(); cleanup(); await this.delay(attempt, signal); continue; }
         if (response.status !== 200 && response.status !== 204) {
           const envelope = await response.json().catch(() => null) as {message?: string; data?: unknown; code?: number} | null;
           const error = Object.assign(new ApiError(response.status, envelope?.message ?? `Request failed (${response.status})`, envelope?.data), {retryAfterMs: retryAfter});
@@ -138,7 +140,7 @@ export class SlaxApi {
       } catch (error) {
         cleanup();
         if (controller.signal.aborted) {throwIfAborted(signal); throwIfAborted(controller.signal);}
-        if (noRetry || error instanceof ApiError || attempt >= 2) throw error;
+        if (!retryable || error instanceof ApiError || attempt >= 2) throw error;
         await this.delay(attempt, signal);
       }
     }
@@ -148,19 +150,18 @@ export class SlaxApi {
     await (this.options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms))))(1000 * 2 ** attempt);
     throwIfAborted(signal);
   }
-  async request<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown, query?: Record<string, string | undefined>, signal?: AbortSignal, timeout?: number, tokenOverride?: string): Promise<T> {
-    const {response, cleanup, diagnostic} = await this.response(path, method, body, query, signal, timeout, tokenOverride);
+  async request<T>(path: string, method: 'GET' | 'POST' = 'GET', body?: unknown, query?: Record<string, string | undefined>, signal?: AbortSignal, options?: RequestOptions): Promise<T> {
+    const {response, cleanup, diagnostic} = await this.response(path, method, body, query, signal, options);
     try {
       if (response.status === 204) return undefined as T;
       const envelope = await response.json() as ApiResponse<T>;
-      const account = path === '/v1/user/login' || path === '/v1/user/refresh' || path === '/v1/user/delete_my_account';
-      const exchange = envelope.code !== 200 || account ? diagnostic(envelope.code) : undefined;
+      const exchange = envelope.code !== 200 || options?.accountDiagnostic ? diagnostic(envelope.code) : undefined;
       if (envelope.code !== 200) {
         const error = new ApiError(envelope.code, envelope.message, envelope.data);
         if (exchange) {this.failures.set(error, exchange); observeExchange(this.options.onFailedExchange, exchange, error);}
         throw error;
       }
-      if (exchange && (path === '/v1/user/login' || path === '/v1/user/delete_my_account')) {
+      if (exchange && options?.accountDiagnostic) {
         try {
           const data = envelope.data as {canDelete?: boolean; reason?: string | null} | null;
           observeExchange(this.options.onAccountSuccess, {...exchange, canDelete: typeof data?.canDelete === 'boolean' ? data.canDelete : undefined, reason: typeof data?.reason === 'string' ? data.reason : null});
@@ -261,11 +262,13 @@ export class SlaxApi {
     try {return await this.request<JsonValue>(`/v1/user/setting/${enabled ? 'enable' : 'disable'}`, 'POST', {key: `lab:${key}`}, undefined, signal);}
     finally {this.labs.invalidate();}
   };
-  login = (params: LoginRequest, signal?: AbortSignal) => this.request<LoginResponse>('/v1/user/login', 'POST', params, undefined, signal);
+  login = (params: LoginRequest, signal?: AbortSignal) => this.request<LoginResponse>(RESTMethodPath.LOGIN, 'POST', params, undefined, signal, {access: 'public', accountDiagnostic: {provider: params.type}});
   sendLoginEmail = (body: SendEmailCode, signal?: AbortSignal) => this.requestEmailCode('login', body, signal);
   sendBindingEmail = (body: SendEmailCode, signal?: AbortSignal) => this.requestEmailCode('bind', body, signal);
   private async requestEmailCode(purpose: 'login' | 'bind', body: SendEmailCode, signal?: AbortSignal) {
-    const result = await this.request<EmailCodeChallenge>(EMAIL_AUTH_PATH.send, 'POST', {...body, purpose}, undefined, signal);
+    const result = await this.request<EmailCodeChallenge>(RESTMethodPath.LOGIN_EMAIL_SEND, 'POST', {...body, purpose}, undefined, signal, {
+      access: purpose === 'login' ? 'public' : 'required', retryable: false, abortable: true, deviceId: true,
+    });
     if (typeof result?.request_id !== 'string' || !result.request_id
       || !Number.isFinite(result.expires_in) || result.expires_in <= 0
       || !Number.isFinite(result.resend_after) || result.resend_after < 0) {
@@ -274,14 +277,16 @@ export class SlaxApi {
     return result;
   }
   verifyLoginEmail = async (body: EmailCodeInput, signal?: AbortSignal) => {
-    const result = await this.request<LoginResponse>('/v1/user/login', 'POST', {...body, type: 'email'}, undefined, signal);
+    const result = await this.request<LoginResponse>(RESTMethodPath.LOGIN, 'POST', {...body, type: 'email'}, undefined, signal, {
+      access: 'public', retryable: false, abortable: true, deviceId: true, accountDiagnostic: {},
+    });
     if (typeof result?.token !== 'string' || !result.token || typeof result.user_id !== 'string' || !result.user_id) {
       throw new ApiError(502, 'Invalid email login session response');
     }
     return result;
   };
   getLoginIdentities = async (signal?: AbortSignal) => {
-    const {login_identities: result} = await this.request<{login_identities?: EmailAuthIdentities}>('/v1/user/userinfo', 'GET', undefined, undefined, signal);
+    const {login_identities: result} = await this.request<{login_identities?: EmailAuthIdentities}>(RESTMethodPath.USER_INFO, 'GET', undefined, undefined, signal, {access: 'required', abortable: true});
     if (typeof result?.enabled !== 'boolean' || (result.email !== null && typeof result.email !== 'string')
       || typeof result.show_email_binding !== 'boolean' || typeof result.google !== 'boolean' || typeof result.apple !== 'boolean') {
       throw new ApiError(502, 'Invalid sign-in methods response');
@@ -289,19 +294,19 @@ export class SlaxApi {
     return result;
   };
   verifyBindingEmail = async (body: EmailCodeInput, signal?: AbortSignal) => {
-    const result = await this.request<{email: string}>(EMAIL_AUTH_PATH.bind, 'POST', {...body, type: 'email'}, undefined, signal);
+    const result = await this.request<{email: string}>(RESTMethodPath.USER_INFO_SETTING, 'POST', {key: BIND_LOGIN_IDENTITY_SETTING, value: {...body, type: 'email'}}, undefined, signal, {access: 'required', retryable: false, abortable: true});
     if (typeof result?.email !== 'string' || !result.email) throw new ApiError(502, 'Invalid email binding response');
     return result;
   };
   startProviderLink = async (body: NativeProvider, signal?: AbortSignal) => {
-    const result = await this.request<EmailAuthProviderChallenge>('/v1/user/bind_link', 'POST', {platform: body.type, client_platform: body.platform}, undefined, signal);
-    if (typeof result?.state !== 'string' || !result.state || typeof result.nonce !== 'string' || !result.nonce) {
+    const result = await this.request<EmailAuthProviderChallenge>(RESTMethodPath.GET_BIND_LINK, 'POST', {platform: body.type, client_platform: body.platform}, undefined, signal, {access: 'required', retryable: false, abortable: true});
+    if (result?.type !== body.type || typeof result.state !== 'string' || !result.state || typeof result.nonce !== 'string' || !result.nonce) {
       throw new ApiError(502, 'Invalid provider linking challenge');
     }
     return result;
   };
   finishProviderLink = async (body: LoginRequest & NativeProvider & {state: string}, signal?: AbortSignal) => {
-    const result = await this.request<{linked: true}>(EMAIL_AUTH_PATH.bind, 'POST', body, undefined, signal);
+    const result = await this.request<{linked: true}>(RESTMethodPath.USER_INFO_SETTING, 'POST', {key: BIND_LOGIN_IDENTITY_SETTING, value: body}, undefined, signal, {access: 'required', retryable: false, abortable: true});
     if (result?.linked !== true) throw new ApiError(502, 'Invalid provider linking response');
     return result;
   };
@@ -318,7 +323,7 @@ export class SlaxApi {
     const headers = {'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}`}, started = Date.now();
     try {
       check();
-      try {response = await abortable(this.transport(this.url('/v1/user/refresh'), {method: 'POST', redirect: 'error', signal: controller.signal, headers}), controller.signal);}
+      try {response = await abortable(this.transport(this.url(RESTMethodPath.TOKEN_REFRESH), {method: 'POST', redirect: 'error', signal: controller.signal, headers}), controller.signal);}
       catch {check(); throw new DataTransportError('network', 'api');}
       check();
       if (response.status !== 200) throw new ApiError(response.status, `Session refresh failed (${response.status})`);
@@ -326,11 +331,11 @@ export class SlaxApi {
       code = value.code;
       if (value.code !== 200) throw new ApiError(value.code, 'Session refresh failed');
       if (typeof value.data?.token !== 'string' || !value.data.token) throw new ApiError(502, 'Invalid session refresh response');
-      try {observeExchange(this.options.onAccountSuccess, diagnosticExchange('/v1/user/refresh', 'POST', response, headers, started, code));} catch {}
+      try {observeExchange(this.options.onAccountSuccess, diagnosticExchange(RESTMethodPath.TOKEN_REFRESH, 'POST', response, headers, started, code));} catch {}
       return value.data.token;
     } catch (error) {
       check();
-      try {if (response && error instanceof ApiError) {const exchange = diagnosticExchange('/v1/user/refresh', 'POST', response, headers, started, code); this.failures.set(error, exchange); observeExchange(this.options.onFailedExchange, exchange, error);}} catch {}
+      try {if (response && error instanceof ApiError) {const exchange = diagnosticExchange(RESTMethodPath.TOKEN_REFRESH, 'POST', response, headers, started, code); this.failures.set(error, exchange); observeExchange(this.options.onFailedExchange, exchange, error);}} catch {}
       throw error;
     }
     finally {clearTimeout(timer); signal?.removeEventListener('abort', abort); if (response?.body && !response.body.locked) void response.body.cancel().catch(() => undefined);}
@@ -346,7 +351,7 @@ export class SlaxApi {
   getSyncToken = (signal?: AbortSignal) => this.request<SyncCredentials>('/v1/sync/token', 'POST', undefined, undefined, signal);
   uploadChanges = (changes: SyncChange[]) => this.request<{status: boolean}>('/v1/sync/changes', 'POST', changes);
   async getBookmarkRawContent(bookmarkId: string, signal?: AbortSignal): Promise<string> {
-    const {response, cleanup} = await this.response('/v1/bookmark/content', 'POST', {bookmark_uid: bookmarkId}, undefined, signal, undefined, undefined, '*/*');
+    const {response, cleanup} = await this.response('/v1/bookmark/content', 'POST', {bookmark_uid: bookmarkId}, undefined, signal, {accept: '*/*'});
     try { return await readArticleBody(response, signal); } finally { cleanup(); }
   }
   getCollectionBookmarkRawContent(bookmarkId: string, ownerId: string, signal?: AbortSignal): Promise<string> {
@@ -371,16 +376,16 @@ export class SlaxApi {
   };
   rssEnable = (enabled: boolean, signal?: AbortSignal) => this.setLab('rss', enabled, signal);
   rssSubscriptions = (signal?: AbortSignal) => this.request<RssSubscriptionsResponse>('/v1/rss/subscriptions', 'GET', undefined, undefined, signal);
-  rssAdd = (url: string, remark: string | null = null, signal?: AbortSignal) => this.request<RssSubscription>('/v1/rss/subscriptions', 'POST', {url, remark} satisfies AddRssSubscriptionRequest, undefined, signal, 120000);
+  rssAdd = (url: string, remark: string | null = null, signal?: AbortSignal) => this.request<RssSubscription>('/v1/rss/subscriptions', 'POST', {url, remark} satisfies AddRssSubscriptionRequest, undefined, signal, {timeout: 120000});
   rssUpdate = (id: string, remark: string | null, signal?: AbortSignal) => this.request<RssSubscription>(`/v1/rss/subscriptions/${encodeURIComponent(id)}/update`, 'POST', {remark} satisfies UpdateRssSubscriptionRequest, undefined, signal);
   rssRemove = (id: string, signal?: AbortSignal) => this.request<JsonValue>(`/v1/rss/subscriptions/${encodeURIComponent(id)}/delete`, 'POST', undefined, undefined, signal);
   rssRefresh = (id: string, signal?: AbortSignal) => this.request<RssRefreshResponse>(`/v1/rss/subscriptions/${encodeURIComponent(id)}/refresh`, 'POST', undefined, undefined, signal);
-  rssEntries = (subscriptionId?: string, cursor?: string, fetchHistory = false, signal?: AbortSignal, before?: string) => this.request<RssEntriesResponse>('/v1/rss/entries', 'GET', undefined, {subscription_id: subscriptionId, cursor, before, limit: '20', fetch_history: fetchHistory ? '1' : undefined}, signal, fetchHistory ? 120000 : undefined);
+  rssEntries = (subscriptionId?: string, cursor?: string, fetchHistory = false, signal?: AbortSignal, before?: string) => this.request<RssEntriesResponse>('/v1/rss/entries', 'GET', undefined, {subscription_id: subscriptionId, cursor, before, limit: '20', fetch_history: fetchHistory ? '1' : undefined}, signal, fetchHistory ? {timeout: 120000} : undefined);
   rssDetail = (id: string, signal?: AbortSignal) => this.request<RssEntryDetail>(`/v1/rss/entries/${encodeURIComponent(id)}`, 'GET', undefined, undefined, signal);
   rssSave = (id: string, signal?: AbortSignal) => this.request<RssSaveResponse>(`/v1/rss/entries/${encodeURIComponent(id)}/save`, 'POST', undefined, undefined, signal);
   getIAPProductIds = (signal?: AbortSignal) => this.request<{products: string[]}>('/v1/subscription/apple_inapp_products', 'GET', undefined, undefined, signal);
   checkIapResult = (params: CheckPurchase, signal?: AbortSignal) => this.request<{ok: boolean}>('/v1/subscription/check_inapp_purchase', 'POST', params, undefined, signal);
-  deleteAccount = (signal?: AbortSignal) => this.request<{canDelete: boolean; reason?: DeleteAccountReason | null}>('/v1/user/delete_my_account', 'POST', undefined, undefined, signal);
+  deleteAccount = (signal?: AbortSignal) => this.request<{canDelete: boolean; reason?: DeleteAccountReason | null}>(RESTMethodPath.DELETE_MY_ACCOUNT, 'POST', undefined, undefined, signal, {accountDiagnostic: {}});
   captureFeedbackOwner = () => {
     const identity = this.options.sessions.captureIdentity?.(), origin = this.origin;
     return () => {identity?.(); if (this.origin !== origin) throw new Error('API environment changed');};
@@ -398,22 +403,24 @@ export class SlaxApi {
       form.append('report', report); form.append('diagnostic_log', upload.file, upload.filename);
       body = form;
     }
-    const result = this.request<string>('/v1/user/report', 'POST', body, undefined, signal, upload ? PDF_REQUEST_TIMEOUT_MS : undefined);
+    const result = this.request<string>(RESTMethodPath.REPORT_FEEDBACK, 'POST', body, undefined, signal, {
+      access: 'required', retryable: false, abortable: true, timeout: upload ? PDF_REQUEST_TIMEOUT_MS : undefined,
+    });
     try {const value = await (signal ? abortable(result, signal) : result); current(); throwIfAborted(signal); return value;}
     catch (error) {current(); throwIfAborted(signal); throw error;}
   };
   async sendClientEvents(deviceId: string, events: {event_name: string; occurred_at: string; properties: Record<string, string>}[]): Promise<void> {
-    const {response, cleanup} = await this.response('/events', 'POST', {events}, undefined, undefined, undefined, undefined, '*/*', {'X-Device-ID': deviceId, 'X-CLIENT-TYPE': this.options.platform, 'X-CLIENT-VERSION': this.options.version});
+    const {response, cleanup} = await this.response('/events', 'POST', {events}, undefined, undefined, {accept: '*/*', headers: {'X-Device-ID': deviceId, 'X-CLIENT-TYPE': this.options.platform, 'X-CLIENT-VERSION': this.options.version}});
     try { await response.body?.cancel(); } finally { cleanup(); }
   }
   async sendMetrics(type: 'heartbeat' | 'ai_overview' | 'ai_summary'): Promise<void> {
     try {
-      const {response, cleanup} = await this.response('/m', 'GET', undefined, undefined, undefined, undefined, undefined, '*/*', {'X-CLIENT-TYPE': this.options.platform, 'X-ACTION-TYPE': type, 'X-CLIENT-VERSION': this.options.version});
+      const {response, cleanup} = await this.response('/m', 'GET', undefined, undefined, undefined, {accept: '*/*', headers: {'X-CLIENT-TYPE': this.options.platform, 'X-ACTION-TYPE': type, 'X-CLIENT-VERSION': this.options.version}});
       try { await response.body?.cancel(); } finally { cleanup(); }
     } catch { /* Source metrics are best effort and cannot interrupt reader behavior. */ }
   }
   async *streamAi(kind: 'overview' | 'outline', bookmarkId: string, signal?: AbortSignal): AsyncGenerator<AiEvent> {
-    const {response, cleanup} = await this.response(`/v1/bookmark/${kind}`, 'POST', {bookmark_uid: bookmarkId, force: false}, undefined, signal, 120000, undefined, 'text/event-stream');
+    const {response, cleanup} = await this.response(`/v1/bookmark/${kind}`, 'POST', {bookmark_uid: bookmarkId, force: false}, undefined, signal, {timeout: 120000, accept: 'text/event-stream'});
     if (!response.body) { cleanup(); throw new Error('Streaming transport is unavailable'); }
     const reader = response.body.getReader();
     const cancelled = () => { void reader.cancel(signal?.reason).catch(() => undefined); };

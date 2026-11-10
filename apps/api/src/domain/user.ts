@@ -19,7 +19,7 @@ import { subscriptionPO, SubscriptionRepo } from '@/infra/repository/dbSubscript
 import { inject, injectable } from '@/decorators/di'
 import type { LazyInstance } from '@/decorators/lazy'
 import { BucketClient } from '@/infra/repository/bucketClient'
-import { AuthChallengeRepo } from '@/infra/repository/authChallengeRepo'
+import { RedisOAuthState } from '@/infra/repository/redisOAuthState'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
 import { i18n } from '@/const/i18n'
 import { ContextManager } from '@/utils/context'
@@ -39,9 +39,17 @@ import { hashMD5, hashSHA256 } from '@/utils/strings'
 import { diagnosticDownloadUrl, downloadDiagnostic, uploadDiagnostic, type DiagnosticAttachment } from '@/utils/diagnosticAttachment'
 import { isCollectionAuthAttribution, type AcquisitionAuthAttribution, type CollectionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import { z } from 'zod'
-import type { EmailAuthIdentities, EmailAuthProviderChallenge, EmailCodeInput } from '@slax-reader/contracts/email-auth'
+import {
+  BIND_LOGIN_IDENTITY_SETTING,
+  type EmailAuthClientPlatform,
+  type EmailAuthIdentities,
+  type EmailAuthProvider,
+  type EmailLoginRequest
+} from '@slax-reader/contracts/email-auth'
 import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
-import { EmailAuthentication } from './emailAuthentication'
+import { EmailCodeService, type EmailCodeSendContext } from './emailCode'
+import { LoginIdentityService } from './loginIdentityService'
+import { LoginIdentityBindingService } from './loginIdentityBindingService'
 
 const collectionAuthAttributionSchema = z.object({
   collection_id: z
@@ -166,6 +174,8 @@ export interface userLoginReq {
   siteverify_code?: string
 }
 
+type UserLoginRequest = userLoginReq | EmailLoginRequest
+
 export enum SubscriptionType {
   NO_SUBSCRIPTION = 0,
   FREE_SUBSCRIPTION = 1,
@@ -193,11 +203,13 @@ export class UserService {
     @inject(SubscriptionRepo) private subscriptionRepo: SubscriptionRepo,
     @inject(CollectionRepo) private collectionRepo: CollectionRepo,
     @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
-    @inject(AuthChallengeRepo) private challenges: AuthChallengeRepo,
+    @inject(RedisOAuthState) private oauthState: RedisOAuthState,
     @inject(GA4AnalyticsClient) private ga4Client: GA4AnalyticsClient,
     @inject(LogsService) private logsService: LogsService,
     @inject(LabService) private labService: LabService,
-    @inject(EmailAuthentication) private emailAuth: EmailAuthentication
+    @inject(EmailCodeService) private emailCodes: EmailCodeService,
+    @inject(LoginIdentityService) private loginIdentities: LoginIdentityService,
+    @inject(LoginIdentityBindingService) private identityBinding: LoginIdentityBindingService
   ) {
     this.userRepoData = userRepo
     this.reportRepoData = reportRepo
@@ -220,13 +232,13 @@ export class UserService {
     const profile = UserService.getUserReuqestInfo(request, { email, name, picture, given_name, family_name, last_login_at: new Date() } as userInfoPO)
     const avatar = await this.bucketClient().putRemoteIfKeyExists(picture, 'image/avartar')
     if (avatar) profile.picture = `${ctx.env.IMAGE_PREFIX}${avatar.key}`
-    const { user, isNew } = await this.userRepo.signInWithProvider(req.type, identity.sub, profile)
+    const { user, isNew } = await this.loginIdentities.signInWithProvider(req.type, identity.sub, profile)
     return this.completeLogin(ctx, request, user, isNew, req.type)
   }
 
   private async loginByVerifiedEmail(ctx: ContextManager, request: Request, key: string, deliveryEmail: string) {
     const profile = UserService.getUserReuqestInfo(request, { email: deliveryEmail, lang: 'en', last_login_at: new Date() } as userInfoPO)
-    const { user, isNew } = await this.userRepo.signInWithEmail(key, deliveryEmail, profile)
+    const { user, isNew } = await this.loginIdentities.signInWithEmail(key, deliveryEmail, profile)
     return this.completeLogin(ctx, request, user, isNew, 'email')
   }
 
@@ -273,7 +285,9 @@ export class UserService {
    * @param data
    * @returns
    */
-  public async saveUserSetting(ctx: ContextManager, data: { key: string; value: string }): Promise<undefined> {
+  public async saveUserSetting(ctx: ContextManager, data: { key: string; value: unknown }) {
+    if (data.key === BIND_LOGIN_IDENTITY_SETTING) return this.identityBinding.bind(ctx, data.value)
+    if (typeof data.value !== 'string') throw ErrorParam()
     if (data.key === 'account') {
       // 判断唯一、长度、是不是特定字符
       await this.userRepo.getInfo({ account: data.value })
@@ -548,6 +562,7 @@ export class UserService {
     ])
 
     const subInfo = UserService.getUserSubscriptionInfoWithPO(ctx.env, subInfoPO)
+    const emailAuthEnabled = Boolean(ctx.env.RESEND_API_KEY?.trim())
     const ai_lang = user.ai_lang ? user.ai_lang : user.lang ? user.lang : 'en'
 
     return {
@@ -560,7 +575,13 @@ export class UserService {
       avatar: user.picture,
       uuid: user.uuid,
       id: ctx.hashIds.encodeId(ctx.getUserId()),
-      login_identities: this.emailAuth.identities(ctx, bindList),
+      login_identities: {
+        enabled: emailAuthEnabled,
+        show_email_binding: emailAuthEnabled && ctx.env.RUN_TYPE === 'dev',
+        email: bindList.find(item => item.platform === platformBindType.MAIL)?.user_name ?? null,
+        google: bindList.some(item => item.platform === platformBindType.GOOGLE),
+        apple: bindList.some(item => item.platform === platformBindType.APPLE)
+      },
       platform: bindList
         .filter(item => item.platform !== platformBindType.MAIL)
         .map(item => {
@@ -640,10 +661,17 @@ export class UserService {
     return userInfo
   }
 
+  public async sendEmailCode(ctx: ContextManager, email: string, scope: EmailCodeSendContext) {
+    const emailKey = email.toLowerCase()
+    const deliveryEmail = scope.purpose === 'login' ? ((await this.userRepo.getLoginEmailRecipient(emailKey)) ?? email) : email
+    return this.emailCodes.sendCode(ctx.env, { ...scope, emailKey, deliveryEmail })
+  }
+
   public async userLogin(ctx: ContextManager, request: Request): Promise<userLoginResp> {
-    const req = await RequestUtils.json<userLoginReq | (EmailCodeInput & { type: 'email'; auth_attribution?: unknown })>(request)
+    const req = await RequestUtils.json<UserLoginRequest>(request)
+    if (!req) throw ErrorParam()
     if (req.type === 'email') {
-      const { key, delivery } = await this.emailAuth.verifyEmail(ctx, req, 'login')
+      const { key, delivery } = await this.emailCodes.verifyCode(ctx.env, { ...req, purpose: 'login' })
       const result = await this.loginByVerifiedEmail(ctx, request, key, delivery)
       return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(req.auth_attribution).data)
     }
@@ -683,7 +711,7 @@ export class UserService {
     return result
   }
 
-  public async getBindLink(ctx: ContextManager, type: string, clientPlatform?: unknown): Promise<string | EmailAuthProviderChallenge> {
+  public async getBindLink(ctx: ContextManager, type: 'telegram' | 'twitter'): Promise<string> {
     if (type === 'telegram') {
       return this.getBindTelegramLink(ctx)
     } else if (type === 'twitter') {
@@ -696,7 +724,7 @@ export class UserService {
       const xSrv = new TwitterOAuth2(ctx.env)
       const authRes = await xSrv.generateAuthUrl()
 
-      await this.challenges.saveTwitter(
+      await this.oauthState.saveTwitter(
         authRes.state,
         {
           userId: userId,
@@ -707,11 +735,13 @@ export class UserService {
       )
 
       return authRes.url
-    } else if (type === 'google' || type === 'apple') {
-      return this.emailAuth.startProvider(ctx, { type, platform: clientPlatform })
     } else {
       throw ErrorParam()
     }
+  }
+
+  public getProviderBindLink(ctx: ContextManager, type: EmailAuthProvider, platform: EmailAuthClientPlatform) {
+    return this.identityBinding.startProvider(ctx, type, platform)
   }
 
   public async checkDeleteAccountConstraints(userId: number): Promise<{ canDelete: boolean; reason?: string }> {
@@ -742,7 +772,7 @@ export class UserService {
     }
 
     if (!/^[A-Za-z0-9._~-]{16,128}$/.test(state) || !code) throw OAuth2StateExpiredError()
-    const oauthData = await this.challenges.consumeTwitter(state)
+    const oauthData = await this.oauthState.consumeTwitter(state)
     if (!oauthData || !Number.isFinite(oauthData.createdAt) || Date.now() - oauthData.createdAt > 600000 || oauthData.createdAt > Date.now()) throw OAuth2StateExpiredError()
 
     const userId = oauthData.userId
@@ -755,6 +785,7 @@ export class UserService {
       tokenResponse = await twitterOAuth.handleCallback({ code, state }, oauthData.codeVerifier, state)
     } catch (error) {
       console.error('[Twitter OAuth] Token exchange failed:', error)
+      await this.oauthState.deleteTwitter(state)
       throw OAuth2TokenExchangeError()
     }
 
@@ -763,6 +794,7 @@ export class UserService {
       twitterUser = await twitterOAuth.getUser(tokenResponse.accessToken)
     } catch (error) {
       console.error('[Twitter OAuth] Get user info failed:', error)
+      await this.oauthState.deleteTwitter(state)
       throw OAuth2UserInfoError()
     }
 
@@ -773,12 +805,15 @@ export class UserService {
       }
     } catch (error: any) {
       if (error.name !== 'UNKNOWN_BIND_USER_ERROR') {
+        await this.oauthState.deleteTwitter(state)
         throw error
       }
     }
 
     await this.userRepoData.requireActiveUser(userId)
     await this.userRepoData.userBindPlatform(userId, platformBindType.TWITTER, twitterUser.id, twitterUser.username)
+
+    await this.oauthState.deleteTwitter(state)
 
     console.log(`[Twitter OAuth] User ${userId} bound to Twitter @${twitterUser.username}`)
   }

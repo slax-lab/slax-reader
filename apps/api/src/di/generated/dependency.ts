@@ -39,18 +39,21 @@ import { VectorMaintenanceService } from '../../domain/vectorMaintenance'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
-import { AuthChallengeRepo } from '../../infra/repository/authChallengeRepo'
+import { RedisEmailChallenge } from '../../infra/repository/redisEmailChallenge'
 import { HybridSearchRepo } from '../../infra/repository/dbHybridSearch'
 import { VectorEmbeddingClient } from '../../infra/external/vectorEmbedding'
 import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
+import { LoginIdentityService } from '../../domain/loginIdentityService'
+import { EmailCodeService } from '../../domain/emailCode'
+import { RedisOAuthState } from '../../infra/repository/redisOAuthState'
 import { VectorMaintenanceRepo } from '../../infra/repository/dbVectorMaintenance'
 import { MediaBodyService } from '../../domain/mediaBody'
 import { RssRepo } from '../../infra/repository/dbRss'
 import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
-import { EmailAuthentication } from '../../domain/emailAuthentication'
+import { LoginIdentityBindingService } from '../../domain/loginIdentityBindingService'
 import { VectorSourceRepo } from '../../infra/repository/vectorSources'
 import { VectorIndexClient } from '../../infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '../../infra/repository/vectorPreferenceClient'
@@ -211,8 +214,8 @@ container.register(EmailService, {
   useFactory: container => new EmailService(container.resolve(UserRepo))
 })
 
-container.register(EmailAuthentication, {
-  useFactory: container => new EmailAuthentication(container.resolve(UserRepo), container.resolve(AuthChallengeRepo))
+container.register(EmailCodeService, {
+  useFactory: container => new EmailCodeService(container.resolve(RedisEmailChallenge))
 })
 
 container.register(HybridSearchService, {
@@ -239,6 +242,14 @@ container.register(ImportService, {
 
 container.register(LabService, {
   useFactory: container => new LabService(container.resolve(LabRepo))
+})
+
+container.register(LoginIdentityBindingService, {
+  useFactory: container => new LoginIdentityBindingService(container.resolve(LoginIdentityService), container.resolve(EmailCodeService), container.resolve(RedisOAuthState))
+})
+
+container.register(LoginIdentityService, {
+  useFactory: container => new LoginIdentityService(container.resolve(UserRepo))
 })
 
 container.register(LogsService, {
@@ -383,11 +394,13 @@ container.register(UserService, {
       container.resolve(SubscriptionRepo),
       container.resolve(CollectionRepo),
       container.resolve(BookmarkRepo),
-      container.resolve(AuthChallengeRepo),
+      container.resolve(RedisOAuthState),
       container.resolve(GA4AnalyticsClient),
       container.resolve(LogsService),
       container.resolve(LabService),
-      container.resolve(EmailAuthentication)
+      container.resolve(EmailCodeService),
+      container.resolve(LoginIdentityService),
+      container.resolve(LoginIdentityBindingService)
     )
 })
 
@@ -629,10 +642,6 @@ container.register(QueueClient, {
   useClass: QueueClient
 })
 
-container.register(AuthChallengeRepo, {
-  useFactory: container => new AuthChallengeRepo(lazy(() => container.resolve(RedisClient)))
-})
-
 container.register(BucketClient, {
   useClass: BucketClient
 })
@@ -743,6 +752,14 @@ container.register(KVClient, {
 
 container.register(RedisClient, {
   useClass: RedisClient
+})
+
+container.register(RedisEmailChallenge, {
+  useFactory: container => new RedisEmailChallenge(lazy(() => container.resolve(RedisClient)))
+})
+
+container.register(RedisOAuthState, {
+  useFactory: container => new RedisOAuthState(lazy(() => container.resolve(RedisClient)))
 })
 
 container.register(VectorIndexClient, {
@@ -877,8 +894,7 @@ container.register(UserController, {
       container.resolve(BookmarkOrchestrator),
       container.resolve(QueueClient),
       container.resolve(UserDeletionService),
-      container.resolve(LabService),
-      container.resolve(EmailAuthentication)
+      container.resolve(LabService)
     )
 })
 

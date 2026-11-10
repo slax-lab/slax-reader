@@ -1,9 +1,10 @@
 import { timingSafeEqual } from 'node:crypto'
-import type { EmailCodeChallenge } from '@slax-reader/contracts/email-auth'
-import { EmailAuthUnavailableError, EmailVerifyCodeError, EmailVerifyCodeRateLimitError, ErrorParam, TooManyRequestsError } from '../const/err'
-import { resendDeliveryRejected } from '../infra/external/resend'
-import type { AuthChallengeRepo, EmailChallenge, EmailChallengeKey } from '../infra/repository/authChallengeRepo'
-import { hashSHA256 } from '../utils/strings'
+import type { EmailCodeChallenge, EmailCodeInput } from '@slax-reader/contracts/email-auth'
+import { EmailAuthUnavailableError, EmailVerifyCodeError, EmailVerifyCodeRateLimitError, ErrorParam, TooManyRequestsError } from '@/const/err'
+import { inject, injectable } from '@/decorators/di'
+import { sendResendEmail } from '@/infra/external/resend'
+import { RedisEmailChallenge, type EmailChallenge, type EmailChallengeKey } from '@/infra/repository/redisEmailChallenge'
+import { hashSHA256 } from '@/utils/strings'
 
 const CHALLENGE_TTL = 300
 const RESEND_COOLDOWN = 60
@@ -16,9 +17,10 @@ const HOUR = 60 * 60
 const DAY = 24 * HOUR
 const DEFAULT_FROM = 'Slax Reader <noreply@reader.slax.com>'
 
-type Scope = { purpose: 'login' | 'bind'; emailKey: string; userId?: number }
-type SendInput = Scope & { deliveryEmail: string; clientIp: string; deviceId: string; locale?: string }
-type VerifyInput = Scope & { requestId: string; code: string }
+type Scope = { purpose: 'login' | 'bind'; userId?: number }
+export type EmailCodeSendContext = Scope & { clientIp: string; deviceId: string; locale?: string }
+type SendInput = EmailCodeSendContext & { emailKey: string; deliveryEmail: string }
+type VerifyInput = Scope & EmailCodeInput
 
 function newCode(): string {
   const range = 1_000_000
@@ -43,16 +45,13 @@ function emailContent(code: string, locale?: string) {
   }
 }
 
+@injectable()
 export class EmailCodeService {
-  constructor(
-    private readonly env: Env,
-    private readonly challenges: AuthChallengeRepo,
-    private readonly send?: typeof fetch
-  ) {}
+  constructor(@inject(RedisEmailChallenge) private readonly challenges: RedisEmailChallenge) {}
 
-  async sendCode(input: SendInput): Promise<EmailCodeChallenge> {
+  async sendCode(env: Env, input: SendInput, send?: typeof fetch): Promise<EmailCodeChallenge> {
     if (input.purpose === 'bind' && input.userId === undefined) throw ErrorParam()
-    const apiKey = this.env.RESEND_API_KEY?.trim()
+    const apiKey = env.RESEND_API_KEY?.trim()
     if (!apiKey) throw EmailAuthUnavailableError()
     const code = newCode()
     const requestId = crypto.randomUUID()
@@ -62,7 +61,7 @@ export class EmailCodeService {
       hashSHA256(input.deviceId),
       hashSHA256(`${requestId}:${code}`)
     ])
-    const environment = this.env.RUN_TYPE
+    const environment = env.RUN_TYPE
     const scope: EmailChallengeKey = { environment, purpose: input.purpose, addressHash }
 
     const [ipCount, deviceCount] = await Promise.all([
@@ -78,11 +77,13 @@ export class EmailCodeService {
     await this.challenges.saveEmail(scope, challenge, CHALLENGE_TTL)
 
     const email = {
-      from: this.env.EMAIL_AUTH_FROM?.trim() || DEFAULT_FROM,
+      from: env.EMAIL_AUTH_FROM?.trim() || DEFAULT_FROM,
       to: [input.deliveryEmail],
       ...emailContent(code, input.locale)
     }
-    if (await resendDeliveryRejected(apiKey, requestId, email, this.send)) {
+    const outcome = await sendResendEmail(apiKey, requestId, email, send)
+    // A timeout, idempotency conflict, or upstream error can follow acceptance.
+    if (outcome && !outcome.ok && outcome.status < 500 && outcome.status !== 408 && outcome.status !== 409) {
       await this.challenges.removeEmail(scope, challenge)
       throw EmailAuthUnavailableError()
     }
@@ -90,22 +91,25 @@ export class EmailCodeService {
     return { request_id: requestId, expires_in: CHALLENGE_TTL, resend_after: RESEND_COOLDOWN }
   }
 
-  async verifyCode(input: VerifyInput): Promise<string> {
+  async verifyCode(env: Env, input: VerifyInput): Promise<{ key: string; delivery: string }> {
     if (input.purpose === 'bind' && input.userId === undefined) throw EmailVerifyCodeError()
-    const addressHash = await hashSHA256(input.emailKey)
-    const environment = this.env.RUN_TYPE
+    const { email, request_id: requestId, code } = input
+    if (typeof email !== 'string' || typeof requestId !== 'string' || typeof code !== 'string') throw ErrorParam()
+    const key = email.trim().toLowerCase()
+    const addressHash = await hashSHA256(key)
+    const environment = env.RUN_TYPE
     const scope: EmailChallengeKey = { environment, purpose: input.purpose, addressHash }
     const challenge = await this.challenges.readEmail(scope)
-    if (!challenge || challenge.requestId !== input.requestId || challenge.userId !== input.userId) throw EmailVerifyCodeError()
+    if (!challenge || challenge.requestId !== requestId || challenge.userId !== input.userId) throw EmailVerifyCodeError()
 
-    const attempt = await this.challenges.countEmailAttempt(environment, input.requestId, CHALLENGE_TTL)
+    const attempt = await this.challenges.countEmailAttempt(environment, requestId, CHALLENGE_TTL)
     if (attempt > MAX_ATTEMPTS) throw EmailVerifyCodeRateLimitError()
-    const codeDigest = await hashSHA256(`${input.requestId}:${input.code}`)
+    const codeDigest = await hashSHA256(`${requestId}:${code}`)
     if (!timingSafeEqual(Buffer.from(challenge.digest, 'hex'), Buffer.from(codeDigest, 'hex'))) {
       if (attempt === MAX_ATTEMPTS) throw EmailVerifyCodeRateLimitError()
       throw EmailVerifyCodeError()
     }
     if (!(await this.challenges.removeEmail(scope, challenge))) throw EmailVerifyCodeError()
-    return challenge.recipient
+    return { key, delivery: challenge.recipient }
   }
 }

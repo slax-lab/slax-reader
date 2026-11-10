@@ -35,7 +35,7 @@
                   </span>
                 </div>
               </div>
-              <AccountLoginMethods
+              <UserSignInMethodsSection
                 v-if="loginMethodsAccountKey"
                 :key="loginMethodsAccountKey"
                 :account-key="loginMethodsAccountKey"
@@ -105,7 +105,6 @@
 
 <script lang="ts" setup>
 import BookmarksTopBar from '~/components/BookmarkList/BookmarksTopBar.vue'
-import AccountLoginMethods from '~/components/Login/AccountLoginMethods.vue'
 import NavigateStyleButton from '~/components/NavigateStyleButton.vue'
 import OptionsBar from '~/components/OptionsBar.vue'
 import AILanguageTips from '~/components/Tips/AILanguageTips.vue'
@@ -114,6 +113,7 @@ import UserExportSection from '~/components/UserExportSection.vue'
 import UserImportSection from '~/components/UserImportSection.vue'
 import UserLabSection from '~/components/UserLabSection.vue'
 import UserPageSkeleton from '~/components/UserPageSkeleton.vue'
+import UserSignInMethodsSection from '~/components/UserSignInMethodsSection.vue'
 
 import { getPreferredLanguage, isSlaxReaderApp } from '../utils/environment'
 import { deriveAccountKey } from '~/utils/accountContext'

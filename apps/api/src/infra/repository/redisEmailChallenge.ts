@@ -16,20 +16,8 @@ export interface EmailChallenge {
   userId?: number
 }
 
-export interface ProviderChallenge {
-  type: 'google' | 'apple'
-  platform: 'web' | 'ios' | 'android'
-  nonce: string
-}
-
-interface TwitterChallenge {
-  userId: number
-  codeVerifier: string
-  createdAt: number
-}
-
 @injectable()
-export class AuthChallengeRepo {
+export class RedisEmailChallenge {
   constructor(@inject(RedisClient) private redis: LazyInstance<RedisClient>) {}
 
   private async access<T>(operation: () => Promise<T>): Promise<T> {
@@ -71,21 +59,5 @@ export class AuthChallengeRepo {
 
   removeEmail(key: EmailChallengeKey, challenge: EmailChallenge): Promise<boolean> {
     return this.access(() => this.challenge(key).deleteIfUnchanged(challenge))
-  }
-
-  saveProvider(environment: string, userId: number, state: string, challenge: ProviderChallenge, seconds: number): Promise<void> {
-    return this.access(() => this.redis().key<ProviderChallenge>(`auth:provider:${environment}:${userId}:${state}`).setWithExpire(challenge, seconds))
-  }
-
-  consumeProvider(environment: string, userId: number, state: string): Promise<ProviderChallenge | null> {
-    return this.access(() => this.redis().key<ProviderChallenge>(`auth:provider:${environment}:${userId}:${state}`).consume())
-  }
-
-  saveTwitter(state: string, challenge: TwitterChallenge, seconds: number): Promise<void> {
-    return this.access(() => this.redis().twitterOAuthState(state).setWithExpire(challenge, seconds))
-  }
-
-  consumeTwitter(state: string): Promise<TwitterChallenge | null> {
-    return this.access(() => this.redis().twitterOAuthState(state).consume())
   }
 }

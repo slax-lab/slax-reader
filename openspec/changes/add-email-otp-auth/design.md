@@ -16,7 +16,7 @@ Use a `mail` binding with normalized address as `platform_id` and the verified d
 
 Resolve all matching ownership candidates before creating a user or attaching a new identity. The approved sign-in path uses only verified `mail` bindings. Historical profile email and verifiable historical provider email can prevent duplicate registration but do not authorize email sign-in. Report ownership collisions after proof. Keep Google/Apple subject lookup first. Preserve a verified Apple subject's deterministic legacy placeholder path and audit unbound historical provider records. Reject the unbound provider fallback into an email-enabled account and preserve that account's profile email on provider sign-in.
 
-Coordinate account writes with PostgreSQL transaction-scoped advisory locks. Take normalized identity locks before the account lock and check live and frozen ownership within the write transaction. Account deletion uses the same account lock. Account authentication queries do not use `FOR UPDATE`. Repeating the same verified attachment is idempotent and never replaces another credential. Cleanup keeps the `mail` row through the 30-day freeze. Transactional reclamation releases the old reservation, never the old account. Keep the existing profile-email freeze behavior. The new mailbox is available through authenticated account settings, not general platform synchronization.
+Coordinate account writes with PostgreSQL transaction-scoped advisory locks. Take normalized identity locks before the account lock and check live and frozen ownership within the write transaction. Account deletion uses the same account lock. Account authentication queries do not use `FOR UPDATE`. Repeating the same verified attachment is idempotent and never replaces another credential. The account identity service makes ownership and attachment decisions, and the repository executes storage operations. Account cleanup removes every platform binding, including `mail`. A distinct bound mailbox can be reused after cleanup. The existing profile-email freeze still applies. PowerSync uses its existing platform-binding rules. Future Passkey credentials belong outside local-first synchronization.
 
 ### Short-lived proof and delivery
 
@@ -26,11 +26,11 @@ Use one server-side Resend HTTP integration with scoped credentials, a verified 
 
 ### Account and client completion
 
-- `POST /v1/user/login/email/send` sends a login or binding code. Binding requests require the current user.
+- `POST /v1/user/email/send` sends a login or binding code. Binding requests require the current user.
 - `POST /v1/user/login` accepts an email proof with `type: email` alongside the existing Google and Apple inputs. After proof verification it uses the same account, token, and analytics flow.
 - `GET /v1/user/userinfo` returns the current user's login identities for account settings.
-- `POST /v1/user/bind_link` starts Google or Apple linking using a short-lived state scoped to the current account and client. Its existing Telegram and Twitter responses are preserved.
-- `POST /v1/user/bind` verifies the email code or provider proof and attaches the identity to the authenticated account. Web keeps its current session through the callback. Android uses Web for Apple linking.
+- `POST /v1/user/bind_link` starts Google or Apple linking using a short-lived state scoped to the current account and client. The challenge identifies the provider. Its existing Telegram and Twitter responses are preserved.
+- `POST /v1/user/setting` accepts a `bind_login_identity` operation. It verifies the email code or provider proof and attaches the identity to the authenticated account. Other setting operations keep their existing response. Web keeps its current session through the callback. Android uses Web for Apple linking.
 
 Web reuses its cookie and redirect lifecycle, Extension its Web bridge, and Mobile its session guard and `sessions.accept` path. In the later email-link phase, the OS link opens the app first. The app parses the proof parameters and submits them to the existing login endpoint. Opening the link itself does not establish an API session.
 
@@ -44,9 +44,9 @@ Web reuses its cookie and redirect lifecycle, Extension its Web bridge, and Mobi
 
 ## Migration Plan
 
-Deploy compatible identity lookup, writes and cleanup before provisioning credentials in environments that share a database. Validate Redis, Resend domain authentication, sender, delivery budgets, and owner-only sync behavior. Deploy the PowerSync rule that excludes `platform=mail` from the platform-binding stream before provisioning credentials in a hosted environment. Existing verified rows are durable data and do not require a schema migration.
+Deploy compatible identity lookup and writes before provisioning credentials in environments that share a database. Validate Redis, Resend domain authentication, sender, and delivery budgets. Existing verified rows are durable data and do not require a schema migration.
 
-Email login and linking become available when the Core Worker has `RESEND_API_KEY`. Add it as a Cloudflare Worker Secret on the Core Worker for that environment. For dev, select `reader-core` in the dev Cloudflare account. Subsequent API deployments preserve the binding. `EMAIL_AUTH_FROM` defaults to `Slax Reader <noreply@reader.slax.com>`. The private dev configuration sets it to `Slax Reader <noreply@reader.slax.dev>`.
+Email-code delivery becomes available when the Core Worker has `RESEND_API_KEY`. Add it as a Cloudflare Worker Secret on the Core Worker for that environment. For dev, select `reader-core` in the dev Cloudflare account. Subsequent API deployments preserve the binding. `EMAIL_AUTH_FROM` defaults to `Slax Reader <noreply@reader.slax.com>`. The private dev configuration sets it to `Slax Reader <noreply@reader.slax.dev>`.
 
 Web provider linking is available on the registered callback origin, which shares the initiating tab's session storage. When the registered Web OAuth callback differs from `FRONT_END_URL/auth`, set `EMAIL_AUTH_WEB_CALLBACK` to the exact registered URL.
 

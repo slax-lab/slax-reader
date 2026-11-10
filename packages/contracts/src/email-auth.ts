@@ -1,7 +1,12 @@
-export const EMAIL_AUTH_PATH = {
-  send: '/v1/user/login/email/send',
-  bind: '/v1/user/bind'
-} as const
+import type { WebAuthAttribution } from './events'
+
+export const BIND_LOGIN_IDENTITY_SETTING = 'bind_login_identity'
+
+export interface EmailCodeSendInput {
+  email: string
+  locale?: string
+  purpose?: 'login' | 'bind'
+}
 
 export interface EmailCodeChallenge {
   request_id: string
@@ -23,7 +28,20 @@ export interface EmailCodeInput {
   code: string
 }
 
+export interface EmailLoginRequest extends EmailCodeInput {
+  type: 'email'
+  auth_attribution?: WebAuthAttribution
+}
+
+export type EmailAuthProvider = 'google' | 'apple'
+export type EmailAuthClientPlatform = 'web' | 'ios' | 'android'
+
+export type BindLinkRequest =
+  | { platform: 'telegram' | 'twitter' }
+  | { platform: EmailAuthProvider; client_platform: EmailAuthClientPlatform }
+
 export interface EmailAuthProviderChallenge {
+  type: EmailAuthProvider
   state: string
   nonce: string
 }

@@ -11,7 +11,7 @@ Slax Reader currently requires Google or Apple to create an account or sign in. 
 - Initially show the mailbox binding action only in the development environment. The authenticated binding API remains available in any environment with email credentials configured.
 - Use `sr_platform_bind` with `platform=mail` for verified login emails. Keep the existing `platform=email` mail-collection behavior and preserve legacy profile email values.
 - Deliver codes with Resend from `Slax Reader <noreply@reader.slax.com>`. Keep short-lived challenges and send limits in the existing Upstash Redis integration.
-- Add one email delivery route and one authenticated identity-binding route. Reuse the existing login, user information, and provider binding initiation routes.
+- Add one email delivery route. Reuse the existing login, account settings, user information, and provider binding initiation routes.
 
 ## Capabilities
 

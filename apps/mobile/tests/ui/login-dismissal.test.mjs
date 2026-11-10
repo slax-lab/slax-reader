@@ -35,7 +35,7 @@ async function loginFixture(host, platform, run, props = {}, emailAuth = false) 
     emailLoginStatus: async () => ({enabled: emailAuth}),
     sendLoginEmail: async request => {requests.push(request); return {request_id: 'challenge', expires_in: 300, resend_after: 60}},
     verifyLoginEmail: async (request, signal) => {requests.push(request); return verifyEmail(signal)},
-  }, sessions: {getSnapshot: () => session, captureIdentity: () => {const before = identity; return () => {if (before !== identity) throw new Error('Identity changed')}}, accept: async (...values) => accepted.push(values)}, t: key => key, locale: 'en', config: {webUrl: 'https://fixture.test'}}
+  }, sessions: {getSnapshot: () => session, captureIdentity: () => {const before = identity; return () => {if (before !== identity) throw new Error('Identity changed')}}, accept: async (...values) => accepted.push(values)}, t: key => key, locale: 'en', config: {webUrl: 'https://fixture.test', apiUrl: 'https://api.fixture.test'}}
   const {LoginScreen} = await loadComponent('../../src/screens/LoginScreen.tsx', {
     react: React, 'react-native': {...host.native, Platform: {OS: platform}, useWindowDimensions: () => viewport, Image, Text: primitive, Pressable: primitive, Modal, Alert: {alert: (...args) => alerts.push(args)}},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {bg_login: background}},
@@ -49,6 +49,7 @@ async function loginFixture(host, platform, run, props = {}, emailAuth = false) 
   await render()
   await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
     artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()}, verifyEmail: value => {verifyEmail = value},
+    changeOrigin: async () => {mobile.config.apiUrl = 'https://replacement.fixture.test'; await render()},
     hydrate: () => {session = {status: 'unauthenticated'}},
     replaceIdentity: () => {identity++; session = {status: 'unauthenticated'}},
     setUser: () => {identity++; session = {status: 'authenticated', session: {userId: 'other', token: 'replacement'}}}, authenticate: value => {authenticate = value}})
@@ -204,6 +205,24 @@ test('dismissing Android email verification aborts the request and ignores its e
   assert.equal(signal.aborted, true);
   await act(async () => gate.resolve({token: 'retired-token', user_id: 'retired-user'}));
   assert.deepEqual(fixture.accepted, []);
+}, {}, true)));
+
+test('replacing the API origin retires the email flow before a late verification can sign in', nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'android', async fixture => {
+  const gate = deferred();
+  let signal;
+  fixture.verifyEmail(value => {signal = value; return gate.promise});
+  await fixture.press('login_email');
+  await fixture.press('agreement_btn_agree');
+  await act(async () => host.props.get('email_code_address').onChangeText('reader@example.test'));
+  await act(async () => host.props.get('email_code_send').onPress());
+  await act(async () => host.props.get('email_code_value').onChangeText('012345'));
+  await act(async () => host.props.get('email_code_verify').onPress());
+  await fixture.changeOrigin();
+  assert.equal(signal.aborted, true);
+  await act(async () => gate.resolve({token: 'retired-token', user_id: 'retired-user'}));
+  assert.deepEqual(fixture.accepted, []);
+  await fixture.press('login_email');
+  assert.equal(host.props.get('email_code_address').value, '');
 }, {}, true)));
 
 test('email login releases a consumed challenge when local session persistence fails', nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'android', async fixture => {

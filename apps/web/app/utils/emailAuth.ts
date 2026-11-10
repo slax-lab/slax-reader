@@ -18,7 +18,6 @@ export const authReturnTarget = (target: string, origin: string): string => {
 const emailAuthErrors: Record<string, string> = {
   [ErrorName.EMAIL_VERIFY_CODE_ERROR]: 'invalid_code',
   [ErrorName.EMAIL_VERIFY_CODE_RATE_LIMIT]: 'too_many_attempts',
-  [ErrorName.EMAIL_VERIFY_CODE_EXISTS]: 'resend_wait',
   [ErrorName.EMAIL_AUTH_USE_EXISTING_LOGIN]: 'use_existing_login',
   [ErrorName.EMAIL_AUTH_IDENTITY_CONFLICT]: 'identity_conflict',
   [ErrorName.EMAIL_AUTH_UNAVAILABLE]: 'unavailable',

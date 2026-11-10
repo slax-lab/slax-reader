@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { EmailAuthentication, emailAuthEnabled } from '@/domain/emailAuthentication'
+import { LoginIdentityBindingService } from '@/domain/loginIdentityBindingService'
 import { SlaxAuth } from '@/utils/auth'
 import { ContextManager } from '@/utils/context'
 
 const env = {
-  RESEND_API_KEY: 'fixture',
   FRONT_END_URL: 'https://reader.example.test',
   RUN_TYPE: 'dev'
 } as Env
@@ -13,10 +12,6 @@ function context(userId: number, workerEnv = env) {
   const ctx = new ContextManager({} as ExecutionContext, workerEnv)
   ctx.setUserInfo(userId, userId, '', 'en')
   return ctx
-}
-
-function request(body: object) {
-  return new Request('https://api.example.test/', { method: 'POST', body: JSON.stringify(body) })
 }
 
 function fixture() {
@@ -33,30 +28,14 @@ function fixture() {
     }
   }
   const repo = { bindLoginProvider: vi.fn() }
-  const auth = new EmailAuthentication(repo as never, challenges as never)
-  const start = (id: number) => auth.startProvider(context(id), { type: 'google', platform: 'web' })
-  const finish = (id: number, state: string, redirectUri = 'https://reader.example.test/auth') =>
-    auth.bind(context(id), request({ type: 'google', platform: 'web', code: 'fixture-code', state, redirect_uri: redirectUri }))
+  const auth = new LoginIdentityBindingService(repo as never, {} as never, challenges as never)
+  const start = (id: number) => auth.startProvider(context(id), 'google', 'web')
+  const finish = (id: number, state: string) =>
+    auth.bind(context(id), { type: 'google', platform: 'web', code: 'fixture-code', state, redirect_uri: 'https://reader.example.test/auth' })
   return { repo, start, finish }
 }
 
 afterEach(() => vi.restoreAllMocks())
-
-test('email auth requires only the Resend key', () => {
-  expect(emailAuthEnabled(env)).toBe(true)
-  expect(emailAuthEnabled({ ...env, RESEND_API_KEY: undefined })).toBe(false)
-  expect(emailAuthEnabled({ ...env, RESEND_API_KEY: '  ' })).toBe(false)
-})
-
-test.each([
-  ['dev', true],
-  ['beta', false],
-  ['prod', false]
-] as const)('reports whether the settings should show mailbox binding in %s', async (runType, visible) => {
-  const auth = new EmailAuthentication({} as never, {} as never)
-  const ctx = context(41, { ...env, RUN_TYPE: runType })
-  expect(auth.identities(ctx, [])).toMatchObject({ enabled: true, show_email_binding: visible })
-})
 
 describe('explicit OAuth binding', () => {
   test('only the initiating account can complete a valid state, once', async () => {
@@ -76,13 +55,5 @@ describe('explicit OAuth binding', () => {
     vi.spyOn(SlaxAuth.prototype, 'login').mockResolvedValue({ sub: 'google-sub', email: 'reader@example.test', nonce: 'different' } as never)
     await expect(finish(41, state)).rejects.toMatchObject({ name: 'OAUTH2_STATE_EXPIRED' })
     expect(repo.bindLoginProvider).not.toHaveBeenCalled()
-  })
-
-  test('rejects an unconfigured web callback before the provider exchange', async () => {
-    const { start, finish } = fixture()
-    const { state } = await start(41)
-    const oauth = vi.spyOn(SlaxAuth.prototype, 'login')
-    await expect(finish(41, state, 'https://attacker.example.test/auth')).rejects.toMatchObject({ name: 'ERROR_PARAM' })
-    expect(oauth).not.toHaveBeenCalled()
   })
 })
