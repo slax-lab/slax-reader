@@ -4,7 +4,7 @@
 
 - The full API Vitest run passed with 243 test files and 3,839 tests. The default run skips opt-in integration suites. The public error-envelope fixture was updated for the three additive error codes.
 - The focused API run passed 54 tests with local PostgreSQL and Redis, including concurrent signup, OAuth versus email ownership, legacy Apple placeholders, 30-day reservations, case-preserving delivery, expiry, resend, attempt limits, and one-time consumption. Provider-link tests reject a wrong account, callback URL, or signed nonce, and reject a repeated callback. The API and shared contract type checks passed.
-- After making email authentication available by default with its credentials, all 26 focused API tests passed. The availability test covers configured credentials, an absent Resend key, and a short verification secret. API type checking, lint, and strict OpenSpec validation passed.
+- After making email authentication available by default with its then-required credentials, all 26 focused API tests passed. API type checking, lint, and strict OpenSpec validation passed.
 - After changing the default sender to `Slax Reader <noreply@reader.slax.com>`, all 18 email-code tests passed, including the assertion on the outgoing Resend request. The local Worker HTTP acceptance suite also passed with its simulated Resend transport.
 - After moving the Resend HTTP call to `infra/external/resend.ts`, all 35 layer architecture tests and 18 email-code tests passed. The full API suite passed 3,862 tests with 138 opt-in tests skipped. API type checking and the local Worker HTTP acceptance suite also passed.
 - `pnpm api -- lint` exited successfully with warnings and no errors.
@@ -54,6 +54,11 @@ On 2026-11-09 the requester accepted the Mobile preview covering iOS email login
 - The isolated Edge/Core HTTP smoke used one send route, the existing login, user information, and provider bind-link routes, and the authenticated bind route. It verified anonymous access boundaries, account reuse, new-account login, and beta and production binding with the UI hint hidden. Resend was simulated.
 - Chromium exercised the updated Web login and settings flows using the local API fixture. It observed the device header on the shared send route, the email proof on the existing login route, the hidden binding action from user information, and successful binding with the Google session preserved. All 71 focused Web tests and 83 focused Mobile tests passed. API, Web, and Mobile type checks passed.
 - The Mobile rewrite was exercised in the mounted host suite. Both platform bundles exported. The full local Mobile run passed 1,215 tests, skipped one, and timed out while the Swift offline engine fixture was waiting for article images. The same fixture passed in isolation. Native-device acceptance for this revision and live Resend delivery remain release verification items.
+
+## Verification secret removal
+
+- Removing the secret from the fixtures reproduced the old configuration failure. After the change, all 83 focused API tests passed with disposable Redis, including OTP expiry, failed attempts, one-time redemption, send limits, and provider binding.
+- The local Edge/Core HTTP smoke used a fixture Resend API key alone and exercised email delivery, login, and binding. Resend delivery was captured locally. The default API suite passed 3,865 tests with 139 opt-in tests skipped. API type checking and targeted lint and formatting checks passed.
 
 ## Local review
 

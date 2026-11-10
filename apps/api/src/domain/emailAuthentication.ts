@@ -49,7 +49,7 @@ function parseInput<T>(input: unknown, schema: z.ZodType<T>): T {
 }
 
 export function emailAuthEnabled(env: Env): boolean {
-  return Boolean(env.RESEND_API_KEY?.trim()) && (env.EMAIL_AUTH_HMAC_SECRET?.trim().length ?? 0) >= 32
+  return Boolean(env.RESEND_API_KEY?.trim())
 }
 
 function requireEmailAuth(env: Env) {

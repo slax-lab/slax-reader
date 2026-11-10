@@ -15,8 +15,6 @@ interface __BaseEnv_Env {
 
   EMAIL_AUTH_WEB_CALLBACK?: string
 
-  EMAIL_AUTH_HMAC_SECRET?: string
-
   EMAIL_AUTH_FROM?: string
 
   DEEPSEEK_API_KEY?: string

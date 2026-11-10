@@ -11,7 +11,6 @@ import { RedisClient } from '@/infra/repository/redisClient'
 
 const env = {
   RUN_TYPE: 'dev',
-  EMAIL_AUTH_HMAC_SECRET: 'a test-only HMAC secret',
   RESEND_API_KEY: 'test-resend-key',
   UPSTASH_REDIS_REST_URL: 'http://redis.test.invalid',
   UPSTASH_REDIS_REST_TOKEN: 'test-redis-token'

@@ -35,7 +35,6 @@ export function environmentTypes(source: string): string {
     )
   for (const [name, type] of [
     ['EMAIL_AUTH_FROM', 'string'],
-    ['EMAIL_AUTH_HMAC_SECRET', 'string'],
     ['EMAIL_AUTH_WEB_CALLBACK', 'string'],
     ['RESEND_API_KEY', 'string'],
     ['DEEPSEEK_API_KEY', 'string'],

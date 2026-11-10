@@ -4,7 +4,6 @@ import { SlaxAuth } from '@/utils/auth'
 import { ContextManager } from '@/utils/context'
 
 const env = {
-  EMAIL_AUTH_HMAC_SECRET: 'a-long-test-only-verification-secret',
   RESEND_API_KEY: 'fixture',
   FRONT_END_URL: 'https://reader.example.test',
   RUN_TYPE: 'dev'
@@ -43,10 +42,10 @@ function fixture() {
 
 afterEach(() => vi.restoreAllMocks())
 
-test('email auth is available as soon as its credentials are configured', () => {
+test('email auth requires only the Resend key', () => {
   expect(emailAuthEnabled(env)).toBe(true)
   expect(emailAuthEnabled({ ...env, RESEND_API_KEY: undefined })).toBe(false)
-  expect(emailAuthEnabled({ ...env, EMAIL_AUTH_HMAC_SECRET: 'too-short' })).toBe(false)
+  expect(emailAuthEnabled({ ...env, RESEND_API_KEY: '  ' })).toBe(false)
 })
 
 test.each([

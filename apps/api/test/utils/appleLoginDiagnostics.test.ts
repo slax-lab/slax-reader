@@ -208,7 +208,6 @@ describe('Apple identity verification diagnostics', () => {
       {} as ExecutionContext,
       {
         ...baseEnv,
-        EMAIL_AUTH_HMAC_SECRET: 'a-long-test-only-verification-secret',
         RESEND_API_KEY: 'fixture',
         RUN_TYPE: 'dev'
       } as Env
