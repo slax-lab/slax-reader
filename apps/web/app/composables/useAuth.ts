@@ -1,4 +1,4 @@
-import { configuredCookieName, requireConfiguredCookieName } from '~/utils/authCookie'
+import { configuredCookieName, persistSessionCookie, requireConfiguredCookieName } from '~/utils/authCookie'
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -86,6 +86,7 @@ const useAuth = {
 
     const cookieName = requireConfiguredCookieName($config.COOKIE_TOKEN_NAME)
     const cookieDomain = typeof $config.COOKIE_DOMAIN === 'string' ? $config.COOKIE_DOMAIN : ''
+    if (await persistSessionCookie(resp.token)) return resp.token
     set(cookieName, resp.token, {
       path: '/',
       expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),

@@ -442,6 +442,7 @@ export default defineNuxtConfig({
             '/c/*',
             '/api/content/*',
             '/api/collection/*',
+            '/api/auth/session',
             '/*-reader',
             '/dashboard',
             '/dashboard/**',

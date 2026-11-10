@@ -104,6 +104,10 @@ describe('useAuth', () => {
   })
 
   describe('grantAuth', () => {
+    beforeEach(() => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
+    })
+
     it('does not store a session when a canceled request completes late', async () => {
       const controller = new AbortController()
       let finish!: (response: { token: string }) => void
@@ -115,11 +119,22 @@ describe('useAuth', () => {
       expect(cookieSet).not.toHaveBeenCalled()
     })
 
-    it('登录成功 → 写 cookie 并返回 token', async () => {
+    it('登录成功 → 由服务端接口写 cookie 并返回 token', async () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-google' })
       const token = await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google')
       expect(token).toBe('tok-google')
       expect(mockPost).toHaveBeenCalledTimes(1)
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/session', expect.objectContaining({ method: 'POST', body: JSON.stringify({ token: 'tok-google' }) }))
+      expect(cookieSet).not.toHaveBeenCalled()
+    })
+
+    it.each([new Response(null, { status: 403 }), new TypeError('network')])('falls back to the script cookie when the session endpoint fails: %s', async failure => {
+      vi.mocked(globalThis.fetch).mockImplementation(async () => {
+        if (failure instanceof Response) return failure
+        throw failure
+      })
+      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
+      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google')).resolves.toBe('tok-google')
       expect(cookieSet).toHaveBeenCalledWith('token', 'tok-google', expect.objectContaining({ path: '/', domain: '.example.com' }))
     })
 

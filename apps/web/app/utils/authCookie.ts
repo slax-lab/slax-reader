@@ -21,3 +21,6 @@ export const readStringCookie = (name: unknown, cookies: CookieReader = useCooki
   const value = cookies.get<unknown>(validName, { doNotParse: true })
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
+
+export const persistSessionCookie = (token: string): Promise<boolean> =>
+  fetch('/api/auth/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) }).then(r => r.ok, () => false)
