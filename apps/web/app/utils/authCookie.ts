@@ -8,12 +8,6 @@ export const configuredCookieName = (value: unknown): string | undefined => {
   return name ? name : undefined
 }
 
-export const requireConfiguredCookieName = (value: unknown): string => {
-  const name = configuredCookieName(value)
-  if (!name) throw new Error('Invalid auth cookie configuration: COOKIE_TOKEN_NAME must be a non-empty string')
-  return name
-}
-
 export const readStringCookie = (name: unknown, cookies: CookieReader = useCookies()): string | undefined => {
   const validName = configuredCookieName(name)
   if (!validName) return undefined

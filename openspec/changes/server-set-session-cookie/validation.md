@@ -28,6 +28,8 @@ Browser scenarios:
 2. With the login write forced to `403` or a network failure, login stayed on `/auth` with the existing "login not completed" retry state and no cookie.
 3. With the refresh write forced to `500`, the cookie kept the login token.
 
+WebKit Origin probe: Playwright WebKit 26.5 ran the same `fetch` call as `persistSessionCookie` against a local stub. It sent `Origin` on the same-origin `POST` under both `Referrer-Policy: strict-origin-when-cross-origin` (production's policy) and `no-referrer`, and stored the response cookie with a 60-day expiry. This does not cover the script-cookie caps of real Safari (task 2.4).
+
 Temporary servers and scripts were stopped and deleted; the worktree contains only the change's files.
 
 Cloudflare security events for `r.slax.com` (the three retained days, 2026-11-07 to 2026-11-10): `/api/*` events were blocks of scanner requests, `GET /api/.env`, `GET /api/env`, `POST /api/auth/signin`, and `GET /api/collection/<code>` blocked by the browser integrity check. Managed challenges on `/auth` were solved or bypassed during navigation.
