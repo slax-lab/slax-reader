@@ -6,7 +6,7 @@ Worktree: `.local/server-set-session-cookie-worktree`, branch `fix/server-set-se
 
 | Command | Result |
 | --- | --- |
-| `pnpm web -- test` | Passed: 232 files, 2,718 tests (3 skipped), including `tests/unit/server/authSession.spec.ts` |
+| `pnpm web -- test` | Passed: 232 files, 2,717 tests (3 skipped), including `tests/unit/server/authSession.spec.ts` |
 | `pnpm web -- typecheck` | Passed |
 | ESLint on the changed files | Passed |
 | `pnpm web -- lint` | Fails with 89 `simple-import-sort/imports` errors in unchanged files; the same errors occur without this change |
@@ -25,10 +25,12 @@ HTTP probes against the worker:
 Browser scenarios:
 
 1. Login reached `/bookmarks`. The endpoint returned `204` with `Set-Cookie` for the login token, then for the refreshed token from the automatic daily refresh. The final cookie held the refreshed token, expired in 60 days, was `SameSite=Lax`, and not `HttpOnly`. Logout from the user menu reached `/login` and removed the cookie.
-2. With the login write forced to `403`, `503`, or a network failure, login still reached `/bookmarks`; before the refresh write, the script-written cookie held the login token with a 60-day expiry.
+2. With the login write forced to `403` or a network failure, login stayed on `/auth` with the existing "login not completed" retry state and no cookie.
 3. With the refresh write forced to `500`, the cookie kept the login token.
 
 Temporary servers and scripts were stopped and deleted; the worktree contains only the change's files.
+
+Cloudflare security events for `r.slax.com` (the three retained days, 2026-11-07 to 2026-11-10): `/api/*` events were blocks of scanner requests, `GET /api/.env`, `GET /api/env`, `POST /api/auth/signin`, and `GET /api/collection/<code>` blocked by the browser integrity check. Managed challenges on `/auth` were solved or bypassed during navigation.
 
 ## Review
 

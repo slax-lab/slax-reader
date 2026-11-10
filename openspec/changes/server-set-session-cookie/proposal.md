@@ -8,7 +8,7 @@ WebKit-based browsers delete the Web login cookie long before its 60-day token e
 
 - Add a same-origin Nitro endpoint, `POST /api/auth/session`, that issues the login cookie through an HTTP `Set-Cookie` response. It keeps the existing cookie name, `Path=/`, configured domain, and 60-day lifetime, adds `SameSite=Lax`, and adds `Secure` only on HTTPS. It does not add `HttpOnly`, because page scripts still read the token for Bearer requests.
 - Route `/api/auth/session` through the Cloudflare Pages Function.
-- Login and the existing daily token refresh persist the cookie through this endpoint. If the endpoint fails, login keeps the existing script write and refresh keeps the current cookie.
+- Login and the existing daily token refresh persist the cookie through this endpoint. If the endpoint fails, login shows the existing sign-in failure so the user can retry, and refresh keeps the current cookie.
 - Existing script-written cookies are not migrated separately: the next daily refresh replaces them while they are still present. A WebKit user whose cookie was already capped to one day may need to sign in once more.
 
 ## Capabilities

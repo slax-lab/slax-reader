@@ -4,7 +4,7 @@
 
 ### Requirement: Web persists the login cookie through a server response
 
-Web SHALL store the login JWT with an HTTP `Set-Cookie` response from its own origin rather than a script cookie write, so browser limits on script-written cookies do not shorten the session. The cookie SHALL keep the existing name, `Path=/`, configured domain, and 60-day lifetime, and SHALL use `SameSite=Lax` and `Secure` on HTTPS. The endpoint MUST reject requests without an exact same-origin `Origin` and values that are not JWT-shaped, without setting a cookie. Its responses MUST NOT be cached and it MUST NOT log the token. If the endpoint fails during login, Web SHALL still complete login with the previous script write.
+Web SHALL store the login JWT with an HTTP `Set-Cookie` response from its own origin rather than a script cookie write, so browser limits on script-written cookies do not shorten the session. The cookie SHALL keep the existing name, `Path=/`, configured domain, and 60-day lifetime, and SHALL use `SameSite=Lax` and `Secure` on HTTPS. The endpoint MUST reject requests without an exact same-origin `Origin` and values that are not JWT-shaped, without setting a cookie. Its responses MUST NOT be cached and it MUST NOT log the token. If the endpoint fails during login, Web SHALL report the login as failed without writing a script cookie.
 
 #### Scenario: Login stores a server-issued cookie
 - **WHEN** a user completes Web login
@@ -23,4 +23,4 @@ Web SHALL store the login JWT with an HTTP `Set-Cookie` response from its own or
 
 #### Scenario: Session endpoint fails during login
 - **WHEN** the session endpoint is unreachable or returns an error after a successful login exchange
-- **THEN** Web stores the token with the previous script write and completes login
+- **THEN** login is reported as failed and no script-written login cookie is stored

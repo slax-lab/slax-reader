@@ -14,11 +14,11 @@ The browser posts the token it already holds to `/api/auth/session`, and the end
 
 Without checks, another site could make a victim's browser adopt the attacker's token. Browsers attach `Origin` to cross-origin `POST` requests, including form submissions, and pages cannot set it, so the endpoint writes a cookie only when `Origin` equals its own origin. A missing or `null` `Origin` is rejected. Signature verification is not added: only same-origin script can pass the check, and such script could already write the cookie. The endpoint returns the same 400 for every rejection because the client only needs success or failure.
 
-### Fallback and migration
+### No script-write fallback
 
-Login falls back to the existing script write whenever the endpoint fails, for example under a Cloudflare challenge, so the change is never worse than the current behavior. Refresh does not fall back; the existing cookie remains valid and the next daily refresh retries. Existing cookies migrate on their next daily refresh.
+Login does not fall back to a script write: that cookie would keep the WebKit cap this change removes. In the three days of retained Cloudflare security events, `/api/*` blocks on `r.slax.com` were scanner requests, such as `/api/.env` and `POST /api/auth/signin`, which Web does not serve. `/auth` challenges were solved or bypassed during page navigation. An endpoint failure shows the existing login failure state, from which the user retries. Refresh keeps the current cookie and retries on the next daily refresh. Existing cookies migrate on their next daily refresh.
 
 ## Risks / Trade-offs
 
 - Page scripts can still read the token, so XSS exposure is unchanged. HttpOnly cookie authentication requires API changes and is out of scope.
-- If a Cloudflare managed rule challenges `POST /api/auth/session`, login silently uses the fallback and keeps the WebKit cap. Beta verification must confirm the endpoint is not challenged.
+- If a Cloudflare managed rule ever challenges `POST /api/auth/session`, login fails visibly. Beta verification confirms the endpoint is not challenged.
