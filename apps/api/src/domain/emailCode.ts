@@ -11,7 +11,7 @@ const ENVIRONMENT_SEND_LIMIT = 500
 const HOUR = 60 * 60
 const DAY = 24 * HOUR
 const RESEND_TIMEOUT_MS = 5000
-const DEFAULT_FROM = 'Slax Reader <noreply_reader@slax.com>'
+const DEFAULT_FROM = 'Slax Reader <noreply@reader.slax.com>'
 
 const ISSUE_CODE = `
 local challenge, cooldown, addressQuota, ipQuota, environmentQuota = unpack(KEYS)

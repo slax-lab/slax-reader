@@ -52,7 +52,7 @@ describe('email code delivery', () => {
     expect(new Headers(options?.headers).get('Idempotency-Key')).toBe(result.request_id)
     expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer test-resend-key')
     expect(body).toMatchObject({
-      from: 'Slax Reader <noreply_reader@slax.com>',
+      from: 'Slax Reader <noreply@reader.slax.com>',
       to: [input.deliveryEmail],
       subject: '你的 Slax Reader 验证码'
     })
