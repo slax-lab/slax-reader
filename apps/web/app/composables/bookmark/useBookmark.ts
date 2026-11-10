@@ -20,6 +20,7 @@ interface BookmarkOptions extends CommonBookmarkOptions {
   initialRequestTask?: () => Promise<void>
   initialTasksCompleted?: () => void
   initialTasksEnabled?: boolean
+  quoteScope?: () => unknown
 }
 
 export const useBookmark = (options: BookmarkOptions) => {
@@ -79,7 +80,9 @@ export const useBookmark = (options: BookmarkOptions) => {
       return
     }
 
+    const scope = options.quoteScope?.()
     const handleQuote = () => {
+      if (scope !== options.quoteScope?.()) return
       if (!botExpanded.value) {
         botExpanded.value = true
       }

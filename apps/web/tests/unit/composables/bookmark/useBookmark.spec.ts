@@ -277,6 +277,19 @@ describe('useBookmark', () => {
   })
 
   describe('chatBotQuote（C14-C17）', () => {
+    it('discards a quote when the account scope changes before delivery', async () => {
+      useUserStore().user = baseUser
+      const options = makeOptions()
+      let generation = 1
+      options.quoteScope = () => generation
+      const result = useBookmark(options)
+      result.chatBotQuote({ text: 'old account' } as Parameters<typeof result.chatBotQuote>[0])
+      generation++
+      await nextTick()
+      expect(options.chatbot.value?.addQuoteData).not.toHaveBeenCalled()
+      expect(botExpanded.value).toBe(false)
+    })
+
     it('C14: 未登录 → 早退，addQuoteData 不调', async () => {
       const options = makeOptions()
       const result = useBookmark(options)

@@ -117,7 +117,7 @@
             <ClientOnly>
               <!-- overview 仅 owner；outline 用 SSR 数据 -->
               <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
-              <SnapshotAIPanel v-else :pdf="!!detail.pdf" @find-quote="findQuote"
+              <DeferredSnapshotPanel v-else :key="accountGeneration" :active="activePanel === 'ai'" :load="loadAiPanel" :pdf="!!detail.pdf" @find-quote="findQuote"
                 :bookmark-uid="bookmarkUid"
                 :default-outline="detail.outline"
                 :overview-enabled="isOwner"
@@ -134,7 +134,10 @@
           <template #chat>
             <!-- Chat 仅 owner，组件不挂载 -->
             <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
-            <SnapshotChatPanel
+            <DeferredSnapshotPanel
+              :key="accountGeneration"
+              :active="activePanel === 'chat'"
+              :load="loadChatPanel"
               v-if="isOwner && !isSubscriptionExpired && (!detail.pdf || detail.pdf.text_status === 'ready')"
               ref="chatbot"
               :bookmark-uid="bookmarkUid"
@@ -196,11 +199,10 @@ import SnapshotMobileNotesEntry from '@/components/Snapshot/SnapshotMobileNotesE
 import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 import SnapshotDetailLayout from '~/components/Layouts/SnapshotDetailLayout.vue'
 import SnapshotSidePanel from '~/components/Layouts/SnapshotSidePanel.vue'
+import DeferredSnapshotPanel from '~/components/Snapshot/DeferredSnapshotPanel.vue'
 import PodcastBar from '~/components/Snapshot/PodcastBar.vue'
 import PodcastTranslation from '~/components/Snapshot/PodcastTranslation.vue'
-import SnapshotAIPanel from '~/components/Snapshot/SnapshotAIPanel.vue'
 import SnapshotBottomToolbar, { type BottomToolbarAction } from '~/components/Snapshot/SnapshotBottomToolbar.vue'
-import SnapshotChatPanel from '~/components/Snapshot/SnapshotChatPanel.vue'
 import SnapshotCommentComposer from '~/components/Snapshot/SnapshotCommentComposer.vue'
 import SnapshotCommentList from '~/components/Snapshot/SnapshotCommentList.vue'
 import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
@@ -217,6 +219,7 @@ import { extractFirstContentImage } from '@/utils/ogImage'
 import { sortBookmarkTags } from '@/utils/tags'
 import { youtubeArticleView as pickYoutubeArticleView, youtubeBodyHasArticle as bodyHasYoutubeArticle } from '@/utils/youtubeBody'
 import { tokenFingerprint } from '~/utils/accountContext'
+import { loadDeferredUi } from '~/utils/deferredUi'
 import type { PdfTitlePreview } from '~/utils/pdfPreview'
 import { pdfTitlePreview } from '~/utils/pdfPreview'
 
@@ -226,7 +229,7 @@ import { useReadingPosition } from '@/composables/useReadingPosition'
 import { useSidePanelPreference } from '@/composables/useSidePanelPreference'
 import type { MarkDetail, SnapshotBookmarkDetail, SnapshotMetadata } from '@commons/frontend-types/models'
 import { isClient, isServer } from '@commons/frontend-utils/is'
-import { extractHTMLTextContent } from '@commons/frontend-utils/parse'
+import { extractHTMLTextContent } from '@commons/frontend-utils/text'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { PodcastTranslation as PodcastTranslationContent } from '@slax-reader/contracts/interface'
 import { runArticleSsrProcessors } from '~/components/Article/processors/ssr-runner'
@@ -240,6 +243,9 @@ import { useCommentPanel } from '~/composables/useCommentPanel'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import type { IconKey } from '~/icons/registry'
 import { useUserStore } from '~/stores/user'
+
+const loadAiPanel = () => loadDeferredUi('SnapshotAIPanel', () => import('~/components/Snapshot/SnapshotAIPanel.vue'))
+const loadChatPanel = () => loadDeferredUi('SnapshotChatPanel', () => import('~/components/Snapshot/SnapshotChatPanel.vue'))
 
 const { t, locale } = useI18n()
 definePageMeta({ key: route => String(route.params.id) })
@@ -462,7 +468,7 @@ const footerVia = computed(() => {
 })
 
 const bookmarkArticle = ref<InstanceType<typeof BookmarkArticleLocalFirst>>()
-const chatbot = ref<InstanceType<typeof SnapshotChatPanel>>()
+const chatbot = ref<InstanceType<typeof DeferredSnapshotPanel>>()
 
 const bookmarkArticleSelection = computed(() => bookmarkArticle.value?.articleSelection ?? null)
 const commentInfos = computed(() => bookmarkArticleSelection.value?.markItemInfos?.value ?? [])
@@ -525,6 +531,7 @@ const forceDecide = ref(false)
 
 const { isSubscriptionExpired, showAnalyzed, showChatbot, chatBotQuote, showFeedback, screenLockUpdate } = useBookmark({
   chatbot,
+  quoteScope: () => accountGeneration.value,
   typeOptions: () => ({
     type: BookmarkType.Snapshot,
     title: detail.value?.title || '',
