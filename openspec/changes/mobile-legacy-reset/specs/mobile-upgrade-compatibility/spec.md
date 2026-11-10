@@ -133,27 +133,27 @@ Android storage handling SHALL treat operating-system aliases of the same truste
 - **THEN** startup resolves and initializes the intended slot within the same application root
 - **AND** equivalent path spellings do not cause recovery failure
 
-#### Scenario: An established native database reopens through an alias
+#### Scenario: An established native database reopens through an application-root alias
 - **WHEN** Android exposes a native-created or reset-completed database through a legitimate ancestor alias
 - **THEN** startup reopens the same native slot
 - **AND** its current data and pending operations remain intact
 
-#### Scenario: Previously adopted Kotlin storage uses an alias
-- **WHEN** an unreset Kotlin-origin installation resolves through a legitimate application-root alias
-- **THEN** the bounded one-time reset operates on the same app-owned old slots
-- **AND** alias handling does not require preserving the adopted database
+#### Scenario: A previously adopted legacy database reopens through an alias
+- **WHEN** an unreset Kotlin-origin installation identifies a previously adopted legacy database and the application-root path spelling changes only through a legitimate operating-system alias
+- **THEN** startup resolves that same legacy database through the alias and applies the bounded one-time reset instead of reopening it for use
+- **AND** its legacy queued operations are discarded rather than preserved, and no fresh database is substituted at a different path
 
 #### Scenario: An application child directory is redirected
 - **WHEN** a designated files/database child points away from its approved slot
 - **THEN** storage handling does not open, delete or initialize the redirected target
 - **AND** it exposes a local recovery condition rather than bypassing containment
 
-#### Scenario: An established ordinary database cannot be verified
-- **WHEN** the normal native database cannot be opened because of a real I/O or SQLite initialization error
-- **THEN** startup exposes normal retry without deleting that database
-- **AND** obsolete adoption/installation records are not consulted; an absent normal database can be initialized at its fixed owned slot without selecting Kotlin reset
+#### Scenario: An established database cannot be verified
+- **WHEN** an established database is missing, its file is redirected, its stored owner or identity does not match, or the normal native database cannot be opened because of a real I/O or SQLite initialization error
+- **THEN** startup exposes the existing recovery or retry behavior without deleting the original remaining files or creating an empty replacement
+- **AND** alias compatibility does not authorize bypassing verification; obsolete adoption/installation records are not consulted, and an absent normal database can be initialized at its fixed owned slot without selecting Kotlin reset
 
-#### Scenario: Development-fresh startup uses an alias
+#### Scenario: A development-fresh startup uses the same application-root alias
 - **WHEN** explicit development-fresh mode starts through a legitimate ancestor alias
 - **THEN** it resolves the expected native slot
 - **AND** development mode does not become a fallback for production reset or ownership failures
