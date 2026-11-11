@@ -12,7 +12,6 @@ function wire(amount = 0) {
   const repo = {
     getUserShareCollectByCode: vi.fn().mockResolvedValue(collection),
     getUserShareCollect: vi.fn().mockResolvedValue(collection),
-    ensureUserShareCollect: vi.fn().mockResolvedValue(collection),
     ensureUserShareCollectWithCreation: vi.fn().mockResolvedValue({ collection, created: false }),
     getUserSubscribeCollection: vi.fn().mockResolvedValue(null),
     createUserCollectionSubscribePeriod: vi.fn().mockResolvedValue(undefined),

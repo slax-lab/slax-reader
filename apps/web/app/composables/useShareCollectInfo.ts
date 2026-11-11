@@ -56,7 +56,7 @@ const fetchInfo = (force = false): Promise<MyShareCollectionInfo | null> => {
   const version = ++requestVersion
   const accountKey = currentAccountKey()
   const promise = request()
-    .get<MyShareCollectionInfo>({ url: RESTMethodPath.COLLECT_MINE })
+    .get<MyShareCollectionInfo>({ url: RESTMethodPath.COLLECT_MINE, errorInterceptors: () => {} })
     .then(res => {
       if (version !== requestVersion || accountKey !== currentAccountKey()) return null
       info.value = res ?? null

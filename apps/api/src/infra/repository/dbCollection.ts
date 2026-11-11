@@ -131,11 +131,6 @@ export class CollectionRepo {
     })
   }
 
-  public async ensureUserShareCollect(userId: number, displayName: string) {
-    const result = await this.ensureUserShareCollectWithCreation(userId, displayName)
-    return result.collection
-  }
-
   public async ensureUserShareCollectWithCreation(userId: number, displayName: string) {
     const existing = await this.getUserShareCollect(userId)
     if (existing) return { collection: existing, created: false }
@@ -171,12 +166,12 @@ export class CollectionRepo {
     return { collection, created: collection.collection_code === attemptedCode }
   }
 
-  public async enableUserShareCollect(userId: number, enable: boolean, nickName?: string, _type?: number) {
+  public async enableUserShareCollect(userId: number, enable: boolean, displayName?: string, _type?: number) {
     return await this.prismaPg().sr_user_collection.upsert({
       where: { owner_id: userId },
       create: {
         owner_id: userId,
-        display_name: `${nickName}'s Collection Share`,
+        display_name: displayName || 'My Reading Recommendations',
         type: 1,
         collection_code: await hashMD5(`${userId}-${new Date().getTime()}`),
         status: enable ? 1 : 0,

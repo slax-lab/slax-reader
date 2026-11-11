@@ -97,6 +97,12 @@ The automated review gate passed with no Important findings. The remaining clean
 
 The final full Web suite passed 2785 tests with 3 conditionally skipped (237 files passed, 1 skipped), followed by Web typecheck and production build. Targeted ESLint passed for the modified composable and test; `s/[id].vue` also passed with its pre-existing import-sort rule excluded, and the diff confirms that this change did not modify its imports. The final targeted `useArticle` suite passed 8/8 after removing obsolete mock coverage.
 
+## Backfill review follow-ups
+
+The backfill review reported no Important findings. `/mine` fetches now use a no-op per-request error interceptor so a broken collection invariant degrades silently instead of producing a global error toast on every page mount. The unused row-returning repository wrapper was removed, and the legacy close/reopen create branch now uses the same localized default display name as registration and backfill. Registration continues to load the owner and check for an existing collection on every login because that is the documented creation-failure retry, rather than optimizing it into an `isNew`-only path.
+
+Follow-up verification passed 63/63 targeted API tests and 9/9 targeted Web cache tests, plus API and Web typecheck and changed-file ESLint. The full-suite results above remain the current merged-baseline evidence.
+
 ## Human hands-on acceptance
 
 On 2026-11-10, the change requester completed hands-on acceptance of the implemented change in the real local full-stack environment and explicitly confirmed “我验收通过。” The accepted behavior includes default public provisioning, preserved closed state, original collection presentation, first-star discovery with starred-list navigation, direct sharing, snapshot controls, and responsive layouts. Acceptance followed adjustments to collection UX, cue placement and copy, closed-state mini entry, and narrow-screen clipping. The requester subsequently reviewed both dark and e-ink themes and confirmed they meet expectations. On 2026-11-11, after `origin/dev` was merged and the 768px layout correction was verified, the requester again confirmed acceptance of the merged implementation. No further adjustments were requested at acceptance.

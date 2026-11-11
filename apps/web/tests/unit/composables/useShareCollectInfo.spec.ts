@@ -69,6 +69,8 @@ describe('composables/useShareCollectInfo', () => {
     const second = await share.refresh()
 
     expect(second).toBeNull()
+    expect(mockGet.mock.calls[1]?.[0]?.errorInterceptors).toEqual(expect.any(Function))
+    expect(mockGet.mock.calls[1]?.[0]?.errorInterceptors()).toBeUndefined()
     // Display cache may stay warm; callers that need the current account's address must use `second`.
     expect(share.info.value?.collection_code).toBe('account-a-code')
   })

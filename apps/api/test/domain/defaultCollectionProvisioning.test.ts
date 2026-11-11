@@ -128,7 +128,7 @@ describe('legacy collection visibility controls', () => {
     const upsert = vi.fn().mockResolvedValue(collection)
     const repo = new CollectionRepo((() => ({ sr_user_collection: { upsert, findFirst: vi.fn().mockResolvedValue(null) } })) as never)
     await repo.enableUserShareCollect(7, enable, 'Alex')
-    expect(upsert.mock.calls[0][0].create).toMatchObject({ owner_id: 7, status })
+    expect(upsert.mock.calls[0][0].create).toMatchObject({ owner_id: 7, status, display_name: 'Alex' })
   })
 
   test('close and reopen change only timestamps and explicit status on an existing row', async () => {
@@ -149,7 +149,6 @@ test('repository returns an existing row without issuing an upsert', async () =>
   const upsert = vi.fn()
   const findFirst = vi.fn().mockResolvedValue(collection)
   const repo = new CollectionRepo((() => ({ sr_user_collection: { upsert, findFirst } })) as never)
-  await expect(repo.ensureUserShareCollect(7, 'Replacement name')).resolves.toBe(collection)
   await expect(repo.ensureUserShareCollectWithCreation(7, 'Replacement name')).resolves.toEqual({ collection, created: false })
   expect(upsert).not.toHaveBeenCalled()
 })

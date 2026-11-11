@@ -607,7 +607,7 @@ export class UserService {
   public async enableUserSetting(ctx: ContextManager, setting: string, enable: boolean): Promise<string | userShareCollectInfo> {
     if (setting === 'share_collect') {
       const user = await this.userRepoData.getInfoByUserId(ctx.getUserId())
-      const res = await this.collectionRepo.enableUserShareCollect(ctx.getUserId(), enable, user.name, 1)
+      const res = await this.collectionRepo.enableUserShareCollect(ctx.getUserId(), enable, defaultShareCollectionName(user), 1)
       dispatchVectorMaintenance(ctx, { kind: 'collection', id: res.id })
       return {
         show_name: res.display_name,
