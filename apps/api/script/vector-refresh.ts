@@ -2,7 +2,7 @@ import { Client } from 'pg'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-export const REFRESH_STAGES = ['article', 'article-preference', 'collection', 'subscription'] as const
+export const REFRESH_STAGES = ['article', 'article-preference', 'collection'] as const
 export type RefreshStage = (typeof REFRESH_STAGES)[number]
 
 export interface RefreshOptions {
@@ -23,8 +23,7 @@ export interface EnumerationDatabase {
 const REFRESH_ENDPOINTS = {
   article: '/v1/bookmark/vector/refresh',
   'article-preference': '/v1/bookmark/preference/refresh',
-  collection: '/v1/collection/vector/refresh',
-  subscription: '/v1/collection/preference/refresh'
+  collection: '/v1/collection/vector/refresh'
 } as const
 
 function integer(value: string, minimum = 1): number {
@@ -54,6 +53,7 @@ export function parseRefreshOptions(args: string[]): RefreshOptions {
       if (options.ids.length > 1000) throw new Error('too_many_ids')
     }
     if (key === '--kind') {
+      if (value === 'subscription') throw new Error('subscription_preference_on_demand')
       if (!REFRESH_STAGES.includes(value as RefreshStage)) throw new Error('invalid_kind')
       options.kind = value as RefreshStage
     }
@@ -192,13 +192,13 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   if (args.length === 1 && args[0] === '--help') {
     console.log(
       [
-        'pnpm api -- vector:refresh [--user ID] [--kind article|article-preference|collection|subscription] [--ids ID,ID] [--after-id ID] [--batch 10] [--dry-run]',
+        'pnpm api -- vector:refresh [--user ID] [--kind article|article-preference|collection] [--ids ID,ID] [--after-id ID] [--batch 10] [--dry-run]',
         'Batch: 1..50, default 10; SQL page size only. HTTP requests are sequential with one outstanding request and one target per POST.',
         '--ids and --after-id require one --kind. Article IDs/cursors are sr_user_bookmark.id enumeration keys only; the request body is the raw {user_id, bookmark_id} pair. Different users sharing a bookmark remain separate targets.',
-        'Article-preference and subscription IDs/cursors are sr_user.id. Each stage enumerates every selected active user once, including users with no saves or subscriptions so stale preferences can clear. Both send {user_id}.',
+        'Article-preference IDs/cursors are sr_user.id. This stage enumerates every selected active user once, including users with no saves so stale article preferences can clear, and sends {user_id}.',
         'Collection IDs/cursors are sr_user_collection.id and requests send {collection_id}. Default enumeration selects active Collections; explicit --ids also permits closed Collections for cleanup. Deleted owners and out-of-scope users remain excluded.',
         '--user filters the article owner, Collection owner or preference user. It never expands scope to dependencies. --kind runs only that stage.',
-        'Default stage order: article -> article-preference -> collection -> subscription. Subscription means collection-preference users, not subscription records. Every action refreshes only its own target using existing dependencies.',
+        'Default stage order: article -> article-preference -> collection. Every action refreshes only its own target using existing dependencies. Subscription preference is computed on demand; --kind subscription is retired and fails before database/network access. The legacy /v1/collection/preference/refresh endpoint only cleans an obsolete user record.',
         'Output is JSON target IDs/cursors, safe domain state/reason, pending/failed flags and counts; preference targets also report numeric coverage (eligible, used, missing). received counts recognized code:200 operation results, not completed or query-visible vectors. Unknown states count as failures.',
         'Pending and failed rows do not stop later rows or stages. The final summary precedes nonzero exit if any row was pending or failed. Missing dependencies are never replaced with zero vectors.',
         'Rerun reported cursors as --kind KIND --ids ID,ID, or use exclusive --after-id with one --kind. Cursors track enumeration, not completed work; later cursors do not resolve earlier pending rows.',
@@ -232,7 +232,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
         let body: { user_id: number; bookmark_id: number } | { user_id: number } | { collection_id: number }
         if (stage === 'article' && 'bookmarkId' in row) body = { user_id: row.userId, bookmark_id: row.bookmarkId }
         else if (stage === 'collection' && 'collectionId' in row) body = { collection_id: row.collectionId }
-        else if ((stage === 'article-preference' || stage === 'subscription') && 'userId' in row) body = { user_id: row.userId }
+        else if (stage === 'article-preference' && 'userId' in row) body = { user_id: row.userId }
         else throw new Error('invalid_enumeration')
         const response = await fetch(new URL(REFRESH_ENDPOINTS[stage], origin), {
           method: 'POST',

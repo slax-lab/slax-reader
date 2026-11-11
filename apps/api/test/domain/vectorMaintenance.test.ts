@@ -318,7 +318,8 @@ describe('single-target task refresh semantics', () => {
     expect(indexes[2].stored.has('u:1:article:centered')).toBe(false)
     expect(await service.readUser(1, 'article')).toBeNull()
     expect(await service.readArticleProfile(1)).toBeNull()
-    expect(await service.readUser(1, 'collection')).toEqual(unit(1))
+    expect(await service.readUser(1, 'collection')).toBeNull()
+    expect(indexes[2].stored.get('u:1:collection')?.values).toEqual(unit(1))
     expect(provider).not.toHaveBeenCalled()
     expect(indexes[0].upsert).not.toHaveBeenCalled()
     expect(indexes[1].upsert).not.toHaveBeenCalled()
@@ -889,18 +890,15 @@ describe('minimal per-user vector maintenance', () => {
     indexes[0].stored.set('a:1:2', { id: 'a:1:2', values: unit(1) })
     indexes[1].stored.set('c:2', { id: 'c:2', values: unit(2) })
     expect((await service.refreshUser(1, 'article')).state).toBe('written')
-    expect((await service.refreshUser(1, 'collection')).state).toBe('written')
     const article = await service.readUser(1, 'article')
     expect(article?.[0]).toBeCloseTo(1 / Math.sqrt(5))
     expect(article?.[1]).toBeCloseTo(2 / Math.sqrt(5))
     expect((await service.readUser(1, 'collection'))?.[2]).toBe(1)
     expect(indexes[2].stored.get('u:1:article')?.namespace).toBe('user-article')
-    expect(indexes[2].stored.get('u:1:collection')?.namespace).toBe('user-collection')
+    expect(indexes[2].stored.has('u:1:collection')).toBe(false)
     await db.exec('UPDATE sr_user_collection_subscriber SET is_cancelled=true')
-    expect((await service.refreshUser(1, 'collection')).state).toBe('written')
     expect((await service.readUser(1, 'collection'))?.[2]).toBe(1)
     await db.exec('UPDATE sr_user_collection_subscriber SET is_active=false')
-    expect((await service.refreshUser(1, 'collection')).state).toBe('deleted')
     expect(await service.readUser(1, 'collection')).toBeNull()
     expect(await service.readUser(1, 'article')).toEqual(article)
   })
@@ -1142,8 +1140,10 @@ describe('minimal per-user vector maintenance', () => {
       sourceIndex.stored.set(key, { id: key, values: unit(1) })
     }
     try {
-      const output = await service.refreshUser(1, preference)
-      expect(output).toMatchObject({ state: 'written', coverage: { eligible: 103, used: 3, missing: 100 } })
+      const output = preference === 'article' ? await service.refreshUser(1, preference) : await service.readCollectionPreference(1)
+      expect(output).toMatchObject({ coverage: { eligible: 103, used: 3, missing: 100 } })
+      if (preference === 'article') expect(output).toMatchObject({ state: 'written' })
+      else expect(output).toMatchObject({ vector: unit(1) })
       expect(member.mock.calls.map(call => call[1])).toEqual([0, 100])
       expect(sourceIndex.getByIds.mock.calls.flatMap(call => call[0])).toHaveLength(103)
       expect(await service.readUser(1, preference)).toEqual(unit(1))
@@ -1163,8 +1163,11 @@ describe('minimal per-user vector maintenance', () => {
     for (const key of keys) indexes[2].stored.set(key, { id: key, values: unit(2), namespace: `user-${preference}`, metadata: { original: true } })
     const original = structuredClone([...indexes[2].stored.entries()])
     try {
-      const output = await service.refreshUser(1, preference)
-      expect(output).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 2, used: 0, missing: 2 }, vectorIds: [], mutationIds: [] })
+      if (preference === 'article') {
+        expect(await service.refreshUser(1, preference)).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 2, used: 0, missing: 2 }, vectorIds: [], mutationIds: [] })
+      } else {
+        expect(await service.readCollectionPreference(1)).toEqual({ vector: null, coverage: { eligible: 2, used: 0, missing: 2 } })
+      }
       expect([...indexes[2].stored.entries()]).toEqual(original)
       expect(indexes[2].upsert).not.toHaveBeenCalled()
       expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
@@ -1174,12 +1177,17 @@ describe('minimal per-user vector maintenance', () => {
     }
   })
 
-  test.each(['article', 'collection'] as const)('empty eligible %s history still removes stale profiles with zero coverage', async preference => {
+  test.each(['article', 'collection'] as const)('empty eligible %s inputs follow their independent storage contract', async preference => {
     const key = `u:1:${preference}`
     indexes[2].stored.set(key, { id: key, values: unit(), namespace: `user-${preference}` })
-    const output = await service.refreshUser(1, preference)
-    expect(output).toMatchObject({ state: 'deleted', coverage: { eligible: 0, used: 0, missing: 0 } })
-    expect(indexes[2].stored.has(key)).toBe(false)
+    if (preference === 'article') {
+      expect(await service.refreshUser(1, preference)).toMatchObject({ state: 'deleted', coverage: { eligible: 0, used: 0, missing: 0 } })
+      expect(indexes[2].stored.has(key)).toBe(false)
+    } else {
+      expect(await service.readCollectionPreference(1)).toEqual({ vector: null, coverage: { eligible: 0, used: 0, missing: 0 } })
+      expect(indexes[2].stored.has(key)).toBe(true)
+      expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
+    }
     expect(provider).not.toHaveBeenCalled()
   })
 
@@ -1196,7 +1204,8 @@ describe('minimal per-user vector maintenance', () => {
       return ids.map(id => ({ id, values: unit() }))
     })
     try {
-      expect(await service.refreshUser(1, preference)).toMatchObject({ state: 'failed', reason: 'storage_unavailable', coverage: { missing: 0 } })
+      if (preference === 'article') expect(await service.refreshUser(1, preference)).toMatchObject({ state: 'failed', reason: 'storage_unavailable', coverage: { missing: 0 } })
+      else await expect(service.readCollectionPreference(1)).rejects.toThrow('storage_unavailable')
       expect(indexes[2].stored.get(key)).toEqual(original)
       expect(indexes[2].upsert).not.toHaveBeenCalled()
       expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
@@ -1274,7 +1283,6 @@ describe('minimal per-user vector maintenance', () => {
     indexes[0].stored.set('a:3:2', { id: 'a:3:2', values: unit(1) })
     expect((await service.refreshCollection(2)).state).toBe('written')
     expect((await service.refreshCollection(3)).state).toBe('written')
-    expect((await service.refreshUser(1, 'collection')).state).toBe('written')
     const combined = await service.readUser(1, 'collection')
     expect(combined?.[0]).toBeCloseTo(Math.SQRT1_2)
     expect(combined?.[1]).toBeCloseTo(Math.SQRT1_2)
@@ -1282,20 +1290,18 @@ describe('minimal per-user vector maintenance', () => {
     else await db.exec('INSERT INTO sr_bookmark_share VALUES(1,2,false)')
     expect((await service.refreshCollection(2)).state).toBe('deleted')
     expect(indexes[1].stored.has('c:2')).toBe(false)
-    expect((await service.refreshUser(1, 'collection')).state).toBe('written')
     expect(await service.readUser(1, 'collection')).toEqual(unit(1))
     expect(indexes[1].stored.has('c:3')).toBe(true)
     await db.exec('UPDATE sr_user_bookmark SET is_starred=false WHERE user_id=3')
     expect((await service.refreshCollection(3)).state).toBe('deleted')
-    expect((await service.refreshUser(1, 'collection')).state).toBe('deleted')
     expect(await service.readUser(1, 'collection')).toBeNull()
   })
 
-  test('a nonempty Collection without its vector remains a real dependency failure', async () => {
+  test('a nonempty Collection without its vector yields unavailable input without repair', async () => {
     await seed(1, [2], 'published PDF member', { starred: true, published: true, privateUser: 2 })
     await db.exec('UPDATE sr_user_bookmark SET type=2; INSERT INTO sr_user_collection_subscriber(user_id,collection_id) VALUES(1,2)')
-    const result = await service.refreshUser(1, 'collection')
-    expect(result).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 1, used: 0, missing: 1 } })
+    const result = await service.readCollectionPreference(1)
+    expect(result).toMatchObject({ vector: null, coverage: { eligible: 1, used: 0, missing: 1 } })
     expect(indexes[2].upsert).not.toHaveBeenCalled()
     expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
   })
@@ -1308,7 +1314,7 @@ describe('minimal per-user vector maintenance', () => {
     if (state === 'moderated') await db.exec('UPDATE sr_bookmark SET moderation_result=1')
     if (state === 'foreign-private') await db.exec('UPDATE sr_bookmark SET private_user=3')
     if (state === 'owner-sharing-off') await db.exec('UPDATE sr_user SET snapshot_sharing=false WHERE id=2')
-    expect((await service.refreshUser(1, 'collection')).state).toBe('deleted')
+    expect(await service.readUser(1, 'collection')).toBeNull()
     expect(indexes[1].getByIds).not.toHaveBeenCalled()
   })
 
@@ -1346,7 +1352,7 @@ describe('minimal per-user vector maintenance', () => {
       INSERT INTO sr_user_collection(id,owner_id,status,collection_code) SELECT 200 + i, 2, 1, 'sub-collection-' || i FROM generate_series(1,103) i;
       INSERT INTO sr_user_collection_subscriber(user_id,collection_id) SELECT 1, 200 + i FROM generate_series(1,103) i;`)
     for (let id = 201; id <= 303; id++) indexes[1].stored.set(`c:${id}`, { id: `c:${id}`, values: unit() })
-    expect((await service.refreshUser(1, 'collection')).state).toBe('written')
+    expect(await service.readCollectionPreference(1)).toMatchObject({ coverage: { eligible: 103, used: 103, missing: 0 } })
     const calls = indexes[1].getByIds.mock.calls.map(call => call[0])
     expect(calls.map(ids => ids.length)).toEqual([20, 20, 20, 20, 20, 3])
     expect(calls.every(ids => ids.length <= 20)).toBe(true)
@@ -1500,7 +1506,8 @@ describe('minimal per-user vector maintenance', () => {
     expect(indexes[2].stored.has('u:1:article:centered')).toBe(false)
     expect(await service.readUser(1, 'article')).toBeNull()
     expect(await service.readArticleProfile(1)).toBeNull()
-    expect(await service.readUser(1, 'collection')).toEqual(unit(1))
+    expect(await service.readUser(1, 'collection')).toBeNull()
+    expect(indexes[2].stored.get('u:1:collection')?.values).toEqual(unit(1))
     expect(indexes[2].upsert).not.toHaveBeenCalled()
   })
 

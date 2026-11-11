@@ -245,13 +245,13 @@ describe('direct Core task routes through the generated router', () => {
     expect(current.stored.has('u:7:article')).toBe(true)
   })
 
-  test('the Collection-preference action touches only that user collection preference', async () => {
+  test('the retired Collection-preference action only cleans that user legacy key', async () => {
     current.stored.set('u:7:article', { id: 'u:7:article', namespace: 'user-article', values: unit() })
     current.stored.set('u:7:collection', { id: 'u:7:collection', namespace: 'user-collection', values: unit() })
     const { response } = await atCore('/v1/collection/preference/refresh', { user_id: USER }, task())
     const body = (await response.json()) as { code: number; data: { state: string; target: unknown } }
     expect(body).toMatchObject({ code: 200, data: { state: 'deleted', target: { kind: 'user', id: USER, preference: 'collection' } } })
-    expect(current.repo.listUserCollections).toHaveBeenCalled()
+    expect(current.repo.listUserCollections).not.toHaveBeenCalled()
     expect(current.repo.listUserArticles).not.toHaveBeenCalled()
     expect(current.repo.findArticles).not.toHaveBeenCalled()
     expect(current.index.delete.mock.calls.map(([kind, ids]) => [kind, ids])).toEqual([['user', ['u:7:collection']]])
@@ -389,7 +389,7 @@ describe('Edge anonymous forwarding preserves the task header', () => {
     if (path.includes('bookmark/vector')) expect([...current.stored.keys()]).toEqual(['a:7:41'])
     if (path.includes('collection/vector')) expect(current.repo.findCollection).toHaveBeenCalledExactlyOnceWith(81)
     if (path.includes('bookmark/preference')) expect(current.repo.listUserArticles).toHaveBeenCalled()
-    if (path.includes('collection/preference')) expect(current.repo.listUserCollections).toHaveBeenCalled()
+    if (path.includes('collection/preference')) expect(current.repo.listUserCollections).not.toHaveBeenCalled()
   })
 
   test('a wrong task header is forwarded and denied by Core', async () => {

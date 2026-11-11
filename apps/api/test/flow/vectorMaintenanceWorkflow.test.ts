@@ -246,6 +246,27 @@ describe('explicit maintenance business Workflow', () => {
     expect(mocks.service.refreshUser).not.toHaveBeenCalled()
   })
 
+  it('retires an old Collection-preference job without replaying cached materialization', async () => {
+    const cached = new Map<string, unknown>([
+      ['collection-preference-write', { target: { kind: 'user', id: 7, preference: 'collection' }, state: 'written', vectorIds: ['u:7:collection'], mutationIds: ['old'] }],
+      ['collection-preference-visible', undefined]
+    ])
+    const names: string[] = []
+    const execution = {
+      names,
+      do: async (name: string, _options: unknown, callback: () => Promise<unknown>) => {
+        names.push(name)
+        return cached.has(name) ? cached.get(name) : callback()
+      }
+    }
+    await run({ kind: 'user', id: 7, preference: 'collection' }, execution)
+    expect(names).toEqual(['retire-collection-preference-write', 'retire-collection-preference-visible'])
+    expect(mocks.service.refreshUser).toHaveBeenCalledExactlyOnceWith(7, 'collection')
+    expect(mocks.service.refreshCollection).not.toHaveBeenCalled()
+    expect(mocks.service.refreshArticles).not.toHaveBeenCalled()
+    expect(mocks.repo.listSubscriberUsers).not.toHaveBeenCalled()
+  })
+
   it.each(['collection', 'article'] as const)('keeps explicit %s preference cleanup isolated', async preference => {
     await run({ kind: 'user', id: 7, preference })
     expect(mocks.service.refreshUser).toHaveBeenCalledExactlyOnceWith(7, preference)

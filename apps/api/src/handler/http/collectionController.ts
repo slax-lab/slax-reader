@@ -9,7 +9,6 @@ import { Failed, Successed } from '../../utils/responseUtils'
 import { CollectionService } from '../../domain/collection'
 import { CollectionOrchestrator } from '../../domain/orchestrator/collection'
 import { submitServerEvent } from '../../domain/events'
-import { dispatchVectorMaintenance } from '../../domain/vectorMaintenanceHooks'
 import { VectorMaintenanceService } from '../../domain/vectorMaintenance'
 import { requireVectorRefreshSecret } from '@/utils/vectorRefreshAuth'
 
@@ -107,7 +106,6 @@ export class CollectionController {
     const referrer = typeof params.referrer === 'string' ? params.referrer.slice(0, 512) : undefined
     const subInfo = await this.collectionOrchestrator.subscribeUserCollection(ctx, params.collect_code, referrer)
     if (subInfo.subscribe) {
-      dispatchVectorMaintenance(ctx, { kind: 'user', id: ctx.getUserId(), preference: 'collection' })
       submitServerEvent(ctx, request, 'collection_subscribed', { collection_id: params.collect_code })
     }
     return Successed(subInfo)
@@ -123,7 +121,6 @@ export class CollectionController {
     if (!CollectionController.collectionCodeIsValidate(params.collect_code)) return Failed(ShareCollectionNotFoundError())
 
     await this.collectionOrchestrator.unsubscribeUserCollection(ctx, params.collect_code)
-    dispatchVectorMaintenance(ctx, { kind: 'user', id: ctx.getUserId(), preference: 'collection' })
     try {
       const current = await this.collectionService.getUserCollectionSubscribed(ctx, params.collect_code)
       if (!current.subscribed || current.deleted) submitServerEvent(ctx, request, 'collection_unsubscribed', { collection_id: params.collect_code })
@@ -143,7 +140,6 @@ export class CollectionController {
     if (!CollectionController.collectionCodeIsValidate(params.collect_code)) return Failed(ShareCollectionNotFoundError())
 
     await this.collectionService.deleteUserCollectionSubscribe(ctx, params.collect_code)
-    dispatchVectorMaintenance(ctx, { kind: 'user', id: ctx.getUserId(), preference: 'collection' })
     return Successed('ok')
   }
 

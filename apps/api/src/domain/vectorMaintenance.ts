@@ -509,11 +509,19 @@ export class VectorMaintenanceService implements VectorMaintenance {
   async readUser(id: number, preference: PreferenceKind): Promise<number[] | null> {
     positiveId(id)
     if (preference !== 'article' && preference !== 'collection') throw new Error('invalid_preference_kind')
+    if (preference === 'collection') return (await this.readCollectionPreference(id)).vector
     const key = `u:${id}:${preference}`
     const vector = (await this.get('user', [key])).get(key)
     if (!vector) return null
     if (vector.namespace !== `user-${preference}`) throw new Error('invalid_preference_namespace')
     return normalized(vector.values)
+  }
+
+  async readCollectionPreference(userId: number) {
+    positiveId(userId)
+    const coverage = { eligible: 0, used: 0, missing: 0 }
+    const vector = await this.aggregateCollections(userId, coverage)
+    return { vector, coverage }
   }
 
   async readArticleProfile(userId: number): Promise<{ vector: number[]; centered: number[]; interests: InterestCluster[] } | null> {
@@ -781,7 +789,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
     positiveId(id)
     if (preference !== 'article' && preference !== 'collection') throw new Error('invalid_preference_kind')
     const output = result({ kind: 'user', id, preference })
-    output.coverage = { eligible: 0, used: 0, missing: 0 }
+    if (preference === 'article') output.coverage = { eligible: 0, used: 0, missing: 0 }
     try {
       if (preference === 'article') {
         const published = (await this.preferences.rebuild(id, { user: true, collections: [] })).find(item => item.target.kind === 'user')
@@ -789,17 +797,11 @@ export class VectorMaintenanceService implements VectorMaintenance {
         return published
       }
       const key = `u:${id}:collection`
-      const vector = await this.aggregateCollections(id, output.coverage)
-      if (!vector) {
-        if (output.coverage.eligible > 0) throw new Error('no_usable_preference_vectors')
-        await this.remove('user', [key], output)
-      } else {
-        const namespace = 'user-collection'
-        output.writeToken = await contentWriteToken({ target: key, namespace }, vector)
-        await this.upsert('user', [{ id: key, namespace, values: vector, metadata: {} }], [output])
-      }
+      output.reason = 'collection_preference_on_demand'
+      if (!(await this.get('user', [key])).has(key)) return output
+      await this.remove('user', [key], output)
       output.vectorIds = [key]
-      output.state = vector ? 'written' : 'deleted'
+      output.state = 'deleted'
       return output
     } catch (error) {
       return failed(output, error)

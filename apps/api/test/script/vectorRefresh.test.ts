@@ -111,7 +111,7 @@ describe('sequential operator enumeration', () => {
     expect((await enumeratePage(db, 'article', 0, parseRefreshOptions(args))).rows).toEqual(expected)
   })
 
-  test.each(['article-preference', 'subscription'] as const)('%s enumerates active users directly and includes zero-history users', async stage => {
+  test.each(['article-preference'] as const)('%s enumerates active users directly and includes zero-history users', async stage => {
     const options = (...extra: string[]) => parseRefreshOptions(['--kind', stage, ...extra])
     expect(await enumeratePage(db, stage, 0, options())).toEqual({ cursor: 4, rows: userRows })
     expect((await enumeratePage(db, stage, 0, options('--user', '4'))).rows).toEqual([{ cursor: 4, userId: 4 }])
@@ -124,15 +124,15 @@ describe('sequential operator enumeration', () => {
   })
 
   test('preference stages never consult subscription rows and deduplicate each user once', async () => {
-    for (const stage of ['article-preference', 'subscription'] as const) {
+    for (const stage of ['article-preference'] as const) {
       const query = vi.fn(async () => ({ rows: [] }))
       await enumeratePage({ query }, stage, 0, parseRefreshOptions([]))
       expect(query.mock.calls[0][0]).not.toMatch(/subscription|sr_user_bookmark/)
       expect(query.mock.calls[0][0]).toMatch(/FROM sr_user u/)
       expect(query.mock.calls[0][1]).toEqual([0, null, null, 10])
     }
-    const options = parseRefreshOptions(['--kind', 'subscription', '--batch', '50'])
-    expect((await enumeratePage(db, 'subscription', 0, options)).rows.map(row => 'userId' in row && row.userId)).toEqual([1, 2, 3, 4])
+    const options = parseRefreshOptions(['--kind', 'article-preference', '--batch', '50'])
+    expect((await enumeratePage(db, 'article-preference', 0, options)).rows.map(row => 'userId' in row && row.userId)).toEqual([1, 2, 3, 4])
   })
 
   test('Collection enumeration keeps active collections by default and explicit closed cleanup IDs', async () => {
@@ -152,7 +152,7 @@ describe('sequential operator enumeration', () => {
     await pg.exec('UPDATE sr_user SET deleted_at = now() WHERE id = 3; UPDATE sr_user_collection SET owner_id = 3 WHERE id = 30')
     expect((await enumeratePage(db, 'article', 0, parseRefreshOptions([]))).rows.some(row => 'userId' in row && row.userId === 3)).toBe(false)
     expect((await enumeratePage(db, 'collection', 0, parseRefreshOptions([]))).rows).toEqual([{ cursor: 31, collectionId: 31 }])
-    expect((await enumeratePage(db, 'subscription', 0, parseRefreshOptions([]))).rows).toEqual(userRows.filter(row => row.userId !== 3))
+    expect((await enumeratePage(db, 'article-preference', 0, parseRefreshOptions([]))).rows).toEqual(userRows.filter(row => row.userId !== 3))
   })
 
   test('enumeration is bounded, parameterized and strictly increasing', async () => {
@@ -175,29 +175,27 @@ describe('sequential operator enumeration', () => {
     const options = parseRefreshOptions(['--dry-run'])
     vi.stubEnv('VECTOR_REFRESH_SECRET', undefined)
     const result = await runVectorRefresh(options, { db, send, log })
-    expect(result).toEqual({ enumerated: 16, counts: { received: 0, pending: 0, failed: 0 } })
+    expect(result).toEqual({ enumerated: 12, counts: { received: 0, pending: 0, failed: 0 } })
     expect(send).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
     const output = log.mock.calls.map(([message]) => JSON.parse(message))
     expect(output).toEqual([
       { stage: 'article', afterId: 0, nextAfterId: 25, dryRun: true, rows: articleRows },
       { stage: 'article-preference', afterId: 0, nextAfterId: 4, dryRun: true, rows: userRows },
-      { stage: 'collection', afterId: 0, nextAfterId: 31, dryRun: true, rows: collectionRows },
-      { stage: 'subscription', afterId: 0, nextAfterId: 4, dryRun: true, rows: userRows }
+      { stage: 'collection', afterId: 0, nextAfterId: 31, dryRun: true, rows: collectionRows }
     ])
   })
 
-  test('the four stages send one raw target each in order before any later stage starts', async () => {
+  test('the three stages send one raw target each in order before any later stage starts', async () => {
     const send = vi.fn(async () => accepted())
     await runVectorRefresh(parseRefreshOptions([]), { db, send })
     expect(send.mock.calls).toEqual([
       ...articleRows.map(row => ['article', row]),
       ...userRows.map(row => ['article-preference', row]),
-      ...collectionRows.map(row => ['collection', row]),
-      ...userRows.map(row => ['subscription', row])
+      ...collectionRows.map(row => ['collection', row])
     ])
     expect(send.mock.calls.filter(([stage]) => stage === 'article')).toHaveLength(6)
-    expect(send.mock.calls.filter(([stage]) => stage === 'subscription')).toHaveLength(4)
+    expect(send.mock.calls.filter(([stage]) => stage === 'subscription')).toHaveLength(0)
   })
 
   test('a deferred target blocks the next request until it settles', async () => {
@@ -228,8 +226,8 @@ describe('sequential operator enumeration', () => {
       return accepted()
     })
     const result = await runVectorRefresh(parseRefreshOptions([]), { db, send, log })
-    expect(send).toHaveBeenCalledTimes(16)
-    expect(result.counts).toEqual({ received: 14, pending: 1, failed: 3 })
+    expect(send).toHaveBeenCalledTimes(12)
+    expect(result.counts).toEqual({ received: 10, pending: 1, failed: 3 })
     const output = log.mock.calls.map(([message]) => JSON.parse(message))
     expect(output.filter(row => row.failed)).toEqual([
       { stage: 'article', cursor: 11, userId: 1, bookmarkId: 10, afterId: 0, failed: true, reason: 'refresh_request_failed' },
@@ -375,12 +373,12 @@ describe('response and option safety', () => {
     await main(['--help'])
     const help = log.mock.calls[0][0] as string
     for (const text of [
-      'article|article-preference|collection|subscription',
+      'article|article-preference|collection',
       'sr_user_bookmark.id',
       'raw {user_id, bookmark_id}',
       'sr_user.id',
-      'Each stage enumerates every selected active user once',
-      'including users with no saves or subscriptions',
+      'This stage enumerates every selected active user once',
+      'including users with no saves',
       'VECTOR_REFRESH_SECRET',
       'X-Vector-Refresh-Secret',
       'omit Authorization and X-API-Key',
@@ -416,11 +414,19 @@ describe('response and option safety', () => {
 })
 
 describe('main HTTP execution', () => {
+  test.each([{ extra: [] }, { extra: ['--dry-run'] }, { extra: ['--ids', '7'] }])('rejects the retired subscription stage before connections %j', async ({ extra }) => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    await expect(main(['--kind', 'subscription', ...extra])).rejects.toThrow('subscription_preference_on_demand')
+    expect(connection.client).not.toHaveBeenCalled()
+    expect(connection.connect).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   test.each([
     ['article', '11', '/v1/bookmark/vector/refresh', { user_id: 1, bookmark_id: 10 }],
     ['article-preference', '2', '/v1/bookmark/preference/refresh', { user_id: 2 }],
-    ['collection', '30', '/v1/collection/vector/refresh', { collection_id: 30 }],
-    ['subscription', '3', '/v1/collection/preference/refresh', { user_id: 3 }]
+    ['collection', '30', '/v1/collection/vector/refresh', { collection_id: 30 }]
   ] as const)('POSTs the exact %s raw target with the custom secret header only', async (stage, id, path, body) => {
     const log = configureMain()
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(accepted()), { status: 200 }))

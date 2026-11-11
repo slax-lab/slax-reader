@@ -134,7 +134,7 @@ describe('publication maintenance hooks', () => {
 })
 
 describe('existing collection expiry maintenance', () => {
-  it('updates all changed subscriptions in one statement then dispatches actual changed users', async () => {
+  it('updates all changed subscriptions in one statement without vector dispatch', async () => {
     const { ctx, create, createBatch } = context()
     let committed = false
     const db = {
@@ -156,14 +156,12 @@ describe('existing collection expiry maintenance', () => {
     expect(sql).toContain('RETURNING user_id')
     expect(sql).toContain('SELECT DISTINCT user_id FROM changed')
     expect(sql).not.toContain('LIMIT')
-    expect(create.mock.calls.map(([args]) => args.params.target)).toEqual([
-      { kind: 'user', id: 7, preference: 'collection' },
-      { kind: 'user', id: 8, preference: 'collection' }
-    ])
-    expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(createBatch.mock.invocationCallOrder[0])
+    expect(committed).toBe(true)
+    expect(create).not.toHaveBeenCalled()
+    expect(createBatch).not.toHaveBeenCalled()
   })
 
-  it('does not block or undo expiry revocation when workflow admission fails', async () => {
+  it('expiry revocation does not depend on an available Workflow binding', async () => {
     const { ctx, createBatch } = context()
     let revoked = false
     const db = {
@@ -183,13 +181,14 @@ describe('existing collection expiry maintenance', () => {
       await expect(job.recomputeCollectionSubscriberActive(ctx)).resolves.toBeUndefined()
       expect(revoked).toBe(true)
       expect(db.$queryRaw).toHaveBeenCalledTimes(1)
-      expect(log).toHaveBeenCalledWith('[vector-maintenance] subscription expiry dispatch failed', expect.any(Error))
+      expect(log).not.toHaveBeenCalled()
+      expect(createBatch).not.toHaveBeenCalled()
     } finally {
       log.mockRestore()
     }
   })
 
-  it('does not cap database updates at two thousand and batches every returned user', async () => {
+  it('does not cap database updates at two thousand or create per-user jobs', async () => {
     const { ctx, createBatch, create } = context()
     const changed = Array.from({ length: 2105 }, (_, index) => ({ user_id: index + 1 }))
     const db = { $queryRaw: vi.fn().mockResolvedValue(changed) }
@@ -197,9 +196,8 @@ describe('existing collection expiry maintenance', () => {
     const job = new CollectionJob({ recomputeSubscriberActiveStatus: () => repo.recomputeSubscriberActive() } as any)
     await job.recomputeCollectionSubscriberActive(ctx)
     expect(db.$queryRaw).toHaveBeenCalledTimes(1)
-    expect(createBatch.mock.calls.map(([items]) => items.length)).toEqual([...Array(21).fill(100), 5])
-    expect(create).toHaveBeenCalledTimes(2105)
-    expect(create.mock.calls.at(-1)![0].params.target).toEqual({ kind: 'user', id: 2105, preference: 'collection' })
+    expect(createBatch).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled()
   })
 
   it('does not dispatch if the SQL update fails or changes no rows', async () => {
@@ -327,7 +325,7 @@ describe('disposable PostgreSQL Collection and expiry subcases', () => {
     })
   })
 
-  it('updates only expired subscriptions in the disposable database and dispatches the changed user through the existing cron', async () => {
+  it('updates only expired subscriptions in the disposable database without vector dispatch through the existing cron', async () => {
     await withDisposableDb(async pg => {
       await pg.exec(`
         INSERT INTO sr_user(id) VALUES (7),(8),(9);
@@ -347,11 +345,10 @@ describe('disposable PostgreSQL Collection and expiry subcases', () => {
         { user_id: 8, is_active: true },
         { user_id: 9, is_active: false }
       ])
-      expect(createBatch).toHaveBeenCalledTimes(1)
-      expect(createBatch.mock.calls[0][0].map((item: any) => item.params.target)).toEqual([{ kind: 'user', id: 7, preference: 'collection' }])
-      expect(create).toHaveBeenCalledTimes(1)
+      expect(createBatch).not.toHaveBeenCalled()
+      expect(create).not.toHaveBeenCalled()
       await job.recomputeCollectionSubscriberActive(ctx)
-      expect(createBatch).toHaveBeenCalledTimes(1)
+      expect(createBatch).not.toHaveBeenCalled()
     })
   })
 
@@ -375,22 +372,22 @@ describe('disposable PostgreSQL Collection and expiry subcases', () => {
         preferences.bind(new VectorMaintenanceService(new VectorMaintenanceRepo(() => disposablePrisma(pg)), {} as any, {} as any, index as any, preferences.client)))(
         memoryPreferences()
       )
-      const removed = await service.refreshUser(7, 'collection')
-      expect(removed.state).toBe('deleted')
-      expect(index.delete.mock.calls).toEqual([['user', ['u:7:collection']]])
+      expect(await service.readUser(7, 'collection')).toBeNull()
+      expect(index.delete).not.toHaveBeenCalled()
       expect(index.get).not.toHaveBeenCalled()
       expect(index.stored.get('u:7:article')?.values).toEqual(axis(0))
       expect(index.stored.get('c:7')?.values).toEqual(axis(1))
       await pg.exec("UPDATE sr_user_collection_subscriber SET subscription_end_time=now() + interval '1 year'")
-      const written = await service.refreshUser(7, 'collection')
-      expect(written.state).toBe('written')
+      expect(await service.readUser(7, 'collection')).toEqual(axis(1))
       expect(index.get).toHaveBeenCalledExactlyOnceWith('collection', ['c:7'])
       expect(index.stored.get('u:7:collection')?.values).toEqual(axis(1))
       expect(index.stored.get('u:7:article')?.values).toEqual(axis(0))
       expect(index.stored.get('c:7')?.values).toEqual(axis(1))
       await pg.exec("UPDATE sr_user_collection_subscriber SET subscription_end_time=now() - interval '1 day'")
-      expect((await service.refreshUser(7, 'collection')).state).toBe('deleted')
-      expect(index.stored.has('u:7:collection')).toBe(false)
+      expect(await service.readUser(7, 'collection')).toBeNull()
+      expect(index.stored.has('u:7:collection')).toBe(true)
+      expect(index.upsert).not.toHaveBeenCalled()
+      expect(index.delete).not.toHaveBeenCalled()
       expect(index.stored.get('u:7:article')?.values).toEqual(axis(0))
       expect(index.stored.get('c:7')?.values).toEqual(axis(1))
     })

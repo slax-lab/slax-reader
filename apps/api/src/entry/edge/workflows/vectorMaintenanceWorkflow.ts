@@ -103,7 +103,7 @@ export class VectorMaintenanceWorkflow extends WorkflowEntrypoint<Env, VectorMai
       }
 
       if (target.kind === 'user') {
-        await this.refresh(service, target, step, `${target.preference}-preference`)
+        await this.refresh(service, target, step, target.preference === 'collection' ? 'retire-collection-preference' : 'article-preference')
       }
     } finally {
       await ctxManager.cleanup()
