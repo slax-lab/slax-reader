@@ -53,7 +53,7 @@ describe('publication maintenance hooks', () => {
       show_profile: row.show_profile
     })
     await flush()
-    expect(enableUserShareCollect).toHaveBeenCalledExactlyOnceWith(7, enable, 'Owner', 1)
+    expect(enableUserShareCollect).toHaveBeenCalledExactlyOnceWith(7, enable, "Owner's Reading Recommendations", 1)
     expect(create).toHaveBeenCalledTimes(1)
     expect(create.mock.calls[0][0].params.target).toEqual({ kind: 'collection', id: 5 })
     expect(enableUserShareCollect.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0])

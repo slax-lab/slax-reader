@@ -101,7 +101,7 @@ The final full Web suite passed 2785 tests with 3 conditionally skipped (237 fil
 
 The backfill review reported no Important findings. `/mine` fetches now use a no-op per-request error interceptor so a broken collection invariant degrades silently instead of producing a global error toast on every page mount. The unused row-returning repository wrapper was removed, and the legacy close/reopen create branch now uses the same localized default display name as registration and backfill. Registration continues to load the owner and check for an existing collection on every login because that is the documented creation-failure retry, rather than optimizing it into an `isNew`-only path.
 
-Follow-up verification passed 63/63 targeted API tests and 9/9 targeted Web cache tests, plus API and Web typecheck and changed-file ESLint. The full-suite results above remain the current merged-baseline evidence.
+Follow-up verification passed 63/63 targeted API tests and 9/9 targeted Web cache tests, plus API and Web typecheck and changed-file ESLint. The full-suite results above remain the current merged-baseline evidence. CI then identified two legacy name assertions in `vectorMaintenancePublication.test.ts`; they were updated from the old English collection-share template to the unified localized default, and all 18 tests in that file now pass.
 
 ## Human hands-on acceptance
 
