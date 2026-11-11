@@ -1,5 +1,6 @@
 import { acquisitionUtmQuery } from '~/utils/acquisitionAttribution'
 import { readStringCookie } from '~/utils/authCookie'
+import { isProviderLinkState } from '~/utils/providerLink'
 
 import { isServer } from '@commons/frontend-utils/is'
 import { useCookies } from '@vueuse/integrations/useCookies'
@@ -9,6 +10,8 @@ export default defineNuxtRouteMiddleware((to, from) => {
   if (isServer) {
     return
   }
+
+  if (to.path === '/auth' && isProviderLinkState(to.query.state)) return
 
   const isAnchorLink = to.path === from.path && to.hash !== from.hash
   // A bypassed root must reach login or reload with a session before the Inbox can mount.

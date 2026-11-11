@@ -19,6 +19,9 @@ function load(platform, {google, apple, config = {}} = {}) {
       calls.push(['credentialManager', clientId])
       if (google?.nativeError) throw google.nativeError
       return google && Object.hasOwn(google, 'nativeToken') ? google.nativeToken : 'synthetic-google-id-token'
+    }, googleLinkCredential: async (clientId, nonce) => {
+      calls.push(['credentialManager', clientId, nonce])
+      return 'synthetic-google-id-token'
     }},
     'react-native-nitro-google-signin': {
       GoogleOneTapSignIn: {
@@ -113,4 +116,17 @@ test('missing public build IDs and incomplete Apple credentials fail before acce
   assert.deepEqual(unconfiguredAndroid.calls, [])
   const invalid = load('ios', {apple: {credential: {authorizationCode: null, identityToken: 'synthetic-apple-id-token'}}})
   await assert.rejects(invalid.authenticate('apple'), /authorization code/)
+})
+
+test('native provider linking forwards the server nonce unchanged to Google and Apple', async () => {
+  const nonce = 'opaque-server-link-nonce'
+  const ios = load('ios')
+  await ios.authenticate('google', nonce)
+  await ios.authenticate('apple', nonce)
+  assert.equal(ios.calls.find(call => call[0] === 'configure')[1].nonce, nonce)
+  assert.equal(ios.calls.find(call => call[0] === 'apple')[1].nonce, nonce)
+
+  const android = load('android')
+  await android.authenticate('google', nonce)
+  assert.deepEqual(android.calls, [['credentialManager', 'synthetic-web.apps.googleusercontent.com', nonce]])
 })

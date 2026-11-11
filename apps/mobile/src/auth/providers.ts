@@ -3,20 +3,20 @@ import { mobileConfig } from '../config';
 import type { LoginRequest } from '../data/api';
 
 export type LoginProvider = 'google' | 'apple';
-export async function authenticate(provider: LoginProvider): Promise<LoginRequest | null> {
+export async function authenticate(provider: LoginProvider, nonce?: string): Promise<LoginRequest | null> {
   if (provider === 'google') {
     if (!mobileConfig.googleWebClientId || (Platform.OS === 'ios' && !mobileConfig.googleIosClientId)) {
       throw new Error('Google Sign-In client IDs have not been configured for this build');
     }
     if (Platform.OS === 'android') {
-      const {googleSignIn} = await import('../native/platform');
-      const idToken = await googleSignIn(mobileConfig.googleWebClientId);
+      const {googleSignIn, googleLinkCredential} = await import('../native/platform');
+      const idToken = nonce === undefined ? await googleSignIn(mobileConfig.googleWebClientId) : await googleLinkCredential(mobileConfig.googleWebClientId, nonce);
       if (idToken === null) return null;
       if (!idToken) throw new Error('Google did not return an identity token');
       return {type: 'google', platform: mobileConfig.platform, code: idToken, redirect_uri: '', id_token: ''};
     }
     const { GoogleOneTapSignIn, isErrorWithCode, statusCodes } = await import('react-native-nitro-google-signin');
-    GoogleOneTapSignIn.configure({webClientId: mobileConfig.googleWebClientId, iosClientId: mobileConfig.googleIosClientId, offlineAccess: false, autoSelectOnSignIn: false});
+    GoogleOneTapSignIn.configure({webClientId: mobileConfig.googleWebClientId, iosClientId: mobileConfig.googleIosClientId, offlineAccess: false, autoSelectOnSignIn: false, nonce});
     try {
       await GoogleOneTapSignIn.checkPlayServices();
       // The original iOS button always presents Google sign-in, including when
@@ -33,7 +33,7 @@ export async function authenticate(provider: LoginProvider): Promise<LoginReques
   if (Platform.OS !== 'ios') return null;
   const Apple = await import('expo-apple-authentication');
   try {
-    const credential = await Apple.signInAsync({requestedScopes: [Apple.AppleAuthenticationScope.FULL_NAME, Apple.AppleAuthenticationScope.EMAIL]});
+    const credential = await Apple.signInAsync({requestedScopes: [Apple.AppleAuthenticationScope.FULL_NAME, Apple.AppleAuthenticationScope.EMAIL], nonce});
     if (!credential.authorizationCode || !credential.identityToken) throw new Error('Apple did not return an authorization code and identity token');
     return {type: 'apple', platform: 'ios', code: credential.authorizationCode, redirect_uri: '', id_token: credential.identityToken};
   } catch (error) {

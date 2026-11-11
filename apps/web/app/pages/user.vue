@@ -29,9 +29,19 @@
                 <img class="avatar" :src="userInfo.avatar || avatarUrl" alt="" />
                 <div class="personal-text">
                   <span class="username">{{ userInfo.name }}</span>
-                  <span class="email">{{ userInfo.email }}</span>
+                  <span v-if="userInfo.email" class="profile-email">
+                    <span class="profile-email-label">{{ $t('page.user.profile_email') }}</span>
+                    <span>{{ userInfo.email }}</span>
+                  </span>
                 </div>
               </div>
+              <UserSignInMethodsSection
+                v-if="loginMethodsAccountKey"
+                :key="loginMethodsAccountKey"
+                :account-key="loginMethodsAccountKey"
+                :profile-email="userInfo.email"
+                :platform="userInfo.platform"
+              />
             </div>
             <UserRelatedInfoSection section="account" :user-info="userInfo" @update="getUserDetailInfo" />
           </section>
@@ -103,8 +113,10 @@ import UserExportSection from '~/components/UserExportSection.vue'
 import UserImportSection from '~/components/UserImportSection.vue'
 import UserLabSection from '~/components/UserLabSection.vue'
 import UserPageSkeleton from '~/components/UserPageSkeleton.vue'
+import UserSignInMethodsSection from '~/components/UserSignInMethodsSection.vue'
 
 import { getPreferredLanguage, isSlaxReaderApp } from '../utils/environment'
+import { deriveAccountKey } from '~/utils/accountContext'
 import { AccountLocaleStaleError } from '~/utils/accountLocaleRequest'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -125,6 +137,7 @@ const { start, finish } = useLoadingIndicator({
 
 const avatarUrl = new URL('@images/user-default-avatar.png', import.meta.url).href
 const userInfo = ref<UserDetailInfo>()
+const loginMethodsAccountKey = ref<string | null>(null)
 const loading = ref(true)
 const detail = ref<HTMLElement>()
 const labs = useLabFeatures()
@@ -266,10 +279,15 @@ const aiLanguageOptionIndex = computed(() => {
 })
 
 const getUserDetailInfo = async () => {
+  const token = getUserToken()
+  const accountKey = deriveAccountKey(token)
   const res = await request().get<UserDetailInfo>({
-    url: RESTMethodPath.USER_INFO
+    url: RESTMethodPath.USER_INFO,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined
   })
 
+  if (deriveAccountKey(getUserToken()) !== accountKey) return
+  loginMethodsAccountKey.value = accountKey
   userInfo.value = res
   loading.value = false
 }
@@ -535,13 +553,21 @@ const localeSelect = async (index: number) => {
   color: var(--slax-text);
   font-weight: 600;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
-.email {
+.profile-email {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
   overflow-wrap: anywhere;
   font-size: var(--slax-fs-aux);
-  color: var(--slax-text-light);
+  color: var(--slax-text-muted);
   line-height: 1.5;
+}
+
+.profile-email-label {
+  font-weight: 500;
 }
 
 // 帮助支持

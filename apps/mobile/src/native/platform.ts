@@ -2,6 +2,7 @@ import {requireNativeModule} from 'expo';
 
 interface SlaxPlatform {
   googleSignIn(webClientId: string): Promise<string|null>;
+  googleLinkCredential(webClientId: string, nonce: string): Promise<string|null>;
   openInAppBrowser(url: string): Promise<void>;
   revokeReaderResources(): Promise<void>;
   activateReaderResources(owner: string): Promise<void>;
@@ -13,6 +14,7 @@ interface SlaxPlatform {
 }
 const platform = () => requireNativeModule<SlaxPlatform>('SlaxPlatform');
 export const googleSignIn = (webClientId: string) => platform().googleSignIn(webClientId);
+export const googleLinkCredential = (webClientId: string, nonce: string) => platform().googleLinkCredential(webClientId, nonce);
 /** On iOS, invoke after a closing Modal's onDismiss, not after its visible state update. */
 export async function openInAppBrowser(url: string): Promise<void> {
   const parsed = new URL(url);

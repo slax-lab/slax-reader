@@ -220,7 +220,9 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     },
   }, undefined, {diagnostics: options.diagnostics?.sink});
   const diagnosticExchanges = createAccountDiagnostics(options.diagnostics?.sink ?? noDiagnostics, () => sessions.captureRequestScope().assertCurrent);
-  const api = createMobileApi({...options, fetch: options.fetch ?? expoFetch, sessions, onFailedExchange: diagnosticExchanges.failed, onAccountSuccess: diagnosticExchanges.succeeded});
+  const api = createMobileApi({...options, fetch: options.fetch ?? expoFetch, sessions,
+    getDeviceId: () => preferences.deviceId(() => bridge.newIdentifier()),
+    onFailedExchange: diagnosticExchanges.failed, onAccountSuccess: diagnosticExchanges.succeeded});
   const connector = createSyncConnector(api, preferences, sessions, options.localSyncEndpoint);
   const readiness = new CredentialReadiness({
     read: () => sessions.getSession(),

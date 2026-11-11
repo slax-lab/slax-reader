@@ -79,6 +79,9 @@ function fixture() {
     {} as never,
     { trackEvent: vi.fn().mockResolvedValue(undefined) } as never,
     {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
     {} as never
   )
   const controller = new UserController(service, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never)
