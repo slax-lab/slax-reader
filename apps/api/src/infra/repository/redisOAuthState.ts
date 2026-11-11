@@ -17,7 +17,7 @@ interface TwitterChallenge {
 }
 
 @injectable()
-export class RedisOAuthState {
+export class OAuthStateRepo {
   constructor(@inject(RedisClient) private redis: LazyInstance<RedisClient>) {}
 
   private async access<T>(operation: () => Promise<T>): Promise<T> {

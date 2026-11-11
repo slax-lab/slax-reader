@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import { EmailCodeService } from '@/domain/emailCode'
-import type { RedisEmailChallenge } from '@/infra/repository/redisEmailChallenge'
+import type { EmailChallengeRepo } from '@/infra/repository/redisEmailChallenge'
 
 const env = {
   RUN_TYPE: 'dev',
@@ -26,20 +26,25 @@ function readMail(sender: ReturnType<typeof captureMail>) {
 }
 
 function mockStore() {
-  const count = vi.fn<RedisEmailChallenge['countEmailSend']>().mockResolvedValue(1)
-  const save = vi.fn<RedisEmailChallenge['saveEmail']>().mockResolvedValue(undefined)
-  const remove = vi.fn<RedisEmailChallenge['removeEmail']>().mockResolvedValue(true)
+  const count = vi.fn<EmailChallengeRepo['countEmailSend']>().mockResolvedValue(1)
+  const save = vi.fn<EmailChallengeRepo['saveEmail']>().mockResolvedValue(undefined)
+  const remove = vi.fn<EmailChallengeRepo['removeEmail']>().mockResolvedValue(true)
   const store = { countEmailSend: count, takeEmailCooldown: vi.fn().mockResolvedValue(true), saveEmail: save, removeEmail: remove }
-  return { store: store as unknown as RedisEmailChallenge, count, save, remove }
+  return { store: store as unknown as EmailChallengeRepo, count, save, remove }
 }
 
 describe('email code delivery', () => {
-  test('posts a localized code to the exact recipient with the challenge as the idempotency key', async () => {
+  test.each([
+    ['zh-CN', '你的 Slax Reader 验证码'],
+    ['zh_HK', '你的 Slax Reader 验证码'],
+    ['en', 'Your Slax Reader verification code'],
+    ['ja', 'Your Slax Reader verification code']
+  ])('posts a localized code for %s with the challenge as the idempotency key', async (locale, subject) => {
     const { store, count, save, remove } = mockStore()
     const sender = captureMail()
     const service = new EmailCodeService(store)
-    const result = await service.sendCode(env, { ...input, locale: 'zh-CN' }, sender)
-    const { url, options, body } = readMail(sender)
+    const result = await service.sendCode(env, { ...input, locale }, sender)
+    const { url, options, body, code } = readMail(sender)
     expect(result).toMatchObject({ expires_in: 300, resend_after: 60 })
     expect(url).toBe('https://api.resend.com/emails')
     expect(options?.method).toBe('POST')
@@ -48,7 +53,10 @@ describe('email code delivery', () => {
     expect(body).toMatchObject({
       from: 'Slax Reader <noreply@reader.slax.com>',
       to: [input.deliveryEmail],
-      subject: '你的 Slax Reader 验证码'
+      subject,
+      text: locale.startsWith('zh')
+        ? `你的 Slax Reader 验证码是 ${code}。验证码在 5 分钟内有效。如果你没有发起此请求，可以忽略这封邮件。`
+        : `Your Slax Reader verification code is ${code}. It expires in 5 minutes. If you did not request a code, you can ignore this email.`
     })
     expect(JSON.stringify(count.mock.calls)).not.toContain(input.emailKey)
     expect(JSON.stringify(count.mock.calls)).not.toContain(input.clientIp)

@@ -17,7 +17,7 @@ export interface EmailChallenge {
 }
 
 @injectable()
-export class RedisEmailChallenge {
+export class EmailChallengeRepo {
   constructor(@inject(RedisClient) private redis: LazyInstance<RedisClient>) {}
 
   private async access<T>(operation: () => Promise<T>): Promise<T> {

@@ -1,6 +1,6 @@
 import { ErrorParam, OAuth2StateExpiredError } from '@/const/err'
 import { inject, injectable } from '@/decorators/di'
-import { RedisOAuthState } from '@/infra/repository/redisOAuthState'
+import { OAuthStateRepo } from '@/infra/repository/redisOAuthState'
 import { SlaxAuth } from '@/utils/auth'
 import type { ContextManager } from '@/utils/context'
 import type { EmailAuthClientPlatform, EmailAuthProvider, EmailAuthProviderChallenge, EmailCodeInput } from '@slax-reader/contracts/email-auth'
@@ -16,7 +16,7 @@ export class LoginIdentityBindingService {
   constructor(
     @inject(LoginIdentityService) private identities: LoginIdentityService,
     @inject(EmailCodeService) private emailCodes: EmailCodeService,
-    @inject(RedisOAuthState) private oauthState: RedisOAuthState
+    @inject(OAuthStateRepo) private oauthState: OAuthStateRepo
   ) {}
 
   async bind(ctx: ContextManager, value: unknown) {

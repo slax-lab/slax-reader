@@ -69,6 +69,11 @@ On 2026-11-09 the requester accepted the Mobile preview covering iOS email login
 - The full Web suite passed 2,742 tests, with three skipped. Browser verification exercised the local Nuxt preview with fixture mail: anonymous code issue with a device header, login through the existing session path, authenticated binding through account settings, and the development-only binding hint. Modal unit tests cover the original layout behavior, login cancellation, and collection continuation.
 - Mobile passed 100 focused tests and 76 related host regressions. Both Hermes bundles exported. Full Mobile check passed architecture and type checking and 1,219 tests. The existing Kotlin image and PDF policy host tests timed out during compilation in the full run, then both passed on a serial rerun. The review follow-up used mounted host tests and fixtures. It did not run a new native-device acceptance session or live provider authorization.
 
+## Code organization follow-up
+
+- Moved email-code settings to `const/emailCode.ts` and code generation and message composition to `utils/emailCode.ts`. Mail templates use the existing i18n module. Renamed the Redis repositories to `EmailChallengeRepo` and `OAuthStateRepo`, then regenerated DI registrations.
+- All 61 focused tests passed, including exact localized mail content, disposable Redis expiry and limits, provider binding, Twitter state handling, and architecture boundaries. API and shared-contract type checking passed. Targeted lint passed with one existing warning in `user.ts`. The local Edge/Core HTTP smoke passed with disposable databases and Redis and captured Resend delivery.
+
 ## Local review
 
 The Bugs, Security, and Compliance passes matched the diff to `add-email-otp-auth`. The final diff addresses stale Web account ownership, cancelled Mobile session completion, provider subject precedence, and frozen Apple placeholder ownership. No unresolved Important finding remained in the local review.

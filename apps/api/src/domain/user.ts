@@ -19,7 +19,7 @@ import { subscriptionPO, SubscriptionRepo } from '@/infra/repository/dbSubscript
 import { inject, injectable } from '@/decorators/di'
 import type { LazyInstance } from '@/decorators/lazy'
 import { BucketClient } from '@/infra/repository/bucketClient'
-import { RedisOAuthState } from '@/infra/repository/redisOAuthState'
+import { OAuthStateRepo } from '@/infra/repository/redisOAuthState'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
 import { i18n } from '@/const/i18n'
 import { ContextManager } from '@/utils/context'
@@ -203,7 +203,7 @@ export class UserService {
     @inject(SubscriptionRepo) private subscriptionRepo: SubscriptionRepo,
     @inject(CollectionRepo) private collectionRepo: CollectionRepo,
     @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
-    @inject(RedisOAuthState) private oauthState: RedisOAuthState,
+    @inject(OAuthStateRepo) private oauthState: OAuthStateRepo,
     @inject(GA4AnalyticsClient) private ga4Client: GA4AnalyticsClient,
     @inject(LogsService) private logsService: LogsService,
     @inject(LabService) private labService: LabService,

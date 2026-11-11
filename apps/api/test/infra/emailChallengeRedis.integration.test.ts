@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { EmailCodeService } from '@/domain/emailCode'
-import { RedisEmailChallenge } from '@/infra/repository/redisEmailChallenge'
+import { EmailChallengeRepo } from '@/infra/repository/redisEmailChallenge'
 import { RedisClient } from '@/infra/repository/redisClient'
 
 const env = {
@@ -39,7 +39,7 @@ test('does not propagate a Redis HTTP error containing the command arguments', a
   vi.spyOn(redis, 'key').mockImplementation(() => {
     throw new Error(`Redis HTTP error for ${input.deliveryEmail}`)
   })
-  const store = new RedisEmailChallenge(() => redis)
+  const store = new EmailChallengeRepo(() => redis)
   const sender = captureMail()
   const service = new EmailCodeService(store)
   await expect(service.sendCode(env, input, sender)).rejects.toMatchObject({ name: 'SERVER_ERROR', message: 'Internal server error' })
@@ -95,7 +95,7 @@ describe.skipIf(process.env.EMAIL_OTP_REDIS_TEST !== '1')('email code challenges
 
   function setup(send = captureMail(), runType = env.RUN_TYPE) {
     const config = { ...env, RUN_TYPE: runType }
-    const service = new EmailCodeService(new RedisEmailChallenge(() => new RedisClient(config)))
+    const service = new EmailCodeService(new EmailChallengeRepo(() => new RedisClient(config)))
     return {
       sendCode: (params: Parameters<EmailCodeService['sendCode']>[1]) => service.sendCode(config, params, send),
       verifyCode: ({ emailKey, requestId, ...params }: { emailKey: string; requestId: string } & Omit<Parameters<EmailCodeService['verifyCode']>[1], 'email' | 'request_id'>) =>

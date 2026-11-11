@@ -3,57 +3,25 @@ import type { EmailCodeChallenge, EmailCodeInput } from '@slax-reader/contracts/
 import { EmailAuthUnavailableError, EmailVerifyCodeError, EmailVerifyCodeRateLimitError, ErrorParam, TooManyRequestsError } from '@/const/err'
 import { inject, injectable } from '@/decorators/di'
 import { sendResendEmail } from '@/infra/external/resend'
-import { RedisEmailChallenge, type EmailChallenge, type EmailChallengeKey } from '@/infra/repository/redisEmailChallenge'
+import { EmailChallengeRepo, type EmailChallenge, type EmailChallengeKey } from '@/infra/repository/redisEmailChallenge'
 import { hashSHA256 } from '@/utils/strings'
-
-const CHALLENGE_TTL = 300
-const RESEND_COOLDOWN = 60
-const MAX_ATTEMPTS = 5
-const ADDRESS_SEND_LIMIT = 5
-const IP_SEND_LIMIT = 30
-const DEVICE_SEND_LIMIT = 10
-const ENVIRONMENT_SEND_LIMIT = 500
-const HOUR = 60 * 60
-const DAY = 24 * HOUR
-const DEFAULT_FROM = 'Slax Reader <noreply@reader.slax.com>'
+import { EMAIL_CODE_CONFIG } from '@/const/emailCode'
+import { createEmailCodeMessage, generateEmailVerificationCode } from '@/utils/emailCode'
 
 type Scope = { purpose: 'login' | 'bind'; userId?: number }
 export type EmailCodeSendContext = Scope & { clientIp: string; deviceId: string; locale?: string }
 type SendInput = EmailCodeSendContext & { emailKey: string; deliveryEmail: string }
 type VerifyInput = Scope & EmailCodeInput
 
-function newCode(): string {
-  const range = 1_000_000
-  const limit = Math.floor(2 ** 32 / range) * range
-  const random = new Uint32Array(1)
-  do {
-    crypto.getRandomValues(random)
-  } while (random[0] >= limit)
-  return String(random[0] % range).padStart(6, '0')
-}
-
-function emailContent(code: string, locale?: string) {
-  if (locale?.toLowerCase().split(/[-_]/)[0] === 'zh') {
-    return {
-      subject: '你的 Slax Reader 验证码',
-      text: `你的 Slax Reader 验证码是 ${code}。验证码在 5 分钟内有效。如果你没有发起此请求，可以忽略这封邮件。`
-    }
-  }
-  return {
-    subject: 'Your Slax Reader verification code',
-    text: `Your Slax Reader verification code is ${code}. It expires in 5 minutes. If you did not request a code, you can ignore this email.`
-  }
-}
-
 @injectable()
 export class EmailCodeService {
-  constructor(@inject(RedisEmailChallenge) private readonly challenges: RedisEmailChallenge) {}
+  constructor(@inject(EmailChallengeRepo) private readonly challenges: EmailChallengeRepo) {}
 
   async sendCode(env: Env, input: SendInput, send?: typeof fetch): Promise<EmailCodeChallenge> {
     if (input.purpose === 'bind' && input.userId === undefined) throw ErrorParam()
     const apiKey = env.RESEND_API_KEY?.trim()
     if (!apiKey) throw EmailAuthUnavailableError()
-    const code = newCode()
+    const code = generateEmailVerificationCode()
     const requestId = crypto.randomUUID()
     const [addressHash, ipHash, deviceHash, codeDigest] = await Promise.all([
       hashSHA256(input.emailKey),
@@ -65,21 +33,23 @@ export class EmailCodeService {
     const scope: EmailChallengeKey = { environment, purpose: input.purpose, addressHash }
 
     const [ipCount, deviceCount] = await Promise.all([
-      this.challenges.countEmailSend(environment, 'ip', ipHash, HOUR),
-      this.challenges.countEmailSend(environment, 'device', deviceHash, HOUR)
+      this.challenges.countEmailSend(environment, 'ip', ipHash, EMAIL_CODE_CONFIG.sendWindowSeconds),
+      this.challenges.countEmailSend(environment, 'device', deviceHash, EMAIL_CODE_CONFIG.sendWindowSeconds)
     ])
-    if (ipCount > IP_SEND_LIMIT || deviceCount > DEVICE_SEND_LIMIT) throw TooManyRequestsError()
-    if (!(await this.challenges.takeEmailCooldown(scope, RESEND_COOLDOWN))) throw TooManyRequestsError()
-    if ((await this.challenges.countEmailSend(environment, 'address', addressHash, HOUR)) > ADDRESS_SEND_LIMIT) throw TooManyRequestsError()
-    if ((await this.challenges.countEmailSend(environment, 'environment', 'all', DAY)) > ENVIRONMENT_SEND_LIMIT) throw TooManyRequestsError()
+    if (ipCount > EMAIL_CODE_CONFIG.ipSendLimit || deviceCount > EMAIL_CODE_CONFIG.deviceSendLimit) throw TooManyRequestsError()
+    if (!(await this.challenges.takeEmailCooldown(scope, EMAIL_CODE_CONFIG.resendCooldownSeconds))) throw TooManyRequestsError()
+    if ((await this.challenges.countEmailSend(environment, 'address', addressHash, EMAIL_CODE_CONFIG.sendWindowSeconds)) > EMAIL_CODE_CONFIG.addressSendLimit)
+      throw TooManyRequestsError()
+    if ((await this.challenges.countEmailSend(environment, 'environment', 'all', EMAIL_CODE_CONFIG.dailySendWindowSeconds)) > EMAIL_CODE_CONFIG.environmentSendLimit)
+      throw TooManyRequestsError()
 
     const challenge: EmailChallenge = { requestId, recipient: input.deliveryEmail, digest: codeDigest, userId: input.userId }
-    await this.challenges.saveEmail(scope, challenge, CHALLENGE_TTL)
+    await this.challenges.saveEmail(scope, challenge, EMAIL_CODE_CONFIG.ttlSeconds)
 
     const email = {
-      from: env.EMAIL_AUTH_FROM?.trim() || DEFAULT_FROM,
+      from: env.EMAIL_AUTH_FROM?.trim() || EMAIL_CODE_CONFIG.defaultFrom,
       to: [input.deliveryEmail],
-      ...emailContent(code, input.locale)
+      ...createEmailCodeMessage(code, input.locale)
     }
     const outcome = await sendResendEmail(apiKey, requestId, email, send)
     // A timeout, idempotency conflict, or upstream error can follow acceptance.
@@ -88,7 +58,7 @@ export class EmailCodeService {
       throw EmailAuthUnavailableError()
     }
 
-    return { request_id: requestId, expires_in: CHALLENGE_TTL, resend_after: RESEND_COOLDOWN }
+    return { request_id: requestId, expires_in: EMAIL_CODE_CONFIG.ttlSeconds, resend_after: EMAIL_CODE_CONFIG.resendCooldownSeconds }
   }
 
   async verifyCode(env: Env, input: VerifyInput): Promise<{ key: string; delivery: string }> {
@@ -102,11 +72,11 @@ export class EmailCodeService {
     const challenge = await this.challenges.readEmail(scope)
     if (!challenge || challenge.requestId !== requestId || challenge.userId !== input.userId) throw EmailVerifyCodeError()
 
-    const attempt = await this.challenges.countEmailAttempt(environment, requestId, CHALLENGE_TTL)
-    if (attempt > MAX_ATTEMPTS) throw EmailVerifyCodeRateLimitError()
+    const attempt = await this.challenges.countEmailAttempt(environment, requestId, EMAIL_CODE_CONFIG.ttlSeconds)
+    if (attempt > EMAIL_CODE_CONFIG.maxAttempts) throw EmailVerifyCodeRateLimitError()
     const codeDigest = await hashSHA256(`${requestId}:${code}`)
     if (!timingSafeEqual(Buffer.from(challenge.digest, 'hex'), Buffer.from(codeDigest, 'hex'))) {
-      if (attempt === MAX_ATTEMPTS) throw EmailVerifyCodeRateLimitError()
+      if (attempt === EMAIL_CODE_CONFIG.maxAttempts) throw EmailVerifyCodeRateLimitError()
       throw EmailVerifyCodeError()
     }
     if (!(await this.challenges.removeEmail(scope, challenge))) throw EmailVerifyCodeError()
