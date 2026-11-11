@@ -125,9 +125,24 @@ describePg('podcast repositories on Postgres', () => {
     expect(await episodes.findById(ep.id)).toMatchObject({ transcript_status: 'pending', retry_count: 0 })
 
     await episodes.claim(ep.id, 'run-x', 60_000)
-    expect(await episodes.finish(ep.id, { kind: 'skipped', error: 'too_long' }, { runId: 'run-x' })).toBe('skipped')
+    expect(await episodes.finish(ep.id, { kind: 'skipped', error: 'no_audio' }, { runId: 'run-x' })).toBe('skipped')
     await pg.sr_podcast_episode.update({ where: { id: ep.id }, data: { transcript_status: 'failed' } })
     expect(await episodes.requeue(ep.id)).toBe(false)
+  })
+
+  test('owner retry reopens length and budget rejections but preserves remaining terminal errors', async () => {
+    const ep = await episodes.upsertFromInfo(source, info())
+    for (const transcript_status of ['failed', 'skipped']) {
+      for (const error_message of ['too_long', 'budget_exceeded']) {
+        await pg.sr_podcast_episode.update({ where: { id: ep.id }, data: { transcript_status, error_message, cost_usd: 10, provider_job_id: 'paid-job', retry_count: 3 } })
+        expect(await episodes.requeue(ep.id)).toBe(true)
+        expect(await episodes.findById(ep.id)).toMatchObject({ transcript_status: 'pending', cost_usd: 10, provider_job_id: 'paid-job', retry_count: 0, error_message: null })
+      }
+      for (const error_message of ['language_unsupported', 'no_audio', 'no_speech', 'moderation']) {
+        await pg.sr_podcast_episode.update({ where: { id: ep.id }, data: { transcript_status, error_message } })
+        expect(await episodes.requeue(ep.id)).toBe(false)
+      }
+    }
   })
 
   test('a provider error clears the job; an owner retry keeps it', async () => {

@@ -1,6 +1,7 @@
+import { parseNewsletter } from '@/domain/newsletterParser'
 import { describe, expect, test } from 'vitest'
 import { readNewsletterMime } from '@/utils/newsletterMime'
-import { parseNewsletter, newsletterLocalPart, newsletterDomain } from '@/utils/newsletter'
+import { newsletterLocalPart, newsletterDomain } from '@/utils/newsletter'
 
 const mail = (body: string, headers = '') =>
   new TextEncoder().encode(

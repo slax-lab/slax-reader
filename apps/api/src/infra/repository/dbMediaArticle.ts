@@ -9,32 +9,6 @@ export type MediaArticleStatus = 'pending' | 'skipped' | 'generating' | 'validat
 const REEVALUABLE_STATUSES: MediaArticleStatus[] = ['pending', 'skipped']
 /** Rows a workflow is working on. */
 const RUNNING_STATUSES: MediaArticleStatus[] = ['generating', 'validating']
-/**
- * Outcomes no new attempt can change: the version is too long for the budget, or spent it.
- * Such rows are never queued again and the client offers no generate or retry for them. One
- * exception: a caller that passes `recoverBudget` to `requeue` (YouTube's explicit retry) lets
- * the owner start a `budget_exceeded` version again with a fresh allowance, until the version's
- * lifetime spend ends it as `lifetime_budget_exceeded`.
- */
-export const FINAL_ERRORS = ['budget_exceeded', 'too_long', 'lifetime_budget_exceeded'] as const
-
-export function isFinalError(error: string | null | undefined): boolean {
-  return FINAL_ERRORS.some(code => (error ?? '').startsWith(code))
-}
-
-/** Errors that block even a retry that recovers the budget. */
-const RETRY_BLOCKING_ERRORS = ['too_long', 'lifetime_budget_exceeded'] as const
-
-/**
- * For a retry that recovers the budget, only a version too long for the budget, or one that
- * spent its lifetime cap, blocks it. A version that ran out of its per-run budget may have been
- * bankrupted by our own failed attempts, so that retry starts its run spend again; the lifetime
- * cap and the site-wide daily cap bound it.
- */
-export function blocksRetry(error: string | null | undefined): boolean {
-  return RETRY_BLOCKING_ERRORS.some(code => (error ?? '').startsWith(code))
-}
-
 /** Attempts before a row stays failed. */
 export const MEDIA_ARTICLE_MAX_ATTEMPTS = 3
 
@@ -370,24 +344,17 @@ export abstract class MediaArticleRepo {
   }
 
   /**
-   * Owner asked for an article: skipped/failed → pending. `resetAttempts` is the explicit retry,
-   * which starts the attempt count again. With `recoverBudget` the retry also starts the run's
-   * spent amount again (never `lifetime_cost_usd`) and is refused only for `too_long` and
-   * `lifetime_budget_exceeded`; without it every final error stays final.
+   * Owner asked for an article: skipped/failed → pending. `resetAttempts` resets attempts only.
    * next_retry_at is set to now: the row is a real request, so the sweep starts it if the
    * immediate start does not happen. False when the row is in any other state.
    */
-  public async requeue(id: number, resetAttempts: boolean, options: { recoverBudget?: boolean } = {}): Promise<boolean> {
-    const recover = resetAttempts && options.recoverBudget === true
-    const blocked = recover ? RETRY_BLOCKING_ERRORS : FINAL_ERRORS
+  public async requeue(id: number, resetAttempts: boolean): Promise<boolean> {
     const res = await this.prismaPg().sr_media_article.updateMany({
       where: {
         id,
-        status: { in: resetAttempts ? ['failed'] : ['skipped', 'failed'] },
-        // NOT LIKE alone would drop rows whose error_message is NULL (SQL three-valued logic)
-        OR: [{ error_message: null }, { AND: blocked.map(code => ({ NOT: { error_message: { startsWith: code } } })) }]
+        status: { in: ['skipped', 'failed'] }
       },
-      data: { status: 'pending', next_retry_at: new Date(), error_message: null, ...(resetAttempts ? { retry_count: 0 } : {}), ...(recover ? { cost_usd: 0 } : {}) }
+      data: { status: 'pending', next_retry_at: new Date(), error_message: null, ...(resetAttempts ? { retry_count: 0 } : {}) }
     })
     return res.count === 1
   }
@@ -398,7 +365,7 @@ export abstract class MediaArticleRepo {
   }
 
   /**
-   * Pending rows someone asked for whose start was put off (retry delay, busy, over budget), oldest
+   * Pending rows someone asked for whose start was put off (retry delay or busy), oldest
    * first. A pending row without next_retry_at was only judged eligible and nobody asked for it yet:
    * the sweeper must never start those, or every eligible video ever saved would be generated.
    */

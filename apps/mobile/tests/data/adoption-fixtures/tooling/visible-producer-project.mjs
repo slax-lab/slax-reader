@@ -11,12 +11,12 @@ const PREFIX = 'slax-visible-legacy-producer-';
 const MARKER = 'fixture-project-owner.json';
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 
-// These exact public inputs produced the historical four-operation fixtures.
+// Public producer inputs: the old Kotlin data writer is unchanged; the iOS shell uses scene lifecycle.
 // No recursive copy, dependency cache, operator file, native artifact or key is admitted.
 export const SOURCE_FILES = Object.freeze({
   ios: {
-    'Info.plist': 'a019feee47f4e400cd6a0a13f6bd4d0626d142a27ac4352e8e6341c11984ad29',
-    'LegacyFixtureApp.swift': '5c800377a5b57e61507ee6b1662abd7dc0b2cb0767bc55e7da1b7c2ed871458b',
+    'Info.plist': '0125f5d2b63f28caaca6d833f841ada384b93f0dec5c2f92484413f7dc4a23ae',
+    'LegacyFixtureApp.swift': 'bc42a26a4b6bf8a2975e4296bd2fb73afe859451b2cf8b677edc4f95a47913f7',
     'SlaxLegacyFixture.entitlements': 'd30603c544890246eb9edf9015e2ee93cbe2303e6f804ac6fc61432ace1b0611',
     'build-app.mjs': '21788c1ceee22416a4a2013d17a78a4b35e4f51ba2862b46bf3e3cbfc6090b77',
     'build.gradle.kts': 'b8753b71b9fdb42e119329556efe1d2fc6381abc7de56b060de788c9395c256b',

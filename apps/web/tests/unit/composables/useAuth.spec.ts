@@ -75,6 +75,7 @@ describe('useAuth', () => {
     // 重置 COOKIE_DOMAIN，防止上一个用例改动污染后续
     runtimeConfig.public.COOKIE_DOMAIN = '.example.com'
     runtimeConfig.public.COOKIE_TOKEN_NAME = 'token'
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
   })
 
   afterEach(() => vi.restoreAllMocks())
@@ -115,24 +116,28 @@ describe('useAuth', () => {
       expect(cookieSet).not.toHaveBeenCalled()
     })
 
-    it('登录成功 → 写 cookie 并返回 token', async () => {
+    it('登录成功 → 由服务端接口写 cookie 并返回 token', async () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-google' })
       const token = await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google')
       expect(token).toBe('tok-google')
       expect(mockPost).toHaveBeenCalledTimes(1)
-      expect(cookieSet).toHaveBeenCalledWith('token', 'tok-google', expect.objectContaining({ path: '/', domain: '.example.com' }))
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/session', expect.objectContaining({ method: 'POST', body: JSON.stringify({ token: 'tok-google' }) }))
+      expect(cookieSet).not.toHaveBeenCalled()
+    })
+
+    it.each([new Response(null, { status: 403 }), new TypeError('network')])('fails login without a cookie when the session endpoint fails: %s', async failure => {
+      vi.mocked(globalThis.fetch).mockImplementation(async () => {
+        if (failure instanceof Response) return failure
+        throw failure
+      })
+      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
+      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google')).rejects.toThrow('login failed')
+      expect(cookieSet).not.toHaveBeenCalled()
     })
 
     it('登录返回为空 → 抛 "login failed"', async () => {
       mockPost.mockResolvedValueOnce(undefined)
       await expect(useAuth().grantAuth('code-x', 'https://auth.test/auth', '', 'google')).rejects.toThrow('login failed')
-      expect(cookieSet).not.toHaveBeenCalled()
-    })
-
-    it('rejects login success when the configured cookie name is invalid', async () => {
-      runtimeConfig.public.COOKIE_TOKEN_NAME = { token: 'token' } as never
-      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3')).rejects.toThrow(/COOKIE_TOKEN_NAME/)
       expect(cookieSet).not.toHaveBeenCalled()
     })
 
@@ -171,6 +176,33 @@ describe('useAuth', () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-apple' })
       await useAuth().grantAuth('code-2', 'https://auth.test/auth', '', 'apple', attribution)
       expect(mockPost.mock.calls[0]![0].body).not.toHaveProperty('auth_attribution')
+    })
+  })
+
+  describe('acquisition attribution', () => {
+    const header = { source: 'hackerlinks', medium: 'header', campaign: 'mvp' } as const
+    const resource = { source: 'hackerlinks', medium: 'resource_detail', campaign: 'mvp' } as const
+
+    it('keeps Google and Apple authorization contexts independent and omits ordinary attempts', async () => {
+      const auth = useAuth()
+      await auth.requestAuth({ redirect: '/bookmarks', affCode: '', authAttribution: header })
+      const google = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      await auth.requestAppleAuth({ redirect: '/bookmarks', affCode: '', authAttribution: resource })
+      const apple = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      await auth.requestAppleAuth({ redirect: '/bookmarks', affCode: '' })
+      const ordinary = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      expect(google).toMatchObject({ platform: 'google', target: '/bookmarks', auth_attribution: header })
+      expect(apple).toMatchObject({ platform: 'apple', target: '/bookmarks', auth_attribution: resource })
+      expect(ordinary).not.toHaveProperty('auth_attribution')
+    })
+
+    it.each([
+      { provider: 'google', clientId: 'g-client-id', attribution: header },
+      { provider: 'apple', clientId: 'a-client-id', attribution: resource }
+    ] as const)('carries acquisition into the $provider login request', async ({ provider, clientId, attribution }) => {
+      mockPost.mockResolvedValueOnce({ token: 'tok-acquisition' })
+      await useAuth().grantAuth('code-1', 'https://auth.test/auth', '', provider, attribution)
+      expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: '', type: provider, client_id: clientId, auth_attribution: attribution })
     })
   })
 

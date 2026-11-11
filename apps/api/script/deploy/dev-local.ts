@@ -161,19 +161,26 @@ export function localDevOptions(args: string[]) {
 
 export async function main(args = process.argv.slice(2)) {
   const options = localDevOptions(args)
-  const child = spawn('pnpm', options.args, { cwd: options.cwd, env: options.env, stdio: 'inherit' })
+  const { mkdtempSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const ipc = mkdtempSync(resolve(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'slax-worker-'))
+  const child = spawn('pnpm', options.args, { cwd: options.cwd, env: { ...options.env, TMPDIR: ipc }, stdio: 'inherit' })
   const stop = () => child.kill('SIGTERM')
   process.once('SIGINT', stop)
   process.once('SIGTERM', stop)
-  await new Promise<void>((done, reject) => {
-    child.once('error', reject)
-    child.once('exit', code => {
-      process.exitCode = code ?? 1
-      done()
+  try {
+    await new Promise<void>((done, reject) => {
+      child.once('error', reject)
+      child.once('exit', code => {
+        process.exitCode = code ?? 1
+        done()
+      })
     })
-  })
-  process.removeListener('SIGINT', stop)
-  process.removeListener('SIGTERM', stop)
+  } finally {
+    process.removeListener('SIGINT', stop)
+    process.removeListener('SIGTERM', stop)
+    rmSync(ipc, { recursive: true, force: true })
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

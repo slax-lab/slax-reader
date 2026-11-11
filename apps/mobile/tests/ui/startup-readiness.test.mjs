@@ -34,7 +34,7 @@ for (const status of ['authenticated', 'unauthenticated']) test(`mounted ${statu
   const render = () => host.render(React.createElement(ApplicationRoutes));
   await render(); assert.equal(mounted, 1);
   if (status === 'authenticated') {assert.ok(screens.has('Settings')); await act(async () => setRoute('Settings'));}
-  for (const upgrade of [{status: 'error', error: new Error('Synthetic admission failure')}, {status: 'verification-required', inventory: {}}, {status: 'checking'}, {status: 'ready'}]) {
+  for (const upgrade of [{status: 'error', error: new Error('Synthetic admission failure')}, {status: 'error', error: new Error('Synthetic storage unavailable')}, {status: 'checking'}, {status: 'ready'}]) {
     context.upgrade = upgrade; await render();
     assert.equal(mounted, 1); assert.equal(unmounted, 0);
     assert.equal(route, status === 'authenticated' ? 'Settings' : 'Login');
@@ -143,7 +143,7 @@ test('mounted Library confines admission loading/recovery to data area and prese
   assert.ok(host.window.document.querySelector('[data-testid="library-local-data-loading"]'));
   assert.equal(host.window.document.querySelector('[data-testid="empty-inbox"]'), null);
   assert.equal(f.controls.get('Add Link').disabled, true);
-  for (const upgrade of [{status: 'verification-required', inventory: {}}, {status: 'error', error: new Error('Synthetic admission failure')}]) {
+  for (const upgrade of [{status: 'error', error: new Error('Synthetic storage unavailable')}, {status: 'error', error: new Error('Synthetic admission failure')}]) {
     f.context.upgrade = upgrade; await f.render();
     assert.ok(host.window.document.querySelector('[data-testid="library-local-data-recovery"]'));
     await act(async () => f.controls.get('Menu').onPress());
@@ -212,7 +212,7 @@ test('mounted MobileProvider exposes no repository or cache before admission, ev
   function Probe() {visible = useMobile(); return null;}
   await host.render(React.createElement(MobileProvider, null, React.createElement(Probe)));
   assert.equal(visible.repositories, null); assert.equal(visible.cache, null); assert.equal(getters, 0);
-  for (const next of [{status: 'error', error: new Error('Pending admission')}, {status: 'verification-required', inventory: {}}]) {
+  for (const next of [{status: 'error', error: new Error('Pending admission')}, {status: 'error', error: new Error('Synthetic storage unavailable')}]) {
     await act(async () => {upgrade = next; for (const callback of listeners) callback();});
     assert.equal(visible.repositories, null); assert.equal(visible.cache, null); assert.equal(getters, 0);
   }

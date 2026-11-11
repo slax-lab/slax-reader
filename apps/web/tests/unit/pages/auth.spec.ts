@@ -111,6 +111,32 @@ describe('OAuth callback recovery', () => {
     expect(env.requestAuth).toHaveBeenCalledWith({ redirect: '/bookmarks', affCode: '' })
   })
 
+  it.each(['google', 'apple'] as const)('preserves HackerLinks acquisition on the %s login request and recovery', async platform => {
+    const attribution = { source: 'hackerlinks', medium: platform === 'google' ? 'header' : 'resource_detail', campaign: 'mvp' } as const
+    env.route.query.state = JSON.stringify({ redirectUrl: 'https://auth.test/auth', target: '/bookmarks', affCode: '', platform, auth_attribution: attribution })
+    env.grantAuth.mockRejectedValue(new TypeError('Load failed'))
+    const wrapper = mountWithApp(AuthPage)
+    await flushPromises()
+    expect(env.grantAuth.mock.calls[0]![3]).toBe(platform)
+    expect(env.grantAuth.mock.calls[0]![4]).toEqual(attribution)
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    const request = platform === 'google' ? env.requestAuth : env.requestAppleAuth
+    expect(request).toHaveBeenCalledWith({ redirect: '/bookmarks', affCode: '', authAttribution: attribution })
+  })
+
+  it('drops collection attribution from an Apple callback', async () => {
+    const attribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' }
+    env.route.query.state = JSON.stringify({ redirectUrl: 'https://auth.test/auth', target: '/bookmarks', platform: 'apple', auth_attribution: attribution })
+    env.grantAuth.mockRejectedValue(new TypeError('Load failed'))
+    const wrapper = mountWithApp(AuthPage)
+    await flushPromises()
+    expect(env.grantAuth.mock.calls[0]![4]).toBeUndefined()
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    expect(env.requestAppleAuth).toHaveBeenCalledWith({ redirect: '/bookmarks', affCode: '' })
+  })
+
   it('preserves the Apple provider on recovery', async () => {
     env.route.query.state = JSON.stringify({ redirectUrl: 'https://auth.test/auth', target: '/bookmarks', affCode: 'apple-ref', platform: 'apple' })
     env.grantAuth.mockRejectedValue(new Error('Apple SSO error'))

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
 import { execFileSync, spawn } from 'node:child_process'
-import { API_ROOT, CONFIG_DIR, GENERATED_DIR, LOCAL_STATE, TARGETS, checkRemote, parseArgs, readConfig, writeGenerated, type Target } from './config'
+import { API_ROOT, CONFIG_DIR, GENERATED_DIR, LOCAL_STATE, TARGETS, checkDeployment, parseArgs, readConfig, writeGenerated, type Target } from './config'
 import { fileURLToPath } from 'node:url'
 import { loadApiEnv } from '../env'
 
@@ -69,7 +69,7 @@ export async function deploy(args: string[]): Promise<number> {
   const config = readConfig(options.config, options.environment, local)
   const bootstrap = options.flags.has('--bootstrap')
   if (bootstrap && (local || options.target)) throw new Error('--bootstrap requires all four remote Workers')
-  if (!local && !options.flags.has('--dry-run')) checkRemote(config)
+  if (!local && !options.flags.has('--dry-run')) checkDeployment(config)
   // Fail before touching any shared state: the generated configs, the dev
   // registry and the containers are machine-wide singletons, so even a
   // --target session is a session and all four ports are probed. Fixtures

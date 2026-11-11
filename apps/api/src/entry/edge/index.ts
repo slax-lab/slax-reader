@@ -21,7 +21,7 @@ const worker = {
     await handleEmailEvent(message, env, ctx)
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    request = new Request(request)
+    request = new Request(request.url, request)
     request.headers.delete(EDGE_SECRET_HEADER)
     request.headers.delete(EDGE_IDENTITY_HEADER)
     request.headers.delete(EDGE_RAY_ID_HEADER)
@@ -114,4 +114,5 @@ export { ContentValidationWorkflow } from './workflows/contentValidationWorkflow
 export { ImportParseWorkflow } from './workflows/importParseWorkflow'
 export { YoutubeArticleWorkflow } from './workflows/youtubeArticleWorkflow'
 export { PodcastWorkflow } from './workflows/podcastWorkflow'
-export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser } from '../core'
+export { VectorMaintenanceWorkflow } from './workflows/vectorMaintenanceWorkflow'
+export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser, VectorPreferenceObject } from '../core'

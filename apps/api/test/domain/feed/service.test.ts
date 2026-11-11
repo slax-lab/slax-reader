@@ -47,6 +47,13 @@ describe('independent Feed facade', () => {
     expect(detail).toMatchObject({ kind: 'newsletter', id: 'newsletter:10', content_html: '<p>Mail</p>' })
     expect(detail).not.toHaveProperty('content_key')
   })
+  test('missing owned rows stay a not-found response without reading content', async () => {
+    const p = wire(['newsletter'])
+    p.repo.entry.mockResolvedValue(null as never)
+    await expect(p.service.detail(p.ctx, 'newsletter:10')).rejects.toMatchObject({ code: 'not_found', status: 404 })
+    await expect(p.service.entries(p.ctx, { before: 'newsletter:10' })).rejects.toMatchObject({ code: 'not_found', status: 404 })
+    expect(p.content.read).not.toHaveBeenCalled()
+  })
   test('cursor binds owner, kinds and selector and keeps a numeric mail ID as string', () => {
     const token = encodeFeedCursor(7, source, ['rss', 'newsletter'], entry)
     expect(decodeFeedCursor(token, 7, source, ['newsletter', 'rss'])).toEqual({ at: new Date('2026-10-22'), kind: 'newsletter', id: 'newsletter:10' })

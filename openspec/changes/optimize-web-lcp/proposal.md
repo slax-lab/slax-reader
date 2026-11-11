@@ -8,7 +8,7 @@ The reviewed 30-day Cloudflare report for `r.slax.com` shows LCP P75 near 3.34 s
 
 - Establish a reproducible baseline tied to the deployed revision, representative article/login/guide pages, and separate cold/warm navigation conditions.
 - Replace blanket article-image lazy loading with a shared HTML5 policy that eager-loads at most two adjacent early images with one high-priority substantive image, recognizes SSR-isolated icon classes, and preserves candidate identity through browser parsing. Catch up already-loaded/failed images without changing preview eligibility.
-- Give anonymous top-level `/login` and `/guide` documents an early bypass in the existing PowerSync plugin, retaining static imports and avoiding a new serial runtime request. Preserve normal initialization for authenticated sessions, reader routes, and the extension bridge.
+- Give anonymous top-level `/`, `/login`, and `/guide` documents an early bypass in the existing PowerSync plugin, retaining static imports and avoiding a new serial runtime request. Preserve normal initialization for authenticated sessions, reader routes, and the extension bridge.
 - Use a full document navigation when a bypassed public document enters another application surface. A companion BFCache restore listener re-enters normal startup if that document's token has appeared or cannot be read; unchanged anonymous restores keep the bypass. Preserve the current setup-time database injection model and keep local queries unavailable in the bypassed document for its entire lifetime.
 - Deliver the article and public-startup policies behind two independent app-config switches.
 - **Decision revised 2026-11-02 (human, during implementation review):** both switches ship enabled by default in every profile (`true`), with no build-environment gating. The four-combination comparison, the beta cached-share rollback drill, and the login/guide/account-switch flow checks move from pre-enablement gates to post-release verification; they are tracked in `tasks.md` 2.4, 3.4, 4.1 and 4.2 and remain open. Rollback is therefore a source change to `apps/web/app/app.config.ts` plus a deployment, not a flag flip. Parser bytes and lifecycle fixes require implementation/deployment rollback when a flag is insufficient.
@@ -20,7 +20,7 @@ The reviewed 30-day Cloudflare report for `r.slax.com` shows LCP P75 near 3.34 s
 ### New Capabilities
 
 - `article-image-loading`: Bounded early image prioritization with deterministic markup and preserved article content.
-- `public-page-startup`: Anonymous login/guide rendering independent of local database initialization, with safe navigation back into normal application startup.
+- `public-page-startup`: Anonymous root-to-login, login, and guide rendering independent of local database initialization, with safe navigation back into normal application startup.
 
 ### Modified Capabilities
 
@@ -45,3 +45,7 @@ This package is a proposal for human review. It does not establish that the sour
 ## Approved bounded follow-up — 2026-11-02
 
 The user approved implementation on existing PR #449: improve markup-based hero selection, permit at most two early eager images with only one high-priority request, and reuse the author profile within metadata generation. The separately approved bookmarks promotion change joins the same PR under `bookmarks-promo-eager`. SQL aggregation, pool tuning, metadata reuse across cache/SSR, cache version redesign, image conversion, and production telemetry are explicitly deferred. This refines the existing article-image capability without a parallel delta.
+
+## Approved anonymous root follow-up — 2026-11-10
+
+The requester reviewed the measured root startup delay and approved extending the existing PowerSync initialization bypass to confirmed anonymous top-level root entries. Root remains an Inbox destination requiring normal startup after sign-in. Keep login resource hints and SDK imports as shipped.

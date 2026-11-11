@@ -3,8 +3,9 @@ import { ContextManager } from '@/utils/context'
 import { TweetInfo } from '@/const/twitterapi/struct'
 import { SocialMediaApi } from '../../infra/external/socialMedia'
 import { CrawlService } from '../crawl'
-import { BookmarkRepo, TweetMentionPO } from '@/infra/repository/dbBookmark'
+import { BookmarkRepo, queueStatus, TweetMentionPO } from '@/infra/repository/dbBookmark'
 import { BookmarkService } from '../bookmark'
+import { dispatchVectorMaintenance } from '../vectorMaintenanceHooks'
 import { processTargetUrl } from '@/utils/urlPolicie'
 import { UserRepo } from '@/infra/repository/dbUser'
 
@@ -141,12 +142,19 @@ export class MonitoringOrchestrator {
         isArchive: false
       })
 
-      if (!bmInfo || bmInfo.admitted === false) {
+      if (!bmInfo) {
         console.error(`Failed to create bookmark for ${targetUrl}`)
         return
       }
+      for (const identity of bmInfo.rebindings ?? []) {
+        dispatchVectorMaintenance(userCtx, { kind: 'article', userId: identity.userId, id: identity.previousBookmarkId })
+      }
+      if (bmInfo.admitted === false) {
+        console.log(`Capture not admitted for bookmark ${bmInfo.id} from Twitter mention ${tweet.tweet_id}`)
+        return
+      }
 
-      console.log(`Created bookmark ${bmInfo.id} for user ${userId} from Twitter mention ${tweet.tweet_id}`)
+      console.log(`Saved bookmark ${bmInfo.id} for user ${userId} from Twitter mention ${tweet.tweet_id}`)
 
       await this.crawlService.createWorkflow(ctx.env, {
         url: processedUrl,
@@ -157,9 +165,10 @@ export class MonitoringOrchestrator {
         userLang: ctx.getlang(),
         callbackChatId: 0,
         callbackOriginMessageId: 0,
-        ignoreGenerateTag: true
+        ignoreGenerateTag: true,
+        skipParse: bmInfo.status === queueStatus.SUCCESS
       })
-      console.log(`Created workflow for bookmark ${bmInfo.id}`)
+      console.log(`Workflow admission finished for bookmark ${bmInfo.id}`)
     } catch (error) {
       console.error(`Error creating bookmark from mention:`, error)
     }

@@ -82,7 +82,8 @@ class ShareActivity : Activity() {
     RandomAccessFile(File(filesDir, ".slax-preferences.lock"), "rw").use { lockFile ->
       lockFile.channel.lock().use {
         val current = File(filesDir, "slax.preferences.v1.json")
-        if (current.exists()) {diagnostics?.store("v1"); JSONObject(current.readText()).getJSONObject("values")}
+        if (File(filesDir, ".slax-legacy-reset").exists()) JSONObject()
+        else if (current.exists()) {diagnostics?.store("v1"); JSONObject(current.readText()).getJSONObject("values")}
         else {
           val legacy = File(filesDir, "user.preferences_pb")
           if (legacy.exists()) {diagnostics?.store("legacy"); JSONObject(LegacyStringPreferences.decode(legacy.readBytes()))} else JSONObject()

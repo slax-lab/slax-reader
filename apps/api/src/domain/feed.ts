@@ -122,6 +122,7 @@ export class FeedService {
     const kinds = await this.kinds(ctx)
     if (!validFeedId(id) || !kinds.length) throw new RssError('not_found', 404)
     const row = await this.repo.entry(ctx.getUserId(), id, kinds)
+    if (!row) throw new RssError('not_found', 404)
     const detail =
       row.kind === 'rss'
         ? { ...(await this.rss.detail(ctx, id)), kind: 'rss' as const }

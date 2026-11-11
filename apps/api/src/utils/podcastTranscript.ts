@@ -289,18 +289,6 @@ export function detectTranscriptLanguage(text: string): PodcastLanguage | null {
 }
 
 /**
- * Spoken words per minute: Chinese characters, or English words. Below the floor (60 characters or
- * 40 words a minute) the episode is mostly music or silence and is skipped as no_speech.
- */
-export function speechDensity(doc: PodcastTranscriptDocument): { perMinute: number; enough: boolean } {
-  const minutes = Math.max(doc.duration_ms / 60_000, 1)
-  const text = transcriptPlainText(doc)
-  const units = doc.language === 'zh' ? (text.match(/[一-鿿]/g)?.length ?? 0) : text.split(/\s+/).filter(Boolean).length
-  const perMinute = units / minutes
-  return { perMinute: Math.round(perMinute), enough: perMinute >= (doc.language === 'zh' ? 60 : 40) }
-}
-
-/**
  * Moderation reads at most 4,000 characters per request. A long transcript is checked in up to
  * `count` slices spread evenly over it; a short one is checked whole.
  */

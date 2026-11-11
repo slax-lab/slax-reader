@@ -39,6 +39,8 @@ import { ImportFormatError, isNewImportSource, readImportBody } from '@/utils/im
 import { submitServerEvent, bookmarkEventProperties as propertiesForBookmark, getEventContext, type BookmarkEventProperties } from '../../domain/events'
 import { URLPolicie } from '@/utils/urlPolicie'
 import { MultiLangError } from '@/utils/multiLangError'
+import { VectorMaintenanceService } from '../../domain/vectorMaintenance'
+import { requireVectorRefreshSecret } from '@/utils/vectorRefreshAuth'
 
 @Controller('/v1/bookmark')
 export class BookmarkController {
@@ -53,8 +55,42 @@ export class BookmarkController {
     @inject(UrlParserHandler) private urlParserHandler: UrlParserHandler,
     @inject(UserDeletionService) private userDeletionService: UserDeletionService,
     @inject(CrawlService) private crawlService: CrawlService,
-    @inject(LogsService) private logsService: LogsService
+    @inject(LogsService) private logsService: LogsService,
+    @inject(VectorMaintenanceService) private vectorMaintenanceService: VectorMaintenanceService
   ) {}
+
+  @Post('/vector/refresh')
+  public async handleUserBookmarkVectorRefreshRequest(ctx: ContextManager, request: Request) {
+    requireVectorRefreshSecret(request, ctx.env)
+    if (new URL(request.url).pathname !== '/v1/bookmark/vector/refresh') return Failed(ErrorParam())
+    const params = await RequestUtils.json<{ user_id: number; bookmark_id: number }>(request).catch(() => null)
+    if (
+      !params ||
+      Array.isArray(params) ||
+      Object.keys(params).length !== 2 ||
+      !Number.isSafeInteger(params.user_id) ||
+      params.user_id < 1 ||
+      !Number.isSafeInteger(params.bookmark_id) ||
+      params.bookmark_id < 1
+    )
+      return Failed(ErrorParam())
+
+    const [output] = await this.vectorMaintenanceService.refreshArticles([{ userId: params.user_id, id: params.bookmark_id }])
+    if (output.state !== 'failed' && !(await this.vectorMaintenanceService.verifyRefresh(output))) return Successed({ ...output, state: 'pending' })
+    return Successed(output)
+  }
+
+  @Post('/preference/refresh')
+  public async handleUserBookmarkPreferenceRefreshRequest(ctx: ContextManager, request: Request) {
+    requireVectorRefreshSecret(request, ctx.env)
+    if (new URL(request.url).pathname !== '/v1/bookmark/preference/refresh') return Failed(ErrorParam())
+    const params = await RequestUtils.json<{ user_id: number }>(request).catch(() => null)
+    if (!params || Array.isArray(params) || Object.keys(params).length !== 1 || !Number.isSafeInteger(params.user_id) || params.user_id < 1) return Failed(ErrorParam())
+
+    const output = await this.vectorMaintenanceService.refreshUser(params.user_id, 'article')
+    if (output.state !== 'failed' && !(await this.vectorMaintenanceService.verifyRefresh(output))) return Successed({ ...output, state: 'pending' })
+    return Successed(output)
+  }
 
   @Post('/upload_pdf')
   public async handlePdfUpload(ctx: ContextManager, request: Request) {

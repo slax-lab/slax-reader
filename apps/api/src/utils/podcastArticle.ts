@@ -7,7 +7,6 @@ import {
   expectedChunkCostUsd,
   formatTimestamp,
   YOUTUBE_ARTICLE_LIMITS,
-  type ArticleQualityOptions,
   type ArticleSection,
   type YoutubeArticleCheck,
   type YoutubeArticleChunk,
@@ -27,22 +26,11 @@ import { ASSEMBLYAI_USD_PER_HOUR } from '@/infra/external/assemblyAI'
 export const PODCAST_ARTICLE_PROMPT_VERSION = 'v1'
 export const PODCAST_ARTICLE_SCHEMA_VERSION = 1
 
-/** First-version limits (spec 第 6 节). */
+/** Per-request sizing, quality checks, and execution bounds. */
 export const PODCAST_LIMITS = {
-  maxDurationSec: 3 * 60 * 60,
-  maxEpisodeCostUsd: 1.0,
   /** Calls of one indivisible part per attempt before it fails as retryable. */
   singletonTries: 3,
-  /** Repeated paragraphs shorter than this are a speaker's backchannel, not a doubled reply. */
-  minDuplicateChars: 40,
-  /** A part with fewer source numbers than this skips the number check: one dropped number is not a signal. */
-  partMinNumbers: 5,
-  /** A part with fewer source characters than this skips the length check: filler removal swings small ratios. */
-  partMinChars: 400,
-  dailyCostUsd: 30,
-  userDailyEpisodes: 5,
   chunkTargetTokens: YOUTUBE_ARTICLE_LIMITS.chunkTargetTokens,
-  maxChunks: 80,
   translationChunkTokens: 3_000,
   maxOutputTokens: 65_536,
   requestInputTokens: 6_000,
@@ -58,15 +46,6 @@ export const PODCAST_LIMITS = {
   maxPollMs: 2 * 60 * 60 * 1000,
   leaseMs: 10 * 60 * 1000
 } as const
-
-/** Article/transcript length ratio of a faithful cleanup, from papears' checks. */
-export const POLISH_LENGTH_BOUNDS: [number, number] = [0.4, 1.35]
-/** Translation/article length ratio by direction, from papears (en→zh) and the YouTube bounds (zh→en). */
-export function translationBounds(from: PodcastLanguage, to: PodcastLanguage): [number, number] {
-  if (from === 'en' && to === 'zh') return [0.18, 1.05]
-  if (from === 'zh' && to === 'en') return [1.3, 3.0]
-  return POLISH_LENGTH_BOUNDS
-}
 
 // ---------- keys and ids ----------
 
@@ -308,51 +287,9 @@ export function chunkTail(result: { sections: ArticleSection[] }): { tail: strin
   return { tail: tail(text, PODCAST_LIMITS.prevTailChars), heading: last.heading }
 }
 
-/** The text that names and roles may come from: transcript, title, notes, and the role words. */
-export function podcastSpeakerText(transcript: PodcastTranscriptDocument, ctx: PodcastEpisodeContext): string {
-  const labels = [...new Set(transcript.cues.map(c => c.speaker).filter(Boolean))].join(' ')
-  return [labels, ctx.title, ctx.showName, ctx.shownotes, '主持人 嘉宾 Host Guest Speaker 说话人', transcript.cues.map(c => c.text).join(' ')].join('\n')
-}
-
-export function polishQualityOptions(transcript: PodcastTranscriptDocument, ctx: PodcastEpisodeContext): ArticleQualityOptions {
-  return {
-    bounds: POLISH_LENGTH_BOUNDS,
-    speakerText: podcastSpeakerText(transcript, ctx),
-    zhMinCjkRatio: 0.2,
-    minDuplicateChars: PODCAST_LIMITS.minDuplicateChars,
-    zhMagnitudes: true,
-    requireParagraphOrder: true
-  }
-}
-
-/**
- * The final article checks applied to one generated part or chunk against its own cues, before it
- * is cached, so a bad reply is asked again on its own instead of failing the whole article later.
- * Number and length checks are skipped on samples too small for them to mean anything.
- */
-export function polishPartFailures(
-  sections: ArticleSection[],
-  cues: PodcastCue[],
-  transcript: PodcastTranscriptDocument,
-  ctx: PodcastEpisodeContext,
-  lang: PodcastLanguage,
-  lede = '-'
-): YoutubeArticleCheck[] {
-  const doc: YoutubeArticleDocument = {
-    schema_version: 1,
-    language: lang,
-    format: transcript.speakers ? 'dialogue' : 'article',
-    // Only the first part owns the introduction; other parts use the default placeholder.
-    lede,
-    sections: structuredClone(sections)
-  }
-  const text = cues.map(c => c.text).join(transcript.language === 'zh' ? '' : ' ')
-  const quality = checkArticleQuality(doc, cues, text, polishQualityOptions(transcript, ctx))
-  return quality.failed.filter(
-    check =>
-      !(check === 'number_coverage' && quality.metrics.caption_numbers < PODCAST_LIMITS.partMinNumbers) &&
-      !(check === 'length_ratio' && quality.metrics.caption_chars < PODCAST_LIMITS.partMinChars)
-  )
+/** Empty sections and paragraphs are retried before checkpointing. */
+export function polishPartFailures(sections: ArticleSection[], lede = '-'): YoutubeArticleCheck[] {
+  return checkArticleQuality({ schema_version: 1, language: 'en', format: 'article', lede, sections }, '').failed
 }
 
 // ---------- translation ----------
@@ -621,17 +558,6 @@ export function applyTranslation(doc: YoutubeArticleDocument, units: Translation
 /** Paragraph text of an article: the "source" a translation is measured against. */
 export function articleParagraphText(doc: YoutubeArticleDocument): string {
   return doc.sections.flatMap(s => s.paragraphs.map(p => p.text)).join('\n')
-}
-
-export function translationQualityOptions(from: PodcastLanguage, to: PodcastLanguage, source: YoutubeArticleDocument): ArticleQualityOptions {
-  return {
-    bounds: translationBounds(from, to),
-    speakerText: [...source.sections.flatMap(s => s.paragraphs.map(p => p.speaker ?? '')), '主持人 嘉宾 Host Guest'].join(' '),
-    zhMinCjkRatio: 0.3,
-    minDuplicateChars: PODCAST_LIMITS.minDuplicateChars,
-    zhMagnitudes: true,
-    requireParagraphOrder: true
-  }
 }
 
 // ---------- rendering ----------

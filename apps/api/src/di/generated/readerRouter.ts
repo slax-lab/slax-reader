@@ -27,6 +27,8 @@ import { MetricsController } from '../../handler/http/metricsController'
 import { YoutubeArticleController } from '../../handler/http/youtubeArticleController'
 import { YoutubeArticleAdminController } from '../../handler/http/youtubeArticleAdminController'
 import { PodcastController } from '../../handler/http/podcastController'
+import { ContentRecommendationController } from '../../handler/http/contentRecommendationController'
+import { SearchController } from '../../handler/http/searchController'
 
 export function getRouter(container: Container) {
   const router = Router()
@@ -43,6 +45,14 @@ export function getRouter(container: Container) {
   router.post('/v1/aigc/chat', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(AigcController)
     return await controller.handleCompletionsRequest(ctx, req)
+  })
+  router.post('/v1/bookmark/vector/refresh', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(BookmarkController)
+    return await controller.handleUserBookmarkVectorRefreshRequest(ctx, req)
+  })
+  router.post('/v1/bookmark/preference/refresh', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(BookmarkController)
+    return await controller.handleUserBookmarkPreferenceRefreshRequest(ctx, req)
   })
   router.post('/v1/bookmark/upload_pdf', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(BookmarkController)
@@ -199,6 +209,14 @@ export function getRouter(container: Container) {
   router.get('/callback/twitter', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(CallbackController)
     return await controller.handlerTwitterCallback(ctx, req)
+  })
+  router.post('/v1/collection/vector/refresh', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(CollectionController)
+    return await controller.handleUserCollectionVectorRefreshRequest(ctx, req)
+  })
+  router.post('/v1/collection/preference/refresh', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(CollectionController)
+    return await controller.handleUserCollectionPreferenceRefreshRequest(ctx, req)
   })
   router.get('/v1/collection/', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(CollectionController)
@@ -587,6 +605,22 @@ export function getRouter(container: Container) {
   router.post('/v1/podcast/retry', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(PodcastController)
     return await controller.handleRetry(ctx, req)
+  })
+  router.get('/v1/recommendations/articles', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(ContentRecommendationController)
+    return await controller.articles(ctx, req)
+  })
+  router.get('/v1/recommendations/collections', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(ContentRecommendationController)
+    return await controller.collections(ctx, req)
+  })
+  router.post('/v1/recommendations/feedback', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(ContentRecommendationController)
+    return await controller.feedback(ctx, req)
+  })
+  router.post('/v1/search', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(SearchController)
+    return await controller.searchStream(ctx, req)
   })
 
   router.get('/ping', () => Successed('pong'))

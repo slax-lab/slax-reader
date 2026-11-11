@@ -46,7 +46,9 @@ const routeConfigurations: RouteConfig[] = [
       'src/handler/http/metricsController.ts',
       'src/handler/http/youtubeArticleController.ts',
       'src/handler/http/youtubeArticleAdminController.ts',
-      'src/handler/http/podcastController.ts'
+      'src/handler/http/podcastController.ts',
+      'src/handler/http/contentRecommendationController.ts',
+      'src/handler/http/searchController.ts'
     ],
     outputFile: 'src/di/generated/readerRouter.ts'
   }

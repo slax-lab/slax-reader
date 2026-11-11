@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { expect, test, vi } from 'vitest'
-import { parseNewsletter, parseNewsletterStream } from '@/utils/newsletter'
+import { parseNewsletter, parseNewsletterStream } from '@/domain/newsletterParser'
 import { readNewsletterMime, NEWSLETTER_LIMITS } from '@/utils/newsletterMime'
 import { NewsletterService, receiveNewsletterEmail } from '@/domain/newsletter'
 

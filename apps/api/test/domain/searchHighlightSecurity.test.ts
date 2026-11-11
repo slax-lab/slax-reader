@@ -77,6 +77,18 @@ describe('search highlight rendering boundary', () => {
     expect(result!.content).toBeUndefined()
   })
 
+  test('keeps legacy fulltext row-ID batches at 50 without dropping the remainder', async () => {
+    const searchRepo = { seachBM25: vi.fn().mockResolvedValue([]) }
+    const service = new SearchService({} as never, {} as never, searchRepo as never, {} as never)
+    const items = Array.from({ length: 125 }, (_, index) => ({ bmId: index + 1, shardIdx: 0, rowId: 1000 + index }))
+
+    await service.fulltextSearch({} as never, 'saved', items)
+
+    expect(searchRepo.seachBM25.mock.calls.map(([ids]) => ids.length)).toEqual([50, 50, 25])
+    expect(searchRepo.seachBM25.mock.calls.flatMap(([ids]) => ids)).toEqual(items.map(item => item.rowId))
+    expect(searchRepo.seachBM25.mock.calls.every(([, keyword]) => keyword === 'saved')).toBe(true)
+  })
+
   test('escapes stored FTS and vector rows through hybridSearch with existing ID-only cache entries', async () => {
     const fts = makeItem('fts')
     const vector = makeItem('vector')

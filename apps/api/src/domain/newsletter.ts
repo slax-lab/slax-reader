@@ -1,10 +1,11 @@
+import { parseNewsletterStream } from '@/domain/newsletterParser'
 import { NewsletterTiming } from '@/utils/newsletterTiming'
 import { inject, injectable } from '@/decorators/di'
 import { NewsletterRepo, type NewsletterAddressStatus } from '@/infra/repository/dbNewsletter'
 import { NewsletterContent } from '@/domain/newsletterContent'
 import { ContextManager } from '@/utils/context'
 import { hashSHA256 } from '@/utils/strings'
-import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError, parseNewsletterStream } from '@/utils/newsletter'
+import { configuredNewsletterDomain, newsletterRecipientPart, NewsletterError } from '@/utils/newsletter'
 
 @injectable()
 export class NewsletterService {

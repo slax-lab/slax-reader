@@ -14,6 +14,7 @@ import { handleCronjob } from '@/di/generated/cronjob'
 import { SlaxMcpServer } from '@/domain/orchestrator/mcp'
 import { handleContentRequest, isContentRequest } from '@/handler/http/contentHandler'
 import { ScreenshotBrowser } from './screenshotBrowser'
+import { VectorPreferenceObject } from './vectorPreferenceObject'
 import { EDGE_RAY_ID_HEADER } from '@/const/edge'
 import { applyApiResponseHeaders } from '@/middleware/cors'
 
@@ -99,4 +100,4 @@ export default {
   }
 }
 
-export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser }
+export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser, VectorPreferenceObject }

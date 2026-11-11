@@ -2,7 +2,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { resolve, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
-import { parseNewsletter } from '../src/utils/newsletter'
+import { parseNewsletter } from '../src/domain/newsletterParser'
 import { DOMParser } from 'linkedom'
 
 export function localEmailUrl(edge: string, to: string, from: string): URL {

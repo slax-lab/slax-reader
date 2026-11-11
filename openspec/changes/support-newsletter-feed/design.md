@@ -36,7 +36,7 @@ Run regression-first tests, real native PostgreSQL races, real fresh Worker/DB/R
 
 ## Module boundaries
 
-Keep flat NewsletterService, NewsletterContentService and NewsletterSaveService domain modules; pure MIME/policy helpers live in utils/newsletter.ts. Remove HtmlBuilder.buildNewsletterBody and its Readability import. Newsletter helpers own MIME parsing, CID lookup and full-mail security cleaning. Database writes stay separate; only API read projections combine RSS and Newsletter.
+Keep flat NewsletterService, NewsletterContentService and NewsletterSaveService domain modules. Newsletter HTML interpretation lives in domain/newsletterParser.ts so its reuse of the existing RSS sanitizer follows the domain dependency boundary; pure address policy stays in utils/newsletter.ts and bounded MIME streaming in utils/newsletterMime.ts. Feed repositories return missing rows to the domain for error translation. Account cleanup obtains Newsletter batches through the existing UserRepo, keeping new SQL out of the domain. Remove HtmlBuilder.buildNewsletterBody and its Readability import. Newsletter helpers own MIME parsing, CID lookup and full-mail security cleaning. Database writes stay separate; only API read projections combine RSS and Newsletter.
 
 
 ## Newsletter preview typography

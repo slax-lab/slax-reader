@@ -8,7 +8,8 @@ import { PodcastEpisodeRepo } from '@/infra/repository/dbPodcastArticle'
 import recoveryResponses from '../fixtures/podcast/recovery-status.json'
 import { memoryBucket } from '../utils/snapshotBucket'
 
-const embeddedBody = (manifest: unknown) => `<article>Original saved body A</article><script id="slax-private-snapshot" type="application/json">${JSON.stringify(manifest)}</script>`
+const embeddedBody = (manifest: unknown) =>
+  `<article>Original saved body A</article><script id="slax-private-snapshot" type="application/json">${JSON.stringify(manifest)}</script>`
 
 async function fixture(kind: 'youtube' | 'podcast') {
   const memory = memoryBucket()
@@ -94,6 +95,7 @@ async function fixture(kind: 'youtube' | 'podcast') {
   const repo: any = {
     snapshot: async () => ({ ...raw }),
     mediaDenied: async () => false,
+    mediaRef: vi.fn(async () => ({ media_kind: kind, source_id: 'source', source_hash: kind === 'youtube' ? 'hash' : '' })),
     claimWrite: vi.fn(async (id: number, revision: Date, statuses: string[] = ['success']) => {
       if (id !== raw.id || revision.getTime() !== raw.updated_at.getTime() || !statuses.includes(raw.status)) return false
       raw.status = 'parseing'
@@ -128,7 +130,13 @@ async function fixture(kind: 'youtube' | 'podcast') {
     marks: { bodyHasMarks: async () => false },
     bookmarks: { deleteBookmarkSummary: async () => {} },
     searchRepo: { upsertUserBookmark: async () => {} },
-    search: { addSearchRecord: async () => [] }
+    search: { addSearchRecord: async () => [] },
+    vectors: {
+      listContentOwners: vi.fn(async (_bookmarkId: number, after: number) => (after > 0 ? [] : [{ id: 1, user_id: raw.private_user }])),
+      findArticles: vi.fn(async (identities: { userId: number; id: number }[]) =>
+        identities.map(identity => ({ user_id: identity.userId, bookmark_id: identity.id, status: 'success', updated_at: raw.updated_at }))
+      )
+    }
   }) as MediaSnapshotService
   const access = {
     getBookmarkReadAccess: async () => ({
@@ -148,9 +156,16 @@ async function fixture(kind: 'youtube' | 'podcast') {
     labService: { isEnabled: async () => true },
     userRepo: { getInfoByUserId: async () => ({ lang: 'en' }) }
   })
+  const background: Promise<unknown>[] = []
   const ctx: any = {
     getUserId: () => 7,
+    execution: {
+      waitUntil: (work: Promise<unknown>) => {
+        background.push(work)
+      }
+    },
     env: {
+      VECTOR_V5_MAINTENANCE_WORKFLOW: { create: vi.fn().mockResolvedValue({ id: 'maintenance' }) },
       KV: {
         get: async () => null,
         put: async () => {},
@@ -158,7 +173,7 @@ async function fixture(kind: 'youtube' | 'podcast') {
       }
     }
   }
-  return { memory, raw, ep, manifest, snapshots, service, ctx, repo, articles }
+  return { memory, raw, ep, manifest, snapshots, service, ctx, repo, articles, background }
 }
 
 describe('managed media owner recovery', () => {
@@ -172,7 +187,7 @@ describe('managed media owner recovery', () => {
     expect(f.repo.failWrite).not.toHaveBeenCalled()
   })
 
-  it.each(['youtube', 'podcast'] as const)('%s status retains its private state when publication fails transiently', async kind => {
+  it.each(['youtube', 'podcast'] as const)('%s does not report an uncommitted failed publication as ready', async kind => {
     const f = await fixture(kind)
     if (kind === 'podcast')
       Object.assign(f.ep, {
@@ -182,11 +197,28 @@ describe('managed media owner recovery', () => {
       })
     f.repo.publishRevision.mockRejectedValue(new Error('DB unavailable'))
     const status = await f.service.getStatus(f.ctx, 'owner')
-    expect(kind === 'youtube' ? (status as any).status : (status as any).article).toBe('pending')
+    expect(kind === 'youtube' ? (status as any).status : (status as any).article).toBe('unavailable')
+    expect((status as any).body_ready).toBe(false)
     expect(f.raw.content_key).toBe('html/body/owner.html')
     expect(f.repo.publishRevision).toHaveBeenCalled()
-    expect(f.repo.releaseWrite).toHaveBeenCalledWith(1, expect.any(Date))
-    expect(f.raw.status).toBe('success')
+    expect(f.repo.failWrite).toHaveBeenCalledWith(1, expect.any(Date))
+    expect(f.repo.releaseWrite).not.toHaveBeenCalled()
+    expect(f.raw.status).toBe('failed')
+    expect(f.background).toHaveLength(0)
+  })
+
+  it.each(['youtube', 'podcast'] as const)('%s status catch-up dispatches vector maintenance only after its own body write committed', async kind => {
+    const f = await fixture(kind)
+    if (kind === 'podcast') Object.assign(f.ep, { transcript_status: 'ready', transcript_hash: 'hash', transcript_key: 'transcript.json' })
+    const status = await f.service.getStatus(f.ctx, 'owner')
+    expect((status as any).body_ready).toBe(true)
+    expect(f.background).toHaveLength(1)
+    expect(f.ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.create).not.toHaveBeenCalled()
+    await Promise.all(f.background)
+    expect(f.ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.create).toHaveBeenCalledOnce()
+    expect(f.ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.create).toHaveBeenCalledWith(
+      expect.objectContaining({ params: expect.objectContaining({ target: { kind: 'article', userId: 7, id: 1 } }) })
+    )
   })
 
   it.each(['youtube', 'podcast'] as const)('%s retries a failed R2 write through the original publication trigger', async kind => {
@@ -195,12 +227,62 @@ describe('managed media owner recovery', () => {
     const initialRevision = new Date(f.raw.updated_at)
     vi.spyOn(f.memory.bucket, 'put').mockRejectedValueOnce(new Error('transient R2 failure'))
     await expect(f.snapshots.settleSource(f.ctx, kind, 'source')).rejects.toThrow('Private media publication incomplete')
-    expect(f.raw.status).toBe('success')
+    expect(f.raw.status).toBe('failed')
+    expect(f.repo.failWrite).toHaveBeenCalledWith(1, initialRevision)
     expect((await f.snapshots.load(1))?.media?.variants.en?.status).toBe('pending')
     expect(await f.snapshots.settleSource(f.ctx, kind, 'source')).toBe(1)
     expect((await f.snapshots.load(1))?.media?.variants.en?.status).toBe('ready')
     expect(f.raw.updated_at.getTime()).toBeGreaterThan(initialRevision.getTime())
     expect(await f.snapshots.settleSource(f.ctx, kind, 'source')).toBe(0)
+  })
+
+  it.each(['youtube', 'podcast'] as const)('%s keeps a failed repair incomplete and YouTube content rejects it', async kind => {
+    const f = await fixture(kind)
+    if (kind === 'podcast') Object.assign(f.ep, { transcript_status: 'ready', transcript_hash: 'hash', transcript_key: 'transcript.json' })
+    f.repo.publishRevision.mockRejectedValue(new Error('DB unavailable'))
+    await expect(f.snapshots.settleSource(f.ctx, kind, 'source')).rejects.toThrow('Private media publication incomplete')
+    await expect(f.snapshots.settleSource(f.ctx, kind, 'source')).rejects.toThrow('Private media publication incomplete')
+    expect(f.raw.status).toBe('failed')
+    expect(f.memory.objects.get(f.raw.content_key)!.value.length).toBeGreaterThan(0)
+    expect(f.repo.claimWrite).toHaveBeenCalledWith(1, expect.any(Date), ['failed'], false)
+    const status = await f.service.getStatus(f.ctx, 'owner')
+    expect(kind === 'youtube' ? (status as any).status : (status as any).article).toBe('unavailable')
+    expect((status as any).body_ready).toBe(false)
+    if (kind === 'youtube') {
+      ;(f.service as any).resolveAccess = async () => ({ bookmarkId: 1, flagged: false })
+      await expect(f.service.getContent(f.ctx, 'owner', 'hash-en-1-v1')).rejects.toMatchObject({ name: 'BOOKMARK_NOT_FOUND' })
+    }
+  })
+
+  it('recovers a failed podcast capture with an empty saved source hash and adopts the current transcript hash', async () => {
+    const f = await fixture('podcast')
+    Object.assign(f.ep, { transcript_status: 'ready', transcript_hash: 'hash', transcript_key: 'transcript.json' })
+    f.raw.status = 'failed'
+    expect(await f.snapshots.settle(f.ctx, 1)).toBe(true)
+    expect(f.raw.status).toBe('success')
+    expect(f.repo.claimWrite).toHaveBeenCalledWith(1, expect.any(Date), ['failed'], false)
+    expect(f.repo.publishRevision.mock.calls[0][3].mediaInput).toMatchObject({ sourceId: 'source', transcriptHash: 'hash' })
+  })
+
+  it.each(['youtube', 'podcast'] as const)('%s retries failed maintenance admission after a committed terminal publication', async kind => {
+    const f = await fixture(kind)
+    if (kind === 'podcast') Object.assign(f.ep, { transcript_status: 'ready', transcript_hash: 'hash', transcript_key: 'transcript.json' })
+    const create = f.ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.create
+    create.mockRejectedValueOnce(new Error('admission unavailable'))
+    expect(await f.snapshots.settleSource(f.ctx, kind, 'source')).toBe(1)
+    const publishedRevision = f.raw.updated_at.getTime()
+    const publishedHtml = f.memory.objects.get(f.raw.content_key)!.value
+    await expect(f.snapshots.processSourceVectorMaintenance(f.ctx, kind, 'source', 'hash')).rejects.toThrow('Media vector maintenance admission incomplete')
+    expect(f.raw.status).toBe('success')
+    expect((await f.snapshots.load(1))?.media?.variants.en?.status).toBe('ready')
+    expect(await f.snapshots.settleSource(f.ctx, kind, 'source')).toBe(0)
+    await f.snapshots.processSourceVectorMaintenance(f.ctx, kind, 'source', 'hash')
+    expect(create).toHaveBeenCalledTimes(2)
+    expect(create).toHaveBeenLastCalledWith(expect.objectContaining({ params: expect.objectContaining({ target: { kind: 'article', userId: 7, id: 1 } }) }))
+    expect(f.raw.updated_at.getTime()).toBe(publishedRevision)
+    expect(f.memory.objects.get(f.raw.content_key)!.value).toBe(publishedHtml)
+    expect(f.repo.publishRevision).toHaveBeenCalledOnce()
+    expect(f.repo.claimWrite).toHaveBeenCalledOnce()
   })
 
   it('cannot release or write a newer owner acquisition after supplemental failure', async () => {

@@ -1,48 +1,62 @@
 <template>
-  <div class="auth-wrap">
-    <div class="auth-stack">
-      <LoginView :redirect="redirect" :affcode="affcode" :has-invite="hasInvite">
-        <template v-if="hasInvite" #invite>
-          <LoginKocBanner :blogger-info="kocBloggerInfo" />
-        </template>
-      </LoginView>
+  <AppLayoutShell>
+    <div class="auth-wrap">
+      <div class="auth-stack">
+        <LoginView :redirect="redirect" :affcode="affcode" :has-invite="!!invitation" :auth-attribution="authAttribution">
+          <template v-if="invitation" #invite>
+            <component :is="invitation.banner" :blogger-info="invitation.info" />
+          </template>
+        </LoginView>
+      </div>
     </div>
-  </div>
+    <ClientOnly><InAppBrowserTip v-if="isInApp" /></ClientOnly>
+  </AppLayoutShell>
 </template>
 
 <script lang="ts" setup>
 import LoginView from '~/components/global/LoginView.vue'
-import LoginKocBanner from '~/components/Login/LoginKocBanner.vue'
+import AppLayoutShell from '~/components/Layouts/AppLayoutShell.vue'
 
-import type { BloggerInfo } from '@slax-reader/contracts/interface'
+import { acquisitionAttributionFromQuery } from '~/utils/acquisitionAttribution'
+import { isInAppBrowser } from '~/utils/inAppBrowser'
+
 import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { BloggerInfo } from '@slax-reader/contracts/interface'
+import type { Component } from 'vue'
+
+definePageMeta({ layout: false })
+
+const InAppBrowserTip = defineAsyncComponent({
+  loader: () => import('~/components/Tips/InAppBrowserTip.vue'),
+  suspensible: false
+})
+const isInApp = import.meta.client && isInAppBrowser(navigator.userAgent)
 
 const route = useRoute()
+const authAttribution = computed(() => acquisitionAttributionFromQuery(route.query))
 const redirect = `${route.query.redirect || ''}`
 const affcode = `${route.query.aff || ''}`
 const bloggerParam = `${route.query.blogger || ''}`
 
-const showKocBanner = !!bloggerParam
-
 // /login 是 ssr:false 纯客户端页，
 // 用 useAsyncData 会崩，改客户端拉取
-const kocBloggerInfo = ref<BloggerInfo | null>(null)
+const invitation = shallowRef<{ info: BloggerInfo; banner: Component }>()
 
 if (import.meta.client && bloggerParam) {
-  request()
-    .get<BloggerInfo>({
+  Promise.all([
+    request().get<BloggerInfo>({
       url: RESTMethodPath.PROMOTION_BLOGGER_INFO,
       query: { blogger: bloggerParam }
-    })
-    .then(info => {
-      kocBloggerInfo.value = info ?? null
+    }),
+    import('~/components/Login/LoginKocBanner.vue')
+  ])
+    .then(([info, { default: banner }]) => {
+      if (info) invitation.value = { info, banner }
     })
     .catch(() => {
-      kocBloggerInfo.value = null
+      invitation.value = undefined
     })
 }
-
-const hasInvite = computed(() => showKocBanner && !!kocBloggerInfo.value)
 
 const { t } = useI18n()
 

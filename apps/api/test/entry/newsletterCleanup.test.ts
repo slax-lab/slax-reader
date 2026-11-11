@@ -29,6 +29,7 @@ vi.mock('@/handler/http/contentHandler', () => ({ handleContentRequest: vi.fn(),
 vi.mock('@/utils/hybridSearch/jieba', () => ({ SlaxJieba: class {} }))
 vi.mock('@/infra/message/websocket', () => ({ SlaxWebSocketServer: class {} }))
 vi.mock('@/domain/orchestrator/mcp', () => ({ SlaxMcpServer: class {} }))
+vi.mock('@/entry/core/vectorPreferenceObject', () => ({ VectorPreferenceObject: class {} }))
 vi.mock('@/entry/core/screenshotBrowser', () => ({ ScreenshotBrowser: class {} }))
 
 import { handleEmailEvent } from '@/entry/core'

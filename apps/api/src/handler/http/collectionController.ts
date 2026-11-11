@@ -9,13 +9,40 @@ import { Failed, Successed } from '../../utils/responseUtils'
 import { CollectionService } from '../../domain/collection'
 import { CollectionOrchestrator } from '../../domain/orchestrator/collection'
 import { submitServerEvent } from '../../domain/events'
+import { VectorMaintenanceService } from '../../domain/vectorMaintenance'
+import { requireVectorRefreshSecret } from '@/utils/vectorRefreshAuth'
 
 @Controller('/v1/collection')
 export class CollectionController {
   constructor(
     @inject(CollectionService) private collectionService: CollectionService,
-    @inject(CollectionOrchestrator) private collectionOrchestrator: CollectionOrchestrator
+    @inject(CollectionOrchestrator) private collectionOrchestrator: CollectionOrchestrator,
+    @inject(VectorMaintenanceService) private vectorMaintenanceService: VectorMaintenanceService
   ) {}
+
+  @Post('/vector/refresh')
+  public async handleUserCollectionVectorRefreshRequest(ctx: ContextManager, request: Request) {
+    requireVectorRefreshSecret(request, ctx.env)
+    if (new URL(request.url).pathname !== '/v1/collection/vector/refresh') return Failed(ErrorParam())
+    const params = await RequestUtils.json<{ collection_id: number }>(request).catch(() => null)
+    if (!params || Array.isArray(params) || Object.keys(params).length !== 1 || !Number.isSafeInteger(params.collection_id) || params.collection_id < 1) return Failed(ErrorParam())
+
+    const output = await this.vectorMaintenanceService.refreshCollection(params.collection_id)
+    if (output.state !== 'failed' && !(await this.vectorMaintenanceService.verifyRefresh(output))) return Successed({ ...output, state: 'pending' })
+    return Successed(output)
+  }
+
+  @Post('/preference/refresh')
+  public async handleUserCollectionPreferenceRefreshRequest(ctx: ContextManager, request: Request) {
+    requireVectorRefreshSecret(request, ctx.env)
+    if (new URL(request.url).pathname !== '/v1/collection/preference/refresh') return Failed(ErrorParam())
+    const params = await RequestUtils.json<{ user_id: number }>(request).catch(() => null)
+    if (!params || Array.isArray(params) || Object.keys(params).length !== 1 || !Number.isSafeInteger(params.user_id) || params.user_id < 1) return Failed(ErrorParam())
+
+    const output = await this.vectorMaintenanceService.refreshUser(params.user_id, 'collection')
+    if (output.state !== 'failed' && !(await this.vectorMaintenanceService.verifyRefresh(output))) return Successed({ ...output, state: 'pending' })
+    return Successed(output)
+  }
 
   static collectionCodeIsValidate(collectCode: string) {
     return /^[a-zA-Z0-9]+$/.test(collectCode)
@@ -78,7 +105,9 @@ export class CollectionController {
     // 仅观测用，截断防超长
     const referrer = typeof params.referrer === 'string' ? params.referrer.slice(0, 512) : undefined
     const subInfo = await this.collectionOrchestrator.subscribeUserCollection(ctx, params.collect_code, referrer)
-    if (subInfo.subscribe) submitServerEvent(ctx, request, 'collection_subscribed', { collection_id: params.collect_code })
+    if (subInfo.subscribe) {
+      submitServerEvent(ctx, request, 'collection_subscribed', { collection_id: params.collect_code })
+    }
     return Successed(subInfo)
   }
 

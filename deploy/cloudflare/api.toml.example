@@ -6,7 +6,7 @@ name = "reader-core"
 main = "../../apps/api/src/entry/core/index.ts"
 workers_dev = false
 compatibility_date = "2025-05-05"
-compatibility_flags = ["nodejs_compat_v2", "global_fetch_strictly_public"]
+compatibility_flags = ["nodejs_compat_v2", "global_fetch_strictly_public", "enable_request_signal"]
 
 [browser]
 binding = "BROWSER"
@@ -40,6 +40,9 @@ PROXY_IMAGE_PREFIX = "http://localhost:8787/"
 POWERSYNC_SG_API_URL = "http://localhost:18080"
 STRIPE_SUBSCRIPTION_HOME = "http://localhost:3000"
 GEMINI_BATCH_API_URL = "https://generativelanguage.googleapis.com"
+# Provision JINA_API_KEY as a secret, never in this template.
+# Provision VECTOR_REFRESH_SECRET separately in Core and the operator process; Edge does not validate it.
+# The four vector/preference refresh handlers require X-Vector-Refresh-Secret, not Authorization or Reader login.
 
 [[kv_namespaces]]
 binding = "KV"
@@ -108,6 +111,21 @@ index_name = "bookmark-4"
 binding = "VECTORIZE5"
 index_name = "bookmark-5"
 
+# Operator-provisioned indexes: 1024 dimensions/cosine. Normal dev uses these via the AI Worker.
+# Production index_name values: reader-prod-v5-article, reader-prod-v5-user, reader-prod-v5-collection.
+# Repeat these bindings in each selected [env.*] section; Wrangler does not inherit bindings.
+# Articles use default namespace, a:<user_id>:<bookmark_id> IDs, and numeric user_id metadata.
+# User preferences use separate user-article and user-collection namespaces and IDs.
+[[vectorize]]
+binding = "VECTOR_V5_ARTICLE"
+index_name = "reader-test-v5-article"
+[[vectorize]]
+binding = "VECTOR_V5_USER"
+index_name = "reader-test-v5-user"
+[[vectorize]]
+binding = "VECTOR_V5_COLLECTION"
+index_name = "reader-test-v5-collection"
+
 [[durable_objects.bindings]]
 name = "SLAX_JIEBA"
 class_name = "SlaxJieba"
@@ -123,6 +141,9 @@ class_name = "SlaxBrowser"
 [[durable_objects.bindings]]
 name = "SCREENSHOT_BROWSER"
 class_name = "ScreenshotBrowser"
+[[durable_objects.bindings]]
+name = "VECTOR_V5_PREFERENCE"
+class_name = "VectorPreferenceObject"
 
 [[rules]]
 type = "CompiledWasm"
@@ -134,6 +155,9 @@ new_classes = ["SlaxJieba", "SlaxWebSocketServer", "ScreenshotBrowser"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["SlaxMcpServer"]
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["VectorPreferenceObject"]
 
 [[queues.producers]]
 queue = "slax-reader-parser-twitter"
@@ -206,6 +230,11 @@ class_name = "YoutubeArticleWorkflow"
 binding = "PODCAST_WORKFLOW"
 name = "podcast-workflow"
 class_name = "PodcastWorkflow"
+# Repeat in each selected environment. Production name: vector-v5-maintenance-workflow.
+[[workflows]]
+binding = "VECTOR_V5_MAINTENANCE_WORKFLOW"
+name = "vector-v5-maintenance-workflow-dev"
+class_name = "VectorMaintenanceWorkflow"
 
 [triggers]
 crons = ["*/1 * * * *", "*/2 * * * *", "*/5 * * * *", "*/30 * * * *", "0 */1 * * *"]

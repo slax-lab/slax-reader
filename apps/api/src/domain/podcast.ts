@@ -10,14 +10,13 @@ import { UserRepo } from '@/infra/repository/dbUser'
 import { RedisClient } from '@/infra/repository/redisClient'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
-import { isFinalError, type mediaArticlePO } from '@/infra/repository/dbMediaArticle'
+import type { mediaArticlePO } from '@/infra/repository/dbMediaArticle'
 import { PodcastArticleRepo, PodcastEpisodeRepo, isPodcastFinalError, type podcastEpisodePO, type InspectedPodcastRef } from '@/infra/repository/dbPodcastArticle'
 import { podcastLanguage, type PodcastLanguage } from '@/utils/podcastSource'
 import type { PodcastTranscriptDocument } from '@/utils/podcastTranscript'
 import {
   PODCAST_ARTICLE_PROMPT_VERSION,
   PODCAST_ARTICLE_SCHEMA_VERSION,
-  PODCAST_LIMITS,
   podcastArticleVersion,
   podcastChunkPrefix,
   podcastWorkflowId,
@@ -26,7 +25,7 @@ import {
   speakerDisplay,
   type PodcastPlayerInfo
 } from '@/utils/podcastArticle'
-import { youtubeArticleLanguage, type YoutubeArticleDocument } from '@/utils/youtubeArticle'
+import { escapeHtml, youtubeArticleLanguage, type YoutubeArticleDocument } from '@/utils/youtubeArticle'
 import type { PodcastTrigger, PodcastWorkflowParams } from '@/domain/podcastRunner'
 import { BookmarkNotFoundError, ErrorParam } from '@/const/err'
 
@@ -45,7 +44,7 @@ export interface PodcastStatusResponse {
   body_ready: boolean
   /** The episode's language. */
   language: PodcastLanguage | null
-  /** Why the episode or article stopped: too_long, no_speech, limit_reached, ... */
+  /** Why the episode or article stopped: no_speech, language_unsupported, ... */
   reason: string | null
   translation: {
     status: PodcastArticleApiStatus
@@ -66,7 +65,7 @@ export interface PodcastTranslationResponse {
   }[]
 }
 
-type StartResult = 'started' | 'locked' | 'busy' | 'over_budget' | 'failed'
+type StartResult = 'started' | 'locked' | 'busy' | 'failed'
 
 interface Access {
   bookmarkId: number
@@ -94,8 +93,7 @@ export function playerInfo(ep: podcastEpisodePO): PodcastPlayerInfo {
 }
 
 /**
- * Podcast articles: who may see what, when an episode run starts (crawl, retry, sweep), the daily
- * and budget limits, writing the article into bookmark bodies, and cleanup. The episode and its
+ * Podcast articles: visibility, workflow starts, body publication, and cleanup. The episode and its
  * article rows are canonical (shared by every bookmark of the episode); the bookmark decides visibility.
  */
 @injectable()
@@ -157,17 +155,25 @@ export class PodcastService {
       can_retry: false
     }
     if (access.flagged) return unavailable
-    const loaded = await this.snapshots.load(access.bookmarkId)
+    let loaded = await this.snapshots.load(access.bookmarkId)
     let snapshot = loaded?.media
     if (snapshot?.kind === 'podcast') {
       if (!(await this.snapshots.readable(snapshot))) return unavailable
       if (access.isOwner) {
+        let published = false
         try {
-          if (await this.snapshots.settle(ctx, access.bookmarkId, loaded)) snapshot = (await this.snapshots.load(access.bookmarkId))!.media!
+          published = await this.snapshots.settle(ctx, access.bookmarkId, loaded)
         } catch (error) {
           console.error('Private media status catch-up failed', error)
         }
-      }
+        loaded = await this.snapshots.load(access.bookmarkId)
+        if (loaded?.raw.status !== 'success' || loaded.media?.kind !== 'podcast' || !(await this.snapshots.readable(loaded.media))) return unavailable
+        snapshot = loaded.media
+        if (published && snapshot.mode === 'capture')
+          ctx.execution.waitUntil(
+            this.snapshots.processVectorMaintenance(ctx, access.bookmarkId, snapshot).catch(error => console.error('Media status vector maintenance failed', error))
+          )
+      } else if (loaded?.raw.status !== 'success') return unavailable
       const wanted = await this.languageOf(ctx.getUserId() || access.ownerId)
       const enabled = await this.labService.isEnabled(access.ownerId, PODCAST_LAB)
       const result = this.privateStatus(snapshot, wanted, access, enabled)
@@ -175,7 +181,6 @@ export class PodcastService {
         const ep = await this.findEpisodeFor(access.bookmarkId)
         if (ep?.transcript_status === 'pending' && !ep.next_retry_at) {
           result.can_retry = true
-          if (!(await this.dailyLeft(access.ownerId))) result.reason = 'limit_reached'
         }
       }
       return result
@@ -188,8 +193,8 @@ export class PodcastService {
     const transcript = ep.transcript_status as PodcastTranscriptApiStatus
     const res: PodcastStatusResponse = { ...unavailable, transcript, language: lang }
     if (transcript === 'failed' || transcript === 'skipped') res.reason = (ep.error_message ?? '').split(':')[0] || null
-    if (transcript === 'pending' && !ep.next_retry_at && access.isOwner && !(await this.dailyLeft(access.ownerId))) res.reason = 'limit_reached'
-    res.can_retry = access.isOwner && ((transcript === 'failed' && !isPodcastFinalError(ep.error_message)) || (transcript === 'pending' && !ep.next_retry_at))
+    res.can_retry =
+      access.isOwner && (((transcript === 'failed' || transcript === 'skipped') && !isPodcastFinalError(ep.error_message)) || (transcript === 'pending' && !ep.next_retry_at))
 
     // Visitors see only what will become readable: a failed or skipped episode is unavailable to them
     if (transcript !== 'ready' || !ep.transcript_hash || !lang) {
@@ -200,9 +205,9 @@ export class PodcastService {
     const rows = await this.articles.listForSource(ep.source_id, ep.transcript_hash)
     const original = rows.find(r => r.target_language === lang)
     res.article = (original?.status as PodcastArticleApiStatus) ?? 'pending'
-    res.body_ready = original?.status === 'ready'
+    res.body_ready = original?.status === 'ready' && (await this.bodies.readBody(access.bookmarkId, true))?.includes(this.bodyMarker(original)) === true
     if (original && (original.status === 'failed' || original.status === 'skipped')) res.reason = (original.error_message ?? '').split(':')[0] || null
-    if (original?.status === 'failed' && access.isOwner && !isFinalError(original.error_message)) res.can_retry = true
+    if ((original?.status === 'failed' || original?.status === 'skipped') && access.isOwner && !isPodcastFinalError(original.error_message)) res.can_retry = true
     // Same visitor rule for the article stage: a running article is shown as running, a failed or
     // skipped one is unavailable, and no failure reason reaches a visitor
     if (!access.isOwner && original?.status !== 'ready') {
@@ -217,10 +222,25 @@ export class PodcastService {
       const status = (tr?.status as PodcastArticleApiStatus) ?? 'pending'
       if (access.isOwner || status === 'ready') {
         res.translation = { status, language: wanted, version: tr?.status === 'ready' ? this.versionOf(tr) : null }
-        if (tr?.status === 'failed' && access.isOwner && !isFinalError(tr.error_message) && res.body_ready) res.can_retry = true
+        if ((tr?.status === 'failed' || tr?.status === 'skipped') && access.isOwner && !isPodcastFinalError(tr.error_message) && res.body_ready) res.can_retry = true
       }
     }
     if (!access.isOwner) res.can_retry = false
+    else if (original?.status === 'ready') {
+      try {
+        const written = await this.publishBodyFor(ctx, access.bookmarkId, access.ownerId, ep, original)
+        res.body_ready = written || (await this.bodies.readBody(access.bookmarkId, true))?.includes(this.bodyMarker(original)) === true
+        if (written)
+          ctx.execution.waitUntil(
+            this.snapshots
+              .processVectorMaintenance(ctx, access.bookmarkId, { kind: 'podcast', sourceId: ep.source_id, sourceHash: ep.transcript_hash })
+              .catch(error => console.error('Media status vector maintenance failed', error))
+          )
+      } catch (error) {
+        res.body_ready = false
+        console.error('Podcast body status catch-up failed', error)
+      }
+    }
     return res
   }
 
@@ -248,8 +268,8 @@ export class PodcastService {
         canAcquire &&
         ((snapshot.transcript === 'unavailable' && snapshot.transcriptReason === 'input_changed') ||
           [original, translation].some(variant => variant?.status === 'unavailable' && variant.reason === 'input_changed') ||
-          (snapshot.transcript === 'failed' && !isPodcastFinalError(snapshot.transcriptReason)) ||
-          [original, translation].some(variant => variant?.status === 'failed' && !isFinalError(variant.reason))),
+          ((snapshot.transcript === 'failed' || snapshot.transcript === 'skipped') && !isPodcastFinalError(snapshot.transcriptReason)) ||
+          [original, translation].some(variant => (variant?.status === 'failed' || variant?.status === 'skipped') && !isPodcastFinalError(variant.reason))),
       translation: translation
         ? { status: state(translation.status, translation.reason), language: wanted, version: translation.status === 'ready' ? privateMediaVersion(snapshot, wanted) : null }
         : null
@@ -264,9 +284,10 @@ export class PodcastService {
     if (!version) throw ErrorParam()
     const access = await this.resolveAccess(ctx, bookmarkUid)
     if (access.flagged) throw BookmarkNotFoundError()
-    const snapshot = (await this.snapshots.load(access.bookmarkId))?.media
+    const loaded = await this.snapshots.load(access.bookmarkId)
+    const snapshot = loaded?.media
     if (snapshot?.kind === 'podcast') {
-      if (!(await this.snapshots.readable(snapshot))) throw BookmarkNotFoundError()
+      if (loaded?.raw.status !== 'success' || !(await this.snapshots.readable(snapshot))) throw BookmarkNotFoundError()
       const language = (['en', 'zh'] as const).find(
         lang => lang !== snapshot.player?.language && privateMediaVersion(snapshot, lang) === version && snapshot.variants[lang]?.status === 'ready'
       )
@@ -309,7 +330,7 @@ export class PodcastService {
 
   // ---------- write ----------
 
-  /** Owner retry: a failed transcript, a failed article, a failed translation, or an episode held back by the daily limit. */
+  /** Owner retry: a failed transcript, a failed article, a failed translation, or an unstarted pending episode. */
   public async retry(ctx: ContextManager, bookmarkUid: string): Promise<PodcastStatusResponse> {
     const access = await this.resolveAccess(ctx, bookmarkUid)
     if (!access.isOwner || access.flagged) throw BookmarkNotFoundError()
@@ -317,7 +338,9 @@ export class PodcastService {
     if (!(await this.labService.isEnabled(access.ownerId, PODCAST_LAB))) throw this.labService.disabledError(PODCAST_LAB)
     const ep = await this.findEpisodeFor(access.bookmarkId)
     if (!ep) throw BookmarkNotFoundError()
-    await this.snapshots.settleSource(ctx, 'podcast', ep.source_id)
+    const settled = await this.snapshots.settleSource(ctx, 'podcast', ep.source_id)
+    if (settled || ['ready', 'failed', 'skipped'].includes(ep.transcript_status))
+      await this.snapshots.processSourceVectorMaintenance(ctx, 'podcast', ep.source_id, ep.transcript_hash ?? '')
     let requestedLanguage = await this.languageOf(access.ownerId)
     const snapshot = (await this.snapshots.load(access.bookmarkId))?.media
     const changedInput =
@@ -332,10 +355,9 @@ export class PodcastService {
       return this.getStatus(ctx, bookmarkUid)
     }
 
-    if (ep.transcript_status === 'failed') {
+    if (ep.transcript_status === 'failed' || ep.transcript_status === 'skipped') {
       if (!(await this.episodes.requeue(ep.id))) throw ErrorParam()
     } else if (ep.transcript_status === 'pending' && !ep.next_retry_at) {
-      if (!(await this.takeDaily(access.ownerId))) return { ...(await this.getStatus(ctx, bookmarkUid)), reason: 'limit_reached', can_retry: false }
       await this.episodes.defer(ep.id, new Date())
     } else if (ep.transcript_status === 'ready' && ep.transcript_hash) {
       const rows = await this.articles.listForSource(ep.source_id, ep.transcript_hash)
@@ -344,7 +366,10 @@ export class PodcastService {
       if (snapshot?.mode === 'capture') {
         const retryLanguage = [lang, wanted, ...(changedInput ? [requestedLanguage] : [])].find(language => {
           const variant = language ? snapshot.variants[language] : undefined
-          return (variant?.status === 'failed' && !isFinalError(variant.reason)) || (variant?.status === 'unavailable' && variant.reason === 'input_changed')
+          return (
+            ((variant?.status === 'failed' || variant?.status === 'skipped') && !isPodcastFinalError(variant.reason)) ||
+            (variant?.status === 'unavailable' && variant.reason === 'input_changed')
+          )
         })
         const reusable = rows.find(row => row.target_language === retryLanguage)
         if (retryLanguage && snapshot.variants[retryLanguage]?.reason === 'input_changed' && (!reusable || ['pending', 'generating', 'validating'].includes(reusable.status))) {
@@ -361,8 +386,10 @@ export class PodcastService {
           return this.getStatus(ctx, bookmarkUid)
         }
       }
-      const failed = rows.find(r => r.target_language === lang && r.status === 'failed') ?? rows.find(r => r.target_language === wanted && r.status === 'failed')
-      if (!failed || !(await this.articles.requeue(failed.id, true))) throw ErrorParam()
+      const failed =
+        rows.find(r => r.target_language === lang && (r.status === 'failed' || r.status === 'skipped')) ??
+        rows.find(r => r.target_language === wanted && (r.status === 'failed' || r.status === 'skipped'))
+      if (!failed || isPodcastFinalError(failed.error_message) || !(await this.articles.requeue(failed.id, true))) throw ErrorParam()
       requestedLanguage = failed.target_language as PodcastLanguage
     } else {
       throw ErrorParam()
@@ -374,41 +401,64 @@ export class PodcastService {
   }
 
   /**
-   * After a podcast save passed moderation. A new episode counts against the daily limit and starts
+   * After a podcast save passed moderation. A new episode starts
    * transcription; an episode that is already done gets its article copied into this bookmark at once,
-   * and a missing translation for this reader is queued. Never throws: the bookmark is already saved.
+   * and a missing translation for this reader is queued. Vector admission failures propagate.
    */
   public async triggerAfterCrawl(ctx: ContextManager, bookmarkId: number, userId: number): Promise<void> {
+    let vectorSource: Pick<MediaSnapshot, 'kind' | 'sourceId' | 'sourceHash'> | undefined
     try {
-      const snapshot = (await this.snapshots.load(bookmarkId))?.media
-      if (snapshot && (snapshot.mode === 'fork' || (snapshot.transcript !== 'pending' && !Object.values(snapshot.variants).some(variant => variant.status === 'pending')))) return
+      let loaded = await this.snapshots.load(bookmarkId)
+      let snapshot = loaded?.media
+      if (snapshot?.mode === 'fork') return
+      if (snapshot && loaded?.raw.status === 'failed') {
+        if (!(await this.snapshots.settle(ctx, bookmarkId, loaded))) return
+        loaded = await this.snapshots.load(bookmarkId)
+        if (loaded?.raw.status !== 'success' || !loaded.media) return
+        snapshot = loaded.media
+      }
+      if (snapshot) {
+        if (
+          ['ready', 'failed', 'skipped'].includes(snapshot.transcript) ||
+          Object.values(snapshot.variants).some(variant => ['ready', 'failed', 'skipped'].includes(variant.status))
+        )
+          vectorSource = snapshot
+        if (snapshot.transcript !== 'pending' && !Object.values(snapshot.variants).some(variant => variant.status === 'pending')) return
+      }
       if (!(await this.labService.isEnabled(userId, PODCAST_LAB))) return
       const ep = await this.findEpisodeFor(bookmarkId)
       if (!ep) return
       if (ep.transcript_status === 'pending') {
         // Already requested (deferred): the sweep starts it
         if (ep.next_retry_at) return
-        if (!(await this.takeDaily(userId))) {
-          console.log(`Podcast trigger after crawl: bookmark=${bookmarkId} episode=${ep.id} daily limit reached`)
-          return
-        }
         const result = await this.start(ctx, ep, 'crawl')
-        // Deferred starts (busy, over budget, create failed) still run later through the sweep, so they
-        // keep the count. 'locked' means another start of this episode is in flight and already counted.
-        if (result === 'locked') await this.giveBackDaily(userId)
         console.log(`Podcast trigger after crawl: bookmark=${bookmarkId} episode=${ep.id} result=${result}`)
+        return
+      }
+      if (ep.transcript_status === 'failed' || ep.transcript_status === 'skipped') {
+        await this.snapshots.settle(ctx, bookmarkId)
+        vectorSource = { kind: 'podcast', sourceId: ep.source_id, sourceHash: ep.transcript_hash ?? '' }
         return
       }
       const lang = podcastLanguage(ep.language)
       if (ep.transcript_status !== 'ready' || !lang) return
       const original = await this.ensureArticleRow(ep, lang)
-      if (original.status === 'ready') await this.publishBodyFor(ctx, bookmarkId, userId, ep, original)
+      const written = original.status === 'ready' && (await this.publishBodyFor(ctx, bookmarkId, userId, ep, original))
+      if (original.status === 'ready' && (written || (await this.bodies.readBody(bookmarkId, true))?.includes(this.bodyMarker(original))))
+        vectorSource = { kind: 'podcast', sourceId: original.source_id, sourceHash: original.source_hash }
+      if (original.status === 'failed' || original.status === 'skipped') {
+        await this.snapshots.settle(ctx, bookmarkId)
+        vectorSource = { kind: 'podcast', sourceId: original.source_id, sourceHash: original.source_hash }
+        return
+      }
       let needed = original.status === 'pending'
       const wanted = await this.languageOf(userId)
       if (wanted !== lang) needed = (await this.ensureArticleRow(ep, wanted)).status === 'pending' || needed
       if (needed) console.log(`Podcast trigger after crawl: bookmark=${bookmarkId} episode=${ep.id} result=${await this.start(ctx, ep, 'crawl')}`)
     } catch (err) {
       console.error(`Podcast trigger after crawl failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      if (vectorSource) await this.snapshots.processVectorMaintenance(ctx, bookmarkId, vectorSource)
     }
   }
 
@@ -457,9 +507,17 @@ export class PodcastService {
     let count = settled
     for (const ref of await this.articles.listEpisodeRefs(sourceId)) {
       try {
-        if ((loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : await this.snapshots.load(ref.bookmark_id))?.managed) continue
+        const current = loaded.has(ref.bookmark_id) ? loaded.get(ref.bookmark_id) : await this.snapshots.load(ref.bookmark_id)
+        if (!current || current.managed || !['success', 'failed'].includes(current.raw.status)) continue
         if (ref.source_hash !== ep.transcript_hash) continue
-        if (await this.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered)) count++
+        if ((await this.bodies.readBody(ref.bookmark_id, true))?.includes(this.bodyMarker(row))) continue
+        if (
+          await this.bodies.writeBody(ctx, ref.bookmark_id, ref.user_id, rendered, {
+            mediaRef: { media_kind: 'podcast', source_id: row.source_id, source_hash: row.source_hash },
+            expectedUpdatedAt: current.raw.updated_at
+          })
+        )
+          count++
       } catch (error) {
         failures.push(error)
         console.error(`Podcast publication failed for bookmark ${ref.bookmark_id}`)
@@ -490,8 +548,19 @@ export class PodcastService {
   private async publishBodyFor(ctx: ContextManager, bookmarkId: number, userId: number, ep: podcastEpisodePO, row: mediaArticlePO): Promise<boolean> {
     const loaded = await this.snapshots.load(bookmarkId)
     if (loaded?.managed) return this.snapshots.settle(ctx, bookmarkId, loaded)
+    if (!loaded || !['success', 'failed'].includes(loaded.raw.status)) return false
+    if ((await this.bodies.readBody(bookmarkId, true))?.includes(this.bodyMarker(row))) return false
     const rendered = await this.renderBody(ep, row)
-    return rendered ? this.writeBody(ctx, bookmarkId, userId, rendered) : false
+    return rendered
+      ? this.bodies.writeBody(ctx, bookmarkId, userId, rendered, {
+          mediaRef: { media_kind: 'podcast', source_id: row.source_id, source_hash: row.source_hash },
+          expectedUpdatedAt: loaded.raw.updated_at
+        })
+      : false
+  }
+
+  private bodyMarker(row: mediaArticlePO): string {
+    return `data-slax-derived="podcast-article" data-article-version="${escapeHtml(this.versionOf(row))}"`
   }
 
   private async renderBody(ep: podcastEpisodePO, row: mediaArticlePO): Promise<{ html: string; text: string } | null> {
@@ -503,11 +572,6 @@ export class PodcastService {
     const transcript = JSON.parse(await transcriptObj.text()) as PodcastTranscriptDocument
     const info = playerInfo(ep)
     return { html: renderPodcastBody({ info, article: { doc, version: this.versionOf(row), cues: transcript.cues } }), text: renderPodcastText({ info, doc }) }
-  }
-
-  /** The cached AI overview was made from the show notes: writeBody deletes it, so it is made again from the article. */
-  private async writeBody(ctx: ContextManager, bookmarkId: number, userId: number, body: { html: string; text: string }): Promise<boolean> {
-    return this.bodies.writeBody(ctx, bookmarkId, userId, body)
   }
 
   /** Transcript moderation hit: every bookmark of the episode is flagged and loses its share, like a crawl hit. */
@@ -549,7 +613,7 @@ export class PodcastService {
   // ---------- start ----------
 
   /**
-   * Start the episode workflow, or put it off for the sweeper: over budget, too many runs, or another
+   * Start the episode workflow, or put it off for the sweeper: too many runs, or another
    * start in flight. The claims inside the workflow guarantee a single run per episode and row.
    */
   private async start(ctx: ContextManager, ep: podcastEpisodePO, trigger: PodcastTrigger): Promise<StartResult> {
@@ -558,10 +622,6 @@ export class PodcastService {
       if (ep.transcript_status === 'pending') await this.episodes.defer(ep.id, at)
       else if (ep.transcript_hash)
         for (const r of await this.articles.listForSource(ep.source_id, ep.transcript_hash)) if (r.status === 'pending') await this.articles.defer(r.id, at)
-    }
-    if (await this.overBudget()) {
-      await defer(60 * 60 * 1000)
-      return 'over_budget'
     }
     // debt: count-then-start is not atomic; a burst can briefly run a few more than the limit.
     // Upgrade to a Durable Object semaphore if bursts ever matter for cost or provider limits.
@@ -582,41 +642,6 @@ export class PodcastService {
       await defer(5 * 60 * 1000)
       return 'failed'
     }
-  }
-
-  // ---------- limits ----------
-
-  private async takeDaily(userId: number): Promise<boolean> {
-    const counter = this.redis().podcastDaily(userId, utcDay())
-    if ((await counter.incrWithExpire(2 * DAY_SECONDS)) > PODCAST_LIMITS.userDailyEpisodes) {
-      await counter.incrBy(-1)
-      return false
-    }
-    return true
-  }
-
-  private async giveBackDaily(userId: number): Promise<void> {
-    await this.redis().podcastDaily(userId, utcDay()).incrBy(-1)
-  }
-
-  private async dailyLeft(userId: number): Promise<boolean> {
-    return Number((await this.redis().podcastDaily(userId, utcDay()).get()) ?? 0) < PODCAST_LIMITS.userDailyEpisodes
-  }
-
-  private async overBudget(): Promise<boolean> {
-    const day = utcDay()
-    const spentMicro = Number((await this.redis().podcastCost(day).get()) ?? 0)
-    if (spentMicro < PODCAST_LIMITS.dailyCostUsd * 1_000_000) return false
-    if (
-      await this.redis()
-        .podcastBudgetAlert(day)
-        .setIfAbsent(1, 2 * DAY_SECONDS)
-    ) {
-      await this.alertBot.crawl
-        .pushMessage(`⚠️ **Podcast budget reached**\n**Day (UTC)**: ${day}\n**Spent**: ${(spentMicro / 1_000_000).toFixed(2)} USD\n**处理**: 新任务已暂停，次日自动恢复`)
-        .catch((e: unknown) => console.error(`podcast budget alert failed: ${e}`))
-    }
-    return true
   }
 
   /** Add an estimated cost (transcription or model) to today's site-wide podcast spend. */
@@ -661,7 +686,7 @@ export class PodcastService {
         started++
         slots--
       }
-      if (result === 'busy' || result === 'over_budget') break
+      if (result === 'busy') break
     }
 
     let deleted = 0

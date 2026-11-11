@@ -20,7 +20,7 @@ test('one mixed keyset orders numeric mail IDs and tied RSS rows without duplica
   expect(next.map(r => r.id)).toEqual(['newsletter:9'])
   expect((await repo.entries(1, ['newsletter'], `newsletter:${'a'.repeat(64)}`, null, 20)).map(r => r.title)).toEqual(['Ten', 'Nine'])
   expect((await repo.entries(1, ['rss'], null, null, 20)).map(r => r.id)).toEqual([rss])
-  await expect(repo.entry(1, 'newsletter:11', ['newsletter'])).rejects.toMatchObject({ code: 'not_found' })
+  expect(await repo.entry(1, 'newsletter:11', ['newsletter'])).toBeNull()
 })
 test('source groups contain only ready owned mail and no fake polling fields', async () => {
   const repo = await setup()
@@ -30,13 +30,22 @@ test('source groups contain only ready owned mail and no fake polling fields', a
   expect(await repo.entries(1, ['newsletter'], null, null, 20)).toEqual([])
 })
 
-
 test.each([1, 2])('shared ordering examples preserve keyset pagination at page size %s', async limit => {
   const repo = await setup()
   await db.exec('TRUNCATE sr_rss_entry,sr_newsletter_feed')
   for (const [i, row] of orderFixture.rows.entries()) {
-    if (row.kind === 'rss') await db.query(`INSERT INTO sr_rss_entry(id,feed_id,entry_key,title,summary,content_key,sort_at,published_at) VALUES($1,$2,$1,$1,'','rss-content/a',$3,$4)`, [row.id, rss, row.sort_at, row.published_at])
-    else await db.query(`INSERT INTO sr_newsletter_feed(id,user_id,source_key,sender,message_key,state,title,content_key,received_at,published_at) VALUES($1,1,$2,'sender@example.com',$3,'ready',$6,'newsletter-content/a',$4,$5)`, [row.id.slice(11), 'a'.repeat(64), i.toString(16).padStart(64, '0'), row.sort_at, row.published_at, row.id])
+    if (row.kind === 'rss')
+      await db.query(`INSERT INTO sr_rss_entry(id,feed_id,entry_key,title,summary,content_key,sort_at,published_at) VALUES($1,$2,$1,$1,'','rss-content/a',$3,$4)`, [
+        row.id,
+        rss,
+        row.sort_at,
+        row.published_at
+      ])
+    else
+      await db.query(
+        `INSERT INTO sr_newsletter_feed(id,user_id,source_key,sender,message_key,state,title,content_key,received_at,published_at) VALUES($1,1,$2,'sender@example.com',$3,'ready',$6,'newsletter-content/a',$4,$5)`,
+        [row.id.slice(11), 'a'.repeat(64), i.toString(16).padStart(64, '0'), row.sort_at, row.published_at, row.id]
+      )
   }
   const ids: string[] = []
   let cursor: import('@/infra/repository/dbFeed').FeedCursor | null = null

@@ -3,7 +3,6 @@ import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import type { PrismaClient } from '@prisma/hyperdrive-client'
 import type { FeedKind, FeedSubscription } from '@slax-reader/contracts'
-import { RssError } from '@/domain/rss/feed'
 import type { RssEntryRow, RssFeedRow } from './dbRss'
 export interface FeedEntryRow {
   id: string
@@ -63,8 +62,7 @@ export class FeedRepo {
   }
   async entry(userId: number, id: string, kinds: FeedKind[]) {
     const [row] = await this.rows(userId, kinds, null, null, 1, id)
-    if (!row) throw new RssError('not_found', 404)
-    return row
+    return row || null
   }
   async historyFeeds(userId: number, subscription: string | null): Promise<RssFeedRow[]> {
     return this.pg()

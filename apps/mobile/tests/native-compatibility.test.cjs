@@ -70,6 +70,14 @@ test('release signing removes template debug identity and remains operator manag
   assert.equal(result.contents.split('// Slax release signing: operator-managed environment only.').length, 2);
 });
 
+test('Android native libraries are limited to ARM ABIs after regeneration', async () => {
+  const gradle = await mod('android', 'gradleProperties', [{type: 'property', key: 'reactNativeArchitectures', value: 'armeabi-v7a,arm64-v8a,x86,x86_64'}]);
+  const architectures = gradle.filter(item => item.type === 'property' && item.key === 'reactNativeArchitectures');
+  assert.deepEqual(architectures.map(item => item.value), ['armeabi-v7a,arm64-v8a']);
+  const fresh = await mod('android', 'gradleProperties', []);
+  assert.equal(fresh.find(item => item.key === 'reactNativeArchitectures').value, 'armeabi-v7a,arm64-v8a');
+});
+
 test('owned native defaults preserve platform floors and the source light theme', async () => {
   const gradle = await mod('android', 'gradleProperties', [{type: 'property', key: 'android.minSdkVersion', value: '24'}]);
   assert.equal(gradle.find(item => item.key === 'android.minSdkVersion').value, '26');

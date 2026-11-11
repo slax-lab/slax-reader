@@ -8,7 +8,7 @@ export class CollectionJob {
   constructor(@inject(CollectionService) private collectionService: CollectionService) {}
 
   @Scheduled('*/30 * * * *')
-  public async recomputeCollectionSubscriberActive(ctx: ContextManager) {
+  public async recomputeCollectionSubscriberActive(_ctx: ContextManager) {
     await this.collectionService.recomputeSubscriberActiveStatus()
   }
 }

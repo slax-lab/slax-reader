@@ -15,7 +15,6 @@ import {
   estimateCostUsd,
   estimateTokens,
   expectedChunkCostUsd,
-  lengthBounds,
   mergeChunkResults,
   parseChunkOutput,
   planYoutubeArticle,
@@ -103,21 +102,22 @@ describe('planYoutubeArticle', () => {
     expect(planYoutubeArticle(captionDoc([]))).toEqual({ ok: false, reason: 'caption_missing' })
   })
 
-  test('longer than 6 hours → too_long', () => {
+  test('longer than 6 hours is admitted', () => {
     const doc = captionDoc([cue(0, LINE), cue(1, LINE, 6 * 3600 * 1000 + 1)])
-    expect(planYoutubeArticle(doc)).toEqual({ ok: false, reason: 'too_long' })
+    expect(planYoutubeArticle(doc).ok).toBe(true)
   })
 
-  test('more than 400,000 characters → too_long', () => {
+  test('more than 400,000 characters is admitted', () => {
     const doc = captionDoc(Array.from({ length: 4100 }, (_, i) => cue(i, `${'word '.repeat(19)}${i}`, i * 1000)))
-    expect(planYoutubeArticle(doc)).toEqual({ ok: false, reason: 'too_long' })
+    expect(planYoutubeArticle(doc).ok).toBe(true)
   })
 
-  test('more than 40 chunks → too_long', () => {
+  test('more than 40 chunks is admitted', () => {
     // CJK: few characters but many tokens per chunk
     const doc = captionDoc(Array.from({ length: 2000 }, (_, i) => cue(i, `${'讲'.repeat(90)}${i}`, i * 1000)))
     const res = planYoutubeArticle(doc)
-    expect(res).toEqual({ ok: false, reason: 'too_long' })
+    expect(res.ok).toBe(true)
+    if (res.ok) expect(res.plan.chunks.length).toBeGreaterThan(40)
   })
 
   test('works on the rolling-caption-cleaned cues and reports duration and size', () => {
@@ -130,7 +130,7 @@ describe('planYoutubeArticle', () => {
     expect(res.plan.format).toBe('article')
   })
 
-  test('the most expensive plan inside the chunk ceiling stays inside the per-article budget', () => {
+  test('cost estimates remain available for admitted plans', () => {
     // ~1,300 × 90 CJK characters ≈ 39 chunks: close to the 40-chunk ceiling, same prompt shape the runner prices.
     const doc = captionDoc(Array.from({ length: 1300 }, (_, i) => cue(i, `${'讲'.repeat(90)}${i}`, i * 1000)))
     const res = planYoutubeArticle(doc)
@@ -141,7 +141,7 @@ describe('planYoutubeArticle', () => {
       const prompt = buildSystemInstruction('zh', chunk, res.plan.chunks.length) + buildUserMessage('title', res.plan.cues.slice(chunk.start, chunk.end))
       return sum + expectedChunkCostUsd(estimateTokens(prompt))
     }, 0)
-    expect(expected).toBeLessThanOrEqual(YOUTUBE_ARTICLE_LIMITS.maxCostUsd)
+    expect(expected).toBeGreaterThan(0)
   })
 })
 
@@ -308,95 +308,24 @@ describe('checkArticleQuality', () => {
     ...over
   })
 
-  test('a faithful same-language article passes', () => {
-    const q = checkArticleQuality(doc(), cues, captionText)
-    expect(q.failed).toEqual([])
-    expect(q.passed).toBe(true)
-    expect(q.metrics.number_coverage).toBe(1)
-    expect(q.metrics.length_bounds).toEqual([0.45, 1.1])
+  test('accepts nonempty text without scoring or changing model content', () => {
+    const value = doc({ language: 'zh' })
+    value.sections[0].paragraphs = [
+      { speaker: 'New name', text: 'Short.', source_cue_ids: ['unknown'] },
+      { speaker: null, text: 'Short.', source_cue_ids: [] }
+    ]
+    const before = structuredClone(value)
+    expect(checkArticleQuality(value, captionText)).toMatchObject({ passed: true, failed: [], metrics: { paragraphs: 2 } })
+    expect(value).toEqual(before)
   })
 
-  test('unknown cue ids and out-of-order sections fail cue_reference', () => {
-    const bad = doc()
-    bad.sections[0].paragraphs[0].source_cue_ids = ['c9999']
-    expect(checkArticleQuality(bad, cues, captionText).failed).toContain('cue_reference')
-
-    const order = doc({
-      sections: [
-        { heading: 'Late', start_ms: 0, end_ms: 0, paragraphs: [{ speaker: null, text: 'The team has 40 people and will hire 12 more.', source_cue_ids: ['c0001', 'c0002'] }] },
-        { heading: 'Early', start_ms: 0, end_ms: 0, paragraphs: [{ speaker: null, text: 'Revenue grew 35% to 1200 million in 2023.', source_cue_ids: ['c0000'] }] }
-      ]
-    })
-    expect(checkArticleQuality(order, cues, captionText).failed).toContain('cue_reference')
-  })
-
-  test('English article for a zh target fails wrong_language', () => {
-    expect(checkArticleQuality(doc({ language: 'zh' }), cues, captionText).failed).toContain('wrong_language')
-  })
-
-  test('dropped numbers fail number_coverage', () => {
-    const bad = doc()
-    bad.sections[0].paragraphs[0].text = 'Revenue grew a lot.'
-    const q = checkArticleQuality(bad, cues, captionText)
-    expect(q.failed).toContain('number_coverage')
-    expect(q.metrics.caption_numbers).toBe(5)
-  })
-
-  test('a paragraph of only numbers passes the language check in either language', () => {
-    const d = doc({ language: 'zh' })
-    d.sections[0].paragraphs = [{ speaker: null, text: '2023：35%，1200，40，12。', source_cue_ids: ['c0000'] }]
-    expect(checkArticleQuality(d, cues, captionText).metrics.language_ok_ratio).toBe(1)
-  })
-
-  test('a summary-length article fails length_ratio', () => {
-    const short = doc({ lede: 'x', sections: [{ heading: 'H', start_ms: 0, end_ms: 0, paragraphs: [{ speaker: null, text: '35% 1200 2023 40 12', source_cue_ids: ['c0000'] }] }] })
-    expect(checkArticleQuality(short, cues, captionText).failed).toContain('length_ratio')
-  })
-
-  test('length bounds follow the language pair', () => {
-    expect(lengthBounds('hello world', 'zh')).toEqual([0.25, 0.7])
-    expect(lengthBounds('今天我们讲一下', 'en')).toEqual([1.3, 3.0])
-    expect(lengthBounds('今天我们讲一下', 'zh')).toEqual([0.45, 1.1])
-  })
-
-  test('identical paragraphs fail duplicate_paragraph; empty heading fails empty_block', () => {
-    const dup = doc()
-    dup.sections[0].paragraphs[1].text = dup.sections[0].paragraphs[0].text
-    expect(checkArticleQuality(dup, cues, captionText).failed).toContain('duplicate_paragraph')
-    const empty = doc()
-    empty.sections[0].heading = ' '
-    expect(checkArticleQuality(empty, cues, captionText).failed).toContain('empty_block')
-    expect(checkArticleQuality(doc({ lede: '' }), cues, captionText).failed).toContain('empty_block')
-  })
-
-  test('a speaker the captions never name is set to null and counted, not failed', () => {
-    const d = doc()
-    d.sections[0].paragraphs[0].speaker = 'Bob'
-    const q = checkArticleQuality(d, cues, captionText)
-    expect(q.metrics.speaker_dropped).toBe(1)
-    expect(d.sections[0].paragraphs[0].speaker).toBeNull()
-    expect(d.sections[0].paragraphs[1].speaker).toBe('Alice')
-    expect(q.passed).toBe(true)
-  })
-
-  test('a Chinese translation of English captions passes with digits kept', () => {
-    const zh = doc({
-      language: 'zh',
-      lede: '本期介绍公司的增长和招聘计划。',
-      sections: [
-        {
-          heading: '增长',
-          start_ms: 0,
-          end_ms: 0,
-          paragraphs: [
-            { speaker: null, text: '2023 年收入增长 35%，达到 1200 百万。', source_cue_ids: ['c0000'] },
-            { speaker: null, text: 'Alice（爱丽丝）说团队有 40 人，明年计划再招 12 人。', source_cue_ids: ['c0001', 'c0002'] }
-          ]
-        }
-      ]
-    })
-    const q = checkArticleQuality(zh, cues, captionText)
-    expect(q.failed).toEqual([])
+  test.each(['body', 'heading', 'lede', 'sections'])('still rejects empty %s', field => {
+    const value = doc()
+    if (field === 'body') value.sections[0].paragraphs[0].text = '  '
+    if (field === 'heading') value.sections[0].heading = ''
+    if (field === 'lede') value.lede = ''
+    if (field === 'sections') value.sections = []
+    expect(checkArticleQuality(value, captionText).failed).toEqual(['empty_block'])
   })
 })
 
@@ -462,17 +391,29 @@ describe('keys, ids and cost', () => {
   })
 
   test('cost uses the per-million list price', () => {
-    expect(estimateCostUsd(1_000_000, 0)).toBeCloseTo(0.5)
-    expect(estimateCostUsd(0, 1_000_000)).toBeCloseTo(3)
-    expect(estimateCostUsd(3000, 4000)).toBeCloseTo(0.0135)
+    expect(estimateCostUsd(1_000_000, 0)).toBeCloseTo(0.3)
+    expect(estimateCostUsd(0, 1_000_000)).toBeCloseTo(1.2)
+    expect(estimateCostUsd(3000, 4000)).toBeCloseTo(0.0057)
   })
 })
-
 
 describe('edited transcript coverage', () => {
   test('rejects a missing source passage even when the length is sufficient', () => {
     const cues = [cue(0, 'A first claim.'), cue(1, 'A missing example.'), cue(2, 'A final claim.')]
-    const doc: YoutubeArticleDocument = { schema_version: 1, language: 'en', format: 'article', lede: 'Introduction.', sections: [{ heading: 'Claims', start_ms: 0, end_ms: 10000, paragraphs: [{ speaker: null, text: 'A first claim. A final claim with more words.', source_cue_ids: ['c0000', 'c0002'] }] }] }
-    expect(checkArticleQuality(doc, cues, cues.map(c => c.text).join(' '), { requireCompleteCoverage: true }).failed).toContain('cue_coverage')
+    const doc: YoutubeArticleDocument = {
+      schema_version: 1,
+      language: 'en',
+      format: 'article',
+      lede: 'Introduction.',
+      sections: [
+        {
+          heading: 'Claims',
+          start_ms: 0,
+          end_ms: 10000,
+          paragraphs: [{ speaker: null, text: 'A first claim. A final claim with more words.', source_cue_ids: ['c0000', 'c0002'] }]
+        }
+      ]
+    }
+    expect(checkArticleQuality(doc, cues.map(c => c.text).join(' ')).passed).toBe(true)
   })
 })

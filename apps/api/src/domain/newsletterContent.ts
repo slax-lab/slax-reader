@@ -1,3 +1,4 @@
+import type { ParsedNewsletter } from '@/domain/newsletterParser'
 import { NewsletterTiming } from '@/utils/newsletterTiming'
 import { DOMParser } from 'linkedom'
 import { inject, injectable } from '@/decorators/di'
@@ -5,7 +6,7 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import { buildImageProxyUrl } from '@/utils/imager'
 import { publicTarget } from '@/utils/publicTargetPolicy'
-import { NewsletterError, type ParsedNewsletter } from '@/utils/newsletter'
+import { NewsletterError } from '@/utils/newsletter'
 
 const PREFIX = 'newsletter-content/'
 @injectable()

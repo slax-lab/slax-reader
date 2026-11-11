@@ -176,7 +176,7 @@ Acceptance: save a mail from list and preview; open the saved route from Inbox; 
 
 ## Team-feedback implementation boundaries
 
-The domain services are flat; MIME policy lives in utils/newsletter.ts, and full bounded mail receives security sanitization without Readability or article extraction. RSS and Newsletter writes never share a physical feed table. API read projections combine authorized results. Incoming mail has no target_url; only an independent Inbox copy uses slax-newsletter://message/<decimal-id> as its stable identity. Generic acquire/retry/import paths reject that scheme. SyncOrchestrator rejects all internal create PUTs before generic persistence; personal PATCH/delete/restore of server-created Inbox rows keeps the ordinary path.
+The domain services are flat. Address policy lives in utils/newsletter.ts, bounded MIME streaming in utils/newsletterMime.ts, and HTML interpretation in domain/newsletterParser.ts; full bounded mail receives security sanitization without Readability or article extraction. RSS and Newsletter writes never share a physical feed table. API read projections combine authorized results. Incoming mail has no target_url; only an independent Inbox copy uses slax-newsletter://message/<decimal-id> as its stable identity. Generic acquire/retry/import paths reject that scheme. SyncOrchestrator rejects all internal create PUTs before generic persistence; personal PATCH/delete/restore of server-created Inbox rows keeps the ordinary path.
 
 ## PowerSync publication checklist
 

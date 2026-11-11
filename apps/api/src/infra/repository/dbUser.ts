@@ -93,6 +93,11 @@ export class UserRepo {
     this.repoPg = prismaPg
   }
 
+  public async deleteNewsletterBatch(userId: number): Promise<{ content_key: string | null }[]> {
+    return this.prismaPg()
+      .$queryRaw`DELETE FROM sr_newsletter_feed WHERE user_id=${userId} AND id IN (SELECT id FROM sr_newsletter_feed WHERE user_id=${userId} LIMIT 100) RETURNING content_key`
+  }
+
   public async bindUserDeviceAlias(deviceId: string, userId: number, bindSource: 'signup' | 'login') {
     if (!deviceId || userId < 1) return
     await this.prisma().user_device_alias.upsert({

@@ -114,6 +114,8 @@
     "stripe:webhook": "stripe listen --forward-to localhost:8787/callback/stripe",
     "mcp:tool": "mcp-inspector",
     "backfill:device-alias": "tsx --tsconfig tsconfig.json script/backfill-user-device-alias.ts",
+    "vector:refresh": "tsx --tsconfig tsconfig.json script/vector-refresh.ts",
+    "vector:mean": "tsx --tsconfig tsconfig.json script/vector-embedding-mean.ts",
     "debug:hashids": "tsx --tsconfig tsconfig.json script/hashids.ts",
     "debug:hash-article": "tsx --tsconfig tsconfig.json script/hash-article.ts",
     "insights:d1": "pnpm wrangler core d1 insights",

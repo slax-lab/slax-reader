@@ -10,7 +10,7 @@ test('real RSS sync bridge shim is pinned to the production source and an isolat
   const source = readFileSync(pathToSource), text = source.toString('utf8'), output = applyRssRealSyncNativeBridgeShim(source).toString('utf8');
   assert.match(output, /Bundle\.main\.bundleIdentifier == "app\.slax\.reader\.uifixture\.rssacceptance"/);
   assert.match(output, /slax-real-sync-fixture-private/);
-  assert.equal((output.match(/bundleIdentifier: "app\.slax\.reader\.uifixture\.rssacceptance"/g) ?? []).length, 3);
+  assert.equal(output.split('guard Bundle.main.bundleIdentifier == "app.slax.reader.uifixture.rssacceptance"').length - 1, 3);
   assert.doesNotMatch(output, /containerURL\(forSecurityApplicationGroupIdentifier: "group\.app\.slax\.reader"\)/);
   assert.equal(readFileSync(pathToSource, 'utf8'), text, 'the task fixture transform must not alter the production module');
   assert.throws(() => applyRssRealSyncNativeBridgeShim(source.toString('utf8').replace('private let owner = StorageOwner()', 'private let owner = StorageOwner() // changed')), /source changed/);

@@ -37,8 +37,9 @@ import { RequestUtils } from '@/utils/requestUtils'
 import { SlaxAuth } from '@/utils/auth'
 import { hashMD5, hashSHA256 } from '@/utils/strings'
 import { diagnosticDownloadUrl, downloadDiagnostic, uploadDiagnostic, type DiagnosticAttachment } from '@/utils/diagnosticAttachment'
-import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
+import { isCollectionAuthAttribution, type AcquisitionAuthAttribution, type CollectionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import { z } from 'zod'
+import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
 
 const collectionAuthAttributionSchema = z.object({
   collection_id: z
@@ -50,6 +51,14 @@ const collectionAuthAttributionSchema = z.object({
   presentation: z.literal('modal'),
   trigger_element_id: z.literal('collection_subscribe_button')
 }) satisfies z.ZodType<CollectionAuthAttribution>
+
+const acquisitionAuthAttributionSchema = z.object({
+  source: z.literal('hackerlinks'),
+  medium: z.enum(['header', 'resource_detail']),
+  campaign: z.literal('mvp')
+}) satisfies z.ZodType<AcquisitionAuthAttribution>
+
+const webAuthAttributionSchema = z.union([collectionAuthAttributionSchema, acquisitionAuthAttributionSchema]) satisfies z.ZodType<WebAuthAttribution>
 
 export interface userBindPlatformItem {
   platform: string
@@ -413,6 +422,8 @@ export class UserService {
 
   public async updateShareEnabled(ctx: ContextManager, enabled: boolean) {
     await this.userRepo.updateShareEnabled(ctx.getUserId(), enabled)
+    const collection = await this.collectionRepo.getUserShareCollect(ctx.getUserId())
+    if (collection) dispatchVectorMaintenance(ctx, { kind: 'collection', id: collection.id })
   }
 
   public async getShareEnabled(userId: number): Promise<boolean> {
@@ -668,6 +679,7 @@ export class UserService {
     if (setting === 'share_collect') {
       const user = await this.userRepoData.getInfoByUserId(ctx.getUserId())
       const res = await this.collectionRepo.enableUserShareCollect(ctx.getUserId(), enable, user.name, 1)
+      dispatchVectorMaintenance(ctx, { kind: 'collection', id: res.id })
       return {
         show_name: res.display_name,
         avatar: res.avatar,
@@ -711,7 +723,12 @@ export class UserService {
 
   public async userLogin(ctx: ContextManager, request: Request): Promise<userLoginResp> {
     const req = await RequestUtils.json<userLoginReq>(request)
-    const attribution = req.type === 'google' ? collectionAuthAttributionSchema.safeParse(req.auth_attribution).data : undefined
+    const attribution =
+      req.type === 'google'
+        ? webAuthAttributionSchema.safeParse(req.auth_attribution).data
+        : req.type === 'apple'
+          ? acquisitionAuthAttributionSchema.safeParse(req.auth_attribution).data
+          : undefined
     const result = await this.authenticateUser(ctx, request, req)
 
     ctx.execution.waitUntil(
@@ -727,12 +744,13 @@ export class UserService {
     if (version) metadata.version = version
 
     const userId = new Hashid(ctx.env).decodeId(parseInt(result.user_id))
+    const loginAttribution = isCollectionAuthAttribution(attribution) ? attribution : undefined
     if (result.is_new_user) {
       ctx.execution.waitUntil(this.logsService.track(userId, 'register', metadata))
       submitServerEvent(ctx, request, 'user_created', { ...attribution, method: result.login_type }, { userId })
     } else {
       ctx.execution.waitUntil(this.logsService.track(userId, 'login', metadata))
-      submitServerEvent(ctx, request, 'user_logged_in', { ...attribution, method: result.login_type }, { userId })
+      submitServerEvent(ctx, request, 'user_logged_in', { ...loginAttribution, method: result.login_type }, { userId })
     }
 
     return result

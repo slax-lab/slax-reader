@@ -8,6 +8,7 @@ export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser } from
 
 const sink = 'https://diagnostic-capture.fixture.invalid/report'
 const messages: string[] = []
+const maintenanceAdmissions: unknown[] = []
 let failNotification = false
 const originalFetch = globalThis.fetch.bind(globalThis)
 globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
@@ -38,7 +39,18 @@ export default {
       failNotification = true
       return new Response('ok')
     }
+    if (url.pathname === '/__fixture/vector-maintenance-admissions') return Response.json(maintenanceAdmissions)
     const fixtureEnv = { ...env, RUN_TYPE: 'beta', REPORT_PUSH_API: sink } as Env
+    fixtureEnv.VECTOR_V5_MAINTENANCE_WORKFLOW = {
+      async create(options: { id: string; params: unknown }) {
+        maintenanceAdmissions.push(options.params)
+        return { id: options.id }
+      },
+      async createBatch(options: { id: string; params: unknown }[]) {
+        maintenanceAdmissions.push(...options.map(item => item.params))
+        return options.map(item => ({ id: item.id }))
+      }
+    } as unknown as NonNullable<Env['VECTOR_V5_MAINTENANCE_WORKFLOW']>
     fixtureEnv.USER_DELETION_QUEUE = {
       async send(body: { userId: number }) {
         const context = new ContextManager(execution, fixtureEnv),

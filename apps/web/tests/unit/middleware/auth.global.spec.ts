@@ -1,15 +1,16 @@
+// @vitest-environment happy-dom
 // middleware/auth.global.ts 单测 —— 第四期 Sprint D.1
 // 覆盖：isServer 短路 / anchor link 短路 / fromAuth 跳过 / toLogin 跳过（已登录情况） / whitelist 跳过 /
 //      未登录 + 非白名单 → navigateTo /login + redirect query / 已登录 + toLogin → redirect param 优先 / 已登录 + toLogin 无 redirect → /bookmarks
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { useNuxtApp } from '#app'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGet, mockNavigateTo, mockUseRuntimeConfig, mockIsServer } = vi.hoisted(() => ({
+const { mockGet, mockNavigateTo, mockUseRuntimeConfig, mockIsServer, mockPublicBypass } = vi.hoisted(() => ({
   mockGet: vi.fn(),
   mockNavigateTo: vi.fn(),
   mockUseRuntimeConfig: vi.fn(() => ({ app: { baseURL: '/' }, public: { COOKIE_TOKEN_NAME: 'auth_token' } })),
-  mockIsServer: { value: false }
+  mockIsServer: { value: false },
+  mockPublicBypass: { value: false }
 }))
 
 // 顶层 const { get } = useCookies() 在模块加载时就调用，必须 factory 直接返回稳定对象
@@ -36,6 +37,7 @@ vi.mock('@commons/frontend-utils/is', async importOriginal => {
 
 mockNuxtImport('navigateTo', () => mockNavigateTo)
 mockNuxtImport('useRuntimeConfig', () => mockUseRuntimeConfig)
+mockNuxtImport('useNuxtApp', () => () => ({ $config: mockUseRuntimeConfig(), $powersyncPublicBypass: mockPublicBypass.value }))
 mockNuxtImport('defineNuxtRouteMiddleware', () => (fn: unknown) => fn)
 
 beforeEach(() => {
@@ -43,6 +45,7 @@ beforeEach(() => {
   mockGet.mockReturnValue(undefined)
   mockNavigateTo.mockClear()
   mockIsServer.value = false
+  mockPublicBypass.value = false
   // happy-dom location.origin 默认 'http://localhost:3000'
   Object.defineProperty(window, 'location', {
     value: new URL('http://localhost:3000/'),
@@ -59,7 +62,7 @@ interface RouteLoc {
   path: string
   fullPath: string
   hash: string
-  query: Record<string, string>
+  query: Record<string, string | string[]>
 }
 
 function makeRoute(partial: Partial<RouteLoc> = {}): RouteLoc {
@@ -74,7 +77,6 @@ function makeRoute(partial: Partial<RouteLoc> = {}): RouteLoc {
 
 async function runMiddleware(to: RouteLoc, from: RouteLoc) {
   // 重新 import 让 mockIsServer 生效（isServer 在模块顶层即被读，但 getter 形式可动态返回）
-  useNuxtApp().$config.public.COOKIE_TOKEN_NAME = 'auth_token'
   const mod = await import('~~/app/middleware/auth.global')
   return mod.default(to as never, from as never)
 }
@@ -124,6 +126,22 @@ describe('middleware/auth.global', () => {
     expect(arg.startsWith('/login?')).toBe(true)
   })
 
+  it.each(['/?next=/login', '/?next=/auth', '/#intro'])('redirects a bypassed anonymous root even when the URL looks exempt: %s', async fullPath => {
+    mockPublicBypass.value = true
+    await runMiddleware(makeRoute({ path: '/', fullPath, hash: new URL(fullPath, location.origin).hash }), makeRoute({ path: '/', fullPath: fullPath.split('#')[0] }))
+    expect(mockNavigateTo).toHaveBeenCalledTimes(1)
+    const login = new URL(mockNavigateTo.mock.calls[0]![0] as string, location.origin)
+    expect(login.pathname).toBe('/login')
+    expect(login.searchParams.get('redirect')).toBe(location.origin + fullPath)
+  })
+
+  it('leaves a bypassed root with a newly present session to the document exit guard', async () => {
+    mockPublicBypass.value = true
+    mockGet.mockReturnValue('TOKEN_VALUE')
+    await runMiddleware(makeRoute({ path: '/', fullPath: '/?next=/login' }), makeRoute({ path: '/login', fullPath: '/login' }))
+    expect(mockNavigateTo).not.toHaveBeenCalled()
+  })
+
   it('未登录 + 带 from=homepage query：redirect 里保留该 query', async () => {
     await runMiddleware(makeRoute({ path: '/bookmarks', fullPath: '/bookmarks?from=homepage', query: { from: 'homepage' } }), makeRoute({ path: '/foo', fullPath: '/foo' }))
     const arg = mockNavigateTo.mock.calls[0]![0] as string
@@ -169,4 +187,30 @@ it('preserves a direct root KOC invitation through the existing sign-in return U
     makeRoute({ path: '/login', fullPath: '/login' })
   )
   expect(mockNavigateTo).toHaveBeenCalledWith(`${location.origin}${fullPath}`, { external: true })
+})
+
+it.each(['header', 'resource_detail'])('preserves only the supported HackerLinks triplet through login redirect: %s', async medium => {
+  const fullPath = `/?utm_source=hackerlinks&utm_campaign=mvp&utm_medium=${medium}&utm_content=zh`
+  await runMiddleware(makeRoute({
+    path: '/',
+    fullPath,
+    query: { utm_source: 'hackerlinks', utm_campaign: 'mvp', utm_medium: medium, utm_content: 'zh' }
+  }), makeRoute({ path: '/pricing', fullPath: '/pricing' }))
+  const login = new URL(mockNavigateTo.mock.calls[0]![0] as string, location.origin)
+  expect(login.searchParams.get('utm_source')).toBe('hackerlinks')
+  expect(login.searchParams.get('utm_campaign')).toBe('mvp')
+  expect(login.searchParams.get('utm_medium')).toBe(medium)
+  expect(login.searchParams.get('utm_content')).toBeNull()
+  expect(login.searchParams.get('redirect')).toBe(`${location.origin}${fullPath}`)
+})
+
+it.each([
+  { utm_source: 'hackerlinks', utm_campaign: 'mvp' },
+  { utm_source: ['hackerlinks'], utm_campaign: 'mvp', utm_medium: 'header' },
+  { utm_source: 'other', utm_campaign: 'mvp', utm_medium: 'header' }
+])('does not invent attribution during login redirect: %j', async query => {
+  await runMiddleware(makeRoute({ path: '/', fullPath: '/', query }), makeRoute({ path: '/pricing', fullPath: '/pricing' }))
+  const login = new URL(mockNavigateTo.mock.calls[0]![0] as string, location.origin)
+  expect(login.searchParams.get('redirect')).toBe(`${location.origin}/`)
+  expect([...login.searchParams.keys()].filter(key => key.startsWith('utm_'))).toEqual([])
 })

@@ -50,7 +50,7 @@ export class PodcastArticleRepo extends MediaArticleRepo {
 export type PodcastTranscriptStatus = 'pending' | 'transcribing' | 'ready' | 'failed' | 'skipped'
 
 /** Outcomes a new attempt cannot change: no retry is offered for them. */
-export const PODCAST_FINAL_ERRORS = ['too_long', 'budget_exceeded', 'language_unsupported', 'no_speech', 'moderation', 'no_audio'] as const
+export const PODCAST_FINAL_ERRORS = ['language_unsupported', 'no_speech', 'moderation', 'no_audio'] as const
 
 export function isPodcastFinalError(error: string | null | undefined): boolean {
   return PODCAST_FINAL_ERRORS.some(code => (error ?? '').startsWith(code))
@@ -245,12 +245,12 @@ export class PodcastEpisodeRepo {
     return res.count === 1
   }
 
-  /** Owner retry: failed → pending with fresh attempts. Never for a final error. The provider job is kept (see finish). */
+  /** Owner retry: failed/skipped → pending with fresh attempts. Never for a final error. The provider job is kept (see finish). */
   public async requeue(id: number): Promise<boolean> {
     const res = await this.prismaPg().sr_podcast_episode.updateMany({
       where: {
         id,
-        transcript_status: 'failed',
+        transcript_status: { in: ['failed', 'skipped'] },
         OR: [{ error_message: null }, { AND: PODCAST_FINAL_ERRORS.map(code => ({ NOT: { error_message: { startsWith: code } } })) }]
       },
       data: { transcript_status: 'pending', retry_count: 0, next_retry_at: new Date(), error_message: null }
