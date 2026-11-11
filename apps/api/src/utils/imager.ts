@@ -175,6 +175,17 @@ export async function buildImageProxyUrl(env: Env, url: string, referer: string,
     const localHttp = env.RUN_ENV === 'development' && proxy.protocol === 'http:'
     if ((!localHttp && proxy.protocol !== 'https:') || proxy.username || proxy.password) throw new Error('Invalid RSS image proxy configuration')
   }
+  if (URL.canParse(url)) {
+    const source = new URL(url)
+    const params = source.searchParams
+    const sourceMode = params.get('m') || undefined
+    if (source.origin === proxy.origin && source.pathname === proxy.pathname && !source.username && !source.password && sourceMode === mode) {
+      const u = params.get('u')
+      const r = params.get('r')
+      const d = params.get('d')
+      if (u && r !== null && d && (await hashMD5(u + r + env.IMAGER_CHECK_DIGST_SALT + (mode || ''))) === d) return url
+    }
+  }
   const encoded = encodeURIComponent(url)
   proxy.searchParams.set('u', encoded)
   proxy.searchParams.set('r', referer)

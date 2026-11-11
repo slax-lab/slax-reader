@@ -40,3 +40,9 @@ Execution details and file ownership are in [the implementation plan](../../../d
 ## 6. Archive
 
 - [ ] 6.1 After the task pull request merges, archive this change through a docs pull request.
+
+## 7. Anonymous root follow-up (2026-11-10)
+
+- [x] 7.1 Extend the startup predicate to anonymous top-level root and preserve the existing destination guard.
+- [x] 7.2 Verify anonymous root redirects, signed-in startup and post-login document navigation in built browser fixtures. Compare anonymous LCP with a matched baseline.
+- [x] 7.3 Run focused startup, auth, bridge, and restore checks, and complete Bugs, Security, and Compliance review.

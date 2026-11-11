@@ -7,7 +7,7 @@ Allow anonymous visitors to see login and guide content without waiting for loca
 
 ### Requirement: Anonymous public entry does not require a local database
 
-When public startup optimization is enabled, a top-level document initially opened at `/login` or `/guide`, with or without a trailing slash and without an authentication token, SHALL render without creating, initializing, migrating, clearing, or connecting a local database. Public login controls, locale, invitation information, and guide content SHALL retain their existing behavior. This route classification SHALL use the pathname, not query substrings.
+When public startup optimization is enabled, a top-level document initially opened at `/`, `/login`, or `/guide` with a confirmed absent authentication token SHALL reach its public content without creating, initializing, migrating, clearing, or connecting a local database. Public login controls, locale, invitation information, and guide content SHALL retain their existing behavior. Login and guide accept a trailing slash. This route classification SHALL use the pathname.
 
 #### Scenario: Database initialization would stall
 - **WHEN** an anonymous visitor opens `/login` and the database initializer would never resolve
@@ -18,6 +18,12 @@ When public startup optimization is enabled, a top-level document initially open
 - **WHEN** an anonymous visitor opens `/guide` with campaign query parameters or a fragment
 - **THEN** the guide mounts without local database initialization
 - **AND** those parameters retain their established meaning
+
+#### Scenario: Anonymous root enters login
+- **WHEN** an anonymous visitor opens the top-level root with query parameters or a fragment
+- **THEN** the root enters the existing login redirect with the full return URL and supported attribution
+- **AND** no database initialization, root Inbox mount, or root document reload occurs
+- **AND** query text naming an auth route does not exempt the root from redirecting
 
 #### Scenario: Authenticated or unrelated entry
 - **WHEN** a document initially opens with a token, on another pathname, or inside the extension bridge
@@ -30,10 +36,10 @@ When public startup optimization is enabled, a top-level document initially open
 
 ### Requirement: Enter normal startup before leaving the bypassed public surfaces
 
-A document that bypassed database startup SHALL keep local queries unavailable for that document's lifetime, including BFCache restoration. When navigation leaves `/login` or `/guide`, the reader SHALL perform one full document navigation to the resolved destination before mounting components on the destination. It SHALL preserve the destination path, query, and fragment and SHALL preserve existing authentication and redirect validation. Ordinary navigation between the public surfaces or within the same public page SHALL NOT require a reload. On BFCache restoration of a bypassed document, a newly present or unreadable token SHALL instead require one full navigation to the current destination to run normal startup or its fallback.
+A document that bypassed database startup SHALL keep local queries unavailable for that document's lifetime, including BFCache restoration. Before entering any authorized destination outside `/login` and `/guide`, including the root Inbox, the reader SHALL perform one full document navigation to the resolved destination before mounting its components. It SHALL preserve the destination path, query, and fragment and SHALL preserve existing authentication and redirect validation. Ordinary navigation between the public surfaces or within the same public page SHALL NOT require a reload. On BFCache restoration of a bypassed document, a newly present or unreadable token SHALL instead require one full navigation to the current destination to run normal startup or its fallback.
 
 #### Scenario: Guide enters the reader
-- **WHEN** a bypassed guide document navigates to the root Inbox or `/bookmarks`
+- **WHEN** a bypassed guide document navigates to the root Inbox or `/bookmarks` with a session
 - **THEN** a full document navigation runs normal startup before local-data components mount
 - **AND** the destination is not permanently stuck on a database-unavailable branch
 
@@ -86,5 +92,5 @@ The bypass SHALL preserve normal authenticated startup sequencing and SHALL NOT 
 
 #### Scenario: Public-only optimization with article priority disabled
 - **WHEN** only anonymous public startup is enabled
-- **THEN** anonymous login and guide avoid database initialization while authenticated Inbox, article, share, guide, and extension-bridge paths retain normal startup
+- **THEN** anonymous root, login, and guide avoid database initialization while authenticated Inbox, article, share, guide, and extension-bridge paths retain normal startup
 - **AND** both switch-off rollback combinations remain covered by the post-release verification obligations

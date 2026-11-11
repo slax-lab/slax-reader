@@ -37,15 +37,6 @@ export class UserDeletionService {
     }
     const collections = await this.vectorRepo.listOwnerCollections(userId)
     await dispatch(collections.map(collection => ({ kind: 'collection', id: collection.id })))
-    for (const collection of collections) {
-      cursor = 0
-      for (;;) {
-        const rows = await this.vectorRepo.listSubscriberUsers(collection.id, cursor, 50)
-        await dispatch(rows.map(row => ({ kind: 'user', id: row.user_id, preference: 'collection' })))
-        if (rows.length < 50) break
-        cursor = rows[rows.length - 1].id
-      }
-    }
     await dispatch([
       { kind: 'user', id: userId, preference: 'article' },
       { kind: 'user', id: userId, preference: 'collection' }

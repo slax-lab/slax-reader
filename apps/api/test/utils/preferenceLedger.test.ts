@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
-  addContribution,
+  addEntry,
   emptyPreferenceSums,
   nextPreferenceSeq,
   packSum,
@@ -8,9 +8,12 @@ import {
   PREFERENCE_BATCH_SIZE,
   PreferenceQueue,
   publicationScope,
+  settlePreferenceSums,
   unpackSum,
   vectorToken,
-  type PreferenceCall
+  type PreferenceCall,
+  type PreferenceEntry,
+  type ShareGroup
 } from '@/utils/preferenceLedger'
 import { referenceCenter } from '../helpers/recommendationReference'
 
@@ -28,32 +31,67 @@ describe('preference ledger', () => {
     expect(() => vectorToken(values.slice(1))).toThrow('invalid_vector_dimensions')
   })
 
-  test('adding then subtracting a contribution returns the sums to their previous values', () => {
+  const entry = (values: number[] | undefined, weight: number, group: ShareGroup): PreferenceEntry => ({ weight, group, token: values ? vectorToken(values) : '' })
+
+  test('adding then subtracting an entry returns the sums and counts to their previous values', () => {
     const sums = emptyPreferenceSums('mean', 1)
-    addContribution(sums, spread(1), 1, true, 1)
-    const before = [sums.raw.slice(), sums.centered.slice(), sums.owner.slice()]
-    addContribution(sums, spread(2), 2, true, 1)
-    addContribution(sums, spread(2), 2, true, -1)
-    ;[sums.raw, sums.centered, sums.owner].forEach((sum, index) => sum.forEach((value, i) => expect(value).toBeCloseTo(before[index][i], 12)))
+    addEntry(sums, entry(spread(1), 1, 'shared'), spread(1), 1)
+    const before = [sums.raw.slice(), sums.centered.slice(), sums.shared.slice(), sums.inherited.slice()]
+    const counts = structuredClone(sums.counts)
+    for (const group of ['none', 'shared', 'inherited'] as const) {
+      addEntry(sums, entry(spread(2), 2, group), spread(2), 1)
+      addEntry(sums, entry(spread(2), 2, group), spread(2), -1)
+      addEntry(sums, entry(undefined, 1, group), undefined, 1)
+      addEntry(sums, entry(undefined, 1, group), undefined, -1)
+    }
+    ;[sums.raw, sums.centered, sums.shared, sums.inherited].forEach((sum, index) => sum.forEach((value, i) => expect(value).toBeCloseTo(before[index][i], 12)))
+    expect(sums.counts).toEqual(counts)
   })
 
-  test('contributions add weighted normalized and centered vectors; the owner sum adds members with weight one', () => {
+  test('entries add weighted normalized and centered vectors; each owner group sums its own members with weight one', () => {
     const sums = emptyPreferenceSums('mean', 1)
     const values = spread(3)
-    addContribution(sums, values, 2, true, 1)
+    addEntry(sums, entry(values, 2, 'shared'), values, 1)
     expect(norm(sums.raw)).toBeCloseTo(2, 10)
-    expect(norm(sums.owner)).toBeCloseTo(1, 10)
+    expect(norm(sums.shared)).toBeCloseTo(1, 10)
+    expect(norm(sums.inherited)).toBe(0)
     const centered = referenceCenter(Array.from(values, value => value / norm(values)))
     sums.centered.forEach((value, i) => expect(value).toBeCloseTo(2 * centered[i], 10))
-    addContribution(sums, spread(4), 1, false, 1)
-    expect(norm(sums.owner)).toBeCloseTo(1, 10)
+    addEntry(sums, entry(spread(4), 1, 'none'), spread(4), 1)
+    addEntry(sums, entry(spread(5), 2, 'inherited'), spread(5), 1)
+    addEntry(sums, entry(undefined, 1, 'inherited'), undefined, 1)
+    expect(norm(sums.shared)).toBeCloseTo(1, 10)
+    expect(norm(sums.inherited)).toBeCloseTo(1, 10)
+    expect(sums.counts).toEqual({ eligible: 4, used: 3, shared: { members: 1, missing: 0 }, inherited: { members: 2, missing: 1 } })
+  })
+
+  test('a token without a vector, or a vector without a token, is rejected', () => {
+    const sums = emptyPreferenceSums('mean', 1)
+    expect(() => addEntry(sums, entry(spread(1), 1, 'none'), undefined, 1)).toThrow('invalid_preference_state')
+    expect(() => addEntry(sums, entry(undefined, 1, 'none'), spread(1), 1)).toThrow('invalid_preference_state')
+  })
+
+  test('settling zeroes sums without a used vector and rejects inconsistent counts', () => {
+    const sums = emptyPreferenceSums('mean', 1)
+    addEntry(sums, entry(spread(1), 1, 'shared'), spread(1), 1)
+    addEntry(sums, entry(spread(2), 1, 'inherited'), spread(2), 1)
+    addEntry(sums, entry(spread(1), 1, 'shared'), spread(1.0000001), -1)
+    expect(norm(sums.shared)).toBeGreaterThan(0)
+    settlePreferenceSums(sums)
+    expect(norm(sums.shared)).toBe(0)
+    expect(norm(sums.inherited)).toBeCloseTo(1, 10)
+    addEntry(sums, entry(spread(2), 1, 'inherited'), spread(2.0000001), -1)
+    settlePreferenceSums(sums)
+    expect([norm(sums.raw), norm(sums.centered), norm(sums.inherited)]).toEqual([0, 0, 0])
+    sums.counts.shared.missing = 1
+    expect(() => settlePreferenceSums(sums)).toThrow('invalid_preference_state')
   })
 
   test('sums survive packing, all-zero sums pack to an empty blob and corrupted blobs are rejected', () => {
     const sums = emptyPreferenceSums('mean', 1)
     expect(packSum(sums.raw).length).toBe(0)
     expect(unpackSum(new Uint8Array())).toEqual(new Float64Array(1024))
-    addContribution(sums, spread(5), 1, false, 1)
+    addEntry(sums, entry(spread(5), 1, 'none'), spread(5), 1)
     expect(unpackSum(packSum(sums.raw))).toEqual(sums.raw)
     expect(() => unpackSum(new Uint8Array(7))).toThrow('invalid_preference_state')
     expect(() => unpackSum(new Uint8Array(new Float64Array(1024).fill(Number.NaN).buffer))).toThrow('invalid_preference_state')
@@ -73,13 +111,17 @@ describe('preference ledger', () => {
     expect(nextPreferenceSeq(1)).toBeGreaterThanOrEqual(Date.now() - 1000)
   })
 
-  test('an apply in a batch publishes everything; rebuilds publish the union of their scopes', () => {
+  test('an apply in a batch publishes everything; rebuilds and publishes publish the union of their scopes', () => {
     const apply: PreferenceCall = { kind: 'apply', userId: 1, id: 2 }
     const collection: PreferenceCall = { kind: 'rebuild', userId: 1, publish: { user: false, collections: [5] } }
     const article: PreferenceCall = { kind: 'rebuild', userId: 1, publish: { user: true, collections: [] } }
     expect(publicationScope([collection, apply])).toEqual({ user: true, collections: 'all' })
     expect(publicationScope([collection])).toEqual({ user: false, collections: [5] })
     expect(publicationScope([collection, article])).toEqual({ user: true, collections: [5] })
+    const publish: PreferenceCall = { kind: 'publish', userId: 1, publish: { user: false, collections: [6] } }
+    expect(publicationScope([publish])).toEqual({ user: false, collections: [6] })
+    expect(publicationScope([publish, collection])).toEqual({ user: false, collections: [6, 5] })
+    expect(publicationScope([publish, apply])).toEqual({ user: true, collections: 'all' })
   })
 })
 

@@ -80,4 +80,34 @@ describe('deleted-account cleanup recovery', () => {
       log.mockRestore()
     }
   })
+
+  test('account cleanup retains own legacy key retirement without enumerating subscribers', async () => {
+    const { UserDeletionService } = await import('@/domain/userDeletion')
+    const deletes = vi.fn().mockResolvedValue({ count: 1 })
+    const prisma = new Proxy(
+      {
+        sr_user_report: { findMany: vi.fn().mockResolvedValue([]) },
+        sr_user_collection: { findMany: vi.fn().mockResolvedValue([{ id: 3 }]), deleteMany: deletes },
+        $executeRaw: vi.fn().mockResolvedValue(1),
+        $queryRaw: vi.fn().mockResolvedValue([])
+      } as any,
+      { get: (target, key) => target[key] ?? { deleteMany: deletes } }
+    )
+    const vectorRepo = {
+      listUserBookmarkIds: vi.fn().mockResolvedValue([{ id: 1, bookmark_id: 99 }]),
+      listOwnerCollections: vi.fn().mockResolvedValue([{ id: 3 }]),
+      listSubscriberUsers: vi.fn().mockRejectedValue(new Error('subscriber_fanout_forbidden'))
+    }
+    const createBatch = vi.fn().mockResolvedValue([])
+    const service = new UserDeletionService(() => prisma, {} as any, {} as any, vectorRepo as any)
+    await service.cleanupUserData(7, { VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch } } as any)
+    expect(vectorRepo.listSubscriberUsers).not.toHaveBeenCalled()
+    expect(createBatch.mock.calls.flatMap(([items]) => items.map((item: any) => item.params.target))).toEqual([
+      { kind: 'article', userId: 7, id: 99 },
+      { kind: 'collection', id: 3 },
+      { kind: 'user', id: 7, preference: 'article' },
+      { kind: 'user', id: 7, preference: 'collection' }
+    ])
+    expect(deletes).toHaveBeenCalled()
+  })
 })

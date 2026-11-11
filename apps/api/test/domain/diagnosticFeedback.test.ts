@@ -322,18 +322,17 @@ describe('diagnostic capability verification and removal', () => {
         expect(f.objects.size).toBeGreaterThan(0)
       } else {
         await expect(deletion.cleanupUserData(7, env)).rejects.toThrow('stop fixture after diagnostic cleanup')
-        expect(order).toEqual(['vector dispatch', 'vector dispatch', 'vector dispatch', 'vector dispatch', 'vector dispatch', 'objects', 'remaining cleanup'])
+        expect(order).toEqual(['vector dispatch', 'vector dispatch', 'vector dispatch', 'vector dispatch', 'objects', 'remaining cleanup'])
         const targets = createWorkflow.mock.calls.map(([params]) => (params as { params: { target: unknown } }).params.target)
         expect(targets).toEqual([
           { kind: 'article', userId: 7, id: 42 },
           { kind: 'collection', id: 3 },
-          { kind: 'user', id: 8, preference: 'collection' },
           { kind: 'user', id: 7, preference: 'article' },
           { kind: 'user', id: 7, preference: 'collection' }
         ])
         expect(vectorRepo.listUserBookmarkIds).toHaveBeenCalledWith(7, 0, 50)
         expect(vectorRepo.listOwnerCollections).toHaveBeenCalledWith(7)
-        expect(vectorRepo.listSubscriberUsers).toHaveBeenCalledWith(3, 0, 50)
+        expect(vectorRepo.listSubscriberUsers).not.toHaveBeenCalled()
         expect(f.objects.size).toBe(0)
         expect(pg.sr_user_report.findMany).toHaveBeenCalledWith({ where: { user_id: 7 }, select: { user_id: true, extra_data: true } })
         expect(pg.sr_user_report.deleteMany).not.toHaveBeenCalled()
