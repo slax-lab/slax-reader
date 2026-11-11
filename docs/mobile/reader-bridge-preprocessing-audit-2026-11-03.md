@@ -1,6 +1,6 @@
 # Reader bridge preprocessing audit — 2026-11-03
 
-> Follow-up: the owner subsequently approved the common-processing subset. During implementation the sibling checkout advanced to `29dceb3437deae03cd8f5eb7656fb183446ab607`, which already contains the programmatic-selection fix described below. That implementation was retained and covered by integration tests. The bridge now includes common image/span/details/link/table/iframe processing, and its production build has been synchronized into Mobile. Media processors remain unchanged. The sections below preserve the earlier audit snapshot; current implementation and verification are recorded under section 3F in `openspec/changes/archive/2026-11-10-mobile-library-reader-polish/validation.md`.
+> Follow-up: the owner subsequently approved the common-processing subset. During implementation the sibling checkout advanced to `29dceb3437deae03cd8f5eb7656fb183446ab607`, which already contains the programmatic-selection fix described below. That implementation was retained and covered by integration tests. The bridge now includes common image/span/details/link/table/iframe processing, and its production build has been synchronized into Mobile. Media processors remain unchanged. The sections below preserve the earlier audit snapshot; current implementation and verification are recorded under `## Approved bridge synchronization — 2026-11-03` in `openspec/changes/archive/2026-11-10-mobile-library-reader-polish/validation.md`.
 
 ## Scope and evidence
 

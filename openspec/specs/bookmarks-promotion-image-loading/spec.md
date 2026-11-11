@@ -19,4 +19,4 @@ Once the existing account, eligibility, and KOC gates permit the localized promo
 
 #### Scenario: Eligibility has not permitted the promotion
 - **WHEN** existing account, eligibility, or KOC gates do not permit display
-- **THEN** the promotion image is not inserted or preloaded by this change
+- **THEN** the promotion image is not inserted or preloaded
