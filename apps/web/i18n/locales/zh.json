@@ -56,6 +56,7 @@
       "US": "美国"
     },
     "operate": {
+      "reload_page": "刷新页面",
       "add": "添加",
       "archive": "归档",
       "archived": "已归档",
@@ -138,6 +139,7 @@
       }
     },
     "tips": {
+      "interface_load_failed": "界面加载失败。可刷新页面后重试；未保存的草稿将丢失。",
       "in_app_browser": {
         "title": "建议在浏览器中打开",
         "message_before": "为获得更好的使用体验，请点击右上角的",

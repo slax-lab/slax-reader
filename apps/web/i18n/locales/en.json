@@ -56,6 +56,7 @@
       "US": "United States"
     },
     "operate": {
+      "reload_page": "Reload page",
       "add": "Add",
       "archive": "Archive",
       "archived": "Archived",
@@ -138,6 +139,7 @@
       }
     },
     "tips": {
+      "interface_load_failed": "Unable to load this interface. Reload to try again; unsaved drafts will be lost.",
       "in_app_browser": {
         "title": "Open this page in your browser",
         "message_before": "For the best experience, tap",

@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { getCurrentScope, onScopeDispose, ref, watch } from 'vue'
 
 import type { CommonBookmarkOptions } from './type'
 import { useResize } from './useCommon'
@@ -75,6 +75,17 @@ export const useBookmark = (options: BookmarkOptions) => {
     return true
   }
 
+  const pendingQuotes: { data: QuoteData; scope: unknown }[] = []
+  const deliverQuotes = () => {
+    if (typeof chatbot.value?.addQuoteData !== 'function') return
+    for (const quote of pendingQuotes.splice(0)) {
+      if (quote.scope === options.quoteScope?.()) chatbot.value.addQuoteData(quote.data)
+    }
+  }
+  watch(chatbot, deliverQuotes, { flush: 'post' })
+  if (getCurrentScope()) onScopeDispose(() => { pendingQuotes.length = 0 })
+  if (options.quoteScope) watch(options.quoteScope, () => { pendingQuotes.length = 0 }, { flush: 'sync' })
+
   const chatBotQuote = (data: QuoteData) => {
     if (!loginVerify() || checkSubscriptionExpired()) {
       return
@@ -89,7 +100,8 @@ export const useBookmark = (options: BookmarkOptions) => {
       // 如果没打开chatbot侧边栏，不生成问题，直接push到对话框
       // 如果已经打开了且在对话中，push到对话框但是不能发送
       // 如果已经打开了且没在对话中，push到对话框
-      chatbot.value?.addQuoteData(data)
+      pendingQuotes.push({ data, scope })
+      deliverQuotes()
     }
 
     nextTick(() => handleQuote())

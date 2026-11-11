@@ -2,63 +2,36 @@
 
 ## Context
 
-See proposal.md for motivation and approval history. The first slice removed five prefetch hints and separated pure text helpers but left static route byte totals unchanged. The saved `final` build is the comparison baseline for the additional slice; the original production base is retained separately.
-
-`pages/b/[id].vue` statically imports both optional AI/chat panels. `SnapshotSidePanel` invokes their slots even while hidden by v-show. AI imports MarkdownText; chat imports the same full Markdown/KaTeX/highlighting renderer. A 535,314-byte gzip shared chunk remains in the article static closure. `components/Modal/index.ts` statically imports all six programmatic modal implementations.
-
-## Goals / Non-Goals
-
-Goals: remove optional implementations from the initial executable graph and from pre-use network downloads, keep real interactions unchanged, retain opened state, and report measured results.
-
-Non-goals: changes to PowerSync construction, synchronization, recovery, account ownership, pending writes, schema/version gates, mobile behavior, SSR content, global navigation, reduced rendering features, manual chunk policy, new dependencies, service-worker or CDN settings. Do not change comment/transcript mounting merely for symmetry. Do not optimize a route with no evidenced opportunity.
+The user explicitly rejected the bespoke loading infrastructure on 2026-11-11 and requested official Vue/Nuxt mechanisms instead. This supersedes the prior generated-resource-index and preflight design in PR #560. The branch remains `feat/lazy-load-bundle`; keep the separately merged login-startup work intact.
 
 ## Decisions
 
-### 1. Keep the completed initial slice
+- Article AI/chat panels use Vue `defineAsyncComponent` with literal dynamic imports, the existing DotLoading component, a 15-second timeout, and `suspensible: false`. The existing panel selection and permission rules determine when `v-if` renders them.
+- Vue `KeepAlive` retains each panel instance while its tab is inactive. Key the containing boundary by account generation so cached state does not cross accounts. No custom component cache or load wrapper remains.
+- Nuxt `NuxtErrorBoundary` contains a panel failure without replacing the article. The error slot offers the official `reloadNuxtApp` action with an explicit warning that unsaved drafts will be lost. Reload is user-initiated only. Do not claim that retrying the same dynamic import clears a browser's failed module cache.
+- Programmatic modal functions use ordinary JavaScript `import()` directly, then the existing modalBootloader in Nuxt context. Import rejection shows the existing toast with the same reload/unsaved-state warning. Existing inputs, callbacks and dismissal behavior remain unchanged; no shared pending-request map or modal loading framework is added.
+- One configuration statement in Nuxt's documented `build:manifest` hook sets generated resource `prefetch` flags false. This explicitly disables speculative HTML resource hints globally; required `preload`, static/dynamic imports, Worker/WASM files and NuxtLink route-prefetch behavior remain unchanged. Prefer this transparent configuration trade-off over a custom package classifier, bundler plugin or dependency graph walk.
+- The existing bookmark composable queues only user quote intent until the real chat ref exposes addQuoteData. The queue is consumed once and cleared on account/scope changes. This is necessary application behavior, not a resource loader.
+- A pre-existing immediate chat watcher called addLog before its const declaration when mounted already visible. Move the unchanged callback before the watcher and cover that initial state in the existing tests.
 
-The source-identity filter for the four SQLite JS loaders and PowerSync websocket implementation still changes only prefetch. Unknown identities retain their hints; required preload, imports and emitted Worker/WASM files remain intact. Pure text functions retain their outputs and legacy parse re-exports.
+## Removed infrastructure
 
-### 2. Gate optional AI/chat panel activation at the article page
+Delete DeferredSnapshotPanel.vue, deferredUi.ts, deferredModal.ts, both custom resource-hint helpers, their specialized tests, the generated dependency-index build plugin, the index fetch, resource prefetch loop, custom promise cache and related compile-time define. No replacement resource-index format, blob loader, fetch-before-import system or module URL rewriting is introduced.
 
-Use async component loaders and a page-local activated state. Before first accepted activation the panel is not instantiated; after activation it remains mounted while the existing container controls visibility. Existing automatic opening counts as genuine demand. Preserve entitlement checks before activation and the current default panel choice, desktop preference and mobile behavior. Do not move data needed for article or permission decisions into deferred UI.
+## Boundaries and verification
 
-Use a small wrapper/loading surface only if needed for recoverable chunk failures and deterministic readiness. An async import resolving is not sufficient to deliver an imperative quote; wait for the actual exposed component ref. The first authorized quote must be delivered exactly once after readiness, while failed/unauthorized actions must not be sent. Avoid arbitrary timeouts. Scope pending intent to the current page/account and discard it when that scope changes. Do not unmount on each tab switch: that alternative loses drafts and fetched state.
+Keep the pure text entrypoint and legacy exports, rendering language coverage, permissions, SSR content, database identity, sync policy, uploads and Worker recovery unchanged. The Extension remains 1.16.3.
 
-Keep the current rendering libraries and language coverage inside the deferred modules. Check the built dependency graph rather than assuming the async import is enough; other eager consumers can retain shared chunks.
+Verify standard tests/typecheck/build, absence of the removed symbols and generated index, no optional-panel startup requests, first-use quote delivery, KeepAlive draft retention, user-initiated failure recovery, and unchanged Worker asset index. Measure the new production closure against the saved integrated build on the same dependency/base configuration. Record full-lint baseline failures and remote-service limitations honestly.
 
-### 3. Load programmatic modals on demand
+## Official references
 
-Retain existing public entrypoint argument shapes and callbacks. Separate runtime constants/types exported by a modal from its heavy Vue implementation where needed. The mounting utility must preserve stable modal identity, original props, application context and focus behavior; simply wrapping every modal in an unnamed async component would break existing container naming/deduplication.
+- Vue async components: https://vuejs.org/guide/components/async.html
+- Vue KeepAlive: https://vuejs.org/guide/built-ins/keep-alive.html
+- Nuxt error boundary: https://nuxt.com/docs/4.x/api/components/nuxt-error-boundary
+- Nuxt lifecycle hooks: https://nuxt.com/docs/4.x/api/advanced/hooks
+- Nuxt reloadNuxtApp: https://nuxt.com/docs/4.x/api/utils/reload-nuxt-app
 
-Load on a user action, deduplicate in-flight activation for the same modal identity, and use existing error feedback for a failed import. A failure must not create a permanent blank container or block subsequent retry. Avoid creating a generic modal framework. Initial loading must not pull every modal through the entrypoint barrel.
+## Delivery
 
-### 4. Preserve demand loading without speculative backfill
-
-Inspect effective generated manifest and HTML after splitting. Extend the narrow hint helper only for positively identified optional UI entry modules if their unused implementations would otherwise be prefetched. Keep required preloads when the implementation is actually rendered, do not globally disable prefetch, and do not guess generated hashes. Verify the optional heavy renderer is neither in the ordinary article static closure nor requested before genuine demand.
-
-### 5. Keep download failures outside the module cache
-
-A real browser test demonstrated that retrying the same rejected dynamic import can reuse its failure without another request. The user directed the agent to continue fixing and exercising that failure rather than stop. The scoped build plugin therefore emits a unique per-build JSON index containing the emitted JS/CSS static dependency closure of each optional interface. Only an actual open action requests this index. No database assets, dynamic descendants such as Mermaid diagram engines, or global resource policy are changed.
-
-Before invoking the existing importer, fetch all indexed resources successfully using the browser's immutable HTTP cache. Failed HTTP/MIME checks remove the failed request promise and do not execute import, so user retry makes fresh ordinary requests rather than reusing a failed module record. Successful resources and the index are reused for the page lifetime. The unmodified importer then evaluates the same URLs from cache, preserving shared module identity and original Vite CSS/dynamic-import behavior. Development, which has no emitted index, retains its direct loader.
-
-This adds one small index request at first optional use and cached resource reads. It does not make network availability atomic: browser cache eviction or an outage between preflight and actual import remains a limitation; no automatic full-page reload, duplicated module graph, blob execution or cache-busting module identity is introduced. The demonstrated repeated HTTP failure case must pass for entry JS, a shared rendering dependency, stylesheet and modal.
-
-### 6. Measure and exercise both changed boundaries
-
-Use the same locked dependencies, minification and synthetic environment as the saved builds. Compare deduplicated imports/CSS closures separately from hinted resources and actual browser requests. Require a real article static-byte reduction; record zero savings on unaffected routes rather than widening scope.
-
-Regression checks cover closed/open/reopened panels, automatic opening, entitlement denial, first quote before module readiness, initial loading failure/retry, and modal props/callbacks/deduplication/focus/dismissal. Exercise real production pages in the built-in browser with synthetic backend data. Verify selected database demand assets and the existing recovery controls remain unchanged. No real account mutations or production deployment are needed.
-
-## Risks / Trade-offs
-
-- First panel/modal open now waits for a chunk -> retain a clear existing-style loading/error path and retry, and verify the first action is not lost.
-- Async panel lifecycle loses state -> mount once per page after accepted activation, then keep it alive.
-- Permission or page changes while loading -> re-check the current scope before handing pending intent to a component.
-- Other eager imports retain heavy libraries -> inspect the production closure and browser trace before claiming success.
-- Source identities vary with bundling -> match demonstrated sources only and preserve unknown entries.
-- Global modal utility affects more than four routes -> maintain its API and run related tests/consumer builds; no unrelated interface redesign.
-
-## Migration and approval
-
-The user approved this expansion on 2026-11-10 after the two boundaries and measurement requirements were presented. No optional requirements-discovery demo is needed for an unchanged layout; human hands-on acceptance of visible loading/error behavior remains required before a PR. Rollback removes the new lazy boundaries without clearing storage. No feature switch or data migration is introduced. The user subsequently requested a PR on `feat/lazy-load-bundle`, authorizing task commit/push/PR creation once required version and human hands-on decisions are recorded. Deployment and merge are not authorized.
+Update the existing draft PR. Do not infer human hands-on acceptance, merge, deployment or archive authorization from this implementation request. The user explicitly authorized removing the old machinery and using the official behavior, including removing the previous same-document recovery promise.

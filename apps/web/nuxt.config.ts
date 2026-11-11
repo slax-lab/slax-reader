@@ -1,9 +1,7 @@
 import { ensureWebWranglerConfig, warnIfApiConfigMissing, writeWebBuildConfig } from './config/backend-binding'
 import { backendStateV3 } from './config/backend-path'
-import { createDeferredResourceHints } from './config/deferred-resource-hints'
 import { getDWebConfig, getEnv } from './config/env'
 import { scopedPdfStyles } from './config/pdf-assets'
-import { removeDatabasePrefetch } from './config/resource-hints'
 
 import { createPowerSyncAssetBuild } from '../../tooling/powersync-assets.mjs'
 import { POWER_SYNC_WORKER_GENERATION } from './app/local-first/version'
@@ -13,7 +11,6 @@ import { fileURLToPath } from 'url'
 import wasm from 'vite-plugin-wasm'
 
 const powerSyncAssets = createPowerSyncAssetBuild()
-const deferredResourceHints = createDeferredResourceHints()
 
 const env = getEnv()
 console.log('Current env is:', env)
@@ -600,8 +597,7 @@ export default defineNuxtConfig({
       files.clear()
       collect('pages/login.vue')
       loginAssetPreloads.splice(0, loginAssetPreloads.length, ...[...files].filter(file => !entryFiles.has(file)))
-      removeDatabasePrefetch(manifest)
-      deferredResourceHints.apply(manifest)
+      for (const chunk of Object.values(manifest)) chunk.prefetch = false
     },
     'nitro:init': nitro => {
       if (nitro.options.dev) return
@@ -621,7 +617,6 @@ export default defineNuxtConfig({
       })
     },
     'vite:extendConfig': (config, { isClient }) => {
-      if (isClient) (config.plugins ??= []).push(deferredResourceHints.plugin())
       // @nuxtjs/mdc 仍生成 pnpm 的 `parent > child` optimizeDeps 语法，Vite 8 无法解析。
       if (isClient && config.optimizeDeps?.include) {
         config.optimizeDeps.include = config.optimizeDeps.include.filter(dep => !dep.startsWith('@nuxtjs/mdc > '))

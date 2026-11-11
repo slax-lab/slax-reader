@@ -79,6 +79,14 @@ describe('SnapshotChatPanel.vue', () => {
   })
 
   describe('A. 空态', () => {
+    it('mounts already visible through an async component without an initialization error', async () => {
+      const wrapper = mountPanel({ bookmarkId: 1, isAppeared: true })
+      await nextTick()
+      expect(wrapper.find('textarea').exists()).toBe(true)
+      expect(mockAnalyticsLog).toHaveBeenCalledWith(expect.objectContaining({ sub_action: 'open' }))
+      wrapper.unmount()
+    })
+
     // 建议问题胶囊功能已从组件移除，空态现仅剩图标 + 标题 + 说明文案
     it('A1: 空态渲染星形图标 + 标题 + 说明文案', () => {
       const wrapper = mountPanel({ bookmarkId: 1 })

@@ -2,102 +2,82 @@
 
 ## Purpose
 
-Avoid speculative database alternatives and unnecessary initial downloads of optional interfaces, while preserving real reading functionality, demand loading, authorization and user state.
+Keep optional interfaces and speculative resource downloads out of initial Web loading while retaining readable content, required resources, permissions and page-local state.
 
 ## ADDED Requirements
 
-### Requirement: Unused database backend alternatives are not speculatively prefetched
+### Requirement: Initial documents avoid speculative resource downloads
 
-Generated Web documents SHALL NOT emit speculative prefetch hints for the identified alternative SQLite JavaScript loaders or the database synchronization WebSocket transport. Actual runtime imports and necessary preload hints SHALL remain available, and unrelated resource hints SHALL not be disabled as a side effect.
+Generated Web documents SHALL omit speculative resource-prefetch hints. Required preloads, module imports, styles and actual runtime resource loading SHALL remain available. This policy SHALL NOT remove emitted database assets or change synchronization behavior.
 
-#### Scenario: Anonymous login does not need a database
-- **WHEN** an anonymous browser opens the built login document and no database operation is requested
-- **THEN** the document's resource hints do not initiate downloads of those backend-loader or transport alternatives
-- **AND** login content and its existing authentication behavior remain available
+#### Scenario: An anonymous visitor opens login or an article
+- **WHEN** a built login, article or collection document is requested
+- **THEN** it emits no speculative resource-prefetch links
+- **AND** resources required for the rendered document remain loadable
 
-#### Scenario: An article or collection actually initializes the database
-- **WHEN** an existing reading or collection document requests a database backend under the current startup policy
-- **THEN** the selected runtime resources can still be loaded on demand
-- **AND** the optimization does not change database initialization or synchronization behavior
+#### Scenario: The existing database policy needs a backend
+- **WHEN** the current runtime requests a selected database Worker, loader or WASM resource
+- **THEN** that resource remains available with unchanged storage identity and runtime behavior
 
-#### Scenario: An unrelated critical resource is hinted
-- **WHEN** the build emits a required application, style, locale or other unrelated resource hint
-- **THEN** the database-specific exclusion does not remove that hint
+### Requirement: Optional article panels load on activation
 
-### Requirement: Resource-hint changes preserve runtime recovery and stored data
+An article whose AI/chat panels have not been selected SHALL remain readable without loading those optional implementations. Existing authorization and automatic-opening rules SHALL decide activation. Closing or switching a loaded panel SHALL preserve its draft and loaded state within the same page/account scope.
 
-Hint filtering SHALL NOT delete or rename emitted database assets, change their required dependency references, alter existing Worker selection/recovery, change authentication or database identity, or clear stored data or pending mutations. Unknown or ambiguously identified build resources SHALL retain their current hint behavior.
+#### Scenario: Article opens with panels closed
+- **WHEN** neither AI nor chat is selected
+- **THEN** their implementations are absent from initial executable dependencies and startup requests
+- **AND** the article and its primary controls remain usable
 
-#### Scenario: A supported fallback needs another backend
-- **WHEN** existing database recovery selects an alternate supported backend
-- **THEN** its JavaScript and WASM assets remain reachable through their existing runtime references
+#### Scenario: Panel is reopened
+- **WHEN** the user enters a draft, switches or closes the panel, then reopens it
+- **THEN** its draft and loaded state remain available within the same account and page
 
-#### Scenario: A build resource cannot be classified confidently
-- **WHEN** a resource has no recognized backend-loader or transport provenance
-- **THEN** the narrow optimization leaves its resource hints unchanged rather than guessing from its generated hash name
+#### Scenario: Existing rules open a panel automatically
+- **WHEN** the existing policy selects an authorized panel
+- **THEN** its implementation loads on demand without changing the selected panel or entitlement rules
 
-#### Scenario: An existing local user returns
-- **WHEN** a user with existing local data opens the optimized build
-- **THEN** the resource-hint change does not reset their database or discard pending mutations
+### Requirement: First-use quote intent survives asynchronous mounting
 
-### Requirement: Bundle results distinguish demand loading from speculation
+An authorized quote action SHALL reach the ready chat exactly once without automatically sending a message. A pending action SHALL NOT cross account or page scope.
 
-Verification SHALL compare matching baseline and candidate build profiles for login, snapshot reading, public collection and the personal library. It SHALL distinguish initial executable dependencies, speculative hints, actual runtime-required downloads and observed browser transfers; it SHALL not claim a fixed speedup or complete database removal from hint filtering alone.
+#### Scenario: First quote opens chat
+- **WHEN** the user quotes article text before the chat component is ready
+- **THEN** the quote appears after chat finishes loading
+- **AND** no chat message is submitted automatically
 
-#### Scenario: A removed hint is followed by a legitimate runtime request
-- **WHEN** an eligible page later requests the same asset for an actual database operation
-- **THEN** verification records that demand request separately rather than treating it as speculative loading or claiming the bytes disappeared
+#### Scenario: Account changes during loading
+- **WHEN** the account changes before a pending quote is delivered
+- **THEN** that quote is not applied to the next account's chat
 
-#### Scenario: A dependency-only helper refactor leaves article weight unchanged
-- **WHEN** other required consumers still retain rendering libraries in the article dependency graph
-- **THEN** the report preserves the actual route-level byte result instead of claiming the full rendering bundle was removed
+### Requirement: Programmatic modal implementations load on action
 
+Programmatic modals SHALL load only when invoked and retain their existing inputs, callbacks, focus and dismissal behavior. An implementation load failure SHALL be reported without leaving an empty blocking modal.
 
-### Requirement: Optional article interfaces load only when needed
+#### Scenario: Login modal is requested
+- **WHEN** an anonymous user invokes an action requiring login
+- **THEN** the login modal loads and preserves its redirect/context inputs
 
-An article whose AI and chat panels have not been activated SHALL remain readable without downloading or executing those optional panel implementations and their exclusively required rendering resources. Existing automatic-opening and authorization rules SHALL remain authoritative; activation by those rules counts as demand.
+#### Scenario: Modal loading fails
+- **WHEN** a required modal module cannot load
+- **THEN** the user receives failure feedback and no empty blocking modal remains
 
-#### Scenario: Ordinary article opens with panels closed
-- **WHEN** an article opens without an accepted AI or chat activation
-- **THEN** its initial executable dependencies and speculative requests exclude those optional implementations
-- **AND** article content, selection and existing primary controls remain available
+### Requirement: Resource errors are contained and recovery is explicit
 
-#### Scenario: Existing policy automatically opens a panel
-- **WHEN** the existing policy selects an authorized panel automatically
-- **THEN** its implementation loads on demand and the selected panel becomes usable
-- **AND** the loading optimization does not change the selected panel or entitlement checks
+An optional-panel load failure or timeout SHALL leave the article readable and show local failure feedback. If recovery reloads the page, it SHALL require explicit user action and warn that unsaved drafts can be lost. This revision SHALL NOT promise clearing a browser's failed-module cache within the same document.
 
-### Requirement: Deferred interfaces preserve state and initiating intent
+#### Scenario: Panel chunk is unavailable
+- **WHEN** an optional panel fails to load
+- **THEN** the article remains readable and the affected panel shows the failure
+- **AND** the page does not reload automatically
 
-Once an optional panel is loaded, closing or switching it SHALL preserve its page-local draft and loaded state. A valid initiating action SHALL be applied exactly once after the destination is ready, and SHALL not be applied after its page or account scope changes. Loading failures SHALL leave the article readable and allow retry.
+#### Scenario: User chooses reload recovery
+- **WHEN** the user selects reload after seeing the unsaved-draft warning
+- **THEN** the current page reloads without resetting database storage
 
-#### Scenario: First quote opens an unloaded chat
-- **WHEN** an authorized user sends a selected quote to chat before the chat panel has loaded
-- **THEN** the original quote reaches the ready chat exactly once
-- **AND** it is not automatically sent as a network message
+### Requirement: Measurements separate static loading and speculation
 
-#### Scenario: User reopens a panel
-- **WHEN** a user enters a draft, closes or switches away from the panel, and reopens it on the same page
-- **THEN** the draft and previously loaded state remain present
+Reports SHALL distinguish initial static dependencies, generated hints, demand requests and observed browser transfers. They SHALL disclose unaffected or regressing route totals and SHALL NOT infer fixed latency improvements from compressed byte estimates.
 
-#### Scenario: Panel loading fails
-- **WHEN** an optional panel chunk cannot load
-- **THEN** the article remains readable and the failure is visible in that optional surface
-- **AND** the user can retry without a storage reset
-
-### Requirement: Programmatic modals defer their implementation downloads
-
-A closed programmatic modal SHALL not add its exclusively required implementation to initial executable dependencies or speculative requests. Invoking it SHALL preserve existing inputs, callbacks, focus, dismissal and authorization behavior. Repeated activation while loading SHALL not create duplicate modal instances, and failed loading SHALL permit a later retry.
-
-#### Scenario: Collection opens without a modal action
-- **WHEN** a visitor opens a collection without requesting a modal
-- **THEN** unrelated editing, feedback and sharing modal implementations are not downloaded for that visit
-
-#### Scenario: Modal loads after an explicit action
-- **WHEN** the user invokes a supported modal action
-- **THEN** only the required implementation is loaded and the initiating inputs are preserved
-- **AND** confirmation and dismissal retain their existing effects
-
-#### Scenario: Modal loading fails and is retried
-- **WHEN** an implementation download fails and the user invokes the action again
-- **THEN** failure feedback is provided and a subsequent successful load can open one working modal
+#### Scenario: A deferred feature is opened
+- **WHEN** its resources load after activation
+- **THEN** the report records them as demand loading rather than claiming the bytes were eliminated

@@ -2,32 +2,31 @@
 
 ## Why
 
-The production Web build speculatively downloads five database alternatives and eagerly imports optional interface implementations. The first approved slice removed the five hints, but route-level static byte totals did not decrease. The user explicitly requested actual first-screen slimming and approved the additional panel/modal boundaries on 2026-11-10.
+Optional article panels and programmatic modals unnecessarily contribute to initial Web loading. The first implementation in draft PR #560 added custom resource-index, preflight and wrapper machinery; on 2026-11-11 the user explicitly requested deleting all of it and using official framework mechanisms.
 
 ## What Changes
 
-- Retain the source-specific database prefetch exclusions and dependency-free text entrypoint already implemented, with legacy exports intact.
-- Load the article AI and chat panels only when selected by the user or existing automatic-opening rules. Keep a successfully opened panel mounted for the page lifetime so switching or closing does not discard drafts, fetched results or conversation state.
-- Preserve authorization, automatic panel selection and the first quote-to-chat interaction while a panel is loading. Loading failure must remain recoverable without replacing the readable article.
-- Load programmatic modal implementations only when their corresponding action is invoked. Preserve existing call signatures, props, callbacks, focus and dismissal behavior. Do not request optional implementations through speculative hints before use.
-- Compare the updated production output with both the original base and the completed minimum slice for `/login`, `/b/:id`, `/c/:id` and `/` (`/bookmarks`). Verify static code actually leaves initial dependency closures and browser requests are deferred until demand.
-- Do not change PowerSync initialization/synchronization, mobile policy, storage, supported Markdown/highlight languages, SSR article content, PWA/CDN behavior, or introduce manual vendor chunks or new dependencies.
+- Use Vue defineAsyncComponent and conditional rendering for AI/chat panels; use KeepAlive for their page-local state. Preserve automatic-opening and authorization decisions.
+- Use direct JavaScript dynamic imports for programmatic modal implementations and retain their original mounting, props and callback behavior.
+- Use NuxtErrorBoundary for local panel errors and reloadNuxtApp only on explicit user action, with an unsaved-draft warning. No custom same-page module-cache recovery promise remains.
+- Use one build:manifest configuration statement to disable speculative HTML resource prefetch globally while preserving required preloads, imports and NuxtLink behavior. This broader scheduling trade-off is explicit, replacing the removed custom classifiers and graph walker.
+- Retain dependency-free text extraction and compatible legacy exports; keep only business quote readiness/account-scope handling. Fix the existing chat immediate-watcher declaration order required for first-visible mounting.
+- Delete both custom resource-hint helper files, DeferredSnapshotPanel, deferredUi, deferredModal, their tests, the index generator and preflight requests.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `web-resource-hints`: Avoid speculative database alternatives and unnecessary initial downloads of optional interfaces, preserving demand-loaded functionality and stored state.
+- `web-resource-hints`: Avoid speculative resource downloads and initial optional-interface execution using supported framework mechanisms, preserving user-facing business behavior.
 
 ### Modified Capabilities
 
-None. Existing reading, authorization, rendering and synchronization contracts are retained; the new requirements govern when optional interface resources load.
+None. Synchronization, authorization, article content and rendering feature contracts remain unchanged.
 
 ## Impact
 
-- Initial slice: `apps/web/config/resource-hints.ts`, Nuxt hook, shared `frontend-utils/text`, legacy re-export and three extraction-only Web consumers.
-- Approved extension: article AI/chat imports and activation boundaries; quote readiness handling; modal entrypoints and their mounting helper; narrowly scoped hint classification where needed; existing Web tests and browser fixtures. Prefer page-local panel gating over changing all users of the shared side-panel container.
-- `/c` and the library benefit from deferred common modals if those implementations leave their closures. `/login` remains a regression control; do not invent a benefit or perform an unrelated rewrite. Shared modal consumers on other routes require regression checks, not a redesign.
-- Worktree `.local/web-bundle-minimal-worktree`, branch `perf/trim-web-startup-bundles`, original base `bbd8fbb3718f2786eea84ffc2ede90ff5de0de80`. Prior worktrees remain untouched.
-- The measured article shared chunk is 1,724,038 raw bytes / 535,314 gzip bytes. This identifies a target, not a guaranteed reduction; only a rebuilt graph and real browser exercise establish savings. Initial-slice measurements remain historical evidence in validation.md.
-- User confirmed the proposed expansion with "改" after reviewing the two concrete boundaries. Implementation is authorized. The user subsequently requested a PR on `feat/lazy-load-bundle`; commit, push and PR creation are authorized once required version and human hands-on decisions are recorded. Deployment and archive are not authorized. No visual redesign is proposed. Any UI-visible loading-state change still requires human hands-on acceptance before a PR. The outstanding Extension version decision from the shared helper slice remains open.
+Changes are limited to Web panel/modal entrypoints, the existing bookmark composable, one build hook, error strings and associated tests, plus the original shared text extraction. No new dependencies, manual vendor chunks, generated runtime index, browser fetch loader, mobile sync disablement, database cleanup or CDN configuration.
+
+The shared text change retains old exports; Extension source/version stays 1.16.3 per the no-bump decision. Work remains on `feat/lazy-load-bundle` in `.local/web-bundle-minimal-worktree`, based on dev 6016ee48 with the independent login-startup optimization preserved.
+
+The user authorized updating the same draft PR. Human hands-on acceptance is not inferred; no merge, deployment or archive is authorized. Old measurements and same-document recovery evidence are historical and must not be presented as results of the official-only revision.

@@ -484,6 +484,12 @@ const toQuestionItem = (q: { content: string; rawContent?: string }): QuestionMe
   rawContent: q.rawContent
 })
 
+const addLog = (subAction: 'open' | 'expand' | 'close' | 'collapse') => {
+  if (props.bookmarkId) {
+    analyticsLog({ event: 'bookmark_chat_interact', sub_action: subAction, entry_point: 'sidebar_entry' })
+  }
+}
+
 watch(
   () => props.isAppeared,
   value => {
@@ -507,12 +513,6 @@ watch(
   },
   { flush: 'sync', immediate: true }
 )
-
-const addLog = (subAction: 'open' | 'expand' | 'close' | 'collapse') => {
-  if (props.bookmarkId) {
-    analyticsLog({ event: 'bookmark_chat_interact', sub_action: subAction, entry_point: 'sidebar_entry' })
-  }
-}
 
 onMounted(() => jumpToBottom())
 

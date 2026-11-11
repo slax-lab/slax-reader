@@ -1,12 +1,13 @@
-import { loadModal } from '~/utils/deferredModal'
 import { modalBootloader } from '~/utils/modal'
 
 import { ShareModalType } from './shareType'
 import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
 import { BookmarkParseStatus } from '@slax-reader/contracts/interface'
+import Toast, { ToastType } from '~/components/Toast'
 
 export const showFeedbackModal = (options: { title: string; reportType: string; href?: string; email: string; params?: Record<string, string | number> }) => {
-  void loadModal('Feedback', () => import('./Feedback.vue'), Feedback => {
+  const nuxtApp = useNuxtApp()
+  return import('./Feedback.vue').then(({ default: Feedback }) => nuxtApp.runWithContext(() => {
     const app = modalBootloader({
       ele: Feedback,
       props: {
@@ -21,11 +22,14 @@ export const showFeedbackModal = (options: { title: string; reportType: string; 
         }
       }
     })
-  })
+  })).catch(() => nuxtApp.runWithContext(() => {
+    Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
+  }))
 }
 
 export const showEditNameModal = (options: { bookmarkId: number; name: string; aliasName?: string; callback?: (name: string) => void }) => {
-  void loadModal('EditName', () => import('./EditName.vue'), EditName => {
+  const nuxtApp = useNuxtApp()
+  return import('./EditName.vue').then(({ default: EditName }) => nuxtApp.runWithContext(() => {
     const app = modalBootloader({
       ele: EditName,
       props: {
@@ -41,7 +45,9 @@ export const showEditNameModal = (options: { bookmarkId: number; name: string; a
         }
       }
     })
-  })
+  })).catch(() => nuxtApp.runWithContext(() => {
+    Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
+  }))
 }
 
 export const showEditTagModal = (options: {
@@ -53,7 +59,8 @@ export const showEditTagModal = (options: {
   deleteCallback?: (id: number | string) => void
   demoteCallback?: (id: number | string) => void
 }) => {
-  void loadModal('EditTag', () => import('./EditTag.vue'), EditTag => {
+  const nuxtApp = useNuxtApp()
+  return import('./EditTag.vue').then(({ default: EditTag }) => nuxtApp.runWithContext(() => {
     const app = modalBootloader({
       ele: EditTag,
       props: {
@@ -76,11 +83,14 @@ export const showEditTagModal = (options: {
         }
       }
     })
-  })
+  })).catch(() => nuxtApp.runWithContext(() => {
+    Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
+  }))
 }
 
 export const showLoginModal = (options: { redirect?: string; authAttribution?: CollectionAuthAttribution }) => {
-  void loadModal('LoginModal', () => import('./LoginModal.vue'), LoginModal => {
+  const nuxtApp = useNuxtApp()
+  return import('./LoginModal.vue').then(({ default: LoginModal }) => nuxtApp.runWithContext(() => {
     const app = modalBootloader({
       ele: LoginModal,
       props: {
@@ -92,11 +102,14 @@ export const showLoginModal = (options: { redirect?: string; authAttribution?: C
         }
       }
     })
-  })
+  })).catch(() => nuxtApp.runWithContext(() => {
+    Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
+  }))
 }
 
 export const showShareConfigModal = (options: { bookmarkId: number; title: string; type?: ShareModalType }) => {
-  void loadModal('ShareModal', () => import('./ShareModal.vue'), ShareModal => {
+  const nuxtApp = useNuxtApp()
+  return import('./ShareModal.vue').then(({ default: ShareModal }) => nuxtApp.runWithContext(() => {
     const app = modalBootloader({
       ele: ShareModal,
       props: {
@@ -109,11 +122,14 @@ export const showShareConfigModal = (options: { bookmarkId: number; title: strin
         }
       }
     })
-  })
+  })).catch(() => nuxtApp.runWithContext(() => {
+    Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
+  }))
 }
 
 export const showSnapshotStatusModal = (options: { status: BookmarkParseStatus; title: string; content: string; onConfirm?: (dontRemindAgain: boolean) => void }) => {
-  void loadModal('SnapshotStatusModal', () => import('./SnapshotStatusModal.vue'), SnapshotStatusModal => {
+  const nuxtApp = useNuxtApp()
+  return import('./SnapshotStatusModal.vue').then(({ default: SnapshotStatusModal }) => nuxtApp.runWithContext(() => {
     const app = modalBootloader({
       ele: SnapshotStatusModal,
       props: {
@@ -131,5 +147,7 @@ export const showSnapshotStatusModal = (options: { status: BookmarkParseStatus; 
         }
       }
     })
-  })
+  })).catch(() => nuxtApp.runWithContext(() => {
+    Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
+  }))
 }

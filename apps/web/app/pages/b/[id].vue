@@ -117,13 +117,17 @@
             <ClientOnly>
               <!-- overview 仅 owner；outline 用 SSR 数据 -->
               <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
-              <DeferredSnapshotPanel v-else :key="accountGeneration" :active="activePanel === 'ai'" :load="loadAiPanel" :pdf="!!detail.pdf" @find-quote="findQuote"
-                :bookmark-uid="bookmarkUid"
-                :default-outline="detail.outline"
-                :overview-enabled="isOwner"
-                :is-appeared="activePanel === 'ai'"
-                @dismiss="activePanel = null"
-              />
+              <NuxtErrorBoundary v-else :key="accountGeneration">
+                <KeepAlive>
+                  <SnapshotAIPanel v-if="activePanel === 'ai'" :pdf="!!detail.pdf" @find-quote="findQuote"
+                    :bookmark-uid="bookmarkUid" :default-outline="detail.outline" :overview-enabled="isOwner"
+                    :is-appeared="activePanel === 'ai'" @dismiss="activePanel = null" />
+                </KeepAlive>
+                <template #error>
+                  <p role="alert">{{ $t('common.tips.interface_load_failed') }}</p>
+                  <button type="button" @click="reloadNuxtApp()">{{ $t('common.operate.reload_page') }}</button>
+                </template>
+              </NuxtErrorBoundary>
             </ClientOnly>
           </template>
           <template #transcript>
@@ -134,17 +138,16 @@
           <template #chat>
             <!-- Chat 仅 owner，组件不挂载 -->
             <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
-            <DeferredSnapshotPanel
-              :key="accountGeneration"
-              :active="activePanel === 'chat'"
-              :load="loadChatPanel"
-              v-if="isOwner && !isSubscriptionExpired && (!detail.pdf || detail.pdf.text_status === 'ready')"
-              ref="chatbot"
-              :bookmark-uid="bookmarkUid"
-              :is-appeared="activePanel === 'chat'"
-              @dismiss="activePanel = null"
-              @find-quote="findQuote"
-            />
+            <NuxtErrorBoundary v-if="isOwner && !isSubscriptionExpired && (!detail.pdf || detail.pdf.text_status === 'ready')" :key="accountGeneration">
+              <KeepAlive>
+                <SnapshotChatPanel v-if="activePanel === 'chat'" ref="chatbot" :bookmark-uid="bookmarkUid"
+                  :is-appeared="activePanel === 'chat'" @dismiss="activePanel = null" @find-quote="findQuote" />
+              </KeepAlive>
+              <template #error>
+                <p role="alert">{{ $t('common.tips.interface_load_failed') }}</p>
+                <button type="button" @click="reloadNuxtApp()">{{ $t('common.operate.reload_page') }}</button>
+              </template>
+            </NuxtErrorBoundary>
           </template>
           <template #comment>
             <ClientOnly>
@@ -196,10 +199,10 @@
 <script lang="ts" setup>
 import BookmarkArticleLocalFirst from '@/components/Article/BookmarkArticleLocalFirst.vue'
 import SnapshotMobileNotesEntry from '@/components/Snapshot/SnapshotMobileNotesEntry.vue'
+import DotLoading from '~/components/DotLoading.vue'
 import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 import SnapshotDetailLayout from '~/components/Layouts/SnapshotDetailLayout.vue'
 import SnapshotSidePanel from '~/components/Layouts/SnapshotSidePanel.vue'
-import DeferredSnapshotPanel from '~/components/Snapshot/DeferredSnapshotPanel.vue'
 import PodcastBar from '~/components/Snapshot/PodcastBar.vue'
 import PodcastTranslation from '~/components/Snapshot/PodcastTranslation.vue'
 import SnapshotBottomToolbar, { type BottomToolbarAction } from '~/components/Snapshot/SnapshotBottomToolbar.vue'
@@ -219,7 +222,6 @@ import { extractFirstContentImage } from '@/utils/ogImage'
 import { sortBookmarkTags } from '@/utils/tags'
 import { youtubeArticleView as pickYoutubeArticleView, youtubeBodyHasArticle as bodyHasYoutubeArticle } from '@/utils/youtubeBody'
 import { tokenFingerprint } from '~/utils/accountContext'
-import { loadDeferredUi } from '~/utils/deferredUi'
 import type { PdfTitlePreview } from '~/utils/pdfPreview'
 import { pdfTitlePreview } from '~/utils/pdfPreview'
 
@@ -244,8 +246,8 @@ import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import type { IconKey } from '~/icons/registry'
 import { useUserStore } from '~/stores/user'
 
-const loadAiPanel = () => loadDeferredUi('SnapshotAIPanel', () => import('~/components/Snapshot/SnapshotAIPanel.vue'))
-const loadChatPanel = () => loadDeferredUi('SnapshotChatPanel', () => import('~/components/Snapshot/SnapshotChatPanel.vue'))
+const SnapshotAIPanel = defineAsyncComponent({ loader: () => import('~/components/Snapshot/SnapshotAIPanel.vue'), loadingComponent: DotLoading, timeout: 15000, suspensible: false })
+const SnapshotChatPanel = defineAsyncComponent({ loader: () => import('~/components/Snapshot/SnapshotChatPanel.vue'), loadingComponent: DotLoading, timeout: 15000, suspensible: false })
 
 const { t, locale } = useI18n()
 definePageMeta({ key: route => String(route.params.id) })
@@ -468,7 +470,7 @@ const footerVia = computed(() => {
 })
 
 const bookmarkArticle = ref<InstanceType<typeof BookmarkArticleLocalFirst>>()
-const chatbot = ref<InstanceType<typeof DeferredSnapshotPanel>>()
+const chatbot = ref<InstanceType<typeof SnapshotChatPanel>>()
 
 const bookmarkArticleSelection = computed(() => bookmarkArticle.value?.articleSelection ?? null)
 const commentInfos = computed(() => bookmarkArticleSelection.value?.markItemInfos?.value ?? [])
