@@ -2,7 +2,7 @@
 
 ## Context
 
-See `proposal.md` for motivation. The inspected tree is `feat/incremental-collection-publication`, based on `6016ee48`, with the preceding local change still uncommitted. Its implementation is not part of this proposal.
+See `proposal.md` for motivation. The inspected tree is `feat/incremental-collection-publication`, based on `6016ee48`, with the preceding local change still uncommitted. The maintainer subsequently approved integrating that implementation into this same change and PR.
 
 `ContentRecommendationService.collections` obtains its preference through `VectorMaintenanceService.readUser(userId, 'collection')`. That method currently reads `u:<id>:collection` from the user index. The existing `aggregateCollections` already pages `VectorMaintenanceRepo.listUserCollections`, obtains `c:<id>` values, normalizes each contribution with `addVector`, and normalizes the final float64 sum. The materialization branch of `refreshUser` is the only reason this calculation writes a user-index record.
 
@@ -12,7 +12,7 @@ The query excludes deleted users/owners, own Collections, deleted/inactive/expir
 
 **Goals:** remove subscriber write amplification and stored-profile staleness; reuse the existing aggregate math and eligibility; make work proportional to the requesting user's subscriptions, never a Collection's subscribers or the user's article history; preserve operator and account-deletion safety during transition.
 
-**Non-goals:** global hybrid thresholds, shared-view optimization, precomputed subscriber sums, subscriber DO state, background refresh, caching infrastructure, source-event guarantees, changes to owner Collection incrementality or interest clusters. The requested pure-pull default does not justify an empty precomputed layer or configuration knob for hypothetical future push.
+**Non-goals:** global hybrid thresholds, shared-view optimization, precomputed subscriber sums, subscriber DO state, background refresh, caching infrastructure, source-event guarantees, changes to interest clustering algorithms. The requested pure-pull default does not justify an empty precomputed layer or configuration knob for hypothetical future push.
 
 ## Decisions
 
@@ -50,6 +50,16 @@ A request uses the eligible subscriptions returned by its database queries and t
 
 Pure pull (N = 0) avoids all subscriber-vector fan-out. A future push portion is justified only by measured read frequency, subscription cardinality and latency/cost budgets. It would need raw unnormalized sums, per-source applied versions, retirement/removal handling and threshold transitions. The current owner write only exposes the immediately previous visible vector; that is not proof every subscriber has applied that same version. Do not claim exact incremental subscriber updates from that handoff alone. No such machinery ships now.
 
+### 7. Maintain owner Collections incrementally in the same delivery
+
+Reuse the approved owner implementation: classify each article as explicitly shared, inherited or nonmember; maintain separate owner sums and counts transactionally with per-article entries. Resolve the owner default and Collection active status at publication, not by rewriting entries. Query the missing-vector index only when counters report a missing member. Zero sums when their used count becomes zero. Keep strict Collection dependency behavior.
+
+Add the queued publish operation beside apply/rebuild. Collection Workflows publish directly rather than refreshing all starred articles and rebuilding. Explicit operator refresh still rebuilds. Existing article delta logic, previous-vector handoff and conservative rebuild fallback remain.
+
+Version the SQLite state/entry tables to v2. The old member flag cannot identify inherited contributions, so first use rebuilds from current rows and existing representatives, then drops old tables transactionally. No re-embedding is required. Core needs the publish RPC before Edge calls it. A rollback may recreate legacy tables; upgrading again must not trust a stale v2 snapshot when legacy state is present. Exercise upgrade, rollback/re-upgrade and subscriber reads together in Workerd.
+
+The publication-time MAX query stays in PostgreSQL; this is not constant-time database work. Standalone owner test results are historical evidence, not a substitute for the combined checks.
+
 ## Risks / Trade-offs
 
 - [Added request latency proportional to subscriptions] -> reuse bounded batches, exercise multi-page cases and measure call counts. No production latency claim or silent truncation.
@@ -60,8 +70,8 @@ Pure pull (N = 0) avoids all subscriber-vector fan-out. A future push portion is
 
 ## Migration and delivery
 
-1. Preserve the existing uncommitted owner-incrementality work. Following the maintainer's implementation approval, implement pure pull independently on `feat/pull-collection-preferences` from `origin/dev` in `.local/pull-collection-preferences-worktree`; its source changes do not depend on the owner-state layout. Keep delivery sequenced after the preceding task, with separate review, rather than copying that uncommitted implementation into this branch. A successful `git apply --check` is integration compatibility evidence only, not combined-runtime verification.
-2. Keep the user-index schema/namespace and all article/Collection vectors. No PostgreSQL, D1, R2 or DO migration is required for pure pull. Regenerate registration outputs, do not hand-edit them.
-3. Run the specified local checks and real local Worker HTTP scenarios. Record production-source visibility and latency as unverified unless separately authorized and exercised.
-4. Archive `skip-missing-preference-vectors` before this delta's `preference-partial-coverage` modifications. Keep the preceding owner-incrementality change's separate capability and validation.
+1. Integrate the preserved owner patch into the existing PR branch. Resolve overlapping test/Workflow edits so both scopes ship as one task; do not open a second task PR or delete the source worktree.
+2. Keep native article/Collection vectors, indexes and bindings. DO v2 state bootstraps once from existing sources; no PostgreSQL, D1, R2 or Wrangler migration tag is added. Regenerate registrations only through their generators.
+3. Run combined source/Workflow/HTTP/DO migration tests plus full checks and dry-run builds before updating #566. Core-before-Edge deployment requires separate authorization.
+4. Archive `skip-missing-preference-vectors` before this combined change modifies its coverage and incremental capabilities. Do not include the superseded owner-only planning directory as another active change.
 5. Do not deploy, mass-delete legacy vectors, touch production credentials or restart the old production tunnel as part of planning or local testing.

@@ -1,10 +1,12 @@
 # Validation
 
+The current delivery combines owner-side incremental publication and subscriber pull in PR #566. The **Combined integration verification** section records current acceptance; earlier sections describe the already-reviewed subscriber-only revisions and are retained as history.
+
 ## Approval, location and scope
 
 On 2026-11-11 the maintainer confirmed the request-time Collection-vector aggregation behavior and explicitly requested implementation, then requested a pull request after reviewing the batching behavior. The deliverable is on `feat/pull-collection-preferences`, based on `origin/dev` at `6016ee48`, in `.local/pull-collection-preferences-worktree`. The PR request authorizes committing and pushing this task branch and opening a PR to `dev`, not merging or deploying it. The primary worktree's previous `incremental-collection-publication` source changes remain untouched. No production connection, deployment, migration or live vector cleanup was performed.
 
-The independent change touches six production files: the vector service read/retirement paths, account-deletion vector dispatch, the Collection controller, the expiry cron, the user-preference Workflow step name and the operator refresh script. Recommendation ranking, public response contracts, source eligibility SQL, owner aggregation, article preferences, native indexes and bindings are unchanged.
+The original subscriber-only revision touched six production files: the vector service read/retirement paths, account-deletion vector dispatch, the Collection controller, the expiry cron, the user-preference Workflow step name and the operator refresh script. That revision left recommendation ranking, public responses, source eligibility SQL, owner aggregation, article preferences, native indexes and bindings unchanged. The combined revision below additionally changes owner aggregation state and publication while preserving their mathematical and permission semantics.
 
 ## Implemented behavior
 
@@ -71,7 +73,7 @@ A full 100-row page needs a subsequent empty SQL page to prove completion. Cost 
 - **Security:** authenticated identity and current eligibility determine source IDs. No new destination, dependency, secret, route or binding is added to production. The old cleanup route retains its dedicated task-secret and strict body/path checks. Fixture controls live only in test worker files. No vectors or user content are added to production logs.
 - **Compliance:** implementation matches the approved pure-pull change. Normal reads have no maintenance writes; account deletion and explicit legacy cleanup retain their narrowly scoped exception. Proposal, specs, tasks and this record distinguish old data, local verification and live operations. No Important code finding remains open.
 - Production PostgreSQL/Hyperdrive cache visibility, Vectorize asynchronous propagation, live latency and rollout of resumed Cloudflare Workflows were not exercised. The local Workflow replay is not a remote deployment test. Newly published owner vectors must still become visible before they affect a read.
-- `git apply --check` of this production-source diff against the preceding local owner-incrementality implementation succeeded without modifying that worktree. The combined implementation has not been runtime-tested together; perform integration verification when sequencing the two changes for delivery.
+- `git apply --check` of this production-source diff against the preceding local owner-incrementality implementation succeeded without modifying that worktree. At that review stage the implementations had not been runtime-tested together; the combined verification below now supersedes that gap.
 - No frontend/CLI/Extension/Mobile source, package, dependency, build output or shared client contract changed; no client package version bump was made. PR #566 is open against `dev`; no merge or deployment has occurred. The backend-only scope and completed pre-push review are recorded below.
 
 ## PR delivery review
@@ -87,3 +89,44 @@ PR #566's first remote checks passed, including API CI, config drift and automat
 The suggestion to drop the cron callback parameter was checked, not applied blindly. A read-only TypeScript compiler-host substitution of `_ctx: ContextManager` with no parameter produces `src/di/generated/cronjob.ts:30 TS2554: Expected 0 arguments, but got 1`. The generator always supplies a ContextManager, so the existing parameter and disclosed lint Nit are retained rather than changing the shared generator or hand-editing generated code. No production file changed in this follow-up.
 
 `pnpm api -- test test/domain/collectionPreferenceRead.test.ts test/domain/contentRecommendation.test.ts test/domain/userDeletionRecovery.test.ts --reporter=dot`: 44 passed, zero failed. `git diff --check` passed. The previous full-suite, typecheck, build and runtime evidence still describes unchanged production code; the follow-up's new tests are covered by this focused rerun. Neither merge nor deployment has occurred.
+
+## Combined integration verification
+
+On 2026-11-11, after reviewing the complete combined scope, the maintainer explicitly instructed integrating the owner-side work into this same PR. The instruction authorizes updating #566, not merging into `dev` or deploying. The previous owner patch was applied to this branch with a three-way merge so the already-reviewed subscriber changes and review fixes remain. The primary worktree is preserved as a historical source, not another deliverable. Only this change directory owns the combined specs; the standalone owner-only directory is not included in the PR.
+
+### Additional implemented behavior
+
+- Article entries retain `shared`, `inherited` or `none` instead of a resolved membership flag. Raw and centered user preferences preserve save/star weights; owner groups use one normalized contribution per member. Owner default sharing selects the groups at publication.
+- Eligible/used and per-group member/missing counters update with entries and sums in one SQLite transaction. Publication no longer executes the old entry-table COUNT/SUM/MIN summary. A partial index locates the first missing member only if counters report one. Empty used groups are explicitly zeroed to avoid normalizing floating-point residue.
+- A queued owner `publish` RPC coexists with article `apply` and explicit `rebuild`. Collection setting events no longer refresh every starred article or force a user-history rebuild. The explicit operator Collection refresh remains a rebuild.
+- The state moves to `preference_state_v2` / `preference_entry_v2`. Legacy or absent state rebuilds once from existing article vectors; no re-embedding is performed. The old tables are removed transactionally only when replacement state is ready.
+- A concrete rollback/re-upgrade defect was reproduced before fixing it: recreating legacy tables after v2 had been populated allowed a subsequent v2 publisher to reuse the old snapshot and omit an article added while rolled back. The real Workerd test failed (`rebuilds` remained 4 instead of 5). `read()` now treats legacy-table presence as uninitialized state. The same test passes after the fix: one rebuild includes the new article, drops legacy tables and subsequent calls remain incremental. This is a bounded schema-catalog read, not an article-table scan or a new recovery subsystem.
+
+### Combined runtime and regression evidence
+
+The merged focused suite first passed 223 tests across owner maintenance, subscriber reads, Workflow, task routes, ledger utilities, the real owner DO and the real Edge/Core HTTP harness. Additional combined runtime cases then exercised the same real Workerd SQLite owner object, publish RPC and maintenance service followed by the real subscriber aggregation and recommendation service using that object's published Collection vector. PostgreSQL and Vectorize remain explicit fixture boundaries.
+
+- An owner's article vector replacement changes the stored owner Collection and the subscriber's next recommendation from candidate 301 to 302. No subscriber refresh is issued.
+- Adding inheriting members, switching the owner default off/on and disabling/re-enabling the Collection alter the next subscriber result or cold-start state as expected. During each subscriber read, mutation, owner queue, rebuild and article-read counts remain unchanged; no `u:9:collection` record exists.
+- Owner default and Collection status toggles cause no new owner-history rebuild or article-vector read. Subscriber preference agrees with the visible owner Collection vector to 10 decimal places. Unsubscribing yields cold start and re-subscribing restores reads without materialization.
+- Existing real-object cases retain concurrent article batching, strict missing-member failure, recovery on settings that exclude a missing inherited member, exact counter recounts, an indexed first-missing plan, zero-data cleanup and initial v1 migration. The new rollback/re-upgrade case rebuilds only once and includes the intervening article.
+- The existing actual Edge/Core HTTP scenario also passes on the combined tree, preserving authentication, source changes across requests, subscription mutation effects and cleanup-only legacy task behavior.
+- PGlite comparisons verify that share-group classification plus owner default/status reproduces the previous membership SQL. Incremental sums match explicit full refreshes; partial-input and pagination behavior remains intact.
+
+Current combined checks (all rerun, not inherited from the standalone branches):
+
+- `pnpm api -- gen:all`: passed with public template and nonconnecting local generation URLs; no tracked generated changes.
+- `pnpm api -- typecheck`: passed, including contracts.
+- `pnpm api -- lint`: zero errors, 345 warnings, retaining the already-explained unused cron-context warning.
+- `pnpm api -- test --reporter=dot`: **3,886 passed, 118 skipped, zero failed**; 245 files passed and 15 skipped.
+- `openspec validate --all --strict`: **124 passed, zero failed**. Both incremental and partial-coverage delta archives still depend on archiving the already-merged `skip-missing-preference-vectors` first.
+- Public-template Core, Edge, AI and Browser dry-run builds: all four passed, using a task-specific temporary output directory.
+- `git diff --check`: passed.
+
+### Combined review and operational boundaries
+
+Bugs: the rollback/re-upgrade defect is fixed and regression-tested; source changes and share toggles flow through the owner aggregate into subscriber reads without fan-out. Counter updates and entry updates are atomic. Scope-limited operator refreshes do not publish unrelated profiles, and exact-zero handling prevents residual directions. Security: share groups preserve original authorization and publication semantics, SQL parameters stay bound, and no client route or new external service is introduced. The additional RPC is internal to the existing binding. Compliance: all owner requirements are now in the same change, the subscriber-only exclusion is superseded, and current verification covers the combined implementation rather than patch applicability alone. No Important finding remains open after local review.
+
+The v2 layout requires a one-time per-owner rebuild, not deletion of native vectors or re-embedding. Deploy Core before Edge so the new publish RPC exists. Retain explicit rebuilds for missing state, changed mean version or unmatched old contributions. The PostgreSQL publication-time MAX query remains; this is not a claim that every database operation is constant-time. Moderation or source changes without a maintenance event still need existing explicit repair paths; source-event delivery is not changed. Interest clusters remain carried between rebuilds, and strict Collection missing-member behavior remains.
+
+Production migration volume, live Vectorize latency, production Hyperdrive visibility and mixed-version rollout are not exercised by local fixtures. No production database, tunnel, deployment or live vector cleanup was used. The original primary worktree is retained unchanged; only the combined PR branch is delivered. No client package or shared client contract changes require a version bump.

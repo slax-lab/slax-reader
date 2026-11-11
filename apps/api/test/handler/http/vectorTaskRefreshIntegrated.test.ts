@@ -59,10 +59,9 @@ function boundary() {
   const stored = new Map<string, VectorizeVector>()
   const repo = {
     findArticles: vi.fn(async (_pairs: unknown[]) => [] as unknown[]),
-    findCollection: vi.fn(async (_id: number) => undefined as { id: number; owner_id: number; published_at: number } | undefined),
-    listUserArticles: vi.fn(async () => [] as { id: number; is_starred: boolean }[]),
+    findCollection: vi.fn(async (_id: number) => undefined as { id: number; owner_id: number; published_at: number; sharing: boolean } | undefined),
+    listUserArticles: vi.fn(async () => [] as { id: number; is_starred: boolean; share_group: 'none' }[]),
     listRecentUserActions: vi.fn(async () => [] as { id: number; acted_at: Date }[]),
-    listCollectionMembers: vi.fn(async () => [] as { id: number }[]),
     listOwnerCollections: vi.fn(async () => [] as { id: number }[]),
     listUserCollections: vi.fn(async () => [] as { id: number }[])
   }
@@ -182,7 +181,6 @@ function assertUntouched() {
   expect(current.repo.findArticles).not.toHaveBeenCalled()
   expect(current.repo.findCollection).not.toHaveBeenCalled()
   expect(current.repo.listUserArticles).not.toHaveBeenCalled()
-  expect(current.repo.listCollectionMembers).not.toHaveBeenCalled()
   expect(current.repo.listUserCollections).not.toHaveBeenCalled()
   expect(current.sources.fingerprint).not.toHaveBeenCalled()
   expect(current.sources.articleInputs).not.toHaveBeenCalled()
@@ -207,7 +205,6 @@ describe('direct Core task routes through the generated router', () => {
     expect([...current.stored.keys()]).toEqual(['a:7:41'])
     expect(current.index.delete).not.toHaveBeenCalled()
     expect(current.repo.listUserArticles).not.toHaveBeenCalled()
-    expect(current.repo.listCollectionMembers).not.toHaveBeenCalled()
   })
 
   test('the article-preference action reads existing vectors only and clears a stale empty preference', async () => {
@@ -226,7 +223,7 @@ describe('direct Core task routes through the generated router', () => {
   })
 
   test('the Collection action rebuilds its owner, publishes only its own representation and clears an empty one', async () => {
-    current.repo.findCollection.mockResolvedValue({ id: 81, owner_id: USER, published_at: 1 })
+    current.repo.findCollection.mockResolvedValue({ id: 81, owner_id: USER, published_at: 1, sharing: true })
     current.repo.listOwnerCollections.mockResolvedValue([{ id: 80 }, { id: 81 }])
     current.stored.set('c:80', { id: 'c:80', values: unit() })
     current.stored.set('c:81', { id: 'c:81', values: unit() })
@@ -235,7 +232,6 @@ describe('direct Core task routes through the generated router', () => {
     const body = (await response.json()) as { code: number; data: { state: string; target: unknown } }
     expect(body).toMatchObject({ code: 200, data: { state: 'deleted', target: { kind: 'collection', id: 81 } } })
     expect(new Set(current.repo.findCollection.mock.calls.map(([id]) => id))).toEqual(new Set([81]))
-    expect(current.repo.listCollectionMembers).toHaveBeenCalledExactlyOnceWith(USER, 0, 100)
     expect(current.repo.listUserArticles).toHaveBeenCalledExactlyOnceWith(USER, 0, 100)
     expect(current.repo.findArticles).not.toHaveBeenCalled()
     expect(current.embedding.embed).not.toHaveBeenCalled()
@@ -378,7 +374,7 @@ describe('Edge anonymous forwarding preserves the task header', () => {
     ['/v1/collection/preference/refresh', { user_id: USER }]
   ] as const)('%s forwards the custom header unchanged and reaches the real Controller/Domain', async (path, body) => {
     current.repo.findArticles.mockResolvedValue([articleRow])
-    current.repo.findCollection.mockResolvedValue({ id: 81, owner_id: USER, published_at: 1 })
+    current.repo.findCollection.mockResolvedValue({ id: 81, owner_id: USER, published_at: 1, sharing: true })
     const { response, coreFetch, forwarded } = await throughEdge(path, body, task())
     expect(response.status).toBe(200)
     expect((await response.json()).code).toBe(200)

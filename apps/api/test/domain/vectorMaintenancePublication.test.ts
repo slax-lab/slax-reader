@@ -215,13 +215,12 @@ describe('maintenance repository eligibility boundaries', () => {
     const { VectorMaintenanceRepo } = await import('@/infra/repository/dbVectorMaintenance')
     const query = vi.fn().mockResolvedValue([])
     const repo = new VectorMaintenanceRepo(() => ({ $queryRaw: query }) as any)
-    await repo.listCollectionMembers(7, 20, 25)
-    await repo.listOwnerArticles(7, 20, 25)
+    await repo.listUserArticles(7, 20, 25)
+    await repo.findUserPreferenceRows(7, [1])
     await repo.listUserCollections(8, 0, 25)
     await repo.findCollection(3)
     expect(query).toHaveBeenCalledTimes(4)
     for (const [strings] of query.mock.calls) expect((strings as TemplateStringsArray).join('')).toContain("b.status = 'success'")
-    expect((query.mock.calls[1][0] as TemplateStringsArray).join('')).not.toContain('ub.deleted_at IS NULL')
   })
 
   it('enumerates deletion identities with keyset bounds even after account tombstone and relation trash', async () => {

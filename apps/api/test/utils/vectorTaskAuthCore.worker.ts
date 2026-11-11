@@ -46,18 +46,17 @@ const repo = {
       published_at: new Date('2026-01-02T00:00:00Z'),
       recommendable: true
     })),
-  findCollection: async (id: number) => ({ id, owner_id: 7, published_at: 1 }),
+  findCollection: async (id: number) => ({ id, owner_id: 7, published_at: 1, sharing: true }),
   listUserArticles: async (userId: number) =>
     userId === 8
       ? [
-          { id: 101, is_starred: true },
-          { id: 102, is_starred: false }
+          { id: 101, is_starred: true, share_group: 'none' },
+          { id: 102, is_starred: false, share_group: 'none' }
         ]
       : userId === 9
-        ? [{ id: 103, is_starred: false }]
+        ? [{ id: 103, is_starred: false, share_group: 'none' }]
         : [],
   listRecentUserActions: async () => [],
-  listCollectionMembers: async () => [],
   listOwnerCollections: async (userId: number) => (userId === 7 ? [{ id: 81 }] : []),
   listUserCollections: async (userId: number, after: number, limit: number) => {
     counts.users.push(userId)

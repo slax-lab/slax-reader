@@ -20,7 +20,7 @@ import { VectorSourceRepo } from '@/infra/repository/vectorSources'
 import { VectorIndexClient } from '@/infra/repository/vectorIndexClient'
 import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
 import { articleVectorId, type VectorRefreshResult } from '@/utils/vectorMaintenanceTypes'
-import { estimatedTokens, requestBytes, VECTOR_MODEL, VECTOR_REQUEST_BYTES } from '@/utils/vectorEmbedding'
+import { estimatedTokens, normalized, requestBytes, VECTOR_MODEL, VECTOR_REQUEST_BYTES } from '@/utils/vectorEmbedding'
 import { EMBEDDING_MEAN_VERSION } from '@/utils/recommendationAlgorithms'
 import { referenceCenter, weightedNormalizedSum } from '../helpers/recommendationReference'
 import { pdfFixture } from '../helpers/pdfFixture'
@@ -1228,7 +1228,7 @@ describe('minimal per-user vector maintenance', () => {
     await seed(41)
     await seed(42)
     await db.query('UPDATE sr_bookmark SET status=$1 WHERE id=42', [status])
-    expect(await repo.listUserArticles(1, 0, 100)).toEqual([{ id: 41, is_starred: false }])
+    expect(await repo.listUserArticles(1, 0, 100)).toEqual([{ id: 41, is_starred: false, share_group: 'none' }])
     const [article] = await service.refreshArticles([{ userId: 1, id: 41 }])
     expect(article).toMatchObject({ state: 'written', target: { kind: 'article', userId: 1, id: 41 } })
     expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', target: { kind: 'user', id: 1, preference: 'article' } })
@@ -1236,8 +1236,8 @@ describe('minimal per-user vector maintenance', () => {
     expect(indexes[0].getByIds.mock.calls.every(([ids]) => !ids.includes('a:1:42'))).toBe(true)
     await db.exec("UPDATE sr_bookmark SET status='success' WHERE id=42")
     expect(await repo.listUserArticles(1, 0, 100)).toEqual([
-      { id: 41, is_starred: false },
-      { id: 42, is_starred: false }
+      { id: 41, is_starred: false, share_group: 'none' },
+      { id: 42, is_starred: false, share_group: 'none' }
     ])
     expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 1, missing: 1 } })
     expect((await service.refreshArticles([{ userId: 1, id: 42 }]))[0]).toMatchObject({ state: 'written', target: { kind: 'article', userId: 1, id: 42 } })
@@ -1547,17 +1547,7 @@ describe('minimal per-user vector maintenance', () => {
     expect(await repo.listContentOwners(10, 0, 10)).toEqual([{ id: 1, user_id: 1 }])
   })
 
-  test('repository owner fanout returns bookmark identities without dropping removed starred relations', async () => {
-    await seed(10, [1], 'deleted starred', { starred: true })
-    await seed(20, [1], 'PDF', { starred: true })
-    await seed(30, [1], 'shortcut', { starred: true })
-    await seed(40, [1], 'unstarred')
-    await seed(50, [1], 'foreign private', { starred: true, privateUser: 2 })
-    await db.exec(
-      'UPDATE sr_user_bookmark SET deleted_at=now() WHERE bookmark_id=10; UPDATE sr_user_bookmark SET type=2 WHERE bookmark_id=20; UPDATE sr_user_bookmark SET type=1 WHERE bookmark_id=30'
-    )
-    expect(await repo.listOwnerArticles(1, 0, 1)).toEqual([{ id: 1, bookmark_id: 10, user_id: 1 }])
-    expect(await repo.listOwnerArticles(1, 1, 10)).toEqual([{ id: 2, bookmark_id: 20, user_id: 1 }])
+  test('repository lists every Collection of an owner regardless of status', async () => {
     await db.exec('INSERT INTO sr_user_collection(id,owner_id,status) VALUES (11,1,0),(12,1,1),(13,2,1)')
     expect(await repo.listOwnerCollections(1)).toEqual([{ id: 11 }, { id: 12 }])
   })
@@ -1614,7 +1604,7 @@ describe('incremental preference maintenance', () => {
     incremental[0]!.values.forEach((value, i) => expect(value).toBeCloseTo(raw.values[i], 10))
     incremental[1]!.values.forEach((value, i) => expect(value).toBeCloseTo(centered.values[i], 10))
   }
-  const history = () => [vi.spyOn(repo, 'listUserArticles'), vi.spyOn(repo, 'listRecentUserActions'), vi.spyOn(repo, 'listCollectionMembers')]
+  const history = () => [vi.spyOn(repo, 'listUserArticles'), vi.spyOn(repo, 'listRecentUserActions')]
 
   test('save, star, unstar, re-embed and delete events match a full recompute without reading history or the recent window', async () => {
     for (const id of [1, 2, 3]) await seed(id, [1], `article ${id}`, { starred: id === 2 })
@@ -1799,7 +1789,161 @@ describe('incremental preference maintenance', () => {
     const refreshed = await service.refreshCollection(1)
     expect(refreshed).toMatchObject({ state: 'deleted', target: { kind: 'collection', id: 1 } })
     expect(indexes[1].stored.has('c:1')).toBe(false)
-    expect(preferences.store(1).rows.get(1)).toMatchObject({ member: false, weight: 2 })
+    expect(preferences.store(1).rows.get(1)).toMatchObject({ group: 'inherited', weight: 2 })
     expect(indexes[2].upsert).not.toHaveBeenCalled()
+  })
+
+  const recount = (userId: number) => {
+    const rows = [...preferences.store(userId).rows.values()]
+    const group = (name: 'shared' | 'inherited') => ({
+      members: rows.filter(row => row.group === name).length,
+      missing: rows.filter(row => row.group === name && !row.token).length
+    })
+    return { eligible: rows.length, used: rows.filter(row => row.token).length, shared: group('shared'), inherited: group('inherited') }
+  }
+  const articleReads = () => indexes[0].getByIds.mock.calls.length
+
+  test('share groups and the owner default reproduce the previous Collection membership rule', async () => {
+    await seed(1, [1], 'explicitly shared', { starred: true, published: true })
+    await seed(2, [1], 'explicitly disabled', { starred: true })
+    await seed(3, [1], 'inheriting', { starred: true })
+    await seed(4, [1], 'unstarred inheriting')
+    await seed(5, [1], 'moderated', { starred: true })
+    await seed(6, [1], 'unstarred shared')
+    await seed(7, [1], 'disabled unstarred')
+    await db.exec(`INSERT INTO sr_bookmark_share(bookmark_id,user_id,is_enable) VALUES (1,1,true),(2,1,false),(6,1,true),(7,1,false);
+      UPDATE sr_bookmark SET moderation_result=1 WHERE id=5`)
+    const previousRule = async () =>
+      new Map(
+        (
+          await db.query<{ id: number; member: boolean }>(`SELECT ub.bookmark_id AS id, COALESCE(bool_or(ub.is_starred AND b.moderation_result = 0
+            AND COALESCE(share.is_enable, owner.snapshot_sharing)
+            AND EXISTS (SELECT 1 FROM sr_user_collection c WHERE c.owner_id = ub.user_id AND c.status = 1 AND c.collection_code <> '')), false) AS member
+          FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id = ub.bookmark_id JOIN sr_user owner ON owner.id = ub.user_id
+          LEFT JOIN sr_bookmark_share share ON share.bookmark_id = ub.bookmark_id AND share.user_id = ub.user_id
+          WHERE ub.user_id = 1 GROUP BY ub.bookmark_id`)
+        ).rows.map(row => [row.id, row.member])
+      )
+    expect((await repo.listUserArticles(1, 0, 100)).map(row => [row.id, row.share_group])).toEqual([
+      [1, 'shared'],
+      [2, 'none'],
+      [3, 'inherited'],
+      [4, 'none'],
+      [5, 'none'],
+      [6, 'none'],
+      [7, 'none']
+    ])
+    for (const [sharing, status] of [
+      [true, 1],
+      [false, 1],
+      [true, 0],
+      [false, 0]
+    ] as const) {
+      await db.query('UPDATE sr_user SET snapshot_sharing=$1 WHERE id=1', [sharing])
+      await db.query('UPDATE sr_user_collection SET status=$1 WHERE id=1', [status])
+      const expected = await previousRule()
+      const collection = await repo.findCollection(1)
+      for (const rows of [await repo.listUserArticles(1, 0, 100), await repo.findUserPreferenceRows(1, [1, 2, 3, 4, 5, 6, 7])])
+        for (const row of rows) {
+          const member = !!collection && (row.share_group === 'shared' || (row.share_group === 'inherited' && collection.sharing))
+          expect([row.id, member]).toEqual([row.id, expected.get(row.id)])
+        }
+    }
+  })
+
+  test('default share and Collection status changes publish from stored sums without reading history or article vectors', async () => {
+    await seed(1, [1], 'explicitly shared', { starred: true, published: true })
+    await seed(2, [1], 'inheriting', { starred: true })
+    await seed(3, [1], 'inheriting too', { starred: true })
+    await seed(4, [1], 'not a member')
+    await db.exec('INSERT INTO sr_bookmark_share(bookmark_id,user_id,is_enable) VALUES (1,1,true)')
+    for (const id of [1, 2, 3, 4]) store(1, id)
+    expect((await service.refreshCollection(1)).state).toBe('written')
+    const clusters = structuredClone(preferences.store(1).sums!.interests)
+    const reads = history()
+    let before = articleReads()
+    const publish = async () => {
+      const output = await service.applyCollection(1)
+      for (const read of reads) expect(read).not.toHaveBeenCalled()
+      expect(articleReads()).toBe(before)
+      return output
+    }
+    const sameAsFull = async () => {
+      const incremental = structuredClone(indexes[1].stored.get('c:1')!.values)
+      expect((await full().refreshCollection(1)).state).toBe('written')
+      incremental.forEach((value, i) => expect(value).toBeCloseTo(indexes[1].stored.get('c:1')!.values[i], 10))
+      for (const read of reads) read.mockClear()
+      before = articleReads()
+      return incremental
+    }
+    const withInherited = structuredClone(indexes[1].stored.get('c:1')!.values)
+
+    await db.exec('UPDATE sr_user SET snapshot_sharing=false WHERE id=1')
+    expect(await publish()).toMatchObject({ state: 'written', target: { kind: 'collection', id: 1 } })
+    const sharedOnly = await sameAsFull()
+    normalized(spread(1)).forEach((value, i) => expect(sharedOnly[i]).toBeCloseTo(value, 10))
+
+    await db.exec('UPDATE sr_user SET snapshot_sharing=true WHERE id=1')
+    expect(await publish()).toMatchObject({ state: 'written' })
+    withInherited.forEach((value, i) => expect(indexes[1].stored.get('c:1')!.values[i]).toBeCloseTo(value, 10))
+    await db.exec('UPDATE sr_user_collection SET status=0 WHERE id=1')
+    expect(await publish()).toMatchObject({ state: 'deleted' })
+    expect(indexes[1].stored.has('c:1')).toBe(false)
+    await db.exec('UPDATE sr_user_collection SET status=1 WHERE id=1')
+    expect(await publish()).toMatchObject({ state: 'written' })
+    withInherited.forEach((value, i) => expect(indexes[1].stored.get('c:1')!.values[i]).toBeCloseTo(value, 10))
+    await sameAsFull()
+    expect(preferences.store(1).sums!.interests).toEqual(clusters)
+    expect(indexes[2].upsert).not.toHaveBeenCalled()
+  })
+
+  test('a Collection event without stored state rebuilds its owner once, then stays incremental', async () => {
+    await seed(1, [1], 'member', { starred: true, published: true })
+    store(1, 1)
+    const articles = vi.spyOn(repo, 'listUserArticles')
+    expect(preferences.store(1).sums).toBeNull()
+    expect(await service.applyCollection(1)).toMatchObject({ state: 'written' })
+    expect(articles).toHaveBeenCalledTimes(1)
+    expect(preferences.store(1).sums).not.toBeNull()
+    await db.exec('UPDATE sr_user SET snapshot_sharing=false WHERE id=1')
+    expect(await service.applyCollection(1)).toMatchObject({ state: 'deleted' })
+    expect(articles).toHaveBeenCalledTimes(1)
+  })
+
+  test('stored counts equal a recount and a full recomputation after every incremental event', async () => {
+    await seed(1, [1], 'shared', { starred: true, published: true })
+    await seed(2, [1], 'inheriting', { starred: true })
+    await seed(3, [1], 'plain')
+    await db.exec('INSERT INTO sr_bookmark_share(bookmark_id,user_id,is_enable) VALUES (1,1,true)')
+    for (const id of [1, 2, 3]) store(1, id)
+    expect((await service.refreshUser(1, 'article')).state).toBe('written')
+    const reads = history()
+    const check = async (outputs: VectorRefreshResult[]) => {
+      for (const read of reads) expect(read).not.toHaveBeenCalled()
+      const counts = preferences.store(1).sums!.counts
+      expect(counts).toEqual(recount(1))
+      const reference = full()
+      const rebuilt = await reference.refreshUser(1, 'article')
+      expect(user(outputs).coverage).toEqual(rebuilt.coverage)
+      for (const read of reads) read.mockClear()
+    }
+    await seed(4, [1], 'new inheriting', { starred: true })
+    await check(await event(1, 4, async () => store(1, 4)))
+    await check(await event(1, 3, () => db.exec('UPDATE sr_user_bookmark SET is_starred=true WHERE bookmark_id=3')))
+    await check(await event(1, 2, () => db.exec('UPDATE sr_user_bookmark SET is_starred=false WHERE bookmark_id=2')))
+    await check(await event(1, 4, () => db.exec('INSERT INTO sr_bookmark_share(bookmark_id,user_id,is_enable) VALUES (4,1,false)')))
+    await check(await event(1, 4, () => db.exec('UPDATE sr_bookmark_share SET is_enable=true WHERE bookmark_id=4')))
+    await check(await event(1, 1, async () => store(1, 1, spread(11))))
+    await seed(5, [1], 'no vector yet', { starred: true })
+    const missing = await event(1, 5)
+    expect(missing.find(output => output.target.kind === 'collection')).toMatchObject({ state: 'failed', reason: 'missing_dependency:a:1:5' })
+    await check(missing)
+    await check(
+      await event(1, 1, async () => {
+        await db.exec('UPDATE sr_user_bookmark SET deleted_at=now() WHERE bookmark_id=1')
+        indexes[0].stored.delete('a:1:1')
+      })
+    )
+    expect(recount(1)).toEqual({ eligible: 4, used: 3, shared: { members: 1, missing: 0 }, inherited: { members: 2, missing: 1 } })
   })
 })
