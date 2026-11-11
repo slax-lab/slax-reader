@@ -28,15 +28,16 @@ None. No living capability currently owns starred-collection visibility or enabl
 
 ## Impact
 
-- API and database: default collection provisioning and visibility preservation, owner collection information, and stable code generation.
+- API and database: default collection creation during registration, a one-time backfill for existing active users, read-only owner collection information, and stable code generation.
 - Web: starred-library collection entry, enablement modal removal, first-star discovery cue, collection management wording and state handling, empty public collection presentation, localization, and related tests.
 - Public content: existing collection URLs, snapshot-to-collection attribution, and subscription entry points.
-- Verification: provisioning fixtures, API and Web tests, running-environment checks, and human hands-on acceptance of the visible Web changes.
+- Verification: registration and backfill fixtures, migration idempotence and visibility preservation, API and Web tests, running-environment checks, and human hands-on acceptance of the visible Web changes.
 
 ## Scope Decisions
 
 - The change requester explicitly rejected a first-public-share confirmation, first-star public-visibility disclosure, and advance provisioning notification.
 - The change requester decided that users without a collection receive an open collection by default, while every existing collection preserves its current visibility, including prior curator-closed status.
+- On 2026-11-11, the change requester chose registration-time creation plus a one-time backfill for existing users. The implementation does not create collections on star writes, does not make collection settings local-first, and does not create collections in `GET /mine`.
 - The change requester decided to leave collection sitemap eligibility unchanged, so its existing minimum-star threshold stays as it is.
 - The change requester decided that an unavailable local starred count may show the discovery cue once per account and browser rather than delaying star feedback; a known nonzero count still suppresses it.
 - This proposal changes Web discovery and management surfaces. It does not introduce a new native-mobile collection management interface; the API visibility and provisioning rules apply independently of client.

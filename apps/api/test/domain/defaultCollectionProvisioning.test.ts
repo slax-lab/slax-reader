@@ -18,10 +18,11 @@ const collection = {
   show_profile: true
 }
 
-function serviceWire(overrides = {}, created = false) {
+function serviceWire(overrides = {}, exists = true) {
   const current = { ...collection, ...overrides }
   const repo = {
-    ensureUserShareCollectWithCreation: vi.fn().mockResolvedValue({ collection: current, created }),
+    getUserShareCollect: vi.fn().mockResolvedValue(exists ? current : null),
+    ensureUserShareCollectWithCreation: vi.fn(),
     getCollectionStats: vi.fn().mockResolvedValue({ starred_count: 0, subscriber_count: 0 })
   }
   const userRepo = { getInfoByUserId: vi.fn().mockResolvedValue({ id: 7, name: 'Alex', lang: 'en' }) }
@@ -38,34 +39,35 @@ describe('default collection provisioning', () => {
     expect(defaultShareCollectionName(user)).toBe(expected)
   })
 
-  test('mine provisions a stable non-null open collection without reindexing an existing row', async () => {
+  test('mine returns a stable non-null open collection without writes or indexing', async () => {
     const { service, repo } = serviceWire()
     const ctx = createMockCtx({ userId: 7 })
     const first = await service.getMyShareCollectInfo(ctx)
     const second = await service.getMyShareCollectInfo(ctx)
     expect(first).toMatchObject({ collection_code: 'stable-code', status: 1, show_name: "Alex's Reading Recommendations" })
     expect(second).toEqual(first)
-    expect(repo.ensureUserShareCollectWithCreation).toHaveBeenCalledTimes(2)
-    expect(repo.ensureUserShareCollectWithCreation).toHaveBeenCalledWith(7, "Alex's Reading Recommendations")
+    expect(repo.getUserShareCollect).toHaveBeenCalledTimes(2)
+    expect(repo.ensureUserShareCollectWithCreation).not.toHaveBeenCalled()
     expect(ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.createBatch).not.toHaveBeenCalled()
   })
 
-  test('mine dispatches collection indexing when provisioning creates a row', async () => {
-    const { service } = serviceWire({}, true)
+  test('mine is read-only and rejects a missing collection instead of provisioning it', async () => {
+    const { service, repo } = serviceWire({}, false)
     const ctx = createMockCtx({ userId: 7 })
 
-    await service.getMyShareCollectInfo(ctx)
+    await expect(service.getMyShareCollectInfo(ctx)).rejects.toMatchObject({ errCode: 404 })
 
-    expect(ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.createBatch).toHaveBeenCalledExactlyOnceWith([
-      expect.objectContaining({ params: { eventId: expect.any(String), target: { kind: 'collection', id: 3 } } })
-    ])
+    expect(repo.getUserShareCollect).toHaveBeenCalledOnce()
+    expect(repo.ensureUserShareCollectWithCreation).not.toHaveBeenCalled()
+    expect(ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.createBatch).not.toHaveBeenCalled()
   })
 
   test('mine preserves an existing closed collection', async () => {
     const { service, repo } = serviceWire({ status: 0, display_name: 'Curator choice' })
     const result = await service.getMyShareCollectInfo(createMockCtx({ userId: 7 }))
     expect(result).toMatchObject({ collection_code: 'stable-code', status: 0, show_name: 'Curator choice' })
-    expect(repo.ensureUserShareCollectWithCreation).toHaveBeenCalledOnce()
+    expect(repo.getUserShareCollect).toHaveBeenCalledOnce()
+    expect(repo.ensureUserShareCollectWithCreation).not.toHaveBeenCalled()
   })
 
   test('repository creates defaults and reports the insertion', async () => {

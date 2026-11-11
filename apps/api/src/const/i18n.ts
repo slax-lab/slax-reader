@@ -1,4 +1,12 @@
 const templates = {
+  emailVerificationCodeSubject: {
+    zh: '你的 Slax Reader 验证码',
+    en: 'Your Slax Reader verification code'
+  },
+  emailVerificationCodeText: {
+    zh: '你的 Slax Reader 验证码是 {code}。验证码在 {minutes} 分钟内有效。如果你没有发起此请求，可以忽略这封邮件。',
+    en: 'Your Slax Reader verification code is {code}. It expires in {minutes} minutes. If you did not request a code, you can ignore this email.'
+  },
   commentToYouTitle: {
     zh: '💬 {user_name} 留下了评论',
     en: '💬 {user_name} commented on you'

@@ -32,23 +32,23 @@ Web starring has REST and local-first paths in bookmark cells, the article detai
 
 ## Decisions
 
-### 1. Provision lazily at authentication and owner-collection reads
+### 1. Create at registration and backfill existing users once
 
-Add an idempotent collection provisioning operation that accepts the active user record and returns the existing row unchanged or creates a default open row. Invoke it after the existing `registerUser` authentication/registration path and as a fallback inside `getMyShareCollectInfo`. Authentication provisioning is best-effort and must not prevent login; `/mine` provides the required retry and returns the provisioned collection.
+Use the existing idempotent collection operation after the authentication/registration path. It returns an existing row unchanged or creates a default open row and dispatches collection vector maintenance only for an actual insertion. Keeping this server-side path also provides a retry if the initial registration-time creation fails; it does not depend on a dedicated client provisioning request.
 
-New rows use the existing collection defaults for a free collection, open status, `show_marks=true`, `allow_marks=true`, and `show_profile=true`. Generate the public code with the existing MD5-based approach and preserve the alphanumeric code contract. Generate a localized default name from the user's language and name, with a non-empty generic fallback when the user name is blank.
+New rows use the existing collection defaults for a free collection, open status, `show_marks=true`, `allow_marks=true`, and `show_profile=true`. Generate the public code with the existing MD5-based approach and preserve the alphanumeric code contract. Generate a localized default name from the user's language and name, with a non-empty generic fallback when the user name is blank. Existing rows retain their status and metadata, so a curator-closed collection is never reopened.
 
-An existing row is returned without changing status or metadata. Consequently, provisioning never reopens a collection closed before or after rollout. Handle concurrent first provisioning through the unique `owner_id` constraint and an atomic upsert. Each attempt generates an independent candidate public code; comparing the returned code with that candidate distinguishes an actual insert from an existing or conflict-recovered row. A unique-conflict retry uses the same upsert write path rather than a read-after-write query, so cached reads cannot hide the winning row. Authentication and `/mine` dispatch the existing collection vector-maintenance target only for an actual insert, so a provisioned collection participates in collection search and recommendations without repeatedly indexing existing rows.
+Add a one-time PostgreSQL data migration for active users who have no collection. The migration inserts only missing rows with those same defaults and localized names, generates one stable code per inserted row, and uses `ON CONFLICT (owner_id) DO NOTHING` for idempotence. Existing open and closed rows are excluded from writes. Database triggers initialize collection stats from existing stars. After migration, run the existing `vector:refresh --kind collection` mechanism from the highest pre-backfill collection ID so newly inserted open collections receive their normal vector maintenance without introducing a new backfill framework.
 
-Do not insert collections for every historical account. This avoids a potentially large, trigger-heavy backfill. Accounts without a collection are provisioned on their next authentication or owner-collection read; until then there is no owner-facing URL to copy or snapshot attribution to resolve.
+Do not create collections on star writes and do not add collection-setting streams or other local-first settings work. Those approaches expand the product and synchronization scope beyond default enablement.
 
-### 2. No schema migration, and visibility behavior stays untouched
+### 2. One data migration, and visibility behavior stays untouched
 
-This change ships no schema migration. Neither rollout nor steady-state provisioning updates `status`, sends notifications, creates opt-out records, or modifies codes, metadata, ownership, bookmarks, or subscriptions. No visibility backup or restoration procedure is needed because provisioning never changes an existing row's visibility.
+This change ships one data-only migration and no table or column changes. Neither rollout nor steady-state operation updates an existing collection's `status`, sends notifications, creates opt-out records, or modifies codes, metadata, ownership, bookmarks, or subscriptions. No visibility backup or restoration procedure is needed because existing rows are excluded from writes.
 
 Retain `USER_INFO_ENABLE_SETTING` and `USER_INFO_DISABLE_SETTING` for compatibility. After rollout they remain the close/reopen channel for the new Web controls as well as for older clients. Their create branch keeps the requested status, while their update branch sets it explicitly. New Web code no longer calls the enable route for initial setup.
 
-### 3. Make `/mine` a non-null owner contract
+### 3. Make `/mine` a read-only non-null owner contract
 
 After provisioning, `/mine` always returns `MyShareCollectionInfo` for an active authenticated user. Update the domain return type and Web composable to use that contract instead of treating absence as normal. Keep response changes additive for other clients.
 
@@ -73,15 +73,15 @@ Call the helper from the successful star paths in `BookmarkCell.vue` and the sna
 ## Risks / Trade-offs
 
 - [Users without a collection become public after default provisioning without notice] → This is an explicitly approved product decision; verify that only newly provisioned rows receive open status and that all existing open and closed fixtures remain unchanged.
-- [Lazy provisioning leaves dormant accounts without a physical row] → Avoids bulk trigger work while guaranteeing provisioning at the next authentication or owner read; do not claim a full historical-row backfill in release notes or verification.
-- [Concurrent provisioning could create duplicate rows or unstable codes] → Rely on the owner uniqueness constraint, conflict handling, and reread; test parallel requests.
+- [One-time backfill performs collection stats and vector work] → Insert only missing active-user rows, batch vector refresh from the pre-backfill ID cutoff when needed, and record the authorized operational commands rather than running them during development.
+- [Concurrent registration could create duplicate rows or unstable codes] → Rely on the owner uniqueness constraint and per-attempt code inference; test parallel requests.
 - [Old and new Web clients coexist during deployment] → Keep visibility endpoints and response fields compatible; old enable calls remain valid open/create operations while new clients bypass them.
 - [The cue reappears when a user unstars back to zero and stars again from another browser] → Accepted: the local zero-to-one transition suppresses later stars that do not reset to zero, and the per-account browser-local flag covers the same-browser case; keep all cue failures isolated from starring.
 - [Provisioning makes previously unenabled collections with ten or more stars sitemap-eligible] → The sitemap query and its existing threshold stay unchanged; monitor the eligible set through the existing stats table rather than counting bookmarks per request.
 
 ## Migration Plan
 
-1. Deploy the API provisioning and owner-contract changes. No schema migration ships with this change. Authentication and `/mine` begin filling missing rows with open defaults without modifying existing status, and no user notification is emitted.
-2. Deploy the Web direct-sharing and first-star cue changes. Older Web clients remain compatible with the retained visibility endpoints.
-3. Verify new-account provisioning, preserved open and closed fixtures, stable URLs, empty and non-empty public pages, manual close/reopen before and after rollout, the per-browser bound on the cue, and unchanged sitemap eligibility in a running environment.
-4. If application rollback is required, deploy compatible prior code. No schema or visibility restoration is needed because this change neither migrates visibility nor persists new state.
+1. Record the highest existing collection ID as the vector-refresh cutoff, then run the one-time data migration through the authorized release process. It inserts missing collections for active users only and leaves all existing rows unchanged.
+2. Deploy the API registration and read-only owner-contract changes. New registrations create the default collection through the existing server path; `/mine` only reads it. Deploy the Web direct-sharing and first-star cue changes, with older clients compatible through the retained visibility endpoints.
+3. Run the existing `vector:refresh --kind collection --after-id <cutoff>` path with authorized task configuration, and verify registration, backfill idempotence, preserved open and closed fixtures, stable URLs, initialized stats, empty and non-empty public pages, manual close/reopen, the per-browser cue bound, and unchanged sitemap eligibility.
+4. If application rollback is required, deploy compatible prior code. Backfilled rows retain their created state and existing rows were never modified, so no visibility restoration is required; do not blanket-delete or close collections during rollback.

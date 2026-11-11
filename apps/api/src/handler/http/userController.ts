@@ -14,6 +14,10 @@ import { BookmarkOrchestrator } from '../../domain/orchestrator/bookmark'
 import { QueueClient } from '../../infra/queue/queueClient'
 import { UserDeletionService } from '../../domain/userDeletion'
 import { LabService } from '../../domain/lab'
+import { resolveDeviceId } from '@/utils/eventContext'
+import { BIND_LOGIN_IDENTITY_SETTING, type BindLinkRequest, type EmailCodeSendInput } from '@slax-reader/contracts/email-auth'
+
+const privateAuthHeaders = { 'Cache-Control': 'no-store' }
 
 @Controller('/v1/user')
 export class UserController {
@@ -37,7 +41,30 @@ export class UserController {
   @Post('/login')
   public async handleUserLoginRequest(ctx: ContextManager, request: Request) {
     const loginRes = await this.userService.userLogin(ctx, request)
-    return Successed(loginRes)
+    return Successed(loginRes, 200, 'ok', privateAuthHeaders)
+  }
+
+  @Post('/email/send')
+  public async handleSendEmailCodeRequest(ctx: ContextManager, request: Request) {
+    const input = await RequestUtils.json<EmailCodeSendInput>(request)
+    const { purpose = 'login', locale } = input ?? {}
+    if (purpose !== 'login' && purpose !== 'bind') throw ErrorParam()
+    const userId = purpose === 'bind' ? ctx.getUserId() : undefined
+    if (userId === 0) throw UnauthorizedError()
+
+    const email = typeof input?.email === 'string' ? input.email.trim() : ''
+    const deviceId = resolveDeviceId(request)
+    if (!deviceId || deviceId.length > 128 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || /@(?:appleid\.apple\.com|deleted\.invalid)$/i.test(email)) {
+      throw ErrorParam()
+    }
+    const challenge = await this.userService.sendEmailCode(ctx, email, {
+      purpose,
+      userId,
+      deviceId,
+      clientIp: request.headers.get('CF-Connecting-IP') ?? 'unknown',
+      locale: typeof locale === 'string' ? locale : request.headers.get('Accept-Language')?.split(',')[0]
+    })
+    return Successed(challenge, 200, 'ok', privateAuthHeaders)
   }
 
   /**
@@ -65,15 +92,17 @@ export class UserController {
    */
   @Post('/bind_link')
   public async handleUserBindLinkRequest(ctx: ContextManager, request: Request) {
-    let req = await request.json<{ platform: string }>()
+    const req = await RequestUtils.json<BindLinkRequest>(request)
     if (!req) return Failed(ErrorParam())
 
-    if (req.platform !== 'telegram' && req.platform !== 'twitter') {
-      return Failed(ErrorParam())
+    if (req.platform === 'google' || req.platform === 'apple') {
+      const platform = req.client_platform
+      if (platform !== 'web' && platform !== 'ios' && platform !== 'android') throw ErrorParam()
+      if (req.platform === 'apple' && platform === 'android') throw ErrorParam()
+      return Successed(await this.userService.getProviderBindLink(ctx, req.platform, platform), 200, 'ok', privateAuthHeaders)
     }
-
-    const bindLink = await this.userService.getBindLink(ctx, req.platform)
-    return Successed(bindLink)
+    if (req.platform === 'telegram' || req.platform === 'twitter') return Successed(await this.userService.getBindLink(ctx, req.platform))
+    return Failed(ErrorParam())
   }
 
   /**
@@ -122,11 +151,17 @@ export class UserController {
    */
   @Post('/setting')
   public async handleUserSettingRequest(ctx: ContextManager, request: Request) {
-    const req = await RequestUtils.json<{ key: string; value: string }>(request)
+    const req = await RequestUtils.json<{ key: string; value: unknown }>(request)
     if (!req) return Failed(ErrorParam())
 
-    await this.userService.saveUserSetting(ctx, req)
-    return Successed('ok')
+    const proof = req.value
+    if (req.key === BIND_LOGIN_IDENTITY_SETTING && proof && typeof proof === 'object' && 'type' in proof && (proof.type === 'google' || proof.type === 'apple')) {
+      const web = 'platform' in proof && proof.platform === 'web'
+      const expected = web ? ctx.env.EMAIL_AUTH_WEB_CALLBACK || new URL('/auth', ctx.env.FRONT_END_URL).href : ''
+      if (!('redirect_uri' in proof) || proof.redirect_uri !== expected) throw ErrorParam()
+    }
+    const result = await this.userService.saveUserSetting(ctx, req)
+    return result ? Successed(result, 200, 'ok', privateAuthHeaders) : Successed('ok')
   }
 
   /**
@@ -170,7 +205,7 @@ export class UserController {
     await this.userDeletionService.ensureUserNotDeleted(ctx.getUserId())
 
     const res = await this.userService.getUserInfo(ctx)
-    return Successed(res)
+    return Successed(res, 200, 'ok', privateAuthHeaders)
   }
 
   /**

@@ -9,7 +9,7 @@
 - `pnpm api -- typecheck`: passed.
 - `pnpm api -- lint`: passed with the repository's existing warnings and no errors.
 - `pnpm api -- build`: passed using the documented non-secret local API configuration; Wrangler dry runs completed without deployment.
-- No schema migration was introduced. Direct Prisma `migrate diff` against the fully migrated isolated database reported an empty migration. The interactive `gen:diff` name prompt was stopped without creating a migration; no schema or generated-artifact diff resulted.
+- The initial lazy-provisioning approach introduced no schema change. The final approved approach adds one data-only PostgreSQL migration; the Prisma schema and generated model artifacts remain unchanged.
 - Web targeted suites: 135/135 passed for direct sharing, management, first-star discovery, account isolation, and CursorToast behavior.
 - Web full suite after merging `origin/dev`, under the documented Node 22 environment and public placeholder configuration: 2767 passed, 3 skipped (236 files passed, 1 skipped).
 - `pnpm web -- typecheck`: passed under the same documented environment.
@@ -83,13 +83,13 @@ The automated PR review reported no Important findings and three Nits. All three
 
 New regression coverage passed for cold-start failure/retry/success, management-save cache synchronization, and the article component. The final full Web suite passed 2782 tests with 3 conditionally skipped (237 files passed, 1 skipped), followed by Web typecheck and production build. API targeted suites passed 60/60, API typecheck passed, and API lint completed with 0 errors and the repository's existing 344 warnings. `pnpm api -- gen:all` completed with no generated-artifact diff.
 
-## Second automated review and collection indexing
+## Registration creation, one-time backfill, and read-only `/mine`
 
-The second automated PR review found one Important omission: lazy provisioning created rows without dispatching the existing collection vector-maintenance target. The repository uses an existing-row check followed by an atomic upsert. It compares the returned public code with an independent per-attempt candidate to distinguish an actual insertion from an existing or concurrently recovered row. A unique-conflict retry stays on the upsert write path, avoiding the Hyperdrive read-after-write cache risk found during independent review. Authentication and `/mine` dispatch `{ kind: 'collection', id }` only for an actual insertion. This restores collection search/recommendation initialization without dispatching on every read.
+The requester subsequently chose the simpler final architecture: create during registration, backfill existing active users once, and never create from `/mine` or star writes. Collection-setting local-first work was explicitly excluded. Registration retains the existing created-only vector dispatch and provides a retry path if initial creation fails. `/mine` now reads the guaranteed row and returns `SHARE_COLLECTION_NOT_FOUND` if the invariant is broken instead of provisioning it.
 
-The same review's three Nits were also addressed: `refresh()` now starts a superseding request instead of reusing a pre-mutation response; shared collection writes use the composable's `apply()` helper; and the first-star cue prefers the account-level starred count, using only locally provable list counts as a fallback while retaining the approved unknown-count behavior.
+The data-only migration inserts only active users with no existing collection. It generates localized names and stable MD5 codes, sets open visibility and the three sharing flags, and uses `ON CONFLICT (owner_id) DO NOTHING`. Existing open and closed rows and deleted users receive no writes. The existing `vector:refresh --kind collection --after-id <cutoff>` mechanism covers migrated open collections; no new indexing framework was added.
 
-Verification passed: API 3867 tests with 120 conditionally skipped (245 files passed, 16 skipped), API typecheck, lint with 0 errors and 344 existing warnings, and build; Web 2786 tests with 3 conditionally skipped (237 files passed, 1 skipped), typecheck, production build, and changed-file ESLint. The real PostgreSQL integration exercised eight concurrent provisioning calls and confirmed one stable row/code with exactly one `created=true` result, followed by preserved closed state. Follow-up targeted Web coverage passed 31/31, including direct `apply()` behavior. The unique-conflict unit test exercises a failed first upsert and a successful write-path retry rather than returning an existing row at the initial check. Workflow dispatch payloads were verified through workflow-binding tests; no remote vector index or production service was touched. `pnpm api -- gen:all` completed with no generated-artifact diff.
+Verification passed on the merged current `dev` baseline: API 3935 tests with 145 conditionally skipped (250 files passed, 17 skipped), API typecheck, lint with 0 errors and 343 existing warnings, and build; Web 2849 tests with 3 conditionally skipped (238 files passed, 1 skipped), typecheck, and production build. Targeted registration and read-only `/mine` tests passed 63/63. The real PostgreSQL backfill test verified idempotent repeated execution, localized names, default flags, stable codes, preserved closed state, deleted-user exclusion, and stats initialized from two existing stars. `pnpm api -- migration:local:pgsql` also applied the migration successfully through Prisma. No remote migration, deployment, or production vector refresh was performed.
 
 ## Final automated review cleanup
 
@@ -122,7 +122,7 @@ On 2026-11-10, the change requester completed hands-on acceptance of the impleme
 
 ### Rollback
 
-- Application rollback means deploying the previous compatible code. This change has no schema migration, so no schema or visibility restoration is required. Existing rows retain their current status; do not blanket-set collections to open or closed.
+- Application rollback means deploying the previous compatible code. The migration is data-only and leaves existing rows untouched, so no schema or visibility restoration is required. Backfilled rows retain their created state; do not blanket-delete, open, or close collections during rollback.
 - No remote migration or deployment was performed. Any production rollback would follow the authorized release process rather than modifying data to match an assumed prior state.
 
 ## Version and delivery decisions

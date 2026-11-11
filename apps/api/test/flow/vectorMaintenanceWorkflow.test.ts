@@ -12,12 +12,12 @@ const mocks = vi.hoisted(() => ({
     refreshArticles: vi.fn(),
     refreshArticlesWithPrevious: vi.fn(),
     refreshCollection: vi.fn(),
+    applyCollection: vi.fn(),
     refreshUser: vi.fn(),
     verifyRefresh: vi.fn(),
     applyArticle: vi.fn()
   },
-  repo: { listOwnerArticles: vi.fn(), listSubscriberUsers: vi.fn(), listOwnerCollections: vi.fn() },
-  collections: { getUserShareCollectById: vi.fn() }
+  repo: { listSubscriberUsers: vi.fn(), listOwnerCollections: vi.fn() }
 }))
 vi.mock('cloudflare:workers', () => ({
   WorkflowEntrypoint: class {
@@ -40,12 +40,9 @@ vi.mock('@/utils/context', () => ({
 }))
 vi.mock('@/domain/vectorMaintenance', () => ({ VectorMaintenanceService: class {} }))
 vi.mock('@/infra/repository/dbVectorMaintenance', () => ({ VectorMaintenanceRepo: class {} }))
-vi.mock('@/infra/repository/dbCollection', () => ({ CollectionRepo: class {} }))
 
 import { VectorMaintenanceWorkflow, requireRefreshSuccess, validateMaintenanceEvent, verifyVectorVisibility } from '@/entry/edge/workflows/vectorMaintenanceWorkflow'
 import { VectorMaintenanceService } from '@/domain/vectorMaintenance'
-import { VectorMaintenanceRepo } from '@/infra/repository/dbVectorMaintenance'
-import { CollectionRepo } from '@/infra/repository/dbCollection'
 import type { VectorMaintenanceEvent } from '@/domain/vectorMaintenanceHooks'
 import type { VectorRefreshResult } from '@/utils/vectorMaintenanceTypes'
 
@@ -68,16 +65,16 @@ const deleted = (target: VectorMaintenanceEvent): VectorRefreshResult => ({ targ
 beforeEach(() => {
   vi.resetAllMocks()
   mocks.clone.mockReturnValue({ resolve: mocks.resolve })
-  mocks.resolve.mockImplementation(token => (token === VectorMaintenanceService ? mocks.service : token === CollectionRepo ? mocks.collections : mocks.repo))
+  mocks.resolve.mockImplementation(token => (token === VectorMaintenanceService ? mocks.service : mocks.repo))
   mocks.cleanup.mockResolvedValue(undefined)
   mocks.service.verifyRefresh.mockResolvedValue(true)
   mocks.service.refreshArticles.mockImplementation(async rows => rows.map((row: any) => deleted({ kind: 'article', ...row })))
   mocks.service.refreshCollection.mockImplementation(async id => deleted({ kind: 'collection', id }))
+  mocks.service.applyCollection.mockImplementation(async id => deleted({ kind: 'collection', id }))
   mocks.service.refreshUser.mockImplementation(async (id, preference) => deleted({ kind: 'user', id, preference }))
   mocks.service.refreshArticlesWithPrevious.mockImplementation(async rows => ({ results: rows.map((row: any) => deleted({ kind: 'article', ...row })), previous: {} }))
   mocks.service.applyArticle.mockImplementation(async ({ userId }) => [deleted({ kind: 'user', id: userId, preference: 'article' }), deleted({ kind: 'collection', id: 5 })])
   for (const query of Object.values(mocks.repo)) query.mockResolvedValue([])
-  mocks.collections.getUserShareCollectById.mockResolvedValue({ id: 5, owner_id: 7, status: 0 })
 })
 
 describe('explicit maintenance business Workflow', () => {
@@ -108,13 +105,14 @@ describe('explicit maintenance business Workflow', () => {
     expect(mocks.service.verifyRefresh).toHaveBeenCalledTimes(3)
     expect(mocks.service.refreshUser).not.toHaveBeenCalled()
     expect(mocks.service.refreshCollection).not.toHaveBeenCalled()
+    expect(mocks.service.applyCollection).not.toHaveBeenCalled()
     expect(mocks.repo.listOwnerCollections).not.toHaveBeenCalled()
     expect(mocks.repo.listSubscriberUsers).not.toHaveBeenCalled()
     expect(mocks.create).not.toHaveBeenCalled()
     expect(mocks.createBatch).not.toHaveBeenCalled()
     expect(mocks.initializeCore).toHaveBeenCalledTimes(1)
     expect(mocks.clone).toHaveBeenCalledTimes(1)
-    expect(mocks.resolve.mock.calls.map(([token]) => token)).toEqual([VectorMaintenanceService, VectorMaintenanceRepo])
+    expect(mocks.resolve.mock.calls.map(([token]) => token)).toEqual([VectorMaintenanceService])
     expect(mocks.cleanup).toHaveBeenCalledTimes(1)
   })
 
@@ -143,7 +141,7 @@ describe('explicit maintenance business Workflow', () => {
   it.each([false, true])('does not enumerate subscribers for a direct Collection refresh whether changed or unchanged (unchanged=%s)', async unchanged => {
     mocks.repo.listSubscriberUsers.mockResolvedValue([{ id: 11, user_id: 8 }])
     if (unchanged)
-      mocks.service.refreshCollection.mockResolvedValue({
+      mocks.service.applyCollection.mockResolvedValue({
         target: { kind: 'collection', id: 5 },
         state: 'written',
         vectorIds: ['c:5'],
@@ -153,51 +151,24 @@ describe('explicit maintenance business Workflow', () => {
       })
     const execution = step()
     await run({ kind: 'collection', id: 5 }, execution)
-    expect(execution.names).toEqual(['collection-owner', 'collection-members-0', 'collection-5-write', 'collection-5-visible'])
+    expect(execution.names).toEqual(['collection-5-write', 'collection-5-visible'])
     expect(mocks.repo.listSubscriberUsers).not.toHaveBeenCalled()
     expect(mocks.service.refreshUser).not.toHaveBeenCalled()
   })
 
-  it('refreshes member visibility before the independent Collection vector, including unpublished collections', async () => {
-    mocks.repo.listOwnerArticles.mockResolvedValueOnce([
-      { id: 20, user_id: 7, bookmark_id: 99 },
-      { id: 24, user_id: 7, bookmark_id: 100 }
-    ])
+  it('publishes a Collection from stored state in two steps without touching its members or rebuilding the owner', async () => {
     mocks.repo.listSubscriberUsers.mockResolvedValue([{ id: 1, user_id: 8 }])
     const execution = step()
     await run({ kind: 'collection', id: 5 }, execution)
-    expect(mocks.collections.getUserShareCollectById).toHaveBeenCalledExactlyOnceWith(5)
-    expect(mocks.service.refreshArticles).toHaveBeenCalledExactlyOnceWith([
-      { userId: 7, id: 99 },
-      { userId: 7, id: 100 }
-    ])
-    expect(execution.names).toEqual([
-      'collection-owner',
-      'collection-members-0',
-      'collection-members-0-write',
-      'collection-members-0-visible',
-      'collection-5-write',
-      'collection-5-visible'
-    ])
+    expect(execution.names).toEqual(['collection-5-write', 'collection-5-visible'])
+    expect(mocks.service.applyCollection).toHaveBeenCalledExactlyOnceWith(5)
+    expect(mocks.service.verifyRefresh).toHaveBeenCalledTimes(1)
+    expect(mocks.service.refreshCollection).not.toHaveBeenCalled()
+    expect(mocks.service.refreshArticles).not.toHaveBeenCalled()
+    expect(mocks.service.refreshArticlesWithPrevious).not.toHaveBeenCalled()
+    expect(mocks.service.applyArticle).not.toHaveBeenCalled()
     expect(mocks.repo.listSubscriberUsers).not.toHaveBeenCalled()
     expect(mocks.service.refreshUser).not.toHaveBeenCalled()
-    expect(mocks.createBatch).not.toHaveBeenCalled()
-  })
-
-  it('pages member relations beyond the old twenty page cap without subscriber fanout', async () => {
-    mocks.repo.listOwnerArticles.mockImplementation(async (userId, after, limit) =>
-      Array.from({ length: Math.min(limit, 503 - after) }, (_, index) => ({ id: after + index + 1, user_id: userId, bookmark_id: after + index + 100 }))
-    )
-    mocks.repo.listSubscriberUsers.mockImplementation(async (_id, after, limit) =>
-      Array.from({ length: Math.min(limit, 503 - after) }, (_, index) => ({ id: after + index + 1, user_id: after + index + 1000 }))
-    )
-    await run({ kind: 'collection', id: 5 })
-    expect(mocks.repo.listOwnerArticles).toHaveBeenCalledTimes(21)
-    expect(mocks.repo.listOwnerArticles).toHaveBeenLastCalledWith(7, 500, 25)
-    expect(mocks.service.refreshArticles.mock.calls.flatMap(([rows]) => rows)).toHaveLength(503)
-    expect(mocks.service.refreshUser).not.toHaveBeenCalled()
-    expect(mocks.repo.listSubscriberUsers).not.toHaveBeenCalled()
-    expect(mocks.create).not.toHaveBeenCalled()
     expect(mocks.createBatch).not.toHaveBeenCalled()
   })
 
@@ -220,30 +191,46 @@ describe('explicit maintenance business Workflow', () => {
     const none = await runWithSubscribers(0)
     vi.resetAllMocks()
     mocks.clone.mockReturnValue({ resolve: mocks.resolve })
-    mocks.resolve.mockImplementation(token => (token === VectorMaintenanceService ? mocks.service : token === CollectionRepo ? mocks.collections : mocks.repo))
+    mocks.resolve.mockImplementation(token => (token === VectorMaintenanceService ? mocks.service : mocks.repo))
     mocks.cleanup.mockResolvedValue(undefined)
     mocks.service.verifyRefresh.mockResolvedValue(true)
     mocks.service.refreshArticles.mockImplementation(async rows => rows.map((row: any) => deleted({ kind: 'article', ...row })))
     mocks.service.refreshCollection.mockImplementation(async id => deleted({ kind: 'collection', id }))
+    mocks.service.applyCollection.mockImplementation(async id => deleted({ kind: 'collection', id }))
     mocks.service.refreshUser.mockImplementation(async (id, preference) => deleted({ kind: 'user', id, preference }))
     mocks.service.refreshArticlesWithPrevious.mockImplementation(async rows => ({ results: rows.map((row: any) => deleted({ kind: 'article', ...row })), previous: {} }))
     mocks.service.applyArticle.mockImplementation(async ({ userId }) => [deleted({ kind: 'user', id: userId, preference: 'article' }), deleted({ kind: 'collection', id: 5 })])
-    mocks.collections.getUserShareCollectById.mockResolvedValue({ id: 5, owner_id: 7, status: 0 })
-    mocks.repo.listOwnerArticles.mockResolvedValue([])
     mocks.repo.listSubscriberUsers.mockResolvedValue([])
     const many = await runWithSubscribers(503)
     expect(many).toEqual(none)
     expect(none.subscriberReads).toBe(0)
   })
 
-  it('refreshes a removed collection vector even when owner lookup is absent and never enumerates subscribers', async () => {
-    mocks.collections.getUserShareCollectById.mockResolvedValue(null)
-    mocks.repo.listSubscriberUsers.mockResolvedValue([{ id: 1, user_id: 8 }])
-    await run({ kind: 'collection', id: 5 })
-    expect(mocks.repo.listOwnerArticles).not.toHaveBeenCalled()
-    expect(mocks.service.refreshCollection).toHaveBeenCalledWith(5)
+  it('fails the Collection step when publication fails, so the Workflow retries it', async () => {
+    mocks.service.applyCollection.mockResolvedValue({ target: { kind: 'collection', id: 5 }, state: 'failed', reason: 'missing_dependency:a:7:98', vectorIds: [], mutationIds: [] })
+    await expect(run({ kind: 'collection', id: 5 })).rejects.toThrow('missing_dependency:a:7:98')
+    expect(mocks.service.verifyRefresh).not.toHaveBeenCalled()
+  })
+
+  it('retires an old Collection-preference job without replaying cached materialization', async () => {
+    const cached = new Map<string, unknown>([
+      ['collection-preference-write', { target: { kind: 'user', id: 7, preference: 'collection' }, state: 'written', vectorIds: ['u:7:collection'], mutationIds: ['old'] }],
+      ['collection-preference-visible', undefined]
+    ])
+    const names: string[] = []
+    const execution = {
+      names,
+      do: async (name: string, _options: unknown, callback: () => Promise<unknown>) => {
+        names.push(name)
+        return cached.has(name) ? cached.get(name) : callback()
+      }
+    }
+    await run({ kind: 'user', id: 7, preference: 'collection' }, execution)
+    expect(names).toEqual(['retire-collection-preference-write', 'retire-collection-preference-visible'])
+    expect(mocks.service.refreshUser).toHaveBeenCalledExactlyOnceWith(7, 'collection')
+    expect(mocks.service.refreshCollection).not.toHaveBeenCalled()
+    expect(mocks.service.refreshArticles).not.toHaveBeenCalled()
     expect(mocks.repo.listSubscriberUsers).not.toHaveBeenCalled()
-    expect(mocks.service.refreshUser).not.toHaveBeenCalled()
   })
 
   it.each(['collection', 'article'] as const)('keeps explicit %s preference cleanup isolated', async preference => {

@@ -228,16 +228,16 @@ describe('user Collection preference contracts', () => {
     await pg.exec(`INSERT INTO sr_user_collection_subscriber(user_id,collection_id,is_active,subscription_end_time) VALUES (1,${collectionId},true,${end})`)
   }
 
-  test('subscribing to C1 writes the C1 direction only', async () => {
+  test('subscribing to C1 reads the C1 direction without materializing', async () => {
     await subscribe(20)
     const index = disposableIndex()
     index.stored.set('c:20', { id: 'c:20', values: unit(0) })
     const service = maintenance(index)
-    const result = await service.refreshUser(1, 'collection')
-    const actual = await vectorOf(index, 'u:1:collection')
+    const actual = await service.readUser(1, 'collection')
     const expected = [...unit(0)]
-    const pass = result.state === 'written' && !!actual && closeVector(actual, expected)
+    const pass = !!actual && closeVector(actual, expected)
     expect(pass).toBe(true)
+    expect(index.upsert).not.toHaveBeenCalled()
   })
 
   test('subscribing to C2 composes the normalized sum', async () => {
@@ -246,11 +246,11 @@ describe('user Collection preference contracts', () => {
     const index = disposableIndex()
     index.stored.set('c:20', { id: 'c:20', values: unit(0) })
     index.stored.set('c:30', { id: 'c:30', values: unit(1) })
-    await maintenance(index).refreshUser(1, 'collection')
-    const actual = await vectorOf(index, 'u:1:collection')
+    const actual = await maintenance(index).readUser(1, 'collection')
     const expected = [Math.SQRT1_2, Math.SQRT1_2, ...new Array(1022).fill(0)]
     const pass = !!actual && closeVector(actual, expected)
     expect(pass).toBe(true)
+    expect(index.upsert).not.toHaveBeenCalled()
   })
 
   test('cancelling C2 restores the C1 profile', async () => {
@@ -259,13 +259,12 @@ describe('user Collection preference contracts', () => {
     const index = disposableIndex()
     index.stored.set('c:20', { id: 'c:20', values: unit(0) })
     index.stored.set('c:30', { id: 'c:30', values: unit(1) })
-    await maintenance(index).refreshUser(1, 'collection')
     await pg.exec(`UPDATE sr_user_collection_subscriber SET is_deleted=true,is_active=false WHERE collection_id=30`)
-    await maintenance(index).refreshUser(1, 'collection')
-    const actual = await vectorOf(index, 'u:1:collection')
+    const actual = await maintenance(index).readUser(1, 'collection')
     const expected = [...unit(0)]
     const pass = !!actual && closeVector(actual, expected)
     expect(pass).toBe(true)
+    expect(index.upsert).not.toHaveBeenCalled()
   })
 
   test('re-subscribing C2 restores the composed profile', async () => {
@@ -274,13 +273,12 @@ describe('user Collection preference contracts', () => {
     const index = disposableIndex()
     index.stored.set('c:20', { id: 'c:20', values: unit(0) })
     index.stored.set('c:30', { id: 'c:30', values: unit(1) })
-    await maintenance(index).refreshUser(1, 'collection')
     await pg.exec(`UPDATE sr_user_collection_subscriber SET is_deleted=false,is_active=true WHERE collection_id=30`)
-    await maintenance(index).refreshUser(1, 'collection')
-    const actual = await vectorOf(index, 'u:1:collection')
+    const actual = await maintenance(index).readUser(1, 'collection')
     const expected = [Math.SQRT1_2, Math.SQRT1_2, ...new Array(1022).fill(0)]
     const pass = !!actual && closeVector(actual, expected)
     expect(pass).toBe(true)
+    expect(index.upsert).not.toHaveBeenCalled()
   })
 
   test('expired and own subscriptions are excluded from the profile', async () => {
@@ -291,52 +289,53 @@ describe('user Collection preference contracts', () => {
     index.stored.set('c:20', { id: 'c:20', values: unit(0) })
     index.stored.set('c:30', { id: 'c:30', values: unit(1) })
     index.stored.set('c:10', { id: 'c:10', values: unit(1) })
-    await maintenance(index).refreshUser(1, 'collection')
-    const actual = await vectorOf(index, 'u:1:collection')
+    const actual = await maintenance(index).readUser(1, 'collection')
     const expected = [...unit(0)]
     const pass = !!actual && closeVector(actual, expected)
     expect(pass).toBe(true)
+    expect(index.upsert).not.toHaveBeenCalled()
   })
 
-  test('all expired subscriptions delete the profile without a zero vector', async () => {
+  test('all expired subscriptions ignore a stale profile without a zero vector', async () => {
     await subscribe(20, "now() - interval '1 day'")
     await subscribe(30, "now() - interval '1 day'")
     const index = disposableIndex()
     index.stored.set('u:1:collection', { id: 'u:1:collection', namespace: 'user-collection', values: unit(0) })
-    const result = await maintenance(index).refreshUser(1, 'collection')
-    const pass = result.state === 'deleted' && !index.stored.has('u:1:collection')
+    const result = await maintenance(index).readUser(1, 'collection')
+    const pass = result === null && index.stored.has('u:1:collection')
+    expect(index.delete).not.toHaveBeenCalled()
     expect(pass).toBe(true)
+    expect(index.upsert).not.toHaveBeenCalled()
   })
 
-  test('Collection profile maintenance leaves article preference and Collection vectors unchanged', async () => {
+  test('Collection preference reads leave article preference and Collection vectors unchanged', async () => {
     await subscribe(20)
     const index = disposableIndex()
     index.stored.set('u:1:article', { id: 'u:1:article', namespace: 'user-article', values: unit(1) })
     index.stored.set('c:20', { id: 'c:20', values: unit(0) })
     index.stored.set('c:30', { id: 'c:30', values: unit(1) })
-    const refreshed = await maintenance(index).refreshUser(1, 'collection')
-    const profile = await vectorOf(index, 'u:1:collection')
+    const profile = await maintenance(index).readUser(1, 'collection')
     const article = await vectorOf(index, 'u:1:article')
     const collection = await vectorOf(index, 'c:20')
     const pass =
-      refreshed.state === 'written' && !!profile && closeVector(profile, unit(0)) && !!article && !!collection && closeVector(article, unit(1)) && closeVector(collection, unit(0))
+      !!profile && closeVector(profile, unit(0)) && !!article && !!collection && closeVector(article, unit(1)) && closeVector(collection, unit(0))
     expect(pass).toBe(true)
+    expect(index.upsert).not.toHaveBeenCalled()
   })
 
-  test('repeated profile refresh is idempotent', async () => {
+  test('repeated profile reads are deterministic without writes', async () => {
     await subscribe(20)
     await subscribe(30)
     const index = disposableIndex()
     index.stored.set('c:20', { id: 'c:20', values: unit(0) })
     index.stored.set('c:30', { id: 'c:30', values: unit(1) })
     const service = maintenance(index)
-    await service.refreshUser(1, 'collection')
-    const first = await vectorOf(index, 'u:1:collection')
-    await service.refreshUser(1, 'collection')
-    const second = await vectorOf(index, 'u:1:collection')
+    const first = await service.readUser(1, 'collection')
+    const second = await service.readUser(1, 'collection')
     const expected = [Math.SQRT1_2, Math.SQRT1_2, ...new Array(1022).fill(0)]
     const pass = !!first && !!second && closeVector(first, expected) && closeVector(second, expected)
     expect(pass).toBe(true)
+    expect(index.upsert).not.toHaveBeenCalled()
   })
 })
 
@@ -442,8 +441,7 @@ describe('Collection recommendation and feedback contracts', () => {
     index.stored.set('c:30', { id: 'c:30', values: unit(1) })
     const service = maintenance(index)
     await pg.exec(`INSERT INTO sr_user_collection_subscriber(user_id,collection_id,is_active,subscription_end_time) VALUES (1,20,true,now() + interval '1 year')`)
-    await service.refreshUser(1, 'collection')
-    const profileAfterC20 = await vectorOf(index, 'u:1:collection')
+    const profileAfterC20 = await service.readUser(1, 'collection')
     const runtime = collectionRuntime(
       [
         { id: 20, score: 0.9 },
@@ -454,8 +452,7 @@ describe('Collection recommendation and feedback contracts', () => {
     )
     const afterC20 = await new ContentRecommendationService(recommendationRepo, runtime).collections(1)
     await pg.exec(`INSERT INTO sr_user_collection_subscriber(user_id,collection_id,is_active,subscription_end_time) VALUES (1,30,true,now() + interval '1 year')`)
-    await service.refreshUser(1, 'collection')
-    const profileAfterC30 = await vectorOf(index, 'u:1:collection')
+    const profileAfterC30 = await service.readUser(1, 'collection')
     const afterC30 = await new ContentRecommendationService(
       recommendationRepo,
       collectionRuntime(

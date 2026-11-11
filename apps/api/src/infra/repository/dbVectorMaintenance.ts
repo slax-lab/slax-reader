@@ -4,6 +4,7 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { ArticleVectorIdentity } from '@/utils/vectorMaintenanceTypes'
 import type { VectorSource } from '@/utils/vectorSources'
+import type { ShareGroup } from '@/utils/preferenceLedger'
 
 export type VectorArticleRow = VectorSource & {
   id: number
@@ -13,14 +14,16 @@ export type VectorArticleRow = VectorSource & {
   updated_at: Date
   published_at: Date
 }
-export type VectorCollectionRow = { id: number; owner_id: number; published_at: number }
-export type VectorArticleMember = { id: number; is_starred: boolean }
-export type VectorPreferenceRow = VectorArticleMember & { member: boolean }
+export type VectorCollectionRow = { id: number; owner_id: number; published_at: number; sharing: boolean }
+export type VectorArticleMember = { id: number; is_starred: boolean; share_group: ShareGroup }
 export type VectorRelation = { id: number; user_id: number }
 
 const readable = Prisma.sql`(b.private_user = 0 OR b.private_user = ub.user_id)`
 const published = Prisma.sql`ub.is_starred AND b.moderation_result = 0 AND COALESCE(share.is_enable, owner.snapshot_sharing)
   AND EXISTS (SELECT 1 FROM sr_user_collection c WHERE c.owner_id = ub.user_id AND c.status = 1 AND c.collection_code <> '')`
+const candidate = Prisma.sql`ub.is_starred AND b.moderation_result = 0`
+const shareGroup = Prisma.sql`CASE WHEN NOT COALESCE(bool_or(${candidate}), false) THEN 'none'
+  WHEN bool_or(share.bookmark_id IS NULL) THEN 'inherited' WHEN bool_or(share.is_enable) THEN 'shared' ELSE 'none' END`
 
 @injectable()
 export class VectorMaintenanceRepo {
@@ -38,7 +41,7 @@ export class VectorMaintenanceRepo {
 
   async findCollection(id: number): Promise<VectorCollectionRow | undefined> {
     const rows = await this.prismaPg().$queryRaw<VectorCollectionRow[]>`
-      SELECT c.id, c.owner_id, (
+      SELECT c.id, c.owner_id, owner.snapshot_sharing AS sharing, (
         SELECT (EXTRACT(EPOCH FROM MAX(GREATEST(b.published_at, b.updated_at)) AT TIME ZONE 'UTC') * 1000)::double precision
         FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id = ub.bookmark_id
         LEFT JOIN sr_bookmark_share share ON share.bookmark_id = b.id AND share.user_id = ub.user_id
@@ -52,9 +55,10 @@ export class VectorMaintenanceRepo {
 
   listUserArticles(userId: number, after: number, limit: number): Promise<VectorArticleMember[]> {
     return this.prismaPg().$queryRaw<VectorArticleMember[]>`
-      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred
+      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred, ${shareGroup} AS share_group
       FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id = ub.bookmark_id
       JOIN sr_user owner ON owner.id = ub.user_id AND owner.deleted_at IS NULL
+      LEFT JOIN sr_bookmark_share share ON share.bookmark_id = ub.bookmark_id AND share.user_id = ub.user_id
       WHERE ub.user_id = ${userId} AND ub.deleted_at IS NULL AND ub.type IN (0, 2) AND ub.bookmark_id > ${after} AND ${readable}
         AND b.status = 'success'
       GROUP BY ub.bookmark_id ORDER BY ub.bookmark_id LIMIT ${limit}`
@@ -77,26 +81,15 @@ export class VectorMaintenanceRepo {
       ) actions ORDER BY acted_at DESC, id DESC LIMIT ${limit}`
   }
 
-  findUserPreferenceRows(userId: number, ids: number[]): Promise<VectorPreferenceRow[]> {
-    return this.prismaPg().$queryRaw<VectorPreferenceRow[]>`
-      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred, COALESCE(bool_or(${published}), false) AS member
+  findUserPreferenceRows(userId: number, ids: number[]): Promise<VectorArticleMember[]> {
+    return this.prismaPg().$queryRaw<VectorArticleMember[]>`
+      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred, ${shareGroup} AS share_group
       FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id = ub.bookmark_id
       JOIN sr_user owner ON owner.id = ub.user_id AND owner.deleted_at IS NULL
       LEFT JOIN sr_bookmark_share share ON share.bookmark_id = ub.bookmark_id AND share.user_id = ub.user_id
       WHERE ub.user_id = ${userId} AND ub.bookmark_id IN (SELECT value::int FROM jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb))
         AND ub.deleted_at IS NULL AND ub.type IN (0, 2) AND ${readable} AND b.status = 'success'
       GROUP BY ub.bookmark_id`
-  }
-
-  listCollectionMembers(ownerId: number, after: number, limit: number): Promise<{ id: number }[]> {
-    return this.prismaPg().$queryRaw<{ id: number }[]>`
-      SELECT ub.bookmark_id AS id FROM sr_user_bookmark ub
-      JOIN sr_bookmark b ON b.id = ub.bookmark_id
-      JOIN sr_user owner ON owner.id = ub.user_id AND owner.deleted_at IS NULL
-      LEFT JOIN sr_bookmark_share share ON share.bookmark_id = ub.bookmark_id AND share.user_id = ub.user_id
-      WHERE ub.user_id = ${ownerId} AND ub.deleted_at IS NULL AND ub.type IN (0, 2) AND ub.bookmark_id > ${after} AND ${readable}
-        AND b.status = 'success' AND ${published}
-      GROUP BY ub.bookmark_id ORDER BY ub.bookmark_id LIMIT ${limit}`
   }
 
   listUserCollections(userId: number, after: number, limit: number): Promise<{ id: number }[]> {
@@ -124,15 +117,6 @@ export class VectorMaintenanceRepo {
       JOIN sr_bookmark b ON b.id = ub.bookmark_id JOIN sr_user u ON u.id = ub.user_id
       WHERE ub.bookmark_id = ${bookmarkId} AND ub.id > ${after} AND u.deleted_at IS NULL
         AND ub.type IN (0, 2) AND ${readable}
-      ORDER BY ub.id LIMIT ${limit}`
-  }
-
-  listOwnerArticles(userId: number, after: number, limit: number): Promise<(VectorRelation & { bookmark_id: number })[]> {
-    return this.prismaPg().$queryRaw<(VectorRelation & { bookmark_id: number })[]>`
-      SELECT ub.id, ub.bookmark_id, ub.user_id FROM sr_user_bookmark ub
-      JOIN sr_bookmark b ON b.id = ub.bookmark_id
-      WHERE ub.user_id = ${userId} AND ub.id > ${after} AND ub.is_starred
-        AND b.status = 'success' AND ub.type IN (0, 2) AND ${readable}
       ORDER BY ub.id LIMIT ${limit}`
   }
 

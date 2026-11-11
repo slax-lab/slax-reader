@@ -80,12 +80,14 @@ for (const platform of ['android', 'ios']) test(`mounted ${platform} Login prese
   let height = 800;
   const WebView = v.native('WebView');
   const sessionState = {status: 'unauthenticated'};
-  const mobile = {t: value => value, config: {webUrl: 'https://example.test'}, api: {login: async request => ({token: request.provider, user_id: 'one'})}, sessions: {getSnapshot: () => sessionState, captureIdentity: () => () => {}, accept: async (token, userId, onStarted) => {onStarted?.(() => {}); sessions.push([token, userId]);}}};
+  const mobile = {t: value => value, config: {webUrl: 'https://example.test'}, api: {login: async request => ({token: request.provider, user_id: 'one'}), emailLoginStatus: async () => ({enabled: false})}, sessions: {getSnapshot: () => sessionState, captureIdentity: () => () => {}, accept: async (token, userId, onStarted) => {onStarted?.(() => {}); sessions.push([token, userId]);}}};
   const {LoginScreen} = await load('../../src/screens/LoginScreen.tsx', {
     react: React, 'react-native': {...v.primitives, Alert: {alert() {}}, Platform: {OS: platform}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 375, height})},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'react-native-webview': {WebView}, '../../assets': {mobileAssets: {}}, '../auth/providers': {authenticate: async provider => {authentication.push(provider); return {provider};}},
     '../runtime': {useMobile: () => mobile}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => telemetry}, '../native/fixture-document': {}, '../components/fixture-actions': {}, '../auth/login': await load('../../src/auth/login.ts', {'../domain/diagnostics.ts': await load('../../src/domain/diagnostics.ts')}),
-  });
+    '../auth/EmailCodeDialog': {EmailCodeDialog: () => null}, '../auth/email-auth-errors': await load('../../src/auth/email-auth-errors.ts'),
+    '../auth/useEmailLogin': await load('../../src/auth/useEmailLogin.ts', {react: React}),
+  }, {AbortController});
   const render = () => root.render(React.createElement(LoginScreen));
   const press = predicate => act(async () => v.one('Pressable', predicate).onPress());
   const provider = name => press(props => props.accessibilityLabel === `login_${name}`);

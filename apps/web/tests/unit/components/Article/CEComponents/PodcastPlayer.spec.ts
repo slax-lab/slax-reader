@@ -26,13 +26,98 @@ describe('PodcastPlayer', () => {
     document.body.innerHTML = ''
   })
 
-  const mount = () => mountWithApp(PodcastPlayer, { props: { src: SRC, title: 'Ep 1', show: 'Show', cover: '', durationMs: '3600000' }, attachTo: document.body })
+  const mount = (durationMs = '3600000') => mountWithApp(PodcastPlayer, { props: { src: SRC, title: 'Ep 1', show: 'Show', cover: '', durationMs }, attachTo: document.body })
 
   it('shows the episode and its length before the audio loads', async () => {
     const w = await mount()
     expect(w.text()).toContain('Ep 1')
     expect(w.text()).toContain('Show')
     expect(w.text()).toContain('1:00:00')
+    w.unmount()
+  })
+
+  it('keeps the audio source without preloading or playing on mount', async () => {
+    const w = await mount()
+    expect(w.find('audio').attributes()).toMatchObject({ src: SRC, preload: 'none' })
+    expect(play).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('retains metadata loading when the saved episode has no supplied duration', async () => {
+    const w = await mount('0')
+    expect(w.find('audio').attributes('preload')).toBe('metadata')
+    const audio = w.find('audio').element as HTMLAudioElement
+    Object.defineProperty(audio, 'duration', { configurable: true, value: 120 })
+    audio.dispatchEvent(new Event('loadedmetadata'))
+    await w.vm.$nextTick()
+    expect(w.find('.total').text()).toBe('2:00')
+    w.unmount()
+  })
+
+  it('shows and skips from the saved position before metadata is loaded', async () => {
+    localStorage.setItem(`slax:podcast-pos:${SRC}`, '300')
+    const w = await mount()
+    expect(w.find('.time').text()).toBe('5:00')
+    await w.findAll('.ctrl')[2]!.trigger('click')
+    const audio = w.find('audio').element as HTMLAudioElement
+    expect(audio.currentTime).toBe(315)
+    expect(w.find('.time').text()).toBe('5:15')
+    audio.dispatchEvent(new Event('loadedmetadata'))
+    expect(audio.currentTime).toBe(315)
+    expect(play).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('rechecks a saved default start against the actual duration when metadata arrives', async () => {
+    localStorage.setItem(`slax:podcast-pos:${SRC}`, '300')
+    const w = await mount()
+    const audio = w.find('audio').element as HTMLAudioElement
+    Object.defineProperty(audio, 'duration', { configurable: true, value: 200 })
+    audio.dispatchEvent(new Event('loadedmetadata'))
+    await w.vm.$nextTick()
+    expect(audio.currentTime).toBe(0)
+    expect(w.find('.time').text()).toBe('0:00')
+    expect(play).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('does not publish a playing resume position before metadata validates it', async () => {
+    localStorage.setItem(`slax:podcast-pos:${SRC}`, '300')
+    const w = await mount()
+    const audio = w.find('audio').element as HTMLAudioElement
+    const times = vi.fn()
+    window.addEventListener('slax:youtube-time', times)
+    await w.find('.play').trigger('click')
+    expect(times.mock.calls.some(([event]) => event.detail.playing && event.detail.t === 300)).toBe(false)
+    Object.defineProperty(audio, 'duration', { configurable: true, value: 200 })
+    audio.dispatchEvent(new Event('loadedmetadata'))
+    audio.dispatchEvent(new Event('timeupdate'))
+    expect((times.mock.calls.at(-1)![0] as CustomEvent).detail).toMatchObject({ t: 0, playing: true })
+    window.removeEventListener('slax:youtube-time', times)
+    w.unmount()
+  })
+
+  it('plays synchronously for an early paragraph seek without replaying on metadata', async () => {
+    localStorage.setItem(`slax:podcast-pos:${SRC}`, '300')
+    const w = await mount()
+    const audio = w.find('audio').element as HTMLAudioElement
+    window.dispatchEvent(new CustomEvent('slax:youtube-seek', { detail: { t: 1200 } }))
+    expect(play).toHaveBeenCalledTimes(1)
+    expect(audio.currentTime).toBe(1200)
+    audio.dispatchEvent(new Event('loadedmetadata'))
+    expect(audio.currentTime).toBe(1200)
+    expect(play).toHaveBeenCalledTimes(1)
+    w.unmount()
+  })
+
+  it('scrubbing before metadata retains the explicit position instead of the saved one', async () => {
+    localStorage.setItem(`slax:podcast-pos:${SRC}`, '300')
+    const w = await mount()
+    await w.find('.progress').setValue('900')
+    const audio = w.find('audio').element as HTMLAudioElement
+    audio.dispatchEvent(new Event('loadedmetadata'))
+    expect(audio.currentTime).toBe(900)
+    expect(play).not.toHaveBeenCalled()
     w.unmount()
   })
 

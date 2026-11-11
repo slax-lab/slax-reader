@@ -2,11 +2,11 @@
 
 ## 1. API provisioning and owner contract
 
-- [x] 1.1 Implement idempotent default collection provisioning with localized fallback names, stable alphanumeric codes, open defaults, and existing-row preservation. Invoke it after authentication/registration and from `GET /v1/collection/mine`; verify unit and integration tests cover missing rows, existing rows, blank names, concurrent requests, stable codes, and no implicit reopen of a collection closed before or after rollout.
-- [x] 1.2 Make `/mine` return non-null `MyShareCollectionInfo` through the existing contracts and routing patterns. Verify contract/API tests cover the non-null owner contract and confirm that neither authentication nor `/mine` retries change an existing closed status.
+- [x] 1.1 Implement idempotent default collection creation with localized fallback names, stable alphanumeric codes, open defaults, and existing-row preservation. Invoke it after authentication/registration and do not invoke it from `GET /v1/collection/mine` or star writes; verify unit and integration tests cover new users, existing rows, blank names, stable codes, and no implicit reopen.
+- [x] 1.2 Make `/mine` a read-only endpoint that returns non-null `MyShareCollectionInfo` for the guaranteed owner collection and never creates or reopens a row. Verify API tests prove missing-row failures do not fall back to creation and existing closed status is preserved.
 - [x] 1.3 Keep the existing enable/disable routes as the close/reopen channel for both the new Web controls and older clients: the create branch keeps the requested status, the update branch sets it explicitly. Verify API tests cover create-with-open, create-with-close, and close/reopen on an existing row without touching metadata or codes.
-- [x] 1.4 Confirm that this change introduces no schema migration: `pnpm api -- gen:diff` produces no new migration and generated artifacts remain unchanged.
-- [x] 1.5 Dispatch the existing collection vector-maintenance target when lazy provisioning actually inserts a row, while existing and conflict-recovered rows do not trigger a new dispatch. Verify authentication and `/mine` dispatch tests and a real PostgreSQL concurrency test in which exactly one caller reports creation.
+- [x] 1.4 Add a one-time PostgreSQL data migration for active users without a collection. Verify repeated execution is idempotent, localized names and default flags are correct, existing open/closed rows and deleted users are untouched, and stats initialize from existing stars.
+- [x] 1.5 Dispatch the existing collection vector-maintenance target when registration creates a row. Document and verify the existing `vector:refresh --kind collection --after-id <cutoff>` backfill path for newly migrated collections; do not add a new indexing framework.
 
 ## 2. Web direct sharing and discovery
 

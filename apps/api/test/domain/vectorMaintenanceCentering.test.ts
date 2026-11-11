@@ -29,9 +29,8 @@ function harness() {
     })
   }
   const repo = {
-    listUserArticles: async () => [{ id: 1, is_starred: false }],
+    listUserArticles: async () => [{ id: 1, is_starred: false, share_group: 'none' }],
     listRecentUserActions: async () => [],
-    listCollectionMembers: async () => [],
     listOwnerCollections: async () => [],
     listUserCollections: async () => []
   }

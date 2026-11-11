@@ -144,7 +144,21 @@ describe('private vector maintenance dispatch', () => {
     expect(repo.updateBookmarkDeleteAt.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0])
   })
 
-  it('subscription cancellation refreshes only the actor collection preference', async () => {
+  it('subscribe and delete-subscription commit without vector maintenance', async () => {
+    const { ctx, create, flush } = context()
+    const services = { deleteUserCollectionSubscribe: vi.fn().mockResolvedValue(undefined) }
+    const orchestrator = { subscribeUserCollection: vi.fn().mockResolvedValue({ subscribe: true }) }
+    const controller = new CollectionController(services as any, orchestrator as any)
+    const request = () => new Request('https://reader.test/v1/collection/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ collect_code: 'collection7' }) })
+    await controller.handleUserCollectionSubscribeRequest(ctx, request())
+    await controller.handleUserCollectionDeleteSubscribeRequest(ctx, request())
+    await flush()
+    expect(orchestrator.subscribeUserCollection).toHaveBeenCalledWith(ctx, 'collection7', undefined)
+    expect(services.deleteUserCollectionSubscribe).toHaveBeenCalledWith(ctx, 'collection7')
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('subscription cancellation commits without vector maintenance', async () => {
     const { ctx, create, flush } = context()
     const services = { getUserCollectionSubscribed: vi.fn().mockResolvedValue({ subscribed: true, deleted: false }) }
     const orchestrator = { unsubscribeUserCollection: vi.fn().mockResolvedValue(undefined) }
@@ -159,7 +173,7 @@ describe('private vector maintenance dispatch', () => {
     )
     await flush()
     expect(orchestrator.unsubscribeUserCollection).toHaveBeenCalledWith(ctx, 'collection7')
-    expect(create.mock.calls.map(([args]) => args.params.target)).toEqual([{ kind: 'user', id: 7, preference: 'collection' }])
+    expect(create).not.toHaveBeenCalled()
   })
 
   it.each(['bookmark', 'fork'] as const)('%s rebind cleans only the displaced identity until capture completes', async kind => {

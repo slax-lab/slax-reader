@@ -113,7 +113,7 @@ describe('useAuth', () => {
       controller.abort()
       finish({ token: 'late-token' })
       await expect(login).rejects.toMatchObject({ name: 'AbortError' })
-      expect(cookieSet).not.toHaveBeenCalled()
+      expect(globalThis.fetch).not.toHaveBeenCalled()
     })
 
     it('登录成功 → 由服务端接口写 cookie 并返回 token', async () => {
@@ -147,6 +147,42 @@ describe('useAuth', () => {
       const call = mockPost.mock.calls[0]![0]
       expect(call.body.client_id).toBe('a-client-id')
       expect(call.body.type).toBe('apple')
+    })
+  })
+
+  describe('verifyEmailAuth', () => {
+    const input = { email: 'reader@example.com', request_id: 'generation', code: '012345', aff_code: 'invite' }
+
+    it('uses the same session cookie for email login and the Extension handoff', async () => {
+      mockPost.mockResolvedValueOnce({ token: 'otp-session' })
+      const { signal } = new AbortController()
+      await expect(useAuth().verifyEmailAuth(input, { signal })).resolves.toBe('otp-session')
+      expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/user/login', body: { ...input, type: 'email' } }))
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        '/api/auth/session',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ token: 'otp-session' }), signal })
+      )
+      expect(cookieSet).not.toHaveBeenCalled()
+    })
+
+    it('does not store a session after abandoning a verification', async () => {
+      const controller = new AbortController()
+      let finish!: (response: { token: string }) => void
+      mockPost.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+      const login = useAuth().verifyEmailAuth(input, { signal: controller.signal })
+      controller.abort()
+      finish({ token: 'late-session' })
+      await expect(login).rejects.toMatchObject({ name: 'AbortError' })
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+
+    it('does not replace a session established during verification', async () => {
+      mockPost.mockImplementation(async () => {
+        cookieGet.mockReturnValue('new-current-session')
+        return { token: 'otp-session' }
+      })
+      await expect(useAuth().verifyEmailAuth(input)).rejects.toThrow()
+      expect(globalThis.fetch).not.toHaveBeenCalled()
     })
   })
 

@@ -4,8 +4,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { Client } from 'pg'
 import { PrismaClient } from '@prisma/hyperdrive-client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { LoginIdentityService } from '@/domain/loginIdentityService'
+import { UserDeletionService } from '@/domain/userDeletion'
 import { UserRepo, platformBindType, type userInfoPO } from '@/infra/repository/dbUser'
 import { ApiKeyRepo } from '@/infra/repository/dbApiKey'
+import { VectorMaintenanceRepo } from '@/infra/repository/dbVectorMaintenance'
 import { ApiKeyAuth } from '@/utils/apiKeyAuth'
 import { requireActiveReaderUser } from '@/utils/activeUser'
 import { Container } from '@/decorators/di'
@@ -29,6 +32,7 @@ const userRepo = (db: PrismaClient) =>
     }) as never,
     () => db
   )
+const loginIdentities = (db: PrismaClient) => new LoginIdentityService(userRepo(db))
 const apiKeyRepo = (db: PrismaClient) => new ApiKeyRepo(() => db)
 const registration = (email: string) => ({ email, lang: 'en', name: 'Updated', deleted_at: null }) as userInfoPO
 const key = (userId: number) => ({ userId, name: 'test', keyHash: randomUUID(), keyPrefix: 'test' })
@@ -86,8 +90,11 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
   beforeAll(async () => {
     await admin!.connect()
     await admin!.query(`CREATE SCHEMA "${schema}"`)
+    const tables = await admin!.query<{ tablename: string }>("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND left(tablename, 3) = 'sr_'")
+    for (const { tablename } of tables.rows) {
+      await admin!.query(`CREATE TABLE "${schema}"."${tablename}" (LIKE public."${tablename}" INCLUDING ALL)`)
+    }
     for (const table of ['sr_user', 'sr_user_api_key', 'sr_platform_bind', 'sr_user_subscription']) {
-      await admin!.query(`CREATE TABLE "${schema}"."${table}" (LIKE public."${table}" INCLUDING ALL)`)
       await admin!.query(`CREATE SEQUENCE "${schema}"."${table}_local_id_seq" OWNED BY "${schema}"."${table}".id`)
       await admin!.query(`ALTER TABLE "${schema}"."${table}" ALTER COLUMN id SET DEFAULT nextval('"${schema}"."${table}_local_id_seq"')`)
     }
@@ -108,7 +115,130 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
   })
   const createUser = (email = 'user@example.test') => first!.sr_user.create({ data: { email, created_at: new Date(), last_login_at: new Date() } })
 
-  test.each(['register', 'register-id', 'key', 'bind'] as const)('deletion winning the row lock blocks a concurrent %s', async operation => {
+  test('concurrent verified email claims share a single new account', async () => {
+    const email = 'Reader@example.test'
+    const results = await Promise.all([
+      loginIdentities(first!).signInWithEmail('reader@example.test', email, registration(email)),
+      loginIdentities(second!).signInWithEmail('reader@example.test', email, registration(email))
+    ])
+    expect(results.map(result => result.user.id)).toEqual([results[0].user.id, results[0].user.id])
+    expect(results.filter(result => result.isNew)).toHaveLength(1)
+    expect(await first!.sr_platform_bind.findMany()).toMatchObject([{ platform: 'mail', platform_id: 'reader@example.test', user_name: email }])
+    await expect(loginIdentities(first!).signInWithEmail('reader@example.test', 'reader@example.test', registration(email))).rejects.toMatchObject({
+      name: 'EMAIL_AUTH_IDENTITY_CONFLICT'
+    })
+  })
+
+  test('historical addresses require explicit binding and keep the profile and mail-collection binding', async () => {
+    const user = await createUser('reader@example.test')
+    const repo = userRepo(first!)
+    const login = new LoginIdentityService(repo)
+    await repo.userBindPlatform(user.id, platformBindType.EMAIL, 'reader', 'reader@reader.slax.com')
+    await expect(login.signInWithEmail(user.email, user.email, registration(user.email))).rejects.toMatchObject({ name: 'EMAIL_AUTH_USE_EXISTING_LOGIN' })
+    await login.linkLoginEmail(user.id, user.email, user.email)
+    expect(await login.signInWithEmail(user.email, user.email, registration(user.email))).toMatchObject({ isNew: false, user: { id: user.id, email: user.email } })
+    await repo.unbindPlatform(user.id, platformBindType.EMAIL)
+    expect(await first!.sr_platform_bind.findMany()).toMatchObject([{ platform: 'mail', user_id: user.id }])
+  })
+
+  test('an ambiguous historical email never chooses between different accounts', async () => {
+    const original = await createUser('reader@example.test')
+    await createUser('Reader@example.test')
+    const login = loginIdentities(first!)
+    await expect(login.signInWithEmail('reader@example.test', original.email, registration(original.email))).rejects.toMatchObject({
+      name: 'EMAIL_AUTH_IDENTITY_CONFLICT'
+    })
+    await expect(login.linkLoginEmail(original.id, 'reader@example.test', original.email)).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    expect(await first!.sr_platform_bind.count()).toBe(0)
+  })
+
+  test('a distinct bound mailbox can register once account cleanup removes its binding', async () => {
+    const user = await createUser('placeholder@appleid.apple.com')
+    const email = 'real@example.test'
+    const repo = userRepo(first!)
+    const login = new LoginIdentityService(repo)
+    await login.linkLoginEmail(user.id, email, email)
+    await repo.userBindPlatform(user.id, platformBindType.TELEGRAM, '123', 'reader')
+    await repo.markUserAsDeleted(user.id)
+    await expect(repo.getLoginEmailRecipient(email)).resolves.toBeUndefined()
+    await expect(login.signInWithEmail(email, email, registration(email))).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    const deletion = new UserDeletionService(
+      () => first!,
+      repo,
+      () => {
+        throw new Error('R2 is not part of this test')
+      },
+      new VectorMaintenanceRepo(() => first!)
+    )
+    await deletion.cleanupUserData(user.id, { VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch: async () => [] } as unknown as Env['VECTOR_V5_MAINTENANCE_WORKFLOW'] })
+    expect(await repo.getUserBindPlatform(user.id)).toEqual([])
+    const fresh = await login.signInWithEmail(email, email, registration(email))
+    expect(fresh.isNew).toBe(true)
+    expect(fresh.user.id).not.toBe(user.id)
+    expect(await first!.sr_platform_bind.findMany({ where: { platform: 'mail' } })).toMatchObject([{ user_id: fresh.user.id }])
+    await expect(login.signInWithEmail(user.email, user.email, registration(user.email))).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+  })
+
+  test('OAuth cannot claim an email-enabled account by email and explicit linking preserves the profile', async () => {
+    const user = await createUser('reader@example.test')
+    const login = loginIdentities(first!)
+    await login.linkLoginEmail(user.id, user.email, user.email)
+    await expect(login.signInWithProvider('google', 'google-sub', registration(user.email))).rejects.toMatchObject({ name: 'EMAIL_AUTH_USE_EXISTING_LOGIN' })
+    await login.linkLoginProvider(user.id, 'google', 'google-sub', 'other@example.test')
+    await login.linkLoginProvider(user.id, 'google', 'google-sub', 'other@example.test')
+    await expect(login.linkLoginProvider(user.id, 'google', 'different-sub', 'other@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    expect(await login.signInWithProvider('google', 'google-sub', registration('other@example.test'))).toMatchObject({
+      isNew: false,
+      user: { id: user.id, email: user.email }
+    })
+  })
+
+  test('email and Google cannot create competing accounts for the same address', async () => {
+    const email = 'new-reader@example.test'
+    const results = await Promise.allSettled([
+      loginIdentities(first!).signInWithEmail(email, email, registration(email)),
+      loginIdentities(second!).signInWithProvider('google', 'new-google-sub', registration(email))
+    ])
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter(result => result.status === 'rejected')).toMatchObject([{ reason: { name: 'EMAIL_AUTH_USE_EXISTING_LOGIN' } }])
+    expect(await first!.sr_user.count()).toBe(1)
+  })
+
+  test('a legacy Apple subject can recover its placeholder account after email binding', async () => {
+    const original = await createUser('legacy-apple@appleid.apple.com')
+    const another = await createUser('unrelated@example.test')
+    const login = loginIdentities(first!)
+    await login.linkLoginEmail(original.id, 'reader@example.test', 'reader@example.test')
+    await expect(login.linkLoginProvider(another.id, 'apple', 'legacy-apple', 'relay@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    await expect(login.signInWithProvider('apple', 'legacy-apple', registration('relay@example.test'))).resolves.toMatchObject({
+      isNew: false,
+      user: { id: original.id, email: original.email }
+    })
+  })
+
+  test('explicit Apple linking respects a deleted legacy placeholder account reservation', async () => {
+    const original = await createUser('legacy-apple@appleid.apple.com')
+    const another = await createUser('unrelated@example.test')
+    const repo = userRepo(first!)
+    const login = new LoginIdentityService(repo)
+    await repo.markUserAsDeleted(original.id)
+    await expect(login.linkLoginProvider(another.id, 'apple', 'legacy-apple', 'relay@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+  })
+
+  test('an established OAuth subject can sign in when its changed address is reserved by another account', async () => {
+    const original = await createUser('original@example.test')
+    const another = await createUser('another@appleid.apple.com')
+    const repo = userRepo(first!)
+    const login = new LoginIdentityService(repo)
+    await repo.userBindPlatform(original.id, platformBindType.GOOGLE, 'google-sub', original.email)
+    await login.linkLoginEmail(another.id, 'reserved@example.test', 'reserved@example.test')
+    await expect(login.signInWithProvider('google', 'google-sub', registration('reserved@example.test'))).resolves.toMatchObject({
+      isNew: false,
+      user: { id: original.id, email: original.email }
+    })
+  })
+
+  test.each(['register', 'register-id', 'key', 'bind', 'bind-login-email', 'bind-login-provider'] as const)('deletion winning the lock blocks a concurrent %s', async operation => {
     const user = await createUser()
     await apiKeyRepo(first!).upsertApiKey(key(user.id))
     const result = await orderedRace(
@@ -117,6 +247,8 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
         if (operation === 'register') return userRepo(db).registerUser(registration(user.email))
         if (operation === 'register-id') return userRepo(db).registerUser({ ...registration(user.email), id: user.id })
         if (operation === 'key') return apiKeyRepo(db).upsertApiKey(key(user.id))
+        if (operation === 'bind-login-email') return loginIdentities(db).linkLoginEmail(user.id, user.email, user.email)
+        if (operation === 'bind-login-provider') return loginIdentities(db).linkLoginProvider(user.id, 'google', 'google-1', user.email)
         return userRepo(db).userBindPlatform(user.id, platformBindType.GOOGLE, 'google-1', 'test')
       }
     )
@@ -127,22 +259,28 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
     await expect(requireActiveReaderUser(first!, user.id)).rejects.toMatchObject({ errCode: 401 })
   })
 
-  test.each(['register', 'register-id', 'key', 'bind'] as const)('%s winning the row lock cannot survive subsequent deletion as an active credential', async operation => {
-    const user = await createUser()
-    const result = await orderedRace(
-      db => {
-        if (operation === 'register') return userRepo(db).registerUser(registration(user.email))
-        if (operation === 'register-id') return userRepo(db).registerUser({ ...registration(user.email), id: user.id })
-        if (operation === 'key') return apiKeyRepo(db).upsertApiKey(key(user.id))
-        return userRepo(db).userBindPlatform(user.id, platformBindType.GOOGLE, 'google-1', 'test')
-      },
-      db => userRepo(db).markUserAsDeleted(user.id)
-    )
-    expect(result.status).toBe('fulfilled')
-    expect(await first!.sr_user_api_key.count()).toBe(0)
-    await expect(requireActiveReaderUser(first!, user.id)).rejects.toMatchObject({ errCode: 401 })
-    await expect(userRepo(first!).getUserByPlatform('google', 'google-1')).rejects.toMatchObject({ name: 'UNKNOWN_BIND_USER_ERROR' })
-  })
+  test.each(['register', 'register-id', 'key', 'bind', 'bind-login-email', 'bind-login-provider'] as const)(
+    '%s winning the lock cannot survive subsequent deletion as an active credential',
+    async operation => {
+      const user = await createUser()
+      const result = await orderedRace(
+        db => {
+          if (operation === 'register') return userRepo(db).registerUser(registration(user.email))
+          if (operation === 'register-id') return userRepo(db).registerUser({ ...registration(user.email), id: user.id })
+          if (operation === 'key') return apiKeyRepo(db).upsertApiKey(key(user.id))
+          if (operation === 'bind-login-email') return loginIdentities(db).linkLoginEmail(user.id, user.email, user.email)
+          if (operation === 'bind-login-provider') return loginIdentities(db).linkLoginProvider(user.id, 'google', 'google-1', user.email)
+          return userRepo(db).userBindPlatform(user.id, platformBindType.GOOGLE, 'google-1', 'test')
+        },
+        db => userRepo(db).markUserAsDeleted(user.id)
+      )
+      expect(result.status).toBe('fulfilled')
+      expect(await first!.sr_user_api_key.count()).toBe(0)
+      await expect(requireActiveReaderUser(first!, user.id)).rejects.toMatchObject({ errCode: 401 })
+      await expect(userRepo(first!).getUserByPlatform('google', 'google-1')).rejects.toMatchObject({ name: 'UNKNOWN_BIND_USER_ERROR' })
+      await expect(userRepo(first!).getLoginEmailRecipient(user.email)).resolves.toBeUndefined()
+    }
+  )
 
   test('two active accounts racing for the same provider identity serialize on the advisory lock', async () => {
     const a = await createUser('a@example.test')

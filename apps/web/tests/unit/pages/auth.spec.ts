@@ -1,5 +1,6 @@
 import AuthPage from '~~/app/pages/auth.vue'
 
+import { RequestError } from '@commons/frontend-utils/request'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'
@@ -10,12 +11,14 @@ const env = vi.hoisted(() => ({
   grantAuth: vi.fn(),
   requestAuth: vi.fn(),
   requestAppleAuth: vi.fn(),
-  navigateTo: vi.fn()
+  navigateTo: vi.fn(),
+  post: vi.fn()
 }))
 
 mockNuxtImport('useRoute', () => () => env.route)
 mockNuxtImport('useAuth', () => () => env)
 mockNuxtImport('navigateTo', () => env.navigateTo)
+mockNuxtImport('request', () => () => ({ post: env.post }))
 mockNuxtImport('analyticsLog', () => vi.fn())
 mockNuxtImport('eventLog', () => vi.fn())
 vi.mock('vue-router', async importOriginal => ({
@@ -31,6 +34,8 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   env.grantAuth.mockReset().mockImplementation(() => new Promise(() => {}))
   env.navigateTo.mockReset().mockResolvedValue(undefined)
+  env.post.mockReset().mockResolvedValue({ linked: true })
+  sessionStorage.clear()
   env.route.query = {
     code: 'synthetic-single-use-code',
     state: JSON.stringify({ nonce: 'synthetic', redirectUrl: 'https://auth.test/auth', target: '/bookmarks?filter=unread', affCode: 'referral', platform: 'google' })
@@ -75,6 +80,29 @@ describe('OAuth callback recovery', () => {
     expect(env.navigateTo).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(20_000)
     expect(wrapper.find('[role="alert"]').text()).not.toMatch(/timed out/i)
+  })
+
+  it('sends provider identity conflicts back to the other sign-in methods with the original context', async () => {
+    const attribution = { source: 'hackerlinks', medium: 'header', campaign: 'mvp' }
+    env.route.query.state = JSON.stringify({
+      redirectUrl: 'https://auth.test/auth', target: '/bookmarks?filter=unread', affCode: 'referral', auth_attribution: attribution
+    })
+    env.grantAuth.mockRejectedValue(new RequestError({ name: 'EMAIL_AUTH_USE_EXISTING_LOGIN', code: 409, message: 'server description' }))
+    const wrapper = mountWithApp(AuthPage)
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('Sign in with your existing method')
+    const back = wrapper.get('a.auth-recovery-link')
+    expect(back.text()).toBe('Back to sign in')
+    const url = new URL(back.attributes('href')!, location.origin)
+    expect(url.pathname).toBe('/login')
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      redirect: `${location.origin}/bookmarks?filter=unread`,
+      aff: 'referral',
+      utm_source: 'hackerlinks',
+      utm_medium: 'header',
+      utm_campaign: 'mvp'
+    })
   })
 
   it('starts fresh Google authorization with the preserved return and referral context', async () => {
@@ -214,5 +242,53 @@ describe('OAuth callback recovery', () => {
     await flushPromises()
     expect(env.navigateTo).toHaveBeenCalledWith('slaxrd://auth?code=synthetic-single-use-code', { external: true })
     expect(env.grantAuth).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('Web provider linking callback', () => {
+  const state = 'link.active-attempt'
+
+  it.each(['google', 'apple'] as const)('finishes an active %s link without granting a login session', async type => {
+    sessionStorage.setItem('slax:pending-provider-link', `${type}:${state}`)
+    env.route.query = { state, code: 'synthetic-link-code' }
+    mountWithApp(AuthPage)
+    await flushPromises()
+
+    expect(env.post).toHaveBeenCalledWith(expect.objectContaining({
+      url: '/v1/user/setting',
+      body: {
+        key: 'bind_login_identity',
+        value: expect.objectContaining({ state, type, platform: 'web', code: 'synthetic-link-code' })
+      }
+    }))
+    expect(env.grantAuth).not.toHaveBeenCalled()
+    expect(env.navigateTo).toHaveBeenCalledWith('/user#account', { replace: true })
+    expect(sessionStorage.getItem('slax:pending-provider-link')).toBeNull()
+  })
+
+  it('does not grant a session or consume the active attempt for a different callback state', async () => {
+    sessionStorage.setItem('slax:pending-provider-link', `google:${state}`)
+    env.route.query = { state: 'link.different-attempt', code: 'synthetic-other-code' }
+    const wrapper = mountWithApp(AuthPage)
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('Linking did not complete')
+    expect(wrapper.get('a.auth-recovery-link').attributes('href')).toBe('/user#account')
+    expect(env.post).not.toHaveBeenCalled()
+    expect(env.grantAuth).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem('slax:pending-provider-link')).toBe(`google:${state}`)
+  })
+
+  it('discards a canceled provider attempt and offers account settings', async () => {
+    sessionStorage.setItem('slax:pending-provider-link', `apple:${state}`)
+    env.route.query = { state, error: 'access_denied' }
+    const wrapper = mountWithApp(AuthPage)
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('Linking did not complete')
+    expect(env.post).not.toHaveBeenCalled()
+    expect(env.grantAuth).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem('slax:pending-provider-link')).toBeNull()
   })
 })

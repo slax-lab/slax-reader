@@ -146,15 +146,15 @@ export class SessionController implements SessionAuthority {
       return session;
     });
   }
-  accept(token: string, userId: string, onStarted?: (assertCurrent: () => void) => void): Promise<Session> {
-    return this.acceptSession(token, userId, onStarted);
+  accept(token: string, userId: string, onStarted?: (assertCurrent: () => void) => void, signal?: AbortSignal): Promise<Session> {
+    return this.acceptSession(token, userId, onStarted, undefined, signal);
   }
   reauthenticate(token: string, userId: string, onStarted?: (assertCurrent: () => void) => void): Promise<Session> {
     const state = this.state;
     if (state.status !== 'authenticated' || state.session.userId !== userId) return Promise.reject(new SessionAccountMismatchError());
     return this.acceptSession(token, userId, onStarted, state.session.userId);
   }
-  private acceptSession(token: string, userId: string, onStarted?: (assertCurrent: () => void) => void, expectedUserId?: string): Promise<Session> {
+  private acceptSession(token: string, userId: string, onStarted?: (assertCurrent: () => void) => void, expectedUserId?: string, signal?: AbortSignal): Promise<Session> {
     if (!token || !userId) return Promise.reject(new Error('Login response is missing the session'));
     const identity = this.captureIdentity();
     return this.exclusive(async () => {
@@ -162,6 +162,7 @@ export class SessionController implements SessionAuthority {
       const stored = await this.preferences.read(), previous = storedSession(stored); identity();
       if (stored[SIGN_OUT_PENDING] === true) throw new SessionChangedError();
       if (expectedUserId !== undefined && (previous?.userId !== expectedUserId || stored._slax_account_cleanup_required_v1 === true)) throw new SessionAccountMismatchError();
+      throwIfAborted(signal);
       this.requestEpoch++; this.identityEpoch++; this.credentialsAvailable = false;
       const current = this.captureIdentity();
       onStarted?.(current);
@@ -171,6 +172,7 @@ export class SessionController implements SessionAuthority {
       const refreshedAt = Math.floor(this.now()), session = {token, userId, refreshedAt};
       await this.preferences.update(values => {
         current();
+        throwIfAborted(signal);
         if (expectedUserId !== undefined && (values[K.userId] !== expectedUserId || values[SIGN_OUT_PENDING] === true || values._slax_account_cleanup_required_v1 === true)) throw new SessionAccountMismatchError();
         delete values[K.syncToken]; delete values[K.syncRefresh]; delete values[K.syncEndpoint]; delete values[K.syncApiOrigin]; delete values[K.syncUserId]; delete values[REAUTHENTICATION];
         if (clear) values._slax_account_cleanup_required_v1 = true;

@@ -19,7 +19,7 @@ import { subscriptionPO, SubscriptionRepo } from '@/infra/repository/dbSubscript
 import { inject, injectable } from '@/decorators/di'
 import type { LazyInstance } from '@/decorators/lazy'
 import { BucketClient } from '@/infra/repository/bucketClient'
-import { RedisClient } from '@/infra/repository/redisClient'
+import { OAuthStateRepo } from '@/infra/repository/redisOAuthState'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
 import { defaultShareCollectionName } from '@/domain/collection'
 import { i18n } from '@/const/i18n'
@@ -40,7 +40,11 @@ import { hashMD5, hashSHA256 } from '@/utils/strings'
 import { diagnosticDownloadUrl, downloadDiagnostic, uploadDiagnostic, type DiagnosticAttachment } from '@/utils/diagnosticAttachment'
 import { isCollectionAuthAttribution, type AcquisitionAuthAttribution, type CollectionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import { z } from 'zod'
+import { BIND_LOGIN_IDENTITY_SETTING, type EmailAuthClientPlatform, type EmailAuthProvider, type EmailLoginRequest } from '@slax-reader/contracts/email-auth'
 import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
+import { EmailCodeService, type EmailCodeSendContext } from './emailCode'
+import { LoginIdentityService } from './loginIdentityService'
+import { LoginIdentityLinkService } from './loginIdentityLinkService'
 
 const collectionAuthAttributionSchema = z.object({
   collection_id: z
@@ -164,6 +168,8 @@ export interface userLoginReq {
   siteverify_code?: string
 }
 
+type UserLoginRequest = userLoginReq | EmailLoginRequest
+
 export enum SubscriptionType {
   NO_SUBSCRIPTION = 0,
   FREE_SUBSCRIPTION = 1,
@@ -191,10 +197,13 @@ export class UserService {
     @inject(SubscriptionRepo) private subscriptionRepo: SubscriptionRepo,
     @inject(CollectionRepo) private collectionRepo: CollectionRepo,
     @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
-    @inject(RedisClient) private redisClient: LazyInstance<RedisClient>,
+    @inject(OAuthStateRepo) private oauthState: OAuthStateRepo,
     @inject(GA4AnalyticsClient) private ga4Client: GA4AnalyticsClient,
     @inject(LogsService) private logsService: LogsService,
-    @inject(LabService) private labService: LabService
+    @inject(LabService) private labService: LabService,
+    @inject(EmailCodeService) private emailCodes: EmailCodeService,
+    @inject(LoginIdentityService) private loginIdentities: LoginIdentityService,
+    @inject(LoginIdentityLinkService) private identityLink: LoginIdentityLinkService
   ) {
     this.userRepoData = userRepo
     this.reportRepoData = reportRepo
@@ -211,129 +220,42 @@ export class UserService {
    * @returns
    */
   private async authenticateUser(ctx: ContextManager, request: Request, req: userLoginReq): Promise<userLoginResp> {
-    console.log(
-      `[login] request ${JSON.stringify({
-        type: req?.type,
-        platform: req?.platform,
-        hasCode: typeof req?.code === 'string' && req.code.length > 0,
-        hasIdToken: typeof req?.id_token === 'string' && req.id_token.length > 0,
-        clientId: req?.client_id || undefined
-      })}`
-    )
-    const authRes = await new SlaxAuth(ctx.env).login(req)
-    console.log(
-      `[login] identity ${JSON.stringify({ type: req.type, sub: authRes.sub, email: authRes.email, emailVerified: authRes.email_verified, aud: authRes.aud, iss: authRes.iss })}`
-    )
-
-    let findRes: userInfoPO | null = null
-    if (!['apple', 'google'].includes(req.type) || !authRes.sub) {
-      console.error(`[login] rejected: unsupported type or missing subject ${JSON.stringify({ type: req.type, sub: authRes.sub, email: authRes.email })}`)
-      throw RegisterUserError()
-    }
-
-    try {
-      const platformBind = await this.userRepo.getUserByPlatform(req.type, authRes.sub)
-      console.log(`[login] platform bind ${JSON.stringify({ type: req.type, bound: !!platformBind?.user_id, userId: platformBind?.user_id })}`)
-      if (platformBind?.user_id) {
-        findRes = await this.userRepo.getInfoByUserId(platformBind.user_id)
-      }
-    } catch (e) {
-      if (!(e instanceof Error) || e.name !== 'UNKNOWN_BIND_USER_ERROR') {
-        console.error('[login] platform bind lookup threw:', e)
-        throw e
-      }
-      console.error(`[login] platform bind lookup unknown: ${e instanceof Error ? e.message : String(e)}`)
-    }
-    if (findRes?.deleted_at) throw UserAccountDeletedError()
-
-    if (!findRes) {
-      const emailRes = await this.userRepo.getInfoByEmail(authRes.email)
-      if (emailRes instanceof Error) {
-        console.error(`[login] rejected: email lookup failed ${JSON.stringify({ email: authRes.email, error: String(emailRes) })}`)
-        throw RegisterUserError()
-      }
-      findRes = emailRes
-    }
-    console.log(`[login] user record ${JSON.stringify({ found: !!findRes, userId: findRes?.id ?? null })}`)
-
-    let userInfo = (!!findRes ? findRes : {}) as userInfoPO
-    const isFirstRegister = !findRes || !findRes.id
-
-    userInfo = UserService.getUserReuqestInfo(request, userInfo)
-
-    const { email, name, picture, given_name, family_name } = authRes
-    Object.assign(userInfo, { email, name, picture, given_name, family_name })
-
+    const identity = await new SlaxAuth(ctx.env).login(req)
+    if ((req.type !== 'apple' && req.type !== 'google') || !identity.sub) throw RegisterUserError()
+    const { email, name, picture, given_name, family_name } = identity
+    const profile = UserService.getUserReuqestInfo(request, { email, name, picture, given_name, family_name, last_login_at: new Date() } as userInfoPO)
     const avatar = await this.bucketClient().putRemoteIfKeyExists(picture, 'image/avartar')
-    if (avatar) userInfo.picture = `${ctx.env.IMAGE_PREFIX}${avatar.key}`
+    if (avatar) profile.picture = `${ctx.env.IMAGE_PREFIX}${avatar.key}`
+    const { user, isNew } = await this.loginIdentities.signInWithProvider(req.type, identity.sub, profile)
+    return this.completeLogin(ctx, request, user, isNew, req.type)
+  }
 
-    const regRes = await this.userRepo.registerUser(userInfo)
+  private async loginByVerifiedEmail(ctx: ContextManager, request: Request, key: string, deliveryEmail: string) {
+    const profile = UserService.getUserReuqestInfo(request, { email: deliveryEmail, lang: 'en', last_login_at: new Date() } as userInfoPO)
+    const { user, isNew } = await this.loginIdentities.signInWithEmail(key, deliveryEmail, profile)
+    return this.completeLogin(ctx, request, user, isNew, 'email')
+  }
 
-    const regInfo = regRes as userInfoPO
-    if (regInfo?.deleted_at) throw UserAccountDeletedError()
-    if (!regInfo || !regInfo.id) {
-      console.error(`[login] rejected: register returned no user ${JSON.stringify({ email: authRes.email, isFirstRegister, result: regInfo ?? null })}`)
-      throw RegisterUserError()
-    }
-    console.log(`[login] registered ${JSON.stringify({ userId: regInfo.id, isFirstRegister, lang: regInfo.lang })}`)
-
-    await this.userRepo.requireActiveUser(regInfo.id)
+  private async completeLogin(
+    ctx: ContextManager,
+    request: Request,
+    user: Pick<userInfoPO, 'id' | 'email' | 'lang' | 'uuid'>,
+    isNew: boolean,
+    method: 'google' | 'apple' | 'email'
+  ): Promise<userLoginResp> {
+    if (!user.id) throw RegisterUserError()
+    await this.userRepo.requireActiveUser(user.id)
     try {
-      const { collection, created } = await this.collectionRepo.ensureUserShareCollectWithCreation(regInfo.id, defaultShareCollectionName(regInfo))
+      const owner = await this.userRepo.getInfoByUserId(user.id)
+      const { collection, created } = await this.collectionRepo.ensureUserShareCollectWithCreation(user.id, defaultShareCollectionName(owner))
       if (created) dispatchVectorMaintenance(ctx, { kind: 'collection', id: collection.id })
     } catch (error) {
       console.error(`[login] collection provisioning failed: ${error instanceof Error ? error.message : String(error)}`)
     }
-    const signUserId = new Hashid(ctx.env).encodeId(regInfo.id)
-    const token = await new Auth(ctx.env).sign({ id: String(signUserId), lang: regInfo.lang, email: regInfo.email })
-
-    if (req.type === 'apple' && authRes.sub && authRes.email && !authRes.email.endsWith('@appleid.apple.com')) {
-      await this.userRepo.userBindPlatform(regInfo.id, platformBindType.APPLE, authRes.sub, authRes.email)
-    }
-
-    if (req.type === 'google' && authRes.sub) {
-      await this.userRepo.userBindPlatform(regInfo.id, platformBindType.GOOGLE, authRes.sub, authRes.email)
-    }
-
-    // 发放邀请奖励
-    //   if (isFirstRegister && req.aff_code) {
-    //     const turnstileToken = req.siteverify_code
-    //     const secretKey = `${env.TURNSTILE_SECRET_KEY}`
-    //     const siteverifyUrl = `${env.TURNSTILE_SITEVERIFY_URL}`
-    //     const resp = (await fetch(siteverifyUrl, {
-    //       method: 'POST',
-    //       body: JSON.stringify({
-    //         secret: secretKey,
-    //         response: turnstileToken
-    //       })
-    //     })) as Response
-
-    //     if (!resp.ok) {
-    //       return RegisterUserError()
-    //     }
-
-    //     const data = (await resp.json()) as { success: boolean }
-    //     if (!data.success) {
-    //       return RegisterUserError()
-    //     }
-    //     await new QueueClient(env).pushInviteMessage({
-    //       affCode: req.aff_code,
-    //       invitedUserId: regInfo.id
-    //     })
-    //   }
-
-    // await new KVClient(env.KV).delete.USER_INFO(regInfo.id)
-
-    this.bindRequestDevice(ctx, request, regInfo.id, isFirstRegister ? 'signup' : 'login')
-
-    return {
-      token,
-      user_id: signUserId.toString(),
-      is_new_user: isFirstRegister,
-      email: regInfo.email,
-      uuid: regInfo.uuid,
-      login_type: req.type || 'unknown'
-    }
+    const userId = String(new Hashid(ctx.env).encodeId(user.id))
+    const token = await new Auth(ctx.env).sign({ id: userId, lang: user.lang, email: user.email })
+    this.bindRequestDevice(ctx, request, user.id, isNew ? 'signup' : 'login')
+    return { token, user_id: userId, is_new_user: isNew, email: user.email, uuid: user.uuid, login_type: method }
   }
 
   public bindRequestDevice(ctx: ContextManager, request: Request, userId: number, source: 'signup' | 'login') {
@@ -364,7 +286,9 @@ export class UserService {
    * @param data
    * @returns
    */
-  public async saveUserSetting(ctx: ContextManager, data: { key: string; value: string }): Promise<undefined> {
+  public async saveUserSetting(ctx: ContextManager, data: { key: string; value: unknown }) {
+    if (data.key === BIND_LOGIN_IDENTITY_SETTING) return this.identityLink.linkIdentity(ctx, data.value)
+    if (typeof data.value !== 'string') throw ErrorParam()
     if (data.key === 'account') {
       // 判断唯一、长度、是不是特定字符
       await this.userRepo.getInfo({ account: data.value })
@@ -651,13 +575,11 @@ export class UserService {
       avatar: user.picture,
       uuid: user.uuid,
       id: ctx.hashIds.encodeId(ctx.getUserId()),
-      platform: bindList.map(item => {
-        return {
-          platform: item.platform,
-          user_name: item.user_name,
-          created_at: item.created_at
-        }
-      }),
+      platform: bindList.map(item => ({
+        platform: item.platform,
+        user_name: item.user_name,
+        created_at: item.created_at
+      })),
       // 上线一周后，再把它删除
       share_collect: {
         show_name: shareCollect?.display_name || '',
@@ -728,8 +650,20 @@ export class UserService {
     return userInfo
   }
 
+  public async sendEmailCode(ctx: ContextManager, email: string, scope: EmailCodeSendContext) {
+    const emailKey = email.toLowerCase()
+    const deliveryEmail = scope.purpose === 'login' ? ((await this.userRepo.getLoginEmailRecipient(emailKey)) ?? email) : email
+    return this.emailCodes.sendCode(ctx.env, { ...scope, emailKey, deliveryEmail })
+  }
+
   public async userLogin(ctx: ContextManager, request: Request): Promise<userLoginResp> {
-    const req = await RequestUtils.json<userLoginReq>(request)
+    const req = await RequestUtils.json<UserLoginRequest>(request)
+    if (!req) throw ErrorParam()
+    if (req.type === 'email') {
+      const { key, delivery } = await this.emailCodes.verifyCode(ctx.env, { ...req, purpose: 'login' })
+      const result = await this.loginByVerifiedEmail(ctx, request, key, delivery)
+      return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(req.auth_attribution).data)
+    }
     const attribution =
       req.type === 'google'
         ? webAuthAttributionSchema.safeParse(req.auth_attribution).data
@@ -737,7 +671,10 @@ export class UserService {
           ? acquisitionAuthAttributionSchema.safeParse(req.auth_attribution).data
           : undefined
     const result = await this.authenticateUser(ctx, request, req)
+    return this.trackLogin(ctx, request, result, attribution)
+  }
 
+  private trackLogin(ctx: ContextManager, request: Request, result: userLoginResp, attribution?: WebAuthAttribution) {
     ctx.execution.waitUntil(
       this.ga4Client.trackEvent(result.uuid, 'user_login_complete', {
         is_new_user: result.is_new_user ? true : false,
@@ -763,7 +700,7 @@ export class UserService {
     return result
   }
 
-  public async getBindLink(ctx: ContextManager, type: string): Promise<string> {
+  public async getBindLink(ctx: ContextManager, type: 'telegram' | 'twitter'): Promise<string> {
     if (type === 'telegram') {
       return this.getBindTelegramLink(ctx)
     } else if (type === 'twitter') {
@@ -776,7 +713,8 @@ export class UserService {
       const xSrv = new TwitterOAuth2(ctx.env)
       const authRes = await xSrv.generateAuthUrl()
 
-      await this.redisClient().twitterOAuthState(authRes.state).setWithExpire(
+      await this.oauthState.saveTwitter(
+        authRes.state,
         {
           userId: userId,
           codeVerifier: authRes.codeVerifier,
@@ -789,6 +727,10 @@ export class UserService {
     } else {
       throw ErrorParam()
     }
+  }
+
+  public getProviderBindLink(ctx: ContextManager, type: EmailAuthProvider, platform: EmailAuthClientPlatform) {
+    return this.identityLink.startProvider(ctx, type, platform)
   }
 
   public async checkDeleteAccountConstraints(userId: number): Promise<{ canDelete: boolean; reason?: string }> {
@@ -818,10 +760,8 @@ export class UserService {
       throw ErrorParam()
     }
 
-    const redisClient = new RedisClient(ctx.env)
-
     if (!/^[A-Za-z0-9._~-]{16,128}$/.test(state) || !code) throw OAuth2StateExpiredError()
-    const oauthData = await redisClient.twitterOAuthState(state).consume()
+    const oauthData = await this.oauthState.consumeTwitter(state)
     if (!oauthData || !Number.isFinite(oauthData.createdAt) || Date.now() - oauthData.createdAt > 600000 || oauthData.createdAt > Date.now()) throw OAuth2StateExpiredError()
 
     const userId = oauthData.userId
@@ -834,7 +774,7 @@ export class UserService {
       tokenResponse = await twitterOAuth.handleCallback({ code, state }, oauthData.codeVerifier, state)
     } catch (error) {
       console.error('[Twitter OAuth] Token exchange failed:', error)
-      await redisClient.twitterOAuthState(state).delete()
+      await this.oauthState.deleteTwitter(state)
       throw OAuth2TokenExchangeError()
     }
 
@@ -843,19 +783,18 @@ export class UserService {
       twitterUser = await twitterOAuth.getUser(tokenResponse.accessToken)
     } catch (error) {
       console.error('[Twitter OAuth] Get user info failed:', error)
-      await redisClient.twitterOAuthState(state).delete()
+      await this.oauthState.deleteTwitter(state)
       throw OAuth2UserInfoError()
     }
 
     try {
       const existingTwitterUser = await this.userRepoData.getUserByPlatform('twitter', twitterUser.id)
       if (existingTwitterUser) {
-        await redisClient.twitterOAuthState(state).delete()
         throw PlatformAccountBoundToOtherUserError()
       }
     } catch (error: any) {
       if (error.name !== 'UNKNOWN_BIND_USER_ERROR') {
-        await redisClient.twitterOAuthState(state).delete()
+        await this.oauthState.deleteTwitter(state)
         throw error
       }
     }
@@ -863,7 +802,7 @@ export class UserService {
     await this.userRepoData.requireActiveUser(userId)
     await this.userRepoData.userBindPlatform(userId, platformBindType.TWITTER, twitterUser.id, twitterUser.username)
 
-    await redisClient.twitterOAuthState(state).delete()
+    await this.oauthState.deleteTwitter(state)
 
     console.log(`[Twitter OAuth] User ${userId} bound to Twitter @${twitterUser.username}`)
   }

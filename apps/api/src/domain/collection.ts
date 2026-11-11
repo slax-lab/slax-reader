@@ -17,7 +17,6 @@ import { bookmarkPO, BookmarkRepo } from '../infra/repository/dbBookmark'
 import { inject, injectable } from '../decorators/di'
 import { UserRepo } from '../infra/repository/dbUser'
 import { SubscriptionService } from './subscription'
-import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
 import { ContextManager } from '@/utils/context'
 import { hasActiveCollectionSubscription } from '@/utils/collectionAccess'
 import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
@@ -266,9 +265,9 @@ export class CollectionService {
   }
 
   public async getMyShareCollectInfo(ctx: ContextManager): Promise<myShareCollectInfo> {
-    const user = await this.userRepo.getInfoByUserId(ctx.getUserId())
-    const { collection: shareCollect, created } = await this.collectionRepo.ensureUserShareCollectWithCreation(user.id!, defaultShareCollectionName(user))
-    if (created) dispatchVectorMaintenance(ctx, { kind: 'collection', id: shareCollect.id })
+    await this.userRepo.getInfoByUserId(ctx.getUserId())
+    const shareCollect = await this.collectionRepo.getUserShareCollect(ctx.getUserId())
+    if (!shareCollect) throw ShareCollectionNotFoundError()
     const stats = await this.collectionRepo.getCollectionStats(shareCollect.id)
     return {
       show_name: shareCollect.display_name || '',

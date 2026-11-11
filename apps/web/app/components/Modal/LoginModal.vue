@@ -25,8 +25,9 @@
           </ul>
 
           <div class="auth-btns">
-            <GoogleLoginButton :redirect="redirect" :auth-attribution="authAttribution" />
-            <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" />
+            <GoogleLoginButton :redirect="redirect" :auth-attribution="authAttribution" @click.capture="emailLogin?.cancel()" />
+            <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" @click.capture="emailLogin?.cancel()" />
+            <EmailLoginForm ref="emailLogin" :redirect="redirect" :auth-attribution="authAttribution" />
           </div>
 
           <p class="auth-tos">
@@ -44,6 +45,7 @@
 <script lang="ts" setup>
 import AppleLoginButton from '~/components/AppleLoginButton.vue'
 import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
+import EmailLoginForm from '~/components/Login/EmailLoginForm.vue'
 
 import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
 import type { PropType } from 'vue'
@@ -65,6 +67,7 @@ const appleLoginEnabled = Boolean(runtimeConfig.APPLE_OAUTH_CLIENT_ID)
 
 const isLocked = useScrollLock(window)
 const appear = ref(false)
+const emailLogin = ref<InstanceType<typeof EmailLoginForm>>()
 
 watch(appear, visible => {
   if (visible && props.authAttribution) {
@@ -81,6 +84,7 @@ onMounted(() => {
 })
 
 const closeModal = () => {
+  emailLogin.value?.cancel()
   appear.value = false
 }
 
