@@ -63,3 +63,32 @@ it('stores only the anonymous visitor variant', async () => {
   expect(cache.put).toHaveBeenCalledOnce()
   expect(cache.put.mock.calls[0][0].url).toContain('?t=visitor')
 })
+
+it.each([401, 403, 404, 500])('does not serve warmed HTML after metadata returns %s', async status => {
+  cache.match.mockResolvedValue(new Response('old cached body', { headers: { [SNAPSHOT_REVISION_HEADER]: await snapshotMetadataRevision(metadata) } }))
+  backend.fetch.mockResolvedValue(new Response(null, { status }))
+  const response = await lookup({ method: 'GET', path: '/b/source', headers: {}, context: { cloudflare: { env: { BACKEND: backend } } } })
+  expect(response.body).toBe('fresh page')
+  expect(new Headers(response.headers as never).get('x-bcache')).not.toBe('hit')
+})
+
+it.each([
+  { ...metadata, role: 'owner' },
+  { ...metadata, title: 'Current title' },
+  { ...metadata, author: null },
+  { ...metadata, mark_list: [] },
+  { ...metadata, content_key: 'html/body/current.html' }
+])('does not serve an outdated presentation revision: %j', async current => {
+  cache.match.mockResolvedValue(new Response('old cached body', { headers: { [SNAPSHOT_REVISION_HEADER]: await snapshotMetadataRevision(metadata) } }))
+  backend.fetch.mockResolvedValue(Response.json(current))
+  expect((await lookup({ method: 'GET', path: '/b/source', headers: {}, context: { cloudflare: { env: { BACKEND: backend } } } })).body).toBe('fresh page')
+})
+
+it('keeps the existing ten-minute format convergence without a new namespace', async () => {
+  const event = h3.createEvent({ headers: {}, url: '/b/source' } as never, { setHeader: vi.fn() } as never)
+  event.context.__snapshotCacheMetadata = metadata
+  await render({ statusCode: 200, body: 'projected page', headers: {} }, { event })
+  const [key, stored] = cache.put.mock.calls[0]
+  expect(key.url).toBe('https://__bcache.slax__/b/source?t=visitor')
+  expect(stored.headers.get('cache-control')).toBe('public, max-age=600')
+})
