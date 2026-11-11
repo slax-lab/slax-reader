@@ -31,8 +31,12 @@ None. Existing capture, snapshot authorization, podcast translation/playback, ar
 - API: image URL generation and focused metadata orchestration when profiling identifies reducible synchronous work. No database migration or public API contract change is planned.
 - Cloudflare: a controlled Rocket Loader comparison may be prepared; production configuration changes require a reviewed release decision. No blanket cache rule is proposed.
 - No new runtime dependency or shared-package expansion is planned. API signing/reuse stays in its existing image utility; Web presentation rewriting stays in the Web server layer. Indirect consumer effects remain part of verification.
-- On 2026-11-11 the user authorized implementation after regression review and explicitly required existing names, files, call layers and responsibilities, minimal changes, and no incidental refactoring or speculative hardening. UI-visible fixes still require hands-on acceptance before the task PR opens. Implementation starts from current `origin/dev` on `perf/optimize-public-article-lcp`; no deployment or field outcome is claimed here.
+- On 2026-11-11 the user authorized implementation after regression review and explicitly required existing names, files, call layers and responsibilities, minimal changes, and no incidental refactoring or speculative hardening. The original workflow required hands-on acceptance before PR creation; the task-specific early-opening instruction and subsequent owner acceptance are recorded below. Implementation starts from current `origin/dev` on `perf/optimize-public-article-lcp`; no deployment or field outcome is claimed here.
 
 ## PR delivery instruction
 
-On 2026-11-11 the user explicitly requested opening the PR before the pending human acceptance. Open an early draft targeting `dev` for this task, disclose the uncompleted acceptance and verification, and retain the merge-readiness gate. This request is not human hands-on acceptance and is not a general draft exemption.
+On 2026-11-11 the user explicitly requested opening the PR before the pending human acceptance. An early draft targeting `dev` was opened under that task-specific instruction, with acceptance disclosed as pending. The PR is now ready for review. The opening instruction itself was not acceptance and did not create a general draft exemption.
+
+## Human acceptance confirmation
+
+On 2026-11-11 the task owner and PR author @Whyjsee directly confirmed they had personally tested the current change, with no additional screenshots because there was no interface redesign. No further adjustments were requested. Record this as the subsequent human acceptance, without inferring an unreported environment, per-flow checks, real iOS results or the 70% field outcome. See `validation.md` for the complete record and early-PR chronology.

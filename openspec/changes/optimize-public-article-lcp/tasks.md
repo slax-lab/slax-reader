@@ -27,7 +27,7 @@ Planning artifacts are complete only after validation; checkboxes below track co
 ## 5. Integration and delivery
 
 - [x] 5.1 Run focused/full affected checks, actual Worker/browser smoke, restored-image and media/translation/fork scenarios, paired timing and payload comparisons, and strict OpenSpec validation; record results and remaining agent-executable verification gaps.
-- [ ] 5.2 Determine affected shipped applications, ask required version questions, complete human hands-on acceptance before opening the task PR, and close all Important Bugs/Security/Compliance review findings; verify the PR evidence links and `OpenSpec: optimize-public-article-lcp` line.
+- [x] 5.2 Determine affected shipped applications and applicable version decisions, record the task-specific early-PR instruction and subsequent human hands-on acceptance, and answer all Important Bugs/Security/Compliance review findings; verify the PR evidence links and `OpenSpec: optimize-public-article-lcp` line.
 
 ## 6. Authorized release and outcome
 
@@ -36,6 +36,6 @@ Planning artifacts are complete only after validation; checkboxes below track co
 
 ## Current implementation state
 
-The first proxy/projection/player batch is implemented and locally exercised; see `validation.md` for exact automated and running Worker/Chrome evidence. Multi-condition tasks remain unchecked where integrated live flows, real iOS, delivered compression, controlled LCP traces, human acceptance or post-release data are outstanding. Conditional metadata/client optimizations are not silently bundled without the required measurements. No deployment or 70% outcome is claimed.
+The first proxy/projection/player batch is implemented and locally exercised; see `validation.md` for exact automated and running Worker/Chrome evidence. Multi-condition tasks remain unchecked where integrated live flows, real iOS, delivered compression, controlled LCP traces, the final review rerun or post-release data are outstanding. Conditional metadata/client optimizations are not silently bundled without the required measurements. No deployment or 70% outcome is claimed.
 
-The user explicitly requested an early draft PR on 2026-11-11 after pending human acceptance was disclosed. Task 5.2 remains unchecked; opening the draft is not acceptance or evidence that the 70% target is reached.
+The user explicitly requested an early draft PR on 2026-11-11 after pending human acceptance was disclosed. The task owner subsequently confirmed personal testing on 2026-11-11, resolving the human-acceptance item; the PR is now ready for review. Neither the early-opening instruction nor this acceptance establishes the 70% field outcome.

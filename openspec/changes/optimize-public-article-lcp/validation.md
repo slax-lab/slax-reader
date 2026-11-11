@@ -4,7 +4,7 @@
 
 Implementation reviewed on 2026-11-11. Branch `perf/optimize-public-article-lcp` starts from `origin/dev` in the isolated managed worktree. The original checkout's unrelated edits are untouched.
 
-This is the first confirmed correctness/byte batch, not a verified 70% field outcome or a final target candidate. No deployment, database mutation or Rocket Loader setting change has occurred. Human hands-on acceptance remains pending. On 2026-11-11, after being informed of the pending acceptance, the user explicitly requested opening the PR first. This authorizes an early draft for this task only; it is not acceptance and does not create a general draft exception to `DESIGN.md` section 10.2.
+This is the first confirmed correctness/byte batch, not a verified 70% field outcome or a final target candidate. No deployment, database mutation or Rocket Loader setting change has occurred. The task owner confirmed personal hands-on testing on 2026-11-11; see the acceptance record below. The PR was initially opened early at the user's explicit request and is now ready for review. The early-opening instruction and the later testing confirmation are separate records; no general Draft exception is claimed.
 
 Production changes stay in four existing responsibilities: API image signing (`imager.ts`), one Web server body projection utility, the authorized `loadContent` boundary, and the existing podcast component. Unknown/zero-duration episodes retain metadata preload; supplied-duration episodes use no preload. No shared-package export, cross-app import, runtime dependency, migration, cache namespace, new transport, or new playback state machine was introduced. Web/API do not increment package versions under `docs/release/VERSIONING.md`; no CLI, Extension, or Mobile package/build/contract was changed.
 
@@ -95,7 +95,7 @@ The podcast passes the local paired-compression target (at least 40%, at most 15
 - Full integrated app smoke with authenticated save/fork/translation generation, subtitle panel interactions, highlights/comments, original-image preview and real Safari/iOS has not been exercised on this branch: the worktree has no operator-provided API/auth runtime or physical iOS device. Automated source/contract coverage and synthetic browser checks do not substitute for those flows. Keep these gaps explicit for human review.
 - Real reported-image browser recovery against the deployed new Web build, actual delivered compression, real edge-cache overlap, CPU profiles, twenty throttled timing pairs and end-to-end LCP budgets remain pending because this branch has not been deployed. Local fixture results do not establish those measurements.
 - No post-release seven-day cohort observation exists. The 70% goal remains open; do not infer attainment or a guaranteed LCP saving from payload reduction or synthetic playback.
-- Human hands-on acceptance is pending. The user explicitly requested an early PR on 2026-11-11 after this gap was disclosed; the draft will state that exception and remain unready for merge until acceptance. No acceptance is inferred from the request to open it.
+- Human hands-on acceptance was confirmed directly by the task owner on 2026-11-11, after the documented task-specific early-PR instruction. The acceptance record below does not infer unreported environments or individual test steps.
 
 ## Local final review
 
@@ -111,14 +111,50 @@ Independent Claude Code review requested `claude-opus-5-5`, with a curated read-
 - Query duplicate semantics were inspected: the endpoint uses the last query occurrence; generated proxy URLs have unique signed fields. Endpoint revalidation remains authoritative; unsupported supplied URLs cannot widen access.
 - Derived endpoint matching is verified for the captured public runtime API base; custom operator proxy paths outside `/static/image` are not guessed by this Web repair.
 
-Remaining release/field tasks stay unchecked. Real iOS and human hands-on acceptance remain pending. The user requested an early draft PR; this delivery instruction does not close the remaining verification tasks.
+Remaining release/field tasks stay unchecked. Real iOS and the specific agent-executable gaps above remain open. Human hands-on testing was subsequently confirmed by the task owner; this does not establish field LCP attainment.
 
 Final local outcome: 64 focused Web tests, 2,742 full Web tests and 3,863 full API tests passed; final Web/API typechecks, changed production lint, Worker projection checks and API offline bundle passed. Final Web rebuild passed (exit 0) after the fix pass; final strict OpenSpec validation passed all 124 items. The complete 70% outcome is still open.
 
-Codex completed the post-fix Bugs/Security/Compliance review against this change and the staged scope: no unresolved Important findings and no deferred Nits. Human acceptance, real iOS/integrated runtime gaps and field outcome remain visible above; local correctness/byte delivery does not close them.
+Codex completed the post-fix Bugs/Security/Compliance review against this change and the staged scope: no unresolved Important findings and no deferred Nits. Human acceptance is recorded separately below. Real iOS/integrated runtime gaps and field outcome remain visible above; local correctness/byte delivery does not close those gaps.
 
 ## PR delivery instruction
 
-On 2026-11-11 the user explicitly asked to submit the PR first, after the missing human acceptance and field verification were disclosed. Prepare an early draft targeting `dev`, keep acceptance pending in the PR body, and preserve the existing verification gaps. This documentation-only status update does not change the verified production code; the full-suite counts above apply to implementation commit `e491d9fb`.
+On 2026-11-11 the user explicitly asked to submit the PR first, after the missing human acceptance and field verification were disclosed. The PR was opened as an early draft targeting `dev`, with acceptance pending at that time. It was subsequently made ready for review. Preserve this chronology and the existing agent-verification gaps. This documentation-only status update does not change the verified production code; the full-suite counts above apply to implementation commit `e491d9fb`.
 
 PR visual evidence was captured at 390 x 844 CSS pixels, light theme, in the same synthetic nested-image fixture: baseline `6016ee48` delivery retained the outer source and the image completed with natural width 0; current delivery selected the inner source and completed with natural width 800. Baseline source was read with `git show origin/dev:.../browser-harness.mjs` into ignored scratch space. Both screenshots are attachments, not committed files. This does not claim production canary recovery or field LCP evidence.
+
+## Human hands-on acceptance
+
+- Confirmation date: 2026-11-11, Asia/Shanghai.
+- Acceptance owner: the task owner and PR author, @Whyjsee, reporting directly in this conversation.
+- Reported scope and result: the owner confirmed they had personally tested the current change. In the context of clearing the pending acceptance item, this confirms acceptance of the current functional changes; no further adjustments were requested.
+- Visual evidence: the owner supplied no additional screenshots because the change does not redesign the interface. Existing agent-produced before/after attachments remain synthetic image-correctness evidence, separate from the human report. No human screenshot is claimed.
+- Reporting limits: the owner did not specify the exact runtime or individual steps. The record does not infer a real-iOS pass, every authenticated flow, delivered compression or the 70% field outcome.
+- Chronology: the user previously requested opening the PR first, explicitly authorizing that task-specific ordering exception. This later personal-testing confirmation supplies the acceptance record; it is not retroactively dated before PR creation.
+
+## Nested image proxy explanation
+
+The first captured Mole image is `https://pbs.twimg.com/media/HWqmqkVasAAybYB.png`. All 11 proxied images in the captured article have an extra proxy wrapper. Let `P(url)` mean the configured signed Slax image endpoint:
+
+| Input/state | Generation or Web-delivery result |
+| --- | --- |
+| New original image URL | Generate `P(original)` with `u`, `r` and `d` |
+| Already valid same-mode `P(original)` | Reuse the complete supplied URL byte-for-byte, including its existing `r` and `d` |
+| Already valid same-mode `P(P(original))` passed to generation | Reuse it without adding a third layer; Web recovery handles the supported historical double wrapper |
+| Authorized stored HTML with the known double wrapper | Return `img[src]=P(original)` in SSR/content refresh; canonical R2 HTML remains unchanged |
+
+The browser still requests the Slax proxy, not the original image origin. The proxy continues to apply its signature, incoming Reader Referer and public-target checks, then supplies the upstream Referer from the preserved `r` under existing rules. Removing the extra outer wrapper does not remove this source-site compatibility behavior.
+
+For the captured example, the outer layer forwards the original X article Referer when requesting the inner Slax endpoint. That is rejected by the inner endpoint's Reader-origin check. On 2026-11-11 the same inner URL returned 200 `image/png` (18,323 bytes) with a Reader Referer and 403 with the X article Referer; the outer URL returned 302 to `notfound.png`. This diagnoses the extra hop and its failed source check, not a guaranteed LCP saving. New Web renders/refreshes apply the bounded repair; existing public HTML may retain the old format for the unchanged 600-second TTL.
+
+## PR review response
+
+Review run `42950009646` found one Important Compliance item: the missing human-acceptance record and stale Draft description. The direct owner confirmation above resolves the record; the PR description is synchronized with its current non-draft status. Web/API/configuration and the other application CI gates on `1f62c2ff` passed. No production-code change is required to correct this evidence failure.
+
+Three non-blocking Nits were examined against the original minimal-scope instruction:
+
+- Keep Web recovery bounded to the observed `/static/image` endpoint derived from the public API base. Custom operator paths remain a disclosed limitation; a shared configuration abstraction is not introduced without a concrete required deployment.
+- Generated signed URLs contain each signed field once (`URLSearchParams.set`). First/last duplicate-query differences concern unsupported supplied URLs; the endpoint still revalidates the effective signature and cannot grant extra access. No new compatibility parser is added for this input class.
+- Preserve the tested propagation of projection errors. The storage-read recovery and projection have different failure contracts; no blanket catch hides rewriter/programming errors. The explicit Node profile without HTMLRewriter retains its existing original-body behavior.
+
+This follow-up updates documentation/evidence only. Existing implementation checks apply to unchanged production code; strict OpenSpec validation is rerun before pushing.
