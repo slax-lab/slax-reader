@@ -167,6 +167,7 @@ export class CollectionRepo {
       if ((error as { code?: unknown })?.code !== 'P2002') throw error
       collection = await upsert()
     }
+    // Matching the per-attempt code proves this call inserted; any other code identifies the concurrent winner.
     return { collection, created: collection.collection_code === attemptedCode }
   }
 
