@@ -43,6 +43,7 @@ export type ArticleQueryOptions = VectorQueryOptions & ({ userId: number; recomm
 export interface VectorMaintenance {
   refreshArticles(articles: ArticleVectorIdentity[]): Promise<VectorRefreshResult[]>
   refreshCollection(id: number): Promise<VectorRefreshResult>
+  applyCollection(id: number): Promise<VectorRefreshResult>
   refreshUser(id: number, preference: PreferenceKind): Promise<VectorRefreshResult>
   readUser(id: number, preference: PreferenceKind): Promise<number[] | null>
   readArticleProfile(userId: number): Promise<{ vector: number[]; centered: number[]; interests: InterestCluster[] } | null>

@@ -5,6 +5,7 @@ import type { VectorRefreshResult } from '@/utils/vectorMaintenanceTypes'
 export interface VectorPreferenceRpc {
   apply(userId: number, id: number, previous?: number[]): Promise<VectorRefreshResult[]>
   rebuild(userId: number, publish: PreferencePublish): Promise<VectorRefreshResult[]>
+  publish(userId: number, publish: PreferencePublish): Promise<VectorRefreshResult[]>
 }
 
 @injectable()
@@ -26,5 +27,9 @@ export class VectorPreferenceClient implements VectorPreferenceRpc {
 
   rebuild(userId: number, publish: PreferencePublish): Promise<VectorRefreshResult[]> {
     return this.object(userId).rebuild(userId, publish)
+  }
+
+  publish(userId: number, publish: PreferencePublish): Promise<VectorRefreshResult[]> {
+    return this.object(userId).publish(userId, publish)
   }
 }
