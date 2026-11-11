@@ -489,7 +489,7 @@ test('Settings hides the email binding action outside a development session', as
 }));
 
 test('Android guides Apple linking to the same Web account and ignores late Google authorization after owner replacement', async () => mounted(async root => {
-  const h = await harness(root, 'android'), native = deferred();
+  const h = await harness(root, 'android', true), native = deferred();
   h.platforms = async () => [linkedPlatform('mail', 'owner@example.test')];
   h.authorize = () => native.promise;
   await h.renderRoute('SettingsScreen');
@@ -507,14 +507,14 @@ test('Android guides Apple linking to the same Web account and ignores late Goog
   assert.ok(h.all('SourceText').some(props => props.children === 'other@example.test'));
 }));
 
-test('Settings uses verified mail rather than mail collection and displays linked methods outside development', async () => mounted(async root => {
+test('Settings hides a linked login mailbox outside development', async () => mounted(async root => {
   const h = await harness(root);
   h.platforms = async () => [linkedPlatform('email', 'collection@example.test'), linkedPlatform('mail', 'Reader@example.test'), linkedPlatform('google'), linkedPlatform('apple')];
   await h.renderRoute('SettingsScreen');
-  for (const label of ['Reader@example.test', 'email_auth_google_linked', 'email_auth_apple_linked']) {
+  for (const label of ['email_auth_google_linked', 'email_auth_apple_linked']) {
     assert.ok(h.all('SourceText').some(props => props.children === label));
   }
-  assert.ok(!h.all('SourceText').some(props => props.children === 'collection@example.test'));
+  assert.ok(!h.all('SourceText').some(props => props.children === 'collection@example.test' || props.children === 'Reader@example.test' || props.children === 'email_auth_address'));
   assert.ok(!h.all('SourceButton').some(props => props.label === 'email_auth_bind'));
 }));
 
@@ -527,7 +527,7 @@ test('development Settings can bind email when only mail collection is present',
 }));
 
 test('late platform refreshes are cancelled and cannot replace the next account display', async () => mounted(async root => {
-  const h = await harness(root), held = deferred();
+  const h = await harness(root, 'ios', true), held = deferred();
   h.platforms = () => held.promise;
   await h.renderRoute('SettingsScreen');
   const retired = h.platformReads[0];

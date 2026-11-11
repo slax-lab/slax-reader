@@ -22,11 +22,11 @@ export function AccountSignInMethods({t, locale, platform, state, api}: AccountS
   const email = linked.get('mail');
   return <View style={styles.card}>
     <SourceText accessibilityRole="header" style={T.button}>{t('email_auth_methods')}</SourceText>
-    {email ? <View>
+    {development && (email ? <View>
       <SourceText style={styles.secondary}>{t('email_auth_address')}</SourceText>
       <SourceText selectable>{email.user_name}</SourceText>
-    </View> : development && <SourceButton label={t('email_auth_bind')} tone="surface" style={styles.button}
-      disabled={Boolean(busy)} onPress={state.openEmail} />}
+    </View> : <SourceButton label={t('email_auth_bind')} tone="surface" style={styles.button}
+      disabled={Boolean(busy)} onPress={state.openEmail} />)}
     {linked.has('google') ? <SourceText style={styles.secondary}>{t('email_auth_google_linked')}</SourceText>
       : <SourceButton label={t('email_auth_link_google')} tone="surface" style={styles.button}
         busy={busy === 'google'} disabled={busy === 'apple'} onPress={() => {void state.linkProvider('google');}} />}

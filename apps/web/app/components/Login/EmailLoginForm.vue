@@ -1,8 +1,10 @@
 <template>
-  <button class="email-login-toggle" type="button" :aria-expanded="open" @click="toggle">
-    {{ t(open ? 'email_auth.cancel' : 'email_auth.continue_with_email') }}
-  </button>
-  <EmailCodeForm v-if="open" ref="form" :verify="verifyEmail" />
+  <template v-if="emailEnabled">
+    <button class="email-login-toggle" type="button" :aria-expanded="open" @click="toggle">
+      {{ t(open ? 'email_auth.cancel' : 'email_auth.continue_with_email') }}
+    </button>
+    <EmailCodeForm v-if="open" ref="form" :verify="verifyEmail" />
+  </template>
 </template>
 
 <script lang="ts" setup>
@@ -20,6 +22,7 @@ const props = defineProps<{
 }>()
 
 const nuxtApp = useNuxtApp()
+const emailEnabled = useRuntimeConfig().public.slaxEnv === 'development'
 const { t } = nuxtApp.$i18n
 const auth = useAuth()
 const open = ref(false)

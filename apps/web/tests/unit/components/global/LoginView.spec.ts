@@ -22,6 +22,7 @@ mockNuxtImport('analyticsLog', () => analytics)
 const runtimeConfig = {
   app: { baseURL: '/' },
   public: {
+    slaxEnv: 'development',
     APPLE_OAUTH_CLIENT_ID: 'apple-client-id',
     TURNSTILE_SITE_KEY: 'turnstile-site-key'
   }
@@ -39,6 +40,7 @@ const NuxtTurnstileStub = {
 describe('global/LoginView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    runtimeConfig.public.slaxEnv = 'development'
     get.mockResolvedValue({ enabled: false })
     post.mockResolvedValue({ request_id: 'attempt', expires_in: 300, resend_after: 60 })
     verifyEmailAuth.mockReset().mockResolvedValue('session')
@@ -94,6 +96,19 @@ describe('global/LoginView', () => {
     expect(get).not.toHaveBeenCalled()
     expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).exists()).toBe(true)
     expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it.each(['preview', 'beta', 'production'])('hides email login in %s', async environment => {
+    runtimeConfig.public.slaxEnv = environment
+    const wrapper = mountWithApp(LoginView)
+    await flushPromises()
+
+    expect(wrapper.find('.email-login-toggle').exists()).toBe(false)
+    expect(wrapper.find('input[type=email]').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(true)
+    expect(post).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

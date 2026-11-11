@@ -1,7 +1,7 @@
 <template>
   <section class="login-methods" :aria-labelledby="titleId">
     <h3 :id="titleId">{{ t('email_auth.methods_title') }}</h3>
-    <div v-if="showEmailBinding || loginEmail" ref="emailRow" class="login-method-row" tabindex="-1">
+    <div v-if="showEmailBinding" ref="emailRow" class="login-method-row" tabindex="-1">
       <div class="login-method-label">
         <strong>{{ t('email_auth.login_email') }}</strong>
         <span>{{ signInEmailStatus }}</span>

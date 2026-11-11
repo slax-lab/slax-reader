@@ -22,3 +22,9 @@
 
 - [x] 4.1 Run affected automated checks and strict OpenSpec validation. Exercise the feature against a running API and the supported clients, and record results in `validation.md`.
 - [x] 4.2 Obtain and record hands-on acceptance for the changed UI. Confirm any affected package version changes before commit or push, and complete the local pre-push review.
+
+## 5. Development-only email UI correction
+
+- [x] 5.1 Hide email login entries and forms on non-development Web and Mobile clients; hide mailbox binding and linked login-email status in account settings. Preserve provider login and keep backend APIs unrestricted by the rollout environment.
+- [x] 5.2 Verify development, beta, and production presentation, run affected checks, and record the correction evidence.
+- [ ] 5.3 Obtain hands-on acceptance of the correction before opening its follow-up pull request.

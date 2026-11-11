@@ -77,7 +77,7 @@ describe('Account sign-in methods', () => {
     expect(clearAuth).not.toHaveBeenCalled()
   })
 
-  it.each(['development', 'preview', 'beta', 'production'])('shows an existing login mailbox from platform in %s', async environment => {
+  it.each(['development', 'preview', 'beta', 'production'])('shows a login mailbox only in development for %s', async environment => {
     oauth.environment = environment
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: {
       accountKey,
@@ -85,7 +85,8 @@ describe('Account sign-in methods', () => {
       platform: [...platforms, { platform: 'mail', user_name: 'reader@example.com', created_at: new Date('2026-11-01T00:00:00Z') }]
     } })
 
-    expect(wrapper.text()).toContain('Same as profile email')
+    expect(wrapper.text().includes('Same as profile email')).toBe(environment === 'development')
+    expect(wrapper.findAll('.login-method-row')).toHaveLength(environment === 'development' ? 2 : 1)
     expect(wrapper.text()).toContain('GoogleLinked')
     expect(wrapper.find('button').exists()).toBe(false)
   })
