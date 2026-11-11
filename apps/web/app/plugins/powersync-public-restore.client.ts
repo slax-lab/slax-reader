@@ -1,4 +1,5 @@
 import { isNavigationFailure } from 'vue-router'
+
 import { getUserToken } from '~/utils/request'
 
 export default defineNuxtPlugin({
@@ -19,6 +20,11 @@ export default defineNuxtPlugin({
         // Only router-resolved internal destinations belong to this guard.
         if (!/^\/(?![\\/])/.test(destination)) {
           pending = null
+          return false
+        }
+        // Assigning the current URL with a fragment can stay in the old document.
+        if (window.location.hash && new URL(destination, window.location.href).href === window.location.href) {
+          window.location.reload()
           return false
         }
         const outcome = await nuxtApp.runWithContext(() => navigateTo(destination, { external: true }))

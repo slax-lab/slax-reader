@@ -11,8 +11,10 @@ export default defineNuxtRouteMiddleware((to, from) => {
   }
 
   const isAnchorLink = to.path === from.path && to.hash !== from.hash
+  // A bypassed root must reach login or reload with a session before the Inbox can mount.
+  const isBypassedRoot = to.path === '/' && useNuxtApp().$powersyncPublicBypass
 
-  if (isAnchorLink) {
+  if (isAnchorLink && !isBypassedRoot) {
     return
   }
 
@@ -44,22 +46,20 @@ export default defineNuxtRouteMiddleware((to, from) => {
   const needAuth = !readStringCookie(useNuxtApp().$config.public.COOKIE_TOKEN_NAME, cookies)
 
   if (needAuth) {
-    if (!ignoreAuth) {
-      if (!isToLogin && !isFromAuth) {
-        const queryParams: Record<string, string> = {
-          redirect: encodeURIComponent(to.fullPath ? `${location.origin}${to.fullPath}` : location?.href),
-          ...acquisitionUtmQuery(to.query)
-        }
-
-        const queryStr = Object.keys(queryParams)
-          .map(key => `${key}=${queryParams[key]}`)
-          .join('&')
-
-        return navigateTo(`/login${queryStr ? `?${queryStr}` : ''}`)
+    if (isBypassedRoot || (!ignoreAuth && !isToLogin && !isFromAuth)) {
+      const queryParams: Record<string, string> = {
+        redirect: encodeURIComponent(to.fullPath ? `${location.origin}${to.fullPath}` : location?.href),
+        ...acquisitionUtmQuery(to.query)
       }
+
+      const queryStr = Object.keys(queryParams)
+        .map(key => `${key}=${queryParams[key]}`)
+        .join('&')
+
+      return navigateTo(`/login${queryStr ? `?${queryStr}` : ''}`)
     }
   } else {
-    if (isToLogin || isToAuth) {
+    if (!isBypassedRoot && (isToLogin || isToAuth)) {
       const redirectUrl = to.query.redirect as string
       if (redirectUrl) {
         return navigateTo(decodeURIComponent(redirectUrl), { external: true })
