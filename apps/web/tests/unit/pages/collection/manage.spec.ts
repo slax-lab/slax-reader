@@ -117,6 +117,10 @@ describe('pages/collection/manage', () => {
       body: { name: 'New name', description: 'New description' }
     })
     expect(wrapper.find('.cm-link-value-text').text()).toContain('/c/CODE123')
+    expect(mocks.sharedInfo.value?.show_name).toBe('New name')
+    expect(mocks.sharedInfo.value?.description).toBe('New description')
+    expect(mocks.sharedLoaded.value).toBe(true)
+    expect(mocks.refresh).not.toHaveBeenCalled()
     expect(mocks.toastShow).toHaveBeenCalledWith({ text: 'Changes saved' })
   })
 

@@ -80,9 +80,9 @@ const fetchInfo = (force = false): Promise<MyShareCollectionInfo | null> => {
 export const useShareCollectInfo = () => {
   startAccountWatch()
 
-  // SWR：先出缓存；已加载后 ensure 不再重复请求，请求中则复用 inflight
+  // SWR：先出缓存；成功加载后 ensure 不再重复请求，失败可在下次进入时重试
   const ensure = () => {
-    if (!import.meta.client || !haveRequestToken() || loaded.value) return
+    if (!import.meta.client || !haveRequestToken() || (loaded.value && info.value)) return
     fetchInfo()
   }
 

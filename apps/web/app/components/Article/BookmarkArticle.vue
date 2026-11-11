@@ -103,7 +103,7 @@ const props = defineProps({
   pdfLoadError: Boolean
 })
 
-const emits = defineEmits(['screenLockUpdate', 'bookmarkUpdate', 'chatBotQuote', 'retryPdf'])
+const emits = defineEmits(['screenLockUpdate', 'chatBotQuote', 'retryPdf'])
 
 // 行为注入，默认空=现状
 const adapters = inject(ArticleSelectionAdaptersKey, {})

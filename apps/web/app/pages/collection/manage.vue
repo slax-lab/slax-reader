@@ -266,6 +266,9 @@ const saveSettings = async () => {
     if (!res) throw new Error('save failed')
     nameInput.value = name
     if (collectInfo.value) collectInfo.value = { ...collectInfo.value, show_name: name, description }
+    const sharedBase = collectInfo.value ?? sharedCollection.info.value
+    if (sharedBase) sharedCollection.info.value = { ...sharedBase, show_name: name, description }
+    sharedCollection.loaded.value = true
     Toast.showToast({ text: t('page.collection_manage.toast_saved') })
   } catch {
     Toast.showToast({ text: t('common.tips.save_failed'), type: ToastType.Error })

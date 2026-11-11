@@ -77,6 +77,12 @@ The merged result passed the full Web suite with 2781 passed and 3 conditionally
 
 The actual local full stack was exercised again after the lazy-component merge. Closed-state presentation and direct reopen passed 160/160 checks at 1200px and 320px in Chinese and English. Real first-star writes and cue placement passed 76/76 checks at the same widths and languages. Business `/v1` APIs were not mocked. Evidence files use the `-post-refactor` suffix under `test-results/default-public-starred-collections/real-stack/`; generated token files were removed after the run.
 
+## Automated PR review follow-ups
+
+The automated PR review reported no Important findings and three Nits. All three were addressed: `ensure()` now retries after a failed first load but still coalesces after a successful load; saving collection name/description updates the shared starred-page cache immediately without an extra `/mine` request; and the unreachable user-id runtime check plus the unused `bookmarkUpdate` emit were removed. The API's optional user-id type is handled with a non-null assertion because the repository method already throws for a missing or deleted user.
+
+New regression coverage passed for cold-start failure/retry/success, management-save cache synchronization, and the article component. The final full Web suite passed 2782 tests with 3 conditionally skipped (237 files passed, 1 skipped), followed by Web typecheck and production build. API targeted suites passed 60/60, API typecheck passed, and API lint completed with 0 errors and the repository's existing 344 warnings. `pnpm api -- gen:all` completed with no generated-artifact diff.
+
 ## Human hands-on acceptance
 
 On 2026-11-10, the change requester completed hands-on acceptance of the implemented change in the real local full-stack environment and explicitly confirmed “我验收通过。” The accepted behavior includes default public provisioning, preserved closed state, original collection presentation, first-star discovery with starred-list navigation, direct sharing, snapshot controls, and responsive layouts. Acceptance followed adjustments to collection UX, cue placement and copy, closed-state mini entry, and narrow-screen clipping. The requester subsequently reviewed both dark and e-ink themes and confirmed they meet expectations. On 2026-11-11, after `origin/dev` was merged and the 768px layout correction was verified, the requester again confirmed acceptance of the merged implementation. No further adjustments were requested at acceptance.

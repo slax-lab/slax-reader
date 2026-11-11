@@ -266,8 +266,7 @@ export class CollectionService {
 
   public async getMyShareCollectInfo(ctx: ContextManager): Promise<myShareCollectInfo> {
     const user = await this.userRepo.getInfoByUserId(ctx.getUserId())
-    if (!user.id) throw UserNotFoundError()
-    const shareCollect = await this.collectionRepo.ensureUserShareCollect(user.id, defaultShareCollectionName(user))
+    const shareCollect = await this.collectionRepo.ensureUserShareCollect(user.id!, defaultShareCollectionName(user))
     const stats = await this.collectionRepo.getCollectionStats(shareCollect.id)
     return {
       show_name: shareCollect.display_name || '',

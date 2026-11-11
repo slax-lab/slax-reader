@@ -189,4 +189,27 @@ describe('composables/useShareCollectInfo', () => {
     expect(share.info.value?.collection_code).toBe('inflight-code')
     expect(share.loaded.value).toBe(true)
   })
+
+  it('retries ensure after a failed first load, then coalesces after success', async () => {
+    accountState.accountKey!.value = 'account-retry'
+    mockGet.mockRejectedValueOnce(new Error('network'))
+
+    share.ensure()
+    await flushPromises()
+
+    expect(share.loaded.value).toBe(true)
+    expect(share.info.value).toBeNull()
+    expect(mockGet).toHaveBeenCalledTimes(1)
+
+    mockGet.mockResolvedValueOnce({ ...accountA, collection_code: 'retry-code' })
+    share.ensure()
+    await flushPromises()
+
+    expect(share.info.value?.collection_code).toBe('retry-code')
+    expect(mockGet).toHaveBeenCalledTimes(2)
+
+    share.ensure()
+    await flushPromises()
+    expect(mockGet).toHaveBeenCalledTimes(2)
+  })
 })
