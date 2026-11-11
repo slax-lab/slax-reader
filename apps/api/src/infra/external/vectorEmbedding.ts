@@ -38,6 +38,26 @@ async function responseText(response: Response, limit: number): Promise<string> 
 
 class ContextOverflow extends Error {}
 
+export function providerDiagnostic(status: number, text: string, requestId: string | null) {
+  const diagnostic: { status: number; code?: string; detail?: string; requestId?: string } = { status }
+  try {
+    const body = JSON.parse(text) as { code?: unknown; detail?: unknown; request_id?: unknown }
+    if (typeof body.code === 'string' && /^[A-Z][A-Z0-9_]{1,64}$/.test(body.code)) diagnostic.code = body.code
+    if (typeof body.detail === 'string')
+      diagnostic.detail = body.detail
+        .replace(/https?:\/\/[^\s]+/g, '[url]')
+        .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
+        .replace(/(?:bearer\s+|jina_)[A-Za-z0-9_.-]+/gi, '[credential]')
+        .replace(/(["'])(?:\\.|(?!\1).){80,}\1/g, '[quoted value redacted]')
+        .slice(0, 500)
+    if (typeof body.request_id === 'string' && /^[a-f0-9]{16,64}$/i.test(body.request_id)) diagnostic.requestId = body.request_id
+  } catch {
+    // Only structured provider metadata is retained; raw error responses are never logged.
+  }
+  if (!diagnostic.detail && requestId && /^[a-f0-9]{16,64}$/i.test(requestId)) diagnostic.requestId = requestId
+  return diagnostic
+}
+
 @injectable()
 export class VectorEmbeddingClient {
   private readonly apiKey: string
@@ -70,6 +90,7 @@ export class VectorEmbeddingClient {
     }).catch(() => bodyFailure(new Error('embedding_transport_failed')))
     if (!response.ok) {
       const text = await responseText(response, 16 * 1024).catch(bodyFailure)
+      console.error('[embedding-provider]', JSON.stringify(providerDiagnostic(response.status, text, response.headers.get('x-request-id'))))
       if (
         (response.status === 400 || response.status === 413 || response.status === 422) &&
         /context[_ -]?(length|window)|maximum.*tokens|token.*(limit|exceed)|input.*too long|(?:input.*exceed.*maximum length|exceed.*model(?:['’]s)? maximum length)/i.test(text)

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ArticleVectorAccumulator, bisectText, estimatedTokens, normalized, requestBytes, textInputs, VECTOR_MODEL, VECTOR_REQUEST_BYTES } from '@/utils/vectorEmbedding'
-import { VectorEmbeddingClient as VectorEmbedding } from '@/infra/external/vectorEmbedding'
+import { VectorEmbeddingClient as VectorEmbedding, providerDiagnostic } from '@/infra/external/vectorEmbedding'
 
 const unit = (axis = 0) => Array.from({ length: 1024 }, (_, i) => (i === axis ? 1 : 0))
 const response = (count: number) => Response.json({ model: VECTOR_MODEL, data: Array.from({ length: count }, (_, i) => ({ index: i, embedding: unit(i) })) })
@@ -288,5 +288,47 @@ describe('bounded whole-first embedding', () => {
     const fetcher = vi.fn().mockResolvedValue(new Response('x'.repeat(16 * 1024 + 1), { status: 500 }))
     await expect(embedding('key', fetcher).pdf('base64')).rejects.toThrow('embedding_response_too_large')
     expect(fetcher).toHaveBeenCalledOnce()
+  })
+})
+
+
+describe('provider diagnostics', () => {
+  test('retains only bounded provider code, detail and request ID', () => {
+    const raw = JSON.stringify({
+      code: 'ACCOUNT_LIMIT_REACHED',
+      detail: 'Contact https://example.invalid/help or operator@example.invalid with bearer secret-token; "a very long quoted private value that should never be retained because it exceeds our limit"',
+      request_id: 'abcdef0123456789abcdef0123456789'
+    })
+    const output = providerDiagnostic(422, raw, null)
+    expect(output).toEqual({ status: 422, code: 'ACCOUNT_LIMIT_REACHED', detail: expect.stringContaining('[url]'), requestId: 'abcdef0123456789abcdef0123456789' })
+    expect(output.detail).toContain('[email]')
+    expect(output.detail).toContain('[credential]')
+    expect(output.detail).not.toContain('operator@example.invalid')
+    expect(output.detail).not.toContain('very long quoted')
+    expect(output.detail!.length).toBeLessThanOrEqual(500)
+  })
+
+  test('does not echo arbitrary raw responses or unsafe request IDs', () => {
+    expect(providerDiagnostic(500, '<html>secret article input</html>', 'not-an-id')).toEqual({ status: 500 })
+    expect(providerDiagnostic(422, JSON.stringify({ code: 'not safe', detail: 42 }), null)).toEqual({ status: 422 })
+  })
+
+  test('logs safe details for a rejected request and stays silent on success', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({ code: 'INVALID_TASK', detail: 'Task is not supported', request_id: 'abcdef0123456789abcdef0123456789' }, { status: 422 })))
+      const client = new VectorEmbedding({ JINA_API_KEY: 'test-only-key' } as Env)
+      await expect(client.embed([{ text: 'private input never logged' }])).rejects.toThrow('embedding_http_422')
+      expect(log).toHaveBeenCalledExactlyOnceWith('[embedding-provider]', JSON.stringify({ status: 422, code: 'INVALID_TASK', detail: 'Task is not supported', requestId: 'abcdef0123456789abcdef0123456789' }))
+      expect(JSON.stringify(log.mock.calls)).not.toContain('private input')
+      expect(JSON.stringify(log.mock.calls)).not.toContain('test-only-key')
+      log.mockClear()
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({ model: VECTOR_MODEL, data: [{ index: 0, embedding: Array.from({ length: 1024 }, (_, i) => (i === 0 ? 1 : 0)) }] })))
+      await expect(client.embed([{ text: 'fine' }])).resolves.toHaveLength(1)
+      expect(log).not.toHaveBeenCalled()
+    } finally {
+      log.mockRestore()
+      vi.unstubAllGlobals()
+    }
   })
 })
