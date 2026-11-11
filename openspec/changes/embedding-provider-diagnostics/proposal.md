@@ -8,7 +8,7 @@ The test deployment returns Jina HTTP 422 while identical reconstructed article 
 
 - Add bounded, redacted structured error logging for failed Jina requests, retaining provider code, detail and request ID without article text, API credentials, request body or full provider responses.
 - Keep existing error reasons, retry behavior, vector state and request semantics unchanged.
-- Validate sanitization, then deploy only to the authorized test environment and replay the two failing source articles.
+- Validate sanitization, then open the diagnostic PR without deploying or replaying the test environment.
 
 ## Capabilities
 
@@ -26,4 +26,4 @@ None.
 
 ## Approval
 
-The maintainer explicitly requested urgent diagnostic logging on 2026-11-11, authorizing implementation and test-environment verification/deployment. Production is excluded.
+The maintainer first authorized urgent diagnostics, then explicitly changed delivery on 2026-11-11: open the PR only. No deployment or test-environment replay is authorized here. Production is excluded.
