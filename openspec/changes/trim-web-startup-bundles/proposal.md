@@ -29,7 +29,7 @@ None. Synchronization, authorization, article content and rendering feature cont
 
 ## Hands-on feedback
 
-The user requested preparing extreme-condition pages for personal inspection, then reported that the reload buttons were unstyled and inconsistent with the established Web design. This revision corrects the existing error slots using current sidebar spacing, semantic theme tokens and bordered secondary-button patterns. It does not redesign the reader, introduce a new component/loading framework or change recovery behavior. Human acceptance is still pending the corrected light/dark/e-ink and narrow-screen states.
+The user requested preparing extreme-condition pages for personal inspection, then reported that the reload buttons were unstyled and inconsistent with the established Web design. This revision corrects the existing error slots using current sidebar spacing, semantic theme tokens and bordered secondary-button patterns. It does not redesign the reader, introduce a new component/loading framework or change recovery behavior. The requesting human subsequently confirmed acceptance on 2026-11-11: “验收了，没问题，更新PR吧” (“Acceptance is complete, no issues; update the PR”). See validation.md for the accepted commit, adjustment and actual chronology; agent theme/viewport checks are not attributed to the human.
 
 ## Impact
 

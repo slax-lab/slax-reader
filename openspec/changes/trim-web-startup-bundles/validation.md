@@ -4,9 +4,20 @@
 
 On 2026-11-11 the user explicitly requested removing the custom loading machinery from draft PR #560 and using official mechanisms. This record supersedes the older index/preflight and same-document retry results. Branch: `feat/lazy-load-bundle`; integrated base: `6016ee48`. Extension source/version remains unchanged at 1.16.3. No merge, deployment or archive is authorized.
 
+## Human hands-on acceptance — completed
+
+- **Accepted by:** the requesting human/project owner in this conversation, who requested the PR and reported completing hands-on acceptance. No name is inferred from CLI credentials.
+- **Recorded:** 2026-11-11, 18:50 Asia/Shanghai (UTC+08:00).
+- **Accepted implementation:** `a67a58ceca93f236529db78dea7599d433b4eff7`, including the recovery-control styling correction. This follow-up changes documentation only.
+- **Environment and scope presented:** the local production-build acceptance portal on port 4188, with panel/modal first use, chat draft/focus retention, deliberate module failures/timeouts and explicit reload recovery. Agent theme/viewport and fault-injection checks remain separate evidence; the human did not enumerate individual test cases.
+- **Requested adjustment:** the human rejected the unstyled recovery controls. Both error slots were corrected using existing sidebar spacing, semantic theme values, bordered secondary buttons, 44px targets and keyboard focus. Corrected pages were retained for inspection.
+- **Human confirmation:** “验收了，没问题，更新PR吧” — “Acceptance is complete, no issues; update the PR.” No further adjustments were requested.
+- **Chronology:** PR #560 was already open before this confirmation. This is the real post-correction acceptance date, not a backdated pre-PR approval. Earlier pending records were not approvals; the missing acceptance evidence is now supplied.
+- **Boundary:** the confirmation authorizes updating PR evidence and checklist, not merge, deployment or archive. Physical iOS Safari, production 499s, real OAuth, remote initial synchronization/upload and paired-extension coverage remain as disclosed below.
+
 ## Removed and retained
 
-Deleted ten bespoke implementation/test files: DeferredSnapshotPanel.vue, deferredUi.ts, deferredModal.ts, deferred-resource-hints.ts, resource-hints.ts, and their five corresponding test files. There is no generated resource index, compile-time index define, fetch-before-import routine, custom promise cache, dependency classifier or graph-traversal plugin.
+Removed ten bespoke implementation/test files during this task branch (they never existed on dev, so this describes branch history rather than deletions from dev): DeferredSnapshotPanel.vue, deferredUi.ts, deferredModal.ts, deferred-resource-hints.ts, resource-hints.ts, and their five corresponding test files. There is no generated resource index, compile-time index define, fetch-before-import routine, custom promise cache, dependency classifier or graph-traversal plugin.
 
 - Panels use Vue defineAsyncComponent with the existing loading component, 15-second timeout and suspensible:false. Existing selection/authorization controls v-if.
 - Vue KeepAlive preserves inactive instances; account-generation keys isolate cached state.
@@ -79,7 +90,7 @@ Bugs/Security/Compliance review: the custom loader is removed rather than rename
 
 The previous same-page retry promise, generated-index tests and pending-loader duplicate coalescing are intentionally removed under the user's simplification request. The global speculative-prefetch opt-out may trade future navigation warmth for fewer unsolicited requests; required resources still load on demand.
 
-Human hands-on acceptance remains pending. PR #560 is currently marked ready for review by its owner; that status change is not recorded as hands-on acceptance and does not satisfy the acceptance gate. Physical iOS Safari, production HTTP 499, real OAuth, remote initial-library synchronization/upload and paired extension bridge are not verified by these fixtures. Do not claim this revision fixes those scenarios or restores all unsaved component state on reload.
+Human hands-on acceptance of corrected implementation a67a58ce is explicitly recorded above. The earlier ready-for-review toggle was not treated as acceptance. Physical iOS Safari, production HTTP 499, real OAuth, remote initial-library synchronization/upload and paired extension bridge are not verified by these fixtures. Do not claim this revision fixes those scenarios or restores all unsaved component state on reload.
 
 
 ## Review follow-up for aa1aee95
@@ -88,11 +99,11 @@ The failing GitHub check was `PR review gate` / `review_verdict`, not Web or Ext
 
 - KeepAlive re-entry: use the official onActivated/onDeactivated lifecycle in addition to the existing isAppeared watcher. One appearance guard prevents duplicate initial open/activation effects. A real KeepAlive regression test deactivates/reactivates twice and asserts the same textarea/draft, focus, bottom-follow scroll and exactly `open, expand, expand`; the non-cached false-to-true path is also covered.
 - Scope: the original user-selected optimization routes were `/b`, `/c`, `/login`, and `/`. Proposal, design and delta spec now explicitly scope panel deferral to `/b/:id`. `/s/:id` retains its eager panels; its only page-local edit is the pure-text import, and no share-reader byte reduction or full browser acceptance is claimed. Shared composable behavior is retained and tested.
-- Human acceptance: still required and not fabricated. Agent browser evidence is not a substitute. This remains a real review gate item until the human supplies the required acceptance.
+- Historical acceptance finding: evidence was missing at this review round. The explicit 2026-11-11 post-correction human confirmation is now recorded above; agent evidence was not substituted.
 
 Nits addressed: use a literal newline in the pure helper; import raw text source through Vite instead of assuming process.cwd(); use the rejection callback of import().then() so setup/mount errors are not mislabeled as download failures. Six modal tests cover the latter. A custom loadModal helper was deliberately not reintroduced because the user explicitly required its removal.
 
-The prior body incorrectly called the PR a draft after its owner changed that status. The next body update reports the actual state and the outstanding acceptance rather than treating ready status as approval.
+The prior body incorrectly called the PR a draft after its owner changed that status. The subsequent body update reported the actual state rather than treating ready status as approval. Acceptance now rests on the later explicit human confirmation.
 
 
 ### Review-fix verification
@@ -101,7 +112,7 @@ The prior body incorrectly called the PR a draft after its owner changed that st
 - Two default-concurrency full-suite attempts hit the unchanged useSlaxRoutes #imports test's 10-second timeout; that file passes independently. Without changing assertions, repository config or timeouts, `vitest run --maxWorkers=2` passed all **2,753 tests**, with 3 skipped (233 files passed / 1 skipped). Typecheck and production build then passed. The default-concurrency failures are not represented as a green standard run.
 - Real production browser: enter a draft, click Analysis, then return to Chat. The read-only probe observed focus move from TEXTAREA to BUTTON and back to TEXTAREA, with `KeepAlive review fix preserves draft and focus` retained, no page/boundary errors and zero chat POSTs. Bottom-follow and exactly-once open/expand analytics are asserted in the real KeepAlive unit harness. Evidence: `.local/bundle-validation/review-fixed/reentry.json`.
 - Changed-file ESLint diagnostics match the reviewed head: component and modal implementation files are clean; existing test-file warnings were not broadened or fixed. Shared text output is unchanged; only newline spelling changed.
-- Local Bugs/Security/Compliance follow-up: code regression and scope wording are addressed. The repeated modal helper suggestion is declined to respect the explicit no-custom-loader request; import-only error handling is fixed independently. Human hands-on acceptance remains an unresolved Compliance finding, not a technical failure that an agent can mark passed.
+- Local Bugs/Security/Compliance follow-up: code regression and scope wording are addressed. The repeated modal helper suggestion is declined to respect the explicit no-custom-loader request; import-only error handling is fixed independently. At that review stage human acceptance was unresolved. The later human confirmation is recorded above; no agent approval was substituted.
 
 
 ## Hands-on feedback: recovery controls
@@ -117,4 +128,4 @@ Verification on the rebuilt production artifact:
 - At the 768px breakpoint the read-only DOM probe confirms the same 44px target and no horizontal overflow. The browser preview produced a tiled capture artifact during resizing, so that image is not counted as visual acceptance; desktop/mobile screenshots and DOM measurements are recorded separately.
 - After local resource faults were lifted, clicking the styled button reloaded the document and returned the normal article with no captured page errors.
 
-Ignored evidence: `.local/bundle-validation/recovery-styled/styles.json`, `styled-acceptance-session.json` and the persisted local acceptance fixture. The portal at 4188 serves the corrected build and stays running without a timeout. The user must review the corrected appearance before acceptance is marked complete.
+Ignored evidence: `.local/bundle-validation/recovery-styled/styles.json`, `styled-acceptance-session.json` and the persisted local acceptance fixture. The portal at 4188 serves the corrected build and stays running without a timeout. The user subsequently reported acceptance of the corrected implementation, as recorded above.

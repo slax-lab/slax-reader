@@ -2,7 +2,7 @@
 
 ## 1. Remove custom infrastructure
 
-- [x] 1.1 Delete the bespoke index generator, resource preflight, pending-loader cache, wrapper components and dedicated tests; verify no product imports or compile-time defines reference them.
+- [x] 1.1 Remove from the task branch (never shipped on dev) the bespoke index generator, resource preflight, pending-loader cache, wrapper components and dedicated tests; verify no product imports or compile-time defines reference them.
 - [x] 1.2 Replace resource classification/graph traversal with the documented build:manifest configuration and preserve upstream login preload collection; verify required preloads/imports are not removed.
 
 ## 2. Official asynchronous interfaces
@@ -17,6 +17,8 @@
 - [x] 3.1 Run complete Web tests, typecheck and production build; inspect absence of custom index artifacts, compare static closure with the saved integrated build and validate Worker index.
 - [x] 3.2 Exercise real production article/modal first-use, cached draft state, first quote, error containment and explicit reload in the built-in browser; record evidence and remote-service gaps.
 - [x] 3.3 Update validation and PR #560, run strict OpenSpec/diff checks and local Bugs/Security/Compliance review, then commit/push without changing Extension 1.16.3.
-- [ ] 3.4 Record human hands-on acceptance before marking the draft ready; do not infer acceptance, merge or deployment authorization.
+- [x] 3.4 Record explicit human hands-on acceptance of the corrected implementation, including who, when and requested adjustments; preserve the actual post-PR chronology and do not infer merge or deployment authorization.
 
 The user explicitly requested deleting the bespoke system and using official mechanisms on 2026-11-11. Previous checkpoints and byte measurements remain historical evidence, not acceptance of this revision.
+
+The requesting human explicitly accepted corrected commit a67a58ce on 2026-11-11 and requested updating the PR. See validation.md for the verbatim confirmation and chronology.

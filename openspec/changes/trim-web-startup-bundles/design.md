@@ -45,3 +45,8 @@ Verify standard tests/typecheck/build, absence of the removed symbols and genera
 ## Delivery
 
 Update existing PR #560 without changing its owner-selected draft/ready state. Do not infer human hands-on acceptance, merge, deployment or archive authorization from this implementation request. The user explicitly authorized removing the old machinery and using the official behavior, including removing the previous same-document recovery promise.
+
+
+### Acceptance outcome
+
+On 2026-11-11 the requesting human reported acceptance of corrected commit a67a58ce and requested the PR update, with no further issues. The previously rejected unstyled controls were corrected before confirmation. See validation.md for the evidence and actual post-PR chronology. Merge, deployment and archive are not authorized by this acceptance.
