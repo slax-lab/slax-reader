@@ -5,7 +5,7 @@ import { extractImageUrls } from '@/utils/htmlImages'
 import { readPdfBody } from '@/utils/pdf'
 import { hashSHA256 } from '@/utils/strings'
 import { isSafeImageMime } from '@/utils/responseUtils'
-import { requestBytes, textInputs, VECTOR_MEDIA_REQUEST_BYTES, VECTOR_PDF_MAX_BYTES, type ModelInput } from '@/utils/vectorEmbedding'
+import { requestBytes, textInputs, VECTOR_IMAGE_MAX_BYTES, VECTOR_MEDIA_REQUEST_BYTES, VECTOR_PDF_MAX_BYTES, type ModelInput } from '@/utils/vectorEmbedding'
 import { imageAttribute as attribute, imageTags, pdfInput, skipImage as skip, type ImageSelection, type VectorSource } from '@/utils/vectorSources'
 
 export type SourceFingerprint = { text_etag: string; html_or_pdf_etag: string; text_key: string; html_or_pdf_key: string }
@@ -130,6 +130,10 @@ export class VectorSourceRepo {
           skip(selection, 'empty')
           continue
         }
+        if (imageHead.size > VECTOR_IMAGE_MAX_BYTES) {
+          skip(selection, 'image_too_large')
+          continue
+        }
         const prefix: ModelInput = { content: [...(source.title ? [{ text: source.title }] : []), { image: '' }] }
         if (Math.ceil(imageHead.size / 3) * 4 + requestBytes([prefix]) > VECTOR_MEDIA_REQUEST_BYTES) {
           skip(selection, 'request_budget')
@@ -143,6 +147,10 @@ export class VectorSourceRepo {
         const bytes = Buffer.from(await image.arrayBuffer())
         if (bytes.byteLength === 0) {
           skip(selection, 'empty')
+          continue
+        }
+        if (bytes.byteLength > VECTOR_IMAGE_MAX_BYTES) {
+          skip(selection, 'image_too_large')
           continue
         }
         const encoded = bytes.toString('base64')
