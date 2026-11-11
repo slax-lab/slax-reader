@@ -13,6 +13,7 @@ import { Hashid } from '../../src/utils/hashids'
 import { ROOT, localDevOptions } from '../../script/deploy/dev-local'
 import { LocalResources } from './localResources'
 import { prepareForkSmoke } from './forkSmoke'
+import { startEmailRedisFixture } from './emailRedisFixture'
 
 let httpPort = 8787
 
@@ -61,6 +62,10 @@ const localFetch = (url: string, options: RequestInit = {}) =>
 
 async function main() {
   const resources = new LocalResources()
+  if (process.env.DOCKER_HOST) {
+    assert.ok(process.env.DOCKER_HOST.startsWith('unix://'), 'Only a local Docker socket is allowed')
+    resources.env.DOCKER_HOST = process.env.DOCKER_HOST
+  }
   // macOS Unix socket paths are limited to 104 bytes; worktree paths can exceed it.
   const ipcTemp = mkdtempSync(resolve(tmpdir(), 'slax-http-'))
   resources.env.TMPDIR = ipcTemp
@@ -68,6 +73,7 @@ async function main() {
   let worker: ChildProcess | undefined
   let workerLog = ''
   let forks: Awaited<ReturnType<typeof prepareForkSmoke>> | undefined
+  let emailRedis: Awaited<ReturnType<typeof startEmailRedisFixture>> | undefined
   const state = resolve(resources.workspace, 'state')
   const coreConfig = resolve(resources.workspace, 'core.json')
   const edgeConfig = resolve(resources.workspace, 'edge.json')
@@ -123,6 +129,7 @@ async function main() {
       })
     })
     const pg = await resources.container('postgres:17-alpine')
+    if (process.env.EMAIL_AUTH_HTTP_SMOKE === '1') emailRedis = await startEmailRedisFixture()
     for (const database of ['http_reader', 'http_logs']) resources.sql(pg.id, 'postgres', `CREATE DATABASE ${database};`)
     const url = (database: string) => `postgresql://postgres:isolated@127.0.0.1:${pg.port}/${database}`
     const vars = {
@@ -140,7 +147,14 @@ async function main() {
       FRONT_END_URL: 'https://reader.smoke.invalid',
       BACKEND_API_PREFIX: `http://localhost:${httpPort}`,
       IMAGE_PREFIX: `http://localhost:${httpPort}`,
-      PROXY_IMAGE_PREFIX: `http://localhost:${httpPort}`
+      PROXY_IMAGE_PREFIX: `http://localhost:${httpPort}`,
+      ...(emailRedis
+        ? {
+            RESEND_API_KEY: 'fixture-only',
+            UPSTASH_REDIS_REST_URL: emailRedis.url,
+            UPSTASH_REDIS_REST_TOKEN: 'fixture-only'
+          }
+        : {})
     }
     const shared = {
       tsconfig: localPath('apps/api/tsconfig.json'),
@@ -303,6 +317,80 @@ async function main() {
         return false
       }
     }, 'authenticated Core database ready')
+    if (emailRedis) {
+      const authCall = async (path: string, body?: object, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
+        const response = await localFetch(`http://localhost:${httpPort}${path}`, {
+          method: body ? 'POST' : 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Fixture-Email-Run-Type': runType,
+            'X-Device-ID': 'email-http-smoke',
+            ...(bearer ? { Authorization: `Bearer ${bearer}` } : {})
+          },
+          body: body ? JSON.stringify(body) : undefined
+        })
+        return response.json() as Promise<{ code: number; data: any }>
+      }
+      const prove = async (purpose: 'login' | 'bind', email: string, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
+        const sent = await authCall('/v1/user/email/send', { email, purpose }, bearer, runType)
+        assert.equal(sent.code, 200, JSON.stringify(sent))
+        const { request_id } = sent.data
+        const fixture = await localFetch(`http://localhost:${httpPort}/__fixture/email-code?id=${request_id}`, { headers: { Authorization: `Bearer ${token}` } })
+        const code = await fixture.json()
+        assert.match(String(code), /^\d{6}$/)
+        const proof = { type: 'email', email, request_id, code }
+        return purpose === 'login'
+          ? authCall('/v1/user/login', proof, bearer, runType)
+          : authCall('/v1/user/setting', { key: 'bind_login_identity', value: proof }, bearer, runType)
+      }
+      const userInfo = '/v1/user/userinfo'
+      assert.equal((await authCall(userInfo)).code, 401)
+      assert.equal((await authCall('/v1/user/email/send', { email: 'owner@smoke.invalid', purpose: 'bind' })).code, 401)
+      assert.equal((await authCall('/v1/user/setting', { key: 'bind_login_identity', value: { type: 'email' } })).code, 401)
+      assert.deepEqual(await authCall('/v1/user/setting', { key: 'lang', value: 'en' }, token), { code: 200, data: 'ok', message: 'ok' })
+      const initialInfo = (await authCall(userInfo, undefined, token)).data
+      assert.ok(Array.isArray(initialInfo.platform))
+      assert.equal('login_identities' in initialInfo, false)
+      const provider = await authCall('/v1/user/bind_link', { platform: 'google', client_platform: 'web' }, token)
+      assert.equal(provider.code, 200)
+      assert.equal(provider.data.type, 'google')
+      assert.match(provider.data.state, /^link\./)
+      assert.match(provider.data.nonce, /^[0-9a-f]{64}$/)
+      const invalidCallback = await authCall(
+        '/v1/user/setting',
+        {
+          key: 'bind_login_identity',
+          value: { type: 'google', platform: 'web', state: provider.data.state, code: 'fixture-code', redirect_uri: 'https://attacker.invalid/auth' }
+        },
+        token
+      )
+      assert.equal(invalidCallback.data, 'ERROR_PARAM')
+      assert.equal((await prove('login', 'owner@smoke.invalid')).data, 'EMAIL_AUTH_USE_EXISTING_LOGIN')
+      const ownerToken = await new Auth(vars as Env).sign({
+        id: String(new Hashid(vars as Env).encodeId(2)),
+        email: 'owner@smoke.invalid',
+        lang: 'en'
+      })
+      for (const runType of ['beta', 'prod'] as const) {
+        const binding = await prove('bind', 'rollout-owner@smoke.invalid', ownerToken, runType)
+        assert.equal(binding.code, 200)
+        assert.deepEqual(binding.data, { email: 'rollout-owner@smoke.invalid' })
+        const info = (await authCall(userInfo, undefined, ownerToken, runType)).data
+        assert.equal(info.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, 'rollout-owner@smoke.invalid')
+      }
+      assert.deepEqual((await prove('bind', 'saver@smoke.invalid', token)).data, { email: 'saver@smoke.invalid' })
+      const returning = await prove('login', 'Saver@SMOKE.INVALID')
+      assert.equal(returning.code, 200)
+      assert.equal(returning.data.user_id, String(new Hashid(vars as Env).encodeId(1)))
+      assert.equal(returning.data.is_new_user, false)
+      const fresh = await prove('login', 'new-reader@smoke.invalid')
+      assert.equal(fresh.code, 200)
+      assert.equal(fresh.data.is_new_user, true)
+      const freshInfo = (await authCall(userInfo, undefined, fresh.data.token)).data
+      assert.equal(freshInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, 'new-reader@smoke.invalid')
+      evidence.emailAuthentication =
+        'binding API works in dev, beta, and prod; user information returns login methods through the platform list; legacy sign-in guidance, existing-account login, and new-account session'
+    }
     for (const origin of [vars.FRONT_END_URL, vars.FRONT_END_URL + '.attacker.invalid']) {
       const response = await localFetch(`http://localhost:${httpPort}/events`, {
         method: 'OPTIONS',
@@ -808,6 +896,10 @@ async function main() {
       () => workerLog,
       async key => (await (await localFetch(`http://localhost:${httpPort}/__fixture/diagnostic-object-missing?key=${encodeURIComponent(key)}`, { headers })).json()) as boolean
     )
+    if (emailRedis) {
+      assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_platform_bind WHERE user_id=1'), '0')
+      evidence.deletedAccountBindings = 'account cleanup removed all platform bindings, including the verified mailbox'
+    }
     const admissions = (await (await localFetch(`http://localhost:${httpPort}/__fixture/vector-maintenance-admissions`, { headers })).json()) as {
       target: { kind: string; id: number; userId?: number; preference?: string }
     }[]
@@ -839,6 +931,7 @@ async function main() {
       }
     }
     await forks?.dispose()
+    await emailRedis?.dispose()
     resources.cleanup()
     writeFileSync(resolve(resources.workspace, 'worker.log'), workerLog)
     writeFileSync(resolve(resources.workspace, 'http-results.json'), JSON.stringify(evidence, null, 2))

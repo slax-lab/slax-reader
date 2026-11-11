@@ -418,6 +418,10 @@ export function getRouter(container: Container) {
     const controller = container.resolve(UserController)
     return await controller.handleUserLoginRequest(ctx, req)
   })
+  router.post('/v1/user/email/send', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(UserController)
+    return await controller.handleSendEmailCodeRequest(ctx, req)
+  })
   router.get('/v1/user/me', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)
     return await controller.handleUserDetailRequest(ctx, req)

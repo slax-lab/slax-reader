@@ -8,11 +8,11 @@ import {
   PlatformAccountBoundToOtherUserError,
   ExistsUserNameError
 } from '@/const/err'
-import { inject, injectable, singleton } from '@/decorators/di'
+import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_CLIENT, PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import { subscriptionPO } from '@/infra/repository/dbSubscription'
-import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
+import { PrismaClient as HyperdrivePrismaClient, type Prisma } from '@prisma/hyperdrive-client'
 import { addDays, differenceInHours } from 'date-fns'
 
 export interface userInfoPO {
@@ -49,6 +49,7 @@ export enum platformBindType {
   WECHAT = 'wechat',
   QQ = 'qq',
   EMAIL = 'email',
+  MAIL = 'mail',
   APPLE = 'apple',
   TWITTER = 'twitter',
   GOOGLE = 'google',
@@ -68,6 +69,58 @@ export interface platformBind {
   platform_id: string
   user_name: string
   created_at: Date
+}
+
+export type LoginProvider = 'google' | 'apple'
+type LoginPlatform = LoginProvider | 'mail'
+type UserTransaction = Prisma.TransactionClient
+export type LoginEmailOwner = {
+  id: number
+  deleted_at: Date | null
+  login_key: string | null
+  delivery_email: string | null
+}
+type SavedUser = Pick<userInfoPO, 'email' | 'lang' | 'uuid'> & { id: number }
+
+export interface LoginIdentityTransaction {
+  lockAccount(userId: number): Promise<(Pick<SavedUser, 'id' | 'email'> & { deleted_at: Date | null }) | null>
+  findEmailOwners(key: string): Promise<LoginEmailOwner[]>
+  findProfileEmail(email: string): Promise<(Pick<SavedUser, 'id'> & { deleted_at: Date | null }) | null>
+  findProviderOwners(provider: LoginProvider, subject: string): Promise<Pick<platformBind, 'user_id'>[]>
+  findBinding(userId: number, platform: LoginPlatform): Promise<Pick<platformBind, 'platform_id' | 'user_name'> | null>
+  createBinding(userId: number, platform: LoginPlatform, key: string, label: string): Promise<void>
+  saveRegistration(profile: userInfoPO): Promise<SavedUser>
+  recordLogin(userId: number, profile: userInfoPO): Promise<SavedUser>
+}
+
+async function lockIdentities(tx: UserTransaction, keys: string[]) {
+  for (const key of [...new Set(keys)].sort()) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`
+  }
+}
+
+async function lockAccount(tx: UserTransaction, userId: number) {
+  await lockIdentities(tx, [`account:${userId}`])
+  return tx.sr_user.findUnique({ where: { id: userId } })
+}
+
+async function lockActiveAccount(tx: UserTransaction, userId: number) {
+  const account = await lockAccount(tx, userId)
+  if (!account || account.deleted_at) throw UserAccountDeletedError()
+  return account
+}
+
+async function findEmailOwners(tx: UserTransaction, key: string) {
+  return tx.$queryRaw<LoginEmailOwner[]>`
+    SELECT u.id, u.deleted_at, m.platform_id AS login_key, m.user_name AS delivery_email
+    FROM sr_user u
+    LEFT JOIN sr_platform_bind m ON m.user_id = u.id AND m.platform = 'mail'
+    WHERE m.platform_id = ${key} OR lower(btrim(u.email)) = ${key}
+      OR EXISTS (
+        SELECT 1 FROM sr_platform_bind p
+        WHERE p.user_id = u.id AND p.platform IN ('google', 'apple') AND lower(btrim(p.user_name)) = ${key}
+      )
+  `
 }
 
 export interface userNoticePO {
@@ -126,30 +179,65 @@ export class UserRepo {
 
   public async registerUser(info: userInfoPO): Promise<userInfoPO> {
     if (!info || !info.email) throw ErrorParam()
-
-    const { lang, deleted_at, id, uuid, subscription_info, ...restUserInfo } = info
     return this.prismaPg().$transaction(async tx => {
-      if (id) {
-        const users = await tx.$queryRaw<userInfoPO[]>`SELECT *, CURRENT_TIMESTAMP AS checked_at FROM sr_user WHERE id = ${id} FOR UPDATE`
-        const matched = users[0]
-        if (!matched || matched.deleted_at) throw UserAccountDeletedError()
-        const collision = await tx.sr_user.findFirst({ where: { email: info.email, id: { not: id } }, select: { id: true } })
-        if (collision) throw PlatformAccountBoundToOtherUserError()
-        return (await tx.sr_user.update({ where: { id }, data: { ...restUserInfo, last_login_at: new Date() } })) as userInfoPO
+      await lockIdentities(tx, [`mail:${info.email.trim().toLowerCase()}`])
+      if (info.id) await lockActiveAccount(tx, info.id)
+      return (await this.saveRegistration(tx, info)) as userInfoPO
+    })
+  }
+
+  private async saveRegistration(tx: UserTransaction, info: userInfoPO) {
+    const { lang, deleted_at, id, uuid, subscription_info, ...restUserInfo } = info
+    if (id) {
+      const collision = await tx.sr_user.findFirst({ where: { email: info.email, id: { not: id } }, select: { id: true } })
+      if (collision) throw PlatformAccountBoundToOtherUserError()
+      return tx.sr_user.update({ where: { id }, data: { ...restUserInfo, last_login_at: new Date() } })
+    }
+    const match = await tx.sr_user.findUnique({ where: { email: info.email }, select: { id: true } })
+    const locked = match ? await lockAccount(tx, match.id) : null
+    const existing = locked?.email === info.email ? locked : null
+    if (existing?.deleted_at) {
+      const freezeTime = addDays(existing.deleted_at, 30)
+      const remainingHours = differenceInHours(freezeTime, new Date())
+      if (freezeTime >= new Date()) {
+        throw AccountNotAllowRegisterError(remainingHours >= 24 ? `${Math.floor(remainingHours / 24)} Days` : `${remainingHours} Hours`)
       }
-      const users = await tx.$queryRaw<userInfoPO[]>`SELECT *, CURRENT_TIMESTAMP AS checked_at FROM sr_user WHERE email = ${info.email} FOR UPDATE`
-      const existing = users[0]
-      if (existing?.deleted_at) {
-        const freezeTime = addDays(existing.deleted_at, 30)
-        const remainingHours = differenceInHours(freezeTime, new Date())
-        if (freezeTime >= new Date()) {
-          throw AccountNotAllowRegisterError(remainingHours >= 24 ? `${Math.floor(remainingHours / 24)} Days` : `${remainingHours} Hours`)
-        }
-        await tx.sr_user.update({ where: { id: existing.id }, data: { email: `deleted-${existing.id}-${crypto.randomUUID()}@deleted.invalid` } })
-      } else if (existing) {
-        return (await tx.sr_user.update({ where: { id: existing.id }, data: { ...restUserInfo, last_login_at: new Date() } })) as userInfoPO
-      }
-      return (await tx.sr_user.create({ data: { ...restUserInfo, lang, created_at: new Date(), last_login_at: new Date() } })) as userInfoPO
+      await tx.sr_user.update({ where: { id: existing.id }, data: { email: `deleted-${existing.id}-${crypto.randomUUID()}@deleted.invalid` } })
+    } else if (existing) {
+      return tx.sr_user.update({ where: { id: existing.id }, data: { ...restUserInfo, last_login_at: new Date() } })
+    }
+    return tx.sr_user.create({ data: { ...restUserInfo, lang, created_at: new Date(), last_login_at: new Date() } })
+  }
+
+  public async getLoginEmailRecipient(key: string): Promise<string | undefined> {
+    const matches = await this.prismaPg().$queryRaw<{ user_name: string }[]>`
+      SELECT b.user_name FROM sr_platform_bind b JOIN sr_user u ON u.id = b.user_id
+      WHERE b.platform = 'mail' AND b.platform_id = ${key} AND u.deleted_at IS NULL LIMIT 2
+    `
+    return matches.length === 1 ? matches[0].user_name : undefined
+  }
+
+  public withLoginIdentityTransaction<T>(
+    { emailKey, provider }: { emailKey: string; provider?: { type: LoginProvider; subject: string } },
+    run: (tx: LoginIdentityTransaction) => Promise<T>
+  ): Promise<T> {
+    return this.prismaPg().$transaction(async tx => {
+      const keys = [`mail:${emailKey}`]
+      if (provider) keys.push(`${provider.type}:${provider.subject}`)
+      await lockIdentities(tx, keys)
+      return run({
+        lockAccount: userId => lockAccount(tx, userId),
+        findEmailOwners: key => findEmailOwners(tx, key),
+        findProfileEmail: email => tx.sr_user.findUnique({ where: { email }, select: { id: true, deleted_at: true } }),
+        findProviderOwners: (platform, platform_id) => tx.sr_platform_bind.findMany({ where: { platform, platform_id }, select: { user_id: true }, take: 2 }),
+        findBinding: (user_id, platform) => tx.sr_platform_bind.findUnique({ where: { user_id_platform: { user_id, platform } }, select: { platform_id: true, user_name: true } }),
+        createBinding: async (user_id, platform, platform_id, user_name) => {
+          await tx.sr_platform_bind.create({ data: { user_id, platform, platform_id, user_name } })
+        },
+        saveRegistration: profile => this.saveRegistration(tx, profile),
+        recordLogin: (id, { last_login_ip, last_login_at, country, city, region, timezone, latitude, longitude }) =>
+          tx.sr_user.update({ where: { id }, data: { last_login_ip, last_login_at, country, city, region, timezone, latitude, longitude } })
+      })
     })
   }
 
@@ -210,9 +298,8 @@ export class UserRepo {
   public async userBindPlatform(userId: number, platform: platformBindType, platformId: string, username: string): Promise<null> {
     if (!userId || !platform || !platformId) throw ErrorParam()
     await this.prismaPg().$transaction(async tx => {
-      const users = await tx.$queryRaw<Array<{ id: number }>>`SELECT id FROM sr_user WHERE id = ${userId} AND deleted_at IS NULL FOR UPDATE`
-      if (users.length !== 1) throw UserAccountDeletedError()
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${platform}:${platformId}`}, 0))`
+      await lockIdentities(tx, [`${platform}:${platformId}`])
+      await lockActiveAccount(tx, userId)
       const existing = await tx.sr_platform_bind.findFirst({ where: { platform, platform_id: platformId, user_id: { not: userId } } })
       if (existing) throw PlatformAccountBoundToOtherUserError()
       await tx.sr_platform_bind.upsert({
@@ -351,9 +438,9 @@ export class UserRepo {
   public async markUserAsDeleted(userId: number): Promise<void> {
     if (!Number.isSafeInteger(userId) || userId < 1) throw ErrorParam()
     await this.repoPg().$transaction(async tx => {
-      const users = await tx.$queryRaw<{ id: number; deleted_at: Date | null }[]>`SELECT id, deleted_at FROM sr_user WHERE id = ${userId} FOR UPDATE`
-      if (!users[0]) throw UserNotFoundError()
-      if (!users[0].deleted_at) await tx.sr_user.update({ where: { id: userId }, data: { deleted_at: new Date() } })
+      const user = await lockAccount(tx, userId)
+      if (!user) throw UserNotFoundError()
+      if (!user.deleted_at) await tx.sr_user.update({ where: { id: userId }, data: { deleted_at: new Date() } })
       await tx.sr_user_api_key.deleteMany({ where: { user_id: userId } })
       await tx.$executeRaw`UPDATE sr_newsletter_feed SET state='cancelled' WHERE user_id=${userId} AND state='pending'`
     })

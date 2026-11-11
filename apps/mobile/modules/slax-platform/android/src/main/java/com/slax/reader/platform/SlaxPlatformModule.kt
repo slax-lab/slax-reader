@@ -15,6 +15,9 @@ class SlaxPlatformModule : Module() {
     AsyncFunction("googleSignIn") Coroutine { webClientId: String ->
       SlaxGoogleSignIn.signIn(appContext.currentActivity ?: error("No active screen"), webClientId)
     }
+    AsyncFunction("googleLinkCredential") Coroutine { webClientId: String, nonce: String ->
+      SlaxGoogleSignIn.signIn(appContext.currentActivity ?: error("No active screen"), webClientId, nonce)
+    }
     AsyncFunction("openInAppBrowser") { url: String ->
       val uri = URI(url)
       require(uri.scheme?.lowercase() in listOf("http", "https") && !uri.host.isNullOrBlank() && uri.rawUserInfo == null && url.none { it <= ' ' || it == '\u007f' || it == '\\' }) { "Invalid browser URL" }

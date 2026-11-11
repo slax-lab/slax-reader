@@ -10,11 +10,22 @@ import { nextTick, ref } from 'vue'
 import LoginModal from '~~/app/components/Modal/LoginModal.vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { eventLog } = vi.hoisted(() => ({ eventLog: vi.fn() }))
+const { eventLog, post, verifyEmailAuth, navigateTo } = vi.hoisted(() => ({
+  eventLog: vi.fn(),
+  post: vi.fn(),
+  verifyEmailAuth: vi.fn(),
+  navigateTo: vi.fn()
+}))
 mockNuxtImport('eventLog', () => eventLog)
+mockNuxtImport('request', () => () => ({ post }))
+mockNuxtImport('useAuth', () => () => ({ verifyEmailAuth }))
+mockNuxtImport('navigateTo', () => navigateTo)
+
+enableAutoUnmount(afterEach)
 
 const runtimeConfig = {
   app: { baseURL: '/' },
@@ -23,7 +34,7 @@ const runtimeConfig = {
 mockNuxtImport('useRuntimeConfig', () => () => runtimeConfig)
 
 vi.mock('@vueuse/core', async () => {
-  const actual = await vi.importActual<any>('@vueuse/core')
+  const actual = await vi.importActual<typeof import('@vueuse/core')>('@vueuse/core')
   return {
     ...actual,
     useScrollLock: () => ref(false)
@@ -33,6 +44,8 @@ vi.mock('@vueuse/core', async () => {
 describe('Modal/LoginModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    post.mockReset().mockResolvedValue({ request_id: 'modal-attempt', expires_in: 300, resend_after: 60 })
+    verifyEmailAuth.mockReset().mockResolvedValue('session')
     runtimeConfig.public.APPLE_OAUTH_CLIENT_ID = 'apple-client-id'
   })
 
@@ -107,6 +120,54 @@ describe('Modal/LoginModal', () => {
     await vi.runOnlyPendingTimersAsync()
     expect(eventLog).toHaveBeenCalledTimes(2)
     reopened.unmount()
+  })
+
+  it('keeps the modal benefits and terms around the sign-in choices', () => {
+    const wrapper = mountWithApp(LoginModal, { props: { redirect: '/foo' } })
+    const card = wrapper.get('.modal-shell > .auth-card')
+    expect(card.findAll('.auth-benefits li')).toHaveLength(3)
+    expect(card.get('.auth-btns').text()).toContain('Continue with email')
+    expect(card.findAll('.auth-tos a').map(link => [link.attributes('href'), link.attributes('target')]))
+      .toEqual([['/terms', '_blank'], ['/privacy', '_blank']])
+  })
+
+  it('verifies a code with collection attribution and returns to the pending subscribe action', async () => {
+    const redirect = '/c/Collection123?subscribe_after_login=1'
+    const authAttribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } as const
+    const wrapper = mountWithApp(LoginModal, { props: { redirect, authAttribution } })
+    await vi.waitFor(() => expect(wrapper.get('.modal-shell').isVisible()).toBe(true))
+
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    await wrapper.get('[autocomplete="one-time-code"]').setValue('012345')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(post).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      url: '/v1/user/email/send',
+      body: { email: 'reader@example.com', locale: 'en', purpose: 'login' }
+    }))
+    expect(verifyEmailAuth).toHaveBeenCalledExactlyOnceWith({
+      email: 'reader@example.com', request_id: 'modal-attempt', code: '012345', auth_attribution: authAttribution
+    }, expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    expect(navigateTo).toHaveBeenCalledExactlyOnceWith(`${location.origin}${redirect}`, { external: true })
+  })
+
+  it('aborts a pending email code request when the modal closes', async () => {
+    post.mockImplementationOnce(() => new Promise(() => {}))
+    const wrapper = mountWithApp(LoginModal, { props: { redirect: '/foo' } })
+    await vi.waitFor(() => expect(wrapper.get('.modal-shell').isVisible()).toBe(true))
+
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('form').trigger('submit')
+    const signal = post.mock.calls[0]![0].signal
+    expect(signal.aborted).toBe(false)
+    await wrapper.get('.modal-close').trigger('click')
+    expect(signal.aborted).toBe(true)
+    expect(wrapper.find('form').exists()).toBe(false)
   })
 
   it('does not record an unmounted prompt or an unrelated modal', async () => {

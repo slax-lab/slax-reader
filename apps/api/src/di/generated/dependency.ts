@@ -39,6 +39,7 @@ import { VectorMaintenanceService } from '../../domain/vectorMaintenance'
 import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
+import { EmailChallengeRepo } from '../../infra/repository/redisEmailChallenge'
 import { FeedRepo } from '../../infra/repository/dbFeed'
 import { RssService } from '../../domain/rss'
 import { NewsletterContent } from '../../domain/newsletterContent'
@@ -46,6 +47,9 @@ import { HybridSearchRepo } from '../../infra/repository/dbHybridSearch'
 import { VectorEmbeddingClient } from '../../infra/external/vectorEmbedding'
 import { BookmarkService } from '../../domain/bookmark'
 import { LabRepo } from '../../infra/repository/dbLab'
+import { LoginIdentityService } from '../../domain/loginIdentityService'
+import { EmailCodeService } from '../../domain/emailCode'
+import { OAuthStateRepo } from '../../infra/repository/redisOAuthState'
 import { VectorMaintenanceRepo } from '../../infra/repository/dbVectorMaintenance'
 import { NewsletterRepo } from '../../infra/repository/dbNewsletter'
 import { NewsletterSaveRepo } from '../../infra/repository/dbNewsletterSave'
@@ -54,6 +58,7 @@ import { RssRepo } from '../../infra/repository/dbRss'
 import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
+import { LoginIdentityLinkService } from '../../domain/loginIdentityLinkService'
 import { VectorSourceRepo } from '../../infra/repository/vectorSources'
 import { VectorIndexClient } from '../../infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '../../infra/repository/vectorPreferenceClient'
@@ -217,6 +222,10 @@ container.register(EmailService, {
   useFactory: container => new EmailService(container.resolve(UserRepo))
 })
 
+container.register(EmailCodeService, {
+  useFactory: container => new EmailCodeService(container.resolve(EmailChallengeRepo))
+})
+
 container.register(FeedService, {
   useFactory: container => new FeedService(container.resolve(FeedRepo), container.resolve(RssService), container.resolve(NewsletterContent))
 })
@@ -245,6 +254,14 @@ container.register(ImportService, {
 
 container.register(LabService, {
   useFactory: container => new LabService(container.resolve(LabRepo))
+})
+
+container.register(LoginIdentityLinkService, {
+  useFactory: container => new LoginIdentityLinkService(container.resolve(LoginIdentityService), container.resolve(EmailCodeService), container.resolve(OAuthStateRepo))
+})
+
+container.register(LoginIdentityService, {
+  useFactory: container => new LoginIdentityService(container.resolve(UserRepo))
 })
 
 container.register(LogsService, {
@@ -409,10 +426,13 @@ container.register(UserService, {
       container.resolve(SubscriptionRepo),
       container.resolve(CollectionRepo),
       container.resolve(BookmarkRepo),
-      lazy(() => container.resolve(RedisClient)),
+      container.resolve(OAuthStateRepo),
       container.resolve(GA4AnalyticsClient),
       container.resolve(LogsService),
-      container.resolve(LabService)
+      container.resolve(LabService),
+      container.resolve(EmailCodeService),
+      container.resolve(LoginIdentityService),
+      container.resolve(LoginIdentityLinkService)
     )
 })
 
@@ -776,6 +796,14 @@ container.register(KVClient, {
 
 container.register(RedisClient, {
   useClass: RedisClient
+})
+
+container.register(EmailChallengeRepo, {
+  useFactory: container => new EmailChallengeRepo(lazy(() => container.resolve(RedisClient)))
+})
+
+container.register(OAuthStateRepo, {
+  useFactory: container => new OAuthStateRepo(lazy(() => container.resolve(RedisClient)))
 })
 
 container.register(VectorIndexClient, {

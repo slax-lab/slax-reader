@@ -89,13 +89,12 @@ describe('atomic account deletion and login race', () => {
   }
   test('locks the identity, tombstones and deletes keys in one transaction', async () => {
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([{ id: 42, deleted_at: null }]),
       $executeRaw: vi.fn(),
-      sr_user: { update: vi.fn() },
+      sr_user: { findUnique: vi.fn().mockResolvedValue({ id: 42, deleted_at: null }), update: vi.fn() },
       sr_user_api_key: { deleteMany: vi.fn() }
     }
     await repo(tx).markUserAsDeleted(42)
-    expect(tx.$queryRaw.mock.calls[0][0].join('')).toContain('FOR UPDATE')
+    expect(tx.$executeRaw.mock.calls[0][1]).toBe('account:42')
     const updates = tx.$executeRaw.mock.calls.map(call => call[0].join('')).join(' ')
     expect(updates).toContain("UPDATE sr_newsletter_feed SET state='cancelled'")
     expect(updates).not.toContain('sr_platform_bind')
@@ -104,23 +103,31 @@ describe('atomic account deletion and login race', () => {
   })
   test('propagates failed key revocation rather than reporting successful deletion', async () => {
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([{ id: 42, deleted_at: null }]),
-      sr_user: { update: vi.fn() },
+      $executeRaw: vi.fn(),
+      sr_user: { findUnique: vi.fn().mockResolvedValue({ id: 42, deleted_at: null }), update: vi.fn() },
       sr_user_api_key: { deleteMany: vi.fn().mockRejectedValue(new Error('write failed')) }
     }
     await expect(repo(tx).markUserAsDeleted(42)).rejects.toThrow('write failed')
   })
   test('register locks before deciding and never clears a recent tombstone', async () => {
-    const tx = { $queryRaw: vi.fn().mockResolvedValue([{ id: 42, deleted_at: new Date() }]), sr_user: { update: vi.fn(), create: vi.fn() } }
+    const tx = {
+      $executeRaw: vi.fn(),
+      sr_user: { findUnique: vi.fn().mockResolvedValue({ id: 42, email: 'a@example.com', deleted_at: new Date() }), update: vi.fn(), create: vi.fn() }
+    }
     await expect(repo(tx).registerUser({ email: 'a@example.com', deleted_at: null } as any)).rejects.toBeDefined()
-    expect(tx.$queryRaw.mock.calls[0][0].join('')).toContain('FOR UPDATE')
+    expect(tx.$executeRaw.mock.calls.map(call => call[1])).toEqual(['mail:a@example.com', 'account:42'])
     expect(tx.sr_user.update).not.toHaveBeenCalled()
     expect(tx.sr_user.create).not.toHaveBeenCalled()
   })
   test('keeps a matched provider identity when its verified email changes', async () => {
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([{ id: 42, email: 'old@example.com', deleted_at: null }]),
-      sr_user: { findFirst: vi.fn().mockResolvedValue(null), update: vi.fn().mockResolvedValue({ id: 42, email: 'new@example.com' }), create: vi.fn() }
+      $executeRaw: vi.fn(),
+      sr_user: {
+        findUnique: vi.fn().mockResolvedValue({ id: 42, email: 'old@example.com', deleted_at: null }),
+        findFirst: vi.fn().mockResolvedValue(null),
+        update: vi.fn().mockResolvedValue({ id: 42, email: 'new@example.com' }),
+        create: vi.fn()
+      }
     }
     await expect(repo(tx).registerUser({ id: 42, email: 'new@example.com' } as any)).resolves.toMatchObject({ id: 42 })
     expect(tx.sr_user.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 42 } }))
@@ -128,8 +135,8 @@ describe('atomic account deletion and login race', () => {
   })
   test('does not merge a matched provider identity into a different email owner', async () => {
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([{ id: 42, deleted_at: null }]),
-      sr_user: { findFirst: vi.fn().mockResolvedValue({ id: 99 }), update: vi.fn(), create: vi.fn() }
+      $executeRaw: vi.fn(),
+      sr_user: { findUnique: vi.fn().mockResolvedValue({ id: 42, deleted_at: null }), findFirst: vi.fn().mockResolvedValue({ id: 99 }), update: vi.fn(), create: vi.fn() }
     }
     await expect(repo(tx).registerUser({ id: 42, email: 'other@example.com' } as any)).rejects.toBeDefined()
     expect(tx.sr_user.update).not.toHaveBeenCalled()
@@ -137,8 +144,13 @@ describe('atomic account deletion and login race', () => {
   })
   test('after 30 days recreates a different identity instead of reviving the old id', async () => {
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([{ id: 42, deleted_at: new Date(Date.now() - 31 * 86400000) }]),
-      sr_user: { delete: vi.fn(), update: vi.fn(), create: vi.fn().mockResolvedValue({ id: 99 }) }
+      $executeRaw: vi.fn(),
+      sr_user: {
+        findUnique: vi.fn().mockResolvedValue({ id: 42, email: 'a@example.com', deleted_at: new Date(Date.now() - 31 * 86400000) }),
+        delete: vi.fn(),
+        update: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 99 })
+      }
     }
     await expect(repo(tx).registerUser({ email: 'a@example.com', deleted_at: null } as any)).resolves.toEqual({ id: 99 })
     expect(tx.sr_user.delete).not.toHaveBeenCalled()

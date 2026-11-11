@@ -104,7 +104,7 @@ export interface UserViewLoginEvent {
  */
 export interface UserLoginStartEvent {
   event: 'user_login_start'
-  method: 'google' | 'apple'
+  method: 'google' | 'apple' | 'email'
 }
 
 // ==================== 设置相关埋点 ====================

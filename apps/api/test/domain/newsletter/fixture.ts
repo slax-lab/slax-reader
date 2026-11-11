@@ -25,6 +25,7 @@ export const adapter = (db: any): any => {
         ).rows[0]
     },
     sr_user: {
+      findUnique: async ({ where }: any) => (await db.query('SELECT * FROM sr_user WHERE id=$1', [where.id])).rows[0] ?? null,
       update: ({ where, data }: any) => db.query('UPDATE sr_user SET deleted_at=$1 WHERE id=$2', [data.deleted_at, where.id])
     },
     sr_user_api_key: { deleteMany: async () => ({ count: 0 }) },
