@@ -104,10 +104,14 @@ const effectiveMode = computed<'card' | 'text'>(() => (isH5.value || isTextOnly.
 // 文字视图下不按月分段
 const displayItems = computed<GroupedItem[]>(() => (effectiveMode.value === 'text' ? props.groupedBookmarks.filter(item => item.type !== 'group') : props.groupedBookmarks))
 
-// 列表侧本地已知的星标数：首次星标提示只看当前已加载数据，不等待服务端统计
-const knownStarredCount = computed(
-  () => props.groupedBookmarks.filter(item => item.type === 'bookmark' && item.bookmark.starred === 'star').length
-)
+const shareInfo = useShareCollectInfo()
+// 优先使用账号总数；未知时仅把当前列表能证明的数量作为下限，不把空 inbox 误判为账号零星标
+const knownStarredCount = computed(() => {
+  const accountCount = shareInfo.info.value?.starred_count
+  if (typeof accountCount === 'number') return accountCount
+  const loadedCount = props.groupedBookmarks.filter(item => item.type === 'bookmark' && item.bookmark.starred === 'star').length
+  return props.filterStatus === 'starred' || loadedCount > 0 ? loadedCount : undefined
+})
 
 const emit = defineEmits<{
   delete: [id: number]

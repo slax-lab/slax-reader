@@ -86,12 +86,16 @@ export const useShareCollectInfo = () => {
     fetchInfo()
   }
 
-  // 可强制刷新，但同一代已有 inflight 时复用，避免重复请求
+  // 强制发起新请求；requestVersion 使较早的响应不能覆盖本次刷新
   const refresh = (): Promise<MyShareCollectionInfo | null> => {
     if (!import.meta.client || !haveRequestToken()) return Promise.resolve(null)
-    if (inflight) return inflight
     return fetchInfo(true)
   }
 
-  return { info, loaded, ensure, refresh }
+  const apply = (patch: Partial<MyShareCollectionInfo>, base: MyShareCollectionInfo | null = info.value) => {
+    if (base) info.value = { ...base, ...patch }
+    loaded.value = true
+  }
+
+  return { info, loaded, ensure, refresh, apply }
 }

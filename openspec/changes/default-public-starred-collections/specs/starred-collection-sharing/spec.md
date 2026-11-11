@@ -27,6 +27,20 @@ The system SHALL provide exactly one starred collection for every active user wi
 - **WHEN** default-public behavior is introduced for a user who already has a collection
 - **THEN** its existing public code and address remain valid and unchanged
 
+### Requirement: Provisioning initializes collection discovery
+
+The system SHALL dispatch the existing collection vector-maintenance target when lazy provisioning inserts a new collection. Provisioning an existing collection, including a row recovered after a concurrent unique conflict, SHALL NOT dispatch a duplicate maintenance target merely because collection information was read. Concurrent provisioning SHALL identify exactly one inserted row so collection search, recommendations, and subscriber preference aggregation can use the same initialization behavior as the previous enablement flow.
+
+#### Scenario: Newly provisioned collection
+
+- **WHEN** authentication or an owner-collection read inserts a default collection
+- **THEN** the system dispatches collection vector maintenance for that collection
+
+#### Scenario: Existing or concurrently recovered collection
+
+- **WHEN** provisioning returns an existing collection or recovers the row inserted by a concurrent request
+- **THEN** that provisioning result is not treated as a new insertion and does not independently dispatch collection vector maintenance
+
 ### Requirement: Default provisioning preserves existing collection visibility
 
 The rollout SHALL provision an open collection for users who do not have one without sending collection-specific notifications, requiring advance consent, or providing a provisioning-specific opt-out. Every existing collection SHALL preserve its current open or closed status, including collections previously closed by their curators. Existing codes, names, descriptions, ownership, visibility, and subscriptions SHALL remain intact during rollout and ordinary provisioning.

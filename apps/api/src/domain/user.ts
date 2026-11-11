@@ -279,7 +279,8 @@ export class UserService {
 
     await this.userRepo.requireActiveUser(regInfo.id)
     try {
-      await this.collectionRepo.ensureUserShareCollect(regInfo.id, defaultShareCollectionName(regInfo))
+      const { collection, created } = await this.collectionRepo.ensureUserShareCollectWithCreation(regInfo.id, defaultShareCollectionName(regInfo))
+      if (created) dispatchVectorMaintenance(ctx, { kind: 'collection', id: collection.id })
     } catch (error) {
       console.error(`[login] collection provisioning failed: ${error instanceof Error ? error.message : String(error)}`)
     }

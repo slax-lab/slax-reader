@@ -18,10 +18,10 @@ const collection = {
   show_profile: true
 }
 
-function serviceWire(overrides = {}) {
+function serviceWire(overrides = {}, created = false) {
   const current = { ...collection, ...overrides }
   const repo = {
-    ensureUserShareCollect: vi.fn().mockResolvedValue(current),
+    ensureUserShareCollectWithCreation: vi.fn().mockResolvedValue({ collection: current, created }),
     getCollectionStats: vi.fn().mockResolvedValue({ starred_count: 0, subscriber_count: 0 })
   }
   const userRepo = { getInfoByUserId: vi.fn().mockResolvedValue({ id: 7, name: 'Alex', lang: 'en' }) }
@@ -38,27 +38,41 @@ describe('default collection provisioning', () => {
     expect(defaultShareCollectionName(user)).toBe(expected)
   })
 
-  test('mine provisions a stable non-null open collection', async () => {
+  test('mine provisions a stable non-null open collection without reindexing an existing row', async () => {
     const { service, repo } = serviceWire()
-    const first = await service.getMyShareCollectInfo(createMockCtx({ userId: 7 }))
-    const second = await service.getMyShareCollectInfo(createMockCtx({ userId: 7 }))
+    const ctx = createMockCtx({ userId: 7 })
+    const first = await service.getMyShareCollectInfo(ctx)
+    const second = await service.getMyShareCollectInfo(ctx)
     expect(first).toMatchObject({ collection_code: 'stable-code', status: 1, show_name: "Alex's Reading Recommendations" })
     expect(second).toEqual(first)
-    expect(repo.ensureUserShareCollect).toHaveBeenCalledTimes(2)
-    expect(repo.ensureUserShareCollect).toHaveBeenCalledWith(7, "Alex's Reading Recommendations")
+    expect(repo.ensureUserShareCollectWithCreation).toHaveBeenCalledTimes(2)
+    expect(repo.ensureUserShareCollectWithCreation).toHaveBeenCalledWith(7, "Alex's Reading Recommendations")
+    expect(ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.createBatch).not.toHaveBeenCalled()
+  })
+
+  test('mine dispatches collection indexing when provisioning creates a row', async () => {
+    const { service } = serviceWire({}, true)
+    const ctx = createMockCtx({ userId: 7 })
+
+    await service.getMyShareCollectInfo(ctx)
+
+    expect(ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW.createBatch).toHaveBeenCalledExactlyOnceWith([
+      expect.objectContaining({ params: { eventId: expect.any(String), target: { kind: 'collection', id: 3 } } })
+    ])
   })
 
   test('mine preserves an existing closed collection', async () => {
     const { service, repo } = serviceWire({ status: 0, display_name: 'Curator choice' })
     const result = await service.getMyShareCollectInfo(createMockCtx({ userId: 7 }))
     expect(result).toMatchObject({ collection_code: 'stable-code', status: 0, show_name: 'Curator choice' })
-    expect(repo.ensureUserShareCollect).toHaveBeenCalledOnce()
+    expect(repo.ensureUserShareCollectWithCreation).toHaveBeenCalledOnce()
   })
 
-  test('repository creates defaults without updating an existing row', async () => {
-    const upsert = vi.fn().mockResolvedValue(collection)
+  test('repository creates defaults and reports the insertion', async () => {
+    const inserted = { ...collection, collection_code: '0123456789abcdef0123456789abcdef' }
+    const upsert = vi.fn().mockResolvedValue(inserted)
     const repo = new CollectionRepo((() => ({ sr_user_collection: { upsert, findFirst: vi.fn().mockResolvedValue(null) } })) as never)
-    await repo.ensureUserShareCollect(7, "Alex's Reading Recommendations")
+    await expect(repo.ensureUserShareCollectWithCreation(7, "Alex's Reading Recommendations")).resolves.toEqual({ collection: inserted, created: true })
     expect(upsert).toHaveBeenCalledWith({
       where: { owner_id: 7 },
       create: expect.objectContaining({
@@ -74,21 +88,35 @@ describe('default collection provisioning', () => {
     })
   })
 
-  test('repository recovers a concurrent unique conflict by rereading the winner', async () => {
-    const upsert = vi.fn().mockRejectedValue(Object.assign(new Error('unique conflict'), { code: 'P2002' }))
-    const repo = new CollectionRepo((() => ({ sr_user_collection: { upsert, findFirst: vi.fn().mockResolvedValue(null) } })) as never)
-    vi.spyOn(repo, 'getUserShareCollect').mockResolvedValue(collection as never)
-    await expect(repo.ensureUserShareCollect(7, 'Other name')).resolves.toBe(collection)
+  test('repository treats an upsert won by another request as an existing row without rereading', async () => {
+    const upsert = vi.fn().mockResolvedValue(collection)
+    const findFirst = vi.fn().mockResolvedValue(null)
+    const repo = new CollectionRepo((() => ({ sr_user_collection: { upsert, findFirst } })) as never)
+
+    await expect(repo.ensureUserShareCollectWithCreation(7, 'Other name')).resolves.toEqual({ collection, created: false })
+
+    expect(findFirst).toHaveBeenCalledOnce()
+    expect(upsert).toHaveBeenCalledOnce()
+  })
+
+  test('repository retries a unique conflict through the write path without reporting a creation', async () => {
+    const upsert = vi.fn().mockRejectedValueOnce(Object.assign(new Error('unique conflict'), { code: 'P2002' })).mockResolvedValueOnce(collection)
+    const findFirst = vi.fn().mockResolvedValue(null)
+    const repo = new CollectionRepo((() => ({ sr_user_collection: { upsert, findFirst } })) as never)
+
+    await expect(repo.ensureUserShareCollectWithCreation(7, 'Other name')).resolves.toEqual({ collection, created: false })
+
+    expect(findFirst).toHaveBeenCalledOnce()
+    expect(upsert).toHaveBeenCalledTimes(2)
   })
 
   test('repository preserves unexpected failures', async () => {
     const failure = new Error('database unavailable')
     const upsert = vi.fn().mockRejectedValue(failure)
     const repo = new CollectionRepo((() => ({ sr_user_collection: { upsert, findFirst: vi.fn().mockResolvedValue(null) } })) as never)
-    await expect(repo.ensureUserShareCollect(7, 'Name')).rejects.toBe(failure)
+    await expect(repo.ensureUserShareCollectWithCreation(7, 'Name')).rejects.toBe(failure)
   })
 })
-
 
 describe('legacy collection visibility controls', () => {
   test.each([
@@ -115,11 +143,11 @@ describe('legacy collection visibility controls', () => {
   })
 })
 
-
 test('repository returns an existing row without issuing an upsert', async () => {
   const upsert = vi.fn()
   const findFirst = vi.fn().mockResolvedValue(collection)
   const repo = new CollectionRepo((() => ({ sr_user_collection: { upsert, findFirst } })) as never)
   await expect(repo.ensureUserShareCollect(7, 'Replacement name')).resolves.toBe(collection)
+  await expect(repo.ensureUserShareCollectWithCreation(7, 'Replacement name')).resolves.toEqual({ collection, created: false })
   expect(upsert).not.toHaveBeenCalled()
 })

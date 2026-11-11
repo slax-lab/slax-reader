@@ -6,6 +6,7 @@
 - [x] 1.2 Make `/mine` return non-null `MyShareCollectionInfo` through the existing contracts and routing patterns. Verify contract/API tests cover the non-null owner contract and confirm that neither authentication nor `/mine` retries change an existing closed status.
 - [x] 1.3 Keep the existing enable/disable routes as the close/reopen channel for both the new Web controls and older clients: the create branch keeps the requested status, the update branch sets it explicitly. Verify API tests cover create-with-open, create-with-close, and close/reopen on an existing row without touching metadata or codes.
 - [x] 1.4 Confirm that this change introduces no schema migration: `pnpm api -- gen:diff` produces no new migration and generated artifacts remain unchanged.
+- [x] 1.5 Dispatch the existing collection vector-maintenance target when lazy provisioning actually inserts a row, while existing and conflict-recovered rows do not trigger a new dispatch. Verify authentication and `/mine` dispatch tests and a real PostgreSQL concurrency test in which exactly one caller reports creation.
 
 ## 2. Web direct sharing and discovery
 

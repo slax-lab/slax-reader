@@ -34,14 +34,16 @@ describePg('Collection default provisioning PostgreSQL integration', () => {
     })
     ownerId = owner.id
 
-    const results = await Promise.all(Array.from({ length: 8 }, () => repo.ensureUserShareCollect(owner.id, "Concurrent Owner's Reading Recommendations")))
-    expect(new Set(results.map(row => row.id)).size).toBe(1)
-    expect(new Set(results.map(row => row.collection_code)).size).toBe(1)
-    expect(results[0]).toMatchObject({ owner_id: owner.id, status: 1, display_name: "Concurrent Owner's Reading Recommendations" })
+    const results = await Promise.all(Array.from({ length: 8 }, () => repo.ensureUserShareCollectWithCreation(owner.id, "Concurrent Owner's Reading Recommendations")))
+    expect(new Set(results.map(result => result.collection.id)).size).toBe(1)
+    expect(new Set(results.map(result => result.collection.collection_code)).size).toBe(1)
+    expect(results.filter(result => result.created)).toHaveLength(1)
+    expect(results[0]?.collection).toMatchObject({ owner_id: owner.id, status: 1, display_name: "Concurrent Owner's Reading Recommendations" })
     expect(await db.sr_user_collection.count({ where: { owner_id: owner.id } })).toBe(1)
 
     await db.sr_user_collection.update({ where: { owner_id: owner.id }, data: { status: 0 } })
-    const closed = await repo.ensureUserShareCollect(owner.id, 'Replacement name')
-    expect(closed).toMatchObject({ status: 0, display_name: "Concurrent Owner's Reading Recommendations", collection_code: results[0].collection_code })
+    const closed = await repo.ensureUserShareCollectWithCreation(owner.id, 'Replacement name')
+    expect(closed.created).toBe(false)
+    expect(closed.collection).toMatchObject({ status: 0, display_name: "Concurrent Owner's Reading Recommendations", collection_code: results[0]?.collection.collection_code })
   })
 })

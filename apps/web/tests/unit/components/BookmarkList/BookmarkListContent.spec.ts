@@ -20,6 +20,16 @@ vi.mock('virtua/vue', () => ({
   })
 }))
 
+const shareInfoState = vi.hoisted(() => ({ starredCount: undefined as number | undefined }))
+vi.mock('~/composables/useShareCollectInfo', async () => {
+  const { computed } = await import('vue')
+  return {
+    useShareCollectInfo: () => ({
+      info: computed(() => (shareInfoState.starredCount === undefined ? null : { starred_count: shareInfoState.starredCount }))
+    })
+  }
+})
+
 type GroupedItem = { type: 'group'; label: string; key: string } | { type: 'bookmark'; bookmark: BookmarkItem; index: number }
 
 // BookmarkCell 替身：暴露 textMode 与注入到的 SharedUserTagsKey，可发出 select-tag
@@ -57,8 +67,9 @@ const groupedBookmarks: GroupedItem[] = [
   { type: 'bookmark', bookmark: makeBookmarkItem({ id: 2, title: 'Two' }), index: 1 }
 ]
 
-const mountContent = (props: Partial<InstanceType<typeof BookmarkListContent>['$props']> = {}, provide: Record<symbol, unknown> = {}) =>
-  mountWithApp(BookmarkListContent, {
+const mountContent = (props: Partial<InstanceType<typeof BookmarkListContent>['$props']> = {}, provide: Record<symbol, unknown> = {}, accountCount?: number) => {
+  shareInfoState.starredCount = accountCount
+  return mountWithApp(BookmarkListContent, {
     props: {
       filterStatus: 'inbox',
       groupedBookmarks,
@@ -69,6 +80,7 @@ const mountContent = (props: Partial<InstanceType<typeof BookmarkListContent>['$
     },
     global: { stubs, provide }
   })
+}
 
 describe('components/BookmarkList/BookmarkListContent', () => {
   describe('effectiveMode → text-mode 透传', () => {
@@ -117,7 +129,7 @@ describe('components/BookmarkList/BookmarkListContent', () => {
   })
 
   describe('local starred count', () => {
-    it('passes the locally known starred count to every cell without waiting for server stats', () => {
+    it('passes a locally proven nonzero count to every cell without waiting for server stats', () => {
       const withStar: GroupedItem[] = [
         { type: 'bookmark', bookmark: makeBookmarkItem({ id: 1, starred: 'star' }), index: 0 },
         { type: 'bookmark', bookmark: makeBookmarkItem({ id: 2, starred: 'unstar' }), index: 1 }
@@ -127,6 +139,26 @@ describe('components/BookmarkList/BookmarkListContent', () => {
       for (const cell of wrapper.findAll('.co-default .bookmark-cell')) {
         expect(cell.attributes('data-local-starred-count')).toBe('1')
       }
+    })
+
+    it('prefers the account total over the rows loaded for the current filter', () => {
+      const wrapper = mountContent({ filterStatus: 'inbox' }, {}, 12)
+      expect(wrapper.find('.co-default .bookmark-cell').attributes('data-local-starred-count')).toBe('12')
+    })
+
+    it('preserves a known account zero', () => {
+      const wrapper = mountContent({ filterStatus: 'inbox' }, {}, 0)
+      expect(wrapper.find('.co-default .bookmark-cell').attributes('data-local-starred-count')).toBe('0')
+    })
+
+    it('keeps an empty inbox count unknown instead of treating it as an account zero', () => {
+      const wrapper = mountContent({ filterStatus: 'inbox' })
+      expect(wrapper.find('.co-default .bookmark-cell').attributes('data-local-starred-count')).toBe('undefined')
+    })
+
+    it('uses the loaded rows as a known zero on the starred filter', () => {
+      const wrapper = mountContent({ filterStatus: 'starred' })
+      expect(wrapper.find('.co-default .bookmark-cell').attributes('data-local-starred-count')).toBe('0')
     })
   })
 

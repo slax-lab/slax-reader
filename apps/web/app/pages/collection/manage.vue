@@ -266,9 +266,7 @@ const saveSettings = async () => {
     if (!res) throw new Error('save failed')
     nameInput.value = name
     if (collectInfo.value) collectInfo.value = { ...collectInfo.value, show_name: name, description }
-    const sharedBase = collectInfo.value ?? sharedCollection.info.value
-    if (sharedBase) sharedCollection.info.value = { ...sharedBase, show_name: name, description }
-    sharedCollection.loaded.value = true
+    sharedCollection.apply({ show_name: name, description }, collectInfo.value)
     Toast.showToast({ text: t('page.collection_manage.toast_saved') })
   } catch {
     Toast.showToast({ text: t('common.tips.save_failed'), type: ToastType.Error })
@@ -288,15 +286,12 @@ const syncSharedCollection = async (res: UserEnableCollectShare) => {
   if (refreshed) {
     // The toggle response owns visibility; it also protects against an older /mine response
     // that was already in flight when the owner closed or reopened the collection.
-    sharedCollection.info.value = { ...refreshed, ...res } as MyShareCollectionInfo
-    sharedCollection.loaded.value = true
+    sharedCollection.apply(res, refreshed)
     return
   }
 
   // /mine refresh failed: keep the shared entry usable and reflect the server's visibility now.
-  const base = collectInfo.value ?? sharedCollection.info.value
-  if (base) sharedCollection.info.value = { ...base, ...res } as MyShareCollectionInfo
-  sharedCollection.loaded.value = true
+  sharedCollection.apply(res, collectInfo.value)
 }
 
 const setEnabled = async (enable: boolean) => {

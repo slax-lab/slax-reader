@@ -169,7 +169,7 @@ describe('composables/useShareCollectInfo', () => {
     expect(mockGet).toHaveBeenCalledTimes(1)
   })
 
-  it('reuses an in-flight request for ensure and refresh', async () => {
+  it('coalesces ensure but forces a new refresh that supersedes the older request', async () => {
     const pending: Array<(value: unknown) => void> = []
     mockGet.mockImplementation(() => new Promise(resolve => pending.push(resolve)))
 
@@ -179,14 +179,16 @@ describe('composables/useShareCollectInfo', () => {
     share.ensure()
     share.ensure()
     const refreshed = share.refresh()
-    expect(pending).toHaveLength(1)
+    expect(pending).toHaveLength(2)
 
-    await Promise.resolve()
-    expect(pending).toHaveLength(1)
+    pending[0]!({ ...accountA, collection_code: 'stale-code' })
+    await flushPromises()
+    expect(share.info.value).toBeNull()
+    expect(share.loaded.value).toBe(false)
 
-    pending[0]!({ ...accountA, collection_code: 'inflight-code' })
+    pending[1]!({ ...accountA, collection_code: 'fresh-code' })
     await refreshed
-    expect(share.info.value?.collection_code).toBe('inflight-code')
+    expect(share.info.value?.collection_code).toBe('fresh-code')
     expect(share.loaded.value).toBe(true)
   })
 
@@ -211,5 +213,17 @@ describe('composables/useShareCollectInfo', () => {
     share.ensure()
     await flushPromises()
     expect(mockGet).toHaveBeenCalledTimes(2)
+  })
+
+  it('applies a partial mutation onto the supplied base and marks the cache loaded', () => {
+    share.apply({ show_name: 'Updated name', description: 'Updated description' }, { ...accountA, status: 0 })
+
+    expect(share.info.value).toMatchObject({
+      collection_code: 'account-a-code',
+      show_name: 'Updated name',
+      description: 'Updated description',
+      status: 0
+    })
+    expect(share.loaded.value).toBe(true)
   })
 })

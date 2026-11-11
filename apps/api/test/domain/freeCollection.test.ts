@@ -13,6 +13,7 @@ function wire(amount = 0) {
     getUserShareCollectByCode: vi.fn().mockResolvedValue(collection),
     getUserShareCollect: vi.fn().mockResolvedValue(collection),
     ensureUserShareCollect: vi.fn().mockResolvedValue(collection),
+    ensureUserShareCollectWithCreation: vi.fn().mockResolvedValue({ collection, created: false }),
     getUserSubscribeCollection: vi.fn().mockResolvedValue(null),
     createUserCollectionSubscribePeriod: vi.fn().mockResolvedValue(undefined),
     getUserCollectionSubscribePeriodList: vi.fn().mockResolvedValue([{ interval: 'year', interval_count: 99, created_at: new Date() }]),

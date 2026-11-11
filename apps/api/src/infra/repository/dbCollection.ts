@@ -132,18 +132,24 @@ export class CollectionRepo {
   }
 
   public async ensureUserShareCollect(userId: number, displayName: string) {
+    const result = await this.ensureUserShareCollectWithCreation(userId, displayName)
+    return result.collection
+  }
+
+  public async ensureUserShareCollectWithCreation(userId: number, displayName: string) {
     const existing = await this.getUserShareCollect(userId)
-    if (existing) return existing
+    if (existing) return { collection: existing, created: false }
 
     const now = new Date()
-    try {
-      return await this.prismaPg().sr_user_collection.upsert({
+    const attemptedCode = await hashMD5(crypto.randomUUID())
+    const upsert = () =>
+      this.prismaPg().sr_user_collection.upsert({
         where: { owner_id: userId },
         create: {
           owner_id: userId,
           display_name: displayName,
           type: 1,
-          collection_code: await hashMD5(`${userId}-${now.getTime()}`),
+          collection_code: attemptedCode,
           status: 1,
           created_at: now,
           updated_at: now,
@@ -153,13 +159,15 @@ export class CollectionRepo {
         },
         update: {}
       })
+
+    let collection
+    try {
+      collection = await upsert()
     } catch (error) {
-      if ((error as { code?: unknown })?.code === 'P2002') {
-        const existing = await this.getUserShareCollect(userId)
-        if (existing) return existing
-      }
-      throw error
+      if ((error as { code?: unknown })?.code !== 'P2002') throw error
+      collection = await upsert()
     }
+    return { collection, created: collection.collection_code === attemptedCode }
   }
 
   public async enableUserShareCollect(userId: number, enable: boolean, nickName?: string, _type?: number) {

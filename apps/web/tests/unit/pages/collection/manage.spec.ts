@@ -13,10 +13,16 @@ const mocks = vi.hoisted(() => ({
   copyText: vi.fn(() => Promise.resolve()),
   toastShow: vi.fn(),
   refresh: vi.fn(),
+  apply: vi.fn(),
   sharedInfo: { value: null as Record<string, unknown> | null },
   sharedLoaded: { value: false },
   route: { query: { from: 'starred' } as Record<string, string> }
 }))
+
+mocks.apply.mockImplementation((patch: Record<string, unknown>, base: Record<string, unknown> | null = mocks.sharedInfo.value) => {
+  if (base) mocks.sharedInfo.value = { ...base, ...patch }
+  mocks.sharedLoaded.value = true
+})
 
 mockNuxtImport('request', () => () => ({ get: mocks.get, post: mocks.post }))
 mockNuxtImport('navigateTo', () => mocks.navigateTo)
@@ -35,7 +41,8 @@ vi.mock('~/composables/useShareCollectInfo', () => ({
     info: mocks.sharedInfo,
     loaded: mocks.sharedLoaded,
     ensure: vi.fn(),
-    refresh: mocks.refresh
+    refresh: mocks.refresh,
+    apply: mocks.apply
   })
 }))
 
