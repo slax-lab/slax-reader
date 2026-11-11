@@ -22,7 +22,7 @@ export const showFeedbackModal = (options: { title: string; reportType: string; 
         }
       }
     })
-  })).catch(() => nuxtApp.runWithContext(() => {
+  }), () => nuxtApp.runWithContext(() => {
     Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
   }))
 }
@@ -45,7 +45,7 @@ export const showEditNameModal = (options: { bookmarkId: number; name: string; a
         }
       }
     })
-  })).catch(() => nuxtApp.runWithContext(() => {
+  }), () => nuxtApp.runWithContext(() => {
     Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
   }))
 }
@@ -83,7 +83,7 @@ export const showEditTagModal = (options: {
         }
       }
     })
-  })).catch(() => nuxtApp.runWithContext(() => {
+  }), () => nuxtApp.runWithContext(() => {
     Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
   }))
 }
@@ -102,7 +102,7 @@ export const showLoginModal = (options: { redirect?: string; authAttribution?: C
         }
       }
     })
-  })).catch(() => nuxtApp.runWithContext(() => {
+  }), () => nuxtApp.runWithContext(() => {
     Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
   }))
 }
@@ -122,7 +122,7 @@ export const showShareConfigModal = (options: { bookmarkId: number; title: strin
         }
       }
     })
-  })).catch(() => nuxtApp.runWithContext(() => {
+  }), () => nuxtApp.runWithContext(() => {
     Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
   }))
 }
@@ -147,7 +147,7 @@ export const showSnapshotStatusModal = (options: { status: BookmarkParseStatus; 
         }
       }
     })
-  })).catch(() => nuxtApp.runWithContext(() => {
+  }), () => nuxtApp.runWithContext(() => {
     Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
   }))
 }

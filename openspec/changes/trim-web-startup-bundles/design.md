@@ -4,10 +4,14 @@
 
 The user explicitly rejected the bespoke loading infrastructure on 2026-11-11 and requested official Vue/Nuxt mechanisms instead. This supersedes the prior generated-resource-index and preflight design in PR #560. The branch remains `feat/lazy-load-bundle`; keep the separately merged login-startup work intact.
 
+## Route boundary
+
+Panel deferral is restricted to `/b/:id`, within the four routes the user selected (`/b`, `/c`, `/login`, `/`). `/s/:id` keeps its static panels and is not a measured optimization target. Do not expand its interaction model to satisfy wording that accidentally omitted this boundary. Shared composable changes must continue to support its existing `isAppeared` false-to-true path.
+
 ## Decisions
 
 - Article AI/chat panels use Vue `defineAsyncComponent` with literal dynamic imports, the existing DotLoading component, a 15-second timeout, and `suspensible: false`. The existing panel selection and permission rules determine when `v-if` renders them.
-- Vue `KeepAlive` retains each panel instance while its tab is inactive. Key the containing boundary by account generation so cached state does not cross accounts. No custom component cache or load wrapper remains.
+- Vue `KeepAlive` retains each panel instance while its tab is inactive. The chat uses `onActivated`/`onDeactivated` alongside its existing visibility watcher to restore focus, bottom-follow state and open/expand analytics exactly once per appearance. Key the containing boundary by account generation so cached state does not cross accounts. No custom component cache or load wrapper remains.
 - Nuxt `NuxtErrorBoundary` contains a panel failure without replacing the article. The error slot offers the official `reloadNuxtApp` action with an explicit warning that unsaved drafts will be lost. Reload is user-initiated only. Do not claim that retrying the same dynamic import clears a browser's failed module cache.
 - Programmatic modal functions use ordinary JavaScript `import()` directly, then the existing modalBootloader in Nuxt context. Import rejection shows the existing toast with the same reload/unsaved-state warning. Existing inputs, callbacks and dismissal behavior remain unchanged; no shared pending-request map or modal loading framework is added.
 - One configuration statement in Nuxt's documented `build:manifest` hook sets generated resource `prefetch` flags false. This explicitly disables speculative HTML resource hints globally; required `preload`, static/dynamic imports, Worker/WASM files and NuxtLink route-prefetch behavior remain unchanged. Prefer this transparent configuration trade-off over a custom package classifier, bundler plugin or dependency graph walk.
@@ -34,4 +38,4 @@ Verify standard tests/typecheck/build, absence of the removed symbols and genera
 
 ## Delivery
 
-Update the existing draft PR. Do not infer human hands-on acceptance, merge, deployment or archive authorization from this implementation request. The user explicitly authorized removing the old machinery and using the official behavior, including removing the previous same-document recovery promise.
+Update existing PR #560 without changing its owner-selected draft/ready state. Do not infer human hands-on acceptance, merge, deployment or archive authorization from this implementation request. The user explicitly authorized removing the old machinery and using the official behavior, including removing the previous same-document recovery promise.

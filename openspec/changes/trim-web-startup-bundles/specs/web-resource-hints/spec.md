@@ -4,6 +4,10 @@
 
 Keep optional interfaces and speculative resource downloads out of initial Web loading while retaining readable content, required resources, permissions and page-local state.
 
+## Scope
+
+The optional-panel, asynchronous quote and panel-error requirements below apply to the snapshot article route `/b/:id`. The four optimization targets are `/b/:id`, `/c/:id`, `/login`, and `/` (`/bookmarks`). The legacy share reader `/s/:id` is not a panel-deferral target and retains eager panel behavior. The generated resource-prefetch policy remains global and modal requirements apply to the existing shared modal actions.
+
 ## ADDED Requirements
 
 ### Requirement: Initial documents avoid speculative resource downloads
@@ -21,16 +25,17 @@ Generated Web documents SHALL omit speculative resource-prefetch hints. Required
 
 ### Requirement: Optional article panels load on activation
 
-An article whose AI/chat panels have not been selected SHALL remain readable without loading those optional implementations. Existing authorization and automatic-opening rules SHALL decide activation. Closing or switching a loaded panel SHALL preserve its draft and loaded state within the same page/account scope.
+A `/b/:id` snapshot article whose AI/chat panels have not been selected SHALL remain readable without loading those optional implementations. Existing authorization and automatic-opening rules SHALL decide activation. Closing or switching a loaded panel SHALL preserve its draft and loaded state within the same page/account scope.
 
 #### Scenario: Article opens with panels closed
-- **WHEN** neither AI nor chat is selected
+- **WHEN** neither AI nor chat is selected on `/b/:id`
 - **THEN** their implementations are absent from initial executable dependencies and startup requests
 - **AND** the article and its primary controls remain usable
 
 #### Scenario: Panel is reopened
 - **WHEN** the user enters a draft, switches or closes the panel, then reopens it
 - **THEN** its draft and loaded state remain available within the same account and page
+- **AND** chat re-entry restores composer focus, respects bottom-follow state, and records its expansion once without duplicating first-open analytics
 
 #### Scenario: Existing rules open a panel automatically
 - **WHEN** the existing policy selects an authorized panel

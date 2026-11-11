@@ -10,7 +10,7 @@ export const extractMarkdownFromText = (text: string) => {
     return ''
   }
 
-  return matches.join(String.fromCharCode(10))
+  return matches.join('\n')
 }
 
 export const extractHTMLTextContent = (htmlString: string) => {

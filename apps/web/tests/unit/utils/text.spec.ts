@@ -1,11 +1,11 @@
 import { extractHTMLTextContent as legacyHtml, extractMarkdownFromText as legacyMarkdown } from '@commons/frontend-utils/parse'
 import { extractHTMLTextContent, extractMarkdownFromText } from '@commons/frontend-utils/text'
-import { readFileSync } from 'node:fs'
+import textSource from '@commons/frontend-utils/text?raw'
 import { parseSync } from 'oxc-parser'
 import { describe, expect, it } from 'vitest'
 
-const nl = String.fromCharCode(10)
-const tab = String.fromCharCode(9)
+const nl = '\n'
+const tab = '\t'
 
 describe('lightweight text entry', () => {
   it('preserves the legacy exported functions', () => {
@@ -45,8 +45,7 @@ describe('lightweight text entry', () => {
   })
 
   it('has no runtime import or re-export dependencies', () => {
-    const source = readFileSync(`${process.cwd()}/../../packages/frontend-utils/src/text.ts`, 'utf8')
-    const parsed = parseSync('text.ts', source, { sourceType: 'module' })
+    const parsed = parseSync('text.ts', textSource, { sourceType: 'module' })
     expect(parsed.errors).toEqual([])
     expect(parsed.module.staticImports).toEqual([])
     expect(parsed.module.dynamicImports).toEqual([])

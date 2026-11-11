@@ -4,6 +4,10 @@
 
 Optional article panels and programmatic modals unnecessarily contribute to initial Web loading. The first implementation in draft PR #560 added custom resource-index, preflight and wrapper machinery; on 2026-11-11 the user explicitly requested deleting all of it and using official framework mechanisms.
 
+## Scope
+
+The user explicitly narrowed optimization targets to `/b/:id`, `/c/:id`, `/login`, and `/` (`/bookmarks`). Optional AI/chat panel deferral applies to the snapshot reader `/b/:id` only. The legacy share reader `/s/:id` is outside this panel-loading change and retains its existing static panel imports and mounting behavior. Its sole page-local edit is a behavior-preserving pure-text import; shared helpers and the global resource-hint setting can still affect it. No share-reader bundle reduction or full browser acceptance is claimed.
+
 ## What Changes
 
 - Use Vue defineAsyncComponent and conditional rendering for AI/chat panels; use KeepAlive for their page-local state. Preserve automatic-opening and authorization decisions.
@@ -29,4 +33,4 @@ Changes are limited to Web panel/modal entrypoints, the existing bookmark compos
 
 The shared text change retains old exports; Extension source/version stays 1.16.3 per the no-bump decision. Work remains on `feat/lazy-load-bundle` in `.local/web-bundle-minimal-worktree`, based on dev 6016ee48 with the independent login-startup optimization preserved.
 
-The user authorized updating the same draft PR. Human hands-on acceptance is not inferred; no merge, deployment or archive is authorized. Old measurements and same-document recovery evidence are historical and must not be presented as results of the official-only revision.
+The user authorized updating the same PR; its owner-selected ready/draft state does not establish hands-on acceptance. Human hands-on acceptance is not inferred; no merge, deployment or archive is authorized. Old measurements and same-document recovery evidence are historical and must not be presented as results of the official-only revision.

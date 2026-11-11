@@ -27,6 +27,9 @@ const { lastCall, lastApp, modalBootloaderMock } = vi.hoisted(() => {
   return { lastCall, lastApp, modalBootloaderMock }
 })
 
+const { mockShowToast } = vi.hoisted(() => ({ mockShowToast: vi.fn() }))
+vi.mock('~/components/Toast', () => ({ default: { showToast: mockShowToast }, ToastType: { Error: 'error' } }))
+
 vi.mock('~/utils/modal', () => ({
   modalBootloader: modalBootloaderMock
 }))
@@ -69,6 +72,7 @@ afterEach(() => {
 
 beforeEach(() => {
   modalBootloaderMock.mockClear()
+  mockShowToast.mockClear()
   lastCall.value = null
   lastApp.value = null
 })
@@ -84,6 +88,20 @@ const requireLastApp = (): AppStub => {
 }
 
 describe('Modal helpers', () => {
+  it.each([
+    ['feedback', () => showFeedbackModal({ title: 'fixture', reportType: 'bug', email: 'fixture@example.invalid' })],
+    ['edit name', () => showEditNameModal({ bookmarkId: 1, name: 'fixture' })],
+    ['edit tag', () => showEditTagModal({ tagId: 1, tagName: 'fixture' })],
+    ['login', () => showLoginModal({})],
+    ['share', () => showShareConfigModal({ bookmarkId: 1, title: 'fixture' })],
+    ['status', () => showSnapshotStatusModal({ status: BookmarkParseStatus.SUCCESS, title: 'fixture', content: 'fixture' })]
+  ] as const)('does not label %s mounting errors as import failures', async (_name, open) => {
+    const error = new Error('component setup failed')
+    modalBootloaderMock.mockImplementationOnce(() => { throw error })
+    await expect(open()).rejects.toBe(error)
+    expect(mockShowToast).not.toHaveBeenCalled()
+  })
+
   describe('showFeedbackModal', () => {
     it('用 Feedback 组件 + 透传 reportType/title/href/email/params；params 缺失时 fallback {}', async () => {
       showFeedbackModal({

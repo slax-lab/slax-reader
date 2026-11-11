@@ -1,4 +1,4 @@
-import { nextTick } from 'vue'
+import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { mountWithApp } from '~~/tests/setup/mount'
@@ -79,6 +79,57 @@ describe('SnapshotChatPanel.vue', () => {
   })
 
   describe('A. 空态', () => {
+    it('restores focus, bottom following and expand analytics on cached re-entry', async () => {
+      const visible = ref(true)
+      const host = defineComponent({
+        setup: () => () => h(KeepAlive, null, { default: () => visible.value ? h(SnapshotChatPanel, { bookmarkId: 1, isAppeared: true }) : null })
+      })
+      const wrapper = mountWithApp(host, {
+        attachTo: document.body,
+        global: { stubs: { QuestionMessage: true, TipsMessage: true, DotLoading: true, MermaidDiagramOverlay: true } }
+      })
+      await nextTick()
+      await nextTick()
+      vi.advanceTimersByTime(60)
+      expect(mockAnalyticsLog.mock.calls.map(([event]) => event.sub_action)).toEqual(['open'])
+      const textarea = wrapper.get('textarea').element as HTMLTextAreaElement
+      const box = wrapper.get('.chat-messages').element as HTMLElement
+      await wrapper.get('textarea').setValue('keep this draft')
+      Object.defineProperty(box, 'scrollHeight', { configurable: true, value: 1200 })
+      Object.defineProperty(box, 'clientHeight', { configurable: true, value: 300 })
+      const focus = vi.spyOn(textarea, 'focus')
+      const scroll = vi.spyOn(box, 'scrollTo')
+      for (let attempt = 0; attempt < 2; attempt++) {
+        visible.value = false
+        await nextTick()
+        focus.mockClear()
+        scroll.mockClear()
+        visible.value = true
+        await nextTick()
+        await nextTick()
+        await nextTick()
+        vi.advanceTimersByTime(60)
+        expect(wrapper.get('textarea').element).toBe(textarea)
+        expect(textarea.value).toBe('keep this draft')
+        expect(focus).toHaveBeenCalledOnce()
+        expect(scroll).toHaveBeenCalledWith({ top: 1200, behavior: 'auto' })
+      }
+      expect(mockAnalyticsLog.mock.calls.map(([event]) => event.sub_action)).toEqual(['open', 'expand', 'expand'])
+      expect(mockBotChat).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it('keeps the non-cached isAppeared false-to-true path working', async () => {
+      const wrapper = mountPanel({ bookmarkId: 1, isAppeared: false })
+      await wrapper.setProps({ isAppeared: true })
+      await nextTick()
+      await wrapper.setProps({ isAppeared: false })
+      await wrapper.setProps({ isAppeared: true })
+      await nextTick()
+      expect(mockAnalyticsLog.mock.calls.map(([event]) => event.sub_action)).toEqual(['open', 'expand'])
+      wrapper.unmount()
+    })
+
     it('mounts already visible through an async component without an initialization error', async () => {
       const wrapper = mountPanel({ bookmarkId: 1, isAppeared: true })
       await nextTick()

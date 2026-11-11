@@ -79,4 +79,26 @@ Bugs/Security/Compliance review: the custom loader is removed rather than rename
 
 The previous same-page retry promise, generated-index tests and pending-loader duplicate coalescing are intentionally removed under the user's simplification request. The global speculative-prefetch opt-out may trade future navigation warmth for fewer unsolicited requests; required resources still load on demand.
 
-Human hands-on acceptance remains pending and PR #560 stays draft. Physical iOS Safari, production HTTP 499, real OAuth, remote initial-library synchronization/upload and paired extension bridge are not verified by these fixtures. Do not claim this revision fixes those scenarios or restores all unsaved component state on reload.
+Human hands-on acceptance remains pending. PR #560 is currently marked ready for review by its owner; that status change is not recorded as hands-on acceptance and does not satisfy the acceptance gate. Physical iOS Safari, production HTTP 499, real OAuth, remote initial-library synchronization/upload and paired extension bridge are not verified by these fixtures. Do not claim this revision fixes those scenarios or restores all unsaved component state on reload.
+
+
+## Review follow-up for aa1aee95
+
+The failing GitHub check was `PR review gate` / `review_verdict`, not Web or Extension build/test CI. Review 5853892287 identified three Important findings.
+
+- KeepAlive re-entry: use the official onActivated/onDeactivated lifecycle in addition to the existing isAppeared watcher. One appearance guard prevents duplicate initial open/activation effects. A real KeepAlive regression test deactivates/reactivates twice and asserts the same textarea/draft, focus, bottom-follow scroll and exactly `open, expand, expand`; the non-cached false-to-true path is also covered.
+- Scope: the original user-selected optimization routes were `/b`, `/c`, `/login`, and `/`. Proposal, design and delta spec now explicitly scope panel deferral to `/b/:id`. `/s/:id` retains its eager panels; its only page-local edit is the pure-text import, and no share-reader byte reduction or full browser acceptance is claimed. Shared composable behavior is retained and tested.
+- Human acceptance: still required and not fabricated. Agent browser evidence is not a substitute. This remains a real review gate item until the human supplies the required acceptance.
+
+Nits addressed: use a literal newline in the pure helper; import raw text source through Vite instead of assuming process.cwd(); use the rejection callback of import().then() so setup/mount errors are not mislabeled as download failures. Six modal tests cover the latter. A custom loadModal helper was deliberately not reintroduced because the user explicitly required its removal.
+
+The prior body incorrectly called the PR a draft after its owner changed that status. The next body update reports the actual state and the outstanding acceptance rather than treating ready status as approval.
+
+
+### Review-fix verification
+
+- Focused chat suite: 50 tests passed, including true KeepAlive reactivation twice and the legacy visibility-watcher path. Modal and text suites: 39 tests passed.
+- Two default-concurrency full-suite attempts hit the unchanged useSlaxRoutes #imports test's 10-second timeout; that file passes independently. Without changing assertions, repository config or timeouts, `vitest run --maxWorkers=2` passed all **2,753 tests**, with 3 skipped (233 files passed / 1 skipped). Typecheck and production build then passed. The default-concurrency failures are not represented as a green standard run.
+- Real production browser: enter a draft, click Analysis, then return to Chat. The read-only probe observed focus move from TEXTAREA to BUTTON and back to TEXTAREA, with `KeepAlive review fix preserves draft and focus` retained, no page/boundary errors and zero chat POSTs. Bottom-follow and exactly-once open/expand analytics are asserted in the real KeepAlive unit harness. Evidence: `.local/bundle-validation/review-fixed/reentry.json`.
+- Changed-file ESLint diagnostics match the reviewed head: component and modal implementation files are clean; existing test-file warnings were not broadened or fixed. Shared text output is unchanged; only newline spelling changed.
+- Local Bugs/Security/Compliance follow-up: code regression and scope wording are addressed. The repeated modal helper suggestion is declined to respect the explicit no-custom-loader request; import-only error handling is fixed independently. Human hands-on acceptance remains an unresolved Compliance finding, not a technical failure that an agent can mark passed.
