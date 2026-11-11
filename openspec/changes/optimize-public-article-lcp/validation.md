@@ -4,7 +4,7 @@
 
 Implementation reviewed on 2026-11-11. Branch `perf/optimize-public-article-lcp` starts from `origin/dev` in the isolated managed worktree. The original checkout's unrelated edits are untouched.
 
-This is the first confirmed correctness/byte batch, not a verified 70% field outcome or a final target candidate. No remote upload, deployment, database mutation, Rocket Loader setting change, or task PR has occurred. Human hands-on acceptance remains pending before a PR opens, per `DESIGN.md` section 10.2.
+This is the first confirmed correctness/byte batch, not a verified 70% field outcome or a final target candidate. No deployment, database mutation or Rocket Loader setting change has occurred. Human hands-on acceptance remains pending. On 2026-11-11, after being informed of the pending acceptance, the user explicitly requested opening the PR first. This authorizes an early draft for this task only; it is not acceptance and does not create a general draft exception to `DESIGN.md` section 10.2.
 
 Production changes stay in four existing responsibilities: API image signing (`imager.ts`), one Web server body projection utility, the authorized `loadContent` boundary, and the existing podcast component. Unknown/zero-duration episodes retain metadata preload; supplied-duration episodes use no preload. No shared-package export, cross-app import, runtime dependency, migration, cache namespace, new transport, or new playback state machine was introduced. Web/API do not increment package versions under `docs/release/VERSIONING.md`; no CLI, Extension, or Mobile package/build/contract was changed.
 
@@ -95,7 +95,7 @@ The podcast passes the local paired-compression target (at least 40%, at most 15
 - Full integrated app smoke with authenticated save/fork/translation generation, subtitle panel interactions, highlights/comments, original-image preview and real Safari/iOS has not been exercised on this branch: the worktree has no operator-provided API/auth runtime or physical iOS device. Automated source/contract coverage and synthetic browser checks do not substitute for those flows. Keep these gaps explicit for human review.
 - Real reported-image browser recovery against the deployed new Web build, actual delivered compression, real edge-cache overlap, CPU profiles, twenty throttled timing pairs and end-to-end LCP budgets remain pending because this branch has not been deployed. Local fixture results do not establish those measurements.
 - No post-release seven-day cohort observation exists. The 70% goal remains open; do not infer attainment or a guaranteed LCP saving from payload reduction or synthetic playback.
-- Human hands-on acceptance is pending. No task PR will open until accepted; no declared gap substitutes for that checkpoint.
+- Human hands-on acceptance is pending. The user explicitly requested an early PR on 2026-11-11 after this gap was disclosed; the draft will state that exception and remain unready for merge until acceptance. No acceptance is inferred from the request to open it.
 
 ## Local final review
 
@@ -111,8 +111,14 @@ Independent Claude Code review requested `claude-opus-5-5`, with a curated read-
 - Query duplicate semantics were inspected: the endpoint uses the last query occurrence; generated proxy URLs have unique signed fields. Endpoint revalidation remains authoritative; unsupported supplied URLs cannot widen access.
 - Derived endpoint matching is verified for the captured public runtime API base; custom operator proxy paths outside `/static/image` are not guessed by this Web repair.
 
-Remaining release/field tasks stay unchecked. Real iOS and human hands-on acceptance remain pending; no PR has been opened.
+Remaining release/field tasks stay unchecked. Real iOS and human hands-on acceptance remain pending. The user requested an early draft PR; this delivery instruction does not close the remaining verification tasks.
 
 Final local outcome: 64 focused Web tests, 2,742 full Web tests and 3,863 full API tests passed; final Web/API typechecks, changed production lint, Worker projection checks and API offline bundle passed. Final Web rebuild passed (exit 0) after the fix pass; final strict OpenSpec validation passed all 124 items. The complete 70% outcome is still open.
 
 Codex completed the post-fix Bugs/Security/Compliance review against this change and the staged scope: no unresolved Important findings and no deferred Nits. Human acceptance, real iOS/integrated runtime gaps and field outcome remain visible above; local correctness/byte delivery does not close them.
+
+## PR delivery instruction
+
+On 2026-11-11 the user explicitly asked to submit the PR first, after the missing human acceptance and field verification were disclosed. Prepare an early draft targeting `dev`, keep acceptance pending in the PR body, and preserve the existing verification gaps. This documentation-only status update does not change the verified production code; the full-suite counts above apply to implementation commit `e491d9fb`.
+
+PR visual evidence was captured at 390 x 844 CSS pixels, light theme, in the same synthetic nested-image fixture: baseline `6016ee48` delivery retained the outer source and the image completed with natural width 0; current delivery selected the inner source and completed with natural width 800. Baseline source was read with `git show origin/dev:.../browser-harness.mjs` into ignored scratch space. Both screenshots are attachments, not committed files. This does not claim production canary recovery or field LCP evidence.

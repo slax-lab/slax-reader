@@ -1,6 +1,6 @@
 # Tasks
 
-Planning artifacts are complete only after validation; all implementation and field tasks below remain pending. Follow [the implementation plan](../../../docs/superpowers/plans/2026-11-11-optimize-public-article-lcp.md).
+Planning artifacts are complete only after validation; checkboxes below track completed work; multi-condition implementation and field tasks remain pending until their stated evidence exists. Follow [the implementation plan](../../../docs/superpowers/plans/2026-11-11-optimize-public-article-lcp.md).
 
 ## 1. Baseline and measurement
 
@@ -37,3 +37,5 @@ Planning artifacts are complete only after validation; all implementation and fi
 ## Current implementation state
 
 The first proxy/projection/player batch is implemented and locally exercised; see `validation.md` for exact automated and running Worker/Chrome evidence. Multi-condition tasks remain unchecked where integrated live flows, real iOS, delivered compression, controlled LCP traces, human acceptance or post-release data are outstanding. Conditional metadata/client optimizations are not silently bundled without the required measurements. No deployment or 70% outcome is claimed.
+
+The user explicitly requested an early draft PR on 2026-11-11 after pending human acceptance was disclosed. Task 5.2 remains unchecked; opening the draft is not acceptance or evidence that the 70% target is reached.
