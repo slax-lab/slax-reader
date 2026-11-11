@@ -1,7 +1,7 @@
 import { inject, injectable } from '@/decorators/di'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { ContextManager } from '@/utils/context'
-import { BookmarkNotFoundError, ErrorParam, ServerError, ShareContentNotSupportedError } from '@/const/err'
+import { BookmarkNotFoundError, ErrorParam, ShareContentNotSupportedError } from '@/const/err'
 import { hashMD5 } from '@/utils/strings'
 import { BookmarkTag } from '@/domain/tag'
 import { UserRepo } from '@/infra/repository/dbUser'
@@ -116,39 +116,13 @@ export class ShareService {
     const bmDetail = await this.bookmarkRepo.getBookmarkById(bmId)
     if (bmDetail && bmDetail.moderation_result > 0) throw ShareContentNotSupportedError()
 
-    const share = await this.bookmarkRepo.getBookmarkShareByBookmarkId(bmId, userId)
-
-    let res: any
-    if (share && share.user_id !== userId) throw BookmarkNotFoundError()
-    const updateShare = async () => {
-      try {
-        res = await this.bookmarkRepo.updateBookmarkShare(bmId, userId, req.show_comment_line, req.show_userinfo, req.allow_action)
-      } catch (err) {
-        console.log(`update bookmark share failed: ${err}`)
-        // 必须抛出：之前 return 的错误对象会被丢弃，导致 res 为 undefined，下方取 res.allow_comment 抛 500
-        throw BookmarkNotFoundError()
-      }
+    let code = ''
+    if (!viaUid) {
+      const timeCode = ctx.hashIds.generateTimeCode()
+      const hash = (await hashMD5(`${bmId}-${userId}-${Date.now()}`)).slice(0, 7)
+      code = `${timeCode}${hash}`
     }
-    const createShare = async () => {
-      for (let i = 0; i < 3; i++) {
-        let code = ''
-        if (!viaUid) {
-          const timeCode = ctx.hashIds.generateTimeCode()
-          const hash = (await hashMD5(`${bmId}-${userId}-${Date.now()}`)).slice(0, 7)
-          code = `${timeCode}${hash}`
-        }
-        const shareRes = await this.bookmarkRepo.createBookmarkShare(code, userId, bmId, req.show_comment_line, req.show_userinfo, req.allow_action)
-        if (!shareRes) throw ServerError()
-        res = shareRes
-        return
-      }
-      throw ServerError()
-    }
-    if (share) {
-      await updateShare()
-    } else {
-      await createShare()
-    }
+    const res = await this.bookmarkRepo.saveBookmarkShare(code, userId, bmId, req.show_comment_line, req.show_userinfo, req.allow_action)
     if (bmDetail?.status === 'success') dispatchVectorMaintenance(ctx, { kind: 'article', userId, id: bmId })
 
     return {

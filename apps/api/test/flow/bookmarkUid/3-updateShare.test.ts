@@ -1,163 +1,105 @@
-/**
- * snapshot bookmark_uid 兼容：ShareService.updateBookmarkShare
- *
- * 关键改动：
- * 1. 支持 bookmark_uid：按 uuid+当前用户解析 bookmark_id（找不到抛 BookmarkNotFoundError）
- * 2. 经 uid 新建分享时写空 share_code（share_code 后续弃用）；经 bmId 才生成 timeCode+hash
- * 3. Bugfix：updateBookmarkShare 失败时必须 throw（旧代码 return 错误对象会被丢弃，
- *    导致 res=undefined 后取 res.allow_comment 抛 500）
- *
- * 注：经 bmId 的"新建"分支会调用 hashMD5（crypto.subtle MD5），Workers 运行时支持但 Node 不支持，
- * 故此处仅在 uid 分支测试新建（code=''，跳过 MD5），bmId 分支只测更新/校验/错误分支。
- */
 import { describe, test, expect, vi } from 'vitest'
 
 import { ShareService } from '@/domain/share'
 import { createMockCtx } from '@test/helpers/mockFactory'
 
-const sharedRow = (o: Record<string, any> = {}) => ({
+const sharedRow = (overrides: Record<string, unknown> = {}) => ({
   allow_comment: true,
   show_comment: true,
   show_userinfo: false,
   share_code: '',
-  user_id: 10,
-  is_enable: true,
-  ...o
+  ...overrides
 })
-
-const req = (o: Record<string, any> = {}) => ({
+const req = (overrides: Record<string, unknown> = {}) => ({
   show_comment_line: true,
   show_userinfo: false,
   allow_action: true,
-  ...o
+  ...overrides
 })
-
 function wire() {
   const repo = {
-    getUserBookmarkByUId: vi.fn(),
-    getUserBookmark: vi.fn().mockResolvedValue({ id: 1, bookmark_id: 42, user_id: 10 }),
+    getUserBookmarkByUId: vi.fn().mockResolvedValue({ bookmark_id: 42, user_id: 10 }),
+    getUserBookmark: vi.fn().mockResolvedValue({ bookmark_id: 42, user_id: 10 }),
     getBookmarkById: vi.fn().mockResolvedValue({ id: 42, moderation_result: 0 }),
-    getBookmarkShareByBookmarkId: vi.fn(),
-    updateBookmarkShare: vi.fn(),
-    createBookmarkShare: vi.fn()
+    getBookmarkShareByBookmarkId: vi.fn().mockResolvedValue(null),
+    createBookmarkShare: vi.fn().mockRejectedValue(new Error('duplicate bookmark_id, user_id')),
+    saveBookmarkShare: vi.fn().mockResolvedValue(sharedRow())
   }
-  const svc = new (ShareService as any)()
-  ;(svc as any).bookmarkRepo = repo
-  return { svc: svc as ShareService, repo }
+  const svc = new ShareService(repo as never, {} as never)
+  return { svc, repo }
 }
 
 describe('ShareService.updateBookmarkShare', () => {
-  test('bookmark_uid 新建分享 → share_code 写空串，按 uuid+用户解析 bmId', async () => {
+  test('saves through an atomic write despite a stale absent share result', async () => {
     const { svc, repo } = wire()
-    repo.getUserBookmarkByUId.mockResolvedValue({ id: 1, bookmark_id: 42, user_id: 10 })
-    repo.getBookmarkShareByBookmarkId.mockResolvedValue(null) // 尚无分享 → 走 createShare
-    repo.createBookmarkShare.mockResolvedValue(sharedRow({ share_code: '' }))
-
-    const res = await svc.updateBookmarkShare(createMockCtx({ userId: 10 }), req({ bookmark_uid: 'bm-uuid' }))
-
+    const result = await svc.updateBookmarkShare(createMockCtx({ userId: 10 }), req({ bookmark_uid: 'bm-uuid' }))
     expect(repo.getUserBookmarkByUId).toHaveBeenCalledWith('bm-uuid', 10)
-    // 经 uid 建分享：share_code 传空串
-    expect(repo.createBookmarkShare).toHaveBeenCalledWith('', 10, 42, true, false, true)
-    expect(repo.updateBookmarkShare).not.toHaveBeenCalled()
-    expect(res).toEqual({ allow_action: true, show_comment_line: true, show_userinfo: false, share_code: '' })
-  })
-
-  test('bookmark_uid 解析不到 user_bookmark → 抛 BookmarkNotFoundError', async () => {
-    const { svc, repo } = wire()
-    repo.getUserBookmarkByUId.mockResolvedValue(null)
-    await expect(svc.updateBookmarkShare(createMockCtx({ userId: 10 }), req({ bookmark_uid: 'missing' }))).rejects.toThrow()
-    expect(repo.getUserBookmark).not.toHaveBeenCalled()
-  })
-
-  test('bmId 路径 + 已有自己的分享 → 走更新，不生成 share_code', async () => {
-    const { svc, repo } = wire()
-    repo.getBookmarkShareByBookmarkId.mockResolvedValue(sharedRow({ user_id: 10 }))
-    repo.updateBookmarkShare.mockResolvedValue(sharedRow({ share_code: 'kept-code', show_userinfo: true }))
-    const ctx = createMockCtx({ userId: 10, hashIds: { decodeId: vi.fn(() => 42) } })
-
-    const res = await svc.updateBookmarkShare(ctx, req({ bookmark_id: 999 }))
-
-    expect(repo.updateBookmarkShare).toHaveBeenCalledWith(42, 10, true, false, true)
+    expect(repo.saveBookmarkShare).toHaveBeenCalledWith('', 10, 42, true, false, true)
+    expect(repo.getBookmarkShareByBookmarkId).not.toHaveBeenCalled()
     expect(repo.createBookmarkShare).not.toHaveBeenCalled()
-    expect(res).toEqual({ allow_action: true, show_comment_line: true, show_userinfo: true, share_code: 'kept-code' })
+    expect(result).toEqual({ allow_action: true, show_comment_line: true, show_userinfo: false, share_code: '' })
   })
 
-  test('bmId 解码 < 1 → 抛 ErrorParam', async () => {
-    const { svc } = wire()
-    const ctx = createMockCtx({ userId: 10, hashIds: { decodeId: vi.fn(() => 0) } })
-    await expect(svc.updateBookmarkShare(ctx, req({ bookmark_id: 0 }))).rejects.toThrow()
-  })
-
-  test('用户书签不存在 → 抛 BookmarkNotFoundError', async () => {
+  test('immediately saves off then on without an existence read', async () => {
     const { svc, repo } = wire()
-    repo.getUserBookmark.mockResolvedValue(null)
-    const ctx = createMockCtx({ userId: 10, hashIds: { decodeId: vi.fn(() => 42) } })
-    await expect(svc.updateBookmarkShare(ctx, req({ bookmark_id: 999 }))).rejects.toThrow()
+    repo.saveBookmarkShare.mockResolvedValueOnce(sharedRow({ allow_comment: false, show_comment: false }))
+    const ctx = createMockCtx({ userId: 10 })
+    const closed = await svc.updateBookmarkShare(ctx, req({ bookmark_uid: 'bm-uuid', allow_action: false, show_comment_line: false }))
+    const opened = await svc.updateBookmarkShare(ctx, req({ bookmark_uid: 'bm-uuid' }))
+    expect(closed.allow_action).toBe(false)
+    expect(opened.allow_action).toBe(true)
+    expect(repo.saveBookmarkShare).toHaveBeenNthCalledWith(1, '', 10, 42, false, false, false)
+    expect(repo.saveBookmarkShare).toHaveBeenNthCalledWith(2, '', 10, 42, true, false, true)
+    expect(repo.getBookmarkShareByBookmarkId).not.toHaveBeenCalled()
   })
 
-  test('分享归属他人（share.user_id !== userId）→ 抛 BookmarkNotFoundError', async () => {
+  test('rejects a UID that does not belong to the current user', async () => {
     const { svc, repo } = wire()
-    repo.getBookmarkShareByBookmarkId.mockResolvedValue(sharedRow({ user_id: 999 }))
-    const ctx = createMockCtx({ userId: 10, hashIds: { decodeId: vi.fn(() => 42) } })
-    await expect(svc.updateBookmarkShare(ctx, req({ bookmark_id: 999 }))).rejects.toThrow()
+    repo.getUserBookmarkByUId.mockResolvedValue(null as never)
+    await expect(svc.updateBookmarkShare(createMockCtx({ userId: 10 }), req({ bookmark_uid: 'missing' }))).rejects.toMatchObject({ errCode: 404 })
+    expect(repo.saveBookmarkShare).not.toHaveBeenCalled()
   })
 
-  test('Bugfix：更新失败时 throw BookmarkNotFoundError（而非 return 致 res=undefined 取值抛 TypeError）', async () => {
+  test('rejects an invalid legacy ID', async () => {
     const { svc, repo } = wire()
-    repo.getBookmarkShareByBookmarkId.mockResolvedValue(sharedRow({ user_id: 10 }))
-    repo.updateBookmarkShare.mockRejectedValue(new Error('db boom'))
-    const ctx = createMockCtx({ userId: 10, hashIds: { decodeId: vi.fn(() => 42) } })
-
-    // 关键：必须抛出领域错误（errCode=404），而不是旧实现 return 后在映射阶段抛的 TypeError。
-    // 仅断言 rejects.toThrow() 无法区分两者——旧 bug 也会 reject（TypeError）。
-    const err: any = await svc.updateBookmarkShare(ctx, req({ bookmark_id: 999 })).catch((e: any) => e)
-    expect(err).toBeDefined()
-    expect(err).not.toBeInstanceOf(TypeError)
-    expect(err.errCode).toBe(404)
+    await expect(svc.updateBookmarkShare(createMockCtx({ userId: 10 }), req({ bookmark_id: 0 }))).rejects.toThrow()
+    expect(repo.saveBookmarkShare).not.toHaveBeenCalled()
   })
 
-  test('bmId 路径 + 无分享 → 新建并生成非空 share_code（timeCode+hashMD5）', async () => {
+  test('rejects a missing owner bookmark', async () => {
     const { svc, repo } = wire()
-    repo.getBookmarkShareByBookmarkId.mockResolvedValue(null) // 走 createShare
-    repo.createBookmarkShare.mockImplementation(async (code: string) => sharedRow({ share_code: code }))
-    // Node 的 WebCrypto 不支持 MD5（仅 Workers 运行时支持），此处打桩 digest 让 createShare 的生成逻辑跑通
-    const digestSpy = vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(new Uint8Array(16).buffer)
-    const ctx = createMockCtx({ userId: 10, hashIds: { decodeId: vi.fn(() => 42), generateTimeCode: vi.fn(() => 'TC') } })
+    repo.getUserBookmark.mockResolvedValue(null as never)
+    await expect(svc.updateBookmarkShare(createMockCtx({ userId: 10 }), req({ bookmark_id: 42 }))).rejects.toMatchObject({ errCode: 404 })
+    expect(repo.saveBookmarkShare).not.toHaveBeenCalled()
+  })
 
+  test('generates a legacy insertion candidate but returns the saved share code', async () => {
+    const { svc, repo } = wire()
+    repo.saveBookmarkShare.mockResolvedValue(sharedRow({ share_code: 'kept-code' }))
+    const digest = vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(new Uint8Array(16).buffer)
     try {
-      const res = await svc.updateBookmarkShare(ctx, req({ bookmark_id: 999 }))
-
-      expect(ctx.hashIds.generateTimeCode).toHaveBeenCalled()
-      expect(repo.updateBookmarkShare).not.toHaveBeenCalled()
-      // 经 bmId 新建：code = timeCode + md5(...).slice(0,7)，必须非空且以 timeCode 开头
-      const [codeArg, userIdArg, bmIdArg] = repo.createBookmarkShare.mock.calls[0]
-      expect(codeArg).toMatch(/^TC/)
-      expect(codeArg.length).toBeGreaterThan(2)
-      expect(userIdArg).toBe(10)
-      expect(bmIdArg).toBe(42)
-      expect(res.share_code).toBe(codeArg)
+      const result = await svc.updateBookmarkShare(createMockCtx({ userId: 10 }), req({ bookmark_id: 42 }))
+      const [code, userId, bookmarkId] = repo.saveBookmarkShare.mock.calls[0]
+      expect(code).toMatch(/^TC.+/)
+      expect([userId, bookmarkId]).toEqual([10, 42])
+      expect(result.share_code).toBe('kept-code')
+      expect(repo.getBookmarkShareByBookmarkId).not.toHaveBeenCalled()
     } finally {
-      digestSpy.mockRestore()
+      digest.mockRestore()
     }
   })
 
-  test('新建返回空 → 抛 ServerError', async () => {
+  test('propagates database errors instead of reporting a missing bookmark', async () => {
     const { svc, repo } = wire()
-    repo.getUserBookmarkByUId.mockResolvedValue({ id: 1, bookmark_id: 42, user_id: 10 })
-    repo.getBookmarkShareByBookmarkId.mockResolvedValue(null)
-    repo.createBookmarkShare.mockResolvedValue(null)
-    await expect(svc.updateBookmarkShare(createMockCtx({ userId: 10 }), req({ bookmark_uid: 'bm-uuid' }))).rejects.toThrow()
+    const error = new Error('database unavailable')
+    repo.saveBookmarkShare.mockRejectedValue(error)
+    await expect(svc.updateBookmarkShare(createMockCtx({ userId: 10 }), req({ bookmark_uid: 'bm-uuid' }))).rejects.toBe(error)
   })
 
-  test('命中内容审核（moderation_result>0）→ 抛 SHARE_CONTENT_NOT_SUPPORTED，不建/不更新分享', async () => {
+  test('rejects moderated content without writing share settings', async () => {
     const { svc, repo } = wire()
     repo.getBookmarkById.mockResolvedValue({ id: 42, moderation_result: 1 })
-    const ctx = createMockCtx({ userId: 10, hashIds: { decodeId: vi.fn(() => 42) } })
-
-    const err: any = await svc.updateBookmarkShare(ctx, req({ bookmark_id: 999 })).catch((e: any) => e)
-    expect(err).toBeDefined()
-    expect(err.name).toBe('SHARE_CONTENT_NOT_SUPPORTED')
-    expect(repo.createBookmarkShare).not.toHaveBeenCalled()
-    expect(repo.updateBookmarkShare).not.toHaveBeenCalled()
+    await expect(svc.updateBookmarkShare(createMockCtx({ userId: 10 }), req({ bookmark_uid: 'bm-uuid' }))).rejects.toMatchObject({ name: 'SHARE_CONTENT_NOT_SUPPORTED' })
+    expect(repo.saveBookmarkShare).not.toHaveBeenCalled()
   })
 })

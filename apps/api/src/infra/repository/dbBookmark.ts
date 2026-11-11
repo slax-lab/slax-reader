@@ -4,8 +4,8 @@ import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_CLIENT, PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import { MultiLangError } from '@/utils/multiLangError'
-import { DeleteImportFailedBookmarkFailError, BookmarkNotFoundError, CreateBookmarkShareUniqueFail, DeleteBookmarkFailError } from '@/const/err'
-import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
+import { DeleteImportFailedBookmarkFailError, BookmarkNotFoundError, DeleteBookmarkFailError } from '@/const/err'
+import { PrismaClient as HyperdrivePrismaClient, type sr_bookmark_share } from '@prisma/hyperdrive-client'
 
 export enum queueStatus {
   PENDING = 'pending',
@@ -680,45 +680,28 @@ export class BookmarkRepo {
     return await this.prismaPg().sr_bookmark_share.findFirst({ where: { share_code: shareCode } })
   }
 
-  public async createBookmarkShare(shareCode: string, userId: number, bmId: number, showCommentLine: boolean, showUserinfo: boolean, allowAction: boolean) {
-    try {
-      return await this.prismaPg().sr_bookmark_share.create({
-        data: {
-          share_code: shareCode,
-          user_id: userId,
-          bookmark_id: bmId,
-          created_at: new Date(),
-          show_userinfo: showUserinfo,
-          show_line: showCommentLine,
-          show_comment: showCommentLine,
-          allow_comment: allowAction,
-          allow_line: allowAction
-        }
-      })
-    } catch (err) {
-      console.log(`create bookmark share failed: ${err}`)
-      // 失败要抛出，让上层走错误响应；之前 return 错误对象会被 createShare 当成 share 行，导致返回畸形 200
-      throw CreateBookmarkShareUniqueFail()
-    }
-  }
-
-  public async updateBookmarkShare(bmId: number, userId: number, showCommentLine: boolean, showUserinfo: boolean, allowAction: boolean) {
-    return await this.prismaPg().sr_bookmark_share.update({
-      where: {
-        bookmark_id_user_id: {
-          bookmark_id: bmId,
-          user_id: userId
-        }
-      },
-      data: {
-        show_line: showCommentLine,
-        show_comment: showCommentLine,
-        show_userinfo: showUserinfo,
-        allow_comment: allowAction,
-        allow_line: allowAction,
-        is_enable: true
-      }
-    })
+  public async saveBookmarkShare(shareCode: string, userId: number, bmId: number, showCommentLine: boolean, showUserinfo: boolean, allowAction: boolean) {
+    const [share] = await this.prismaPg().$queryRaw<Pick<sr_bookmark_share, 'share_code' | 'show_comment' | 'show_userinfo' | 'allow_comment'>[]>`
+      INSERT INTO sr_bookmark_share (
+        share_code, user_id, bookmark_id,
+        show_line, show_comment, show_userinfo,
+        allow_comment, allow_line, is_enable, created_at
+      ) VALUES (
+        ${shareCode}, ${userId}, ${bmId},
+        ${showCommentLine}, ${showCommentLine}, ${showUserinfo},
+        ${allowAction}, ${allowAction}, true, CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (bookmark_id, user_id)
+      DO UPDATE SET
+        show_line = EXCLUDED.show_line,
+        show_comment = EXCLUDED.show_comment,
+        show_userinfo = EXCLUDED.show_userinfo,
+        allow_comment = EXCLUDED.allow_comment,
+        allow_line = EXCLUDED.allow_line,
+        is_enable = true
+      RETURNING share_code, show_comment, show_userinfo, allow_comment
+    `
+    return share
   }
 
   /**
