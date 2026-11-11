@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { LoginIdentityBindingService } from '@/domain/loginIdentityBindingService'
+import { LoginIdentityLinkService } from '@/domain/loginIdentityLinkService'
 import { SlaxAuth } from '@/utils/auth'
 import { ContextManager } from '@/utils/context'
 
@@ -27,11 +27,11 @@ function fixture() {
       return value
     }
   }
-  const repo = { bindLoginProvider: vi.fn() }
-  const auth = new LoginIdentityBindingService(repo as never, {} as never, challenges as never)
+  const repo = { linkLoginProvider: vi.fn() }
+  const auth = new LoginIdentityLinkService(repo as never, {} as never, challenges as never)
   const start = (id: number) => auth.startProvider(context(id), 'google', 'web')
   const finish = (id: number, state: string) =>
-    auth.bind(context(id), { type: 'google', platform: 'web', code: 'fixture-code', state, redirect_uri: 'https://reader.example.test/auth' })
+    auth.linkIdentity(context(id), { type: 'google', platform: 'web', code: 'fixture-code', state, redirect_uri: 'https://reader.example.test/auth' })
   return { repo, start, finish }
 }
 
@@ -46,7 +46,7 @@ describe('explicit OAuth binding', () => {
     expect(oauth).not.toHaveBeenCalled()
     await expect(finish(41, state)).resolves.toEqual({ linked: true })
     await expect(finish(41, state)).rejects.toMatchObject({ name: 'OAUTH2_STATE_EXPIRED' })
-    expect(repo.bindLoginProvider).toHaveBeenCalledExactlyOnceWith(41, 'google', 'google-sub', 'reader@example.test')
+    expect(repo.linkLoginProvider).toHaveBeenCalledExactlyOnceWith(41, 'google', 'google-sub', 'reader@example.test')
   })
 
   test('rejects a valid provider identity with a different signed nonce', async () => {
@@ -54,6 +54,6 @@ describe('explicit OAuth binding', () => {
     const { state } = await start(41)
     vi.spyOn(SlaxAuth.prototype, 'login').mockResolvedValue({ sub: 'google-sub', email: 'reader@example.test', nonce: 'different' } as never)
     await expect(finish(41, state)).rejects.toMatchObject({ name: 'OAUTH2_STATE_EXPIRED' })
-    expect(repo.bindLoginProvider).not.toHaveBeenCalled()
+    expect(repo.linkLoginProvider).not.toHaveBeenCalled()
   })
 })

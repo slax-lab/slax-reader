@@ -40,7 +40,7 @@
                 :key="loginMethodsAccountKey"
                 :account-key="loginMethodsAccountKey"
                 :profile-email="userInfo.email"
-                :login-identities="userInfo.login_identities"
+                :platform="userInfo.platform"
               />
             </div>
             <UserRelatedInfoSection section="account" :user-info="userInfo" @update="getUserDetailInfo" />

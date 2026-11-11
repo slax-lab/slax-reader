@@ -1,3 +1,4 @@
+import type {BindedPlatformInfo} from '@slax-reader/contracts/interface';
 import type {BookmarkRecord} from './repositories/types.ts';
 import type {BookmarkSearchHit, BookmarkSearchRequest} from '@slax-reader/contracts';
 import type { ApiResponse, RssSubscriptionsResponse, RssSubscription, RssRefreshResponse, RssEntriesResponse, RssEntryDetail, RssSaveResponse, AddRssSubscriptionRequest, UpdateRssSubscriptionRequest, AddUrlBookmarkRequest, JsonValue } from '@slax-reader/contracts';
@@ -9,7 +10,7 @@ import {SharedRequestCache} from './shared-request.ts';
 import {readArticleBody} from './bounded-body.ts';
 import {PDF_MAX_BYTES} from '@slax-reader/contracts/pdf';
 import {RESTMethodPath} from '@slax-reader/contracts/const';
-import {BIND_LOGIN_IDENTITY_SETTING, type EmailAuthIdentities, type EmailAuthProviderChallenge, type EmailCodeChallenge, type EmailCodeInput} from '@slax-reader/contracts/email-auth';
+import {BIND_LOGIN_IDENTITY_SETTING, type EmailAuthProviderChallenge, type EmailCodeChallenge, type EmailCodeInput} from '@slax-reader/contracts/email-auth';
 import {DataTransportError, isNetworkTransportError, httpErrorCode, retryAfterMs, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
 export {DataTransportError, isNetworkTransportError, getDataErrorDiagnostic, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS} from './transport-errors.ts';
 
@@ -32,6 +33,7 @@ function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
     if (signal.aborted) abort();
   });
 }
+export type LinkedPlatform = Pick<BindedPlatformInfo, 'platform' | 'user_name'>;
 export interface LoginRequest { code: string; redirect_uri: string; platform: string; type: 'google' | 'apple'; id_token?: string }
 export interface LoginResponse { token: string; user_id: string }
 export interface SendEmailCode {email: string; locale?: string}
@@ -285,13 +287,15 @@ export class SlaxApi {
     }
     return result;
   };
-  getLoginIdentities = async (signal?: AbortSignal) => {
-    const {login_identities: result} = await this.request<{login_identities?: EmailAuthIdentities}>(RESTMethodPath.USER_INFO, 'GET', undefined, undefined, signal, {access: 'required', abortable: true});
-    if (typeof result?.enabled !== 'boolean' || (result.email !== null && typeof result.email !== 'string')
-      || typeof result.show_email_binding !== 'boolean' || typeof result.google !== 'boolean' || typeof result.apple !== 'boolean') {
-      throw new ApiError(502, 'Invalid sign-in methods response');
-    }
-    return result;
+  getLinkedPlatforms = async (signal?: AbortSignal): Promise<LinkedPlatform[]> => {
+    const {platform} = await this.request<{platform: unknown}>(RESTMethodPath.USER_INFO, 'GET', undefined, undefined, signal, {access: 'required', abortable: true});
+    if (!Array.isArray(platform)) throw new ApiError(502, 'Invalid linked platforms response');
+    return platform.map(item => {
+      if (!item || typeof item.platform !== 'string' || typeof item.user_name !== 'string') {
+        throw new ApiError(502, 'Invalid linked platforms response');
+      }
+      return {platform: item.platform, user_name: item.user_name};
+    });
   };
   verifyBindingEmail = async (body: EmailCodeInput, signal?: AbortSignal) => {
     const result = await this.request<{email: string}>(RESTMethodPath.USER_INFO_SETTING, 'POST', {key: BIND_LOGIN_IDENTITY_SETTING, value: {...body, type: 'email'}}, undefined, signal, {access: 'required', retryable: false, abortable: true});

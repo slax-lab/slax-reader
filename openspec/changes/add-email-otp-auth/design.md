@@ -28,7 +28,7 @@ Use one server-side Resend HTTP integration with scoped credentials, a verified 
 
 - `POST /v1/user/email/send` sends a login or binding code. Binding requests require the current user.
 - `POST /v1/user/login` accepts an email proof with `type: email` alongside the existing Google and Apple inputs. After proof verification it uses the same account, token, and analytics flow.
-- `GET /v1/user/userinfo` returns the current user's login identities for account settings.
+- `GET /v1/user/userinfo` returns all current platform bindings, including `mail`, in its existing `platform` list. Account settings derive linked methods from that list.
 - `POST /v1/user/bind_link` starts Google or Apple linking using a short-lived state scoped to the current account and client. The challenge identifies the provider. Its existing Telegram and Twitter responses are preserved.
 - `POST /v1/user/setting` accepts a `bind_login_identity` operation. It verifies the email code or provider proof and attaches the identity to the authenticated account. Other setting operations keep their existing response. Web keeps its current session through the callback. Android uses Web for Apple linking.
 
@@ -50,4 +50,4 @@ Email-code delivery becomes available when the Core Worker has `RESEND_API_KEY`.
 
 Web provider linking is available on the registered callback origin, which shares the initiating tab's session storage. When the registered Web OAuth callback differs from `FRONT_END_URL/auth`, set `EMAIL_AUTH_WEB_CALLBACK` to the exact registered URL.
 
-For the initial rollout, Web and Mobile use the `show_email_binding` presentation hint in the existing user information response. It is true when the API environment is `dev` and the email credentials are configured. Issuing and verifying binding codes use the usual authenticated-session and email credential checks in every environment. The public login UI learns about unavailable email credentials from the send response.
+For the initial rollout, Web shows the mailbox binding action in its development profile and Mobile uses its existing development configuration. Issuing and verifying binding codes use the usual authenticated-session and email credential checks in every environment. The public login UI learns about unavailable email credentials from the send response.

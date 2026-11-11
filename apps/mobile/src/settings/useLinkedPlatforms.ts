@@ -1,36 +1,37 @@
 import {useCallback, useRef, useState} from 'react';
 import {AppState} from 'react-native';
 import {useFocusEffect} from '@react-navigation/native';
-import type {EmailAuthIdentities} from '@slax-reader/contracts/email-auth';
 import {emailAuthError} from '../auth/email-auth-errors';
 import type {LoginProvider} from '../auth/providers';
-import type {LoginRequest, NativeProvider, SlaxApi} from '../data/api';
+import type {LinkedPlatform, LoginRequest, NativeProvider, SlaxApi} from '../data/api';
 import type {AppMessageKey} from '../i18n';
 import type {AccountScope} from './account-scope';
 
-type IdentitiesApi = Pick<SlaxApi, 'getLoginIdentities' | 'startProviderLink' | 'finishProviderLink'>;
+type PlatformsApi = Pick<SlaxApi, 'getLinkedPlatforms' | 'startProviderLink' | 'finishProviderLink'>;
 
-interface LoginIdentityOptions {
-  api: IdentitiesApi;
+interface LinkedPlatformOptions {
+  api: PlatformsApi;
   scope: AccountScope;
   platform: NativeProvider['platform'];
   authenticate(provider: LoginProvider, nonce: string): Promise<LoginRequest | null>;
   fixture: boolean;
+  development: boolean;
 }
 
 interface Lifetime {
   current(): boolean;
+  refresh(): Promise<void>;
   read?: AbortController;
   mutation?: AbortController;
 }
 
-export function useLoginIdentities({api, scope, platform, authenticate, fixture}: LoginIdentityOptions) {
-  const [snapshot, setSnapshot] = useState<{api: IdentitiesApi; scope: AccountScope; value: EmailAuthIdentities}>();
+export function useLinkedPlatforms({api, scope, platform, authenticate, fixture, development}: LinkedPlatformOptions) {
+  const [snapshot, setSnapshot] = useState<{api: PlatformsApi; scope: AccountScope; value: LinkedPlatform[]}>();
   const [error, setError] = useState<AppMessageKey>();
   const [busy, setBusy] = useState<LoginProvider | null>(null);
   const [emailFlow, setEmailFlow] = useState<{current(): boolean} | null>(null);
   const lifetime = useRef<Lifetime | null>(null);
-  const identities = snapshot?.scope === scope && snapshot.api === api && snapshot.value.enabled ? snapshot.value : null;
+  const platforms = snapshot?.scope === scope && snapshot.api === api ? snapshot.value : null;
 
   useFocusEffect(useCallback(() => {
     setError(undefined);
@@ -38,7 +39,7 @@ export function useLoginIdentities({api, scope, platform, authenticate, fixture}
     setEmailFlow(null);
     if (fixture || !scope.isCurrent()) return;
 
-    const generation: Lifetime = {current: () => lifetime.current === generation && scope.isCurrent()};
+    const generation: Lifetime = {current: () => lifetime.current === generation && scope.isCurrent(), refresh};
     lifetime.current = generation;
     async function refresh() {
       if (!generation.current() || generation.mutation) return;
@@ -46,13 +47,13 @@ export function useLoginIdentities({api, scope, platform, authenticate, fixture}
       const read = new AbortController();
       generation.read = read;
       try {
-        const value = await api.getLoginIdentities(read.signal);
+        const value = await api.getLinkedPlatforms(read.signal);
         if (generation.current() && !read.signal.aborted) {
           setSnapshot({api, scope, value});
-          if (!value.show_email_binding || value.email !== null) setEmailFlow(null);
+          if (value.some(item => item.platform === 'mail')) setEmailFlow(null);
         }
       } catch {
-        // Feature availability is unknown on older or temporarily unavailable servers.
+        // Keep the last account-scoped platform list when a refresh is unavailable.
       } finally {
         if (generation.read === read) generation.read = undefined;
       }
@@ -70,50 +71,49 @@ export function useLoginIdentities({api, scope, platform, authenticate, fixture}
     };
   }, [api, scope, fixture]));
 
-  function updateIdentities(values: Partial<EmailAuthIdentities>) {
-    setSnapshot(previous => previous?.scope === scope && previous.api === api
-      ? {...previous, value: {...previous.value, ...values}}
-      : previous);
-  }
-
   function openEmail() {
     const generation = lifetime.current;
-    if (!identities?.show_email_binding || identities.email !== null || !generation?.current() || generation.mutation) return;
+    if (!development || !platforms || platforms.some(item => item.platform === 'mail') || !generation?.current() || generation.mutation) return;
     setError(undefined);
     setEmailFlow(generation);
   }
 
-  function emailLinked({email}: {email: string}) {
-    if (!emailFlow?.current()) return;
-    lifetime.current?.read?.abort();
-    updateIdentities({email});
+  function emailLinked() {
+    const generation = lifetime.current;
+    if (!generation || emailFlow !== generation || !generation.current()) return;
+    generation.read?.abort();
     setEmailFlow(null);
+    void generation.refresh();
   }
 
   async function linkProvider(type: LoginProvider) {
     const generation = lifetime.current;
     if (type === 'apple' && platform === 'android') return;
-    if (!identities || identities[type] || emailFlow || !generation?.current() || generation.mutation) return;
+    if (!platforms || platforms.some(item => item.platform === type) || emailFlow || !generation?.current() || generation.mutation) return;
     const mutation = new AbortController();
     generation.mutation = mutation;
     const current = () => generation.current() && !mutation.signal.aborted;
     generation.read?.abort();
     setError(undefined);
     setBusy(type);
+    let linked = false;
     try {
       const {state, nonce} = await api.startProviderLink({type, platform}, mutation.signal);
       if (!current()) return;
       const credential = await authenticate(type, nonce);
       if (!credential || !current()) return;
       await api.finishProviderLink({...credential, state, type, platform}, mutation.signal);
-      if (current()) updateIdentities({[type]: true});
+      linked = current();
     } catch (reason) {
       if (current()) setError(emailAuthError(reason) ?? 'email_auth_link_failed');
     } finally {
       generation.mutation = undefined;
-      if (current()) setBusy(null);
+      if (current()) {
+        setBusy(null);
+        if (linked) void generation.refresh();
+      }
     }
   }
 
-  return {identities, error, busy, emailFlow, openEmail, emailLinked, closeEmail: () => setEmailFlow(null), linkProvider};
+  return {platforms, development, error, busy, emailFlow, openEmail, emailLinked, closeEmail: () => setEmailFlow(null), linkProvider};
 }

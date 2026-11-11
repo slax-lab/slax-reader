@@ -460,3 +460,34 @@ test('email login cancelled before the delayed preference edit leaves credential
   assert.equal(values.user_id, undefined);
   assert.deepEqual(sessions.getSnapshot(), {status: 'unauthenticated'});
 });
+
+test('linked sign-in methods project display fields from the authenticated platform list', async () => {
+  const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'existing-token', user_id: 'existing'})), {leave: async () => {}, enter: async () => {}});
+  await sessions.restore();
+  const calls: unknown[] = [];
+  const platform = [
+    {platform: 'email', user_name: 'collection@example.test', created_at: '2026-11-01T00:00:00.000Z'},
+    {platform: 'mail', user_name: 'Reader@example.test', created_at: '2026-11-02T00:00:00.000Z'},
+    {platform: 'google', user_name: 'Reader'},
+    {platform: 'apple', user_name: 'Reader', created_at: null},
+  ];
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions,
+    fetch: async (url, request) => {
+      calls.push([String(url), request?.method, new Headers(request?.headers).get('Authorization')]);
+      return Response.json({code: 200, data: {platform}});
+    },
+  });
+  assert.deepEqual(await api.getLinkedPlatforms(), platform.map(({platform, user_name}) => ({platform, user_name})));
+  assert.deepEqual(calls, [['https://api.example/v1/user/userinfo', 'GET', 'Bearer existing-token']]);
+});
+
+test('linked platform reads reject malformed platform payloads at the transport boundary', async () => {
+  const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'existing-token', user_id: 'existing'})), {leave: async () => {}, enter: async () => {}});
+  await sessions.restore();
+  for (const platform of [undefined, null, {}, [null], [{platform: 'mail', user_name: null, created_at: '2026-11-01T00:00:00.000Z'}]]) {
+    const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions,
+      fetch: async () => Response.json({code: 200, data: {platform}}),
+    });
+    await assert.rejects(api.getLinkedPlatforms(), {status: 502, message: 'Invalid linked platforms response'});
+  }
+});

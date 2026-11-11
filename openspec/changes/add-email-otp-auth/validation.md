@@ -74,6 +74,13 @@ On 2026-11-09 the requester accepted the Mobile preview covering iOS email login
 - Moved email-code settings to `const/emailCode.ts` and code generation and message composition to `utils/emailCode.ts`. Mail templates use the existing i18n module. Renamed the Redis repositories to `EmailChallengeRepo` and `OAuthStateRepo`, then regenerated DI registrations.
 - All 61 focused tests passed, including exact localized mail content, disposable Redis expiry and limits, provider binding, Twitter state handling, and architecture boundaries. API and shared-contract type checking passed. Targeted lint passed with one existing warning in `user.ts`. The local Edge/Core HTTP smoke passed with disposable databases and Redis and captured Resend delivery.
 
+## Platform-list follow-up
+
+- Removed the duplicate login-identities response and its derived booleans. The existing `platform` list now includes the login mailbox. Web and Mobile derive displayed methods from that list and use their own development profiles to control the mailbox binding action.
+- Renamed the new linking service and its methods to `LoginIdentityLinkService.linkIdentity`, `linkLoginEmail`, and `linkLoginProvider`, and regenerated DI registrations.
+- All 84 focused API tests passed. API and shared-contract type checking passed. The local Worker HTTP smoke verified mailbox entries through `platform` in dev, beta, and production, with captured email delivery. Chromium exercised login and existing-account linking with the platform-list response.
+- Web passed 70 related tests, type checking, and targeted lint. Mobile passed 201 related transport, account settings, provider, and diagnostics tests, plus a final 57-test regression after the display lookup change. Final Mobile type checking and both Hermes bundles passed. The local full Mobile run was stopped after four Kotlin host tests could not find `kotlinc` and the remaining native suites caused host contention. The focused TypeScript and mounted tests remain the evidence for this revision.
+
 ## Local review
 
 The Bugs, Security, and Compliance passes matched the diff to `add-email-otp-auth`. The final diff addresses stale Web account ownership, cancelled Mobile session completion, provider subject precedence, and frozen Apple placeholder ownership. No unresolved Important finding remained in the local review.

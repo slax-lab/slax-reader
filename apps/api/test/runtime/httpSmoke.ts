@@ -293,7 +293,9 @@ async function main() {
       assert.equal((await authCall('/v1/user/email/send', { email: 'owner@smoke.invalid', purpose: 'bind' })).code, 401)
       assert.equal((await authCall('/v1/user/setting', { key: 'bind_login_identity', value: { type: 'email' } })).code, 401)
       assert.deepEqual(await authCall('/v1/user/setting', { key: 'lang', value: 'en' }, token), { code: 200, data: 'ok', message: 'ok' })
-      assert.equal((await authCall(userInfo, undefined, token)).data.login_identities.show_email_binding, true)
+      const initialInfo = (await authCall(userInfo, undefined, token)).data
+      assert.ok(Array.isArray(initialInfo.platform))
+      assert.equal('login_identities' in initialInfo, false)
       const provider = await authCall('/v1/user/bind_link', { platform: 'google', client_platform: 'web' }, token)
       assert.equal(provider.code, 200)
       assert.equal(provider.data.type, 'google')
@@ -315,10 +317,11 @@ async function main() {
         lang: 'en'
       })
       for (const runType of ['beta', 'prod'] as const) {
-        assert.equal((await authCall(userInfo, undefined, ownerToken, runType)).data.login_identities.show_email_binding, false)
         const binding = await prove('bind', 'rollout-owner@smoke.invalid', ownerToken, runType)
         assert.equal(binding.code, 200)
         assert.deepEqual(binding.data, { email: 'rollout-owner@smoke.invalid' })
+        const info = (await authCall(userInfo, undefined, ownerToken, runType)).data
+        assert.equal(info.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, 'rollout-owner@smoke.invalid')
       }
       assert.deepEqual((await prove('bind', 'saver@smoke.invalid', token)).data, { email: 'saver@smoke.invalid' })
       const returning = await prove('login', 'Saver@SMOKE.INVALID')
@@ -328,8 +331,10 @@ async function main() {
       const fresh = await prove('login', 'new-reader@smoke.invalid')
       assert.equal(fresh.code, 200)
       assert.equal(fresh.data.is_new_user, true)
-      assert.equal((await authCall(userInfo, undefined, fresh.data.token)).data.login_identities.email, 'new-reader@smoke.invalid')
-      evidence.emailAuthentication = 'binding API works in dev, beta, and prod with a dev-only UI hint; legacy sign-in guidance, existing-account login, and new-account session'
+      const freshInfo = (await authCall(userInfo, undefined, fresh.data.token)).data
+      assert.equal(freshInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, 'new-reader@smoke.invalid')
+      evidence.emailAuthentication =
+        'binding API works in dev, beta, and prod; user information returns login methods through the platform list; legacy sign-in guidance, existing-account login, and new-account session'
     }
     for (const origin of [vars.FRONT_END_URL, vars.FRONT_END_URL + '.attacker.invalid']) {
       const response = await localFetch(`http://localhost:${httpPort}/events`, { method: 'OPTIONS', headers: { Origin: origin } })

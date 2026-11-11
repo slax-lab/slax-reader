@@ -14,6 +14,7 @@ import {MemoryPreferences} from '../data/helpers.ts';
 
 const require = createRequire(import.meta.url);
 const domPath = require.resolve('happy-dom', {paths: [new URL('../../../../node_modules/.pnpm/node_modules/', import.meta.url).pathname]});
+const linkedPlatform = (platform, user_name = '') => ({platform, user_name, created_at: new Date('2026-11-01T00:00:00Z')});
 const deferred = () => {
   let resolve, reject;
   const promise = new Promise((yes, no) => {resolve = yes; reject = no;});
@@ -63,7 +64,7 @@ async function mounted(run) {
   }
 }
 
-async function harness(root, platform = 'ios') {
+async function harness(root, platform = 'ios', development = false) {
   const nodes = new Map(), scripts = [], listeners = new Set();
   const native = name => React.forwardRef((props, ref) => {
     const key = React.useRef(Symbol(name)).current;
@@ -76,7 +77,7 @@ async function harness(root, platform = 'ios') {
     rssRequests: [], mutations: [], deletionRequests: [], navigation: [], headers: [],
     labs: async () => ({features: [{key: 'rss', enabled: false}, {key: 'pdf', enabled: true}]}),
     enable: async () => {}, deletion: async () => ({canDelete: false, reason: 'active_subscription'}),
-    identities: async () => ({enabled: false, show_email_binding: false, email: null, google: false, apple: false}),
+    platforms: async () => [], linked: [], platformReads: [],
     authorization: [], providerStarts: [], providerFinishes: [], proofs: [],
     authorize: async type => ({type, platform, code: 'provider-proof', redirect_uri: ''}),
   };
@@ -91,11 +92,11 @@ async function harness(root, platform = 'ios') {
     rssEnable(value, signal) {h.mutations.push({value, signal}); return h.enable(value, signal);},
     setLab: async () => {},
     deleteAccount(signal) {h.deletionRequests.push(signal); return h.deletion(signal);},
-    getLoginIdentities: () => h.identities(),
+    getLinkedPlatforms: signal => {h.platformReads.push(signal); return h.platforms(signal);},
     startProviderLink(body) {h.providerStarts.push(body); return Promise.resolve({type: body.type, state: 'provider-state', nonce: 'provider-nonce'});},
-    finishProviderLink(body) {h.providerFinishes.push(body); return Promise.resolve({linked: true});},
+    finishProviderLink(body) {h.providerFinishes.push(body); h.linked.push(linkedPlatform(body.type)); return Promise.resolve({linked: true});},
     sendBindingEmail: async () => ({request_id: 'binding-challenge', expires_in: 300, resend_after: 60}),
-    verifyBindingEmail: async proof => {h.proofs.push(proof); return {email: proof.email};},
+    verifyBindingEmail: async proof => {h.proofs.push(proof); h.linked.push(linkedPlatform('mail', proof.email)); return {email: proof.email};},
   };
   const t = value => value;
   h.preferences = store;
@@ -103,7 +104,7 @@ async function harness(root, platform = 'ios') {
   const useMobile = () => ({
     api, runtime, sessions, t, session: sessions.getSnapshot(), nativeResourceOwner: h.owner,
     settings: h.settings, preferences: h.preferences, locale: h.locale ?? 'en',
-    config: {webUrl: 'https://reader.test', apiUrl: h.origin, platform},
+    config: {webUrl: 'https://reader.test', apiUrl: h.origin, platform, development},
   });
   const appState = {
     currentState: 'active',
@@ -459,8 +460,9 @@ for (const replacement of ['owner', 'origin']) test(`DeleteAccount ${replacement
 }));
 
 test('Settings links a verified mailbox and a native provider without replacing the active session', async () => mounted(async root => {
-  const h = await harness(root);
-  h.identities = async () => ({enabled: true, show_email_binding: true, email: null, google: true, apple: false});
+  const h = await harness(root, 'ios', true);
+  h.linked = [linkedPlatform('google')];
+  h.platforms = async () => [...h.linked];
   await h.renderRoute('SettingsScreen');
   const before = h.sessions.getSnapshot();
   await act(async () => h.one('SourceButton', props => props.label === 'email_auth_bind').onPress());
@@ -479,9 +481,8 @@ test('Settings links a verified mailbox and a native provider without replacing 
   assert.deepEqual(h.sessions.getSnapshot(), before);
 }));
 
-test('Settings hides the email binding action when the server marks it hidden', async () => mounted(async root => {
+test('Settings hides the email binding action outside a development session', async () => mounted(async root => {
   const h = await harness(root, 'android');
-  h.identities = async () => ({enabled: true, show_email_binding: false, email: null, google: false, apple: false});
   await h.renderRoute('SettingsScreen');
   assert.ok(h.all('SourceButton').some(props => props.label === 'email_auth_link_google'));
   assert.ok(!h.all('SourceButton').some(props => props.label === 'email_auth_bind'));
@@ -489,7 +490,7 @@ test('Settings hides the email binding action when the server marks it hidden', 
 
 test('Android guides Apple linking to the same Web account and ignores late Google authorization after owner replacement', async () => mounted(async root => {
   const h = await harness(root, 'android'), native = deferred();
-  h.identities = async () => ({enabled: true, show_email_binding: true, email: 'owner@example.test', google: false, apple: false});
+  h.platforms = async () => [linkedPlatform('mail', 'owner@example.test')];
   h.authorize = () => native.promise;
   await h.renderRoute('SettingsScreen');
   assert.ok(h.all('SourceText').some(props => props.children === 'email_auth_link_apple_hint'));
@@ -498,10 +499,71 @@ test('Android guides Apple linking to the same Web account and ignores late Goog
   await act(async () => h.one('SourceButton', props => props.label === 'email_auth_link_google').onPress());
   assert.deepEqual(h.authorization, [['google', 'provider-nonce']]);
   h.owner = 'owner-b';
-  h.identities = async () => ({enabled: true, show_email_binding: true, email: 'other@example.test', google: false, apple: true});
+  h.platforms = async () => [linkedPlatform('mail', 'other@example.test'), linkedPlatform('apple')];
   await h.rerender();
   await act(async () => native.resolve({type: 'google', platform: 'android', code: 'retired-proof', redirect_uri: ''}));
   assert.deepEqual(h.providerFinishes, []);
   assert.equal(h.all('SourceText').some(props => props.children === 'owner@example.test'), false);
   assert.ok(h.all('SourceText').some(props => props.children === 'other@example.test'));
+}));
+
+test('Settings uses verified mail rather than mail collection and displays linked methods outside development', async () => mounted(async root => {
+  const h = await harness(root);
+  h.platforms = async () => [linkedPlatform('email', 'collection@example.test'), linkedPlatform('mail', 'Reader@example.test'), linkedPlatform('google'), linkedPlatform('apple')];
+  await h.renderRoute('SettingsScreen');
+  for (const label of ['Reader@example.test', 'email_auth_google_linked', 'email_auth_apple_linked']) {
+    assert.ok(h.all('SourceText').some(props => props.children === label));
+  }
+  assert.ok(!h.all('SourceText').some(props => props.children === 'collection@example.test'));
+  assert.ok(!h.all('SourceButton').some(props => props.label === 'email_auth_bind'));
+}));
+
+test('development Settings can bind email when only mail collection is present', async () => mounted(async root => {
+  const h = await harness(root, 'ios', true);
+  h.platforms = async () => [linkedPlatform('email', 'collection@example.test')];
+  await h.renderRoute('SettingsScreen');
+  assert.ok(h.all('SourceButton').some(props => props.label === 'email_auth_bind'));
+  assert.ok(!h.all('SourceText').some(props => props.children === 'collection@example.test'));
+}));
+
+test('late platform refreshes are cancelled and cannot replace the next account display', async () => mounted(async root => {
+  const h = await harness(root), held = deferred();
+  h.platforms = () => held.promise;
+  await h.renderRoute('SettingsScreen');
+  const retired = h.platformReads[0];
+  h.owner = 'owner-b';
+  h.platforms = async () => [linkedPlatform('mail', 'current@example.test')];
+  await h.rerender();
+  assert.equal(retired.aborted, true);
+  await act(async () => held.resolve([linkedPlatform('mail', 'retired@example.test')]));
+  assert.ok(h.all('SourceText').some(props => props.children === 'current@example.test'));
+  assert.ok(!h.all('SourceText').some(props => props.children === 'retired@example.test'));
+}));
+
+test('a committed provider link does not become a mutation failure when its platform refresh fails', async () => mounted(async root => {
+  const h = await harness(root);
+  let reads = 0;
+  h.platforms = async () => {if (reads++) throw new Error('Offline'); return [];};
+  await h.renderRoute('SettingsScreen');
+  await act(async () => h.one('SourceButton', props => props.label === 'email_auth_link_google').onPress());
+  assert.equal(h.providerFinishes.length, 1);
+  assert.equal(reads, 2);
+  assert.ok(!h.all('SourceText').some(props => props.accessibilityRole === 'alert'));
+  assert.equal(h.one('SourceButton', props => props.label === 'email_auth_link_google').busy, false);
+}));
+
+test('a committed email link closes its proof dialog even when the platform refresh fails', async () => mounted(async root => {
+  const h = await harness(root, 'ios', true);
+  let reads = 0;
+  h.platforms = async () => {if (reads++) throw new Error('Offline'); return [];};
+  await h.renderRoute('SettingsScreen');
+  await act(async () => h.one('SourceButton', props => props.label === 'email_auth_bind').onPress());
+  await act(async () => h.one('TextInput', props => props.testID === 'email_code_address').onChangeText('owner@example.test'));
+  await act(async () => h.one('SourceButton', props => props.testID === 'email_code_send').onPress());
+  await act(async () => h.one('TextInput', props => props.testID === 'email_code_value').onChangeText('012345'));
+  await act(async () => h.one('SourceButton', props => props.testID === 'email_code_verify').onPress());
+  assert.equal(h.proofs.length, 1);
+  assert.equal(reads, 2);
+  assert.equal(h.all('TextInput').filter(props => props.testID === 'email_code_value').length, 0);
+  assert.ok(!h.all('SourceText').some(props => props.accessibilityRole === 'alert'));
 }));

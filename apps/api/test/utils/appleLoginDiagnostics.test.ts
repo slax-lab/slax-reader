@@ -8,7 +8,7 @@ vi.mock('jose', async importOriginal => ({
 }))
 
 import { AppleAuth } from '@/utils/authLogin/authApple'
-import { LoginIdentityBindingService } from '@/domain/loginIdentityBindingService'
+import { LoginIdentityLinkService } from '@/domain/loginIdentityLinkService'
 import { ContextManager } from '@/utils/context'
 
 const baseEnv = {
@@ -202,7 +202,7 @@ describe('Apple identity verification diagnostics', () => {
   test('links iOS Apple with the original nonce from the signed native credential', async () => {
     const { sign } = await build()
     vi.spyOn(AppleAuth.prototype as unknown as SigningAccess, 'getClientSecret').mockResolvedValue(clientSecret)
-    const repo = { bindLoginProvider: vi.fn() }
+    const repo = { linkLoginProvider: vi.fn() }
     const challenges = { saveProvider: vi.fn(), consumeProvider: vi.fn() }
     const ctx = new ContextManager(
       {} as ExecutionContext,
@@ -213,14 +213,14 @@ describe('Apple identity verification diagnostics', () => {
       } as Env
     )
     ctx.setUserInfo(41, 41, '', 'en')
-    const auth = new LoginIdentityBindingService(repo as never, {} as never, challenges as never)
+    const auth = new LoginIdentityLinkService(repo as never, {} as never, challenges as never)
     const provider = { type: 'apple', platform: 'ios' }
     const { state, nonce } = await auth.startProvider(ctx, 'apple', 'ios')
     challenges.consumeProvider.mockResolvedValueOnce(challenges.saveProvider.mock.calls[0][3])
     const [exchangedToken, nativeToken] = await Promise.all([sign(), sign('app.slax.reader', 'synthetic-user', '1h', nonce)])
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ id_token: exchangedToken }))
 
-    await expect(auth.bind(ctx, { ...provider, state, code, id_token: nativeToken, redirect_uri: '' })).resolves.toEqual({ linked: true })
-    expect(repo.bindLoginProvider).toHaveBeenCalledExactlyOnceWith(41, 'apple', 'synthetic-user', 'identity-email-do-not-log@example.test')
+    await expect(auth.linkIdentity(ctx, { ...provider, state, code, id_token: nativeToken, redirect_uri: '' })).resolves.toEqual({ linked: true })
+    expect(repo.linkLoginProvider).toHaveBeenCalledExactlyOnceWith(41, 'apple', 'synthetic-user', 'identity-email-do-not-log@example.test')
   })
 })

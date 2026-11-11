@@ -53,7 +53,7 @@ import { RssRepo } from '../../infra/repository/dbRss'
 import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
-import { LoginIdentityBindingService } from '../../domain/loginIdentityBindingService'
+import { LoginIdentityLinkService } from '../../domain/loginIdentityLinkService'
 import { VectorSourceRepo } from '../../infra/repository/vectorSources'
 import { VectorIndexClient } from '../../infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '../../infra/repository/vectorPreferenceClient'
@@ -244,8 +244,8 @@ container.register(LabService, {
   useFactory: container => new LabService(container.resolve(LabRepo))
 })
 
-container.register(LoginIdentityBindingService, {
-  useFactory: container => new LoginIdentityBindingService(container.resolve(LoginIdentityService), container.resolve(EmailCodeService), container.resolve(OAuthStateRepo))
+container.register(LoginIdentityLinkService, {
+  useFactory: container => new LoginIdentityLinkService(container.resolve(LoginIdentityService), container.resolve(EmailCodeService), container.resolve(OAuthStateRepo))
 })
 
 container.register(LoginIdentityService, {
@@ -400,7 +400,7 @@ container.register(UserService, {
       container.resolve(LabService),
       container.resolve(EmailCodeService),
       container.resolve(LoginIdentityService),
-      container.resolve(LoginIdentityBindingService)
+      container.resolve(LoginIdentityLinkService)
     )
 })
 

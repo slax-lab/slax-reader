@@ -39,17 +39,11 @@ import { hashMD5, hashSHA256 } from '@/utils/strings'
 import { diagnosticDownloadUrl, downloadDiagnostic, uploadDiagnostic, type DiagnosticAttachment } from '@/utils/diagnosticAttachment'
 import { isCollectionAuthAttribution, type AcquisitionAuthAttribution, type CollectionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import { z } from 'zod'
-import {
-  BIND_LOGIN_IDENTITY_SETTING,
-  type EmailAuthClientPlatform,
-  type EmailAuthIdentities,
-  type EmailAuthProvider,
-  type EmailLoginRequest
-} from '@slax-reader/contracts/email-auth'
+import { BIND_LOGIN_IDENTITY_SETTING, type EmailAuthClientPlatform, type EmailAuthProvider, type EmailLoginRequest } from '@slax-reader/contracts/email-auth'
 import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
 import { EmailCodeService, type EmailCodeSendContext } from './emailCode'
 import { LoginIdentityService } from './loginIdentityService'
-import { LoginIdentityBindingService } from './loginIdentityBindingService'
+import { LoginIdentityLinkService } from './loginIdentityLinkService'
 
 const collectionAuthAttributionSchema = z.object({
   collection_id: z
@@ -142,7 +136,6 @@ export interface userInfo {
   name: string
   id: number
   platform: userBindPlatformItem[]
-  login_identities: EmailAuthIdentities
   subscription: subscription
   aff_code?: string
   share_collect: userShareCollectInfo
@@ -209,7 +202,7 @@ export class UserService {
     @inject(LabService) private labService: LabService,
     @inject(EmailCodeService) private emailCodes: EmailCodeService,
     @inject(LoginIdentityService) private loginIdentities: LoginIdentityService,
-    @inject(LoginIdentityBindingService) private identityBinding: LoginIdentityBindingService
+    @inject(LoginIdentityLinkService) private identityLink: LoginIdentityLinkService
   ) {
     this.userRepoData = userRepo
     this.reportRepoData = reportRepo
@@ -286,7 +279,7 @@ export class UserService {
    * @returns
    */
   public async saveUserSetting(ctx: ContextManager, data: { key: string; value: unknown }) {
-    if (data.key === BIND_LOGIN_IDENTITY_SETTING) return this.identityBinding.bind(ctx, data.value)
+    if (data.key === BIND_LOGIN_IDENTITY_SETTING) return this.identityLink.linkIdentity(ctx, data.value)
     if (typeof data.value !== 'string') throw ErrorParam()
     if (data.key === 'account') {
       // 判断唯一、长度、是不是特定字符
@@ -562,7 +555,6 @@ export class UserService {
     ])
 
     const subInfo = UserService.getUserSubscriptionInfoWithPO(ctx.env, subInfoPO)
-    const emailAuthEnabled = Boolean(ctx.env.RESEND_API_KEY?.trim())
     const ai_lang = user.ai_lang ? user.ai_lang : user.lang ? user.lang : 'en'
 
     return {
@@ -575,22 +567,11 @@ export class UserService {
       avatar: user.picture,
       uuid: user.uuid,
       id: ctx.hashIds.encodeId(ctx.getUserId()),
-      login_identities: {
-        enabled: emailAuthEnabled,
-        show_email_binding: emailAuthEnabled && ctx.env.RUN_TYPE === 'dev',
-        email: bindList.find(item => item.platform === platformBindType.MAIL)?.user_name ?? null,
-        google: bindList.some(item => item.platform === platformBindType.GOOGLE),
-        apple: bindList.some(item => item.platform === platformBindType.APPLE)
-      },
-      platform: bindList
-        .filter(item => item.platform !== platformBindType.MAIL)
-        .map(item => {
-          return {
-            platform: item.platform,
-            user_name: item.user_name,
-            created_at: item.created_at
-          }
-        }),
+      platform: bindList.map(item => ({
+        platform: item.platform,
+        user_name: item.user_name,
+        created_at: item.created_at
+      })),
       // 上线一周后，再把它删除
       share_collect: {
         show_name: shareCollect?.display_name || '',
@@ -741,7 +722,7 @@ export class UserService {
   }
 
   public getProviderBindLink(ctx: ContextManager, type: EmailAuthProvider, platform: EmailAuthClientPlatform) {
-    return this.identityBinding.startProvider(ctx, type, platform)
+    return this.identityLink.startProvider(ctx, type, platform)
   }
 
   public async checkDeleteAccountConstraints(userId: number): Promise<{ canDelete: boolean; reason?: string }> {

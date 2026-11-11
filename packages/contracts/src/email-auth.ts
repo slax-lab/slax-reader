@@ -14,14 +14,6 @@ export interface EmailCodeChallenge {
   resend_after: number
 }
 
-export interface EmailAuthIdentities {
-  enabled: boolean
-  show_email_binding: boolean
-  email: string | null
-  google: boolean
-  apple: boolean
-}
-
 export interface EmailCodeInput {
   email: string
   request_id: string

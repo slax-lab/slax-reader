@@ -65,7 +65,7 @@ export class LoginIdentityService {
     })
   }
 
-  public async bindLoginEmail(userId: number, key: string, deliveryEmail: string) {
+  public async linkLoginEmail(userId: number, key: string, deliveryEmail: string) {
     await this.users.withLoginIdentityTransaction({ emailKey: key }, async tx => {
       await lockActiveAccount(tx, userId)
       const owner = singleEmailOwner(await tx.findEmailOwners(key))
@@ -103,7 +103,7 @@ export class LoginIdentityService {
     })
   }
 
-  public async bindLoginProvider(userId: number, provider: LoginProvider, subject: string, email: string) {
+  public async linkLoginProvider(userId: number, provider: LoginProvider, subject: string, email: string) {
     const key = email.trim().toLowerCase()
     return this.users.withLoginIdentityTransaction({ emailKey: key, provider: { type: provider, subject } }, async tx => {
       await lockActiveAccount(tx, userId)

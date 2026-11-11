@@ -1,17 +1,17 @@
 <template>
-  <section v-if="identities?.enabled" class="login-methods" :aria-labelledby="titleId">
+  <section class="login-methods" :aria-labelledby="titleId">
     <h3 :id="titleId">{{ t('email_auth.methods_title') }}</h3>
-    <div v-if="identities.show_email_binding || identities.email" ref="emailRow" class="login-method-row" tabindex="-1">
+    <div v-if="showEmailBinding || loginEmail" ref="emailRow" class="login-method-row" tabindex="-1">
       <div class="login-method-label">
         <strong>{{ t('email_auth.login_email') }}</strong>
         <span>{{ signInEmailStatus }}</span>
       </div>
-      <button v-if="!identities.email" class="login-method-button" type="button" :aria-expanded="emailOpen" @click="emailOpen = !emailOpen">
+      <button v-if="!loginEmail" class="login-method-button" type="button" :aria-expanded="emailOpen" @click="emailOpen = !emailOpen">
         {{ t(emailOpen ? 'email_auth.cancel' : 'email_auth.link_email') }}
       </button>
     </div>
     <EmailCodeForm
-      v-if="identities.show_email_binding && emailOpen && !identities.email"
+      v-if="showEmailBinding && emailOpen && !loginEmail"
       class="login-method-email"
       purpose="bind"
       :client="account.api"
@@ -20,13 +20,13 @@
     <div v-for="provider in supportedProviders" :key="provider" class="login-method-row">
       <div class="login-method-label">
         <strong>{{ t(`email_auth.provider_${provider}`) }}</strong>
-        <span>{{ t(identities[provider] ? 'email_auth.linked' : 'email_auth.not_linked') }}</span>
+        <span>{{ t(linkedPlatforms.has(provider) ? 'email_auth.linked' : 'email_auth.not_linked') }}</span>
       </div>
-      <button v-if="providerLinkAvailable && !identities[provider]" class="login-method-button" type="button" :disabled="Boolean(linking)" @click="linkProvider(provider)">
+      <button v-if="providerLinkAvailable && !linkedPlatforms.has(provider)" class="login-method-button" type="button" :disabled="Boolean(linking)" @click="linkProvider(provider)">
         {{ t(linking === provider ? 'email_auth.linking' : `email_auth.link_${provider}`) }}
       </button>
     </div>
-    <p v-if="!providerLinkAvailable && supportedProviders.some(provider => !identities?.[provider])" class="login-methods-note">
+    <p v-if="!providerLinkAvailable && supportedProviders.some(provider => !linkedPlatforms.has(provider))" class="login-methods-note">
       {{ t('email_auth.provider_link_unavailable_here') }}
     </p>
     <p v-if="providerError" class="login-methods-error" role="alert">{{ t(providerError) }}</p>
@@ -42,23 +42,27 @@ import { emailAuthErrorKey } from '~/utils/emailAuth'
 import { canLinkProvidersHere, startProviderLink } from '~/utils/providerLink'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import { BIND_LOGIN_IDENTITY_SETTING, type EmailAuthIdentities, type EmailAuthProvider, type EmailCodeInput } from '@slax-reader/contracts/email-auth'
+import { BIND_LOGIN_IDENTITY_SETTING, type EmailAuthProvider, type EmailCodeInput } from '@slax-reader/contracts/email-auth'
+import type { BindedPlatformInfo } from '@slax-reader/contracts/interface'
 
-const props = defineProps<{ accountKey: string; profileEmail?: string; loginIdentities?: EmailAuthIdentities }>()
+const props = defineProps<{ accountKey: string; profileEmail?: string; platform: BindedPlatformInfo[] }>()
 const account = createAccountEmailAuthRequest(props.accountKey)
 const { t } = useI18n()
 const titleId = useId()
 const config = useRuntimeConfig().public
+const showEmailBinding = config.slaxEnv === 'development'
 const providerLinkAvailable = canLinkProvidersHere()
 const supportedProviders: EmailAuthProvider[] = [
   ...(config.GOOGLE_OAUTH_CLIENT_ID ? ['google' as const] : []),
   ...(config.APPLE_OAUTH_CLIENT_ID ? ['apple' as const] : [])
 ]
 
-const identities = ref<EmailAuthIdentities>()
-watch(() => props.loginIdentities, value => { identities.value = value && { ...value } }, { immediate: true })
+const platforms = ref<Pick<BindedPlatformInfo, 'platform' | 'user_name'>[]>([])
+watch(() => props.platform, value => { platforms.value = [...value] }, { immediate: true })
+const linkedPlatforms = computed(() => new Map(platforms.value.map(item => [item.platform, item.user_name])))
+const loginEmail = computed(() => linkedPlatforms.value.get('mail'))
 const signInEmailStatus = computed(() => {
-  const email = identities.value?.email
+  const email = loginEmail.value
   if (!email) return t('email_auth.not_linked')
   return email === props.profileEmail ? t('email_auth.same_as_profile_email') : email
 })
@@ -78,9 +82,9 @@ const bindEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
     errorInterceptors: () => {}
   })
   signal.throwIfAborted()
-  if (!result || !identities.value) throw new Error('Email linking failed')
+  if (!result) throw new Error('Email linking failed')
 
-  identities.value.email = result.email
+  platforms.value.push({ platform: 'mail', user_name: result.email })
   emailOpen.value = false
   emailLinked.value = true
   await nextTick()

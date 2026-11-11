@@ -135,7 +135,7 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
     const login = new LoginIdentityService(repo)
     await repo.userBindPlatform(user.id, platformBindType.EMAIL, 'reader', 'reader@reader.slax.com')
     await expect(login.signInWithEmail(user.email, user.email, registration(user.email))).rejects.toMatchObject({ name: 'EMAIL_AUTH_USE_EXISTING_LOGIN' })
-    await login.bindLoginEmail(user.id, user.email, user.email)
+    await login.linkLoginEmail(user.id, user.email, user.email)
     expect(await login.signInWithEmail(user.email, user.email, registration(user.email))).toMatchObject({ isNew: false, user: { id: user.id, email: user.email } })
     await repo.unbindPlatform(user.id, platformBindType.EMAIL)
     expect(await first!.sr_platform_bind.findMany()).toMatchObject([{ platform: 'mail', user_id: user.id }])
@@ -148,7 +148,7 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
     await expect(login.signInWithEmail('reader@example.test', original.email, registration(original.email))).rejects.toMatchObject({
       name: 'EMAIL_AUTH_IDENTITY_CONFLICT'
     })
-    await expect(login.bindLoginEmail(original.id, 'reader@example.test', original.email)).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    await expect(login.linkLoginEmail(original.id, 'reader@example.test', original.email)).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
     expect(await first!.sr_platform_bind.count()).toBe(0)
   })
 
@@ -157,7 +157,7 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
     const email = 'real@example.test'
     const repo = userRepo(first!)
     const login = new LoginIdentityService(repo)
-    await login.bindLoginEmail(user.id, email, email)
+    await login.linkLoginEmail(user.id, email, email)
     await repo.userBindPlatform(user.id, platformBindType.TELEGRAM, '123', 'reader')
     await repo.markUserAsDeleted(user.id)
     await expect(repo.getLoginEmailRecipient(email)).resolves.toBeUndefined()
@@ -182,11 +182,11 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
   test('OAuth cannot claim an email-enabled account by email and explicit linking preserves the profile', async () => {
     const user = await createUser('reader@example.test')
     const login = loginIdentities(first!)
-    await login.bindLoginEmail(user.id, user.email, user.email)
+    await login.linkLoginEmail(user.id, user.email, user.email)
     await expect(login.signInWithProvider('google', 'google-sub', registration(user.email))).rejects.toMatchObject({ name: 'EMAIL_AUTH_USE_EXISTING_LOGIN' })
-    await login.bindLoginProvider(user.id, 'google', 'google-sub', 'other@example.test')
-    await login.bindLoginProvider(user.id, 'google', 'google-sub', 'other@example.test')
-    await expect(login.bindLoginProvider(user.id, 'google', 'different-sub', 'other@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    await login.linkLoginProvider(user.id, 'google', 'google-sub', 'other@example.test')
+    await login.linkLoginProvider(user.id, 'google', 'google-sub', 'other@example.test')
+    await expect(login.linkLoginProvider(user.id, 'google', 'different-sub', 'other@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
     expect(await login.signInWithProvider('google', 'google-sub', registration('other@example.test'))).toMatchObject({
       isNew: false,
       user: { id: user.id, email: user.email }
@@ -208,8 +208,8 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
     const original = await createUser('legacy-apple@appleid.apple.com')
     const another = await createUser('unrelated@example.test')
     const login = loginIdentities(first!)
-    await login.bindLoginEmail(original.id, 'reader@example.test', 'reader@example.test')
-    await expect(login.bindLoginProvider(another.id, 'apple', 'legacy-apple', 'relay@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    await login.linkLoginEmail(original.id, 'reader@example.test', 'reader@example.test')
+    await expect(login.linkLoginProvider(another.id, 'apple', 'legacy-apple', 'relay@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
     await expect(login.signInWithProvider('apple', 'legacy-apple', registration('relay@example.test'))).resolves.toMatchObject({
       isNew: false,
       user: { id: original.id, email: original.email }
@@ -222,7 +222,7 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
     const repo = userRepo(first!)
     const login = new LoginIdentityService(repo)
     await repo.markUserAsDeleted(original.id)
-    await expect(login.bindLoginProvider(another.id, 'apple', 'legacy-apple', 'relay@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
+    await expect(login.linkLoginProvider(another.id, 'apple', 'legacy-apple', 'relay@example.test')).rejects.toMatchObject({ name: 'EMAIL_AUTH_IDENTITY_CONFLICT' })
   })
 
   test('an established OAuth subject can sign in when its changed address is reserved by another account', async () => {
@@ -231,7 +231,7 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
     const repo = userRepo(first!)
     const login = new LoginIdentityService(repo)
     await repo.userBindPlatform(original.id, platformBindType.GOOGLE, 'google-sub', original.email)
-    await login.bindLoginEmail(another.id, 'reserved@example.test', 'reserved@example.test')
+    await login.linkLoginEmail(another.id, 'reserved@example.test', 'reserved@example.test')
     await expect(login.signInWithProvider('google', 'google-sub', registration('reserved@example.test'))).resolves.toMatchObject({
       isNew: false,
       user: { id: original.id, email: original.email }
@@ -247,8 +247,8 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
         if (operation === 'register') return userRepo(db).registerUser(registration(user.email))
         if (operation === 'register-id') return userRepo(db).registerUser({ ...registration(user.email), id: user.id })
         if (operation === 'key') return apiKeyRepo(db).upsertApiKey(key(user.id))
-        if (operation === 'bind-login-email') return loginIdentities(db).bindLoginEmail(user.id, user.email, user.email)
-        if (operation === 'bind-login-provider') return loginIdentities(db).bindLoginProvider(user.id, 'google', 'google-1', user.email)
+        if (operation === 'bind-login-email') return loginIdentities(db).linkLoginEmail(user.id, user.email, user.email)
+        if (operation === 'bind-login-provider') return loginIdentities(db).linkLoginProvider(user.id, 'google', 'google-1', user.email)
         return userRepo(db).userBindPlatform(user.id, platformBindType.GOOGLE, 'google-1', 'test')
       }
     )
@@ -268,8 +268,8 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
           if (operation === 'register') return userRepo(db).registerUser(registration(user.email))
           if (operation === 'register-id') return userRepo(db).registerUser({ ...registration(user.email), id: user.id })
           if (operation === 'key') return apiKeyRepo(db).upsertApiKey(key(user.id))
-          if (operation === 'bind-login-email') return loginIdentities(db).bindLoginEmail(user.id, user.email, user.email)
-          if (operation === 'bind-login-provider') return loginIdentities(db).bindLoginProvider(user.id, 'google', 'google-1', user.email)
+          if (operation === 'bind-login-email') return loginIdentities(db).linkLoginEmail(user.id, user.email, user.email)
+          if (operation === 'bind-login-provider') return loginIdentities(db).linkLoginProvider(user.id, 'google', 'google-1', user.email)
           return userRepo(db).userBindPlatform(user.id, platformBindType.GOOGLE, 'google-1', 'test')
         },
         db => userRepo(db).markUserAsDeleted(user.id)

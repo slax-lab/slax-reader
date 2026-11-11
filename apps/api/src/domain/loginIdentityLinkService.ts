@@ -9,23 +9,23 @@ import { LoginIdentityService } from './loginIdentityService'
 import type { userLoginReq } from './user'
 
 type ProviderProof = userLoginReq & { state: string }
-type BindingProof = (EmailCodeInput & { type: 'email' }) | ProviderProof
+type IdentityLinkProof = (EmailCodeInput & { type: 'email' }) | ProviderProof
 
 @injectable()
-export class LoginIdentityBindingService {
+export class LoginIdentityLinkService {
   constructor(
     @inject(LoginIdentityService) private identities: LoginIdentityService,
     @inject(EmailCodeService) private emailCodes: EmailCodeService,
     @inject(OAuthStateRepo) private oauthState: OAuthStateRepo
   ) {}
 
-  async bind(ctx: ContextManager, value: unknown) {
+  async linkIdentity(ctx: ContextManager, value: unknown) {
     if (!value || typeof value !== 'object') throw ErrorParam()
-    const proof = value as BindingProof
+    const proof = value as IdentityLinkProof
     const userId = ctx.getUserId()
     if (proof.type === 'email') {
       const { key, delivery } = await this.emailCodes.verifyCode(ctx.env, { ...proof, purpose: 'bind', userId })
-      await this.identities.bindLoginEmail(userId, key, delivery)
+      await this.identities.linkLoginEmail(userId, key, delivery)
       return { email: delivery }
     }
 
@@ -35,7 +35,7 @@ export class LoginIdentityBindingService {
     if (!challenge || challenge.type !== type || challenge.platform !== platform) throw OAuth2StateExpiredError()
     const identity = await new SlaxAuth(ctx.env).login(proof)
     if (!identity.sub || identity.nonce !== challenge.nonce) throw OAuth2StateExpiredError()
-    await this.identities.bindLoginProvider(userId, type, identity.sub, identity.email)
+    await this.identities.linkLoginProvider(userId, type, identity.sub, identity.email)
     return { linked: true as const }
   }
 
