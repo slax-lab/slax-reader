@@ -82,13 +82,19 @@ The Library row status indicator SHALL occupy a stable slot and present a stable
 - **WHEN** a PDF belongs to the configured automatic-cache window while the app is active
 - **THEN** automatic acquisition can start without opening Reader or pressing a PDF-specific download action
 - **AND** opening Reader promotes and reuses compatible in-flight or committed byte ranges
-- **AND** only a complete integrity-verified file is marked fully cached
+- **AND** only a complete file whose size, final range/length and descriptor identity match is marked fully cached
 
 #### Scenario: A drawer gesture activates over the article list
 - **WHEN** the drawer is dragging, open or settling closed
-- **THEN** the underlying list cannot scroll, open rows, swipe actions, long-press menus or receive accessibility actions
-- **AND** input is restored only after completed dismissal, including cancelled or interrupted gestures
+- **THEN** the drawer's backdrop owns touches above the covered list, so the list cannot be scrolled, opened, swiped, long-pressed or reached by accessibility actions through it
+- **AND** the list's own scroll capability, scroll offset and row gestures are not toggled, reset or locked by drawer state
+- **AND** the list is immediately interactive once the drawer resolves closed, without waiting for the close animation to finish
 - **AND** drawer controls, backdrop dismissal and native Back remain functional
+
+#### Scenario: A row is tapped after scrolling or a short horizontal drag
+- **WHEN** the user taps a Library row after a fling, after a cancelled row swipe or after a horizontal movement that did not open the drawer
+- **THEN** the press either opens the row or is visibly cancelled; it is never shown as pressed while silently discarded
+- **AND** the list scrolls normally afterwards
 
 #### Scenario: A large library synchronizes while scrolling
 - **WHEN** the user scrolls a large populated library while sync or automatic PDF caching progresses

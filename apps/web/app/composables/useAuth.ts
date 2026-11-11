@@ -1,4 +1,4 @@
-import { configuredCookieName, requireConfiguredCookieName } from '~/utils/authCookie'
+import { configuredCookieName, persistSessionCookie } from '~/utils/authCookie'
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -6,7 +6,7 @@ import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, type Web
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 
-const { set, remove } = useCookies()
+const { remove } = useCookies()
 
 const useAuth = {
   async requestAuth(options: { redirect: string; affCode: string; authAttribution?: WebAuthAttribution }) {
@@ -84,13 +84,7 @@ const useAuth = {
       throw new Error('login failed')
     }
 
-    const cookieName = requireConfiguredCookieName($config.COOKIE_TOKEN_NAME)
-    const cookieDomain = typeof $config.COOKIE_DOMAIN === 'string' ? $config.COOKIE_DOMAIN : ''
-    set(cookieName, resp.token, {
-      path: '/',
-      expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-      ...(cookieDomain ? { domain: cookieDomain } : {})
-    })
+    if (!(await persistSessionCookie(resp.token))) throw new Error('login failed')
     return resp.token
   },
   async clearAuth(): Promise<void> {

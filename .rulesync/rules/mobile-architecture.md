@@ -22,7 +22,7 @@ Apply these boundaries to new and changed code; they are the refactoring target,
 ## Startup and credentials
 
 - Route selection waits only for local logged-in state: show Login or the authenticated shell immediately after that state is known. Separate presentation readiness, verified data readiness, and network readiness.
-- Database ownership/migration verification gates data access only. Hydrate cached content only after admission; show localized loading/recovery in the shell when admission is delayed or fails. Never reveal unverified or cross-account data.
+- Detect Kotlin storage only at its fixed old database path and reset it once without database adoption, schema checks or checksum preservation. This approved reset discards old queued writes and caches; ordinary Expo data and new queued writes remain protected. Native ownership and initialization gate data access, and failed local I/O uses retry. Never reveal cross-account data.
 - Initialize runtime/database, refresh main credentials, and acquire/connect PowerSync asynchronously without a global blank startup barrier. Protected API/PDF calls await valid main credentials; sync acquisition/connection awaits its own credential readiness. Local login does not authorize stale network dispatch.
 - Coalesce refresh by active owner, honor actual deadlines and signed expiry, bound retries, and reject late results after sign-out/account/origin replacement. Offline failures must retain safe local UI, admitted cached data, and pending uploads.
 

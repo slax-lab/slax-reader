@@ -129,6 +129,11 @@ function summarizeResult(value: unknown): { result: Record<string, unknown>; pen
       /^missing_dependency:(?:a:[1-9]\d*:[1-9]\d*(?::c:(?:0|[1-9]\d*))?|c:[1-9]\d*|u:[1-9]\d*:(?:article(?::centered)?|collection))$/.test(value.reason))
   )
     result.reason = value.reason
+  if (record(value.coverage)) {
+    const { eligible, used, missing } = value.coverage
+    if ([eligible, used, missing].every(count => typeof count === 'number' && Number.isSafeInteger(count) && count >= 0) && eligible === (used as number) + (missing as number))
+      result.coverage = { eligible, used, missing }
+  }
   return { result, pending, failed }
 }
 
@@ -194,7 +199,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
         'Collection IDs/cursors are sr_user_collection.id and requests send {collection_id}. Default enumeration selects active Collections; explicit --ids also permits closed Collections for cleanup. Deleted owners and out-of-scope users remain excluded.',
         '--user filters the article owner, Collection owner or preference user. It never expands scope to dependencies. --kind runs only that stage.',
         'Default stage order: article -> article-preference -> collection -> subscription. Subscription means collection-preference users, not subscription records. Every action refreshes only its own target using existing dependencies.',
-        'Output is JSON target IDs/cursors, safe domain state/reason, pending/failed flags and counts. received counts recognized code:200 operation results, not completed or query-visible vectors. Unknown states count as failures.',
+        'Output is JSON target IDs/cursors, safe domain state/reason, pending/failed flags and counts; preference targets also report numeric coverage (eligible, used, missing). received counts recognized code:200 operation results, not completed or query-visible vectors. Unknown states count as failures.',
         'Pending and failed rows do not stop later rows or stages. The final summary precedes nonzero exit if any row was pending or failed. Missing dependencies are never replaced with zero vectors.',
         'Rerun reported cursors as --kind KIND --ids ID,ID, or use exclusive --after-id with one --kind. Cursors track enumeration, not completed work; later cursors do not resolve earlier pending rows.',
         'No automatic retries, polling, checkpoints or state files. Dry-run only enumerates with read-only SQL; no HTTP, task credential or writes.',

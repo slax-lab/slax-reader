@@ -69,6 +69,14 @@ The local Bugs/Security/Compliance review led to final hardening: generated acce
 
 The merged full-stack exercise also verified snapshot session recovery, account switching, dark/e-ink, and the original mini entry. At exactly 768px, the existing layout failed to switch to a block layout, allowing the full-width sidebar to cover the main content. An explicit block rule in the existing 768 media query restored the intended top navigation row and full-width main column. After the correction, the 768 layout check passed 19/19 and the cross-width first-star cue check passed 122/122. The earlier 146/146 mini result was superseded by 160/160 after final alignment.
 
+## PR follow-up merge and lazy page extraction
+
+After task PR #562 opened, `origin/dev` advanced and extracted the bookmarks page implementation into the lazy-loaded `BookmarkList/BookmarksPage.vue` component. The conflict resolution kept that upstream page structure, moved the collection prompt's reviewed unknown-count behavior into the extracted component, and retained the existing collection prefetch. No product interaction was redesigned in this merge.
+
+The merged result passed the full Web suite with 2781 passed and 3 conditionally skipped tests (237 files passed, 1 skipped), Web typecheck, production build, and targeted ESLint for both the page entry and extracted component. `openspec validate --all --strict` passed 124 items with 0 failures.
+
+The actual local full stack was exercised again after the lazy-component merge. Closed-state presentation and direct reopen passed 160/160 checks at 1200px and 320px in Chinese and English. Real first-star writes and cue placement passed 76/76 checks at the same widths and languages. Business `/v1` APIs were not mocked. Evidence files use the `-post-refactor` suffix under `test-results/default-public-starred-collections/real-stack/`; generated token files were removed after the run.
+
 ## Human hands-on acceptance
 
 On 2026-11-10, the change requester completed hands-on acceptance of the implemented change in the real local full-stack environment and explicitly confirmed “我验收通过。” The accepted behavior includes default public provisioning, preserved closed state, original collection presentation, first-star discovery with starred-list navigation, direct sharing, snapshot controls, and responsive layouts. Acceptance followed adjustments to collection UX, cue placement and copy, closed-state mini entry, and narrow-screen clipping. The requester subsequently reviewed both dark and e-ink themes and confirmed they meet expectations. On 2026-11-11, after `origin/dev` was merged and the 768px layout correction was verified, the requester again confirmed acceptance of the merged implementation. No further adjustments were requested at acceptance.
@@ -99,4 +107,4 @@ On 2026-11-10, the change requester completed hands-on acceptance of the impleme
 
 ## Version and delivery decisions
 
-On 2026-11-10, the change requester explicitly approved incrementing Web from `2.0.11` to `2.1.0`. API, CLI, Extension, and Mobile versions remain unchanged. The requester also explicitly approved adding the proposal/spec writing conventions in `openspec/config.yaml`; that configuration change is intentional, not incidental. The branch was committed and pushed, then merged with `origin/dev` after the independent review. No remote migration, deployment, or pull request has been performed.
+On 2026-11-10, the change requester explicitly approved incrementing Web from `2.0.11` to `2.1.0`. API, CLI, Extension, and Mobile versions remain unchanged. The requester also explicitly approved adding the proposal/spec writing conventions in `openspec/config.yaml`; that configuration change is intentional, not incidental. The branch was committed and pushed, then merged with `origin/dev` after the independent review. Task PR #562 targets `dev`; subsequent upstream merges were resolved and reverified on the same branch. No remote migration or deployment has been performed.

@@ -75,6 +75,7 @@ describe('useAuth', () => {
     // 重置 COOKIE_DOMAIN，防止上一个用例改动污染后续
     runtimeConfig.public.COOKIE_DOMAIN = '.example.com'
     runtimeConfig.public.COOKIE_TOKEN_NAME = 'token'
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
   })
 
   afterEach(() => vi.restoreAllMocks())
@@ -115,24 +116,28 @@ describe('useAuth', () => {
       expect(cookieSet).not.toHaveBeenCalled()
     })
 
-    it('登录成功 → 写 cookie 并返回 token', async () => {
+    it('登录成功 → 由服务端接口写 cookie 并返回 token', async () => {
       mockPost.mockResolvedValueOnce({ token: 'tok-google' })
       const token = await useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google')
       expect(token).toBe('tok-google')
       expect(mockPost).toHaveBeenCalledTimes(1)
-      expect(cookieSet).toHaveBeenCalledWith('token', 'tok-google', expect.objectContaining({ path: '/', domain: '.example.com' }))
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/session', expect.objectContaining({ method: 'POST', body: JSON.stringify({ token: 'tok-google' }) }))
+      expect(cookieSet).not.toHaveBeenCalled()
+    })
+
+    it.each([new Response(null, { status: 403 }), new TypeError('network')])('fails login without a cookie when the session endpoint fails: %s', async failure => {
+      vi.mocked(globalThis.fetch).mockImplementation(async () => {
+        if (failure instanceof Response) return failure
+        throw failure
+      })
+      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
+      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3', 'google')).rejects.toThrow('login failed')
+      expect(cookieSet).not.toHaveBeenCalled()
     })
 
     it('登录返回为空 → 抛 "login failed"', async () => {
       mockPost.mockResolvedValueOnce(undefined)
       await expect(useAuth().grantAuth('code-x', 'https://auth.test/auth', '', 'google')).rejects.toThrow('login failed')
-      expect(cookieSet).not.toHaveBeenCalled()
-    })
-
-    it('rejects login success when the configured cookie name is invalid', async () => {
-      runtimeConfig.public.COOKIE_TOKEN_NAME = { token: 'token' } as never
-      mockPost.mockResolvedValueOnce({ token: 'tok-google' })
-      await expect(useAuth().grantAuth('code-1', 'https://auth.test/auth', 'aff3')).rejects.toThrow(/COOKIE_TOKEN_NAME/)
       expect(cookieSet).not.toHaveBeenCalled()
     })
 

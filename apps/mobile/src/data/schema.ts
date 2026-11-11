@@ -3,7 +3,6 @@ export interface TableDefinition {
   text: string[]; integer?: string[];
   options?: { localOnly?: boolean; ignoreEmptyUpdates?: boolean; trackPrevious?: boolean | { onlyWhenChanged: boolean } };
 }
-/** The verified Kotlin adoption schema remains version 2. */
 export const LEGACY_MOBILE_TABLES: Record<string, TableDefinition> = {
   sr_user: { text: ['email', 'name', 'picture', 'given_name', 'family_name', 'lang', 'ai_lang', 'timezone', 'account', 'last_read_at', 'invite_code'], options: { ignoreEmptyUpdates: true } },
   sr_user_tag: { text: ['user_id', 'tag_name', 'display', 'source', 'last_used_at', 'created_at'], options: { trackPrevious: true } },

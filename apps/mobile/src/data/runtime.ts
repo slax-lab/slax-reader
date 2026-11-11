@@ -18,22 +18,18 @@ import {nativeNetwork} from './native-network.ts';
 import {loadReaderImage} from '../native/reader-image';
 import { activateReaderResources, revokeReaderResources } from '../native/platform';
 import { createSyncConnector } from './connector.ts';
-import { openVerifiedDatabase } from './adoption.ts';
-import { deriveReviewedAdoptionEvidence } from './adoption-profile.ts';
 import { migrateLegacyPreferences } from './legacy-preferences.ts';
 import { loadLegacyBridge, nativePreferenceStorage } from './native-storage.ts';
 import type { SlaxLegacyBridge } from './native-storage.ts';
 import { PreferenceStore, PREFERENCE_KEYS as K } from './preferences.ts';
 import { MobileRepositories } from './repositories.ts';
-import { createMobileSchema, LEGACY_MOBILE_TABLES, SYNC_PARAMETERS } from './schema.ts';
-import { UpgradeVerificationRequired } from './upgrade.ts';
-import type { AdoptionEvidence, LegacyInventory } from './upgrade.ts';
+import { createMobileSchema, SYNC_PARAMETERS } from './schema.ts';
 import {createAccountDiagnostics} from '../diagnostics/exchanges.ts';
 import {noDiagnostics, recordDiagnostic} from '../domain/diagnostics.ts';
 import type {MobileDiagnostics} from '../diagnostics/native.ts';
 
-export type UpgradeState = {status: 'idle' | 'checking' | 'ready'} | {status: 'verification-required'; inventory: LegacyInventory} | {status: 'error'; error: Error};
-export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { diagnostics?: MobileDiagnostics; betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; adoptionEvidence?: AdoptionEvidence; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]} }
+export type UpgradeState = {status: 'idle' | 'checking' | 'ready'} | {status: 'error'; error: Error};
+export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { diagnostics?: MobileDiagnostics; betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]} }
 /** Construct once at the app root; start before mounting account-bound watchers. */
 export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   const bridge = options.nativeBridge ?? loadLegacyBridge();
@@ -253,11 +249,19 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     stopping = false; network.start(); emit({status: 'checking'});
     const sdkReady = Promise.all([import('@powersync/react-native'), createMobileSchema()]);
     sdkReady.catch(() => undefined);
+    const location = (async () => {
+      const inventory = await (options.freshStorage && bridge.beginFreshDataOwnership ? bridge.beginFreshDataOwnership() : bridge.beginDataOwnership());
+      hasLease = true;
+      if (stopping) throw new AccountInactiveError();
+      return inventory;
+    })();
     environmentReady = sessions.restoreLocal(async () => {
+      const inventory = await location;
       const snapshot = await preferences.read();
       if (stopping) throw new AccountInactiveError();
-      const migration = await migrateLegacyPreferences(preferences, bridge, snapshot);
+      const migration = await migrateLegacyPreferences(preferences, bridge, snapshot, inventory.legacyReset === true);
       if (stopping) throw new AccountInactiveError();
+      if (inventory.legacyReset) await bridge.finishLegacyReset();
       const values = migration === 'already-migrated' ? snapshot : await preferences.read();
       if (stopping) throw new AccountInactiveError();
       if (values[K.environment] === 'BETA') {
@@ -271,20 +275,15 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     }).catch(() => undefined);
     storageReady = (async () => {
       await environmentReady;
+      const inventory = await location;
       if (stopping) throw new AccountInactiveError();
-      const inventory = await (options.freshStorage && bridge.beginFreshDataOwnership ? bridge.beginFreshDataOwnership() : bridge.beginDataOwnership()); hasLease = true;
-      if (stopping) throw new AccountInactiveError();
-      const evidence = options.freshStorage ? undefined : options.adoptionEvidence ?? deriveReviewedAdoptionEvidence(inventory, options.platform);
       adminCache = new ArticleFileCache(inventory.legacyDataDirectory, value => bridge.md5String(value));
       const [{PowerSyncDatabase}, schema] = await sdkReady;
       if (stopping) throw new AccountInactiveError();
-      let adoptedLegacySchema = false;
-      database = await openVerifiedDatabase({inventory, evidence, inspector: bridge, preferences, fresh: options.freshStorage, open: (location, legacySchema) => activity.whileActive(async () => {
-        adoptedLegacySchema = legacySchema === true;
-        const opened = new PowerSyncDatabase({schema: legacySchema ? await createMobileSchema(LEGACY_MOBILE_TABLES) : schema, database: {dbFilename: location.dbFilename, dbLocation: location.dbLocation}});
+      database = await activity.whileActive(async () => {
+        const opened = new PowerSyncDatabase({schema, database: {dbFilename: 'powersync.db', dbLocation: inventory.newDatabaseDirectory}});
         try {await opened.init(); return opened;} catch (error) {await opened.close(); throw error;}
-      })});
-      if (adoptedLegacySchema) await database.updateSchema(schema);
+      });
       if (stopping) throw new AccountInactiveError();
     })();
     startPromise = (async () => {
@@ -301,7 +300,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
         if (__DEV__) console.error('[mobile] data initialization failed', error);
         network.stop(); readiness.pause(); connector.pause();
         const previousBackground = revokeAccountScope(); await previousBackground?.close(); adminCache = null;
-        if (!stopping) emit(error instanceof UpgradeVerificationRequired ? {status: 'verification-required', inventory: error.inventory} : {status: 'error', error});
+        if (!stopping) emit({status: 'error', error});
         if (database) {await database.close(); database = null;}
         if (hasLease) {await bridge.endDataOwnership(); hasLease = false;}
         throw error;

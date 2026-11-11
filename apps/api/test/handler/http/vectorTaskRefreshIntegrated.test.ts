@@ -34,6 +34,7 @@ import { CrawlService } from '@/domain/crawl'
 import { LogsService } from '@/domain/logs'
 import { VectorMaintenanceService } from '@/domain/vectorMaintenance'
 import { EDGE_IDENTITY_HEADER, EDGE_SECRET_HEADER, encodeEdgeIdentity } from '@/const/edge'
+import { memoryPreferences } from '../../helpers/preferenceMemory'
 
 const SECRET = 'temporary-task-secret-7d2a'
 const OTHER_SECRET = 'different-task-secret-3c9e'
@@ -62,6 +63,7 @@ function boundary() {
     listUserArticles: vi.fn(async () => [] as { id: number; is_starred: boolean }[]),
     listRecentUserActions: vi.fn(async () => [] as { id: number; acted_at: Date }[]),
     listCollectionMembers: vi.fn(async () => [] as { id: number }[]),
+    listOwnerCollections: vi.fn(async () => [] as { id: number }[]),
     listUserCollections: vi.fn(async () => [] as { id: number }[])
   }
   const sources = {
@@ -88,7 +90,9 @@ function boundary() {
     }),
     query: vi.fn(async () => [])
   }
-  const service = new VectorMaintenanceService(repo as never, sources as never, embedding as never, index as never)
+  const service = (preferences => preferences.bind(new VectorMaintenanceService(repo as never, sources as never, embedding as never, index as never, preferences.client)))(
+    memoryPreferences()
+  )
   return { repo, sources, embedding, index, service, stored }
 }
 
@@ -218,24 +222,27 @@ describe('direct Core task routes through the generated router', () => {
     expect(current.embedding.embed).not.toHaveBeenCalled()
     expect(current.index.upsert).not.toHaveBeenCalled()
     expect([...current.stored.keys()]).toEqual(['u:7:collection'])
-    expect(current.index.delete.mock.calls.map(([kind, ids]) => [kind, ids])).toEqual([
-      ['user', ['u:7:article', 'u:7:article:centered']]
-    ])
+    expect(current.index.delete.mock.calls.map(([kind, ids]) => [kind, ids])).toEqual([['user', ['u:7:article', 'u:7:article:centered']]])
   })
 
-  test('the Collection action aggregates only its own representation and clears an empty one', async () => {
+  test('the Collection action rebuilds its owner, publishes only its own representation and clears an empty one', async () => {
     current.repo.findCollection.mockResolvedValue({ id: 81, owner_id: USER, published_at: 1 })
+    current.repo.listOwnerCollections.mockResolvedValue([{ id: 80 }, { id: 81 }])
+    current.stored.set('c:80', { id: 'c:80', values: unit() })
     current.stored.set('c:81', { id: 'c:81', values: unit() })
+    current.stored.set('u:7:article', { id: 'u:7:article', namespace: 'user-article', values: unit() })
     const { response } = await atCore('/v1/collection/vector/refresh', { collection_id: 81 }, task())
     const body = (await response.json()) as { code: number; data: { state: string; target: unknown } }
     expect(body).toMatchObject({ code: 200, data: { state: 'deleted', target: { kind: 'collection', id: 81 } } })
-    expect(current.repo.findCollection).toHaveBeenCalledExactlyOnceWith(81)
+    expect(new Set(current.repo.findCollection.mock.calls.map(([id]) => id))).toEqual(new Set([81]))
     expect(current.repo.listCollectionMembers).toHaveBeenCalledExactlyOnceWith(USER, 0, 100)
+    expect(current.repo.listUserArticles).toHaveBeenCalledExactlyOnceWith(USER, 0, 100)
     expect(current.repo.findArticles).not.toHaveBeenCalled()
-    expect(current.repo.listUserArticles).not.toHaveBeenCalled()
     expect(current.embedding.embed).not.toHaveBeenCalled()
     expect(current.index.upsert).not.toHaveBeenCalled()
     expect(current.stored.has('c:81')).toBe(false)
+    expect(current.stored.has('c:80')).toBe(true)
+    expect(current.stored.has('u:7:article')).toBe(true)
   })
 
   test('the Collection-preference action touches only that user collection preference', async () => {
@@ -293,10 +300,14 @@ describe('direct Core task routes through the generated router', () => {
   })
 
   test('forwarded Edge identity headers cannot replace the task secret', async () => {
-    const { request, response } = await atCore('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, {
-      [EDGE_SECRET_HEADER]: EDGE_SHARED_SECRET,
-      [EDGE_IDENTITY_HEADER]: encodeEdgeIdentity({ deId: USER, enId: 10000007, email: 'reader@example.com', lang: 'en', audience: 'reader' })
-    })
+    const { request, response } = await atCore(
+      '/v1/bookmark/vector/refresh',
+      { user_id: USER, bookmark_id: 41 },
+      {
+        [EDGE_SECRET_HEADER]: EDGE_SHARED_SECRET,
+        [EDGE_IDENTITY_HEADER]: encodeEdgeIdentity({ deId: USER, enId: 10000007, email: 'reader@example.com', lang: 'en', audience: 'reader' })
+      }
+    )
     expect(response.status).toBe(401)
     expect(request.bodyUsed).toBe(false)
     assertUntouched()
@@ -408,11 +419,7 @@ describe('Edge anonymous forwarding preserves the task header', () => {
   test('a JWT plus the task header keeps the header and succeeds', async () => {
     current.repo.findArticles.mockResolvedValue([articleRow])
     const token = await new Auth(coreEnv).sign({ id: String(new Hashid(coreEnv).encodeId(USER)), email: 'reader@example.com', lang: 'en' })
-    const { response, coreFetch, forwarded } = await throughEdge(
-      '/v1/bookmark/vector/refresh',
-      { user_id: USER, bookmark_id: 41 },
-      { Authorization: `Bearer ${token}`, ...task() }
-    )
+    const { response, coreFetch, forwarded } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { Authorization: `Bearer ${token}`, ...task() })
     expect(response.status).toBe(200)
     expect(coreFetch).toHaveBeenCalledOnce()
     expect(forwarded!.headers.get('X-Vector-Refresh-Secret')).toBe(SECRET)
