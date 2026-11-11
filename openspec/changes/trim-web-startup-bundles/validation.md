@@ -102,3 +102,19 @@ The prior body incorrectly called the PR a draft after its owner changed that st
 - Real production browser: enter a draft, click Analysis, then return to Chat. The read-only probe observed focus move from TEXTAREA to BUTTON and back to TEXTAREA, with `KeepAlive review fix preserves draft and focus` retained, no page/boundary errors and zero chat POSTs. Bottom-follow and exactly-once open/expand analytics are asserted in the real KeepAlive unit harness. Evidence: `.local/bundle-validation/review-fixed/reentry.json`.
 - Changed-file ESLint diagnostics match the reviewed head: component and modal implementation files are clean; existing test-file warnings were not broadened or fixed. Shared text output is unchanged; only newline spelling changed.
 - Local Bugs/Security/Compliance follow-up: code regression and scope wording are addressed. The repeated modal helper suggestion is declined to respect the explicit no-custom-loader request; import-only error handling is fixed independently. Human hands-on acceptance remains an unresolved Compliance finding, not a technical failure that an agent can mark passed.
+
+
+## Hands-on feedback: recovery controls
+
+The user reported that the reload controls looked unstyled and did not respect the existing Web design. This is corrective feedback, not approval. Both `/b/:id` error slots now use the existing 24px reading-panel inset, auxiliary sans-serif type scale, muted explanatory text, and a restrained bordered secondary button. The action retains the same explicit reload behavior and unsaved-draft warning. No icon, animation, shadow, framework, token or data-policy change was added.
+
+Reuse anchors: `SnapshotAIPanel.vue` sidebar text/retry styling, the existing `.pdf-ai-unavailable` inset, and `AddUrlTopModal.vue` bordered secondary-button pattern. All colors, typography and radius come from current `--slax-*` tokens. The button has hover/pressed states and a visible 2px keyboard focus ring.
+
+Verification on the rebuilt production artifact:
+- Targeted page ESLint, 2,753 Web tests (3 skipped), typecheck and production build passed.
+- Visually checked light, dark and e-ink at desktop 1280px and narrow mobile 375px using the product theme switcher. The warning wraps on mobile, the existing sheet remains intact, and the button stays 112 x 44 CSS pixels.
+- Computed styles confirm existing light/dark colors, 10px theme radius, e-ink black/white colors with 2px radius, no transition/animation added, and no horizontal overflow. Keyboard navigation shows a solid 2px e-ink focus outline.
+- At the 768px breakpoint the read-only DOM probe confirms the same 44px target and no horizontal overflow. The browser preview produced a tiled capture artifact during resizing, so that image is not counted as visual acceptance; desktop/mobile screenshots and DOM measurements are recorded separately.
+- After local resource faults were lifted, clicking the styled button reloaded the document and returned the normal article with no captured page errors.
+
+Ignored evidence: `.local/bundle-validation/recovery-styled/styles.json`, `styled-acceptance-session.json` and the persisted local acceptance fixture. The portal at 4188 serves the corrected build and stays running without a timeout. The user must review the corrected appearance before acceptance is marked complete.

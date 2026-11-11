@@ -124,8 +124,10 @@
                     :is-appeared="activePanel === 'ai'" @dismiss="activePanel = null" />
                 </KeepAlive>
                 <template #error>
-                  <p role="alert">{{ $t('common.tips.interface_load_failed') }}</p>
-                  <button type="button" @click="reloadNuxtApp()">{{ $t('common.operate.reload_page') }}</button>
+                  <div class="panel-load-error">
+                    <p class="panel-load-error__message" role="alert">{{ $t('common.tips.interface_load_failed') }}</p>
+                    <button class="panel-load-error__action" type="button" @click="reloadNuxtApp()">{{ $t('common.operate.reload_page') }}</button>
+                  </div>
                 </template>
               </NuxtErrorBoundary>
             </ClientOnly>
@@ -144,8 +146,10 @@
                   :is-appeared="activePanel === 'chat'" @dismiss="activePanel = null" @find-quote="findQuote" />
               </KeepAlive>
               <template #error>
-                <p role="alert">{{ $t('common.tips.interface_load_failed') }}</p>
-                <button type="button" @click="reloadNuxtApp()">{{ $t('common.operate.reload_page') }}</button>
+                <div class="panel-load-error">
+                  <p class="panel-load-error__message" role="alert">{{ $t('common.tips.interface_load_failed') }}</p>
+                  <button class="panel-load-error__action" type="button" @click="reloadNuxtApp()">{{ $t('common.operate.reload_page') }}</button>
+                </div>
               </template>
             </NuxtErrorBoundary>
           </template>
@@ -1152,6 +1156,58 @@ renderServerData()
     min-width: 44px;
   }
 }
+.panel-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  min-width: 0;
+  font-family: var(--slax-font-sans);
+
+  &__message {
+    margin: 0;
+    color: var(--slax-text-muted);
+    font-size: var(--slax-fs-aux);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  &__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 112px;
+    max-width: 100%;
+    padding: 8px 18px;
+    border: 1px solid var(--slax-border-strong);
+    border-radius: var(--slax-radius-sm);
+    background: var(--slax-surface-solid);
+    color: var(--slax-text);
+    font-family: inherit;
+    font-size: var(--slax-fs-aux);
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--slax-accent);
+      background: var(--slax-surface);
+    }
+
+    &:active {
+      background: var(--slax-accent-bg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--slax-accent);
+      outline-offset: 2px;
+    }
+  }
+}
+
 .pdf-ai-unavailable {
   padding: 24px;
   font-size: var(--slax-fs-aux);

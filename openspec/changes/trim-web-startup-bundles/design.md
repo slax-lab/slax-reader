@@ -18,6 +18,12 @@ Panel deferral is restricted to `/b/:id`, within the four routes the user select
 - The existing bookmark composable queues only user quote intent until the real chat ref exposes addQuoteData. The queue is consumed once and cleared on account/scope changes. This is necessary application behavior, not a resource loader.
 - A pre-existing immediate chat watcher called addLog before its const declaration when mounted already visible. Move the unchanged callback before the watcher and cover that initial state in the existing tests.
 
+## Recovery-state presentation
+
+During hands-on preparation the user reported that the reload controls were unstyled and did not respect the existing design. Correct this locally rather than redesigning the reader: use the same 24px sidebar padding and auxiliary sans-serif text as the existing unavailable state, plus the established bordered secondary-button pattern. The reload action is not a new prominent primary action.
+
+Use existing `--slax-text`, `--slax-text-muted`, `--slax-border-strong`, `--slax-surface-solid`, `--slax-surface`, `--slax-accent`, `--slax-accent-bg`, `--slax-radius-sm`, `--slax-fs-aux` and `--slax-font-sans` values. Provide a 44px minimum hit height, visible keyboard focus, hover and pressed states. Add no raw color, new icon, shadow or animation. Keep the warning and user-initiated reload semantics unchanged. Verify the same error state in light, dark and e-ink, at desktop and narrow mobile widths, before asking for acceptance again. This is an existing-pattern correction under DESIGN.md §10.1, not a new layout requiring a separate discovery demo.
+
 ## Removed infrastructure
 
 Delete DeferredSnapshotPanel.vue, deferredUi.ts, deferredModal.ts, both custom resource-hint helpers, their specialized tests, the generated dependency-index build plugin, the index fetch, resource prefetch loop, custom promise cache and related compile-time define. No replacement resource-index format, blob loader, fetch-before-import system or module URL rewriting is introduced.

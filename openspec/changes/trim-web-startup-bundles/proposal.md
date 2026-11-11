@@ -27,6 +27,10 @@ The user explicitly narrowed optimization targets to `/b/:id`, `/c/:id`, `/login
 
 None. Synchronization, authorization, article content and rendering feature contracts remain unchanged.
 
+## Hands-on feedback
+
+The user requested preparing extreme-condition pages for personal inspection, then reported that the reload buttons were unstyled and inconsistent with the established Web design. This revision corrects the existing error slots using current sidebar spacing, semantic theme tokens and bordered secondary-button patterns. It does not redesign the reader, introduce a new component/loading framework or change recovery behavior. Human acceptance is still pending the corrected light/dark/e-ink and narrow-screen states.
+
 ## Impact
 
 Changes are limited to Web panel/modal entrypoints, the existing bookmark composable, one build hook, error strings and associated tests, plus the original shared text extraction. No new dependencies, manual vendor chunks, generated runtime index, browser fetch loader, mobile sync disablement, database cleanup or CDN configuration.
