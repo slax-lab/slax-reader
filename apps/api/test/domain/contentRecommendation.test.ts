@@ -1,8 +1,9 @@
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { Prisma, PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
+import { Prisma, type PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
 import { ContentRecommendationService } from '../../src/domain/contentRecommendation'
-import type { VectorMaintenanceService } from '../../src/domain/vectorMaintenance'
+import { VectorMaintenanceService } from '../../src/domain/vectorMaintenance'
+import { VectorMaintenanceRepo } from '../../src/infra/repository/dbVectorMaintenance'
 import { ContentRecommendationRepo } from '../../src/infra/repository/dbContentRecommendation'
 import { articleVectorId, type ArticleVectorIdentity } from '../../src/utils/vectorMaintenanceTypes'
 import { cosineSimilarity, mmrSelect } from '../../src/utils/recommendationAlgorithms'
@@ -245,5 +246,85 @@ describe('Collection ranking and revocation', () => {
     vi.mocked(missing.readUser).mockResolvedValue(null)
     expect(await new ContentRecommendationService(db, missing).collections(1)).toEqual({ items: [], preferenceKind: 'collection', reason: 'cold_start' })
     expect(missing.queryCollections).not.toHaveBeenCalled()
+  })
+})
+
+describe('request-time subscribed Collection preference with real eligibility SQL', () => {
+  function pullRuntime() {
+    const prisma = {
+      $queryRaw: async (parts: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => {
+        const query = Array.isArray(parts) ? Prisma.sql(parts as TemplateStringsArray, ...values) : (parts as Prisma.Sql)
+        return (await pg.query(query.text, query.values)).rows
+      }
+    } as unknown as HyperdrivePrismaClient
+    const stored = new Map<number, number[]>([[20, axis(0)], [30, axis(1)], [40, axis(0)]])
+    const index = {
+      get: vi.fn(async (kind: string, ids: string[]) => {
+        expect(kind).toBe('collection')
+        return ids.flatMap(key => {
+          const vector = stored.get(Number(key.slice(2)))
+          return vector ? [{ id: key, values: vector }] : []
+        })
+      }),
+      query: vi.fn(async () => [20, 30, 40, 50, 60, 70].map(id => ({ id: `c:${id}`, score: 1 }))),
+      upsert: vi.fn(),
+      delete: vi.fn()
+    }
+    const preferences = { apply: vi.fn(), rebuild: vi.fn() }
+    const embeddings = { embed: vi.fn() }
+    const vectors = new VectorMaintenanceService(new VectorMaintenanceRepo(() => prisma), {} as never, embeddings as never, index as never, preferences as never)
+    const service = new ContentRecommendationService(db, vectors)
+    const assertReadOnly = () => {
+      for (const method of [index.upsert, index.delete, embeddings.embed, preferences.apply, preferences.rebuild]) expect(method).not.toHaveBeenCalled()
+    }
+    return { vectors, service, index, stored, assertReadOnly }
+  }
+
+  test('changes candidates and preference from current sources and subscription actions, without refresh', async () => {
+    const f = pullRuntime()
+    const initial = await f.service.collections(1, 'collection', 1)
+    expect(initial.items.map(item => item.id)).toEqual([40])
+    expect(f.index.query.mock.calls[0][1]).toEqual(axis(0))
+    f.stored.set(20, axis(1))
+    const changed = await f.service.collections(1, 'collection', 1)
+    expect(changed.items.map(item => item.id)).toEqual([30])
+    expect(f.index.query.mock.calls.at(-1)![1]).toEqual(axis(1))
+
+    await pg.exec('INSERT INTO sr_user_collection_subscriber(user_id,collection_id) VALUES(1,30)')
+    expect((await f.service.collections(1)).items.some(item => item.id === 30)).toBe(false)
+    await pg.exec('DELETE FROM sr_user_collection_subscriber WHERE user_id=1 AND collection_id=20')
+    expect(await f.vectors.readUser(1, 'collection')).toEqual(axis(1))
+    await pg.exec('DELETE FROM sr_user_collection_subscriber WHERE user_id=1')
+    f.index.query.mockClear()
+    expect(await f.service.collections(1)).toEqual({ items: [], preferenceKind: 'collection', reason: 'cold_start' })
+    expect(f.index.query).not.toHaveBeenCalled()
+    expect(await f.service.articles(1)).toEqual({ items: [], preferenceKind: 'article', reason: 'no_public_candidates' })
+    f.assertReadOnly()
+  })
+
+  test.each([
+    ['expired', "UPDATE sr_user_collection_subscriber SET subscription_end_time=now()-interval '1 day' WHERE user_id=1"],
+    ['inactive', 'UPDATE sr_user_collection_subscriber SET is_active=false WHERE user_id=1'],
+    ['deleted subscription', 'UPDATE sr_user_collection_subscriber SET is_deleted=true WHERE user_id=1'],
+    ['closed Collection', 'UPDATE sr_user_collection SET status=0 WHERE id=20'],
+    ['deleted owner', 'UPDATE sr_user SET deleted_at=now() WHERE id=2'],
+    ['deleted subscriber', 'UPDATE sr_user SET deleted_at=now() WHERE id=1'],
+    ['owner sharing revoked', 'UPDATE sr_user SET snapshot_sharing=false WHERE id=2']
+  ])('excludes %s on the next read', async (_name, sql) => {
+    const f = pullRuntime()
+    expect(await f.vectors.readUser(1, 'collection')).toEqual(axis(0))
+    await pg.exec(sql)
+    f.index.get.mockClear()
+    expect(await f.service.collections(1)).toMatchObject({ items: [], reason: 'cold_start' })
+    expect(f.index.get).not.toHaveBeenCalled()
+    f.assertReadOnly()
+  })
+
+  test('renewal cancellation preserves entitlement and own Collections never contribute', async () => {
+    const f = pullRuntime()
+    await pg.exec('UPDATE sr_user_collection_subscriber SET is_cancelled=true,auto_renew=false WHERE user_id=1; INSERT INTO sr_user_collection_subscriber(user_id,collection_id) VALUES (2,20)')
+    expect(await f.vectors.readUser(1, 'collection')).toEqual(axis(0))
+    expect(await f.vectors.readUser(2, 'collection')).toBeNull()
+    f.assertReadOnly()
   })
 })

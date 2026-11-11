@@ -168,9 +168,9 @@ test('actual Workerd serves the fixed-key task routes through Edge and Core', as
       {
         path: '/v1/collection/preference/refresh',
         body: { user_id: 7 },
-        state: 'deleted',
+        state: 'empty',
         target: { kind: 'user', id: 7, preference: 'collection' },
-        vectorIds: ['u:7:collection']
+        vectorIds: []
       }
     ] as const
 
@@ -190,10 +190,7 @@ test('actual Workerd serves the fixed-key task routes through Edge and Core', as
     }
 
     for (const worker of [core, edge]) {
-      for (const [path, preference] of [
-        ['/v1/bookmark/preference/refresh', 'article'],
-        ['/v1/collection/preference/refresh', 'collection']
-      ] as const) {
+      for (const [path, preference] of [['/v1/bookmark/preference/refresh', 'article']] as const) {
         const response = await post(worker, path, { user_id: 8 }, task)
         expect(response.status).toBe(200)
         expect(await response.json()).toMatchObject({
@@ -257,6 +254,68 @@ test('actual Workerd serves the fixed-key task routes through Edge and Core', as
       const body = (await response.json()) as { code: number; data: unknown }
       expect(body.code).toBe(400)
       expect(body.data).toBe('ERROR_PARAM')
+    }
+
+    const fixture = async (body: Record<string, unknown>) => {
+      const response = await post(core, '/__fixture', body)
+      expect(response.status).toBe(200)
+      return response.json() as Promise<{ upserts: number; deletes: number; embeddings: number; reads: string[][]; users: number[]; legacy: boolean }>
+    }
+    const auth = { Authorization: `Bearer ${readerToken}` }
+    const recommend = async () => {
+      const response = await edge.fetch(`${API_ORIGIN}/v1/recommendations/collections?limit=1`, { headers: auth })
+      expect(response.status).toBe(200)
+      expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+      const body = (await response.json()) as {
+        code: number
+        data: { items: { id: number; code: string; score: number }[]; reason?: string; algorithm: string; impressionId: string }
+      }
+      expect(body.code).toBe(200)
+      expect(body.data.impressionId).toMatch(/^[a-f0-9-]{36}$/)
+      expect(body.data.algorithm).toEqual(expect.any(String))
+      return body.data
+    }
+
+    await fixture({ op: 'seed' })
+    expect((await recommend()).items.map(item => item.id)).toEqual([301])
+    await fixture({ op: 'source', id: 201, axis: 3 })
+    expect((await recommend()).items.map(item => item.id)).toEqual([302])
+    let stats = await fixture({ op: 'stats' })
+    expect(stats).toMatchObject({ upserts: 0, deletes: 0, embeddings: 0, legacy: true })
+    expect(stats.users.every(id => id === 7)).toBe(true)
+    expect(stats.reads.flat().every(id => id.startsWith('c:'))).toBe(true)
+
+    const noAuth = await edge.fetch(`${API_ORIGIN}/v1/recommendations/collections`)
+    expect([401, 403]).toContain(noAuth.status)
+    const before = stats.users.length
+    const foreign = await edge.fetch(`${API_ORIGIN}/v1/recommendations/collections?user_id=8`, { headers: auth })
+    expect(foreign.status).toBe(400)
+    expect((await fixture({ op: 'stats' })).users).toHaveLength(before)
+
+    await fixture({ op: 'source', id: 201 })
+    expect(await recommend()).toMatchObject({ items: [], reason: 'cold_start' })
+    expect((await fixture({ op: 'stats' })).legacy).toBe(true)
+    await fixture({ op: 'source', id: 201, axis: 2 })
+    expect((await post(edge, '/v1/collection/subscribe', { collect_code: 'source202' }, auth)).status).toBe(200)
+    expect((await post(edge, '/v1/collection/unsubscribe', { collect_code: 'source201' }, auth)).status).toBe(200)
+    expect((await recommend()).items.map(item => item.id)).toEqual([302])
+    expect((await post(edge, '/v1/collection/delete_subscribe', { collect_code: 'source202' }, auth)).status).toBe(200)
+    expect(await recommend()).toMatchObject({ items: [], reason: 'cold_start' })
+    stats = await fixture({ op: 'stats' })
+    expect(stats).toMatchObject({ upserts: 0, deletes: 0, embeddings: 0, legacy: true })
+
+    for (const worker of [core, edge]) {
+      await fixture({ op: 'seed' })
+      const denied = await post(worker, '/v1/collection/preference/refresh', { user_id: 7 }, auth)
+      expect(denied.status).toBe(401)
+      expect((await fixture({ op: 'stats' })).legacy).toBe(true)
+      const cleaned = await post(worker, '/v1/collection/preference/refresh', { user_id: 7 }, task)
+      expect(await cleaned.json()).toMatchObject({ code: 200, data: { state: 'deleted', reason: 'collection_preference_on_demand', vectorIds: ['u:7:collection'] } })
+      stats = await fixture({ op: 'stats' })
+      expect(stats).toMatchObject({ upserts: 0, deletes: 1, embeddings: 0, users: [], legacy: false })
+      const again = await post(worker, '/v1/collection/preference/refresh', { user_id: 7 }, task)
+      expect(await again.json()).toMatchObject({ code: 200, data: { state: 'empty', reason: 'collection_preference_on_demand', vectorIds: [], mutationIds: [] } })
+      expect((await fixture({ op: 'stats' })).deletes).toBe(1)
     }
 
     const wrongMethod = await core.fetch(`${API_ORIGIN}/v1/bookmark/vector/refresh`, { method: 'GET', headers: task })

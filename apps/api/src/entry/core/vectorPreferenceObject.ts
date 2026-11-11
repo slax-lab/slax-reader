@@ -20,6 +20,10 @@ export class VectorPreferenceObject extends DurableObject<Env> implements Vector
     return this.queue.submit({ kind: 'rebuild', userId, publish })
   }
 
+  publish(userId: number, publish: PreferencePublish): Promise<VectorRefreshResult[]> {
+    return this.queue.submit({ kind: 'publish', userId, publish })
+  }
+
   protected async open(): Promise<{ service: VectorMaintenanceService; close: () => Promise<void> }> {
     initializeCore()
     const ctx = new ContextManager(this.ctx as unknown as ExecutionContext, this.env)

@@ -91,7 +91,9 @@ async function host(t, scenario = 'reader-pdf-import') {
       if (name === '@powersync/react-native') return {PowerSyncDatabase: Database, Table, Schema, column: {text: 'TEXT', integer: 'INTEGER'}};
       if (name === '../src/config') return {mobileConfig: {platform: 'android'}};
       if (name === '../src/native/platform') return {activateReaderResources: async owner => {resourceOwner = owner; events.push(['activate', owner]);}, revokeReaderResources: async () => {resourceOwner = null; events.push(['revoke']);}};
+      if (name === '@slax-reader/contracts/const') return load(path.resolve(mobile, '../../packages/contracts/src/const.ts'));
       if (name === '@slax-reader/contracts/pdf') return load(path.resolve(mobile, '../../packages/contracts/src/pdf.ts'));
+      if (name === '@slax-reader/contracts/email-auth') return load(path.resolve(mobile, '../../packages/contracts/src/email-auth.ts'));
       let target = path.resolve(path.dirname(filename), name); if (!path.extname(target)) target = fs.existsSync(`${target}.ts`) ? `${target}.ts` : path.join(target, 'index.ts'); return load(target);
     }}, {filename}); return exports;
   }

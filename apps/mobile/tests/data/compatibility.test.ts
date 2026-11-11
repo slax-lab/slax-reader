@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {PreferenceStore} from '../../src/data/preferences.ts';
-import {decodeLegacyPreferences, migrateLegacyPreferences} from '../../src/data/legacy-preferences.ts';
-import {verifiedDatabaseLocation, UpgradeVerificationRequired} from '../../src/data/upgrade.ts';
+import {migrateLegacyPreferences} from '../../src/data/legacy-preferences.ts';
 import {imageCachePath} from '../../src/data/cache-paths.ts';
 import {bookmarkCacheKey, MobileRepositories} from '../../src/data/repositories.ts';
 import type {SqlDatabase, SqlTransaction} from '../../src/data/repositories.ts';
@@ -16,40 +15,39 @@ const varint = (value: bigint): number[] => {const bytes: number[] = []; do {con
 const message = (tag: number, data: number[]) => [tag, ...varint(BigInt(data.length)), ...data];
 const string = (value: string) => Array.from(new TextEncoder().encode(value));
 const entry = (name: string, value: number[]) => message(10, [...message(10, string(name)), ...message(18, value)]);
-test('legacy AndroidX proto imports all installation preferences atomically and idempotently', async () => {
-  const bytes = [
-    ...entry('auth_token', message(42, string('fixture-token'))), ...entry('user_id', message(42, string('fixture-user'))),
-    ...entry('cache_count', [24, ...varint(BigInt.asUintN(64, -1n))]), ...entry('download_images', [24, 0]),
-    ...entry('powersync_refresh_time', [32, ...varint(1720000000123n)]), ...entry('analytics_device_id', message(42, string('stable-fixture'))),
-    ...entry('user_language', message(42, string('ja'))), ...entry('selected_env', message(42, string('dev'))),
-    ...entry('last_refresh_time', message(42, string('1720000000'))), ...entry('continue_reading_bookmark', message(42, string('{"bookmarkId":"b","title":"t","collectionOwnerId":"owner"}'))),
-    ...entry('user_setting_detail_do_not_alert', message(42, string('true'))),
-  ];
+test('legacy preferences carry only identity and are not imported again', async () => {
+  const bytes = [...entry('auth_token', message(42, string('fixture-token'))), ...entry('user_id', message(42, string('fixture-user'))), ...entry('cache_count', [24, 5]), ...entry('analytics_device_id', message(42, string('stable-fixture')))];
   const store = new PreferenceStore(new MemoryPreferences()); let reads = 0;
-  const source = {readLegacyPreferences: async () => {reads++; return {bytes, fingerprint: 'fixture-fingerprint'};}};
+  const source = {readLegacyPreferences: async () => {reads++; return {bytes};}};
   assert.equal(await migrateLegacyPreferences(store, source), 'migrated');
-  assert.equal(await migrateLegacyPreferences(store, source), 'already-migrated'); assert.equal(reads, 1);
-  const settings = await store.settings(); assert.equal(settings.cacheCount, -1); assert.equal(settings.downloadImages, false); assert.equal(settings.detailDoNotAlert, true);
-  assert.equal((await store.read()).powersync_refresh_time, 1720000000123);
+  assert.equal(await migrateLegacyPreferences(store, source), 'already-migrated');
+  assert.equal(reads, 1);
+  assert.equal((await store.read()).auth_token, 'fixture-token');
+  assert.equal((await store.read()).cache_count, undefined);
   assert.equal(await store.deviceId(() => 'replacement'), 'stable-fixture');
-  assert.throws(() => decodeLegacyPreferences(new Uint8Array(entry('future-bytes', message(66, [1, 2])))), /stopped/);
-  assert.throws(() => decodeLegacyPreferences(new Uint8Array([10, 100, 1])), /Truncated/);
 });
-test('CAS contention preserves an extension update while importing original preferences', async () => {
+test('legacy reset clears pending logout and never resurrects the old account', async () => {
+  const storage = new MemoryPreferences({auth_token: 'old', user_id: 'old-user', _slax_sign_out_pending_v1: true, _slax_database_adoption_v1: 'broken', _slax_account_cleanup_required_v1: true, powersync_token: 'old-sync'});
+  const store = new PreferenceStore(storage);
+  await migrateLegacyPreferences(store, {readLegacyPreferences: async () => {throw new Error('must not import after logout');}}, undefined, true);
+  assert.deepEqual(storage.values, {_slax_preferences_migration_v1: 'initialized'});
+});
+test('corrupt legacy preferences fall back to login instead of blocking reset', async () => {
+  const storage = new MemoryPreferences();
+  await migrateLegacyPreferences(new PreferenceStore(storage), {readLegacyPreferences: async () => ({bytes: [10, 100, 1]})}, undefined, true);
+  assert.deepEqual(storage.values, {_slax_preferences_migration_v1: 'initialized'});
+});
+test('legacy reset retains current session and discards old migration state', async () => {
+  const storage = new MemoryPreferences({auth_token: 'current', user_id: 'current-user', selected_env: 'BETA', _slax_database_adoption_v1: 'failed', continue_reading_bookmark: 'old-position', _slax_preferences_migration_v1: 'previous'});
+  await migrateLegacyPreferences(new PreferenceStore(storage), {readLegacyPreferences: async () => null}, undefined, true);
+  assert.deepEqual(storage.values, {auth_token: 'current', user_id: 'current-user', selected_env: 'BETA', _slax_preferences_migration_v1: 'initialized'});
+});
+test('CAS contention preserves a newer complete identity during import', async () => {
   const storage = new MemoryPreferences(), store = new PreferenceStore(storage);
-  storage.beforeSwap = () => {storage.beforeSwap = undefined; storage.values = {auth_token: 'extension-new'}; storage.revision++;};
-  await migrateLegacyPreferences(store, {readLegacyPreferences: async () => ({bytes: entry('auth_token', message(42, string('legacy-old'))), fingerprint: 'source'})});
-  assert.equal((await store.read()).auth_token, 'extension-new');
-  assert.equal((await store.read())._slax_preferences_migration_v1, 'source');
-});
-test('existing database requires complete adoption evidence and no filename fallback', () => {
-  const inventory = {scanComplete: true, databaseCandidates: ['/legacy/powersync.db'], legacyDataDirectory: '/legacy', newDatabaseDirectory: '/new'};
-  assert.throws(() => verifiedDatabaseLocation(inventory), UpgradeVerificationRequired);
-  assert.throws(() => verifiedDatabaseLocation({...inventory, scanComplete: false, databaseCandidates: []}), UpgradeVerificationRequired);
-  assert.deepEqual(verifiedDatabaseLocation({...inventory, databaseCandidates: []}), {dbFilename: 'powersync.db', dbLocation: '/new', adopted: false});
-  const evidence = {databasePath: '/legacy/powersync.db', legacySdk: 'powersync-kotlin-1.14.1', targetSdk: 'powersync-react-native-2.3.1', schemaVersion: '2', supportedOnDiskAdoption: true, verifiedFixtures: {pendingQueue: true, transactionBoundaries: true, offlineRows: true, localJson: true, reconnectOrder: true}, report: 'test fixture, not a device acceptance report'} as const;
-  assert.deepEqual(verifiedDatabaseLocation(inventory, evidence), {dbFilename: 'powersync.db', dbLocation: '/legacy', adopted: true});
-  assert.throws(() => verifiedDatabaseLocation({...inventory, databaseCandidates: ['/different/powersync.db']}, evidence), UpgradeVerificationRequired);
+  storage.beforeSwap = () => {storage.beforeSwap = undefined; storage.values = {auth_token: 'extension-new', user_id: 'new-user'}; storage.revision++;};
+  await migrateLegacyPreferences(store, {readLegacyPreferences: async () => ({bytes: entry('auth_token', message(42, string('legacy-old')))})});
+  assert.equal(storage.values.auth_token, 'extension-new');
+  assert.equal(storage.values.user_id, 'new-user');
 });
 test('cached PowerSync credentials retain milliseconds and cannot race a newer login', async () => {
   const storage = new MemoryPreferences({auth_token: 'a', user_id: 'u', powersync_refresh_time: 1000, powersync_connect_url: 'https://sync.example', powersync_token: testJwt('u'), powersync_api_origin: 'https://api.example', powersync_user_id: 'u'});

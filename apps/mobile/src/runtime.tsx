@@ -15,7 +15,6 @@ import type {MobileTelemetry} from './telemetry/core';
 import type {LoginProvider} from './auth/providers';
 import type {LoginRequest} from './data/api';
 import type {ReaderObservation} from './reader/ReaderWebView';
-import {upgradeVisibilityPhase, validateVisibilityRequest, validateVisibleLegacyProducer, validatePreReconnectVisibility, validatePostServiceVisibility} from './controlled-upgrade-visibility';
 import type {CredentialReadinessState} from './domain/credential-readiness';
 import {SaveURLHost} from './system-actions/SaveURLHost';
 import {createSaveURLController, createSystemEntryRouter, createSystemSurfacesController} from './system-actions/adapters';
@@ -97,35 +96,6 @@ export function FixtureMobileProvider({value, children}: {value: MobileContextVa
   if (!__DEV__) throw new Error('UI fixtures are unavailable in production builds');
   if (!value.fixtureOnly?.dataDirectory.includes('/slax-ui-fixtures/')) throw new Error('UI fixtures require an isolated cache scope');
   return <FixtureContexts value={value}>{children}</FixtureContexts>;
-}
-
-/** Only an original synthetic native installation may render its actual migrated services. */
-export function ControlledUpgradeFixtureProvider({value, device, onReaderObservation, children}: {value: MobileContextValue; device: string; onReaderObservation?: ControlledUpgradeReaderObserver; children: React.ReactNode}) {
-  if (!__DEV__) throw new Error('Controlled upgrade rendering requires a development build');
-  const runtime = value.runtime, cache = runtime.getCache(), session = runtime.sessions.getSnapshot();
-  const cacheDirectory = cache?.dataDirectory;
-  const directory = Platform.OS === 'android' && cacheDirectory ? `${cacheDirectory}/files` : cacheDirectory;
-  const ownedDevice = Platform.OS === 'ios'
-    ? /^[0-9A-Fa-f-]{36}$/.test(device) && directory?.includes(`/CoreSimulator/Devices/${device}/data/Containers/Data/Application/`)
-    : Platform.OS === 'android' && /^emulator-\d+$/.test(device) && cacheDirectory === '/data/user/0/com.slax.reader';
-  if (!ownedDevice || !directory || session.status !== 'authenticated' || session.session.userId !== 'synthetic-user' || session.session.token !== 'fixture-auth-token-NOT-A-REAL-CREDENTIAL') throw new Error('A controlled original synthetic installation is required');
-  if (value.fixtureOnly || value.api !== runtime.api || value.sessions !== runtime.sessions || value.session !== session || value.repositories !== runtime.getRepositories() || value.cache !== cache || value.preferences !== runtime.getAccountPreferences() || value.nativeResourceOwner !== runtime.getNativeResourceOwner() || !value.nativeResourceOwner || value.upgrade !== runtime.getUpgradeSnapshot() || value.upgrade.status !== 'ready') throw new Error('Controlled upgrade views must use the actual active native runtime services');
-  if (runtime.api.options.baseUrl !== 'http://127.0.0.1:9' || value.config.apiUrl !== 'http://127.0.0.1:9') throw new Error('Controlled upgrade rendering requires the blocked loopback transport');
-  const read = (name: string) => {
-    const marker = new File(`${directory}/${name}`);
-    if (!marker.exists) throw new Error('Controlled native acceptance marker is missing');
-    return JSON.parse(marker.textSync()) as Record<string, unknown>;
-  };
-  const source = read('legacy-fixture-report.json'), request = read('native-upgrade-ui-request.json');
-  validateVisibleLegacyProducer(source, Platform.OS);
-  validateVisibilityRequest(request, Platform.OS, device);
-  if (upgradeVisibilityPhase(request.phase) === 'pre-reconnect') {
-    if (new File(`${directory}/native-service-report.json`).exists || new File(`${directory}/native-adoption-report.json`).exists) throw new Error('Pending visibility requires an untouched original queue');
-    validatePreReconnectVisibility(source, request, read('native-upgrade-offline-report.json'), value.nativeResourceOwner);
-  } else validatePostServiceVisibility(Platform.OS, device, read('native-service-report.json'), read('native-runtime-start-report.json'));
-  return <ControlledUpgradeReaderContext.Provider value={onReaderObservation}>
-    <FixtureContexts value={value}>{children}</FixtureContexts>
-  </ControlledUpgradeReaderContext.Provider>;
 }
 
 type AppIntentsRuntimePort = Pick<typeof import('expo-app-intents'), 'isAvailable' | 'useAppIntents' | 'removePendingInvocationAsync' | 'setEntityCatalogAsync' | 'deleteDonationsAsync' | 'donateIntentAsync'>;

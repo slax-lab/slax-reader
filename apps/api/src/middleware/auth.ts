@@ -17,6 +17,7 @@ const whiteList = [
   '/v1/collection/preference/refresh',
   '/v1/diagnostics/download',
   '/v1/user/login',
+  '/v1/user/email/send',
   '/v1/share/detail',
   '/v1/youtube_article/status',
   '/v1/youtube_article/content',
