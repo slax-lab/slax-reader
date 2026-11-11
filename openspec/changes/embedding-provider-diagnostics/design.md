@@ -12,13 +12,13 @@
 
 ## Decisions
 
-- Keep error classification local to the Jina client. Parse only structured error `code`, `detail` and `request_id`; tolerate alternate `detail` object forms without serializing arbitrary nested content.
-- Accept detail only after removing URLs, email addresses, bearer/API-key fragments, quoted long values and excessive length. Structured error codes are restricted to a conservative uppercase pattern. If parsing fails, record only status and the absence of usable structured detail.
-- Emit through a dedicated `[embedding-provider]` error log, separate from the existing `[vector-maintenance]` target error. Return/throw the original error unchanged.
-- Add tests for structured details, malformed responses, credential/URL/email/long-input redaction and success silence. Deploy only after local tests and builds, then capture the two test failures with Core logs.
+- Keep error classification local to the Jina client. Parse only structured error `code` and `request_id`. Alternate `detail` object forms are ignored rather than serialized.
+- Retain only static safe detail labels for a small allowlist of known provider codes; never log arbitrary provider detail, whether single-line, multi-line, quoted or unquoted. Structured error codes use a conservative uppercase pattern. If parsing fails, record only status.
+- Emit through a dedicated `[embedding-provider]` error log, separate from the existing `[vector-maintenance]` target error. Return/throw the original error unchanged. Preserve the request ID from the body or header independently of detail presence.
+- Add tests for structured detail shapes, multi-line article excerpts, malformed responses and success silence. Keep this delivery PR-only: no deployment or replay is authorized here.
 
 ## Risks / Trade-offs
 
-- Provider detail may itself contain user text: discard quoted long values and bound detail; never include request inputs or raw JSON.
-- An error may be non-JSON or have no usable detail: preserve the generic status rather than inventing a cause.
-- Logging adds one diagnostic per failed request, not per successful request or article-history scan. No new remote calls beyond the already authorized replay.
+- Provider detail may itself contain user text: do not log it at all. Use only static labels for known codes and retain the provider's structured code to identify other causes.
+- An error may be non-JSON or have no allowlisted detail: preserve the generic status/code rather than echoing input or inventing a cause.
+- Logging adds one diagnostic per failed request, not per successful request or article-history scan. This delivery adds no remote calls.
