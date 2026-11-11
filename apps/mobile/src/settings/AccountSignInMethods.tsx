@@ -17,16 +17,16 @@ interface AccountSignInMethodsProps {
 
 export function AccountSignInMethods({t, locale, platform, state, api}: AccountSignInMethodsProps) {
   const {platforms, development, busy, error, emailFlow} = state;
-  if (!platforms) return null;
+  if (!development || !platforms) return null;
   const linked = new Map(platforms.map(item => [item.platform, item]));
   const email = linked.get('mail');
   return <View style={styles.card}>
     <SourceText accessibilityRole="header" style={T.button}>{t('email_auth_methods')}</SourceText>
-    {development && (email ? <View>
+    {email ? <View>
       <SourceText style={styles.secondary}>{t('email_auth_address')}</SourceText>
       <SourceText selectable>{email.user_name}</SourceText>
     </View> : <SourceButton label={t('email_auth_bind')} tone="surface" style={styles.button}
-      disabled={Boolean(busy)} onPress={state.openEmail} />)}
+      disabled={Boolean(busy)} onPress={state.openEmail} />}
     {linked.has('google') ? <SourceText style={styles.secondary}>{t('email_auth_google_linked')}</SourceText>
       : <SourceButton label={t('email_auth_link_google')} tone="surface" style={styles.button}
         busy={busy === 'google'} disabled={busy === 'apple'} onPress={() => {void state.linkProvider('google');}} />}
@@ -35,7 +35,7 @@ export function AccountSignInMethods({t, locale, platform, state, api}: AccountS
       : <SourceButton label={t('email_auth_link_apple')} tone="surface" style={styles.button}
         busy={busy === 'apple'} disabled={busy === 'google'} onPress={() => {void state.linkProvider('apple');}} />}
     {error && <SourceText accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{t(error)}</SourceText>}
-    {development && !email && emailFlow && <EmailCodeDialog mode="binding" t={t} locale={locale}
+    {!email && emailFlow && <EmailCodeDialog mode="binding" t={t} locale={locale}
       send={api.sendBindingEmail} verify={api.verifyBindingEmail} isCurrent={emailFlow.current}
       onVerified={state.emailLinked} onClose={state.closeEmail} />}
   </View>;

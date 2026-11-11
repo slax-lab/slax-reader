@@ -1,7 +1,7 @@
 <template>
-  <section class="login-methods" :aria-labelledby="titleId">
+  <section v-if="showSignInMethods" class="login-methods" :aria-labelledby="titleId">
     <h3 :id="titleId">{{ t('email_auth.methods_title') }}</h3>
-    <div v-if="showEmailBinding" ref="emailRow" class="login-method-row" tabindex="-1">
+    <div ref="emailRow" class="login-method-row" tabindex="-1">
       <div class="login-method-label">
         <strong>{{ t('email_auth.login_email') }}</strong>
         <span>{{ signInEmailStatus }}</span>
@@ -11,7 +11,7 @@
       </button>
     </div>
     <EmailCodeForm
-      v-if="showEmailBinding && emailOpen && !loginEmail"
+      v-if="emailOpen && !loginEmail"
       class="login-method-email"
       purpose="bind"
       :client="account.api"
@@ -50,7 +50,7 @@ const account = createAccountEmailAuthRequest(props.accountKey)
 const { t } = useI18n()
 const titleId = useId()
 const config = useRuntimeConfig().public
-const showEmailBinding = config.slaxEnv === 'development'
+const showSignInMethods = config.slaxEnv === 'development'
 const providerLinkAvailable = canLinkProvidersHere()
 const supportedProviders: EmailAuthProvider[] = [
   ...(config.GOOGLE_OAUTH_CLIENT_ID ? ['google' as const] : []),

@@ -86,21 +86,21 @@ describe('Account sign-in methods', () => {
     } })
 
     expect(wrapper.text().includes('Same as profile email')).toBe(environment === 'development')
-    expect(wrapper.findAll('.login-method-row')).toHaveLength(environment === 'development' ? 2 : 1)
-    expect(wrapper.text()).toContain('GoogleLinked')
+    expect(wrapper.findAll('.login-method-row')).toHaveLength(environment === 'development' ? 2 : 0)
+    expect(wrapper.text().includes('GoogleLinked')).toBe(environment === 'development')
+    expect(wrapper.find('section').exists()).toBe(environment === 'development')
     expect(wrapper.find('button').exists()).toBe(false)
   })
 
   it('shows Apple as linked from the platform list when the client is configured', () => {
     oauth.appleClientId = 'apple-client'
-    oauth.environment = 'production'
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: {
       accountKey,
       platform: [...platforms, { platform: 'apple', user_name: 'reader@privaterelay.appleid.com', created_at: new Date('2026-11-01T00:00:00Z') }]
     } })
 
     expect(wrapper.text()).toContain('AppleLinked')
-    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Link email'])
   })
 
   it('does not mistake the mail-collection platform for a login mailbox', async () => {
@@ -122,21 +122,23 @@ describe('Account sign-in methods', () => {
     expect(wrapper.text()).toContain('Provider linking is unavailable from this Web address')
   })
 
-  it.each(['preview', 'beta', 'production'])('hides email binding in %s while keeping provider linking available', async environment => {
+  it.each(['preview', 'beta', 'production'])('hides the entire sign-in methods section in %s', async environment => {
     oauth.environment = environment
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, platform: [] } })
     await flushPromises()
 
-    expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Link Google'])
+    expect(wrapper.find('section').exists()).toBe(false)
+    expect(wrapper.text()).toBe('')
+    expect(wrapper.findAll('button')).toHaveLength(0)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('does not navigate with a provider challenge for a different sign-in method', async () => {
-    oauth.environment = 'production'
     fetchMock.mockResolvedValueOnce(json({ type: 'apple', state: 'link.fixture', nonce: 'nonce' }))
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, platform: [] } })
     const previousUrl = location.href
 
-    await wrapper.get('button').trigger('click')
+    await wrapper.findAll('button')[1]!.trigger('click')
     await flushPromises()
 
     expect(wrapper.get('[role="alert"]').text()).toContain('We couldn’t link this sign-in method')

@@ -64,14 +64,14 @@ The system SHALL require an active authenticated session and proof of the added 
 #### Scenario: A reader uses a non-development client
 
 - **WHEN** a reader opens a login page, login modal, or account settings in beta or production during the initial rollout
-- **THEN** Web, iOS and Android hide email login entries, code forms, mailbox binding actions, and linked login-email status, including for an account with an existing mailbox binding
-- **AND** Google and Apple sign-in remain available according to the existing platform support
+- **THEN** Web, iOS and Android hide email login entries and code forms, and omit the entire new account sign-in methods section, including its heading, mailbox/provider linking actions, and linked identity status, even for an account with an existing mailbox binding
+- **AND** the original Google and Apple login entries remain available according to the existing platform support
 - **AND** callers can still issue and verify login codes and authenticated mailbox binding codes through the API when the email credentials are configured
 
 #### Scenario: A reader uses a development client
 
 - **WHEN** a reader opens development Web, iOS, or Android login or account settings
-- **THEN** the client offers email-code login and shows the linked mailbox or its binding action according to the existing account state
+- **THEN** the client offers email-code login and the complete account sign-in methods section according to the existing account state
 
 #### Scenario: An email-first user links a provider
 
