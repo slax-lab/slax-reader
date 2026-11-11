@@ -949,7 +949,7 @@
       "toast_copied": "Collection link copied",
       "toast_closed": "Collection closed",
       "toast_reopened": "Collection is public again",
-      "default_name": "{name}'s Reading Picks"
+      "default_name": "{name}'s Reading Recommendations"
     },
     "guide": {
       "guides": {

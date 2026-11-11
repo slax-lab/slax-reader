@@ -128,7 +128,7 @@ describe('pages/collection/manage', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(mocks.post).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ name: "Alex's Reading Picks" }) }))
+    expect(mocks.post).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ name: "Alex's Reading Recommendations" }) }))
   })
 
   it('closes and reopens explicitly while keeping the same public address', async () => {

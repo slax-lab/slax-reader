@@ -68,7 +68,7 @@ Add a Web helper invoked only after a successful transition to starred. Each cal
 
 Key the browser-local flag by `userId` so switching accounts in one browser cannot suppress another account's cue. Set the flag only after the cue is presented. The cue action opens `/bookmarks?filter=starred` within the app rather than opening the public collection. It therefore needs no collection-code refresh and has no cross-account address risk. If presentation fails, preserve the successful star result and show the ordinary success Toast. If the flag write fails after presentation, do not append another Toast; the accepted consequence is a possible repeat in that browser. Do not retry aggressively or block later starring.
 
-Call the helper from the successful star paths in `BookmarkCell.vue`, the article-detail starring flow, and `/b/[id]`. Both REST and local-first writes use the same post-success helper. Unstarring and failed writes never invoke it.
+Call the helper from the successful star paths in `BookmarkCell.vue` and the snapshot detail page `/b/[id]`. Both REST and local-first writes use the same post-success helper. Unstarring and failed writes never invoke it.
 
 ## Risks / Trade-offs
 

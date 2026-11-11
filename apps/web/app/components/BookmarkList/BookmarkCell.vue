@@ -583,6 +583,13 @@ const starBookmark = async (isStar: boolean, event?: MouseEvent) => {
   color: inherit;
   text-decoration: none;
 
+  // CursorToast 容器脱流，避免作为 flex 子项造成卡片瞬时位移
+  :deep(.cursor-toast-container) {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
   // 编辑态：恢复默认光标
   &.editing {
     cursor: default;

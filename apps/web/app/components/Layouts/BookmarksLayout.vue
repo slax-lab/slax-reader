@@ -74,6 +74,7 @@ defineExpose({
   padding-top: var(--slax-header-height);
 
   @media (max-width: 768px) {
+    display: block;
     padding-top: var(--slax-header-h-mobile);
   }
 }

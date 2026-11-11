@@ -12,6 +12,8 @@ import { flushPromises } from '@vue/test-utils'
 import { LocalFirstAdapterKey } from '~~/app/composables/local-first/injection'
 import { baseBookmarkItem, makeBookmarkItem } from '~~/tests/fixtures/bookmark'
 import { mountWithApp } from '~~/tests/setup/mount'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PropType } from 'vue'
 
@@ -114,6 +116,19 @@ afterEach(() => {
 })
 
 describe('components/BookmarkList/BookmarkCell', () => {
+  describe('CursorToast layout', () => {
+    it('takes the card-local container out of the flex flow without restyling other toasts', () => {
+      const source = readFileSync(resolve(process.cwd(), 'app/components/BookmarkList/BookmarkCell.vue'), 'utf8')
+      const cardRule = source.match(/\.article-card\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+
+      expect(cardRule).toContain(':deep(.cursor-toast-container)')
+      expect(cardRule).toContain('position: absolute')
+      expect(cardRule).toContain('top: 0')
+      expect(cardRule).toContain('left: 0')
+      expect(source).not.toContain(':global(.cursor-toast-container)')
+    })
+  })
+
   describe('渲染 + computed', () => {
     it('渲染标题 / 站点名 / 日期 + 操作按钮（普通文章 / 非 trashed / 非 subscribe）', () => {
       const wrapper = mountWithApp(BookmarkCell, {
