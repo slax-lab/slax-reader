@@ -45,6 +45,13 @@ mockNuxtImport('navigateTo', () => mockNavigateTo)
 mockNuxtImport('request', () => mockRequest)
 mockNuxtImport('analyticsLog', () => mockAnalyticsLog)
 mockNuxtImport('useI18n', () => mockUseI18n)
+mockNuxtImport('getUserToken', () => () => 'fixture.eyJpZCI6MX0.token')
+mockNuxtImport('useRuntimeConfig', () => () => ({ app: { baseURL: '/' }, public: {
+  slaxEnv: 'development',
+  GOOGLE_OAUTH_CLIENT_ID: 'fixture-google-client',
+  AUTH_BASE_URL: location.origin,
+  DWEB_API_BASE_URL: 'https://api.example.test'
+} }))
 
 const baseUserDetail = {
   name: 'Test User',
@@ -140,6 +147,24 @@ describe('pages/user', () => {
   })
 
   describe('内容态', () => {
+    it('renders sign-in state directly from the normal user platform list', async () => {
+      mockGet.mockImplementation(({ url }: { url: string }) => Promise.resolve(url === '/v1/user/labs' ? { features: [] } : {
+        ...baseUserDetail,
+        platform: [
+          { platform: 'google', user_name: 'reader@gmail.test', created_at: new Date('2026-11-01T00:00:00Z') },
+          { platform: 'mail', user_name: 'signin@example.com', created_at: new Date('2026-11-01T00:00:00Z') }
+        ]
+      }))
+      const wrapper = mountWithApp(UserPage, { global: { stubs } })
+      await flushPromises()
+
+      const methods = wrapper.get('.login-methods')
+      expect(methods.text()).toContain('signin@example.com')
+      expect(methods.text()).toContain('email_auth.linked')
+      expect(methods.findAll('button')).toHaveLength(0)
+      expect(wrapper.get('.profile-email').text()).toContain('test@example.com')
+    })
+
     it('加载完成后渲染 .detail，顶栏用收件箱同款 BookmarksTopBar，不再有自己的返回栏', async () => {
       const wrapper = mountWithApp(UserPage, { global: { stubs } })
       await flushPromises()

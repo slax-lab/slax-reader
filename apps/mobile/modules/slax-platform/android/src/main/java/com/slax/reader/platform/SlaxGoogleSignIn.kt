@@ -10,18 +10,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal object SlaxGoogleSignIn {
-  fun request(webClientId: String): GetCredentialRequest {
+  @JvmOverloads
+  fun request(webClientId: String, nonce: String? = null): GetCredentialRequest {
     require(webClientId.isNotBlank()) { "Google Sign-In client ID has not been configured" }
     val option = GetGoogleIdOption.Builder()
       .setFilterByAuthorizedAccounts(false)
       .setServerClientId(webClientId)
-      .setAutoSelectEnabled(true)
+      .setAutoSelectEnabled(nonce == null)
+      .apply { if (nonce != null) setNonce(nonce) }
       .build()
     return GetCredentialRequest.Builder().addCredentialOption(option).build()
   }
 
-  suspend fun signIn(activity: Activity, webClientId: String): String? = withContext(Dispatchers.Main) {
-    val request = request(webClientId)
+  suspend fun signIn(activity: Activity, webClientId: String, nonce: String? = null): String? = withContext(Dispatchers.Main) {
+    val request = request(webClientId, nonce)
     try {
       val result = CredentialManager.create(activity).getCredential(activity, request)
       GoogleIdTokenCredential.createFrom(result.credential.data).idToken

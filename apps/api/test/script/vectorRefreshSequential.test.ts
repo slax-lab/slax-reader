@@ -39,7 +39,7 @@ describe('direct single-target service surface', () => {
     const query = vi.fn(async () => ({
       rows: [{ id: 40 }, { id: 41 }]
     }))
-    const page = await enumeratePage({ query }, 'subscription', 0, parseRefreshOptions(['--kind', 'subscription', '--ids', '40,41']))
+    const page = await enumeratePage({ query }, 'article-preference', 0, parseRefreshOptions(['--kind', 'article-preference', '--ids', '40,41']))
     expect(page.rows).toEqual([
       { cursor: 40, userId: 40 },
       { cursor: 41, userId: 41 }
@@ -81,8 +81,8 @@ describe('sequential caller continuation', () => {
   test('one user target is sent once per preference stage even with several subscriptions', async () => {
     const query = vi.fn(async (_text: string, values: unknown[]) => ({ rows: values[0] === 0 ? [{ id: 3 }] : [] }))
     const send = vi.fn(async () => accepted())
-    await runVectorRefresh(parseRefreshOptions(['--kind', 'subscription']), { db: { query }, send })
-    expect(send).toHaveBeenCalledExactlyOnceWith('subscription', { cursor: 3, userId: 3 })
+    await runVectorRefresh(parseRefreshOptions(['--kind', 'article-preference']), { db: { query }, send })
+    expect(send).toHaveBeenCalledExactlyOnceWith('article-preference', { cursor: 3, userId: 3 })
     expect(query.mock.calls[0][0]).not.toMatch(/sr_user_collection_subscriber|subscription_id/)
   })
 

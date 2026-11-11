@@ -19,8 +19,9 @@
 
       <!-- 登录按钮 -->
       <div v-if="showLoginBtn" class="auth-btns">
-        <GoogleLoginButton ref="googleLoginBtn" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" />
-        <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" />
+        <EmailLoginForm ref="emailLogin" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" />
+        <GoogleLoginButton ref="googleLoginBtn" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" @click.capture="emailLogin?.cancel()" />
+        <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" @click.capture="emailLogin?.cancel()" />
       </div>
 
       <!-- 服务条款 -->
@@ -37,6 +38,7 @@
 <script lang="ts" setup>
 import AppleLoginButton from '~/components/AppleLoginButton.vue'
 import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
+import EmailLoginForm from '~/components/Login/EmailLoginForm.vue'
 
 import type { AcquisitionAuthAttribution } from '@slax-reader/contracts/events'
 import type { PropType } from 'vue'
@@ -73,6 +75,7 @@ const showLoginBtn = computed(() => {
 })
 
 const googleLoginBtn = ref<InstanceType<typeof GoogleLoginButton>>()
+const emailLogin = ref<InstanceType<typeof EmailLoginForm>>()
 
 if (route.query.from === 'homepage') {
   googleLoginBtn.value?.login()

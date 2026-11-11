@@ -8,12 +8,6 @@ export const configuredCookieName = (value: unknown): string | undefined => {
   return name ? name : undefined
 }
 
-export const requireConfiguredCookieName = (value: unknown): string => {
-  const name = configuredCookieName(value)
-  if (!name) throw new Error('Invalid auth cookie configuration: COOKIE_TOKEN_NAME must be a non-empty string')
-  return name
-}
-
 export const readStringCookie = (name: unknown, cookies: CookieReader = useCookies()): string | undefined => {
   const validName = configuredCookieName(name)
   if (!validName) return undefined
@@ -21,3 +15,14 @@ export const readStringCookie = (name: unknown, cookies: CookieReader = useCooki
   const value = cookies.get<unknown>(validName, { doNotParse: true })
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
+
+export const persistSessionCookie = (token: string, signal?: AbortSignal): Promise<boolean> =>
+  fetch('/api/auth/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+    signal
+  }).then(
+    r => r.ok,
+    () => false
+  )

@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { createMemoryHistory, createRouter } from 'vue-router'
+
+import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
   token: vi.fn(),
@@ -62,6 +63,21 @@ describe('public document navigation and BFCache lifecycle', () => {
     await setup()
     expect(await exit('/bookmarks', '/bookmarks?campaign=x#top')).toBe(false)
     expect(state.navigate).toHaveBeenCalledExactlyOnceWith('/bookmarks?campaign=x#top', { external: true })
+  })
+  it('reloads a bypassed root when the destination is the current URL with an anchor', async () => {
+    const path = '/?campaign=x#inbox'
+    const previousURL = window.location.href
+    window.history.replaceState(null, '', path)
+    const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {})
+    try {
+      await setup()
+      expect(await exit('/', path)).toBe(false)
+      expect(await exit('/', path)).toBe(false)
+      expect(reload).toHaveBeenCalledOnce()
+      expect(state.navigate).not.toHaveBeenCalled()
+    } finally {
+      window.history.replaceState(null, '', previousURL)
+    }
   })
   it.each(['/login', '/login/', '/guide', '/guide/'])('keeps %s query/hash navigation in the SPA', async path => {
     await setup()

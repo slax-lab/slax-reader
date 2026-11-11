@@ -49,7 +49,7 @@
     <audio
       ref="audioRef"
       :src="src"
-      preload="metadata"
+      :preload="Number(durationMs) > 0 ? 'none' : 'metadata'"
       @timeupdate="onTime"
       @play="onPlay"
       @pause="onPause"
@@ -154,13 +154,14 @@ const onTime = () => {
   savePosition()
 }
 
-const onPlay = () => {
+const onPlay = (event: Event) => {
   playing.value = true
   error.value = false
   following.value = true
   window.dispatchEvent(new CustomEvent(PODCAST_EVENTS.follow, { detail: { following: true } }))
   window.dispatchEvent(new CustomEvent(PODCAST_EVENTS.state, { detail: { playing: true } }))
-  broadcast()
+  // Metadata validates a restored start before transcript following receives it.
+  if ((event.target as HTMLAudioElement).readyState > 0) broadcast()
   if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'
 }
 
@@ -175,7 +176,14 @@ const onPause = () => {
 const onMeta = () => {
   const audio = audioRef.value
   if (!audio) return
-  if (Number.isFinite(audio.duration) && audio.duration > 0) duration.value = audio.duration
+  if (Number.isFinite(audio.duration) && audio.duration > 0) {
+    duration.value = audio.duration
+    // A restored default start must still be valid for the actual media duration.
+    if (!userSeeked && current.value >= duration.value - 10) {
+      audio.currentTime = 0
+      current.value = 0
+    }
+  }
   if (userSeeked || audio.currentTime >= 1) return
   try {
     const saved = Number(localStorage.getItem(positionKey(props.src)))
@@ -224,6 +232,8 @@ const setupMediaSession = () => {
 }
 
 onMounted(() => {
+  // Restore the default playback start position without loading audio metadata.
+  onMeta()
   window.addEventListener(PODCAST_EVENTS.seek, onSeekRequest)
   window.addEventListener(PODCAST_EVENTS.follow, onFollow)
   setupMediaSession()

@@ -205,6 +205,7 @@ export class AppleAuth {
         const userInfo = await this.verifyIdToken(idToken, appleClientId)
         stage = 'subject_match'
         if (userInfo.sub !== authResp.sub) throw RequestAppleAuthFail()
+        if (!authResp.nonce && userInfo.nonce) return { ...authResp, nonce: userInfo.nonce }
       }
       return authResp
     } catch (error) {

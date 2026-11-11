@@ -5,6 +5,8 @@ import {pathToFileURL} from 'node:url'
 import vm from 'node:vm'
 import ts from 'typescript'
 import React, {act} from 'react'
+import * as contractConstants from '@slax-reader/contracts/const'
+import * as emailAuthContracts from '@slax-reader/contracts/email-auth'
 import {motionModules} from '../ui/motion-modules.mjs'
 import {observeBoundaries} from './observe-mock.mjs'
 import {safeAreaBoundary} from '../ui/safe-area-boundary.mjs'
@@ -36,7 +38,9 @@ export async function loadComponent(path, boundaries, globals = {}) {
     'expo-clipboard': {getStringAsync: async () => '', setStringAsync: async () => {}},
     'expo-sharing': {shareAsync: async () => {throw new Error('Native sharing unavailable in parity host');}},
     'react-native-logs': require('react-native-logs'),
+    '@slax-reader/contracts/const': contractConstants,
     '@slax-reader/contracts/pdf': {PDF_MAX_BYTES: 50 * 1024 * 1024},
+    '@slax-reader/contracts/email-auth': emailAuthContracts,
     ...boundaries,
   }
   boundaries = {...observeBoundaries(boundaries), ...motionModules(boundaries), ...boundaries}

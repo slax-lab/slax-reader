@@ -47,7 +47,7 @@ test('failed exchange observer gets login, refresh, envelope failure and 401 wit
   await assert.rejects(f.api.login({type: 'google', code: 'oauth-secret', platform: 'ios', redirect_uri: 'private'}));
   assert.equal(f.records[0]!.event, 'auth.login'); assert.equal(f.records[0]!.fields.provider, 'google');
   status = 503; await assert.rejects(f.api.refresh('abcdefgh')); assert.equal(f.records[1]!.event, 'auth.refresh_failed');
-  status = 200; code = 403; await assert.rejects(f.api.request('/v1/user/login', 'POST', {type: 'apple'}));
+  status = 200; code = 403; await assert.rejects(f.api.login({type: 'apple', code: 'oauth-secret', platform: 'ios', redirect_uri: 'private'}));
   assert.equal(f.failed.at(-1)!.http.status, 200); assert.equal(f.failed.at(-1)!.http.code, 403);
   status = 401; code = 401; await assert.rejects(f.api.request('/v1/private?secret=value'));
   const reauth = f.records.find(row => row.event === 'auth.reauth_required'); assert.equal(reauth!.fields.http.path, '/v1/private');
@@ -58,7 +58,7 @@ test('observer exceptions do not change business errors, and network failures ne
   const network = setup(async () => {throw new TypeError('Network request failed');});
   await assert.rejects(network.api.login({type: 'apple', code: '', platform: 'ios', redirect_uri: ''})); await assert.rejects(network.api.refresh('secret')); assert.deepEqual(network.failed, []); assert.deepEqual(network.records, []);
   const f = setup(async () => new Response(JSON.stringify({code: 400, message: 'original', data: 'value'}), {status: 400}));
-  f.api.options.onFailedExchange = () => {throw new Error('observer');}; await assert.rejects(f.api.request('/v1/user/login'), error => error instanceof Error && error.message === 'original');
+  f.api.options.onFailedExchange = () => {throw new Error('observer');}; await assert.rejects(f.api.login({type: 'apple', code: '', platform: 'ios', redirect_uri: ''}), error => error instanceof Error && error.message === 'original');
 });
 test('successful login and denied deletion keep complete safe outcomes', async () => {
   const f = setup(); await f.api.login({type: 'google', code: 'private', redirect_uri: 'private', platform: 'ios'});
@@ -111,7 +111,7 @@ test('recorded http fields are copied at record time', async () => {
   assert.equal(f.records.find(row => row.event === 'auth.reauth_required')!.fields.http.path, '/v1/private');
   const exchanges = setup(async () => new Response(JSON.stringify({code: 400}), {status: 400})); let seen: DiagnosticExchange | undefined;
   exchanges.api.options.onFailedExchange = value => {seen = value; value.http.status = 0;};
-  const error = await exchanges.api.request('/v1/user/login', 'POST', {type: 'google'}).catch(value => value);
+  const error = await exchanges.api.login({type: 'google', code: '', platform: 'ios', redirect_uri: ''}).catch(value => value);
   assert.ok(seen); assert.equal(exchanges.api.getFailedExchange(error)!.http.status, 400);
 });
 test('offline credential rejection records reauthentication without empty http fields', async () => {

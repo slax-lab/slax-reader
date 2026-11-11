@@ -1,6 +1,5 @@
 import { Redis } from '@upstash/redis/cloudflare'
 import { singleton } from '../../decorators/di'
-import { inject } from '@/decorators/di'
 
 class RedisOperation<T> {
   constructor(
@@ -52,6 +51,20 @@ class RedisOperation<T> {
   async setIfAbsent(value: T, seconds: number): Promise<boolean> {
     const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value)
     return (await this.client.set(this.key, stringValue, { nx: true, ex: seconds })) === 'OK'
+  }
+
+  async incrementWithInitialExpiry(seconds: number): Promise<number> {
+    return this.client.eval<[number], number>("local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end; return n", [this.key], [seconds])
+  }
+
+  async deleteIfUnchanged(value: T): Promise<boolean> {
+    return (
+      (await this.client.eval<[string], number>(
+        "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) end; return 0",
+        [this.key],
+        [JSON.stringify(value)]
+      )) === 1
+    )
   }
 
   async incr(): Promise<number> {
@@ -157,13 +170,5 @@ export class RedisClient {
 
   userImportFailed(userId: number, id: number) {
     return this.key<number>(`user_import_failed:${userId}:${id}`)
-  }
-
-  twitterOAuthState(state: string) {
-    return this.key<{
-      userId: number
-      codeVerifier: string
-      createdAt: number
-    }>(`twitter_oauth_state:${state}`)
   }
 }

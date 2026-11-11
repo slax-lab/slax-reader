@@ -38,7 +38,6 @@
   "infra-construct src/domain/crawl.ts SlaxFetch": 4,
   "infra-construct src/domain/orchestrator/urlParser.ts SlaxFetch": 1,
   "infra-construct src/domain/rss/feed.ts SlaxFetch": 1,
-  "infra-construct src/domain/user.ts RedisClient": 1,
   "infra-construct src/domain/user.ts SlaxAlertBotClient": 1,
   "io-fetch src/domain/aigc.ts fetch": 2,
   "io-fetch src/domain/crawl.ts fetch": 1,

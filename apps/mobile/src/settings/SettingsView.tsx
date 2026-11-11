@@ -18,6 +18,7 @@ export interface SettingsViewProps {
   rss: LabState;
   pdf: LabState;
   showAdaptivePdfPrototype?: boolean;
+  loginMethods?: React.ReactNode;
   onDeleteAccount(): void;
   systemSurfaceFailed?: boolean;
   systemSurfaceAvailable?: boolean;
@@ -25,7 +26,7 @@ export interface SettingsViewProps {
   onRetrySystemSurfaces?(): void;
 }
 
-export function SettingsView({t, locale, state, rss, pdf, showAdaptivePdfPrototype = false, onDeleteAccount, systemSurfaceFailed, systemSurfaceAvailable = false, systemDiscoveryAvailable = false, onRetrySystemSurfaces}: SettingsViewProps) {
+export function SettingsView({t, locale, state, rss, pdf, showAdaptivePdfPrototype = false, loginMethods, onDeleteAccount, systemSurfaceFailed, systemSurfaceAvailable = false, systemDiscoveryAvailable = false, onRetrySystemSurfaces}: SettingsViewProps) {
   return (
     <ScreenSurface testID={IDs.SettingScreen} bottomInset={false} sourceAppBar>
       <ScrollView contentContainerStyle={styles.content}>
@@ -106,6 +107,7 @@ export function SettingsView({t, locale, state, rss, pdf, showAdaptivePdfPrototy
           <SourceText style={[T.metadata, {color: C.secondaryText}]}>{t('system_donations_description')}</SourceText>
           {systemSurfaceFailed ? <View style={{marginTop: 8}}><SourceText style={[T.metadata, {color: C.danger}]}>{t('system_surface_error')}</SourceText><TextAction label={t('rss_retry')} onPress={onRetrySystemSurfaces ?? (() => {})}/></View> : null}
         </View> : null}
+        {loginMethods}
         <SourceButton testID={IDs.SettingDeleteAccount} label={t('setting_delete_account')} tone="surface" destructive onPress={onDeleteAccount} style={{minHeight: 55}} />
       </ScrollView>
       <SourceDialog visible={state.language} onDismiss={state.dismissLanguage} title={t('setting_language')}>

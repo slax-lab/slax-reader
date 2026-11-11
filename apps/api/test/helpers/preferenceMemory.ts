@@ -1,6 +1,14 @@
 import type { VectorMaintenanceService } from '@/domain/vectorMaintenance'
 import type { VectorPreferenceClient } from '@/infra/repository/vectorPreferenceClient'
-import { clonePreferenceSums, PreferenceQueue, type PreferenceEntry, type PreferencePublish, type PreferenceStore, type PreferenceSums } from '@/utils/preferenceLedger'
+import {
+  clonePreferenceSums,
+  PreferenceQueue,
+  type MemberGroup,
+  type PreferenceEntry,
+  type PreferencePublish,
+  type PreferenceStore,
+  type PreferenceSums
+} from '@/utils/preferenceLedger'
 
 export class MemoryPreferenceStore implements PreferenceStore {
   sums: PreferenceSums | null = null
@@ -14,16 +22,10 @@ export class MemoryPreferenceStore implements PreferenceStore {
     return new Map(ids.flatMap(id => (this.rows.has(id) ? [[id, { ...this.rows.get(id)! }] as const] : [])))
   }
 
-  summary() {
-    let used = 0
-    let members = 0
-    let firstMissingMember: number | undefined
-    for (const [id, entry] of this.rows) {
-      if (entry.token) used++
-      if (entry.member) members++
-      if (entry.member && !entry.token && (firstMissingMember === undefined || id < firstMissingMember)) firstMissingMember = id
-    }
-    return { eligible: this.rows.size, used, members, firstMissingMember }
+  firstMissing(groups: MemberGroup[]) {
+    let first: number | undefined
+    for (const [id, entry] of this.rows) if (!entry.token && (groups as string[]).includes(entry.group) && (first === undefined || id < first)) first = id
+    return first
   }
 
   commit(sums: PreferenceSums, upserts: Map<number, PreferenceEntry>, deletes: number[]) {
@@ -66,7 +68,8 @@ export function memoryPreferences() {
   }
   const client = {
     apply: (userId: number, id: number, previous?: number[]) => queue(userId).submit({ kind: 'apply', userId, id, previous: previous && [...previous] }),
-    rebuild: (userId: number, publish: PreferencePublish) => queue(userId).submit({ kind: 'rebuild', userId, publish })
+    rebuild: (userId: number, publish: PreferencePublish) => queue(userId).submit({ kind: 'rebuild', userId, publish }),
+    publish: (userId: number, publish: PreferencePublish) => queue(userId).submit({ kind: 'publish', userId, publish })
   }
   return {
     client: client as unknown as VectorPreferenceClient,

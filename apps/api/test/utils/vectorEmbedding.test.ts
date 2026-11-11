@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ArticleVectorAccumulator, bisectText, estimatedTokens, normalized, requestBytes, textInputs, VECTOR_MODEL, VECTOR_REQUEST_BYTES } from '@/utils/vectorEmbedding'
-import { VectorEmbeddingClient as VectorEmbedding } from '@/infra/external/vectorEmbedding'
+import { VectorEmbeddingClient as VectorEmbedding, providerDiagnostic } from '@/infra/external/vectorEmbedding'
 
 const unit = (axis = 0) => Array.from({ length: 1024 }, (_, i) => (i === axis ? 1 : 0))
 const response = (count: number) => Response.json({ model: VECTOR_MODEL, data: Array.from({ length: count }, (_, i) => ({ index: i, embedding: unit(i) })) })
@@ -252,9 +252,7 @@ describe('bounded whole-first embedding', () => {
     for (const value of invalid) {
       await expect(embedding('key', vi.fn().mockResolvedValue(Response.json({ model: VECTOR_MODEL, data: value }))).pdf('base64')).rejects.toThrow()
     }
-    await expect(
-      embedding('key', vi.fn().mockResolvedValue(Response.json({ model: 'other-model', data: [{ index: 0, embedding: unit() }] }))).pdf('base64')
-    ).rejects.toThrow()
+    await expect(embedding('key', vi.fn().mockResolvedValue(Response.json({ model: 'other-model', data: [{ index: 0, embedding: unit() }] }))).pdf('base64')).rejects.toThrow()
     await expect(embedding('key', vi.fn().mockResolvedValue(Response.json({ model: VECTOR_MODEL, data: {} }))).pdf('base64')).rejects.toThrow()
   })
 
@@ -288,5 +286,68 @@ describe('bounded whole-first embedding', () => {
     const fetcher = vi.fn().mockResolvedValue(new Response('x'.repeat(16 * 1024 + 1), { status: 500 }))
     await expect(embedding('key', fetcher).pdf('base64')).rejects.toThrow('embedding_response_too_large')
     expect(fetcher).toHaveBeenCalledOnce()
+  })
+})
+
+describe('provider diagnostics', () => {
+  test('retains provider code and request ID without echoing arbitrary details', () => {
+    const raw = JSON.stringify({
+      code: 'ACCOUNT_LIMIT_REACHED',
+      detail: 'Contact https://example.invalid/help or operator@example.invalid with bearer secret-token',
+      request_id: 'abcdef0123456789abcdef0123456789'
+    })
+    expect(providerDiagnostic(422, raw, null)).toEqual({ status: 422, code: 'ACCOUNT_LIMIT_REACHED', requestId: 'abcdef0123456789abcdef0123456789' })
+  })
+
+  test('never emits multi-line quoted article excerpts and supports structured detail without serializing it', () => {
+    const detail = 'first line of the article, still private\nsecond line, still private, and long enough to matter beyond eighty characters for the regression check'
+    const output = providerDiagnostic(422, JSON.stringify({ code: 'INVALID_TASK', detail: `"${detail}"` }), null)
+    expect(output).toEqual({ status: 422, code: 'INVALID_TASK', detail: 'Task is not supported' })
+    expect(JSON.stringify(output)).not.toContain('article')
+    const structured = providerDiagnostic(422, JSON.stringify({ code: 'INPUT_TOKEN_LIMIT_EXCEEDED', detail: [{ msg: 'Provider text not echoed' }] }), null)
+    expect(structured).toEqual({ status: 422, code: 'INPUT_TOKEN_LIMIT_EXCEEDED', detail: 'Input exceeds the model token limit' })
+    expect(JSON.stringify(structured)).not.toContain('Provider text not echoed')
+  })
+
+  test('uses the request ID header even when a safe detail is present', () => {
+    expect(providerDiagnostic(422, JSON.stringify({ code: 'INVALID_TASK', detail: 'ignored provider text' }), 'abcdef0123456789abcdef0123456789')).toEqual({
+      status: 422,
+      code: 'INVALID_TASK',
+      detail: 'Task is not supported',
+      requestId: 'abcdef0123456789abcdef0123456789'
+    })
+  })
+
+  test('does not echo arbitrary raw responses or unsafe request IDs', () => {
+    expect(providerDiagnostic(500, '<html>secret article input</html>', 'not-an-id')).toEqual({ status: 500 })
+    expect(providerDiagnostic(422, JSON.stringify({ code: 'not safe', detail: 42 }), null)).toEqual({ status: 422 })
+  })
+
+  test('logs safe details for a rejected request and stays silent on success', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => Response.json({ code: 'INVALID_TASK', detail: 'Task is not supported', request_id: 'abcdef0123456789abcdef0123456789' }, { status: 422 }))
+      )
+      const client = new VectorEmbedding({ JINA_API_KEY: 'test-only-key' } as Env)
+      await expect(client.embed([{ text: 'private input never logged' }])).rejects.toThrow('embedding_http_422')
+      expect(log).toHaveBeenCalledExactlyOnceWith(
+        '[embedding-provider]',
+        JSON.stringify({ status: 422, code: 'INVALID_TASK', detail: 'Task is not supported', requestId: 'abcdef0123456789abcdef0123456789' })
+      )
+      expect(JSON.stringify(log.mock.calls)).not.toContain('private input')
+      expect(JSON.stringify(log.mock.calls)).not.toContain('test-only-key')
+      log.mockClear()
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => Response.json({ model: VECTOR_MODEL, data: [{ index: 0, embedding: Array.from({ length: 1024 }, (_, i) => (i === 0 ? 1 : 0)) }] }))
+      )
+      await expect(client.embed([{ text: 'fine' }])).resolves.toHaveLength(1)
+      expect(log).not.toHaveBeenCalled()
+    } finally {
+      log.mockRestore()
+      vi.unstubAllGlobals()
+    }
   })
 })

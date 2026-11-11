@@ -75,6 +75,10 @@
     "./feedback": {
       "types": "./src/feedback.ts",
       "default": "./src/feedback.ts"
+    },
+    "./email-auth": {
+      "types": "./src/email-auth.ts",
+      "default": "./src/email-auth.ts"
     }
   },
   "scripts": {

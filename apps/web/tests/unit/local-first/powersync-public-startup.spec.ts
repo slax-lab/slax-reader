@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { POWER_SYNC_DATABASE_GENERATION, POWER_SYNC_LOCAL_DATA_VERSION } from '~/local-first/version'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
   enabled: true,
@@ -62,7 +62,7 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); localStorage.clear() })
 
 describe('real PowerSync plugin public bypass', () => {
-  it.each(['/login', '/login/', '/guide?campaign=synthetic#intro', '/guide/'])('mounts %s while database init would never settle, leaving stored data and ownership untouched', async path => {
+  it.each(['/', '/?campaign=synthetic#intro', '/login', '/login/', '/guide?campaign=synthetic#intro', '/guide/'])('bypasses %s even if database init would never settle, leaving stored data and ownership untouched', async path => {
     window.history.replaceState(null, '', path)
     state.init.mockImplementation(() => new Promise(() => {}))
     localStorage.setItem(`slax:powersync:${POWER_SYNC_DATABASE_GENERATION}:dataVersion`, '0')
@@ -80,7 +80,7 @@ describe('real PowerSync plugin public bypass', () => {
     expect(localStorage.getItem('slax:powersync:lastUser')).toBe('old-account')
     expect(localStorage.getItem(`slax:powersync:${POWER_SYNC_DATABASE_GENERATION}:dataVersion`)).toBe('0')
   })
-  it.each(['/bookmarks', '/', '/auth', '/b/example', '/s/example', '/login/extra', '/guide/extra', '/x/ext-bridge', '/pricing?next=/login'])('keeps normal startup for %s', async path => {
+  it.each(['/bookmarks', '/auth', '/b/example', '/s/example', '/login/extra', '/guide/extra', '/x/ext-bridge', '/pricing?next=/login'])('keeps normal startup for %s', async path => {
     window.history.replaceState(null, '', path)
     const result = await start()
     expect(result?.provide?.powersyncPublicBypass).toBe(false)
@@ -88,22 +88,24 @@ describe('real PowerSync plugin public bypass', () => {
     expect(state.init).toHaveBeenCalledOnce()
     expect(result?.provide?.powersync).not.toBeNull()
   })
-  it('keeps database startup when the switch is disabled', async () => {
+  it.each(['/', '/login'])('keeps database startup for %s when the switch is disabled', async path => {
+    window.history.replaceState(null, '', path)
     state.enabled = false
     const result = await start()
     expect(result?.provide?.powersyncPublicBypass).toBe(false)
     expect(state.construct).toHaveBeenCalledOnce()
   })
-  it('keeps authenticated guide startup and ownership guards', async () => {
+  it.each(['/', '/guide'])('keeps authenticated startup and ownership guards for %s', async path => {
     const token = `header.${btoa(JSON.stringify({ id: 'old-account', exp: 9999999999 }))}.signature`
     state.token.mockReturnValue(token)
-    window.history.replaceState(null, '', '/guide')
+    window.history.replaceState(null, '', path)
     const result = await start()
     expect(result?.provide?.powersyncPublicBypass).toBe(false)
     expect(state.owner.value).toBe('old-account')
     expect(state.construct).toHaveBeenCalledOnce()
   })
-  it('does not classify unreadable tokens as absent and preserves unavailable fallback', async () => {
+  it.each(['/', '/login'])('preserves the normal fallback when the token cannot be read at %s', async path => {
+    window.history.replaceState(null, '', path)
     state.token.mockImplementation(() => { throw new Error('synthetic denied cookie access') })
     const result = await start()
     expect(result?.provide).toMatchObject({ powersyncPublicBypass: false, powersync: null })
@@ -111,7 +113,8 @@ describe('real PowerSync plugin public bypass', () => {
     expect(state.close).toHaveBeenCalledOnce()
     expect(state.owner.value).toBeNull()
   })
-  it('does not bypass an iframe even on a public path', async () => {
+  it.each(['/', '/login'])('does not bypass an iframe at %s', async path => {
+    window.history.replaceState(null, '', path)
     vi.spyOn(window, 'parent', 'get').mockReturnValue({} as Window)
     const result = await start()
     expect(result?.provide?.powersyncPublicBypass).toBe(false)

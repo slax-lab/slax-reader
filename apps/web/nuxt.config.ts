@@ -110,6 +110,7 @@ const profile = ENV_PROFILES[env] ?? ENV_PROFILES.development
 
 // 站点根 URL（结构化/OG 用）
 const siteBaseUrl = `${(envConfig.PUBLIC_BASE_URL as string) || ''}`.replace(/\/$/, '')
+const loginAssetPreloads: string[] = []
 
 // 首页 ssr:false 空壳，结构化
 // 数据须静态注入 app.head
@@ -258,7 +259,8 @@ export default defineNuxtConfig({
       { code: 'en', iso: 'en-US', file: 'en.json' }
     ],
     defaultLocale: 'en',
-    langDir: '../i18n/locales/'
+    langDir: '../i18n/locales/',
+    experimental: { prerenderMessages: true }
   },
 
   future: {
@@ -266,6 +268,8 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    loginAssetPreloads: [] as string[],
+    loginLocalePreloads: [] as string[],
     public: {
       ...envConfig,
       EXTENSION_BRIDGE_IDS: profile.extensionBridgeId,
@@ -442,6 +446,7 @@ export default defineNuxtConfig({
             '/c/*',
             '/api/content/*',
             '/api/collection/*',
+            '/api/auth/session',
             '/*-reader',
             '/dashboard',
             '/dashboard/**',
@@ -572,8 +577,38 @@ export default defineNuxtConfig({
     }
   },
   hooks: {
+    'build:manifest': manifest => {
+      const visited = new Set<string>()
+      const files = new Set<string>()
+      const collect = (key: string) => {
+        const chunk = manifest[key]
+        if (!chunk || visited.has(key)) return
+        visited.add(key)
+        if (chunk.file && /\.(?:m?js|css)$/.test(chunk.file)) files.add(chunk.file)
+        for (const css of chunk.css ?? []) files.add(css)
+        for (const dep of chunk.imports ?? []) collect(dep)
+      }
+
+      // Nuxt already emits hints for the entry graph.
+      for (const [key, chunk] of Object.entries(manifest)) {
+        if (chunk.isEntry) collect(key)
+      }
+      const entryFiles = new Set(files)
+      files.clear()
+      collect('pages/login.vue')
+      loginAssetPreloads.splice(0, loginAssetPreloads.length, ...[...files].filter(file => !entryFiles.has(file)))
+    },
     'nitro:init': nitro => {
       if (nitro.options.dev) return
+      const loginLocalePreloads = nitro.options.prerender.routes.filter(path =>
+        /^\/_i18n\/[a-f0-9]+\/[a-zA-Z0-9-]+\/messages\.json$/.test(path)
+      )
+      nitro.options.runtimeConfig.loginAssetPreloads = loginAssetPreloads
+      nitro.options.runtimeConfig.loginLocalePreloads = loginLocalePreloads
+      // The prerenderer creates a separate Nitro instance from its own config.
+      nitro.hooks.hook('prerender:config', config => {
+        config.runtimeConfig = { ...config.runtimeConfig, loginAssetPreloads, loginLocalePreloads }
+      })
       // Register on Nitro itself, after the Pages preset's output writers.
       nitro.hooks.hook('compiled', async nitro => {
         await powerSyncAssets.write(nitro.options.output.publicDir)
