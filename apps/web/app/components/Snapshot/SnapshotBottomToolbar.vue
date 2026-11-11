@@ -91,7 +91,7 @@ const isNarrow = computed(() => windowWidth.value <= 600)
   // prefixer — it keeps this pair because apps/web/package.json declares a
   // browserslist matching build.target (Safari 15.4+ supports backdrop-filter only
   // with the prefix). Keep both lines, prefix first; see
-  // openspec/changes/fix-web-ui-render-defects/validation.md.
+  // openspec/changes/archive/2026-11-10-fix-web-ui-render-defects/validation.md.
   -webkit-backdrop-filter: var(--slax-blur);
   backdrop-filter: var(--slax-blur);
   box-shadow: var(--slax-shadow-warm);
