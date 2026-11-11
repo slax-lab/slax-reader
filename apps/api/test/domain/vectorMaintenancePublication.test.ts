@@ -106,16 +106,16 @@ describe('publication maintenance hooks', () => {
 
   it('REST share updates refresh current actor metadata after commit', async () => {
     const { ctx, create, flush } = context()
-    const updateBookmarkShare = vi.fn().mockResolvedValue({ allow_comment: true, show_comment: true, show_userinfo: true, share_code: 'code' })
+    const saveBookmarkShare = vi.fn().mockResolvedValue({ allow_comment: true, show_comment: true, show_userinfo: true, share_code: 'code' })
     const repo = {
       getUserBookmark: vi.fn().mockResolvedValue({ user_id: 7 }),
+      getUserBookmarkByUId: vi.fn().mockResolvedValue({ user_id: 7, bookmark_id: 99 }),
       getBookmarkById: vi.fn().mockResolvedValue({ moderation_result: 0, status: 'success' }),
-      getBookmarkShareByBookmarkId: vi.fn().mockResolvedValue({ user_id: 7 }),
-      updateBookmarkShare
+      saveBookmarkShare
     }
-    await new ShareService(repo as any, {} as any).updateBookmarkShare(ctx, { bookmark_id: 123, show_comment_line: true, show_userinfo: true, allow_action: true })
+    await new ShareService(repo as any, {} as any).updateBookmarkShare(ctx, { bookmark_uid: 'bookmark-uuid', show_comment_line: true, show_userinfo: true, allow_action: true })
     await flush()
-    expect(updateBookmarkShare.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0])
+    expect(saveBookmarkShare.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0])
     expect(create.mock.calls[0][0].params.target).toEqual({ kind: 'article', userId: 7, id: 99 })
   })
 

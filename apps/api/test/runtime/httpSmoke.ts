@@ -248,6 +248,17 @@ async function main() {
         return false
       }
     }, 'authenticated Core database ready')
+    if (process.env.SHARE_SMOKE === '1') {
+      const { exerciseShareSettings } = await import('./shareSmoke')
+      evidence.shareSettings = await exerciseShareSettings(
+        statement => resources.sql(pg.id, 'http_reader', statement),
+        request,
+        { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        new Hashid(vars as Env, 1).encodeId(6)
+      )
+      evidence.status = 'passed'
+      return
+    }
     for (const origin of [vars.FRONT_END_URL, vars.FRONT_END_URL + '.attacker.invalid']) {
       const response = await localFetch(`http://localhost:${httpPort}/events`, { method: 'OPTIONS', headers: { Origin: origin } })
       assert.equal(response.status, 204)
