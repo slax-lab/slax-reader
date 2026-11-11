@@ -38,7 +38,9 @@ An independent reviewer completed the Bugs, Security and Compliance passes again
 
 ## Human hands-on acceptance
 
-Pending. A separate disposable local Web/Edge/Core environment is running an owner article with no explicit share record. The acceptance entry at `http://localhost:3012/` sets only a synthetic fixture session and opens the actual reader at port 3011. The Share popover is available for an immediate close/reopen test. This is a delivery gate: no PR is opened before the user's result is recorded.
+Accepted by the requesting user on 2026-11-11 (Asia/Shanghai), before opening the PR. In the agent-prepared disposable Web/Edge/Core environment, the user disabled Show highlights and immediately enabled it again after the request completed. The user explicitly confirmed manual acceptance with no error toast. The article initially had no explicit share record; the final visible checkbox was checked. No adjustments were requested after acceptance.
+
+The acceptance entry at `http://localhost:3012/` used only a synthetic fixture session and opened the actual reader on port 3011. The temporary environment is cleaned up after acceptance.
 
 ## Limits
 
