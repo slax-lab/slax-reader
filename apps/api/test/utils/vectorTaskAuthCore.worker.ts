@@ -33,6 +33,7 @@ const stored = new Map<string, VectorizeVector>([
 ])
 
 const repo = {
+  isUserActive: async () => true,
   findArticles: async (pairs: Array<{ userId: number; id: number }>) =>
     pairs.map(pair => ({
       id: pair.id,
@@ -190,6 +191,6 @@ export default {
       }
       return Response.json({ ...counts, legacy: stored.has('u:7:collection') })
     }
-    return core.fetch(request, env, ctx)
+    return core.fetch(request, { ...env, VECTOR_V5_MAINTENANCE_WORKFLOW: { create: async () => ({ id: 'repair-fixture' }) } } as unknown as Env, ctx)
   }
 }

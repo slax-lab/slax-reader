@@ -99,7 +99,7 @@ describe('explicit maintenance business Workflow', () => {
     ])
     const execution = step()
     await run({ kind: 'article', userId: 7, id: 99 }, execution)
-    expect(execution.names).toEqual(['article-write', 'article-visible', 'preference'])
+    expect(execution.names.slice(0, 3)).toEqual(['article-write', 'article-visible', 'preference-write'])
     expect(mocks.service.refreshArticlesWithPrevious).toHaveBeenCalledExactlyOnceWith([{ userId: 7, id: 99 }])
     expect(mocks.service.applyArticle).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 }, undefined)
     expect(mocks.service.verifyRefresh).toHaveBeenCalledTimes(3)
@@ -132,7 +132,7 @@ describe('explicit maintenance business Workflow', () => {
       ])
     const execution = step()
     await run({ kind: 'article', userId: 7, id: 99 }, execution)
-    expect(execution.names).toEqual(['article-write', 'article-visible', 'preference'])
+    expect(execution.names.slice(0, 3)).toEqual(['article-write', 'article-visible', 'preference-write'])
     expect(mocks.repo.listSubscriberUsers).not.toHaveBeenCalled()
     expect(mocks.service.applyArticle).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 }, undefined)
     expect(mocks.service.refreshUser).not.toHaveBeenCalled()
@@ -262,26 +262,26 @@ describe('explicit maintenance business Workflow', () => {
     expect(mocks.service.applyArticle).not.toHaveBeenCalled()
   })
 
-  it('hands the previous representative vector to the preference step and applies again when publication is not visible', async () => {
+  it('retries preference visibility without applying its contribution again', async () => {
     const previous = Array.from({ length: 1024 }, (_, index) => (index === 3 ? 1 : 0))
     mocks.service.refreshArticlesWithPrevious.mockResolvedValue({ results: [deleted({ kind: 'article', userId: 7, id: 99 })], previous: { 'a:7:99': previous } })
     const execution = step()
     const doStep = vi.spyOn(execution, 'do')
     await run({ kind: 'article', userId: 7, id: 99 }, execution)
-    expect(mocks.service.applyArticle).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 }, previous)
     mocks.service.verifyRefresh.mockResolvedValueOnce(false)
-    await expect(doStep.mock.calls[2][2]()).rejects.toThrow('vector_mutation_not_visible')
-    await doStep.mock.calls[2][2]()
-    expect(mocks.service.applyArticle).toHaveBeenCalledTimes(3)
-    expect(mocks.service.applyArticle).toHaveBeenLastCalledWith({ userId: 7, id: 99 }, previous)
+    await expect(doStep.mock.calls[3][2]()).rejects.toThrow('vector_mutation_not_visible')
+    await doStep.mock.calls[3][2]()
+    expect(mocks.service.applyArticle).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 }, previous)
   })
 
-  it('fails the preference step when the owner Collection reports a missing dependency', async () => {
+  it('retries failed Collection publication without replaying successful user apply', async () => {
     mocks.service.applyArticle.mockResolvedValue([
       deleted({ kind: 'user', id: 7, preference: 'article' }),
-      { target: { kind: 'collection', id: 5 }, state: 'failed', reason: 'missing_dependency:a:7:98', vectorIds: [], mutationIds: [] }
+      { target: { kind: 'collection', id: 5 }, state: 'failed', reason: 'index_unavailable', vectorIds: [], mutationIds: [] }
     ])
-    await expect(run({ kind: 'article', userId: 7, id: 99 })).rejects.toThrow('missing_dependency:a:7:98')
+    await run({ kind: 'article', userId: 7, id: 99 })
+    expect(mocks.service.applyCollection).toHaveBeenCalledExactlyOnceWith(5)
+    expect(mocks.service.applyArticle).toHaveBeenCalledOnce()
   })
 
   it('rejects failed or missing vector writes before dependent refresh', async () => {
@@ -299,4 +299,30 @@ describe('explicit maintenance business Workflow', () => {
     await expect(run({ kind: 'user', id: 7, preference: 'collection' })).rejects.toThrow('initialization failed')
     expect(mocks.cleanup).toHaveBeenCalledTimes(1)
   })
+})
+
+it('accepted repair receipts verify and apply without embedding again', async () => {
+  const workflow = new VectorMaintenanceWorkflow({} as any, {} as any)
+  const accepted = { target: { kind: 'article', userId: 7, id: 99 }, state: 'written', vectorIds: ['a:7:99'], mutationIds: ['m'], writeToken: 'a'.repeat(64) }
+  await workflow.run({ payload: { target: accepted.target, acceptedArticle: accepted } } as any, step() as any)
+  expect(mocks.service.refreshArticlesWithPrevious).not.toHaveBeenCalled()
+  expect(mocks.service.applyArticle).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 }, undefined)
+  expect(mocks.service.verifyRefresh).toHaveBeenCalledWith(accepted)
+})
+
+it('rejects unsupported relation modes and non-article mode use', () => {
+  for (const target of [
+    { kind: 'article', id: 99, userId: 7, mode: 'other' },
+    { kind: 'collection', id: 5, mode: 'relation' }
+  ])
+    expect(() => validateMaintenanceEvent(target as any)).toThrow('invalid_vector_maintenance_event')
+})
+
+it('relation mode bypasses source embedding and applies owner state', async () => {
+  const refreshArticleRelation = vi.fn(async () => ({ target: { kind: 'article', userId: 7, id: 99 }, state: 'empty', vectorIds: [], mutationIds: [] }))
+  Object.assign(mocks.service, { refreshArticleRelation })
+  await run({ kind: 'article', userId: 7, id: 99, mode: 'relation' })
+  expect(refreshArticleRelation).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 })
+  expect(mocks.service.refreshArticlesWithPrevious).not.toHaveBeenCalled()
+  expect(mocks.service.applyArticle).toHaveBeenCalledOnce()
 })

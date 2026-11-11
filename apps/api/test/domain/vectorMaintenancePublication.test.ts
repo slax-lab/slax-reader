@@ -95,13 +95,13 @@ describe('publication maintenance hooks', () => {
     expect(create).not.toHaveBeenCalled()
   })
 
-  it.each(['success', 'pending'])('REST share disable admits only completed actor body: %s', async status => {
+  it.each(['success', 'pending'])('REST share disable applies relation state independently of body status: %s', async status => {
     const { ctx, create, flush } = context()
     const updateBookmarkShareIsEnable = vi.fn().mockResolvedValue(undefined)
     await new ShareService({ updateBookmarkShareIsEnable, getBookmarkById: vi.fn().mockResolvedValue({ status }) } as any, {} as any).deleteBookmarkShare(ctx, 123)
     await flush()
     expect(updateBookmarkShareIsEnable).toHaveBeenCalledWith(99, 7, false)
-    expect(create.mock.calls.map(([args]) => args.params.target)).toEqual(status === 'success' ? [{ kind: 'article', userId: 7, id: 99 }] : [])
+    expect(create.mock.calls.map(([args]) => args.params.target)).toEqual([{ kind: 'article', mode: 'relation', userId: 7, id: 99 }])
   })
 
   it('REST share updates refresh current actor metadata after commit', async () => {
@@ -116,7 +116,7 @@ describe('publication maintenance hooks', () => {
     await new ShareService(repo as any, {} as any).updateBookmarkShare(ctx, { bookmark_id: 123, show_comment_line: true, show_userinfo: true, allow_action: true })
     await flush()
     expect(updateBookmarkShare.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0])
-    expect(create.mock.calls[0][0].params.target).toEqual({ kind: 'article', userId: 7, id: 99 })
+    expect(create.mock.calls[0][0].params.target).toEqual({ kind: 'article', mode: 'relation', userId: 7, id: 99 })
   })
 
   it('snapshot-sharing changes dispatch all current owner members without recomputing inline', async () => {
@@ -220,7 +220,8 @@ describe('maintenance repository eligibility boundaries', () => {
     await repo.listUserCollections(8, 0, 25)
     await repo.findCollection(3)
     expect(query).toHaveBeenCalledTimes(4)
-    for (const [strings] of query.mock.calls) expect((strings as TemplateStringsArray).join('')).toContain("b.status = 'success'")
+    for (const [strings] of query.mock.calls.slice(0, 3)) expect((strings as TemplateStringsArray).join('')).toContain("b.status = 'success'")
+    expect(query.mock.calls[3][0].join('')).not.toContain('sr_user_bookmark')
   })
 
   it('enumerates deletion identities with keyset bounds even after account tombstone and relation trash', async () => {

@@ -22,6 +22,7 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 25))
 const after = <T extends { id: number }>(rows: T[], cursor: number, limit: number) => rows.filter(row => row.id > cursor).slice(0, limit)
 
 const repo = {
+  isUserActive: async () => true,
   findUserPreferenceRows: async (_userId: number, ids: number[]) => {
     counters.rowReads++
     await wait()
@@ -114,7 +115,12 @@ export class FixturePreferenceObject extends VectorPreferenceObject {
     subscribed = value
   }
 
-  seedLegacy() {
+  seedLegacy(version = 1) {
+    if (version === 2) {
+      this.ctx.storage.sql.exec('CREATE TABLE preference_state_v2 (id INTEGER PRIMARY KEY, seq INTEGER NOT NULL)')
+      this.ctx.storage.sql.exec('CREATE TABLE preference_entry_v2 (bookmark_id INTEGER PRIMARY KEY, token TEXT NOT NULL)')
+      return
+    }
     this.ctx.storage.sql.exec('CREATE TABLE preference_state (id INTEGER PRIMARY KEY, seq INTEGER NOT NULL)')
     this.ctx.storage.sql.exec('CREATE TABLE preference_entry (bookmark_id INTEGER PRIMARY KEY, member INTEGER NOT NULL)')
     this.ctx.storage.sql.exec('INSERT INTO preference_state (id, seq) VALUES (1, 1)')
@@ -124,20 +130,20 @@ export class FixturePreferenceObject extends VectorPreferenceObject {
     const sql = this.ctx.storage.sql
     const tables = sql.exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'preference_%' ORDER BY name").toArray()
     const has = (name: string) => tables.some(table => table.name === name)
-    const entries = has('preference_entry_v2')
+    const entries = has('preference_entry_v3')
       ? sql
           .exec<{
             bookmark_id: number
             weight: number
             share_group: number
             token: string
-          }>('SELECT bookmark_id, weight, share_group, token FROM preference_entry_v2 ORDER BY bookmark_id')
+          }>('SELECT bookmark_id, weight, share_group, token FROM preference_entry_v3 ORDER BY bookmark_id')
           .toArray()
       : []
-    const state = has('preference_state_v2') ? sql.exec<{ seq: number; raw: ArrayBuffer; counts: string }>('SELECT seq, raw, counts FROM preference_state_v2').toArray() : []
-    const plan = has('preference_entry_v2')
+    const state = has('preference_state_v3') ? sql.exec<{ seq: number; raw: ArrayBuffer; counts: string }>('SELECT seq, raw, counts FROM preference_state_v3').toArray() : []
+    const plan = has('preference_entry_v3')
       ? sql
-          .exec<{ detail: string }>("EXPLAIN QUERY PLAN SELECT MIN(bookmark_id) AS id FROM preference_entry_v2 WHERE token = '' AND share_group = ?", 1)
+          .exec<{ detail: string }>("EXPLAIN QUERY PLAN SELECT published_at FROM preference_entry_v3 WHERE token <> '' AND share_group = ? ORDER BY published_at DESC LIMIT 1", 1)
           .toArray()
           .map(row => row.detail)
           .join(';')
@@ -162,7 +168,7 @@ type Fixture = {
   setArticle(...args: unknown[]): Promise<void>
   setOwner(sharing: boolean, active: boolean): Promise<void>
   deleteArticle(id: number): Promise<number[] | undefined>
-  seedLegacy(): Promise<void>
+  seedLegacy(version?: number): Promise<void>
   readSubscriber(): Promise<unknown>
   setSubscription(value: boolean): Promise<void>
   inspect(): Promise<unknown>
@@ -184,7 +190,7 @@ export default {
         : body.op === 'owner'
           ? await fixture.setOwner(body.sharing, body.active)
           : body.op === 'legacy'
-            ? await fixture.seedLegacy()
+            ? await fixture.seedLegacy(body.version)
             : body.op === 'publish'
               ? await client.publish(8, { user: false, collections: [201] })
               : body.op === 'delete'

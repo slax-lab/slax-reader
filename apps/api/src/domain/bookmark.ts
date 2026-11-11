@@ -143,7 +143,7 @@ export class BookmarkService {
 
   private maintainReboundArticles(ctx: ContextManager, bookmark: { rebindings?: { userId: number; previousBookmarkId: number; bookmarkId: number }[] }) {
     for (const identity of bookmark.rebindings ?? []) {
-      dispatchVectorMaintenance(ctx, { kind: 'article', userId: identity.userId, id: identity.previousBookmarkId })
+      dispatchVectorMaintenance(ctx, { kind: 'article', mode: 'relation', userId: identity.userId, id: identity.previousBookmarkId })
     }
   }
 
@@ -527,7 +527,7 @@ export class BookmarkService {
     }
 
     await deleteUserBookmark()
-    dispatchVectorMaintenance(ctx, { kind: 'article', userId, id: bmId })
+    dispatchVectorMaintenance(ctx, { kind: 'article', mode: 'relation', userId, id: bmId })
 
     ctx.execution.waitUntil(Promise.allSettled([deleteBookmarkContentTry(), deleteBookmarkShareTry()]))
 
@@ -542,7 +542,7 @@ export class BookmarkService {
     const userId = ctx.getUserId()
 
     await Promise.all([bmRepo.updateBookmarkDeleteAt(bmId, userId, true), bmRepo.updateBookmarkShareIsEnable(bmId, userId, false)])
-    dispatchVectorMaintenance(ctx, { kind: 'article', userId, id: bmId })
+    dispatchVectorMaintenance(ctx, { kind: 'article', mode: 'relation', userId, id: bmId })
 
     await this.searchService.clearSearchCache(ctx, userId)
 
