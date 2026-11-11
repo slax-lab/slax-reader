@@ -46,7 +46,7 @@ describe('request-local Collection preference', () => {
     expect(f.repo.listUserCollections.mock.calls.map(call => call[1])).toEqual(Array.from({ length: Math.floor(count / 100) + 1 }, (_, i) => i * 100))
     expect(f.index.get).toHaveBeenCalledTimes(Math.ceil(count / 20))
     expect(f.index.get.mock.calls.every(([, ids]) => ids.length <= 20)).toBe(true)
-    expect(f.peak()).toBeLessThanOrEqual(4)
+    expect(f.peak()).toBe(Math.min(4, Math.ceil(count / 20)))
     const sum = [0, 0, 0]
     for (let id = 1; id <= count; id++) sum[id % 3]++
     const norm = Math.hypot(...sum)

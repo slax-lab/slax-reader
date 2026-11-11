@@ -249,7 +249,6 @@ describe('Collection ranking and revocation', () => {
   })
 })
 
-
 describe('request-time subscribed Collection preference with real eligibility SQL', () => {
   function pullRuntime() {
     const prisma = {
