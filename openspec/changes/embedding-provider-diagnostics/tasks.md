@@ -8,4 +8,4 @@
 ## 2. Verification and PR delivery
 
 - [x] 2.1 Run generation, typecheck, focused/full tests, lint, strict specs and dry-run builds; record verification.
-- [ ] 2.2 Open the diagnostic PR without deploying or replaying the test environment. Record live reproduction and final provider-code confirmation as a separate pending operation.
+- [x] 2.2 Open the diagnostic PR without deploying or replaying the test environment. Record live reproduction and final provider-code confirmation as a separate pending operation.
