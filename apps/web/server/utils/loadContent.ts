@@ -1,4 +1,5 @@
 import { isServerTimingEnabled } from './serverTiming'
+import { projectWebArticleBody } from './webArticleBody'
 import { isPdfContentKey } from '@slax-reader/contracts/pdf'
 import { createError, getCookie, getHeader, getResponseHeader, type H3Event, isError, setResponseHeader } from 'h3'
 
@@ -88,6 +89,12 @@ export async function loadContent(event: H3Event, uuid: string): Promise<Content
       }
     } catch (error) {
       console.error(`[content] get ${uuid} failed to load its authorized body:`, error)
+    }
+
+    if (body !== null) {
+      const startedAt = performance.now()
+      body = await projectWebArticleBody(body, config.public.DWEB_API_BASE_URL as string)
+      timings['body-projection'] = elapsedMs(startedAt)
     }
 
     return { metadata, body }
