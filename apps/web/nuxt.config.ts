@@ -345,6 +345,9 @@ export default defineNuxtConfig({
       persistDir: backendPersistDir
     },
     publicAssets: [
+      ...(env === 'development'
+        ? [{ dir: fileURLToPath(new URL('./public-development/', import.meta.url)), baseURL: '/', maxAge: 0 }]
+        : []),
       ...['cmaps', 'standard_fonts', 'wasm'].map(name => ({ dir: fileURLToPath(new URL(`./node_modules/pdfjs-dist/${name}/`, import.meta.url)), baseURL: `/pdfjs/${name}`, maxAge: 31536000 })),
       {
         dir: 'public',

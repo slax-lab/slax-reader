@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.slax.reader",
+      "sha256_cert_fingerprints": [
+        "A1:05:FB:8C:2E:15:45:C7:B8:A5:C4:73:E5:29:15:EF:26:21:65:17:D2:95:14:62:D4:7E:0F:66:1D:A9:11:AA",
+        "A5:4F:11:51:CF:EE:B3:DE:4E:91:C7:03:33:42:52:92:7E:79:5E:F8:EA:21:AA:86:FB:F0:49:84:18:51:53:40"
+      ]
+    }
+  }
+]
