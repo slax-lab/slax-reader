@@ -27,12 +27,9 @@ function tables(storage: DurableObjectStorage): Set<string> {
   )
 }
 
-export function hasLegacyPreference(storage: DurableObjectStorage): boolean {
-  return tables(storage).size > 0
-}
-
-export function readLegacyPreference(storage: DurableObjectStorage): LocalPreference | null {
+export function readLegacyPreference(storage: DurableObjectStorage): LocalPreference | null | undefined {
   const present = tables(storage)
+  if (!present.size) return undefined
   for (const layout of LAYOUTS) {
     if (!present.has(layout.state) || !present.has(layout.entry)) continue
     try {

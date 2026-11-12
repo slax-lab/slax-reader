@@ -77,7 +77,7 @@ Article maintenance SHALL use the existing PinnerSage algorithm over available e
 
 #### Scenario: A medoid save is deleted
 - **WHEN** a medoid's save is deleted
-- **THEN** the next incremental maintenance recomputes the bounded clusters without that article
+- **THEN** ordinary maintenance stops publishing that cluster, and the next rebuild or explicit refresh reclusters the bounded window without that article
 
 ### Requirement: Collection aggregation uses existing owner-member rules
 

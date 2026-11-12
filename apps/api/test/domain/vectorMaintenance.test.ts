@@ -1801,11 +1801,14 @@ describe('incremental preference maintenance', () => {
     expect(indexes[1].stored.has('c:2')).toBe(false)
     const reads = history()
     await seed(2, [1], 'member two', { starred: true })
+    const publication = vi.spyOn(preferences.store(1), 'latestPublication')
     const outputs = await event(1, 2, async () => store(1, 2))
     expect(outputs.filter(output => output.target.kind === 'collection').map(output => [output.target, output.state])).toEqual([
       [{ kind: 'collection', id: 1 }, 'written'],
       [{ kind: 'collection', id: 2 }, 'written']
     ])
+    expect(publication).toHaveBeenCalledTimes(1)
+    publication.mockRestore()
     for (const read of reads) expect(read).not.toHaveBeenCalled()
     expect(indexes[1].stored.get('c:1')!.values).toEqual(indexes[1].stored.get('c:2')!.values)
     const incremental = structuredClone(indexes[1].stored.get('c:1')!.values)

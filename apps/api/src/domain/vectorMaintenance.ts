@@ -795,6 +795,12 @@ export class VectorMaintenanceService implements VectorMaintenance {
   private async publishOwnerCollections(store: PreferenceStore, userId: number, sums: PreferenceSums, scope: PreferencePublish['collections']): Promise<VectorRefreshResult[]> {
     const outputs: VectorRefreshResult[] = []
     if (Array.isArray(scope) && !scope.length) return outputs
+    const published = new Map<string, Promise<number>>()
+    const latest = (groups: MemberGroup[]) => {
+      const key = groups.join()
+      if (!published.has(key)) published.set(key, store.latestPublication(groups))
+      return published.get(key)!
+    }
     for (const { id } of await this.repo.listOwnerCollections(userId)) {
       if (Array.isArray(scope) && !scope.includes(id)) continue
       const output = result({ kind: 'collection', id })
@@ -803,7 +809,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
       try {
         const collection = await this.repo.findCollection(id)
         const groups: MemberGroup[] = collection?.sharing ? ['shared', 'inherited'] : ['shared']
-        if (collection?.owner_id === userId && groups.some(group => sums.counts[group].members)) await this.writeCollection(store, collection, sums, groups, output)
+        if (collection?.owner_id === userId && groups.some(group => sums.counts[group].members)) await this.writeCollection(latest, collection, sums, groups, output)
         else {
           output.vectorIds = [`c:${id}`]
           await this.remove('collection', [`c:${id}`], output)
@@ -816,7 +822,13 @@ export class VectorMaintenanceService implements VectorMaintenance {
     return outputs
   }
 
-  private async writeCollection(store: PreferenceStore, collection: VectorCollectionRow, sums: PreferenceSums, groups: MemberGroup[], output: VectorRefreshResult) {
+  private async writeCollection(
+    latest: (groups: MemberGroup[]) => Promise<number>,
+    collection: VectorCollectionRow,
+    sums: PreferenceSums,
+    groups: MemberGroup[],
+    output: VectorRefreshResult
+  ) {
     const key = `c:${collection.id}`
     const eligible = groups.reduce((count, group) => count + sums.counts[group].members, 0)
     const missing = groups.reduce((count, group) => count + sums.counts[group].missing, 0)
@@ -831,7 +843,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
     const owner = new Float64Array(VECTOR_DIMENSIONS)
     for (const group of groups) for (let i = 0; i < VECTOR_DIMENSIONS; i++) owner[i] += sums[group][i]
     const vector = normalized(owner)
-    const publication = { collection_id: collection.id, owner_id: collection.owner_id, recommendable: true, published_at: await store.latestPublication(groups) }
+    const publication = { collection_id: collection.id, owner_id: collection.owner_id, recommendable: true, published_at: await latest(groups) }
     output.writeToken = await contentWriteToken({ target: key, ...publication }, vector)
     const previous = (await this.get('collection', [key])).get(key)
     if (previous?.metadata?.write_token === output.writeToken) output.unchanged = true

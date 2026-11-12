@@ -4,7 +4,7 @@ import { initializeCore, initializeInfrastructure } from '@/di/generated/depende
 import { ContextManager } from '@/utils/context'
 import { VectorMaintenanceService } from '@/domain/vectorMaintenance'
 import { VectorPreferenceStores } from '@/infra/repository/vectorPreferenceStore'
-import { hasLegacyPreference, readLegacyPreference } from '@/infra/repository/legacyPreferenceStorage'
+import { readLegacyPreference } from '@/infra/repository/legacyPreferenceStorage'
 import { PreferenceQueue, type PreferenceCall, type PreferencePublish, type PreferenceStore } from '@/utils/preferenceLedger'
 import type { VectorPreferenceRpc } from '@/infra/repository/vectorPreferenceClient'
 import type { VectorRefreshResult } from '@/utils/vectorMaintenanceTypes'
@@ -35,9 +35,9 @@ export class VectorPreferenceObject extends DurableObject<Env> implements Vector
   private async run(calls: PreferenceCall[]): Promise<VectorRefreshResult[]> {
     const { service, stores, close } = await this.open()
     try {
-      const legacy = hasLegacyPreference(this.ctx.storage)
-      const results = await service.maintainPreference(stores.forUser(calls[0].userId), calls, legacy ? readLegacyPreference(this.ctx.storage) : null)
-      if (legacy) await this.ctx.storage.deleteAll()
+      const legacy = readLegacyPreference(this.ctx.storage)
+      const results = await service.maintainPreference(stores.forUser(calls[0].userId), calls, legacy)
+      if (legacy !== undefined) await this.ctx.storage.deleteAll()
       return results
     } finally {
       await close()
