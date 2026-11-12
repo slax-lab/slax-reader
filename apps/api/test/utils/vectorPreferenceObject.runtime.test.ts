@@ -1,9 +1,10 @@
 import { builtinModules, createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
 
-// Actual Workerd run of the SQLite-backed VectorPreferenceObject: real Durable Object storage,
-// RPC delivery, per-user queue and maintenance engine. Only PostgreSQL and Vectorize are fixtures.
+// Actual Workerd run of VectorPreferenceObject with real D1 state, Durable Object RPC delivery,
+// per-user queue and maintenance engine. Only PostgreSQL and Vectorize are fixtures.
 
 const require = createRequire(import.meta.url)
 const runtimeRequire = createRequire(require.resolve('wrangler/package.json'))
@@ -36,6 +37,7 @@ const nodeOnlyStubs = {
 type Counts = { eligible: number; used: number; shared: { members: number; missing: number }; inherited: { members: number; missing: number } }
 type State = {
   tables: string[]
+  doBytes: number
   entries: { bookmark_id: number; weight: number; share_group: number; token: string }[]
   seq: number | null
   rawBytes: number | null
@@ -44,7 +46,7 @@ type State = {
   user: number[] | null
   userVersion: number | null
   collection: number[] | null
-  counters: { batches: number; rebuilds: number; rowReads: number; articleReads: number; mutations: number; subscriptionReads: number }
+  counters: { batches: number; rebuilds: number; rowReads: number; articleReads: number; mutations: number; subscriptionReads: number; recentReads: number; actionReads: number }
 }
 
 const recount = (entries: State['entries']): Counts => {
@@ -55,7 +57,7 @@ const recount = (entries: State['entries']): Counts => {
   return { eligible: entries.length, used: entries.filter(entry => entry.token).length, shared: group(1), inherited: group(2) }
 }
 
-test('actual Workerd keeps one user preference in real Durable Object SQLite, combines concurrent applies and publishes Collection changes from stored sums', async () => {
+test('actual Workerd keeps preference state in D1, leaves the Durable Object storage empty, combines concurrent applies and publishes Collection changes from stored sums', async () => {
   const contents = (
     await build({
       stdin: { contents: `export { default, FixturePreferenceObject } from './test/utils/vectorPreferenceObject.worker.ts'`, resolveDir: ROOT, loader: 'ts' },
@@ -84,12 +86,22 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
           compatibilityFlags: ['nodejs_compat'],
           manifest: { mainModule: 'core.mjs', modulesRoot: ROOT, modules: { 'core.mjs': { type: 'esm', contents } } },
           exports: { FixturePreferenceObject: { type: 'durable-object', storage: 'sqlite' } },
-          env: { VECTOR_V5_PREFERENCE: { type: 'durable-object', worker: 'core', exportName: 'FixturePreferenceObject' } }
+          env: {
+            VECTOR_V5_PREFERENCE: { type: 'durable-object', worker: 'core', exportName: 'FixturePreferenceObject' },
+            DB: { type: 'd1', id: 'preference-fixture' }
+          }
         }
       }
     ]
   })
   try {
+    const migration = readFileSync(new URL('../../prisma/d1_migrations/00066_add_vector_preference_state.sql', import.meta.url), 'utf8')
+    const d1 = await runtime.getD1Database('DB')
+    for (const statement of migration
+      .split(';')
+      .map(part => part.replace(/^\s*--.*$/gm, '').trim())
+      .filter(Boolean))
+      await d1.prepare(statement).run()
     const call = async <T>(body: Record<string, unknown>): Promise<T> => {
       const response = await runtime.dispatchFetch('http://local/', { method: 'POST', body: JSON.stringify(body) })
       expect(response.status).toBe(200)
@@ -105,7 +117,8 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
       ['collection', 'written']
     ])
     let state = await inspect()
-    expect(state.tables).toEqual(['preference_entry_v3', 'preference_state_v3'])
+    expect(state.tables).toEqual([])
+    expect(state.doBytes).toBeLessThan(16_384)
     expect(state.entries.map(entry => [entry.bookmark_id, entry.weight, entry.share_group])).toEqual([
       [1, 2, 1],
       [2, 1, 0]
@@ -178,7 +191,7 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
     withInherited.forEach((value, i) => expect(value).toBeCloseTo(state.collection![i], 10))
     expect([state.counters.rebuilds, state.counters.rowReads, state.counters.articleReads]).toEqual([afterRebuild.rebuilds, afterRebuild.rowReads, afterRebuild.articleReads])
 
-    expect(state.plan).toContain('USING INDEX preference_entry_v3_publication')
+    expect(state.plan).toContain('slax_vector_preference_entry_user_id_share_group_published_at_idx')
     expect(state.plan).not.toMatch(/\bSCAN\b/)
     await call({ op: 'set', id: 11, starred: true, group: 'inherited', axis: 40, vector: false })
     const missing = await call<any[]>({ op: 'apply', id: 11 })
@@ -199,17 +212,19 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
     }
     state = await inspect()
     expect(state.tables).toEqual([])
+    expect(state.entries).toEqual([])
+    expect(state.seq).toBeNull()
     expect(state.user).toBeNull()
     expect(state.collection).toBeNull()
 
-    // State written in the previous layout is rebuilt once and its tables are dropped.
+    // The unusable first layout is rebuilt once and the object's own storage is erased.
     await call({ op: 'legacy' })
     expect((await inspect()).tables).toEqual(['preference_entry', 'preference_state'])
     await call({ op: 'set', id: 12, starred: true, group: 'shared', axis: 12 })
     const rebuildsBeforeLegacy = (await inspect()).counters.rebuilds
     expect((await call<any[]>({ op: 'apply', id: 12 })).map(output => output.state)).toEqual(['written', 'written'])
     state = await inspect()
-    expect(state.tables).toEqual(['preference_entry_v3', 'preference_state_v3'])
+    expect(state.tables).toEqual([])
     expect(state.counters.rebuilds).toBe(rebuildsBeforeLegacy + 1)
     await call({ op: 'set', id: 13, starred: false, group: 'none', axis: 13 })
     await call({ op: 'apply', id: 13 })
@@ -236,16 +251,24 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
       output.preference.vector!.forEach((value, i) => expect(value).toBeCloseTo(visible.collection![i], 10))
     }
     await sameAsOwner(301)
-    await call({ op: 'legacy', version: 2 })
+    // Durable Object v2 state moves into D1 without reading article history, then the object storage is erased.
+    for (const version of [2, 3]) {
+      const moved = await inspect()
+      await call({ op: 'legacy', version })
+      expect((await inspect()).tables.length).toBe(2)
+      expect((await inspect()).seq).toBeNull()
+      await call({ op: 'publish' })
+      state = await inspect()
+      expect(state.tables).toEqual([])
+      expect(state.counters.rebuilds).toBe(moved.counters.rebuilds)
+      expect(state.counters.articleReads).toBe(moved.counters.articleReads)
+      expect(state.entries).toEqual(moved.entries)
+      expect(state.counts).toEqual(moved.counts)
+    }
     const beforeV2 = (await inspect()).counters.rebuilds
-    await call({ op: 'publish' })
-    expect((await inspect()).counters.rebuilds).toBe(beforeV2 + 1)
-    expect((await inspect()).tables).toEqual(['preference_entry_v3', 'preference_state_v3'])
-    await call({ op: 'publish' })
-    expect((await inspect()).counters.rebuilds).toBe(beforeV2 + 1)
     const oldVector = await call<number[]>({ op: 'set', id: 12, starred: true, group: 'shared', axis: 14 })
-    await call({ op: 'apply', id: 12 })
-    expect((await inspect()).counters.rebuilds).toBe(beforeV2 + 1)
+    await call({ op: 'apply', id: 12, previous: oldVector })
+    expect((await inspect()).counters.rebuilds).toBe(beforeV2)
     await sameAsOwner(302)
 
     for (const id of [14, 16]) {
@@ -274,18 +297,20 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
     await call({ op: 'subscribe', value: true })
     await sameAsOwner(301)
 
+    // Stale object tables left by an older layout never override D1; they are erased.
     await call({ op: 'legacy' })
     await call({ op: 'owner', sharing: false, active: true })
     await call({ op: 'set', id: 15, starred: true, group: 'shared', axis: 14 })
     const beforeUpgrade = (await inspect()).counters.rebuilds
-    await call({ op: 'publish' })
+    await call({ op: 'apply', id: 15 })
     state = await inspect()
-    expect(state.counters.rebuilds).toBe(beforeUpgrade + 1)
-    expect(state.tables).toEqual(['preference_entry_v3', 'preference_state_v3'])
+    expect(state.counters.rebuilds).toBe(beforeUpgrade)
+    expect(state.tables).toEqual([])
+    expect(state.doBytes).toBeLessThan(16_384)
     expect(state.entries.map(entry => entry.bookmark_id)).toContain(15)
     await sameAsOwner(302)
     await call({ op: 'publish' })
-    expect((await inspect()).counters.rebuilds).toBe(beforeUpgrade + 1)
+    expect((await inspect()).counters.rebuilds).toBe(beforeUpgrade)
   } finally {
     await runtime.dispose()
   }

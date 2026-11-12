@@ -968,7 +968,10 @@ describe('minimal per-user vector maintenance', () => {
 
       const before = await service.readUser(1, 'article')
       await db.exec(`UPDATE sr_user_bookmark SET starred_at='2026-09-01T00:00:00Z' WHERE user_id=1 AND bookmark_id=2`)
-      const second = (await service.applyArticle({ userId: 1, id: 2 })).find(output => output.target.kind === 'user')!
+      const carried = (await service.applyArticle({ userId: 1, id: 2 })).find(output => output.target.kind === 'user')!
+      expect(carried.state).toBe('written')
+      expect(indexes[2].stored.get('u:1:article')?.metadata?.interests).toBe(metadata)
+      const second = await service.refreshUser(1, 'article')
       expect(second.state).toBe('written')
       const after = await service.readUser(1, 'article')
       expect(after).toEqual(before)
@@ -1661,15 +1664,37 @@ describe('incremental preference maintenance', () => {
     expect(preferences.store(1).sums!.meanVersion).toBe(EMBEDDING_MEAN_VERSION)
   })
 
-  test('a vector replaced outside the event path uses the saved contribution without rebuilding', async () => {
+  test('a replaced vector is subtracted from the handed-over previous vector without rebuilding', async () => {
+    for (const id of [1, 2]) await seed(id, [1], `article ${id}`)
+    for (const id of [1, 2]) store(1, id)
+    await service.refreshUser(1, 'article')
+    const previous = Array.from(indexes[0].stored.get('a:1:1')!.values)
+    store(1, 1, spread(99))
+    const articles = vi.spyOn(repo, 'listUserArticles')
+    expect(user(await service.applyArticle({ userId: 1, id: 1 }, previous))).toMatchObject({ state: 'written' })
+    expect(articles).not.toHaveBeenCalled()
+    await expectSameVectors()
+  })
+
+  test('a vector replaced outside the event path without its previous vector rebuilds once instead of subtracting a guess', async () => {
     for (const id of [1, 2]) await seed(id, [1], `article ${id}`)
     for (const id of [1, 2]) store(1, id)
     await service.refreshUser(1, 'article')
     store(1, 1, spread(99))
     const articles = vi.spyOn(repo, 'listUserArticles')
     expect(user(await service.applyArticle({ userId: 1, id: 1 }))).toMatchObject({ state: 'written' })
-    expect(articles).not.toHaveBeenCalled()
+    expect(articles).toHaveBeenCalled()
     await expectSameVectors()
+    articles.mockClear()
+    expect(user(await service.applyArticle({ userId: 1, id: 2 }))).toMatchObject({ state: 'written' })
+    expect(articles).not.toHaveBeenCalled()
+  })
+
+  test('preference state stores no article vectors', async () => {
+    for (const id of [1, 2]) await seed(id, [1], `article ${id}`, { starred: id === 1 })
+    for (const id of [1, 2]) store(1, id)
+    await service.refreshUser(1, 'article')
+    for (const entry of preferences.store(1).rows.values()) expect(Object.keys(entry).sort()).toEqual(['group', 'publishedAt', 'token', 'weight'])
   })
 
   test('applying an unchanged article again keeps every contribution and republishes the same vectors', async () => {
@@ -1704,7 +1729,7 @@ describe('incremental preference maintenance', () => {
     expect(await service.verifyRefresh(output)).toBe(true)
   })
 
-  test('a save updates the bounded clusters and a medoid deletion removes its contribution', async () => {
+  test('events carry clusters, explicit refresh reclusters the bounded window, and a medoid deletion drops its cluster', async () => {
     for (const id of [1, 2, 3]) await seed(id, [1], `article ${id}`)
     store(1, 1, near(1, 0))
     store(1, 2, near(1, 0.001))
@@ -1712,18 +1737,25 @@ describe('incremental preference maintenance', () => {
     await service.refreshUser(1, 'article')
     const clusters = interests(indexes[2].stored.get('u:1:article')!)
     expect(clusters.length).toBeGreaterThan(0)
-    const recent = vi.spyOn(repo, 'listRecentUserActions')
+    const recent = vi.spyOn(repo, 'listRecentUserActions'),
+      history = vi.spyOn(repo, 'listUserArticles')
     await seed(4, [1], 'similar save')
     await event(1, 4, async () => store(1, 4, near(1, 0.002)))
     expect(recent).not.toHaveBeenCalled()
+    expect(history).not.toHaveBeenCalled()
+    expect(interests(indexes[2].stored.get('u:1:article')!)).toEqual(clusters)
+    await service.refreshUser(1, 'article')
+    expect(recent).toHaveBeenCalledTimes(1)
+    expect(history).not.toHaveBeenCalled()
+    recent.mockClear()
     const current = interests(indexes[2].stored.get('u:1:article')!)
     expect(current.length).toBeGreaterThan(0)
-    expect(preferences.store(1).rows.get(4)?.actions?.length).toBeGreaterThan(0)
     const medoid = current[0]
     await event(1, medoid, async () => {
       await db.exec(`UPDATE sr_user_bookmark SET deleted_at=now() WHERE bookmark_id=${medoid}`)
       indexes[0].stored.delete(`a:1:${medoid}`)
     })
+    expect(history).not.toHaveBeenCalled()
     expect(recent).not.toHaveBeenCalled()
     expect(interests(indexes[2].stored.get('u:1:article')!)).not.toContain(medoid)
   })
@@ -2046,7 +2078,7 @@ test('publishing initialized state for a deleted account never restores its old 
   expect(indexes[1].stored.has('c:1')).toBe(false)
 })
 
-test('user publication expires its bounded interest window without querying article history', async () => {
+test('user publication expires its bounded interest window without querying full article history', async () => {
   vi.useFakeTimers()
   try {
     vi.setSystemTime(new Date('2026-11-11T00:00:00Z'))
@@ -2063,7 +2095,7 @@ test('user publication expires its bounded interest window without querying arti
     await service.refreshUser(1, 'article')
     expect((await service.readArticleProfile(1))!.interests).toEqual([])
     expect(history).not.toHaveBeenCalled()
-    expect(recent).not.toHaveBeenCalled()
+    expect(recent).toHaveBeenCalledTimes(1)
     history.mockRestore()
     recent.mockRestore()
   } finally {
@@ -2099,7 +2131,7 @@ test('initialization writes bounded pages and never treats an interrupted bootst
     return ids.map(id => ({ id, values: unit(0) }))
   })
   expect((await service.refreshUser(1, 'article')).state).toBe('failed')
-  expect(store.read()).toBeNull()
+  expect(await store.read()).toBeNull()
   expect(append.mock.calls.every(([page]) => page.size <= 100)).toBe(true)
   expect(indexes[2].upsert).not.toHaveBeenCalled()
   indexes[0].getByIds.mockImplementation(async ids => ids.map(id => ({ id, values: unit(0) })))

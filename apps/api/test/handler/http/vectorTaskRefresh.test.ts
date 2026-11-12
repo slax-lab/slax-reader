@@ -36,9 +36,10 @@ function denied(fn: () => unknown) {
 
 function maintenance() {
   return {
-    refreshArticles: vi.fn(async (identities: Array<{ userId: number; id: number }>) => [
-      { target: { kind: 'article', userId: identities[0].userId, id: identities[0].id }, state: 'written', vectorIds: [], mutationIds: [] }
-    ]),
+    refreshArticlesWithPrevious: vi.fn(async (identities: Array<{ userId: number; id: number }>) => ({
+      results: [{ target: { kind: 'article', userId: identities[0].userId, id: identities[0].id }, state: 'written', vectorIds: [], mutationIds: [] }],
+      previous: {} as Record<string, number[]>
+    })),
     refreshUser: vi.fn(async (id: number, preference: string) => ({ target: { kind: 'user', id, preference }, state: 'written', vectorIds: [], mutationIds: [] })),
     refreshCollection: vi.fn(async (id: number) => ({ target: { kind: 'collection', id }, state: 'written', vectorIds: [], mutationIds: [] })),
     verifyRefresh: vi.fn(async () => true)
@@ -166,18 +167,32 @@ describe('single-target Controller actions', () => {
   test('bookmark vector refresh sends only its raw private pair', async () => {
     const { controller, mock } = bookmark()
     const response = await controller.handleUserBookmarkVectorRefreshRequest(context(), refreshRequest('/v1/bookmark/vector/refresh', { user_id: 7, bookmark_id: 9 }))
-    expect(mock.refreshArticles).toHaveBeenCalledExactlyOnceWith([{ userId: 7, id: 9 }])
+    expect(mock.refreshArticlesWithPrevious).toHaveBeenCalledExactlyOnceWith([{ userId: 7, id: 9 }])
     expect(mock.refreshUser).not.toHaveBeenCalled()
     expect(mock.refreshCollection).not.toHaveBeenCalled()
     expect(mock.verifyRefresh).toHaveBeenCalledOnce()
     expect(await response.json()).toMatchObject({ code: 200, data: { target: { kind: 'article', userId: 7, id: 9 }, state: 'written' } })
   })
 
+  test('bookmark vector refresh hands the replaced article vector to the owner Workflow', async () => {
+    const { controller, mock } = bookmark()
+    const previous = Array.from({ length: 1024 }, (_, i) => (i === 3 ? 1 : 0))
+    mock.refreshArticlesWithPrevious.mockResolvedValue({
+      results: [{ target: { kind: 'article', userId: 7, id: 9 }, state: 'written', vectorIds: ['a:7:9'], mutationIds: [] }],
+      previous: { 'a:7:9': previous }
+    } as never)
+    const ctx = context()
+    await controller.handleUserBookmarkVectorRefreshRequest(ctx, refreshRequest('/v1/bookmark/vector/refresh', { user_id: 7, bookmark_id: 9 }))
+    const create = (ctx.env.VECTOR_V5_MAINTENANCE_WORKFLOW as unknown as { create: ReturnType<typeof vi.fn> }).create
+    expect(create).toHaveBeenCalledOnce()
+    expect(create.mock.calls[0][0].params).toMatchObject({ target: { kind: 'article', userId: 7, id: 9 }, acceptedPrevious: previous })
+  })
+
   test('bookmark preference refresh targets only that user article preference', async () => {
     const { controller, mock } = bookmark()
     const response = await controller.handleUserBookmarkPreferenceRefreshRequest(context(), refreshRequest('/v1/bookmark/preference/refresh', { user_id: 7 }))
     expect(mock.refreshUser).toHaveBeenCalledExactlyOnceWith(7, 'article')
-    expect(mock.refreshArticles).not.toHaveBeenCalled()
+    expect(mock.refreshArticlesWithPrevious).not.toHaveBeenCalled()
     expect(mock.refreshCollection).not.toHaveBeenCalled()
     expect(await response.json()).toMatchObject({ code: 200, data: { target: { kind: 'user', id: 7, preference: 'article' } } })
   })
@@ -186,7 +201,7 @@ describe('single-target Controller actions', () => {
     const { controller, mock } = collection()
     const response = await controller.handleUserCollectionVectorRefreshRequest(context(), refreshRequest('/v1/collection/vector/refresh', { collection_id: 30 }))
     expect(mock.refreshCollection).toHaveBeenCalledExactlyOnceWith(30)
-    expect(mock.refreshArticles).not.toHaveBeenCalled()
+    expect(mock.refreshArticlesWithPrevious).not.toHaveBeenCalled()
     expect(mock.refreshUser).not.toHaveBeenCalled()
     expect(await response.json()).toMatchObject({ code: 200, data: { target: { kind: 'collection', id: 30 } } })
   })
@@ -195,7 +210,7 @@ describe('single-target Controller actions', () => {
     const { controller, mock } = collection()
     const response = await controller.handleUserCollectionPreferenceRefreshRequest(context(), refreshRequest('/v1/collection/preference/refresh', { user_id: 7 }))
     expect(mock.refreshUser).toHaveBeenCalledExactlyOnceWith(7, 'collection')
-    expect(mock.refreshArticles).not.toHaveBeenCalled()
+    expect(mock.refreshArticlesWithPrevious).not.toHaveBeenCalled()
     expect(mock.refreshCollection).not.toHaveBeenCalled()
     expect(await response.json()).toMatchObject({ code: 200, data: { target: { kind: 'user', id: 7, preference: 'collection' } } })
   })
@@ -214,7 +229,7 @@ describe('single-target Controller actions', () => {
     }
     const wrongConfig = refreshRequest(path, body, { secret: 'configured-other' })
     await expect((controller as any)[handler](context(SECRET), wrongConfig)).rejects.toMatchObject({ name: ErrorName.UNAUTHORIZED })
-    for (const refresh of ['refreshArticles', 'refreshUser', 'refreshCollection']) expect(mock[refresh]).not.toHaveBeenCalled()
+    for (const refresh of ['refreshArticlesWithPrevious', 'refreshUser', 'refreshCollection']) expect(mock[refresh]).not.toHaveBeenCalled()
     expect(mock.verifyRefresh).not.toHaveBeenCalled()
   })
 
@@ -224,7 +239,7 @@ describe('single-target Controller actions', () => {
     const response = await controller.handleUserBookmarkVectorRefreshRequest(context(), refreshRequest('/v1/bookmark/vector/refresh', { user_id: id, bookmark_id: 9 }))
     expect(response.status).toBe(400)
     expect((await response.json()).data).toBe(ErrorName.ERROR_PARAM)
-    expect(mock.refreshArticles).not.toHaveBeenCalled()
+    expect(mock.refreshArticlesWithPrevious).not.toHaveBeenCalled()
   })
 
   test.each(invalidIds)('bookmark vector refresh rejects bookmark_id %j before any write', async id => {
@@ -232,7 +247,7 @@ describe('single-target Controller actions', () => {
     const response = await controller.handleUserBookmarkVectorRefreshRequest(context(), refreshRequest('/v1/bookmark/vector/refresh', { user_id: 7, bookmark_id: id }))
     expect(response.status).toBe(400)
     expect((await response.json()).data).toBe(ErrorName.ERROR_PARAM)
-    expect(mock.refreshArticles).not.toHaveBeenCalled()
+    expect(mock.refreshArticlesWithPrevious).not.toHaveBeenCalled()
   })
 
   test.each([
@@ -260,7 +275,7 @@ describe('single-target Controller actions', () => {
     const response = await (controller as any)[handler](context(), refreshRequest(path, body))
     expect(response.status).toBe(400)
     expect((await response.json()).data).toBe(ErrorName.ERROR_PARAM)
-    expect(mock.refreshArticles).not.toHaveBeenCalled()
+    expect(mock.refreshArticlesWithPrevious).not.toHaveBeenCalled()
     expect(mock.refreshUser).not.toHaveBeenCalled()
     expect(mock.refreshCollection).not.toHaveBeenCalled()
     expect(mock.verifyRefresh).not.toHaveBeenCalled()
@@ -279,7 +294,7 @@ describe('single-target Controller actions', () => {
     expect(response.status).toBe(400)
     expect((await response.json()).data).toBe(ErrorName.ERROR_PARAM)
     expect(request.bodyUsed).toBe(false)
-    expect(mock.refreshArticles).not.toHaveBeenCalled()
+    expect(mock.refreshArticlesWithPrevious).not.toHaveBeenCalled()
     expect(mock.refreshUser).not.toHaveBeenCalled()
     expect(mock.refreshCollection).not.toHaveBeenCalled()
   })
@@ -289,7 +304,7 @@ describe('single-target Controller actions', () => {
     const response = await controller.handleUserBookmarkVectorRefreshRequest(context(), refreshRequest('/v1/bookmark/vector/refresh', '{'))
     expect(response.status).toBe(400)
     expect((await response.json()).data).toBe(ErrorName.ERROR_PARAM)
-    expect(mock.refreshArticles).not.toHaveBeenCalled()
+    expect(mock.refreshArticlesWithPrevious).not.toHaveBeenCalled()
   })
 
   test('a failed verification returns a pending result without a second target write', async () => {
@@ -302,9 +317,10 @@ describe('single-target Controller actions', () => {
 
   test('a failed target skips verification and is reported truthfully', async () => {
     const { controller, mock } = bookmark()
-    mock.refreshArticles.mockResolvedValue([
-      { target: { kind: 'article', userId: 7, id: 9 }, state: 'failed', reason: 'source_not_ready', vectorIds: [], mutationIds: [] }
-    ] as never)
+    mock.refreshArticlesWithPrevious.mockResolvedValue({
+      results: [{ target: { kind: 'article', userId: 7, id: 9 }, state: 'failed', reason: 'source_not_ready', vectorIds: [], mutationIds: [] }],
+      previous: {}
+    } as never)
     const response = await controller.handleUserBookmarkVectorRefreshRequest(context(), refreshRequest('/v1/bookmark/vector/refresh', { user_id: 7, bookmark_id: 9 }))
     expect(await response.json()).toMatchObject({ data: { state: 'failed', reason: 'source_not_ready' } })
     expect(mock.verifyRefresh).not.toHaveBeenCalled()

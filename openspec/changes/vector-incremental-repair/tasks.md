@@ -11,6 +11,9 @@
 - [x] 2.2 Publish available user and Collection coverage, isolate malformed records, remove stale zero-usable projections, and verify partial/recovered/empty states and unchanged identity boundaries.
 - [x] 2.3 Maintain the bounded recent-action window and current interest clusters from local contributions; verify save/star/delete/expiry and assert no ordinary history or recent-window SQL scan.
 - [x] 2.4 Remove full-member timestamp aggregation from Collection publication and verify timestamps against full-reference results after update/removal.
+- [x] 2.5 Move preference state to D1 (migration 00066, `D1PreferenceStore`), drop stored contribution vectors and action history, hand the replaced vector over from content refresh, relation deletion and the repair route, and verify exact subtraction, rebuild-on-unknown-token and no stored vectors.
+- [x] 2.6 Make the Durable Object a serializer only: move v2/v3 object state to D1 without history reads, erase object storage, and verify with real Workerd D1 and Durable Object storage.
+- [x] 2.7 Recompute interest clusters from the bounded PostgreSQL window on rebuild/refresh only; verify ordinary events carry clusters and medoid deletion drops its cluster.
 
 ## 3. Events and convergence
 

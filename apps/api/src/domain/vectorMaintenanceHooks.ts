@@ -7,6 +7,7 @@ export interface VectorMaintenanceWorkflowParams {
   eventId?: string
   target: VectorMaintenanceEvent
   acceptedArticle?: VectorRefreshResult
+  acceptedPrevious?: number[]
 }
 
 export type VectorMaintenanceDispatchEnv = Pick<Env, 'VECTOR_V5_MAINTENANCE_WORKFLOW'>
@@ -22,11 +23,19 @@ export const vectorMaintenanceKey = (target: VectorMaintenanceEvent): string => 
   }
 }
 
-export const enqueueVectorMaintenance = async (env: VectorMaintenanceDispatchEnv, target: VectorMaintenanceEvent, acceptedArticle?: VectorRefreshResult): Promise<void> => {
+export const enqueueVectorMaintenance = async (
+  env: VectorMaintenanceDispatchEnv,
+  target: VectorMaintenanceEvent,
+  acceptedArticle?: VectorRefreshResult,
+  acceptedPrevious?: number[]
+): Promise<void> => {
   const binding = env.VECTOR_V5_MAINTENANCE_WORKFLOW
   if (!binding) throw new Error('missing_vector_maintenance_workflow')
   const eventId = crypto.randomUUID()
-  await binding.create({ id: `v5-${eventId}`, params: { eventId, target, ...(acceptedArticle ? { acceptedArticle } : {}) } })
+  await binding.create({
+    id: `v5-${eventId}`,
+    params: { eventId, target, ...(acceptedArticle ? { acceptedArticle } : {}), ...(acceptedArticle && acceptedPrevious ? { acceptedPrevious } : {}) }
+  })
 }
 
 export const enqueueVectorMaintenanceBatch = async (env: VectorMaintenanceDispatchEnv, targets: VectorMaintenanceEvent[]): Promise<void> => {

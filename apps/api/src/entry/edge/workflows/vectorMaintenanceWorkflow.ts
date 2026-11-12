@@ -64,9 +64,12 @@ export class VectorMaintenanceWorkflow extends WorkflowEntrypoint<Env, VectorMai
           if (accepted) {
             if (accepted.target.kind !== 'article' || accepted.target.id !== identity.id || accepted.target.userId !== identity.userId)
               throw new Error('invalid_vector_maintenance_event')
-            return { result: requireRefreshSuccess(accepted), previous: null }
+            return { result: requireRefreshSuccess(accepted), previous: event.payload.acceptedPrevious ?? null }
           }
-          if (target.mode === 'relation') return { result: requireRefreshSuccess(await service.refreshArticleRelation(identity)), previous: null }
+          if (target.mode === 'relation') {
+            const { result, previous } = await service.refreshArticleRelationWithPrevious(identity)
+            return { result: requireRefreshSuccess(result), previous }
+          }
           const { results, previous } = await service.refreshArticlesWithPrevious([identity])
           if (results.length !== 1) throw new Error('vector_refresh_missing_result')
           return { result: requireRefreshSuccess(results[0]), previous: previous[articleVectorId(identity)] ?? null }

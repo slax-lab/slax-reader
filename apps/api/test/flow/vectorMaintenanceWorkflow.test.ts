@@ -319,10 +319,32 @@ it('rejects unsupported relation modes and non-article mode use', () => {
 })
 
 it('relation mode bypasses source embedding and applies owner state', async () => {
-  const refreshArticleRelation = vi.fn(async () => ({ target: { kind: 'article', userId: 7, id: 99 }, state: 'empty', vectorIds: [], mutationIds: [] }))
-  Object.assign(mocks.service, { refreshArticleRelation })
+  const refreshArticleRelationWithPrevious = vi.fn(async () => ({
+    result: { target: { kind: 'article', userId: 7, id: 99 }, state: 'empty', vectorIds: [], mutationIds: [] },
+    previous: null
+  }))
+  Object.assign(mocks.service, { refreshArticleRelationWithPrevious })
   await run({ kind: 'article', userId: 7, id: 99, mode: 'relation' })
-  expect(refreshArticleRelation).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 })
+  expect(refreshArticleRelationWithPrevious).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 })
   expect(mocks.service.refreshArticlesWithPrevious).not.toHaveBeenCalled()
-  expect(mocks.service.applyArticle).toHaveBeenCalledOnce()
+  expect(mocks.service.applyArticle).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 }, undefined)
+})
+
+it('relation-mode deletion hands the removed vector to owner state', async () => {
+  const removed = Array.from({ length: 1024 }, (_, i) => (i === 5 ? 1 : 0))
+  const refreshArticleRelationWithPrevious = vi.fn(async () => ({
+    result: { target: { kind: 'article', userId: 7, id: 99 }, state: 'deleted', vectorIds: ['a:7:99'], mutationIds: ['m'] },
+    previous: removed
+  }))
+  Object.assign(mocks.service, { refreshArticleRelationWithPrevious })
+  await run({ kind: 'article', userId: 7, id: 99, mode: 'relation' })
+  expect(mocks.service.applyArticle).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 }, removed)
+})
+
+it('accepted repair receipts hand over the replaced vector', async () => {
+  const workflow = new VectorMaintenanceWorkflow({} as any, {} as any)
+  const accepted = { target: { kind: 'article', userId: 7, id: 99 }, state: 'written', vectorIds: ['a:7:99'], mutationIds: ['m'], writeToken: 'a'.repeat(64) }
+  const previous = Array.from({ length: 1024 }, (_, i) => (i === 2 ? 1 : 0))
+  await workflow.run({ payload: { target: accepted.target, acceptedArticle: accepted, acceptedPrevious: previous } } as any, step() as any)
+  expect(mocks.service.applyArticle).toHaveBeenCalledExactlyOnceWith({ userId: 7, id: 99 }, previous)
 })
