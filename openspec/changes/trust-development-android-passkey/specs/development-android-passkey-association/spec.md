@@ -6,9 +6,9 @@ Allow explicitly authorized locally signed Android test builds to use developmen
 
 ## ADDED Requirements
 
-### Requirement: Local Android certificate trust is development-only
+### Requirement: Local Android certificate trust is preview-only
 
-The development Web deployment SHALL add the explicitly approved test APK signing certificate to its existing Android credential-sharing association. Preview, beta and production SHALL retain only the existing Play certificate.
+The preview Web deployment at `r.slax.dev` SHALL add the explicitly approved test APK signing certificate to its existing Android credential-sharing association. Local development, beta and production SHALL retain only the existing Play certificate.
 
 #### Scenario: Android retrieves development association
 
@@ -18,7 +18,7 @@ The development Web deployment SHALL add the explicitly approved test APK signin
 
 #### Scenario: Another environment is built
 
-- **WHEN** preview, beta or production Web assets are built
+- **WHEN** local development, beta or production Web assets are built
 - **THEN** their Android association contains only the existing Play certificate
 - **AND** the local test certificate is absent
 
