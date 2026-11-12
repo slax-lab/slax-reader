@@ -99,7 +99,7 @@ describe('global/LoginView', () => {
     wrapper.unmount()
   })
 
-  it.each(['preview', 'beta', 'production'])('hides email login in %s', async environment => {
+  it.each(['beta', 'production'])('hides email login in %s', async environment => {
     runtimeConfig.public.slaxEnv = environment
     const wrapper = mountWithApp(LoginView)
     await flushPromises()
@@ -112,7 +112,8 @@ describe('global/LoginView', () => {
     wrapper.unmount()
   })
 
-  it('sends an email code and verifies it with referral and acquisition context', async () => {
+  it.each(['development', 'preview'])('sends and verifies email with referral and acquisition context in %s', async environment => {
+    runtimeConfig.public.slaxEnv = environment
     get.mockResolvedValue({ enabled: true })
     runtimeConfig.public.TURNSTILE_SITE_KEY = ''
     const authAttribution = { source: 'hackerlinks', medium: 'header', campaign: 'mvp' } as const

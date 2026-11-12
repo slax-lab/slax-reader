@@ -85,7 +85,7 @@ describe('Modal/LoginModal', () => {
     expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(true)
   })
 
-  it.each(['preview', 'beta', 'production'])('hides modal email login in %s', async environment => {
+  it.each(['beta', 'production'])('hides modal email login in %s', async environment => {
     runtimeConfig.public.slaxEnv = environment
     const wrapper = mountWithApp(LoginModal, { props: { redirect: '/foo' } })
     await flushPromises()
@@ -144,7 +144,8 @@ describe('Modal/LoginModal', () => {
       .toEqual([['/terms', '_blank'], ['/privacy', '_blank']])
   })
 
-  it('verifies a code with collection attribution and returns to the pending subscribe action', async () => {
+  it.each(['development', 'preview'])('verifies a code with collection attribution and returns to the pending subscribe action in %s', async environment => {
+    runtimeConfig.public.slaxEnv = environment
     const redirect = '/c/Collection123?subscribe_after_login=1'
     const authAttribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } as const
     const wrapper = mountWithApp(LoginModal, { props: { redirect, authAttribution } })
