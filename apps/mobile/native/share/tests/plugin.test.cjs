@@ -23,14 +23,30 @@ function projectFixture() {
   }}};
   return project;
 }
-test('share Android manifest remains idempotent and preserves unrelated configuration', () => {
-  const manifest = {manifest: {application: [{$: {'android:name': '.MainApplication'}, activity: [{$: {'android:name': '.MainActivity'}}]}]}};
-  helpers.updateAndroidManifest(manifest, options); const first = JSON.stringify(manifest);
-  helpers.updateAndroidManifest(manifest, options); assert.equal(JSON.stringify(manifest), first);
-  const application = manifest.manifest.application[0]; assert.equal(application.activity.length, 2);
-  assert.equal(application.activity[1]['intent-filter'][0].data[0].$['android:mimeType'], 'text/plain');
-  assert.equal(application['meta-data'].find(value => value.$['android:name'] === 'SlaxApiBetaURL').$['android:value'], 'https://beta.example');
-});
+for (const existing of [undefined, {}, {'android:taskAffinity': 'com.slax.reader', 'android:excludeFromRecents': 'false', 'android:launchMode': 'standard'}]) {
+  test(`share Android manifest isolates the popup for ${existing === undefined ? 'fresh' : Object.keys(existing).length ? 'stale' : 'existing'} configuration`, () => {
+    const main = {$: {'android:name': '.MainActivity', 'android:launchMode': 'singleTask', 'android:theme': '@style/Theme.App.SplashScreen'}, 'intent-filter': [{action: [{$: {'android:name': 'android.intent.action.MAIN'}}]}]};
+    const activity = [main];
+    if (existing !== undefined) activity.push({$: {'android:name': 'com.slax.reader.extension.ShareActivity', 'android:screenOrientation': 'portrait', ...existing}});
+    const application = {$: {'android:name': '.MainApplication', 'android:taskAffinity': 'com.slax.reader'}, activity};
+    const manifest = {manifest: {application: [application]}};
+    const mainBefore = JSON.stringify(main), applicationBefore = JSON.stringify(application.$);
+    helpers.updateAndroidManifest(manifest, options); const first = JSON.stringify(manifest);
+    helpers.updateAndroidManifest(manifest, options); assert.equal(JSON.stringify(manifest), first);
+    assert.equal(application.activity.length, 2);
+    assert.equal(JSON.stringify(main), mainBefore);
+    assert.equal(JSON.stringify(application.$), applicationBefore);
+    const share = application.activity.find(value => value.$['android:name'] === 'com.slax.reader.extension.ShareActivity');
+    assert.equal(share.$['android:taskAffinity'], '');
+    assert.equal(share.$['android:excludeFromRecents'], 'true');
+    assert.equal(share.$['android:launchMode'], 'singleTask');
+    assert.equal(share.$['android:theme'], '@style/SlaxShareTheme');
+    assert.equal(share.$['android:exported'], 'true');
+    if (existing !== undefined) assert.equal(share.$['android:screenOrientation'], 'portrait');
+    assert.deepEqual(share['intent-filter'], [{action: [{$: {'android:name': 'android.intent.action.SEND'}}], category: [{$: {'android:name': 'android.intent.category.DEFAULT'}}], data: [{$: {'android:mimeType': 'text/plain'}}]}]);
+    assert.equal(application['meta-data'].find(value => value.$['android:name'] === 'SlaxApiBetaURL').$['android:value'], 'https://beta.example');
+  });
+}
 test('share Xcode target generates once with original identity, source/resource membership and signing inheritance', () => {
   const project = projectFixture(); helpers.configureIosTarget(project, options); const first = project.writeSync();
   helpers.configureIosTarget(project, options); assert.equal(project.writeSync(), first);
