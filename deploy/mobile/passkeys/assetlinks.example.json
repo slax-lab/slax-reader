@@ -4,7 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.slax.reader",
-      "sha256_cert_fingerprints": ["REPLACE_WITH_SIGNING_CERTIFICATE_SHA256_COLON_HEX"]
+      "sha256_cert_fingerprints": ["A1:05:FB:8C:2E:15:45:C7:B8:A5:C4:73:E5:29:15:EF:26:21:65:17:D2:95:14:62:D4:7E:0F:66:1D:A9:11:AA"]
     }
   }
 ]
