@@ -43,7 +43,8 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Account sign-in methods', () => {
-  it('displays linked identities and uses the account-scoped email endpoints', async () => {
+  it.each(['development', 'preview'])('displays linked identities and binds email in %s', async environment => {
+    oauth.environment = environment
     fetchMock.mockResolvedValueOnce(json({ request_id: 'bind-attempt', expires_in: 300, resend_after: 60 }))
     fetchMock.mockResolvedValueOnce(json({ email: 'Reader@example.com' }))
 
@@ -77,7 +78,7 @@ describe('Account sign-in methods', () => {
     expect(clearAuth).not.toHaveBeenCalled()
   })
 
-  it.each(['development', 'preview', 'beta', 'production'])('shows a login mailbox only in development for %s', async environment => {
+  it.each(['development', 'preview', 'beta', 'production'])('shows a login mailbox only in test profiles for %s', async environment => {
     oauth.environment = environment
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: {
       accountKey,
@@ -85,10 +86,10 @@ describe('Account sign-in methods', () => {
       platform: [...platforms, { platform: 'mail', user_name: 'reader@example.com', created_at: new Date('2026-11-01T00:00:00Z') }]
     } })
 
-    expect(wrapper.text().includes('Same as profile email')).toBe(environment === 'development')
-    expect(wrapper.findAll('.login-method-row')).toHaveLength(environment === 'development' ? 2 : 0)
-    expect(wrapper.text().includes('GoogleLinked')).toBe(environment === 'development')
-    expect(wrapper.find('section').exists()).toBe(environment === 'development')
+    expect(wrapper.text().includes('Same as profile email')).toBe(['development', 'preview'].includes(environment))
+    expect(wrapper.findAll('.login-method-row')).toHaveLength(['development', 'preview'].includes(environment) ? 2 : 0)
+    expect(wrapper.text().includes('GoogleLinked')).toBe(['development', 'preview'].includes(environment))
+    expect(wrapper.find('section').exists()).toBe(['development', 'preview'].includes(environment))
     expect(wrapper.find('button').exists()).toBe(false)
   })
 
@@ -122,7 +123,7 @@ describe('Account sign-in methods', () => {
     expect(wrapper.text()).toContain('Provider linking is unavailable from this Web address')
   })
 
-  it.each(['preview', 'beta', 'production'])('hides the entire sign-in methods section in %s', async environment => {
+  it.each(['beta', 'production'])('hides the entire sign-in methods section in %s', async environment => {
     oauth.environment = environment
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, platform: [] } })
     await flushPromises()

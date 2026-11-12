@@ -484,35 +484,36 @@ const toQuestionItem = (q: { content: string; rawContent?: string }): QuestionMe
   rawContent: q.rawContent
 })
 
-watch(
-  () => props.isAppeared,
-  value => {
-    if (value && !isInited.value && !quoteInfo.value) {
-      isInited.value = true
-      addLog('open')
-    } else if (value) {
-      addLog('expand')
-    }
-    if (value) {
-      nextTick(() => {
-        focusTextarea()
-        // 隐藏时几何为 0，显示后补贴底
-        if (autoFollow.value) {
-          jumpToBottom()
-        } else {
-          syncAtBottom()
-        }
-      })
-    }
-  },
-  { flush: 'sync', immediate: true }
-)
-
 const addLog = (subAction: 'open' | 'expand' | 'close' | 'collapse') => {
   if (props.bookmarkId) {
     analyticsLog({ event: 'bookmark_chat_interact', sub_action: subAction, entry_point: 'sidebar_entry' })
   }
 }
+
+let panelAppeared = false
+const updateAppearance = (visible: boolean | undefined) => {
+  if (!visible) {
+    panelAppeared = false
+    return
+  }
+  if (panelAppeared) return
+  panelAppeared = true
+  if (!isInited.value && !quoteInfo.value) {
+    isInited.value = true
+    addLog('open')
+  } else {
+    addLog('expand')
+  }
+  nextTick(() => {
+    focusTextarea()
+    if (autoFollow.value) jumpToBottom()
+    else syncAtBottom()
+  })
+}
+
+watch(() => props.isAppeared, updateAppearance, { flush: 'sync', immediate: true })
+onActivated(() => updateAppearance(props.isAppeared))
+onDeactivated(() => { panelAppeared = false })
 
 onMounted(() => jumpToBottom())
 

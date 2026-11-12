@@ -94,6 +94,19 @@ export class VectorEmbeddingClient {
     if (!response.ok) {
       const text = await responseText(response, 16 * 1024).catch(bodyFailure)
       console.error('[embedding-provider]', JSON.stringify(providerDiagnostic(response.status, text, response.headers.get('x-request-id'))))
+      const imageOnly = Array.isArray(input) && input.length === 1 && !('text' in input[0])
+      if (imageOnly && [400, 413, 422].includes(response.status)) {
+        let message = ''
+        try {
+          const body = JSON.parse(text) as { detail?: string | { message?: string } }
+          message = typeof body.detail === 'string' ? body.detail : typeof body.detail?.message === 'string' ? body.detail.message : ''
+        } catch {
+          /* Unstructured provider errors retain their normal failure path. */
+        }
+        if (/^Input at index \d+: An image or video frame has an aspect ratio the model cannot process\./.test(message)) throw new Error('embedding_image_aspect_ratio')
+        if (/^Failed to load base64 image from /.test(message)) throw new Error('embedding_image_decode')
+        if (/^Image too large:/.test(message) || /^Validation error: '[^']*image' Image too large:/.test(message)) throw new Error('embedding_image_size')
+      }
       if (
         (response.status === 400 || response.status === 413 || response.status === 422) &&
         /context[_ -]?(length|window)|maximum.*tokens|token.*(limit|exceed)|input.*too long|(?:input.*exceed.*maximum length|exceed.*model(?:['’]s)? maximum length)/i.test(text)

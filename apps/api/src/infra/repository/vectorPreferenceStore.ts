@@ -11,24 +11,20 @@ import {
   type ShareGroup
 } from '@/utils/preferenceLedger'
 
-const SCHEMA = [
-  'CREATE TABLE IF NOT EXISTS preference_state_v2 (id INTEGER PRIMARY KEY CHECK (id = 1), seq INTEGER NOT NULL, mean_version TEXT NOT NULL, raw BLOB NOT NULL, centered BLOB NOT NULL, shared BLOB NOT NULL, inherited BLOB NOT NULL, counts TEXT NOT NULL, interests TEXT NOT NULL)',
-  'CREATE TABLE IF NOT EXISTS preference_entry_v2 (bookmark_id INTEGER PRIMARY KEY, weight INTEGER NOT NULL, share_group INTEGER NOT NULL, token TEXT NOT NULL)',
-  "CREATE INDEX IF NOT EXISTS preference_entry_v2_missing ON preference_entry_v2 (share_group, bookmark_id) WHERE token = ''"
-]
-const LEGACY_TABLES = ['preference_state', 'preference_entry']
-const BIND_LIMIT = 90
 const GROUPS: ShareGroup[] = ['none', 'shared', 'inherited']
+const ENTRY_PAGE = 1000
+type Blob = ArrayBuffer | ArrayLike<number> | null
+type StateRow = { seq: number; mean_version: string; raw: Blob; centered: Blob; shared: Blob; inherited: Blob; counts: string; interests: string }
+type EntryRow = { bookmark_id: number; weight: number; share_group: number; token: string; published_at: number }
 
-type StateRow = { seq: number; mean_version: string; raw: ArrayBuffer; centered: ArrayBuffer; shared: ArrayBuffer; inherited: ArrayBuffer; counts: string; interests: string }
-type EntryRow = { bookmark_id: number; weight: number; share_group: number; token: string }
-
+const bytes = (value: Blob) => (value ? Uint8Array.from(value instanceof ArrayBuffer ? new Uint8Array(value) : value) : new Uint8Array())
 const blob = (sum: Float64Array): ArrayBuffer => packSum(sum).slice().buffer
 
 function entry(row: EntryRow): PreferenceEntry {
   const group = GROUPS[row.share_group]
-  if (!Number.isSafeInteger(row.weight) || row.weight < 1 || !group || (row.token && !/^[0-9a-f]{16}$/.test(row.token))) throw new Error('invalid_preference_state')
-  return { weight: row.weight, group, token: row.token }
+  if (!Number.isSafeInteger(row.weight) || row.weight < 1 || !group || (row.token && !/^[0-9a-f]{16}$/.test(row.token)) || !Number.isFinite(row.published_at))
+    throw new Error('invalid_preference_state')
+  return { weight: row.weight, group, token: row.token, publishedAt: row.published_at }
 }
 
 function counts(text: string): PreferenceCounts {
@@ -42,105 +38,129 @@ function counts(text: string): PreferenceCounts {
   return { eligible: parsed.eligible, used: parsed.used, shared: { ...parsed.shared }, inherited: { ...parsed.inherited } }
 }
 
-export class SqlPreferenceStore implements PreferenceStore {
-  private ready = false
+export class D1PreferenceStore implements PreferenceStore {
+  constructor(
+    private readonly db: D1Database,
+    private readonly userId: number
+  ) {}
 
-  constructor(private readonly storage: DurableObjectStorage) {}
-
-  private get sql() {
-    if (!this.ready) {
-      for (const statement of SCHEMA) this.storage.sql.exec(statement)
-      this.ready = true
-    }
-    return this.storage.sql
-  }
-
-  read(): PreferenceSums | null {
-    if (this.sql.exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('preference_state', 'preference_entry') LIMIT 1").toArray().length) return null
-    const rows = this.sql.exec<StateRow>('SELECT seq, mean_version, raw, centered, shared, inherited, counts, interests FROM preference_state_v2 WHERE id = 1').toArray()
-    if (!rows.length) return null
-    const row = rows[0]
+  async read(): Promise<PreferenceSums | null> {
+    const row = await this.db
+      .prepare('SELECT seq, mean_version, raw, centered, shared, inherited, counts, interests FROM slax_vector_preference_state WHERE user_id = ?')
+      .bind(this.userId)
+      .first<StateRow>()
+    if (!row) return null
     if (!Number.isSafeInteger(row.seq) || row.seq < 1) throw new Error('invalid_preference_state')
     return {
       seq: row.seq,
       meanVersion: row.mean_version,
-      raw: unpackSum(new Uint8Array(row.raw)),
-      centered: unpackSum(new Uint8Array(row.centered)),
-      shared: unpackSum(new Uint8Array(row.shared)),
-      inherited: unpackSum(new Uint8Array(row.inherited)),
+      raw: unpackSum(bytes(row.raw)),
+      centered: unpackSum(bytes(row.centered)),
+      shared: unpackSum(bytes(row.shared)),
+      inherited: unpackSum(bytes(row.inherited)),
       counts: counts(row.counts),
       interests: parseInterests(row.interests)
     }
   }
 
-  entries(ids: number[]): Map<number, PreferenceEntry> {
+  async entries(ids: number[]): Promise<Map<number, PreferenceEntry>> {
     const found = new Map<number, PreferenceEntry>()
-    for (let offset = 0; offset < ids.length; offset += BIND_LIMIT) {
-      const page = ids.slice(offset, offset + BIND_LIMIT)
-      const cursor = this.sql.exec<EntryRow>(
-        `SELECT bookmark_id, weight, share_group, token FROM preference_entry_v2 WHERE bookmark_id IN (${page.map(() => '?').join(',')})`,
-        ...page
-      )
-      for (const row of cursor) found.set(row.bookmark_id, entry(row))
+    for (let offset = 0; offset < ids.length; offset += ENTRY_PAGE) {
+      const { results } = await this.db
+        .prepare(
+          'SELECT bookmark_id, weight, share_group, token, published_at FROM slax_vector_preference_entry WHERE user_id = ? AND bookmark_id IN (SELECT value FROM json_each(?))'
+        )
+        .bind(this.userId, JSON.stringify(ids.slice(offset, offset + ENTRY_PAGE)))
+        .all<EntryRow>()
+      for (const row of results) found.set(row.bookmark_id, entry(row))
     }
     return found
   }
 
-  firstMissing(groups: MemberGroup[]): number | undefined {
-    let first: number | undefined
+  async latestPublication(groups: MemberGroup[]): Promise<number> {
+    let latest = 0
     for (const group of groups) {
-      const row = this.sql.exec<{ id: number | null }>("SELECT MIN(bookmark_id) AS id FROM preference_entry_v2 WHERE token = '' AND share_group = ?", GROUPS.indexOf(group)).one()
-      if (row.id !== null && (first === undefined || row.id < first)) first = row.id
+      const row = await this.db
+        .prepare("SELECT published_at FROM slax_vector_preference_entry WHERE user_id = ? AND share_group = ? AND token <> '' ORDER BY published_at DESC LIMIT 1")
+        .bind(this.userId, GROUPS.indexOf(group))
+        .first<{ published_at: number }>()
+      if (row) latest = Math.max(latest, row.published_at)
     }
-    return first
+    return latest
   }
 
-  private writeState(sums: PreferenceSums) {
-    this.sql.exec(
-      'INSERT INTO preference_state_v2 (id, seq, mean_version, raw, centered, shared, inherited, counts, interests) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET seq = excluded.seq, mean_version = excluded.mean_version, raw = excluded.raw, centered = excluded.centered, shared = excluded.shared, inherited = excluded.inherited, counts = excluded.counts, interests = excluded.interests',
-      sums.seq,
-      sums.meanVersion,
-      blob(sums.raw),
-      blob(sums.centered),
-      blob(sums.shared),
-      blob(sums.inherited),
-      JSON.stringify(sums.counts),
-      JSON.stringify(sums.interests)
-    )
-  }
-
-  private writeEntries(entries: Map<number, PreferenceEntry>) {
-    for (const [id, value] of entries)
-      this.sql.exec(
-        'INSERT INTO preference_entry_v2 (bookmark_id, weight, share_group, token) VALUES (?, ?, ?, ?) ON CONFLICT (bookmark_id) DO UPDATE SET weight = excluded.weight, share_group = excluded.share_group, token = excluded.token',
-        id,
-        value.weight,
-        GROUPS.indexOf(value.group),
-        value.token
+  private writeState(sums: PreferenceSums): D1PreparedStatement {
+    return this.db
+      .prepare(
+        'INSERT INTO slax_vector_preference_state (user_id, seq, mean_version, raw, centered, shared, inherited, counts, interests) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id) DO UPDATE SET seq = excluded.seq, mean_version = excluded.mean_version, raw = excluded.raw, centered = excluded.centered, shared = excluded.shared, inherited = excluded.inherited, counts = excluded.counts, interests = excluded.interests'
+      )
+      .bind(
+        this.userId,
+        sums.seq,
+        sums.meanVersion,
+        blob(sums.raw),
+        blob(sums.centered),
+        blob(sums.shared),
+        blob(sums.inherited),
+        JSON.stringify(sums.counts),
+        JSON.stringify(sums.interests)
       )
   }
 
-  commit(sums: PreferenceSums, upserts: Map<number, PreferenceEntry>, deletes: number[]) {
-    const sql = this.sql
-    this.storage.transactionSync(() => {
-      this.writeState(sums)
-      this.writeEntries(upserts)
-      for (const id of deletes) sql.exec('DELETE FROM preference_entry_v2 WHERE bookmark_id = ?', id)
-    })
+  private writeEntries(entries: Map<number, PreferenceEntry>): D1PreparedStatement[] {
+    const rows = [...entries].map(([id, value]) => [id, value.weight, GROUPS.indexOf(value.group), value.token, value.publishedAt || 0])
+    const statements: D1PreparedStatement[] = []
+    for (let offset = 0; offset < rows.length; offset += ENTRY_PAGE)
+      statements.push(
+        this.db
+          .prepare(
+            "INSERT INTO slax_vector_preference_entry (user_id, bookmark_id, weight, share_group, token, published_at) SELECT ?, json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]'), json_extract(value, '$[3]'), json_extract(value, '$[4]') FROM json_each(?) WHERE true ON CONFLICT (user_id, bookmark_id) DO UPDATE SET weight = excluded.weight, share_group = excluded.share_group, token = excluded.token, published_at = excluded.published_at"
+          )
+          .bind(this.userId, JSON.stringify(rows.slice(offset, offset + ENTRY_PAGE)))
+      )
+    return statements
   }
 
-  replace(sums: PreferenceSums, entries: Map<number, PreferenceEntry>) {
-    const sql = this.sql
-    this.storage.transactionSync(() => {
-      for (const table of LEGACY_TABLES) sql.exec(`DROP TABLE IF EXISTS ${table}`)
-      sql.exec('DELETE FROM preference_entry_v2')
-      this.writeState(sums)
-      this.writeEntries(entries)
-    })
+  private deleteAll(): D1PreparedStatement[] {
+    return [
+      this.db.prepare('DELETE FROM slax_vector_preference_state WHERE user_id = ?').bind(this.userId),
+      this.db.prepare('DELETE FROM slax_vector_preference_entry WHERE user_id = ?').bind(this.userId)
+    ]
+  }
+
+  async commit(sums: PreferenceSums, upserts: Map<number, PreferenceEntry>, deletes: number[]) {
+    const statements = [this.writeState(sums), ...this.writeEntries(upserts)]
+    for (let offset = 0; offset < deletes.length; offset += ENTRY_PAGE)
+      statements.push(
+        this.db
+          .prepare('DELETE FROM slax_vector_preference_entry WHERE user_id = ? AND bookmark_id IN (SELECT value FROM json_each(?))')
+          .bind(this.userId, JSON.stringify(deletes.slice(offset, offset + ENTRY_PAGE)))
+      )
+    await this.db.batch(statements)
+  }
+
+  async beginInitialization() {
+    await this.db.batch(this.deleteAll())
+  }
+
+  async appendInitialization(entries: Map<number, PreferenceEntry>) {
+    const statements = this.writeEntries(entries)
+    if (statements.length) await this.db.batch(statements)
+  }
+
+  async finishInitialization(sums: PreferenceSums) {
+    await this.db.batch([this.writeState(sums)])
   }
 
   async clear() {
-    await this.storage.deleteAll()
-    this.ready = false
+    await this.db.batch(this.deleteAll())
+  }
+}
+
+export class VectorPreferenceStores {
+  constructor(private readonly env: Env) {}
+
+  forUser(userId: number): PreferenceStore {
+    return new D1PreferenceStore(this.env.DB, userId)
   }
 }

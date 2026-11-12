@@ -34,15 +34,24 @@ export interface PreferenceEntry {
   weight: number
   group: ShareGroup
   token: string
+  publishedAt?: number
 }
 
 export interface PreferenceStore {
-  read(): PreferenceSums | null
-  entries(ids: number[]): Map<number, PreferenceEntry>
-  firstMissing(groups: MemberGroup[]): number | undefined
-  commit(sums: PreferenceSums, upserts: Map<number, PreferenceEntry>, deletes: number[]): void
-  replace(sums: PreferenceSums, entries: Map<number, PreferenceEntry>): void
+  read(): Promise<PreferenceSums | null>
+  entries(ids: number[]): Promise<Map<number, PreferenceEntry>>
+  latestPublication(groups: MemberGroup[]): Promise<number>
+  commit(sums: PreferenceSums, upserts: Map<number, PreferenceEntry>, deletes: number[]): Promise<void>
+  beginInitialization(): Promise<void>
+  appendInitialization(entries: Map<number, PreferenceEntry>): Promise<void>
+  finishInitialization(sums: PreferenceSums): Promise<void>
   clear(): Promise<void>
+}
+
+export interface LocalPreference {
+  sums: PreferenceSums
+  entries: Map<number, PreferenceEntry>
+  publication: boolean
 }
 
 export type PreferencePublish = { user: boolean; collections: 'all' | number[] }
@@ -102,6 +111,15 @@ export function vectorToken(values: ArrayLike<number>): string {
     low ^= low >>> 15
   }
   return (high >>> 0).toString(16).padStart(8, '0') + (low >>> 0).toString(16).padStart(8, '0')
+}
+
+export function matchesToken(token: string, values: ArrayLike<number>): boolean {
+  if (vectorToken(values) === token) return true
+  try {
+    return vectorToken(normalized(Array.from(values))) === token
+  } catch {
+    return false
+  }
 }
 
 export function addEntry(sums: PreferenceSums, entry: PreferenceEntry, values: ArrayLike<number> | undefined, sign: 1 | -1) {

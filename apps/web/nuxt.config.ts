@@ -365,6 +365,12 @@ export default defineNuxtConfig({
       failOnError: true
     },
     routeRules: {
+      '/.well-known/apple-app-site-association': {
+        headers: { 'content-type': 'application/json' }
+      },
+      '/.well-known/assetlinks.json': {
+        headers: { 'content-type': 'application/json' }
+      },
       '/x/ext-bridge': {
         ssr: false,
         prerender: false,
@@ -597,6 +603,7 @@ export default defineNuxtConfig({
       files.clear()
       collect('pages/login.vue')
       loginAssetPreloads.splice(0, loginAssetPreloads.length, ...[...files].filter(file => !entryFiles.has(file)))
+      for (const chunk of Object.values(manifest)) chunk.prefetch = false
     },
     'nitro:init': nitro => {
       if (nitro.options.dev) return
