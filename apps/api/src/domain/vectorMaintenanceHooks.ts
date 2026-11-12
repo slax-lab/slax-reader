@@ -1,12 +1,11 @@
 import type { ContextManager } from '@/utils/context'
-import type { VectorTarget, VectorRefreshResult } from '@/utils/vectorMaintenanceTypes'
+import type { VectorTarget } from '@/utils/vectorMaintenanceTypes'
 
-export type VectorMaintenanceEvent = VectorTarget & { mode?: 'relation' }
+export type VectorMaintenanceEvent = VectorTarget
 
 export interface VectorMaintenanceWorkflowParams {
   eventId?: string
   target: VectorMaintenanceEvent
-  acceptedArticle?: VectorRefreshResult
 }
 
 export type VectorMaintenanceDispatchEnv = Pick<Env, 'VECTOR_V5_MAINTENANCE_WORKFLOW'>
@@ -22,21 +21,15 @@ export const vectorMaintenanceKey = (target: VectorMaintenanceEvent): string => 
   }
 }
 
-export const enqueueVectorMaintenance = async (env: VectorMaintenanceDispatchEnv, target: VectorMaintenanceEvent, acceptedArticle?: VectorRefreshResult): Promise<void> => {
+export const enqueueVectorMaintenance = async (env: VectorMaintenanceDispatchEnv, target: VectorMaintenanceEvent): Promise<void> => {
   const binding = env.VECTOR_V5_MAINTENANCE_WORKFLOW
   if (!binding) throw new Error('missing_vector_maintenance_workflow')
   const eventId = crypto.randomUUID()
-  await binding.create({ id: `v5-${eventId}`, params: { eventId, target, ...(acceptedArticle ? { acceptedArticle } : {}) } })
+  await binding.create({ id: `v5-${eventId}`, params: { eventId, target } })
 }
 
 export const enqueueVectorMaintenanceBatch = async (env: VectorMaintenanceDispatchEnv, targets: VectorMaintenanceEvent[]): Promise<void> => {
-  const selected = new Map<string, VectorMaintenanceEvent>()
-  for (const target of targets) {
-    const key = vectorMaintenanceKey(target),
-      previous = selected.get(key)
-    if (!previous || target.kind !== 'article' || target.mode !== 'relation' || previous.mode === 'relation') selected.set(key, target)
-  }
-  const unique = [...selected.values()]
+  const unique = [...new Map(targets.map(target => [vectorMaintenanceKey(target), target])).values()]
   if (!unique.length) return
   const binding = env.VECTOR_V5_MAINTENANCE_WORKFLOW
   if (!binding) throw new Error('missing_vector_maintenance_workflow')

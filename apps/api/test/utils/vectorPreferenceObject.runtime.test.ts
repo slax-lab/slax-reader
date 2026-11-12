@@ -105,7 +105,7 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
       ['collection', 'written']
     ])
     let state = await inspect()
-    expect(state.tables).toEqual(['preference_entry_v3', 'preference_state_v3'])
+    expect(state.tables).toEqual(['preference_entry_v2', 'preference_state_v2'])
     expect(state.entries.map(entry => [entry.bookmark_id, entry.weight, entry.share_group])).toEqual([
       [1, 2, 1],
       [2, 1, 0]
@@ -178,13 +178,14 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
     withInherited.forEach((value, i) => expect(value).toBeCloseTo(state.collection![i], 10))
     expect([state.counters.rebuilds, state.counters.rowReads, state.counters.articleReads]).toEqual([afterRebuild.rebuilds, afterRebuild.rowReads, afterRebuild.articleReads])
 
-    expect(state.plan).toContain('USING INDEX preference_entry_v3_publication')
+    // A missing member is found through the partial index, not by scanning entries.
+    expect(state.plan).toContain('USING COVERING INDEX preference_entry_v2_missing')
     expect(state.plan).not.toMatch(/\bSCAN\b/)
     await call({ op: 'set', id: 11, starred: true, group: 'inherited', axis: 40, vector: false })
     const missing = await call<any[]>({ op: 'apply', id: 11 })
     expect(missing.map(output => [output.target.kind, output.state, output.reason])).toEqual([
       ['user', 'written', undefined],
-      ['collection', 'written', undefined]
+      ['collection', 'failed', 'missing_dependency:a:8:11']
     ])
     expect(missing[0].coverage).toEqual({ eligible: 10, used: 9, missing: 1 })
     state = await inspect()
@@ -209,7 +210,7 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
     const rebuildsBeforeLegacy = (await inspect()).counters.rebuilds
     expect((await call<any[]>({ op: 'apply', id: 12 })).map(output => output.state)).toEqual(['written', 'written'])
     state = await inspect()
-    expect(state.tables).toEqual(['preference_entry_v3', 'preference_state_v3'])
+    expect(state.tables).toEqual(['preference_entry_v2', 'preference_state_v2'])
     expect(state.counters.rebuilds).toBe(rebuildsBeforeLegacy + 1)
     await call({ op: 'set', id: 13, starred: false, group: 'none', axis: 13 })
     await call({ op: 'apply', id: 13 })
@@ -236,16 +237,9 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
       output.preference.vector!.forEach((value, i) => expect(value).toBeCloseTo(visible.collection![i], 10))
     }
     await sameAsOwner(301)
-    await call({ op: 'legacy', version: 2 })
-    const beforeV2 = (await inspect()).counters.rebuilds
-    await call({ op: 'publish' })
-    expect((await inspect()).counters.rebuilds).toBe(beforeV2 + 1)
-    expect((await inspect()).tables).toEqual(['preference_entry_v3', 'preference_state_v3'])
-    await call({ op: 'publish' })
-    expect((await inspect()).counters.rebuilds).toBe(beforeV2 + 1)
     const oldVector = await call<number[]>({ op: 'set', id: 12, starred: true, group: 'shared', axis: 14 })
-    await call({ op: 'apply', id: 12 })
-    expect((await inspect()).counters.rebuilds).toBe(beforeV2 + 1)
+    await call({ op: 'apply', id: 12, previous: oldVector })
+    expect((await inspect()).counters.rebuilds).toBe(rebuildsBeforeLegacy + 1)
     await sameAsOwner(302)
 
     for (const id of [14, 16]) {
@@ -281,7 +275,7 @@ test('actual Workerd keeps one user preference in real Durable Object SQLite, co
     await call({ op: 'publish' })
     state = await inspect()
     expect(state.counters.rebuilds).toBe(beforeUpgrade + 1)
-    expect(state.tables).toEqual(['preference_entry_v3', 'preference_state_v3'])
+    expect(state.tables).toEqual(['preference_entry_v2', 'preference_state_v2'])
     expect(state.entries.map(entry => entry.bookmark_id)).toContain(15)
     await sameAsOwner(302)
     await call({ op: 'publish' })

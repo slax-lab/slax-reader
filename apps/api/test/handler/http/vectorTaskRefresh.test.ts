@@ -11,12 +11,20 @@ import { Hashid } from '../../../src/utils/hashids'
 import type { Container } from '../../../src/decorators/di'
 
 const SECRET = 'task-secret-1f4b9c'
-const canonical = ['/v1/bookmark/vector/refresh', '/v1/bookmark/preference/refresh', '/v1/collection/vector/refresh', '/v1/collection/preference/refresh'] as const
+const canonical = [
+  '/v1/bookmark/vector/refresh',
+  '/v1/bookmark/preference/refresh',
+  '/v1/collection/vector/refresh',
+  '/v1/collection/preference/refresh'
+] as const
 
-const env = (secret: string | undefined = SECRET) =>
-  ({ VECTOR_REFRESH_SECRET: secret, VECTOR_V5_MAINTENANCE_WORKFLOW: { create: vi.fn(async () => ({ id: 'repair' })) } }) as unknown as Env
+const env = (secret: string | undefined = SECRET) => ({ VECTOR_REFRESH_SECRET: secret }) as unknown as Env
 
-function refreshRequest(path: string, body: unknown = {}, options: { secret?: string; method?: string; headers?: Record<string, string> } = {}) {
+function refreshRequest(
+  path: string,
+  body: unknown = {},
+  options: { secret?: string; method?: string; headers?: Record<string, string> } = {}
+) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...options.headers }
   const secret = options.secret === undefined ? SECRET : options.secret
   if (secret !== null) headers['X-Vector-Refresh-Secret'] = secret
@@ -112,13 +120,7 @@ describe('anonymous whitelist and ordinary authentication', () => {
   })
 
   test('a valid Reader JWT authenticates normally so the Controller can still require the task secret', async () => {
-    const jwtEnv = {
-      HASH_IDS_SALT: 'test',
-      JWT_SECRET_TEXT: 'test-secret-32-bytes-minimum-long-string',
-      JWT_ALGORITHMS: 'HS256',
-      JWT_ISSUER: 'test',
-      JWT_EXPIRES: '3600'
-    } as unknown as Env
+    const jwtEnv = { HASH_IDS_SALT: 'test', JWT_SECRET_TEXT: 'test-secret-32-bytes-minimum-long-string', JWT_ALGORITHMS: 'HS256', JWT_ISSUER: 'test', JWT_EXPIRES: '3600' } as unknown as Env
     const token = await new Auth(jwtEnv).sign({ id: String(new Hashid(jwtEnv).encodeId(7)), email: 'reader@example.com', lang: 'en' })
     const ctx = new ContextManager({} as ExecutionContext, { ...jwtEnv, VECTOR_REFRESH_SECRET: SECRET } as unknown as Env)
     const scope = { resolve: () => ({ $queryRaw: async () => [{ id: 7 }] }) } as unknown as Container
@@ -138,17 +140,13 @@ describe('anonymous whitelist and ordinary authentication', () => {
   test('forwarded Edge identity is trusted for authentication but cannot replace the task secret', async () => {
     const ctx = new ContextManager({} as ExecutionContext, { VECTOR_REFRESH_SECRET: SECRET, EDGE_SHARED_SECRET: 'edge-shared' } as unknown as Env)
     const scope = { resolve: () => ({ $queryRaw: async () => [{ id: 7 }] }) } as unknown as Container
-    const request = refreshRequest(
-      canonical[0],
-      { user_id: 7, bookmark_id: 41 },
-      {
-        secret: null,
-        headers: {
-          [EDGE_SECRET_HEADER]: 'edge-shared',
-          [EDGE_IDENTITY_HEADER]: encodeEdgeIdentity({ deId: 7, enId: 10000007, email: 'reader@example.com', lang: 'en', audience: 'reader' })
-        }
+    const request = refreshRequest(canonical[0], { user_id: 7, bookmark_id: 41 }, {
+      secret: null,
+      headers: {
+        [EDGE_SECRET_HEADER]: 'edge-shared',
+        [EDGE_IDENTITY_HEADER]: encodeEdgeIdentity({ deId: 7, enId: 10000007, email: 'reader@example.com', lang: 'en', audience: 'reader' })
       }
-    )
+    })
     await auth(request, ctx, scope)
     expect(ctx.getUserId()).toBe(7)
     denied(() => requireVectorRefreshSecret(request, env()))
@@ -221,7 +219,10 @@ describe('single-target Controller actions', () => {
   const invalidIds = [undefined, null, 0, -1, 1.5, '12', true, [], {}, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity]
   test.each(invalidIds)('bookmark vector refresh rejects user_id %j before any write', async id => {
     const { controller, mock } = bookmark()
-    const response = await controller.handleUserBookmarkVectorRefreshRequest(context(), refreshRequest('/v1/bookmark/vector/refresh', { user_id: id, bookmark_id: 9 }))
+    const response = await controller.handleUserBookmarkVectorRefreshRequest(
+      context(),
+      refreshRequest('/v1/bookmark/vector/refresh', { user_id: id, bookmark_id: 9 })
+    )
     expect(response.status).toBe(400)
     expect((await response.json()).data).toBe(ErrorName.ERROR_PARAM)
     expect(mock.refreshArticles).not.toHaveBeenCalled()
@@ -229,7 +230,10 @@ describe('single-target Controller actions', () => {
 
   test.each(invalidIds)('bookmark vector refresh rejects bookmark_id %j before any write', async id => {
     const { controller, mock } = bookmark()
-    const response = await controller.handleUserBookmarkVectorRefreshRequest(context(), refreshRequest('/v1/bookmark/vector/refresh', { user_id: 7, bookmark_id: id }))
+    const response = await controller.handleUserBookmarkVectorRefreshRequest(
+      context(),
+      refreshRequest('/v1/bookmark/vector/refresh', { user_id: 7, bookmark_id: id })
+    )
     expect(response.status).toBe(400)
     expect((await response.json()).data).toBe(ErrorName.ERROR_PARAM)
     expect(mock.refreshArticles).not.toHaveBeenCalled()

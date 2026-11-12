@@ -29,7 +29,6 @@ function harness() {
     })
   }
   const repo = {
-    isUserActive: async () => true,
     listUserArticles: async () => [{ id: 1, is_starred: false, share_group: 'none' }],
     listRecentUserActions: async () => [],
     listOwnerCollections: async () => [],

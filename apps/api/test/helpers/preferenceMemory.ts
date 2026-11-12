@@ -22,17 +22,10 @@ export class MemoryPreferenceStore implements PreferenceStore {
     return new Map(ids.flatMap(id => (this.rows.has(id) ? [[id, { ...this.rows.get(id)! }] as const] : [])))
   }
 
-  latestPublication(groups: MemberGroup[]) {
-    return Math.max(0, ...[...this.rows.values()].filter(entry => entry.token && groups.includes(entry.group as MemberGroup)).map(entry => entry.publishedAt || 0))
-  }
-
-  recentEntries(since: number, limit: number) {
-    return new Map(
-      [...this.rows]
-        .filter(([, entry]) => entry.token && (entry.actions || []).some(time => time >= since))
-        .sort(([a, left], [b, right]) => Math.max(...right.actions!) - Math.max(...left.actions!) || b - a)
-        .slice(0, limit)
-    )
+  firstMissing(groups: MemberGroup[]) {
+    let first: number | undefined
+    for (const [id, entry] of this.rows) if (!entry.token && (groups as string[]).includes(entry.group) && (first === undefined || id < first)) first = id
+    return first
   }
 
   commit(sums: PreferenceSums, upserts: Map<number, PreferenceEntry>, deletes: number[]) {
@@ -44,19 +37,6 @@ export class MemoryPreferenceStore implements PreferenceStore {
   replace(sums: PreferenceSums, entries: Map<number, PreferenceEntry>) {
     this.sums = clonePreferenceSums(sums)
     this.rows = new Map([...entries].map(([id, entry]) => [id, { ...entry }]))
-  }
-
-  beginInitialization() {
-    this.sums = null
-    this.rows.clear()
-  }
-
-  appendInitialization(entries: Map<number, PreferenceEntry>) {
-    for (const [id, entry] of entries) this.rows.set(id, structuredClone(entry))
-  }
-
-  finishInitialization(sums: PreferenceSums) {
-    this.sums = clonePreferenceSums(sums)
   }
 
   async clear() {

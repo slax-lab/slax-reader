@@ -89,10 +89,10 @@ describe('request-local Collection preference', () => {
     ['invalid_vector_dimensions', [1, 2]],
     ['invalid_vector_value', Array(1024).fill(NaN)],
     ['empty_vector', Array(1024).fill(0)]
-  ] as const)('isolates %s from valid sources', async (_error, values) => {
+  ] as const)('does not hide %s as a missing source', async (error, values) => {
     const f = fixture(2)
     f.stored.set('c:2', { id: 'c:2', values: Array.from(values) })
-    expect(await f.service.readCollectionPreference(7)).toEqual({ vector: axis(1), coverage: { eligible: 2, used: 1, missing: 1 } })
+    await expect(f.service.readCollectionPreference(7)).rejects.toThrow(error)
     f.noMaintenance()
   })
 

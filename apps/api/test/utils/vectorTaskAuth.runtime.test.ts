@@ -200,7 +200,7 @@ test('actual Workerd serves the fixed-key task routes through Edge and Core', as
         const unavailable = await post(worker, path, { user_id: 9 }, task)
         expect(await unavailable.json()).toMatchObject({
           code: 200,
-          data: { state: 'deleted', reason: 'no_usable_preference_vectors', coverage: { eligible: 1, used: 0, missing: 1 }, vectorIds: ['u:9:article', 'u:9:article:centered'] }
+          data: { state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 1, used: 0, missing: 1 }, vectorIds: [], mutationIds: [] }
         })
       }
     }

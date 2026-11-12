@@ -248,7 +248,7 @@ describe('accepted PDFs above the direct threshold', () => {
 
   test.each([
     ['missing key', '', undefined, 'missing_source_text'],
-    ['missing stored text', 'text/pdf/document.txt', undefined, 'missing_source_content'],
+    ['missing stored text', 'text/pdf/document.txt', undefined, 'missing_source_body'],
     ['empty text', 'text/pdf/document.txt', '', 'missing_source_content'],
     ['whitespace-only text', 'text/pdf/document.txt', ' \n\t ', 'missing_source_content']
   ])('%s fails explicitly without publishing a representative', async (_name, textKey, text, reason) => {

@@ -11,7 +11,6 @@ const retry = { retries: { limit: 5, delay: '10 seconds' as const, backoff: 'exp
 export const validateMaintenanceEvent = (target: VectorMaintenanceEvent): void => {
   const validId = (id: number) => Number.isSafeInteger(id) && id > 0
   if (!target || typeof target !== 'object') throw new Error('invalid_vector_maintenance_event')
-  if (target.mode !== undefined && (target.kind !== 'article' || target.mode !== 'relation')) throw new Error('invalid_vector_maintenance_event')
   switch (target.kind) {
     case 'article':
       if (validId(target.id) && validId(target.userId)) return
@@ -60,31 +59,14 @@ export class VectorMaintenanceWorkflow extends WorkflowEntrypoint<Env, VectorMai
       if (target.kind === 'article') {
         const identity = { userId: target.userId, id: target.id }
         const written = await step.do('article-write', retry, async () => {
-          const accepted = event.payload.acceptedArticle
-          if (accepted) {
-            if (accepted.target.kind !== 'article' || accepted.target.id !== identity.id || accepted.target.userId !== identity.userId)
-              throw new Error('invalid_vector_maintenance_event')
-            return { result: requireRefreshSuccess(accepted), previous: null }
-          }
-          if (target.mode === 'relation') return { result: requireRefreshSuccess(await service.refreshArticleRelation(identity)), previous: null }
           const { results, previous } = await service.refreshArticlesWithPrevious([identity])
           if (results.length !== 1) throw new Error('vector_refresh_missing_result')
           return { result: requireRefreshSuccess(results[0]), previous: previous[articleVectorId(identity)] ?? null }
         })
         await step.do('article-visible', retry, () => verifyVectorVisibility(service, written.result))
-        const applied = await step.do('preference-write', retry, () => service.applyArticle(identity, written.previous ?? undefined))
-        for (const output of applied) {
-          const name = `preference-${output.target.kind}-${output.target.id}`
-          const published =
-            output.state === 'failed'
-              ? await step.do(`${name}-retry-write`, retry, async () =>
-                  requireRefreshSuccess(
-                    output.target.kind === 'collection' ? await service.applyCollection(output.target.id) : await service.refreshUser(output.target.id, 'article')
-                  )
-                )
-              : output
-          await step.do(`${name}-visible`, retry, () => verifyVectorVisibility(service, published))
-        }
+        await step.do('preference', retry, async () => {
+          for (const result of await service.applyArticle(identity, written.previous ?? undefined)) await verifyVectorVisibility(service, result)
+        })
         return
       }
 

@@ -57,9 +57,7 @@ function fixture(failure?: 'rollback' | 'retry', saveUuid = 'save-a') {
             ? relations.find(
                 row =>
                   row.user_id === where.user_id &&
-                  bookmarks.some(
-                    bookmark => bookmark.id === row.bookmark_id && bookmark.target_url === where.bookmark.target_url && bookmark.private_user === where.bookmark.private_user
-                  )
+                  bookmarks.some(bookmark => bookmark.id === row.bookmark_id && bookmark.target_url === where.bookmark.target_url && bookmark.private_user === where.bookmark.private_user)
               )
             : selectRelation(where)
         )
@@ -168,7 +166,7 @@ describe('local-first historical bookmark rebinding maintenance', () => {
     expect(bookmarks.find(row => row.id === 99)).toEqual(f.source)
     expect(bookmarks.find(row => row.id === 101)).toMatchObject({ private_user: 7, status: 'failed', content_md_key: '' })
     expect(bookmarks.find(row => row.id === 101).content_key).not.toBe(f.source.content_key)
-    expect(targets(f)).toEqual([{ kind: 'article', mode: 'relation', userId: 7, id: 99 }])
+    expect(targets(f)).toEqual([{ kind: 'article', userId: 7, id: 99 }])
     expect(f.db.sr_user_bookmark.findMany).not.toHaveBeenCalled()
     expect(f.observer.mock.calls[0][0]).toEqual([expect.objectContaining({ rebindings: [{ userId: 7, previousBookmarkId: 99, bookmarkId: 101 }] })])
   })
@@ -177,7 +175,7 @@ describe('local-first historical bookmark rebinding maintenance', () => {
     const f = fixture(undefined, 'new-upload-id')
     await f.repo.executeOrderedOperations([f.operation], f.observer)
     await f.flush()
-    expect(targets(f)).toEqual([{ kind: 'article', mode: 'relation', userId: 7, id: 99 }])
+    expect(targets(f)).toEqual([{ kind: 'article', userId: 7, id: 99 }])
     expect(f.observer.mock.calls[0][0]).toEqual([
       expect.objectContaining({
         before: null,
@@ -229,7 +227,7 @@ describe('local-first historical bookmark rebinding maintenance', () => {
     await f.repo.executeOrderedOperations([f.operation], f.observer)
     await f.flush()
     expect(f.db.$transaction).toHaveBeenCalledTimes(2)
-    expect(targets(f)).toEqual([{ kind: 'article', mode: 'relation', userId: 7, id: 99 }])
+    expect(targets(f)).toEqual([{ kind: 'article', userId: 7, id: 99 }])
     expect(f.rows().relations.map(row => [row.user_id, row.bookmark_id])).toEqual([
       [7, 102],
       [8, 99]

@@ -403,23 +403,14 @@ export class SyncOrchestrator {
       const targets: VectorMaintenanceEvent[] = []
       for (const { operation, before, after, rebindings } of mutations) {
         for (const { userId, previousBookmarkId } of rebindings ?? []) {
-          targets.push({ kind: 'article', mode: 'relation', userId, id: previousBookmarkId })
+          targets.push({ kind: 'article', userId, id: previousBookmarkId })
         }
         if (operation.type === 'update_bookmark' && (operation.data.is_starred === undefined || before?.is_starred === after?.is_starred)) continue
         if (!['create_bookmark', 'update_bookmark', 'delete_bookmark', 'restore_bookmark', 'update_share'].includes(operation.type)) continue
         if (operation.type === 'create_bookmark' && after?.bookmark?.status !== 'success') continue
         for (const relation of [before, after]) {
-          if (
-            relation?.bookmark_id &&
-            [0, 2].includes(relation.type) &&
-            (['delete_bookmark', 'update_bookmark', 'update_share'].includes(operation.type) || relation.bookmark?.status === 'success')
-          ) {
-            targets.push({
-              kind: 'article',
-              ...(['update_bookmark', 'delete_bookmark', 'update_share'].includes(operation.type) ? { mode: 'relation' as const } : {}),
-              userId: relation.user_id,
-              id: relation.bookmark_id
-            })
+          if (relation?.bookmark_id && [0, 2].includes(relation.type) && (operation.type === 'delete_bookmark' || relation.bookmark?.status === 'success')) {
+            targets.push({ kind: 'article', userId: relation.user_id, id: relation.bookmark_id })
           }
         }
       }

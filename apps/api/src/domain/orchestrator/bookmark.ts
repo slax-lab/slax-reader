@@ -182,7 +182,8 @@ export class BookmarkOrchestrator {
   // 书签加星标
   public async bookmarkStar(ctx: ContextManager, bmId: number, status: 'star' | 'unstar') {
     return this.bookmarkService.updateBookmarkStarStatus(ctx.getUserId(), bmId, status === 'star').then(async res => {
-      dispatchVectorMaintenance(ctx, { kind: 'article', mode: 'relation', userId: ctx.getUserId(), id: bmId })
+      const bookmark = await this.bookmarkService.getBookmarkById(bmId)
+      if (bookmark?.status === 'success') dispatchVectorMaintenance(ctx, { kind: 'article', userId: ctx.getUserId(), id: bmId })
       if (status === 'unstar') return res
       const collection = await this.collectSvc.userHasCollection(ctx)
       if (!collection) return res

@@ -34,21 +34,14 @@ export interface PreferenceEntry {
   weight: number
   group: ShareGroup
   token: string
-  values?: number[]
-  publishedAt?: number
-  actions?: number[]
 }
 
 export interface PreferenceStore {
   read(): PreferenceSums | null
   entries(ids: number[]): Map<number, PreferenceEntry>
-  latestPublication(groups: MemberGroup[]): number
-  recentEntries(since: number, limit: number): Map<number, PreferenceEntry>
+  firstMissing(groups: MemberGroup[]): number | undefined
   commit(sums: PreferenceSums, upserts: Map<number, PreferenceEntry>, deletes: number[]): void
   replace(sums: PreferenceSums, entries: Map<number, PreferenceEntry>): void
-  beginInitialization(): void
-  appendInitialization(entries: Map<number, PreferenceEntry>): void
-  finishInitialization(sums: PreferenceSums): void
   clear(): Promise<void>
 }
 

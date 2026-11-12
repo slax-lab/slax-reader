@@ -78,7 +78,7 @@ describe('local-first private vector dispatch', () => {
       [expect.objectContaining({ type: 'update_bookmark', userId: 7, bookmarkUuid: 'save-7', data: expect.objectContaining({ is_starred: true }) })],
       expect.any(Function)
     )
-    expect(targets(createBatch)).toEqual([{ kind: 'article', mode: 'relation', userId: 7, id: 99 }])
+    expect(targets(createBatch)).toEqual([{ kind: 'article', userId: 7, id: 99 }])
   })
 
   it('returns before and after identities to the observer only after transaction commit', async () => {
@@ -92,7 +92,7 @@ describe('local-first private vector dispatch', () => {
         after: expect.objectContaining({ user_id: 7, bookmark_id: 99, is_starred: true })
       })
     ])
-    expect(targets(createBatch)).toEqual([{ kind: 'article', mode: 'relation', userId: 7, id: 99 }])
+    expect(targets(createBatch)).toEqual([{ kind: 'article', userId: 7, id: 99 }])
   })
 
   it.each([0, 1] as const)('leaves archive status %s preference-neutral', async archive_status => {
@@ -136,7 +136,7 @@ describe('local-first private vector dispatch', () => {
     )
     await flush()
     expect(targets(createBatch)).toEqual([
-      { kind: 'article', mode: 'relation', userId: 7, id: 99 },
+      { kind: 'article', userId: 7, id: 99 },
       { kind: 'article', userId: 8, id: 99 }
     ])
   })
