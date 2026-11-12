@@ -34,3 +34,9 @@ test('local, fixture and non-production-origin builds never receive production u
     assert.deepEqual(appConfig({...ota, ...env}).updates, {enabled: false}, JSON.stringify(env));
   }
 });
+
+test('local native projects expose an explicit runtime version to the development server', () => {
+  assert.equal(appConfig({}).runtimeVersion, '1.0.25(794)');
+  assert.equal(appConfig({EXPO_PUBLIC_SLAX_WEB_URL: 'https://r.slax.dev'}).runtimeVersion, '1.0.25(794)');
+  assert.equal(appConfig({EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}).runtimeVersion, '1.0.0');
+});
