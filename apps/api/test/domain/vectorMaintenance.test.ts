@@ -344,7 +344,7 @@ describe('single-target task refresh semantics', () => {
     await seed(41)
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 1, used: 0, missing: 1 } })
+      expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'deleted', reason: 'no_usable_preference_vectors', coverage: { eligible: 1, used: 0, missing: 1 } })
       expect(provider).not.toHaveBeenCalled()
       expect(indexes[0].upsert).not.toHaveBeenCalled()
       expect(indexes[2].upsert).not.toHaveBeenCalled()
@@ -379,11 +379,11 @@ describe('single-target task refresh semantics', () => {
     expect(provider).not.toHaveBeenCalled()
   })
 
-  test('a Collection with an unreadable member vector fails explicitly without refreshing the member', async () => {
+  test('a Collection with no available member clears its projection without refreshing the member', async () => {
     await seed(41, [2], 'member without vector', { starred: true, published: true, privateUser: 2 })
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      expect(await service.refreshCollection(2)).toMatchObject({ state: 'failed', reason: 'missing_dependency:a:2:41' })
+      expect(await service.refreshCollection(2)).toMatchObject({ state: 'deleted', reason: 'no_usable_collection_vectors', coverage: { eligible: 1, used: 0, missing: 1 } })
       expect(indexes[1].upsert).not.toHaveBeenCalled()
       expect(provider).not.toHaveBeenCalled()
     } finally {
@@ -466,7 +466,7 @@ describe('minimal per-user vector maintenance', () => {
     expect(repeat.writeToken).toBe(first.writeToken)
     expect(await service.verifyRefresh(first)).toBe(true)
     await db.exec('UPDATE sr_user_bookmark SET is_starred=true WHERE bookmark_id=2')
-    const changed = await service.refreshUser(1, 'article')
+    const changed = (await service.applyArticle({ userId: 1, id: 2 })).find(output => output.target.kind === 'user')!
     expect(changed.writeToken).not.toBe(first.writeToken)
     expect(changed.stateVersion).toBeGreaterThan(first.stateVersion!)
     expect(await service.verifyRefresh(first)).toBe(true)
@@ -476,6 +476,7 @@ describe('minimal per-user vector maintenance', () => {
     expect(await service.verifyRefresh(changed)).toBe(false)
     indexes[2].stored.set('u:1:article', visible)
     await db.exec('UPDATE sr_user_bookmark SET is_starred=false')
+    await service.applyArticle({ userId: 1, id: 2 })
     expect((await service.refreshUser(1, 'article')).writeToken).toBe(first.writeToken)
   })
 
@@ -491,7 +492,7 @@ describe('minimal per-user vector maintenance', () => {
     expect(indexes[1].upsert).not.toHaveBeenCalled()
     expect(await service.verifyRefresh(repeated)).toBe(true)
     await db.exec("UPDATE sr_bookmark SET updated_at=updated_at + interval '1 day'")
-    const changed = await service.refreshCollection(1)
+    const changed = (await service.applyArticle({ userId: 1, id: 1 })).find(output => output.target.kind === 'collection')!
     expect(changed.writeToken).not.toBe(first.writeToken)
     expect(await service.verifyRefresh(changed)).toBe(true)
   })
@@ -541,21 +542,19 @@ describe('minimal per-user vector maintenance', () => {
     expect(await service.verifyRefresh(retry)).toBe(true)
   })
 
-  test('accepted but invisible chunk deletion blocks representative removal until retry', async () => {
+  test('accepted but invisible chunk deletion keeps verification separate from the accepted write', async () => {
     await seed(1, [1], 'long article '.repeat(90000))
     const first = (await service.refreshArticles([{ userId: 1, id: 1 }]))[0]
-    const remove = indexes[0].deleteByIds.getMockImplementation()!
     indexes[0].deleteByIds.mockImplementationOnce(async () => ({ mutationId: 'accepted-not-visible' }))
     indexes[0].getByIds.mockClear()
     await db.exec('DELETE FROM sr_user_bookmark')
-    const failed = (await service.refreshArticles([{ userId: 1, id: 1 }]))[0]
-    expect(failed).toMatchObject({ state: 'failed', reason: 'vector_delete_not_visible' })
-    expect(indexes[0].stored.has('a:1:1')).toBe(true)
-    expect(indexes[0].getByIds.mock.calls.filter(call => call[0][0].includes(':c:'))).toHaveLength(3)
-    expect(indexes[0].deleteByIds.mock.calls.flatMap(call => call[0])).not.toContain('a:1:1')
-    indexes[0].deleteByIds.mockImplementation(remove)
-    expect((await service.refreshArticles([{ userId: 1, id: 1 }]))[0].state).toBe('deleted')
-    expect(first.vectorIds.every(id => !indexes[0].stored.has(id))).toBe(true)
+    const accepted = (await service.refreshArticles([{ userId: 1, id: 1 }]))[0]
+    expect(accepted.state).toBe('deleted')
+    expect(indexes[0].stored.has('a:1:1')).toBe(false)
+    expect(indexes[0].getByIds.mock.calls.filter(call => call[0][0].includes(':c:'))).toHaveLength(0)
+    expect(await service.verifyRefresh(accepted)).toBe(false)
+    for (const id of first.vectorIds) indexes[0].stored.delete(id)
+    expect(await service.verifyRefresh(accepted)).toBe(true)
   })
 
   test.each(['single', 'multiple'])('failed shrink to %s parts keeps old count and retries cleanly without touching B', async size => {
@@ -585,19 +584,18 @@ describe('minimal per-user vector maintenance', () => {
     expect(await service.verifyRefresh(retry)).toBe(true)
   })
 
-  test('invisible shrink deletion leaves old part_count until its bounded retry succeeds', async () => {
+  test('accepted shrink tracks old chunks until asynchronous visibility converges', async () => {
     await seed(1, [1], 'long article '.repeat(90000))
     const first = (await service.refreshArticles([{ userId: 1, id: 1 }]))[0]
-    const original = structuredClone(indexes[0].stored.get('a:1:1')!)
     put('text/1', 'short')
     indexes[0].deleteByIds.mockImplementationOnce(async () => ({ mutationId: 'accepted-not-visible' }))
-    const failed = (await service.refreshArticles([{ userId: 1, id: 1 }]))[0]
-    expect(failed).toMatchObject({ state: 'failed', reason: 'vector_delete_not_visible' })
-    expect(indexes[0].stored.get('a:1:1')).toEqual(original)
-    const retry = (await service.refreshArticles([{ userId: 1, id: 1 }]))[0]
-    expect(retry.state).toBe('written')
-    expect(retry.removedVectorIds).toEqual(first.vectorIds.slice(1))
-    expect([...indexes[0].stored.keys()]).toEqual(['a:1:1'])
+    const accepted = (await service.refreshArticles([{ userId: 1, id: 1 }]))[0]
+    expect(accepted.state).toBe('written')
+    expect(accepted.removedVectorIds).toEqual(first.vectorIds.slice(1))
+    expect(indexes[0].stored.get('a:1:1')?.metadata?.part_count).toBe(1)
+    expect(await service.verifyRefresh(accepted)).toBe(false)
+    for (const id of first.vectorIds.slice(1)) indexes[0].stored.delete(id)
+    expect(await service.verifyRefresh(accepted)).toBe(true)
   })
 
   test('visibility reads are bounded, require removed absence and never leak RPC errors', async () => {
@@ -926,6 +924,7 @@ describe('minimal per-user vector maintenance', () => {
     expect(indexes[2].stored.get('u:1:article')?.metadata?.write_token).toBe(baselineToken)
 
     await db.exec('UPDATE sr_user_bookmark SET is_starred=true WHERE user_id=1 AND bookmark_id=601')
+    await service.applyArticle({ userId: 1, id: 601 })
     const starred = await refresh()
     expectWeighted(starred, [2, 1, 1])
     const starredToken = indexes[2].stored.get('u:1:article')?.metadata?.write_token
@@ -934,6 +933,7 @@ describe('minimal per-user vector maintenance', () => {
     expect(indexes[2].stored.get('u:1:article')?.metadata?.write_token).toBe(starredToken)
 
     await db.exec('UPDATE sr_user_bookmark SET is_starred=false WHERE user_id=1 AND bookmark_id=601')
+    await service.applyArticle({ userId: 1, id: 601 })
     const unstarred = await refresh()
     expectWeighted(unstarred, [1, 1, 1])
     expect(indexes[2].stored.get('u:1:article')?.metadata?.write_token).toBe(baselineToken)
@@ -968,7 +968,7 @@ describe('minimal per-user vector maintenance', () => {
 
       const before = await service.readUser(1, 'article')
       await db.exec(`UPDATE sr_user_bookmark SET starred_at='2026-09-01T00:00:00Z' WHERE user_id=1 AND bookmark_id=2`)
-      const second = await service.refreshUser(1, 'article')
+      const second = (await service.applyArticle({ userId: 1, id: 2 })).find(output => output.target.kind === 'user')!
       expect(second.state).toBe('written')
       const after = await service.readUser(1, 'article')
       expect(after).toEqual(before)
@@ -1121,7 +1121,7 @@ describe('minimal per-user vector maintenance', () => {
     centered.values.forEach((value, index) => expect(value).toBeCloseTo(expectedCentered[index], 10))
     const partialInterests = raw.metadata!.interests
     await db.exec('UPDATE sr_user_bookmark SET deleted_at=now() WHERE bookmark_id=2')
-    const complete = await service.refreshUser(1, 'article')
+    const complete = (await service.applyArticle({ userId: 1, id: 2 })).find(output => output.target.kind === 'user')!
     expect(complete.coverage).toEqual({ eligible: 2, used: 2, missing: 0 })
     expect(indexes[2].stored.get('u:1:article')?.metadata?.interests).toBe(partialInterests)
     expect(complete.writeToken).toBe(output.writeToken)
@@ -1153,7 +1153,7 @@ describe('minimal per-user vector maintenance', () => {
     }
   })
 
-  test.each(['article', 'collection'] as const)('all missing %s inputs preserve the previous profile', async preference => {
+  test.each(['article', 'collection'] as const)('all missing %s inputs never expose stale projections', async preference => {
     const rows = [
       { id: 41, is_starred: false },
       { id: 42, is_starred: true }
@@ -1164,13 +1164,15 @@ describe('minimal per-user vector maintenance', () => {
     const original = structuredClone([...indexes[2].stored.entries()])
     try {
       if (preference === 'article') {
-        expect(await service.refreshUser(1, preference)).toMatchObject({ state: 'failed', reason: 'no_usable_preference_vectors', coverage: { eligible: 2, used: 0, missing: 2 }, vectorIds: [], mutationIds: [] })
+        expect(await service.refreshUser(1, preference)).toMatchObject({ state: 'deleted', reason: 'no_usable_preference_vectors', coverage: { eligible: 2, used: 0, missing: 2 } })
       } else {
         expect(await service.readCollectionPreference(1)).toEqual({ vector: null, coverage: { eligible: 2, used: 0, missing: 2 } })
       }
-      expect([...indexes[2].stored.entries()]).toEqual(original)
+      if (preference === 'collection') expect([...indexes[2].stored.entries()]).toEqual(original)
+      else expect(keys.every(key => !indexes[2].stored.has(key))).toBe(true)
       expect(indexes[2].upsert).not.toHaveBeenCalled()
-      expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
+      if (preference === 'collection') expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
+      else expect(indexes[2].deleteByIds).toHaveBeenCalledOnce()
       expect(provider).not.toHaveBeenCalled()
     } finally {
       member.mockRestore()
@@ -1214,13 +1216,13 @@ describe('minimal per-user vector maintenance', () => {
     }
   })
 
-  test('invalid present vectors are errors rather than missing contributions', async () => {
+  test('invalid present vectors are isolated from valid contributions', async () => {
     await seed(1)
     await seed(2)
     indexes[0].stored.set('a:1:1', { id: 'a:1:1', values: unit() })
     indexes[0].stored.set('a:1:2', { id: 'a:1:2', values: [NaN] })
-    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'failed', reason: 'invalid_vector_dimensions', coverage: { missing: 0 } })
-    expect(indexes[2].upsert).not.toHaveBeenCalled()
+    expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 1, missing: 1 } })
+    expect(indexes[2].upsert).toHaveBeenCalledOnce()
     expect(indexes[2].deleteByIds).not.toHaveBeenCalled()
   })
 
@@ -1228,19 +1230,21 @@ describe('minimal per-user vector maintenance', () => {
     await seed(41)
     await seed(42)
     await db.query('UPDATE sr_bookmark SET status=$1 WHERE id=42', [status])
-    expect(await repo.listUserArticles(1, 0, 100)).toEqual([{ id: 41, is_starred: false, share_group: 'none' }])
+    expect(await repo.listUserArticles(1, 0, 100)).toMatchObject([{ id: 41, is_starred: false, share_group: 'none' }])
     const [article] = await service.refreshArticles([{ userId: 1, id: 41 }])
     expect(article).toMatchObject({ state: 'written', target: { kind: 'article', userId: 1, id: 41 } })
     expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', target: { kind: 'user', id: 1, preference: 'article' } })
     expect(indexes[0].stored.has('a:1:42')).toBe(false)
     expect(indexes[0].getByIds.mock.calls.every(([ids]) => !ids.includes('a:1:42'))).toBe(true)
     await db.exec("UPDATE sr_bookmark SET status='success' WHERE id=42")
-    expect(await repo.listUserArticles(1, 0, 100)).toEqual([
+    expect(await repo.listUserArticles(1, 0, 100)).toMatchObject([
       { id: 41, is_starred: false, share_group: 'none' },
       { id: 42, is_starred: false, share_group: 'none' }
     ])
+    await service.applyArticle({ userId: 1, id: 42 })
     expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 1, missing: 1 } })
     expect((await service.refreshArticles([{ userId: 1, id: 42 }]))[0]).toMatchObject({ state: 'written', target: { kind: 'article', userId: 1, id: 42 } })
+    await service.applyArticle({ userId: 1, id: 42 })
     expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', coverage: { eligible: 2, used: 2, missing: 0 } })
   })
 
@@ -1253,6 +1257,7 @@ describe('minimal per-user vector maintenance', () => {
     expect(indexes[0].getByIds.mock.calls).toEqual([[['a:1:1', 'a:1:2']]])
     expect(indexes[1].stored.get('c:1')?.values).toEqual(unit(1))
     await db.exec('INSERT INTO sr_bookmark_share VALUES(1,1,false)')
+    await service.applyArticle({ userId: 1, id: 1 })
     expect((await service.refreshCollection(1)).state).toBe('deleted')
     expect(indexes[1].stored.size).toBe(0)
   })
@@ -1271,6 +1276,7 @@ describe('minimal per-user vector maintenance', () => {
     expect((await service.refreshCollection(1)).state).toBe('written')
     expect(indexes[1].stored.get('c:1')?.metadata?.published_at).toBe(Date.parse('2026-03-01T00:00:00Z'))
     await db.exec('UPDATE sr_user_bookmark SET is_starred=false WHERE bookmark_id=2')
+    await service.applyArticle({ userId: 1, id: 2 })
     expect((await service.refreshCollection(1)).state).toBe('written')
     expect(indexes[1].stored.get('c:1')?.metadata?.published_at).toBe(Date.parse('2026-01-02T00:00:00Z'))
   })
@@ -1288,11 +1294,13 @@ describe('minimal per-user vector maintenance', () => {
     expect(combined?.[1]).toBeCloseTo(Math.SQRT1_2)
     if (action === 'unstar') await db.exec('UPDATE sr_user_bookmark SET is_starred=false WHERE user_id=2')
     else await db.exec('INSERT INTO sr_bookmark_share VALUES(1,2,false)')
+    await service.applyArticle({ userId: 2, id: 1 })
     expect((await service.refreshCollection(2)).state).toBe('deleted')
     expect(indexes[1].stored.has('c:2')).toBe(false)
     expect(await service.readUser(1, 'collection')).toEqual(unit(1))
     expect(indexes[1].stored.has('c:3')).toBe(true)
     await db.exec('UPDATE sr_user_bookmark SET is_starred=false WHERE user_id=3')
+    await service.applyArticle({ userId: 3, id: 2 })
     expect((await service.refreshCollection(3)).state).toBe('deleted')
     expect(await service.readUser(1, 'collection')).toBeNull()
   })
@@ -1653,14 +1661,14 @@ describe('incremental preference maintenance', () => {
     expect(preferences.store(1).sums!.meanVersion).toBe(EMBEDDING_MEAN_VERSION)
   })
 
-  test('a vector replaced outside the event path rebuilds instead of subtracting the wrong contribution', async () => {
+  test('a vector replaced outside the event path uses the saved contribution without rebuilding', async () => {
     for (const id of [1, 2]) await seed(id, [1], `article ${id}`)
     for (const id of [1, 2]) store(1, id)
     await service.refreshUser(1, 'article')
     store(1, 1, spread(99))
     const articles = vi.spyOn(repo, 'listUserArticles')
     expect(user(await service.applyArticle({ userId: 1, id: 1 }))).toMatchObject({ state: 'written' })
-    expect(articles).toHaveBeenCalled()
+    expect(articles).not.toHaveBeenCalled()
     await expectSameVectors()
   })
 
@@ -1696,7 +1704,7 @@ describe('incremental preference maintenance', () => {
     expect(await service.verifyRefresh(output)).toBe(true)
   })
 
-  test('a save keeps the stored clusters and a medoid deletion removes its cluster', async () => {
+  test('a save updates the bounded clusters and a medoid deletion removes its contribution', async () => {
     for (const id of [1, 2, 3]) await seed(id, [1], `article ${id}`)
     store(1, 1, near(1, 0))
     store(1, 2, near(1, 0.001))
@@ -1708,14 +1716,16 @@ describe('incremental preference maintenance', () => {
     await seed(4, [1], 'similar save')
     await event(1, 4, async () => store(1, 4, near(1, 0.002)))
     expect(recent).not.toHaveBeenCalled()
-    expect(interests(indexes[2].stored.get('u:1:article')!)).toEqual(clusters)
-    const medoid = clusters[0]
+    const current = interests(indexes[2].stored.get('u:1:article')!)
+    expect(current.length).toBeGreaterThan(0)
+    expect(preferences.store(1).rows.get(4)?.actions?.length).toBeGreaterThan(0)
+    const medoid = current[0]
     await event(1, medoid, async () => {
       await db.exec(`UPDATE sr_user_bookmark SET deleted_at=now() WHERE bookmark_id=${medoid}`)
       indexes[0].stored.delete(`a:1:${medoid}`)
     })
     expect(recent).not.toHaveBeenCalled()
-    expect(interests(indexes[2].stored.get('u:1:article')!)).toEqual(clusters.filter(id => id !== medoid))
+    expect(interests(indexes[2].stored.get('u:1:article')!)).not.toContain(medoid)
   })
 
   test('concurrent applies for one user combine into fewer batches and converge on one state', async () => {
@@ -1751,7 +1761,7 @@ describe('incremental preference maintenance', () => {
     expect(await service.verifyRefresh(retried)).toBe(true)
   })
 
-  test('owner Collections share one incremental aggregate and stay strict about missing members', async () => {
+  test('owner Collections share one incremental aggregate and publish partial missing-member coverage', async () => {
     await seed(1, [1], 'member one', { starred: true, published: true })
     await db.exec("INSERT INTO sr_user_collection(id,owner_id,status,collection_code) VALUES (2,1,1,'second')")
     store(1, 1)
@@ -1773,7 +1783,9 @@ describe('incremental preference maintenance', () => {
 
     await seed(3, [1], 'member without vector', { starred: true })
     const missing = await service.applyArticle({ userId: 1, id: 3 })
-    expect(missing.filter(output => output.target.kind === 'collection').map(output => output.reason)).toEqual(['missing_dependency:a:1:3', 'missing_dependency:a:1:3'])
+    expect(missing.filter(output => output.target.kind === 'collection')).toHaveLength(2)
+    for (const output of missing.filter(output => output.target.kind === 'collection'))
+      expect(output).toMatchObject({ state: 'written', coverage: { eligible: 3, used: 2, missing: 1 } })
     expect(user(missing)).toMatchObject({ state: 'written', coverage: { eligible: 3, used: 2, missing: 1 } })
     store(1, 3)
     const recovered = await service.applyArticle({ userId: 1, id: 3 })
@@ -1936,7 +1948,7 @@ describe('incremental preference maintenance', () => {
     await check(await event(1, 1, async () => store(1, 1, spread(11))))
     await seed(5, [1], 'no vector yet', { starred: true })
     const missing = await event(1, 5)
-    expect(missing.find(output => output.target.kind === 'collection')).toMatchObject({ state: 'failed', reason: 'missing_dependency:a:1:5' })
+    expect(missing.find(output => output.target.kind === 'collection')).toMatchObject({ state: 'written', coverage: { missing: 1 } })
     await check(missing)
     await check(
       await event(1, 1, async () => {
@@ -1946,4 +1958,157 @@ describe('incremental preference maintenance', () => {
     )
     expect(recount(1)).toEqual({ eligible: 4, used: 3, shared: { members: 1, missing: 0 }, inherited: { members: 2, missing: 1 } })
   })
+})
+
+describe('available-input incremental repair', () => {
+  test.each([
+    [400, 'Input at index 0: An image or video frame has an aspect ratio the model cannot process. Crop or pad it closer to square and retry.', 'image_aspect_ratio'],
+    [400, 'Failed to load base64 image from aaaa', 'image_decode'],
+    [413, 'Image too large: 13333x10000 exceeds the 50000000-pixel decode limit.', 'image_size']
+  ])('isolates optional image rejection %i %s', async (status, message, reason) => {
+    await seed(1)
+    await db.exec("UPDATE sr_bookmark SET content_key='html/1' WHERE id=1")
+    const bad = 'private-snapshots/uuid-1/images/0',
+      good = 'private-snapshots/uuid-1/images/1'
+    put('html/1', `<img src="https://source-assets.reader.invalid/${bad}"><img src="https://source-assets.reader.invalid/${good}">`)
+    objects.set(bad, { bytes: new Uint8Array([1]), type: 'image/png' })
+    objects.set(good, { bytes: new Uint8Array([2]), type: 'image/png' })
+    const normal = provider.getMockImplementation()!
+    provider.mockImplementation(async (url, request) => {
+      const inputs = JSON.parse(request.body as string).input
+      return inputs.some((input: any) => input.content?.some((part: any) => part.image === 'AQ=='))
+        ? Response.json({ detail: { message } }, { status: Number(status) })
+        : normal(url, request)
+    })
+    const [result] = await service.refreshArticles([{ userId: 1, id: 1 }])
+    expect(result.state).toBe('written')
+    expect(result.reason).toContain(`${reason}:1`)
+    expect(indexes[0].stored.get('a:1:1')?.metadata?.part_count).toBe(2)
+    expect(provider).toHaveBeenCalledTimes(3)
+  })
+
+  test('one rejected text in a batch does not discard its valid sibling', async () => {
+    await seed(1, [1], 'bad text')
+    await seed(2, [1], 'good text')
+    const normal = provider.getMockImplementation()!
+    provider.mockImplementation(async (url, request) =>
+      JSON.parse(request.body as string).input.some((input: any) => input.text?.includes('bad text')) ? new Response('invalid input', { status: 400 }) : normal(url, request)
+    )
+    const results = await service.refreshArticles([
+      { userId: 1, id: 1 },
+      { userId: 1, id: 2 }
+    ])
+    expect(results.map(result => result.state)).toEqual(['failed', 'written'])
+    expect(indexes[0].stored.has('a:1:2')).toBe(true)
+  })
+
+  test('a relation-only event updates weights despite missing original source', async () => {
+    await seed(1, [1], 'text', { starred: true, published: true })
+    await seed(2)
+    indexes[0].stored.set('a:1:1', { id: 'a:1:1', values: unit(0) })
+    indexes[0].stored.set('a:1:2', { id: 'a:1:2', values: unit(1) })
+    await service.refreshUser(1, 'article')
+    objects.clear()
+    await db.exec('UPDATE sr_user_bookmark SET is_starred=false WHERE bookmark_id=1')
+    expect((await service.refreshArticleRelation({ userId: 1, id: 1 })).state).toBe('empty')
+    const results = await service.applyArticle({ userId: 1, id: 1 })
+    expect(results.find(result => result.target.kind === 'user')?.state).toBe('written')
+    expect(indexes[2].stored.get('u:1:article')!.values[0]).toBeCloseTo(Math.SQRT1_2)
+    expect(env.OSS.head).not.toHaveBeenCalled()
+    expect(provider).not.toHaveBeenCalled()
+  })
+
+  test('deleting the last valid contribution clears stale profiles with missing members remaining', async () => {
+    await seed(1, [1], 'text', { starred: true, published: true })
+    await seed(2, [1], 'missing', { starred: true })
+    indexes[0].stored.set('a:1:1', { id: 'a:1:1', values: unit(0) })
+    await service.applyArticle({ userId: 1, id: 1 })
+    await db.exec('DELETE FROM sr_user_bookmark WHERE bookmark_id=1')
+    indexes[0].stored.delete('a:1:1')
+    const results = await service.applyArticle({ userId: 1, id: 1 })
+    expect(results.every(result => result.state === 'deleted')).toBe(true)
+    expect(indexes[1].stored.has('c:1')).toBe(false)
+    expect(indexes[2].stored.has('u:1:article')).toBe(false)
+    expect(preferences.store(1).sums?.counts).toMatchObject({ eligible: 1, used: 0 })
+  })
+})
+
+test('publishing initialized state for a deleted account never restores its old profile', async () => {
+  await seed(1, [1], 'text', { starred: true, published: true })
+  indexes[0].stored.set('a:1:1', { id: 'a:1:1', values: unit(0) })
+  await service.applyArticle({ userId: 1, id: 1 })
+  expect(indexes[2].stored.has('u:1:article')).toBe(true)
+  await db.exec('UPDATE sr_user SET deleted_at=now() WHERE id=1')
+  expect((await service.refreshUser(1, 'article')).state).toBe('deleted')
+  expect(indexes[2].stored.has('u:1:article')).toBe(false)
+  expect(preferences.store(1).sums).toBeNull()
+  expect((await service.applyCollection(1)).state).toBe('deleted')
+  expect(indexes[1].stored.has('c:1')).toBe(false)
+})
+
+test('user publication expires its bounded interest window without querying article history', async () => {
+  vi.useFakeTimers()
+  try {
+    vi.setSystemTime(new Date('2026-11-11T00:00:00Z'))
+    await seed(1)
+    await seed(2)
+    await db.exec("UPDATE sr_user_bookmark SET created_at='2026-11-01T00:00:00Z'")
+    indexes[0].stored.set('a:1:1', { id: 'a:1:1', values: unit(0) })
+    indexes[0].stored.set('a:1:2', { id: 'a:1:2', values: unit(0) })
+    await service.refreshUser(1, 'article')
+    expect((await service.readArticleProfile(1))!.interests.length).toBeGreaterThan(0)
+    const history = vi.spyOn(repo, 'listUserArticles'),
+      recent = vi.spyOn(repo, 'listRecentUserActions')
+    vi.setSystemTime(new Date('2027-03-01T00:00:00Z'))
+    await service.refreshUser(1, 'article')
+    expect((await service.readArticleProfile(1))!.interests).toEqual([])
+    expect(history).not.toHaveBeenCalled()
+    expect(recent).not.toHaveBeenCalled()
+    history.mockRestore()
+    recent.mockRestore()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('article and collection reads isolate malformed peer vectors', async () => {
+  indexes[0].stored.set('a:1:1', { id: 'a:1:1', values: unit(0) })
+  indexes[0].stored.set('a:1:2', { id: 'a:1:2', values: [NaN] })
+  indexes[1].stored.set('c:1', { id: 'c:1', values: unit(0) })
+  indexes[1].stored.set('c:2', { id: 'c:2', values: unit(0).map(() => 0) })
+  expect(
+    [
+      ...(await service.readArticles([
+        { userId: 1, id: 1 },
+        { userId: 1, id: 2 }
+      ]))
+    ].map(([id]) => id)
+  ).toEqual(['a:1:1'])
+  expect([...(await service.readCollections([1, 2]))].map(([id]) => id)).toEqual([1])
+})
+
+test('initialization writes bounded pages and never treats an interrupted bootstrap as usable state', async () => {
+  const rows = Array.from({ length: 301 }, (_, i) => ({ id: i + 1, is_starred: false, share_group: 'none' as const }))
+  const history = vi.spyOn(repo, 'listUserArticles').mockImplementation(async (_user, after, limit) => rows.filter(r => r.id > after).slice(0, limit))
+  vi.spyOn(repo, 'listRecentUserActions').mockResolvedValue([])
+  const store = preferences.store(1),
+    append = vi.spyOn(store, 'appendInitialization')
+  const get = indexes[0].getByIds.getMockImplementation()!
+  indexes[0].getByIds.mockImplementation(async ids => {
+    if (ids.includes('a:1:201')) throw new Error('storage_unavailable')
+    return ids.map(id => ({ id, values: unit(0) }))
+  })
+  expect((await service.refreshUser(1, 'article')).state).toBe('failed')
+  expect(store.read()).toBeNull()
+  expect(append.mock.calls.every(([page]) => page.size <= 100)).toBe(true)
+  expect(indexes[2].upsert).not.toHaveBeenCalled()
+  indexes[0].getByIds.mockImplementation(async ids => ids.map(id => ({ id, values: unit(0) })))
+  expect(await service.refreshUser(1, 'article')).toMatchObject({ state: 'written', coverage: { eligible: 301, used: 301, missing: 0 } })
+  expect(store.rows.size).toBe(301)
+  expect(append.mock.calls.every(([page]) => page.size <= 100)).toBe(true)
+  history.mockClear()
+  await service.refreshUser(1, 'article')
+  expect(history).not.toHaveBeenCalled()
+  indexes[0].getByIds.mockImplementation(get)
+  history.mockRestore()
 })

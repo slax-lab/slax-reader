@@ -15,7 +15,7 @@ export type VectorArticleRow = VectorSource & {
   published_at: Date
 }
 export type VectorCollectionRow = { id: number; owner_id: number; published_at: number; sharing: boolean }
-export type VectorArticleMember = { id: number; is_starred: boolean; share_group: ShareGroup }
+export type VectorArticleMember = { id: number; is_starred: boolean; share_group: ShareGroup; published_at?: number; saved_at?: Date; starred_at?: Date | null }
 export type VectorRelation = { id: number; user_id: number }
 
 const readable = Prisma.sql`(b.private_user = 0 OR b.private_user = ub.user_id)`
@@ -29,6 +29,11 @@ const shareGroup = Prisma.sql`CASE WHEN NOT COALESCE(bool_or(${candidate}), fals
 export class VectorMaintenanceRepo {
   constructor(@inject(PRISIMA_HYPERDRIVE_CLIENT) private prismaPg: LazyInstance<HyperdrivePrismaClient>) {}
 
+  async isUserActive(userId: number): Promise<boolean> {
+    const rows = await this.prismaPg().$queryRaw<{ id: number }[]>`SELECT id FROM sr_user WHERE id = ${userId} AND deleted_at IS NULL`
+    return rows.length > 0
+  }
+
   findArticles(identities: ArticleVectorIdentity[]): Promise<VectorArticleRow[]> {
     return this.prismaPg().$queryRaw<VectorArticleRow[]>`
       SELECT b.*, ub.user_id
@@ -41,13 +46,7 @@ export class VectorMaintenanceRepo {
 
   async findCollection(id: number): Promise<VectorCollectionRow | undefined> {
     const rows = await this.prismaPg().$queryRaw<VectorCollectionRow[]>`
-      SELECT c.id, c.owner_id, owner.snapshot_sharing AS sharing, (
-        SELECT (EXTRACT(EPOCH FROM MAX(GREATEST(b.published_at, b.updated_at)) AT TIME ZONE 'UTC') * 1000)::double precision
-        FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id = ub.bookmark_id
-        LEFT JOIN sr_bookmark_share share ON share.bookmark_id = b.id AND share.user_id = ub.user_id
-        WHERE ub.user_id = c.owner_id AND ub.deleted_at IS NULL AND ub.type IN (0, 2)
-          AND b.status = 'success' AND ${readable} AND ${published}
-      ) AS published_at FROM sr_user_collection c
+      SELECT c.id, c.owner_id, owner.snapshot_sharing AS sharing, 0::double precision AS published_at FROM sr_user_collection c
       JOIN sr_user owner ON owner.id = c.owner_id AND owner.deleted_at IS NULL
       WHERE c.id = ${id} AND c.status = 1 AND c.collection_code <> ''`
     return rows[0]
@@ -55,7 +54,9 @@ export class VectorMaintenanceRepo {
 
   listUserArticles(userId: number, after: number, limit: number): Promise<VectorArticleMember[]> {
     return this.prismaPg().$queryRaw<VectorArticleMember[]>`
-      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred, ${shareGroup} AS share_group
+      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred, ${shareGroup} AS share_group,
+        (EXTRACT(EPOCH FROM MAX(GREATEST(b.published_at,b.updated_at))) * 1000)::double precision AS published_at,
+        MIN(ub.created_at) AS saved_at, MAX(CASE WHEN ub.is_starred THEN COALESCE(ub.starred_at,ub.created_at) END) AS starred_at
       FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id = ub.bookmark_id
       JOIN sr_user owner ON owner.id = ub.user_id AND owner.deleted_at IS NULL
       LEFT JOIN sr_bookmark_share share ON share.bookmark_id = ub.bookmark_id AND share.user_id = ub.user_id
@@ -83,7 +84,9 @@ export class VectorMaintenanceRepo {
 
   findUserPreferenceRows(userId: number, ids: number[]): Promise<VectorArticleMember[]> {
     return this.prismaPg().$queryRaw<VectorArticleMember[]>`
-      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred, ${shareGroup} AS share_group
+      SELECT ub.bookmark_id AS id, bool_or(ub.is_starred) AS is_starred, ${shareGroup} AS share_group,
+        (EXTRACT(EPOCH FROM MAX(GREATEST(b.published_at,b.updated_at))) * 1000)::double precision AS published_at,
+        MIN(ub.created_at) AS saved_at, MAX(CASE WHEN ub.is_starred THEN COALESCE(ub.starred_at,ub.created_at) END) AS starred_at
       FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id = ub.bookmark_id
       JOIN sr_user owner ON owner.id = ub.user_id AND owner.deleted_at IS NULL
       LEFT JOIN sr_bookmark_share share ON share.bookmark_id = ub.bookmark_id AND share.user_id = ub.user_id

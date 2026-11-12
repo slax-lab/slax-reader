@@ -216,3 +216,42 @@ describe('pdf input preparation', () => {
     expect(Buffer.from(prepared.base64, 'base64').equals(Buffer.from(largest))).toBe(true)
   })
 })
+
+describe('independent available sources', () => {
+  test('keeps available Markdown when the original HTML is missing', async () => {
+    const { env } = fixture('', new Map())
+    const original = vi.mocked(env.OSS.get).getMockImplementation()!
+    vi.mocked(env.OSS.get).mockImplementation(async (key, ...args) => (key === source.content_key ? null : original(key, ...args)))
+    const inputs = []
+    for await (const input of new VectorSourceRepo(env).articleInputs(source)) inputs.push(input)
+    expect(inputs).toEqual([{ text: 'Title\n\ncomplete article' }])
+  })
+
+  test('extracts available HTML text when Markdown is absent', async () => {
+    const { env } = fixture('<article><p>Stored text</p><script>ignore me</script></article>', new Map())
+    const original = vi.mocked(env.OSS.head).getMockImplementation()!
+    vi.mocked(env.OSS.head).mockImplementation(async key => (key === source.content_md_key ? null : original(key)))
+    const inputs = []
+    for await (const input of new VectorSourceRepo(env).articleInputs(source)) inputs.push(input)
+    expect(inputs).toEqual([{ text: 'Title\n\nStored text' }])
+  })
+
+  test('restoring an image changes reuse fingerprint without changing HTML or Markdown', async () => {
+    const key = `private-snapshots/${uuid}/images/0`
+    let available = false
+    const env = {
+      PROXY_IMAGE_PREFIX: 'https://reader.invalid/image_proxy',
+      OSS: {
+        head: async (id: string) => (id === key ? (available ? { etag: 'image-v1', size: 3, httpMetadata: { contentType: 'image/png' } } : null) : { etag: id, size: 10 }),
+        get: async () => ({ body: new Response(`<img src="https://source-assets.reader.invalid/${key}">`).body })
+      }
+    } as unknown as Env
+    const repo = new VectorSourceRepo(env)
+    const before = await repo.fingerprint(source)
+    available = true
+    const after = await repo.fingerprint(source)
+    expect(after.media_fingerprint).not.toBe(before.media_fingerprint)
+    expect(after.text_etag).toBe(before.text_etag)
+    expect(after.html_or_pdf_etag).toBe(before.html_or_pdf_etag)
+  })
+})

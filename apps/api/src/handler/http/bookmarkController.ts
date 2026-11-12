@@ -40,6 +40,7 @@ import { URLPolicie } from '@/utils/urlPolicie'
 import { MultiLangError } from '@/utils/multiLangError'
 import { VectorMaintenanceService } from '../../domain/vectorMaintenance'
 import { requireVectorRefreshSecret } from '@/utils/vectorRefreshAuth'
+import { enqueueVectorMaintenance } from '@/domain/vectorMaintenanceHooks'
 
 @Controller('/v1/bookmark')
 export class BookmarkController {
@@ -75,7 +76,10 @@ export class BookmarkController {
       return Failed(ErrorParam())
 
     const [output] = await this.vectorMaintenanceService.refreshArticles([{ userId: params.user_id, id: params.bookmark_id }])
-    if (output.state !== 'failed' && !(await this.vectorMaintenanceService.verifyRefresh(output))) return Successed({ ...output, state: 'pending' })
+    if (output.state !== 'failed') {
+      await enqueueVectorMaintenance(ctx.env, { kind: 'article', userId: params.user_id, id: params.bookmark_id }, output)
+      if (!(await this.vectorMaintenanceService.verifyRefresh(output))) return Successed({ ...output, state: 'pending' })
+    }
     return Successed(output)
   }
 
