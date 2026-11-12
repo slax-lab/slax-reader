@@ -8,7 +8,7 @@ Allow readers to create or access their accounts with verified email while maint
 
 ### Requirement: An email code registers or signs in a reader
 
-The system SHALL support email-code access on Web, iOS and Android, show its client UI only in the development environment during the initial rollout, and complete the existing login session only after successful verification. Extension users SHALL be able to complete login through the Web handoff. Requesting a code SHALL NOT create a user or reveal whether an account exists.
+The system SHALL support email-code access on Web, iOS and Android, show its Web client UI only in development and preview profiles and its native Mobile UI only in development during the initial rollout, and complete the existing login session only after successful verification. Extension users SHALL be able to complete login through the Web handoff. Requesting a code SHALL NOT create a user or reveal whether an account exists.
 
 #### Scenario: An environment has the Resend API key
 
@@ -57,11 +57,11 @@ The system SHALL require an active authenticated session and proof of the added 
 
 #### Scenario: A Google or Apple user binds a mailbox
 
-- **WHEN** an authenticated reader verifies the requested mailbox from account settings in the development environment
+- **WHEN** an authenticated reader verifies the requested mailbox from Web account settings in development or preview, or from Mobile account settings in development
 - **THEN** the system binds it to the current user and preserves the original user ID and profile email, including an Apple placeholder
 - **AND** subsequent login using either bound method opens that account
 
-#### Scenario: A reader uses a non-development client
+#### Scenario: A reader uses a beta or production client
 
 - **WHEN** a reader opens a login page, login modal, or account settings in beta or production during the initial rollout
 - **THEN** Web, iOS and Android hide email login entries and code forms, and omit the entire new account sign-in methods section, including its heading, mailbox/provider linking actions, and linked identity status, even for an account with an existing mailbox binding
@@ -72,6 +72,12 @@ The system SHALL require an active authenticated session and proof of the added 
 
 - **WHEN** a reader opens development Web, iOS, or Android login or account settings
 - **THEN** the client offers email-code login and the complete account sign-in methods section according to the existing account state
+
+#### Scenario: A reader uses a preview Web client
+
+- **WHEN** a reader opens preview Web login or account settings during the test rollout
+- **THEN** the client offers email-code login and the complete account sign-in methods section according to the same account rules as development
+- **AND** the native Mobile development-only policy and backend API availability remain unchanged
 
 #### Scenario: An email-first user links a provider
 

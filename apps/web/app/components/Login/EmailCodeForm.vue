@@ -1,32 +1,34 @@
 <template>
-  <form class="email-code-form" :aria-busy="Boolean(pending)" @submit.prevent="challenge ? verifyCode() : sendCode()">
-    <template v-if="challenge">
-      <p class="email-code-message" role="status">{{ t('email_auth.code_sent', { email }) }}</p>
-      <label class="email-code-field">
-        {{ t('email_auth.code_label') }}
-        <input
-          ref="codeInput"
-          v-model.trim="code"
-          type="text"
-          inputmode="numeric"
-          autocomplete="one-time-code"
-          pattern="[0-9]{6}"
-          maxlength="6"
-          :disabled="Boolean(pending)"
-          required
-        />
+  <form class="email-code-form" :class="{ 'email-code-form--inline': purpose === 'bind' }" :aria-busy="Boolean(pending)" @submit.prevent="challenge ? verifyCode() : sendCode()">
+    <p v-if="challenge" class="email-code-message" role="status">{{ t('email_auth.code_sent', { email }) }}</p>
+    <div class="email-code-controls">
+      <template v-if="challenge">
+        <label class="email-code-field">
+          <span class="email-code-label">{{ t('email_auth.code_label') }}</span>
+          <input
+            ref="codeInput"
+            v-model.trim="code"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxlength="6"
+            :disabled="Boolean(pending)"
+            required
+          />
+        </label>
+        <p v-if="expired" class="email-code-message" role="status">{{ t('email_auth.expired') }}</p>
+      </template>
+      <label v-else class="email-code-field">
+        <span class="email-code-label">{{ t('email_auth.address_label') }}</span>
+        <input ref="emailInput" v-model.trim="email" type="email" autocomplete="email" maxlength="254" :disabled="Boolean(pending)" required />
       </label>
-      <p v-if="expired" class="email-code-message" role="status">{{ t('email_auth.expired') }}</p>
-    </template>
-    <label v-else class="email-code-field">
-      {{ t('email_auth.address_label') }}
-      <input ref="emailInput" v-model.trim="email" type="email" autocomplete="email" maxlength="254" :disabled="Boolean(pending)" required />
-    </label>
 
-    <p v-if="errorKey" class="email-code-error" role="alert">{{ t(errorKey) }}</p>
-    <button class="email-code-button" type="submit" :disabled="Boolean(pending) || expired">
-      {{ t(pending === 'verify' ? 'email_auth.verifying' : pending === 'send' && !challenge ? 'email_auth.sending' : challenge ? 'email_auth.verify' : 'email_auth.send') }}
-    </button>
+      <p v-if="errorKey" class="email-code-error" role="alert">{{ t(errorKey) }}</p>
+      <button class="email-code-button" type="submit" :disabled="Boolean(pending) || expired">
+        {{ t(pending === 'verify' ? 'email_auth.verifying' : pending === 'send' && !challenge ? 'email_auth.sending' : challenge ? 'email_auth.verify' : 'email_auth.send') }}
+      </button>
+    </div>
     <div v-if="challenge" class="email-code-actions">
       <button type="button" @click="editEmail">{{ t('email_auth.change_address') }}</button>
       <button type="button" :disabled="Boolean(pending) || secondsToResend > 0" @click="sendCode">
@@ -154,6 +156,11 @@ const verifyCode = async () => {
   color: var(--slax-text);
 }
 
+.email-code-controls {
+  display: grid;
+  gap: 10px;
+}
+
 .email-code-field {
   display: grid;
   gap: 6px;
@@ -226,5 +233,69 @@ const verifyCode = async () => {
   background: var(--slax-danger-bg);
   padding: 8px 10px;
   color: var(--slax-text);
+}
+
+.email-code-form--inline .email-code-controls {
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: end;
+  gap: 8px;
+}
+
+.email-code-form--inline .email-code-field {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.email-code-form--inline .email-code-field input {
+  min-width: 0;
+}
+
+.email-code-form--inline .email-code-label,
+.email-code-form--inline .email-code-message,
+.email-code-form--inline .email-code-actions {
+  font-size: var(--slax-fs-aux);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.email-code-form--inline .email-code-label {
+  color: var(--slax-text-muted);
+}
+
+.email-code-form--inline .email-code-button {
+  grid-column: 2;
+  grid-row: 1;
+  width: auto;
+  min-width: 104px;
+  border-color: var(--slax-accent);
+  background: var(--slax-accent);
+  color: var(--slax-btn-text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.email-code-form--inline .email-code-button:hover:not(:disabled) {
+  border-color: var(--slax-text);
+  background: var(--slax-accent);
+}
+
+.email-code-form--inline .email-code-controls > :is(.email-code-message, .email-code-error) {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 540px) {
+  .email-code-form--inline .email-code-field input {
+    font-size: var(--slax-fs-body);
+  }
+
+  .email-code-form--inline .email-code-button {
+    min-width: 96px;
+    padding-inline: 10px;
+  }
+}
+
+.email-code-form--login .email-code-button {
+  min-width: 96px;
 }
 </style>

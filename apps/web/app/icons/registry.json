@@ -676,6 +676,44 @@
         "sourcePath": "apps/web/app/assets/icons/fixtures/README.md#raster",
         "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
       }
+    },
+    "account.sign-in.google": {
+      "kind": "brand",
+      "source": "sign-in/google.svg",
+      "viewBox": "0 0 256 262",
+      "intrinsicWidth": 256,
+      "intrinsicHeight": 262,
+      "defaultSize": 20,
+      "paint": "fixed",
+      "accessibility": "decorative",
+      "provenance": {
+        "sourcePath": "apps/web/app/components/GoogleLoginButton.vue#logos:google-icon",
+        "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
+      }
+    },
+    "account.sign-in.apple": {
+      "kind": "inline",
+      "source": "sign-in/apple.svg",
+      "viewBox": "0 0 256 315",
+      "defaultSize": 20,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": {
+        "sourcePath": "apps/web/app/components/AppleLoginButton.vue#logos:apple",
+        "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
+      }
+    },
+    "account.sign-in.email": {
+      "kind": "inline",
+      "source": "sign-in/email.svg",
+      "viewBox": "0 0 24 24",
+      "defaultSize": 20,
+      "paint": "currentColor",
+      "accessibility": "decorative",
+      "provenance": {
+        "sourcePath": "apps/web/package.json#dependencies/@iconify-json/solar",
+        "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
+      }
     }
   }
 }

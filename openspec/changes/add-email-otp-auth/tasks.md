@@ -25,6 +25,6 @@
 
 ## 5. Development-only email UI correction
 
-- [x] 5.1 Hide email login entries and forms on non-development Web and Mobile clients; hide the entire new sign-in methods section in account settings, including provider linking. Preserve the original provider login and keep backend APIs unrestricted by the rollout environment.
+- [x] 5.1 Hide email login entries and forms on beta/production Web clients and non-development Mobile clients; hide the entire new sign-in methods section in those account settings, including provider linking. Preserve the original provider login and keep backend APIs unrestricted by the rollout environment.
 - [x] 5.2 Verify development, beta, and production presentation, run affected checks, and record the correction evidence.
 - [x] 5.3 Obtain hands-on acceptance of the correction before opening its follow-up pull request.
