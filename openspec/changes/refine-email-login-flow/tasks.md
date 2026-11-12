@@ -20,7 +20,7 @@
 
 - [x] 4.1 Run affected component/preferences/auth regression suites, Web typecheck, targeted lint, whitespace checks, and strict OpenSpec validation; perform the local Bugs/Security/Compliance review and record exact results and limitations in this change's `validation.md`.
 - [x] 4.2 Exercise the actual Nuxt application with a loopback fixture: both login hosts and account binding, new/remembered/edited address, failed/retried and successful verification, delayed destination loading, beta availability and production omission, provider order, keyboard access, narrow layout and all Web themes. Record requests and inspect the still-visible successful form during delayed departure; keep screenshots/harnesses outside Git.
-- [ ] 4.3 Present the running Web implementation for fresh requester hands-on acceptance (received 2026-11-12), and obtain separate acceptance of the approved App presentation extension; implement/re-verify feedback and record who/when/what before opening a task PR. Deliver on `fix/refine-email-login-flow` targeting `dev` with OpenSpec and verification evidence; do not archive before merge, and keep the three predecessor capability deltas under their single owners for coordinated archive.
+- [x] 4.3 Present the running Web implementation for fresh requester hands-on acceptance (received 2026-11-12), and obtain separate acceptance of the approved App presentation extension; implement/re-verify feedback and record who/when/what before opening a task PR. Deliver on `fix/refine-email-login-flow` targeting `dev` with OpenSpec and verification evidence; do not archive before merge, and keep the three predecessor capability deltas under their single owners for coordinated archive.
 
 
 ## 5. App Provider Preference Extension
