@@ -25,7 +25,7 @@ mockNuxtImport('useState', () => (key: string, init: () => unknown) => {
 })
 mockNuxtImport('useI18n', () => () => ({ t: (key: string) => (key === 'promotion.resume' ? 'Claim KOC reward' : key) }))
 mockNuxtImport('useHead', () => () => {})
-mockNuxtImport('useNuxtApp', () => () => ({ runWithContext: (fn: () => unknown) => fn(), $i18n: { setLocale: env.apply } }))
+mockNuxtImport('useNuxtApp', () => () => ({ runWithContext: (fn: () => unknown) => fn(), $i18n: { locale: { value: 'en' }, setLocale: env.apply } }))
 mockNuxtImport('useAuth', () => () => ({ clearAuth: vi.fn() }))
 mockNuxtImport('addChannelMessageHandler', () => () => {})
 mockNuxtImport('removeChannelMessageHandler', () => () => {})
