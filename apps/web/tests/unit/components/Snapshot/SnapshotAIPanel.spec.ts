@@ -22,8 +22,10 @@ const { mockGet, mockStream, mockRequest, mockExtractMarkdown } = vi.hoisted(() 
 mockRequest.mockImplementation(() => ({ get: mockGet, stream: mockStream }))
 mockNuxtImport('request', () => mockRequest)
 
+vi.mock('@commons/frontend-utils/text', () => ({
+  extractMarkdownFromText: mockExtractMarkdown
+}))
 vi.mock('@commons/frontend-utils/parse', () => ({
-  extractMarkdownFromText: mockExtractMarkdown,
   parseMarkdownText: vi.fn((t: string) => t)
 }))
 
