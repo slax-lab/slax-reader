@@ -30,10 +30,15 @@ Official references: [Apple associated domains](https://developer.apple.com/docu
 
 | Environment | Web origin / API `FRONT_END_URL` | Mobile `EXPO_PUBLIC_SLAX_WEB_URL` |
 | --- | --- | --- |
-| Development | `https://r.slax.dev` | `https://r.slax.dev` |
+| Preview (dev branch) | `https://r.slax.dev` | `https://r.slax.dev` |
 | Beta | `https://r-beta.slax.com` | `https://r-beta.slax.com` |
 | Production | `https://r.slax.com` | `https://r.slax.com` |
 
 The native configuration declares all three associated domains. Android asset statements include all three association URLs. Keep each API environment's `FRONT_END_URL` aligned with its own row; this determines its RP ID. Set `PASSKEY_ANDROID_ORIGINS` in each API environment to the public Play signing origin above. These are public variables, not secrets. A local APK signed with a different certificate still needs its own explicitly authorized development fingerprint/origin.
 
 The two files under `apps/web/public/.well-known/` are the Web deployment assets for all three environments. Nitro route rules generate their JSON content type; the files are served without a session. They take effect on each public hostname only after that environment's Web deployment. This does not change client rollout: Beta and production keep the new authentication UI hidden. Existing API bindings and all unrelated settings must be preserved when applying the public variables.
+
+
+Web environment names differ from branch names: the `dev` release uses `SLAX_ENV=preview` on `r.slax.dev`; `development` is the local Web server. The requester confirmed that Android packages not distributed through Play use `r.slax.dev` for testing. Configure that test Web origin and its matching API/RP explicitly in the existing test workflow. This does not infer an environment from installation source or change the existing client rollout controls.
+
+Supporting PR #592 adds the approved non-Play test certificate only to the preview Web association; beta and production remain Play-only. Its environment selector was corrected after the requester clarified the public-host mapping. Keep the same local signing identity while using that association; a differently signed package needs its own explicitly approved certificate. The test fingerprint may be removed in a separate cleanup after testing, while preserving Play trust; no automatic rollback is required.
