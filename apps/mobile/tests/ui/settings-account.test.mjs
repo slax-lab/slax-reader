@@ -481,15 +481,15 @@ test('Settings links a verified mailbox and a native provider without replacing 
   assert.deepEqual(h.sessions.getSnapshot(), before);
 }));
 
-test('Settings hides the email binding action outside a development session', async () => mounted(async root => {
+test('Settings hides the whole sign-in methods section outside a development session', async () => mounted(async root => {
   const h = await harness(root, 'android');
   await h.renderRoute('SettingsScreen');
-  assert.ok(h.all('SourceButton').some(props => props.label === 'email_auth_link_google'));
-  assert.ok(!h.all('SourceButton').some(props => props.label === 'email_auth_bind'));
+  assert.ok(!h.all('SourceText').some(props => props.children === 'email_auth_methods'));
+  assert.ok(!h.all('SourceButton').some(props => props.label.startsWith('email_auth_')));
 }));
 
 test('Android guides Apple linking to the same Web account and ignores late Google authorization after owner replacement', async () => mounted(async root => {
-  const h = await harness(root, 'android'), native = deferred();
+  const h = await harness(root, 'android', true), native = deferred();
   h.platforms = async () => [linkedPlatform('mail', 'owner@example.test')];
   h.authorize = () => native.promise;
   await h.renderRoute('SettingsScreen');
@@ -507,14 +507,15 @@ test('Android guides Apple linking to the same Web account and ignores late Goog
   assert.ok(h.all('SourceText').some(props => props.children === 'other@example.test'));
 }));
 
-test('Settings uses verified mail rather than mail collection and displays linked methods outside development', async () => mounted(async root => {
+test('Settings hides the entire sign-in methods section even with linked identities outside development', async () => mounted(async root => {
   const h = await harness(root);
   h.platforms = async () => [linkedPlatform('email', 'collection@example.test'), linkedPlatform('mail', 'Reader@example.test'), linkedPlatform('google'), linkedPlatform('apple')];
   await h.renderRoute('SettingsScreen');
-  for (const label of ['Reader@example.test', 'email_auth_google_linked', 'email_auth_apple_linked']) {
-    assert.ok(h.all('SourceText').some(props => props.children === label));
+  for (const label of ['email_auth_google_linked', 'email_auth_apple_linked']) {
+    assert.ok(!h.all('SourceText').some(props => props.children === label));
   }
-  assert.ok(!h.all('SourceText').some(props => props.children === 'collection@example.test'));
+  assert.ok(!h.all('SourceText').some(props => props.children === 'email_auth_methods'));
+  assert.ok(!h.all('SourceText').some(props => props.children === 'collection@example.test' || props.children === 'Reader@example.test' || props.children === 'email_auth_address'));
   assert.ok(!h.all('SourceButton').some(props => props.label === 'email_auth_bind'));
 }));
 
@@ -527,7 +528,7 @@ test('development Settings can bind email when only mail collection is present',
 }));
 
 test('late platform refreshes are cancelled and cannot replace the next account display', async () => mounted(async root => {
-  const h = await harness(root), held = deferred();
+  const h = await harness(root, 'ios', true), held = deferred();
   h.platforms = () => held.promise;
   await h.renderRoute('SettingsScreen');
   const retired = h.platformReads[0];
@@ -541,7 +542,7 @@ test('late platform refreshes are cancelled and cannot replace the next account 
 }));
 
 test('a committed provider link does not become a mutation failure when its platform refresh fails', async () => mounted(async root => {
-  const h = await harness(root);
+  const h = await harness(root, 'ios', true);
   let reads = 0;
   h.platforms = async () => {if (reads++) throw new Error('Offline'); return [];};
   await h.renderRoute('SettingsScreen');

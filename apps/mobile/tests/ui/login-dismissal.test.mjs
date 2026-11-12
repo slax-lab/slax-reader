@@ -9,7 +9,7 @@ import {FixtureMemoryPreferences} from '../../fixtures/isolation.ts'
 
 const text = node => Array.isArray(node) ? node.map(text).join('') : React.isValidElement(node) ? text(node.props.children) : node ?? ''
 const deferred = () => {let resolve, reject; const promise = new Promise((yes, no) => {resolve = yes; reject = no}); return {promise, resolve, reject}}
-async function loginFixture(host, platform, run, props = {}, emailAuth = false) {
+async function loginFixture(host, platform, run, props = {}, development = false) {
   let marks = 0;
   const markInteractive = () => {marks++;};
   const controls = new Map(), providers = [], requests = [], accepted = [], alerts = [], lifecycle = []
@@ -32,10 +32,9 @@ async function loginFixture(host, platform, run, props = {}, emailAuth = false) 
   let verifyEmail = async () => loginResponse;
   const mobile = {api: {
     login: async request => {requests.push(request); return loginResponse},
-    emailLoginStatus: async () => ({enabled: emailAuth}),
     sendLoginEmail: async request => {requests.push(request); return {request_id: 'challenge', expires_in: 300, resend_after: 60}},
     verifyLoginEmail: async (request, signal) => {requests.push(request); return verifyEmail(signal)},
-  }, sessions: {getSnapshot: () => session, captureIdentity: () => {const before = identity; return () => {if (before !== identity) throw new Error('Identity changed')}}, accept: async (...values) => accepted.push(values)}, t: key => key, locale: 'en', config: {webUrl: 'https://fixture.test', apiUrl: 'https://api.fixture.test'}}
+  }, sessions: {getSnapshot: () => session, captureIdentity: () => {const before = identity; return () => {if (before !== identity) throw new Error('Identity changed')}}, accept: async (...values) => accepted.push(values)}, t: key => key, locale: 'en', config: {development, isBeta: false, webUrl: 'https://fixture.test', apiUrl: 'https://api.fixture.test'}}
   const {LoginScreen} = await loadComponent('../../src/screens/LoginScreen.tsx', {
     react: React, 'react-native': {...host.native, Platform: {OS: platform}, useWindowDimensions: () => viewport, Image, Text: primitive, Pressable: primitive, Modal, Alert: {alert: (...args) => alerts.push(args)}},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {bg_login: background}},
@@ -49,6 +48,7 @@ async function loginFixture(host, platform, run, props = {}, emailAuth = false) 
   await render()
   await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
     artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()}, verifyEmail: value => {verifyEmail = value},
+    setProfile: async profile => {mobile.config.development = profile === 'development'; mobile.config.isBeta = profile === 'beta'; controls.clear(); await render()},
     changeOrigin: async () => {mobile.config.apiUrl = 'https://replacement.fixture.test'; await render()},
     hydrate: () => {session = {status: 'unauthenticated'}},
     replaceIdentity: () => {identity++; session = {status: 'unauthenticated'}},
@@ -173,6 +173,16 @@ for (const retired of ['unmount', 'identity']) test(`session persistence failure
   await act(async () => writing.resolve())
   assert.deepEqual(fixture.alerts, [])
 })))
+
+for (const platform of ['ios', 'android']) for (const profile of ['development', 'beta', 'production']) {
+  test(`mounted ${platform} email login is development-only in ${profile}`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
+    await fixture.setProfile(profile);
+    assert.equal(fixture.controls.has('login_email'), profile === 'development');
+    assert.ok(fixture.controls.has('login_google'));
+    assert.equal(fixture.controls.has('login_apple'), platform === 'ios');
+    assert.deepEqual(fixture.requests, []);
+  })));
+}
 
 test('iOS email waits for agreement dismissal and accepts only a verified login response', nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'ios', async fixture => {
   await fixture.press('login_email');
