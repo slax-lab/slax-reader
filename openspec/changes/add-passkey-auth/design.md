@@ -33,3 +33,9 @@ Derive native RP configuration from the existing public Web URL. Add iOS webcred
 ## Implementation findings
 
 The existing DI generator reserves a method named `register` for infrastructure registries. The Passkey service therefore exposes `linkCredential`, preserving the generator and normal service DI. A real ES256 assertion reproduced SimpleWebAuthn's documented ASN.1 schema-store mismatch when its direct dependency reused 2.6.0 while its EC dependency resolved 2.11.1. A server-scoped pnpm override aligns only that dependency to 2.11.1; existing X.509 dependency versions are retained. See [upstream issue 808](https://github.com/MasterKale/SimpleWebAuthn/issues/808).
+
+## Confirmed association rollout
+
+Use `r.slax.dev`, `r-beta.slax.com` and `r.slax.com` for development, beta and production. The existing Web public-assets directory serves AASA and Digital Asset Links JSON with an explicit JSON content type; no new service, redirects or login gate are introduced. Both native platforms declare these three domains. API RP IDs remain environment-specific through the existing `FRONT_END_URL`; the confirmed Play signing origin is configured per environment. Association assets do not enable hidden Beta/production UI. Physical-device checks require those files to be publicly deployed and a matching signed binary with the new native module methods; do not replace or uninstall existing device applications as a shortcut.
+
+The requester authorized a separate `publish-native-passkey-associations` supporting Draft PR on 2026-11-12 so public association files can deploy before native acceptance. Its delta capability is `native-passkey-association`, separate from this change's `passkey-authentication`; do not carry duplicate association delta requirements in this change.

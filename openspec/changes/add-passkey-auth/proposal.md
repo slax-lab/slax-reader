@@ -30,3 +30,5 @@ API, contracts, Web, Mobile native adapters, one additive PostgreSQL table, and 
 ## Review and authorization
 
 On 2026-11-12 the requester approved phase two after reviewing the flow and storage outline in conversation, requested minimal changes following existing naming/layers/call order, and chose direct implementation instead of a demo. They requested a Claude Code review using `claude-opus-5.5` and an independent Codex regression review after implementation. They authorized placeholder association configuration while public signing identifiers are unavailable and chose to retain Mobile 1.0.29 (804). Human hands-on UI acceptance is required before a Draft PR opens.
+
+On 2026-11-12 the requester confirmed development `r.slax.dev`, beta `r-beta.slax.com` and production `r.slax.com`, authorized completing Apple/Android association configuration for all three environments, and requested continuing physical-device verification. Web hands-on acceptance was already complete; Beta/production UI hiding and Mobile 1.0.29 (804) remain unchanged.

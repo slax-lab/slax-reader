@@ -37,6 +37,7 @@ const passkeyWebUrl = new URL(process.env.EXPO_PUBLIC_SLAX_WEB_URL ?? production
 if (!fixtureMode && (passkeyWebUrl.protocol !== 'https:' || !passkeyWebUrl.hostname || passkeyWebUrl.username || passkeyWebUrl.password)) {
   throw new Error('Native Passkey association requires an HTTPS public Web URL without credentials');
 }
+const passkeyWebUrls = [...new Set([passkeyWebUrl.origin, 'https://r.slax.dev', 'https://r-beta.slax.com', 'https://r.slax.com'])];
 
 const providerPlugins: NonNullable<ExpoConfig['plugins']> = fixtureMode ? [] : [
   ['react-native-nitro-google-signin', {
@@ -61,7 +62,7 @@ const config: ExpoConfig = {
     ...(firebaseIosConfig ? {googleServicesFile: firebaseIosConfig} : {}),
     buildNumber: buildVersion.build,
     supportsTablet: true,
-    associatedDomains: fixtureMode ? [] : [`webcredentials:${passkeyWebUrl.hostname}`],
+    associatedDomains: fixtureMode ? [] : passkeyWebUrls.map(url => `webcredentials:${new URL(url).hostname}`),
     entitlements: uiFixture ? {} : { 'com.apple.security.application-groups': ['group.app.slax.reader'] },
     infoPlist: { ITSAppUsesNonExemptEncryption: false, FirebaseAutomaticScreenReportingEnabled: false,
       SlaxApiBaseURL: process.env.EXPO_PUBLIC_SLAX_API_URL ?? 'https://api-reader.slax.com',
@@ -82,7 +83,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     ['./plugins/with-native-compatibility.cjs', {fixtureMode}],
-    ...(!fixtureMode ? [['./plugins/with-passkeys.cjs', {webUrl: passkeyWebUrl.href}] as [string, {webUrl: string}]] : []),
+    ...(!fixtureMode ? [['./plugins/with-passkeys.cjs', {webUrls: passkeyWebUrls}] as [string, {webUrls: string[]}]] : []),
     ...(!fixtureMode ? ['expo-app-intents'] : []),
     './plugins/with-retire-reading-widgets.cjs',
     ...(firebaseIosConfig || firebaseAndroidConfig ? ['./plugins/with-firebase-bootstrap.cjs'] : []),
