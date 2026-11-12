@@ -365,6 +365,12 @@ export default defineNuxtConfig({
       failOnError: true
     },
     routeRules: {
+      '/.well-known/apple-app-site-association': {
+        headers: { 'content-type': 'application/json' }
+      },
+      '/.well-known/assetlinks.json': {
+        headers: { 'content-type': 'application/json' }
+      },
       '/x/ext-bridge': {
         ssr: false,
         prerender: false,
