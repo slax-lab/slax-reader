@@ -117,13 +117,19 @@
             <ClientOnly>
               <!-- overview 仅 owner；outline 用 SSR 数据 -->
               <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
-              <SnapshotAIPanel v-else :pdf="!!detail.pdf" @find-quote="findQuote"
-                :bookmark-uid="bookmarkUid"
-                :default-outline="detail.outline"
-                :overview-enabled="isOwner"
-                :is-appeared="activePanel === 'ai'"
-                @dismiss="activePanel = null"
-              />
+              <NuxtErrorBoundary v-else :key="accountGeneration">
+                <KeepAlive>
+                  <SnapshotAIPanel v-if="activePanel === 'ai'" :pdf="!!detail.pdf" @find-quote="findQuote"
+                    :bookmark-uid="bookmarkUid" :default-outline="detail.outline" :overview-enabled="isOwner"
+                    :is-appeared="activePanel === 'ai'" @dismiss="activePanel = null" />
+                </KeepAlive>
+                <template #error>
+                  <div class="panel-load-error">
+                    <p class="panel-load-error__message" role="alert">{{ $t('common.tips.interface_load_failed') }}</p>
+                    <button class="panel-load-error__action" type="button" @click="reloadNuxtApp()">{{ $t('common.operate.reload_page') }}</button>
+                  </div>
+                </template>
+              </NuxtErrorBoundary>
             </ClientOnly>
           </template>
           <template #transcript>
@@ -134,14 +140,18 @@
           <template #chat>
             <!-- Chat 仅 owner，组件不挂载 -->
             <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
-            <SnapshotChatPanel
-              v-if="isOwner && !isSubscriptionExpired && (!detail.pdf || detail.pdf.text_status === 'ready')"
-              ref="chatbot"
-              :bookmark-uid="bookmarkUid"
-              :is-appeared="activePanel === 'chat'"
-              @dismiss="activePanel = null"
-              @find-quote="findQuote"
-            />
+            <NuxtErrorBoundary v-if="isOwner && !isSubscriptionExpired && (!detail.pdf || detail.pdf.text_status === 'ready')" :key="accountGeneration">
+              <KeepAlive>
+                <SnapshotChatPanel v-if="activePanel === 'chat'" ref="chatbot" :bookmark-uid="bookmarkUid"
+                  :is-appeared="activePanel === 'chat'" @dismiss="activePanel = null" @find-quote="findQuote" />
+              </KeepAlive>
+              <template #error>
+                <div class="panel-load-error">
+                  <p class="panel-load-error__message" role="alert">{{ $t('common.tips.interface_load_failed') }}</p>
+                  <button class="panel-load-error__action" type="button" @click="reloadNuxtApp()">{{ $t('common.operate.reload_page') }}</button>
+                </div>
+              </template>
+            </NuxtErrorBoundary>
           </template>
           <template #comment>
             <ClientOnly>
@@ -193,14 +203,13 @@
 <script lang="ts" setup>
 import BookmarkArticleLocalFirst from '@/components/Article/BookmarkArticleLocalFirst.vue'
 import SnapshotMobileNotesEntry from '@/components/Snapshot/SnapshotMobileNotesEntry.vue'
+import DotLoading from '~/components/DotLoading.vue'
 import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 import SnapshotDetailLayout from '~/components/Layouts/SnapshotDetailLayout.vue'
 import SnapshotSidePanel from '~/components/Layouts/SnapshotSidePanel.vue'
 import PodcastBar from '~/components/Snapshot/PodcastBar.vue'
 import PodcastTranslation from '~/components/Snapshot/PodcastTranslation.vue'
-import SnapshotAIPanel from '~/components/Snapshot/SnapshotAIPanel.vue'
 import SnapshotBottomToolbar, { type BottomToolbarAction } from '~/components/Snapshot/SnapshotBottomToolbar.vue'
-import SnapshotChatPanel from '~/components/Snapshot/SnapshotChatPanel.vue'
 import SnapshotCommentComposer from '~/components/Snapshot/SnapshotCommentComposer.vue'
 import SnapshotCommentList from '~/components/Snapshot/SnapshotCommentList.vue'
 import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
@@ -226,7 +235,7 @@ import { useReadingPosition } from '@/composables/useReadingPosition'
 import { useSidePanelPreference } from '@/composables/useSidePanelPreference'
 import type { MarkDetail, SnapshotBookmarkDetail, SnapshotMetadata } from '@commons/frontend-types/models'
 import { isClient, isServer } from '@commons/frontend-utils/is'
-import { extractHTMLTextContent } from '@commons/frontend-utils/parse'
+import { extractHTMLTextContent } from '@commons/frontend-utils/text'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { PodcastTranslation as PodcastTranslationContent } from '@slax-reader/contracts/interface'
 import { runArticleSsrProcessors } from '~/components/Article/processors/ssr-runner'
@@ -240,6 +249,9 @@ import { useCommentPanel } from '~/composables/useCommentPanel'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import type { IconKey } from '~/icons/registry'
 import { useUserStore } from '~/stores/user'
+
+const SnapshotAIPanel = defineAsyncComponent({ loader: () => import('~/components/Snapshot/SnapshotAIPanel.vue'), loadingComponent: DotLoading, timeout: 15000, suspensible: false })
+const SnapshotChatPanel = defineAsyncComponent({ loader: () => import('~/components/Snapshot/SnapshotChatPanel.vue'), loadingComponent: DotLoading, timeout: 15000, suspensible: false })
 
 const { t, locale } = useI18n()
 definePageMeta({ key: route => String(route.params.id) })
@@ -525,6 +537,7 @@ const forceDecide = ref(false)
 
 const { isSubscriptionExpired, showAnalyzed, showChatbot, chatBotQuote, showFeedback, screenLockUpdate } = useBookmark({
   chatbot,
+  quoteScope: () => accountGeneration.value,
   typeOptions: () => ({
     type: BookmarkType.Snapshot,
     title: detail.value?.title || '',
@@ -1143,6 +1156,58 @@ renderServerData()
     min-width: 44px;
   }
 }
+.panel-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  min-width: 0;
+  font-family: var(--slax-font-sans);
+
+  &__message {
+    margin: 0;
+    color: var(--slax-text-muted);
+    font-size: var(--slax-fs-aux);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  &__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 112px;
+    max-width: 100%;
+    padding: 8px 18px;
+    border: 1px solid var(--slax-border-strong);
+    border-radius: var(--slax-radius-sm);
+    background: var(--slax-surface-solid);
+    color: var(--slax-text);
+    font-family: inherit;
+    font-size: var(--slax-fs-aux);
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--slax-accent);
+      background: var(--slax-surface);
+    }
+
+    &:active {
+      background: var(--slax-accent-bg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--slax-accent);
+      outline-offset: 2px;
+    }
+  }
+}
+
 .pdf-ai-unavailable {
   padding: 24px;
   font-size: var(--slax-fs-aux);

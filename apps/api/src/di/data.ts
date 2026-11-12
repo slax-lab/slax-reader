@@ -24,6 +24,7 @@ import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
 import { VectorSourceRepo } from '@/infra/repository/vectorSources'
 import { VectorIndexClient } from '@/infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '@/infra/repository/vectorPreferenceClient'
+import { VectorPreferenceStores } from '@/infra/repository/vectorPreferenceStore'
 
 @singleton()
 export class DatabaseRegistry {
@@ -32,6 +33,7 @@ export class DatabaseRegistry {
     targetContainer.register(VectorSourceRepo, { useFactory: () => new VectorSourceRepo(ctx.env), uncached: false })
     targetContainer.register(VectorIndexClient, { useFactory: () => new VectorIndexClient(ctx.env), uncached: false })
     targetContainer.register(VectorPreferenceClient, { useFactory: () => new VectorPreferenceClient(ctx.env), uncached: false })
+    targetContainer.register(VectorPreferenceStores, { useFactory: () => new VectorPreferenceStores(ctx.env), uncached: false })
     targetContainer.register(PRISIMA_CLIENT, {
       useFactory: () => new PrismaClient({ adapter: new PrismaD1(ctx.env.DB) }),
       uncached: false
