@@ -86,11 +86,15 @@ Missing or empty preceding-pipeline text for a larger PDF SHALL produce explicit
 
 ### Requirement: Current-state maintenance adds no coordination platform
 
-Live hooks and the native Workflow SHALL refresh minimal targets using current authoritative state. Replays SHALL replace deterministic IDs rather than accumulate duplicate contributions. This change MUST NOT add PostgreSQL vector tables, fields, migrations or triggers, a new coordination platform, run/item stores, queues or leases. The existing per-owner Durable Object SHALL retain applied contributions and indexed publication/action metadata in its local versioned store. Absent or legacy owner state SHALL bootstrap in bounded pages and become usable only after complete initialization; normal operations SHALL not rescan history. Failed dispatch SHALL remain visible and repairable through explicit refresh rather than an invented durable recovery guarantee.
+Live hooks and the native Workflow SHALL refresh minimal targets using current authoritative state. Replays SHALL replace deterministic IDs rather than accumulate duplicate contributions. This change MUST NOT add PostgreSQL vector tables, fields, migrations or triggers, a new coordination platform, run/item stores, queues or leases. Preference state SHALL be stored in the existing API D1 database (`slax_vector_preference_state` and `slax_vector_preference_entry`, keyed by user) and SHALL NOT contain article vectors. The existing per-owner Durable Object SHALL only serialize one owner's maintenance and SHALL NOT persist preference state; legacy state found in its storage SHALL be moved into D1 once without reading article history and the object storage SHALL then be erased. Absent owner state SHALL bootstrap in bounded pages and become usable only after complete initialization; normal operations SHALL not rescan history. Failed dispatch SHALL remain visible and repairable through explicit refresh rather than an invented durable recovery guarantee.
 
 #### Scenario: Old target is retried after deletion
 - **WHEN** a previously admitted target is retried after its save or user is deleted
 - **THEN** current eligibility drives cleanup and the old request does not authorize resurrection
+
+#### Scenario: Legacy owner object state exists
+- **WHEN** an owner's Durable Object still holds earlier preference tables
+- **THEN** the sums, counts and per-article tokens are written to D1 without enumerating articles or reading article vectors, the object storage is erased, and later maintenance uses only D1
 
 #### Scenario: Maintenance creation fails
 - **WHEN** the native Workflow cannot be created

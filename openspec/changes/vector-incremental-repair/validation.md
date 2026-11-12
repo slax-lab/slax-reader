@@ -58,3 +58,28 @@ The existing real Edge/Core Workerd fixed-key route test also passes with the ch
 Bugs, Security and Compliance passes were performed against the final diff and this change's requirements. Full-history fallback, stale-zero publication, strict Collection gates, relation/source coupling, event deduplication and partial-initialization visibility were checked explicitly. Identity/authentication errors and actual service failures remain errors. There are no new dependencies, endpoints, credentials or production access configuration. Source content and provider credentials are not included in the change.
 
 `pnpm exec openspec validate --all --strict` passed: 135 items, zero failures. Final diff inspection found no new generated-output, dependency, client, or production configuration changes. The four generated dry-run bundle directories were removed after verification; the local HTTP runtimes were disposed. The only registered worktrees are the untouched main worktree and `fix/vector-incremental-repair`; preserved local-state/proposal backups remain under `.local/worktree-backup-20261111/`. No Important findings remain in the local Bugs/Security/Compliance review; the explicitly stated production and full-scale upgrade gaps remain for release acceptance.
+
+## D1 state revision (2026-11-12)
+
+After merge and test deployment the user rejected persistent contribution vectors in Durable Object storage and directed persistent state to D1 with the Durable Object limited to concurrency control. The revision was made on branch `fix/vector-preference-d1-state` from `origin/dev` at `69c56d58`.
+
+Automated checks on the revision:
+
+- `pnpm api -- gen:all`: passed. `pnpm api -- typecheck`: passed.
+- `pnpm api -- test --maxWorkers=2`: **249 files passed, 15 skipped; 3,947 tests passed, 142 skipped; zero failures**.
+- `pnpm api -- lint`: zero errors, 343 warnings (unchanged count).
+- `pnpm api -- build`: all four Worker dry-runs completed; nothing was deployed. Generated bundle directories were removed.
+- D1 migration 00066 was applied to a scratch SQLite built from every existing D1 migration; `gen:diff:d1` against it reported no remaining difference for the two new tables. The Prisma-generated diff also rebuilt the unrelated `slax_bookmark_share` table, so the migration was reduced to the two `CREATE TABLE` statements and one index.
+
+Running environment: `test/utils/vectorPreferenceObject.runtime.test.ts` runs the real `VectorPreferenceObject`, `D1PreferenceStore`, `VectorMaintenanceService`, queue and RPC client in Workerd through Miniflare with a real D1 database migrated by 00066 and real Durable Object SQLite storage. PostgreSQL and Vectorize are fixtures. It verifies:
+
+1. State lives in D1; the Durable Object's own SQLite has no preference tables and stays under 16 KiB after every operation.
+2. Concurrent applies for one user are combined into fewer batches; star, delete with handed-over vector, and owner share/status toggles stay incremental and match a full rebuild within 1e-10.
+3. The Collection publication-time query uses `slax_vector_preference_entry_user_id_share_group_published_at_idx`.
+4. Deleting every member removes the D1 state and entries.
+5. Durable Object v2 and v3 state is moved into D1 with identical entries and counts and no article-history or article-vector read, then the object storage is erased. The unusable v1 layout rebuilds once. Stale object tables beside existing D1 state are erased without a rebuild.
+6. Replacing a vector with the old vector handed over does not rebuild.
+
+Domain tests additionally cover: a replaced vector without its old value rebuilds once instead of subtracting a guess; stored entries contain only weight, group, token and publication time; ordinary events carry clusters and do not read the recent-action window or history; explicit refresh reclusters from the bounded window; the repair route and relation deletion hand the replaced vector to the Workflow.
+
+Gaps: no remote D1 migration or deployment was run. Production object state migration was exercised only locally. D1 throughput under bulk sync on the shared `DB` binding was not load-tested.

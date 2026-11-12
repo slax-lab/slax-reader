@@ -2,7 +2,8 @@ import { VectorPreferenceObject } from '@/entry/core/vectorPreferenceObject'
 import { VectorMaintenanceService } from '@/domain/vectorMaintenance'
 import { ContentRecommendationService } from '@/domain/contentRecommendation'
 import { VectorPreferenceClient } from '@/infra/repository/vectorPreferenceClient'
-import type { PreferenceCall, PreferenceStore } from '@/utils/preferenceLedger'
+import { VectorPreferenceStores } from '@/infra/repository/vectorPreferenceStore'
+import type { LocalPreference, PreferenceCall, PreferenceStore } from '@/utils/preferenceLedger'
 
 // Fixture data boundaries live in the object's isolate. Storage, RPC delivery, the queue and the
 // maintenance engine are the real implementations.
@@ -16,7 +17,8 @@ const stored = new Map<string, VectorizeVector>(
   ].map(([id, axis]) => [`c:${id}`, { id: `c:${id}`, values: unit(axis) }])
 )
 let subscribed = true
-const counters = { batches: 0, rebuilds: 0, rowReads: 0, articleReads: 0, mutations: 0, subscriptionReads: 0 }
+const counters = { batches: 0, rebuilds: 0, rowReads: 0, articleReads: 0, mutations: 0, subscriptionReads: 0, recentReads: 0, actionReads: 0 }
+const recentRead = new Set<string>()
 const owner = { sharing: true, active: true }
 const wait = () => new Promise(resolve => setTimeout(resolve, 25))
 const after = <T extends { id: number }>(rows: T[], cursor: number, limit: number) => rows.filter(row => row.id > cursor).slice(0, limit)
@@ -36,7 +38,10 @@ const repo = {
       limit
     )
   },
-  listRecentUserActions: async () => [],
+  listRecentUserActions: async () => {
+    counters.actionReads++
+    return []
+  },
   listUserCollections: async (userId: number, cursor: number) => {
     counters.subscriptionReads++
     const members = [...articles.values()].some(row => row.group === 'shared' || (row.group === 'inherited' && owner.sharing))
@@ -49,6 +54,7 @@ const repo = {
 const index = {
   get: async (kind: string, ids: string[]) => {
     if (kind === 'article') counters.articleReads++
+    if (kind === 'article' && ids.some(id => recentRead.has(id))) counters.recentReads++
     return ids.flatMap(id => (stored.has(id) ? [structuredClone(stored.get(id)!)] : []))
   },
   upsert: async (_kind: string, vectors: VectorizeVector[]) => {
@@ -65,15 +71,19 @@ const index = {
 }
 
 class CountingService extends VectorMaintenanceService {
-  async maintainPreference(store: PreferenceStore, calls: PreferenceCall[]) {
+  async maintainPreference(store: PreferenceStore, calls: PreferenceCall[], legacy?: LocalPreference | null) {
     counters.batches++
-    return super.maintainPreference(store, calls)
+    return super.maintainPreference(store, calls, legacy)
   }
 }
 
 export class FixturePreferenceObject extends VectorPreferenceObject {
   protected async open() {
-    return { service: new CountingService(repo as never, {} as never, {} as never, index as never, new VectorPreferenceClient(this.env)), close: async () => {} }
+    return {
+      service: new CountingService(repo as never, {} as never, {} as never, index as never, new VectorPreferenceClient(this.env)),
+      stores: new VectorPreferenceStores(this.env),
+      close: async () => {}
+    }
   }
 
   setArticle(id: number, starred: boolean, group: Group, axis: number, vector = true) {
@@ -115,46 +125,89 @@ export class FixturePreferenceObject extends VectorPreferenceObject {
     subscribed = value
   }
 
-  seedLegacy(version = 1) {
-    if (version === 2) {
-      this.ctx.storage.sql.exec('CREATE TABLE preference_state_v2 (id INTEGER PRIMARY KEY, seq INTEGER NOT NULL)')
-      this.ctx.storage.sql.exec('CREATE TABLE preference_entry_v2 (bookmark_id INTEGER PRIMARY KEY, token TEXT NOT NULL)')
+  async seedLegacy(version = 1) {
+    const sql = this.ctx.storage.sql
+    if (version === 1) {
+      sql.exec('CREATE TABLE preference_state (id INTEGER PRIMARY KEY, seq INTEGER NOT NULL)')
+      sql.exec('CREATE TABLE preference_entry (bookmark_id INTEGER PRIMARY KEY, member INTEGER NOT NULL)')
+      sql.exec('INSERT INTO preference_state (id, seq) VALUES (1, 1)')
       return
     }
-    this.ctx.storage.sql.exec('CREATE TABLE preference_state (id INTEGER PRIMARY KEY, seq INTEGER NOT NULL)')
-    this.ctx.storage.sql.exec('CREATE TABLE preference_entry (bookmark_id INTEGER PRIMARY KEY, member INTEGER NOT NULL)')
-    this.ctx.storage.sql.exec('INSERT INTO preference_state (id, seq) VALUES (1, 1)')
+    const db = this.env.DB
+    const state = await db.prepare('SELECT * FROM slax_vector_preference_state WHERE user_id = 8').first<Record<string, any>>()
+    const entries = (await db.prepare('SELECT * FROM slax_vector_preference_entry WHERE user_id = 8').all<Record<string, any>>()).results
+    if (!state) throw new Error('legacy seed requires D1 state')
+    const v3 = version === 3
+    sql.exec(
+      `CREATE TABLE preference_state_v${version} (id INTEGER PRIMARY KEY, seq INTEGER NOT NULL, mean_version TEXT NOT NULL, raw BLOB NOT NULL, centered BLOB NOT NULL, shared BLOB NOT NULL, inherited BLOB NOT NULL, counts TEXT NOT NULL, interests TEXT NOT NULL)`
+    )
+    sql.exec(
+      v3
+        ? 'CREATE TABLE preference_entry_v3 (bookmark_id INTEGER PRIMARY KEY, weight INTEGER NOT NULL, share_group INTEGER NOT NULL, token TEXT NOT NULL, contribution BLOB NOT NULL, published_at REAL NOT NULL, actions TEXT NOT NULL, acted_at REAL NOT NULL)'
+        : 'CREATE TABLE preference_entry_v2 (bookmark_id INTEGER PRIMARY KEY, weight INTEGER NOT NULL, share_group INTEGER NOT NULL, token TEXT NOT NULL)'
+    )
+    const buffer = (value: any) => (value ? new Uint8Array(value).buffer : new ArrayBuffer(0))
+    sql.exec(
+      `INSERT INTO preference_state_v${version} VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      state.seq,
+      state.mean_version,
+      buffer(state.raw),
+      buffer(state.centered),
+      buffer(state.shared),
+      buffer(state.inherited),
+      state.counts,
+      state.interests
+    )
+    for (const row of entries)
+      if (v3)
+        sql.exec(
+          'INSERT INTO preference_entry_v3 VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          row.bookmark_id,
+          row.weight,
+          row.share_group,
+          row.token,
+          new ArrayBuffer(8192),
+          row.published_at,
+          '[]',
+          0
+        )
+      else sql.exec('INSERT INTO preference_entry_v2 VALUES (?, ?, ?, ?)', row.bookmark_id, row.weight, row.share_group, row.token)
+    await db.batch([db.prepare('DELETE FROM slax_vector_preference_state WHERE user_id = 8'), db.prepare('DELETE FROM slax_vector_preference_entry WHERE user_id = 8')])
   }
 
-  inspect() {
-    const sql = this.ctx.storage.sql
-    const tables = sql.exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'preference_%' ORDER BY name").toArray()
-    const has = (name: string) => tables.some(table => table.name === name)
-    const entries = has('preference_entry_v3')
-      ? sql
-          .exec<{
-            bookmark_id: number
-            weight: number
-            share_group: number
-            token: string
-          }>('SELECT bookmark_id, weight, share_group, token FROM preference_entry_v3 ORDER BY bookmark_id')
-          .toArray()
-      : []
-    const state = has('preference_state_v3') ? sql.exec<{ seq: number; raw: ArrayBuffer; counts: string }>('SELECT seq, raw, counts FROM preference_state_v3').toArray() : []
-    const plan = has('preference_entry_v3')
-      ? sql
-          .exec<{ detail: string }>("EXPLAIN QUERY PLAN SELECT published_at FROM preference_entry_v3 WHERE token <> '' AND share_group = ? ORDER BY published_at DESC LIMIT 1", 1)
-          .toArray()
-          .map(row => row.detail)
-          .join(';')
-      : ''
+  async inspect() {
+    const tables = this.ctx.storage.sql
+      .exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'preference_%' ORDER BY name")
+      .toArray()
+      .map(table => table.name)
+    const db = this.env.DB
+    const entries = (
+      await db
+        .prepare('SELECT bookmark_id, weight, share_group, token FROM slax_vector_preference_entry WHERE user_id = 8 ORDER BY bookmark_id')
+        .all<{ bookmark_id: number; weight: number; share_group: number; token: string }>()
+    ).results
+    const state = await db
+      .prepare('SELECT seq, raw, counts FROM slax_vector_preference_state WHERE user_id = 8')
+      .first<{ seq: number; raw: number[] | ArrayBuffer; counts: string }>()
+    const plan = (
+      await db
+        .prepare(
+          "EXPLAIN QUERY PLAN SELECT published_at FROM slax_vector_preference_entry WHERE user_id = ? AND share_group = ? AND token <> '' ORDER BY published_at DESC LIMIT 1"
+        )
+        .bind(8, 1)
+        .all<{ detail: string }>()
+    ).results
+      .map(row => row.detail)
+      .join(';')
     const vector = (id: string) => (stored.has(id) ? Array.from(stored.get(id)!.values) : null)
+    const raw = state?.raw as any
     return {
-      tables: tables.map(table => table.name),
+      tables,
+      doBytes: this.ctx.storage.sql.databaseSize,
       entries,
-      seq: state[0]?.seq ?? null,
-      rawBytes: state[0] ? state[0].raw.byteLength : null,
-      counts: state[0] ? JSON.parse(state[0].counts) : null,
+      seq: state?.seq ?? null,
+      rawBytes: raw ? (raw.byteLength ?? raw.length) : null,
+      counts: state ? JSON.parse(state.counts) : null,
       plan,
       user: vector('u:8:article'),
       userVersion: stored.get('u:8:article')?.metadata?.state_version ?? null,

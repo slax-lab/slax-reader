@@ -18,11 +18,15 @@ User and owner Collection projections SHALL use available valid eligible article
 
 ### Requirement: Ordinary owner maintenance remains local to changed contributions
 
-Once current owner state exists, ordinary save, star, unstar, share, replacement, deletion and repair SHALL update the affected contribution without full-history enumeration, old-vector recovery from the remote index, or full-member timestamp aggregation. Relation-only changes SHALL NOT depend on reading or embedding source content. Absent or incompatible owner state MAY bootstrap once. Explicit operator rebuild SHALL be separate from ordinary refresh.
+Once current owner state exists, ordinary save, star, unstar, share, replacement, deletion and repair SHALL update the affected contribution without full-history enumeration or full-member timestamp aggregation. The path that replaces or deletes an article vector SHALL hand the replaced vector to owner maintenance, which subtracts it by its stored 8-byte token and adds the current vector. Owner state SHALL NOT store article vectors. Relation-only changes SHALL NOT depend on reading or embedding source content. Absent or incompatible owner state, or a stored token that matches neither the current nor the handed-over vector, MAY rebuild that owner once from current rows and existing vectors. Explicit operator rebuild SHALL be separate from ordinary refresh.
 
 #### Scenario: Old vector has been replaced
-- **WHEN** a changed article's old remote vector is unavailable
-- **THEN** maintenance subtracts its stored applied contribution and adds the current one without enumerating user history
+- **WHEN** a content refresh, relation deletion or explicit article repair replaces an article vector
+- **THEN** the replaced vector is handed to owner maintenance, which subtracts it and adds the current one without enumerating user history or rereading the remote index for the old value
+
+#### Scenario: Old vector was replaced outside the event path
+- **WHEN** a stored token matches neither the current vector nor any handed-over vector
+- **THEN** the owner is rebuilt once from current rows and existing vectors instead of subtracting a guessed contribution, and later events are incremental again
 
 #### Scenario: Share changes while original is missing
 - **WHEN** an existing representative is available and only relation sharing or star weight changes
@@ -34,22 +38,22 @@ Once current owner state exists, ordinary save, star, unstar, share, replacement
 
 ### Requirement: Interest metadata follows bounded incremental actions
 
-The stored recent-action window SHALL update with saves, stars, deletions and repaired contributions, expire actions outside the existing window, and use the existing bounded clustering algorithm. It SHALL NOT freeze new actions until an unrelated full rebuild or scan full saved history during ordinary maintenance.
+Interest clusters SHALL be recomputed with the existing bounded clustering algorithm over the existing 90-day, 2,000-action window, read from PostgreSQL actions and native article vectors, whenever the user's article preference is rebuilt or explicitly refreshed. Ordinary article events SHALL carry the stored clusters, drop a cluster whose medoid article no longer contributes, and SHALL NOT read the recent-action window, store per-article action history, or scan full saved history.
 
 #### Scenario: A new interest is saved
 - **WHEN** a new eligible article vector is applied to initialized owner state
-- **THEN** its committed action enters the bounded recent window and interest metadata is recomputed from that window without a history scan
+- **THEN** the stored clusters are carried unchanged and the next explicit user-preference refresh reclusters the bounded window without a full-history scan
 
-#### Scenario: A recent member is deleted
-- **WHEN** the member is removed
-- **THEN** its actions are removed and remaining recent members determine the clusters
+#### Scenario: A medoid member is deleted
+- **WHEN** the medoid article of a stored cluster is removed
+- **THEN** that cluster is no longer published
 
 
 ## MODIFIED Requirements
 
 ### Requirement: Article preference is derived from current saved state
 
-Article preference SHALL equal the normalized sum of available valid current eligible representatives, weighted once for a save and once more while starred. Initialized owner state SHALL retain applied contributions in its existing local store and update only changed identities. Replays SHALL replace rather than duplicate contributions. Unstar, delete, restore and replacement SHALL affect the next incremental update; archive alone SHALL remain neutral. No PostgreSQL vector-sum tables or new coordination platform is introduced.
+Article preference SHALL equal the normalized sum of available valid current eligible representatives, weighted once for a save and once more while starred. Initialized owner state SHALL keep only per-article weight, share group, an 8-byte vector token and publication time, plus Float64 sums and counts, in the API D1 database, and update only changed identities. Replays SHALL replace rather than duplicate contributions. Unstar, delete, restore and replacement SHALL affect the next incremental update; archive alone SHALL remain neutral. No PostgreSQL vector-sum tables or new coordination platform is introduced.
 
 #### Scenario: Repeated star and refresh
 - **WHEN** a star event or publication is repeated
@@ -65,7 +69,7 @@ Article preference SHALL equal the normalized sum of available valid current eli
 
 ### Requirement: Article preference carries PinnerSage interest clusters
 
-Article maintenance SHALL use the existing PinnerSage algorithm over available eligible actions in the existing 90-day, 2,000-action window, retaining at most 100 medoid/importance pairs and existing centering/calibration. Initialized state SHALL update article action timestamps locally and recompute only this bounded window, not freeze clusters or scan full saved history. Raw and centered profiles SHALL use the same available contributions.
+Article maintenance SHALL use the existing PinnerSage algorithm over available eligible actions in the existing 90-day, 2,000-action window, retaining at most 100 medoid/importance pairs and existing centering/calibration. Clusters SHALL be recomputed from this bounded window on rebuild and explicit refresh, not by scanning full saved history. Raw and centered profiles SHALL use the same available contributions.
 
 #### Scenario: No recent actions
 - **WHEN** no usable recent actions remain
@@ -73,11 +77,11 @@ Article maintenance SHALL use the existing PinnerSage algorithm over available e
 
 #### Scenario: A medoid save is deleted
 - **WHEN** a medoid's save is deleted
-- **THEN** the next incremental maintenance recomputes the bounded clusters without that article
+- **THEN** ordinary maintenance stops publishing that cluster, and the next rebuild or explicit refresh reclusters the bounded window without that article
 
 ### Requirement: Collection aggregation uses existing owner-member rules
 
-A Collection SHALL aggregate available valid representatives under its existing owner/share/read boundaries, with uniform per-article influence and explicit partial coverage. Changes SHALL use the local applied contributions and indexed member publication times, without enumerating all owner members on ordinary publication. Missing members SHALL NOT prevent publication from other valid members.
+A Collection SHALL aggregate available valid representatives under its existing owner/share/read boundaries, with uniform per-article influence and explicit partial coverage. Changes SHALL use the stored group sums and indexed member publication times, without enumerating all owner members on ordinary publication. Missing members SHALL NOT prevent publication from other valid members.
 
 #### Scenario: Owner removes the last eligible member
 - **WHEN** no usable member remains
