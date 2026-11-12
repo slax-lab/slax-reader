@@ -14,7 +14,7 @@
 
 - [x] 3.1 Obtain the human's explicit Mobile version/build decision, apply only approved metadata changes through their generators, and verify authoritative/native version consistency. Approved 1.0.30 (805), previous 804, on 2026-11-12.
 
-Native acceptance status for task 2.2: the requesting user explicitly accepted the installed repair on Pixel 9 Pro Fold on 2026-11-12 and requested the PR. The detailed controlled-sender/cold/warm/error/cancel/consecutive-share matrix was not independently recorded, so that broader checkbox remains open with a declared evidence gap; it does not mean human acceptance is missing. See validation.md.
+Human acceptance for task 2.2 is COMPLETE: the requesting user accepted the installed repair, approved 1.0.30 (805), and explicitly reaffirmed completed acceptance after the final 805 installation on Pixel 9 Pro Fold on 2026-11-12. No further UI adjustment was requested. The wider checkbox remains open solely because not every requested authenticated scenario has an independently recorded agent test transcript; it must not be treated as pending human acceptance. Controlled repeated-intent cases are complete under task 4.3. See validation.md.
 - [ ] 3.2 Complete local Bugs/Security/Compliance review, commit and push the isolated branch, open the dev-targeted PR with OpenSpec and verification evidence, and close the review loop; verify the PR URL and report any remaining checks without merging.
 
 

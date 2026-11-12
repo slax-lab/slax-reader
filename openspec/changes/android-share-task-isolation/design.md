@@ -36,6 +36,6 @@ After human proposal approval, implement and regenerate in this worktree. Run th
 
 ## Resolved Delivery Decisions
 
-- On 2026-11-12 the user approved Mobile 1.0.30 (805), previous source build 804, after accepting the repaired 1.0.29 (804) Android binary. Only version metadata changed after acceptance.
+- On 2026-11-12 the user approved Mobile 1.0.30 (805), previous source build 804, after the initial 804 acceptance. The later repeated-intent correction was built as 805 and installed on the same phone. The user explicitly reaffirmed completed human acceptance and instructed the assistant to correct the PR record. Human acceptance is complete; the prior pending label is superseded. No further UI adjustment was requested, and no unreported per-scenario observations are inferred.
 - The accepted device is the user's Pixel 9 Pro Fold on Android 17 / API 37. The native APK was built, inspected, installed with explicit uninstall consent, and launched successfully. The user confirmed hands-on acceptance and requested the PR.
 - Per-scenario cold/warm/error/cancel/consecutive-share observations, exact WeChat version, and a before/after recording were not independently recorded; validation.md discloses these evidence limits. No unperformed scenario is marked as passed.

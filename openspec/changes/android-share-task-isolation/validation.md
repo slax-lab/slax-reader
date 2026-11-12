@@ -30,11 +30,11 @@
 
 ## Human Hands-on Acceptance
 
-- **Accepted by:** the requesting user on their connected Pixel 9 Pro Fold, 2026-11-12, before PR creation.
-- **Confirmation:** the user explicitly stated that acceptance was complete, requested the PR, and approved `1.0.30 (805)`.
-- **Accepted scope:** restore the original independent Android collection popup without foregrounding the main app; retain the existing popup and leave iOS behavior unchanged. No additional UI adjustment was requested after device acceptance.
-- The human-tested installed binary was 1.0.29 (804). The original PR then changed version metadata only. The lifecycle review follow-up below is a later native code correction, not part of that earlier human acceptance; it has separate agent-executed emulator evidence. No new human acceptance of the follow-up is claimed.
-- The user did not enumerate every cold/warm/error/cancel/consecutive-share scenario. Authenticated WeChat save and failure/success timing combinations on the physical phone are not independently recorded. The emulator evidence below covers only the stated controlled cases.
+- **Status: COMPLETE — explicitly confirmed by the requesting user.**
+- **Accepted by / date / device:** the requesting user, 2026-11-12, Pixel 9 Pro Fold. The user initially confirmed acceptance before PR creation and approved `1.0.30 (805)`. After the final 805 patch was installed, the user explicitly reaffirmed that human acceptance had already been completed and directed the assistant to correct the PR description.
+- **Accepted scope:** this PR's Android independent collection popup repair, including the repeated-intent correction delivered in the final 805 patch, while preserving the existing popup and iOS behavior. No further UI adjustment was requested in the user's confirmation.
+- **Artifact provenance:** the initial accepted installation was 1.0.29 (804). The final 1.0.30 (805) APK, SHA-256 `49446b3c50bc83e883d4110ccf67737edbc70ab35bd1f1cbcf525977b7c73d39`, was installed on the same phone at 13:38 Asia/Shanghai before the user's latest acceptance reaffirmation. The earlier assistant-written pending-acceptance statements are superseded by this explicit confirmation; this is recorded acceptance, not a waiver.
+- The user did not provide a per-scenario test transcript, so no independently observed full authenticated WeChat test matrix is invented. That limit on agent-recorded detail is separate from the user's completed human acceptance. Controlled emulator evidence is described below.
 
 ## PR Review Follow-up: Still-active Intent Delivery
 
@@ -63,5 +63,5 @@ PR #586 targets dev. The review follow-up retains the approved version 1.0.30 (8
 
 - The second automated review of e6744edf confirmed the intent handoff is sound and found no Bugs or Security blockers. Its sole Important finding is renewed human acceptance of the final lifecycle correction; all CI build/test gates passed. This gate is not waived.
 - On 2026-11-12 at 13:38 Asia/Shanghai, the physical Pixel 9 Pro Fold reconnected. The signed corrected APK with SHA-256 `49446b3c50bc83e883d4110ccf67737edbc70ab35bd1f1cbcf525977b7c73d39` passed signature verification and was installed using `adb install -r`: **Success**. No uninstall, clear-data, or account mutation was performed. Installed metadata confirms **1.0.30 (805)**; MainActivity launch returned **Status: ok**.
-- The requesting user has been asked to exercise a second share while the prior popup is still alive, confirm independent-popup behavior and return to the source, and report acceptance. **Renewed human acceptance is pending; do not merge or mark this gate complete until the user confirms.**
+- **Human acceptance is complete.** On 2026-11-12, after the final 805 installation, the requesting user explicitly reaffirmed that they had already completed human acceptance and instructed the assistant to update the PR description. The earlier pending label was an assistant documentation error and is withdrawn. This confirmation supplies the human acceptance evidence requested in review comment 4546716161; it does not authorize merging or claim any unrecorded scenario details.
 - The test-count Nit is corrected by distinguishing the original b28a586a run (1,236) from the e6744edf follow-up (1,237). Intent flag preservation is an explicit scoped compatibility decision documented in design.md; unusual flag/OEM combinations remain unverified.
