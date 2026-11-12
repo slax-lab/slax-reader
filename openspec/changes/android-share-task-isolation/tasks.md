@@ -16,3 +16,11 @@
 
 Native acceptance status for task 2.2: the requesting user explicitly accepted the installed repair on Pixel 9 Pro Fold on 2026-11-12 and requested the PR. The detailed controlled-sender/cold/warm/error/cancel/consecutive-share matrix was not independently recorded, so that broader checkbox remains open with a declared evidence gap; it does not mean human acceptance is missing. See validation.md.
 - [ ] 3.2 Complete local Bugs/Security/Compliance review, commit and push the isolated branch, open the dev-targeted PR with OpenSpec and verification evidence, and close the review loop; verify the PR URL and report any remaining checks without merging.
+
+
+## 4. PR Review Follow-up
+
+- [x] 4.1 Reproduce review comment 4546502720 with the baseline APK in a read-only Android emulator; verify the second invalid share incorrectly retains the first error without any production request.
+- [x] 4.2 Add the minimal onNewIntent handoff and execute the production Kotlin handoff/cancellation methods across collecting, success, failed, and dismissing states; verify 12 replacements preserve payloads and retire stale work.
+- [x] 4.3 Build and install the corrected APK in the isolated emulator; verify consecutive invalid shares produce distinct fresh results, preserve task isolation, and return to the source. Re-run standard checks and record actual outcomes. Release build, four framework launches, 1,237 full-suite tests, and 11 focused tests passed; see validation.md.
+- [ ] 4.4 Push the scoped follow-up to PR #586, respond to the Important finding with reproduction/fix evidence, and verify the automated review/check outcome without merging.

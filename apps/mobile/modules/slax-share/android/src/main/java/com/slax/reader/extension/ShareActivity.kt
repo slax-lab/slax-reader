@@ -57,6 +57,13 @@ class ShareActivity : Activity() {
       main.post {if (active && !isFinishing && !isDestroyed) {diagnostics?.finish(result); showResult(result)}}
     }
   }
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    cancelRequest()
+    main.removeCallbacksAndMessages(null)
+    finish()
+    startActivity(Intent(intent).setClass(this, ShareActivity::class.java))
+  }
   private fun label(value: String, color: Int) = TextView(this).apply {
     text = value; textSize = 16f; setTextColor(color); gravity = Gravity.CENTER; includeFontPadding = false
     letterSpacing = 0.5f / 16f

@@ -23,8 +23,8 @@ function projectFixture() {
   }}};
   return project;
 }
-for (const existing of [undefined, {}, {'android:taskAffinity': 'com.slax.reader', 'android:excludeFromRecents': 'false', 'android:launchMode': 'standard'}]) {
-  test(`share Android manifest isolates the popup for ${existing === undefined ? 'fresh' : Object.keys(existing).length ? 'stale' : 'existing'} configuration`, () => {
+for (const [label, existing] of [['fresh', undefined], ['existing', {}], ['stale', {'android:taskAffinity': 'com.slax.reader', 'android:excludeFromRecents': 'false', 'android:launchMode': 'standard'}]]) {
+  test(`share Android manifest isolates the popup for ${label} configuration`, () => {
     const main = {$: {'android:name': '.MainActivity', 'android:launchMode': 'singleTask', 'android:theme': '@style/Theme.App.SplashScreen'}, 'intent-filter': [{action: [{$: {'android:name': 'android.intent.action.MAIN'}}]}]};
     const activity = [main];
     if (existing !== undefined) activity.push({$: {'android:name': 'com.slax.reader.extension.ShareActivity', 'android:screenOrientation': 'portrait', ...existing}});

@@ -9,6 +9,7 @@ Android users report that saving a WeChat article now brings Slax Reader to the 
 - Restore the Android incoming-share activity's empty task affinity, exclusion from Recents, and single-task launch mode through the existing config plugin.
 - Preserve the translucent native collection panel, authentication, URL/subject handling, request deadlines, cancellation, and result feedback without launching the React application.
 - Extend existing manifest-generator tests for fresh and previously generated manifests, idempotence, and preservation of MainActivity configuration.
+- Address the review-confirmed still-active popup regression: retire the previous popup with existing cancellation semantics and hand a copied new intent to a fresh standalone ShareActivity, with executable Kotlin handoff tests and real Android before/after verification.
 - Regenerate the Android manifest through its owner and verify cold/warm source-app sharing, dismissal, consecutive shares, and existing Slax task preservation on Android.
 - Keep TikHub investigation, backend provider changes, and failed-bookmark messaging outside this Android-only change.
 
