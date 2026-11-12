@@ -29,7 +29,7 @@ enableAutoUnmount(afterEach)
 
 const runtimeConfig = {
   app: { baseURL: '/' },
-  public: { APPLE_OAUTH_CLIENT_ID: 'apple-client-id' }
+  public: { slaxEnv: 'development', APPLE_OAUTH_CLIENT_ID: 'apple-client-id' }
 }
 mockNuxtImport('useRuntimeConfig', () => () => runtimeConfig)
 
@@ -44,6 +44,7 @@ vi.mock('@vueuse/core', async () => {
 describe('Modal/LoginModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    runtimeConfig.public.slaxEnv = 'development'
     post.mockReset().mockResolvedValue({ request_id: 'modal-attempt', expires_in: 300, resend_after: 60 })
     verifyEmailAuth.mockReset().mockResolvedValue('session')
     runtimeConfig.public.APPLE_OAUTH_CLIENT_ID = 'apple-client-id'
@@ -82,6 +83,18 @@ describe('Modal/LoginModal', () => {
     const wrapper = mountWithApp(LoginModal, { props: { redirect: '/foo' } })
 
     expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(true)
+  })
+
+  it.each(['preview', 'beta', 'production'])('hides modal email login in %s', async environment => {
+    runtimeConfig.public.slaxEnv = environment
+    const wrapper = mountWithApp(LoginModal, { props: { redirect: '/foo' } })
+    await flushPromises()
+
+    expect(wrapper.find('.email-login-toggle').exists()).toBe(false)
+    expect(wrapper.find('input[type=email]').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(true)
+    expect(post).not.toHaveBeenCalled()
   })
 
   it('close button click → appear=false', async () => {
