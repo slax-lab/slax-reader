@@ -10,7 +10,7 @@
         <span>{{ t(open ? 'email_auth.cancel' : 'email_auth.continue_with_email') }}</span>
       </button>
     </div>
-    <EmailCodeForm v-if="open" :id="formId" ref="form" class="email-code-form--inline email-code-form--login" :initial-email="initialEmail" retain-pending-on-success :verify="verifyEmail" />
+    <EmailCodeForm v-if="open" :id="formId" ref="form" class="email-code-form--inline email-code-form--login" :initial-email="initialEmail" retain-pending-on-success :verify="verifyEmail" :authenticate-passkey="authenticatePasskey" />
   </div>
 </template>
 
@@ -21,8 +21,11 @@ import EmailCodeForm from '~/components/Login/EmailCodeForm.vue'
 import { authReturnTarget } from '~/utils/emailAuth'
 import { readLastLoginEmail, rememberLoginEmail } from '~/utils/lastLoginEmail'
 
+import { startAuthentication, WebAuthnAbortService } from '@simplewebauthn/browser'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
 import type { WebAuthAttribution } from '@slax-reader/contracts/events'
+import type { PasskeyAuthenticationChallenge } from '@slax-reader/contracts/passkey'
 
 const props = defineProps<{
   redirect: string
@@ -55,6 +58,32 @@ const toggle = () => {
     initialEmail.value = readLastLoginEmail()
     open.value = true
     analyticsLog({ event: 'user_login_start', method: 'email' })
+  }
+}
+
+const authenticatePasskey = async (email: string, signal: AbortSignal) => {
+  const target = authReturnTarget(props.redirect, location.origin)
+  const response = await request().post<PasskeyAuthenticationChallenge>({
+    url: RESTMethodPath.PASSKEY_CHALLENGE,
+    body: { purpose: 'login', email },
+    signal,
+    errorInterceptors: () => {}
+  })
+  signal.throwIfAborted()
+  if (!response || response.purpose !== 'login') throw new Error('Passkey challenge failed')
+  const cancelCeremony = () => WebAuthnAbortService.cancelCeremony()
+  signal.addEventListener('abort', cancelCeremony, { once: true })
+  try {
+    const credential = await startAuthentication({ optionsJSON: response.options })
+    signal.throwIfAborted()
+    await auth.verifyPasskeyAuth({
+      type: 'passkey', email, request_id: response.request_id, credential,
+      ...(props.authAttribution ? { auth_attribution: props.authAttribution } : {})
+    }, { signal, errorInterceptors: () => {} })
+    signal.throwIfAborted()
+    if (await nuxtApp.runWithContext(() => navigateTo(target, { external: true })) === false) throw new Error('Login navigation did not complete')
+  } finally {
+    signal.removeEventListener('abort', cancelCeremony)
   }
 }
 

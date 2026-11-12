@@ -10,6 +10,7 @@ import {SharedRequestCache} from './shared-request.ts';
 import {readArticleBody} from './bounded-body.ts';
 import {PDF_MAX_BYTES} from '@slax-reader/contracts/pdf';
 import {RESTMethodPath} from '@slax-reader/contracts/const';
+import {DELETE_PASSKEY_SETTING, type PasskeyAuthenticationChallenge, type PasskeyRegistrationChallenge, type PasskeyInfo, type PasskeyLoginRequest, type PasskeyRegistrationInput} from '@slax-reader/contracts/passkey';
 import {BIND_LOGIN_IDENTITY_SETTING, type EmailAuthProviderChallenge, type EmailCodeChallenge, type EmailCodeInput} from '@slax-reader/contracts/email-auth';
 import {DataTransportError, isNetworkTransportError, httpErrorCode, retryAfterMs, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
 export {DataTransportError, isNetworkTransportError, getDataErrorDiagnostic, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS} from './transport-errors.ts';
@@ -312,6 +313,36 @@ export class SlaxApi {
   finishProviderLink = async (body: LoginRequest & NativeProvider & {state: string}, signal?: AbortSignal) => {
     const result = await this.request<{linked: true}>(RESTMethodPath.USER_INFO_SETTING, 'POST', {key: BIND_LOGIN_IDENTITY_SETTING, value: body}, undefined, signal, {access: 'required', retryable: false, abortable: true});
     if (result?.linked !== true) throw new ApiError(502, 'Invalid provider linking response');
+    return result;
+  };
+  getPasskeyLoginChallenge = async (email: string, signal?: AbortSignal) => {
+    const result = await this.request<PasskeyAuthenticationChallenge>(RESTMethodPath.PASSKEY_CHALLENGE, 'POST', {purpose: 'login', email}, undefined, signal, {access: 'public', retryable: false, abortable: true});
+    if (result?.purpose !== 'login' || typeof result.request_id !== 'string' || !result.request_id || typeof result.options?.challenge !== 'string' || typeof result.options.rpId !== 'string') throw new ApiError(502, 'Invalid passkey challenge');
+    return result;
+  };
+  getPasskeyRegistrationChallenge = async (signal?: AbortSignal) => {
+    const result = await this.request<PasskeyRegistrationChallenge>(RESTMethodPath.PASSKEY_CHALLENGE, 'POST', {purpose: 'register'}, undefined, signal, {access: 'required', retryable: false, abortable: true});
+    if (result?.purpose !== 'register' || typeof result.request_id !== 'string' || !result.request_id || typeof result.options?.challenge !== 'string' || typeof result.options.rp?.id !== 'string' || typeof result.options.user?.id !== 'string') throw new ApiError(502, 'Invalid passkey challenge');
+    return result;
+  };
+  loginPasskey = async (body: PasskeyLoginRequest, signal?: AbortSignal) => {
+    const result = await this.request<LoginResponse>(RESTMethodPath.LOGIN, 'POST', body, undefined, signal, {access: 'public', retryable: false, abortable: true, deviceId: true, accountDiagnostic: {}});
+    if (typeof result?.token !== 'string' || !result.token || typeof result.user_id !== 'string' || !result.user_id) throw new ApiError(502, 'Invalid passkey login session response');
+    return result;
+  };
+  getPasskeys = async (signal?: AbortSignal) => {
+    const result = await this.request<PasskeyInfo[]>(RESTMethodPath.USER_PASSKEY_LIST, 'GET', undefined, undefined, signal, {access: 'required', abortable: true});
+    if (!Array.isArray(result) || result.some(item => typeof item?.uuid !== 'string' || typeof item.name !== 'string' || typeof item.created_at !== 'string' || !(item.last_used_at === null || typeof item.last_used_at === 'string'))) throw new ApiError(502, 'Invalid passkey list');
+    return result;
+  };
+  registerPasskey = async (body: PasskeyRegistrationInput, signal?: AbortSignal) => {
+    const result = await this.request<{linked: true}>(RESTMethodPath.USER_INFO_SETTING, 'POST', {key: BIND_LOGIN_IDENTITY_SETTING, value: body}, undefined, signal, {access: 'required', retryable: false, abortable: true});
+    if (result?.linked !== true) throw new ApiError(502, 'Invalid passkey registration response');
+    return result;
+  };
+  deletePasskey = async (uuid: string, signal?: AbortSignal) => {
+    const result = await this.request<{deleted: true}>(RESTMethodPath.USER_INFO_SETTING, 'POST', {key: DELETE_PASSKEY_SETTING, value: {uuid}}, undefined, signal, {access: 'required', retryable: false, abortable: true});
+    if (result?.deleted !== true) throw new ApiError(502, 'Invalid passkey deletion response');
     return result;
   };
   refresh = async (token: string, signal?: AbortSignal): Promise<string> => {

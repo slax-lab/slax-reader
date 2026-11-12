@@ -891,3 +891,20 @@ model sr_podcast_episode {
 
     @@index([transcript_status, next_retry_at])
 }
+
+/// Server-only authentication credentials. NEVER add this table to PowerSync or client local-first schemas.
+model sr_user_passkey {
+    id            Int       @id @default(autoincrement())
+    uuid          String    @unique @default(dbgenerated("gen_random_uuid()"))
+    user_id       Int
+    rp_id         String
+    credential_id String    @unique
+    public_key    Bytes
+    counter       BigInt    @default(0)
+    transports    String[]  @default([])
+    name          String    @default("Passkey")
+    created_at    DateTime  @default(now())
+    last_used_at  DateTime?
+
+    @@index([user_id, rp_id])
+}

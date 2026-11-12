@@ -366,3 +366,10 @@ export const LabFeatureDisabledError = (featureName: { [lang in Language]?: stri
   }
   return new MultiLangError(ErrorName.LAB_FEATURE_DISABLED, 400, messages)
 }
+
+export const PasskeyVerificationError = (): MultiLangError =>
+  new MultiLangError(ErrorName.PASSKEY_VERIFICATION_FAILED, 400, {
+    en: 'Passkey verification failed. Try again or sign in with an email code.',
+    zh: 'Passkey 验证未完成，请重试或使用邮箱验证码登录。',
+    es: 'La verificación de Passkey falló. Vuelve a intentarlo o usa un código por correo.'
+  })

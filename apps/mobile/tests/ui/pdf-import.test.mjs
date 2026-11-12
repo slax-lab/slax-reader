@@ -145,6 +145,7 @@ async function harness(root, platform = 'ios', development = false) {
     const {SettingsScreen} = await load('../../src/screens/SettingsScreen.tsx', {
       ...common, '../pdf/usePdfLab': {usePdfLab}, '../settings/account-scope': scope,
       '../settings/useSettingsState': settingsState, '../settings/useRssLab': rssLab, '../settings/SettingsView': settingsView,
+      '../settings/usePasskeys': {usePasskeys: () => ({})}, '../native/passkeys': {nativePasskeys: {}},
       '../settings/AccountSignInMethods': {AccountSignInMethods: nil}, '../settings/useLinkedPlatforms': {useLinkedPlatforms: () => ({})},
       '../auth/providers': {},
     });

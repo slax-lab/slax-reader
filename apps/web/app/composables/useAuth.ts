@@ -4,6 +4,7 @@ import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
 import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
+import type { PasskeyLoginRequest } from '@slax-reader/contracts/passkey'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 
@@ -104,6 +105,18 @@ const useAuth = {
       url: RESTMethodPath.LOGIN,
       body: { ...input, type: 'email' }
     })
+    options.signal?.throwIfAborted()
+    if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
+    return completeAuth(response, options.signal)
+  },
+  async verifyPasskeyAuth(
+    input: PasskeyLoginRequest,
+    options: Pick<FetchOptions, 'signal' | 'errorInterceptors'> = {}
+  ): Promise<string> {
+    const cookieName = configuredCookieName(useRuntimeConfig().public.COOKIE_TOKEN_NAME)
+    if (!cookieName) throw new Error('Missing valid COOKIE_TOKEN_NAME')
+    if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
+    const response = await request().post<{ token: string }>({ ...options, url: RESTMethodPath.LOGIN, body: input })
     options.signal?.throwIfAborted()
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
     return completeAuth(response, options.signal)

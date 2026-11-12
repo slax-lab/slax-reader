@@ -1,3 +1,4 @@
+import { PasskeyRepo } from '@/infra/repository/dbPasskey'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/hyperdrive-client'
@@ -426,7 +427,8 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
       () => client,
       {} as any,
       () => ({ R2Bucket: memory.bucket }) as any,
-      new VectorMaintenanceRepo(() => client)
+      new VectorMaintenanceRepo(() => client),
+      new PasskeyRepo(() => client)
     )
     await deletion.cleanupUserData(user.id)
     expect([...memory.objects.keys()]).toEqual(['html/body/other-one.html'])
@@ -453,7 +455,8 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
             }
           }
         }) as any,
-      new VectorMaintenanceRepo(() => client)
+      new VectorMaintenanceRepo(() => client),
+      new PasskeyRepo(() => client)
     )
     await expect(failedR2.cleanupUserData(user.id)).resolves.toBeUndefined()
     expect(await client.sr_bookmark.count({ where: { private_user: user.id } })).toBe(0)

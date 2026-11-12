@@ -30,6 +30,8 @@ export function EmailCodeDialog<T>({t, mode, dismissible = true, onClose, ...opt
           value={form.email} onChangeText={form.changeAddress} onSubmitEditing={form.sendCode} />
         <SourceButton testID="email_code_send" label={t('email_auth_send')} onPress={form.sendCode}
           busy={form.busy === 'send'} disabled={!form.canSend && form.busy !== 'send'} />
+        {mode === 'login' && options.passkey && <SourceButton testID="email_passkey_login" label={t('passkey_login')}
+          tone="surface" onPress={form.signInWithPasskey} busy={form.busy === 'passkey'} disabled={!form.canSend && form.busy !== 'passkey'} />}
       </> : <>
         <SourceText style={styles.hint}>{t('email_auth_sent', {email: form.sentTo})}</SourceText>
         <SourceText style={T.metadata}>{codeLabel}</SourceText>

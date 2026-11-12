@@ -14,6 +14,7 @@ import {useObserveMarkInteractive} from '../observe';
 import {loginWithProvider} from '../auth/login';
 import {EmailCodeDialog} from '../auth/EmailCodeDialog';
 import {emailAuthError} from '../auth/email-auth-errors';
+import {nativePasskeys} from '../native/passkeys';
 import {useEmailLogin} from '../auth/useEmailLogin';
 
 type LoginMethod = LoginProvider | 'email';
@@ -27,9 +28,10 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   const [agreement, setAgreement] = useState<'terms'|'privacy'|null>(null);
   const [loading, setLoading] = useState<LoginProvider|null>(null);
   const email = useEmailLogin({
-    api, sessions, apiOrigin: config.apiUrl, onAuthenticated,
+    api, sessions, nativePasskeys, apiOrigin: config.apiUrl, onAuthenticated,
     onOpen: () => telemetry.element('login_email_button', 'signup'),
     onVerify: () => telemetry.firebase('user', 'login_start', {method: 'email'}),
+    onPasskey: () => telemetry.firebase('user', 'login_start', {method: 'passkey'}),
   });
   const [agreementId, setAgreementId] = useState(0);
   const agreementSequence = useRef(0);
@@ -154,7 +156,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   return <View style={[styles.root, {paddingBottom: insets.bottom}]}>
     {emailEnabled ? <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView> : content}
     {emailEnabled && email.flow && <EmailCodeDialog t={t} locale={locale} mode="login" isCurrent={email.flow.isCurrent}
-      dismissible={email.dismissible} send={email.send} verify={email.verify} onVerified={email.accept} onClose={email.close} />}
+      dismissible={email.dismissible} passkey={email.passkey} send={email.send} verify={email.verify} onVerified={email.accept} onClose={email.close} />}
     <Modal key={`agreement-${agreementId}`} visible={agreement !== null} transparent animationType="slide" onRequestClose={dismissAgreement} onDismiss={agreementDidDismiss}>
       <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} accessibilityLabel={t('btn_close')} onPress={dismissAgreement}/>

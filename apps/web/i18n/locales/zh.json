@@ -1,4 +1,25 @@
 {
+  "passkey_auth": {
+    "title": "通行密钥",
+    "sign_in": "使用通行密钥登录",
+    "authenticating": "正在登录…",
+    "manage": "管理",
+    "add": "添加通行密钥",
+    "adding": "正在添加…",
+    "delete": "删除",
+    "deleting": "正在删除…",
+    "loading": "正在加载…",
+    "empty": "尚未添加通行密钥。",
+    "mail_required": "请先绑定登录邮箱，再添加通行密钥。",
+    "unsupported": "当前浏览器不支持通行密钥。",
+    "created": "创建于 {date}",
+    "last_used": "上次使用于 {date}",
+    "never_used": "尚未使用",
+    "failed": "通行密钥操作未完成，请重试或使用其他登录方式。",
+    "canceled": "通行密钥操作已取消，可以重试。",
+    "added": "通行密钥已添加。",
+    "deleted": "通行密钥已删除。"
+  },
   "email_auth": {
     "continue_with_email": "使用邮箱继续",
     "address_label": "邮箱地址",

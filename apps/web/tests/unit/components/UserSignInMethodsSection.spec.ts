@@ -97,10 +97,10 @@ describe('Account sign-in methods', () => {
     } })
 
     expect(wrapper.text().includes('Same as profile email')).toBe(true)
-    expect(wrapper.findAll('.login-method-row')).toHaveLength(2)
+    expect(wrapper.findAll('.login-method-row')).toHaveLength(['development', 'preview'].includes(environment) ? 3 : 2)
     expect(wrapper.text().includes('GoogleLinked')).toBe(true)
     expect(wrapper.find('section').exists()).toBe(true)
-    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.findAll('button').map(button => button.text())).toEqual(['development', 'preview'].includes(environment) ? ['Manage'] : [])
   })
 
   it('shows Apple as linked from the platform list when the client is configured', () => {

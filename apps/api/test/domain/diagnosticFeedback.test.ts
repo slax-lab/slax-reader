@@ -312,7 +312,7 @@ describe('diagnostic capability verification and removal', () => {
       order.push('objects')
       for (const key of Array.isArray(keys) ? keys : [keys]) f.objects.delete(key)
     })
-    const deletion = new UserDeletionService((() => pg) as never, {} as never, {} as never, vectorRepo as never)
+    const deletion = new UserDeletionService((() => pg) as never, {} as never, {} as never, vectorRepo as never, { deleteByUserId: async () => {} } as never)
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       if (dispatchFailure) {

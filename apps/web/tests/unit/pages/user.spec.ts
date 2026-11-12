@@ -161,7 +161,7 @@ describe('pages/user', () => {
       const methods = wrapper.get('.login-methods')
       expect(methods.text()).toContain('signin@example.com')
       expect(methods.text()).toContain('email_auth.linked')
-      expect(methods.findAll('button')).toHaveLength(0)
+      expect(methods.findAll('button').map(button => button.text())).toEqual(['passkey_auth.manage'])
       expect(wrapper.get('.profile-email').text()).toContain('test@example.com')
     })
 

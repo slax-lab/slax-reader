@@ -8,7 +8,7 @@ function appConfig(env) {
   const exports = {}, code = ts.transpileModule(readFileSync(new URL('../../app.config.ts', import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).outputText;
   const boundaries = {'./assets/source-auth-public.json': {default: {}}, './tooling/deploy-environment.cjs': {applyMobileEnvironment() {}},
     './tooling/build-version.cjs': {readBuildVersion: () => ({version: '1.0.25', build: '794'})}};
-  vm.runInNewContext(code, {exports, process: {env}, require: name => {assert.ok(Object.hasOwn(boundaries, name), name); return boundaries[name];}});
+  vm.runInNewContext(code, {URL, exports, process: {env}, require: name => {assert.ok(Object.hasOwn(boundaries, name), name); return boundaries[name];}});
   return JSON.parse(JSON.stringify(exports.default));
 }
 

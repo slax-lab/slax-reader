@@ -1,3 +1,4 @@
+import { exercisePasskeys } from './passkeySmoke'
 import { createServer } from 'node:net'
 import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
@@ -333,6 +334,7 @@ async function main() {
       assert.equal(fresh.data.is_new_user, true)
       const freshInfo = (await authCall(userInfo, undefined, fresh.data.token)).data
       assert.equal(freshInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, 'new-reader@smoke.invalid')
+      evidence.passkeys = await exercisePasskeys(authCall, query => resources.sql(pg.id, 'http_reader', query), token, ownerToken, vars.FRONT_END_URL)
       evidence.emailAuthentication =
         'binding API works in dev, beta, and prod; user information returns login methods through the platform list; legacy sign-in guidance, existing-account login, and new-account session'
     }
@@ -437,6 +439,7 @@ async function main() {
     )
     if (emailRedis) {
       assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_platform_bind WHERE user_id=1'), '0')
+      assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_user_passkey WHERE user_id=1'), '0')
       evidence.deletedAccountBindings = 'account cleanup removed all platform bindings, including the verified mailbox'
     }
     const admissions = (await (await localFetch(`http://localhost:${httpPort}/__fixture/vector-maintenance-admissions`, { headers })).json()) as {

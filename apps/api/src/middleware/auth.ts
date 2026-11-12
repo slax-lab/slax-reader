@@ -1,3 +1,4 @@
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { Auth } from '../utils/jwt'
 import { Failed } from '../utils/responseUtils'
 import { ContextManager } from '@/utils/context'
@@ -18,6 +19,7 @@ const whiteList = [
   '/v1/diagnostics/download',
   '/v1/user/login',
   '/v1/user/email/send',
+  RESTMethodPath.PASSKEY_CHALLENGE,
   '/v1/share/detail',
   '/v1/youtube_article/status',
   '/v1/youtube_article/content',

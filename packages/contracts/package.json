@@ -79,6 +79,10 @@
     "./email-auth": {
       "types": "./src/email-auth.ts",
       "default": "./src/email-auth.ts"
+    },
+    "./passkey": {
+      "types": "./src/passkey.ts",
+      "default": "./src/passkey.ts"
     }
   },
   "scripts": {

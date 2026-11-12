@@ -8,6 +8,8 @@ import {useSettingsState} from '../settings/useSettingsState';
 import {SettingsView} from '../settings/SettingsView';
 import {AccountSignInMethods} from '../settings/AccountSignInMethods';
 import {useLinkedPlatforms} from '../settings/useLinkedPlatforms';
+import {usePasskeys} from '../settings/usePasskeys';
+import {nativePasskeys} from '../native/passkeys';
 import {authenticate} from '../auth/providers';
 
 export function SettingsScreen({navigation}: MobileScreenProps<'Settings'>) {
@@ -22,6 +24,11 @@ export function SettingsScreen({navigation}: MobileScreenProps<'Settings'>) {
   const linkedPlatforms = useLinkedPlatforms({
     api, scope, platform: config.platform, fixture: Boolean(mobile.fixtureOnly), authenticate,
   });
+  const passkeys = usePasskeys({api, scope, native: nativePasskeys,
+    enabled: config.development && !mobile.fixtureOnly,
+    hasMailbox: Boolean(linkedPlatforms.platforms?.some(item => item.platform === 'mail')),
+    name: config.platform === 'ios' ? 'iPhone / iPad' : 'Android',
+  });
   const systemSurfaces = mobile.systemSurfaces;
   const systemSurfacesReady = mobile.credentialState?.status === 'ready';
   const systemSurfaceFailed = useSyncExternalStore(systemSurfaces?.subscribe ?? (() => () => {}), systemSurfaces?.getSnapshot ?? (() => false), systemSurfaces?.getSnapshot ?? (() => false));
@@ -32,7 +39,7 @@ export function SettingsScreen({navigation}: MobileScreenProps<'Settings'>) {
   }, [navigation, t]);
 
   return <SettingsView t={t} locale={locale} state={state} rss={rss} pdf={pdf} showAdaptivePdfPrototype={Boolean(__DEV__ && mobile.fixtureOnly)} systemSurfaceFailed={systemSurfaceFailed} systemSurfaceAvailable={systemIntentsAvailable} systemDiscoveryAvailable={systemDiscoveryAvailable}
-    loginMethods={<AccountSignInMethods t={t} locale={locale} platform={config.platform} api={api} state={linkedPlatforms} />}
+    loginMethods={<AccountSignInMethods t={t} locale={locale} platform={config.platform} api={api} state={linkedPlatforms} passkeys={passkeys} />}
     onRetrySystemSurfaces={() => {void systemSurfaces?.reconcile(state.systemDiscovery && systemDiscoveryAvailable === true, state.systemDonations && systemIntentsAvailable === true, systemSurfacesReady).then(() => systemSurfaces?.retryPendingDonations());}}
     onDeleteAccount={() => navigation.navigate('DeleteAccount')} />;
 }

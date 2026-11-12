@@ -71,3 +71,7 @@ pnpm mobile -- archive:ios --output /absolute/path/to/fresh-archive-run
 ```
 
 iOS signing continues to use the existing Xcode account, Keychain identities, and provisioning access. This directory does not replace the Keychain or fabricate signing certificates/profiles. The optional Android upload-account JSON is retained for operator use; the local build commands do not read it or publish to Google Play. Archive, export, and upload remain separate explicit commands. See [mobile release guidance](../../docs/mobile/release.md).
+
+## Passkey public association
+
+See [Native Passkey domain association](passkeys/README.md) for operator-fill AASA/assetlinks examples, the iOS entitlement source, and Android signing-origin format. The examples contain placeholders and must not be deployed until public signing identifiers are supplied.

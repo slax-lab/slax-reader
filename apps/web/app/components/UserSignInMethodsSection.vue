@@ -32,6 +32,7 @@
         :verify="bindEmail"
       />
     </div>
+    <UserPasskeySection :account="account" :login-email="loginEmail" />
     <p v-if="!providerLinkAvailable && supportedProviders.some(provider => !linkedPlatforms.has(provider))" class="login-methods-note">
       {{ t('email_auth.provider_link_unavailable_here') }}
     </p>
@@ -43,6 +44,7 @@
 <script lang="ts" setup>
 import AppIcon from '~/components/AppIcon.vue'
 import EmailCodeForm from '~/components/Login/EmailCodeForm.vue'
+import UserPasskeySection from '~/components/UserPasskeySection.vue'
 
 import { createAccountEmailAuthRequest } from '~/utils/accountEmailAuthRequest'
 import { emailAuthErrorKey } from '~/utils/emailAuth'
