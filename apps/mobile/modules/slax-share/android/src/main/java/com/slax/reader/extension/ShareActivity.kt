@@ -33,6 +33,9 @@ class ShareActivity : Activity() {
   @Volatile private var active = true
   private var connection: ShareSaveTransport? = null
   private var diagnostics: ShareDiagnostics? = null
+  @Volatile private var completedResult: String? = null
+  private var resumed = false
+  private val closeSuccessfulShare = Runnable { finishImmediately() }
   private lateinit var card: LinearLayout
   private fun dp(value: Int) = (resources.displayMetrics.density * value).toInt()
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,15 +57,43 @@ class ShareActivity : Activity() {
     card.post {card.translationY = card.height.toFloat(); card.animate().translationY(0f).setDuration(300).start()}
     executor.execute {
       val result = try {processShare()} catch (error: SocketTimeoutException) {diagnostics?.failure(error); "Request timed out, please try again."} catch (error: UnknownHostException) {diagnostics?.failure(error); "Network unavailable, please check your connection."} catch (error: Exception) {diagnostics?.failure(error); "Collection failed, please try again."}
-      main.post {if (active && !isFinishing && !isDestroyed) {diagnostics?.finish(result); showResult(result)}}
+      completeShare(result)
     }
+  }
+  private fun completeShare(result: String) {
+    synchronized(requestMutex) {
+      if (!active) return
+      diagnostics?.finish(result)
+      completedResult = result
+    }
+    main.post {
+      if (active && !isFinishing && !isDestroyed) {
+        if (result == "ok" && !resumed) finishImmediately() else showResult(result)
+      }
+    }
+  }
+  override fun onResume() {
+    super.onResume()
+    resumed = true
+    if (completedResult == "ok") finishImmediately()
+  }
+  override fun onPause() {
+    super.onPause()
+    resumed = false
+    if (completedResult == "ok") finishImmediately()
   }
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
+    finishImmediately()
+    startActivity(Intent(intent).setClass(this, ShareActivity::class.java))
+  }
+  private fun finishImmediately() {
+    if (isFinishing || isDestroyed) return
     cancelRequest()
     main.removeCallbacksAndMessages(null)
+    if (::card.isInitialized) card.animate().cancel()
+    diagnostics?.lifecycle("finish_requested", completedResult == "ok", isFinishing)
     finish()
-    startActivity(Intent(intent).setClass(this, ShareActivity::class.java))
   }
   private fun label(value: String, color: Int) = TextView(this).apply {
     text = value; textSize = 16f; setTextColor(color); gravity = Gravity.CENTER; includeFontPadding = false
@@ -83,7 +114,7 @@ class ShareActivity : Activity() {
     card.addView(label(if (success) "Success!" else result, color), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {topMargin = dp(20)})
     icon.scaleX = 0.1f; icon.scaleY = 0.1f; icon.animate().scaleX(1f).scaleY(1f).setDuration(400).start()
     card.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.LONG_PRESS)
-    if (success) main.postDelayed({dismiss()}, 2000)
+    if (success) main.postDelayed(closeSuccessfulShare, 2000)
   }
   private fun readPreferences(): JSONObject = synchronized(File(filesDir, ".slax-preferences.lock").canonicalPath.intern()) {
     RandomAccessFile(File(filesDir, ".slax-preferences.lock"), "rw").use { lockFile ->
@@ -145,8 +176,20 @@ class ShareActivity : Activity() {
   private fun cancelRequest() {
     synchronized(requestMutex) {active = false; connection?.cancel(); diagnostics?.finish(); connection = null}
   }
-  private fun dismiss() {if (!active || isFinishing) return; cancelRequest(); card.animate().translationY(card.height.toFloat()).setDuration(250).withEndAction {finish()}.start()}
-  override fun onDestroy() {cancelRequest(); main.removeCallbacksAndMessages(null); executor.shutdownNow(); diagnostics?.shutdown(); super.onDestroy()}
+  private fun dismiss() {
+    if (!active || isFinishing) return
+    if (completedResult == "ok") {finishImmediately(); return}
+    cancelRequest()
+    card.animate().translationY(card.height.toFloat()).setDuration(250).withEndAction {finishImmediately()}.start()
+  }
+  override fun onDestroy() {
+    cancelRequest()
+    main.removeCallbacksAndMessages(null)
+    executor.shutdownNow()
+    diagnostics?.lifecycle("destroyed", completedResult == "ok", isFinishing)
+    diagnostics?.shutdown()
+    super.onDestroy()
+  }
 }
 
 private object LegacyStringPreferences {

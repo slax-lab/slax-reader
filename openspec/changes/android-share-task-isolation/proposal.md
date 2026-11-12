@@ -11,7 +11,11 @@ Android users report that saving a WeChat article now brings Slax Reader to the 
 - Extend existing manifest-generator tests for fresh and previously generated manifests, idempotence, and preservation of MainActivity configuration.
 - Address the review-confirmed still-active popup regression: retire the previous popup with existing cancellation semantics and hand a copied new intent to a fresh standalone ShareActivity, with executable Kotlin handoff tests and real Android before/after verification.
 - Regenerate the Android manifest through its owner and verify cold/warm source-app sharing, dismissal, consecutive shares, and existing Slax task preservation on Android.
-- Keep TikHub investigation, backend provider changes, and failed-bookmark messaging outside this Android-only change.
+- Ensure confirmed success finishes the Android popup in foreground, background, or locked-screen state without depending on an animation callback; locking alone does not cancel an in-flight request.
+- Persist the actual result before UI feedback, add bounded finish/destroy lifecycle logs, and preserve these events through local export and the shared feedback-upload sanitizer. Add no document text or credential data to logs.
+- Keep TikHub investigation, backend provider changes, and failed-bookmark messaging outside this Android-only behavior change. The shared feedback contract gains only an additive diagnostic-event allowlist entry, not a new endpoint or database migration.
+
+On 2026-11-12, after accepting the previous task-isolation/repeated-intent repair, the user reported a locked-screen popup remaining visible after unlock and explicitly required success to always close and be logged. This later success-close correction is implemented under that instruction. At the user's direction, extended emulator testing was stopped and the normal production-configured, publisher-signed 1.0.30 (805) build was installed in place on the Pixel. The user then separately confirmed that acceptance passed without issues and requested updating the PR. This latest acceptance covers the success-close/logging correction; earlier acceptance remains historical. See validation.md for the exact APK hash and executed checks.
 
 ## Capabilities
 
@@ -21,15 +25,17 @@ None.
 
 ### Modified Capabilities
 
-- `mobile-app-parity`: Make Android incoming-share task isolation and return-to-source behavior explicit within the existing incoming/outgoing sharing requirement.
+- `mobile-app-parity`: Android incoming-share task isolation, repeated-intent handling, and reliable successful closure across visibility and lock states.
+- `mobile-diagnostic-log`: Bounded Android finish/destroy evidence, terminal-result persistence before UI feedback, and additive local/upload sanitization.
 
 ## Impact
 
-- Source owner: `apps/mobile/plugins/with-share.cjs`.
+- Native owners: `apps/mobile/plugins/with-share.cjs`, `ShareActivity.kt`, and `ShareDiagnostics.kt`.
 - Generated output: `apps/mobile/android/app/src/main/AndroidManifest.xml`, updated only through native generation.
-- Tests: existing `apps/mobile/native/share/tests/plugin.test.cjs` and its current share-test entry point.
-- Documentation: `docs/mobile/share.md` and this change's verification evidence during implementation.
-- No new dependency, API contract, database migration, production write, or iOS sharing behavior change. This native configuration repair needs a rebuilt Android binary; it is not a JavaScript-only OTA fix.
+- Logging compatibility: Mobile diagnostic types/export filtering and `packages/contracts/src/feedback.ts`; the deployed feedback sanitizer must recognize the new optional event before uploads containing it can be accepted. No backend deployment is performed by this task.
+- Tests: existing plugin, lifecycle, native diagnostic writer, export and feedback suites.
+- Documentation: `docs/mobile/share.md` and this change's verification evidence.
+- No new dependency, endpoint, database migration, production write, or iOS sharing behavior change. The native repair needs a rebuilt Android binary, not only a JavaScript OTA update.
 
 ## Review and Delivery Boundaries
 
