@@ -5,12 +5,12 @@
         <AppIcon name="account.sign-in.email" :size="20" />
         <span>{{ t('email_auth.continue_with_email') }}</span>
       </span>
-      <button class="email-login-toggle" :class="{ 'email-login-cancel': open }" type="button" :aria-expanded="open" :aria-controls="open ? formId : undefined" @click="toggle">
+      <button class="email-login-toggle" :class="{ 'email-login-cancel': open }" type="button" :disabled="departing" :aria-expanded="open" :aria-controls="open ? formId : undefined" @click="toggle">
         <AppIcon v-if="!open" name="account.sign-in.email" :size="20" />
         <span>{{ t(open ? 'email_auth.cancel' : 'email_auth.continue_with_email') }}</span>
       </button>
     </div>
-    <EmailCodeForm v-if="open" :id="formId" ref="form" class="email-code-form--inline email-code-form--login" :verify="verifyEmail" />
+    <EmailCodeForm v-if="open" :id="formId" ref="form" class="email-code-form--inline email-code-form--login" :initial-email="initialEmail" retain-pending-on-success :verify="verifyEmail" />
   </div>
 </template>
 
@@ -19,6 +19,7 @@ import AppIcon from '~/components/AppIcon.vue'
 import EmailCodeForm from '~/components/Login/EmailCodeForm.vue'
 
 import { authReturnTarget } from '~/utils/emailAuth'
+import { readLastLoginEmail, rememberLoginEmail } from '~/utils/lastLoginEmail'
 
 import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
 import type { WebAuthAttribution } from '@slax-reader/contracts/events'
@@ -30,14 +31,17 @@ const props = defineProps<{
 }>()
 
 const nuxtApp = useNuxtApp()
-const emailEnabled = ['development', 'preview'].includes(useRuntimeConfig().public.slaxEnv)
+const emailEnabled = ['development', 'preview', 'beta'].includes(useRuntimeConfig().public.slaxEnv)
 const { t } = nuxtApp.$i18n
 const auth = useAuth()
 const formId = useId()
 const open = ref(false)
+const initialEmail = ref('')
+const departing = ref(false)
 const form = ref<InstanceType<typeof EmailCodeForm>>()
 
 const cancel = () => {
+  if (departing.value) return
   form.value?.cancel()
   open.value = false
 }
@@ -45,9 +49,11 @@ const cancel = () => {
 defineExpose({ cancel })
 
 const toggle = () => {
+  if (departing.value) return
   if (open.value) {
     cancel()
   } else {
+    initialEmail.value = readLastLoginEmail()
     open.value = true
     analyticsLog({ event: 'user_login_start', method: 'email' })
   }
@@ -62,7 +68,14 @@ const verifyEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
   }, { signal, errorInterceptors: () => {} })
 
   signal.throwIfAborted()
-  if (await nuxtApp.runWithContext(() => navigateTo(target, { external: true })) === false) throw new Error('Login navigation did not complete')
+  rememberLoginEmail(proof.email)
+  departing.value = true
+  try {
+    if (await nuxtApp.runWithContext(() => navigateTo(target, { external: true })) === false) throw new Error('Login navigation did not complete')
+  } catch (error) {
+    departing.value = false
+    throw error
+  }
 }
 </script>
 
@@ -106,10 +119,10 @@ const verifyEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
   width: 100%;
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--slax-border-strong);
+  border: 1px solid transparent;
   border-radius: var(--slax-radius-sm);
-  background: var(--slax-surface-solid);
-  color: var(--slax-text);
+  background: transparent;
+  color: var(--slax-text-muted);
   font-family: inherit;
   font-size: var(--slax-fs-meta);
   font-weight: 500;
@@ -117,9 +130,14 @@ const verifyEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
   cursor: pointer;
 }
 
-.email-login-toggle:hover {
+.email-login-toggle:hover:not(:disabled) {
   background: var(--slax-accent-bg);
-  border-color: var(--slax-accent-soft);
+  color: var(--slax-text);
+}
+
+.email-login-toggle:disabled {
+  cursor: default;
+  opacity: 0.65;
 }
 
 .email-login-cancel {
@@ -130,7 +148,7 @@ const verifyEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
   color: var(--slax-text-muted);
 }
 
-.email-login-cancel:hover {
+.email-login-cancel:hover:not(:disabled) {
   border-color: transparent;
   color: var(--slax-text);
 }

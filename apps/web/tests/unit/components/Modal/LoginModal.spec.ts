@@ -44,6 +44,7 @@ vi.mock('@vueuse/core', async () => {
 describe('Modal/LoginModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     runtimeConfig.public.slaxEnv = 'development'
     post.mockReset().mockResolvedValue({ request_id: 'modal-attempt', expires_in: 300, resend_after: 60 })
     verifyEmailAuth.mockReset().mockResolvedValue('session')
@@ -85,7 +86,7 @@ describe('Modal/LoginModal', () => {
     expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(true)
   })
 
-  it.each(['beta', 'production'])('hides modal email login in %s', async environment => {
+  it.each(['production'])('hides modal email login in %s', async environment => {
     runtimeConfig.public.slaxEnv = environment
     const wrapper = mountWithApp(LoginModal, { props: { redirect: '/foo' } })
     await flushPromises()
@@ -144,7 +145,7 @@ describe('Modal/LoginModal', () => {
       .toEqual([['/terms', '_blank'], ['/privacy', '_blank']])
   })
 
-  it.each(['development', 'preview'])('verifies a code with collection attribution and returns to the pending subscribe action in %s', async environment => {
+  it.each(['development', 'preview', 'beta'])('verifies a code with collection attribution and returns to the pending subscribe action in %s', async environment => {
     runtimeConfig.public.slaxEnv = environment
     const redirect = '/c/Collection123?subscribe_after_login=1'
     const authAttribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } as const
@@ -167,6 +168,8 @@ describe('Modal/LoginModal', () => {
       email: 'reader@example.com', request_id: 'modal-attempt', code: '012345', auth_attribution: authAttribution
     }, expect.objectContaining({ signal: expect.any(AbortSignal) }))
     expect(navigateTo).toHaveBeenCalledExactlyOnceWith(`${location.origin}${redirect}`, { external: true })
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeDefined()
+    expect(localStorage.getItem('slax:last-login-email')).toBe('reader@example.com')
   })
 
   it('aborts a pending email code request when the modal closes', async () => {

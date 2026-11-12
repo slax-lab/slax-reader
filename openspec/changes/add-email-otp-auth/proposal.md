@@ -30,3 +30,11 @@ None.
 - This is the first of three sequential feature pull requests. Passkey and email-link sign-in are separate changes that build on the account and session behavior introduced here.
 
 The Web test-profile clarification was explicitly requested and reviewed on 2026-11-12 as part of `polish-web-sign-in-methods`. It expands Web visibility to preview without changing Mobile or API availability. Keep this capability's delta here rather than duplicating it in the presentation change.
+
+
+## Sequenced Follow-up: refine-email-login-flow
+
+PR #584 and the original authentication task have merged. On 2026-11-12 the change requester requested the sequenced `refine-email-login-flow` follow-up: Web methods ordered Google, Apple, email; a quieter email entry/link action; last-successful-address prefill; non-repeatable successful verification during departure; and development/preview/beta Web availability with production hidden and App unchanged. The preceding rollout/order statements record the earlier delivered scope. The reconciled delta specs describe the proposed follow-up target; its implementation tasks, approval, and new hands-on acceptance belong to `refine-email-login-flow`. Keep single ownership of these capability deltas and archive them together after that follow-up merges.
+
+
+The App-unchanged wording in the original Web follow-up records that phase's scope. After Web hands-on acceptance, the change requester separately reviewed and approved native provider-first order and quieter email entry/binding in `refine-email-login-flow`. Only that presentation exclusion is superseded; native development-only availability, credentials, sessions, and persistence remain unchanged. Native requirements remain solely in the `email-authentication` delta.

@@ -1,25 +1,6 @@
 <template>
   <section v-if="showSignInMethods" class="login-methods" :aria-labelledby="titleId">
     <h3 :id="titleId">{{ t('email_auth.methods_title') }}</h3>
-    <div class="login-method-group">
-      <div ref="emailRow" class="login-method-row" tabindex="-1">
-        <span class="login-method-icon"><AppIcon name="account.sign-in.email" /></span>
-        <div class="login-method-label">
-          <span class="login-method-name">{{ t('email_auth.login_email') }}</span>
-          <span class="login-method-status">{{ signInEmailStatus }}</span>
-        </div>
-        <button v-if="!loginEmail" class="login-method-button" :class="{ 'login-method-button--cancel': emailOpen }" type="button" :aria-expanded="emailOpen" @click="emailOpen = !emailOpen">
-          {{ t(emailOpen ? 'email_auth.cancel' : 'email_auth.link_email') }}
-        </button>
-      </div>
-      <EmailCodeForm
-        v-if="emailOpen && !loginEmail"
-        class="login-method-email"
-        purpose="bind"
-        :client="account.api"
-        :verify="bindEmail"
-      />
-    </div>
     <div v-for="provider in supportedProviders" :key="provider" class="login-method-group">
       <div class="login-method-row">
         <span class="login-method-icon"><AppIcon :name="provider === 'google' ? 'account.sign-in.google' : 'account.sign-in.apple'" /></span>
@@ -31,6 +12,25 @@
           {{ t(linking === provider ? 'email_auth.linking' : `email_auth.link_${provider}`) }}
         </button>
       </div>
+    </div>
+    <div class="login-method-group">
+      <div ref="emailRow" class="login-method-row" tabindex="-1">
+        <span class="login-method-icon"><AppIcon name="account.sign-in.email" /></span>
+        <div class="login-method-label">
+          <span class="login-method-name">{{ t('email_auth.login_email') }}</span>
+          <span class="login-method-status">{{ signInEmailStatus }}</span>
+        </div>
+        <button v-if="!loginEmail" class="login-method-button login-method-button--quiet" type="button" :aria-expanded="emailOpen" @click="emailOpen = !emailOpen">
+          {{ t(emailOpen ? 'email_auth.cancel' : 'email_auth.link_email') }}
+        </button>
+      </div>
+      <EmailCodeForm
+        v-if="emailOpen && !loginEmail"
+        class="login-method-email"
+        purpose="bind"
+        :client="account.api"
+        :verify="bindEmail"
+      />
     </div>
     <p v-if="!providerLinkAvailable && supportedProviders.some(provider => !linkedPlatforms.has(provider))" class="login-methods-note">
       {{ t('email_auth.provider_link_unavailable_here') }}
@@ -57,7 +57,7 @@ const account = createAccountEmailAuthRequest(props.accountKey)
 const { t } = useI18n()
 const titleId = useId()
 const config = useRuntimeConfig().public
-const showSignInMethods = ['development', 'preview'].includes(config.slaxEnv)
+const showSignInMethods = ['development', 'preview', 'beta'].includes(config.slaxEnv)
 const providerLinkAvailable = canLinkProvidersHere()
 const supportedProviders: EmailAuthProvider[] = [
   ...(config.GOOGLE_OAUTH_CLIENT_ID ? ['google' as const] : []),
@@ -205,13 +205,13 @@ const linkProvider = async (provider: EmailAuthProvider) => {
   opacity: 0.65;
 }
 
-.login-method-button--cancel {
+.login-method-button--quiet {
   border-color: transparent;
   background: transparent;
   color: var(--slax-text-muted);
 }
 
-.login-method-button--cancel:hover:not(:disabled) {
+.login-method-button--quiet:hover:not(:disabled) {
   border-color: transparent;
   background: var(--slax-accent-bg);
   color: var(--slax-text);

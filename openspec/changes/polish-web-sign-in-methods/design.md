@@ -72,3 +72,8 @@ Run focused component/page tests for existing linking semantics and the #577 vis
 Cover bound and unbound email, configured linked/unlinked providers, expanded form, invalid-code and provider errors, busy/disabled controls, unavailable provider linking, long addresses, both locales, keyboard focus, and successful binding. Capture matched before/after evidence outside Git and record commands, observed results, limitations, and the requester's hands-on acceptance in `validation.md` before a PR opens. No production credential or live-mail access is required for the local fixture exercise.
 
 No data migration is needed. Reverting the component/assets change restores the earlier presentation without changing stored identities.
+
+
+## Sequenced Follow-up Design
+
+The earlier decisions above document the delivered predecessor. The proposed `refine-email-login-flow/design.md` supersedes only Web method order, email-entry hierarchy, and Web beta rollout in this change's reconciled delta. Native App and backend policies remain unchanged. New remembered-address and terminal-navigation behavior is specified only in the follow-up's own capability delta. Implementation approval and fresh verification/acceptance remain tracked in the follow-up.

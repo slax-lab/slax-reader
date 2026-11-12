@@ -568,3 +568,21 @@ test('a committed email link closes its proof dialog even when the platform refr
   assert.equal(h.all('TextInput').filter(props => props.testID === 'email_code_value').length, 0);
   assert.ok(!h.all('SourceText').some(props => props.accessibilityRole === 'alert'));
 }));
+
+
+for (const platform of ['ios', 'android']) test(`development ${platform} settings present provider actions before email binding`, async () => mounted(async root => {
+  const h = await harness(root, platform, true);
+  await h.renderRoute('SettingsScreen');
+  const actions = h.all('SourceButton').map(props => props.label).filter(label => label.startsWith('email_auth_'));
+  assert.deepEqual(actions, platform === 'ios'
+    ? ['email_auth_link_google', 'email_auth_link_apple', 'email_auth_bind']
+    : ['email_auth_link_google', 'email_auth_bind']);
+}));
+
+for (const platform of ['ios', 'android']) test(`development ${platform} settings keep the bound mailbox below provider status`, async () => mounted(async root => {
+  const h = await harness(root, platform, true);
+  h.platforms = async () => [linkedPlatform('mail', 'owner@example.test'), linkedPlatform('google'), linkedPlatform('apple')];
+  await h.renderRoute('SettingsScreen');
+  const labels = h.all('SourceText').map(props => props.children).filter(label => ['email_auth_google_linked', 'email_auth_apple_linked', 'email_auth_address'].includes(label));
+  assert.deepEqual(labels, ['email_auth_google_linked', 'email_auth_apple_linked', 'email_auth_address']);
+}));

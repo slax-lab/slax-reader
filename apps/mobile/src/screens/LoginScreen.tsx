@@ -120,10 +120,10 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   const button = (method: LoginMethod) => <Pressable
     accessibilityRole="button" accessibilityLabel={t(`login_${method}`)}
     testID={`${mobileTestIds.LoginButton}_${method}`} disabled={Boolean(loading || email.flow)}
-    onPress={() => begin(method)} style={({pressed}) => [styles.provider, {width: Math.min(width - 80, L.loginButtonMaximumWidth)}, method !== 'google' && {marginTop: 10}, pressed && {backgroundColor: C.pressedOverlay}]}>
+    onPress={() => begin(method)} style={({pressed}) => [styles.provider, {width: Math.min(width - 80, L.loginButtonMaximumWidth)}, method !== 'google' && {marginTop: 10}, method === 'email' && styles.emailEntry, pressed && {backgroundColor: C.pressedOverlay}]}>
     {loading === method ? <ActivityIndicator size="small" color={C.text} testID={mobileTestIds.LoginLoadingIndicator}/> : <>
       {method !== 'email' && <Image source={method === 'google' ? mobileAssets.ic_sm_google : mobileAssets.ic_sm_apple} style={styles.providerIcon}/>}
-      <Text style={[styles.providerText, method !== 'email' && {marginLeft: 10}]}>{t(`login_${method}`)}</Text>
+      <Text style={[styles.providerText, method !== 'email' && {marginLeft: 10}, method === 'email' && styles.emailLabel]}>{t(`login_${method}`)}</Text>
     </>}
   </Pressable>;
   const content = <>
@@ -183,6 +183,7 @@ const styles = StyleSheet.create({
   bottom: {alignItems: 'center', marginTop: 16, marginBottom: 30},
   provider: {height: 50, borderRadius: 25, borderColor: C.buttonBorder, borderWidth: 0.5, alignItems: 'center', justifyContent: 'center', flexDirection: 'row'},
   providerIcon: {width: 24, height: 24}, providerText: {fontSize: 15, lineHeight: 21, fontWeight: '500', color: C.bodyText},
+  emailEntry: {borderWidth: 0}, emailLabel: {fontWeight: '400', color: C.secondaryText},
   agreementRow: {marginTop: 30, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24},
   agreementText: {fontSize: 12, lineHeight: 16.5, color: C.secondaryText, marginLeft: 6}, link: {color: C.link},
   modalBackdrop: {flex: 1, backgroundColor: C.scrim, justifyContent: 'flex-end'},

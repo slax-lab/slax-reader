@@ -22,11 +22,6 @@ export function AccountSignInMethods({t, locale, platform, state, api}: AccountS
   const email = linked.get('mail');
   return <View style={styles.card}>
     <SourceText accessibilityRole="header" style={T.button}>{t('email_auth_methods')}</SourceText>
-    {email ? <View>
-      <SourceText style={styles.secondary}>{t('email_auth_address')}</SourceText>
-      <SourceText selectable>{email.user_name}</SourceText>
-    </View> : <SourceButton label={t('email_auth_bind')} tone="surface" style={styles.button}
-      disabled={Boolean(busy)} onPress={state.openEmail} />}
     {linked.has('google') ? <SourceText style={styles.secondary}>{t('email_auth_google_linked')}</SourceText>
       : <SourceButton label={t('email_auth_link_google')} tone="surface" style={styles.button}
         busy={busy === 'google'} disabled={busy === 'apple'} onPress={() => {void state.linkProvider('google');}} />}
@@ -34,6 +29,11 @@ export function AccountSignInMethods({t, locale, platform, state, api}: AccountS
       : platform === 'android' ? <SourceText style={styles.secondary}>{t('email_auth_link_apple_hint')}</SourceText>
       : <SourceButton label={t('email_auth_link_apple')} tone="surface" style={styles.button}
         busy={busy === 'apple'} disabled={busy === 'google'} onPress={() => {void state.linkProvider('apple');}} />}
+    {email ? <View>
+      <SourceText style={styles.secondary}>{t('email_auth_address')}</SourceText>
+      <SourceText selectable>{email.user_name}</SourceText>
+    </View> : <SourceButton label={t('email_auth_bind')} tone="surface" style={[styles.button, styles.emailButton]} textStyle={styles.emailButtonText}
+      disabled={Boolean(busy)} onPress={state.openEmail} />}
     {error && <SourceText accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{t(error)}</SourceText>}
     {!email && emailFlow && <EmailCodeDialog mode="binding" t={t} locale={locale}
       send={api.sendBindingEmail} verify={api.verifyBindingEmail} isCurrent={emailFlow.current}
@@ -44,6 +44,8 @@ export function AccountSignInMethods({t, locale, platform, state, api}: AccountS
 const styles = StyleSheet.create({
   card: {backgroundColor: C.surface, borderRadius: L.settingsCardRadius, padding: 16, gap: 10},
   button: {borderWidth: 1, borderColor: C.buttonBorder},
+  emailButton: {borderWidth: 0},
+  emailButtonText: {...T.metadata, color: C.secondaryText},
   secondary: {...T.metadata, color: C.secondaryText},
   error: {...T.metadata, color: C.validationError},
 });
