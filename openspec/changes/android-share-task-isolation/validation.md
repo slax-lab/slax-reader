@@ -14,7 +14,7 @@
 - Explicit metadata checks: package `1.0.30` / 805 / previous 804; Android Gradle version and share metadata; iOS main/share plist versions; Android/iOS runtime `1.0.30(805)`; and all three share-activity attributes: **passed**.
 - Before the version-only increment, `pnpm mobile -- check`: type checking and **1,236 tests passed**, zero failed or skipped. A filtered-install missing `abort-controller` was resolved by full offline frozen-lockfile installation without dependency changes.
 - Before the version-only increment, `pnpm mobile -- bundle`: **passed for Android and iOS**. This alone is not native evidence.
-- Final source at `1.0.30` (805): `pnpm mobile -- check` **passed, 1,236 tests, 0 failures/skips**; `pnpm mobile -- bundle` **passed for Android and iOS**; `pnpm exec openspec validate --all --strict` **139 passed, 0 failed**. All three commands exited 0. These checks ran on the versioned deliverable, not only the earlier acceptance source.
+- Original versioned PR source at `b28a586a`, `1.0.30` (805), before the lifecycle review follow-up: `pnpm mobile -- check` **passed, 1,236 tests, 0 failures/skips**; Android/iOS bundles passed; strict OpenSpec validation passed **139/139**. After the new-intent regression test was added in `e6744edf`, the corrected versioned source passed **1,237 tests, 0 failures/skips**; see the follow-up section below. These are separate historical runs, not contradictory counts.
 - `pnpm mobile -- test:native-resources`: **passed**, using already cached Kotlin 2.2.10 compiler/runtime, OkHttp 4.9.2, and Okio 2.8.0 through the runner's supported environment variables. Kotlin checks ran on the host JVM and Swift checks on macOS; they do not prove Android task routing.
 - `pnpm exec openspec validate --all --strict`: **139 passed, 0 failed** on the initial repair. Existing advisory messages for unrelated archived deltas are outside scope.
 - Focused strict change validation and `git diff --check`: **passed**.
@@ -57,3 +57,11 @@
 ## Delivery Status
 
 PR #586 targets dev. The review follow-up retains the approved version 1.0.30 (805), previous source build 804. No merge, store upload, or public release is authorized or claimed. The standard Release build performed its configured Crashlytics mapping upload; that is not app-store publication. Review/check completion is recorded in the PR discussion.
+
+
+## Final Patch Acceptance Handoff
+
+- The second automated review of e6744edf confirmed the intent handoff is sound and found no Bugs or Security blockers. Its sole Important finding is renewed human acceptance of the final lifecycle correction; all CI build/test gates passed. This gate is not waived.
+- On 2026-11-12 at 13:38 Asia/Shanghai, the physical Pixel 9 Pro Fold reconnected. The signed corrected APK with SHA-256 `49446b3c50bc83e883d4110ccf67737edbc70ab35bd1f1cbcf525977b7c73d39` passed signature verification and was installed using `adb install -r`: **Success**. No uninstall, clear-data, or account mutation was performed. Installed metadata confirms **1.0.30 (805)**; MainActivity launch returned **Status: ok**.
+- The requesting user has been asked to exercise a second share while the prior popup is still alive, confirm independent-popup behavior and return to the source, and report acceptance. **Renewed human acceptance is pending; do not merge or mark this gate complete until the user confirms.**
+- The test-count Nit is corrected by distinguishing the original b28a586a run (1,236) from the e6744edf follow-up (1,237). Intent flag preservation is an explicit scoped compatibility decision documented in design.md; unusual flag/OEM combinations remain unverified.
