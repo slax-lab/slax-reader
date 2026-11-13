@@ -48,7 +48,6 @@
         :pdf-load-error="pdfLoadError"
         @retry-pdf="loadBookmarkDetail"
         @screen-lock-update="screenLockUpdate"
-        @bookmark-update="bookmarkUpdate"
         @chat-bot-quote="onChatBotQuote"
       />
       <ClientOnly>
@@ -463,10 +462,6 @@ if (isClient) {
     },
     { immediate: true }
   )
-}
-
-const bookmarkUpdate = (updateDetail: ShareBookmarkDetail) => {
-  detail.value = updateDetail
 }
 
 const findQuote = (quote: QuoteData) => {

@@ -1,6 +1,6 @@
 // BookmarkArticle.vue 集成测试 —— 第五期 Sprint B.1
-// 覆盖：渲染（title/source/star）/ articleStyle 三种风格 /
-//      starBookmark（成功/失败 + Toast）/ websiteClick / handleHTML（DOMPipeline run）/ handleDrawMark / jumpToHighLight
+// 覆盖：渲染（title/source）/ articleStyle 三种风格 /
+//      websiteClick / handleHTML（DOMPipeline run）/ handleDrawMark / jumpToHighLight
 // 关键约束：
 //  - 真实依赖按 phase5-plan §B.1 修订 4 mock 链路（含 ToastType / processors 13+ArticleStyle/DOMPipeline / Toast/CursorToast/ImagePreview）
 //  - useArticleDetail vi.mock 全替换返回受控 ref
@@ -19,7 +19,6 @@ const {
   mockRoute,
   mockUseRoute,
   mockNavigateTo,
-  mockPostChannelMessage,
   mockRequest,
   mockUseI18n,
   mockUseArticleDetail,
@@ -39,8 +38,7 @@ const {
     allowStarredRef: { value: true },
     allowActionRef: { value: true },
     allowTaggedRef: { value: true },
-    bookmarkUserIdRef: { value: 1 },
-    updateStarred: vi.fn(async () => {})
+    bookmarkUserIdRef: { value: 1 }
   }
   const articleSelectionInstanceMock = {
     closeMonitor: vi.fn(),
@@ -62,7 +60,6 @@ const {
     mockRoute: { path: '/bookmarks/1', query: {} as Record<string, string>, fullPath: '/bookmarks/1', params: {} },
     mockUseRoute: vi.fn(),
     mockNavigateTo: vi.fn(),
-    mockPostChannelMessage: vi.fn(),
     mockRequest: vi.fn(() => ({ get: vi.fn(), post: mockPost })),
     mockPost,
     mockUseI18n: vi.fn(() => ({ t: mockT, locale: { value: 'en' } })),
@@ -86,13 +83,11 @@ mockUseArticleDetail.mockImplementation(() => ({
   allowStarred: ref(mockArticleDetailReturn.allowStarredRef.value),
   allowAction: ref(mockArticleDetailReturn.allowActionRef.value),
   allowTagged: ref(mockArticleDetailReturn.allowTaggedRef.value),
-  bookmarkUserId: ref(mockArticleDetailReturn.bookmarkUserIdRef.value),
-  updateStarred: mockArticleDetailReturn.updateStarred
+  bookmarkUserId: ref(mockArticleDetailReturn.bookmarkUserIdRef.value)
 }))
 
 mockNuxtImport('useRoute', () => mockUseRoute)
 mockNuxtImport('navigateTo', () => mockNavigateTo)
-mockNuxtImport('postChannelMessage', () => mockPostChannelMessage)
 mockNuxtImport('request', () => mockRequest)
 mockNuxtImport('useI18n', () => mockUseI18n)
 // This file verifies the disabled-switch fallback rendering; pin the config so it
@@ -245,10 +240,8 @@ beforeEach(() => {
   mockArticleDetailReturn.allowActionRef.value = true
   mockArticleDetailReturn.allowTaggedRef.value = true
   mockArticleDetailReturn.bookmarkUserIdRef.value = 1
-  mockArticleDetailReturn.updateStarred = vi.fn(async () => {})
   mockToastShowToast.mockClear()
   mockCursorToastShowToast.mockClear()
-  mockPostChannelMessage.mockClear()
   mockNavigateTo.mockClear()
   mockRoute.query = {}
   articleSelectionInstanceMock.closeMonitor.mockClear()
@@ -336,23 +329,9 @@ describe('Article/BookmarkArticle', () => {
       expect(wrapper.find('.article-url').exists()).toBe(false)
     })
 
-    it('starBookmark：star 按钮已移至 SnapshotBottomToolbar，BookmarkArticle 内不含 .star', async () => {
+    it('star 按钮已移至 SnapshotBottomToolbar，BookmarkArticle 内不含 .star', async () => {
       const wrapper = mountWithApp(BookmarkArticle, { props: { detail: buildDetail() }, global: { stubs } })
       expect(wrapper.find('.star').exists()).toBe(false)
-    })
-
-    it('bookmarkId 缺失：starBookmark 短路（star 已移至 BottomToolbar，此测试验证 updateStarred 未被调用）', async () => {
-      mockArticleDetailReturn.bookmarkId = undefined as never
-      const wrapper = mountWithApp(BookmarkArticle, { props: { detail: buildDetail() }, global: { stubs } })
-      expect(wrapper.find('.star').exists()).toBe(false)
-      expect(mockArticleDetailReturn.updateStarred).not.toHaveBeenCalled()
-    })
-
-    it('updateStarred 缺失：starBookmark 短路（star 已移至 BottomToolbar）', async () => {
-      mockArticleDetailReturn.updateStarred = undefined as never
-      const wrapper = mountWithApp(BookmarkArticle, { props: { detail: buildDetail() }, global: { stubs } })
-      expect(wrapper.find('.star').exists()).toBe(false)
-      expect(mockPostChannelMessage).not.toHaveBeenCalled()
     })
   })
 

@@ -30,7 +30,7 @@
       </button>
     </div>
     <div v-if="challenge" class="email-code-actions">
-      <button type="button" @click="editEmail">{{ t('email_auth.change_address') }}</button>
+      <button type="button" :disabled="Boolean(pending)" @click="editEmail">{{ t('email_auth.change_address') }}</button>
       <button type="button" :disabled="Boolean(pending) || secondsToResend > 0" @click="sendCode">
         {{ pending === 'send' ? t('email_auth.sending') : secondsToResend > 0 ? t('email_auth.resend_in', { seconds: secondsToResend }) : t('email_auth.resend') }}
       </button>
@@ -47,12 +47,14 @@ import type { EmailCodeChallenge, EmailCodeInput, EmailCodeSendInput } from '@sl
 
 const props = defineProps<{
   purpose?: 'login' | 'bind'
+  initialEmail?: string
+  retainPendingOnSuccess?: boolean
   client?: Pick<FetchRequest, 'post'>
   verify: (proof: EmailCodeInput, signal: AbortSignal) => Promise<void>
 }>()
 const { $i18n } = useNuxtApp()
 const { t, locale } = $i18n
-const email = ref('')
+const email = ref(props.initialEmail ?? '')
 const code = ref('')
 const emailInput = ref<HTMLInputElement>()
 const codeInput = ref<HTMLInputElement>()
@@ -81,6 +83,7 @@ onBeforeUnmount(stop)
 defineExpose({ cancel: stop })
 
 const editEmail = async () => {
+  if (pending.value) return
   stop()
   challenge.value = undefined
   errorKey.value = ''
@@ -134,14 +137,17 @@ const verifyCode = async () => {
   pending.value = 'verify'
   errorKey.value = ''
 
+  let verified = false
   try {
     await props.verify({ email: email.value, request_id: challenge.value.request_id, code: code.value }, controller.signal)
+    controller.signal.throwIfAborted()
+    verified = true
   } catch (error) {
     if (!controller.signal.aborted) errorKey.value = emailAuthErrorKey(error, 'verify_failed')
   } finally {
     if (operation === controller) {
       operation = undefined
-      pending.value = undefined
+      if (!verified || !props.retainPendingOnSuccess) pending.value = undefined
     }
   }
 }

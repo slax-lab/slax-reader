@@ -1,5 +1,7 @@
 # Tasks
 
+These checked tasks record the merged predecessor implementation. Subsequent Web ordering and beta-policy changes are proposed and tracked only in `refine-email-login-flow/tasks.md`; this historical completion record does not claim that follow-up is implemented.
+
 ## 1. Account identity
 
 - [x] 1.1 Implement transactional lookup, registration, and explicit mailbox binding using the existing platform table. Exercise new, existing, ambiguous, frozen, and concurrent claims.

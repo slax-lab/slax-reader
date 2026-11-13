@@ -459,8 +459,8 @@ for (const replacement of ['owner', 'origin']) test(`DeleteAccount ${replacement
   assert.equal(h.button().disabled, false);
 }));
 
-test('Settings links a verified mailbox and a native provider without replacing the active session', async () => mounted(async root => {
-  const h = await harness(root, 'ios', true);
+for (const development of [false, true]) test(`Settings links a verified mailbox and a native provider without replacing the active session (development=${development})`, async () => mounted(async root => {
+  const h = await harness(root, 'ios', development);
   h.linked = [linkedPlatform('google')];
   h.platforms = async () => [...h.linked];
   await h.renderRoute('SettingsScreen');
@@ -481,11 +481,11 @@ test('Settings links a verified mailbox and a native provider without replacing 
   assert.deepEqual(h.sessions.getSnapshot(), before);
 }));
 
-test('Settings hides the whole sign-in methods section outside a development session', async () => mounted(async root => {
+test('Settings offers sign-in methods outside a development session', async () => mounted(async root => {
   const h = await harness(root, 'android');
   await h.renderRoute('SettingsScreen');
-  assert.ok(!h.all('SourceText').some(props => props.children === 'email_auth_methods'));
-  assert.ok(!h.all('SourceButton').some(props => props.label.startsWith('email_auth_')));
+  assert.ok(h.all('SourceText').some(props => props.children === 'email_auth_methods'));
+  assert.ok(h.all('SourceButton').some(props => props.label === 'email_auth_bind'));
 }));
 
 test('Android guides Apple linking to the same Web account and ignores late Google authorization after owner replacement', async () => mounted(async root => {
@@ -507,15 +507,17 @@ test('Android guides Apple linking to the same Web account and ignores late Goog
   assert.ok(h.all('SourceText').some(props => props.children === 'other@example.test'));
 }));
 
-test('Settings hides the entire sign-in methods section even with linked identities outside development', async () => mounted(async root => {
+test('Settings shows linked identities outside development without confusing mail collection with login email', async () => mounted(async root => {
   const h = await harness(root);
   h.platforms = async () => [linkedPlatform('email', 'collection@example.test'), linkedPlatform('mail', 'Reader@example.test'), linkedPlatform('google'), linkedPlatform('apple')];
   await h.renderRoute('SettingsScreen');
   for (const label of ['email_auth_google_linked', 'email_auth_apple_linked']) {
-    assert.ok(!h.all('SourceText').some(props => props.children === label));
+    assert.ok(h.all('SourceText').some(props => props.children === label));
   }
-  assert.ok(!h.all('SourceText').some(props => props.children === 'email_auth_methods'));
-  assert.ok(!h.all('SourceText').some(props => props.children === 'collection@example.test' || props.children === 'Reader@example.test' || props.children === 'email_auth_address'));
+  assert.ok(h.all('SourceText').some(props => props.children === 'email_auth_methods'));
+  assert.ok(h.all('SourceText').some(props => props.children === 'Reader@example.test'));
+  assert.ok(h.all('SourceText').some(props => props.children === 'email_auth_address'));
+  assert.ok(!h.all('SourceText').some(props => props.children === 'collection@example.test'));
   assert.ok(!h.all('SourceButton').some(props => props.label === 'email_auth_bind'));
 }));
 
@@ -567,4 +569,22 @@ test('a committed email link closes its proof dialog even when the platform refr
   assert.equal(reads, 2);
   assert.equal(h.all('TextInput').filter(props => props.testID === 'email_code_value').length, 0);
   assert.ok(!h.all('SourceText').some(props => props.accessibilityRole === 'alert'));
+}));
+
+
+for (const platform of ['ios', 'android']) test(`development ${platform} settings present provider actions before email binding`, async () => mounted(async root => {
+  const h = await harness(root, platform, true);
+  await h.renderRoute('SettingsScreen');
+  const actions = h.all('SourceButton').map(props => props.label).filter(label => label.startsWith('email_auth_'));
+  assert.deepEqual(actions, platform === 'ios'
+    ? ['email_auth_link_google', 'email_auth_link_apple', 'email_auth_bind']
+    : ['email_auth_link_google', 'email_auth_bind']);
+}));
+
+for (const platform of ['ios', 'android']) test(`development ${platform} settings keep the bound mailbox below provider status`, async () => mounted(async root => {
+  const h = await harness(root, platform, true);
+  h.platforms = async () => [linkedPlatform('mail', 'owner@example.test'), linkedPlatform('google'), linkedPlatform('apple')];
+  await h.renderRoute('SettingsScreen');
+  const labels = h.all('SourceText').map(props => props.children).filter(label => ['email_auth_google_linked', 'email_auth_apple_linked', 'email_auth_address'].includes(label));
+  assert.deepEqual(labels, ['email_auth_google_linked', 'email_auth_apple_linked', 'email_auth_address']);
 }));

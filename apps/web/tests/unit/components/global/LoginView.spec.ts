@@ -40,10 +40,12 @@ const NuxtTurnstileStub = {
 describe('global/LoginView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     runtimeConfig.public.slaxEnv = 'development'
     get.mockResolvedValue({ enabled: false })
     post.mockResolvedValue({ request_id: 'attempt', expires_in: 300, resend_after: 60 })
     verifyEmailAuth.mockReset().mockResolvedValue('session')
+    navigate.mockReset().mockResolvedValue(undefined)
     runtimeConfig.public.APPLE_OAUTH_CLIENT_ID = 'apple-client-id'
     runtimeConfig.public.TURNSTILE_SITE_KEY = 'turnstile-site-key'
   })
@@ -99,20 +101,7 @@ describe('global/LoginView', () => {
     wrapper.unmount()
   })
 
-  it.each(['beta', 'production'])('hides email login in %s', async environment => {
-    runtimeConfig.public.slaxEnv = environment
-    const wrapper = mountWithApp(LoginView)
-    await flushPromises()
-
-    expect(wrapper.find('.email-login-toggle').exists()).toBe(false)
-    expect(wrapper.find('input[type=email]').exists()).toBe(false)
-    expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).exists()).toBe(true)
-    expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(true)
-    expect(post).not.toHaveBeenCalled()
-    wrapper.unmount()
-  })
-
-  it.each(['development', 'preview'])('sends and verifies email with referral and acquisition context in %s', async environment => {
+  it.each(['development', 'preview', 'beta', 'production'])('sends and verifies email with referral and acquisition context in %s', async environment => {
     runtimeConfig.public.slaxEnv = environment
     get.mockResolvedValue({ enabled: true })
     runtimeConfig.public.TURNSTILE_SITE_KEY = ''
@@ -137,6 +126,8 @@ describe('global/LoginView', () => {
       email: 'Reader@example.com', request_id: 'attempt', code: '012345', aff_code: 'invite', auth_attribution: authAttribution
     }, expect.objectContaining({ signal: expect.any(AbortSignal) }))
     expect(navigate).toHaveBeenCalledWith(redirect, { external: true })
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeDefined()
+    expect(localStorage.getItem('slax:last-login-email')).toBe('Reader@example.com')
     wrapper.unmount()
   })
 
@@ -158,6 +149,113 @@ describe('global/LoginView', () => {
     finish('late-session')
     await flushPromises()
     expect(navigate).not.toHaveBeenCalled()
+    expect(localStorage.getItem('slax:last-login-email')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('places Google and configured Apple before the email entry', () => {
+    const wrapper = mountWithApp(LoginView)
+    expect(wrapper.get('.auth-btns').element.children[0]).toBe(wrapper.getComponent({ name: 'GoogleLoginButton' }).element)
+    expect(wrapper.get('.auth-btns').element.children[1]).toBe(wrapper.getComponent({ name: 'AppleLoginButton' }).element)
+    expect(wrapper.get('.auth-btns').element.lastElementChild).toBe(wrapper.get('.email-login').element)
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['previous@example.com', 'previous@example.com'],
+    ['not-an-email', ''],
+    ['a'.repeat(250) + '@example.com', '']
+  ])('prefills only a usable remembered address: %s', async (stored, expected) => {
+    localStorage.setItem('slax:last-login-email', stored)
+    const wrapper = mountWithApp(LoginView)
+    expect(wrapper.find('form').exists()).toBe(false)
+    await wrapper.get('.email-login-toggle').trigger('click')
+    expect((wrapper.get('input[type=email]').element as HTMLInputElement).value).toBe(expected)
+    expect(post).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('retains the successful verification lock until the old page leaves', async () => {
+    const wrapper = mountWithApp(LoginView)
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    await wrapper.get('[autocomplete="one-time-code"]').setValue('012345')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(navigate).toHaveBeenCalledOnce()
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[autocomplete="one-time-code"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.findAll('.email-code-actions button').every(button => button.attributes('disabled') !== undefined)).toBe(true)
+    expect(wrapper.get('.email-login-toggle').attributes('disabled')).toBeDefined()
+    wrapper.getComponent({ name: 'EmailLoginForm' }).vm.cancel()
+    expect(wrapper.find('form').exists()).toBe(true)
+    await wrapper.get('form').trigger('submit')
+    await wrapper.get('.email-code-button').trigger('click')
+    expect(verifyEmailAuth).toHaveBeenCalledOnce()
+    wrapper.unmount()
+    const reopened = mountWithApp(LoginView)
+    await reopened.get('.email-login-toggle').trigger('click')
+    expect((reopened.get('input[type=email]').element as HTMLInputElement).value).toBe('reader@example.com')
+    reopened.unmount()
+  })
+
+  it('preserves the remembered address on send and failure, then replaces it on a successful retry', async () => {
+    localStorage.setItem('slax:last-login-email', 'previous@example.com')
+    verifyEmailAuth.mockRejectedValueOnce(new Error('Wrong code'))
+    const wrapper = mountWithApp(LoginView)
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('next@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(localStorage.getItem('slax:last-login-email')).toBe('previous@example.com')
+    await wrapper.get('[autocomplete="one-time-code"]').setValue('012345')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toBeTruthy()
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeUndefined()
+    expect(localStorage.getItem('slax:last-login-email')).toBe('previous@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(localStorage.getItem('slax:last-login-email')).toBe('next@example.com')
+    wrapper.unmount()
+  })
+
+  it('does not turn unavailable local storage into a login failure', async () => {
+    const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Blocked', 'SecurityError') })
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Blocked', 'SecurityError') })
+    const wrapper = mountWithApp(LoginView)
+    try {
+      await wrapper.get('.email-login-toggle').trigger('click')
+      expect((wrapper.get('input[type=email]').element as HTMLInputElement).value).toBe('')
+      await wrapper.get('input[type=email]').setValue('reader@example.com')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      await wrapper.get('[autocomplete="one-time-code"]').setValue('012345')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(navigate).toHaveBeenCalledOnce()
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+      read.mockRestore()
+      write.mockRestore()
+    }
+  })
+
+  it('reports an explicit navigation failure instead of silently leaving a busy form', async () => {
+    navigate.mockResolvedValueOnce(false)
+    const wrapper = mountWithApp(LoginView)
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    await wrapper.get('[autocomplete="one-time-code"]').setValue('012345')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toBeTruthy()
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeUndefined()
     wrapper.unmount()
   })
 

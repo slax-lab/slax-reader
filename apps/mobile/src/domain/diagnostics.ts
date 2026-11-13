@@ -34,7 +34,7 @@ export function recordDiagnostic<E extends keyof DiagnosticEvents>(sink: Diagnos
 }
 export interface DiagnosticCommon {v: 1; ts: string; src: DiagnosticSource; launch: string}
 export type AppDiagnosticRecord = {[E in keyof DiagnosticEvents]: DiagnosticCommon & {event: E} & DiagnosticEvents[E] & (E extends 'app.launch' ? {app: string; os: string} : {})}[keyof DiagnosticEvents];
-export type DiagnosticRecord = DiagnosticCommon & {event: keyof DiagnosticEvents | 'share.start' | 'share.end'; [key: string]: unknown};
+export type DiagnosticRecord = DiagnosticCommon & {event: keyof DiagnosticEvents | 'share.start' | 'share.end' | 'share.lifecycle'; [key: string]: unknown};
 export interface DiagnosticFile {name: string; size: number; day: string; src: DiagnosticSource}
 const pad = (value: number, width = 2) => String(value).padStart(width, '0');
 export function diagnosticDay(date: Date) {return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;}
