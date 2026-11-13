@@ -165,7 +165,8 @@ export function readTagList(value: string): string[] {
   return uniqueTags(tags)
 }
 
-function savedDate(value: string, seconds: boolean): string | undefined {
+export function savedDate(value: string | undefined, seconds: boolean): string | undefined {
+  value ??= ''
   if (!value.trim()) return undefined
   const normalized = seconds
     ? Number(value) * 1000

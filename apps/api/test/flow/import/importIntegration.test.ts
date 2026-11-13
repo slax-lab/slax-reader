@@ -21,7 +21,7 @@ function wireImport() {
 }
 
 describe('import acceptance', () => {
-  it('accepts versioned records and retains legacy Pocket and retry message formats', async () => {
+  it('accepts versioned records, legacy Pocket/Omnivore with saved time, and retry message formats', async () => {
     const { service, ctx } = wireImport()
     ctx.setUserInfo = vi.fn()
     ctx.setHashIds = vi.fn()
@@ -40,10 +40,30 @@ describe('import acceptance', () => {
     await expect(service.processImportBookmark(ctx, { ...envelope, info: { ...envelope.info, version: undefined } })).rejects.toThrow()
     const pocket = await service.processImportBookmark(ctx, {
       id: 1,
-      info: { id: 42, userId: 1, idx: 0, type: 'pocket', data: [{ url: 'https://example.com/a', title: 'A', tags: 'one|two', status: 'archive' }] }
+      info: {
+        id: 42,
+        userId: 1,
+        idx: 0,
+        type: 'pocket',
+        data: [
+          { url: 'https://example.com/a', title: 'A', time_added: '1577934245', tags: 'one|two', status: 'archive' },
+          { url: 'https://example.com/b', title: 'B', time_added: 'bad', tags: '', status: 'unread' }
+        ]
+      }
     })
-    expect(pocket[0]).toMatchObject({ target_url: 'https://example.com/a', tags: ['one', 'two'], is_archive: true })
-    expect(pocket[0]).not.toHaveProperty('import_only')
+    expect(pocket[0]).toMatchObject({ target_url: 'https://example.com/a', tags: ['one', 'two'], is_archive: true, saved_at: '2020-01-02T03:04:05.000Z', import_only: true })
+    expect(pocket[1]).toMatchObject({ is_archive: false, saved_at: undefined, import_only: true })
+    const omnivore = await service.processImportBookmark(ctx, {
+      id: 1,
+      info: {
+        id: 42,
+        userId: 1,
+        idx: 0,
+        type: 'omnivore',
+        data: [{ url: 'https://example.com/a', title: 'A', labels: [], savedAt: '2020-01-02T03:04:05.123Z' }]
+      }
+    })
+    expect(omnivore[0]).toMatchObject({ target_url: 'https://example.com/a', saved_at: '2020-01-02T03:04:05.123Z', import_only: true })
     const retry = await service.processImportBookmark(ctx, {
       id: 1,
       info: { id: 42, userId: 1, idx: 0, type: 'fetch_retry', data: [{ target_url: 'https://example.com/a', tags: [] }] }
