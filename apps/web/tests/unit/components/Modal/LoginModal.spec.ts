@@ -125,6 +125,7 @@ describe('Modal/LoginModal', () => {
     expect(wrapper.get('.modal-shell').isVisible()).toBe(true)
     expect(eventLog).toHaveBeenCalledExactlyOnceWith({ event_name: 'screen_viewed', properties: { screen_name: 'signup', ...authAttribution } })
     expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).props('authAttribution')).toEqual(authAttribution)
+    expect(wrapper.findComponent({ name: 'AppleLoginButton' }).props('authAttribution')).toBeUndefined()
     await wrapper.setProps({ redirect: '/c/Collection123?subscribe_after_login=1' })
     await wrapper.get('button.modal-close').trigger('click')
     expect(eventLog).toHaveBeenCalledTimes(1)
@@ -169,6 +170,26 @@ describe('Modal/LoginModal', () => {
     expect(navigateTo).toHaveBeenCalledExactlyOnceWith(`${location.origin}${redirect}`, { external: true })
   })
 
+  it('verifies a code with snapshot attribution and returns to the snapshot', async () => {
+    const redirect = '/b/00000000-0000-4000-8000-000000000001'
+    const authAttribution = { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: '00000000-0000-4000-8000-000000000001' } as const
+    const wrapper = mountWithApp(LoginModal, { props: { redirect, authAttribution } })
+    await vi.waitFor(() => expect(wrapper.get('.modal-shell').isVisible()).toBe(true))
+
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    await wrapper.get('[autocomplete="one-time-code"]').setValue('012345')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(verifyEmailAuth).toHaveBeenCalledExactlyOnceWith({
+      email: 'reader@example.com', request_id: 'modal-attempt', code: '012345', auth_attribution: authAttribution
+    }, expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    expect(navigateTo).toHaveBeenCalledExactlyOnceWith(`${location.origin}${redirect}`, { external: true })
+  })
+
   it('aborts a pending email code request when the modal closes', async () => {
     post.mockImplementationOnce(() => new Promise(() => {}))
     const wrapper = mountWithApp(LoginModal, { props: { redirect: '/foo' } })
@@ -182,6 +203,26 @@ describe('Modal/LoginModal', () => {
     await wrapper.get('.modal-close').trigger('click')
     expect(signal.aborted).toBe(true)
     expect(wrapper.find('form').exists()).toBe(false)
+  })
+
+  it('records snapshot save provenance and passes it to Google and Apple', async () => {
+    vi.useFakeTimers()
+    const authAttribution = { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: '00000000-0000-4000-8000-000000000001' } as const
+    const wrapper = mountWithApp(LoginModal, { props: { redirect: '/b/source', authAttribution } })
+    await vi.runOnlyPendingTimersAsync()
+    await nextTick()
+    expect(eventLog).toHaveBeenCalledExactlyOnceWith({ event_name: 'screen_viewed', properties: { screen_name: 'signup', ...authAttribution } })
+    expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).props('authAttribution')).toEqual(authAttribution)
+    expect(wrapper.findComponent({ name: 'AppleLoginButton' }).props('authAttribution')).toEqual(authAttribution)
+    wrapper.unmount()
+  })
+
+  it('does not attach provenance to an ordinary login', () => {
+    const wrapper = mountWithApp(LoginModal, { props: { redirect: '/bookmarks' } })
+    expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).props('authAttribution')).toBeUndefined()
+    expect(wrapper.findComponent({ name: 'AppleLoginButton' }).props('authAttribution')).toBeUndefined()
+    expect(eventLog).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it('does not record an unmounted prompt or an unrelated modal', async () => {

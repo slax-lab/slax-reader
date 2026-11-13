@@ -6,7 +6,7 @@
 </template>
 
 <script lang="ts" setup>
-import { isCollectionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
+import { isCollectionAuthAttribution, isSnapshotAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import type { PropType } from 'vue'
 
 const t = (text: string) => {
@@ -32,7 +32,7 @@ const props = defineProps({
 const auth = useAuth()
 
 const loginClick = async () => {
-  if (isCollectionAuthAttribution(props.authAttribution)) {
+  if (isCollectionAuthAttribution(props.authAttribution) || isSnapshotAuthAttribution(props.authAttribution)) {
     eventLog({
       event_name: 'element_clicked',
       properties: { screen_name: 'signup', element_id: 'login_google_button', ...props.authAttribution }

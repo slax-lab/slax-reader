@@ -3,7 +3,7 @@ import { configuredCookieName, persistSessionCookie, readStringCookie } from '~/
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
-import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
+import { isAcquisitionAuthAttribution, isSnapshotAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 
@@ -41,7 +41,7 @@ const useAuth = {
 
     location.href = url + '?' + new URLSearchParams(params)
   },
-  async requestAppleAuth(options: { redirect: string; affCode: string; authAttribution?: AcquisitionAuthAttribution }) {
+  async requestAppleAuth(options: { redirect: string; affCode: string; authAttribution?: WebAuthAttribution }) {
     const { redirect, affCode, authAttribution } = options
     const $config = useRuntimeConfig().public
     const url = `https://appleid.apple.com/auth/authorize`
@@ -85,7 +85,7 @@ const useAuth = {
         redirect_uri: redirectUri,
         type: platformType,
         client_id: clientIdRef[platformType],
-        ...(authAttribution && (platformType === 'google' || isAcquisitionAuthAttribution(authAttribution)) ? { auth_attribution: authAttribution } : {})
+        ...(authAttribution && (platformType === 'google' || isAcquisitionAuthAttribution(authAttribution) || isSnapshotAuthAttribution(authAttribution)) ? { auth_attribution: authAttribution } : {})
       }
     })
 

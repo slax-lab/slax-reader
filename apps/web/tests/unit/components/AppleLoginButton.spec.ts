@@ -9,16 +9,18 @@ import { flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockAnalyticsLog, mockRequestAppleAuth, mockUseAuth } = vi.hoisted(() => {
+const { mockAnalyticsLog, mockEventLog, mockRequestAppleAuth, mockUseAuth } = vi.hoisted(() => {
   const mockRequestAppleAuth = vi.fn(() => Promise.resolve())
   return {
     mockAnalyticsLog: vi.fn(),
+    mockEventLog: vi.fn(),
     mockRequestAppleAuth,
     mockUseAuth: vi.fn(() => ({ requestAppleAuth: mockRequestAppleAuth }))
   }
 })
 
 mockNuxtImport('analyticsLog', () => mockAnalyticsLog)
+mockNuxtImport('eventLog', () => mockEventLog)
 mockNuxtImport('useAuth', () => mockUseAuth)
 
 describe('AppleLoginButton', () => {
@@ -83,5 +85,15 @@ describe('AppleLoginButton', () => {
     const wrapper = mountWithApp(AppleLoginButton, { props: { redirect: '/bookmarks', authAttribution } })
     await wrapper.get('button').trigger('click')
     expect(mockRequestAppleAuth).toHaveBeenCalledWith({ redirect: '/bookmarks', affCode: '', authAttribution })
+    expect(mockEventLog).not.toHaveBeenCalled()
+  })
+
+  it('records a contextual click and passes snapshot save provenance', async () => {
+    const authAttribution = { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: '00000000-0000-4000-8000-000000000001' } as const
+    const wrapper = mountWithApp(AppleLoginButton, { props: { redirect: '/b/source', authAttribution } })
+    await wrapper.get('button').trigger('click')
+    expect(mockEventLog).toHaveBeenCalledExactlyOnceWith({ event_name: 'element_clicked', properties: { screen_name: 'signup', element_id: 'login_apple_button', ...authAttribution } })
+    expect(mockRequestAppleAuth).toHaveBeenCalledWith({ redirect: '/b/source', affCode: '', authAttribution })
+    wrapper.unmount()
   })
 })
