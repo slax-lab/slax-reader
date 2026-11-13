@@ -42,3 +42,5 @@ On 2026-11-13, after the actual upload-signer mismatch was explained, the reques
 On 2026-11-13 the requester accepted the synchronized Web authentication flow, then requested a visual correction to the Send code and Sign in with Passkey hover borders. Reuse the existing Web soft-accent hover treatment rather than foreground-colored borders; retain primary/secondary button roles and keyboard focus. This narrow correction does not restructure the approved flow. Human visual acceptance of the corrected hover state is required before the Draft PR.
 
 After requesting the hover correction, the requester explicitly authorized creating the feature PR once it is fixed and closing the preview-certificate supporting PR #592. Retain Draft status and target dev. Android native testing remains deferred until Beta.
+
+Final base integration inherits dev `0d01fb26` (#603), whose only change is Mobile 1.0.31 (806). No additional version bump is introduced. The prior 1.0.30 (805) choice and signed test APK describe the earlier baseline; do not downgrade the subsequently merged dev version or claim that the old binary is an 806 native test.
