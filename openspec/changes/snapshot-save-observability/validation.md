@@ -235,6 +235,21 @@ A final review raised one rate-limit safety issue, one test-isolation issue, and
 - **Q7 traceability.** `proposal.md` and `design.md` now cite the Q7 decision by repository-relative path in `slax-reader-event-tracking` and record that its own branch and pull request must land before this change merges. No main-branch URL is linked because none exists yet.
 - **Number reconciliation.** Focused Web is 12 files and 154 tests; focused API is 2 files and 83 tests; full Web is 241 files passed and 1 skipped with 2,907 tests passed and 3 skipped; full API is 250 files passed and 17 skipped with 3,996 tests passed and 144 skipped. The Node `v26.12.1` full Web result is now only a non-CI footnote.
 
+## Local Browser Exercise
+
+On 2026-11-13, the local API and Web development servers were started under Node `v22.22.2` with the developer-provided local configuration. A real Chrome browser opened a public snapshot from the disposable local database and activated **Save for later**. The existing sign-in modal appeared with Google, Apple, and email entry points.
+
+A separate browser network capture observed direct `POST /events` requests. All four requests returned HTTP 200:
+
+| Event | Verified properties |
+| --- | --- |
+| `screen_viewed` | `screen_name=detail` |
+| `bookmark_opened` | `bookmark_id` was the public source snapshot |
+| `element_clicked` | `element_id=snapshot_save_button`, `screen_name=detail`, and `source_bookmark_id` was the same source snapshot |
+| `screen_viewed` | `screen_name=signup`, `source_screen=detail`, `presentation=modal`, `trigger_element_id=snapshot_save_button`, and the same `source_bookmark_id` |
+
+This verifies real browser event generation and local API acceptance for the anonymous opening, first save activation, and modal exposure. No real account authentication, post-auth return, second activation, fork admission, or final copy was exercised. No event-warehouse or R2 write is claimed by this local exercise.
+
 ## Local Review
 
 A local Bugs, Security, and Compliance pass was performed against the implementation, this change's proposal, design, specs, and validation record.
