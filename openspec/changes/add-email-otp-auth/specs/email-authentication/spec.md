@@ -8,7 +8,7 @@ Allow readers to create or access their accounts with verified email while maint
 
 ### Requirement: An email code registers or signs in a reader
 
-The system SHALL support email-code access on Web, iOS and Android, show its Web client UI only in development, preview, and beta profiles and its native Mobile UI only in development during the initial rollout, and complete the existing login session only after successful verification. Extension users SHALL be able to complete login through the Web handoff. Requesting a code SHALL NOT create a user or reveal whether an account exists.
+The system SHALL support email-code access on Web, iOS and Android, offer its login and account-binding client UI in every Web, iOS, and Android environment, including production, and complete the existing login session only after successful verification. Extension users SHALL be able to complete login through the Web handoff. Requesting a code SHALL NOT create a user or reveal whether an account exists.
 
 #### Scenario: An environment has the Resend API key
 
@@ -57,27 +57,16 @@ The system SHALL require an active authenticated session and proof of the added 
 
 #### Scenario: A Google or Apple user binds a mailbox
 
-- **WHEN** an authenticated reader verifies the requested mailbox from Web account settings in development, preview, or beta, or from Mobile account settings in development
+- **WHEN** an authenticated reader verifies the requested mailbox from Web, iOS, or Android account settings in any environment
 - **THEN** the system binds it to the current user and preserves the original user ID and profile email, including an Apple placeholder
 - **AND** subsequent login using either bound method opens that account
 
-#### Scenario: A reader uses a client outside the email rollout
+#### Scenario: A reader uses a client in any environment
 
-- **WHEN** a reader opens production Web or a non-development native Mobile login or account-settings surface
-- **THEN** that client hides email login entries and code forms, and omits the entire new account sign-in methods section, including its heading, mailbox/provider linking actions, and linked identity status, even for an account with an existing mailbox binding
-- **AND** the original Google and Apple login entries remain available according to the existing platform support
-- **AND** callers can still issue and verify login codes and authenticated mailbox binding codes through the API when the email credentials are configured
-
-#### Scenario: A reader uses a development client
-
-- **WHEN** a reader opens development Web, iOS, or Android login or account settings
+- **WHEN** a reader opens Web, iOS, or Android login or account settings in development, preview, beta, or production
 - **THEN** the client offers email-code login and the complete account sign-in methods section according to the existing account state
-
-#### Scenario: A reader uses a preview or beta Web client
-
-- **WHEN** a reader opens preview or beta Web login or account settings during the rollout
-- **THEN** the client offers email-code login and the complete account sign-in methods section according to the same account rules as development
-- **AND** the native Mobile development-only policy and backend API availability remain unchanged
+- **AND** Google and Apple remain available according to their existing configuration and platform support
+- **AND** issuing and verifying login or authenticated mailbox-binding codes retain the existing API credential and authorization checks
 
 #### Scenario: An email-first user links a provider
 
@@ -124,21 +113,22 @@ The system SHALL retain the existing Google and Apple sign-in paths and use the 
 
 ### Requirement: Native email entry is subordinate to provider sign-in
 
-In development profiles where native email authentication is available, the App SHALL present Google first, Apple login next only on its supported iOS platform, and email last. The email entry SHALL use a quieter borderless secondary treatment while preserving readable contrast, the existing touch target, busy/disabled feedback, and agreement/verification flow. Account settings SHALL present Google and Apple states/actions before the complete mailbox status/binding group; an unbound mailbox action SHALL be visually subordinate to provider-link controls. Native non-development visibility SHALL remain unchanged.
+In every environment, the App SHALL present Google first, Apple login next only on its supported iOS platform, and email last. The email entry SHALL use a quieter borderless secondary treatment while preserving readable contrast, the existing touch target, busy/disabled feedback, and agreement/verification flow. Account settings SHALL present Google and Apple states/actions before the complete mailbox status/binding group; an unbound mailbox action SHALL be visually subordinate to provider-link controls. Environment profile SHALL NOT hide email login or account sign-in methods.
 
-#### Scenario: Development login offers multiple methods
+#### Scenario: Native login offers multiple methods
 
-- **WHEN** a development iOS or Android client displays email login
+- **WHEN** an iOS or Android client in any environment displays email login
 - **THEN** Google precedes email, with Apple between them on iOS only
 - **AND** email remains labelled and operable with its existing touch area and agreement gate while carrying less visual emphasis
 
 #### Scenario: A reader reviews native account identities
 
-- **WHEN** development account settings display linked or unlinked login methods
+- **WHEN** native account settings display linked or unlinked login methods
 - **THEN** Google and Apple status/actions or platform guidance precede the mailbox group
 - **AND** a bound address remains readable and an unbound mailbox offers the same binding flow through a quieter control
 
-#### Scenario: A non-development native client renders authentication
+#### Scenario: A production native client renders authentication
 
-- **WHEN** the App renders login or account settings outside its existing development profile
-- **THEN** email entry, its code form, and the complete new sign-in methods section remain absent
+- **WHEN** the App renders login or account settings in production
+- **THEN** email login and the complete account sign-in methods section are available under the same account and verification rules as development
+- **AND** fixture-only clients retain their existing isolation from real authentication and binding requests

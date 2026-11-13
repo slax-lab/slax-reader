@@ -12,7 +12,7 @@ The email login module SHALL use an identifying decorative envelope beside its l
 
 #### Scenario: An anonymous reader expands email sign-in
 
-- **WHEN** a reader selects the email entry in a development, preview, or beta login page or modal
+- **WHEN** a reader selects the email entry in a login page or modal in any environment
 - **THEN** the expanded module retains its email identity above the form and exposes a clear cancellation action
 - **AND** cancellation closes the form and retains the existing request-abort behavior
 
@@ -33,7 +33,7 @@ Address entry and sending, and code entry and verification, SHALL each present a
 
 ### Requirement: Presentation preserves existing login contracts
 
-The visual refinement SHALL preserve provider availability, invitation verification, development/preview/beta email visibility, account-safe cancellation, referral/acquisition context, post-login continuation, and the accepted account-binding form behavior. It SHALL use the existing Web design roles and curated icon boundary.
+The visual refinement SHALL preserve provider availability, invitation verification, all-environment email availability, account-safe cancellation, referral/acquisition context, post-login continuation, and the accepted account-binding form behavior. It SHALL use the existing Web design roles and curated icon boundary.
 
 #### Scenario: A reader selects an existing provider during email sign-in
 
@@ -43,12 +43,12 @@ The visual refinement SHALL preserve provider availability, invitation verificat
 #### Scenario: A production client renders login
 
 - **WHEN** the login page or modal renders in production
-- **THEN** email entry and its expanded form remain absent according to the rollout policy
+- **THEN** the email entry and compact code flow are available under the same client rules as development
 - **AND** existing provider controls follow their previous configuration rules
 
-#### Scenario: A preview or beta client offers the email flow
+#### Scenario: Every environment offers the email flow
 
-- **WHEN** an anonymous reader opens the Web login page or modal in the preview or beta profile
+- **WHEN** an anonymous reader opens the Web login page or modal in development, preview, beta, or production
 - **THEN** the email entry and compact code flow are available under the same client rules as development
 - **AND** verification retains the existing session, cancellation, and continuation contracts
 

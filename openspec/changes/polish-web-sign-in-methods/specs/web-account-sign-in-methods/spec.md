@@ -8,11 +8,11 @@ Make the Web account's available sign-in methods recognizable, readable, and ope
 
 ### Requirement: Sign-in methods have recognizable and consistent rows
 
-The Web account sign-in subsection SHALL be visible in development, preview, and beta and omitted in production, including already-linked identities. It SHALL preserve its position within the profile card and present each available method with a leading identifying icon, a method name with secondary status beneath it, and a trailing binding action when applicable. Google and Apple SHALL use recognizable approved service artwork. Icons accompanying the visible method name SHALL be decorative to assistive technology.
+The Web account sign-in subsection SHALL be visible in every environment, including production and already-linked identities. It SHALL preserve its position within the profile card and present each available method with a leading identifying icon, a method name with secondary status beneath it, and a trailing binding action when applicable. Google and Apple SHALL use recognizable approved service artwork. Icons accompanying the visible method name SHALL be decorative to assistive technology.
 
-#### Scenario: Development account displays its methods
+#### Scenario: An account displays its methods in any environment
 
-- **WHEN** a reader opens account settings in development, preview, or beta with configured Google and Apple providers
+- **WHEN** a reader opens account settings in any environment with configured Google and Apple providers
 - **THEN** Google, Apple, and email appear in that source order with identifying icons and consistently aligned names, statuses, and applicable actions
 - **AND** the surrounding account-card structure and page navigation remain intact
 

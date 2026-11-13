@@ -10,7 +10,7 @@ See `proposal.md` for scope and the reconciled predecessor deltas for ordering a
 
 **Goals:** Preserve the already accepted compact form, explicit input labels, account-safe binding, host-specific referral/collection context, and cancellation before success. Make the provider preference clear through order and entry hierarchy without hiding email behind another menu.
 
-**Non-Goals:** Redesigning the page/modal shell; changing OTP timing, authentication endpoints, account ownership, destination validation, or native App availability; adding provider-specific recommendation copy, credentials, dependencies, or a preference synchronization service.
+**Non-Goals:** Redesigning the page/modal shell; changing OTP timing, authentication endpoints, account ownership, destination validation; adding provider-specific recommendation copy, credentials, dependencies, or a preference synchronization service.
 
 ## Decisions
 
@@ -30,9 +30,9 @@ Give the shared form a login-selected terminal-success policy; binding keeps its
 
 Clear ordinary pending state on verification errors, preserving invalid-code retry, cancellation/abort, and expiry semantics. Once success is committed and departure starts, ordinary `stop()`/Cancel must not clear the terminal lock or let the same login module close/reopen a fresh form; disable the local cancellation toggle for that interval. Component unmount still performs normal cleanup. Retain the existing explicit navigation-failure error path. Do not add a delay, timer, global login lock, backend retry, or an unresolved promise to simulate browser departure. Regression tests will hold the old mounted form after a resolved navigation start, then attempt click/Enter/direct submit and cancellation/reopening and assert one verification request.
 
-### 4. Extend only the two Web profile predicates
+### 4. Remove client environment restrictions (amended 2026-11-13)
 
-Allow `development`, `preview`, and `beta` in the existing login and account predicates; `production` stays hidden, including bound account identities. The setting is a presentation rollout, not a backend credential/configuration change. The change requester explicitly selected Web-only beta rollout. App rollout and authentication, Extension-native UI, API availability, and provider callback rules retain their current behavior; Extension login through Web naturally uses that Web surface.
+Remove Web email-login and account-subsection profile predicates rather than expanding an allowlist. On Mobile remove `config.development` from login availability and remove the development option/check from account presentation and `useLinkedPlatforms.openEmail`. Retain `!fixtureOnly`, fixture transport isolation, platform-list readiness, current-account ownership, existing-mailbox and mutation guards. Email authentication and binding are available in every real Web/iOS/Android environment, including production. Extension login through Web uses the same unrestricted surface. Provider configuration, callback-origin rules, credentials, and API authorization remain unchanged. The requester's explicit all-environment decision supersedes the earlier Web-only beta rollout.
 
 ### 5. Keep predecessor delta ownership explicit
 
@@ -43,7 +43,7 @@ The main spec inventory has no archived email/presentation capabilities yet. Kee
 - A shared browser displays its last authenticated email when email login opens → this is the explicitly requested local convenience; keep it editable, store only one address, and avoid server/cross-origin synchronization.
 - Authenticated navigation initiation can finish before document departure → terminal form state persists without a timeout; wrong-code errors still permit retry.
 - A quieter entry could become hard to discover → preserve its explicit label, envelope, contrast, focus ring, and 44px target. Check English/Chinese and light/dark/e-ink at 320px, 768px, and desktop, plus the 320x568 modal.
-- Local beta fixtures cannot prove hosted credentials or email delivery → verify actual beta-profile client behavior locally and declare hosted mail delivery separately in the evidence.
+- Local fixtures cannot prove hosted credentials or email delivery → verify actual production-profile client behavior locally and declare hosted mail delivery separately in the evidence.
 
 ## Migration and Verification
 
@@ -52,8 +52,8 @@ There is no account or API migration. A new local preference key is additive; re
 
 ## Approved App Presentation Extension
 
-After accepting Web, the change requester reviewed and authorized this narrow addition on 2026-11-12. `LoginScreen` already renders Google, iOS-only Apple, then email; keep that source order. Add only an email-specific borderless button treatment and regular-weight `C.secondaryText`, preserving the existing 50-point target, width, pressed overlay, agreement gating, analytics identifiers, busy guards, and `config.development && !fixtureOnly` visibility. Do not use `C.mutedText` to make an interactive label faint, change provider buttons, add Web tokens, or change authentication.
+After accepting Web, the change requester reviewed and authorized this narrow addition on 2026-11-12. `LoginScreen` already renders Google, iOS-only Apple, then email; keep that source order. Add only an email-specific borderless button treatment and regular-weight `C.secondaryText`, preserving the existing 50-point target, width, pressed overlay, agreement gating, analytics identifiers, busy guards, and fixture-only isolation (the original development predicate is superseded by decision 4). Do not use `C.mutedText` to make an interactive label faint, change provider buttons, add Web tokens, or change authentication.
 
 In `AccountSignInMethods`, move the complete mailbox status/bind group after Google and Apple state/actions (including the existing Android Apple-link guidance). Keep the existing `SourceButton` implementation and its native pressed/disabled behavior, using a local borderless style and Mobile metadata/secondary-text role for the email-link action. Preserve bound mailbox readability, dialog placement, and all controller callbacks.
 
-The existing `email-authentication` delta remains the single owner for native provider-first presentation; add its native ordering/hierarchy scenarios there, without another capability delta. Extend the existing mounted login/settings suites for platform-dependent source order, unchanged development-only omission, quiet control styling, touch size, and existing agreement/binding behavior. Run Mobile check and both-platform bundle validation. Native runtime evidence must use isolated fixture accounts and app identities; no production accounts, signing, upload, or publication are authorized by this extension. Web acceptance is already recorded; App requires its own hands-on review before combined PR delivery. Obtain the Mobile version decision after the native changes are prepared and validated, as required by `docs/release/VERSIONING.md`.
+The existing `email-authentication` delta remains the single owner for native provider-first presentation; add its native ordering/hierarchy scenarios there, without another capability delta. Extend the existing mounted login/settings suites for platform-dependent source order, all-environment availability, quiet control styling, touch size, and existing agreement/binding behavior. Run Mobile check and both-platform bundle validation. Native runtime evidence must use isolated fixture accounts and app identities; no production accounts, signing, upload, or publication are authorized by this extension. Web acceptance is already recorded; App requires its own hands-on review before combined PR delivery. Obtain the Mobile version decision after the native changes are prepared and validated, as required by `docs/release/VERSIONING.md`.

@@ -38,3 +38,8 @@ PR #584 and the original authentication task have merged. On 2026-11-12 the chan
 
 
 The App-unchanged wording in the original Web follow-up records that phase's scope. After Web hands-on acceptance, the change requester separately reviewed and approved native provider-first order and quieter email entry/binding in `refine-email-login-flow`. Only that presentation exclusion is superseded; native development-only availability, credentials, sessions, and persistence remain unchanged. Native requirements remain solely in the `email-authentication` delta.
+
+
+## All-environment follow-up amendment (2026-11-13)
+
+The requester subsequently removed all client environment restrictions in `refine-email-login-flow` (draft PR #597). Its current plan and the reconciled delta specs supersede the historical rollout exclusions above for Web, iOS, and Android login and account binding, including production. Preserve fixture isolation, credentials, sessions, ownership checks, and the accepted provider-first/secondary-email presentation. Implementation and fresh verification belong to section 6 of the follow-up tasks; predecessor delivery evidence remains historical.

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="emailEnabled" class="email-login">
+  <div class="email-login">
     <div class="email-login-header">
       <span v-if="open" class="email-login-heading">
         <AppIcon name="account.sign-in.email" :size="20" />
@@ -31,7 +31,6 @@ const props = defineProps<{
 }>()
 
 const nuxtApp = useNuxtApp()
-const emailEnabled = ['development', 'preview', 'beta'].includes(useRuntimeConfig().public.slaxEnv)
 const { t } = nuxtApp.$i18n
 const auth = useAuth()
 const formId = useId()

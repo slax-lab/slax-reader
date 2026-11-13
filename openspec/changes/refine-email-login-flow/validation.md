@@ -1,5 +1,7 @@
 # Web Email Login Refinement Verification
 
+The original 2026-11-12 rollout evidence below is historical. The 2026-11-13 amendment at the end of this record supersedes its production/native exclusions.
+
 ## Scope and authorization
 
 - Change: `refine-email-login-flow`; branch: `fix/refine-email-login-flow`, created from `origin/dev` at `89aee48f` after PR #584 merged.
@@ -94,3 +96,43 @@ A fresh fetch confirmed the task's pre-implementation baseline and latest `origi
 - Created [draft PR #597](https://github.com/slax-lab/slax-reader/pull/597) targeting `dev`, combining the approved Web and App refinements. The PR is explicitly a draft, with eight uploaded matched images, this verification record, and the no-version-increment decision. GitHub draft state, base/head branches, and all eight remote image references were checked after creation.
 - Preserved the task's isolated Android debug package, native screenshots, source digests, capture records, and build/check logs outside Git. After delivery, removed only the identified temporary Android project build directories and its project-local Gradle cache; stopped only the task's read-only emulator instance. The source AVD, installed production App, shared/global dependency caches, and other tasks were not changed. Removed the redundant compiler download archive while retaining the temporary compiler used for verification.
 - The worktree and local Web/iOS preview infrastructure remain available for draft iteration. The separate fixture package is diagnostic preview output, not a production release or publication. OpenSpec changes remain unarchived until after task merge and a separate human-reviewed docs PR.
+
+
+## All-environment availability amendment — 2026-11-13
+
+### Authorization and implementation
+
+The requester explicitly decided, after discussion, to remove environment restrictions and make email functionality available in every environment. This applies to Web login/page/modal/account binding and iOS/Android login/account binding, including production, and supersedes the previous Web-only beta/native-development policy. The existing accepted presentation is unchanged; Google/configured Apple remain ahead of the quiet email entry. This update continues the same branch and draft PR #597. The requester’s earlier explicit Mobile no-bump decision remains `1.0.30` / build `805` / previous `804`.
+
+Removed both Web rendering predicates, the Mobile login development predicate, the Mobile account-section development predicate, and the `useLinkedPlatforms.openEmail` development guard/option. Retained fixture-only isolation, loaded-platform readiness, existing-mailbox, current-account, mutation, provider configuration/callback, and API/session checks. Existing fixtures do not become real authentication clients. The three normative capability deltas retain their single predecessor owners. No styles, assets, dependencies, backend code, API contracts, configuration credentials, or version metadata changed in this amendment.
+
+### Regression-first and automated verification
+
+- Updated the existing Web full login and attributed modal continuation/binding cases to include production, plus already-bound identity display. Before removing gates, 4 cases failed and 46 passed; after removal, all 100 tests in the five affected login/modal/account/page/auth suites passed.
+- Native mounted login now checks iOS/Android availability in development, preview, beta, and production. Settings additionally exercises real `SettingsScreen → useLinkedPlatforms → EmailCodeDialog` mailbox binding and provider linking with `development=false`, preserving the session, and displays linked identities without confusing mail collection with login mail. Before removing gates, 9 cases failed and 55 passed; afterward all 64 focused login/settings cases passed.
+- Web type checking and targeted ESLint exited 0. Strict OpenSpec validation passed all 142 items.
+
+### Running-client verification
+
+The actual Nuxt preview ran with `SLAX_ENV=production` and explicit synthetic public configuration at localhost:3287, backed only by the loopback fixture at localhost:8894. Both actual login hosts completed code authentication, retained one remembered successful address across synthetic logout, preserved it after wrong-code failure, and retained the terminal disabled controls/no duplicate verification while an aborted destination navigation kept the old document inspectable. The original destination committed afterward. A separate 320px account smoke completed binding, restored focus/announcement, and confirmed the anonymous remembered address neither prefills nor changes during binding.
+
+An isolated iOS26.5 native client rendered current production components with `config.development=false`: Chinese/English login and account methods remain visible, Google/Apple precede email, and the quiet entry/binding appearance matches the accepted UI. Four frames were captured outside Git and the Chinese login/account frames were visually inspected. Task-host controls prepare states programmatically; this does not claim new user gestures or a production native binary.
+
+### Review, acceptance, and limits
+
+An independent local reviewer completed Bugs/Security/Compliance passes on this amendment and found no Important or actionable Nit findings. The existing Web/App hands-on acceptance before draft creation remains recorded above; on 2026-11-13 the requester explicitly amended availability without requesting visual changes. The accepted development captures in the PR remain representative because this amendment changes availability only.
+
+No hosted production/beta deployment, live email delivery, actual Google/Apple authorization, physical-device Release run, signing, or store publication was performed. Fixtures exercise client behavior without proving server credentials or inbox delivery. Earlier profile-omission evidence is historical and is not claimed as the current target.
+
+Additional amendment limitations: the isolated Android API35 diagnostic APK installed and launched, but its temporary host stayed blank before connecting a Metro inspector target under local resource contention. No fresh Android native render or gesture success is claimed for this amendment; the earlier accepted Android renders remain historical. The non-development Android mounted login and real settings controller regressions, plus the fresh Android production JS export, cover the changed availability logic. The task-owned read-only emulator was stopped; the source AVD and installed production app were not modified.
+
+The initial simultaneous full Web/native checks and bundlers caused local resource contention: the Web run encountered timeouts, a native Kotlin host exceeded its 120-second bound, and the runs were stopped. Web was restarted with `--maxWorkers=2`; native checks were restarted after stopping competing task processes; the export used `--max-workers 2`. No product test deadlines, expected results, or application code were changed to accommodate resource pressure.
+
+### Final amendment check results
+
+- `/tmp/slax-signin-run.sh pnpm web -- test --maxWorkers=2`: 240 files passed, one skipped; **2,902 tests passed, three skipped**. The complete run includes the previously timed-out imports/cold-start cases. The known happy-dom teardown diagnostic did not fail a test or the process.
+- `PATH=/tmp/slax-email-followup-toolchain/kotlinc/bin:$PATH SLAX_KOTLINC=/tmp/slax-email-followup-toolchain/kotlinc/bin/kotlinc SLAX_MOBILE_NO_LOCAL_CONFIG=1 EXPO_NO_DOTENV=1 pnpm mobile -- check`: architecture, assets, fixture, RSS, type checks and **1,242 passing tests, three skipped**, exit 0. Native Kotlin/Swift host checks passed after competing task processes were stopped.
+- `SLAX_MOBILE_NO_LOCAL_CONFIG=1 EXPO_NO_DOTENV=1 pnpm mobile -- bundle --max-workers 2`: Android and iOS Hermes exports succeeded, exit 0. No native rebuild is required for these JavaScript-only predicate removals; no native module boundary changed.
+- Web type checking, targeted ESLint, strict OpenSpec validation (142 items), and `git diff --check` passed. The five focused Web suites passed 100 tests; focused native login/settings passed 64. Logs, synthetic harnesses, native diagnostic APK and captures remain outside Git under `/tmp/slax-email-all-env-*` and `/tmp/slax-email-followup-evidence/`.
+
+The final independent pre-push review rechecked the completed evidence and found no Important, Compliance, or actionable Nit findings. Draft PR #597 was updated with the all-environment policy and fresh results, retaining the accepted visuals and `dev` target.

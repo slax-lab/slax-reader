@@ -101,20 +101,7 @@ describe('global/LoginView', () => {
     wrapper.unmount()
   })
 
-  it.each(['production'])('hides email login in %s', async environment => {
-    runtimeConfig.public.slaxEnv = environment
-    const wrapper = mountWithApp(LoginView)
-    await flushPromises()
-
-    expect(wrapper.find('.email-login-toggle').exists()).toBe(false)
-    expect(wrapper.find('input[type=email]').exists()).toBe(false)
-    expect(wrapper.findComponent({ name: 'GoogleLoginButton' }).exists()).toBe(true)
-    expect(wrapper.findComponent({ name: 'AppleLoginButton' }).exists()).toBe(true)
-    expect(post).not.toHaveBeenCalled()
-    wrapper.unmount()
-  })
-
-  it.each(['development', 'preview', 'beta'])('sends and verifies email with referral and acquisition context in %s', async environment => {
+  it.each(['development', 'preview', 'beta', 'production'])('sends and verifies email with referral and acquisition context in %s', async environment => {
     runtimeConfig.public.slaxEnv = environment
     get.mockResolvedValue({ enabled: true })
     runtimeConfig.public.TURNSTILE_SITE_KEY = ''

@@ -1,5 +1,7 @@
 # Tasks
 
+Sections 1–5 record the previously verified draft delivery. Their earlier rollout restrictions are superseded by the requester-approved all-environment amendment in section 6.
+
 ## 1. Provider-first Presentation and Beta Availability
 
 - [x] 1.1 After proposal approval, reorder the standalone login and account methods to Google, configured Apple, email; preserve the modal's matching source order and existing invitation/provider/cancellation behavior. Verify DOM and keyboard order in both hosts and bound/unbound account component tests.
@@ -28,3 +30,10 @@
 - [x] 5.1 Keep Google/iOS-Apple/email login order, give email a local borderless secondary treatment, and move the whole account mailbox group below provider states/actions with a quiet binding button. Verify mounted Android/iOS control order, labels, targets, pressed/disabled behavior, agreement continuation, bound/unbound status, and unchanged non-development omission in existing tests.
 - [x] 5.2 Run `pnpm mobile -- check`, `pnpm mobile -- bundle`, strict OpenSpec validation, and whitespace checks. Exercise isolated native Android/iOS login and account surfaces, capture evidence outside Git, review the affected diff, and record exact outcomes/limitations in `validation.md` before requesting App hands-on acceptance.
 - [x] 5.3 After implementation and validation, obtain the Mobile version decision under `docs/release/VERSIONING.md` before committing/pushing/handoff as ready; record the decision and verify any approved metadata update through the existing tooling.
+
+
+## 6. All-environment Email Availability (approved 2026-11-13)
+
+- [x] 6.1 Reconcile the single-owner capability deltas and remove Web and native environment gates, including the native binding controller; preserve fixture isolation, provider preference, session/ownership guards, and existing UI behavior.
+- [x] 6.2 First reproduce production/non-development omission with updated login/account regressions, then verify complete production-profile Web login/modal/binding and native non-development binding, run affected checks and native bundles, and record fresh running-client evidence and limits.
+- [x] 6.3 Complete the local Bugs/Security/Compliance review and update the same draft PR #597 with the all-environment policy and evidence, retaining the accepted UI and Mobile version/build decision.

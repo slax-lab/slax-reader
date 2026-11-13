@@ -1,5 +1,5 @@
 <template>
-  <section v-if="showSignInMethods" class="login-methods" :aria-labelledby="titleId">
+  <section class="login-methods" :aria-labelledby="titleId">
     <h3 :id="titleId">{{ t('email_auth.methods_title') }}</h3>
     <div v-for="provider in supportedProviders" :key="provider" class="login-method-group">
       <div class="login-method-row">
@@ -57,7 +57,6 @@ const account = createAccountEmailAuthRequest(props.accountKey)
 const { t } = useI18n()
 const titleId = useId()
 const config = useRuntimeConfig().public
-const showSignInMethods = ['development', 'preview', 'beta'].includes(config.slaxEnv)
 const providerLinkAvailable = canLinkProvidersHere()
 const supportedProviders: EmailAuthProvider[] = [
   ...(config.GOOGLE_OAUTH_CLIENT_ID ? ['google' as const] : []),

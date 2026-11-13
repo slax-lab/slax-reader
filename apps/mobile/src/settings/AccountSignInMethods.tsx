@@ -16,8 +16,8 @@ interface AccountSignInMethodsProps {
 }
 
 export function AccountSignInMethods({t, locale, platform, state, api}: AccountSignInMethodsProps) {
-  const {platforms, development, busy, error, emailFlow} = state;
-  if (!development || !platforms) return null;
+  const {platforms, busy, error, emailFlow} = state;
+  if (!platforms) return null;
   const linked = new Map(platforms.map(item => [item.platform, item]));
   const email = linked.get('mail');
   return <View style={styles.card}>

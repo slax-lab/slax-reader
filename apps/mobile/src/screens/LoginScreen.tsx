@@ -42,7 +42,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
     setLoading(null);
     return () => {pending.current = null; providerGeneration.current++; active.current = false;};
   }, [api, sessions, config.apiUrl]);
-  const emailEnabled = config.development && !fixtureOnly;
+  const emailEnabled = !fixtureOnly;
   const markInteractive = useObserveMarkInteractive();
   useEffect(() => {markInteractive();}, [markInteractive]);
   const sessionGuard = () => {

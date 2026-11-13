@@ -50,7 +50,7 @@ describe('Account sign-in methods', () => {
     expect(wrapper.findAll('.login-method-name').map(row => row.text())).toEqual(['Google', 'Apple', 'Sign-in email'])
   })
 
-  it.each(['development', 'preview', 'beta'])('displays linked identities and binds email in %s', async environment => {
+  it.each(['development', 'preview', 'beta', 'production'])('displays linked identities and binds email in %s', async environment => {
     oauth.environment = environment
     localStorage.setItem('slax:last-login-email', 'previous@example.com')
     fetchMock.mockResolvedValueOnce(json({ request_id: 'bind-attempt', expires_in: 300, resend_after: 60 }))
@@ -88,7 +88,7 @@ describe('Account sign-in methods', () => {
     expect(localStorage.getItem('slax:last-login-email')).toBe('previous@example.com')
   })
 
-  it.each(['development', 'preview', 'beta', 'production'])('shows a login mailbox only in test profiles for %s', async environment => {
+  it.each(['development', 'preview', 'beta', 'production'])('shows a linked login mailbox in %s', async environment => {
     oauth.environment = environment
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: {
       accountKey,
@@ -96,10 +96,10 @@ describe('Account sign-in methods', () => {
       platform: [...platforms, { platform: 'mail', user_name: 'reader@example.com', created_at: new Date('2026-11-01T00:00:00Z') }]
     } })
 
-    expect(wrapper.text().includes('Same as profile email')).toBe(['development', 'preview', 'beta'].includes(environment))
-    expect(wrapper.findAll('.login-method-row')).toHaveLength(['development', 'preview', 'beta'].includes(environment) ? 2 : 0)
-    expect(wrapper.text().includes('GoogleLinked')).toBe(['development', 'preview', 'beta'].includes(environment))
-    expect(wrapper.find('section').exists()).toBe(['development', 'preview', 'beta'].includes(environment))
+    expect(wrapper.text().includes('Same as profile email')).toBe(true)
+    expect(wrapper.findAll('.login-method-row')).toHaveLength(2)
+    expect(wrapper.text().includes('GoogleLinked')).toBe(true)
+    expect(wrapper.find('section').exists()).toBe(true)
     expect(wrapper.find('button').exists()).toBe(false)
   })
 
@@ -131,17 +131,6 @@ describe('Account sign-in methods', () => {
 
     expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Link email'])
     expect(wrapper.text()).toContain('Provider linking is unavailable from this Web address')
-  })
-
-  it.each(['production'])('hides the entire sign-in methods section in %s', async environment => {
-    oauth.environment = environment
-    const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, platform: [] } })
-    await flushPromises()
-
-    expect(wrapper.find('section').exists()).toBe(false)
-    expect(wrapper.text()).toBe('')
-    expect(wrapper.findAll('button')).toHaveLength(0)
-    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('does not navigate with a provider challenge for a different sign-in method', async () => {

@@ -56,3 +56,8 @@ For the initial rollout, Web renders email authentication only when `public.slax
 ## Sequenced Follow-up Design
 
 The earlier decisions above document the delivered predecessor. The proposed `refine-email-login-flow/design.md` supersedes only Web method order, email-entry hierarchy, and Web beta rollout in this change's reconciled delta. Native App and backend policies remain unchanged. New remembered-address and terminal-navigation behavior is specified only in the follow-up's own capability delta. Implementation approval and fresh verification/acceptance remain tracked in the follow-up.
+
+
+## All-environment follow-up amendment (2026-11-13)
+
+The requester subsequently removed all client environment restrictions in `refine-email-login-flow` (draft PR #597). Its current plan and the reconciled delta specs supersede the historical rollout exclusions above for Web, iOS, and Android login and account binding, including production. Preserve fixture isolation, credentials, sessions, ownership checks, and the accepted provider-first/secondary-email presentation. Implementation and fresh verification belong to section 6 of the follow-up tasks; predecessor delivery evidence remains historical.
