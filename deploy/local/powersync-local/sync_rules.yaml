@@ -254,3 +254,21 @@ streams:
             )
         )
           AND is_history = false
+
+  ## Newsletter remains separate from RSS; only ready, owner-visible metadata is synchronized.
+  newsletter_v1:
+    auto_subscribe: false
+    accept_potentially_dangerous_queries: false
+    query: |
+      SELECT CAST(id AS TEXT) AS id, source_key, sender, sender_name,
+        title, excerpt, published_at, received_at
+      FROM sr_newsletter_feed
+      WHERE user_id IN current_user_id
+        AND state = 'ready'
+        AND user_id IN (
+          SELECT lab.user_id
+          FROM sr_user_lab_feature AS lab
+          WHERE lab.user_id IN current_user_id
+            AND lab.feature = 'newsletter'
+            AND lab.enabled = true
+        )

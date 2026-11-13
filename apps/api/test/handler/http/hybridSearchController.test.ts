@@ -240,6 +240,29 @@ describe('deferred ContextManager cleanup', () => {
     expect(cleanup).toHaveBeenCalledOnce()
   })
 
+  test('deferred cleanup preserves the caller error handler and releases resources once', async () => {
+    const { ctx, runtime } = context()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => (release = resolve))
+    const failure = new Error('cleanup unavailable')
+    const cleanup = vi.fn(async () => {
+      throw failure
+    })
+    const onError = vi.fn()
+    ctx.onCleanup(cleanup)
+    ctx.deferCleanupUntil(gate)
+    await ctx.cleanup(onError)
+    await ctx.cleanup(onError)
+    expect(cleanup).not.toHaveBeenCalled()
+    expect(runtime.ctx.waitUntil).toHaveBeenCalledOnce()
+    release()
+    await Promise.all(runtime.pending)
+    expect(cleanup).toHaveBeenCalledOnce()
+    expect(onError).toHaveBeenCalledExactlyOnceWith(failure)
+    await ctx.cleanup(onError)
+    expect(cleanup).toHaveBeenCalledOnce()
+  })
+
   test('cancellation still releases cleanup after the aborted work settles', async () => {
     const stream = vi.fn(async (_ctx, _input, signal) => {
       await new Promise<void>(resolve => signal.addEventListener('abort', resolve, { once: true }))

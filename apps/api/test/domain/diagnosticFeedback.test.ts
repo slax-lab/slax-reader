@@ -291,6 +291,7 @@ describe('diagnostic capability verification and removal', () => {
     ]
     const before = structuredClone(reports)
     const pg = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
       sr_user_report: { findMany: vi.fn().mockResolvedValue(reports), deleteMany: vi.fn(), updateMany: vi.fn() },
       $executeRaw: vi.fn(async () => {
         order.push('remaining cleanup')
@@ -312,7 +313,7 @@ describe('diagnostic capability verification and removal', () => {
       order.push('objects')
       for (const key of Array.isArray(keys) ? keys : [keys]) f.objects.delete(key)
     })
-    const deletion = new UserDeletionService((() => pg) as never, {} as never, {} as never, vectorRepo as never)
+    const deletion = new UserDeletionService((() => pg) as never, { deleteNewsletterBatch: vi.fn().mockResolvedValue([]) } as never, {} as never, vectorRepo as never)
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       if (dispatchFailure) {

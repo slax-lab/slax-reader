@@ -1,3 +1,4 @@
+import { UserRepo } from '@/infra/repository/dbUser'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/hyperdrive-client'
@@ -424,7 +425,10 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     const { VectorMaintenanceRepo } = await import('@/infra/repository/dbVectorMaintenance')
     const deletion = new UserDeletionService(
       () => client,
-      {} as any,
+      new UserRepo(
+        () => ({}) as never,
+        () => client
+      ),
       () => ({ R2Bucket: memory.bucket }) as any,
       new VectorMaintenanceRepo(() => client)
     )
@@ -444,7 +448,10 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     })
     const failedR2 = new UserDeletionService(
       () => client,
-      {} as any,
+      new UserRepo(
+        () => ({}) as never,
+        () => client
+      ),
       () =>
         ({
           R2Bucket: {

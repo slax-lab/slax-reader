@@ -1,5 +1,6 @@
 export const appMessages = {
   en: {
+    newsletter_source: 'Newsletter',
     login_email: 'Continue with email',
     email_auth_intro: 'Use a one-time code to sign in or create an account.',
     email_auth_address: 'Email address',
@@ -153,6 +154,7 @@ export const appMessages = {
     system_entry_unavailable_message: 'This system search result is no longer available in the signed-in library.',
   },
   zh: {
+    newsletter_source: '邮件通讯',
     login_email: '使用邮箱继续',
     email_auth_intro: '使用一次性验证码登录或创建账号。',
     email_auth_address: '邮箱地址',

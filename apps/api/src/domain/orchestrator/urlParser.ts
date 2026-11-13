@@ -1,3 +1,4 @@
+import { isNewsletterTarget, assertExternalNewsletterTarget } from '@/utils/newsletterTarget'
 import { pickTagsForBookmark, groupVocabulary } from '@/utils/tags'
 import { inject, injectable } from '@/decorators/di'
 import { ContextManager } from '@/utils/context'
@@ -61,6 +62,7 @@ export class UrlParserHandler {
   }
 
   public static async fetchContent(env: Env, message: parseMessage): Promise<fetchResult> {
+    assertExternalNewsletterTarget(message.targetUrl)
     const startTime = Date.now()
     const fetcher = new SlaxFetch(env)
     try {
@@ -207,6 +209,7 @@ export class UrlParserHandler {
 
   async processParseMessage(ctx: ContextManager, message: receiveQueueParseMessage): Promise<{ success: boolean; bookmarkId: number }> {
     const { id, info } = message
+    if (isNewsletterTarget(info?.targetUrl)) return { success: false, bookmarkId: info.bookmarkId }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { resource, ...logInfo } = info
     console.log(`processing message: ${id}, messageInfo: ${JSON.stringify(logInfo)}`)
@@ -276,6 +279,7 @@ export class UrlParserHandler {
 
   async processRetryParseMessage(ctx: ContextManager, message: receiveRetryParseMesaage) {
     const { id, info } = message
+    if (isNewsletterTarget(info.targetUrl)) return
     console.log(`processing retry message: ${id}, messageInfo: ${JSON.stringify(info)}`)
 
     await this.bookmarkService.updateBookmarkParseQueueRetry(info.bookmarkId, info.retry.userIds || [], {

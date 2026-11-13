@@ -12,3 +12,12 @@ describe('local-first schema: sr_user_tag', () => {
     expect(AppSchema.tables.some(t => t.name === 'sr_user_tag')).toBe(true)
   })
 })
+
+describe('local-first Newsletter metadata', () => {
+  it('exposes a separate metadata table without message body or internal content references', () => {
+    const table = AppSchema.tables.find(t => t.name === 'sr_newsletter_feed')
+    expect(table).toBeDefined()
+    expect(table!.columns.map(column => column.name)).toEqual(expect.arrayContaining(['source_key', 'sender', 'sender_name', 'title', 'excerpt', 'published_at', 'received_at']))
+    expect(table!.columns.map(column => column.name)).not.toEqual(expect.arrayContaining(['content_key']))
+  })
+})

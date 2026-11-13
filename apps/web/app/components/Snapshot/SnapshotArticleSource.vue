@@ -1,16 +1,18 @@
 <template>
-  <a class="article-source" :href="href" target="_blank" rel="noopener noreferrer" :title="url">
+  <component :is="href ? 'a' : 'div'" class="article-source" :class="{ 'article-source-link': !!href }"
+    :href="href || undefined" :target="href ? '_blank' : undefined" :rel="href ? 'noopener noreferrer' : undefined" :title="url || undefined">
     <span class="article-source-label">{{ $t('component.snapshot_article_source.label') }}</span>
     <span class="article-source-name" :title="sourceName">{{ sourceName }}</span>
     <span v-if="authorName" class="article-source-separator">·</span>
     <span v-if="authorName" class="article-source-author" :title="authorName">{{ authorName }}</span>
-    <span class="article-source-external" aria-hidden="true">↗</span>
-  </a>
+    <span v-if="href" class="article-source-external" aria-hidden="true">↗</span>
+  </component>
 </template>
 
 <script lang="ts" setup>
+import { httpOriginalUrl } from '~/utils/bookmarkSource'
 const props = defineProps<{
-  url: string
+  url?: string | null
   /** Parsed publication/column name. A future column_name can be passed here with priority. */
   siteName?: string | null
   columnName?: string | null
@@ -18,12 +20,7 @@ const props = defineProps<{
   hostUrl?: string | null
 }>()
 
-// 无协议时补 https://
-const href = computed(() => {
-  const url = props.url?.trim() ?? ''
-  if (!url) return url
-  return /^https?:\/\//i.test(url) ? url : `https://${url}`
-})
+const href = computed(() => httpOriginalUrl(props.url))
 
 const hostname = computed(() => {
   const raw = props.hostUrl?.trim() || props.url?.trim() || ''
@@ -43,7 +40,7 @@ const sourceName = computed(() => {
   // columnName 优先，前向兼容未来的 column 字段
   const parsed = props.columnName?.trim() || props.siteName?.trim()
   if (parsed) return isX.value && /^(twitter|x)$/i.test(parsed) ? 'X' : parsed
-  return hostname.value || props.url
+  return hostname.value || props.url || ''
 })
 
 const authorName = computed(() => {
@@ -73,7 +70,7 @@ const authorName = computed(() => {
   text-decoration: none;
   transition: all 0.15s;
 
-  &:hover {
+  &.article-source-link:hover {
     color: var(--slax-accent);
     background: color-mix(in srgb, var(--slax-accent) 10%, transparent);
   }

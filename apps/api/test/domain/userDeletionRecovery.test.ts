@@ -68,7 +68,7 @@ describe('deleted-account cleanup recovery', () => {
     const env = failure === 'missing-env' ? undefined : ({ VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch } } as any)
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      const service = new UserDeletionService(() => prisma, {} as any, {} as any, vectorRepo as any)
+      const service = new UserDeletionService(() => prisma, { deleteNewsletterBatch: vi.fn().mockResolvedValue([]) } as any, {} as any, vectorRepo as any)
       await expect(service.cleanupUserData(7, env)).rejects.toThrow(failure === 'missing-env' ? 'missing_vector_maintenance_workflow' : 'vector admission unavailable')
       expect(deleted).toBe(false)
       expect(vectorRepo.listUserBookmarkIds).toHaveBeenCalledExactlyOnceWith(7, 0, 50)
@@ -99,7 +99,7 @@ describe('deleted-account cleanup recovery', () => {
       listSubscriberUsers: vi.fn().mockRejectedValue(new Error('subscriber_fanout_forbidden'))
     }
     const createBatch = vi.fn().mockResolvedValue([])
-    const service = new UserDeletionService(() => prisma, {} as any, {} as any, vectorRepo as any)
+    const service = new UserDeletionService(() => prisma, { deleteNewsletterBatch: vi.fn().mockResolvedValue([]) } as any, {} as any, vectorRepo as any)
     await service.cleanupUserData(7, { VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch } } as any)
     expect(vectorRepo.listSubscriberUsers).not.toHaveBeenCalled()
     expect(createBatch.mock.calls.flatMap(([items]) => items.map((item: any) => item.params.target))).toEqual([
