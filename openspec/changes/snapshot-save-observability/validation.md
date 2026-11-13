@@ -248,7 +248,17 @@ A separate browser network capture observed direct `POST /events` requests. All 
 | `element_clicked` | `element_id=snapshot_save_button`, `screen_name=detail`, and `source_bookmark_id` was the same source snapshot |
 | `screen_viewed` | `screen_name=signup`, `source_screen=detail`, `presentation=modal`, `trigger_element_id=snapshot_save_button`, and the same `source_bookmark_id` |
 
-This verifies real browser event generation and local API acceptance for the anonymous opening, first save activation, and modal exposure. No real account authentication, post-auth return, second activation, fork admission, or final copy was exercised. No event-warehouse or R2 write is claimed by this local exercise.
+This verifies real browser event generation and local API acceptance for the anonymous opening, first save activation, and modal exposure. The authenticated continuation and final-copy results are recorded separately below. No event-warehouse or R2 write is claimed by this local exercise.
+
+## Authenticated Local Exercise and Fork Outcome
+
+After the anonymous checks, the local environment initially used a remote API origin. That configuration mistake was identified from the browser's public runtime configuration and corrected by restarting Web with `DWEB_API_BASE_URL=http://localhost:8787`, without editing the developer's configuration file. A new local account was then created through the real Google flow, login returned HTTP 200, and the authenticated save activation reached `POST /v1/bookmark/add_url`, also returning HTTP 200.
+
+The resulting fork relation was created, but its final status was `failed` with `fork_source_not_ready`. The selected source was a September local fixture whose business status was `success` but whose current content object could not be read. Therefore this specific old-fixture path does not establish final content availability.
+
+A fresh isolated `FORK_SMOKE=1 pnpm api -- test:http` run used disposable PostgreSQL, local R2/KV/D1, actual Edge/Core HTTP, and the real Crawl Workflow. Its initial HTML, shortcut, uploaded-PDF, URL-PDF, YouTube, and podcast fork exercises all passed their success checks. The overall harness later failed at `forkSmoke.ts:585` during a separate fault-injection recapture assertion. The complete smoke run is therefore **not** reported as passing; only the earlier initial fork exercises are used as final-copy evidence here.
+
+This combination establishes the real registration, login, second activation, save admission, and fresh-source copy boundaries, while preserving the old-fixture failure and the unrelated later smoke failure as explicit limitations. No automatic post-authentication save was implemented or observed.
 
 ## Local Review
 
