@@ -66,6 +66,21 @@ describe('email code delivery', () => {
     expect(remove).not.toHaveBeenCalled()
   })
 
+  test.each(['login', 'bind'] as const)('permits shared-IP %s sends through 300 and rejects request 301', async purpose => {
+    const { store, count } = mockStore()
+    const sender = captureMail()
+    const service = new EmailCodeService(store)
+    const context = { ...input, purpose, ...(purpose === 'bind' ? { userId: 42 } : {}) }
+    for (const ipCount of [31, 300]) {
+      count.mockImplementation(async (_environment, dimension) => (dimension === 'ip' ? ipCount : 1))
+      await expect(service.sendCode(env, context, sender)).resolves.toMatchObject({ expires_in: 300, resend_after: 60 })
+    }
+    count.mockImplementation(async (_environment, dimension) => (dimension === 'ip' ? 301 : 1))
+    await expect(service.sendCode(env, context, sender)).rejects.toMatchObject({ name: 'TOO_MANY_REQUESTS' })
+    expect(sender).toHaveBeenCalledTimes(2)
+    expect(count).toHaveBeenCalledWith('dev', 'ip', expect.any(String), 3600)
+  })
+
   test('fails before touching Redis or Resend when delivery configuration is missing', async () => {
     const { store, count } = mockStore()
     const sender = captureMail()

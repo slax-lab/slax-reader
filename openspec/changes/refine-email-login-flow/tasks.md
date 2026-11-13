@@ -43,3 +43,10 @@ Sections 1–5 record the previously verified draft delivery. Their earlier roll
 
 - [x] 7.1 Confirm the actual PR state from its timeline and reconcile current-state wording while preserving the historical draft-delivery/acceptance record. Explicitly mark superseded rollout tasks and describe the native fixed-container-to-ScrollView effect of all-environment availability.
 - [x] 7.2 Check the documentation against existing source and review feedback, run strict OpenSpec/whitespace validation, and record the documentation-only verification exemption.
+
+
+## 8. Shared-IP Email Send Quota (approved 2026-11-13)
+
+- [x] 8.1 Reproduce the 31st-request rejection under the old ceiling, then raise only the per-IP/hour ceiling to 300 and reconcile its single-owner authentication delta.
+- [x] 8.2 Verify 300th-request acceptance/301st rejection, shared-IP use by distinct addresses/devices and both purposes, unchanged remaining guards, and running local Redis/service behavior; record checks and limits.
+- [x] 8.3 Complete local Bugs/Security/Compliance review and push the focused adjustment and evidence to PR #597, preserving its ready-for-review state.

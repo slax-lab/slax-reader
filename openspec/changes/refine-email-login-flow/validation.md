@@ -147,3 +147,27 @@ The final independent pre-push review rechecked the completed evidence and found
 - This follow-up changes documentation and PR metadata only. Runtime/type/lint/bundle reruns are exempt; the previously recorded running-client and automated results remain historical evidence for unchanged code. Strict OpenSpec validation and `git diff --check` verify this documentation follow-up.
 
 The documentation follow-up passed `openspec validate --all --strict` (142 items, zero failures) and `git diff --check`. Independent Bugs/Security/Compliance review found no Important or remaining Nit findings.
+
+
+## Approved per-IP send ceiling — 2026-11-13
+
+The requester explicitly approved only `ipSendLimit: 30 → 300` requests per hour, keeping every other guard unchanged and updating PR #597. This supersedes the historical 30/hour IP figure in earlier review notes. The change is one production constant; the existing Redis key scope, counter increment/expiry behavior and delivery error handling are unchanged. No new configuration, dependency, API contract, UI change, production deployment, live email send, or application version update is included. API-only changes do not use package-version increments under `docs/release/VERSIONING.md`.
+
+### Automated checks
+
+- Regression-first service tests for both login and binding failed on the old ceiling: two failures at request count 31, 11 passes, 13 opt-in Redis skips. After the one-line change, the domain and real-Redis integration suites passed **26 tests with zero skips** using `EMAIL_OTP_REDIS_TEST=1`. Tests cover counts 31/300/301, distinct addresses/devices sharing an IP, login/binding sharing the production-environment IP quota, existing one-hour expiry, and the unchanged address/device/environment/cooldown/verification guards.
+- Command: `PATH=/tmp/slax-email-ip-limit-toolchain/redis-stable/src:$PATH EMAIL_OTP_REDIS_TEST=1 pnpm --dir apps/api test test/domain/emailCode.test.ts test/infra/emailChallengeRedis.integration.test.ts --maxWorkers=2`. Both existing email suites ran with the real Redis opt-in enabled; no route-suite execution is claimed.
+- API/contracts type checking exited 0 after generating the existing Prisma clients through `gen:model` with dotenv loading explicitly disabled and synthetic local database URLs. The first type attempt lacked these generated clients; no product types were changed to accommodate that prerequisite.
+- ESLint passed the production constant. Tests are intentionally excluded by the API ESLint configuration; Prettier checking passed all three changed TypeScript files. Strict OpenSpec validation and whitespace validation passed.
+
+### Running local service verification
+
+A separate loopback HTTP fixture exercised the real `EmailCodeService`, `EmailChallengeRepo`, and `RedisClient`, backed by a disposable Redis 8.10.2 instance through the existing Upstash-compatible local REST fixture. `RUN_TYPE=prod` and all credentials/addresses were synthetic. The fixture alternated login/binding for **301 distinct mailbox/device requests from the same IP** without seeding counts: requests 1–300 returned HTTP 200, request 301 returned HTTP 429, and exactly 300 synthetic deliveries occurred. Thus the old 31st-request obstruction is removed and the 301st is stopped before delivery. The fixture and Redis were disposed after completion.
+
+The HTTP adapter is a task-local harness around the production service/repository, not the complete Core Worker router/session/database stack. It does not claim a production traffic capacity measurement or new end-to-end account-binding verification. Existing route/UI acceptance remains historical evidence for unchanged code. Real Resend delivery and hosted sender/domain validity were not exercised. Harnesses, logs and the temporary Redis toolchain remain outside Git under `/tmp/slax-email-ip-limit-*`.
+
+### Production configuration metadata check
+
+A read-only `wrangler secret list --name reader-core` in an isolated temporary directory confirmed that `RESEND_API_KEY`, `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN` names exist on the Core Worker. Only secret names were inspected, never values. `EMAIL_AUTH_FROM` is not a secret there and retains its existing code fallback (a public variable override was not inspected). This establishes binding-name presence only; it does not prove credential validity, Redis reachability, sender verification, provider plan capacity, or inbox delivery. No remote configuration was modified.
+
+Independent pre-push Bugs/Security/Compliance review found no Important or Nit findings. Strict validation passed all 142 items; whitespace checks passed. PR #597’s Test plan was updated for the approved 300/hour IP-only adjustment, keeping its ready-for-review state and original target.

@@ -4,7 +4,7 @@ export const EMAIL_CODE_CONFIG = {
   resendCooldownSeconds: 60,
   maxAttempts: 5,
   addressSendLimit: 5,
-  ipSendLimit: 30,
+  ipSendLimit: 300,
   deviceSendLimit: 10,
   environmentSendLimit: 500,
   sendWindowSeconds: 60 * 60,
