@@ -67,3 +67,9 @@ Web and Mobile SHALL use existing login/account structures, account/session life
 - **THEN** its existing authentication surfaces offer Passkey actions with usable localized controls
 - **AND** beta/production keep Passkey controls hidden without gating the backend by rollout environment
 - **AND** existing email/provider visibility and interaction remain consistent with the latest approved base implementation
+
+#### Scenario: A pointer hovers an email authentication action
+
+- **WHEN** an enabled email-code or Passkey login action is hovered
+- **THEN** its border uses the existing soft-accent hover role rather than the foreground text color
+- **AND** the Passkey action retains the existing secondary-button hover surface and visible keyboard focus

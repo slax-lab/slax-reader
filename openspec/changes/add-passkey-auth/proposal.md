@@ -38,3 +38,7 @@ On 2026-11-13 the requester authorized syncing the latest dev into the isolated 
 The pre-sync Web acceptance is historical. Repeat Web hands-on acceptance on the synchronized build before opening the feature Draft PR; Android native acceptance also remains pending.
 
 On 2026-11-13, after the actual upload-signer mismatch was explained, the requester chose to defer Android physical-device Passkey testing until Beta instead of updating test-domain trust. Do not replace #592's temporary debug certificate with the upload certificate or publish additional trust for this attempt. Beta testing will require a matching installed package signer, published Beta association and API configuration; no successful Android acceptance is inferred from this deferral. This decision does not enable Beta Passkey controls or authorize merging/promotion.
+
+On 2026-11-13 the requester accepted the synchronized Web authentication flow, then requested a visual correction to the Send code and Sign in with Passkey hover borders. Reuse the existing Web soft-accent hover treatment rather than foreground-colored borders; retain primary/secondary button roles and keyboard focus. This narrow correction does not restructure the approved flow. Human visual acceptance of the corrected hover state is required before the Draft PR.
+
+After requesting the hover correction, the requester explicitly authorized creating the feature PR once it is fixed and closing the preview-certificate supporting PR #592. Retain Draft status and target dev. Android native testing remains deferred until Beta.

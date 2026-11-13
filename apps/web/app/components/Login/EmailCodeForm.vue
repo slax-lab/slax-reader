@@ -310,9 +310,8 @@ const verifyCode = async () => {
   white-space: nowrap;
 }
 
-.email-code-form--inline .email-code-button:hover:not(:disabled),
-.email-passkey-button:hover:not(:disabled) {
-  border-color: var(--slax-text);
+.email-code-form--inline .email-code-button:hover:not(:disabled) {
+  border-color: var(--slax-accent-soft);
   background: var(--slax-accent);
 }
 
