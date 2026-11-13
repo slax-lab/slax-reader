@@ -42,7 +42,7 @@ A run SHALL write the JSON, HTML and text objects and read them back before it m
 
 #### Scenario: Lost the row to another run
 - **WHEN** the compare-and-set fails because another run or new captions changed the row
-- **THEN** the run deletes the objects it wrote and ends without error
+- **THEN** the run removes its unpublished objects without deleting an already published version and ends without error
 
 #### Scenario: Nonempty output accepted once
 - **WHEN** a parseable response supplies all required nonempty passages with changed wording, numbers, language, length or repeated text

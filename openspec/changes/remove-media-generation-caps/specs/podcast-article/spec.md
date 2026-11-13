@@ -2,6 +2,10 @@
 
 ### Requirement: Bounded cost
 
+**Reason**: The business caps on duration, text volume, chunk count, estimated or accumulated spend, daily site spend and daily user starts rejected otherwise eligible work. Cost accounting, provider deadlines, bounded retries and concurrency controls remain.
+
+**Migration**: No data or schema migration. The replacement requirement covers explicit owner recovery of records stopped by a removed cap; historical records are not requeued automatically.
+
 ## ADDED Requirements
 
 ### Requirement: Generation without business caps
