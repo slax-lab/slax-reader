@@ -104,9 +104,14 @@ it.each([
   { ...metadata, mark_list: [] },
   { ...metadata, content_key: 'html/body/current.html' }
 ])('does not serve an outdated presentation revision: %j', async current => {
+  diagnostic.enabled = true
   cache.match.mockResolvedValue(new Response('old cached body', { headers: { [SNAPSHOT_REVISION_HEADER]: await snapshotMetadataRevision(metadata) } }))
-  backend.fetch.mockResolvedValue(Response.json(current))
-  expect((await lookup({ method: 'GET', path: '/b/source', headers: {}, context: { cloudflare: { env: { BACKEND: backend } } } })).body).toBe('fresh page')
+  backend.fetch.mockResolvedValue(Response.json(current, { headers: { 'Server-Timing': 'core_access;dur=20' } }))
+  const response = await lookup({ method: 'GET', path: '/b/source', headers: {}, context: { cloudflare: { env: { BACKEND: backend } } } })
+  expect(response.body).toBe('fresh page')
+  const timing = new Headers(response.headers as never).get('server-timing')
+  expect(timing).toContain('front_cache-validation;dur=')
+  expect(timing).not.toContain('core_access')
 })
 
 it('keeps the existing ten-minute format convergence without a new namespace', async () => {

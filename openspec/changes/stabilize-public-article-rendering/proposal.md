@@ -17,6 +17,8 @@ Affected owners are the Web article component and share cache, API access/conten
 
 This work is sequenced after the merged implementation of `optimize-public-article-lcp`; it does not edit that change's deltas or claim its unresolved field outcome. The target remains LCP Good at least 70% separately for podcast and Mole families under the existing outcome contract. Offline mechanism checks are not a field-success claim.
 
+Archive sequencing is separate from code sequencing: archive `optimize-public-article-lcp` before this change, classifying every unchecked task under the existing archive procedure first. The shared `public-article-delivery` and `image-proxy-reuse` deltas must not be archived in parallel. This follow-up does not mark the earlier change's multi-condition verification or field tasks complete.
+
 ## Approval
 
 The user approved the revised four-item plan in conversation and requested a fresh branch/worktree and implementation, with particular attention to highlights, image preview and podcast play/seek/resume. No layout or interaction redesign is proposed.

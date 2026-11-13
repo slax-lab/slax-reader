@@ -40,10 +40,11 @@ export async function matchesCurrentSnapshot(
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
     if (!response.ok) return false
+    const metadata = (await response.json()) as { role?: string }
+    if (metadata.role !== role || (await snapshotMetadataRevision(metadata)) !== revision) return false
     const serverTiming = response.headers.get('Server-Timing')
     if (serverTiming) onServerTiming?.(serverTiming)
-    const metadata = (await response.json()) as { role?: string }
-    return metadata.role === role && (await snapshotMetadataRevision(metadata)) === revision
+    return true
   } catch {
     return false
   }
