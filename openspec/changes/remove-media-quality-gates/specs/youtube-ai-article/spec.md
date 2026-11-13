@@ -2,7 +2,7 @@
 
 ### Requirement: Shared article versions
 
-The system SHALL keep at most one article per video, caption source hash, target language (`en` or `zh`) and prompt version, and every bookmark of that video SHALL read the version that matches its captions and the reader's language. The system SHALL write a ready article as the body of a bookmark only when the owner has `youtube_article` enabled and reads that language, the bookmark is not flagged by moderation, and the bookmark has no non-deleted highlight or comment. Otherwise the system SHALL NOT change the bookmark's body. A body write SHALL update the body objects, word count and search index together, and SHALL keep the player and its cue data.
+The system SHALL keep at most one article per video, caption source hash, target language (`en` or `zh`) and prompt version, and every bookmark of that video SHALL read the version that matches its captions and the reader's language. The system SHALL write a ready article as the body of a bookmark only when the owner has `youtube_article` enabled and reads that language, the bookmark is not flagged by moderation, and the bookmark has no non-deleted highlight or comment. Otherwise the system SHALL NOT change the bookmark's body. A body write SHALL publish the body objects and word count and SHALL keep the player and its cue data. Search indexing SHALL follow as independently retryable work; indexing failure SHALL NOT block reading the ready body or demote the article.
 
 #### Scenario: Second reader with the same language
 - **WHEN** a second user saves a video that already has a ready article in that user's AI language

@@ -22,7 +22,6 @@ All YouTube and podcast article text generation SHALL use `deepseek-flash` with 
 - **WHEN** a YouTube article chunk call is made
 - **THEN** it carries no Gemini thinking settings under the DeepSeek provider contract, and a `MAX_TOKENS` reply is handled by the established truncation recovery
 
-
 ### Requirement: Numeric tokens survive translation
 
 Podcast translation prompts SHALL list the chunk's numeric tokens and the system instruction SHALL require every number, date, unit and quantity to be written as digits, never as a word or a Chinese numeral.
