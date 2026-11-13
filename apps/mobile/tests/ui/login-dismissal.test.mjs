@@ -174,10 +174,10 @@ for (const retired of ['unmount', 'identity']) test(`session persistence failure
   assert.deepEqual(fixture.alerts, [])
 })))
 
-for (const platform of ['ios', 'android']) for (const profile of ['development', 'beta', 'production']) {
-  test(`mounted ${platform} email login is development-only in ${profile}`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
+for (const platform of ['ios', 'android']) for (const profile of ['development', 'preview', 'beta', 'production']) {
+  test(`mounted ${platform} email login is available in ${profile}`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
     await fixture.setProfile(profile);
-    assert.equal(fixture.controls.has('login_email'), profile === 'development');
+    assert.equal(fixture.controls.has('login_email'), true);
     assert.ok(fixture.controls.has('login_google'));
     assert.equal(fixture.controls.has('login_apple'), platform === 'ios');
     assert.deepEqual(fixture.requests, []);

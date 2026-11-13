@@ -1,9 +1,12 @@
-## RENAMED Requirements
+## REMOVED Requirements
 
-- FROM: `### Requirement: Bounded cost`
-- TO: `### Requirement: Generation without business caps`
+### Requirement: Bounded cost
 
-## MODIFIED Requirements
+**Reason**: The business caps on duration, text volume, chunk count, estimated or accumulated spend, daily site spend and daily user starts rejected otherwise eligible work. Cost accounting, provider deadlines, bounded retries and concurrency controls remain.
+
+**Migration**: No data or schema migration. The replacement requirement covers explicit owner recovery of records stopped by a removed cap; historical records are not requeued automatically.
+
+## ADDED Requirements
 
 ### Requirement: Generation without business caps
 
@@ -37,6 +40,8 @@ The system SHALL process otherwise eligible YouTube articles without rejecting o
 #### Scenario: Long video automatic admission
 - **WHEN** a video longer than four hours meets the remaining language, speech-density, and readability rules
 - **THEN** it is eligible for automatic generation and duration alone does not send it to manual review
+
+## MODIFIED Requirements
 
 ### Requirement: Generation triggers and Labs gate
 

@@ -2,7 +2,7 @@
 
 ### Requirement: Shared article versions
 
-The system SHALL keep at most one article per video, caption source hash, target language (`en` or `zh`) and prompt version, and every bookmark of that video SHALL read the version that matches its captions and the reader's language. The system SHALL write a ready article as the body of a bookmark only when the owner has `youtube_article` enabled and reads that language, the bookmark is not flagged by moderation, and the bookmark has no non-deleted highlight or comment. Otherwise the system SHALL NOT change the bookmark's body. A body write SHALL update the body objects, word count and search index together, and SHALL keep the player and its cue data.
+The system SHALL keep at most one article per video, caption source hash, target language (`en` or `zh`) and prompt version, and every bookmark of that video SHALL read the version that matches its captions and the reader's language. The system SHALL write a ready article as the body of a bookmark only when the owner has `youtube_article` enabled and reads that language, the bookmark is not flagged by moderation, and the bookmark has no non-deleted highlight or comment. Otherwise the system SHALL NOT change the bookmark's body. A body write SHALL publish the body objects and word count and SHALL keep the player and its cue data. Search indexing SHALL follow as independently retryable work; indexing failure SHALL NOT block reading the ready body or demote the article.
 
 #### Scenario: Second reader with the same language
 - **WHEN** a second user saves a video that already has a ready article in that user's AI language
@@ -42,7 +42,7 @@ A run SHALL write the JSON, HTML and text objects and read them back before it m
 
 #### Scenario: Lost the row to another run
 - **WHEN** the compare-and-set fails because another run or new captions changed the row
-- **THEN** the run deletes the objects it wrote and ends without error
+- **THEN** the run removes its unpublished objects without deleting an already published version and ends without error
 
 #### Scenario: Nonempty output accepted once
 - **WHEN** a parseable response supplies all required nonempty passages with changed wording, numbers, language, length or repeated text
@@ -51,4 +51,24 @@ A run SHALL write the JSON, HTML and text objects and read them back before it m
 #### Scenario: Empty output remains invalid
 - **WHEN** required generated content is empty
 - **THEN** the system recovers within bounded retries and never publishes an empty article
+
+#### Scenario: Ambiguous spoken year
+- **WHEN** complete translated passages differ in a numeric token such as a source self-correction from 2019 to 2010
+- **THEN** the difference is diagnostic and does not force repeated regeneration or reject the article
+
+#### Scenario: Missing translated passage
+- **WHEN** a translation response omits a required passage or returns unusable text
+- **THEN** successful passages remain saved and only incomplete work is retried within the existing limits
+
+#### Scenario: Independent chunk failure
+- **WHEN** one chunk exhausts its recovery allowance
+- **THEN** independent chunks continue and save their successful results for a later retry
+
+#### Scenario: Search indexing failure
+- **WHEN** indexing fails after a body has been published
+- **THEN** the body remains readable and indexing is independently retryable
+
+#### Scenario: Indexing exhausts immediate retries
+- **WHEN** indexing remains unavailable after the workflow step retries
+- **THEN** the durable publication record remains and a later sweep retries publication and indexing without regenerating the article
 

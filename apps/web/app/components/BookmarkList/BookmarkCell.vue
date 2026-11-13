@@ -109,7 +109,7 @@
       class="article-star"
       data-analytics-element="bookmark_star_button"
       :class="{ active: isStarred }"
-      @click.stop="starBookmark(!isStarred)"
+      @click.stop="starBookmark(!isStarred, $event)"
       type="button"
     >
       <!-- 未星标：outline 星 -->
@@ -140,8 +140,10 @@ import { vOnClickOutside, vOnKeyStroke } from '@vueuse/components'
 import Toast, { ToastType } from '~/components/Toast'
 import { useBookmarkCellNavigation } from '~/composables/bookmark/useBookmarkCellNavigation'
 import { LocalFirstAdapterKey } from '~/composables/local-first/injection'
+import { isLocallyFirstStar, useFirstStarCollectionCue } from '~/composables/useFirstStarCollectionDiscovery'
 
 const { t } = useI18n()
+const showFirstStarCue = useFirstStarCollectionCue()
 const props = defineProps({
   index: {
     type: Number,
@@ -171,6 +173,12 @@ const props = defineProps({
   textMode: {
     type: Boolean,
     default: false
+  },
+  // 列表侧本地已知的星标数；未知（undefined）时仍按首次星标候选处理，已知非零则跳过提示
+  localStarredCount: {
+    type: Number,
+    required: false,
+    default: undefined
   }
 })
 
@@ -493,16 +501,37 @@ const updateBookmarkTitle = () => {
   isEditingTitle.value = false
 }
 
-const starBookmark = async (isStar: boolean) => {
+const showStarSuccess = async (isStar: boolean, isFirstStar: boolean, anchor: HTMLElement | null) => {
+  if (!isStar) {
+    Toast.showToast({ text: t('common.tips.unstar_success'), type: ToastType.Success })
+    return
+  }
+
+  if (isFirstStar) {
+    const result = await showFirstStarCue({
+      isFirstStar,
+      anchor,
+      baseContainer: anchor?.closest('.article-card') as HTMLElement | null
+    })
+    // The helper presented the cue; otherwise keep the ordinary success feedback.
+    if (result !== 'not-applicable') return
+  }
+
+  Toast.showToast({ text: t('common.tips.star_success'), type: ToastType.Success })
+}
+
+const starBookmark = async (isStar: boolean, event?: MouseEvent) => {
   trackListItemInteract('star')
 
   const status = !isStar ? 'unstar' : 'star'
+  const anchor = (event?.currentTarget as HTMLElement | null) ?? null
+  const isFirstStar = isStar && isLocallyFirstStar(isStarred.value, props.localStarredCount)
   try {
     // LF：写本地收藏态，不 emit
     if (lfActions) {
       await lfActions.setStar(lfKey(), isStar)
       analyticsLog({ event: 'bookmark_star', is_starred: isStar, source: 'inbox' })
-      Toast.showToast({ text: t(!isStar ? 'common.tips.unstar_success' : 'common.tips.star_success'), type: ToastType.Success })
+      await showStarSuccess(isStar, isFirstStar, anchor)
       return
     }
 
@@ -525,10 +554,7 @@ const starBookmark = async (isStar: boolean) => {
       source: 'inbox'
     })
 
-    Toast.showToast({
-      text: t(!isStar ? 'common.tips.unstar_success' : 'common.tips.star_success'),
-      type: ToastType.Success
-    })
+    await showStarSuccess(isStar, isFirstStar, anchor)
   } catch (e) {
     console.log(e)
     Toast.showToast({
@@ -556,6 +582,13 @@ const starBookmark = async (isStar: boolean) => {
   cursor: pointer;
   color: inherit;
   text-decoration: none;
+
+  // CursorToast 容器脱流，避免作为 flex 子项造成卡片瞬时位移
+  :deep(.cursor-toast-container) {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
 
   // 编辑态：恢复默认光标
   &.editing {

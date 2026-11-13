@@ -15,7 +15,6 @@ interface LinkedPlatformOptions {
   platform: NativeProvider['platform'];
   authenticate(provider: LoginProvider, nonce: string): Promise<LoginRequest | null>;
   fixture: boolean;
-  development: boolean;
 }
 
 interface Lifetime {
@@ -25,7 +24,7 @@ interface Lifetime {
   mutation?: AbortController;
 }
 
-export function useLinkedPlatforms({api, scope, platform, authenticate, fixture, development}: LinkedPlatformOptions) {
+export function useLinkedPlatforms({api, scope, platform, authenticate, fixture}: LinkedPlatformOptions) {
   const [snapshot, setSnapshot] = useState<{api: PlatformsApi; scope: AccountScope; value: LinkedPlatform[]}>();
   const [error, setError] = useState<AppMessageKey>();
   const [busy, setBusy] = useState<LoginProvider | null>(null);
@@ -73,7 +72,7 @@ export function useLinkedPlatforms({api, scope, platform, authenticate, fixture,
 
   function openEmail() {
     const generation = lifetime.current;
-    if (!development || !platforms || platforms.some(item => item.platform === 'mail') || !generation?.current() || generation.mutation) return;
+    if (!platforms || platforms.some(item => item.platform === 'mail') || !generation?.current() || generation.mutation) return;
     setError(undefined);
     setEmailFlow(generation);
   }
@@ -115,5 +114,5 @@ export function useLinkedPlatforms({api, scope, platform, authenticate, fixture,
     }
   }
 
-  return {platforms, development, error, busy, emailFlow, openEmail, emailLinked, closeEmail: () => setEmailFlow(null), linkProvider};
+  return {platforms, error, busy, emailFlow, openEmail, emailLinked, closeEmail: () => setEmailFlow(null), linkProvider};
 }

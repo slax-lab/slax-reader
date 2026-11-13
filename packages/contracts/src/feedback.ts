@@ -37,6 +37,7 @@ export type DiagnosticExportEvent =
   | 'log.truncated'
   | 'share.start'
   | 'share.end'
+  | 'share.lifecycle'
 export type DiagnosticValue = string | number | boolean | null | DiagnosticValue[] | { [key: string]: DiagnosticValue }
 export type DiagnosticExportEntry = {
   v: 1
@@ -126,7 +127,8 @@ const events: readonly DiagnosticExportEvent[] = [
   'log.dropped',
   'log.truncated',
   'share.start',
-  'share.end'
+  'share.end',
+  'share.lifecycle'
 ]
 const reasons = [
   'no_extension_context',
@@ -210,6 +212,13 @@ export function sanitizeDiagnosticExportEntry(value: unknown): DiagnosticExportE
   scalar(out, value, ['launch', 'share'], v => typeof v === 'string' && /^[a-f0-9-]{8,36}$/i.test(v))
   if (String(value.event).startsWith('share.') && value.src === 'app') return null
   if (String(value.event).startsWith('auth.') && value.src !== 'app') return null
+  if (value.event === 'share.lifecycle') {
+    if (value.src !== 'share-android' || typeof out.share !== 'string' || !['finish_requested', 'destroyed'].includes(String(value.phase)) || typeof value.success !== 'boolean' || typeof value.finishing !== 'boolean') return null
+    out.phase = value.phase as string
+    out.success = value.success
+    out.finishing = value.finishing
+    return out
+  }
   if (value.event === 'share.start' || value.event === 'share.end') {
     if (typeof out.share !== 'string') return null
     if (value.event === 'share.start') return out

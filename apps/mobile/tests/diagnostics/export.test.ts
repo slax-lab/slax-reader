@@ -94,3 +94,32 @@ test('invalid event shapes cannot poison an otherwise usable recent export', () 
   const safe = sanitizeDiagnosticRecord({...base, event: 'auth.refresh_failed', http: {path: '/v1/user/private-secret-link?token=sensitive'}, error: {class: 'a'.repeat(48), domain: 'file:///private/path'}});
   assert.equal(JSON.stringify(safe).includes('sensitive'), false); assert.equal(JSON.stringify(safe).includes('private'), false); assert.equal(JSON.stringify(safe).includes('a'.repeat(48)), false);
 });
+
+test('Android finish and destruction evidence survives export and shared upload filtering', async () => {
+  const shared = await import('@slax-reader/contracts/feedback');
+  const f = fixture();
+  const rows = ['finish_requested', 'destroyed'].map((phase, index) => ({
+    ...record(`2026-10-29T00:00:0${index}.000Z`, 'share-android'), event: 'share.lifecycle', phase, success: true, finishing: index === 1,
+    url: 'https://private.example/secret', token: 'secret-token', body: 'secret-body',
+  }));
+  f.files.set('2026-10-29.share-android.ndjson', rows.map(value => JSON.stringify(value)).join('\n') + '\n');
+  const file = await stageRecentDiagnostics(f.source);
+  try {
+    const exported = (await file.file.text()).trim().split('\n').map(value => JSON.parse(value));
+    assert.equal(exported.length, 2);
+    assert.deepEqual(exported.map(value => value.phase), ['finish_requested', 'destroyed']);
+    for (const [index, value] of exported.entries()) {
+      assert.equal(value.success, true); assert.equal(value.finishing, index === 1);
+      assert.equal(value.share, 'abcd1234');
+      assert.equal(JSON.stringify(value).includes('secret'), false);
+      assert.deepEqual(shared.sanitizeDiagnosticExportEntry(value), value);
+      const dirty = shared.sanitizeDiagnosticExportEntry(rows[index])!;
+      assert.equal(JSON.stringify(dirty).includes('secret'), false);
+    }
+  } finally {file.release();}
+  for (const invalid of [{phase: 'other'}, {success: 'true'}, {finishing: undefined}, {src: 'app'}, {src: 'share-ios'}, {share: null}]) {
+    const value = {...rows[0], ...invalid};
+    assert.equal(sanitizeDiagnosticRecord(value), null);
+    assert.equal(shared.sanitizeDiagnosticExportEntry(value), null);
+  }
+});

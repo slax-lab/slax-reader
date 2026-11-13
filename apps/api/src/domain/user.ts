@@ -21,6 +21,7 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import { OAuthStateRepo } from '@/infra/repository/redisOAuthState'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
+import { defaultShareCollectionName } from '@/domain/collection'
 import { i18n } from '@/const/i18n'
 import { ContextManager } from '@/utils/context'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
@@ -244,6 +245,13 @@ export class UserService {
   ): Promise<userLoginResp> {
     if (!user.id) throw RegisterUserError()
     await this.userRepo.requireActiveUser(user.id)
+    try {
+      const owner = await this.userRepo.getInfoByUserId(user.id)
+      const { collection, created } = await this.collectionRepo.ensureUserShareCollectWithCreation(user.id, defaultShareCollectionName(owner))
+      if (created) dispatchVectorMaintenance(ctx, { kind: 'collection', id: collection.id })
+    } catch (error) {
+      console.error(`[login] collection provisioning failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
     const userId = String(new Hashid(ctx.env).encodeId(user.id))
     const token = await new Auth(ctx.env).sign({ id: userId, lang: user.lang, email: user.email })
     this.bindRequestDevice(ctx, request, user.id, isNew ? 'signup' : 'login')
@@ -599,7 +607,7 @@ export class UserService {
   public async enableUserSetting(ctx: ContextManager, setting: string, enable: boolean): Promise<string | userShareCollectInfo> {
     if (setting === 'share_collect') {
       const user = await this.userRepoData.getInfoByUserId(ctx.getUserId())
-      const res = await this.collectionRepo.enableUserShareCollect(ctx.getUserId(), enable, user.name, 1)
+      const res = await this.collectionRepo.enableUserShareCollect(ctx.getUserId(), enable, defaultShareCollectionName(user), 1)
       dispatchVectorMaintenance(ctx, { kind: 'collection', id: res.id })
       return {
         show_name: res.display_name,

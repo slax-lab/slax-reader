@@ -870,26 +870,16 @@
         "my_inbox": "我的收件箱"
       },
       "starred_share": {
-        "title": "你的星标，也能帮别人发现好内容",
-        "desc": "开启后，星标文章自动组成你的推荐阅读页，别人通过链接即可订阅。",
-        "enable": "开启合集",
-        "dismiss": "暂不开启",
-        "status_enabled": "已开启合集",
+        "status_open": "公开中",
         "subscriber_count": "{count} 人订阅",
         "share": "分享合集",
         "copied": "已复制合集链接",
         "view_collection": "查看合集",
+        "view_starred": "去星标页看看",
+        "default_desc": "星标会自动组成推荐阅读页，可复制链接分享。",
         "mini_copy": "你的星标也能帮别人发现好内容",
-        "mini_cta": "开启合集",
-        "enable_modal": {
-          "title": "开启星标合集",
-          "desc": "开启后，已有和新增的星标文章会自动组成你的推荐阅读页。",
-          "note": "合集页公开可见，可随时关闭或重新开启。",
-          "submit": "开启合集",
-          "success_title": "你的合集已开启",
-          "success_desc": "你加星标的文章，都会自动收录进合集。",
-          "success_cta": "查看我的合集"
-        }
+        "mini_cta": "重新开启合集",
+        "first_star_cue": "已加入星标合集"
       },
       "local_sync": {
         "title": "正在初始化…",
@@ -977,7 +967,7 @@
       "status_closed": "已关闭",
       "page_desc": "修改合集名称与描述，调整公开状态。",
       "closed_notice": "你的合集已不再公开，订阅者会看到「已关闭」。",
-      "reopen": "重新开启",
+      "reopen": "恢复公开",
       "link_label": "合集链接",
       "link_hint": "系统生成，不可修改；分享此链接给他人即可访问你的合集",
       "link_hint_closed": "合集关闭期间，此链接不可用。",
@@ -1003,7 +993,7 @@
       "toast_saved": "已保存修改",
       "toast_copied": "已复制合集链接",
       "toast_closed": "合集已关闭",
-      "toast_reopened": "合集已重新开启",
+      "toast_reopened": "合集已恢复公开",
       "default_name": "{name} 的阅读推荐"
     },
     "guide": {

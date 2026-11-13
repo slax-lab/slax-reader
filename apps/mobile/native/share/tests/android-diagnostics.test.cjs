@@ -172,7 +172,13 @@ fun main(args: Array<String>) {
     diagnostics.requestFinished()
     Thread.sleep(40)
     if (oversized) diagnostics.store("漢".repeat(5000))
-    diagnostics.finish(result); diagnostics.finish("ok"); diagnostics.finish(); diagnostics.shutdown()
+    diagnostics.finish(result); diagnostics.finish("ok"); diagnostics.finish()
+    diagnostics.lifecycle("finish_requested", result == "ok", false)
+    diagnostics.lifecycle("finish_requested", result != "ok", true)
+    diagnostics.lifecycle("untrusted-phase", true, true)
+    diagnostics.lifecycle("destroyed", result == "ok", true)
+    diagnostics.lifecycle("destroyed", result != "ok", false)
+    diagnostics.shutdown()
     val executorField = diagnostics.javaClass.getDeclaredField("executor").apply {isAccessible = true}
     check((executorField.get(diagnostics) as ExecutorService).awaitTermination(5, TimeUnit.SECONDS))
     val files = File(directory, "diagnostics").listFiles()!!
@@ -180,10 +186,17 @@ fun main(args: Array<String>) {
     val contents = files.single().readText()
     check(contents.endsWith("\n"))
     val lines = contents.lineSequence().filter {it.isNotEmpty()}.toList()
-    check(lines.size == 2)
+    check(lines.size == 4)
     for (line in lines) check((line + "\n").toByteArray(Charsets.UTF_8).size <= 4096)
     val start = JSONObject(lines[0]); val end = JSONObject(lines[1])
     check(start.getString("event") == "share.start" && end.getString("event") == "share.end")
+    for ((index, phase) in listOf("finish_requested", "destroyed").withIndex()) {
+      val lifecycle = JSONObject(lines[index + 2])
+      check(lifecycle.getString("event") == "share.lifecycle" && lifecycle.getString("phase") == phase)
+      check(lifecycle.getString("share") == end.getString("share") && lifecycle.getString("launch") == end.getString("launch"))
+      check(lifecycle.getBoolean("success") == (result == "ok") && lifecycle.getBoolean("finishing") == (index == 1))
+      check(!lifecycle.has("input") && !lifecycle.has("token") && !lifecycle.has("http"))
+    }
     check(start.getString("app") == "1.0.0 (1)" && start.getString("os") == "Android fixture")
     check(!end.has("app") && !end.has("os") && !end.has("sync"))
     check(start.getString("share") == end.getString("share") && end.getString("share") == end.getString("launch"))

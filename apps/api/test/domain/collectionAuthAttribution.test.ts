@@ -19,6 +19,7 @@ const acquisition = {
 function fixture(isNew = false) {
   const pending: Promise<unknown>[] = []
   const send = vi.fn().mockResolvedValue(undefined)
+  const createBatch = vi.fn().mockResolvedValue([])
   const ctx = new ContextManager(
     { waitUntil: (p: Promise<unknown>) => pending.push(p) } as ExecutionContext,
     {
@@ -27,21 +28,24 @@ function fixture(isNew = false) {
       JWT_ISSUER: 'test',
       JWT_EXPIRES: 600,
       JWT_ALGORITHMS: 'HS256',
-      SLAX_READER_STREAM_STREAM: { send }
+      SLAX_READER_STREAM_STREAM: { send },
+      VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch }
     } as unknown as Env
   )
   const provider = vi.spyOn(SlaxAuth.prototype, 'login').mockResolvedValue({ sub: 'provider-id', email: 'fixture@example.test', picture: '', name: 'Fixture' } as never)
-  const persisted = { id: 7, uuid: 'fixture-user', lang: 'en', email: 'fixture@example.test' }
+  const persisted = { id: 7, uuid: 'fixture-user', lang: 'en', email: 'fixture@example.test', name: 'Fixture' }
   const bindAlias = vi.fn().mockResolvedValue(undefined)
+  const collectionRepo = { ensureUserShareCollectWithCreation: vi.fn().mockResolvedValue({ collection: { id: 3 }, created: false }) }
   const service = new UserService(
     {
       requireActiveUser: vi.fn().mockResolvedValue(undefined),
+      getInfoByUserId: vi.fn().mockResolvedValue(persisted),
       bindUserDeviceAlias: bindAlias
     } as never,
     (() => ({ putRemoteIfKeyExists: vi.fn().mockResolvedValue(null) })) as never,
     {} as never,
     {} as never,
-    {} as never,
+    collectionRepo as never,
     {} as never,
     {} as never,
     { trackEvent: vi.fn().mockResolvedValue(undefined) } as never,
@@ -60,7 +64,7 @@ function fixture(isNew = false) {
         body: JSON.stringify({ type, code: 'fixture-code', auth_attribution: metadata })
       })
     )
-  return { login, send, provider, bindAlias, settled: () => Promise.all(pending) }
+  return { login, send, createBatch, provider, bindAlias, collectionRepo, settled: () => Promise.all(pending) }
 }
 
 afterEach(() => vi.restoreAllMocks())
@@ -132,6 +136,34 @@ describe('collection authentication attribution', () => {
     f.send.mockRejectedValue(new Error('stream unavailable'))
     await expect(f.login(attribution)).resolves.toMatchObject({ is_new_user: false })
     await expect(f.settled()).resolves.toBeDefined()
+  })
+})
+
+describe('collection provisioning during authentication', () => {
+  test('provisions and indexes the default collection after the active account is confirmed', async () => {
+    const f = fixture(true)
+    f.collectionRepo.ensureUserShareCollectWithCreation.mockResolvedValue({ collection: { id: 3 }, created: true })
+
+    await expect(f.login(undefined)).resolves.toMatchObject({ is_new_user: true })
+    await f.settled()
+
+    expect(f.collectionRepo.ensureUserShareCollectWithCreation).toHaveBeenCalledWith(7, "Fixture's Reading Recommendations")
+    expect(f.createBatch).toHaveBeenCalledExactlyOnceWith([
+      expect.objectContaining({ params: { eventId: expect.any(String), target: { kind: 'collection', id: 3 } } })
+    ])
+  })
+
+  test('does not dispatch indexing for an existing collection', async () => {
+    const f = fixture()
+    await f.login(undefined)
+    await f.settled()
+    expect(f.createBatch).not.toHaveBeenCalled()
+  })
+
+  test('preserves login success when collection provisioning fails', async () => {
+    const f = fixture()
+    f.collectionRepo.ensureUserShareCollectWithCreation.mockRejectedValue(new Error('collection unavailable'))
+    await expect(f.login(undefined)).resolves.toMatchObject({ is_new_user: false, token: expect.any(String) })
   })
 })
 
