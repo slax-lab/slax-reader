@@ -1,9 +1,8 @@
-## RENAMED Requirements
+## REMOVED Requirements
 
-- FROM: `### Requirement: Bounded cost`
-- TO: `### Requirement: Generation without business caps`
+### Requirement: Bounded cost
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Generation without business caps
 

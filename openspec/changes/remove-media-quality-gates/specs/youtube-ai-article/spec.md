@@ -52,3 +52,23 @@ A run SHALL write the JSON, HTML and text objects and read them back before it m
 - **WHEN** required generated content is empty
 - **THEN** the system recovers within bounded retries and never publishes an empty article
 
+#### Scenario: Ambiguous spoken year
+- **WHEN** complete translated passages differ in a numeric token such as a source self-correction from 2019 to 2010
+- **THEN** the difference is diagnostic and does not force repeated regeneration or reject the article
+
+#### Scenario: Missing translated passage
+- **WHEN** a translation response omits a required passage or returns unusable text
+- **THEN** successful passages remain saved and only incomplete work is retried within the existing limits
+
+#### Scenario: Independent chunk failure
+- **WHEN** one chunk exhausts its recovery allowance
+- **THEN** independent chunks continue and save their successful results for a later retry
+
+#### Scenario: Search indexing failure
+- **WHEN** indexing fails after a body has been published
+- **THEN** the body remains readable and indexing is independently retryable
+
+#### Scenario: Indexing exhausts immediate retries
+- **WHEN** indexing remains unavailable after the workflow step retries
+- **THEN** the durable publication record remains and a later sweep retries publication and indexing without regenerating the article
+

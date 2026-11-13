@@ -18,6 +18,10 @@ All YouTube and podcast article text generation SHALL use `deepseek-flash` with 
 - **WHEN** DeepSeek credentials are absent
 - **THEN** no alternate model is called and the generation failure does not expose credentials or request content
 
+#### Scenario: YouTube chunk uses the thinking level
+- **WHEN** a YouTube article chunk call is made
+- **THEN** it carries no Gemini thinking settings under the DeepSeek provider contract, and a `MAX_TOKENS` reply is handled by the established truncation recovery
+
 
 ### Requirement: Numeric tokens survive translation
 
