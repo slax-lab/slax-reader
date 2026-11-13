@@ -8,3 +8,5 @@
 - [ ] 6. Record verification and operator gaps, obtain hands-on acceptance, preserve version 1.0.30 (805), and create a Draft PR to dev.
 
 - [ ] 7. Sync dev `293847be`, preserve #597 email interactions and rollout, verify the Release test-domain Passkey surface, compare actual signing identity, and prepare/test the operator-signed Android package.
+
+Task 7 status: dev synchronization, regression checks, actual signer comparison and signed test APK preparation are complete. Android native execution is deferred by the requester until Beta (2026-11-13), so this task is not marked passed. Do not update #592's certificate trust for the skipped local attempt.
