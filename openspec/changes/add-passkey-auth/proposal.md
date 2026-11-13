@@ -44,3 +44,5 @@ On 2026-11-13 the requester accepted the synchronized Web authentication flow, t
 After requesting the hover correction, the requester explicitly authorized creating the feature PR once it is fixed and closing the preview-certificate supporting PR #592. Retain Draft status and target dev. Android native testing remains deferred until Beta.
 
 Final base integration inherits dev `0d01fb26` (#603), whose only change is Mobile 1.0.31 (806). No additional version bump is introduced. The prior 1.0.30 (805) choice and signed test APK describe the earlier baseline; do not downgrade the subsequently merged dev version or claim that the old binary is an 806 native test.
+
+The requester subsequently explicitly confirmed retaining dev's Mobile 1.0.31 (806), without an additional bump, in conversation on 2026-11-13. The historical signed 805 test APK remains unchanged.
