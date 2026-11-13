@@ -105,9 +105,11 @@ async function handleMeta(env: Env, ctx: ExecutionContext, request: Request, tok
     requestLog(request, ctxManager)
 
     const queryStartedAt = performance.now()
+    const metadataTimings: Record<string, number> = {}
     const meta = await currentContainer.resolve(ContentOrchestrator).getContentMeta(ctxManager, uuid, (step, duration) => {
-      timings[step] = duration
+      metadataTimings[step] = duration
     })
+    Object.assign(timings, metadataTimings)
     timings.meta = elapsedMs(queryStartedAt)
 
     const serializeStartedAt = performance.now()

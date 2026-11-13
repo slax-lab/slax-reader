@@ -48,18 +48,33 @@ function wire() {
   const cs = { getBookmarkCollectionRef: vi.fn().mockResolvedValue(null) }
   const service = {
     ...bs,
-    getBookmarkReadAccess: async (ctx: any, uuid: string) => {
+    getBookmarkReadAccess: async (ctx: any, uuid: string, recordTiming?: (step: string, durationMs: number) => void) => {
       const row = await bs.getUserBookmarkByUuidWithDetail(uuid)
       return resolveBookmarkReadAccess({
         getUserBookmarkByUuidWithDetail: async () => row,
         getBookmarkShareByBookmarkId: async () => row?.metadata?.share ?? null
-      } as any, userRepo as any, ctx.getUserId(), uuid)
+      } as any, userRepo as any, ctx.getUserId(), uuid, recordTiming)
     }
   }
   return { orch: new (ContentOrchestrator as any)(service, us, ts, ms, cs) as ContentOrchestrator, bs, us, userRepo, ts, ms, cs }
 }
 
 describe('getContentMeta', () => {
+  test('records fixed access/metadata stages without changing serialized metadata or access decisions', async () => {
+    const { orch, bs } = wire()
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ metadata: { share: share() } }))
+    const ctx = createMockCtx({ userId: 0 })
+    const baseline = JSON.stringify(await orch.getContentMeta(ctx, 'ub-uuid'))
+    const recordTiming = vi.fn()
+    expect(JSON.stringify(await orch.getContentMeta(ctx, 'ub-uuid', recordTiming))).toBe(baseline)
+    expect(recordTiming.mock.calls.map(([step]) => step)).toEqual([
+      'access-bookmark', 'access-owner', 'access-share', 'access', 'owner', 'trace', 'fork', 'pdf', 'collection', 'orchestrator'
+    ])
+    for (const [, duration] of recordTiming.mock.calls) expect(duration).toBeGreaterThanOrEqual(0)
+    bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ metadata: { share: share({ is_enable: false }) } }))
+    await expect(orch.getContentMeta(ctx, 'ub-uuid', recordTiming)).rejects.toThrow()
+  })
+
   test.each([0, 20, 10])('reads the author once and preserves the public profile for viewer %s', async userId => {
     const { orch, bs, userRepo } = wire()
     bs.getUserBookmarkByUuidWithDetail.mockResolvedValue(ub({ metadata: { share: share() } }))

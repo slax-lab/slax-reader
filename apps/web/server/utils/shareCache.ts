@@ -30,7 +30,8 @@ export async function matchesCurrentSnapshot(
   backend: { fetch: (url: string, init: RequestInit) => Promise<Response> },
   uuid: string,
   token: string | undefined,
-  role: 'owner' | 'visitor'
+  role: 'owner' | 'visitor',
+  onServerTiming?: (value: string) => void
 ): Promise<boolean> {
   const revision = cached.headers.get(SNAPSHOT_REVISION_HEADER)
   if (!revision) return false
@@ -40,7 +41,10 @@ export async function matchesCurrentSnapshot(
     })
     if (!response.ok) return false
     const metadata = (await response.json()) as { role?: string }
-    return metadata.role === role && (await snapshotMetadataRevision(metadata)) === revision
+    if (metadata.role !== role || (await snapshotMetadataRevision(metadata)) !== revision) return false
+    const serverTiming = response.headers.get('Server-Timing')
+    if (serverTiming) onServerTiming?.(serverTiming)
+    return true
   } catch {
     return false
   }

@@ -3,6 +3,13 @@ import { CrawlService } from '@/domain/crawl'
 import { SocialMediaApi } from '@/infra/external/socialMedia'
 import type { TweetArticleInfo, TweetInfo } from '@/const/twitterapi/struct'
 import { createMockBookmarkRepo, createMockBucketClient, createMockCtx, createMockMediaSnapshots } from '@test/helpers/mockFactory'
+import { parseHTML } from 'linkedom'
+
+// Node lacks Workers' MD5 extension; use the same real digest for capture signing.
+vi.mock('@/utils/strings', async original => ({
+  ...(await original<typeof import('@/utils/strings')>()),
+  hashMD5: async (input: string) => (await import('node:crypto')).createHash('md5').update(input).digest('hex')
+}))
 
 const STATUS_URL = 'https://x.com/isnail/status/2100956349601624464'
 const ARTICLE_URL = 'https://x.com/i/article/2100948109664866305'
@@ -160,6 +167,29 @@ describe('X Article discovery', () => {
 })
 
 describe('X Article provider fallback', () => {
+  test.each([
+    { width: '1500', height: '600', attrs: '', expected: ['1500', '600'] },
+    { width: '0', height: '600', attrs: '', expected: [null, null] },
+    { width: 'invalid', height: '600', attrs: '', expected: [null, null] },
+    { width: '1500', height: '', attrs: '', expected: [null, null] },
+    { width: '1500', height: '600', attrs: 'width="320" height="128"', expected: ['320', '128'] },
+    { width: '1500', height: '600', attrs: 'width="320"', expected: ['320', null] }
+  ])('preserves only known unsized cover dimensions: %o', async ({ width, height, attrs, expected }) => {
+    const { service, ctx, embed, put } = wire()
+    const cover = 'https://pbs.twimg.com/media/cover.jpg'
+    embed.mockResolvedValue(new Response(`<html><head><meta property="og:image" content="${cover}"><meta property="og:image:width" content="${width}"><meta property="og:image:height" content="${height}"></head><body><article><p id="body">${BODY}</p><img id="cover" src="${cover}" ${attrs}><img id="other" src="https://pbs.twimg.com/media/other.jpg"></article></body></html>`))
+    const fetched = await service.fetchTwitterData(ctx, STATUS_URL)
+    await service.parseAndSaveTwitter(ctx, fetched, 42, 'article-test')
+    const html = put.mock.calls.find(([key]) => key.endsWith('/body.html'))![1]
+    const { document } = parseHTML(html as string)
+    const image = document.querySelector('#cover')!
+    expect([image.getAttribute('width'), image.getAttribute('height')]).toEqual(expected)
+    expect(image.getAttribute('src')).toContain('/static/image?')
+    expect(document.querySelector('#other')!.hasAttribute('width')).toBe(false)
+    expect(document.querySelector('#other')!.hasAttribute('height')).toBe(false)
+    expect(document.querySelector('#body')!.textContent).toBe(BODY)
+  })
+
   test('an explicit author/article link uses its own status ID while preserving the saved source', async () => {
     const { service, ctx, embed, api } = wire('推荐另一篇文章', 'https://x.com/other/article/99999')
     embed.mockRejectedValue(new Error('fxembed unavailable'))

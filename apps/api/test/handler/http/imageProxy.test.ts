@@ -59,6 +59,27 @@ describe('RSS image cache', () => {
 })
 
 describe('edge image proxy', () => {
+  test.each(['', 'rss'])('fills the signed edge cache after a valid R2 image hit (%s)', async mode => {
+    const { ctx, get, put, match, cachePut, waitUntil } = mediaContext()
+    get.mockImplementation(async () => ({ size: 8, body: new Response('r2-image').body, httpMetadata: { contentType: 'image/webp' } }))
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    const query = new URLSearchParams({ u: 'https%3A%2F%2Fimage.example%2Fcover.webp', r: '', d: 'valid-digest', ...(mode ? { m: mode } : {}) })
+    const request = () => new Request(`https://api.example/static/image?${query}`)
+    const first = await handleImageProxy(ctx, request())
+    expect(await first.text()).toBe('r2-image')
+    expect(cachePut).toHaveBeenCalledOnce()
+    const [key, cached] = cachePut.mock.calls[0]
+    expect(key.url).toBe(request().url)
+    expect(cached.headers.get('Content-Type')).toBe('image/webp')
+    expect(cached.headers.get('Cache-Control')).toBe(first.headers.get('Cache-Control'))
+    expect(waitUntil).toHaveBeenCalledWith(expect.any(Promise))
+    match.mockImplementation(async () => cached.clone())
+    expect(await (await handleImageProxy(ctx, request())).text()).toBe('r2-image')
+    expect(get).toHaveBeenCalledOnce()
+    expect(put).not.toHaveBeenCalled()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
   test.each([
     { digest: 'invalid', referer: '' },
     { digest: 'valid-digest', referer: 'https://reader.slax.com.attacker.example/' },
