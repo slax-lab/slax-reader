@@ -166,7 +166,7 @@ describe.skipIf(process.env.EMAIL_OTP_REDIS_TEST !== '1')('email code challenges
     await expect(service.verifyCode({ ...input, requestId: login.request_id, code: loginCode })).resolves.toBe(input.deliveryEmail)
   })
 
-  test.each(['login', 'bind'] as const)('shares the 300/hour IP ceiling across distinct readers and %s challenges', async purpose => {
+  test.each(['login', 'bind'] as const)('shares the 50/hour IP ceiling across distinct readers and %s challenges', async purpose => {
     const sender = captureMail()
     const service = setup(sender, 'prod')
     const send = (index: number, binding = false) =>
@@ -183,10 +183,10 @@ describe.skipIf(process.env.EMAIL_OTP_REDIS_TEST !== '1')('email code challenges
     await redis('SET', ipKey, '29', 'EX', '3600')
     await send(1)
     await send(2, purpose === 'bind')
-    await redis('SET', ipKey, '298', 'EX', '3600')
+    await redis('SET', ipKey, '48', 'EX', '3600')
     await send(3)
     await send(4, purpose === 'bind')
-    expect(await redis('GET', ipKey)).toBe('300')
+    expect(await redis('GET', ipKey)).toBe('50')
     await expect(send(5, purpose === 'bind')).rejects.toMatchObject({ name: 'TOO_MANY_REQUESTS' })
     expect(sender).toHaveBeenCalledTimes(5)
     expect(await redis('TTL', ipKey)).toBeGreaterThan(3500)
@@ -194,7 +194,7 @@ describe.skipIf(process.env.EMAIL_OTP_REDIS_TEST !== '1')('email code challenges
 
   test.each([
     ['address', 5],
-    ['ip', 300],
+    ['ip', 50],
     ['device', 10],
     ['environment', 500]
   ])('denies sends at the %s quota', async (scope, limit) => {

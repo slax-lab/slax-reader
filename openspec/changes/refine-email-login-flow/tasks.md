@@ -45,8 +45,15 @@ Sections 1–5 record the previously verified draft delivery. Their earlier roll
 - [x] 7.2 Check the documentation against existing source and review feedback, run strict OpenSpec/whitespace validation, and record the documentation-only verification exemption.
 
 
-## 8. Shared-IP Email Send Quota (approved 2026-11-13)
+## 8. Initial Shared-IP Email Send Quota (historical; superseded by section 9)
 
-- [x] 8.1 Reproduce the 31st-request rejection under the old ceiling, then raise only the per-IP/hour ceiling to 300 and reconcile its single-owner authentication delta.
-- [x] 8.2 Verify 300th-request acceptance/301st rejection, shared-IP use by distinct addresses/devices and both purposes, unchanged remaining guards, and running local Redis/service behavior; record checks and limits.
+- [x] 8.1 Reproduce the 31st-request rejection under the old ceiling, then raised only the per-IP/hour ceiling to 300 and reconciled its single-owner authentication delta (historical; replaced by section 9).
+- [x] 8.2 Verified 300th-request acceptance/301st rejection (historical; replaced by section 9), shared-IP use by distinct addresses/devices and both purposes, unchanged remaining guards, and running local Redis/service behavior; record checks and limits.
 - [x] 8.3 Complete local Bugs/Security/Compliance review and push the focused adjustment and evidence to PR #597, preserving its ready-for-review state.
+
+
+## 9. Final Shared-IP Ceiling of 50/hour (approved 2026-11-13)
+
+- [x] 9.1 Replace the intermediate 300/hour ceiling with 50/hour, reconcile the single-owner authentication delta, and first verify the revised rejection regression fails against 300.
+- [x] 9.2 Verify request 50 succeeds and 51 is rejected for shared-IP login/binding, retain all other guards, run related automated/static checks and the local Redis/service fixture, and record evidence.
+- [x] 9.3 Complete pre-push review and submit the final ceiling/evidence to the existing PR #597 without changing its review state.

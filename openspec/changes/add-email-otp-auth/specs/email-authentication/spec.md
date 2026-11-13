@@ -34,12 +34,12 @@ The system SHALL support email-code access on Web, iOS and Android, offer its lo
 
 ### Requirement: Email verification expires and can be consumed once
 
-The system SHALL deliver a six-digit code with a five-minute lifetime, a 60-second resend cooldown, and a maximum of five wrong attempts per challenge. It SHALL enforce a shared-IP send ceiling of 300 requests per hour in each environment across login and binding, while retaining the 5/hour email-address ceiling, 10/hour device ceiling, and 500/day environment ceiling. It SHALL distinguish login from binding for challenge ownership and cooldown. The system SHALL preserve a valid challenge when the send outcome is ambiguous.
+The system SHALL deliver a six-digit code with a five-minute lifetime, a 60-second resend cooldown, and a maximum of five wrong attempts per challenge. It SHALL enforce a shared-IP send ceiling of 50 requests per hour in each environment across login and binding, while retaining the 5/hour email-address ceiling, 10/hour device ceiling, and 500/day environment ceiling. It SHALL distinguish login from binding for challenge ownership and cooldown. The system SHALL preserve a valid challenge when the send outcome is ambiguous.
 
 #### Scenario: Multiple readers share a network egress IP
 
 - **WHEN** distinct addresses/devices on the same IP request login or binding codes within the existing one-hour window, without exceeding the other guards
-- **THEN** the IP limiter permits counts through 300 and rejects count 301
+- **THEN** the IP limiter permits counts through 50 and rejects count 51
 - **AND** the existing per-address, device, environment, resend, expiry, and verification-attempt guards remain in force
 
 #### Scenario: A device requests codes for different addresses

@@ -149,7 +149,7 @@ The final independent pre-push review rechecked the completed evidence and found
 The documentation follow-up passed `openspec validate --all --strict` (142 items, zero failures) and `git diff --check`. Independent Bugs/Security/Compliance review found no Important or remaining Nit findings.
 
 
-## Approved per-IP send ceiling — 2026-11-13
+## Initial per-IP send ceiling — 2026-11-13 (historical; superseded by 50/hour below)
 
 The requester explicitly approved only `ipSendLimit: 30 → 300` requests per hour, keeping every other guard unchanged and updating PR #597. This supersedes the historical 30/hour IP figure in earlier review notes. The change is one production constant; the existing Redis key scope, counter increment/expiry behavior and delivery error handling are unchanged. No new configuration, dependency, API contract, UI change, production deployment, live email send, or application version update is included. API-only changes do not use package-version increments under `docs/release/VERSIONING.md`.
 
@@ -171,3 +171,15 @@ The HTTP adapter is a task-local harness around the production service/repositor
 A read-only `wrangler secret list --name reader-core` in an isolated temporary directory confirmed that `RESEND_API_KEY`, `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN` names exist on the Core Worker. Only secret names were inspected, never values. `EMAIL_AUTH_FROM` is not a secret there and retains its existing code fallback (a public variable override was not inspected). This establishes binding-name presence only; it does not prove credential validity, Redis reachability, sender verification, provider plan capacity, or inbox delivery. No remote configuration was modified.
 
 Independent pre-push Bugs/Security/Compliance review found no Important or Nit findings. Strict validation passed all 142 items; whitespace checks passed. PR #597’s Test plan was updated for the approved 300/hour IP-only adjustment, keeping its ready-for-review state and original target.
+
+
+## Final shared-IP ceiling: 50/hour — 2026-11-13
+
+The requester explicitly replaced the intermediate 300/hour IP ceiling with **50/hour**, retaining every other rule and requesting submission to PR #597. The production diff from the previous head is only `ipSendLimit: 300 → 50`. The original 30/hour restriction is still relaxed; all address/device/environment quotas, cooldown, expiry, attempts, and environment/purpose counter scopes are unchanged. No UI, dependencies, contracts, version metadata, live configuration or deployment changed.
+
+- Updated login/binding rejection regressions first: both domain cases failed against the intermediate 300 ceiling because request 51 was admitted. Initial Redis attempts could not start because the earlier temporary Redis toolchain was absent; its hook failures/skips were prerequisite failures, not a pass. Rebuilt Redis from its official source distribution in a task-only temporary directory, without system installation or application dependency changes.
+- `PATH=/tmp/slax-email-ip50-toolchain/redis-stable/src:$PATH EMAIL_OTP_REDIS_TEST=1 pnpm --dir apps/api test test/domain/emailCode.test.ts test/infra/emailChallengeRedis.integration.test.ts --maxWorkers=2`: **26 passed, zero skipped**, exit 0. Both purposes, distinct devices/addresses sharing an IP, 31/50/51 boundaries, the one-hour counter expiry, and all existing other-guard cases are covered.
+- Fresh independent localhost HTTP/service/repository/real-Redis exercise, with `RUN_TYPE=prod` and synthetic credentials/delivery: 50 distinct mailbox/device requests from one IP alternating login and binding returned 200; request 51 returned 429 before delivery. Exactly 50 synthetic deliveries occurred, without counter seeding. The harness and Redis instance were disposed. This is the same bounded service-level runtime scope as the earlier harness, not a complete Core Worker route/session test or live mail-delivery test.
+- API/contracts type checking, production-constant ESLint, changed-file Prettier, strict OpenSpec validation, and whitespace checks passed. Web/Mobile code did not change, so their earlier acceptance remains historical and no fresh UI/native checks are claimed. API-only package-version exemption and the existing Mobile version decision remain applicable. Logs/harness/toolchain are outside Git under `/tmp/slax-email-ip50-*`.
+
+Final 50/hour pre-push review completed Bugs/Security/Compliance passes with no Important or Nit findings. Strict validation passed all 142 items and whitespace checks passed. PR #597’s summary and Test plan now describe the final 50/51 boundary, superseding the intermediate 300 target and retaining its ready-for-review state.

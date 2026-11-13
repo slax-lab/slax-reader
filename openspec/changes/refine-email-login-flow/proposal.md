@@ -58,6 +58,11 @@ After discussing rollout, the requester explicitly decided to remove environment
 The PR timeline records that `Whyjsee` marked #597 ready for review at `2026-11-13T00:52:06Z`. Its current state is ready for review; the earlier draft authorization and draft-delivery records describe the original delivery, not a continuing state requirement. The reviewer follow-up corrects documentation only, explicitly marks superseded rollout tasks, and states the native scroll-container effect. It does not alter behavior, prior acceptance, or the Mobile version decision.
 
 
-### Approved shared-IP quota adjustment (2026-11-13)
+### Initial shared-IP quota adjustment (historical; superseded below)
 
 After discussing the reviewer's capacity reminder, the requester explicitly approved changing only the email-code shared-IP ceiling from 30 to 300 requests per hour and submitting it to the existing PR. This applies to the existing environment-scoped sending counter shared by login and binding, across Web and native callers. Keep the per-address ceiling at 5/hour, per-device ceiling at 10/hour, environment ceiling at 500/day, 60-second resend cooldown, five verification attempts, and all existing window/counter semantics. No configuration expansion, quota removal, client changes, deployment, or live email sending is included. The `email-authentication` delta remains solely owned by `add-email-otp-auth`.
+
+
+### Final shared-IP ceiling decision (2026-11-13)
+
+The requester reconsidered the initial shared-IP headroom and explicitly approved 50 requests per hour instead of 300, with every other rule unchanged, for the same PR #597. This supersedes only the IP number in the previous quota amendment. Keep the one-hour environment/IP scope shared across login and binding and all other quotas, expiry/counter, resend, and verification behavior.
