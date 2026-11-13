@@ -7,40 +7,58 @@ Keep YouTube and podcast AI articles reachable and faithful for eligible source 
 
 ### Requirement: Supported media plans are processed
 
-The per-article budget SHALL cover the most expensive plan the configured duration, input-size and chunk limits allow. When a plan is skipped for cost, the run SHALL log the chunk count, duration, input size, expected cost and cap.
+The system SHALL admit otherwise eligible YouTube and podcast plans independently of total media duration, text size, chunk count, estimated cost, and accumulated spend. Model requests SHALL remain bounded and large inputs SHALL still be divided into processable chunks. Cost accounting SHALL be preserved even when spending exceeds former caps.
 
 #### Scenario: Long video inside the limits
-
 - **WHEN** a YouTube caption is 2h47m long with fewer than 40 chunks and 400,000 characters
-- **THEN** its expected cost fits the $1.00 per-article budget and generation starts instead of returning `too_long`
+- **THEN** its plan is admitted independently of estimated cost
 
 #### Scenario: Plan still too expensive
+- **WHEN** a valid plan costs more than the former per-article budget
+- **THEN** the plan is processed rather than skipped and its usage is accounted for
 
-- **WHEN** a plan's expected cost exceeds the per-article budget
-- **THEN** the version is skipped as `too_long` and the log carries `chunks`, `duration_ms`, `input_chars`, `expected_cost_usd` and `max_cost_usd`
+#### Scenario: Long media plan
+- **WHEN** a valid source exceeds the former duration, total text, or chunk-count cap
+- **THEN** generation starts and processes the complete plan without returning `too_long`
+
+#### Scenario: Cost exceeds former caps
+- **WHEN** estimated or actual cost exceeds the former per-run, per-episode, or lifetime cap
+- **THEN** generation continues and usage is recorded without a budget rejection
 
 ### Requirement: Model thinking cannot consume the article allowance
 
-Every podcast article model call SHALL set a thinking budget of 2,048 tokens. Every YouTube article model call SHALL set the Gemini 3 thinking level `LOW`. In both cases a `MAX_TOKENS` reply SHALL never be treated as a complete article.
+All YouTube and podcast article text generation SHALL use `deepseek-flash` with thinking disabled and bounded output. Truncated replies SHALL remain incomplete and recoverable. The provider SHALL use the fixed API base `https://api.deepseek.com` and configured key, without a legacy provider fallback.
 
 #### Scenario: Long chunk completes
-
-- **WHEN** a podcast chunk's prompt is near the 3,000-token target
-- **THEN** the model call carries `thinkingConfig: { thinkingBudget: 2048 }` and a `MAX_TOKENS` reply remains retryable instead of being treated as a complete article
+- **WHEN** an article workflow requests editing, translation, headings or an introduction
+- **THEN** it uses the fixed DeepSeek endpoint, `deepseek-flash`, non-thinking JSON output and an explicit output limit
 
 #### Scenario: YouTube chunk uses the thinking level
+- **WHEN** a YouTube article chunk call is made
+- **THEN** it carries no Gemini thinking settings under the DeepSeek provider contract, and a `MAX_TOKENS` reply is handled by the established truncation recovery
 
-- **WHEN** a YouTube chunk call is made
-- **THEN** the model call carries `thinkingConfig: { thinkingLevel: 'LOW' }` and a `MAX_TOKENS` reply is handled by the split rule above
+#### Scenario: Provider truncation
+- **WHEN** the provider reports an output-length limit
+- **THEN** partial JSON is not accepted as a complete article and recovery respects the remaining budget
+
+#### Scenario: Key is missing
+- **WHEN** DeepSeek credentials are absent
+- **THEN** no alternate model is called and the generation failure does not expose credentials or request content
 
 ### Requirement: Numeric tokens survive translation
 
-The user message for each chunk SHALL list the chunk's numeric tokens and the system instruction SHALL require every number, date, unit and quantity to be written as digits, never as a word or a Chinese numeral.
+Podcast translation prompts SHALL list the chunk's numeric tokens and the system instruction SHALL require every number, date, unit and quantity to be written as digits, never as a word or a Chinese numeral.
 
 #### Scenario: Numbers in a translated article
 
 - **WHEN** the caption contains `10,000`, `100 million`, `24-7` or `2,600`
-- **THEN** the chunk prompt lists those tokens and the article keeps them as digits, so the unchanged `number_coverage` check can compare them
+- **THEN** the chunk prompt lists those tokens and the article keeps them as digits, so podcast number coverage checks can compare them
+
+YouTube translation prompts SHALL request faithful numbers and quantities. Numeric differences SHALL remain diagnostics rather than proof that a source passage was omitted.
+
+#### Scenario: YouTube numeric variation
+- **WHEN** a structurally complete YouTube translation uses an equivalent quantity or resolves ambiguous source speech differently
+- **THEN** numeric diagnostics do not block publication
 
 ### Requirement: Xiaoyuzhou episode pages use Zyte browser mode
 
