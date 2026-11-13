@@ -43,7 +43,7 @@ Generation SHALL start only for an owner with the `youtube_article` Labs feature
 
 ### Requirement: Bounded cost
 
-The system SHALL stop spending on an article version above $1.00 across all attempts, SHALL allow at most 20 automatic and 5 manual starts per user per UTC day, and SHALL defer new runs and send one alert per day when site-wide spend reaches $20 in a UTC day.
+The system SHALL stop spending on an article version above $1.00 across all attempts since the last explicit retry, SHALL stop spending on an article version above $2.00 in total across all retries, SHALL allow at most 20 automatic and 5 manual generate starts per user per UTC day, and SHALL defer new runs and send one alert per day when site-wide spend reaches $20 in a UTC day. An explicit owner retry of a `failed` version SHALL reset the version's run spend and attempt count, SHALL NOT reset its total spend, SHALL NOT count against the daily limits, and SHALL be allowed for `budget_exceeded`. A version that reaches the $2.00 total SHALL fail as `lifetime_budget_exceeded`. `too_long` and `lifetime_budget_exceeded` SHALL stay final.
 
 #### Scenario: Daily automatic limit
 - **WHEN** an owner triggers the 21st automatic start in one UTC day
@@ -56,6 +56,22 @@ The system SHALL stop spending on an article version above $1.00 across all atte
 #### Scenario: Site-wide budget
 - **WHEN** site-wide spend for the day reaches the budget
 - **THEN** new runs are deferred for the sweep and exactly one alert is sent that day
+
+#### Scenario: Retry after the budget ran out
+- **WHEN** a version is `failed` with `budget_exceeded` and its total spend is below $2.00
+- **THEN** the status shows `can_retry`, the retry sets the version to pending with zero run spend and zero attempts, keeps the total spend, takes no daily start, and a run begins
+
+#### Scenario: Retry after 5 manual starts
+- **WHEN** the owner has used 5 manual starts today and requests a retry of a `failed` version
+- **THEN** the retry starts the run
+
+#### Scenario: Total spend reaches the cap
+- **WHEN** the next model call would raise a version's total spend above $2.00
+- **THEN** no call is made, the version is `failed` with `lifetime_budget_exceeded`, and the status shows neither `can_retry` nor `can_generate`
+
+#### Scenario: Too long stays final
+- **WHEN** a version is `skipped` or `failed` with `too_long`
+- **THEN** the status shows neither `can_retry` nor `can_generate`
 
 ### Requirement: Same access rule as the snapshot
 
@@ -140,3 +156,143 @@ When the body is the raw transcript and the article is coming, the page SHALL sh
 #### Scenario: Article ready while the video plays
 - **WHEN** the body becomes ready while the video plays
 - **THEN** the page offers a button to load the article instead of replacing the body
+
+### Requirement: Visible status request recovery
+
+Both YouTube article presentations SHALL show a request failure after polling exhausts its retries. The reader SHALL be able to restart status polling without starting a paid generation request directly.
+
+#### Scenario: First status request never succeeds
+- **WHEN** every initial status request fails
+- **THEN** the page shows a request error and a retry button instead of hiding the status area
+
+#### Scenario: Status recovers
+- **WHEN** the reader retries and the status request succeeds
+- **THEN** the request error disappears and the current article state appears
+
+#### Scenario: Expanded article transition
+- **WHEN** the status selects the expanded article below an annotated transcript
+- **THEN** the page mounts that view without a rendering error and keeps request recovery available
+
+### Requirement: Owner-only unavailable guidance
+
+The status API SHALL distinguish disabled Labs and missing source records for an authorized owner. The Web reader SHALL show instructions for enabling Labs or saving the source again. Visitors SHALL NOT receive owner recovery reasons. Moderation and takedown states SHALL NOT suggest recovery that bypasses access restrictions. Ready private snapshots SHALL remain readable with Labs disabled.
+
+#### Scenario: Owner has disabled Labs
+- **WHEN** an owner opens a legacy YouTube bookmark with AI articles disabled
+- **THEN** the page explains how to enable YouTube AI articles in Settings
+
+#### Scenario: Missing caption reference
+- **WHEN** an owner with AI articles enabled opens a legacy bookmark without source records
+- **THEN** the page explains that the source must be saved again
+
+#### Scenario: Visitor opens an unavailable article
+- **WHEN** a visitor opens the same bookmark
+- **THEN** no owner recovery reason or action is disclosed
+
+#### Scenario: Preferred language has no saved variant
+- **WHEN** another saved language exists but the owner's preferred language has no variant
+- **THEN** the API does not report that the source is missing
+- **AND** the API reports the ready article in the language it has, so the reader can open it
+
+#### Scenario: Unknown recovery reason
+- **WHEN** the server returns a reason the Web reader does not recognize
+- **THEN** the reader does not display a raw translation key
+
+### Requirement: Readable transcript without generation
+
+The Web reader SHALL present saved YouTube caption cues as continuous reading paragraphs for owners and visitors.
+Paragraph breaks SHALL follow sentence endings, explicit speaker changes, or long pauses, with bounded length for unpunctuated runs.
+Each reading paragraph SHALL expose one quiet, keyboard-operable timestamp. Intermediate timestamps SHALL leave the focus order.
+The renderer SHALL preserve all cue text, existing cue elements, and stored highlight selectors and offsets.
+The detailed transcript panel SHALL retain all cue timestamps. Raw-caption formatting SHALL NOT rewrite generated article content.
+
+#### Scenario: Visitor reads the reported saved transcript
+- **WHEN** a visitor opens a saved YouTube body without a generated article
+- **THEN** the reader shows continuous paragraphs instead of a separate visible line and button for every cue
+- **AND** the page does not require login or a generation request
+
+#### Scenario: Existing highlight and seek controls
+- **WHEN** the reader formats a previously saved caption body
+- **THEN** the original text nodes and highlight selectors remain valid
+- **AND** each paragraph timestamp seeks to its original cue time by click, Enter, or Space
+
+#### Scenario: Responsive transcript reading
+- **WHEN** the same transcript appears at narrow and desktop widths in each supported theme
+- **THEN** paragraphs wrap naturally, retain visible focus, and avoid horizontal overflow
+
+### Requirement: Faithful edited YouTube reading
+
+New YouTube articles SHALL edit the source before translation. They SHALL preserve meaningful source content and chronological order.
+Each paragraph SHALL retain source cue references. Translation SHALL preserve section and paragraph structure.
+The introduction SHALL use the complete article. Caption reference coverage SHALL be checked before publication.
+The reading page SHALL provide contents links, topic headings, readable paragraphs, playback controls, and method notes.
+Existing annotations SHALL remain valid. All Web themes and supported widths SHALL remain readable.
+
+#### Scenario: Source passage omitted
+- **WHEN** an edited article omits source cue references
+- **THEN** generation rejects the incomplete article before publication
+
+#### Scenario: Translated article
+- **WHEN** the requested language differs from the source
+- **THEN** translation uses the edited source and preserves its section, paragraph, and source reference structure
+
+#### Scenario: Complete introduction
+- **WHEN** the system generates the introduction
+- **THEN** the input includes every final article section
+
+#### Scenario: Navigation and playback
+- **WHEN** a reader opens an edited article
+- **THEN** contents links reach the matching headings and playback controls seek to their source time
+
+#### Scenario: Published article with generation disabled
+- **WHEN** an authorized reader opens an existing ready article with Labs disabled
+- **THEN** the article remains readable without initiating generation
+
+#### Scenario: Body publication failure
+- **WHEN** canonical generation succeeds but body publication fails
+- **THEN** the canonical article remains available and the runner reports incomplete publication
+
+### Requirement: Bounded concurrent article generation
+
+The system SHALL process independent transcript chunks concurrently with at most five active chunks per article run.
+It SHALL preserve source order, complete cue coverage, existing article access rules, and validation before publication.
+Chunk context SHALL remain deterministic and SHALL NOT depend on another chunk's completion order.
+
+#### Scenario: Multiple chunks are ready
+- **WHEN** an article has at least five uncached chunks and sufficient budget
+- **THEN** five chunks can start before any of those chunks completes
+- **AND** no sixth chunk runs concurrently with them
+
+#### Scenario: Results complete in another order
+- **WHEN** later chunks finish before earlier chunks
+- **THEN** the published article keeps source order and covers every source cue exactly once
+
+#### Scenario: Translation follows editing
+- **WHEN** the target language differs from the transcript language
+- **THEN** each translation uses its own completed edit
+- **AND** another chunk can proceed without waiting for that translation
+
+### Requirement: Concurrent failure and budget safety
+
+The system SHALL include active model-call reservations when it checks the run and lifetime spending limits.
+It SHALL settle active work before finishing a failed run and SHALL retain successful chunk results for retry.
+It SHALL NOT publish incomplete results or reset spending because processing becomes concurrent.
+
+#### Scenario: Active calls reserve the remaining budget
+- **WHEN** another call's reservation temporarily consumes the remaining budget
+- **THEN** a waiting call rechecks the budget after settlement
+- **AND** it does not spend against the same unreserved balance
+
+#### Scenario: One chunk fails
+- **WHEN** a chunk exhausts its retries while sibling chunks remain active
+- **THEN** the run waits for those siblings before recording its final outcome
+- **AND** it starts no later batch and preserves completed chunk caches
+
+#### Scenario: A workflow resumes
+- **WHEN** execution resumes with completed durable steps and stored chunk results
+- **THEN** those completed calls are not charged or generated again
+- **AND** new calls account for persisted spend and active reservations
+
+#### Scenario: Existing article is ready
+- **WHEN** a reader opens an existing ready article after deployment
+- **THEN** the system retains that article without regeneration
