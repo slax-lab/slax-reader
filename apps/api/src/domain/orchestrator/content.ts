@@ -25,17 +25,30 @@ export class ContentOrchestrator {
     @inject(CollectionService) private collectionService: CollectionService
   ) {}
 
-  private async loadBookmarkMeta(ctx: ContextManager, uuid: string) {
-    const access = await this.bookmarkService.getBookmarkReadAccess(ctx, uuid)
+  private async loadBookmarkMeta(ctx: ContextManager, uuid: string, recordTiming?: (step: string, durationMs: number) => void) {
+    const accessStartedAt = performance.now()
+    const access = await this.bookmarkService.getBookmarkReadAccess(ctx, uuid, recordTiming)
+    recordTiming?.('access', performance.now() - accessStartedAt)
     if (!access) throw BookmarkNotFoundError()
     const { bookmark: ub, share } = access
     const isOwner = ctx.getUserId() > 0 && ctx.getUserId() === ub.user_id
+    const ownerStartedAt = performance.now()
     const owner = access.ownerProfile ?? (await this.userService.getOwnerShareInfo(ub.user_id))
+    recordTiming?.('owner', performance.now() - ownerStartedAt)
     const showTrace = isOwner || !share || share.show_userinfo
     const showMarks = isOwner || !share || (share.show_comment && share.show_line)
+    const traceStartedAt = performance.now()
     const trace = showTrace ? await this.loadTrace(ctx, ub.bookmark_id, ub.id, ub.user_id, { nick_name: owner.nick_name, avatar: owner.avatar }, showMarks) : EMPTY_TRACE
+    recordTiming?.('trace', performance.now() - traceStartedAt)
 
     const { id, content_key, content_md_key, private_user, created_at, updated_at, published_at, ...bookmarkMeta } = ub.bookmark
+
+    const forkStartedAt = performance.now()
+    const fork = await this.bookmarkService.getForkMetadata(ctx, ub)
+    recordTiming?.('fork', performance.now() - forkStartedAt)
+    const pdfStartedAt = performance.now()
+    const pdf = await this.bookmarkService.getPdfDescriptor(content_key, ub.uuid)
+    recordTiming?.('pdf', performance.now() - pdfStartedAt)
 
     const base = {
       ...bookmarkMeta,
@@ -44,11 +57,11 @@ export class ContentOrchestrator {
       updated_at: updated_at.toISOString(),
       published_at: published_at.toISOString(),
       bookmark_uuid: ub.uuid,
-      ...(await this.bookmarkService.getForkMetadata(ctx, ub)),
+      ...fork,
       user_id: ctx.hashIds.encodeId(ub.user_id),
       content_key,
       type: bookmarkContentType(ub.type),
-      pdf: await this.bookmarkService.getPdfDescriptor(content_key, ub.uuid),
+      pdf,
       alias_title: ub.alias_title,
       role: isOwner ? 'owner' : 'visitor'
     }
@@ -82,9 +95,11 @@ export class ContentOrchestrator {
   public async getContentMeta(ctx: ContextManager, uuid: string, recordTiming?: (step: string, durationMs: number) => void) {
     const startedAt = performance.now()
     try {
-      const meta = await this.loadBookmarkMeta(ctx, uuid)
+      const meta = await this.loadBookmarkMeta(ctx, uuid, recordTiming)
       if (meta.role !== 'owner' && !meta.user_info.show_userinfo) return meta
+      const collectionStartedAt = performance.now()
       const collection = await this.collectionService.getBookmarkCollectionRef(uuid).catch(() => null)
+      recordTiming?.('collection', performance.now() - collectionStartedAt)
       return collection ? { ...meta, collection } : meta
     } finally {
       recordTiming?.('orchestrator', performance.now() - startedAt)

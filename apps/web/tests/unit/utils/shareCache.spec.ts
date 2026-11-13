@@ -37,6 +37,13 @@ describe('cached snapshot authorization and revision', () => {
     }
   })
 
+  it('does not forward diagnostic stages from denied cache validation', async () => {
+    const record = vi.fn()
+    const backend = { fetch: async () => new Response(null, { status: 404, headers: { 'Server-Timing': 'core_access-owner;dur=12.0' } }) }
+    expect(await matchesCurrentSnapshot(await cached(), backend, 'snapshot', undefined, 'visitor', record)).toBe(false)
+    expect(record).not.toHaveBeenCalled()
+  })
+
   it('misses on policy/body, identity-visibility or role changes; old entries cannot bypass the check', async () => {
     for (const current of [
       { ...metadata, content_key: 'snapshots/owner/removed/body.html' },

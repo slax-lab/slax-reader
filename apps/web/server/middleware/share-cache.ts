@@ -1,4 +1,5 @@
 import { isServerTimingEnabled } from '../utils/serverTiming'
+import { getResponseHeader } from 'h3'
 import { getEdgeCache, hasSnapshotCredentials, matchesCurrentSnapshot, SHARE_PATH, visitorKey } from '../utils/shareCache'
 
 export default defineEventHandler(async event => {
@@ -11,11 +12,15 @@ export default defineEventHandler(async event => {
   }
 
   const lookupStartedAt = performance.now()
+  const timingEnabled = isServerTimingEnabled(event)
+  const timings: Record<string, number> = {}
   const setLookupTiming = () => {
-    if (!isServerTimingEnabled(event)) return
-    const duration = Math.max(0, performance.now() - lookupStartedAt).toFixed(1)
+    if (!timingEnabled) return
+    timings['cache-lookup'] = performance.now() - lookupStartedAt
     setResponseHeader(event, 'Timing-Allow-Origin', '*')
-    setResponseHeader(event, 'Server-Timing', `front_cache-lookup;dur=${duration}`)
+    const current = getResponseHeader(event, 'Server-Timing')
+    const metrics = Object.entries(timings).map(([step, duration]) => `front_${step};dur=${Math.max(0, duration).toFixed(1)}`)
+    setResponseHeader(event, 'Server-Timing', [current, ...metrics].filter(Boolean).join(', '))
   }
 
   const cache = getEdgeCache()
@@ -26,12 +31,17 @@ export default defineEventHandler(async event => {
 
   const backend = event.context.cloudflare?.env.BACKEND as unknown as Parameters<typeof matchesCurrentSnapshot>[1]
 
+  const matchStartedAt = performance.now()
   const visitorCached = await cache.match(new Request(visitorKey(uuid)))
+  timings['cache-match'] = performance.now() - matchStartedAt
   if (!visitorCached) {
     setLookupTiming()
     return
   }
-  if (!(await matchesCurrentSnapshot(visitorCached, backend, uuid, undefined, 'visitor'))) {
+  const validationStartedAt = performance.now()
+  const valid = await matchesCurrentSnapshot(visitorCached, backend, uuid, undefined, 'visitor', timingEnabled ? value => setResponseHeader(event, 'Server-Timing', value) : undefined)
+  timings['cache-validation'] = performance.now() - validationStartedAt
+  if (!valid) {
     setLookupTiming()
     return
   }
@@ -40,6 +50,9 @@ export default defineEventHandler(async event => {
   setResponseHeader(event, 'content-type', visitorCached.headers.get('content-type') || 'text/html; charset=utf-8')
   setResponseHeader(event, 'x-bcache', 'hit')
   setResponseHeader(event, 'x-bcache-type', 'visitor')
+  const bodyStartedAt = performance.now()
+  const body = await visitorCached.text()
+  timings['cache-body'] = performance.now() - bodyStartedAt
   setLookupTiming()
-  return await visitorCached.text()
+  return body
 })

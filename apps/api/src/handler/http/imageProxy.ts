@@ -88,7 +88,11 @@ export async function handleImageProxy(ctx: ContextManager, request: Request): P
     await object.body.cancel()
     return new Response(null, { status: 415 })
   }
-  if (object && !object.customMetadata?.large) return responseImage(object.body, object.httpMetadata?.contentType || '', true)
+  if (object && !object.customMetadata?.large) {
+    const response = responseImage(object.body, object.httpMetadata?.contentType || '', true)
+    if (cache && response.status === 200 && isSafeImageMime(response.headers.get('Content-Type') || '')) ctx.execution.waitUntil(cache.put(cacheKey, response.clone()))
+    return response
+  }
   await object?.body.cancel()
 
   const headers = new Headers(getImageProxyHeaders(sourceUrl, params.r, request.headers))
