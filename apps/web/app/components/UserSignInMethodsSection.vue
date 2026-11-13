@@ -32,7 +32,7 @@
         :verify="bindEmail"
       />
     </div>
-    <UserPasskeySection :account="account" :login-email="loginEmail" />
+    <UserPasskeySection v-if="passkeysEnabled" :account="account" :login-email="loginEmail" />
     <p v-if="!providerLinkAvailable && supportedProviders.some(provider => !linkedPlatforms.has(provider))" class="login-methods-note">
       {{ t('email_auth.provider_link_unavailable_here') }}
     </p>
@@ -59,6 +59,7 @@ const account = createAccountEmailAuthRequest(props.accountKey)
 const { t } = useI18n()
 const titleId = useId()
 const config = useRuntimeConfig().public
+const passkeysEnabled = ['development', 'preview'].includes(config.slaxEnv)
 const providerLinkAvailable = canLinkProvidersHere()
 const supportedProviders: EmailAuthProvider[] = [
   ...(config.GOOGLE_OAUTH_CLIENT_ID ? ['google' as const] : []),

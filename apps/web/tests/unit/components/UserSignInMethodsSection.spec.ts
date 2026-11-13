@@ -47,7 +47,7 @@ describe('Account sign-in methods', () => {
   it('places configured provider rows before email', () => {
     oauth.appleClientId = 'apple-client'
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, platform: [] } })
-    expect(wrapper.findAll('.login-method-name').map(row => row.text())).toEqual(['Google', 'Apple', 'Sign-in email'])
+    expect(wrapper.findAll('.login-method-name').map(row => row.text())).toEqual(['Google', 'Apple', 'Sign-in email', 'Passkeys'])
   })
 
   it.each(['development', 'preview', 'beta', 'production'])('displays linked identities and binds email in %s', async environment => {

@@ -103,14 +103,17 @@ const signInWithPasskey = async () => {
   operation = controller
   pending.value = 'passkey'
   errorKey.value = ''
+  let verified = false
   try {
     await props.authenticatePasskey(email.value, controller.signal)
+    controller.signal.throwIfAborted()
+    verified = true
   } catch (error) {
     if (!controller.signal.aborted) errorKey.value = passkeyAuthErrorKey(error)
   } finally {
     if (operation === controller) {
       operation = undefined
-      pending.value = undefined
+      if (!verified || !props.retainPendingOnSuccess) pending.value = undefined
     }
   }
 }

@@ -25,6 +25,7 @@ The system SHALL authenticate the verified mailbox account using a registered cr
 
 - **WHEN** the reader submits a valid matching assertion
 - **THEN** the system returns the original account and normal login response without sending mail
+- **AND** Web retains the entered mailbox and the successful-submission navigation lock consistently with email-code login
 
 #### Scenario: An anonymous caller requests login options
 
@@ -62,6 +63,7 @@ Web and Mobile SHALL use existing login/account structures, account/session life
 
 #### Scenario: An environment displays authentication controls
 
-- **WHEN** the Web profile is development/preview or Mobile is development
+- **WHEN** the Web profile is development/preview or Mobile is development or explicitly configured for the test Web origin `https://r.slax.dev`
 - **THEN** its existing authentication surfaces offer Passkey actions with usable localized controls
-- **AND** beta/production keep those new controls hidden without gating the backend by rollout environment
+- **AND** beta/production keep Passkey controls hidden without gating the backend by rollout environment
+- **AND** existing email/provider visibility and interaction remain consistent with the latest approved base implementation

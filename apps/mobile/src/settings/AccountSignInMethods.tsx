@@ -36,21 +36,23 @@ export function AccountSignInMethods({t, locale, platform, state, passkeys, api}
       <SourceText selectable>{email.user_name}</SourceText>
     </View> : <SourceButton label={t('email_auth_bind')} tone="surface" style={[styles.button, styles.emailButton]} textStyle={styles.emailButtonText}
       disabled={Boolean(busy || passkeys.busy)} onPress={state.openEmail} />}
-    <SourceText accessibilityRole="header" style={T.button}>{t('passkey_title')}</SourceText>
-    {!email && <SourceText style={styles.secondary}>{t('passkey_mail_required')}</SourceText>}
-    {passkeys.passkeys?.map(item => <View key={item.uuid} style={styles.passkey}>
-      <View style={styles.passkeyName}><SourceText>{item.name}</SourceText>
-        <SourceText style={styles.secondary}>{t('passkey_created', {date: new Date(item.created_at).toLocaleDateString(locale)})}</SourceText>
-      </View>
-      <SourceButton label={t('passkey_delete')} tone="surface" destructive disabled={Boolean(busy || passkeys.busy)}
-        busy={passkeys.busy === item.uuid} onPress={() => passkeys.remove(item.uuid)} />
-    </View>)}
-    <SourceButton label={t('passkey_create')} tone="surface" style={styles.button} busy={passkeys.busy === 'create'}
-      disabled={!email || Boolean(busy || passkeys.busy || emailFlow)} onPress={passkeys.create} />
-    {passkeys.error && <View>
-      <SourceText accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{t(passkeys.error)}</SourceText>
-      {passkeys.error === 'passkey_load_failed' && <SourceButton label={t('btn_retry')} tone="surface" onPress={passkeys.reload} />}
-    </View>}
+    {passkeys.enabled && <>
+      <SourceText accessibilityRole="header" style={T.button}>{t('passkey_title')}</SourceText>
+      {!email && <SourceText style={styles.secondary}>{t('passkey_mail_required')}</SourceText>}
+      {passkeys.passkeys?.map(item => <View key={item.uuid} style={styles.passkey}>
+        <View style={styles.passkeyName}><SourceText>{item.name}</SourceText>
+          <SourceText style={styles.secondary}>{t('passkey_created', {date: new Date(item.created_at).toLocaleDateString(locale)})}</SourceText>
+        </View>
+        <SourceButton label={t('passkey_delete')} tone="surface" destructive disabled={Boolean(busy || passkeys.busy)}
+          busy={passkeys.busy === item.uuid} onPress={() => passkeys.remove(item.uuid)} />
+      </View>)}
+      <SourceButton label={t('passkey_create')} tone="surface" style={styles.button} busy={passkeys.busy === 'create'}
+        disabled={!email || Boolean(busy || passkeys.busy || emailFlow)} onPress={passkeys.create} />
+      {passkeys.error && <View>
+        <SourceText accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{t(passkeys.error)}</SourceText>
+        {passkeys.error === 'passkey_load_failed' && <SourceButton label={t('btn_retry')} tone="surface" onPress={passkeys.reload} />}
+      </View>}
+    </>}
     {error && <SourceText accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{t(error)}</SourceText>}
     {!email && emailFlow && <EmailCodeDialog mode="binding" t={t} locale={locale}
       send={api.sendBindingEmail} verify={api.verifyBindingEmail} isCurrent={emailFlow.current}

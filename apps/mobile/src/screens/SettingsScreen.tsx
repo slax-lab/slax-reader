@@ -25,7 +25,7 @@ export function SettingsScreen({navigation}: MobileScreenProps<'Settings'>) {
     api, scope, platform: config.platform, fixture: Boolean(mobile.fixtureOnly), authenticate,
   });
   const passkeys = usePasskeys({api, scope, native: nativePasskeys,
-    enabled: config.development && !mobile.fixtureOnly,
+    enabled: (config.development || config.webUrl === 'https://r.slax.dev') && !mobile.fixtureOnly,
     hasMailbox: Boolean(linkedPlatforms.platforms?.some(item => item.platform === 'mail')),
     name: config.platform === 'ios' ? 'iPhone / iPad' : 'Android',
   });

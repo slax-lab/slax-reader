@@ -52,5 +52,5 @@ export function usePasskeys({api, scope, native, enabled, hasMailbox, name}: {
       if (current()) {setBusy(null); if (changed) void generation.refresh();}
     }
   }
-  return {passkeys, busy, error, create: () => {void mutate();}, remove: (uuid: string) => {void mutate(uuid);}, reload: () => {void lifetime.current?.refresh();}};
+  return {enabled, passkeys, busy, error, create: () => {void mutate();}, remove: (uuid: string) => {void mutate(uuid);}, reload: () => {void lifetime.current?.refresh();}};
 }

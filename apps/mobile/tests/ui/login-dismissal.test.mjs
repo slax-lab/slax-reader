@@ -52,7 +52,7 @@ async function loginFixture(host, platform, run, props = {}, development = false
   await render()
   await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
     passkey: value => {nativePasskey = value}, artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()}, verifyEmail: value => {verifyEmail = value},
-    setProfile: async profile => {mobile.config.development = profile === 'development'; mobile.config.isBeta = profile === 'beta'; controls.clear(); await render()},
+    setProfile: async profile => {mobile.config.development = profile === 'development'; mobile.config.isBeta = profile === 'beta'; mobile.config.webUrl = {development: 'https://fixture.test', preview: 'https://r.slax.dev', beta: 'https://r-beta.slax.com', production: 'https://r.slax.com'}[profile]; controls.clear(); await render()},
     changeOrigin: async () => {mobile.config.apiUrl = 'https://replacement.fixture.test'; await render()},
     hydrate: () => {session = {status: 'unauthenticated'}},
     replaceIdentity: () => {identity++; session = {status: 'unauthenticated'}},
@@ -185,6 +185,10 @@ for (const platform of ['ios', 'android']) for (const profile of ['development',
     assert.ok(fixture.controls.has('login_google'));
     assert.equal(fixture.controls.has('login_apple'), platform === 'ios');
     assert.deepEqual(fixture.requests, []);
+    await fixture.press('login_email');
+    await fixture.press('agreement_btn_agree');
+    if (platform === 'ios') await act(async () => fixture.modal().onDismiss());
+    assert.equal(host.props.has('email_passkey_login'), ['development', 'preview'].includes(profile));
   })));
 }
 

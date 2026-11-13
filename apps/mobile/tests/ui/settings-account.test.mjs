@@ -110,7 +110,7 @@ async function harness(root, platform = 'ios', development = false) {
   const useMobile = () => ({
     api, runtime, sessions, t, session: sessions.getSnapshot(), nativeResourceOwner: h.owner,
     settings: h.settings, preferences: h.preferences, locale: h.locale ?? 'en',
-    config: {webUrl: 'https://reader.test', apiUrl: h.origin, platform, development},
+    config: {webUrl: h.webUrl ?? 'https://reader.test', apiUrl: h.origin, platform, development},
   });
   const appState = {
     currentState: 'active',
@@ -623,4 +623,12 @@ for (const replacement of ['blur', 'origin', 'account']) test(`mounted Passkey r
   await h.rerender();
   await act(async () => gate.resolve({id: 'late', response: {}}));
   assert.equal(h.passkeyCreates.length, 0);
+}));
+
+for (const webUrl of ['https://r.slax.dev', 'https://r-beta.slax.com', 'https://r.slax.com']) test(`non-development settings keep email available and scope Passkeys to ${webUrl}`, async () => mounted(async root => {
+  const h = await harness(root, 'android', false);
+  h.webUrl = webUrl;
+  await h.renderRoute('SettingsScreen');
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'email_auth_bind').length, 1);
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_create').length, webUrl === 'https://r.slax.dev' ? 1 : 0);
 }));

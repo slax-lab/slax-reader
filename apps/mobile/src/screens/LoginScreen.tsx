@@ -45,6 +45,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
     return () => {pending.current = null; providerGeneration.current++; active.current = false;};
   }, [api, sessions, config.apiUrl]);
   const emailEnabled = !fixtureOnly;
+  const passkeysEnabled = (config.development || config.webUrl === 'https://r.slax.dev') && !fixtureOnly;
   const markInteractive = useObserveMarkInteractive();
   useEffect(() => {markInteractive();}, [markInteractive]);
   const sessionGuard = () => {
@@ -156,7 +157,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   return <View style={[styles.root, {paddingBottom: insets.bottom}]}>
     {emailEnabled ? <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView> : content}
     {emailEnabled && email.flow && <EmailCodeDialog t={t} locale={locale} mode="login" isCurrent={email.flow.isCurrent}
-      dismissible={email.dismissible} passkey={email.passkey} send={email.send} verify={email.verify} onVerified={email.accept} onClose={email.close} />}
+      dismissible={email.dismissible} passkey={passkeysEnabled ? email.passkey : undefined} send={email.send} verify={email.verify} onVerified={email.accept} onClose={email.close} />}
     <Modal key={`agreement-${agreementId}`} visible={agreement !== null} transparent animationType="slide" onRequestClose={dismissAgreement} onDismiss={agreementDidDismiss}>
       <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} accessibilityLabel={t('btn_close')} onPress={dismissAgreement}/>
