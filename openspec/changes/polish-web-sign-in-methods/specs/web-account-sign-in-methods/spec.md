@@ -8,12 +8,12 @@ Make the Web account's available sign-in methods recognizable, readable, and ope
 
 ### Requirement: Sign-in methods have recognizable and consistent rows
 
-The Web account sign-in subsection SHALL be visible in development and preview and omitted in beta and production, including already-linked identities. It SHALL preserve its position within the profile card and present each available method with a leading identifying icon, a method name with secondary status beneath it, and a trailing binding action when applicable. Google and Apple SHALL use recognizable approved service artwork. Icons accompanying the visible method name SHALL be decorative to assistive technology.
+The Web account sign-in subsection SHALL be visible in every environment, including production and already-linked identities. It SHALL preserve its position within the profile card and present each available method with a leading identifying icon, a method name with secondary status beneath it, and a trailing binding action when applicable. Google and Apple SHALL use recognizable approved service artwork. Icons accompanying the visible method name SHALL be decorative to assistive technology.
 
-#### Scenario: Development account displays its methods
+#### Scenario: An account displays its methods in any environment
 
-- **WHEN** a reader opens account settings in development or preview with configured Google and Apple providers
-- **THEN** email, Google, and Apple appear in their existing order with identifying icons and consistently aligned names, statuses, and applicable actions
+- **WHEN** a reader opens account settings in any environment with configured Google and Apple providers
+- **THEN** Google, Apple, and email appear in that source order with identifying icons and consistently aligned names, statuses, and applicable actions
 - **AND** the surrounding account-card structure and page navigation remain intact
 
 #### Scenario: A configured provider is already linked
@@ -30,6 +30,7 @@ The subsection SHALL use the existing Web semantic typography, text, surface, bo
 
 - **WHEN** a method is unbound and its existing binding conditions are satisfied
 - **THEN** its action remains visually subordinate to the account identity, uses the Web control treatment, and has space above and below it
+- **AND** the email-link action uses a quieter secondary treatment than provider-link actions without reducing readability or its hit area
 - **AND** keyboard navigation exposes a visible focus indicator without clipping it against a separator
 
 ### Requirement: Method groups remain readable across themes and narrow widths
@@ -49,7 +50,7 @@ The subsection SHALL remain readable in light, dark, and e-ink modes and at desk
 
 ### Requirement: Expanded binding retains its existing interaction semantics
 
-The visual update SHALL keep the existing email verification steps and provider linking flow. The expanded email form SHALL belong to the email method group, with its spacing contained before the next method separator. Existing busy/disabled, error, unavailable, success-announcement, and post-binding focus behavior SHALL remain operable.
+The visual update SHALL keep the existing email verification steps and provider linking flow. The expanded email form SHALL belong to the email method group, after the provider rows, with its spacing contained inside the email group. Existing busy/disabled, error, unavailable, success-announcement, and post-binding focus behavior SHALL remain operable.
 
 #### Scenario: A reader binds a mailbox
 

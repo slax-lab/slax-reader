@@ -20,7 +20,7 @@ export function SettingsScreen({navigation}: MobileScreenProps<'Settings'>) {
   });
   const state = useSettingsState(settings, preferences, scope);
   const linkedPlatforms = useLinkedPlatforms({
-    api, scope, platform: config.platform, development: config.development, fixture: Boolean(mobile.fixtureOnly), authenticate,
+    api, scope, platform: config.platform, fixture: Boolean(mobile.fixtureOnly), authenticate,
   });
   const systemSurfaces = mobile.systemSurfaces;
   const systemSurfacesReady = mobile.credentialState?.status === 'ready';
