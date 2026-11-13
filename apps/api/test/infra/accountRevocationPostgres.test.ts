@@ -1,3 +1,4 @@
+import { PasskeyRepo } from '@/infra/repository/dbPasskey'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
@@ -115,6 +116,16 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
   })
   const createUser = (email = 'user@example.test') => first!.sr_user.create({ data: { email, created_at: new Date(), last_login_at: new Date() } })
 
+  test('Passkey login metadata preserves the saved language despite a different request language', async () => {
+    const user = await createUser()
+    await first!.sr_user.update({ where: { id: user.id }, data: { lang: 'zh' } })
+    const profile = { last_login_at: new Date(), last_login_ip: '192.0.2.42', lang: 'en' }
+    await new PasskeyRepo(() => first!).withAccount(user.id, tx => tx.recordLogin(profile))
+    const saved = await first!.sr_user.findUniqueOrThrow({ where: { id: user.id } })
+    expect(saved.lang).toBe('zh')
+    expect(saved.last_login_ip).toBe(profile.last_login_ip)
+  })
+
   test('concurrent verified email claims share a single new account', async () => {
     const email = 'Reader@example.test'
     const results = await Promise.all([
@@ -168,7 +179,8 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
       () => {
         throw new Error('R2 is not part of this test')
       },
-      new VectorMaintenanceRepo(() => first!)
+      new VectorMaintenanceRepo(() => first!),
+      new PasskeyRepo(() => first!)
     )
     await deletion.cleanupUserData(user.id, { VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch: async () => [] } as unknown as Env['VECTOR_V5_MAINTENANCE_WORKFLOW'] })
     expect(await repo.getUserBindPlatform(user.id)).toEqual([])

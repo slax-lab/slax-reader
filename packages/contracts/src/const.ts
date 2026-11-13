@@ -7,6 +7,8 @@ type StatusCode = typeof StatusCode.NOT_LOGIN
 const RESTMethodPath = {
   LOGIN: '/v1/user/login',
   LOGIN_EMAIL_SEND: '/v1/user/email/send',
+  PASSKEY_CHALLENGE: '/v1/user/passkey/challenge',
+  USER_PASSKEY_LIST: '/v1/user/passkey',
   ME: '/v1/user/me',
   BOOKMARK_EXISTS: '/v1/bookmark/exists',
   ADD_BOOKMARK: '/v1/bookmark/add',

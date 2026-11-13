@@ -4,18 +4,22 @@ import LoginView from '~~/app/components/global/LoginView.vue'
 
 import { mountWithApp } from '../../../setup/mount'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { WebAuthnAbortService } from '@simplewebauthn/browser'
 import { flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { get, post, verifyEmailAuth, navigate, analytics } = vi.hoisted(() => ({
+const { get, post, verifyEmailAuth, verifyPasskeyAuth, startAuthentication, navigate, analytics } = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
   verifyEmailAuth: vi.fn(),
+  verifyPasskeyAuth: vi.fn(),
+  startAuthentication: vi.fn(),
   navigate: vi.fn(),
   analytics: vi.fn()
 }))
 mockNuxtImport('request', () => () => ({ get, post }))
-mockNuxtImport('useAuth', () => () => ({ verifyEmailAuth }))
+mockNuxtImport('useAuth', () => () => ({ verifyEmailAuth, verifyPasskeyAuth }))
+vi.mock('@simplewebauthn/browser', async importOriginal => ({ ...await importOriginal<typeof import('@simplewebauthn/browser')>(), startAuthentication }))
 mockNuxtImport('navigateTo', () => navigate)
 mockNuxtImport('analyticsLog', () => analytics)
 
@@ -111,6 +115,7 @@ describe('global/LoginView', () => {
     await flushPromises()
     await wrapper.get('.email-login-toggle').trigger('click')
     expect(analytics).toHaveBeenCalledWith({ event: 'user_login_start', method: 'email' })
+    expect(wrapper.find('.email-passkey-button').exists()).toBe(['development', 'preview'].includes(environment))
     await wrapper.get('input[type=email]').setValue('Reader@example.com')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -256,6 +261,95 @@ describe('global/LoginView', () => {
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toBeTruthy()
     expect(wrapper.get('.email-code-button').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('authenticates the entered mailbox with Passkey and keeps its continuation context', async () => {
+    const authAttribution = { source: 'hackerlinks', medium: 'header', campaign: 'mvp' } as const
+    const options = { challenge: 'challenge', rpId: location.hostname, userVerification: 'required' }
+    const credential = { id: 'credential', rawId: 'credential', type: 'public-key', response: { clientDataJSON: 'client-data', authenticatorData: 'authenticator-data', signature: 'signature' }, clientExtensionResults: {} }
+    post.mockResolvedValueOnce({ purpose: 'login', request_id: 'passkey-attempt', options })
+    startAuthentication.mockResolvedValueOnce(credential)
+    verifyPasskeyAuth.mockResolvedValueOnce('session')
+    runtimeConfig.public.TURNSTILE_SITE_KEY = ''
+    const wrapper = mountWithApp(LoginView, { props: { affcode: 'invite', authAttribution, redirect: '/bookmarks?filter=unread' } })
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('.email-passkey-button').trigger('click')
+    await flushPromises()
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/user/passkey/challenge', body: { purpose: 'login', email: 'reader@example.com' } }))
+    expect(startAuthentication).toHaveBeenCalledWith({ optionsJSON: options })
+    expect(verifyPasskeyAuth).toHaveBeenCalledWith({ type: 'passkey', email: 'reader@example.com', request_id: 'passkey-attempt', credential, auth_attribution: authAttribution }, expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    expect(navigate).toHaveBeenCalledWith(`${location.origin}/bookmarks?filter=unread`, { external: true })
+    expect(localStorage.getItem('slax:last-login-email')).toBe('reader@example.com')
+    expect(wrapper.get('.email-login-toggle').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('input[type=email]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.email-passkey-button').attributes('disabled')).toBeDefined()
+    await wrapper.get('form').trigger('submit')
+    await wrapper.get('.email-passkey-button').trigger('click')
+    await flushPromises()
+    expect(post).toHaveBeenCalledOnce()
+    expect(verifyPasskeyAuth).toHaveBeenCalledOnce()
+    wrapper.unmount()
+  })
+
+  it('discards a Passkey assertion after closing email sign-in', async () => {
+    let finish!: (credential: unknown) => void
+    post.mockResolvedValueOnce({ purpose: 'login', request_id: 'passkey-attempt', options: { challenge: 'challenge' } })
+    let browserSignal!: AbortSignal
+    startAuthentication.mockImplementationOnce(() => {
+      browserSignal = WebAuthnAbortService.createNewAbortSignal()
+      return new Promise(resolve => { finish = resolve })
+    })
+    const wrapper = mountWithApp(LoginView)
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('.email-passkey-button').trigger('click')
+    await flushPromises()
+    await wrapper.get('.email-login-toggle').trigger('click')
+    finish({ id: 'late-credential' })
+    await flushPromises()
+    expect(browserSignal.aborted).toBe(true)
+    expect(verifyPasskeyAuth).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(localStorage.getItem('slax:last-login-email')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('keeps email-code login usable when the browser cancels Passkey authentication', async () => {
+    post.mockResolvedValueOnce({ purpose: 'login', request_id: 'attempt', options: { challenge: 'challenge' } })
+    startAuthentication.mockRejectedValueOnce(Object.assign(new Error('canceled'), { code: 'ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY', cause: new DOMException('canceled', 'NotAllowedError') }))
+    const wrapper = mountWithApp(LoginView)
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('.email-passkey-button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('Passkey request canceled')
+    expect((wrapper.get('input[type=email]').element as HTMLInputElement).value).toBe('reader@example.com')
+    expect(wrapper.get('button[type=submit]').attributes('disabled')).toBeUndefined()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('[autocomplete="one-time-code"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('restores email sign-in when the server rejects a Passkey proof', async () => {
+    localStorage.setItem('slax:last-login-email', 'previous@example.com')
+    post.mockResolvedValueOnce({ purpose: 'login', request_id: 'attempt', options: { challenge: 'challenge' } })
+    startAuthentication.mockResolvedValueOnce({ id: 'other-mailbox-credential' })
+    verifyPasskeyAuth.mockRejectedValueOnce(new Error('Invalid Passkey proof'))
+    const wrapper = mountWithApp(LoginView)
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('.email-passkey-button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toBeTruthy()
+    for (const selector of ['.email-login-toggle', 'input[type=email]', '.email-code-button', '.email-passkey-button']) {
+      expect(wrapper.get(selector).attributes('disabled')).toBeUndefined()
+    }
+    expect(localStorage.getItem('slax:last-login-email')).toBe('previous@example.com')
+    expect(navigate).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

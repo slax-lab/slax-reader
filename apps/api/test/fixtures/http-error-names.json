@@ -110,5 +110,6 @@
   "FORK_DESTINATION_IN_PROGRESS": "fork_destination_in_progress",
   "FORK_DESTINATION_DELETING": "fork_destination_deleting",
   "FORK_DESTINATION_FAILED": "fork_destination_failed",
-  "FORK_STORAGE_UNAVAILABLE": "fork_storage_unavailable"
+  "FORK_STORAGE_UNAVAILABLE": "fork_storage_unavailable",
+  "PASSKEY_VERIFICATION_FAILED": "PASSKEY_VERIFICATION_FAILED"
 }

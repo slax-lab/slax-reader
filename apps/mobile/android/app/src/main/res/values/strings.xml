@@ -1,4 +1,5 @@
 <resources>
   <string name="app_name">Slax Reader</string>
   <string name="expo_runtime_version">1.0.31(806)</string>
+  <string name="asset_statements" translatable="false">[{\"include\":\"https://r.slax.com/.well-known/assetlinks.json\"},{\"include\":\"https://r.slax.dev/.well-known/assetlinks.json\"},{\"include\":\"https://r-beta.slax.com/.well-known/assetlinks.json\"}]</string>
 </resources>

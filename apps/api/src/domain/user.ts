@@ -1,3 +1,6 @@
+import { DELETE_PASSKEY_SETTING, type PasskeyLoginRequest } from '@slax-reader/contracts/passkey'
+import { PasskeyService } from './passkey'
+import { parsePasskeyProof } from '@/utils/passkey'
 import {
   SaveReportError,
   UnauthorizedError,
@@ -168,7 +171,7 @@ export interface userLoginReq {
   siteverify_code?: string
 }
 
-type UserLoginRequest = userLoginReq | EmailLoginRequest
+type UserLoginRequest = userLoginReq | EmailLoginRequest | PasskeyLoginRequest
 
 export enum SubscriptionType {
   NO_SUBSCRIPTION = 0,
@@ -203,7 +206,8 @@ export class UserService {
     @inject(LabService) private labService: LabService,
     @inject(EmailCodeService) private emailCodes: EmailCodeService,
     @inject(LoginIdentityService) private loginIdentities: LoginIdentityService,
-    @inject(LoginIdentityLinkService) private identityLink: LoginIdentityLinkService
+    @inject(LoginIdentityLinkService) private identityLink: LoginIdentityLinkService,
+    @inject(PasskeyService) private passkeys: PasskeyService
   ) {
     this.userRepoData = userRepo
     this.reportRepoData = reportRepo
@@ -241,7 +245,7 @@ export class UserService {
     request: Request,
     user: Pick<userInfoPO, 'id' | 'email' | 'lang' | 'uuid'>,
     isNew: boolean,
-    method: 'google' | 'apple' | 'email'
+    method: 'google' | 'apple' | 'email' | 'passkey'
   ): Promise<userLoginResp> {
     if (!user.id) throw RegisterUserError()
     await this.userRepo.requireActiveUser(user.id)
@@ -287,7 +291,18 @@ export class UserService {
    * @returns
    */
   public async saveUserSetting(ctx: ContextManager, data: { key: string; value: unknown }) {
-    if (data.key === BIND_LOGIN_IDENTITY_SETTING) return this.identityLink.linkIdentity(ctx, data.value)
+    if (data.key === BIND_LOGIN_IDENTITY_SETTING) {
+      const proof = data.value
+      if (proof && typeof proof === 'object' && 'type' in proof && proof.type === 'passkey') {
+        return this.passkeys.linkCredential(ctx.env, ctx.getUserId(), parsePasskeyProof(proof, 'register'))
+      }
+      return this.identityLink.linkIdentity(ctx, proof)
+    }
+    if (data.key === DELETE_PASSKEY_SETTING) {
+      const value = data.value
+      if (!value || typeof value !== 'object' || !('uuid' in value) || typeof value.uuid !== 'string' || !/^[0-9a-f-]{36}$/i.test(value.uuid)) throw ErrorParam()
+      return this.passkeys.remove(ctx.env, ctx.getUserId(), value.uuid)
+    }
     if (typeof data.value !== 'string') throw ErrorParam()
     if (data.key === 'account') {
       // 判断唯一、长度、是不是特定字符
@@ -659,6 +674,12 @@ export class UserService {
   public async userLogin(ctx: ContextManager, request: Request): Promise<userLoginResp> {
     const req = await RequestUtils.json<UserLoginRequest>(request)
     if (!req) throw ErrorParam()
+    if (req.type === 'passkey') {
+      const profile = UserService.getUserReuqestInfo(request, { last_login_at: new Date() } as userInfoPO)
+      const user = await this.passkeys.authenticate(ctx.env, parsePasskeyProof(req, 'login'), profile)
+      const result = await this.completeLogin(ctx, request, user, false, 'passkey')
+      return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(req.auth_attribution).data)
+    }
     if (req.type === 'email') {
       const { key, delivery } = await this.emailCodes.verifyCode(ctx.env, { ...req, purpose: 'login' })
       const result = await this.loginByVerifiedEmail(ctx, request, key, delivery)

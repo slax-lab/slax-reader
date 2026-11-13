@@ -29,6 +29,9 @@
         {{ t(pending === 'verify' ? 'email_auth.verifying' : pending === 'send' && !challenge ? 'email_auth.sending' : challenge ? 'email_auth.verify' : 'email_auth.send') }}
       </button>
     </div>
+    <button v-if="authenticatePasskey && !challenge" class="email-passkey-button" type="button" :disabled="Boolean(pending)" @click="signInWithPasskey">
+      {{ t(pending === 'passkey' ? 'passkey_auth.authenticating' : 'passkey_auth.sign_in') }}
+    </button>
     <div v-if="challenge" class="email-code-actions">
       <button type="button" :disabled="Boolean(pending)" @click="editEmail">{{ t('email_auth.change_address') }}</button>
       <button type="button" :disabled="Boolean(pending) || secondsToResend > 0" @click="sendCode">
@@ -40,6 +43,7 @@
 
 <script lang="ts" setup>
 import { emailAuthErrorKey } from '~/utils/emailAuth'
+import { passkeyAuthErrorKey } from '~/utils/passkeyAuth'
 
 import type { FetchRequest } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -50,6 +54,7 @@ const props = defineProps<{
   initialEmail?: string
   retainPendingOnSuccess?: boolean
   client?: Pick<FetchRequest, 'post'>
+  authenticatePasskey?: (email: string, signal: AbortSignal) => Promise<void>
   verify: (proof: EmailCodeInput, signal: AbortSignal) => Promise<void>
 }>()
 const { $i18n } = useNuxtApp()
@@ -59,7 +64,7 @@ const code = ref('')
 const emailInput = ref<HTMLInputElement>()
 const codeInput = ref<HTMLInputElement>()
 const challenge = ref<EmailCodeChallenge>()
-const pending = ref<'send' | 'verify'>()
+const pending = ref<'send' | 'verify' | 'passkey'>()
 const errorKey = ref('')
 const clock = ref(Date.now())
 const sentAt = ref(0)
@@ -90,6 +95,27 @@ const editEmail = async () => {
   code.value = ''
   await nextTick()
   emailInput.value?.focus()
+}
+
+const signInWithPasskey = async () => {
+  if (pending.value || !props.authenticatePasskey || !emailInput.value?.reportValidity()) return
+  const controller = new AbortController()
+  operation = controller
+  pending.value = 'passkey'
+  errorKey.value = ''
+  let verified = false
+  try {
+    await props.authenticatePasskey(email.value, controller.signal)
+    controller.signal.throwIfAborted()
+    verified = true
+  } catch (error) {
+    if (!controller.signal.aborted) errorKey.value = passkeyAuthErrorKey(error)
+  } finally {
+    if (operation === controller) {
+      operation = undefined
+      if (!verified || !props.retainPendingOnSuccess) pending.value = undefined
+    }
+  }
 }
 
 const sendCode = async () => {
@@ -174,7 +200,8 @@ const verifyCode = async () => {
 }
 
 .email-code-field input,
-.email-code-button {
+.email-code-button,
+.email-passkey-button {
   min-height: 44px;
   width: 100%;
   padding: 0 12px;
@@ -186,11 +213,13 @@ const verifyCode = async () => {
 }
 
 .email-code-button,
+.email-passkey-button,
 .email-code-actions button {
   cursor: pointer;
 }
 
-.email-code-button:hover:not(:disabled) {
+.email-code-button:hover:not(:disabled),
+.email-passkey-button:hover:not(:disabled) {
   background: var(--slax-accent-bg);
   border-color: var(--slax-accent-soft);
 }
@@ -282,7 +311,7 @@ const verifyCode = async () => {
 }
 
 .email-code-form--inline .email-code-button:hover:not(:disabled) {
-  border-color: var(--slax-text);
+  border-color: var(--slax-accent-soft);
   background: var(--slax-accent);
 }
 
@@ -299,6 +328,13 @@ const verifyCode = async () => {
     min-width: 96px;
     padding-inline: 10px;
   }
+}
+
+.email-passkey-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .email-code-form--login .email-code-button {

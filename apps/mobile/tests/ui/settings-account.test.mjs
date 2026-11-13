@@ -77,6 +77,8 @@ async function harness(root, platform = 'ios', development = false) {
     rssRequests: [], mutations: [], deletionRequests: [], navigation: [], headers: [],
     labs: async () => ({features: [{key: 'rss', enabled: false}, {key: 'pdf', enabled: true}]}),
     enable: async () => {}, deletion: async () => ({canDelete: false, reason: 'active_subscription'}),
+    passkeyList: [], passkeyDeletes: [], passkeyCreates: [],
+    nativePasskey: async () => ({id: 'passkey', response: {}}),
     platforms: async () => [], linked: [], platformReads: [],
     authorization: [], providerStarts: [], providerFinishes: [], proofs: [],
     authorize: async type => ({type, platform, code: 'provider-proof', redirect_uri: ''}),
@@ -92,6 +94,10 @@ async function harness(root, platform = 'ios', development = false) {
     rssEnable(value, signal) {h.mutations.push({value, signal}); return h.enable(value, signal);},
     setLab: async () => {},
     deleteAccount(signal) {h.deletionRequests.push(signal); return h.deletion(signal);},
+    getPasskeys: async () => h.passkeyList,
+    getPasskeyRegistrationChallenge: async () => ({purpose: 'register', request_id: 'passkey-challenge', options: {challenge: 'challenge'}}),
+    registerPasskey: async body => {h.passkeyCreates.push(body); h.passkeyList = [{uuid: 'passkey-one', name: body.name, created_at: '2026-11-12T00:00:00Z', last_used_at: null}]; return {linked: true};},
+    deletePasskey: async uuid => {h.passkeyDeletes.push(uuid); h.passkeyList = h.passkeyList.filter(item => item.uuid !== uuid); return {deleted: true};},
     getLinkedPlatforms: signal => {h.platformReads.push(signal); return h.platforms(signal);},
     startProviderLink(body) {h.providerStarts.push(body); return Promise.resolve({type: body.type, state: 'provider-state', nonce: 'provider-nonce'});},
     finishProviderLink(body) {h.providerFinishes.push(body); h.linked.push(linkedPlatform(body.type)); return Promise.resolve({linked: true});},
@@ -104,7 +110,7 @@ async function harness(root, platform = 'ios', development = false) {
   const useMobile = () => ({
     api, runtime, sessions, t, session: sessions.getSnapshot(), nativeResourceOwner: h.owner,
     settings: h.settings, preferences: h.preferences, locale: h.locale ?? 'en',
-    config: {webUrl: 'https://reader.test', apiUrl: h.origin, platform, development},
+    config: {webUrl: h.webUrl ?? 'https://reader.test', apiUrl: h.origin, platform, development},
   });
   const appState = {
     currentState: 'active',
@@ -126,6 +132,7 @@ async function harness(root, platform = 'ios', development = false) {
     '../components/SourceParagraph': {SourceParagraph: native('SourceParagraph')},
     '../domain/delete-account': {deleteCurrentAccount},
     '../domain/session': {SessionChangedError},
+    '../native/passkeys': {nativePasskeys: {register: (...args) => h.nativePasskey(...args), authenticate: async () => null}},
     '../auth/providers': {authenticate: (type, nonce) => {h.authorization.push([type, nonce]); return h.authorize(type);}},
     'expo-file-system': {File: class {constructor() {assert.fail('Production UI must not access fixture files');}}},
   });
@@ -587,4 +594,41 @@ for (const platform of ['ios', 'android']) test(`development ${platform} setting
   await h.renderRoute('SettingsScreen');
   const labels = h.all('SourceText').map(props => props.children).filter(label => ['email_auth_google_linked', 'email_auth_apple_linked', 'email_auth_address'].includes(label));
   assert.deepEqual(labels, ['email_auth_google_linked', 'email_auth_apple_linked', 'email_auth_address']);
+}));
+
+test('mounted Passkey settings requires mailbox, creates on server and refreshes after deletion', async () => mounted(async root => {
+  const h = await harness(root, 'ios', true);
+  await h.renderRoute('SettingsScreen');
+  assert.equal(h.one('SourceButton', props => props.label === 'passkey_create').disabled, true);
+  h.platforms = async () => [linkedPlatform('mail', 'owner@example.test')];
+  await h.background('background'); await h.background('active');
+  await act(async () => h.one('SourceButton', props => props.label === 'passkey_create').onPress());
+  assert.equal(h.passkeyCreates.length, 1);
+  assert.equal(h.passkeyCreates[0].request_id, 'passkey-challenge');
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_delete').length, 1);
+  await act(async () => h.one('SourceButton', props => props.label === 'passkey_delete').onPress());
+  assert.deepEqual(h.passkeyDeletes, ['passkey-one']);
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_delete').length, 0);
+}));
+
+for (const replacement of ['blur', 'origin', 'account']) test(`mounted Passkey registration after ${replacement} cannot attach to another owner`, async () => mounted(async root => {
+  const h = await harness(root, 'ios', true), gate = deferred();
+  h.platforms = async () => [linkedPlatform('mail', 'owner@example.test')];
+  h.nativePasskey = () => gate.promise;
+  await h.renderRoute('SettingsScreen');
+  await act(async () => h.one('SourceButton', props => props.label === 'passkey_create').onPress());
+  if (replacement === 'blur') h.focused = false;
+  else if (replacement === 'origin') h.origin = 'https://replacement.test';
+  else await h.sessions.signOut();
+  await h.rerender();
+  await act(async () => gate.resolve({id: 'late', response: {}}));
+  assert.equal(h.passkeyCreates.length, 0);
+}));
+
+for (const webUrl of ['https://r.slax.dev', 'https://r-beta.slax.com', 'https://r.slax.com']) test(`non-development settings keep email available and scope Passkeys to ${webUrl}`, async () => mounted(async root => {
+  const h = await harness(root, 'android', false);
+  h.webUrl = webUrl;
+  await h.renderRoute('SettingsScreen');
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'email_auth_bind').length, 1);
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_create').length, webUrl === 'https://r.slax.dev' ? 1 : 0);
 }));

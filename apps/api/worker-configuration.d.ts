@@ -11,6 +11,8 @@ interface __BaseEnv_Env {
 
   VECTOR_V5_MAINTENANCE_WORKFLOW?: Workflow<import('./src/domain/vectorMaintenanceHooks').VectorMaintenanceWorkflowParams>
 
+  PASSKEY_ANDROID_ORIGINS?: string
+
   RESEND_API_KEY?: string
 
   EMAIL_AUTH_WEB_CALLBACK?: string

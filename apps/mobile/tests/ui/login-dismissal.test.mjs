@@ -30,7 +30,10 @@ async function loginFixture(host, platform, run, props = {}, development = false
   let identity = 0
   let loginResponse = {token: 'synthetic', user_id: 'fixture'}
   let verifyEmail = async () => loginResponse;
+  let nativePasskey = async () => ({id: 'passkey', response: {}});
   const mobile = {api: {
+    getPasskeyLoginChallenge: async email => {requests.push({purpose: 'login', email}); return {purpose: 'login', request_id: 'passkey-challenge', options: {challenge: 'challenge', rpId: 'fixture.test'}}},
+    loginPasskey: async (request, signal) => {requests.push(request); return verifyEmail(signal)},
     login: async request => {requests.push(request); return loginResponse},
     sendLoginEmail: async request => {requests.push(request); return {request_id: 'challenge', expires_in: 300, resend_after: 60}},
     verifyLoginEmail: async (request, signal) => {requests.push(request); return verifyEmail(signal)},
@@ -40,6 +43,7 @@ async function loginFixture(host, platform, run, props = {}, development = false
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {bg_login: background}},
     '../auth/providers': {authenticate: provider => {providers.push({provider, phase}); return authenticate(provider)}}, '../runtime': {useMobile: () => mobile},
     '../theme': {mobileColors, mobileLayout, mobileTypography}, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => ({element() {}, firebase() {}})}, '../native/fixture-document': {}, '../components/fixture-actions': {},
+    '../native/passkeys': {nativePasskeys: {authenticate: (options, signal) => nativePasskey(options, signal)}},
     '../observe': {useObserveMarkInteractive: () => markInteractive},
     '../components/SourceUI': host.components,
   }, {Error})
@@ -47,8 +51,8 @@ async function loginFixture(host, platform, run, props = {}, development = false
   const press = key => act(async () => controls.get(key).onPress())
   await render()
   await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
-    artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()}, verifyEmail: value => {verifyEmail = value},
-    setProfile: async profile => {mobile.config.development = profile === 'development'; mobile.config.isBeta = profile === 'beta'; controls.clear(); await render()},
+    passkey: value => {nativePasskey = value}, artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()}, verifyEmail: value => {verifyEmail = value},
+    setProfile: async profile => {mobile.config.development = profile === 'development'; mobile.config.isBeta = profile === 'beta'; mobile.config.webUrl = {development: 'https://fixture.test', preview: 'https://r.slax.dev', beta: 'https://r-beta.slax.com', production: 'https://r.slax.com'}[profile]; controls.clear(); await render()},
     changeOrigin: async () => {mobile.config.apiUrl = 'https://replacement.fixture.test'; await render()},
     hydrate: () => {session = {status: 'unauthenticated'}},
     replaceIdentity: () => {identity++; session = {status: 'unauthenticated'}},
@@ -181,6 +185,10 @@ for (const platform of ['ios', 'android']) for (const profile of ['development',
     assert.ok(fixture.controls.has('login_google'));
     assert.equal(fixture.controls.has('login_apple'), platform === 'ios');
     assert.deepEqual(fixture.requests, []);
+    await fixture.press('login_email');
+    await fixture.press('agreement_btn_agree');
+    if (platform === 'ios') await act(async () => fixture.modal().onDismiss());
+    assert.equal(host.props.has('email_passkey_login'), ['development', 'preview'].includes(profile));
   })));
 }
 
@@ -254,7 +262,7 @@ test('email login releases a consumed challenge when local session persistence f
   assert.match(host.window.document.body.textContent, /email_auth_verify_failed/);
 }, {}, true)));
 
-test('email login keeps the dialog open while a verified session is committing', nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'android', async fixture => {
+for (const method of ['email', 'passkey']) test(`${method} login keeps the dialog open while a verified session is committing`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'android', async fixture => {
   const storage = new FixtureMemoryPreferences({}), gate = deferred();
   const sessions = new SessionController(new PreferenceStore(storage), {leave: async () => {}, enter: async () => {}});
   await sessions.restoreLocal();
@@ -270,13 +278,46 @@ test('email login keeps the dialog open while a verified session is committing',
   await fixture.press('login_email');
   await fixture.press('agreement_btn_agree');
   await act(async () => host.props.get('email_code_address').onChangeText('reader@example.test'));
-  await act(async () => host.props.get('email_code_send').onPress());
-  await act(async () => host.props.get('email_code_value').onChangeText('012345'));
-  await act(async () => host.props.get('email_code_verify').onPress());
+  if (method === 'passkey') await act(async () => host.props.get('email_passkey_login').onPress());
+  else {
+    await act(async () => host.props.get('email_code_send').onPress());
+    await act(async () => host.props.get('email_code_value').onChangeText('012345'));
+    await act(async () => host.props.get('email_code_verify').onPress());
+  }
   assert.equal(writing, true);
   assert.equal(host.props.get('email_code_cancel').disabled, true);
   await act(async () => host.props.get('email_code_cancel').onPress());
-  assert.ok(host.window.document.body.textContent.includes('email_auth_sent'));
+  assert.notEqual(host.window.document.querySelector(`[data-testid="${method === 'email' ? 'email_code_value' : 'email_code_address'}"]`), null);
   await act(async () => gate.resolve());
   assert.equal(sessions.getSnapshot().session.userId, 'fixture');
+}, {}, true)));
+
+
+for (const platform of ['ios', 'android']) test(`mounted ${platform} mailbox Passkey obeys agreement and existing session acceptance`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
+  await fixture.press('login_email');
+  assert.equal(fixture.requests.length, 0);
+  await fixture.press('agreement_btn_agree');
+  if (platform === 'ios') await act(async () => fixture.modal().onDismiss());
+  assert.equal(host.props.get('email_passkey_login').disabled, true);
+  await act(async () => host.props.get('email_code_address').onChangeText(' reader@example.test '));
+  await act(async () => host.props.get('email_passkey_login').onPress());
+  assert.equal(fixture.requests[0].email, 'reader@example.test');
+  assert.equal(fixture.requests[1].type, 'passkey');
+  assert.equal(fixture.requests[1].request_id, 'passkey-challenge');
+  assert.equal(fixture.accepted.length, 1);
+  assert.equal(host.window.document.querySelector('[data-testid="email_code_address"]'), null);
+}, {}, true)));
+
+for (const replacement of ['dismiss', 'origin', 'account', 'unmount']) test(`mounted Passkey completion after ${replacement} cannot dispatch login`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'android', async fixture => {
+  const gate = deferred(); fixture.passkey(() => gate.promise);
+  await fixture.press('login_email'); await fixture.press('agreement_btn_agree');
+  await act(async () => host.props.get('email_code_address').onChangeText('reader@example.test'));
+  await act(async () => host.props.get('email_passkey_login').onPress());
+  if (replacement === 'dismiss') await act(async () => host.props.get('email_code_cancel').onPress());
+  else if (replacement === 'origin') await fixture.changeOrigin();
+  else if (replacement === 'account') fixture.setUser();
+  else await host.unmount();
+  await act(async () => gate.resolve({id: 'late', response: {}}));
+  assert.equal(fixture.requests.length, 1);
+  assert.equal(fixture.accepted.length, 0);
 }, {}, true)));
