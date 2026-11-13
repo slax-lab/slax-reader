@@ -26,4 +26,4 @@
 - [ ] 5.1 After human deployment, verify candidate build/cache convergence and controlled end-to-end budget before the final outcome window.
 - [ ] 5.2 Judge the existing seven-day podcast/Mole 70% contract with sufficient family/canary counts and matched traffic mix; keep insufficient or failing outcomes open.
 
-See `validation.md` for completed local checks and explicit integration/device/performance gaps. Task4.3 remains open for current-branch human acceptance; Web/API require no package-version increment. Tasks5.x are human-controlled deployment and post-convergence field verification, not local implementation claims.
+See `validation.md` for completed local checks and explicit integration/device/performance gaps. Task4.3 remains open for current-branch human acceptance; Web/API require no package-version increment. The owner's explicit November 13 request authorizes an early draft PR while that acceptance remains pending. Tasks5.x are human-controlled deployment and post-convergence field verification, not local implementation claims.

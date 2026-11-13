@@ -20,10 +20,11 @@ const { createSSRApp, h } = require('vue')
 const { renderToString } = require('vue/server-renderer')
 const origin = 'http://127.0.0.1:4321'
 const articleFile = 'apps/web/app/components/Article/BookmarkArticle.vue'
+const baselineRef = '293847be14ea7c30f31713a275726e705b66bf9d'
 const sampleDirectory = process.argv[2]
 
 const variants = Object.fromEntries(['current', 'baseline'].map(mode => {
-  const source = mode === 'current' ? readFileSync(resolve(root, articleFile), 'utf8') : execFileSync('git', ['show', `origin/dev:${articleFile}`], { cwd: root, encoding: 'utf8' })
+  const source = mode === 'current' ? readFileSync(resolve(root, articleFile), 'utf8') : execFileSync('git', ['show', `${baselineRef}:${articleFile}`], { cwd: root, encoding: 'utf8' })
   const { descriptor } = parse(source)
   const element = descriptor.template.content.match(/<div class="html-text"[^>]*><\/div>/)?.[0]
   assert(element, 'The actual article body binding must exist')

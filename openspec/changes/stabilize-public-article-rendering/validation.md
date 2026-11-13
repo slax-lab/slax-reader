@@ -21,6 +21,7 @@ Commands ran from the repository root. Web commands below use the non-secret pla
 | `pnpm api -- lint` | Final run passed;0 errors,343 warnings |
 | `pnpm api -- gen:all` | Passed using `SLAX_API_CONFIG=deploy/cloudflare/api.toml.example` and fixture database URLs; no tracked generation drift |
 | `pnpm web -- build` | Passed, including the final source after the review fix |
+| `node --check apps/web/tests/fixtures/article-loading/hydration-browser-harness.mjs` | Passed after pinning the replay baseline |
 | `pnpm exec openspec validate --all --strict` |143 items passed,0 failed |
 | `git diff --check` | Passed |
 
@@ -46,7 +47,7 @@ Run `node apps/web/tests/fixtures/article-loading/hydration-browser-harness.mjs`
 
 Native Chrome observations:
 
-- Complete SSR body, zero initial body assignments, original text/image nodes retained, no Vue hydration warnings. The `origin/dev` compiled-binding control performs one assignment and replaces both nodes.
+- Complete SSR body, zero initial body assignments, original text/image nodes retained, no Vue hydration warnings. The compiled-binding control from pinned commit `293847be14ea7c30f31713a275726e705b66bf9d` performs one assignment and replaces both nodes.
 - Actual marks are drawn, respond to clicks, survive an unrelated prop update, clear and redraw. The image handler and podcast player survive that update too.
 - The real image preview component opens and dismisses through its existing background handler; the screen-lock callback returns to false. Fixture CSS is not a full product visual-parity claim.
 - Known-duration audio starts with `preload=none` and zero media requests. A paragraph intent before metadata starts at45s in one gesture, overriding the saved30s position. Play/pause works; pausing around45s saves the position; refresh restores45s before media loading and play resumes there. This is existing localStorage-based resume, not authenticated server persistence.
@@ -71,12 +72,16 @@ A fresh read-only Claude Code reviewer requested and reported `claude-opus-5.5`.
 
 The reviewer also questioned SSR compiler coverage, real-body serialization, remount assertions, native R2 cache behavior, image ratio CSS and resume coverage. These were checked through the built SSR output, three-body native replay, stronger unit assertions, real workerd test, existing compiled `max-width:100%;height:auto` reader rules, and native controls above. Metadata key order and existing sequential I/O remain intact. The reviewer did not receive the delta specs or later fixture additions; Codex completed the final Bugs/Security/Compliance pass over the complete diff and all three delta files. No Important finding remains unresolved for this local implementation.
 
+The subsequent independent Codex architecture review and `claude-opus-5.5` edge-case review reported no Important findings and two Nits. Both are addressed: the replay control is pinned to the original base commit so fetching or merging `dev` cannot replace the old binding; failed metadata responses intentionally omit the former coarse `core_orchestrator` metric together with the granular metadata stages. Other outer request timings remain available outside production. This diagnostic-only change does not change the response status or access decision, and does not require a special runtime branch.
+
+After these fixture/documentation-only follow-ups, a fresh fixture process on an ephemeral loopback port compiled the pinned baseline and current source, returned both complete SSR variants with HTTP200, and served the client bundle successfully. The syntax check, strict OpenSpec validation (143 passed) and whitespace check passed again. Runtime source was unchanged, so the earlier full-suite and browser evidence still applies. The final Bugs/Security/Compliance pass found no new Important issue; human acceptance remains pending under the explicit early-draft instruction below.
+
 ## Explicit remaining verification and release boundaries
 
 - Full authenticated Nuxt integration, creating/saving/deleting highlights and comments against a development account, and account-switch/back-forward flows were not exercised: this fresh worktree has no configured local API/account. Renderer/handler preservation is covered; server persistence is not claimed.
-- Physical iOS/Safari and Android controls were not available. Chrome mobile viewport is not a physical-device substitute.
+- Physical iPhone Safari and Android Chrome Web playback were not exercised. This is a Web-browser regression gap: the changed Vue hydration code runs in browsers. No native iOS/Android application or Mobile package code is changed or requires a native rebuild. Chrome mobile viewport is not a physical-browser substitute.
 - The final controlled1.6Mbps/750Kbps/150ms/CPU4x end-to-end LCP/TTFB gate was not run against a fully configured candidate; these fixture timings do not satisfy it. Production first-byte attribution needs requests in the authorized test environment; this implementation changes timing visibility, not queries or placement.
 - Existing Mole storage was not modified. New capture dimensions do not repair its old body. Field CLS1.798 remains unattributed; the prior image-only CLS0.09 reproduction is not an explanation of all field shifts. A legacy repair still needs its bounded revision-aware preview if required after remeasurement.
 - No deployment, production configuration flip or seven-day field outcome was performed. Podcast and Mole each still require the existing70% raw/matched-mix outcome contract after build/cache convergence and sufficient counts.
-- Human hands-on acceptance for this branch has not occurred. The prior PR's acceptance does not substitute. DESIGN.md section10.2 requires it before opening a UI-visible behavior PR; none has been opened.
+- Human hands-on acceptance for this branch has not occurred. The prior PR's acceptance does not substitute. DESIGN.md section10.2 ordinarily requires it before opening a UI-visible behavior PR. After the gap was disclosed, the owner explicitly requested an early draft PR on November 13, 2026; that instruction authorizes opening this draft for review and does not constitute acceptance. Keep it in draft until current-branch acceptance is recorded.
 - Version assessment: Web/API only. No CLI/Extension/Mobile logic, public API contract, dependency or package output changed. `docs/release/VERSIONING.md` excludes Web/API from package-version increments; no version decision is required here.
