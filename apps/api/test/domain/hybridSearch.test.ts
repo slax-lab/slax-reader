@@ -251,16 +251,123 @@ describe('fulltext channel', () => {
     expect(result.coverage).toEqual({ exhausted: false, truncated: true, reasons: ['index_only', 'candidate_limit'] })
   })
 
-  test('exhausts ten pages of unrepeatable candidates as an incomplete scan budget', async () => {
+  test('retains ten logical pages and the scan budget with two index reads', async () => {
     const { repo, fulltextRepo, service } = dependencies()
     const { ctx: context } = ctx()
-    fulltextRepo.searchCandidatePage.mockResolvedValue(Array.from({ length: 101 }, () => pageRow(10)))
+    const rows = Array.from({ length: 1001 }, () => pageRow(10))
+    fulltextRepo.searchCandidatePage.mockImplementation(async (_expression: string, offset: number, limit: number) => rows.slice(offset, offset + limit))
     repo.articles.mockImplementation(async (_userId: number, ids: number[]) => ids.map(id => articleRow({ bookmark_id: id })))
     const result = await service.fulltext(context, 'reader', new AbortController().signal)
-    expect(fulltextRepo.searchCandidatePage).toHaveBeenCalledTimes(10)
-    expect(fulltextRepo.searchCandidatePage.mock.calls.map((call: unknown[]) => call[1])).toEqual([0, 100, 200, 300, 400, 500, 600, 700, 800, 900])
+    expect(fulltextRepo.searchCandidatePage.mock.calls).toEqual([
+      ['"reader"', 0, 101],
+      ['"reader"', 100, 901]
+    ])
+    expect(repo.articles).toHaveBeenCalledTimes(11)
     expect(result.matches).toHaveLength(1)
     expect(result.coverage).toEqual({ exhausted: false, truncated: true, reasons: ['index_only', 'scan_budget'] })
+  })
+
+  test('admits each buffered page separately and never admits the scan-budget sentinel', async () => {
+    const { repo, fulltextRepo, service } = dependencies()
+    const { ctx: context } = ctx()
+    const rows = Array.from({ length: 1001 }, (_, index) => pageRow(index + 1))
+    const allowed = new Set([100, 101, 200, 201, 1000, 1001])
+    fulltextRepo.searchCandidatePage.mockImplementation(async (_expression: string, offset: number, limit: number) => rows.slice(offset, offset + limit))
+    repo.articles.mockImplementation(async (_userId: number, ids: number[]) => ids.filter(id => allowed.has(id)).map(id => articleRow({ bookmark_id: id })))
+    const result = await service.fulltext(context, 'reader', new AbortController().signal)
+    expect(result.matches.map(match => match.entity.id).sort()).toEqual(['article:100', 'article:101', 'article:200', 'article:201', 'article:1000'].sort())
+    expect(repo.articles.mock.calls.slice(0, 10).map((call: unknown[]) => call[1])).toEqual(
+      Array.from({ length: 10 }, (_, page) => Array.from({ length: 100 }, (_, index) => page * 100 + index + 1))
+    )
+    expect(repo.articles).toHaveBeenCalledTimes(11)
+    expect(result.coverage).toEqual({ exhausted: false, truncated: true, reasons: ['index_only', 'scan_budget'] })
+  })
+
+  test('stops admission at the candidate limit even when more rows were prefetched', async () => {
+    const { repo, fulltextRepo, service } = dependencies()
+    const { ctx: context } = ctx()
+    const rows = Array.from({ length: 1001 }, (_, index) => pageRow(index + 1))
+    fulltextRepo.searchCandidatePage.mockImplementation(async (_expression: string, offset: number, limit: number) => rows.slice(offset, offset + limit))
+    repo.articles.mockImplementation(async (_userId: number, ids: number[]) => ids.filter(id => id > 100).map(id => articleRow({ bookmark_id: id })))
+    const result = await service.fulltext(context, 'reader', new AbortController().signal)
+    expect(result.matches).toHaveLength(100)
+    expect(result.matches.every(match => Number(match.entity.id.split(':')[1]) <= 200)).toBe(true)
+    expect(fulltextRepo.searchCandidatePage).toHaveBeenCalledTimes(2)
+    expect(repo.articles).toHaveBeenCalledTimes(3)
+    expect(result.coverage).toEqual({ exhausted: false, truncated: true, reasons: ['index_only', 'candidate_limit'] })
+  })
+
+  test.each([100, 101, 200, 201, 999, 1000])('preserves exhausted coverage for exactly %i indexed rows', async count => {
+    const { repo, fulltextRepo, service } = dependencies()
+    const { ctx: context } = ctx()
+    const rows = Array.from({ length: count }, () => pageRow(10))
+    fulltextRepo.searchCandidatePage.mockImplementation(async (_expression: string, offset: number, limit: number) => rows.slice(offset, offset + limit))
+    repo.articles.mockImplementation(async (_userId: number, ids: number[]) => ids.map(id => articleRow({ bookmark_id: id })))
+    const result = await service.fulltext(context, 'reader', new AbortController().signal)
+    expect(result.matches).toHaveLength(1)
+    expect(fulltextRepo.searchCandidatePage).toHaveBeenCalledTimes(count <= 100 ? 1 : 2)
+    expect(repo.articles).toHaveBeenCalledTimes(Math.ceil(count / 100) + 1)
+    expect(result.coverage).toEqual({ exhausted: true, truncated: false, reasons: ['index_only'] })
+  })
+
+  test('keeps the first occurrence score and excerpt across buffered pages', async () => {
+    const { repo, fulltextRepo, service } = dependencies()
+    const { ctx: context } = ctx()
+    const rows = [...Array.from({ length: 100 }, () => pageRow(10, -2, 'first')), pageRow(10, -1, 'later')]
+    fulltextRepo.searchCandidatePage.mockImplementation(async (_expression: string, offset: number, limit: number) => rows.slice(offset, offset + limit))
+    repo.articles.mockImplementation(async (_userId: number, ids: number[]) => ids.map(id => articleRow({ bookmark_id: id })))
+    const result = await service.fulltext(context, 'reader', new AbortController().signal)
+    expect(result.matches).toHaveLength(1)
+    expect(result.matches[0].nativeScore).toBe(-2)
+    expect(result.matches[0].entity.type === 'article' && result.matches[0].entity.excerpt).toEqual({ text: 'first', source: 'indexed_text' })
+  })
+
+  test('still revalidates permissions after processing prefetched pages', async () => {
+    const { repo, fulltextRepo, service } = dependencies()
+    const { ctx: context } = ctx()
+    const rows = Array.from({ length: 101 }, () => pageRow(10))
+    fulltextRepo.searchCandidatePage.mockImplementation(async (_expression: string, offset: number, limit: number) => rows.slice(offset, offset + limit))
+    repo.articles.mockResolvedValueOnce([articleRow()]).mockResolvedValueOnce([articleRow()]).mockResolvedValueOnce([])
+    const result = await service.fulltext(context, 'reader', new AbortController().signal)
+    expect(repo.articles).toHaveBeenCalledTimes(3)
+    expect(result.matches).toEqual([])
+    expect(result.coverage).toEqual({ exhausted: true, truncated: false, reasons: ['index_only'] })
+  })
+
+  test('does not prefetch after cancellation during first-page admission', async () => {
+    const { repo, fulltextRepo, service } = dependencies()
+    const { ctx: context } = ctx()
+    const controller = new AbortController()
+    fulltextRepo.searchCandidatePage.mockResolvedValue(Array.from({ length: 101 }, () => pageRow(10)))
+    repo.articles.mockImplementation(async () => {
+      controller.abort()
+      return []
+    })
+    await expect(service.fulltext(context, 'reader', controller.signal)).rejects.toMatchObject({ name: 'AbortError' })
+    expect(fulltextRepo.searchCandidatePage).toHaveBeenCalledTimes(1)
+  })
+
+  test('does not admit prefetched rows after cancellation during their retrieval', async () => {
+    const { repo, fulltextRepo, service } = dependencies()
+    const { ctx: context } = ctx()
+    const controller = new AbortController()
+    const rows = Array.from({ length: 1001 }, () => pageRow(10))
+    fulltextRepo.searchCandidatePage.mockImplementation(async (_expression: string, offset: number, limit: number) => {
+      if (offset > 0) controller.abort()
+      return rows.slice(offset, offset + limit)
+    })
+    await expect(service.fulltext(context, 'reader', controller.signal)).rejects.toMatchObject({ name: 'AbortError' })
+    expect(fulltextRepo.searchCandidatePage).toHaveBeenCalledTimes(2)
+    expect(repo.articles).toHaveBeenCalledTimes(1)
+  })
+
+  test('propagates a remaining-page retrieval failure without returning partial matches', async () => {
+    const { repo, fulltextRepo, service } = dependencies()
+    const { ctx: context } = ctx()
+    fulltextRepo.searchCandidatePage.mockResolvedValueOnce(Array.from({ length: 101 }, () => pageRow(10))).mockRejectedValueOnce(new Error('index unavailable'))
+    repo.articles.mockResolvedValue([articleRow()])
+    await expect(service.fulltext(context, 'reader', new AbortController().signal)).rejects.toThrow('index unavailable')
+    expect(repo.articles).toHaveBeenCalledTimes(1)
   })
 
   test('does not request another page after abort', async () => {
