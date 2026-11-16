@@ -86,7 +86,13 @@ The archive-order Nit is answered in `proposal.md`: classify outstanding tasks a
 
 After this fix, the complete Web suite passed241 files/2913 tests (1 file/3 tests skipped), with the same recorded Happy DOM teardown AbortError and exit0. Web typecheck passed with the documented non-secret localhost configuration. Strict OpenSpec validation passed143 items and `git diff --check` passed. API runtime code is unchanged by this follow-up; the existing API evidence and green API CI remain applicable. The local Bugs/Security/Compliance pass found the diagnostic code issue fixed, no new access/data/contract change, and the human-acceptance item below still open.
 
-The remaining Important finding requests current-branch human hands-on acceptance. No acceptance is inferred from creating the draft or marking it ready for review, and no test result is substituted for it. The owner has been asked for the actual environment and highlight/image/podcast results. This record remains pending that response.
+The remaining Important finding requests current-branch human hands-on acceptance. No acceptance is inferred from creating the draft or marking it ready for review, and no test result is substituted for it. On November 16, 2026, the owner clarified that no test screenshots were supplied because the change concerns performance optimization and diagnostic logging. That clarification explains the absence of screenshots; it does not report a current-branch test environment or interaction results, so the hands-on acceptance record remains pending.
+
+### Screenshot rationale
+
+No before/after screenshots are supplied: this change preserves the existing layout, styling and controls, while changing hydration node ownership, image-cache reuse, capture metadata and non-production Server-Timing diagnostics. A static image cannot demonstrate fewer body assignments, cache reuse, request-stage duration or an LCP/CLS improvement. The running-browser, workerd and HTTP observations above provide the relevant mechanism and regression evidence; the controlled end-to-end and field performance gates remain open. This is not a transition, drag or scroll-animation change requiring motion evidence. The screenshot rationale does not replace human hands-on acceptance.
+
+The November 16 follow-up changes documentation and PR explanations only, with no runtime or package-output change. It uses the documentation-only verification exemption; strict OpenSpec validation and whitespace checks still apply.
 
 ## Explicit remaining verification and release boundaries
 
