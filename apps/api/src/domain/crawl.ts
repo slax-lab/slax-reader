@@ -1,3 +1,4 @@
+import { assertExternalNewsletterTarget } from '@/utils/newsletterTarget'
 import { MarkRepo } from '@/infra/repository/dbMark'
 import { SocialMediaApi } from '../infra/external/socialMedia'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
@@ -148,6 +149,7 @@ export class CrawlService {
   }
 
   public async createWorkflow(env: Env, params: CrawlWorkflowParams, maxRetries: number = 3, trackingContext?: ContextManager) {
+    assertExternalNewsletterTarget(params.url)
     const raw = await this.snapshotRepo.snapshot(params.bookmarkId)
     if (!raw) throw forkError()
     if (params.captureRevision && params.captureRevision !== raw.updated_at.toISOString()) return
@@ -1079,6 +1081,16 @@ export class CrawlService {
     if (viaFxEmbedHtml) {
       // fetch 阶段序列化为 HTML string，这里还原为 Document
       const { document: tweetDocument } = parseHTML(viaFxEmbedHtml)
+      const coverSource = tweetDocument.querySelector('meta[property="og:image"]')?.getAttribute('content')
+      const coverWidth = Number(tweetDocument.querySelector('meta[property="og:image:width"]')?.getAttribute('content'))
+      const coverHeight = Number(tweetDocument.querySelector('meta[property="og:image:height"]')?.getAttribute('content'))
+      if (coverSource && Number.isInteger(coverWidth) && coverWidth > 0 && Number.isInteger(coverHeight) && coverHeight > 0) {
+        for (const image of tweetDocument.querySelectorAll('img')) {
+          if (image.getAttribute('src') !== coverSource || image.hasAttribute('width') || image.hasAttribute('height')) continue
+          image.setAttribute('width', String(coverWidth))
+          image.setAttribute('height', String(coverHeight))
+        }
+      }
       await new Imager(ctx.env).replaceHeadImage(new URL(sourceUrl), tweetDocument)
       await new Imager(ctx.env).batchReplaceImage(new URL(sourceUrl), tweetDocument)
       const content = HtmlBuilder.buildTweetArticleWithDocument(tweetDocument)

@@ -19,9 +19,9 @@
 
       <!-- 登录按钮 -->
       <div v-if="showLoginBtn" class="auth-btns">
-        <EmailLoginForm ref="emailLogin" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" />
         <GoogleLoginButton ref="googleLoginBtn" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" @click.capture="emailLogin?.cancel()" />
         <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" @click.capture="emailLogin?.cancel()" />
+        <EmailLoginForm ref="emailLogin" :redirect="redirect" :affcode="affcode" :auth-attribution="authAttribution" />
       </div>
 
       <!-- 服务条款 -->

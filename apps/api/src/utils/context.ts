@@ -82,13 +82,13 @@ export class ContextManager {
     this.streamWork = Promise.allSettled([this.streamWork, work]).then(() => {})
   }
 
-  private releaseResources(): Promise<void> {
+  private releaseResources(onError: (error: unknown) => void): Promise<void> {
     this.cleanupWork ??= Promise.all(
       this.cleanupCallbacks.map(async callback => {
         try {
           await callback()
         } catch (error) {
-          console.error('Cleanup error:', error)
+          onError(error)
         }
       })
     ).then(() => {
@@ -97,14 +97,14 @@ export class ContextManager {
     return this.cleanupWork
   }
 
-  async cleanup() {
+  async cleanup(onError: (error: unknown) => void = error => console.error('Cleanup error:', error)) {
     if (this.streamWork) {
       if (!this.cleanupScheduled) {
         this.cleanupScheduled = true
-        this.execution.waitUntil(this.streamWork.then(() => this.releaseResources()))
+        this.execution.waitUntil(this.streamWork.then(() => this.releaseResources(onError)))
       }
       return
     }
-    await this.releaseResources()
+    await this.releaseResources(onError)
   }
 }

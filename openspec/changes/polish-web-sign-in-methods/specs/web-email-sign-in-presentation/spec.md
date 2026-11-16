@@ -8,11 +8,11 @@ Give email sign-in a recognizable, compact, accessible presentation in the exist
 
 ### Requirement: Email login retains its identity across presentation states
 
-The email login module SHALL use an identifying decorative envelope beside its localized entry label. When expanded, it SHALL retain the method identity and present cancellation as a subordinate trailing action rather than a competing full-width primary control. Both existing login hosts SHALL use the same email module presentation without changing their respective provider order or surrounding content.
+The email login module SHALL use an identifying decorative envelope beside its localized entry label. When expanded, it SHALL retain the method identity and present cancellation as a subordinate trailing action rather than a competing full-width primary control. Both existing login hosts SHALL use the same email module presentation and source order: Google, Apple when configured, then email. The collapsed email entry SHALL be visually subordinate to provider controls while retaining a clear label, identifying envelope, readable contrast, visible keyboard focus, and a minimum 44px hit area. Expanded Send/Verify actions SHALL remain clear stage actions. Surrounding content SHALL remain intact.
 
 #### Scenario: An anonymous reader expands email sign-in
 
-- **WHEN** a reader selects the email entry in a development or preview login page or modal
+- **WHEN** a reader selects the email entry in a login page or modal in any environment
 - **THEN** the expanded module retains its email identity above the form and exposes a clear cancellation action
 - **AND** cancellation closes the form and retains the existing request-abort behavior
 
@@ -33,21 +33,27 @@ Address entry and sending, and code entry and verification, SHALL each present a
 
 ### Requirement: Presentation preserves existing login contracts
 
-The visual refinement SHALL preserve provider availability, invitation verification, development-and-preview email visibility, account-safe cancellation, referral/acquisition context, post-login continuation, and the accepted account-binding form behavior. It SHALL use the existing Web design roles and curated icon boundary.
+The visual refinement SHALL preserve provider availability, invitation verification, all-environment email availability, account-safe cancellation, referral/acquisition context, post-login continuation, and the accepted account-binding form behavior. It SHALL use the existing Web design roles and curated icon boundary.
 
 #### Scenario: A reader selects an existing provider during email sign-in
 
 - **WHEN** the reader switches from an active email attempt to an available Google or Apple control
 - **THEN** the existing provider initiation remains available and the abandoned email attempt is cancelled according to the existing lifecycle
 
-#### Scenario: A beta or production client renders login
+#### Scenario: A production client renders login
 
-- **WHEN** the login page or modal renders in beta or production
-- **THEN** email entry and its expanded form remain absent according to the rollout policy
+- **WHEN** the login page or modal renders in production
+- **THEN** the email entry and compact code flow are available under the same client rules as development
 - **AND** existing provider controls follow their previous configuration rules
 
-#### Scenario: A preview client offers the email flow
+#### Scenario: Every environment offers the email flow
 
-- **WHEN** an anonymous reader opens the Web login page or modal in the preview profile
+- **WHEN** an anonymous reader opens the Web login page or modal in development, preview, beta, or production
 - **THEN** the email entry and compact code flow are available under the same client rules as development
 - **AND** verification retains the existing session, cancellation, and continuation contracts
+
+#### Scenario: A reader chooses a method without expanding email
+
+- **WHEN** configured provider controls and collapsed email login are rendered
+- **THEN** Google precedes Apple and email is last in both visual and keyboard order
+- **AND** the email entry remains discoverable with lower visual emphasis than the provider controls

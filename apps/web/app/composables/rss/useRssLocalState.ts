@@ -4,7 +4,7 @@ import { getUserToken } from '~/utils/request'
 import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { RequestError } from '@commons/frontend-utils/request'
-import type { SyncStream, SyncStreamSubscription } from '@powersync/web'
+import type { PowerSyncDatabase, SyncStream, SyncStreamSubscription } from '@powersync/web'
 import type { RssEntriesResponse, RssEntry, RssSubscription } from '@slax-reader/contracts'
 import { useLocalRss } from '~/composables/rss/useLocalRss'
 import { isLocalFirstEnabled } from '~/composables/useLocalFirst'
@@ -299,7 +299,7 @@ export function useRssLocalState(db: RssLocalDatabase, active: Ref<boolean>, acc
 }
 
 /** The PowerSync database when local-first storage is available in this client, otherwise null (REST only). */
-export const rssLocalDatabase = (): RssLocalDatabase | null => (isLocalFirstEnabled() ? useNuxtApp().$powersync : null)
+export const rssLocalDatabase = (): PowerSyncDatabase | null => (isLocalFirstEnabled() ? useNuxtApp().$powersync : null)
 
 /** True when the local database belongs to the signed-in account, so its rows may be shown before the server answers. */
 export const rssLocalOwned = () => {

@@ -60,3 +60,8 @@
 
 - [x] 10.1 Restrict email authentication attribution to the snapshot schema; add regressions proving collection and HackerLinks metadata are omitted for both new and returning email account facts while preserving snapshot attribution and existing provider behavior.
 - [x] 10.2 Reconcile the runtime boundaries with the completed real Google and fresh-snapshot acceptance; retain only the actual remaining gaps and rerun the affected API suites, typecheck, full API suite, and OpenSpec validation.
+
+## 11. Dev Merge and Conflict Resolution
+
+- [x] 11.1 Merge `origin/dev` at `155f9135`; resolve the sole `useAuth.ts` import conflict while preserving both snapshot attribution and Passkey login, refresh dependencies, and regenerate the merged Prisma/API outputs.
+- [x] 11.2 Rerun the current post-merge checks under Node 22.22.2: focused Web 12 files/178 tests and API 2 files/85 tests; full Web 249 files passed/1 skipped and 3,037 tests passed/3 skipped; full API 269 files passed/20 skipped and 4,263 tests passed/158 skipped; Web/API typechecks; OpenSpec 137 passed/0 failed.

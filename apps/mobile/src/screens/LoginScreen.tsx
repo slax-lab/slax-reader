@@ -14,6 +14,7 @@ import {useObserveMarkInteractive} from '../observe';
 import {loginWithProvider} from '../auth/login';
 import {EmailCodeDialog} from '../auth/EmailCodeDialog';
 import {emailAuthError} from '../auth/email-auth-errors';
+import {nativePasskeys} from '../native/passkeys';
 import {useEmailLogin} from '../auth/useEmailLogin';
 
 type LoginMethod = LoginProvider | 'email';
@@ -27,9 +28,10 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   const [agreement, setAgreement] = useState<'terms'|'privacy'|null>(null);
   const [loading, setLoading] = useState<LoginProvider|null>(null);
   const email = useEmailLogin({
-    api, sessions, apiOrigin: config.apiUrl, onAuthenticated,
+    api, sessions, nativePasskeys, apiOrigin: config.apiUrl, onAuthenticated,
     onOpen: () => telemetry.element('login_email_button', 'signup'),
     onVerify: () => telemetry.firebase('user', 'login_start', {method: 'email'}),
+    onPasskey: () => telemetry.firebase('user', 'login_start', {method: 'passkey'}),
   });
   const [agreementId, setAgreementId] = useState(0);
   const agreementSequence = useRef(0);
@@ -42,7 +44,8 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
     setLoading(null);
     return () => {pending.current = null; providerGeneration.current++; active.current = false;};
   }, [api, sessions, config.apiUrl]);
-  const emailEnabled = config.development && !fixtureOnly;
+  const emailEnabled = !fixtureOnly;
+  const passkeysEnabled = (config.development || config.isBeta || ['https://r.slax.dev', 'https://r-beta.slax.com'].includes(config.webUrl)) && !fixtureOnly && nativePasskeys.isSupported();
   const markInteractive = useObserveMarkInteractive();
   useEffect(() => {markInteractive();}, [markInteractive]);
   const sessionGuard = () => {
@@ -120,10 +123,10 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   const button = (method: LoginMethod) => <Pressable
     accessibilityRole="button" accessibilityLabel={t(`login_${method}`)}
     testID={`${mobileTestIds.LoginButton}_${method}`} disabled={Boolean(loading || email.flow)}
-    onPress={() => begin(method)} style={({pressed}) => [styles.provider, {width: Math.min(width - 80, L.loginButtonMaximumWidth)}, method !== 'google' && {marginTop: 10}, pressed && {backgroundColor: C.pressedOverlay}]}>
+    onPress={() => begin(method)} style={({pressed}) => [styles.provider, {width: Math.min(width - 80, L.loginButtonMaximumWidth)}, method !== 'google' && {marginTop: 10}, method === 'email' && styles.emailEntry, pressed && {backgroundColor: C.pressedOverlay}]}>
     {loading === method ? <ActivityIndicator size="small" color={C.text} testID={mobileTestIds.LoginLoadingIndicator}/> : <>
       {method !== 'email' && <Image source={method === 'google' ? mobileAssets.ic_sm_google : mobileAssets.ic_sm_apple} style={styles.providerIcon}/>}
-      <Text style={[styles.providerText, method !== 'email' && {marginLeft: 10}]}>{t(`login_${method}`)}</Text>
+      <Text style={[styles.providerText, method !== 'email' && {marginLeft: 10}, method === 'email' && styles.emailLabel]}>{t(`login_${method}`)}</Text>
     </>}
   </Pressable>;
   const content = <>
@@ -154,7 +157,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
   return <View style={[styles.root, {paddingBottom: insets.bottom}]}>
     {emailEnabled ? <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView> : content}
     {emailEnabled && email.flow && <EmailCodeDialog t={t} locale={locale} mode="login" isCurrent={email.flow.isCurrent}
-      dismissible={email.dismissible} send={email.send} verify={email.verify} onVerified={email.accept} onClose={email.close} />}
+      dismissible={email.dismissible} passkey={passkeysEnabled ? email.passkey : undefined} send={email.send} verify={email.verify} onVerified={email.accept} onClose={email.close} />}
     <Modal key={`agreement-${agreementId}`} visible={agreement !== null} transparent animationType="slide" onRequestClose={dismissAgreement} onDismiss={agreementDidDismiss}>
       <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} accessibilityLabel={t('btn_close')} onPress={dismissAgreement}/>
@@ -183,6 +186,7 @@ const styles = StyleSheet.create({
   bottom: {alignItems: 'center', marginTop: 16, marginBottom: 30},
   provider: {height: 50, borderRadius: 25, borderColor: C.buttonBorder, borderWidth: 0.5, alignItems: 'center', justifyContent: 'center', flexDirection: 'row'},
   providerIcon: {width: 24, height: 24}, providerText: {fontSize: 15, lineHeight: 21, fontWeight: '500', color: C.bodyText},
+  emailEntry: {borderWidth: 0}, emailLabel: {fontWeight: '400', color: C.secondaryText},
   agreementRow: {marginTop: 30, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24},
   agreementText: {fontSize: 12, lineHeight: 16.5, color: C.secondaryText, marginLeft: 6}, link: {color: C.link},
   modalBackdrop: {flex: 1, backgroundColor: C.scrim, justifyContent: 'flex-end'},

@@ -1,5 +1,7 @@
 # Tasks
 
+These checked tasks record the merged predecessor implementation. Subsequent Web ordering and beta-policy changes are proposed and tracked only in `refine-email-login-flow/tasks.md`; this historical completion record does not claim that follow-up is implemented.
+
 ## 1. Method Row Presentation
 
 - [x] 1.1 Curate the existing Google/Apple artwork and an installed-set envelope into the Web icon registry with provenance, paint, and decorative accessibility metadata; generate output through `pnpm icons:write` and verify `pnpm icons:check`, `pnpm icons:test`, and 20px rendering in all Web themes.

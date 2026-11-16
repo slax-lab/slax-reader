@@ -5,8 +5,18 @@ import LinkPresentation
 import SafariServices
 
 public final class SlaxPlatformModule: Module {
+  private let passkeys = SlaxPasskeys()
   public func definition() -> ModuleDefinition {
     Name("SlaxPlatform")
+    AsyncFunction("createPasskey") { (options: String, promise: Promise) in
+      guard let window = self.appContext?.utilities?.currentViewController()?.viewIfLoaded?.window else { throw NSError(domain: "SlaxPlatform", code: 3, userInfo: [NSLocalizedDescriptionKey: "Active screen unavailable"]) }
+      try self.passkeys.perform(options: options, register: true, window: window, promise: promise)
+    }.runOnQueue(.main)
+    AsyncFunction("authenticatePasskey") { (options: String, promise: Promise) in
+      guard let window = self.appContext?.utilities?.currentViewController()?.viewIfLoaded?.window else { throw NSError(domain: "SlaxPlatform", code: 3, userInfo: [NSLocalizedDescriptionKey: "Active screen unavailable"]) }
+      try self.passkeys.perform(options: options, register: false, window: window, promise: promise)
+    }.runOnQueue(.main)
+    AsyncFunction("cancelPasskey") { self.passkeys.cancel() }.runOnQueue(.main)
     AsyncFunction("openInAppBrowser") { (raw: String, promise: Promise) in
       guard !raw.unicodeScalars.contains(where: { $0.value <= 32 || $0.value == 127 || $0.value == 92 }),
         let url = URL(string: raw), ["http", "https"].contains(url.scheme?.lowercased() ?? ""),

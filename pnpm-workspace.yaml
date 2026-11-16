@@ -38,6 +38,8 @@ allowBuilds:
   'core-js-pure': false
 
 overrides:
+  # The verifier and its EC schemas must share one ASN.1 metadata store (SimpleWebAuthn #808).
+  "@simplewebauthn/server>@peculiar/asn1-schema": "2.11.1"
   "@intlify/message-compiler": ^10.0.0
   "@webext-core/fake-browser": 1.3.4
   vue: 3.5.42

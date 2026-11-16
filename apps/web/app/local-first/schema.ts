@@ -65,6 +65,17 @@ export const sr_rss_entry = new Table({
   content_truncated: column.integer
 })
 
+// Newsletter has an independent owner-filtered metadata stream; message bodies stay on the API.
+export const sr_newsletter_feed = new Table({
+  source_key: column.text,
+  sender: column.text,
+  sender_name: column.text,
+  title: column.text,
+  excerpt: column.text,
+  published_at: column.text,
+  received_at: column.text
+})
+
 // sr_user_tag：用户标签
 export const sr_user_tag = new Table(
   {
@@ -179,6 +190,7 @@ export const AppSchema = new Schema({
   sr_rss_subscription,
   sr_rss_feed,
   sr_rss_entry,
+  sr_newsletter_feed,
   sr_user_bookmark,
   sr_user_tag,
   sr_bookmark_comment,

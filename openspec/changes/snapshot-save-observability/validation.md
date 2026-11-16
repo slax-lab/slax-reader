@@ -287,7 +287,27 @@ Verification after these corrections, under Node `v22.22.2`:
 - API typecheck passed. `pnpm api -- gen:all` completed without adding a tracked generated-output diff.
 - Targeted API ESLint reported no errors; only the existing `no-explicit-any` warning in `user.ts` and the test-file ignore notice.
 - `openspec validate --all --strict --no-interactive`: 142 passed, 0 failed.
-- No Web file changed in this correction, so the accepted full Web result above remains applicable.
+- No Web file changed in this correction, so the accepted full Web result above remains applicable at that pre-merge revision.
+
+## Dev Merge and Conflict Resolution
+
+After the first product pull request opened, `origin/dev` advanced to `155f9135` with Passkey, Newsletter, and other changes. The only conflict was the import block in `apps/web/app/composables/useAuth.ts`. The resolution retains the snapshot attribution imports and the new Passkey request import and login method. Dependencies were refreshed with `pnpm install --frozen-lockfile`.
+
+The first API typecheck after the merge failed because the generated Prisma client did not yet contain `sr_user_passkey`. The required `pnpm api -- gen:all` refreshed the client; API typecheck then passed, and generation added no tracked output beyond the merged changes.
+
+The following results under Node `v22.22.2` are the current post-merge evidence and supersede the earlier automated counts above:
+
+| Check | Result |
+| --- | --- |
+| Focused Web | 12 files passed; 178 tests passed |
+| Focused API | 2 files passed; 85 tests passed |
+| Full Web | 249 files passed and 1 skipped; 3,037 tests passed and 3 skipped |
+| Full API | 269 files passed and 20 skipped; 4,263 tests passed and 158 skipped |
+| Web and API typechecks | Passed |
+| `openspec validate --all --strict --no-interactive` | 137 passed, 0 failed |
+| `git diff --check` and unresolved-conflict check | Passed |
+
+The total changes from the earlier runs come from the newly merged `dev` baseline, including its added tests and archived OpenSpec changes. The real local task acceptance and remaining runtime gaps are unchanged.
 
 ## Local Review
 

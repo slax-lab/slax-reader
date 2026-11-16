@@ -29,6 +29,7 @@ import { EVENT_CONTEXT_KEY, type EventRequestContext } from '@/domain/events'
 import { YoutubeArticleService } from '@/domain/youtubeArticle'
 import { PodcastService, PODCAST_LAB } from '@/domain/podcast'
 import { classifyPodcastUrl } from '@/utils/podcastSource'
+import { ZhihuCaptureUnavailableError } from '@/infra/external/zhihu'
 
 export interface CrawlWorkflowParams {
   fork?: ForkWorkflowJob
@@ -310,7 +311,12 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
               return { kind: 'reddit', resolvedUrl, data, isSocialMedia: true }
             }
             case 'zhihu': {
-              const data = await trackStep('zhihu_fetching', () => crawlService.fetchZhihuData(this.env, resolvedUrl))
+              const data = await trackStep('zhihu_fetching', () => crawlService.fetchZhihuData(this.env, resolvedUrl)).catch(err => {
+                if (err instanceof ZhihuCaptureUnavailableError) {
+                  throw new NonRetryableError(`zhihu_capture_unavailable:${err.message}`)
+                }
+                throw err
+              })
               return { kind: 'zhihu', resolvedUrl, data, isSocialMedia: true }
             }
             case 'weixin': {
@@ -348,7 +354,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
 
       if (!(await crawlService.setCaptureStatus(ctxManager, bookmarkId, queueStatus.FAILED))) return
 
-      const scope = err instanceof NonRetryableError ? 'workflow_fetch.business_terminal' : 'workflow_fetch.exhausted'
+      const scope = err instanceof NonRetryableError && !errMsg.startsWith('zhihu_capture_unavailable:') ? 'workflow_fetch.business_terminal' : 'workflow_fetch.exhausted'
       if (!errMsg.startsWith('pdf_lab_disabled:') && !errMsg.startsWith('url_lab_disabled:'))
         await alertFailure(scope, {
           bookmark_id: bookmarkId,

@@ -6,6 +6,16 @@ import { describe, expect, it } from 'vitest'
 const mountSource = (props: InstanceType<typeof SnapshotArticleSource>['$props']) => mountWithApp(SnapshotArticleSource, { props })
 
 describe('SnapshotArticleSource', () => {
+  it('uses the existing Source presentation for mail without inventing a web link', () => {
+    const wrapper = mountSource({ siteName: 'Newsletter', author: 'Weekly sender' })
+    expect(wrapper.find('.article-source-label').text()).toBe('Source:')
+    expect(wrapper.find('.article-source-name').text()).toBe('Newsletter')
+    expect(wrapper.find('.article-source-author').text()).toBe('Weekly sender')
+    expect(wrapper.element.tagName).toBe('DIV')
+    expect(wrapper.attributes('href')).toBeUndefined()
+    expect(wrapper.attributes('target')).toBeUndefined()
+    expect(wrapper.find('.article-source-external').exists()).toBe(false)
+  })
   it('uses column, site and domain in priority order', () => {
     const column = mountSource({ url: 'https://example.com/post', columnName: 'The Column', siteName: 'Example' })
     const site = mountSource({ url: 'https://example.com/post', siteName: 'Example' })
@@ -34,10 +44,18 @@ describe('SnapshotArticleSource', () => {
   })
 
   it('links to the original URL and shows the external-link mark', () => {
-    const wrapper = mountSource({ url: 'example.com/post' })
+    const wrapper = mountSource({ url: 'https://example.com/post' })
 
     expect(wrapper.attributes('href')).toBe('https://example.com/post')
     expect(wrapper.attributes('target')).toBe('_blank')
     expect(wrapper.find('.article-source-external').text()).toBe('↗')
   })
+})
+
+
+it.each(['slax-newsletter://message/1', 'slax-pdf://document/1', 'mailto:a@example.com', 'example.com/post'])('does not render a clickable original for %s', url => {
+  const wrapper = mountSource({ url, siteName: 'Source' })
+  expect(wrapper.element.tagName).toBe('DIV')
+  expect(wrapper.attributes('href')).toBeUndefined()
+  expect(wrapper.find('.article-source-external').exists()).toBe(false)
 })

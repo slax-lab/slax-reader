@@ -40,6 +40,9 @@ import { LogsService } from '../../domain/logs'
 import { SlaxAlertBotClient } from '../../infra/external/slaxAlertBot'
 import { LogsRepo } from '../../infra/repository/dbLogs'
 import { EmailChallengeRepo } from '../../infra/repository/redisEmailChallenge'
+import { FeedRepo } from '../../infra/repository/dbFeed'
+import { RssService } from '../../domain/rss'
+import { NewsletterContent } from '../../domain/newsletterContent'
 import { HybridSearchRepo } from '../../infra/repository/dbHybridSearch'
 import { VectorEmbeddingClient } from '../../infra/external/vectorEmbedding'
 import { BookmarkService } from '../../domain/bookmark'
@@ -48,12 +51,17 @@ import { LoginIdentityService } from '../../domain/loginIdentityService'
 import { EmailCodeService } from '../../domain/emailCode'
 import { OAuthStateRepo } from '../../infra/repository/redisOAuthState'
 import { VectorMaintenanceRepo } from '../../infra/repository/dbVectorMaintenance'
+import { NewsletterRepo } from '../../infra/repository/dbNewsletter'
+import { NewsletterSaveRepo } from '../../infra/repository/dbNewsletterSave'
+import { PasskeyRepo } from '../../infra/repository/dbPasskey'
+import { PasskeyChallengeRepo } from '../../infra/repository/redisPasskeyChallenge'
 import { MediaBodyService } from '../../domain/mediaBody'
 import { RssRepo } from '../../infra/repository/dbRss'
 import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
 import { LoginIdentityLinkService } from '../../domain/loginIdentityLinkService'
+import { PasskeyService } from '../../domain/passkey'
 import { VectorSourceRepo } from '../../infra/repository/vectorSources'
 import { VectorIndexClient } from '../../infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '../../infra/repository/vectorPreferenceClient'
@@ -77,7 +85,6 @@ import { TelegramBotService } from '../../domain/telegram'
 import { MonitoringOrchestrator } from '../../domain/orchestrator/monitor'
 import { AigcBatchOrchestrator } from '../../domain/orchestrator/aigc'
 import { PodcastService } from '../../domain/podcast'
-import { RssService } from '../../domain/rss'
 import { SubscriptionOrchestrator } from '../../domain/orchestrator/subscription'
 import { SubscriptionAppleService } from '../../domain/subscriptionApple'
 import { UserDeletionService } from '../../domain/userDeletion'
@@ -88,11 +95,14 @@ import { BookmarkAddOrchestrator } from '../../domain/orchestrator/bookmarkAdd'
 import { UrlParserHandler } from '../../domain/orchestrator/urlParser'
 import { CollectionOrchestrator } from '../../domain/orchestrator/collection'
 import { ContentRecommendationOrchestrator } from '../../domain/orchestrator/contentRecommendation'
+import { FeedService } from '../../domain/feed'
+import { NewsletterSaveService } from '../../domain/newsletterSave'
 import { MarkOrchestrator } from '../../domain/orchestrator/mark'
 import { DashboardService } from '../../domain/dashboard'
 import { HybridSearchOrchestrator } from '../../domain/orchestrator/hybridSearch'
 import { ShareOrchestrator } from '../../domain/orchestrator/share'
 import { SyncOrchestrator } from '../../domain/orchestrator/sync'
+import { NewsletterService } from '../../domain/newsletter'
 import { ImportOrchestrator } from '../../domain/orchestrator/import'
 import { EmailService } from '../../domain/email'
 import { ContentOrchestrator } from '../../domain/orchestrator/content'
@@ -118,10 +128,12 @@ import { CollectionController } from '../../handler/http/collectionController'
 import { ContentRecommendationController } from '../../handler/http/contentRecommendationController'
 import { DiagnosticController } from '../../handler/http/diagnosticController'
 import { EventsController } from '../../handler/http/eventsController'
+import { FeedController } from '../../handler/http/feedController'
 import { ImageController } from '../../handler/http/imageController'
 import { MarkController } from '../../handler/http/markController'
 import { McpServerController } from '../../handler/http/mcpController'
 import { MetricsController } from '../../handler/http/metricsController'
+import { PasskeyController } from '../../handler/http/passkeyController'
 import { PodcastController } from '../../handler/http/podcastController'
 import { PromotionController } from '../../handler/http/promotionController'
 import { RssController } from '../../handler/http/rssController'
@@ -218,6 +230,10 @@ container.register(EmailCodeService, {
   useFactory: container => new EmailCodeService(container.resolve(EmailChallengeRepo))
 })
 
+container.register(FeedService, {
+  useFactory: container => new FeedService(container.resolve(FeedRepo), container.resolve(RssService), container.resolve(NewsletterContent))
+})
+
 container.register(HybridSearchService, {
   useFactory: container =>
     new HybridSearchService(
@@ -290,9 +306,33 @@ container.register(MediaSnapshotService, {
     )
 })
 
+container.register(NewsletterService, {
+  useFactory: container => new NewsletterService(container.resolve(NewsletterRepo), container.resolve(NewsletterContent))
+})
+
+container.register(NewsletterContent, {
+  useFactory: container => new NewsletterContent(lazy(() => container.resolve(BucketClient)))
+})
+
+container.register(NewsletterSaveService, {
+  useFactory: container =>
+    new NewsletterSaveService(
+      container.resolve(NewsletterSaveRepo),
+      lazy(() => container.resolve(BucketClient)),
+      container.resolve(SearchService),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(BookmarkRepo),
+      container.resolve(NotificationMessage)
+    )
+})
+
 container.register(NotificationService, {
   useFactory: container =>
     new NotificationService(container.resolve(UserRepo), container.resolve(BookmarkRepo), container.resolve(CollectionRepo), container.resolve(NotificationMessage))
+})
+
+container.register(PasskeyService, {
+  useFactory: container => new PasskeyService(container.resolve(PasskeyRepo), container.resolve(PasskeyChallengeRepo))
 })
 
 container.register(PodcastService, {
@@ -400,7 +440,8 @@ container.register(UserService, {
       container.resolve(LabService),
       container.resolve(EmailCodeService),
       container.resolve(LoginIdentityService),
-      container.resolve(LoginIdentityLinkService)
+      container.resolve(LoginIdentityLinkService),
+      container.resolve(PasskeyService)
     )
 })
 
@@ -410,7 +451,8 @@ container.register(UserDeletionService, {
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)),
       container.resolve(UserRepo),
       lazy(() => container.resolve(BucketClient)),
-      container.resolve(VectorMaintenanceRepo)
+      container.resolve(VectorMaintenanceRepo),
+      container.resolve(PasskeyRepo)
     )
 })
 
@@ -674,6 +716,10 @@ container.register(ContentRecommendationRepo, {
   useFactory: container => new ContentRecommendationRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
+container.register(FeedRepo, {
+  useFactory: container => new FeedRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
 container.register(HybridSearchRepo, {
   useFactory: container =>
     new HybridSearchRepo(
@@ -696,6 +742,18 @@ container.register(MarkRepo, {
       lazy(() => container.resolve(PRISIMA_CLIENT)),
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT))
     )
+})
+
+container.register(NewsletterRepo, {
+  useFactory: container => new NewsletterRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
+container.register(NewsletterSaveRepo, {
+  useFactory: container => new NewsletterSaveRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
+container.register(PasskeyRepo, {
+  useFactory: container => new PasskeyRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
 
 container.register(PodcastArticleRepo, {
@@ -760,6 +818,10 @@ container.register(EmailChallengeRepo, {
 
 container.register(OAuthStateRepo, {
   useFactory: container => new OAuthStateRepo(lazy(() => container.resolve(RedisClient)))
+})
+
+container.register(PasskeyChallengeRepo, {
+  useFactory: container => new PasskeyChallengeRepo(lazy(() => container.resolve(RedisClient)))
 })
 
 container.register(VectorIndexClient, {
@@ -831,6 +893,10 @@ container.register(EventsController, {
   useFactory: () => new EventsController()
 })
 
+container.register(FeedController, {
+  useFactory: container => new FeedController(container.resolve(FeedService), container.resolve(NewsletterSaveService))
+})
+
 container.register(ImageController, {
   useFactory: () => new ImageController()
 })
@@ -845,6 +911,10 @@ container.register(McpServerController, {
 
 container.register(MetricsController, {
   useFactory: container => new MetricsController(container.resolve(DashboardService), container.resolve(LogsService))
+})
+
+container.register(PasskeyController, {
+  useFactory: container => new PasskeyController(container.resolve(PasskeyService))
 })
 
 container.register(PodcastController, {
@@ -894,7 +964,8 @@ container.register(UserController, {
       container.resolve(BookmarkOrchestrator),
       container.resolve(QueueClient),
       container.resolve(UserDeletionService),
-      container.resolve(LabService)
+      container.resolve(LabService),
+      container.resolve(NewsletterService)
     )
 })
 

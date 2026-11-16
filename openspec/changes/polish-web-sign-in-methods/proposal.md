@@ -51,3 +51,16 @@ On 2026-11-12 the requester reviewed the concrete login-extension description in
 ## Final Review and Delivery Authorization
 
 On 2026-11-12 the requester exercised the new login preview, accepted the UI as sufficient for this iteration, clarified that Web test environments include both development and preview, and requested one email-optimization PR covering all adjustments in this chat. That explicit environment correction is the implementation target; beta/production remain hidden. No new visual structure is introduced by widening the profile condition.
+
+
+## Sequenced Follow-up: refine-email-login-flow
+
+PR #584 and the original authentication task have merged. On 2026-11-12 the change requester requested the sequenced `refine-email-login-flow` follow-up: Web methods ordered Google, Apple, email; a quieter email entry/link action; last-successful-address prefill; non-repeatable successful verification during departure; and development/preview/beta Web availability with production hidden and App unchanged. The preceding rollout/order statements record the earlier delivered scope. The reconciled delta specs describe the proposed follow-up target; its implementation tasks, approval, and new hands-on acceptance belong to `refine-email-login-flow`. Keep single ownership of these capability deltas and archive them together after that follow-up merges.
+
+
+The App-unchanged wording in the original Web follow-up records that phase's scope. After Web hands-on acceptance, the change requester separately reviewed and approved native provider-first order and quieter email entry/binding in `refine-email-login-flow`. Only that presentation exclusion is superseded; native development-only availability, credentials, sessions, and persistence remain unchanged. Native requirements remain solely in the `email-authentication` delta.
+
+
+## All-environment follow-up amendment (2026-11-13)
+
+The requester subsequently removed all client environment restrictions in `refine-email-login-flow` (draft PR #597). Its current plan and the reconciled delta specs supersede the historical rollout exclusions above for Web, iOS, and Android login and account binding, including production. Preserve fixture isolation, credentials, sessions, ownership checks, and the accepted provider-first/secondary-email presentation. Implementation and fresh verification belong to section 6 of the follow-up tasks; predecessor delivery evidence remains historical.
