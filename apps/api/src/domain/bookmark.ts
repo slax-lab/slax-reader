@@ -986,9 +986,14 @@ export class BookmarkService {
     })
   }
 
-  public async getBookmarkReadAccess(ctx: ContextManager, uuid: string) {
-    const access = await resolveBookmarkReadAccess(this.bookmarkRepo, this.userRepo, ctx.getUserId(), uuid)
-    if (access && !(await this.snapshots.allowsBody(access.bookmark.bookmark_id))) return null
+  public async getBookmarkReadAccess(ctx: ContextManager, uuid: string, recordTiming?: (step: string, durationMs: number) => void) {
+    const access = await resolveBookmarkReadAccess(this.bookmarkRepo, this.userRepo, ctx.getUserId(), uuid, recordTiming)
+    if (access) {
+      const startedAt = performance.now()
+      const allowed = await this.snapshots.allowsBody(access.bookmark.bookmark_id)
+      recordTiming?.('access-media', performance.now() - startedAt)
+      if (!allowed) return null
+    }
     return access
   }
 

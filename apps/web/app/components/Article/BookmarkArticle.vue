@@ -36,7 +36,7 @@
     </ClientOnly>
     <!-- 保留 .article-detail ref + articleStyle class，processors 管道 / mark 绘制依赖 -->
     <div v-else class="article-detail article-body" ref="articleDetail" :class="{ [articleStyle]: true }">
-      <div class="html-text" lang="en" v-html="articleHTML"></div>
+      <div class="html-text" lang="en" v-article-html="articleHTML"></div>
     </div>
     <!-- Content derived from the article (YouTube AI article). Outside .article-detail on purpose:
          the original DOM, marks and processors stay untouched -->
@@ -46,6 +46,7 @@
 </template>
 
 <script lang="ts" setup>
+import type { ObjectDirective } from 'vue'
 import PdfDocumentSource from './Pdf/PdfDocumentSource.vue'
 
 import type { ReaderSelection } from './Selection/ReaderSelection'
@@ -159,6 +160,17 @@ const articleHTML = computed(() => {
     excludedPresentation: isPdf.value || articleStyle.value === ArticleStyle.PhotoSwipeTopic
   })
 })
+
+// Adopt matching SSR nodes before processors and marks take ownership of the body.
+const vArticleHtml: ObjectDirective<HTMLDivElement, string> = {
+  getSSRProps: ({ value }) => ({ innerHTML: value }),
+  beforeMount(el, { value }) {
+    if (el.innerHTML !== value) el.innerHTML = value
+  },
+  beforeUpdate(el, { value, oldValue }) {
+    if (value !== oldValue) el.innerHTML = value
+  }
+}
 
 // 划线/评论重逻辑唯一来源
 const { articleSelectionRef, handleHTML, findQuote: findHtmlQuote, cleanup } = useArticleSelection({

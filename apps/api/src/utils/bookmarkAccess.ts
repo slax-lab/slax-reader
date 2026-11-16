@@ -1,15 +1,27 @@
 import type { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import type { UserRepo } from '@/infra/repository/dbUser'
 
-export async function resolveBookmarkReadAccess(bookmarkRepo: BookmarkRepo, userRepo: UserRepo, userId: number, uuid: string) {
+export async function resolveBookmarkReadAccess(
+  bookmarkRepo: BookmarkRepo,
+  userRepo: UserRepo,
+  userId: number,
+  uuid: string,
+  recordTiming?: (step: string, durationMs: number) => void
+) {
+  const bookmarkStartedAt = performance.now()
   const bookmark = await bookmarkRepo.getUserBookmarkByUuidWithDetail(uuid)
+  recordTiming?.('access-bookmark', performance.now() - bookmarkStartedAt)
   if (!bookmark?.bookmark) return null
   if (userId > 0 && bookmark.user_id === userId) return { bookmark, share: null }
   if (bookmark.deleted_at || bookmark.bookmark.moderation_result > 0) return null
 
+  const ownerStartedAt = performance.now()
   const owner = await userRepo.getInfoByUserId(bookmark.user_id)
+  recordTiming?.('access-owner', performance.now() - ownerStartedAt)
   if (!owner || owner.deleted_at) return null
+  const shareStartedAt = performance.now()
   const share = await bookmarkRepo.getBookmarkShareByBookmarkId(bookmark.bookmark_id, bookmark.user_id)
+  recordTiming?.('access-share', performance.now() - shareStartedAt)
   if (share ? !share.is_enable : owner.snapshot_sharing !== true) return null
 
   return { bookmark, share, ownerProfile: { nick_name: owner.name, avatar: owner.picture } }
