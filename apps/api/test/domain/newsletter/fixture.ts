@@ -60,6 +60,6 @@ afterAll(async () => {
   await db?.close()
 })
 export const recipient = async () => {
-  await repo.address(1, 'newsletterreader.slax.dev', true)
-  return (await repo.recipient('newsletterreader.slax.dev', 'jane01'))!
+  await repo.address(1, 'newslettereader.slax.dev', true)
+  return (await repo.recipient('newslettereader.slax.dev', 'jane01'))!
 }

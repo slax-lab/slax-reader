@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - No new table, migration, route, cron, Newsletter PowerSync or RSS change.
-- Dev addresses use feed+account@newsletterreader.slax.dev; beta/production use newsletterreader.slax.com.
+- Dev addresses use feed+account@newslettereader.slax.dev; beta/production use newslettereader.slax.com.
 - Existing receiving addresses never change; a stale confirmation cannot issue a different mailbox.
 - Collapsed state retains complete address/copy/fixed status; only a boolean preference is stored per user in localStorage.
 - Use existing Web semantic tokens, native modal focus/keyboard behavior, 44px controls, and symmetric 10px disclosure padding. Support Chinese/English, light/dark/e-ink, desktop/768px/narrow widths and reduced motion.

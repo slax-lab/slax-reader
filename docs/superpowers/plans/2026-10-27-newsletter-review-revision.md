@@ -6,7 +6,7 @@ Approved in conversation on 2026-10-27; Newsletter compatibility removed at the 
 
 ## Constraints
 
-- Keep `feed+<account>@newsletterreader.slax.dev` for dev and `feed+<account>@newsletterreader.slax.com` for production.
+- Keep `feed+<account>@newslettereader.slax.dev` for dev and `feed+<account>@newslettereader.slax.com` for production.
 - Keep Newsletter REST-first and RSS-only PowerSync behavior. Preserve public IDs and old client table names.
 - Do not deploy, change remote routing, merge, read secrets, or change migrations already shipped to a shared environment. Consolidate this unshipped Newsletter migration for first release; handle old local trial history separately.
 - Retain permanent address reservations and durable disable/delete cancellation.

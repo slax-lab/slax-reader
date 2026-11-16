@@ -20,8 +20,8 @@ native('independent Newsletter native transactions', () => {
     const account = 'native' + crypto.randomUUID().replaceAll('-', '').slice(0, 8)
     const user = await pg.sr_user.create({ data: { email: account + '@fixture.invalid', account, created_at: new Date(), last_login_at: new Date() } })
     await lab.upsert(user.id, 'newsletter', true)
-    await repo.address(user.id, 'newsletterreader.slax.dev', true)
-    recipient = (await repo.recipient('newsletterreader.slax.dev', account))!
+    await repo.address(user.id, 'newslettereader.slax.dev', true)
+    recipient = (await repo.recipient('newslettereader.slax.dev', account))!
   })
   beforeEach(async () => {
     await pg.$executeRaw`DELETE FROM sr_newsletter_feed WHERE user_id=${recipient.user_id}`
@@ -40,14 +40,14 @@ native('independent Newsletter native transactions', () => {
         return user
       })
     )
-    const attempts = await Promise.allSettled(owners.map(user => repo.address(user.id, 'newsletterreader.slax.dev', true)))
+    const attempts = await Promise.allSettled(owners.map(user => repo.address(user.id, 'newslettereader.slax.dev', true)))
     expect(attempts.filter(x => x.status === 'fulfilled')).toHaveLength(1)
     expect(attempts.find(x => x.status === 'rejected')).toMatchObject({ reason: { code: 'address_reserved' } })
     const winner = owners[attempts.findIndex(x => x.status === 'fulfilled')]
     const loser = owners.find(x => x.id !== winner.id)!
-    expect(await repo.address(winner.id, 'newsletterreader.slax.dev', true)).toMatchObject({ address: 'feed+' + account + '@newsletterreader.slax.dev' })
+    expect(await repo.address(winner.id, 'newslettereader.slax.dev', true)).toMatchObject({ address: 'feed+' + account + '@newslettereader.slax.dev' })
     await pg.sr_user.update({ where: { id: winner.id }, data: { deleted_at: new Date() } })
-    await expect(repo.address(loser.id, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({ code: 'address_reserved' })
+    await expect(repo.address(loser.id, 'newslettereader.slax.dev', true)).rejects.toMatchObject({ code: 'address_reserved' })
   })
   test('parallel admissions reserve one identity and publication commits a coherent winner', async () => {
     const attempts = await Promise.all(Array.from({ length: 8 }, () => repo.admit(recipient, hash(1), hash(2), 'sender@fixture.invalid')))

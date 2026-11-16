@@ -115,8 +115,8 @@ async function main() {
     return { status: response.status, body }
   }
   try {
-    const newsletterDomain = process.env.NEWSLETTER_SMOKE_DOMAIN ?? 'newsletterreader.slax.dev'
-    assert.ok(['newsletterreader.slax.dev', 'newsletterreader.slax.com'].includes(newsletterDomain), 'Only isolated dev/production address formats may be simulated')
+    const newsletterDomain = process.env.NEWSLETTER_SMOKE_DOMAIN ?? 'newslettereader.slax.dev'
+    assert.ok(['newslettereader.slax.dev', 'newslettereader.slax.com'].includes(newsletterDomain), 'Only isolated dev/production address formats may be simulated')
     // Optional offline Corepack cache seed contains only the public package-manager distribution.
     if (process.argv[2] === '--corepack-archive' && process.argv[3]) resources.command('corepack', ['install', '--global', '--cache-only', resolve(process.argv[3])])
     resources.command('pnpm', ['exec', 'wrangler', '--version'])

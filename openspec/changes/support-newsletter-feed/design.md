@@ -51,7 +51,7 @@ The Newsletter message column and its internal parser/publication/save data use 
 
 ## Dev-only rollout
 
-The 2026-10-29 operator decision configures only newsletterreader.slax.dev. Private beta/prod/legacy-main configurations omit NEWSLETTER_DOMAIN until dev validation and a later rollout decision. The intended eventual production suffix remains newsletterreader.slax.com; omission does not clear an existing remote value under --keep-vars.
+The 2026-10-29 operator decision configures only newslettereader.slax.dev. Private beta/prod/legacy-main configurations omit NEWSLETTER_DOMAIN until dev validation and a later rollout decision. The intended eventual production suffix remains newslettereader.slax.com; omission does not clear an existing remote value under --keep-vars.
 
 ## Email-event timing and Mobile compatibility
 

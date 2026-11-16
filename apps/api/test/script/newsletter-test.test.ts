@@ -2,8 +2,8 @@ import { expect, test } from 'vitest'
 import { localEmailUrl, previewDocument } from '../../script/newsletter-test'
 
 test('delivery only accepts localhost HTTP and preserves plus recipient', () => {
-  const url = localEmailUrl('http://localhost:8787', 'feed+account@newsletterreader.slax.dev', 'sender@example.com')
-  expect(url.searchParams.get('to')).toBe('feed+account@newsletterreader.slax.dev')
+  const url = localEmailUrl('http://localhost:8787', 'feed+account@newslettereader.slax.dev', 'sender@example.com')
+  expect(url.searchParams.get('to')).toBe('feed+account@newslettereader.slax.dev')
   expect(url.pathname).toBe('/cdn-cgi/local/email')
   for (const edge of ['https://example.com', 'http://127.0.0.1.evil.test', 'file:///tmp/test']) expect(() => localEmailUrl(edge, 'a', 'b')).toThrow()
 })

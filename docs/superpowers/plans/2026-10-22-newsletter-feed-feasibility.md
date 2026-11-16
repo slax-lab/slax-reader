@@ -12,7 +12,7 @@ This assessment incorporates the task screenshot, repository inspection, the ear
 
 ### Task requirements
 
-- Receive newsletters at a personal address under `newsletterreader.slax.com`.
+- Receive newsletters at a personal address under `newslettereader.slax.com`.
 - Present a fixed Web navigation entry named **Feed**, replacing RSS-specific entry wording.
 - Display RSS and Newsletter entries in one Feed.
 
@@ -30,7 +30,7 @@ The recommended interpretation of “fixed” is that the Feed entry remains vis
 | Ownership          | An address previously issued to one user must never be reassigned to another user.                                                 |
 | Feed source label  | Use the newsletter sender's display name/address, independently of the recipient's account name.                                   |
 
-Example: a user with `account = Alice` receives `alice@newsletterreader.slax.com`. After the account changes to `alice-reading`, the receiving address remains `alice@newsletterreader.slax.com`. A different user who later holds `account = Alice` cannot claim that reserved address.
+Example: a user with `account = Alice` receives `alice@newslettereader.slax.com`. After the account changes to `alice-reading`, the receiving address remains `alice@newslettereader.slax.com`. A different user who later holds `account = Alice` cannot claim that reserved address.
 
 ### Proposed first-release scope requiring product review
 
@@ -200,7 +200,7 @@ Newsletter support on Mobile is outside the proposed first release. Preserve bot
 
 ### The requested domain is a prerequisite, not a completed configuration
 
-Current [Cloudflare subdomain documentation](https://developers.cloudflare.com/email-service/configuration/subdomains/) restricts catch-all rules to the zone apex. If `newsletterreader.slax.com` is an ordinary Email Routing subdomain of `slax.com`, the earlier plan's subdomain catch-all step is unsupported. [Routing configuration documentation](https://developers.cloudflare.com/email-service/configuration/email-routing-addresses/) states the same restriction for Wrangler-managed wildcard addresses.
+Current [Cloudflare subdomain documentation](https://developers.cloudflare.com/email-service/configuration/subdomains/) restricts catch-all rules to the zone apex. If `newslettereader.slax.com` is an ordinary Email Routing subdomain of `slax.com`, the earlier plan's subdomain catch-all step is unsupported. [Routing configuration documentation](https://developers.cloudflare.com/email-service/configuration/email-routing-addresses/) states the same restriction for Wrangler-managed wildcard addresses.
 
 | Candidate                                                                                  | Suitability                                                                                                                                                                                                                                     |
 | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -213,7 +213,7 @@ Different address rules on one domain can target different Workers; the limitati
 
 ### First stage confirmed by the user: dev on slax.dev
 
-Start with the dev installation. The user has Cloudflare console access for this environment. Public DNS checks on 2026-10-22 returned Cloudflare nameservers, Cloudflare routing MX records, and the Cloudflare SPF include for `slax.dev`; `newsletterreader.slax.dev` returned NXDOMAIN. These checks establish published DNS, not the current dashboard rule destinations, Worker handlers, or database isolation.
+Start with the dev installation. The user has Cloudflare console access for this environment. Public DNS checks on 2026-10-22 returned Cloudflare nameservers, Cloudflare routing MX records, and the Cloudflare SPF include for `slax.dev`; `newslettereader.slax.dev` returned NXDOMAIN. These checks establish published DNS, not the current dashboard rule destinations, Worker handlers, or database isolation.
 
 The user reported an existing **Catch-all / Drop / Active** rule in the `slax.dev` dashboard. This rule does not invoke a Worker; unmatched mail is silently discarded. Preserve it during the literal-address pilot. Cloudflare checks specific recipient rules before applying catch-all when none match, as described in the [inbound email lifecycle](https://developers.cloudflare.com/email-service/concepts/email-lifecycle/). The dev target Worker identity has been confirmed below; its email-handler readiness still needs implementation and verification.
 

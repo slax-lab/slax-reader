@@ -24,10 +24,10 @@ vi.mock('~/composables/useAccountContext', () => ({
     snapshot: () => ({ token: sessionToken })
   })
 }))
-const domain = 'newsletterreader.slax.dev'
+const domain = 'newslettereader.slax.dev'
 const empty = { address: null, domain, status: 'account_required' }
 const ready = {
-  address: 'feed+reader@newsletterreader.slax.dev',
+  address: 'feed+reader@newslettereader.slax.dev',
   domain,
   status: 'ready'
 }
@@ -92,7 +92,7 @@ describe('confirmed Newsletter setup', () => {
     await submit(w, 'reader')
     expect(post).not.toHaveBeenCalled()
     expect(w.get('dialog').attributes('open')).toBeDefined()
-    expect(w.get('[data-confirm-candidate]').text()).toBe('feed+reader@newsletterreader.slax.dev')
+    expect(w.get('[data-confirm-candidate]').text()).toBe('feed+reader@newslettereader.slax.dev')
     expect(w.get('dialog').text()).toContain('newsletter.confirm_permanent')
     await w.get('[data-cancel-address]').trigger('click')
     expect(post).not.toHaveBeenCalled()
@@ -110,7 +110,7 @@ describe('confirmed Newsletter setup', () => {
         '/v1/user/setting/enable',
         {
           key: 'lab:newsletter',
-          newsletter_address: 'feed+reader@newsletterreader.slax.dev'
+          newsletter_address: 'feed+reader@newslettereader.slax.dev'
         }
       ]
     ])
@@ -133,16 +133,16 @@ describe('confirmed Newsletter setup', () => {
   })
   it('repairs the exact casing of a historical account before confirming its lowercase mailbox', async () => {
     profileGet.mockResolvedValue({ account: 'Reader01' })
-    get.mockResolvedValueOnce({ ...empty, status: 'invalid_account' }).mockResolvedValueOnce({ ...ready, address: 'feed+reader01@newsletterreader.slax.dev' })
+    get.mockResolvedValueOnce({ ...empty, status: 'invalid_account' }).mockResolvedValueOnce({ ...ready, address: 'feed+reader01@newslettereader.slax.dev' })
     const w = create()
     await flushPromises()
     await submit(w, 'reader01')
     await confirm(w)
     expect(post.mock.calls.map(([p]) => [p.url, p.body])).toEqual([
       ['/v1/user/setting', { key: 'account', value: 'reader01' }],
-      ['/v1/user/setting/enable', { key: 'lab:newsletter', newsletter_address: 'feed+reader01@newsletterreader.slax.dev' }]
+      ['/v1/user/setting/enable', { key: 'lab:newsletter', newsletter_address: 'feed+reader01@newslettereader.slax.dev' }]
     ])
-    expect(w.get('.newsletter-address').text()).toBe('feed+reader01@newsletterreader.slax.dev')
+    expect(w.get('.newsletter-address').text()).toBe('feed+reader01@newslettereader.slax.dev')
   })
   it('keeps detail-read failure retryable without creating from unverified account state', async () => {
     profileGet.mockRejectedValueOnce(new Error('private profile failure'))
@@ -272,7 +272,7 @@ describe('disclosure and session isolation', () => {
     expect(w.get('[data-toggle-newsletter]').attributes('aria-expanded')).toBe('false')
     get.mockResolvedValue({
       ...ready,
-      address: 'feed+other@newsletterreader.slax.dev'
+      address: 'feed+other@newslettereader.slax.dev'
     })
     user.userInfo.userId = 2
     await flushPromises()

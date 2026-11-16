@@ -132,7 +132,7 @@ test('short input and reader errors remain infrastructure failures without admis
   let sent = false
   const message = {
     rawSize: raw.length,
-    to: 'feed+reader1@newsletterreader.slax.dev',
+    to: 'feed+reader1@newslettereader.slax.dev',
     setReject: vi.fn(),
     raw: new ReadableStream<Uint8Array>({
       pull(controller) {
@@ -146,7 +146,7 @@ test('short input and reader errors remain infrastructure failures without admis
   }
   const repo = { recipient: vi.fn().mockResolvedValue({ uuid: 'owner' }), admit: vi.fn() }
   const service = new NewsletterService(repo as never, {} as never)
-  await expect(receiveNewsletterEmail(message as ForwardableEmailMessage, { NEWSLETTER_DOMAIN: 'newsletterreader.slax.dev' } as Env, service)).rejects.toThrow(
+  await expect(receiveNewsletterEmail(message as ForwardableEmailMessage, { NEWSLETTER_DOMAIN: 'newslettereader.slax.dev' } as Env, service)).rejects.toThrow(
     'Newsletter admission unavailable'
   )
   expect(repo.admit).not.toHaveBeenCalled()

@@ -47,7 +47,7 @@ describe('independent Newsletter migration', () => {
       await db.exec(read('20261028142946_newsletter_feed'))
       expect((await columns()).rows).toEqual(before)
       expect((await db.query("SELECT tgname FROM pg_trigger WHERE tgrelid='sr_platform_bind'::regclass AND NOT tgisinternal")).rows).toEqual([])
-      await db.exec("INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES(1,'newsletter','feed+reader@newsletterreader.slax.dev','reader')")
+      await db.exec("INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES(1,'newsletter','feed+reader@newslettereader.slax.dev','reader')")
       expect((await db.query("SELECT indexname FROM pg_indexes WHERE tablename='sr_platform_bind' AND indexname='sr_platform_bind_newsletter_address_key'")).rows).toEqual([])
       await db.exec("UPDATE sr_platform_bind SET user_name='Updated' WHERE platform='newsletter'")
       expect((await db.query("SELECT user_name FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([{ user_name: 'Updated' }])

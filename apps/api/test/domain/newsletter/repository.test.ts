@@ -16,80 +16,80 @@ const candidate = {
 }
 describe('Newsletter permanent addresses', () => {
   test('a stale full-address confirmation cannot issue a different mailbox', async () => {
-    await expect(repo.address(1, 'newsletterreader.slax.dev', true, 'feed+old-name@newsletterreader.slax.dev')).rejects.toMatchObject({ code: 'address_changed' })
+    await expect(repo.address(1, 'newslettereader.slax.dev', true, 'feed+old-name@newslettereader.slax.dev')).rejects.toMatchObject({ code: 'address_changed' })
     expect((await db.query("SELECT * FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([])
-    await expect(repo.address(1, 'newsletterreader.slax.dev', true, 'feed+jane01@newsletterreader.slax.com')).rejects.toMatchObject({ code: 'address_changed' })
+    await expect(repo.address(1, 'newslettereader.slax.dev', true, 'feed+jane01@newslettereader.slax.com')).rejects.toMatchObject({ code: 'address_changed' })
     expect((await db.query("SELECT * FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([])
-    expect(await repo.address(1, 'newsletterreader.slax.dev', true, 'feed+jane01@newsletterreader.slax.dev')).toMatchObject({
-      address: 'feed+jane01@newsletterreader.slax.dev'
+    expect(await repo.address(1, 'newslettereader.slax.dev', true, 'feed+jane01@newslettereader.slax.dev')).toMatchObject({
+      address: 'feed+jane01@newslettereader.slax.dev'
     })
   })
   test('confirmation never replaces a receiving address created in another session', async () => {
-    await repo.address(1, 'newsletterreader.slax.dev', true)
+    await repo.address(1, 'newslettereader.slax.dev', true)
     await db.exec("UPDATE sr_user SET account='renamed' WHERE id=1")
-    await expect(repo.address(1, 'newsletterreader.slax.dev', true, 'feed+renamed@newsletterreader.slax.dev')).rejects.toMatchObject({ code: 'address_changed' })
-    expect(await repo.address(1, 'newsletterreader.slax.dev', true, 'feed+jane01@newsletterreader.slax.dev')).toMatchObject({
-      address: 'feed+jane01@newsletterreader.slax.dev'
+    await expect(repo.address(1, 'newslettereader.slax.dev', true, 'feed+renamed@newslettereader.slax.dev')).rejects.toMatchObject({ code: 'address_changed' })
+    expect(await repo.address(1, 'newslettereader.slax.dev', true, 'feed+jane01@newslettereader.slax.dev')).toMatchObject({
+      address: 'feed+jane01@newslettereader.slax.dev'
     })
   })
   test('GET is pure, provision is canonical and idempotent, and rename preserves address', async () => {
-    expect(await repo.address(1, 'newsletterreader.slax.dev', false)).toMatchObject({
+    expect(await repo.address(1, 'newslettereader.slax.dev', false)).toMatchObject({
       status: 'not_provisioned',
       address: null
     })
-    const first = await repo.address(1, 'newsletterreader.slax.dev', true)
+    const first = await repo.address(1, 'newslettereader.slax.dev', true)
     expect(first).toMatchObject({
       status: 'ready',
-      address: 'feed+jane01@newsletterreader.slax.dev'
+      address: 'feed+jane01@newslettereader.slax.dev'
     })
     await db.query('UPDATE sr_user SET account=$1 WHERE id=1', ['你好'])
-    expect(await repo.address(1, 'newsletterreader.slax.dev', true)).toEqual(first)
+    expect(await repo.address(1, 'newslettereader.slax.dev', true)).toEqual(first)
   })
   test('deleted users cannot receive and retained bindings cannot transfer', async () => {
     await recipient()
     await db.exec("UPDATE sr_user SET deleted_at=now() WHERE id=1; UPDATE sr_user SET account='jane01' WHERE id=2")
-    await expect(repo.address(2, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({
+    await expect(repo.address(2, 'newslettereader.slax.dev', true)).rejects.toMatchObject({
       code: 'address_reserved'
     })
     expect(await repo.recipient('slax.com', 'jane01')).toBeNull()
-    expect(await repo.recipient('newsletterreader.slax.dev', 'jane01')).toBeNull()
+    expect(await repo.recipient('newslettereader.slax.dev', 'jane01')).toBeNull()
   })
   test('an issued address stays stable across domain changes and distinct from business mail', async () => {
     await db.exec("UPDATE sr_user SET account='daguang' WHERE id=1")
-    expect(await repo.address(1, 'newsletterreader.slax.dev', true)).toMatchObject({ address: 'feed+daguang@newsletterreader.slax.dev', status: 'ready' })
-    expect(await repo.recipient('newsletterreader.slax.dev', 'daguang')).toMatchObject({ user_id: 1 })
-    await expect(repo.address(1, 'newsletterreader.slax.com', true)).rejects.toMatchObject({ code: 'unavailable' })
-    expect((await db.query("SELECT platform_id FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([{ platform_id: 'feed+daguang@newsletterreader.slax.dev' }])
+    expect(await repo.address(1, 'newslettereader.slax.dev', true)).toMatchObject({ address: 'feed+daguang@newslettereader.slax.dev', status: 'ready' })
+    expect(await repo.recipient('newslettereader.slax.dev', 'daguang')).toMatchObject({ user_id: 1 })
+    await expect(repo.address(1, 'newslettereader.slax.com', true)).rejects.toMatchObject({ code: 'unavailable' })
+    expect((await db.query("SELECT platform_id FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([{ platform_id: 'feed+daguang@newslettereader.slax.dev' }])
   })
   test('an issued platform binding renders its original token after a rename', async () => {
-    await repo.address(1, 'newsletterreader.slax.com', true)
+    await repo.address(1, 'newslettereader.slax.com', true)
     await db.exec("UPDATE sr_user SET account='daguang' WHERE id=1")
     for (const provision of [false, true])
-      expect(await repo.address(1, 'newsletterreader.slax.com', provision)).toMatchObject({ address: 'feed+jane01@newsletterreader.slax.com', status: 'ready' })
+      expect(await repo.address(1, 'newslettereader.slax.com', provision)).toMatchObject({ address: 'feed+jane01@newslettereader.slax.com', status: 'ready' })
   })
   test('first configuration accepts 15 characters and rejects 16 without truncation', async () => {
     await db.query('UPDATE sr_user SET account=$1 WHERE id=1', ['a'.repeat(15)])
-    const issued = await repo.address(1, 'newsletterreader.slax.dev', true)
-    expect(issued.address).toBe('feed+' + 'a'.repeat(15) + '@newsletterreader.slax.dev')
+    const issued = await repo.address(1, 'newslettereader.slax.dev', true)
+    expect(issued.address).toBe('feed+' + 'a'.repeat(15) + '@newslettereader.slax.dev')
     await db.query('UPDATE sr_user SET account=$1 WHERE id=2', ['b'.repeat(16)])
-    expect(await repo.address(2, 'newsletterreader.slax.dev', false)).toMatchObject({ address: null, status: 'invalid_account' })
-    await expect(repo.address(2, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({ code: 'invalid_account' })
+    expect(await repo.address(2, 'newslettereader.slax.dev', false)).toMatchObject({ address: null, status: 'invalid_account' })
+    await expect(repo.address(2, 'newslettereader.slax.dev', true)).rejects.toMatchObject({ code: 'invalid_account' })
     expect((await db.query("SELECT user_id FROM sr_platform_bind WHERE platform='newsletter'")).rows).toEqual([{ user_id: 1 }])
   })
   test('missing account and disabled/deleted users cannot provision or receive', async () => {
     await db.exec("UPDATE sr_user SET account='' WHERE id=1")
-    expect(await repo.address(1, 'newsletterreader.slax.dev', false)).toMatchObject({
+    expect(await repo.address(1, 'newslettereader.slax.dev', false)).toMatchObject({
       status: 'account_required'
     })
-    await expect(repo.address(1, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({
+    await expect(repo.address(1, 'newslettereader.slax.dev', true)).rejects.toMatchObject({
       code: 'account_required'
     })
     await db.exec('UPDATE sr_user_lab_feature SET enabled=false WHERE user_id=1')
-    await expect(repo.address(1, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({
+    await expect(repo.address(1, 'newslettereader.slax.dev', true)).rejects.toMatchObject({
       code: 'lab_disabled'
     })
     await db.exec('UPDATE sr_user SET deleted_at=now() WHERE id=2')
-    await expect(repo.address(2, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({
+    await expect(repo.address(2, 'newslettereader.slax.dev', true)).rejects.toMatchObject({
       code: 'not_found'
     })
   })
@@ -106,13 +106,13 @@ describe('independent one-row admission and publication', () => {
       first = await reserve()
     const pg = () => adapter(db)
     await new UserRepo(pg, pg).markUserAsDeleted(1)
-    await expect(repo.address(1, 'newsletterreader.slax.dev', true)).rejects.toMatchObject({ code: 'not_found' })
-    expect(await repo.recipient('newsletterreader.slax.dev', 'jane01')).toBeNull()
+    await expect(repo.address(1, 'newslettereader.slax.dev', true)).rejects.toMatchObject({ code: 'not_found' })
+    expect(await repo.recipient('newslettereader.slax.dev', 'jane01')).toBeNull()
     await expect(repo.admit(r, source, 'c'.repeat(64), 'mail@example.com')).rejects.toMatchObject({ code: 'not_found' })
     await expect(repo.publish(first.mail.id, 1, r.id, { ...candidate, startedAt: Date.now() })).rejects.toMatchObject({ code: 'not_found' })
     expect((await db.query('SELECT state,content_key FROM sr_newsletter_feed')).rows).toEqual([{ state: 'cancelled', content_key: null }])
     expect((await db.query("SELECT platform_id FROM sr_platform_bind WHERE user_id=1 AND platform='newsletter'")).rows).toEqual([
-      { platform_id: 'feed+jane01@newsletterreader.slax.dev' }
+      { platform_id: 'feed+jane01@newslettereader.slax.dev' }
     ])
   })
   test('deduplicates admission and publishes one coherent immutable candidate without touching RSS', async () => {

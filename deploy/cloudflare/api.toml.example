@@ -19,7 +19,7 @@ cpu_ms = 300000
 
 [vars]
 # Receiving requires matching API/Web readiness; Newsletter metadata uses an independent newsletter_v1 PowerSync stream; publish matching rules.
-# Dev uses newsletterreader.slax.dev; beta/production domain configuration is deferred until dev validation.
+# Dev uses newslettereader.slax.dev; beta/production domain configuration is deferred until dev validation.
 # User addresses use feed+account; enable Subaddressing and route the literal feed address.
 NEWSLETTER_DOMAIN = ""
 # Local defaults. For remote deployment set RUN_ENV = "prod".

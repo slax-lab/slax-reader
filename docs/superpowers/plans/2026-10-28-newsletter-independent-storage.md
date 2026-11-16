@@ -23,7 +23,7 @@ The later [Newsletter Setup Interaction](2026-10-28-newsletter-setup-interaction
 - Directly rewrite the unshipped initial Newsletter migration. Do not add cleanup migrations, trial-data compatibility, RSS data copies/backfills, mirrors or automatic local-database repair. Operator test data is disposable.
 - Preserve `sr_rss_feed`, `sr_rss_subscription`, `sr_rss_entry`, `sr_rss_save_job`, RSS HTTP contracts, fetching/history/quotas/retention/save behavior, and RSS PowerSync names/rules. Newsletter must not write any RSS table.
 - Remove `sr_feed` and `sr_newsletter_receipt` from the unshipped model/DDL and runtime. Do not rename a cloned RSS model to Newsletter.
-- Keep stable `newsletter` addresses in existing platform bindings, existing setting enable/disable integration and `feed+<account>` addresses. Dev: `newsletterreader.slax.dev`; beta/prod/legacy-main: `newsletterreader.slax.com`.
+- Keep stable `newsletter` addresses in existing platform bindings, existing setting enable/disable integration and `feed+<account>` addresses. Dev: `newslettereader.slax.dev`; beta/prod/legacy-main: `newslettereader.slax.com`.
 - Retain 5 MiB per incoming EML, 200 sender sources per user and 200 newly admitted messages per UTC day. A replay of an existing identity does not consume another slot.
 - No automatic Newsletter processing recovery, retry timer/counter, replay payload, queue or PowerSync stream. A pending message needs an actual new delivery or explicit EML replay to be processed again. Do not promise SMTP sender retries.
 - Retain content extraction/fallback, sanitization, signed image proxying and explicit tracking-pixel filtering. Existing HTTP(S) attachment links and binary attachment names/explanations remain; do not store attachment binaries.
@@ -223,7 +223,7 @@ Remove the address-card text saying saving is unavailable; keep sender-managemen
 
 ## Console / rollout impact
 
-The address and delivery topology remain unchanged: configured newsletterreader subdomain, Subaddressing and one literal feed route to the deployed email-capable Worker. This revision needs no new domain, route per user, bucket, queue or PowerSync rule publication. No Newsletter-specific cron or GC cursor is required; preserve existing shared schedules and unrelated bindings. Apply the reviewed new initial Newsletter DDL in dev and deploy matching API/Web. Existing RSS production data/writers stay valid without a compatibility rollout. Actual hosted delivery/platform confirmations remain operational acceptance, not a property proved by local injection.
+The address and delivery topology remain unchanged: configured newslettereader subdomain, Subaddressing and one literal feed route to the deployed email-capable Worker. This revision needs no new domain, route per user, bucket, queue or PowerSync rule publication. No Newsletter-specific cron or GC cursor is required; preserve existing shared schedules and unrelated bindings. Apply the reviewed new initial Newsletter DDL in dev and deploy matching API/Web. Existing RSS production data/writers stay valid without a compatibility rollout. Actual hosted delivery/platform confirmations remain operational acceptance, not a property proved by local injection.
 
 ## Sources and verification boundary
 
