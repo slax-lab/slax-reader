@@ -260,6 +260,20 @@ A fresh isolated `FORK_SMOKE=1 pnpm api -- test:http` run used disposable Postgr
 
 This combination establishes the real registration, login, second activation, save admission, and fresh-source copy boundaries, while preserving the old-fixture failure and the unrelated later smoke failure as explicit limitations. No automatic post-authentication save was implemented or observed.
 
+## Fresh Snapshot End-to-End Acceptance
+
+On 2026-11-16, a fresh local source snapshot was created with a persisted HTML body and text object. A real browser rendered its title and body. In an anonymous Chrome session, the tester activated **Save for later**, completed Google authentication, returned to the same snapshot, and activated **Save for later** again. The control reached its **Saved** state.
+
+The authenticated `POST /v1/user/login` and `POST /v1/bookmark/add_url` both returned HTTP 200. Independent PostgreSQL and R2 verification then confirmed:
+
+- the new target relation references the fresh source through `forked_from_id`;
+- target status is `success`, the relation is active, and private ownership matches the target account;
+- source and target accounts are distinct;
+- both source and target body objects exist;
+- the target body retains the expected title and acceptance paragraph.
+
+The copied HTML is not byte-identical because the fork pipeline rewrites content; the acceptance criterion is preserved readable content, not byte equality. This completes the local user-task acceptance for anonymous activation, authentication, return, second activation, save admission, and final readable content. It does not add automatic resume and does not establish event-warehouse ingestion or Q7 `live` status.
+
 ## Local Review
 
 A local Bugs, Security, and Compliance pass was performed against the implementation, this change's proposal, design, specs, and validation record.
