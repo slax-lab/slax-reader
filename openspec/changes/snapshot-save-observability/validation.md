@@ -73,7 +73,7 @@ Coverage includes:
 - Snapshot modal `screen_viewed`, Google and Apple `element_clicked`, the snapshot email code flow, and ordinary login without snapshot fields.
 - `LoginModalAttribution` passes only collection or snapshot provenance into the modal; standalone provider and email components retain the wider type.
 - Google and Apple OAuth state, `/auth` callback parsing, and callback recovery.
-- Collection attribution retaining its existing Google-only behavior and not leaking to Apple.
+- Collection attribution retaining its existing Google and email behavior and not leaking to Apple.
 - The global click collector recording two same-source snapshot clicks and no source on an ordinary element.
 - Login page, modal bootloader, login view, and subscription-button regressions.
 
@@ -276,7 +276,7 @@ The copied HTML is not byte-identical because the fork pipeline rewrites content
 
 ## Pre-push Review Corrections
 
-The final pre-push review found that the email login branch parsed the full Web attribution union, unintentionally allowing collection and HackerLinks attribution through a path whose approved scope is snapshot-only. The branch now parses only `snapshotAuthAttributionSchema`. Regressions cover new and returning email accounts for both rejected attribution kinds, while the existing email-plus-snapshot, Google, Apple, collection, and HackerLinks tests remain unchanged and pass.
+A pre-push review initially flagged the email branch's full Web attribution union as an accidental scope expansion. A later direct comparison with base commit `89aee48f` rejected that finding: email already used the full union before this change. The implementation therefore retains that union. Regressions now prove the actual baseline contract: email collection attribution is preserved for both new and returning accounts, HackerLinks acquisition is preserved only for new accounts, and snapshot attribution is added for both outcomes. Google and Apple provider rules remain unchanged.
 
 The same review identified stale runtime-boundary statements that predated the real browser acceptance. Those statements now distinguish the completed Google and fresh-snapshot exercise from the remaining Apple, returning-login, recovery-click, hosted-deployment, warehouse-ingestion, and Q7 C5 gaps.
 

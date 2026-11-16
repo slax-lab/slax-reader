@@ -4,7 +4,7 @@
 
 See `proposal.md` for motivation. The public snapshot page currently exposes the existing save control without a first-party element identifier. An anonymous activation opens the existing sign-in modal with only a return redirect. At this baseline, after authentication the reader returns to the snapshot page and the save control is not automatically activated; the current flow has no pending automatic action. Automatic continuation is defined by the separate `snapshot-save-auto-resume` change. The existing `bookmark_saved` and `bookmark_save_failed` facts identify the destination relation but not the source snapshot.
 
-The repository already has an add-only first-party event pipeline and an established optional authentication-attribution pattern for public collections and HackerLinks. Collection attribution is Google-only at the API boundary. HackerLinks attribution applies only to newly created accounts. The implementation must extend the same transport without changing either established contract.
+The repository already has an add-only first-party event pipeline and an established optional authentication-attribution pattern for public collections and HackerLinks. Collection attribution is accepted through the existing Google and email API paths and retained for both new and returning accounts; Apple remains excluded. HackerLinks attribution applies only to newly created accounts. The implementation must extend the same transport without changing these established contracts.
 
 ## Goals / Non-Goals
 
@@ -47,7 +47,7 @@ Alternatives considered:
 
 When the anonymous save path displays the existing modal, it passes the snapshot attribution through the same optional member used by collection attribution. The modal records the contextual `screen_viewed`. Google and Apple controls record an attributed `element_clicked` before leaving for the provider, both inside the snapshot modal and on the `/auth` recovery page for the same attempt. The snapshot attribution enters each provider's OAuth `state` and is parsed by the existing `/auth` callback.
 
-Collection attribution remains Google-only where it is today: the modal does not pass collection attribution to its Apple control, and the API continues to reject collection attribution for Apple. HackerLinks remains a separate acquisition object. Snapshot attribution is accepted for both providers and for the existing email code flow inside the modal.
+Collection attribution remains unavailable to Apple: the modal does not pass collection attribution to its Apple control, and the API continues to reject collection attribution for Apple. The existing Google and email paths and their new/returning account behavior remain unchanged. HackerLinks remains a separate acquisition object. Snapshot attribution is accepted for both providers and for the existing email code flow inside the modal.
 
 The modal and `showLoginModal` use a narrower `LoginModalAttribution` type of collection or snapshot provenance. The standalone Google, Apple, and email components retain the wider `WebAuthAttribution` type because the standalone login page still carries HackerLinks acquisition context. This prevents acquisition-only fields from being passed into the modal's contextual `screen_viewed` observation.
 

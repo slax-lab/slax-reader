@@ -35,7 +35,7 @@ The Web snapshot reader SHALL emit the existing `element_clicked` first-party ob
 
 When an anonymous snapshot save activation displays the existing sign-in modal, the Web client SHALL emit one `screen_viewed` with `screen_name=signup`, `source_screen=detail`, `presentation=modal`, `trigger_element_id=snapshot_save_button`, and `source_bookmark_id`. Reopening a dismissed modal SHALL create a new observation; rerendering an already visible modal SHALL NOT. An ordinary sign-in without snapshot context SHALL NOT carry snapshot fields.
 
-An actual Google or Apple activation inside the snapshot-origin modal or on the `/auth` recovery page for the same snapshot attempt SHALL emit one `element_clicked` with `screen_name=signup`, `element_id=login_google_button` or `login_apple_button`, and the same complete snapshot attribution before provider navigation. The existing email code flow inside the snapshot-origin modal SHALL include the same snapshot attribution in its login request. The sign-in modal SHALL accept only collection or snapshot modal attribution; HackerLinks acquisition context SHALL remain on the standalone login-page transport and SHALL NOT be accepted as modal attribution. Existing collection attribution SHALL remain Google-only and HackerLinks acquisition SHALL retain its existing scope.
+An actual Google or Apple activation inside the snapshot-origin modal or on the `/auth` recovery page for the same snapshot attempt SHALL emit one `element_clicked` with `screen_name=signup`, `element_id=login_google_button` or `login_apple_button`, and the same complete snapshot attribution before provider navigation. The existing email code flow inside the snapshot-origin modal SHALL include the same snapshot attribution in its login request. The sign-in modal SHALL accept only collection or snapshot modal attribution; HackerLinks acquisition context SHALL remain on the standalone login-page transport and SHALL NOT be accepted as modal attribution. Existing collection attribution SHALL retain its current provider and account-outcome behavior, including the existing Google and email paths and Apple exclusion, and HackerLinks acquisition SHALL retain its existing new-account-only scope.
 
 #### Scenario: Snapshot sign-in modal appears and is dismissed
 
@@ -76,7 +76,7 @@ An actual Google or Apple activation inside the snapshot-origin modal or on the 
 #### Scenario: Existing collection flow
 
 - **WHEN** a visitor starts sign-in from the public collection subscription control
-- **THEN** collection attribution retains its current fields and Google-only behavior
+- **THEN** collection attribution retains its current fields, Google and email paths, account-outcome rules, and Apple exclusion
 - **AND** no snapshot fields are added
 
 ### Requirement: Snapshot sign-in provenance survives OAuth and callback processing

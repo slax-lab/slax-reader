@@ -42,6 +42,6 @@ None. The existing collection, HackerLinks, snapshot presentation, login modal, 
 
 On 2026-11-12, the change requester reviewed and approved the plan in conversation: first add only observability and accumulate a baseline, then change automatic post-authentication saving in the separate `snapshot-save-auto-resume` change. This change implements only the measurement half.
 
-This change does not define or implement automatic post-authentication saving; the separate `snapshot-save-auto-resume` change will define that behavior. This is a scope boundary, not a permanent prohibition. The change does not alter the existing user-visible save or login flow. It does not claim that real Google or Apple OAuth, deployment, or event-warehouse ingestion has been accepted. Those remain unverified and are recorded in `validation.md`.
+This change does not define or implement automatic post-authentication saving; the separate `snapshot-save-auto-resume` change will define that behavior. This is a scope boundary, not a permanent prohibition. The change does not alter the existing user-visible save or login flow. Local Google OAuth and the complete snapshot save task have been accepted as recorded in `validation.md`; Apple OAuth, hosted deployment, and event-warehouse ingestion remain unverified.
 
 The existing no-code `/auth` redirect to `/login` and the `EMAIL_AUTH_USE_EXISTING_LOGIN` recovery link retain their current behavior. They are not expanded to carry snapshot attribution in this change.

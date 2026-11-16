@@ -58,7 +58,7 @@
 
 ## 10. Pre-push Review Corrections
 
-- [x] 10.1 Restrict email authentication attribution to the snapshot schema; add regressions proving collection and HackerLinks metadata are omitted for both new and returning email account facts while preserving snapshot attribution and existing provider behavior.
+- [x] 10.1 Compare the email path with base commit `89aee48f` and preserve its existing full attribution union; add regressions proving email collection attribution is retained for new and returning accounts, HackerLinks acquisition only for new accounts, and snapshot attribution for both outcomes.
 - [x] 10.2 Reconcile the runtime boundaries with the completed real Google and fresh-snapshot acceptance; retain only the actual remaining gaps and rerun the affected API suites, typecheck, full API suite, and OpenSpec validation.
 
 ## 11. Dev Merge and Conflict Resolution
