@@ -15,7 +15,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { PrismaClient } from '@prisma/hyperdrive-client'
-import { SEARCH_FULLTEXT_MAX_PAGES, SEARCH_FULLTEXT_PAGE_SIZE } from '@/domain/hybridSearch'
+import { HybridSearchService, SEARCH_FULLTEXT_MAX_PAGES, SEARCH_FULLTEXT_PAGE_SIZE } from '@/domain/hybridSearch'
+import type { VectorMaintenanceService } from '@/domain/vectorMaintenance'
+import type { ContextManager } from '@/utils/context'
+import type { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { BookmarkSearchRepo } from '@/infra/repository/dbBookmarkSearch'
 import { HybridSearchRepo } from '@/infra/repository/dbHybridSearch'
@@ -43,6 +46,7 @@ let d1: D1Database
 let runtime: InstanceType<typeof Miniflare>
 let jieba: InstanceType<typeof SlaxJieba>
 let normalizer: Normalizer
+let searchEnv: Env
 let fulltext: BookmarkSearchRepo
 let search: HybridSearchRepo
 let pgQuery: ReturnType<typeof vi.fn>
@@ -78,7 +82,8 @@ beforeAll(async () => {
       }
     })
   }
-  normalizer = new Normalizer({ SLAX_JIEBA: jiebaStub } as unknown as Env)
+  searchEnv = { SLAX_JIEBA: jiebaStub } as unknown as Env
+  normalizer = new Normalizer(searchEnv)
 
   pg = new PGlite()
   await applyPostgresMigrations(pg)
@@ -369,5 +374,111 @@ describe('fulltext engine: bounded candidates, chunk dedup and current admission
     expect(observations[1].rowsRead).toBeGreaterThan(observations[0].rowsRead)
     expect(observations[1].rowsRead).toBeGreaterThan(1000)
     console.log(JSON.stringify({ query: 'global-match', observations }))
+  })
+})
+
+describe('fulltext service: adaptive prefetch with real engines', () => {
+  const expression = '"prefetchtoken"'
+  const context = () => ({ env: searchEnv, getUserId: () => 1 }) as unknown as ContextManager
+  const service = () => new HybridSearchService(search, fulltext, {} as VectorEmbeddingClient, {} as VectorMaintenanceService)
+
+  beforeEach(async () => {
+    await d1
+      .prepare(
+        `WITH RECURSIVE seq(n) AS (
+          SELECT 0 UNION ALL SELECT n + 1 FROM seq WHERE n < 1499
+        )
+        INSERT INTO slax_bookmark_raw (shard_idx, bookmark_id, content, raw_content, title, raw_title)
+        SELECT 0, 2500 - n, 'prefetchtoken', 'prefetchtoken', 'fixture', 'fixture'
+        FROM seq`
+      )
+      .run()
+    await insertRaw(1060, 1, 'prefetchtoken', 'fixture')
+    await pg.exec(`
+      INSERT INTO sr_bookmark (id, title, target_url, created_at, updated_at, published_at, status, private_user)
+      VALUES
+        (1060, 'own first page', 'https://example.com/1060', now(), now(), now(), 'success', 1),
+        (1120, 'own second page', 'https://example.com/1120', now(), now(), now(), 'success', 1),
+        (1180, 'other private', 'https://example.com/1180', now(), now(), now(), 'success', 2),
+        (1300, 'deleted', 'https://example.com/1300', now(), now(), now(), 'success', 1),
+        (1360, 'own later page', 'https://example.com/1360', now(), now(), now(), 'success', 1),
+        (2200, 'beyond budget', 'https://example.com/2200', now(), now(), now(), 'success', 1);
+      INSERT INTO sr_user_bookmark (id, user_id, bookmark_id, updated_at, deleted_at)
+      VALUES
+        (1060, 1, 1060, now(), NULL),
+        (1120, 1, 1120, now(), NULL),
+        (1180, 2, 1180, now(), NULL),
+        (1300, 1, 1300, now(), now()),
+        (1360, 1, 1360, now(), NULL),
+        (2200, 1, 2200, now(), NULL);
+    `)
+  })
+
+  test('matches the ten-query baseline while reducing real D1 reads to two queries', async () => {
+    const baselineIds = new Set<number>()
+    for (let page = 0; page < SEARCH_FULLTEXT_MAX_PAGES; page++) {
+      const rows = await fulltext.searchCandidatePage(expression, page * SEARCH_FULLTEXT_PAGE_SIZE, SEARCH_FULLTEXT_PAGE_SIZE + 1)
+      for (const row of rows.slice(0, SEARCH_FULLTEXT_PAGE_SIZE)) baselineIds.add(Number(row.bookmark_id))
+    }
+    const baseline = await search.articles(1, [...baselineIds])
+    const baselineRowsRead = d1Queries.reduce((total, query) => total + query.rowsRead, 0)
+    expect(d1Queries).toHaveLength(10)
+    d1Queries.length = 0
+    pgQuery.mockClear()
+
+    const result = await service().fulltext(context(), 'prefetchtoken', new AbortController().signal)
+
+    expect(result.matches.map(match => match.entity.id)).toEqual(['article:1060', 'article:1120', 'article:1360'])
+    expect(result.matches.map(match => match.entity.id).sort()).toEqual(baseline.map(row => `article:${row.bookmark_id}`).sort())
+    expect(result.coverage).toEqual({ exhausted: false, truncated: true, reasons: ['index_only', 'scan_budget'] })
+    expect(d1Queries.map(query => query.values)).toEqual([
+      [expression, 101, 0],
+      [expression, 901, 100]
+    ])
+    expect(pgQuery).toHaveBeenCalledTimes(11)
+    const optimizedRowsRead = d1Queries.reduce((total, query) => total + query.rowsRead, 0)
+    expect(optimizedRowsRead).toBeLessThan(baselineRowsRead)
+    console.log(JSON.stringify({ scenario: 'service-adaptive-prefetch', baselineRowsRead, optimizedRowsRead }))
+  })
+
+  test('revalidates permission after all buffered logical pages', async () => {
+    const implementation = search.articles.bind(search)
+    let admissions = 0
+    const admission = vi.spyOn(search, 'articles').mockImplementation(async (...args) => {
+      admissions++
+      if (admissions === 11) {
+        await pg.exec('UPDATE sr_user_bookmark SET deleted_at = now() WHERE user_id = 1 AND bookmark_id = 1120')
+      }
+      return implementation(...args)
+    })
+    try {
+      const result = await service().fulltext(context(), 'prefetchtoken', new AbortController().signal)
+      expect(result.matches.map(match => match.entity.id)).toEqual(['article:1060', 'article:1360'])
+      expect(admissions).toBe(11)
+      expect(d1Queries).toHaveLength(2)
+      expect(result.coverage.reasons).toEqual(['index_only', 'scan_budget'])
+    } finally {
+      admission.mockRestore()
+    }
+  })
+
+  test.each([1, 2])('stops after cancellation during logical admission %i', async cancelledAdmission => {
+    const controller = new AbortController()
+    const implementation = search.articles.bind(search)
+    let admissions = 0
+    const admission = vi.spyOn(search, 'articles').mockImplementation(async (...args) => {
+      const result = await implementation(...args)
+      if (++admissions === cancelledAdmission) controller.abort()
+      return result
+    })
+    try {
+      await expect(service().fulltext(context(), 'prefetchtoken', controller.signal)).rejects.toMatchObject({
+        name: 'AbortError'
+      })
+      expect(admissions).toBe(cancelledAdmission)
+      expect(d1Queries).toHaveLength(cancelledAdmission)
+    } finally {
+      admission.mockRestore()
+    }
   })
 })
