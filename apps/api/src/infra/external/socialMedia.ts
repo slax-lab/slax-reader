@@ -10,6 +10,7 @@ import { buildYoutubeCaptionDocument, captionBaseLanguage, toCompatCues, type Yo
 import { FetchThreePartyError } from '@/const/err'
 import { TweetArticleAPIResponse, TweetArticleInfo, TweetInfo, TwitterAPIResponse, TwitterMentionsAPIResponse } from '@/const/twitterapi/struct'
 import { fetchToutiaoArticle } from './toutiao'
+import { fetchZhihuByUrl } from './zhihu'
 
 export class SocialMediaApi {
   public static fetchToutiao(env: Pick<Env, 'TIKHUB_TOKEN'>, url: string) {
@@ -43,94 +44,8 @@ export class SocialMediaApi {
     return resp.json<T>()
   }
 
-  public static async fetchZhihuByUrl(env: Env, rawUrl: string): Promise<{ title: string; content: string; author: string } | null> {
-    type ZhihuData = {
-      title?: string
-      detail?: string
-      content?: string | Array<{ type?: string; title?: string; content?: string; url?: string }>
-      author?: { name?: string; avatar_url?: string; headline?: string; url_token?: string }
-      question?: { title?: string }
-      data?: Array<{
-        target?: {
-          id?: string
-          content?: string
-          author?: { name?: string; avatar_url?: string; headline?: string; url_token?: string }
-          question?: { title?: string }
-          voteup_count?: number
-          comment_count?: number
-        }
-      }>
-    }
-    const url = new URL(rawUrl)
-    const request = async (path: string, searchParams: Record<string, string>) => {
-      const result = await SocialMediaApi.fetchTikHub<{ code: number; message: string; data?: ZhihuData }>(env, path, { searchParams })
-      if (result.code !== 200 || !result.data) throw FetchThreePartyError()
-      return result.data
-    }
-    const escape = (value: unknown) =>
-      String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-    const build = (title: string, content: string, author = '', articleClass = '') => ({
-      title,
-      author,
-      content: `<html><head><title>${escape(title)}</title><meta name="author" content="${escape(author)}"></head><body><article data-source="zhihu"${articleClass ? ` class="${articleClass}" data-content-type="qa"` : ''}><h1>${escape(title)}</h1>${content}</article></body></html>`
-    })
-
-    const answerId = url.pathname.match(/^\/(?:question\/\d+\/)?answer\/(\d+)/)?.[1]
-    if (answerId) {
-      const answer = await request('/api/v1/zhihu/web/fetch_answer_detail', { answer_id: answerId })
-      return build(answer.question?.title || '', typeof answer.content === 'string' ? answer.content : '', `ZhiHu: ${answer.author?.name || ''}`)
-    }
-
-    const questionId = url.pathname.match(/^\/question\/(\d+)\/?$/)?.[1]
-    if (questionId) {
-      const [question, answers] = await Promise.all([
-        request('/api/v1/zhihu/web/fetch_question_detail', { question_id: questionId }),
-        request('/api/v1/zhihu/web/fetch_question_answers', { question_id: questionId, limit: '20', offset: '0' })
-      ])
-      const answerItems = (answers.data || []).map(item => item.target).filter((answer): answer is NonNullable<typeof answer> => !!answer?.content)
-      const content = `${question.detail || ''}${answerItems
-        .map(answer => {
-          const author = escape(answer.author?.name || '匿名用户')
-          const avatar = escape(answer.author?.avatar_url || '')
-          const headline = escape(answer.author?.headline || '')
-          const profileUrl = answer.author?.url_token ? `https://www.zhihu.com/people/${escape(answer.author.url_token)}` : ''
-          const stats = [`${answer.voteup_count ?? 0} 赞同`, `${answer.comment_count ?? 0} 评论`].join(' · ')
-          return `<section class="zhihu-qa-answer" data-answer-id="${escape(answer.id)}">
-            <div class="zhihu-qa-user">
-              ${avatar ? `<img class="zhihu-qa-avatar" data-content-image="avatar" src="${avatar}" alt="${author}" width="40" height="40">` : ''}
-              <div class="zhihu-qa-user-info">
-                ${profileUrl ? `<a class="zhihu-qa-user-name" href="${profileUrl}">${author}</a>` : `<strong class="zhihu-qa-user-name">${author}</strong>`}
-                ${headline ? `<span class="zhihu-qa-user-headline">${headline}</span>` : ''}
-              </div>
-            </div>
-            <p class="zhihu-qa-answer-meta">${stats}</p>
-            <div class="zhihu-qa-answer-content">${answer.content}</div>
-          </section>`
-        })
-        .join('')}`
-      return build(question.title || answerItems[0]?.question?.title || '', content, '知乎回答', 'zhihu-qa')
-    }
-
-    const articleId = url.pathname.match(/^\/(?:p|appview\/p)\/(\d+)/)?.[1]
-    if (articleId) {
-      const article = await request('/api/v1/zhihu/web/fetch_column_article_detail', { article_id: articleId })
-      return build(article.title || '', typeof article.content === 'string' ? article.content : '', article.author?.name || '')
-    }
-
-    const pinId = url.pathname.match(/^\/pin\/(\d+)/)?.[1]
-    if (pinId) {
-      const pin = await request('/api/v1/zhihu/web/fetch_pin_detail', { pin_id: pinId })
-      const blocks = Array.isArray(pin.content) ? pin.content : []
-      const title = blocks.find(block => block.type === 'text')?.title || '知乎想法'
-      const content = blocks.map(block => (block.type === 'image' && block.url ? `<img src="${escape(block.url)}">` : block.content || '')).join('')
-      return build(title, content)
-    }
-
-    return null
+  public static fetchZhihuByUrl(env: Env, rawUrl: string): Promise<{ title: string; content: string; author: string } | null> {
+    return fetchZhihuByUrl(env, rawUrl)
   }
 
   /**
