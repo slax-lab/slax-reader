@@ -1,13 +1,4 @@
-// components/Modal/index.ts 测试套件 —— Sprint 4
-// 覆盖 6 个 showXxxModal helper（12 用例）：每个 helper 测「props 透传」+「回调路径」
-//
-// 关键策略：
-//   1. mock ~/utils/modal 的 modalBootloader：捕获 options 到 lastCall.value
-//      并返回受控 app stub（含 unmount 与 _container.remove）
-//   2. mock 6 个 .vue 组件文件用 ~~/layers/... alias，避免在 happy-dom 下真渲染 SFC
-//   3. ShareModalType mock 必须用真实枚举值 { Bookmark: 'bookmark', Original: 'original' }
-//      （ShareModal.vue:49-52）
-//   4. lastCall 用强类型 ModalBootloaderArgs，避免 as any
+import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 type ModalBootloaderArgs = {
@@ -36,11 +27,13 @@ const { lastCall, lastApp, modalBootloaderMock } = vi.hoisted(() => {
   return { lastCall, lastApp, modalBootloaderMock }
 })
 
+const { mockShowToast } = vi.hoisted(() => ({ mockShowToast: vi.fn() }))
+vi.mock('~/components/Toast', () => ({ default: { showToast: mockShowToast }, ToastType: { Error: 'error' } }))
+
 vi.mock('~/utils/modal', () => ({
   modalBootloader: modalBootloaderMock
 }))
 
-// 6 个组件 stub —— 用 ~~/layers/... 命中 components/Modal/index.ts 静态相对 import 解析后的绝对路径
 vi.mock('~~/app/components/Modal/Feedback.vue', () => ({
   default: { name: 'FeedbackStub' }
 }))
@@ -79,6 +72,7 @@ afterEach(() => {
 
 beforeEach(() => {
   modalBootloaderMock.mockClear()
+  mockShowToast.mockClear()
   lastCall.value = null
   lastApp.value = null
 })
@@ -94,14 +88,29 @@ const requireLastApp = (): AppStub => {
 }
 
 describe('Modal helpers', () => {
+  it.each([
+    ['feedback', () => showFeedbackModal({ title: 'fixture', reportType: 'bug', email: 'fixture@example.invalid' })],
+    ['edit name', () => showEditNameModal({ bookmarkId: 1, name: 'fixture' })],
+    ['edit tag', () => showEditTagModal({ tagId: 1, tagName: 'fixture' })],
+    ['login', () => showLoginModal({})],
+    ['share', () => showShareConfigModal({ bookmarkId: 1, title: 'fixture' })],
+    ['status', () => showSnapshotStatusModal({ status: BookmarkParseStatus.SUCCESS, title: 'fixture', content: 'fixture' })]
+  ] as const)('does not label %s mounting errors as import failures', async (_name, open) => {
+    const error = new Error('component setup failed')
+    modalBootloaderMock.mockImplementationOnce(() => { throw error })
+    await expect(open()).rejects.toBe(error)
+    expect(mockShowToast).not.toHaveBeenCalled()
+  })
+
   describe('showFeedbackModal', () => {
-    it('用 Feedback 组件 + 透传 reportType/title/href/email/params；params 缺失时 fallback {}', () => {
+    it('用 Feedback 组件 + 透传 reportType/title/href/email/params；params 缺失时 fallback {}', async () => {
       showFeedbackModal({
         title: 'T',
         reportType: 'bug',
         href: 'https://x.com',
         email: 'a@b.com'
       })
+      await flushPromises()
 
       const call = requireLastCall()
       expect(call.ele).toBe(Feedback)
@@ -118,12 +127,14 @@ describe('Modal helpers', () => {
         email: 'a@b.com',
         params: { id: 1, kind: 'x' }
       })
+      await flushPromises()
       const call2 = requireLastCall()
       expect(call2.props.params).toEqual({ id: 1, kind: 'x' })
     })
 
-    it('onDismiss 调 app.unmount + 容器 remove', () => {
+    it('onDismiss 调 app.unmount + 容器 remove', async () => {
       showFeedbackModal({ title: 'T', reportType: 'bug', email: 'a@b.com' })
+      await flushPromises()
       const call = requireLastCall()
       const app = requireLastApp()
 
@@ -136,8 +147,9 @@ describe('Modal helpers', () => {
   })
 
   describe('showEditNameModal', () => {
-    it('用 EditName 组件 + 透传 name/bookmarkId；aliasName 缺失时 fallback ""', () => {
+    it('用 EditName 组件 + 透传 name/bookmarkId；aliasName 缺失时 fallback ""', async () => {
       showEditNameModal({ bookmarkId: 1, name: 'foo' })
+      await flushPromises()
       const call = requireLastCall()
       expect(call.ele).toBe(EditName)
       expect(call.props.name).toBe('foo')
@@ -145,12 +157,14 @@ describe('Modal helpers', () => {
       expect(call.props.aliasName).toBe('')
 
       showEditNameModal({ bookmarkId: 2, name: 'foo', aliasName: 'bar' })
+      await flushPromises()
       expect(requireLastCall().props.aliasName).toBe('bar')
     })
 
-    it('onSuccess(name) 透传给 options.callback；onDismiss 调 unmount + remove', () => {
+    it('onSuccess(name) 透传给 options.callback；onDismiss 调 unmount + remove', async () => {
       const callback = vi.fn()
       showEditNameModal({ bookmarkId: 1, name: 'foo', callback })
+      await flushPromises()
 
       const call = requireLastCall()
       const app = requireLastApp()
@@ -166,14 +180,16 @@ describe('Modal helpers', () => {
 
       // callback 缺失时 onSuccess 不抛
       showEditNameModal({ bookmarkId: 1, name: 'foo' })
+      await flushPromises()
       const onSuccess2 = requireLastCall().props.onSuccess as (n: string) => void
       expect(() => onSuccess2('x')).not.toThrow()
     })
   })
 
   describe('showEditTagModal', () => {
-    it('用 EditTag 组件 + 透传 tagId/tagName；tagName 为空字符串时仍透传 ""（源码 `tagName || ""` fallback）', () => {
+    it('用 EditTag 组件 + 透传 tagId/tagName；tagName 为空字符串时仍透传 ""（源码 `tagName || ""` fallback）', async () => {
       showEditTagModal({ tagId: 7, tagName: 'work' })
+      await flushPromises()
       const call = requireLastCall()
       expect(call.ele).toBe(EditTag)
       expect(call.props.tagId).toBe(7)
@@ -181,13 +197,15 @@ describe('Modal helpers', () => {
 
       // tagName 为空字符串：源码 `tagName || ''` fallback → 仍是 ''
       showEditTagModal({ tagId: 8, tagName: '' })
+      await flushPromises()
       expect(requireLastCall().props.tagName).toBe('')
     })
 
-    it('onSuccess + onDelete 分别透传给 callback / deleteCallback；onDismiss 调 unmount + remove', () => {
+    it('onSuccess + onDelete 分别透传给 callback / deleteCallback；onDismiss 调 unmount + remove', async () => {
       const callback = vi.fn()
       const deleteCallback = vi.fn()
       showEditTagModal({ tagId: 7, tagName: 'work', callback, deleteCallback })
+      await flushPromises()
 
       const call = requireLastCall()
       const app = requireLastApp()
@@ -206,6 +224,7 @@ describe('Modal helpers', () => {
 
       // 缺失 callback / deleteCallback 时不抛
       showEditTagModal({ tagId: 7, tagName: 'work' })
+      await flushPromises()
       const call2 = requireLastCall()
       const onSuccess2 = call2.props.onSuccess as (id: number, name: string) => void
       const onDelete2 = call2.props.onDelete as (id: number) => void
@@ -215,18 +234,21 @@ describe('Modal helpers', () => {
   })
 
   describe('showLoginModal', () => {
-    it('用 LoginModal 组件 + 透传 redirect', () => {
+    it('用 LoginModal 组件 + 透传 redirect', async () => {
       showLoginModal({ redirect: '/back' })
+      await flushPromises()
       const call = requireLastCall()
       expect(call.ele).toBe(LoginModal)
       expect(call.props.redirect).toBe('/back')
 
       showLoginModal({})
+      await flushPromises()
       expect(requireLastCall().props.redirect).toBeUndefined()
     })
 
-    it('onDismiss 调 unmount + remove', () => {
+    it('onDismiss 调 unmount + remove', async () => {
       showLoginModal({ redirect: '/back' })
+      await flushPromises()
       const call = requireLastCall()
       const app = requireLastApp()
 
@@ -238,8 +260,9 @@ describe('Modal helpers', () => {
   })
 
   describe('showShareConfigModal', () => {
-    it('用 ShareModal 组件 + 透传 bookmarkId/title；type 缺失时 fallback ShareModalType.Bookmark', () => {
+    it('用 ShareModal 组件 + 透传 bookmarkId/title；type 缺失时 fallback ShareModalType.Bookmark', async () => {
       showShareConfigModal({ bookmarkId: 42, title: 'hello' })
+      await flushPromises()
       const call = requireLastCall()
       expect(call.ele).toBe(ShareModal)
       expect(call.props.bookmarkId).toBe(42)
@@ -253,11 +276,13 @@ describe('Modal helpers', () => {
         title: 'hello',
         type: 'original' as unknown as Parameters<typeof showShareConfigModal>[0]['type']
       })
+      await flushPromises()
       expect(requireLastCall().props.type).toBe('original')
     })
 
-    it('onDismiss 调 unmount + remove', () => {
+    it('onDismiss 调 unmount + remove', async () => {
       showShareConfigModal({ bookmarkId: 42, title: 'hello' })
+      await flushPromises()
       const call = requireLastCall()
       const app = requireLastApp()
 
@@ -269,12 +294,13 @@ describe('Modal helpers', () => {
   })
 
   describe('showSnapshotStatusModal', () => {
-    it('用 SnapshotStatusModal 组件 + 透传 status/title/content', () => {
+    it('用 SnapshotStatusModal 组件 + 透传 status/title/content', async () => {
       showSnapshotStatusModal({
         status: BookmarkParseStatus.SUCCESS,
         title: 'snap',
         content: 'detail'
       })
+      await flushPromises()
       const call = requireLastCall()
       expect(call.ele).toBe(SnapshotStatusModal)
       expect(call.props.status).toBe(BookmarkParseStatus.SUCCESS)
@@ -282,7 +308,7 @@ describe('Modal helpers', () => {
       expect(call.props.content).toBe('detail')
     })
 
-    it('onConfirm(dontRemindAgain) 透传给 options.onConfirm 后 unmount + remove；onDismiss 仅 unmount + remove', () => {
+    it('onConfirm(dontRemindAgain) 透传给 options.onConfirm 后 unmount + remove；onDismiss 仅 unmount + remove', async () => {
       const onConfirm = vi.fn()
       showSnapshotStatusModal({
         status: BookmarkParseStatus.SUCCESS,
@@ -290,6 +316,7 @@ describe('Modal helpers', () => {
         content: 'detail',
         onConfirm
       })
+      await flushPromises()
       const call = requireLastCall()
       const app = requireLastApp()
 
@@ -305,6 +332,7 @@ describe('Modal helpers', () => {
         title: 'snap',
         content: 'detail'
       })
+      await flushPromises()
       const call2 = requireLastCall()
       const app2 = requireLastApp()
       const onDismiss = call2.props.onDismiss as () => void

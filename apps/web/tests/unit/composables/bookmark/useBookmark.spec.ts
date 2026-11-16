@@ -277,6 +277,56 @@ describe('useBookmark', () => {
   })
 
   describe('chatBotQuote（C14-C17）', () => {
+    it('delivers a quote once when the official async component ref becomes ready', async () => {
+      useUserStore().user = baseUser
+      const options = makeOptions()
+      options.chatbot = ref(undefined)
+      const result = useBookmark(options)
+      const quote = { text: 'first quote' } as Parameters<typeof result.chatBotQuote>[0]
+      result.chatBotQuote(quote)
+      await nextTick()
+      options.chatbot.value = {} as NonNullable<typeof options.chatbot.value>
+      await nextTick()
+      const addQuoteData = vi.fn()
+      options.chatbot.value = { addQuoteData, focusTextarea: vi.fn() }
+      await nextTick()
+      expect(addQuoteData).toHaveBeenCalledExactlyOnceWith(quote)
+      options.chatbot.value = undefined
+      await nextTick()
+      options.chatbot.value = { addQuoteData, focusTextarea: vi.fn() }
+      await nextTick()
+      expect(addQuoteData).toHaveBeenCalledOnce()
+    })
+
+    it('does not deliver an old pending quote to the next account', async () => {
+      useUserStore().user = baseUser
+      const options = makeOptions()
+      const generation = ref(1)
+      options.quoteScope = () => generation.value
+      options.chatbot = ref(undefined)
+      const result = useBookmark(options)
+      result.chatBotQuote({ text: 'old' } as Parameters<typeof result.chatBotQuote>[0])
+      await nextTick()
+      generation.value++
+      const addQuoteData = vi.fn()
+      options.chatbot.value = { addQuoteData, focusTextarea: vi.fn() }
+      await nextTick()
+      expect(addQuoteData).not.toHaveBeenCalled()
+    })
+
+    it('discards a quote when the account scope changes before delivery', async () => {
+      useUserStore().user = baseUser
+      const options = makeOptions()
+      let generation = 1
+      options.quoteScope = () => generation
+      const result = useBookmark(options)
+      result.chatBotQuote({ text: 'old account' } as Parameters<typeof result.chatBotQuote>[0])
+      generation++
+      await nextTick()
+      expect(options.chatbot.value?.addQuoteData).not.toHaveBeenCalled()
+      expect(botExpanded.value).toBe(false)
+    })
+
     it('C14: 未登录 → 早退，addQuoteData 不调', async () => {
       const options = makeOptions()
       const result = useBookmark(options)

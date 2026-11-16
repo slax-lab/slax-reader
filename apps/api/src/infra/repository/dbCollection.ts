@@ -131,12 +131,47 @@ export class CollectionRepo {
     })
   }
 
-  public async enableUserShareCollect(userId: number, enable: boolean, nickName?: string, _type?: number) {
+  public async ensureUserShareCollectWithCreation(userId: number, displayName: string) {
+    const existing = await this.getUserShareCollect(userId)
+    if (existing) return { collection: existing, created: false }
+
+    const now = new Date()
+    const attemptedCode = await hashMD5(crypto.randomUUID())
+    const upsert = () =>
+      this.prismaPg().sr_user_collection.upsert({
+        where: { owner_id: userId },
+        create: {
+          owner_id: userId,
+          display_name: displayName,
+          type: 1,
+          collection_code: attemptedCode,
+          status: 1,
+          created_at: now,
+          updated_at: now,
+          show_marks: true,
+          allow_marks: true,
+          show_profile: true
+        },
+        update: {}
+      })
+
+    let collection
+    try {
+      collection = await upsert()
+    } catch (error) {
+      if ((error as { code?: unknown })?.code !== 'P2002') throw error
+      collection = await upsert()
+    }
+    // Matching the per-attempt code proves this call inserted; any other code identifies the concurrent winner.
+    return { collection, created: collection.collection_code === attemptedCode }
+  }
+
+  public async enableUserShareCollect(userId: number, enable: boolean, displayName?: string, _type?: number) {
     return await this.prismaPg().sr_user_collection.upsert({
       where: { owner_id: userId },
       create: {
         owner_id: userId,
-        display_name: `${nickName}'s Collection Share`,
+        display_name: displayName || 'My Reading Recommendations',
         type: 1,
         collection_code: await hashMD5(`${userId}-${new Date().getTime()}`),
         status: enable ? 1 : 0,

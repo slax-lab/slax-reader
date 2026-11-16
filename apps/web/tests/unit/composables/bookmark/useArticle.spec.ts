@@ -1,38 +1,24 @@
 // composables/bookmark/useArticle.ts 单测 —— 第五期 Sprint G
 // 覆盖：useArticleDetail 各 computed（title alias_title 优先 / fallback no_title） /
-//      bookmarkId / shareCode / allowStarred / allowTagged / isStarred /
-//      updateStarred 成功路径（仅 BookmarkDetail 才有）
+//      bookmarkId / shareCode / allowStarred / allowTagged / isStarred
 import { ref } from 'vue'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const { mockUseI18n, mockT, mockPost, mockRequest } = vi.hoisted(() => {
-  const mockT = vi.fn((k: string) => `i18n:${k}`)
-  const mockPost = vi.fn(async (): Promise<unknown> => ({ ok: true }))
-  return {
-    mockUseI18n: vi.fn(() => ({ t: mockT, locale: { value: 'en' } })),
-    mockT,
-    mockPost,
-    mockRequest: vi.fn(() => ({ post: mockPost }))
-  }
-})
+const { mockUseI18n } = vi.hoisted(() => ({
+  mockUseI18n: vi.fn(() => ({ t: (key: string) => `i18n:${key}`, locale: { value: 'en' } }))
+}))
 
 mockNuxtImport('useI18n', () => mockUseI18n)
-mockNuxtImport('request', () => mockRequest)
 mockNuxtImport('isBookmarkDetail', () => (d: unknown) => !!(d && (d as Record<string, unknown>).bookmark_id))
 mockNuxtImport('isShareBookmarkDetail', () => (d: unknown) => !!(d && (d as Record<string, unknown>).share_info))
-mockNuxtImport('useBookmarkArticleRelative', () => (_d: unknown) => ({
+mockNuxtImport('useBookmarkArticleRelative', () => () => ({
   allowAction: ref(true),
   bookmarkUserId: ref(42)
 }))
 
 import { useArticleDetail } from '~~/app/composables/bookmark/useArticle'
-
-beforeEach(() => {
-  mockPost.mockReset()
-  mockPost.mockResolvedValue({ bookmark_id: 1, status: 'star' })
-})
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -89,22 +75,6 @@ describe('composables/bookmark/useArticle', () => {
       const detail = ref({ bookmark_id: 1, alias_title: '', title: 'B', starred: 'star', trashed_at: null })
       const r = useArticleDetail(detail as never)
       expect(r.isStarred.value).toBe(true)
-    })
-
-    it('updateStarred：BookmarkDetail 路径调 request.post 更新 starred', async () => {
-      const detail = ref({ bookmark_id: 7, alias_title: '', title: 'B', starred: 'unstar', trashed_at: null })
-      const r = useArticleDetail(detail as never)
-      await r.updateStarred.value?.(true)
-      expect(mockPost).toHaveBeenCalledWith({
-        url: '/v1/bookmark/star',
-        body: { bookmark_id: 7, status: 'star' }
-      })
-    })
-
-    it('updateStarred：ShareBookmarkDetail 路径返回 undefined（不允许调）', () => {
-      const detail = ref({ share_info: { share_code: 'sc' }, title: 'X' })
-      const r = useArticleDetail(detail as never)
-      expect(r.updateStarred.value).toBeUndefined()
     })
   })
 })

@@ -144,7 +144,7 @@ export class BookmarkService {
 
   private maintainReboundArticles(ctx: ContextManager, bookmark: { rebindings?: { userId: number; previousBookmarkId: number; bookmarkId: number }[] }) {
     for (const identity of bookmark.rebindings ?? []) {
-      dispatchVectorMaintenance(ctx, { kind: 'article', userId: identity.userId, id: identity.previousBookmarkId })
+      dispatchVectorMaintenance(ctx, { kind: 'article', mode: 'relation', userId: identity.userId, id: identity.previousBookmarkId })
     }
   }
 
@@ -529,7 +529,7 @@ export class BookmarkService {
     }
 
     await deleteUserBookmark()
-    dispatchVectorMaintenance(ctx, { kind: 'article', userId, id: bmId })
+    dispatchVectorMaintenance(ctx, { kind: 'article', mode: 'relation', userId, id: bmId })
 
     ctx.execution.waitUntil(Promise.allSettled([deleteBookmarkContentTry(), deleteBookmarkShareTry()]))
 
@@ -544,7 +544,7 @@ export class BookmarkService {
     const userId = ctx.getUserId()
 
     await Promise.all([bmRepo.updateBookmarkDeleteAt(bmId, userId, true), bmRepo.updateBookmarkShareIsEnable(bmId, userId, false)])
-    dispatchVectorMaintenance(ctx, { kind: 'article', userId, id: bmId })
+    dispatchVectorMaintenance(ctx, { kind: 'article', mode: 'relation', userId, id: bmId })
 
     await this.searchService.clearSearchCache(ctx, userId)
 
@@ -988,9 +988,14 @@ export class BookmarkService {
     })
   }
 
-  public async getBookmarkReadAccess(ctx: ContextManager, uuid: string) {
-    const access = await resolveBookmarkReadAccess(this.bookmarkRepo, this.userRepo, ctx.getUserId(), uuid)
-    if (access && !(await this.snapshots.allowsBody(access.bookmark.bookmark_id))) return null
+  public async getBookmarkReadAccess(ctx: ContextManager, uuid: string, recordTiming?: (step: string, durationMs: number) => void) {
+    const access = await resolveBookmarkReadAccess(this.bookmarkRepo, this.userRepo, ctx.getUserId(), uuid, recordTiming)
+    if (access) {
+      const startedAt = performance.now()
+      const allowed = await this.snapshots.allowsBody(access.bookmark.bookmark_id)
+      recordTiming?.('access-media', performance.now() - startedAt)
+      if (!allowed) return null
+    }
     return access
   }
 

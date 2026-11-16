@@ -1,5 +1,7 @@
 # Tasks
 
+These checked tasks record the merged predecessor implementation. Subsequent Web ordering and beta-policy changes are proposed and tracked only in `refine-email-login-flow/tasks.md`; this historical completion record does not claim that follow-up is implemented.
+
 ## 1. Account identity
 
 - [x] 1.1 Implement transactional lookup, registration, and explicit mailbox binding using the existing platform table. Exercise new, existing, ambiguous, frozen, and concurrent claims.
@@ -22,3 +24,9 @@
 
 - [x] 4.1 Run affected automated checks and strict OpenSpec validation. Exercise the feature against a running API and the supported clients, and record results in `validation.md`.
 - [x] 4.2 Obtain and record hands-on acceptance for the changed UI. Confirm any affected package version changes before commit or push, and complete the local pre-push review.
+
+## 5. Development-only email UI correction
+
+- [x] 5.1 Hide email login entries and forms on beta/production Web clients and non-development Mobile clients; hide the entire new sign-in methods section in those account settings, including provider linking. Preserve the original provider login and keep backend APIs unrestricted by the rollout environment.
+- [x] 5.2 Verify development, beta, and production presentation, run affected checks, and record the correction evidence.
+- [x] 5.3 Obtain hands-on acceptance of the correction before opening its follow-up pull request.

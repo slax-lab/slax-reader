@@ -88,3 +88,31 @@ The Bugs, Security, and Compliance passes matched the diff to `add-email-otp-aut
 The first automated review questioned whether the iOS Apple SDK hashes the provider nonce. The installed `expo-apple-authentication` 58.0.2 Swift source matched the published package. Its `AppleAuthenticationRequest.swift` sets `request.nonce = options.nonce`. Apple documents that the value sent in the native request returns in the signed identity token. The provider binding therefore compares that value with the server challenge. [Published Expo 58.0.2 package](https://registry.npmjs.org/expo-apple-authentication/-/expo-apple-authentication-58.0.2.tgz) · [Apple's native nonce description](https://developer.apple.com/videos/play/wwdc2020/10173/?time=1699)
 
 The focused API run passed 25 tests, including the iOS provider-binding flow with two locally signed Apple identities and the nonce in the native credential. The nine Mobile provider tests passed, including passing the issued nonce through the Apple adapter. These checks use synthetic identities. Real Apple authorization remains part of configured-environment verification.
+
+## Development-only email UI correction (2026-11-11)
+
+### Cause and scope
+
+The earlier rollout restricted only the mailbox binding action. Web's shared email login form and Mobile's login button had no development check. Both settings views also displayed existing mailbox bindings in non-development environments. The correction gates email login and the complete new sign-in methods section using Web's existing `public.slaxEnv === 'development'` profile and Mobile's existing `config.development`. Original Google/Apple login entries and historical profile email remain unchanged. On 2026-11-11 the requester reviewed the initial correction and asked to hide the entire sign-in methods section, including its heading and new provider linking/status rows. The correction was adjusted accordingly. There are no API, contract, deployment configuration, environment-variable, or database changes.
+
+### Automated evidence
+
+- The new Web regression cases reproduced visible email login in preview, beta, and production, and visible linked mailbox status outside development. After the fix, the three focused suites (`LoginView.spec.ts`, `LoginModal.spec.ts`, and `UserSignInMethodsSection.spec.ts`) passed all 41 tests. Development login and binding flows remain covered.
+- The Mobile mounted regression cases reproduced email login in beta and production on iOS and Android, and a linked mailbox displayed outside development. The focused `login-dismissal.test.mjs` and `settings-account.test.mjs` run passed all 57 tests after the correction.
+- `pnpm web -- typecheck` and targeted Web ESLint passed. An additional unconfigured root Prettier check reported formatting differences for the five touched Web files; checking their `HEAD` versions confirmed the same pre-existing result. Formatting was not broadened into this behavior fix.
+- `pnpm mobile -- check` passed architecture, baseline/fixture checks, type checking, and 1,227 tests; one test was skipped. Six unrelated Kotlin host tests failed because this environment has no `kotlinc` executable (`ENOENT`). No Kotlin or native integration was changed.
+- `SLAX_MOBILE_NO_LOCAL_CONFIG=1 EXPO_NO_DOTENV=1 pnpm mobile -- bundle --max-workers 1` exported both Android and iOS Hermes bundles successfully.
+- Strict OpenSpec validation passed all 134 items. `git diff --check` passed.
+
+### Running environment
+
+Chromium exercised the changed worktree against a loopback API fixture with synthetic Google/Apple configuration and no live email delivery. The Nuxt server was started separately with `SLAX_ENV=beta`, `SLAX_ENV=production`, and `SLAX_ENV=development`; each profile was checked at 1280 px/light, 768 px/dark, and 320 px/e-ink. Each combination covered the login page, unbound account settings, and an account whose API response already included a `mail` binding.
+
+- Beta and production omitted email login entries and email inputs and the entire new account sign-in methods section. Original Google and Apple login entries remained visible. Historical profile email remained visible in the existing profile area.
+- Development retained the email entry and displayed the existing mailbox or its binding action. A separate development browser flow sent a code with a device ID, logged in through the existing session flow, and bound another address through account settings while preserving the Google identity.
+- Merely opening the pages did not send an email or attempt email login. Fixture addresses and code `012345` were used; Resend was not contacted.
+- Login modal behavior was verified through its mounted Vue suite, not a new browser-modal session. No hosted deployment, real provider authorization, or new native-device session was exercised for this presentation-only correction. Backend availability was not re-exercised against live services; the backend is unchanged.
+
+### Review and handoff
+
+The whole-section follow-up reproduced the previously visible section heading and provider rows in mounted Web and Mobile tests before the component-level gates were added. The final focused suites, type checks, and both platform bundles were re-run after that adjustment. The local Bugs and Security passes found no additional issue in the four changed presentation files. The Compliance pass matches the corrected rollout requirements under `add-email-otp-auth`; the requester completed hands-on acceptance of the final whole-section correction on 2026-11-11 using the local Beta account-settings preview and explicitly requested creation of a Draft PR. The earlier feature PR #541 is already merged, so this correction uses the separate `fix/dev-only-email-ui` branch based on current `origin/dev`. The required acceptance preceded the follow-up Draft PR, as the requester instructed. No version files were changed, following the requester's existing preference to retain the Mobile version.

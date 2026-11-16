@@ -8,7 +8,7 @@
 
 **Tech Stack:** Nuxt 3, Vue 3, Pinia, TypeScript, VueUse, PowerSync, Vitest, Nuxt test utilities, OpenSpec.
 
-**Spec:** `openspec/changes/decouple-koc-onboarding-identity/` (proposal, design, capability specs, and tasks).
+**Spec:** `openspec/changes/archive/2026-11-10-decouple-koc-onboarding-identity/` (proposal, design, capability specs, and tasks).
 
 ## Global Constraints
 

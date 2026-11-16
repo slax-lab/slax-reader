@@ -527,3 +527,27 @@ model slax_user_bookmark_overview {
 
   @@index([bookmark_id, user_id])
 }
+
+model slax_vector_preference_state {
+  user_id      Int    @id
+  seq          Float
+  mean_version String
+  raw          Bytes
+  centered     Bytes
+  shared       Bytes
+  inherited    Bytes
+  counts       String
+  interests    String
+}
+
+model slax_vector_preference_entry {
+  user_id      Int
+  bookmark_id  Int
+  weight       Int
+  share_group  Int
+  token        String
+  published_at Float  @default(0)
+
+  @@id([user_id, bookmark_id])
+  @@index([user_id, share_group, published_at])
+}

@@ -212,33 +212,4 @@ export const parseIncompleteJSONListText = (text: string) => {
   }
 }
 
-// 用于从文本解析出带# ，##，- 的markdown内容
-export const extractMarkdownFromText = (text: string) => {
-  if (!text) {
-    return text
-  }
-
-  // 使用正则表达式匹配以 # 或 ## 开头的标题，以及以 - 开头的列表项。
-  // ^ 表示行的开始，[ \t]* 匹配可能存在的空格或制表符
-  const markdownRegex = /^(#[#]?[ \t]+.*|[ \t]*-[ \t]+.+)$/gm
-
-  // 使用match方法进行全局匹配
-  const matches = text.match(markdownRegex)
-
-  // 如果没有找到匹配的内容，返回一个空字符串
-  if (!matches) {
-    return ''
-  }
-
-  // 返回匹配到的所有行
-  return matches.join('\n')
-}
-
-// 从HTML中提取文本内容
-export const extractHTMLTextContent = (htmlString: string) => {
-  // 移除 HTML 标签
-  return htmlString
-    .replace(/<[^>]*>/g, '') // 替换所有标签
-    .replace(/\s+/g, ' ') // 将多个空格替换为一个空格
-    .trim() // 移除首尾空格
-}
+export { extractHTMLTextContent, extractMarkdownFromText } from './text'

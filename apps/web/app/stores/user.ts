@@ -59,7 +59,7 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
     return {
       user: null,
       confirmedAccountLocale: null,
-      locale: useI18n()?.locale?.value,
+      locale: useNuxtApp().$i18n.locale.value,
       payTimeRecord: null,
       lastCloseInstallExtTipsDates: [],
       shareTipsClicked: false,

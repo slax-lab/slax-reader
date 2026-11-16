@@ -17,6 +17,7 @@ import { TagController } from '../../handler/http/tagController'
 import { RssController } from '../../handler/http/rssController'
 import { FeedController } from '../../handler/http/feedController'
 import { UserController } from '../../handler/http/userController'
+import { PasskeyController } from '../../handler/http/passkeyController'
 import { DiagnosticController } from '../../handler/http/diagnosticController'
 import { McpServerController } from '../../handler/http/mcpController'
 import { SyncController } from '../../handler/http/syncController'
@@ -501,6 +502,14 @@ export function getRouter(container: Container) {
   router.post('/v1/user/delete_my_account', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(UserController)
     return await controller.handleDeleteUserAccountRequest(ctx, req)
+  })
+  router.post('/v1/user/passkey/challenge', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(PasskeyController)
+    return await controller.handlePasskeyChallengeRequest(ctx, req)
+  })
+  router.get('/v1/user/passkey', async (req: Request, ctx: ContextManager) => {
+    const controller = container.resolve(PasskeyController)
+    return await controller.handleUserPasskeyListRequest(ctx, req)
   })
   router.get('/v1/diagnostics/download', async (req: Request, ctx: ContextManager) => {
     const controller = container.resolve(DiagnosticController)

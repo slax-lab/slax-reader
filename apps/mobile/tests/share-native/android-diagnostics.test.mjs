@@ -39,22 +39,34 @@ test('Android share retains leading URL extraction, UI messages, payload and Fir
   assert.ok(transport.includes('header("User-Agent", "SlaxReader/Android $version")'));
   assert.match(transport, /put\("target_url", url\)/);
   assert.match(transport, /put\("target_title", title\)/);
-  assert.match(activity, /main.postDelayed\(\{dismiss\(\)\}, 2000\)/);
+  assert.match(activity, /private val closeSuccessfulShare = Runnable \{ finishImmediately\(\) \}/);
+  assert.match(activity, /if \(success\) main.postDelayed\(closeSuccessfulShare, 2000\)/);
+  const close = activity.slice(activity.indexOf('  private fun finishImmediately()'), activity.indexOf('  private fun label('));
+  assert.match(close, /main.removeCallbacksAndMessages\(null\)/);
+  assert.match(close, /card.animate\(\).cancel\(\)/);
+  assert.match(close, /finish\(\)/);
+  assert.doesNotMatch(close, /withEndAction|postDelayed/);
   assert.match(activity, /bookmark_add_start/);
   assert.match(activity, /report\(false, version, null\)/);
 });
 
 test('Android terminal logging is independent, bounded and credential-redacted', () => {
   assert.match(activity, /diagnostics = ShareDiagnostics.create\(this\)/);
-  assert.match(activity, /diagnostics\?\.finish\(result\); showResult\(result\)/);
-  assert.match(activity, /executor.shutdownNow\(\); diagnostics\?\.shutdown\(\)/);
+  const completion = activity.slice(activity.indexOf('  private fun completeShare('), activity.indexOf('  override fun onResume()'));
+  assert.match(completion, /diagnostics\?\.finish\(result\)\s*completedResult = result/);
+  assert.match(completion, /main.post/);
+  assert.ok(completion.indexOf('diagnostics?.finish(result)') < completion.indexOf('main.post'));
+  const destruction = activity.slice(activity.indexOf('  override fun onDestroy()'), activity.indexOf('private object LegacyStringPreferences'));
+  assert.match(destruction, /executor.shutdownNow\(\)/);
+  assert.match(destruction, /diagnostics\?\.lifecycle\("destroyed", completedResult == "ok", isFinishing\)\s*diagnostics\?\.shutdown\(\)/);
   assert.match(diagnostics, /if \(terminal\) return\s*terminal = true/);
   assert.match(diagnostics, /Executors.newSingleThreadExecutor\(\)/);
   assert.match(diagnostics, /executor.shutdown\(\)/);
   assert.doesNotMatch(diagnostics, /shutdownNow/);
   assert.match(diagnostics, /File\(activity.filesDir, "diagnostics"\)/);
   assert.match(diagnostics, /\$date.share-android.ndjson/);
-  assert.match(diagnostics, /FileOutputStream\(file, true\)\.use \{it.write\(bytes\)\}/);
+  assert.match(diagnostics, /FileOutputStream\(file, true\)\.use \{\s*it.write\(bytes\)/);
+  assert.match(diagnostics, /if \(value.optString\("event"\) in setOf\("share.end", "share.lifecycle"\)\) it.fd.sync\(\)/);
   assert.match(diagnostics, /file.length\(\) >= ShareDiagnosticRecord.DAILY_ALLOWANCE/);
   assert.match(diagnostics, /log.truncated/);
   assert.match(diagnostics, /writeFailures >= 3/);

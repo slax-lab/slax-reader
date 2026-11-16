@@ -928,3 +928,19 @@ model sr_newsletter_feed {
     /// 支持按用户及选定来源筛选，再按收件时间和 id 倒序分页。
     @@index([user_id, source_key, received_at(sort: Desc), id(sort: Desc)])
 }
+
+/// Server-only authentication credentials. NEVER add this table to PowerSync or client local-first schemas.
+model sr_user_passkey {
+    id            Int       @id @default(autoincrement())
+    user_id       Int
+    rp_id         String
+    credential_id String    @unique
+    public_key    Bytes
+    counter       BigInt    @default(0)
+    transports    String[]  @default([])
+    name          String    @default("Passkey")
+    created_at    DateTime  @default(now())
+    last_used_at  DateTime?
+
+    @@index([user_id, rp_id])
+}

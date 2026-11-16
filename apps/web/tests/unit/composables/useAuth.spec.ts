@@ -186,6 +186,36 @@ describe('useAuth', () => {
     })
   })
 
+  describe('verifyPasskeyAuth', () => {
+    const input = { type: 'passkey', email: 'reader@example.com', request_id: 'attempt', credential: { id: 'credential', rawId: 'credential', type: 'public-key', response: { clientDataJSON: 'client-data', authenticatorData: 'authenticator-data', signature: 'signature' }, clientExtensionResults: {} } } as const
+
+    it('completes Passkey login through the existing server session endpoint', async () => {
+      mockPost.mockResolvedValueOnce({ token: 'passkey-session' })
+      await expect(useAuth().verifyPasskeyAuth(input)).resolves.toBe('passkey-session')
+      expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/user/login', body: input }))
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/session', expect.objectContaining({ body: JSON.stringify({ token: 'passkey-session' }) }))
+    })
+
+    it('does not replace a session established while the assertion is verified', async () => {
+      mockPost.mockImplementation(async () => {
+        cookieGet.mockReturnValue('replacement-session')
+        return { token: 'old-session' }
+      })
+      await expect(useAuth().verifyPasskeyAuth(input)).rejects.toThrow()
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+
+    it('does not adopt a canceled Passkey login response', async () => {
+      const controller = new AbortController()
+      mockPost.mockImplementation(async () => {
+        controller.abort()
+        return { token: 'late-session' }
+      })
+      await expect(useAuth().verifyPasskeyAuth(input, { signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' })
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+  })
+
   describe('collection attribution', () => {
     const attribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } as const
 

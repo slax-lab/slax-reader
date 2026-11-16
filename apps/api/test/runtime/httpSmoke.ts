@@ -1,3 +1,4 @@
+import { exercisePasskeys } from './passkeySmoke'
 import { createServer } from 'node:net'
 import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
@@ -388,6 +389,7 @@ async function main() {
       assert.equal(fresh.data.is_new_user, true)
       const freshInfo = (await authCall(userInfo, undefined, fresh.data.token)).data
       assert.equal(freshInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, 'new-reader@smoke.invalid')
+      evidence.passkeys = await exercisePasskeys(authCall, query => resources.sql(pg.id, 'http_reader', query), token, ownerToken, vars.FRONT_END_URL)
       evidence.emailAuthentication =
         'binding API works in dev, beta, and prod; user information returns login methods through the platform list; legacy sign-in guidance, existing-account login, and new-account session'
     }
@@ -887,6 +889,15 @@ async function main() {
     assert.equal(after.body.code, 200)
     assert.deepEqual(after.body.data, [])
     evidence.sourceShareRetained = true
+    resources.sql(
+      pg.id,
+      'http_reader',
+      `
+      INSERT INTO sr_user_passkey(user_id,rp_id,credential_id,public_key) VALUES
+      (1,'reader.smoke.invalid','deletion-fixture-user1',decode('010203','hex')),
+      (2,'reader.smoke.invalid','deletion-fixture-user2',decode('040506','hex'));
+    `
+    )
     const { exerciseDiagnosticFeedback } = await import('./diagnosticSmoke')
     evidence.diagnostics = await exerciseDiagnosticFeedback(
       (path, options) => localFetch(`http://localhost:${httpPort}${path}`, options),
@@ -896,10 +907,12 @@ async function main() {
       () => workerLog,
       async key => (await (await localFetch(`http://localhost:${httpPort}/__fixture/diagnostic-object-missing?key=${encodeURIComponent(key)}`, { headers })).json()) as boolean
     )
-    if (emailRedis) {
-      assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_platform_bind WHERE user_id=1'), '0')
-      evidence.deletedAccountBindings = 'account cleanup removed all platform bindings, including the verified mailbox'
-    }
+    assert.equal(resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_platform_bind WHERE user_id=1 AND platform<>'newsletter'"), '0')
+    assert.equal(resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_platform_bind WHERE user_id=1 AND platform='newsletter'"), '1')
+    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_newsletter_feed WHERE user_id=1'), '0')
+    assert.equal(resources.sql(pg.id, 'http_reader', 'SELECT count(*) FROM sr_user_passkey WHERE user_id=1'), '0')
+    assert.equal(resources.sql(pg.id, 'http_reader', "SELECT count(*) FROM sr_user_passkey WHERE user_id=2 AND credential_id='deletion-fixture-user2'"), '1')
+    evidence.deletedAccountBindings = 'cleanup removed mail content, passkeys and ordinary bindings; retained Newsletter reservation and other-owner passkey'
     const admissions = (await (await localFetch(`http://localhost:${httpPort}/__fixture/vector-maintenance-admissions`, { headers })).json()) as {
       target: { kind: string; id: number; userId?: number; preference?: string }
     }[]

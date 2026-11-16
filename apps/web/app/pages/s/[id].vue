@@ -48,7 +48,6 @@
         :pdf-load-error="pdfLoadError"
         @retry-pdf="loadBookmarkDetail"
         @screen-lock-update="screenLockUpdate"
-        @bookmark-update="bookmarkUpdate"
         @chat-bot-quote="onChatBotQuote"
       />
       <ClientOnly>
@@ -153,7 +152,7 @@ import TopTips from '~/components/Tips/TopTips.vue'
 import type { MarkDetail, ShareBookmarkDetail } from '@commons/frontend-types/models'
 import { formatDate } from '@commons/frontend-utils/date'
 import { isClient, isServer } from '@commons/frontend-utils/is'
-import { extractHTMLTextContent } from '@commons/frontend-utils/parse'
+import { extractHTMLTextContent } from '@commons/frontend-utils/text'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { BookmarkExistsResp } from '@slax-reader/contracts/interface'
 import type { QuoteData } from '~/components/Chat/type'
@@ -463,10 +462,6 @@ if (isClient) {
     },
     { immediate: true }
   )
-}
-
-const bookmarkUpdate = (updateDetail: ShareBookmarkDetail) => {
-  detail.value = updateDetail
 }
 
 const findQuote = (quote: QuoteData) => {

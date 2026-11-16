@@ -70,7 +70,7 @@ import DotLoading from '~/components/DotLoading.vue'
 import ListEndHint from '~/components/ListEndHint.vue'
 import MarkdownText from '~/components/Markdown/MarkdownText.vue'
 
-import { extractMarkdownFromText } from '@commons/frontend-utils/parse'
+import { extractMarkdownFromText } from '@commons/frontend-utils/text'
 import { RequestMethodType } from '@commons/frontend-utils/request'
 import { findMatchingElement, queryMarkdownAnchorQuote, querySimularMarkdownAnchorQuote } from '@commons/frontend-utils/search'
 

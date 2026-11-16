@@ -44,6 +44,15 @@ describe('compact diagnostic records', () => {
     expect(result).toEqual([start, { ...end, token: null, http: null, error: null }])
     expect(result.some(entry => entry.event === 'snapshot')).toBe(false)
   })
+  test('Android closure lifecycle records survive multipart sanitization without sensitive fields', async () => {
+    const entries = ['finish_requested', 'destroyed'].map((phase, index) => ({ ...common, src: 'share-android', share: common.launch, event: 'share.lifecycle', phase, success: true, finishing: index === 1 }))
+    const raw = ndjson(entries.map(entry => ({ ...entry, ...metadata, token: 'private-token', url: 'https://example.test/private', body: 'private-body' })))
+    const result = await parseFeedbackRequest(request(multipart(new Blob([raw]))))
+    expect(decode(result.diagnostic!)).toEqual(entries)
+    for (const invalid of [{ phase: 'unknown' }, { success: 'true' }, { finishing: null }, { src: 'app' }, { src: 'share-ios' }, { share: null }]) {
+      expect(() => sanitizeDiagnosticFile(encode(ndjson([{ ...entries[0], ...invalid }])))).toThrow()
+    }
+  })
   test('retained-date slice can contain only ordinary records without a startup header', () => {
     const entries = [
       { ...signout, ts: '2026-10-24T00:00:00.000+08:00' },

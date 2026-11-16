@@ -61,13 +61,11 @@
 </template>
 
 <script lang="ts">
-export enum ShareModalType {
-  Bookmark = 'bookmark',
-  Original = 'original'
-}
+export { ShareModalType } from './shareType'
 </script>
 
 <script lang="ts" setup>
+import { ShareModalType } from './shareType'
 import SwitchToggle from '~/components/SwitchToggle.vue'
 
 import { copyText } from '@commons/frontend-utils/string'

@@ -491,3 +491,57 @@ test('linked platform reads reject malformed platform payloads at the transport 
     await assert.rejects(api.getLinkedPlatforms(), {status: 502, message: 'Invalid linked platforms response'});
   }
 });
+
+test('Passkey login is public, device-scoped and never retries a consumed challenge', async () => {
+  const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'old', user_id: 'old'})), {leave: async () => {}, enter: async () => {}});
+  await sessions.restore();
+  const calls: unknown[] = [];
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions, getDeviceId: async () => 'device',
+    fetch: async (url, request) => {calls.push([String(url), new Headers(request?.headers).get('Authorization'), new Headers(request?.headers).get('X-Device-ID'), JSON.parse(String(request?.body))]); return Response.json({code: 503, message: 'unavailable'}, {status: 503});},
+  });
+  const body = {type: 'passkey' as const, email: 'reader@example.test', request_id: 'request', credential: {id: 'credential'} as any};
+  await assert.rejects(api.loginPasskey(body), {status: 503});
+  assert.deepEqual(calls, [['https://api.example/v1/user/login', null, 'device', body]]);
+});
+
+test('Passkey management uses authenticated server endpoints and settings keys', async () => {
+  const sessions = new SessionController(new PreferenceStore(new MemoryPreferences({auth_token: 'token', user_id: 'owner'})), {leave: async () => {}, enter: async () => {}});
+  await sessions.restore();
+  const calls: unknown[] = [];
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'android', version: 'test', sessions,
+    fetch: async (url, request) => {
+      const body = request?.body ? JSON.parse(String(request.body)) : undefined;
+      calls.push([new URL(String(url)).pathname, request?.method, new Headers(request?.headers).get('Authorization'), body]);
+      const data = body?.key === 'delete_passkey' ? {deleted: true, credential_state: {rp_id: 'reader.test', user_handle: 'owner', credential_ids: []}} : body?.key === 'bind_login_identity' ? {linked: true} : [];
+      return Response.json({code: 200, data});
+    },
+  });
+  const registration = {type: 'passkey' as const, request_id: 'request', name: 'Phone', credential: {id: 'credential'} as any};
+  await api.getPasskeys(); await api.registerPasskey(registration);
+  assert.deepEqual(await api.deletePasskey(42), {deleted: true, credential_state: {rp_id: 'reader.test', user_handle: 'owner', credential_ids: []}});
+  assert.deepEqual(calls, [
+    ['/v1/user/passkey', 'GET', 'Bearer token', undefined],
+    ['/v1/user/setting', 'POST', 'Bearer token', {key: 'bind_login_identity', value: registration}],
+    ['/v1/user/setting', 'POST', 'Bearer token', {key: 'delete_passkey', value: {id: 42}}],
+  ]);
+});
+
+test('Passkey list accepts numeric metadata IDs and rejects invalid IDs', async () => {
+  const sessions = {getSession: async () => ({token: 'token', userId: 'owner', refreshedAt: 0}), clearIfMatches: async () => false};
+  const passkey = {id: 42, name: 'Phone', created_at: '2026-11-12T00:00:00Z', last_used_at: null};
+  let value: unknown = [passkey];
+  const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions, fetch: async () => Response.json({code: 200, data: value})});
+  assert.deepEqual(await api.getPasskeys(), [passkey]);
+  for (const id of ['42', 0, -1, 1.5, null]) {
+    value = [{...passkey, id}];
+    await assert.rejects(api.getPasskeys(), {status: 502, message: 'Invalid passkey list'});
+  }
+});
+
+test('Passkey deletion rejects malformed credential state at the transport boundary', async () => {
+  const sessions = {getSession: async () => ({token: 'token', userId: 'owner', refreshedAt: 0}), clearIfMatches: async () => false};
+  for (const credential_state of [undefined, null, {}, {rp_id: 'reader.test', user_handle: 'owner', credential_ids: [42]}]) {
+    const api = createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions, fetch: async () => Response.json({code: 200, data: {deleted: true, credential_state}})});
+    await assert.rejects(api.deletePasskey(42), {status: 502, message: 'Invalid passkey deletion response'});
+  }
+});

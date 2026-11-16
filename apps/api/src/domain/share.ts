@@ -90,8 +90,7 @@ export class ShareService {
     if (bmId < 1) throw ErrorParam()
 
     await this.bookmarkRepo.updateBookmarkShareIsEnable(bmId, ctx.getUserId(), false)
-    const bookmark = await this.bookmarkRepo.getBookmarkById(bmId)
-    if (bookmark?.status === 'success') dispatchVectorMaintenance(ctx, { kind: 'article', userId: ctx.getUserId(), id: bmId })
+    dispatchVectorMaintenance(ctx, { kind: 'article', mode: 'relation', userId: ctx.getUserId(), id: bmId })
     return
   }
 
@@ -149,7 +148,7 @@ export class ShareService {
     } else {
       await createShare()
     }
-    if (bmDetail?.status === 'success') dispatchVectorMaintenance(ctx, { kind: 'article', userId, id: bmId })
+    dispatchVectorMaintenance(ctx, { kind: 'article', mode: 'relation', userId, id: bmId })
 
     return {
       allow_action: res.allow_comment,

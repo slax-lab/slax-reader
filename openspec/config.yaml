@@ -19,6 +19,12 @@ schema: spec-driven
 #     tasks:
 #       - Break tasks into chunks of max 2 hours
 
+rules:
+  proposal:
+    - "Use 'the change requester' for requirement and scope decisions. Do not include personal names unless accountability explicitly requires them."
+  specs:
+    - "Describe observable system behavior only. Do not record who made product decisions."
+
 # Per-operation guidance (optional)
 # Add advisory guidance for how apply and archive work should be conducted.
 # This is separate from artifact rules above.

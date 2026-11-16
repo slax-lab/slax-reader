@@ -50,6 +50,7 @@ export enum platformBindType {
   QQ = 'qq',
   EMAIL = 'email',
   MAIL = 'mail',
+  PASSKEY = 'passkey',
   APPLE = 'apple',
   TWITTER = 'twitter',
   GOOGLE = 'google',

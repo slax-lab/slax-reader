@@ -113,7 +113,7 @@ describe('private vector maintenance dispatch', () => {
     })
     await service.bookmarkStar(ctx, 99, status)
     await flush()
-    expect(create.mock.calls.map(([args]) => args.params.target)).toEqual([{ kind: 'article', userId: 7, id: 99 }])
+    expect(create.mock.calls.map(([args]) => args.params.target)).toEqual([{ kind: 'article', mode: 'relation', userId: 7, id: 99 }])
     expect(updateBookmarkStarStatus.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0])
   })
 
@@ -140,7 +140,7 @@ describe('private vector maintenance dispatch', () => {
     const service = Object.assign(Object.create(BookmarkService.prototype), { bookmarkRepo: repo, searchService: { clearSearchCache: vi.fn() } })
     await service[method](ctx, 99)
     await flush()
-    expect(create.mock.calls.map(([args]) => args.params.target)).toEqual([{ kind: 'article', userId: 7, id: 99 }])
+    expect(create.mock.calls.map(([args]) => args.params.target)).toEqual([{ kind: 'article', ...(method === 'trashBookmark' ? { mode: 'relation' } : {}), userId: 7, id: 99 }])
     expect(repo.updateBookmarkDeleteAt.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0])
   })
 
@@ -149,7 +149,12 @@ describe('private vector maintenance dispatch', () => {
     const services = { deleteUserCollectionSubscribe: vi.fn().mockResolvedValue(undefined) }
     const orchestrator = { subscribeUserCollection: vi.fn().mockResolvedValue({ subscribe: true }) }
     const controller = new CollectionController(services as any, orchestrator as any)
-    const request = () => new Request('https://reader.test/v1/collection/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ collect_code: 'collection7' }) })
+    const request = () =>
+      new Request('https://reader.test/v1/collection/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collect_code: 'collection7' })
+      })
     await controller.handleUserCollectionSubscribeRequest(ctx, request())
     await controller.handleUserCollectionDeleteSubscribeRequest(ctx, request())
     await flush()
@@ -183,7 +188,7 @@ describe('private vector maintenance dispatch', () => {
     const service = Object.create(kind === 'bookmark' ? BookmarkService.prototype : BookmarkForkService.prototype)
     service.maintainReboundArticles(ctx, { rebindings: [{ userId: 7, previousBookmarkId: 99, bookmarkId: 100 }] })
     await flush()
-    expect(create.mock.calls.map(([args]) => args.params.target)).toEqual([{ kind: 'article', userId: 7, id: 99 }])
+    expect(create.mock.calls.map(([args]) => args.params.target)).toEqual([{ kind: 'article', ...(kind === 'bookmark' ? { mode: 'relation' } : {}), userId: 7, id: 99 }])
   })
 
   it.each(['success', 'pending', 'failed'] as const)('Twitter mention dispatches old 99 only and admits %s via skipParse', async status => {
@@ -371,4 +376,14 @@ describe('private vector maintenance dispatch', () => {
       vi.unstubAllGlobals()
     }
   })
+})
+
+it.each([false, true])('content processing wins mixed relation-only deduplication regardless of order %s', async reverse => {
+  const { ctx, create, flush } = context()
+  const content = { kind: 'article' as const, userId: 7, id: 99 }
+  const relation = { ...content, mode: 'relation' as const }
+  dispatchVectorMaintenance(ctx, ...(reverse ? [relation, content] : [content, relation]))
+  await flush()
+  expect(create).toHaveBeenCalledOnce()
+  expect(create.mock.calls[0][0].params.target).toEqual(content)
 })

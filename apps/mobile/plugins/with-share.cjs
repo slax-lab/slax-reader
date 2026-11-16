@@ -35,7 +35,7 @@ function updateAndroidManifest(manifest, options) {
   application.activity ||= [];
   let activity = application.activity.find(item => item.$['android:name'] === ACTIVITY);
   if (!activity) {activity = {$: {'android:name': ACTIVITY}}; application.activity.push(activity);}
-  Object.assign(activity.$, {'android:exported': 'true', 'android:theme': '@style/SlaxShareTheme'});
+  Object.assign(activity.$, {'android:exported': 'true', 'android:theme': '@style/SlaxShareTheme', 'android:taskAffinity': '', 'android:excludeFromRecents': 'true', 'android:launchMode': 'singleTask'});
   activity['intent-filter'] = [{action: [{$: {'android:name': 'android.intent.action.SEND'}}], category: [{$: {'android:name': 'android.intent.category.DEFAULT'}}], data: [{$: {'android:mimeType': 'text/plain'}}]}];
   return manifest;
 }

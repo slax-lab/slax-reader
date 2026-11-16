@@ -64,6 +64,7 @@ const events: Record<string, Rule> = {
   'auth.reauth_required': shape({http}), 'auth.refresh_failed': shape({http, error}),
   'account.delete': shape({ok: bool, canDelete: nullable(bool), reason: nullable(choice('active_subscription', 'stripe_connect_exists', 'collection_has_subscribers', 'active_collection_subscription', 'has_free_subscription_history')), http}),
   'share.start': shape({share: text(/^[a-f0-9]{8}$/i)}),
+  'share.lifecycle': shape({share: text(/^[a-f0-9]{8}$/i), phase: choice('finish_requested', 'destroyed'), success: bool, finishing: bool}),
   'share.end': shape({
     share: text(/^[a-f0-9]{8}$/i), outcome: choice('success', 'failed', 'dismissed'), stage: choice('context', 'extract', 'prefs', 'auth', 'request', 'response', 'done'), reason,
     input: shape({items: count, attachments: count, types: array(identifier), urlFrom: nullable(choice('js', 'url')), loadErrors: array(shape({type: identifier, domain: identifier, code: number})),
@@ -83,6 +84,7 @@ export function sanitizeDiagnosticRecord(value: unknown): ObjectValue | null {
   if (event.startsWith('share.') && (raw.src === 'app' || !fields.share)) return null;
   if (event.startsWith('auth.') && raw.src !== 'app') return null;
   if (event === 'share.end' && (!fields.outcome || !fields.reason)) return null;
+  if (event === 'share.lifecycle' && (raw.src !== 'share-android' || !fields.phase || typeof fields.success !== 'boolean' || typeof fields.finishing !== 'boolean')) return null;
   if (event === 'auth.login' && (!fields.provider || typeof fields.ok !== 'boolean')) return null;
   if (event === 'account.delete' && typeof fields.ok !== 'boolean') return null;
   if (event === 'auth.signout' && !fields.cause || event === 'log.dropped' && fields.count === undefined) return null;

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Nuxt 4, Vue 3, TypeScript, Cloudflare Pages/Workers, PowerSync Web, Vitest, `parse5@8.0.1`, controlled real-browser traces.
 
-**Spec:** [Proposal](../../../openspec/changes/optimize-web-lcp/proposal.md), [design](../../../openspec/changes/optimize-web-lcp/design.md), [article contract](../../../openspec/changes/optimize-web-lcp/specs/article-image-loading/spec.md), [public startup contract](../../../openspec/changes/optimize-web-lcp/specs/public-page-startup/spec.md).
+**Spec:** [Proposal](../../../openspec/changes/archive/2026-11-10-optimize-web-lcp/proposal.md), [design](../../../openspec/changes/archive/2026-11-10-optimize-web-lcp/design.md), [article contract](../../../openspec/changes/archive/2026-11-10-optimize-web-lcp/specs/article-image-loading/spec.md), [public startup contract](../../../openspec/changes/archive/2026-11-10-optimize-web-lcp/specs/public-page-startup/spec.md).
 
 ## Global Constraints
 

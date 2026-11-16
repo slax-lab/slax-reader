@@ -1,4 +1,25 @@
 {
+  "passkey_auth": {
+    "title": "Passkeys",
+    "sign_in": "Sign in with Passkey",
+    "authenticating": "Signing in…",
+    "manage": "Manage",
+    "add": "Add Passkey",
+    "adding": "Adding…",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "loading": "Loading…",
+    "empty": "No Passkeys yet.",
+    "mail_required": "Link a sign-in email first to add Passkeys.",
+    "unsupported": "Passkeys are unavailable in this browser.",
+    "created": "Created {date}",
+    "last_used": "Last used {date}",
+    "never_used": "Never used",
+    "failed": "We couldn’t complete this Passkey request. Try again or use another sign-in method.",
+    "canceled": "Passkey request canceled. You can try again.",
+    "added": "Passkey added.",
+    "deleted": "Passkey deleted."
+  },
   "email_auth": {
     "continue_with_email": "Continue with email",
     "address_label": "Email address",
@@ -123,6 +144,7 @@
       "US": "United States"
     },
     "operate": {
+      "reload_page": "Reload page",
       "add": "Add",
       "archive": "Archive",
       "archived": "Archived",
@@ -205,6 +227,7 @@
       }
     },
     "tips": {
+      "interface_load_failed": "Unable to load this interface. Reload to try again; unsaved drafts will be lost.",
       "in_app_browser": {
         "title": "Open this page in your browser",
         "message_before": "For the best experience, tap",
@@ -892,26 +915,16 @@
         "my_inbox": "My Inbox"
       },
       "starred_share": {
-        "title": "Your stars can help others discover great content",
-        "desc": "Once enabled, your starred articles automatically become your recommendations page — share the link and others can subscribe.",
-        "enable": "Enable collection",
-        "dismiss": "Not now",
-        "status_enabled": "Collection enabled",
+        "status_open": "Public",
         "subscriber_count": "{count} subscribers",
         "share": "Share collection",
         "copied": "Link copied",
         "view_collection": "View collection",
+        "view_starred": "View starred",
+        "default_desc": "Starred items automatically form a recommendation page you can share with a link.",
         "mini_copy": "Your stars can help others discover great content",
-        "mini_cta": "Enable collection",
-        "enable_modal": {
-          "title": "Enable starred collection",
-          "desc": "Once enabled, your current and future starred articles automatically become your recommendations page.",
-          "note": "Your collection page will be public. You can close or reopen it anytime.",
-          "submit": "Enable collection",
-          "success_title": "Your collection is now live",
-          "success_desc": "Everything you star will be automatically added to your collection.",
-          "success_cta": "View my collection"
-        }
+        "mini_cta": "Reopen collection",
+        "first_star_cue": "Star added to collection"
       },
       "local_sync": {
         "title": "Initializing…",
@@ -999,7 +1012,7 @@
       "status_closed": "Closed",
       "page_desc": "Edit your collection's name and description, and adjust its public status.",
       "closed_notice": "Your collection is no longer public — subscribers will see it as closed.",
-      "reopen": "Reopen",
+      "reopen": "Make public again",
       "link_label": "Collection link",
       "link_hint": "Auto-generated and can't be changed — share it and anyone can visit your collection.",
       "link_hint_closed": "Inactive while your collection is closed.",
@@ -1025,8 +1038,8 @@
       "toast_saved": "Changes saved",
       "toast_copied": "Collection link copied",
       "toast_closed": "Collection closed",
-      "toast_reopened": "Collection reopened",
-      "default_name": "{name}'s Reading Picks"
+      "toast_reopened": "Collection is public again",
+      "default_name": "{name}'s Reading Recommendations"
     },
     "guide": {
       "guides": {

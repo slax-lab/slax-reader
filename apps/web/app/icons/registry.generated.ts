@@ -5,6 +5,7 @@
 import iconAsset0 from "../assets/icons/fixtures/mask.svg?url"
 import iconAsset1 from "../assets/icons/fixtures/brand.svg?url"
 import iconAsset2 from "../assets/icons/fixtures/raster.png?url"
+import iconAsset3 from "../assets/icons/sign-in/google.svg?url"
 
 export const GENERATED_ICON_REGISTRY = {
   "bookmark.inbox": {
@@ -789,6 +790,49 @@ export const GENERATED_ICON_REGISTRY = {
     "sourceHash": "26ebfe0a98afd83f027151eeaa8a84d337ba9425203e5b15b47d59ebd2dfc249",
     "provenance": {
       "sourcePath": "apps/web/app/assets/icons/fixtures/README.md#raster",
+      "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
+    }
+  },
+  "account.sign-in.google": {
+    "kind": "brand",
+    "source": iconAsset3,
+    "viewBox": "0 0 256 262",
+    "intrinsicWidth": 256,
+    "intrinsicHeight": 262,
+    "defaultSize": 20,
+    "paint": "fixed",
+    "accessibility": "decorative",
+    "sourceHash": "9fa9ea6b73b8ec3fb725fd289c345129290a8222398aade75ab56f9ad9987610",
+    "provenance": {
+      "sourcePath": "apps/web/app/components/GoogleLoginButton.vue#logos:google-icon",
+      "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
+    }
+  },
+  "account.sign-in.apple": {
+    "kind": "inline",
+    "source": "sign-in/apple.svg",
+    "viewBox": "0 0 256 315",
+    "defaultSize": 20,
+    "paint": "currentColor",
+    "accessibility": "decorative",
+    "geometry": "<g fill=\"currentColor\"><path d=\"M213.803 167.03c.442 47.58 41.74 63.413 42.197 63.615c-.35 1.116-6.599 22.563-21.757 44.716c-13.104 19.153-26.705 38.235-48.13 38.63c-21.05.388-27.82-12.483-51.888-12.483c-24.061 0-31.582 12.088-51.51 12.871c-20.68.783-36.428-20.71-49.64-39.793c-27-39.033-47.633-110.3-19.928-158.406c13.763-23.89 38.36-39.017 65.056-39.405c20.307-.387 39.475 13.662 51.889 13.662c12.406 0 35.699-16.895 60.186-14.414c10.25.427 39.026 4.14 57.503 31.186c-1.49.923-34.335 20.044-33.978 59.822M174.24 50.199c10.98-13.29 18.369-31.79 16.353-50.199c-15.826.636-34.962 10.546-46.314 23.828c-10.173 11.763-19.082 30.589-16.678 48.633c17.64 1.365 35.66-8.964 46.64-22.262\" xmlns=\"http://www.w3.org/2000/svg\"/></g>",
+    "sourceHash": "df8a340d3fe8e07ffaa4e44b7fe4faa00c4a2e705f230e520b015ffc919ebdf1",
+    "provenance": {
+      "sourcePath": "apps/web/app/components/AppleLoginButton.vue#logos:apple",
+      "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
+    }
+  },
+  "account.sign-in.email": {
+    "kind": "inline",
+    "source": "sign-in/email.svg",
+    "viewBox": "0 0 24 24",
+    "defaultSize": 20,
+    "paint": "currentColor",
+    "accessibility": "decorative",
+    "geometry": "<g fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M2 12C2 8.22876 2 6.34315 3.17157 5.17157C4.34315 4 6.22876 4 10 4H14C17.7712 4 19.6569 4 20.8284 5.17157C22 6.34315 22 8.22876 22 12C22 15.7712 22 17.6569 20.8284 18.8284C19.6569 20 17.7712 20 14 20H10C6.22876 20 4.34315 20 3.17157 18.8284C2 17.6569 2 15.7712 2 12Z\"/><path d=\"M6 8L8.1589 9.79908C9.99553 11.3296 10.9139 12.0949 12 12.0949C13.0861 12.0949 14.0045 11.3296 15.8411 9.79908L18 8\"/></g>",
+    "sourceHash": "6228452ec3c8ce342feff43fb59e9afaea8298a5c409d9f899d8fe1fede86e38",
+    "provenance": {
+      "sourcePath": "apps/web/package.json#dependencies/@iconify-json/solar",
       "sourceCommit": "954ea26fc7e2d64dd0b01381459b04d691657df6"
     }
   }

@@ -109,7 +109,10 @@ internal class ShareDiagnostics private constructor(private val activity: Activi
         directory.mkdirs()
         val file = File(directory, "$date.share-android.ndjson")
         if (file.length() >= ShareDiagnosticRecord.DAILY_ALLOWANCE) return
-        FileOutputStream(file, true).use {it.write(bytes)}
+        FileOutputStream(file, true).use {
+          it.write(bytes)
+          if (value.optString("event") in setOf("share.end", "share.lifecycle")) it.fd.sync()
+        }
         if (file.length() >= ShareDiagnosticRecord.DAILY_ALLOWANCE) {
           val marker = JSONObject().put("v", 1).put("ts", ShareDiagnosticRecord.timestamp()).put("src", "share-android").put("launch", value.getString("launch")).put("event", "log.truncated")
           ShareDiagnosticRecord.line(marker)?.let {line -> FileOutputStream(file, true).use {it.write(line)}}
@@ -117,6 +120,15 @@ internal class ShareDiagnostics private constructor(private val activity: Activi
         writeFailures = 0
       }
     } catch (_: Throwable) {synchronized(writeMutex) {writeFailures++}}
+  }
+  private val lifecycleEvents = mutableSetOf<String>()
+  fun lifecycle(phase: String, success: Boolean, finishing: Boolean) {
+    if (phase !in setOf("finish_requested", "destroyed")) return
+    val timestamp = ShareDiagnosticRecord.timestamp()
+    synchronized(mutex) {
+      if (!lifecycleEvents.add(phase)) return
+      execute {record?.let {write(it.common("share.lifecycle", timestamp).put("share", it.share).put("phase", phase).put("success", success).put("finishing", finishing))}}
+    }
   }
   fun shutdown() {try {synchronized(mutex) {executor.shutdown()}} catch (_: Throwable) {}}
   companion object {

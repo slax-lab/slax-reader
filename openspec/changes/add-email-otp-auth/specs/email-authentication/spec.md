@@ -8,12 +8,12 @@ Allow readers to create or access their accounts with verified email while maint
 
 ### Requirement: An email code registers or signs in a reader
 
-The system SHALL offer email-code access on Web, iOS and Android and complete the existing login session only after successful verification. Extension users SHALL be able to complete login through the Web handoff. Requesting a code SHALL NOT create a user or reveal whether an account exists.
+The system SHALL support email-code access on Web, iOS and Android, offer its login and account-binding client UI in every Web, iOS, and Android environment, including production, and complete the existing login session only after successful verification. Extension users SHALL be able to complete login through the Web handoff. Requesting a code SHALL NOT create a user or reveal whether an account exists.
 
 #### Scenario: An environment has the Resend API key
 
 - **WHEN** the API has a Resend API key
-- **THEN** the system makes email-code access available by default
+- **THEN** the API makes email-code access available by default without an environment rollout gate
 - **AND** sending a code reports email-code access as unavailable when the Resend API key is missing
 
 #### Scenario: A new reader proves an unclaimed email address
@@ -34,7 +34,13 @@ The system SHALL offer email-code access on Web, iOS and Android and complete th
 
 ### Requirement: Email verification expires and can be consumed once
 
-The system SHALL deliver a six-digit code with a five-minute lifetime, a 60-second resend cooldown, and a maximum of five wrong attempts per challenge. It SHALL enforce send limits by IP address, email address, and device ID and distinguish login from binding. The system SHALL preserve a valid challenge when the send outcome is ambiguous.
+The system SHALL deliver a six-digit code with a five-minute lifetime, a 60-second resend cooldown, and a maximum of five wrong attempts per challenge. It SHALL enforce a shared-IP send ceiling of 50 requests per hour in each environment across login and binding, while retaining the 5/hour email-address ceiling, 10/hour device ceiling, and 500/day environment ceiling. It SHALL distinguish login from binding for challenge ownership and cooldown. The system SHALL preserve a valid challenge when the send outcome is ambiguous.
+
+#### Scenario: Multiple readers share a network egress IP
+
+- **WHEN** distinct addresses/devices on the same IP request login or binding codes within the existing one-hour window, without exceeding the other guards
+- **THEN** the IP limiter permits counts through 50 and rejects count 51
+- **AND** the existing per-address, device, environment, resend, expiry, and verification-attempt guards remain in force
 
 #### Scenario: A device requests codes for different addresses
 
@@ -57,15 +63,16 @@ The system SHALL require an active authenticated session and proof of the added 
 
 #### Scenario: A Google or Apple user binds a mailbox
 
-- **WHEN** an authenticated reader verifies the requested mailbox from account settings in the development environment
+- **WHEN** an authenticated reader verifies the requested mailbox from Web, iOS, or Android account settings in any environment
 - **THEN** the system binds it to the current user and preserves the original user ID and profile email, including an Apple placeholder
 - **AND** subsequent login using either bound method opens that account
 
-#### Scenario: A reader opens account settings in beta or production
+#### Scenario: A reader uses a client in any environment
 
-- **WHEN** an authenticated reader opens account settings in beta or production during the initial rollout
-- **THEN** Web, iOS and Android hide the action to bind an email, even if email authentication credentials are configured
-- **AND** an authenticated caller can still issue and verify a mailbox binding code through the API when the email credentials are configured
+- **WHEN** a reader opens Web, iOS, or Android login or account settings in development, preview, beta, or production
+- **THEN** the client offers email-code login and the complete account sign-in methods section according to the existing account state
+- **AND** Google and Apple remain available according to their existing configuration and platform support
+- **AND** issuing and verifying login or authenticated mailbox-binding codes retain the existing API credential and authorization checks
 
 #### Scenario: An email-first user links a provider
 
@@ -108,3 +115,26 @@ The system SHALL retain the existing Google and Apple sign-in paths and use the 
 - **WHEN** verification succeeds on the Web or in the App
 - **THEN** the client completes the normal session handoff and proceeds to its valid login destination
 - **AND** an abandoned or superseded attempt does not switch the current account
+
+
+### Requirement: Native email entry is subordinate to provider sign-in
+
+In every environment, the App SHALL present Google first, Apple login next only on its supported iOS platform, and email last. The email entry SHALL use a quieter borderless secondary treatment while preserving readable contrast, the existing touch target, busy/disabled feedback, and agreement/verification flow. Account settings SHALL present Google and Apple states/actions before the complete mailbox status/binding group; an unbound mailbox action SHALL be visually subordinate to provider-link controls. Environment profile SHALL NOT hide email login or account sign-in methods.
+
+#### Scenario: Native login offers multiple methods
+
+- **WHEN** an iOS or Android client in any environment displays email login
+- **THEN** Google precedes email, with Apple between them on iOS only
+- **AND** email remains labelled and operable with its existing touch area and agreement gate while carrying less visual emphasis
+
+#### Scenario: A reader reviews native account identities
+
+- **WHEN** native account settings display linked or unlinked login methods
+- **THEN** Google and Apple status/actions or platform guidance precede the mailbox group
+- **AND** a bound address remains readable and an unbound mailbox offers the same binding flow through a quieter control
+
+#### Scenario: A production native client renders authentication
+
+- **WHEN** the App renders login or account settings in production
+- **THEN** email login and the complete account sign-in methods section are available under the same account and verification rules as development
+- **AND** fixture-only clients retain their existing isolation from real authentication and binding requests

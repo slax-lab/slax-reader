@@ -39,7 +39,7 @@ Confirmed mechanisms:
 - A site-wide 70% promise, a China-only objective, native app tuning, PDF behavior, new capture providers, or different transcription/model output.
 - Body virtualization, moving content behind a click, shortening the article, changing its reading order, or using a placeholder as the largest painted element to improve the score.
 - Removing current share revocation checks, serving stale private content, caching personalized HTML as public, new cache infrastructure, or speculative database indexes.
-- Expanding the active `public-page-startup` route contract. An anonymous `/b` PowerSync bypass would need sequencing with `optimize-web-lcp` and its open follow-ups; it is not bundled here.
+- Expanding the active `public-page-startup` route contract. An anonymous `/b` PowerSync bypass would need sequencing with the archived `optimize-web-lcp` change and its open follow-ups; it is not bundled here.
 
 ## Decisions
 

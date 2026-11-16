@@ -1,34 +1,39 @@
 <template>
-  <form class="email-code-form" :aria-busy="Boolean(pending)" @submit.prevent="challenge ? verifyCode() : sendCode()">
-    <template v-if="challenge">
-      <p class="email-code-message" role="status">{{ t('email_auth.code_sent', { email }) }}</p>
-      <label class="email-code-field">
-        {{ t('email_auth.code_label') }}
-        <input
-          ref="codeInput"
-          v-model.trim="code"
-          type="text"
-          inputmode="numeric"
-          autocomplete="one-time-code"
-          pattern="[0-9]{6}"
-          maxlength="6"
-          :disabled="Boolean(pending)"
-          required
-        />
+  <form class="email-code-form" :class="{ 'email-code-form--inline': purpose === 'bind' }" :aria-busy="Boolean(pending)" @submit.prevent="challenge ? verifyCode() : sendCode()">
+    <p v-if="challenge" class="email-code-message" role="status">{{ t('email_auth.code_sent', { email }) }}</p>
+    <div class="email-code-controls">
+      <template v-if="challenge">
+        <label class="email-code-field">
+          <span class="email-code-label">{{ t('email_auth.code_label') }}</span>
+          <input
+            ref="codeInput"
+            v-model.trim="code"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxlength="6"
+            :disabled="Boolean(pending)"
+            required
+          />
+        </label>
+        <p v-if="expired" class="email-code-message" role="status">{{ t('email_auth.expired') }}</p>
+      </template>
+      <label v-else class="email-code-field">
+        <span class="email-code-label">{{ t('email_auth.address_label') }}</span>
+        <input ref="emailInput" v-model.trim="email" type="email" :autocomplete="passkeyAutofill ? 'username webauthn' : 'email'" maxlength="254" :disabled="Boolean(pending)" required @focus="startAutofill" @change="startAutofill" />
       </label>
-      <p v-if="expired" class="email-code-message" role="status">{{ t('email_auth.expired') }}</p>
-    </template>
-    <label v-else class="email-code-field">
-      {{ t('email_auth.address_label') }}
-      <input ref="emailInput" v-model.trim="email" type="email" autocomplete="email" maxlength="254" :disabled="Boolean(pending)" required />
-    </label>
 
-    <p v-if="errorKey" class="email-code-error" role="alert">{{ t(errorKey) }}</p>
-    <button class="email-code-button" type="submit" :disabled="Boolean(pending) || expired">
-      {{ t(pending === 'verify' ? 'email_auth.verifying' : pending === 'send' && !challenge ? 'email_auth.sending' : challenge ? 'email_auth.verify' : 'email_auth.send') }}
+      <p v-if="errorKey" class="email-code-error" role="alert">{{ t(errorKey) }}</p>
+      <button class="email-code-button" type="submit" :disabled="Boolean(pending) || expired">
+        {{ t(pending === 'verify' ? 'email_auth.verifying' : pending === 'send' && !challenge ? 'email_auth.sending' : challenge ? 'email_auth.verify' : 'email_auth.send') }}
+      </button>
+    </div>
+    <button v-if="authenticatePasskey && !challenge" class="email-passkey-button" type="button" :disabled="Boolean(pending)" @click="signInWithPasskey">
+      {{ t(pending === 'passkey' ? 'passkey_auth.authenticating' : 'passkey_auth.sign_in') }}
     </button>
     <div v-if="challenge" class="email-code-actions">
-      <button type="button" @click="editEmail">{{ t('email_auth.change_address') }}</button>
+      <button type="button" :disabled="Boolean(pending)" @click="editEmail">{{ t('email_auth.change_address') }}</button>
       <button type="button" :disabled="Boolean(pending) || secondsToResend > 0" @click="sendCode">
         {{ pending === 'send' ? t('email_auth.sending') : secondsToResend > 0 ? t('email_auth.resend_in', { seconds: secondsToResend }) : t('email_auth.resend') }}
       </button>
@@ -38,6 +43,8 @@
 
 <script lang="ts" setup>
 import { emailAuthErrorKey } from '~/utils/emailAuth'
+import type { PasskeyAuthenticationMode } from '~/utils/passkeyAuth'
+import { passkeyAuthErrorKey } from '~/utils/passkeyAuth'
 
 import type { FetchRequest } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -45,17 +52,21 @@ import type { EmailCodeChallenge, EmailCodeInput, EmailCodeSendInput } from '@sl
 
 const props = defineProps<{
   purpose?: 'login' | 'bind'
+  initialEmail?: string
+  retainPendingOnSuccess?: boolean
   client?: Pick<FetchRequest, 'post'>
+  passkeyAutofill?: boolean
+  authenticatePasskey?: (email: string, signal: AbortSignal, mode?: PasskeyAuthenticationMode) => Promise<void>
   verify: (proof: EmailCodeInput, signal: AbortSignal) => Promise<void>
 }>()
 const { $i18n } = useNuxtApp()
 const { t, locale } = $i18n
-const email = ref('')
+const email = ref(props.initialEmail ?? '')
 const code = ref('')
 const emailInput = ref<HTMLInputElement>()
 const codeInput = ref<HTMLInputElement>()
 const challenge = ref<EmailCodeChallenge>()
-const pending = ref<'send' | 'verify'>()
+const pending = ref<'send' | 'verify' | 'passkey'>()
 const errorKey = ref('')
 const clock = ref(Date.now())
 const sentAt = ref(0)
@@ -65,9 +76,22 @@ const secondsToResend = computed(() =>
 )
 
 let operation: AbortController | undefined
+let autofill: AbortController | undefined
 let ticker: ReturnType<typeof setInterval> | undefined
 
+const cancelAutofill = () => {
+  autofill?.abort()
+  autofill = undefined
+}
+
+watch(email, cancelAutofill, { flush: 'sync' })
+watch(() => props.passkeyAutofill, enabled => {
+  if (enabled && document.activeElement === emailInput.value) void startAutofill()
+  else if (!enabled) cancelAutofill()
+})
+
 const stop = () => {
+  cancelAutofill()
   operation?.abort()
   operation = undefined
   pending.value = undefined
@@ -79,6 +103,7 @@ onBeforeUnmount(stop)
 defineExpose({ cancel: stop })
 
 const editEmail = async () => {
+  if (pending.value) return
   stop()
   challenge.value = undefined
   errorKey.value = ''
@@ -87,8 +112,65 @@ const editEmail = async () => {
   emailInput.value?.focus()
 }
 
+const startAutofill = async () => {
+  if (!props.passkeyAutofill || !props.authenticatePasskey || pending.value || challenge.value || autofill || !email.value || !emailInput.value?.validity.valid) return
+  const address = email.value
+  const controller = new AbortController()
+  autofill = controller
+  let selected = false
+  let verified = false
+  try {
+    await props.authenticatePasskey(address, controller.signal, {
+      useBrowserAutofill: true,
+      onCredential: () => {
+        if (autofill !== controller || email.value !== address || pending.value) {
+          controller.abort()
+          return
+        }
+        selected = true
+        operation = controller
+        pending.value = 'passkey'
+        errorKey.value = ''
+      }
+    })
+    controller.signal.throwIfAborted()
+    verified = true
+  } catch (error) {
+    if (selected && !controller.signal.aborted) errorKey.value = passkeyAuthErrorKey(error)
+  } finally {
+    if (autofill === controller) autofill = undefined
+    if (operation === controller) {
+      operation = undefined
+      if (!verified || !props.retainPendingOnSuccess) pending.value = undefined
+    }
+  }
+}
+
+const signInWithPasskey = async () => {
+  if (pending.value || !props.authenticatePasskey || !emailInput.value?.reportValidity()) return
+  cancelAutofill()
+  const controller = new AbortController()
+  operation = controller
+  pending.value = 'passkey'
+  errorKey.value = ''
+  let verified = false
+  try {
+    await props.authenticatePasskey(email.value, controller.signal)
+    controller.signal.throwIfAborted()
+    verified = true
+  } catch (error) {
+    if (!controller.signal.aborted) errorKey.value = passkeyAuthErrorKey(error)
+  } finally {
+    if (operation === controller) {
+      operation = undefined
+      if (!verified || !props.retainPendingOnSuccess) pending.value = undefined
+    }
+  }
+}
+
 const sendCode = async () => {
   if (pending.value || secondsToResend.value > 0) return
+  cancelAutofill()
   const controller = new AbortController()
   operation = controller
   pending.value = 'send'
@@ -132,14 +214,17 @@ const verifyCode = async () => {
   pending.value = 'verify'
   errorKey.value = ''
 
+  let verified = false
   try {
     await props.verify({ email: email.value, request_id: challenge.value.request_id, code: code.value }, controller.signal)
+    controller.signal.throwIfAborted()
+    verified = true
   } catch (error) {
     if (!controller.signal.aborted) errorKey.value = emailAuthErrorKey(error, 'verify_failed')
   } finally {
     if (operation === controller) {
       operation = undefined
-      pending.value = undefined
+      if (!verified || !props.retainPendingOnSuccess) pending.value = undefined
     }
   }
 }
@@ -154,6 +239,11 @@ const verifyCode = async () => {
   color: var(--slax-text);
 }
 
+.email-code-controls {
+  display: grid;
+  gap: 10px;
+}
+
 .email-code-field {
   display: grid;
   gap: 6px;
@@ -161,7 +251,8 @@ const verifyCode = async () => {
 }
 
 .email-code-field input,
-.email-code-button {
+.email-code-button,
+.email-passkey-button {
   min-height: 44px;
   width: 100%;
   padding: 0 12px;
@@ -173,11 +264,13 @@ const verifyCode = async () => {
 }
 
 .email-code-button,
+.email-passkey-button,
 .email-code-actions button {
   cursor: pointer;
 }
 
-.email-code-button:hover:not(:disabled) {
+.email-code-button:hover:not(:disabled),
+.email-passkey-button:hover:not(:disabled) {
   background: var(--slax-accent-bg);
   border-color: var(--slax-accent-soft);
 }
@@ -226,5 +319,76 @@ const verifyCode = async () => {
   background: var(--slax-danger-bg);
   padding: 8px 10px;
   color: var(--slax-text);
+}
+
+.email-code-form--inline .email-code-controls {
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: end;
+  gap: 8px;
+}
+
+.email-code-form--inline .email-code-field {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.email-code-form--inline .email-code-field input {
+  min-width: 0;
+}
+
+.email-code-form--inline .email-code-label,
+.email-code-form--inline .email-code-message,
+.email-code-form--inline .email-code-actions {
+  font-size: var(--slax-fs-aux);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.email-code-form--inline .email-code-label {
+  color: var(--slax-text-muted);
+}
+
+.email-code-form--inline .email-code-button {
+  grid-column: 2;
+  grid-row: 1;
+  width: auto;
+  min-width: 104px;
+  border-color: var(--slax-accent);
+  background: var(--slax-accent);
+  color: var(--slax-btn-text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.email-code-form--inline .email-code-button:hover:not(:disabled) {
+  border-color: var(--slax-accent-soft);
+  background: var(--slax-accent);
+}
+
+.email-code-form--inline .email-code-controls > :is(.email-code-message, .email-code-error) {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 540px) {
+  .email-code-form--inline .email-code-field input {
+    font-size: var(--slax-fs-body);
+  }
+
+  .email-code-form--inline .email-code-button {
+    min-width: 96px;
+    padding-inline: 10px;
+  }
+}
+
+.email-passkey-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.email-code-form--login .email-code-button {
+  min-width: 96px;
 }
 </style>

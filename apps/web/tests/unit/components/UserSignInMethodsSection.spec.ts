@@ -35,6 +35,7 @@ beforeEach(() => {
   getUserToken.mockReset().mockReturnValue(ownerToken)
   clearAuth.mockClear()
   sessionStorage.clear()
+  localStorage.clear()
   oauth.callbackOrigin = ''
   oauth.environment = 'development'
   oauth.appleClientId = ''
@@ -43,7 +44,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Account sign-in methods', () => {
-  it('displays linked identities and uses the account-scoped email endpoints', async () => {
+  it('places configured provider rows before email', () => {
+    oauth.appleClientId = 'apple-client'
+    const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, platform: [] } })
+    expect(wrapper.findAll('.login-method-name').map(row => row.text())).toEqual(['Google', 'Apple', 'Sign-in email', 'Passkeys'])
+  })
+
+  it.each(['development', 'preview', 'beta', 'production'])('displays linked identities and binds email in %s', async environment => {
+    oauth.environment = environment
+    localStorage.setItem('slax:last-login-email', 'previous@example.com')
     fetchMock.mockResolvedValueOnce(json({ request_id: 'bind-attempt', expires_in: 300, resend_after: 60 }))
     fetchMock.mockResolvedValueOnce(json({ email: 'Reader@example.com' }))
 
@@ -52,6 +61,7 @@ describe('Account sign-in methods', () => {
     expect(wrapper.text()).toContain('GoogleLinked')
     expect(wrapper.text()).not.toContain('Link Apple')
     await wrapper.get('button').trigger('click')
+    expect((wrapper.get('input[type=email]').element as HTMLInputElement).value).toBe('')
     await wrapper.get('input[type=email]').setValue('Reader@example.com')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -75,9 +85,10 @@ describe('Account sign-in methods', () => {
     expect(document.activeElement).toBe(wrapper.get('[tabindex="-1"]').element)
     expect(platforms).toHaveLength(1)
     expect(clearAuth).not.toHaveBeenCalled()
+    expect(localStorage.getItem('slax:last-login-email')).toBe('previous@example.com')
   })
 
-  it.each(['development', 'preview', 'beta', 'production'])('shows an existing login mailbox from platform in %s', async environment => {
+  it.each(['development', 'preview', 'beta', 'production'])('shows a linked login mailbox in %s', async environment => {
     oauth.environment = environment
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: {
       accountKey,
@@ -85,21 +96,22 @@ describe('Account sign-in methods', () => {
       platform: [...platforms, { platform: 'mail', user_name: 'reader@example.com', created_at: new Date('2026-11-01T00:00:00Z') }]
     } })
 
-    expect(wrapper.text()).toContain('Same as profile email')
-    expect(wrapper.text()).toContain('GoogleLinked')
-    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.text().includes('Same as profile email')).toBe(true)
+    expect(wrapper.findAll('.login-method-row')).toHaveLength(['development', 'preview', 'beta'].includes(environment) ? 3 : 2)
+    expect(wrapper.text().includes('GoogleLinked')).toBe(true)
+    expect(wrapper.find('section').exists()).toBe(true)
+    expect(wrapper.findAll('button').map(button => button.text())).toEqual(['development', 'preview', 'beta'].includes(environment) ? ['Manage'] : [])
   })
 
   it('shows Apple as linked from the platform list when the client is configured', () => {
     oauth.appleClientId = 'apple-client'
-    oauth.environment = 'production'
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: {
       accountKey,
       platform: [...platforms, { platform: 'apple', user_name: 'reader@privaterelay.appleid.com', created_at: new Date('2026-11-01T00:00:00Z') }]
     } })
 
     expect(wrapper.text()).toContain('AppleLinked')
-    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Link email'])
   })
 
   it('does not mistake the mail-collection platform for a login mailbox', async () => {
@@ -108,7 +120,7 @@ describe('Account sign-in methods', () => {
       platform: [{ platform: 'email', user_name: 'collection@example.com', created_at: new Date('2026-11-01T00:00:00Z') }]
     } })
 
-    expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Link email', 'Link Google'])
+    expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Link Google', 'Link email'])
     expect(wrapper.text()).not.toContain('collection@example.com')
   })
 
@@ -121,21 +133,12 @@ describe('Account sign-in methods', () => {
     expect(wrapper.text()).toContain('Provider linking is unavailable from this Web address')
   })
 
-  it.each(['preview', 'beta', 'production'])('hides email binding in %s while keeping provider linking available', async environment => {
-    oauth.environment = environment
-    const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, platform: [] } })
-    await flushPromises()
-
-    expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Link Google'])
-  })
-
   it('does not navigate with a provider challenge for a different sign-in method', async () => {
-    oauth.environment = 'production'
     fetchMock.mockResolvedValueOnce(json({ type: 'apple', state: 'link.fixture', nonce: 'nonce' }))
     const wrapper = mountWithApp(UserSignInMethodsSection, { props: { accountKey, platform: [] } })
     const previousUrl = location.href
 
-    await wrapper.get('button').trigger('click')
+    await wrapper.findAll('button')[0]!.trigger('click')
     await flushPromises()
 
     expect(wrapper.get('[role="alert"]').text()).toContain('We couldn’t link this sign-in method')
@@ -148,7 +151,7 @@ describe('Account sign-in methods', () => {
     await flushPromises()
 
     getUserToken.mockReturnValue(otherToken)
-    const [linkEmail, linkGoogle] = wrapper.findAll('button')
+    const [linkGoogle, linkEmail] = wrapper.findAll('button')
     await linkEmail!.trigger('click')
     await wrapper.get('input[type=email]').setValue('reader@example.com')
     await wrapper.get('form').trigger('submit')
@@ -168,7 +171,7 @@ describe('Account sign-in methods', () => {
     await flushPromises()
 
     const previousUrl = location.href
-    await wrapper.findAll('button')[1]!.trigger('click')
+    await wrapper.findAll('button')[0]!.trigger('click')
     expect(fetchMock).toHaveBeenLastCalledWith('https://api.example.test/v1/user/bind_link', expect.objectContaining({
       body: JSON.stringify({ platform: 'google', client_platform: 'web' }),
       headers: expect.objectContaining({ Authorization: `Bearer ${ownerToken}` })

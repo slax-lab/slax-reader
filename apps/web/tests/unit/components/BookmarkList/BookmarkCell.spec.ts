@@ -12,14 +12,17 @@ import { flushPromises } from '@vue/test-utils'
 import { LocalFirstAdapterKey } from '~~/app/composables/local-first/injection'
 import { baseBookmarkItem, makeBookmarkItem } from '~~/tests/fixtures/bookmark'
 import { mountWithApp } from '~~/tests/setup/mount'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PropType } from 'vue'
 
-const { mockGet, mockPost, mockRequest, mockPwaOpen, mockAnalyticsLog, mockToastShowToast, mockShowSnapshot, mockUseRoute, mockRoute } = vi.hoisted(() => {
+const { mockMaybeShowFirstStarCue, mockGet, mockPost, mockRequest, mockPwaOpen, mockAnalyticsLog, mockToastShowToast, mockShowSnapshot, mockUseRoute, mockRoute } = vi.hoisted(() => {
   const get = vi.fn()
   const post = vi.fn()
   const route = { query: {}, params: {}, path: '/bookmarks', fullPath: '/bookmarks' } as Record<string, unknown>
   return {
+    mockMaybeShowFirstStarCue: vi.fn(),
     mockGet: get,
     mockPost: post,
     mockRequest: vi.fn(() => ({ get, post })),
@@ -31,6 +34,11 @@ const { mockGet, mockPost, mockRequest, mockPwaOpen, mockAnalyticsLog, mockToast
     mockRoute: route
   }
 })
+
+vi.mock('~/composables/useFirstStarCollectionDiscovery', () => ({
+  isLocallyFirstStar: (wasStarred: boolean, count: number | null | undefined) => !wasStarred && (count == null || count === 0),
+  useFirstStarCollectionCue: () => mockMaybeShowFirstStarCue
+}))
 
 vi.mock('~/components/Toast', () => ({
   default: { showToast: mockToastShowToast },
@@ -92,6 +100,8 @@ beforeEach(() => {
   mockAnalyticsLog.mockClear()
   mockToastShowToast.mockClear()
   mockShowSnapshot.mockClear()
+  mockMaybeShowFirstStarCue.mockReset()
+  mockMaybeShowFirstStarCue.mockResolvedValue('not-applicable')
   mockPost.mockResolvedValue({ ok: true, bookmark_id: 1, status: 'inbox' })
   mockRoute.query = {}
   // Node >= 25 自带 globalThis.localStorage 访问器；没配 --localstorage-file 时它是个没有
@@ -106,6 +116,19 @@ afterEach(() => {
 })
 
 describe('components/BookmarkList/BookmarkCell', () => {
+  describe('CursorToast layout', () => {
+    it('takes the card-local container out of the flex flow without restyling other toasts', () => {
+      const source = readFileSync(resolve(process.cwd(), 'app/components/BookmarkList/BookmarkCell.vue'), 'utf8')
+      const cardRule = source.match(/\.article-card\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+
+      expect(cardRule).toContain(':deep(.cursor-toast-container)')
+      expect(cardRule).toContain('position: absolute')
+      expect(cardRule).toContain('top: 0')
+      expect(cardRule).toContain('left: 0')
+      expect(source).not.toContain(':global(.cursor-toast-container)')
+    })
+  })
+
   describe('渲染 + computed', () => {
     it('渲染标题 / 站点名 / 日期 + 操作按钮（普通文章 / 非 trashed / 非 subscribe）', () => {
       const wrapper = mountWithApp(BookmarkCell, {
@@ -256,6 +279,93 @@ describe('components/BookmarkList/BookmarkCell', () => {
       expect(call.body.status).toBe('star')
       expect(wrapper.emitted('bookmarkUpdate')).toHaveLength(1)
       expect(mockAnalyticsLog).toHaveBeenCalledWith(expect.objectContaining({ event: 'bookmark_star', is_starred: true }))
+    })
+
+    it('first star (local count 0): replaces ordinary success Toast with the anchored cue', async () => {
+      mockMaybeShowFirstStarCue.mockResolvedValueOnce('presented')
+      const wrapper = mountWithApp(BookmarkCell, {
+        props: { bookmark: baseBookmarkItem, isSubscribe: false, localStarredCount: 0 }
+      })
+      await wrapper.find('.article-star').trigger('click')
+      await flushPromises()
+
+      expect(mockMaybeShowFirstStarCue).toHaveBeenCalledWith({
+        isFirstStar: true,
+        anchor: expect.any(HTMLElement),
+        baseContainer: expect.any(HTMLElement)
+      })
+      expect(mockToastShowToast).not.toHaveBeenCalled()
+      expect(mockPost).toHaveBeenCalledTimes(1)
+    })
+
+    it('unknown local count: still treats the star as a first-star candidate and replaces ordinary feedback', async () => {
+      mockMaybeShowFirstStarCue.mockResolvedValueOnce('presented')
+      const wrapper = mountWithApp(BookmarkCell, {
+        props: { bookmark: baseBookmarkItem, isSubscribe: false }
+      })
+      await wrapper.find('.article-star').trigger('click')
+      await flushPromises()
+
+      expect(mockMaybeShowFirstStarCue).toHaveBeenCalledWith(expect.objectContaining({ isFirstStar: true }))
+      expect(mockToastShowToast).not.toHaveBeenCalled()
+      expect(mockPost).toHaveBeenCalledTimes(1)
+    })
+
+    it('later star (local count > 0): keeps ordinary success Toast and does not probe first-star discovery', async () => {
+      const wrapper = mountWithApp(BookmarkCell, {
+        props: { bookmark: baseBookmarkItem, isSubscribe: false, localStarredCount: 1 }
+      })
+      await wrapper.find('.article-star').trigger('click')
+      await flushPromises()
+
+      expect(mockMaybeShowFirstStarCue).not.toHaveBeenCalled()
+      expect(mockToastShowToast).toHaveBeenCalledWith({ text: 'Content has been starred', type: 1 })
+    })
+
+    it('unstar: never invokes first-star discovery', async () => {
+      const bm = makeBookmarkItem({ starred: 'star' })
+      const wrapper = mountWithApp(BookmarkCell, {
+        props: { bookmark: bm, isSubscribe: false, localStarredCount: 0 }
+      })
+      await wrapper.find('.article-star').trigger('click')
+      await flushPromises()
+
+      expect(mockMaybeShowFirstStarCue).not.toHaveBeenCalled()
+      expect(mockToastShowToast).toHaveBeenCalledWith({ text: 'Content has been unstarred', type: 1 })
+    })
+
+    it('failed star: never invokes first-star discovery and keeps the error Toast', async () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      mockPost.mockRejectedValueOnce(new Error('boom'))
+      const wrapper = mountWithApp(BookmarkCell, {
+        props: { bookmark: baseBookmarkItem, isSubscribe: false, localStarredCount: 0 }
+      })
+      await wrapper.find('.article-star').trigger('click')
+      await flushPromises()
+
+      expect(mockMaybeShowFirstStarCue).not.toHaveBeenCalled()
+      expect(mockToastShowToast).toHaveBeenCalledWith({ text: 'Operation failed', type: 2 })
+      consoleSpy.mockRestore()
+    })
+
+    it('local-first star: writes locally, never calls REST, and invokes first-star discovery', async () => {
+      const setStar = vi.fn(async () => {})
+      mockMaybeShowFirstStarCue.mockResolvedValueOnce('presented')
+      const localBookmark = makeBookmarkItem({ id: 'uuid-1' as unknown as number })
+      const wrapper = mountWithApp(BookmarkCell, {
+        props: { bookmark: localBookmark, isSubscribe: false, localStarredCount: 0 },
+        global: {
+          provide: {
+            [LocalFirstAdapterKey as symbol]: { bookmarkActions: () => ({ setStar }) }
+          }
+        }
+      })
+      await wrapper.find('.article-star').trigger('click')
+      await flushPromises()
+
+      expect(setStar).toHaveBeenCalledWith('uuid-1', true)
+      expect(mockPost).not.toHaveBeenCalled()
+      expect(mockMaybeShowFirstStarCue).toHaveBeenCalledWith(expect.objectContaining({ isFirstStar: true }))
     })
 
     it('archiveBookmark inbox→archive：调 BOOKMARK_ARCHIVE + emit archiveUpdate', async () => {

@@ -93,6 +93,7 @@ async function host(t, scenario = 'reader-pdf-import') {
       if (name === '../src/native/platform') return {activateReaderResources: async owner => {resourceOwner = owner; events.push(['activate', owner]);}, revokeReaderResources: async () => {resourceOwner = null; events.push(['revoke']);}};
       if (name === '@slax-reader/contracts/const') return load(path.resolve(mobile, '../../packages/contracts/src/const.ts'));
       if (name === '@slax-reader/contracts/pdf') return load(path.resolve(mobile, '../../packages/contracts/src/pdf.ts'));
+      if (name === '@slax-reader/contracts/passkey') return load(path.resolve(mobile, '../../packages/contracts/src/passkey.ts'));
       if (name === '@slax-reader/contracts/email-auth') return load(path.resolve(mobile, '../../packages/contracts/src/email-auth.ts'));
       let target = path.resolve(path.dirname(filename), name); if (!path.extname(target)) target = fs.existsSync(`${target}.ts`) ? `${target}.ts` : path.join(target, 'index.ts'); return load(target);
     }}, {filename}); return exports;

@@ -3,6 +3,7 @@ import type { VectorPreferenceClient } from '@/infra/repository/vectorPreference
 import {
   clonePreferenceSums,
   PreferenceQueue,
+  type LocalPreference,
   type MemberGroup,
   type PreferenceEntry,
   type PreferencePublish,
@@ -13,30 +14,37 @@ import {
 export class MemoryPreferenceStore implements PreferenceStore {
   sums: PreferenceSums | null = null
   rows = new Map<number, PreferenceEntry>()
+  legacy: LocalPreference | null = null
 
-  read() {
+  async read() {
     return this.sums && clonePreferenceSums(this.sums)
   }
 
-  entries(ids: number[]) {
+  async entries(ids: number[]) {
     return new Map(ids.flatMap(id => (this.rows.has(id) ? [[id, { ...this.rows.get(id)! }] as const] : [])))
   }
 
-  firstMissing(groups: MemberGroup[]) {
-    let first: number | undefined
-    for (const [id, entry] of this.rows) if (!entry.token && (groups as string[]).includes(entry.group) && (first === undefined || id < first)) first = id
-    return first
+  async latestPublication(groups: MemberGroup[]) {
+    return Math.max(0, ...[...this.rows.values()].filter(entry => entry.token && groups.includes(entry.group as MemberGroup)).map(entry => entry.publishedAt || 0))
   }
 
-  commit(sums: PreferenceSums, upserts: Map<number, PreferenceEntry>, deletes: number[]) {
+  async commit(sums: PreferenceSums, upserts: Map<number, PreferenceEntry>, deletes: number[]) {
     this.sums = clonePreferenceSums(sums)
     for (const [id, entry] of upserts) this.rows.set(id, { ...entry })
     for (const id of deletes) this.rows.delete(id)
   }
 
-  replace(sums: PreferenceSums, entries: Map<number, PreferenceEntry>) {
+  async beginInitialization() {
+    this.sums = null
+    this.rows.clear()
+  }
+
+  async appendInitialization(entries: Map<number, PreferenceEntry>) {
+    for (const [id, entry] of entries) this.rows.set(id, { ...entry })
+  }
+
+  async finishInitialization(sums: PreferenceSums) {
     this.sums = clonePreferenceSums(sums)
-    this.rows = new Map([...entries].map(([id, entry]) => [id, { ...entry }]))
   }
 
   async clear() {
@@ -61,7 +69,10 @@ export function memoryPreferences() {
         new PreferenceQueue(async calls => {
           if (!service) throw new Error('memory preferences are not bound to a service')
           batches.push(calls.map(call => (call.kind === 'apply' ? call.id : 0)))
-          return structuredClone(await service.maintainPreference(store(userId), calls))
+          const local = store(userId)
+          const legacy = local.legacy
+          local.legacy = null
+          return structuredClone(await service.maintainPreference(local, calls, legacy))
         })
       )
     return queues.get(userId)!

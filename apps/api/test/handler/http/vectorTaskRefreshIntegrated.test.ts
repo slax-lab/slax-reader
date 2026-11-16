@@ -58,6 +58,7 @@ const articleRow = {
 function boundary() {
   const stored = new Map<string, VectorizeVector>()
   const repo = {
+    isUserActive: async () => true,
     findArticles: vi.fn(async (_pairs: unknown[]) => [] as unknown[]),
     findCollection: vi.fn(async (_id: number) => undefined as { id: number; owner_id: number; published_at: number; sharing: boolean } | undefined),
     listUserArticles: vi.fn(async () => [] as { id: number; is_starred: boolean; share_group: 'none' }[]),
@@ -138,6 +139,7 @@ beforeEach(() => {
   container.register(VectorMaintenanceService, { useValue: current.service })
   coreEnv = {
     VECTOR_REFRESH_SECRET: SECRET,
+    VECTOR_V5_MAINTENANCE_WORKFLOW: { create: vi.fn(async () => ({ id: 'repair-workflow' })) },
     EDGE_SHARED_SECRET: EDGE_SHARED_SECRET,
     FRONT_END_URL: 'http://localhost:3000',
     HASH_IDS_SALT: 'test-salt',

@@ -98,7 +98,7 @@
         <div v-show="!rssActive">
           <!-- fork-only：星标视图顶部合集引导横幅 -->
           <ClientOnly>
-            <StarredSharePrompt v-if="filterStatus === 'starred' && !searchText && !activeCollectionCode && !loading" :starred-count="bookmarks.length" />
+            <StarredSharePrompt v-if="filterStatus === 'starred' && !searchText && !activeCollectionCode && !loading" />
           </ClientOnly>
 
           <!-- 切换器：星标/回收站隐藏，强制文字；专栏 feed 也隐藏。归档和收件箱一样可切卡片 -->

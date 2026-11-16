@@ -2,6 +2,7 @@ export const VECTOR_DIMENSIONS = 1024
 export const VECTOR_MODEL = 'jina-embeddings-v5-omni-small'
 export const VECTOR_REQUEST_BYTES = 1024 * 1024
 export const VECTOR_MEDIA_REQUEST_BYTES = 12 * 1024 * 1024
+export const VECTOR_IMAGE_MAX_BYTES = 5 * 1024 * 1024
 export const VECTOR_PDF_MAX_BYTES = 8_000_000
 export const VECTOR_BATCH_SIZE = 32
 

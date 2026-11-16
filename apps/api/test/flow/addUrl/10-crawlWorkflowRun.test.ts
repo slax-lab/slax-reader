@@ -73,6 +73,7 @@ import { YoutubeArticleService } from '@/domain/youtubeArticle'
 import { PodcastService } from '@/domain/podcast'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { OpenAIModerationClient, ModerationResult } from '@/infra/external/openaiModeration'
+import { fetchZhihuByUrl, ZhihuCaptureUnavailableError } from '@/infra/external/zhihu'
 import {
   createMockEnv,
   createMockCrawlService,
@@ -1285,5 +1286,124 @@ describe('Fork Workflow branch', () => {
     expect(execute).toHaveBeenCalledTimes(3)
     expect(failExecution).toHaveBeenCalledWith(42, job)
     expect(cs.setCaptureStatus).not.toHaveBeenCalled()
+  })
+})
+
+describe('CrawlWorkflow Zhihu partial capture', () => {
+  function retryingStep() {
+    return {
+      ...createMockStep(),
+      do: vi.fn(async (...args: any[]) => {
+        const callback = args[args.length - 1]
+        const options = args.length === 3 ? args[1] : {}
+        for (let attempt = 0; ; attempt++) {
+          try {
+            return await callback()
+          } catch (error) {
+            if (error instanceof Error && error.name === 'NonRetryableError') throw error
+            if (attempt >= (options.retries?.limit ?? 0)) throw error
+          }
+        }
+      })
+    }
+  }
+
+  async function withProvider(failingParts: string[], scenario: (fetchMock: ReturnType<typeof vi.fn>) => Promise<void>) {
+    vi.useFakeTimers()
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (failingParts.some(part => url.includes(part))) {
+        return new Response(JSON.stringify({ detail: { code: 400, request_id: 'upstream-request', message: 'Request failed. Please retry.' } }), { status: 400 })
+      }
+      const data = url.includes('fetch_question_answers')
+        ? {
+            data: [{ target: { id: '90071992547409931', content: '<p>Surviving answer body</p>', question: { title: 'Question from answer' }, author: { name: 'Answer author' } } }]
+          }
+        : { title: 'Question from detail', detail: '<p>Surviving question description</p>' }
+      return new Response(JSON.stringify({ code: 200, data }), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      await scenario(fetchMock)
+    } finally {
+      warning.mockRestore()
+      vi.unstubAllGlobals()
+      vi.useRealTimers()
+    }
+  }
+
+  test.each([
+    ['fetch_question_detail', 'Surviving answer body', 'Surviving question description'],
+    ['fetch_question_answers', 'Surviving question description', 'Surviving answer body']
+  ])('saves the surviving part when %s exhausts retries', async (failedPart, included, omitted) => {
+    await withProvider([failedPart], async fetchMock => {
+      const { wf, cs, bs } = wireWorkflow()
+      cs.fetchZhihuData.mockImplementation(fetchZhihuByUrl)
+      cs.parseAndSaveZhihu.mockResolvedValue(STANDARD_CRAWL_RESULT)
+      const result = runWorkflow(wf, { url: 'https://www.zhihu.com/question/123' }, retryingStep()).catch(error => error)
+      await vi.runAllTimersAsync()
+      expect(await result).not.toBeInstanceOf(Error)
+      expect(cs.fetchZhihuData).toHaveBeenCalledTimes(1)
+      expect(fetchMock).toHaveBeenCalledTimes(5)
+      expect(fetchMock.mock.calls.filter(([url]) => String(url).includes(failedPart))).toHaveLength(4)
+      expect(cs.parseAndSaveZhihu).toHaveBeenCalledTimes(1)
+      const parseArguments = JSON.stringify(cs.parseAndSaveZhihu.mock.calls[0])
+      expect(parseArguments).toContain(included)
+      expect(parseArguments).not.toContain(omitted)
+      expect(cs.parseAndSaveContent).not.toHaveBeenCalled()
+      expect(bs.updateBookmarkStatus.mock.calls.some(([, status]) => status === 'failed')).toBe(false)
+    })
+  })
+
+  test('exhausted Zhihu parts terminate fetch without replaying the whole capture', async () => {
+    await withProvider(['fetch_question_detail', 'fetch_question_answers'], async fetchMock => {
+      const { wf, cs, bs, imp } = wireWorkflow()
+      cs.fetchZhihuData.mockImplementation(fetchZhihuByUrl)
+      const result = runWorkflow(wf, { url: 'https://www.zhihu.com/question/123', importTaskId: 7 }, retryingStep()).catch(error => error)
+      await vi.runAllTimersAsync()
+      const error = await result
+      expect(error).toMatchObject({ name: 'NonRetryableError' })
+      expect(error.message).toContain('zhihu_capture_unavailable:')
+      expect(error).not.toBeInstanceOf(ZhihuCaptureUnavailableError)
+      expect(cs.fetchZhihuData).toHaveBeenCalledTimes(1)
+      expect(fetchMock).toHaveBeenCalledTimes(8)
+      expect(cs.parseAndSaveZhihu).not.toHaveBeenCalled()
+      expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+      expect(cs.pushBookmarkFailureAlert).toHaveBeenCalledWith(
+        1,
+        'workflow_fetch.exhausted',
+        expect.objectContaining({
+          bookmark_id: 42,
+          error: expect.stringContaining('zhihu_capture_unavailable:')
+        })
+      )
+      expect(bs.updateBookmarkImportRelationStatus).toHaveBeenCalledWith(1, 42, 7, 2)
+      expect(imp.incrImportTask).toHaveBeenCalledWith(expect.anything(), 1, 7, 0, 1)
+    })
+  })
+
+  test('unexpected Zhihu errors retain the existing workflow retry policy', async () => {
+    const { wf, cs } = wireWorkflow()
+    const unexpected = new Error('Unexpected adapter bug')
+    cs.fetchZhihuData.mockRejectedValue(unexpected)
+    await expect(runWorkflow(wf, { url: 'https://www.zhihu.com/question/123' }, retryingStep())).rejects.toBe(unexpected)
+    expect(cs.fetchZhihuData).toHaveBeenCalledTimes(3)
+    expect(cs.parseAndSaveZhihu).not.toHaveBeenCalled()
+  })
+
+  test('a terminal parsing failure does not replay the successful partial fetch', async () => {
+    await withProvider(['fetch_question_detail'], async fetchMock => {
+      const { wf, cs } = wireWorkflow()
+      cs.fetchZhihuData.mockImplementation(fetchZhihuByUrl)
+      cs.parseAndSaveZhihu.mockRejectedValue(new Error('Temporary storage failure'))
+      const result = runWorkflow(wf, { url: 'https://www.zhihu.com/question/123' }, retryingStep()).catch(error => error)
+      await vi.runAllTimersAsync()
+      expect(await result).toMatchObject({ name: 'NonRetryableError', message: 'parse_failed:Temporary storage failure' })
+      expect(cs.parseAndSaveZhihu).toHaveBeenCalledTimes(1)
+      expect(cs.fetchZhihuData).toHaveBeenCalledTimes(1)
+      expect(fetchMock).toHaveBeenCalledTimes(5)
+      expect(cs.setCaptureStatus).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'failed')
+    })
   })
 })

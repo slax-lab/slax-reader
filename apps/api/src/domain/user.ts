@@ -1,3 +1,6 @@
+import { DELETE_PASSKEY_SETTING, type PasskeyLoginRequest } from '@slax-reader/contracts/passkey'
+import { PasskeyService } from './passkey'
+import { parsePasskeyProof } from '@/utils/passkey'
 import {
   SaveReportError,
   UnauthorizedError,
@@ -21,6 +24,7 @@ import type { LazyInstance } from '@/decorators/lazy'
 import { BucketClient } from '@/infra/repository/bucketClient'
 import { OAuthStateRepo } from '@/infra/repository/redisOAuthState'
 import { CollectionRepo } from '@/infra/repository/dbCollection'
+import { defaultShareCollectionName } from '@/domain/collection'
 import { i18n } from '@/const/i18n'
 import { ContextManager } from '@/utils/context'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
@@ -167,7 +171,7 @@ export interface userLoginReq {
   siteverify_code?: string
 }
 
-type UserLoginRequest = userLoginReq | EmailLoginRequest
+type UserLoginRequest = userLoginReq | EmailLoginRequest | PasskeyLoginRequest
 
 export enum SubscriptionType {
   NO_SUBSCRIPTION = 0,
@@ -202,7 +206,8 @@ export class UserService {
     @inject(LabService) private labService: LabService,
     @inject(EmailCodeService) private emailCodes: EmailCodeService,
     @inject(LoginIdentityService) private loginIdentities: LoginIdentityService,
-    @inject(LoginIdentityLinkService) private identityLink: LoginIdentityLinkService
+    @inject(LoginIdentityLinkService) private identityLink: LoginIdentityLinkService,
+    @inject(PasskeyService) private passkeys: PasskeyService
   ) {
     this.userRepoData = userRepo
     this.reportRepoData = reportRepo
@@ -240,10 +245,17 @@ export class UserService {
     request: Request,
     user: Pick<userInfoPO, 'id' | 'email' | 'lang' | 'uuid'>,
     isNew: boolean,
-    method: 'google' | 'apple' | 'email'
+    method: 'google' | 'apple' | 'email' | 'passkey'
   ): Promise<userLoginResp> {
     if (!user.id) throw RegisterUserError()
     await this.userRepo.requireActiveUser(user.id)
+    try {
+      const owner = await this.userRepo.getInfoByUserId(user.id)
+      const { collection, created } = await this.collectionRepo.ensureUserShareCollectWithCreation(user.id, defaultShareCollectionName(owner))
+      if (created) dispatchVectorMaintenance(ctx, { kind: 'collection', id: collection.id })
+    } catch (error) {
+      console.error(`[login] collection provisioning failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
     const userId = String(new Hashid(ctx.env).encodeId(user.id))
     const token = await new Auth(ctx.env).sign({ id: userId, lang: user.lang, email: user.email })
     this.bindRequestDevice(ctx, request, user.id, isNew ? 'signup' : 'login')
@@ -279,7 +291,19 @@ export class UserService {
    * @returns
    */
   public async saveUserSetting(ctx: ContextManager, data: { key: string; value: unknown }) {
-    if (data.key === BIND_LOGIN_IDENTITY_SETTING) return this.identityLink.linkIdentity(ctx, data.value)
+    if (data.key === BIND_LOGIN_IDENTITY_SETTING) {
+      const proof = data.value
+      if (proof && typeof proof === 'object' && 'type' in proof && proof.type === 'passkey') {
+        return this.passkeys.linkCredential(ctx.env, ctx.getUserId(), parsePasskeyProof(proof, 'register'))
+      }
+      return this.identityLink.linkIdentity(ctx, proof)
+    }
+    if (data.key === DELETE_PASSKEY_SETTING) {
+      const value = data.value
+      if (!value || typeof value !== 'object' || !('id' in value) || typeof value.id !== 'number' || !Number.isSafeInteger(value.id) || value.id < 1 || value.id > 2147483647)
+        throw ErrorParam()
+      return this.passkeys.remove(ctx.env, ctx.getUserId(), value.id)
+    }
     if (typeof data.value !== 'string') throw ErrorParam()
     if (data.key === 'account') {
       await this.userRepo.updateUserName(ctx.getUserId(), data.value)
@@ -601,7 +625,7 @@ export class UserService {
   public async enableUserSetting(ctx: ContextManager, setting: string, enable: boolean): Promise<string | userShareCollectInfo> {
     if (setting === 'share_collect') {
       const user = await this.userRepoData.getInfoByUserId(ctx.getUserId())
-      const res = await this.collectionRepo.enableUserShareCollect(ctx.getUserId(), enable, user.name, 1)
+      const res = await this.collectionRepo.enableUserShareCollect(ctx.getUserId(), enable, defaultShareCollectionName(user), 1)
       dispatchVectorMaintenance(ctx, { kind: 'collection', id: res.id })
       return {
         show_name: res.display_name,
@@ -653,6 +677,12 @@ export class UserService {
   public async userLogin(ctx: ContextManager, request: Request): Promise<userLoginResp> {
     const req = await RequestUtils.json<UserLoginRequest>(request)
     if (!req) throw ErrorParam()
+    if (req.type === 'passkey') {
+      const profile = UserService.getUserReuqestInfo(request, { last_login_at: new Date() } as userInfoPO)
+      const user = await this.passkeys.authenticate(ctx.env, parsePasskeyProof(req, 'login'), profile)
+      const result = await this.completeLogin(ctx, request, user, false, 'passkey')
+      return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(req.auth_attribution).data)
+    }
     if (req.type === 'email') {
       const { key, delivery } = await this.emailCodes.verifyCode(ctx.env, { ...req, purpose: 'login' })
       const result = await this.loginByVerifiedEmail(ctx, request, key, delivery)
