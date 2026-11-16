@@ -1,3 +1,4 @@
+import { UserRepo } from '@/infra/repository/dbUser'
 import { PasskeyRepo } from '@/infra/repository/dbPasskey'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -425,7 +426,10 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     const { VectorMaintenanceRepo } = await import('@/infra/repository/dbVectorMaintenance')
     const deletion = new UserDeletionService(
       () => client,
-      {} as any,
+      new UserRepo(
+        () => ({}) as never,
+        () => client
+      ),
       () => ({ R2Bucket: memory.bucket }) as any,
       new VectorMaintenanceRepo(() => client),
       new PasskeyRepo(() => client)
@@ -446,7 +450,10 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     })
     const failedR2 = new UserDeletionService(
       () => client,
-      {} as any,
+      new UserRepo(
+        () => ({}) as never,
+        () => client
+      ),
       () =>
         ({
           R2Bucket: {

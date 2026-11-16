@@ -306,8 +306,6 @@ export class UserService {
     }
     if (typeof data.value !== 'string') throw ErrorParam()
     if (data.key === 'account') {
-      // 判断唯一、长度、是不是特定字符
-      await this.userRepo.getInfo({ account: data.value })
       await this.userRepo.updateUserName(ctx.getUserId(), data.value)
     } else if (data.key === 'lang') {
       await this.userRepo.updateUserLang(ctx.getUserId(), data.value)
@@ -591,11 +589,15 @@ export class UserService {
       avatar: user.picture,
       uuid: user.uuid,
       id: ctx.hashIds.encodeId(ctx.getUserId()),
-      platform: bindList.map(item => ({
-        platform: item.platform,
-        user_name: item.user_name,
-        created_at: item.created_at
-      })),
+      platform: bindList
+        .filter(item => item.platform !== platformBindType.NEWSLETTER)
+        .map(item => {
+          return {
+            platform: item.platform,
+            user_name: item.user_name,
+            created_at: item.created_at
+          }
+        }),
       // 上线一周后，再把它删除
       share_collect: {
         show_name: shareCollect?.display_name || '',

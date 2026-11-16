@@ -24,7 +24,10 @@ interface __BaseEnv_Env {
   VECTOR_REFRESH_SECRET?: string
 
   DIAGNOSTIC_DOWNLOAD_SECRET?: string
+
   DIAGNOSTICS?: R2Bucket
+
+  NEWSLETTER_DOMAIN?: string
   API_QUEUE_CHANNELS?: string
   KV: KVNamespace
   OSS: R2Bucket

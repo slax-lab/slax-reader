@@ -30,6 +30,7 @@ export class LabService {
 
   protected features(): Record<string, LabFeatureDef> {
     return {
+      newsletter: { status: 'active', name: { zh: 'Newsletter 订阅', en: 'Newsletters', es: 'Boletines' } },
       rss: { status: 'active', name: { zh: 'RSS 订阅', en: 'RSS feeds', es: 'Fuentes RSS' } },
       youtube: { status: 'active', name: { zh: 'YouTube 视频', en: 'YouTube videos', es: 'Los vídeos de YouTube' } },
       youtube_article: { status: 'active', name: { zh: 'YouTube AI 整理稿', en: 'YouTube AI articles', es: 'Los artículos de IA de YouTube' } },

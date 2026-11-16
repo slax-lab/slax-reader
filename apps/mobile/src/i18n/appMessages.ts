@@ -1,5 +1,6 @@
 export const appMessages = {
   en: {
+    newsletter_source: 'Newsletter',
     login_email: 'Continue with email',
     passkey_login: 'Sign in with a passkey',
     passkey_title: 'Passkeys',
@@ -161,6 +162,7 @@ export const appMessages = {
     system_entry_unavailable_message: 'This system search result is no longer available in the signed-in library.',
   },
   zh: {
+    newsletter_source: '邮件通讯',
     login_email: '使用邮箱继续',
     passkey_login: '使用通行密钥登录',
     passkey_title: '通行密钥',
