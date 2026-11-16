@@ -2,7 +2,9 @@
 
 ## Status
 
-Update, November 16, 2026: the requester subsequently reported #605 production deployment. Verification resumed; see the final section, "PR #605 production verification resumed", for fresh deployment, resource, interaction and early field evidence. Earlier deferral statements below describe the planning/delivery state at that time. PR #624 remains an unmerged draft; its runtime effect is not part of this production result.
+Update, November 16, 2026: the requester subsequently reported #605 production deployment. Verification resumed; see the section "PR #605 production verification resumed" for fresh deployment, resource, interaction and early field evidence. Earlier deferral statements below describe the planning/delivery state at that time. PR #624 remains an unmerged draft; its runtime effect is not part of this production result.
+
+Later update: the "Successful test-article first-byte attribution" section records newly discovered public test articles, successful stage measurements and temporary worker-tail observations. It supersedes the earlier missing-normal-sample attribution gap, while retaining the original same-content, controlled-profile and field gaps. No additional runtime optimization is claimed.
 
 Based on `origin/dev` merge `2203281e2a9f3606d0a686e2b8be34ae84fb1f99`, fetched November 16, 2026. The initial planning phase changed documentation only. The change requester subsequently approved only initial player-layout stabilization. The implementation below changes the existing Web article stylesheet and browser fixtures; it changes no API, media lifecycle, stored content, configuration, dependency or generated output. The change requester has now requested task completion and a draft pull request; production deployment remains outside this task. Delivery status is recorded below. The change requester has now reported hands-on acceptance of the local initial-player change; production LCP Good improvement is not claimed.
 
@@ -220,7 +222,7 @@ The requester asked whether the remaining TODOs imply implementation missing fro
 | Image Cache API fill on eligible R2 hits | #605 | Live source-of-cache attribution is unverified; faster repeat requests alone do not establish an omitted implementation. |
 | Stable edited-YouTube initial player box | #624 | Implemented and locally accepted, but not deployed. Keep its production verification separate. |
 | Historical Mole image dimensions / CLS | #605 covers new exact-cover FxEmbed captures; neither PR repairs old snapshots | A remaining candidate, not a confirmed cause of all observed shifts. The public historical tag lacks dimensions; no measured general pre-paint repair is established. No hardcoded URL/ratio, extra image fetch on document delivery or snapshot rewrite is added. |
-| Remaining document TTFB | #605 timing instrumentation; #624 successful-request investigation | No database scheduling, pool-size, placement or metadata-cache optimization was implemented. Successful non-production stage attribution is still missing. |
+| Remaining document TTFB | #605 timing instrumentation; #624 successful-request investigation | Successful non-production measurements are now recorded below. No database scheduling, pool-size, placement or metadata-cache optimization was implemented; the exact cause of the platform/invocation residual remains unproven. |
 | Podcast/Mole Good >=70% | Post-deployment acceptance | An outcome requiring sufficient comparable traffic, not a missing code block or a checkbox satisfied by deployment. |
 
 Document TTFB is the wait until the first HTML response byte, including connection/transport and server work; article hydration and subsequent image transfer occur afterward. On an accepted anonymous HTML-cache hit, the existing call chain is:
@@ -234,3 +236,79 @@ The cache avoids the normal authorized R2-body/projection/SSR route on an accept
 The owner/share Promise-overlap candidate remains rejected: the two repositories resolve the same request-cached Hyperdrive Prisma client, whose pool has `max: 1` (`apps/api/src/di/data.ts`). Moving those calls into `Promise.all` would still queue their queries on that connection and change denied-path/error behavior without a demonstrated latency saving. No additional client, pool connection, batching abstraction or cache policy is introduced to rescue that candidate.
 
 This follow-up adds documentation and production evidence to #624 only. Its existing 11-line article stylesheet runtime diff, approved layout requirements and visual acceptance remain unchanged. The PR description must distinguish inherited #605 production observations, #624 local player-box results, and unresolved attribution/field acceptance.
+
+## Successful test-article first-byte attribution — November 16, 2026
+
+### Obtaining normal successful requests without creating data
+
+The four production UUIDs still were not suitable test-environment samples. Instead of treating those 404s as the only available route, a read-only request to `https://r.slax.dev/sitemap.xml` followed its published redirect to `sitemap_index.xml`, then the linked `__sitemap__/collection.xml`. That sitemap exposed the existing public collection `/c/f5b7838cac33fa2703e1b0fd482c6107`, whose rendered links supplied two real saved articles:
+
+- [Swift SDK article, with a visible saved-highlight count](https://r.slax.dev/b/61776283-0e16-4a4e-bfd2-7467a09f395e).
+- [PowerSync Update: May 2025](https://r.slax.dev/b/69c1e5b2-15d4-4ccc-b00f-22efa9fb461a).
+
+Both returned complete successful article documents. The Swift content endpoint returned role `visitor`, the expected title and 24,226 body characters. An exploratory collection link labeled E2E-renamed was excluded from normal-article acceptance. No test bookmark, account, snapshot or production copy was created, and no secret file was read.
+
+These are different saved test articles, not the production podcast/Mole canaries. They exercise the successful normal metadata/access route and do not close task 1.2's same-content checks or establish family LCP performance. The displayed saved-highlight count was used to select a control, not to claim fresh highlight interaction verification.
+
+### Five repetitions at each existing diagnostic boundary
+
+Three sequential groups used ordinary anonymous curl GETs with compression, no cookies/authentication, no cache-buster and no forced purge. Each group used one curl process for five requests, establishing one connection first and reusing it for requests 2–5. The Swift document had already been stored by the initial successful probe; its five measured responses were all HTML-cache hits. The Update document reported store then four hits. The Swift `/api/content/<uuid>` route uses the existing `loadContent` path and intentionally does not take the document HTML-cache shortcut.
+
+All 15 requests returned 200 and included the existing non-production diagnostics. Durations below are rounded milliseconds, in request order; these are small local HKG samples, not field percentiles or controlled mobile budgets.
+
+| Route, five requests | TTFB | Whole request | Core total |
+| --- | --- | --- | --- |
+| Swift `/b/61776283-…` | 1027, 340, 336, 376, 295 | 1027, 341, 337, 377, 296 | 457, 27, 23, 30, 23 |
+| Update `/b/69c1e5b2-…` | 1865, 393, 337, 333, 824 | 1865, 395, 338, 334, 826 | 489, 69, 25, 22, 479 |
+| Swift `/api/content/61776283-…` | 2944, 404, 374, 409, 356 | 2945, 408, 375, 409, 357 | 568, 22, 15, 18, 15 |
+
+Descriptive TTFB median / nearest-rank P75 for these five-request groups are respectively **340/376ms**, **393/824ms** and **404/409ms**. Whole-request median/P75 are **341/377ms**, **395/826ms** and **408/409ms**. The tiny groups and mixed connection/cache states cannot accept a population P75 budget, prove a speed gain or predict Good >=70%.
+
+The headers expose `core_access-bookmark`, owner/share/media checks, `core_trace`, fork/PDF/collection, `core_total`, `edge_core-fetch`, and frontend cache-validation or backend-fetch plus R2 phases. On an accepted document hit, R2-body retrieval is absent. During the initial Update store request R2-get alone was **761ms**, so first object retrieval is another contributor on that path. The direct content group had R2-get approximately 59–75ms. Body projection, response serialization and cleanup were near the timer resolution; those observations do not identify a CPU-heavy HTML transform.
+
+An additional five independent curl processes forced **new connections** to the same already-cached Swift document without changing its URL. TTFB was **961, 3748, 2079, 867, 552ms**, while TLS completion was **392, 232, 221, 217, 221ms**. The 3748ms request had **2884ms cache validation**, **1808ms edge core-fetch**, and **534ms Core total**. This reproduces a large backend-call residual on a cache hit and rules out attributing that whole wait to TLS or HTML/body transfer. It does not prove a new browser connection causes a slow server invocation.
+
+### Temporary Edge/Core tails and same-window comparison
+
+The signed-in dashboard verified the actual test Edge binding `CORE -> reader-core` in the test account; no misdirected service target was observed. Both test and production Core runtime panels showed Placement Default. Worker Logs were enabled and persisted, but invocation logs and traces were disabled; the dashboard Live query did not supply the anonymous metadata invocations. No observability or placement setting was changed.
+
+The existing Wrangler OAuth session had workers-tail read permission. Temporary raw tails against test `reader-backend` and `reader-core` were therefore used, without reading the CLI credential file. Capture retained only metadata-invocation timestamps, outcome/status, CPU/wall time, field shape and redaction status. Request headers, bodies, console content and unrelated invocation payloads were not retained. Wrangler tail's explicit sampling-rate value 1 was rejected by this installed CLI; removing the optional sampling flag established the stream. Tail subscriptions and their owned local processes were stopped afterward.
+
+Cloudflare redacted the `uuid` value. Consequently, the five rows below associate events by sequential request order, a non-overlapping recorded client start/end window containing exactly one successful metadata event per worker, and consistent durations/status. They are **temporal associations, not exact request-ID traces**. A prior three-request Core-only observation had CPU 177/263/34ms and wall 648/781/484ms; it was not substituted for the paired experiment.
+
+Five further ordinary Swift content-API requests, each with a new connection, produced:
+
+| Request | TTFB | Front backend-fetch | Edge core-fetch | Core total | Edge CPU / wall | Core CPU / wall | Core timestamp after Edge |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 1063 | 548 | 537 | 486 | 1 / 537 | 56 / 525 | 9 |
+| 2 | 2790 | 2047 | 1412 | 613 | 0 / 1411 | 182 / 728 | 630 |
+| 3 | 1187 | 622 | 611 | 581 | 0 / 611 | 32 / 603 | 6 |
+| 4 | 1079 | 488 | 476 | 440 | 1 / 478 | 39 / 468 | 5 |
+| 5 | 1018 | 424 | 421 | 388 | 0 / 421 | 37 / 417 | 2 |
+
+In request 2 the application Core stages were access **370ms**, trace **181ms**, collection **62ms** (Core total 613ms); R2-get was **68ms**. Frontend backend-fetch exceeded edge core-fetch by **635ms**, and edge core-fetch exceeded Core total by **799ms**. These are same-request nested-interval differences, not sums of marginal percentiles. The temporal tails also place a **630ms** interval between Edge and Core invocation timestamps while Edge CPU is 0ms. The evidence supports substantial invocation/call wait outside the measured Core handler on the slow request, alongside real Core repository/driver wait. It does not establish a 2–3-second SQL execution, a fixed network-hop cost, or a single global bottleneck for all requests.
+
+Hyperdrive's existing 24-hour dashboard view showed test average query/connection latency about **15.32/1.8ms**, and production query latency about **9.04ms**; test waiting clients displayed 0. These are aggregate pool-side metrics for all workloads, not this request's SQL spans. They cannot distinguish its database execution from driver setup, cached-query behavior, transport or queueing. Both configurations had cache-hit observations, so consecutive hot repeats must not be treated as a representative traffic mix.
+
+### Offline startup hypothesis check
+
+To check initialization without live deployment or database access, the current Core/Edge entrypoints were bundled with `wrangler deploy --dry-run --outfile <multipart>` using temporary public-only configurations in the API package and its existing TypeScript/CompiledWasm/compatibility settings. The actual private API configuration was not read. The temporary configurations contained no variables or resource bindings and were removed after use. These diagnostic bundles are not asserted to be byte-identical to a deployed, privately configured release.
+
+The pinned Wrangler startup wrapper did not forward its outer config into its inner build and initially selected the wrong build path; out-of-package tsconfig resolution also failed. Inspecting the installed wrapper and following the existing repository build pattern resolved collection: build the multipart explicitly from the API package, then run `wrangler check startup --workerBundle <multipart> --outfile <cpuprofile>`. No CLI upgrade or shipped tooling change was made.
+
+- Core diagnostic bundle: 20,615KiB uncompressed / about 6,534KiB gzip. An initial profile overlapped the Edge build and is not used as the serial reading. A subsequent isolated profiling invocation showed **190.6ms active sampled time**, a **320.2ms profile window**, and 9.0ms garbage collection.
+- Edge diagnostic bundle: 20,756KiB uncompressed / about 6,574KiB gzip. Profiling after its build completed showed **187.1ms active sampled time**, a **326.4ms profile window**, and 6.0ms garbage collection.
+
+Initialization is observable and distributed through a large module graph; the samples did not identify one demonstrated small source correction explaining the online residual. Local hardware, profiler sampling, omitted bindings and build configuration differ from Cloudflare serving conditions. These results neither equate local startup to the online 630ms timestamp gap nor establish a benefit from broad lazy-loading, entrypoint splitting or moving service responsibilities. The offline profiles and the unsuccessful collection attempts are retained locally, with no startup-speedup claim.
+
+### Attribution result and runtime decision
+
+Task 3.1's successful-request application-boundary measurements are now available. The largest slow-request residual is before/around worker invocation and is not removed by owner/share Promise scheduling. Core repository timings also differ substantially across repetitions; their awaits include driver initialization, connection/transport, cache behavior and query work, rather than database execution alone. Repetition order does not establish isolate cold/warm state.
+
+No demonstrated minimal runtime correction was selected from these observations. In particular, no layer is bypassed, metadata authorization/revision is not weakened, and no pool enlargement, stale metadata cache, guessed SQL rewrite or forced placement is added. The [service-binding documentation](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/) describes normal bindings as colocated, so the measured residual is not evidence that the existing layer count inherently adds a permanent remote hop. [Workers startup guidance](https://developers.cloudflare.com/workers/platform/limits/) identifies global initialization and bundle size as possible startup costs; **startup remains a hypothesis here**, not an observed cause or an implemented fix.
+
+The remaining physical attribution is to separate initialization/loading, platform scheduling/dispatch and other uninstrumented wait, then demonstrate a bounded correction before changing runtime behavior. Existing timers and query-redacted tails do not provide that unique cause or per-query database execution spans. No provider tracing was enabled and no alternate candidate was deployed, so no twenty-pair before/after speedup or production benefit is claimed. Original production same-content, controlled LCP/TTFB, full reader integration and seven-day Good-rate tasks remain open.
+
+Raw local evidence is under `.local/ttfb-attribution-2026-11-16/`: normal/fresh/correlated/paired curl metrics and response headers, public response bodies, minimized Core/Edge tail records, `paired-summary.json`, selected runtime/binding observations and aggregate Hyperdrive metrics. The disposable collectors are not shipped tooling or a new monitoring service. This update changes documentation only; the 11-line #624 stylesheet and its acceptance remain unchanged.
+
+Documentation-only follow-up verification: `pnpm exec openspec validate --all --strict` passed all 135 items, and `git diff --check` passed. No application runtime file changed in this follow-up, so application tests and new UI acceptance are exempt under the documentation-only rule; earlier runtime results remain explicitly scoped above. Local pre-push Bugs/Security/Compliance review found no Important findings: measured waits are not mislabeled SQL or proven cold starts, no secrets or raw tail payloads are committed, and the evidence-only scope matches `reduce-public-article-lcp-delays` without claiming the outstanding field outcome.

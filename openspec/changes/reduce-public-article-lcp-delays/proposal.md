@@ -15,6 +15,8 @@ The runtime implementation scope is player-box stabilization. First-byte work in
 
 The change requester initially deferred the missing-sample #605 verification, then reported production deployment on November 16, 2026 and resumed verification. Serving-build, cache, resource and selected interaction results are recorded in `validation.md`; controlled-profile, node-identity and field-acceptance gaps remain incomplete. They separately approved implementation of the initial player-layout stabilization slice, preserving the architecture and minimizing changes, with highlight, preview, playback, seeking and resume regressions checked.
 
+The requester subsequently resumed first-byte attribution and authorized a necessary, demonstrated minimal optimization in the open #624. Existing public test articles were discovered through the test site's published collection sitemap. Successful Web/Edge/Core measurements and temporary tail observations now identify substantial wait outside the measured Core handler on slow requests; they do not establish its exact platform/startup cause or a safe query/placement correction. This pass records the results without expanding the runtime diff. The different test articles do not close same-content podcast/Mole or field-acceptance gaps.
+
 ## Capabilities
 
 ### New Capabilities
