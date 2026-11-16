@@ -13,6 +13,17 @@
     --style: min-h-400px;
   }
 
+  &:has([data-slax-derived='youtube-article']) youtube-player {
+    display: block;
+    max-width: 440px;
+    margin: 0 auto 24px;
+
+    > iframe[src] {
+      display: block;
+      min-height: 0;
+    }
+  }
+
   /* YouTube 平铺字幕：视频下方逐句，时间戳可点击跳转，正文真实 HTML 便于划线评论 */
   .slax-yt-transcript {
     margin-top: 20px;

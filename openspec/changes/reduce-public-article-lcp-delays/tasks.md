@@ -1,0 +1,27 @@
+# Tasks
+
+## 1. Establish the post-605 baseline
+
+- [x] 1.1 Record the latest-dev base, successful #605 Web/API deployment jobs, four unavailable public test samples, inherited 38 Web/22 API regression results and explicit production gaps in `validation.md`; verify every claim against its command/HTTP result.
+- [ ] 1.2 Deferred at the change requester's request: after they notify that #605 is deployed to production, verify the actual serving build and cache convergence, then check the existing same-content canaries for body retention, image/cache delivery and reading/media regressions; record the results without substituting a 404 or fixture. Granular metadata attribution remains pending where production intentionally omits diagnostic headers.
+
+## 2. Stabilize the saved edited-YouTube player box
+
+- [x] 2.1 After proposal approval, reproduce the post-#605 fallback/enhanced difference with full application CSS at 390/768/1440px; record computed host display, actual marker/player/container relationship for old/new bodies, width/height/gaps, introduction-top delta and candidate viewport entry. Distinguish an already-painted element moving from a newly visible/painted LCP candidate before changing source; if the claimed effect is absent, record it rather than assuming an LCP gain.
+- [x] 2.2 Add the smallest scoped fallback rule in the existing article stylesheet, matching the processor's container predicate and keeping host/iframe block-level; verify compiled-selector/min-height precedence, no iframe descender gap, matched host height and introduction-top delta for old/new bodies, delayed enhancement and usable native fallback. Preserve nodes, stored content and final player presentation, measure LCP/CLS, and retain the runtime edit only with demonstrated benefit for the reproduced mechanism.
+- [ ] 2.3 Exercise raw transcripts, separately rendered generated articles, podcasts and ordinary iframes as controls in light/dark/e-ink; verify unchanged layout, chapter/contents targets, highlight ranges, image preview and media interactions in the running reader.
+
+## 3. Attribute remaining first-byte delay
+
+- [ ] 3.1 Deferred with the missing-sample verification: collect successful hit/miss #605 timing with connection/TLS and the available boundaries after the change requester resumes verification. Keep unavailable non-production-only stages explicit; do not enable production diagnostics to close this task. Record five mechanism repetitions and whole-request durations without adding nested spans or inferring query time from frontend waiting alone.
+- [x] 3.2 Trace the actual request-scoped client and pool used by owner/share reads; record that `max: 1` defeats the assumed independent connection capacity and exclude Promise-only overlap, pool enlargement and settlement machinery from this runtime scope.
+
+## 4. Verify and hand off
+
+- [ ] 4.1 Run the affected checks and controlled end-to-end profile, verify LCP through hydration/processor completion, and record all results and device/integration gaps in `validation.md`; keep the inherited field outcome separate from local mechanism success.
+- [x] 4.2 Review Bugs/Security/Compliance and explicitly check naming, file placement, layer/call-chain ownership, unrelated edits and necessity of every added mechanism; resolve Important findings, record this change's human hands-on acceptance before opening a behavior PR, and pass `pnpm exec openspec validate --all --strict`.
+- [ ] 4.3 After authorized deployment and convergence, evaluate the inherited seven-day podcast/Mole raw and matched-mix Good >=70% contract with sufficient family/canary counts; record insufficient or failing outcomes without claiming completion or editing the predecessors' outstanding tasks.
+
+On November 16, 2026, the change requester approved implementation of Section 2 only. The stylesheet slice is implemented with local browser geometry and interaction evidence. Task 2.3 has component-fixture and unit coverage, but its complete running-reader integration remains an explicit gap. Task 4.1 has automated and local mechanism evidence, but the configured end-to-end profile is not yet exercised. Task 4.2 is complete: agent review, strict validation and the requester's local browser hands-on acceptance are recorded in validation.md before draft PR creation. The completed database-path analysis excludes a candidate; it is not a successful query-scheduling implementation. A future API runtime proposal must independently satisfy the backend architecture and verification rules, including `pnpm api -- test test/script/layerArchitecture.test.ts` when applicable.
+
+On November 16, 2026, the change requester confirmed that no public test-environment samples are currently available and asked to retain this #605 verification as a TODO until they report production deployment. Tasks 1.2 and 3.1 remain incomplete; the production outcome in 4.3 also waits for deployment and sufficient observations. That deferral remains unchanged by the subsequent, separate approval of player-layout stabilization; it does not authorize API runtime work or deployment.
