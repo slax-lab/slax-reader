@@ -12,3 +12,5 @@
 Task 7 status: dev synchronization, regression checks, actual signer comparison and signed test APK preparation are complete. Android native execution is deferred by the requester until Beta (2026-11-13), so this task is not marked passed. Do not update #592's certificate trust for the skipped local attempt.
 
 Delivery: Draft PR https://github.com/slax-lab/slax-reader/pull/607 targets dev. Supporting PR #592 is closed at the requester's direction. Task 7 retains the explicitly deferred Android native verification; archive follow-up must classify that gap after merge.
+
+- [x] 8. Extend existing frontend Passkey gates to Beta, preserve production hiding and ungated backend behavior, and verify all four profiles on login/account surfaces.

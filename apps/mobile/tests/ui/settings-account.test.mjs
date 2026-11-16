@@ -110,7 +110,7 @@ async function harness(root, platform = 'ios', development = false) {
   const useMobile = () => ({
     api, runtime, sessions, t, session: sessions.getSnapshot(), nativeResourceOwner: h.owner,
     settings: h.settings, preferences: h.preferences, locale: h.locale ?? 'en',
-    config: {webUrl: h.webUrl ?? 'https://reader.test', apiUrl: h.origin, platform, development},
+    config: {isBeta: h.isBeta ?? false, webUrl: h.webUrl ?? 'https://reader.test', apiUrl: h.origin, platform, development},
   });
   const appState = {
     currentState: 'active',
@@ -630,5 +630,14 @@ for (const webUrl of ['https://r.slax.dev', 'https://r-beta.slax.com', 'https://
   h.webUrl = webUrl;
   await h.renderRoute('SettingsScreen');
   assert.equal(h.all('SourceButton').filter(props => props.label === 'email_auth_bind').length, 1);
-  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_create').length, webUrl === 'https://r.slax.dev' ? 1 : 0);
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_create').length, webUrl !== 'https://r.slax.com' ? 1 : 0);
+}));
+
+for (const isBeta of [false, true]) test(`non-development settings use the current Beta API flag with production Web origin: ${isBeta}`, async () => mounted(async root => {
+  const h = await harness(root, 'android', false);
+  h.webUrl = 'https://r.slax.com';
+  h.isBeta = isBeta;
+  await h.renderRoute('SettingsScreen');
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'email_auth_bind').length, 1);
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_create').length, isBeta ? 1 : 0);
 }));

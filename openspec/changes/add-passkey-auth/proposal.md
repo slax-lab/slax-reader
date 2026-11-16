@@ -46,3 +46,5 @@ After requesting the hover correction, the requester explicitly authorized creat
 Final base integration inherits dev `0d01fb26` (#603), whose only change is Mobile 1.0.31 (806). No additional version bump is introduced. The prior 1.0.30 (805) choice and signed test APK describe the earlier baseline; do not downgrade the subsequently merged dev version or claim that the old binary is an 806 native test.
 
 The requester subsequently explicitly confirmed retaining dev's Mobile 1.0.31 (806), without an additional bump, in conversation on 2026-11-13. The historical signed 805 test APK remains unchanged.
+
+On 2026-11-16 the requester extended frontend Passkey visibility to development, preview and beta, while keeping production controls hidden. Apply this rule consistently to Web/Mobile login and account management. Reuse Mobile's existing `isBeta` current-API state as well as the confirmed test Web origins. Backend authentication/management remains available independently of frontend rollout; no server code or trust configuration changes are included. This supersedes the earlier Beta UI hiding decision and retains the already confirmed Mobile 1.0.31 (806).

@@ -45,7 +45,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
     return () => {pending.current = null; providerGeneration.current++; active.current = false;};
   }, [api, sessions, config.apiUrl]);
   const emailEnabled = !fixtureOnly;
-  const passkeysEnabled = (config.development || config.webUrl === 'https://r.slax.dev') && !fixtureOnly;
+  const passkeysEnabled = (config.development || config.isBeta || ['https://r.slax.dev', 'https://r-beta.slax.com'].includes(config.webUrl)) && !fixtureOnly;
   const markInteractive = useObserveMarkInteractive();
   useEffect(() => {markInteractive();}, [markInteractive]);
   const sessionGuard = () => {

@@ -59,7 +59,7 @@ const account = createAccountEmailAuthRequest(props.accountKey)
 const { t } = useI18n()
 const titleId = useId()
 const config = useRuntimeConfig().public
-const passkeysEnabled = ['development', 'preview'].includes(config.slaxEnv)
+const passkeysEnabled = ['development', 'preview', 'beta'].includes(config.slaxEnv)
 const providerLinkAvailable = canLinkProvidersHere()
 const supportedProviders: EmailAuthProvider[] = [
   ...(config.GOOGLE_OAUTH_CLIENT_ID ? ['google' as const] : []),

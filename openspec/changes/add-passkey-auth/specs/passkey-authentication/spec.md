@@ -63,9 +63,9 @@ Web and Mobile SHALL use existing login/account structures, account/session life
 
 #### Scenario: An environment displays authentication controls
 
-- **WHEN** the Web profile is development/preview or Mobile is development or explicitly configured for the test Web origin `https://r.slax.dev`
+- **WHEN** the Web profile is development/preview/beta, or Mobile is development, uses the current Beta API, or is configured for the preview/Beta Web origin
 - **THEN** its existing authentication surfaces offer Passkey actions with usable localized controls
-- **AND** beta/production keep Passkey controls hidden without gating the backend by rollout environment
+- **AND** production keeps all Passkey login and management controls hidden without gating the backend by rollout environment
 - **AND** existing email/provider visibility and interaction remain consistent with the latest approved base implementation
 
 #### Scenario: A pointer hovers an email authentication action
