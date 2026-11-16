@@ -4,7 +4,7 @@
 
 ### Requirement: Shared article versions
 
-The system SHALL keep at most one article per video, caption source hash, target language (`en` or `zh`) and prompt version, and legacy unmanaged bookmarks SHALL read the version that matches their captions and the reader's language; new private captures SHALL copy only the first terminal result matching their own pending request, and Forks SHALL retain the body and ready variants copied at creation. The system SHALL write a ready article as the body of a bookmark only when the owner has `youtube_article` enabled and reads that language, the bookmark is not flagged by moderation, and the bookmark has no non-deleted highlight or comment. Otherwise the system SHALL NOT change the bookmark's body. A body write SHALL update the body objects, word count and search index together, and SHALL keep the player and its cue data.
+The system SHALL keep at most one article per video, caption source hash, target language (`en` or `zh`) and prompt version, and legacy unmanaged bookmarks SHALL read the version that matches their captions and the reader's language; new private captures SHALL copy only the first terminal result matching their own pending request, and Forks SHALL retain the body and ready variants copied at creation. The system SHALL write a ready article as the body of a bookmark only when the owner has `youtube_article` enabled and reads that language, the bookmark is not flagged by moderation, and the bookmark has no non-deleted highlight or comment. Otherwise the system SHALL NOT change the bookmark's body. A body write SHALL publish the body objects and word count and SHALL keep the player and its cue data. Search indexing SHALL follow as independently retryable work; indexing failure SHALL NOT block reading the ready body or demote the article.
 
 #### Scenario: Second reader with the same language
 - **WHEN** a second user saves a video that already has a ready article in that user's AI language
@@ -19,8 +19,8 @@ The system SHALL keep at most one article per video, caption source hash, target
 - **THEN** the body stays the raw transcript and the page shows the article below it
 
 #### Scenario: Skipped by eligibility
-- **WHEN** the eligibility rules skip the video
-- **THEN** the body stays the raw transcript
+- **WHEN** the video has no nonempty captions
+- **THEN** no article is generated and the existing body is retained
 
 ### Requirement: Generation triggers and Labs gate
 
@@ -39,8 +39,8 @@ Generation SHALL start only for an owner with the `youtube_article` Labs feature
 - **THEN** the visitor gets the owner's ready version if one exists, and no generation starts
 
 #### Scenario: Skipped by eligibility
-- **WHEN** the eligibility rules skip a version for reasons other than length
-- **THEN** nothing starts automatically and the owner can choose "generate anyway"
+- **WHEN** an authorized generation trigger has nonempty captions
+- **THEN** generation is not skipped or held for review based on duration, text length, language, title, speech density, noise, repetition or readability scores
 
 ### Requirement: Body status and catch-up
 
