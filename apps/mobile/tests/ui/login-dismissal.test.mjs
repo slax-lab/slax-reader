@@ -30,6 +30,7 @@ async function loginFixture(host, platform, run, props = {}, development = false
   let identity = 0
   let loginResponse = {token: 'synthetic', user_id: 'fixture'}
   let verifyEmail = async () => loginResponse;
+  let passkeySupported = true;
   let nativePasskey = async () => ({id: 'passkey', response: {}});
   const mobile = {api: {
     getPasskeyLoginChallenge: async email => {requests.push({purpose: 'login', email}); return {purpose: 'login', request_id: 'passkey-challenge', options: {challenge: 'challenge', rpId: 'fixture.test'}}},
@@ -43,7 +44,7 @@ async function loginFixture(host, platform, run, props = {}, development = false
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {bg_login: background}},
     '../auth/providers': {authenticate: provider => {providers.push({provider, phase}); return authenticate(provider)}}, '../runtime': {useMobile: () => mobile},
     '../theme': {mobileColors, mobileLayout, mobileTypography}, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => ({element() {}, firebase() {}})}, '../native/fixture-document': {}, '../components/fixture-actions': {},
-    '../native/passkeys': {nativePasskeys: {authenticate: (options, signal) => nativePasskey(options, signal)}},
+    '../native/passkeys': {nativePasskeys: {isSupported: () => passkeySupported, authenticate: (options, signal) => nativePasskey(options, signal)}},
     '../observe': {useObserveMarkInteractive: () => markInteractive},
     '../components/SourceUI': host.components,
   }, {Error})
@@ -51,7 +52,7 @@ async function loginFixture(host, platform, run, props = {}, development = false
   const press = key => act(async () => controls.get(key).onPress())
   await render()
   await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
-    passkey: value => {nativePasskey = value}, artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()}, verifyEmail: value => {verifyEmail = value},
+    passkey: value => {nativePasskey = value}, setPasskeySupported: async value => {passkeySupported = value; await render()}, artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()}, verifyEmail: value => {verifyEmail = value},
     setProfile: async profile => {mobile.config.development = profile === 'development'; mobile.config.isBeta = profile === 'beta'; mobile.config.webUrl = {development: 'https://fixture.test', preview: 'https://r.slax.dev', beta: 'https://r.slax.com', production: 'https://r.slax.com'}[profile]; controls.clear(); await render()},
     changeOrigin: async () => {mobile.config.apiUrl = 'https://replacement.fixture.test'; await render()},
     hydrate: () => {session = {status: 'unauthenticated'}},
@@ -321,3 +322,15 @@ for (const replacement of ['dismiss', 'origin', 'account', 'unmount']) test(`mou
   assert.equal(fixture.requests.length, 1);
   assert.equal(fixture.accepted.length, 0);
 }, {}, true)));
+
+for (const platform of ['ios', 'android']) test(`unsupported ${platform} hides Passkey login while email remains usable`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
+  await fixture.setProfile('beta');
+  await fixture.setPasskeySupported(false);
+  await fixture.press('login_email');
+  await fixture.press('agreement_btn_agree');
+  if (platform === 'ios') await act(async () => fixture.modal().onDismiss());
+  assert.equal(host.props.has('email_passkey_login'), false);
+  await act(async () => host.props.get('email_code_address').onChangeText('reader@example.test'));
+  await act(async () => host.props.get('email_code_send').onPress());
+  assert.deepEqual(fixture.requests.map(value => JSON.parse(JSON.stringify(value))), [{email: 'reader@example.test', locale: 'en'}]);
+})));

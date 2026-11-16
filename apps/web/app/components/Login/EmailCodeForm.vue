@@ -21,7 +21,7 @@
       </template>
       <label v-else class="email-code-field">
         <span class="email-code-label">{{ t('email_auth.address_label') }}</span>
-        <input ref="emailInput" v-model.trim="email" type="email" autocomplete="email" maxlength="254" :disabled="Boolean(pending)" required />
+        <input ref="emailInput" v-model.trim="email" type="email" :autocomplete="passkeyAutofill ? 'username webauthn' : 'email'" maxlength="254" :disabled="Boolean(pending)" required @focus="startAutofill" @change="startAutofill" />
       </label>
 
       <p v-if="errorKey" class="email-code-error" role="alert">{{ t(errorKey) }}</p>
@@ -43,6 +43,7 @@
 
 <script lang="ts" setup>
 import { emailAuthErrorKey } from '~/utils/emailAuth'
+import type { PasskeyAuthenticationMode } from '~/utils/passkeyAuth'
 import { passkeyAuthErrorKey } from '~/utils/passkeyAuth'
 
 import type { FetchRequest } from '@commons/frontend-utils/request'
@@ -54,7 +55,8 @@ const props = defineProps<{
   initialEmail?: string
   retainPendingOnSuccess?: boolean
   client?: Pick<FetchRequest, 'post'>
-  authenticatePasskey?: (email: string, signal: AbortSignal) => Promise<void>
+  passkeyAutofill?: boolean
+  authenticatePasskey?: (email: string, signal: AbortSignal, mode?: PasskeyAuthenticationMode) => Promise<void>
   verify: (proof: EmailCodeInput, signal: AbortSignal) => Promise<void>
 }>()
 const { $i18n } = useNuxtApp()
@@ -74,9 +76,22 @@ const secondsToResend = computed(() =>
 )
 
 let operation: AbortController | undefined
+let autofill: AbortController | undefined
 let ticker: ReturnType<typeof setInterval> | undefined
 
+const cancelAutofill = () => {
+  autofill?.abort()
+  autofill = undefined
+}
+
+watch(email, cancelAutofill, { flush: 'sync' })
+watch(() => props.passkeyAutofill, enabled => {
+  if (enabled && document.activeElement === emailInput.value) void startAutofill()
+  else if (!enabled) cancelAutofill()
+})
+
 const stop = () => {
+  cancelAutofill()
   operation?.abort()
   operation = undefined
   pending.value = undefined
@@ -97,8 +112,43 @@ const editEmail = async () => {
   emailInput.value?.focus()
 }
 
+const startAutofill = async () => {
+  if (!props.passkeyAutofill || !props.authenticatePasskey || pending.value || challenge.value || autofill || !email.value || !emailInput.value?.validity.valid) return
+  const address = email.value
+  const controller = new AbortController()
+  autofill = controller
+  let selected = false
+  let verified = false
+  try {
+    await props.authenticatePasskey(address, controller.signal, {
+      useBrowserAutofill: true,
+      onCredential: () => {
+        if (autofill !== controller || email.value !== address || pending.value) {
+          controller.abort()
+          return
+        }
+        selected = true
+        operation = controller
+        pending.value = 'passkey'
+        errorKey.value = ''
+      }
+    })
+    controller.signal.throwIfAborted()
+    verified = true
+  } catch (error) {
+    if (selected && !controller.signal.aborted) errorKey.value = passkeyAuthErrorKey(error)
+  } finally {
+    if (autofill === controller) autofill = undefined
+    if (operation === controller) {
+      operation = undefined
+      if (!verified || !props.retainPendingOnSuccess) pending.value = undefined
+    }
+  }
+}
+
 const signInWithPasskey = async () => {
   if (pending.value || !props.authenticatePasskey || !emailInput.value?.reportValidity()) return
+  cancelAutofill()
   const controller = new AbortController()
   operation = controller
   pending.value = 'passkey'
@@ -120,6 +170,7 @@ const signInWithPasskey = async () => {
 
 const sendCode = async () => {
   if (pending.value || secondsToResend.value > 0) return
+  cancelAutofill()
   const controller = new AbortController()
   operation = controller
   pending.value = 'send'

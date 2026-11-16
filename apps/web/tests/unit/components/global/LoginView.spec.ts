@@ -3,23 +3,29 @@ import { nextTick } from 'vue'
 import LoginView from '~~/app/components/global/LoginView.vue'
 
 import { mountWithApp } from '../../../setup/mount'
+import { RequestError } from '@commons/frontend-utils/request'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { WebAuthnAbortService } from '@simplewebauthn/browser'
+import { ErrorName } from '@slax-reader/contracts/errors'
 import { flushPromises } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { get, post, verifyEmailAuth, verifyPasskeyAuth, startAuthentication, navigate, analytics } = vi.hoisted(() => ({
+const { get, post, verifyEmailAuth, verifyPasskeyAuth, startAuthentication, browserSupportsPasskeys, browserSupportsWebAuthnAutofill, getBrowserCapabilities, sendSignal, navigate, analytics } = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
   verifyEmailAuth: vi.fn(),
   verifyPasskeyAuth: vi.fn(),
   startAuthentication: vi.fn(),
+  browserSupportsPasskeys: vi.fn(),
+  browserSupportsWebAuthnAutofill: vi.fn(),
+  getBrowserCapabilities: vi.fn(),
+  sendSignal: vi.fn(),
   navigate: vi.fn(),
   analytics: vi.fn()
 }))
 mockNuxtImport('request', () => () => ({ get, post }))
 mockNuxtImport('useAuth', () => () => ({ verifyEmailAuth, verifyPasskeyAuth }))
-vi.mock('@simplewebauthn/browser', async importOriginal => ({ ...await importOriginal<typeof import('@simplewebauthn/browser')>(), startAuthentication }))
+vi.mock('@simplewebauthn/browser', async importOriginal => ({ ...await importOriginal<typeof import('@simplewebauthn/browser')>(), startAuthentication, browserSupportsPasskeys, browserSupportsWebAuthnAutofill, getBrowserCapabilities, sendSignal }))
 mockNuxtImport('navigateTo', () => navigate)
 mockNuxtImport('analyticsLog', () => analytics)
 
@@ -42,8 +48,14 @@ const NuxtTurnstileStub = {
 }
 
 describe('global/LoginView', () => {
+  afterEach(() => vi.unstubAllGlobals())
   beforeEach(() => {
     vi.clearAllMocks()
+    browserSupportsPasskeys.mockReset().mockResolvedValue(true)
+    browserSupportsWebAuthnAutofill.mockReset().mockResolvedValue(false)
+    getBrowserCapabilities.mockReset().mockResolvedValue({ conditionalGet: 'unsupported' })
+    sendSignal.mockReset().mockResolvedValue(undefined)
+    startAuthentication.mockReset()
     localStorage.clear()
     runtimeConfig.public.slaxEnv = 'development'
     get.mockResolvedValue({ enabled: false })
@@ -350,6 +362,186 @@ describe('global/LoginView', () => {
     }
     expect(localStorage.getItem('slax:last-login-email')).toBe('previous@example.com')
     expect(navigate).not.toHaveBeenCalled()
+    expect(sendSignal).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('keeps email available when passkey login capability is absent', async () => {
+    vi.stubGlobal('PublicKeyCredential', undefined)
+    browserSupportsPasskeys.mockResolvedValueOnce(false)
+    const wrapper = mountWithApp(LoginView)
+    await flushPromises()
+    await wrapper.get('.email-login-toggle').trigger('click')
+    expect(wrapper.find('.email-passkey-button').exists()).toBe(false)
+    expect(wrapper.get('input[type=email]').attributes('autocomplete')).toBe('email')
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeUndefined()
+    expect(getBrowserCapabilities).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('keeps manual Passkey login available in older WebAuthn browsers without the capabilities API', async () => {
+    vi.stubGlobal('PublicKeyCredential', class {
+      static isUserVerifyingPlatformAuthenticatorAvailable = async () => true
+      static isConditionalMediationAvailable = async () => true
+    })
+    const browser = await vi.importActual<typeof import('@simplewebauthn/browser')>('@simplewebauthn/browser')
+    expect(await browser.browserSupportsPasskeys()).toBe(false)
+    browserSupportsPasskeys.mockImplementationOnce(browser.browserSupportsPasskeys)
+    getBrowserCapabilities.mockResolvedValueOnce({ conditionalGet: 'unknown' })
+    post.mockResolvedValueOnce({ purpose: 'login', request_id: 'attempt', options: { challenge: 'challenge' } })
+    startAuthentication.mockResolvedValueOnce({ id: 'legacy-browser-credential' })
+    verifyPasskeyAuth.mockResolvedValueOnce('session')
+    const wrapper = mountWithApp(LoginView)
+    await flushPromises()
+    await wrapper.get('.email-login-toggle').trigger('click')
+    expect(wrapper.get('input[type=email]').attributes('autocomplete')).toBe('email')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('.email-passkey-button').trigger('click')
+    await flushPromises()
+    expect(verifyPasskeyAuth).toHaveBeenCalledWith(expect.objectContaining({ type: 'passkey', email: 'reader@example.com', credential: { id: 'legacy-browser-credential' } }), expect.anything())
+    expect(navigate).toHaveBeenCalledOnce()
+    expect(browserSupportsWebAuthnAutofill).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('does not fall back when a modern browser explicitly reports Passkeys unsupported', async () => {
+    vi.stubGlobal('PublicKeyCredential', class {
+      static getClientCapabilities = async () => ({ passkeyPlatformAuthenticator: false, userVerifyingPlatformAuthenticator: false, hybridTransport: false })
+    })
+    const browser = await vi.importActual<typeof import('@simplewebauthn/browser')>('@simplewebauthn/browser')
+    expect(browser.browserSupportsWebAuthn()).toBe(true)
+    browserSupportsPasskeys.mockImplementationOnce(browser.browserSupportsPasskeys)
+    const wrapper = mountWithApp(LoginView)
+    await flushPromises()
+    await wrapper.get('.email-login-toggle').trigger('click')
+    expect(wrapper.find('.email-passkey-button').exists()).toBe(false)
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeUndefined()
+    expect(getBrowserCapabilities).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('signals only an explicit server unknown-credential rejection and preserves the login error', async () => {
+    post.mockResolvedValueOnce({ purpose: 'login', request_id: 'attempt', options: { challenge: 'challenge', rpId: 'example.test' } })
+    startAuthentication.mockResolvedValueOnce({ id: 'removed-credential' })
+    verifyPasskeyAuth.mockRejectedValueOnce(new RequestError({ name: ErrorName.PASSKEY_CREDENTIAL_UNKNOWN, message: 'Missing', code: 400 }))
+    sendSignal.mockRejectedValueOnce(new Error('Signal unavailable'))
+    const wrapper = mountWithApp(LoginView)
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await wrapper.get('.email-passkey-button').trigger('click')
+    await flushPromises()
+    expect(sendSignal).toHaveBeenCalledWith({ signalName: 'unknownCredential', rpID: 'example.test', credentialID: 'removed-credential' })
+    expect(wrapper.get('[role="alert"]').text()).toBeTruthy()
+    expect(wrapper.get('.email-passkey-button').attributes('disabled')).toBeUndefined()
+    expect(navigate).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('does not signal a valid credential as unknown when the mailbox proof is rejected', async () => {
+    post.mockResolvedValueOnce({ purpose: 'login', request_id: 'attempt', options: { challenge: 'challenge', rpId: 'example.test' } })
+    startAuthentication.mockResolvedValueOnce({ id: 'other-account-credential' })
+    verifyPasskeyAuth.mockRejectedValueOnce(new RequestError({ name: ErrorName.PASSKEY_VERIFICATION_FAILED, message: 'Invalid proof', code: 400 }))
+    const wrapper = mountWithApp(LoginView)
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('wrong@example.com')
+    await wrapper.get('.email-passkey-button').trigger('click')
+    await flushPromises()
+    expect(sendSignal).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toBeTruthy()
+    wrapper.unmount()
+  })
+
+  it('waits for a committed email before conditional authentication and cancels when email changes', async () => {
+    getBrowserCapabilities.mockResolvedValueOnce({ conditionalGet: 'supported' })
+    browserSupportsWebAuthnAutofill.mockResolvedValueOnce(true)
+    let finish!: (value: unknown) => void
+    let browserSignal!: AbortSignal
+    post.mockResolvedValueOnce({ purpose: 'login', request_id: 'attempt', options: { challenge: 'challenge' } })
+    startAuthentication.mockImplementationOnce(() => {
+      browserSignal = WebAuthnAbortService.createNewAbortSignal()
+      return new Promise(resolve => { finish = resolve })
+    })
+    const wrapper = mountWithApp(LoginView)
+    await flushPromises()
+    await wrapper.get('.email-login-toggle').trigger('click')
+    expect(post).not.toHaveBeenCalled()
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await flushPromises()
+    expect(wrapper.get('input[type=email]').attributes('autocomplete')).toBe('username webauthn')
+    expect(startAuthentication).toHaveBeenCalledWith({ optionsJSON: { challenge: 'challenge' }, useBrowserAutofill: true })
+    expect(wrapper.get('input[type=email]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeUndefined()
+    await wrapper.get('input[type=email]').setValue('')
+    finish({ id: 'late-credential' })
+    await flushPromises()
+    expect(browserSignal.aborted).toBe(true)
+    expect(verifyPasskeyAuth).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(localStorage.getItem('slax:last-login-email')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('cancels conditional authentication before sending an email code', async () => {
+    getBrowserCapabilities.mockResolvedValueOnce({ conditionalGet: 'supported' })
+    browserSupportsWebAuthnAutofill.mockResolvedValueOnce(true)
+    let finish!: (value: unknown) => void
+    let browserSignal!: AbortSignal
+    post.mockResolvedValueOnce({ purpose: 'login', request_id: 'attempt', options: { challenge: 'challenge' } })
+      .mockResolvedValueOnce({ request_id: 'email-attempt', expires_in: 300, resend_after: 60 })
+    startAuthentication.mockImplementationOnce(() => {
+      browserSignal = WebAuthnAbortService.createNewAbortSignal()
+      return new Promise(resolve => { finish = resolve })
+    })
+    const wrapper = mountWithApp(LoginView)
+    await flushPromises()
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await flushPromises()
+    await wrapper.get('form').trigger('submit')
+    finish({ id: 'late-credential' })
+    await flushPromises()
+    expect(browserSignal.aborted).toBe(true)
+    expect(wrapper.find('[autocomplete="one-time-code"]').exists()).toBe(true)
+    expect(verifyPasskeyAuth).not.toHaveBeenCalled()
+    expect(post).toHaveBeenLastCalledWith(expect.objectContaining({ url: '/v1/user/email/send' }))
+    wrapper.unmount()
+  })
+
+  it('uses the normal session completion and pending lock after an autofill credential is selected', async () => {
+    getBrowserCapabilities.mockResolvedValueOnce({ conditionalGet: 'supported' })
+    browserSupportsWebAuthnAutofill.mockResolvedValueOnce(true)
+    let select!: (value: unknown) => void
+    let verified!: (value: string) => void
+    post.mockResolvedValueOnce({ purpose: 'login', request_id: 'attempt', options: { challenge: 'challenge' } })
+    startAuthentication.mockImplementationOnce(() => new Promise(resolve => { select = resolve }))
+    verifyPasskeyAuth.mockImplementationOnce(() => new Promise(resolve => { verified = resolve }))
+    const wrapper = mountWithApp(LoginView)
+    await flushPromises()
+    await wrapper.get('.email-login-toggle').trigger('click')
+    await wrapper.get('input[type=email]').setValue('reader@example.com')
+    await flushPromises()
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeUndefined()
+    select({ id: 'selected-credential' })
+    await flushPromises()
+    expect(wrapper.get('.email-code-button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('input[type=email]').attributes('disabled')).toBeDefined()
+    verified('session')
+    await flushPromises()
+    expect(navigate).toHaveBeenCalledOnce()
+    expect(localStorage.getItem('slax:last-login-email')).toBe('reader@example.com')
+    expect(wrapper.get('.email-login-toggle').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.email-passkey-button').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('keeps manual Passkey login when conditional UI is unsupported or unknown', async () => {
+    getBrowserCapabilities.mockResolvedValueOnce({ conditionalGet: 'unknown' })
+    const wrapper = mountWithApp(LoginView)
+    await flushPromises()
+    await wrapper.get('.email-login-toggle').trigger('click')
+    expect(wrapper.find('.email-passkey-button').exists()).toBe(true)
+    expect(wrapper.get('input[type=email]').attributes('autocomplete')).toBe('email')
+    expect(browserSupportsWebAuthnAutofill).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

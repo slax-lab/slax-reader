@@ -3,16 +3,17 @@ import type {
   PasskeyAuthenticationChallenge,
   PasskeyChallengeRequest,
   PasskeyInfo,
+  PasskeyDeleteResponse,
   PasskeyLoginRequest,
   PasskeyRegistrationChallenge,
   PasskeyRegistrationInput
 } from '@slax-reader/contracts/passkey'
-import { PasskeyVerificationError, UnauthorizedError } from '@/const/err'
+import { PasskeyCredentialUnknownError, PasskeyVerificationError, UnauthorizedError } from '@/const/err'
 import { PASSKEY_CONFIG } from '@/const/passkey'
 import { inject, injectable } from '@/decorators/di'
 import { PasskeyRepo, type PasskeyAccount, type PasskeyLoginMetadata, type PasskeyTransaction } from '@/infra/repository/dbPasskey'
 import { PasskeyChallengeRepo } from '@/infra/repository/redisPasskeyChallenge'
-import { passkeyConfiguration, verifyPasskeyAuthentication, verifyPasskeyRegistration } from '@/utils/passkey'
+import { passkeyConfiguration, passkeyUserHandle, verifyPasskeyAuthentication, verifyPasskeyRegistration } from '@/utils/passkey'
 
 function activeAccount(account: PasskeyAccount | null): PasskeyAccount {
   if (!account || account.deleted_at) throw PasskeyVerificationError()
@@ -99,6 +100,7 @@ export class PasskeyService {
     const challenge = await this.challenges.consume(env.RUN_TYPE, input.request_id)
     const { rpId, origins } = passkeyConfiguration(env)
     if (!challenge || challenge.purpose !== 'login' || challenge.rpId !== rpId || challenge.emailKey !== input.email.trim().toLowerCase()) throw PasskeyVerificationError()
+    if (!(await this.credentials.credentialExistsForRp(input.credential.id, rpId))) throw PasskeyCredentialUnknownError()
     const owners = await this.credentials.findLoginAccounts(challenge.emailKey)
     if (owners.length !== 1) throw PasskeyVerificationError()
     const owner = activeAccount(owners[0])
@@ -120,7 +122,7 @@ export class PasskeyService {
     return this.credentials.withAccount(userId, async tx => {
       activeAccount(tx.account)
       return (await tx.listCredentials(rpId)).map(item => ({
-        uuid: item.uuid,
+        id: item.id,
         name: item.name,
         created_at: item.created_at.toISOString(),
         last_used_at: item.last_used_at?.toISOString() ?? null
@@ -128,13 +130,14 @@ export class PasskeyService {
     })
   }
 
-  remove(env: Env, userId: number, uuid: string): Promise<{ deleted: true }> {
+  remove(env: Env, userId: number, id: number): Promise<PasskeyDeleteResponse> {
     const { rpId } = passkeyConfiguration(env)
     return this.credentials.withAccount(userId, async tx => {
-      activeAccount(tx.account)
-      if (!(await tx.deleteCredential(uuid, rpId))) throw PasskeyVerificationError()
+      const account = activeAccount(tx.account)
+      if (!(await tx.deleteCredential(id, rpId))) throw PasskeyVerificationError()
+      const remaining = await tx.listCredentials(rpId)
       if (!(await tx.countCredentials())) await tx.deleteSummary()
-      return { deleted: true }
+      return { deleted: true, credential_state: { rp_id: rpId, user_handle: passkeyUserHandle(account.uuid), credential_ids: remaining.map(item => item.credential_id) } }
     })
   }
 }

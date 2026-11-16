@@ -15,7 +15,6 @@ const owner = { id: 42, uuid: 'opaque-account-uuid', email: 'historical@example.
 const mailbox = { platform_id: 'reader@example.test', user_name: 'Reader@example.test' }
 const credential = {
   id: 1,
-  uuid: 'credential-uuid',
   user_id: 42,
   rp_id: 'r.slax.dev',
   credential_id: 'credential-id',
@@ -42,6 +41,7 @@ function fixture() {
     recordLogin: vi.fn().mockResolvedValue(undefined)
   }
   const repo = {
+    credentialExistsForRp: vi.fn().mockResolvedValue(true),
     findLoginAccounts: vi.fn().mockResolvedValue([owner]),
     withAccount: vi.fn(async (_id: number, run: (transaction: typeof tx) => Promise<unknown>) => run(tx))
   }
@@ -140,13 +140,16 @@ describe('Passkey account orchestration', () => {
     expect(tx.updateCredential).not.toHaveBeenCalled()
   })
 
-  test('unknown, deleted, or wrong-RP credentials cannot authenticate', async () => {
-    const { service, tx } = fixture()
-    const challenge = await service.challenge(env, { purpose: 'login', email: 'reader@example.test' })
-    tx.findCredential.mockResolvedValueOnce(null)
-    await expect(
-      service.authenticate(env, { type: 'passkey', request_id: challenge.request_id, email: 'reader@example.test', credential: { id: 'other-credential' } as never })
-    ).rejects.toBeDefined()
+  test.each(['reader@example.test', 'unknown@example.test'])('an RP-absent credential has the same error for mailbox %s, without an account lookup', async email => {
+    const { service, repo } = fixture()
+    const challenge = await service.challenge(env, { purpose: 'login', email })
+    repo.credentialExistsForRp.mockResolvedValueOnce(false)
+    await expect(service.authenticate(env, { type: 'passkey', request_id: challenge.request_id, email, credential: { id: 'other-credential' } as never })).rejects.toMatchObject({
+      name: 'PASSKEY_CREDENTIAL_UNKNOWN'
+    })
+    expect(repo.credentialExistsForRp).toHaveBeenCalledWith('other-credential', 'r.slax.dev')
+    expect(repo.findLoginAccounts).not.toHaveBeenCalled()
+    expect(repo.withAccount).not.toHaveBeenCalled()
     expect(protocol.authentication).not.toHaveBeenCalled()
   })
 
@@ -160,28 +163,72 @@ describe('Passkey account orchestration', () => {
   test('lists only management metadata, never public-key bytes', async () => {
     const { service } = fixture()
     const result = await service.list(env, 42)
-    expect(result).toEqual([{ uuid: credential.uuid, name: 'My phone', created_at: credential.created_at.toISOString(), last_used_at: null }])
+    expect(result).toEqual([{ id: credential.id, name: 'My phone', created_at: credential.created_at.toISOString(), last_used_at: null }])
     expect(JSON.stringify(result)).not.toContain('public_key')
   })
 
-  test('deleting the last key removes only its summary', async () => {
+  test('deleting the last key returns the exact registration handle and an empty RP credential state', async () => {
     const { service, tx } = fixture()
-    expect(await service.remove(env, 42, credential.uuid)).toEqual({ deleted: true })
-    expect(tx.deleteCredential).toHaveBeenCalledWith(credential.uuid, 'r.slax.dev')
+    const challenge = await service.challenge(env, { purpose: 'register' }, 42)
+    tx.listCredentials.mockResolvedValueOnce([])
+    expect(await service.remove(env, 42, credential.id)).toEqual({
+      deleted: true,
+      credential_state: { rp_id: 'r.slax.dev', user_handle: challenge.options.user.id, credential_ids: [] }
+    })
+    expect(tx.deleteCredential).toHaveBeenCalledWith(credential.id, 'r.slax.dev')
     expect(tx.deleteSummary).toHaveBeenCalledOnce()
   })
 
-  test('deleting one of several keys retains the summary', async () => {
+  test('deleting one key reports every remaining credential for this RP and retains the summary', async () => {
     const { service, tx } = fixture()
-    tx.countCredentials.mockResolvedValueOnce(1)
-    await service.remove(env, 42, credential.uuid)
+    tx.countCredentials.mockResolvedValueOnce(2)
+    tx.listCredentials.mockResolvedValueOnce([credential, { ...credential, id: 3, credential_id: 'third-key' }])
+    const result = await service.remove(env, 42, 2)
+    expect(result.credential_state.credential_ids).toEqual(['credential-id', 'third-key'])
     expect(tx.deleteSummary).not.toHaveBeenCalled()
   })
 
-  test('a credential UUID owned by another account cannot be deleted', async () => {
+  test('deleting the last key for one RP preserves a summary backed by another RP', async () => {
+    const { service, tx } = fixture()
+    tx.countCredentials.mockResolvedValueOnce(1)
+    tx.listCredentials.mockResolvedValueOnce([])
+    expect((await service.remove(env, 42, credential.id)).credential_state.credential_ids).toEqual([])
+    expect(tx.deleteSummary).not.toHaveBeenCalled()
+  })
+
+  test('a credential owned by another mailbox is a generic failure, not an unknown credential', async () => {
+    const { service, tx } = fixture()
+    tx.findCredential.mockResolvedValueOnce(null)
+    const challenge = await service.challenge(env, { purpose: 'login', email: 'reader@example.test' })
+    await expect(
+      service.authenticate(env, {
+        type: 'passkey',
+        request_id: challenge.request_id,
+        email: 'reader@example.test',
+        credential: { id: 'other-credential' } as never
+      })
+    ).rejects.toMatchObject({ name: 'PASSKEY_VERIFICATION_FAILED' })
+    expect(protocol.authentication).not.toHaveBeenCalled()
+  })
+
+  test('invalid or replayed challenges never classify a credential as unknown', async () => {
+    const { service, repo } = fixture()
+    await expect(
+      service.authenticate(env, {
+        type: 'passkey',
+        request_id: 'expired-request',
+        email: 'reader@example.test',
+        credential: { id: 'other-credential' } as never
+      })
+    ).rejects.toMatchObject({ name: 'PASSKEY_VERIFICATION_FAILED' })
+    expect(repo.credentialExistsForRp).not.toHaveBeenCalled()
+  })
+
+  test('a credential ID owned by another account cannot be deleted', async () => {
     const { service, tx } = fixture()
     tx.deleteCredential.mockResolvedValueOnce(0)
-    await expect(service.remove(env, 42, 'foreign-uuid')).rejects.toBeDefined()
+    await expect(service.remove(env, 42, 99)).rejects.toBeDefined()
+    expect(tx.listCredentials).not.toHaveBeenCalled()
     expect(tx.deleteSummary).not.toHaveBeenCalled()
   })
 })

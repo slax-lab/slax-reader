@@ -77,8 +77,19 @@ export interface PasskeyLoginRequest {
 }
 
 export interface PasskeyInfo {
-  uuid: string
+  id: number
   name: string
   created_at: string
   last_used_at: string | null
+}
+
+export interface PasskeyCredentialState {
+  rp_id: string
+  user_handle: string
+  credential_ids: string[]
+}
+
+export interface PasskeyDeleteResponse {
+  deleted: true
+  credential_state: PasskeyCredentialState
 }

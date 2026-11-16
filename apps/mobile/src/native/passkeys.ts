@@ -1,4 +1,5 @@
 import {requireNativeModule} from 'expo';
+import {Passkey} from 'react-native-passkey';
 import type {NativePasskeys} from '../auth/passkeys';
 import {throwIfAborted} from '../utils/abort';
 
@@ -21,6 +22,7 @@ async function ceremony<T>(method: 'createPasskey' | 'authenticatePasskey', opti
 }
 
 export const nativePasskeys: NativePasskeys = {
+  isSupported: () => Passkey.isSupported(),
   register: (options, signal) => ceremony('createPasskey', options, signal),
   authenticate: (options, signal) => ceremony('authenticatePasskey', options, signal),
 };

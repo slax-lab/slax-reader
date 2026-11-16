@@ -373,3 +373,10 @@ export const PasskeyVerificationError = (): MultiLangError =>
     zh: 'Passkey 验证未完成，请重试或使用邮箱验证码登录。',
     es: 'La verificación de Passkey falló. Vuelve a intentarlo o usa un código por correo.'
   })
+
+export const PasskeyCredentialUnknownError = (): MultiLangError =>
+  new MultiLangError(ErrorName.PASSKEY_CREDENTIAL_UNKNOWN, 400, {
+    en: 'This passkey is no longer registered. Sign in with an email code.',
+    zh: '此通行密钥已不再绑定，请使用邮箱验证码登录。',
+    es: 'Esta Passkey ya no está registrada. Inicia sesión con un código por correo.'
+  })

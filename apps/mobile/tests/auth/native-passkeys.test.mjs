@@ -4,10 +4,11 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
-function adapter(native) {
+function adapter(native, supported = true) {
   const exports = {};
   const code = ts.transpileModule(readFileSync(new URL('../../src/native/passkeys.ts', import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).outputText;
   vm.runInNewContext(code, {exports, JSON, require(name) {
+    if (name === 'react-native-passkey') return {Passkey: {isSupported: () => supported}};
     if (name === 'expo') return {requireNativeModule: name => {assert.equal(name, 'SlaxPlatform'); return native;}};
     if (name === '../utils/abort') return {throwIfAborted: signal => signal.throwIfAborted()};
     assert.fail(`Unexpected adapter dependency ${name}`);
@@ -40,4 +41,8 @@ test('aborted ceremony cancels the native owner and discards a late credential',
   complete(JSON.stringify({id: 'retired'}));
   await assert.rejects(pending, {name: 'AbortError'});
   assert.equal(cancelled, 1);
+});
+
+for (const supported of [true, false]) test(`native adapter exposes plugin capability: ${supported}`, () => {
+  assert.equal(adapter({}, supported).isSupported(), supported);
 });

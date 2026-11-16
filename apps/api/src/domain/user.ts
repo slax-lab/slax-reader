@@ -300,8 +300,9 @@ export class UserService {
     }
     if (data.key === DELETE_PASSKEY_SETTING) {
       const value = data.value
-      if (!value || typeof value !== 'object' || !('uuid' in value) || typeof value.uuid !== 'string' || !/^[0-9a-f-]{36}$/i.test(value.uuid)) throw ErrorParam()
-      return this.passkeys.remove(ctx.env, ctx.getUserId(), value.uuid)
+      if (!value || typeof value !== 'object' || !('id' in value) || typeof value.id !== 'number' || !Number.isSafeInteger(value.id) || value.id < 1 || value.id > 2147483647)
+        throw ErrorParam()
+      return this.passkeys.remove(ctx.env, ctx.getUserId(), value.id)
     }
     if (typeof data.value !== 'string') throw ErrorParam()
     if (data.key === 'account') {

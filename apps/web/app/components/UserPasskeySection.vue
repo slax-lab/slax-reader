@@ -15,14 +15,14 @@
       <p v-if="pending === 'list'" role="status">{{ t('passkey_auth.loading') }}</p>
       <p v-else-if="loaded && !passkeys.length" class="login-method-status">{{ t('passkey_auth.empty') }}</p>
       <ul v-if="passkeys.length" class="passkey-list">
-        <li v-for="passkey in passkeys" :key="passkey.uuid" class="passkey-item">
+        <li v-for="passkey in passkeys" :key="passkey.id" class="passkey-item">
           <div class="login-method-label">
             <span>{{ passkey.name }}</span>
             <span class="login-method-status">{{ t('passkey_auth.created', { date: formatDate(passkey.created_at) }) }}</span>
             <span class="login-method-status">{{ passkey.last_used_at ? t('passkey_auth.last_used', { date: formatDate(passkey.last_used_at) }) : t('passkey_auth.never_used') }}</span>
           </div>
-          <button class="login-method-button passkey-delete" type="button" :disabled="Boolean(pending)" :aria-label="`${t('passkey_auth.delete')} ${passkey.name}`" @click="deletePasskey(passkey.uuid)">
-            {{ t(pending === passkey.uuid ? 'passkey_auth.deleting' : 'passkey_auth.delete') }}
+          <button class="login-method-button passkey-delete" type="button" :disabled="Boolean(pending)" :aria-label="`${t('passkey_auth.delete')} ${passkey.name}`" @click="deletePasskey(passkey.id)">
+            {{ t(pending === String(passkey.id) ? 'passkey_auth.deleting' : 'passkey_auth.delete') }}
           </button>
         </li>
       </ul>
@@ -39,12 +39,12 @@
 import AppIcon from '~/components/AppIcon.vue'
 
 import type { AccountEmailAuthRequest } from '~/utils/accountEmailAuthRequest'
-import { passkeyAuthErrorKey } from '~/utils/passkeyAuth'
+import { passkeyAuthErrorKey, signalAcceptedPasskeys } from '~/utils/passkeyAuth'
 
 import { browserSupportsWebAuthn, startRegistration, WebAuthnAbortService } from '@simplewebauthn/browser'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { BIND_LOGIN_IDENTITY_SETTING } from '@slax-reader/contracts/email-auth'
-import { DELETE_PASSKEY_SETTING, type PasskeyInfo, type PasskeyRegistrationChallenge } from '@slax-reader/contracts/passkey'
+import { DELETE_PASSKEY_SETTING, type PasskeyDeleteResponse, type PasskeyInfo, type PasskeyRegistrationChallenge } from '@slax-reader/contracts/passkey'
 
 const props = defineProps<{ account: AccountEmailAuthRequest; loginEmail?: string }>()
 const { t, locale } = useI18n()
@@ -133,15 +133,16 @@ const addPasskey = () => perform('add', async signal => {
   }
 })
 
-const deletePasskey = (uuid: string) => perform(uuid, async signal => {
-  const result = await props.account.api.post<{ deleted: true }>({
+const deletePasskey = (id: number) => perform(String(id), async signal => {
+  const result = await props.account.api.post<PasskeyDeleteResponse>({
     url: RESTMethodPath.USER_INFO_SETTING,
-    body: { key: DELETE_PASSKEY_SETTING, value: { uuid } }, signal, errorInterceptors: () => {}
+    body: { key: DELETE_PASSKEY_SETTING, value: { id } }, signal, errorInterceptors: () => {}
   })
   signal.throwIfAborted()
   if (!result?.deleted) throw new Error('Passkey deletion failed')
-  passkeys.value = passkeys.value.filter(passkey => passkey.uuid !== uuid)
+  passkeys.value = passkeys.value.filter(passkey => passkey.id !== id)
   announcement.value = 'passkey_auth.deleted'
+  void signalAcceptedPasskeys(result.credential_state)
 })
 </script>
 

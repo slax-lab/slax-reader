@@ -13,7 +13,6 @@ export interface PasskeyAccount {
 
 export interface PasskeyCredential {
   id: number
-  uuid: string
   user_id: number
   rp_id: string
   credential_id: string
@@ -45,7 +44,7 @@ export interface PasskeyTransaction {
   findCredential(credentialId: string, rpId: string): Promise<PasskeyCredential | null>
   createCredential(input: PasskeyCredentialCreate): Promise<PasskeyCredential | null>
   updateCredential(id: number, counter: bigint): Promise<void>
-  deleteCredential(uuid: string, rpId: string): Promise<number>
+  deleteCredential(id: number, rpId: string): Promise<number>
   countCredentials(): Promise<number>
   saveSummary(userUuid: string): Promise<void>
   deleteSummary(): Promise<void>
@@ -55,6 +54,10 @@ export interface PasskeyTransaction {
 @injectable()
 export class PasskeyRepo {
   constructor(@inject(PRISIMA_HYPERDRIVE_CLIENT) private prismaPg: LazyInstance<PrismaClient>) {}
+
+  async credentialExistsForRp(credentialId: string, rpId: string): Promise<boolean> {
+    return (await this.prismaPg().sr_user_passkey.findFirst({ where: { credential_id: credentialId, rp_id: rpId }, select: { id: true } })) !== null
+  }
 
   async findLoginAccounts(emailKey: string): Promise<PasskeyAccount[]> {
     return this.prismaPg().$queryRaw<PasskeyAccount[]>`
@@ -85,7 +88,7 @@ export class PasskeyRepo {
         updateCredential: async (id, counter) => {
           await tx.sr_user_passkey.updateMany({ where: { id, user_id: userId }, data: { counter, last_used_at: new Date() } })
         },
-        deleteCredential: async (uuid, rp_id) => (await tx.sr_user_passkey.deleteMany({ where: { uuid, rp_id, user_id: userId } })).count,
+        deleteCredential: async (id, rp_id) => (await tx.sr_user_passkey.deleteMany({ where: { id, rp_id, user_id: userId } })).count,
         countCredentials: () => tx.sr_user_passkey.count({ where: { user_id: userId } }),
         saveSummary: async userUuid => {
           await tx.sr_platform_bind.upsert({

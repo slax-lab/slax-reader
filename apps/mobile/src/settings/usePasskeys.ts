@@ -13,9 +13,10 @@ export function usePasskeys({api, scope, native, enabled, hasMailbox, name}: {
   api: PasskeysApi; scope: AccountScope; native: NativePasskeys; enabled: boolean; hasMailbox: boolean; name: string;
 }) {
   const [snapshot, setSnapshot] = useState<{api: PasskeysApi; scope: AccountScope; value: PasskeyInfo[]}>();
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState<'create' | number | null>(null);
   const [error, setError] = useState<AppMessageKey>();
   const lifetime = useRef<Lifetime | null>(null);
+  const supported = enabled && native.isSupported();
   const passkeys = snapshot?.api === api && snapshot.scope === scope ? snapshot.value : null;
   useFocusEffect(useCallback(() => {
     setBusy(null); setError(undefined);
@@ -36,15 +37,15 @@ export function usePasskeys({api, scope, native, enabled, hasMailbox, name}: {
     return () => {lifetime.current = null; generation.read?.abort(); generation.mutation?.abort();};
   }, [api, scope, enabled]));
 
-  async function mutate(uuid?: string) {
+  async function mutate(id?: number) {
     const generation = lifetime.current;
-    if (!enabled || !generation?.current() || generation.mutation || (!uuid && !hasMailbox)) return;
+    if (!enabled || !generation?.current() || generation.mutation || (id === undefined && (!hasMailbox || !supported))) return;
     const request = new AbortController(); generation.mutation = request;
     const current = () => generation.current() && !request.signal.aborted;
-    generation.read?.abort(); setBusy(uuid ?? 'create'); setError(undefined);
+    generation.read?.abort(); setBusy(id ?? 'create'); setError(undefined);
     let changed = false;
     try {
-      if (uuid) {await api.deletePasskey(uuid, request.signal); changed = current();}
+      if (id !== undefined) {await api.deletePasskey(id, request.signal); changed = current();}
       else changed = await registerPasskey({api, native, name, signal: request.signal, isCurrent: current});
     } catch {if (current()) setError('passkey_action_failed');}
     finally {
@@ -52,5 +53,5 @@ export function usePasskeys({api, scope, native, enabled, hasMailbox, name}: {
       if (current()) {setBusy(null); if (changed) void generation.refresh();}
     }
   }
-  return {enabled, passkeys, busy, error, create: () => {void mutate();}, remove: (uuid: string) => {void mutate(uuid);}, reload: () => {void lifetime.current?.refresh();}};
+  return {enabled, supported, passkeys, busy, error, create: () => {void mutate();}, remove: (id: number) => {void mutate(id);}, reload: () => {void lifetime.current?.refresh();}};
 }

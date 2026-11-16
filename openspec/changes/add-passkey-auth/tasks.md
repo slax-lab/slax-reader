@@ -14,3 +14,5 @@ Task 7 status: dev synchronization, regression checks, actual signer comparison 
 Delivery: Draft PR https://github.com/slax-lab/slax-reader/pull/607 targets dev. Supporting PR #592 is closed at the requester's direction. Task 7 retains the explicitly deferred Android native verification; archive follow-up must classify that gap after merge.
 
 - [x] 8. Extend existing frontend Passkey gates to Beta, preserve production hiding and ungated backend behavior, and verify all four profiles on login/account surfaces.
+
+- [x] 9. Remove the redundant credential UUID, add authoritative best-effort Web signals and mailbox-first conditional autofill, integrate Mobile capability detection, and complete focused/runtime/native-build verification and independent reviews.

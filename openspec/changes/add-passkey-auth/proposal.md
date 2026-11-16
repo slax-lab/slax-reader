@@ -8,7 +8,7 @@ Phase one provides verified login mailboxes and explicit identity linking. Add P
 
 - Let authenticated users with a verified `mail` binding register, list, and delete multiple Passkeys.
 - Let users enter that mailbox and authenticate with a registered Passkey through the existing `/v1/user/login`.
-- Store credentials in a new server-only `sr_user_passkey` table with an autoincrement primary key, unique UUID, and unique credential ID. Keep one `passkey` summary binding per account.
+- Store credentials in a new server-only `sr_user_passkey` table with an autoincrement primary key and unique credential ID. Keep one `passkey` summary binding per account.
 - Store short-lived challenges in existing Upstash Redis; keep Redis calls in infra and reuse native atomic consumption.
 - Extend existing Web and native Mobile login/account surfaces, existing account/session guards, and existing rollout profiles.
 - Configure native domain associations with confirmed public Apple/Play identities; supporting association PRs own the public files and signed-device publication checks.
@@ -48,3 +48,9 @@ Final base integration inherits dev `0d01fb26` (#603), whose only change is Mobi
 The requester subsequently explicitly confirmed retaining dev's Mobile 1.0.31 (806), without an additional bump, in conversation on 2026-11-13. The historical signed 805 test APK remains unchanged.
 
 On 2026-11-16 the requester extended frontend Passkey visibility to development, preview and beta, while keeping production controls hidden. Apply this rule consistently to Web/Mobile login and account management. Reuse Mobile's existing `isBeta` current-API state as well as the confirmed test Web origins. Backend authentication/management remains available independently of frontend rollout; no server code or trust configuration changes are included. This supersedes the earlier Beta UI hiding decision and retains the already confirmed Mobile 1.0.31 (806).
+
+## Approved review refinement (2026-11-16)
+
+The requester approved removing the redundant credential-row UUID, using a maintained compatible Mobile capability plugin, best-effort browser credential signals, and email-first conditional autofill. Keep the existing HTTP routes, session flow, layer responsibilities and frontend rollout. Manual Passkey login remains independent of conditional UI support. Do not broaden this into username-less login, an authentication framework or a native ceremony rewrite.
+
+`react-native-passkey` 3.6.2 supplies Mobile capability detection through the existing native adapter port. Its public API has no programmatic cancellation; keep the existing account-scoped native create/get/cancel implementation so dismissal still cancels the system prompt. This limited integration adds one pinned runtime dependency and no plugin-owned account/session flow. Existing Mobile version 1.0.31 (806) is retained.

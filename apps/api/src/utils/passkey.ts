@@ -48,6 +48,13 @@ export async function verifyPasskeyRegistration(response: RegistrationResponseJS
   }
 }
 
+export function passkeyUserHandle(userUuid: string): string {
+  return btoa(String.fromCharCode(...new TextEncoder().encode(userUuid)))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '')
+}
+
 export async function verifyPasskeyAuthentication(
   response: AuthenticationResponseJSON,
   challenge: string,
@@ -56,7 +63,7 @@ export async function verifyPasskeyAuthentication(
   credential: { credential_id: string; public_key: Uint8Array; counter: bigint; transports: string[] },
   userUuid: string
 ): Promise<bigint> {
-  const expectedHandle = btoa(userUuid).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
+  const expectedHandle = passkeyUserHandle(userUuid)
   if (response.response.userHandle && response.response.userHandle !== expectedHandle) throw PasskeyVerificationError()
   try {
     const result = await verifyAuthenticationResponse({

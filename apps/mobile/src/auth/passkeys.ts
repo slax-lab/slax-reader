@@ -2,6 +2,7 @@ import type {AuthenticationResponseJSON, PasskeyAuthenticationChallenge, Passkey
 import type {LoginResponse} from '../data/api';
 
 export interface NativePasskeys {
+  isSupported(): boolean;
   authenticate(options: PasskeyAuthenticationChallenge['options'], signal: AbortSignal): Promise<AuthenticationResponseJSON | null>;
   register(options: PasskeyRegistrationChallenge['options'], signal: AbortSignal): Promise<RegistrationResponseJSON | null>;
 }

@@ -47,9 +47,9 @@ The system SHALL expose credential management metadata only to the active authen
 - **WHEN** the owner deletes the last Passkey
 - **THEN** its credential and summary are removed together while existing email/provider login remains available
 
-#### Scenario: Another account supplies a credential UUID
+#### Scenario: Another account supplies a credential ID
 
-- **WHEN** the UUID belongs to another reader
+- **WHEN** the ID belongs to another reader
 - **THEN** the request cannot read or delete that credential
 
 ### Requirement: Clients preserve approved presentation and ownership
@@ -73,3 +73,44 @@ Web and Mobile SHALL use existing login/account structures, account/session life
 - **WHEN** an enabled email-code or Passkey login action is hovered
 - **THEN** its border uses the existing soft-accent hover role rather than the foreground text color
 - **AND** the Passkey action retains the existing secondary-button hover surface and visible keyboard focus
+
+### Requirement: Browser capability and autofill preserve mailbox-first login
+
+Web SHALL use asynchronous Passkey capability detection for manual login and independently detect conditional UI/autofill support. Conditional authentication SHALL start only after a valid committed mailbox and SHALL reuse the existing mailbox-scoped challenge and login flow.
+
+#### Scenario: A browser supports manual login but not conditional UI
+
+- **WHEN** Passkey login is supported and conditional authentication is unavailable or unknown
+- **THEN** the manual Passkey action remains usable without starting a conditional request
+- **AND** missing newer client-capability APIs do not hide the existing manual entry on supported WebAuthn browsers
+
+#### Scenario: A reader edits or leaves an autofill attempt
+
+- **WHEN** the reader changes email, chooses code/provider/manual login, dismisses the form or its owner is replaced
+- **THEN** the background request is canceled and its late result cannot verify or adopt a session
+- **AND** email/code controls remain usable while waiting for autofill, while selected-credential verification retains the normal pending lock
+
+### Requirement: Credential-manager signals reflect authoritative server state
+
+After a successful credential deletion, Web SHALL best-effort signal the complete remaining credential set for the authenticated account and RP. Unknown-credential signals SHALL be limited to server-confirmed absence in that RP.
+
+#### Scenario: A reader deletes a credential
+
+- **WHEN** the owner deletes a credential by its numeric row ID
+- **THEN** the server returns the RP ID, exact registration user handle and complete remaining credential IDs
+- **AND** unavailable or failed browser reconciliation does not change the successful deletion result
+
+#### Scenario: An assertion is rejected
+
+- **WHEN** the server explicitly confirms that its credential ID is absent from the RP
+- **THEN** Web may signal that unknown credential
+- **AND** other failures, including a valid credential selected for the wrong mailbox, never send an unknown-credential signal
+
+### Requirement: Mobile capability uses the existing adapter boundary
+
+Mobile SHALL obtain Passkey capability from a maintained third-party plugin through its native adapter port and SHALL retain existing cancellable ceremonies and account/session ownership.
+
+#### Scenario: A device does not support Passkeys
+
+- **WHEN** the capability plugin reports unsupported
+- **THEN** login and creation actions are unavailable while existing email/provider login and authenticated credential deletion remain usable
