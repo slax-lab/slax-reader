@@ -18,7 +18,7 @@ vi.mock('@/di/generated/dependency', async () => {
   } }
 })
 import { handleContentRequest } from '@/handler/http/contentHandler'
-import { UnauthorizedError } from '@/const/err'
+import { BookmarkNotFoundError, UnauthorizedError } from '@/const/err'
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.auth.mockImplementation(async ctx => { ctx.setUserInfo(42, 84, '', 'en') })
@@ -48,4 +48,22 @@ test('anonymous public access remains supported without a database identity look
   expect((await call()).status).toBe(200)
   expect(mocks.query).not.toHaveBeenCalled()
   expect(mocks.business).toHaveBeenCalledOnce()
+})
+
+test('does not expose granular metadata stages when access is denied', async () => {
+  mocks.business.mockImplementation(async (_ctx, _uuid, recordTiming) => {
+    recordTiming('access-owner', 12)
+    throw BookmarkNotFoundError()
+  })
+  const response = await call()
+  expect(response.status).toBe(404)
+  expect(response.headers.get('Server-Timing')).not.toContain('access-owner')
+})
+
+test('retains granular diagnostic stages for successful metadata', async () => {
+  mocks.business.mockImplementation(async (_ctx, _uuid, recordTiming) => {
+    recordTiming('access-owner', 12)
+    return { title: 'allowed' }
+  })
+  expect((await call()).headers.get('Server-Timing')).toContain('core_access-owner;dur=12.0')
 })

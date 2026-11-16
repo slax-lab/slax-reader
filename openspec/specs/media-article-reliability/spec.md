@@ -7,35 +7,58 @@ Keep YouTube and podcast AI articles reachable and faithful for eligible source 
 
 ### Requirement: Supported media plans are processed
 
-The per-article budget SHALL cover the most expensive plan the configured duration, input-size and chunk limits allow. When a plan is skipped for cost, the run SHALL log the chunk count, duration, input size, expected cost and cap.
+The system SHALL admit otherwise eligible YouTube and podcast plans independently of total media duration, text size, chunk count, estimated cost, and accumulated spend. Model requests SHALL remain bounded and large inputs SHALL still be divided into processable chunks. Cost accounting SHALL be preserved even when spending exceeds former caps.
 
 #### Scenario: Long video inside the limits
-
 - **WHEN** a YouTube caption is 2h47m long with fewer than 40 chunks and 400,000 characters
-- **THEN** its expected cost fits the $1.00 per-article budget and generation starts instead of returning `too_long`
+- **THEN** its plan is admitted independently of estimated cost
 
 #### Scenario: Plan still too expensive
+- **WHEN** a valid plan costs more than the former per-article budget
+- **THEN** the plan is processed rather than skipped and its usage is accounted for
 
-- **WHEN** a plan's expected cost exceeds the per-article budget
-- **THEN** the version is skipped as `too_long` and the log carries `chunks`, `duration_ms`, `input_chars`, `expected_cost_usd` and `max_cost_usd`
+#### Scenario: Long media plan
+- **WHEN** a valid source exceeds the former duration, total text, or chunk-count cap
+- **THEN** generation starts and processes the complete plan without returning `too_long`
+
+#### Scenario: Cost exceeds former caps
+- **WHEN** estimated or actual cost exceeds the former per-run, per-episode, or lifetime cap
+- **THEN** generation continues and usage is recorded without a budget rejection
 
 ### Requirement: Model thinking cannot consume the article allowance
 
-Every YouTube and podcast article model call SHALL set a thinking budget of 2,048 tokens so thinking tokens cannot exhaust `maxOutputTokens` and truncate the JSON reply.
+All YouTube and podcast article text generation SHALL use `deepseek-flash` with thinking disabled and bounded output. Truncated replies SHALL remain incomplete and recoverable. The provider SHALL use the fixed API base `https://api.deepseek.com` and configured key, without a legacy provider fallback.
 
 #### Scenario: Long chunk completes
+- **WHEN** an article workflow requests editing, translation, headings or an introduction
+- **THEN** it uses the fixed DeepSeek endpoint, `deepseek-flash`, non-thinking JSON output and an explicit output limit
 
-- **WHEN** a chunk's prompt is near the 3,000-token target
-- **THEN** the model call carries `thinkingConfig: { thinkingBudget: 2048 }` and a `MAX_TOKENS` reply remains retryable instead of being treated as a complete article
+#### Scenario: YouTube chunk uses the thinking level
+- **WHEN** a YouTube article chunk call is made
+- **THEN** it carries no Gemini thinking settings under the DeepSeek provider contract, and a `MAX_TOKENS` reply is handled by the established truncation recovery
+
+#### Scenario: Provider truncation
+- **WHEN** the provider reports an output-length limit
+- **THEN** partial JSON is not accepted as a complete article and recovery respects the remaining budget
+
+#### Scenario: Key is missing
+- **WHEN** DeepSeek credentials are absent
+- **THEN** no alternate model is called and the generation failure does not expose credentials or request content
 
 ### Requirement: Numeric tokens survive translation
 
-The user message for each chunk SHALL list the chunk's numeric tokens and the system instruction SHALL require every number, date, unit and quantity to be written as digits, never as a word or a Chinese numeral.
+Podcast translation prompts SHALL list the chunk's numeric tokens and the system instruction SHALL require every number, date, unit and quantity to be written as digits, never as a word or a Chinese numeral.
 
 #### Scenario: Numbers in a translated article
 
 - **WHEN** the caption contains `10,000`, `100 million`, `24-7` or `2,600`
-- **THEN** the chunk prompt lists those tokens and the article keeps them as digits, so the unchanged `number_coverage` check can compare them
+- **THEN** the chunk prompt lists those tokens and the article keeps them as digits, so podcast number coverage checks can compare them
+
+YouTube translation prompts SHALL request faithful numbers and quantities. Numeric differences SHALL remain diagnostics rather than proof that a source passage was omitted.
+
+#### Scenario: YouTube numeric variation
+- **WHEN** a structurally complete YouTube translation uses an equivalent quantity or resolves ambiguous source speech differently
+- **THEN** numeric diagnostics do not block publication
 
 ### Requirement: Xiaoyuzhou episode pages use Zyte browser mode
 
@@ -79,3 +102,40 @@ An additive migration SHALL enable the `podcast` Labs feature for accounts that 
 
 - **WHEN** a recognised podcast link is saved while the `podcast` Labs feature is off
 - **THEN** the link is saved as a normal page and the log names the bookmark and the Labs fallback
+
+### Requirement: A truncated chunk reply changes the input
+
+When a chunk model call ends with `MAX_TOKENS`, the run SHALL NOT repeat the same call. It SHALL split the chunk's own cues into equal parts, in cue order, and call the model once per part, then join the parts in order into the chunk result. A part that ends with `MAX_TOKENS` SHALL be split again, up to 4 parts per chunk. A chunk that still truncates at 4 parts SHALL fail the version as `chunk_truncated` with no automatic retry, and the owner SHALL be able to request an explicit retry.
+
+#### Scenario: One split recovers the chunk
+
+- **WHEN** the whole-chunk call ends with `MAX_TOKENS` and both half-chunk calls return valid replies
+- **THEN** the chunk result holds the sections of both halves in cue order, the run continues with the next chunk, and the model received exactly 3 calls for that chunk
+
+#### Scenario: Truncation at the split limit
+
+- **WHEN** a chunk still returns `MAX_TOKENS` after the split into 4 parts
+- **THEN** the version is `failed` with `error_message` starting with `chunk_truncated`, the sweeper does not start it again, and the owner's status shows `can_retry`
+
+### Requirement: The output limit follows the input size
+
+Each chunk model call SHALL set `maxOutputTokens` to 4 times the estimated token count of its user message, with a floor of 4,000 and a ceiling of 16,000 tokens.
+
+#### Scenario: Normal chunk
+
+- **WHEN** a chunk's user message is about 2,500 tokens
+- **THEN** the call carries `maxOutputTokens: 10000`
+
+#### Scenario: Small part
+
+- **WHEN** a part's user message is 600 tokens
+- **THEN** the call carries `maxOutputTokens: 4000`
+
+### Requirement: Truncation telemetry
+
+For every reply that ends with `MAX_TOKENS`, the run SHALL log one event with the article id, chunk index, part count, input token count, candidate token count, thought token count and a repetition ratio of the reply text. The log SHALL carry no caption or reply text.
+
+#### Scenario: Truncated reply logged
+
+- **WHEN** a chunk call ends with `MAX_TOKENS`
+- **THEN** one `youtube_article_truncated` log line carries `article_id`, `chunk`, `parts`, `input_tokens`, `candidate_tokens`, `thought_tokens` and `repetition_ratio`, and no field contains transcript or article words

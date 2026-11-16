@@ -227,9 +227,15 @@ export class HybridSearchService {
     const matches = new Map<string, SearchMatch>()
     let exhausted = false
     let reason: 'candidate_limit' | 'scan_budget' | undefined
+    let remainingRows: Awaited<ReturnType<BookmarkSearchRepo['searchCandidatePage']>> = []
     for (let page = 0; page < SEARCH_FULLTEXT_MAX_PAGES; page++) {
       signal.throwIfAborted()
-      const rows = await this.fulltextRepo.searchCandidatePage(expression, page * SEARCH_FULLTEXT_PAGE_SIZE, SEARCH_FULLTEXT_PAGE_SIZE + 1)
+      if (page === 1) {
+        remainingRows = await this.fulltextRepo.searchCandidatePage(expression, SEARCH_FULLTEXT_PAGE_SIZE, (SEARCH_FULLTEXT_MAX_PAGES - 1) * SEARCH_FULLTEXT_PAGE_SIZE + 1)
+      }
+      const offset = (page - 1) * SEARCH_FULLTEXT_PAGE_SIZE
+      const rows =
+        page === 0 ? await this.fulltextRepo.searchCandidatePage(expression, 0, SEARCH_FULLTEXT_PAGE_SIZE + 1) : remainingRows.slice(offset, offset + SEARCH_FULLTEXT_PAGE_SIZE + 1)
       signal.throwIfAborted()
       exhausted = rows.length <= SEARCH_FULLTEXT_PAGE_SIZE
       const candidates = rows.slice(0, SEARCH_FULLTEXT_PAGE_SIZE)
