@@ -7,7 +7,7 @@
 - Worktree: `/Users/daguang/project/slax-reader/.local/worktrees/zhihu-partial-capture`.
 - Branch: `feat/fix-zhihu-parse` (renamed at the user's request from `fix/zhihu-partial-capture`), created from `origin/dev` at `8f534c21`.
 - The user approved implementation after the proposal was prepared.
-- This record covers local implementation and verification only. No commit, push, pull request, deployment, or production retry was performed.
+- Implementation was committed and PR #614 was opened at the user's request. This record now includes subsequent local Reader verification and human acceptance; no deployment or production replay was performed.
 
 ## Implemented behavior
 
@@ -64,7 +64,7 @@ Reviewed the fixed provider host, identifier-based query construction, escaped m
 
 ### Compliance
 
-The implementation follows the approved `zhihu-partial-capture` scope. Source changes are limited to API capture and workflow behavior, associated tests, and this change's planning/verification artifacts. No CLI, Extension, or Mobile package output is changed, so no client version increment is required by this diff. Agent-executable runtime evidence and its explicit gaps are recorded above. Human reader acceptance remains outstanding and is a mandatory gate before opening a pull request.
+The implementation follows the approved `zhihu-partial-capture` scope. Source changes are limited to API capture and workflow behavior, associated tests, and this change's planning/verification artifacts. No CLI, Extension, or Mobile package output is changed, so no client version increment is required by this diff. Agent-executable runtime evidence and its explicit gaps are recorded above. The requesting human completed hands-on Reader acceptance on 2026-11-16, with no adjustments requested. Acceptance occurred after PR #614 was opened; the original pre-PR gate was missed. The reviewed scenarios and this sequencing deviation are recorded below.
 
 ## Deferred review findings
 
@@ -75,8 +75,30 @@ The final local review raised the following items. At the user's direction they 
 - The invalid-parameter pattern matches `id` inside words such as `valid`, so some transient messages are treated as terminal. This reduces retries; it does not add charges.
 - Retry classification for the generic HTTP 400 depends on TikHub's current error text.
 
-## Remaining acceptance and release state
+## Human reader acceptance — 2026-11-16
 
-- Pending: task 4.3, human hands-on acceptance in the reader. No human acceptance is claimed by this record.
-- Production availability and actual live TikHub recovery are not established by controlled local tests.
-- A pull request was opened at the user's direction before human acceptance. Nothing has been deployed or archived.
+The requesting human reviewed the saved-content scenarios in the Reader and confirmed in this conversation on 2026-11-16 (Asia/Shanghai): "I checked the scenarios; no issues. Update the PR." No adjustments were requested. This is hands-on acceptance of the saved content, not proposal approval.
+
+The acceptance setup used isolated local PostgreSQL with the existing migrations, local Workerd and R2, production `fetchZhihuByUrl`, `CrawlService.parseAndSaveZhihu`, `MediaSnapshotService`, and `SnapshotBundle`, and the application's actual Reader at `/b/<uuid>`. Metadata, ownership, and publication used the real repositories rather than the in-memory doubles used by the automated runtime test above.
+
+Two fresh live TikHub answer-list requests for question `2092104476844999911` returned 20 answers each. Their responses were replayed without content changes at the provider boundary for the combined and answers-only captures. Question detail remained unavailable during the investigation, so, with the human's prior agreement, description content was explicitly labeled as simulated acceptance content rather than original Zhihu text. Blocked components returned controlled HTTP 400 responses; retry delays were real. No live answer request was needed for the description-only scenario.
+
+| Reviewed scenario | Saved Reader UUID | Detail / answer attempts | Saved text characters | Result |
+| --- | --- | --- | ---: | --- |
+| Combined: labeled simulated description and real answers | `d2f3dbde-78e6-424e-927a-1111ca16dccb` | 1 / 1 | 12,151 | Both parts saved and readable. |
+| Detail blocked: real answers only | `e525a88d-41ae-4e95-b7db-3a8b54a16ae2` | 4 / 1 | 12,071 | Answers retained; unavailable description omitted. |
+| Answers blocked: labeled simulated description only | `9a15d720-545e-4b04-bb9b-6fff74234386` | 1 / 4 | 101 | Description retained; unavailable answers omitted. |
+
+All three Reader pages and their saved-content endpoints returned HTTP 200; inclusion checks matched the expected presence or absence of description and answers. The human confirmed the reviewed scenarios above. Temporary capture fault injection was removed before handoff and is not part of the committed implementation. No production data or deployment was involved.
+
+This establishes human acceptance of partial saved content. It does not establish live question-detail recovery, a genuinely successful pair of live detail and answer endpoints, or end-to-end execution through `add_url` and a deployed Cloudflare Workflow.
+
+PR #614 was opened before this acceptance. The required pre-PR gate was missed; this later acceptance does not retroactively satisfy that ordering requirement. The human has now accepted the scenarios and requested that the existing PR be updated.
+
+## Acceptance and release state
+
+- Task 4.3 is complete: the requesting human accepted the reviewed Reader scenarios on 2026-11-16, with no adjustments requested.
+- The historical pre-PR acceptance sequencing deviation remains explicitly recorded above.
+- Production availability and actual live TikHub detail recovery remain unverified.
+- This follow-up changes only acceptance documentation and task status; it is exempt from repeating application runtime verification and from client version increments. Existing implementation checks remain the evidence for the unchanged code.
+- Nothing has been deployed or archived.
