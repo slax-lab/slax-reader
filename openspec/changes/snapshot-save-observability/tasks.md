@@ -25,7 +25,7 @@
 ## 5. Verification
 
 - [x] 5.1 Run the affected Web suites covering save activation, modal attribution, providers, OAuth callback, ordinary login, collection regression, and the click collector; verify 12 files and 154 tests pass.
-- [x] 5.2 Run the affected API suites covering account attribution and save facts; verify 2 files and 83 tests pass.
+- [x] 5.2 Run the affected API suites covering account attribution and save facts; verify 2 files and 85 tests pass.
 - [x] 5.3 Run shared-contract, Web, and API typechecks plus targeted ESLint and `git diff --check`; verify all typechecks pass and lint reports no errors.
 - [x] 5.4 Record the exact commands and results, the full-suite results under the CI toolchain, environment prerequisites, and every unverified runtime boundary in `validation.md`.
 - [x] 5.5 Run `openspec validate --all --strict` and record this change's result separately from pre-existing external informational or failing items in `validation.md`.
@@ -34,7 +34,7 @@
 
 - [x] 6.1 Fix the rate-limit telemetry boundary so a legitimate small `add_url` body without `Content-Length` is read within the existing 100 KiB bound, while oversized or streaming bodies remain unparsed; apply the save handler's HTTPS normalization to scheme-less snapshot targets.
 - [x] 6.2 Add API regressions for a no-Content-Length snapshot fork, a scheme-less snapshot target, an ordinary URL with no source, and an over-100 KiB body that is not parsed; verify the updated API suites pass.
-- [x] 6.3 Rerun `pnpm --filter slax-reader-backend typecheck`, targeted ESLint, `git diff --check`, and `openspec validate --all --strict`; record the independent full API run (250 files passed and 17 skipped; 3,996 tests passed and 144 skipped) and the full Web result in `validation.md`.
+- [x] 6.3 Rerun `pnpm --filter slax-reader-backend typecheck`, targeted ESLint, `git diff --check`, and `openspec validate --all --strict`; record the independent full API run (250 files passed and 17 skipped; 3,998 tests passed and 144 skipped) and the full Web result in `validation.md`.
 
 ## 7. Scope and Full-Web Closeout
 
@@ -51,7 +51,12 @@
 
 ## 9. Final Review Corrections
 
-- [x] 9.1 Reconcile every test count in `validation.md` and `tasks.md` with the Node 22.22.2 focused runs (Web 12 files/154 tests; API 2 files/83 tests) and with the independently confirmed full runs (Web 241 files passed/1 skipped and 2,907 tests passed/3 skipped; API 250 files passed/17 skipped and 3,996 tests passed/144 skipped), and demote the Node 26.12.1 result to a non-CI footnote.
+- [x] 9.1 Reconcile every test count in `validation.md` and `tasks.md` with the Node 22.22.2 focused runs (Web 12 files/154 tests; API 2 files/85 tests) and with the independently confirmed full runs (Web 241 files passed/1 skipped and 2,907 tests passed/3 skipped; API 250 files passed/17 skipped and 3,998 tests passed/144 skipped), and demote the Node 26.12.1 result to a non-CI footnote.
 - [x] 9.2 Bring both `request.clone()` calls in `rateLimit.ts` inside exception handling so a clone failure emits `bookmark_save_failed` without a source and cannot leave the `waitUntil` promise rejected; keep the 100 KiB bounded read and normal save behavior unchanged.
 - [x] 9.3 Make the element-click collector test assert exactly two snapshot clicks and one ordinary click with `screen_name=detail`, and remove the captured document listeners after each test without changing production code.
 - [x] 9.4 Reference the Q7 decision in `proposal.md` and `design.md` by repository-relative path in `slax-reader-event-tracking`, and record that its separate branch and pull request must land before this change merges.
+
+## 10. Pre-push Review Corrections
+
+- [x] 10.1 Restrict email authentication attribution to the snapshot schema; add regressions proving collection and HackerLinks metadata are omitted for both new and returning email account facts while preserving snapshot attribution and existing provider behavior.
+- [x] 10.2 Reconcile the runtime boundaries with the completed real Google and fresh-snapshot acceptance; retain only the actual remaining gaps and rerun the affected API suites, typecheck, full API suite, and OpenSpec validation.

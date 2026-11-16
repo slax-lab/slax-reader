@@ -87,7 +87,7 @@ pnpm --filter slax-reader-backend exec vitest run --config vitest.config.ts \
   test/domain/firstPartyFacts.test.ts
 ```
 
-Result: **2 test files passed, 83 tests passed**, exit 0.
+Result: **2 test files passed, 85 tests passed**, exit 0.
 
 Coverage includes:
 
@@ -159,7 +159,7 @@ Verification after the correction:
 
 | Check | Result |
 | --- | --- |
-| `pnpm --filter slax-reader-backend exec vitest run --config vitest.config.ts test/domain/collectionAuthAttribution.test.ts test/domain/firstPartyFacts.test.ts` | 2 files passed; 83 tests passed |
+| `pnpm --filter slax-reader-backend exec vitest run --config vitest.config.ts test/domain/collectionAuthAttribution.test.ts test/domain/firstPartyFacts.test.ts` | 2 files passed; 85 tests passed |
 | `pnpm --filter slax-reader-backend typecheck` | Passed |
 | `pnpm --filter slax-reader-backend exec eslint src/middleware/rateLimit.ts` | Passed with no findings |
 | `git diff --check` | Passed |
@@ -185,7 +185,7 @@ Verification after Q7:
 | Check | Result |
 | --- | --- |
 | Focused Web suites | 12 files passed; 154 tests passed |
-| Focused API suites | 2 files passed; 83 tests passed |
+| Focused API suites | 2 files passed; 85 tests passed |
 | `pnpm --filter @slax-reader/contracts typecheck` | Passed |
 | `pnpm --filter @apps/slax-reader-dweb typecheck` | Passed |
 | `pnpm --filter slax-reader-backend typecheck` | Passed |
@@ -213,17 +213,17 @@ Footnote, non-CI local toolchain: an earlier full Web attempt on the machine's d
 ## Full-Suite and Runtime Boundaries
 
 - Full Web (independently rerun and confirmed, Node `v22.22.2`, `frontend-ci.yml` environment, `pnpm web -- test`): **241 files passed, 1 skipped; 2,907 tests passed, 3 skipped**.
-- Full API (independently rerun and confirmed, Node `v22.22.2`, `api-ci.yml` environment, `pnpm api -- test`): **250 files passed, 17 skipped; 3,996 tests passed, 144 skipped**.
+- Full API (independently rerun and confirmed, Node `v22.22.2`, `api-ci.yml` environment, `pnpm api -- test`): **250 files passed, 17 skipped; 3,998 tests passed, 144 skipped**.
 - An earlier accidental full API invocation during environment preparation failed at module load because the worktree had no generated Prisma clients (136 files and 43 tests failed). That was an environment-preparation failure and is superseded by the full API result above.
-- No real Google or Apple OAuth authorization, callback, account creation, or returning-login flow was exercised.
-- No real browser session clicked the snapshot control, opened the modal, completed sign-in, returned to the snapshot, performed a later authenticated activation, or clicked a provider control on the `/auth` recovery page. Those behaviors are covered by unit and component tests only; the recovery-page provider click is composed from the recovery-propagation and provider-component tests described above.
+- Real Google OAuth authorization, callback, account creation, return to the source snapshot, and second save activation were exercised as recorded below. Apple OAuth and an existing-account returning-login flow were not exercised.
+- A real browser session clicked the snapshot control, opened the attributed sign-in modal, completed Google sign-in, returned to the snapshot, and performed the later authenticated activation. No integrated provider click on the `/auth` recovery page was exercised; that path is composed from the recovery-propagation and provider-component tests described above.
 - No deployment to any environment was performed.
-- No real `/events` ingestion, event-warehouse write, R2 record, or reporting query was verified. The change records emitted properties, not accepted warehouse records.
+- Local `/events` HTTP acceptance was verified, but no event-warehouse write, R2 event record, reporting query, or Q7 C5 production acceptance was verified. The change records emitted properties, not accepted warehouse records.
 - Production `FRONT_END_URL` and Web `PUBLIC_BASE_URL` origin consistency was not exercised. The implementation uses the existing trusted-reader-URL helper for fork detection and constructs the save target from the same source UUID.
 - The selected source identity on `/add_url` is computed from the request URL before any server-side short-link resolution. The Web control sends a direct trusted `/b/<uuid>` URL, so this target flow is covered; a future client that resolves a short link into a snapshot URL would need a separate decision.
 - The existing `/auth` no-code redirect to `/login` and the `EMAIL_AUTH_USE_EXISTING_LOGIN` recovery link retain their current behavior and do not carry snapshot attribution. This is an explicit scope boundary, not a silent omission.
 - A recoverable `/auth` recovery screen can be observed by both the existing global signup-screen click collector and the attributed provider component. This overlap already exists for collection attribution and was not changed. No browser measurement of that duplicate was performed.
-- No final asynchronous fork-copy success or failure was verified, and no final completion event was added.
+- The fresh snapshot's final asynchronous copy reached `success` as recorded below. The old fixture's `fork_source_not_ready` result and the smoke harness's later fault-injection recapture failure remain limitations; no final completion event was added.
 - Mobile `device_id` work was explicitly excluded. Automatic post-authentication saving is defined by the separate `snapshot-save-auto-resume` change and was not implemented or verified here.
 
 ## Final Review Corrections
@@ -233,7 +233,7 @@ A final review raised one rate-limit safety issue, one test-isolation issue, and
 - **Rate-limit clone safety.** Both `request.clone()` calls in `apps/api/src/middleware/rateLimit.ts` are now inside `try`/`catch`. A throwing clone returns `null`, the rejected save is still rate-limited and still emits `bookmark_save_failed`, and the `waitUntil` promise cannot reject. The bounded 100 KiB read, the oversized-body skip, and normal saves are unchanged. No committed test covers a throwing clone; an ad hoc vitest probe injected a throwing `clone()` for both the Content-Length and absent-Content-Length branches, observed one `bookmark_save_failed` event without `source_bookmark_id`, and was removed after the run.
 - **Click collector test isolation.** `apps/web/tests/unit/plugins/firstPartyAnalytics.spec.ts` now asserts exactly three `eventLog` calls: two `snapshot_save_button` clicks with `screen_name=detail` and `source_bookmark_id`, and one ordinary click with no source. The test captures the plugin's document listeners and removes them after each test, so a repeated mount cannot double count. No production code changed for cleanup.
 - **Q7 traceability.** `proposal.md` and `design.md` now cite the Q7 decision by repository-relative path in `slax-reader-event-tracking` and record that its own branch and pull request must land before this change merges. No main-branch URL is linked because none exists yet.
-- **Number reconciliation.** Focused Web is 12 files and 154 tests; focused API is 2 files and 83 tests; full Web is 241 files passed and 1 skipped with 2,907 tests passed and 3 skipped; full API is 250 files passed and 17 skipped with 3,996 tests passed and 144 skipped. The Node `v26.12.1` full Web result is now only a non-CI footnote.
+- **Number reconciliation.** Focused Web is 12 files and 154 tests; focused API is 2 files and 85 tests; full Web is 241 files passed and 1 skipped with 2,907 tests passed and 3 skipped; full API is 250 files passed and 17 skipped with 3,998 tests passed and 144 skipped. The Node `v26.12.1` full Web result is now only a non-CI footnote.
 
 ## Local Browser Exercise
 
@@ -273,6 +273,21 @@ The authenticated `POST /v1/user/login` and `POST /v1/bookmark/add_url` both ret
 - the target body retains the expected title and acceptance paragraph.
 
 The copied HTML is not byte-identical because the fork pipeline rewrites content; the acceptance criterion is preserved readable content, not byte equality. This completes the local user-task acceptance for anonymous activation, authentication, return, second activation, save admission, and final readable content. It does not add automatic resume and does not establish event-warehouse ingestion or Q7 `live` status.
+
+## Pre-push Review Corrections
+
+The final pre-push review found that the email login branch parsed the full Web attribution union, unintentionally allowing collection and HackerLinks attribution through a path whose approved scope is snapshot-only. The branch now parses only `snapshotAuthAttributionSchema`. Regressions cover new and returning email accounts for both rejected attribution kinds, while the existing email-plus-snapshot, Google, Apple, collection, and HackerLinks tests remain unchanged and pass.
+
+The same review identified stale runtime-boundary statements that predated the real browser acceptance. Those statements now distinguish the completed Google and fresh-snapshot exercise from the remaining Apple, returning-login, recovery-click, hosted-deployment, warehouse-ingestion, and Q7 C5 gaps.
+
+Verification after these corrections, under Node `v22.22.2`:
+
+- Focused API: 2 files passed; 85 tests passed.
+- Full API: 250 files passed and 17 skipped; 3,998 tests passed and 144 skipped.
+- API typecheck passed. `pnpm api -- gen:all` completed without adding a tracked generated-output diff.
+- Targeted API ESLint reported no errors; only the existing `no-explicit-any` warning in `user.ts` and the test-file ignore notice.
+- `openspec validate --all --strict --no-interactive`: 142 passed, 0 failed.
+- No Web file changed in this correction, so the accepted full Web result above remains applicable.
 
 ## Local Review
 

@@ -346,4 +346,18 @@ describe('snapshot save authentication attribution', () => {
       })
     ])
   })
+
+  test.each([true, false])('rejects collection and HackerLinks attribution from the email code path (new=%s)', async isNew => {
+    for (const metadata of [attribution, acquisition]) {
+      const f = fixture(isNew)
+      await expect(f.loginEmail(metadata)).resolves.toMatchObject({ is_new_user: isNew, login_type: 'email' })
+      await f.settled()
+      expect(f.send).toHaveBeenCalledWith([
+        expect.objectContaining({
+          event_name: isNew ? 'user_created' : 'user_logged_in',
+          properties: { method: 'email', platform: 'web', locale: 'en', client_version: 'unknown' }
+        })
+      ])
+    }
+  })
 })

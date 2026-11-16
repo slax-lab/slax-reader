@@ -681,7 +681,7 @@ export class UserService {
     if (req.type === 'email') {
       const { key, delivery } = await this.emailCodes.verifyCode(ctx.env, { ...req, purpose: 'login' })
       const result = await this.loginByVerifiedEmail(ctx, request, key, delivery)
-      return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(req.auth_attribution).data)
+      return this.trackLogin(ctx, request, result, snapshotAuthAttributionSchema.safeParse(req.auth_attribution).data)
     }
     const attribution =
       req.type === 'google'
