@@ -48,12 +48,15 @@ import { LoginIdentityService } from '../../domain/loginIdentityService'
 import { EmailCodeService } from '../../domain/emailCode'
 import { OAuthStateRepo } from '../../infra/repository/redisOAuthState'
 import { VectorMaintenanceRepo } from '../../infra/repository/dbVectorMaintenance'
+import { PasskeyRepo } from '../../infra/repository/dbPasskey'
+import { PasskeyChallengeRepo } from '../../infra/repository/redisPasskeyChallenge'
 import { MediaBodyService } from '../../domain/mediaBody'
 import { RssRepo } from '../../infra/repository/dbRss'
 import { RssContent } from '../../domain/rss/content'
 import { GA4AnalyticsClient } from '../../infra/external/ga4Analytics'
 import { ReportRepo } from '../../infra/repository/dbReport'
 import { LoginIdentityLinkService } from '../../domain/loginIdentityLinkService'
+import { PasskeyService } from '../../domain/passkey'
 import { VectorSourceRepo } from '../../infra/repository/vectorSources'
 import { VectorIndexClient } from '../../infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '../../infra/repository/vectorPreferenceClient'
@@ -122,6 +125,7 @@ import { ImageController } from '../../handler/http/imageController'
 import { MarkController } from '../../handler/http/markController'
 import { McpServerController } from '../../handler/http/mcpController'
 import { MetricsController } from '../../handler/http/metricsController'
+import { PasskeyController } from '../../handler/http/passkeyController'
 import { PodcastController } from '../../handler/http/podcastController'
 import { PromotionController } from '../../handler/http/promotionController'
 import { RssController } from '../../handler/http/rssController'
@@ -295,6 +299,10 @@ container.register(NotificationService, {
     new NotificationService(container.resolve(UserRepo), container.resolve(BookmarkRepo), container.resolve(CollectionRepo), container.resolve(NotificationMessage))
 })
 
+container.register(PasskeyService, {
+  useFactory: container => new PasskeyService(container.resolve(PasskeyRepo), container.resolve(PasskeyChallengeRepo))
+})
+
 container.register(PodcastService, {
   useFactory: container =>
     new PodcastService(
@@ -400,7 +408,8 @@ container.register(UserService, {
       container.resolve(LabService),
       container.resolve(EmailCodeService),
       container.resolve(LoginIdentityService),
-      container.resolve(LoginIdentityLinkService)
+      container.resolve(LoginIdentityLinkService),
+      container.resolve(PasskeyService)
     )
 })
 
@@ -410,7 +419,8 @@ container.register(UserDeletionService, {
       lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)),
       container.resolve(UserRepo),
       lazy(() => container.resolve(BucketClient)),
-      container.resolve(VectorMaintenanceRepo)
+      container.resolve(VectorMaintenanceRepo),
+      container.resolve(PasskeyRepo)
     )
 })
 
@@ -698,6 +708,10 @@ container.register(MarkRepo, {
     )
 })
 
+container.register(PasskeyRepo, {
+  useFactory: container => new PasskeyRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
+})
+
 container.register(PodcastArticleRepo, {
   useFactory: container => new PodcastArticleRepo(lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)))
 })
@@ -760,6 +774,10 @@ container.register(EmailChallengeRepo, {
 
 container.register(OAuthStateRepo, {
   useFactory: container => new OAuthStateRepo(lazy(() => container.resolve(RedisClient)))
+})
+
+container.register(PasskeyChallengeRepo, {
+  useFactory: container => new PasskeyChallengeRepo(lazy(() => container.resolve(RedisClient)))
 })
 
 container.register(VectorIndexClient, {
@@ -845,6 +863,10 @@ container.register(McpServerController, {
 
 container.register(MetricsController, {
   useFactory: container => new MetricsController(container.resolve(DashboardService), container.resolve(LogsService))
+})
+
+container.register(PasskeyController, {
+  useFactory: container => new PasskeyController(container.resolve(PasskeyService))
 })
 
 container.register(PodcastController, {

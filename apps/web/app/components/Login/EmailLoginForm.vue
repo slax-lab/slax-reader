@@ -10,7 +10,7 @@
         <span>{{ t(open ? 'email_auth.cancel' : 'email_auth.continue_with_email') }}</span>
       </button>
     </div>
-    <EmailCodeForm v-if="open" :id="formId" ref="form" class="email-code-form--inline email-code-form--login" :initial-email="initialEmail" retain-pending-on-success :verify="verifyEmail" />
+    <EmailCodeForm v-if="open" :id="formId" ref="form" class="email-code-form--inline email-code-form--login" :initial-email="initialEmail" retain-pending-on-success :verify="verifyEmail" :authenticate-passkey="passkeysEnabled && passkeysSupported ? authenticatePasskey : undefined" :passkey-autofill="passkeyAutofill" />
   </div>
 </template>
 
@@ -20,9 +20,14 @@ import EmailCodeForm from '~/components/Login/EmailCodeForm.vue'
 
 import { authReturnTarget } from '~/utils/emailAuth'
 import { readLastLoginEmail, rememberLoginEmail } from '~/utils/lastLoginEmail'
+import type { PasskeyAuthenticationMode } from '~/utils/passkeyAuth'
+import { signalUnknownPasskey } from '~/utils/passkeyAuth'
 
+import { browserSupportsPasskeys, browserSupportsWebAuthn, browserSupportsWebAuthnAutofill, getBrowserCapabilities, startAuthentication, WebAuthnAbortService } from '@simplewebauthn/browser'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
 import type { WebAuthAttribution } from '@slax-reader/contracts/events'
+import type { PasskeyAuthenticationChallenge } from '@slax-reader/contracts/passkey'
 
 const props = defineProps<{
   redirect: string
@@ -34,6 +39,27 @@ const nuxtApp = useNuxtApp()
 const { t } = nuxtApp.$i18n
 const auth = useAuth()
 const formId = useId()
+const passkeysEnabled = ['development', 'preview', 'beta'].includes(useRuntimeConfig().public.slaxEnv)
+const passkeysSupported = ref(false)
+const passkeyAutofill = ref(false)
+let mounted = true
+onBeforeUnmount(() => { mounted = false })
+onMounted(async () => {
+  if (!passkeysEnabled) return
+  try {
+    // Older supported browsers expose WebAuthn without the newer capabilities API.
+    const supported = await browserSupportsPasskeys() || (browserSupportsWebAuthn() && typeof PublicKeyCredential.getClientCapabilities !== 'function')
+    if (!mounted) return
+    passkeysSupported.value = supported
+    if (!supported) return
+    const capabilities = await getBrowserCapabilities()
+    if (capabilities.conditionalGet !== 'supported') return
+    const autofill = await browserSupportsWebAuthnAutofill()
+    if (mounted) passkeyAutofill.value = autofill
+  } catch {
+    // Capability detection must leave the existing email login available.
+  }
+})
 const open = ref(false)
 const initialEmail = ref('')
 const departing = ref(false)
@@ -58,6 +84,51 @@ const toggle = () => {
   }
 }
 
+const continueLogin = async (email: string, target: string, signal: AbortSignal) => {
+  signal.throwIfAborted()
+  rememberLoginEmail(email)
+  departing.value = true
+  try {
+    if (await nuxtApp.runWithContext(() => navigateTo(target, { external: true })) === false) throw new Error('Login navigation did not complete')
+  } catch (error) {
+    departing.value = false
+    throw error
+  }
+}
+
+const authenticatePasskey = async (email: string, signal: AbortSignal, mode: PasskeyAuthenticationMode = {}) => {
+  const target = authReturnTarget(props.redirect, location.origin)
+  const response = await request().post<PasskeyAuthenticationChallenge>({
+    url: RESTMethodPath.PASSKEY_CHALLENGE,
+    body: { purpose: 'login', email },
+    signal,
+    errorInterceptors: () => {}
+  })
+  signal.throwIfAborted()
+  if (!response || response.purpose !== 'login') throw new Error('Passkey challenge failed')
+  const cancelCeremony = () => WebAuthnAbortService.cancelCeremony()
+  signal.addEventListener('abort', cancelCeremony, { once: true })
+  try {
+    const credential = await startAuthentication({ optionsJSON: response.options, ...(mode.useBrowserAutofill ? { useBrowserAutofill: true } : {}) })
+    signal.throwIfAborted()
+    mode.onCredential?.()
+    signal.throwIfAborted()
+    try {
+      await auth.verifyPasskeyAuth({
+        type: 'passkey', email, request_id: response.request_id, credential,
+        ...(props.authAttribution ? { auth_attribution: props.authAttribution } : {})
+      }, { signal, errorInterceptors: () => {} })
+    } catch (error) {
+      signal.throwIfAborted()
+      void signalUnknownPasskey(error, response.options.rpId ?? location.hostname, credential.id)
+      throw error
+    }
+    await continueLogin(email, target, signal)
+  } finally {
+    signal.removeEventListener('abort', cancelCeremony)
+  }
+}
+
 const verifyEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
   const target = authReturnTarget(props.redirect, location.origin)
   await auth.verifyEmailAuth({
@@ -66,15 +137,7 @@ const verifyEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
     ...(props.authAttribution ? { auth_attribution: props.authAttribution } : {})
   }, { signal, errorInterceptors: () => {} })
 
-  signal.throwIfAborted()
-  rememberLoginEmail(proof.email)
-  departing.value = true
-  try {
-    if (await nuxtApp.runWithContext(() => navigateTo(target, { external: true })) === false) throw new Error('Login navigation did not complete')
-  } catch (error) {
-    departing.value = false
-    throw error
-  }
+  await continueLogin(proof.email, target, signal)
 }
 </script>
 

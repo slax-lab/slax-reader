@@ -1,3 +1,4 @@
+import { PasskeyRepo } from '../infra/repository/dbPasskey'
 import { inject, injectable } from '../decorators/di'
 import type { LazyInstance } from '../decorators/lazy'
 import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
@@ -15,7 +16,8 @@ export class UserDeletionService {
     @inject(PRISIMA_HYPERDRIVE_CLIENT) private prismaPg: LazyInstance<HyperdrivePrismaClient>,
     @inject(UserRepo) private userRepo: UserRepo,
     @inject(BucketClient) private bucket: LazyInstance<BucketClient>,
-    @inject(VectorMaintenanceRepo) private vectorRepo: VectorMaintenanceRepo
+    @inject(VectorMaintenanceRepo) private vectorRepo: VectorMaintenanceRepo,
+    @inject(PasskeyRepo) private passkeys: PasskeyRepo
   ) {}
 
   public async ensureUserNotDeleted(userId: number): Promise<void> {
@@ -76,6 +78,7 @@ export class UserDeletionService {
       await this.deleteBookmarkSummaries(userId)
 
       // 绑定的TG等平台
+      await this.passkeys.deleteByUserId(userId)
       await this.deletePlatformBinds(userId)
 
       // 用户书签列表（必须在私有书签之前删除，因为有外键）

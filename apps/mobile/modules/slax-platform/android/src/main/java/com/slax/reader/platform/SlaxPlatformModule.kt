@@ -12,6 +12,17 @@ import java.net.InetAddress
 class SlaxPlatformModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("SlaxPlatform")
+    AsyncFunction("createPasskey") Coroutine { options: String ->
+      kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+        SlaxPasskeys.perform(appContext.currentActivity ?: error("No active screen"), options, true)
+      }
+    }
+    AsyncFunction("authenticatePasskey") Coroutine { options: String ->
+      kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+        SlaxPasskeys.perform(appContext.currentActivity ?: error("No active screen"), options, false)
+      }
+    }
+    AsyncFunction("cancelPasskey") { SlaxPasskeys.cancel() }.runOnQueue(expo.modules.kotlin.functions.Queues.MAIN)
     AsyncFunction("googleSignIn") Coroutine { webClientId: String ->
       SlaxGoogleSignIn.signIn(appContext.currentActivity ?: error("No active screen"), webClientId)
     }

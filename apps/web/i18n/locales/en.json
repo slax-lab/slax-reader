@@ -1,4 +1,25 @@
 {
+  "passkey_auth": {
+    "title": "Passkeys",
+    "sign_in": "Sign in with Passkey",
+    "authenticating": "Signing in…",
+    "manage": "Manage",
+    "add": "Add Passkey",
+    "adding": "Adding…",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "loading": "Loading…",
+    "empty": "No Passkeys yet.",
+    "mail_required": "Link a sign-in email first to add Passkeys.",
+    "unsupported": "Passkeys are unavailable in this browser.",
+    "created": "Created {date}",
+    "last_used": "Last used {date}",
+    "never_used": "Never used",
+    "failed": "We couldn’t complete this Passkey request. Try again or use another sign-in method.",
+    "canceled": "Passkey request canceled. You can try again.",
+    "added": "Passkey added.",
+    "deleted": "Passkey deleted."
+  },
   "email_auth": {
     "continue_with_email": "Continue with email",
     "address_label": "Email address",

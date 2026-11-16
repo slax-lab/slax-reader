@@ -34,6 +34,7 @@ export function environmentTypes(source: string): string {
       '// Env bindings contain no configuration values; pnpm types preserves declarations and adds optional bindings from script/generate-worker-types.ts.'
     )
   for (const [name, type] of [
+    ['PASSKEY_ANDROID_ORIGINS', 'string'],
     ['EMAIL_AUTH_FROM', 'string'],
     ['EMAIL_AUTH_WEB_CALLBACK', 'string'],
     ['RESEND_API_KEY', 'string'],

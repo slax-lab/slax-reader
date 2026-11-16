@@ -1880,6 +1880,29 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - react-native-passkey (3.6.2):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-bridging
+    - React-Core
+    - React-Core-prebuilt
+    - React-cxxstableapi
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-safe-area-context (5.11.1):
     - hermes-engine
     - RCTRequired
@@ -2798,6 +2821,7 @@ DEPENDENCIES:
   - "React-Mapbuffer (from `../../../node_modules/.pnpm/react-native@0.88.1_@babel+core@7.29.7_supports-color@10.2.2__@react-native+metro-confi_0e70fce04735883a06390fdf29c3cd20/node_modules/react-native/ReactCommon`)"
   - "React-microtasksnativemodule (from `../../../node_modules/.pnpm/react-native@0.88.1_@babel+core@7.29.7_supports-color@10.2.2__@react-native+metro-confi_0e70fce04735883a06390fdf29c3cd20/node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)"
   - "React-mutationobservernativemodule (from `../../../node_modules/.pnpm/react-native@0.88.1_@babel+core@7.29.7_supports-color@10.2.2__@react-native+metro-confi_0e70fce04735883a06390fdf29c3cd20/node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver`)"
+  - "react-native-passkey (from `../../../node_modules/.pnpm/react-native-passkey@3.6.2_react-native@0.88.1_@babel+core@7.29.7_supports-color@10.2.2_89bfab8cc552410ad406be6304d78379/node_modules/react-native-passkey`)"
   - "react-native-safe-area-context (from `../../../node_modules/.pnpm/react-native-safe-area-context@5.11.1_react-native@0.88.1_@babel+core@7.29.7_supports-c_07b1548d92db85867a0e0700062feb3f/node_modules/react-native-safe-area-context`)"
   - "react-native-webview (from `../../../node_modules/.pnpm/react-native-webview@14.0.1_react-native@0.88.1_@babel+core@7.29.7_supports-color@10.2._4af38042aafc8d6ef626a15be82cd144/node_modules/react-native-webview`)"
   - "React-NativeModulesApple (from `../../../node_modules/.pnpm/react-native@0.88.1_@babel+core@7.29.7_supports-color@10.2.2__@react-native+metro-confi_0e70fce04735883a06390fdf29c3cd20/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)"
@@ -3057,6 +3081,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/.pnpm/react-native@0.88.1_@babel+core@7.29.7_supports-color@10.2.2__@react-native+metro-confi_0e70fce04735883a06390fdf29c3cd20/node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   React-mutationobservernativemodule:
     :path: "../../../node_modules/.pnpm/react-native@0.88.1_@babel+core@7.29.7_supports-color@10.2.2__@react-native+metro-confi_0e70fce04735883a06390fdf29c3cd20/node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver"
+  react-native-passkey:
+    :path: "../../../node_modules/.pnpm/react-native-passkey@3.6.2_react-native@0.88.1_@babel+core@7.29.7_supports-color@10.2.2_89bfab8cc552410ad406be6304d78379/node_modules/react-native-passkey"
   react-native-safe-area-context:
     :path: "../../../node_modules/.pnpm/react-native-safe-area-context@5.11.1_react-native@0.88.1_@babel+core@7.29.7_supports-c_07b1548d92db85867a0e0700062feb3f/node_modules/react-native-safe-area-context"
   react-native-webview:
@@ -3188,7 +3214,7 @@ SPEC CHECKSUMS:
   ExpoLocalization: ed930f5d68e7b3c2073a04787358839e1a8e1680
   ExpoLogBox: 9bfba7bb99c806b678703e6c62323f3c4785e706
   ExpoMediaLibrary: 378277a96cb72d49a7c21dddefdbfa69d734506f
-  ExpoModulesCore: 4efa8b0ee4668298dc12b6c91b625749404838fb
+  ExpoModulesCore: 9a8b7f089faa0d8b73e0e6f272f2d132ac52bfdb
   ExpoModulesJSI: 68a068c5214c88982f236bb26dd44fa004f10f35
   ExpoModulesWorklets: 25684e76e7b886dd31bf4538c3fd657bf07a694b
   ExpoModulesWorkletsAdapter: 0633a3c48157edfa9ae22134581e4289d1e091dd
@@ -3271,6 +3297,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 8a30d6d1aa30274771dc5d22f6778fa7689d98b8
   React-microtasksnativemodule: c5df4b7fe2553c25d419b99c586179ab77594b5b
   React-mutationobservernativemodule: b85faf3c54644c0ef2c758cd8c4e6ce16fb1f8ae
+  react-native-passkey: 5df494e4504ebd90896569aad1f5eb8f53c45256
   react-native-safe-area-context: f54c903d3a8c8ddd602e85d4e5bcfe9944de85bc
   react-native-webview: 0350e63d9eff606d9923619409987b6cd1ac58f5
   React-NativeModulesApple: 8cfb2f308f48c48068c96b932e7f0e4297c23342

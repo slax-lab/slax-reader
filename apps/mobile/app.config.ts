@@ -33,6 +33,12 @@ const updates: ExpoConfig['updates'] = productionBuild ? {
   requestHeaders: {'expo-channel-name': 'production'},
 } : {enabled: false};
 
+const passkeyWebUrl = new URL(process.env.EXPO_PUBLIC_SLAX_WEB_URL ?? productionOrigins.EXPO_PUBLIC_SLAX_WEB_URL);
+if (!fixtureMode && (passkeyWebUrl.protocol !== 'https:' || !passkeyWebUrl.hostname || passkeyWebUrl.username || passkeyWebUrl.password)) {
+  throw new Error('Native Passkey association requires an HTTPS public Web URL without credentials');
+}
+const passkeyWebUrls = [...new Set([passkeyWebUrl.origin, 'https://r.slax.dev', 'https://r-beta.slax.com', 'https://r.slax.com'])];
+
 const providerPlugins: NonNullable<ExpoConfig['plugins']> = fixtureMode ? [] : [
   ['react-native-nitro-google-signin', {
     iosUrlScheme: process.env.EXPO_PUBLIC_SLAX_GOOGLE_IOS_URL_SCHEME ?? sourceAuth.googleIosUrlScheme,
@@ -44,7 +50,7 @@ const config: ExpoConfig = {
   slug: uiFixture ? 'slax-reader-ui-fixture' : 'slax-reader',
   platforms: ['ios', 'android'],
   version: buildVersion.version,
-  runtimeVersion: fixtureMode ? '1.0.0' : {policy: 'nativeVersion'},
+  runtimeVersion: fixtureMode ? '1.0.0' : productionBuild ? {policy: 'nativeVersion'} : `${buildVersion.version}(${buildVersion.build})`,
   updates,
   orientation: 'portrait',
   userInterfaceStyle: 'light',
@@ -56,6 +62,7 @@ const config: ExpoConfig = {
     ...(firebaseIosConfig ? {googleServicesFile: firebaseIosConfig} : {}),
     buildNumber: buildVersion.build,
     supportsTablet: true,
+    associatedDomains: fixtureMode ? [] : passkeyWebUrls.map(url => `webcredentials:${new URL(url).hostname}`),
     entitlements: uiFixture ? {} : { 'com.apple.security.application-groups': ['group.app.slax.reader'] },
     infoPlist: { ITSAppUsesNonExemptEncryption: false, FirebaseAutomaticScreenReportingEnabled: false,
       SlaxApiBaseURL: process.env.EXPO_PUBLIC_SLAX_API_URL ?? 'https://api-reader.slax.com',
@@ -76,6 +83,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     ['./plugins/with-native-compatibility.cjs', {fixtureMode}],
+    ...(!fixtureMode ? [['./plugins/with-passkeys.cjs', {webUrls: passkeyWebUrls}] as [string, {webUrls: string[]}]] : []),
     ...(!fixtureMode ? ['expo-app-intents'] : []),
     './plugins/with-retire-reading-widgets.cjs',
     ...(firebaseIosConfig || firebaseAndroidConfig ? ['./plugins/with-firebase-bootstrap.cjs'] : []),
