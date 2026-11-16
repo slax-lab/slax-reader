@@ -2,7 +2,7 @@
 
 ## Context
 
-See `proposal.md` for motivation and scope. The source baseline is `origin/dev` merge `2203281e` (PR #605), fetched on November 16, 2026. The production branch had not received that merge when checked. The change requester subsequently approved only the initial player-layout slice; first-byte and deployment verification remain deferred.
+See `proposal.md` for motivation and scope. The source baseline is `origin/dev` merge `2203281e` (PR #605), fetched on November 16, 2026. Production initially lacked that merge. The change requester subsequently approved the initial player-layout slice and later reported #605 production deployment, resuming its verification. Fresh deployment/resource/interaction evidence and remaining controlled-profile, attribution and field gaps are recorded in `validation.md`; the runtime implementation scope remains unchanged.
 
 The frozen November 13–16 investigation covers 165 LCP events across seven URLs. The original podcast has 19/36 valid comparable hard navigations with TTFB above 2.5 seconds; the video podcast has 24/39. Those are unchanged-TTFB counterfactual limits on those observations, not projections for future traffic. A clean production desktop trace of the video podcast had text candidates at 1.822 and 3.656 seconds. It also loaded two YouTube iframe documents; the second request started after final LCP and is not a measured cause of that candidate gap.
 
@@ -29,7 +29,7 @@ Current source facts:
 
 The test environment can establish code/mechanism behavior and expose #605 timing stages. It cannot establish the production 70% outcome or provide a valid before/after comparison using missing/different content. See `validation.md` for current evidence and gaps. Keep the original #605 outcome tasks open.
 
-Four production sample UUIDs currently return 404 on `r.slax.dev`. On November 16, 2026, the change requester confirmed that no public test samples are currently available and deferred this verification until they notify production deployment. Retain the same-content checks as incomplete TODOs; do not create data, copy production snapshots into the test bucket, recapture content or weaken access to obtain a sample. A regression test or local fixture is not a deployed test-article measurement. Production intentionally omits granular timing headers, so the production field/browser verification does not automatically close metadata-stage attribution.
+Four production sample UUIDs returned 404 on `r.slax.dev`. On November 16, 2026, the change requester confirmed that no public test samples were available and initially deferred verification. They later reported production deployment and resumed the same-content checks there. Do not create data, copy production snapshots into the test bucket, recapture content or weaken access to obtain a sample. A regression test or local fixture is not a deployed test-article measurement. Production intentionally omits granular timing headers, so successful production field/browser verification does not automatically close metadata-stage attribution. The gaps remaining after the resumed pass stay explicit in `tasks.md` and `validation.md`.
 
 ### 2. Match the existing enhanced box in the Web article stylesheet
 
@@ -69,7 +69,7 @@ No API runtime code, metadata fields or insertion order changes. Fresh revocatio
 - Broad iframe CSS could affect other content -> scope to the exact saved edited-YouTube structure; include raw transcript, podcast and ordinary iframe controls in browser verification.
 - First-byte time may be dominated by service transport rather than owner/share queries -> use successful whole-route timing; keep API runtime and placement unchanged in this proposal.
 - Desktop evidence does not prove mobile/Safari parity -> use the existing controlled mobile profile and record any real-device gaps accurately.
-- #605 has not reached production -> production RUM outcome remains deferred; no predicted Good-rate increase is claimed.
+- #605 production delivery does not establish the field target -> use its verified serving-build/convergence boundary and sufficient family counts; no predicted Good-rate increase is claimed.
 
 ## Migration Plan
 

@@ -3,7 +3,7 @@
 ## 1. Establish the post-605 baseline
 
 - [x] 1.1 Record the latest-dev base, successful #605 Web/API deployment jobs, four unavailable public test samples, inherited 38 Web/22 API regression results and explicit production gaps in `validation.md`; verify every claim against its command/HTTP result.
-- [ ] 1.2 Deferred at the change requester's request: after they notify that #605 is deployed to production, verify the actual serving build and cache convergence, then check the existing same-content canaries for body retention, image/cache delivery and reading/media regressions; record the results without substituting a 404 or fixture. Granular metadata attribution remains pending where production intentionally omits diagnostic headers.
+- [ ] 1.2 Resumed on November 16 after the requester reported #605 production deployment: serving build, cache convergence, four successful same-content canaries, image display/preview and original podcast play/seek/refresh-resume are recorded in `validation.md`. Live SSR-node identity, complete highlight/media regression coverage, new-capture sizing and image edge-hit attribution remain unverified; keep this task incomplete.
 
 ## 2. Stabilize the saved edited-YouTube player box
 
@@ -13,7 +13,7 @@
 
 ## 3. Attribute remaining first-byte delay
 
-- [ ] 3.1 Deferred with the missing-sample verification: collect successful hit/miss #605 timing with connection/TLS and the available boundaries after the change requester resumes verification. Keep unavailable non-production-only stages explicit; do not enable production diagnostics to close this task. Record five mechanism repetitions and whole-request durations without adding nested spans or inferring query time from frontend waiting alone.
+- [ ] 3.1 Resumed on November 16: five successful production requests per canary now record connection/TLS, HTML store/hit and whole-request durations. Production omits granular timing headers, so successful metadata-stage attribution remains open. Do not enable production diagnostics, add nested spans or infer query time from frontend waiting alone.
 - [x] 3.2 Trace the actual request-scoped client and pool used by owner/share reads; record that `max: 1` defeats the assumed independent connection capacity and exclude Promise-only overlap, pool enlargement and settlement machinery from this runtime scope.
 
 ## 4. Verify and hand off
@@ -24,4 +24,4 @@
 
 On November 16, 2026, the change requester approved implementation of Section 2 only. The stylesheet slice is implemented with local browser geometry and interaction evidence. Task 2.3 has component-fixture and unit coverage, but its complete running-reader integration remains an explicit gap. Task 4.1 has automated and local mechanism evidence, but the configured end-to-end profile is not yet exercised. Task 4.2 is complete: agent review, strict validation and the requester's local browser hands-on acceptance are recorded in validation.md before draft PR creation. The completed database-path analysis excludes a candidate; it is not a successful query-scheduling implementation. A future API runtime proposal must independently satisfy the backend architecture and verification rules, including `pnpm api -- test test/script/layerArchitecture.test.ts` when applicable.
 
-On November 16, 2026, the change requester confirmed that no public test-environment samples are currently available and asked to retain this #605 verification as a TODO until they report production deployment. Tasks 1.2 and 3.1 remain incomplete; the production outcome in 4.3 also waits for deployment and sufficient observations. That deferral remains unchanged by the subsequent, separate approval of player-layout stabilization; it does not authorize API runtime work or deployment.
+On November 16, 2026, the change requester initially deferred #605 verification because no public test-environment samples were available, then reported production deployment and resumed it. Fresh production evidence is recorded in `validation.md`; tasks 1.2 and 3.1 remain incomplete for their stated gaps, and 4.3 still needs sufficient post-convergence observations. PR #624 remains an unmerged draft, so its stylesheet benefit is not included in #605 production results. Resuming verification does not authorize API runtime work or deployment.

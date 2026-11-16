@@ -2,6 +2,8 @@
 
 ## Status
 
+Update, November 16, 2026: the requester subsequently reported #605 production deployment. Verification resumed; see the final section, "PR #605 production verification resumed", for fresh deployment, resource, interaction and early field evidence. Earlier deferral statements below describe the planning/delivery state at that time. PR #624 remains an unmerged draft; its runtime effect is not part of this production result.
+
 Based on `origin/dev` merge `2203281e2a9f3606d0a686e2b8be34ae84fb1f99`, fetched November 16, 2026. The initial planning phase changed documentation only. The change requester subsequently approved only initial player-layout stabilization. The implementation below changes the existing Web article stylesheet and browser fixtures; it changes no API, media lifecycle, stored content, configuration, dependency or generated output. The change requester has now requested task completion and a draft pull request; production deployment remains outside this task. Delivery status is recorded below. The change requester has now reported hands-on acceptance of the local initial-player change; production LCP Good improvement is not claimed.
 
 ## PR #605 deployment check
@@ -151,3 +153,84 @@ The task commit was rebased onto target `origin/dev` at `73078fd3` without confl
 - Limits: this accepts the implemented Web presentation. It does not close complete Nuxt integration, real mobile/Safari, controlled performance-profile or production Good-rate tasks.
 
 Task 4.2 is complete: agent Bugs/Security/Compliance review, implemented fixture review correction, recorded human acceptance, and strict validation. The task PR may now be opened as requested. Outstanding deployment/performance tasks remain unchecked rather than being inferred from this acceptance.
+
+## PR #605 production verification resumed — November 16, 2026
+
+### Serving build and measurement boundary
+
+The requester reported that #605 had reached production and resumed the deferred verification. This section records production observations, not a deployment of this follow-up. No runtime source, production configuration, capture, stored snapshot or account content was changed during verification. This evidence-only documentation update is exempt from runtime regression testing under `docs/DEFINITION-OF-DONE.md`.
+
+- `git fetch origin main` resolved `origin/main` to `3f4b054d65f41e3784760ffb0f951b26ca6740bf`, the #623 beta-to-main merge. `git merge-base --is-ancestor 2203281e2a9f3606d0a686e2b8be34ae84fb1f99 origin/main` exited 0, confirming inclusion of #605.
+- The [production Web run](https://github.com/slax-lab/slax-reader/actions/runs/43817727691) deployed that merge to `main`. Publish/cache-purge completed at **2026-11-16 06:37:50 UTC / 14:37:50 GMT+8**. The [production API run](https://github.com/slax-lab/slax-reader/actions/runs/43817727692) completed its migrate/deploy step at 06:37:16 UTC. Both succeeded.
+- With the existing 600-second HTML-cache convergence allowance, use **14:48 GMT+8** as the conservative post-convergence statistics start. Do not use the earlier dev merge time or pre-convergence traffic as the before/after boundary.
+- All four actual production documents reference `/_nuxt/b2AmalrF.js`. Its downloaded content contains `slax:restore-html`; the article chunk `/_nuxt/-l6gDH5g.js` contains #605's matching-HTML adoption and changed-value-only directive. SHA-256 respectively: `efd82ed557faf3e840278af259e60ad4e9ad0646be5b58b28dc03abbbdae3a7a` and `54724a2c0b176e37d0653677af48ceb6b4f037319ec12539a99849c990c4b157`. All 63 inspected preload/script assets downloaded successfully.
+- [PR #624](https://github.com/slax-lab/slax-reader/pull/624) remains an unmerged draft. Its stable initial-player CSS is not part of the deployed #605 result.
+
+### Successful same-content HTTP and image observations
+
+Each canary received five sequential anonymous GETs in one curl process, using ordinary URLs without cache-busting or a forced purge. Request 1 established a connection; requests 2–5 reused it (`num_connects=0`). The routes were not one combined load test. These local HKG observations include network/transport effects and do not represent field percentiles or a matched pre/post experiment.
+
+| Production canary | TTFB, requests 1–5 (ms) | Whole request, requests 1–5 (ms) |
+| --- | --- | --- |
+| [Original podcast](https://r.slax.com/b/ea02a6ad-22e9-49ec-bd63-1fb22bf98f75) | 1511, 373, 317, 324, 1316 | 1980, 534, 485, 498, 1439 |
+| [Mole](https://r.slax.com/b/a3b123af-27fc-4d12-b329-d8c4fd26b3f6) | 1330, 338, 338, 336, 420 | 1520, 423, 403, 398, 484 |
+| [Short WeChat article](https://r.slax.com/b/acfbadd5-a6d2-4ccf-8266-7c4c76e030c5) | 1389, 378, 522, 283, 312 | 1390, 409, 552, 310, 352 |
+| [Video podcast](https://r.slax.com/b/aff6905d-edbe-45a5-ab44-e684db3a4a2c) | 1622, 569, 777, 335, 492 | 2046, 727, 934, 492, 652 |
+
+All 20 requests returned 200. Each route reported `x-bcache: store` first and `hit` on the next four responses. All four initial documents omit the private snapshot manifest and use the stripped-body payload. This establishes successful public delivery and accepted warm HTML-cache responses. It does not establish low metadata latency: the podcast still had a **1316ms cache-hit TTFB**. Comparing reused warm connections against historical fresh connections would overstate a #605 speed gain.
+
+Production returned no `Server-Timing`. The saved curl records separate DNS/connect/TLS and whole-route wait, but cannot attribute the successful wait to access checks, owner/share reads, database queries, binding transport or rendering. No diagnostic setting was enabled to close that gap.
+
+The Mole lead image remains on `https://api-reader.slax.com/static/image`; decoding the existing `u` encoding reaches `pbs.twimg.com`, retaining a single proxy rather than making the browser request the original host. Five image GETs returned the identical **18,323-byte, 1200×480 PNG**, SHA-256 `166a055508ed3f506944fd32afb415443784b73024162d1f47101e47022c0060`. Whole-request times were **525, 241, 235, 226, 233ms**, with connection reuse after the first. Responses have `public, max-age=2592000, immutable`, but no Age, cache-status or timing signal identifying Cache API versus R2. Repeated successful/faster responses therefore do not independently prove the new R2-to-edge cache-fill path.
+
+The historical image tag is still eager/high-priority and has **neither width nor height**. This is consistent with #605 sizing new FxEmbed captures without rewriting existing snapshots; it leaves the historical sizing/CLS concern open. No suitable newly captured canary was available, and no recapture was performed. These small-image observations do not justify adding compression or a second image variant.
+
+### Running production browser checks
+
+- Original podcast: play changed the control to Pause; pausing retained progress. A reload restored the paused **177s** position. The **2:29 chapter control** sought to 149s and started playback. The original observed user position, **168s paused**, was restored before leaving. No highlight, comment or bookmark was created.
+- Mole: the article and lead image loaded; clicking the actual lead image after hydration opened the full-image preview overlay using the proxied URL. A screenshot is retained locally as `mole-preview.png`. Preview closing was not independently confirmed in this production pass; the test navigated away afterward.
+- Short WeChat article: the heading and body rendered, with 1,111 body characters and one body image present after initialization. Video podcast: 44,327 body characters rendered, and the hydrated embedded YouTube player exposed its play control and the article exposed its timestamped contents. This is display/initialization coverage; it is not a full production playback/seek/resume test of that third-party player.
+- One initial clean Chrome-incognito Mole navigation, without CPU/network throttling, displayed **LCP 2.14s (image candidate)** and **CLS 0.00** in DevTools. CLS was rounded and the panel still listed two shifts. Domain zoom was the pre-existing 75%; DevTools browser-cache disabling was enabled. No exact shift-score trace was exported. This single desktop observation neither establishes mobile P75 nor disproves the historical CLS issue.
+- The configured 390×844/DPR2/CPU4×/1.6Mbps/750Kbps/150ms profile was **not completed**: native DevTools throttle controls did not reliably apply/verify the requested settings. Enabling the responsive toolbar alone was not treated as a controlled run. The temporary incognito window and the two verification tabs were closed; user-owned work tabs were retained.
+- Bundle inspection confirms that the intended node-adoption code is served. It does **not** directly prove SSR text/image node identity through an individual live hydration. No pre-hydration node observer/identity trace was obtained. Authenticated persisted-highlight behavior, pre-metadata seek priority, all media controls, real iOS/Safari and the full controlled candidate timeline remain gaps. Earlier local regression evidence remains local evidence and is not relabeled as production acceptance.
+
+### Early Web Analytics and remaining acceptance
+
+The signed-in Cloudflare dashboard was inspected with bots excluded and an exact **14:48–14:57 GMT+8** window. Both the LCP URL chart and its Debug View were set to **15 items**. This window follows convergence and precedes the new browser experiments. The overall view is site-wide, not a podcast/Mole family filter.
+
+- The visible LCP URL counts total **3 events: 2 Good, 1 Needs Improvement, 0 Poor** (rounded site Good 67%). The original podcast contributes the one Needs Improvement event; the other two visible URLs each contribute one Good event. Mole, short WeChat and the video-podcast canaries are absent from these visible counts.
+- The dashboard shows LCP P50 1608ms and P75 3080ms. Its separate P75 subparts show TTFB 2310ms and render delay 577ms; these marginal percentiles must not be added to reconstruct an individual request or the LCP percentile. LCP Debug View returns No data for this window, so no element-level explanation was inferred from it.
+- CLS Debug View includes poor/needs-improvement observations, but they were not linked to the Mole URL. They do not establish that this canary reproduced the earlier issue.
+
+The seven-day acceptance period and minimum counts (**200 LCP events per family and 100 per primary canary**) have not accrued. Neither raw nor matched browser/device/country-mix **podcast/Mole Good >=70%** is accepted from these three events. Avoid combining this window with pre-deployment history or with the new manual tests to enlarge the denominator.
+
+Tasks 1.2 and 3.1 are resumed but remain incomplete for the gaps above; 4.1 and 4.3 also remain open. The next evidence needed is a controlled same-content candidate/node/CLS timeline, sufficient post-convergence family data, and a successful non-production same-content sample if granular metadata attribution is required. #624 deployment must get its own later build/convergence boundary. No additional runtime optimization is justified solely by this small verification sample.
+
+Raw local evidence is under `.local/lcp-production-605-2026-11-16/`: deployment logs, `http-summary.json`, per-request headers/HTML, `asset-signatures.json`, `mole-image.json`, image responses, podcast pause/resume/seek observations, `video-dom.txt`, the preview screenshot and the dashboard accessibility snapshot. Raw account-dashboard content remains local and is not included in git or published attachments. These artifacts support the observations above; they are not a reusable production monitoring service.
+
+Evidence-document checks: `pnpm exec openspec validate --all --strict` passed 135 items, zero failures, exit 0; `git diff --check` passed. Bugs/Security/Compliance review found no Important issue in this documentation-only update; it introduces no new behavior or package output. No runtime tests were rerun or claimed as fresh production evidence.
+
+### Coverage reconciliation and document TTFB scope
+
+The requester asked whether the remaining TODOs imply implementation missing from #605/#624, and authorized adding a justified related correction to the still-open #624. Source and evidence review found no additional confirmed runtime defect with a demonstrated minimal correction in this pass. The remaining items have different dispositions:
+
+| Item | Implementation coverage | Disposition |
+| --- | --- | --- |
+| Unchanged-body SSR adoption, highlight/preview/podcast preservation | #605; local mechanism regressions exist | Remaining live node-identity, authenticated and device checks are verification gaps, not an identified code patch. The partial production pass does not replace them. |
+| Image Cache API fill on eligible R2 hits | #605 | Live source-of-cache attribution is unverified; faster repeat requests alone do not establish an omitted implementation. |
+| Stable edited-YouTube initial player box | #624 | Implemented and locally accepted, but not deployed. Keep its production verification separate. |
+| Historical Mole image dimensions / CLS | #605 covers new exact-cover FxEmbed captures; neither PR repairs old snapshots | A remaining candidate, not a confirmed cause of all observed shifts. The public historical tag lacks dimensions; no measured general pre-paint repair is established. No hardcoded URL/ratio, extra image fetch on document delivery or snapshot rewrite is added. |
+| Remaining document TTFB | #605 timing instrumentation; #624 successful-request investigation | No database scheduling, pool-size, placement or metadata-cache optimization was implemented. Successful non-production stage attribution is still missing. |
+| Podcast/Mole Good >=70% | Post-deployment acceptance | An outcome requiring sufficient comparable traffic, not a missing code block or a checkbox satisfied by deployment. |
+
+Document TTFB is the wait until the first HTML response byte, including connection/transport and server work; article hydration and subsequent image transfer occur afterward. On an accepted anonymous HTML-cache hit, the existing call chain is:
+
+`Web share-cache -> Cache API match -> matchesCurrentSnapshot -> BACKEND ContentEntry -> CORE content/meta -> ContentOrchestrator / services / repositories -> role + complete metadata revision comparison -> cached HTML body`.
+
+The cache avoids the normal authorized R2-body/projection/SSR route on an accepted hit, but does not eliminate the fresh metadata request. That validation preserves current sharing/revocation, policy and presentation. It must not be skipped or made stale merely to lower TTFB. This HTML-cache behavior predates #605; its newly observed `store`/`hit` results are not a new #605 query optimization.
+
+#605 adds fixed-name timing at cache-match/validation/body, bookmark/owner/share/media access and trace/fork/PDF/collection boundaries, retaining the existing query order and exposing diagnostic headers only outside production. Its eligible R2-hit edge fill reduces repeated **image** origin/storage work; it is not a document metadata optimization. Its client SSR-node adoption and #624's CSS act after HTML delivery and do not directly shorten document TTFB.
+
+The owner/share Promise-overlap candidate remains rejected: the two repositories resolve the same request-cached Hyperdrive Prisma client, whose pool has `max: 1` (`apps/api/src/di/data.ts`). Moving those calls into `Promise.all` would still queue their queries on that connection and change denied-path/error behavior without a demonstrated latency saving. No additional client, pool connection, batching abstraction or cache policy is introduced to rescue that candidate.
+
+This follow-up adds documentation and production evidence to #624 only. Its existing 11-line article stylesheet runtime diff, approved layout requirements and visual acceptance remain unchanged. The PR description must distinguish inherited #605 production observations, #624 local player-box results, and unresolved attribution/field acceptance.

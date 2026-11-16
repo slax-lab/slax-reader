@@ -2,7 +2,7 @@
 
 ## Why
 
-The seven-URL investigation found that document first-byte delay remains a major constraint on podcast LCP, while the edited YouTube player's server fallback and client replacement occupy different boxes. PR #605 is now merged into `dev`, but its node retention and image-cache changes do not remove those costs; the change requester retains the podcast/Mole family target of at least 70% LCP Good.
+The seven-URL investigation found that document first-byte delay remains a major constraint on podcast LCP, while the edited YouTube player's server fallback and client replacement occupy different boxes. PR #605 is now deployed to production, but its node retention and image-cache changes do not remove those costs; the change requester retains the podcast/Mole family target of at least 70% LCP Good.
 
 ## What Changes
 
@@ -13,7 +13,7 @@ The seven-URL investigation found that document first-byte delay remains a major
 
 The runtime implementation scope is player-box stabilization. First-byte work in this proposal is measurement only; database scheduling, connection-pool size and deployment placement remain unchanged. Removing duplicate YouTube iframe initialization, CSS/module splitting, image transformation and historical snapshot repair are outside this proposal.
 
-The change requester has deferred the missing-sample #605 verification until they notify production deployment. This remains an incomplete TODO. On November 16, 2026, they separately approved implementation of the initial player-layout stabilization slice, preserving the architecture and minimizing changes, with highlight, preview, playback, seeking and resume regressions checked.
+The change requester initially deferred the missing-sample #605 verification, then reported production deployment on November 16, 2026 and resumed verification. Serving-build, cache, resource and selected interaction results are recorded in `validation.md`; controlled-profile, node-identity and field-acceptance gaps remain incomplete. They separately approved implementation of the initial player-layout stabilization slice, preserving the architecture and minimizing changes, with highlight, preview, playback, seeking and resume regressions checked.
 
 ## Capabilities
 
@@ -32,7 +32,7 @@ The first-byte measurements preserve the existing snapshot and public-delivery r
 - Expected Web runtime edit: the existing article stylesheet, with focused geometry/interaction evidence. Existing `YoutubeProcessor` and `YoutubePlayer.ce.vue` define the final presentation to match; changing their lifecycle is not part of the scope.
 - API/DI/repository runtime edits: none. Existing request timings supply the attribution experiment; add no layer, dependency, SQL, migration, cache, configuration switch, retry, service or connection.
 - This is a sequential follow-up based on `origin/dev` merge `2203281e` after #605. Do not modify, archive or mark the predecessors' outstanding deployment/field tasks complete in this change.
-- The approved runtime implementation covers player-layout stabilization and its verification. The change requester subsequently asked to finish the previously planned non-#605 work, review it, and create a draft pull request targeting `dev`. That request does not provide missing successful-request measurements or revoke the explicit production-verification deferral. Human hands-on acceptance remains required before opening the behavior pull request.
+- The approved runtime implementation covers player-layout stabilization and its verification. The change requester subsequently asked to finish the previously planned non-#605 work, review it, and create a draft pull request targeting `dev`. Production verification was later resumed separately and does not establish successful metadata-stage attribution or field acceptance. Human hands-on acceptance remains required before opening the behavior pull request.
 
 ## Human hands-on acceptance
 
