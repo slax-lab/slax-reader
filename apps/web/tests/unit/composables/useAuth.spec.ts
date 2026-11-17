@@ -186,6 +186,36 @@ describe('useAuth', () => {
     })
   })
 
+  describe('verifyPasskeyAuth', () => {
+    const input = { type: 'passkey', email: 'reader@example.com', request_id: 'attempt', credential: { id: 'credential', rawId: 'credential', type: 'public-key', response: { clientDataJSON: 'client-data', authenticatorData: 'authenticator-data', signature: 'signature' }, clientExtensionResults: {} } } as const
+
+    it('completes Passkey login through the existing server session endpoint', async () => {
+      mockPost.mockResolvedValueOnce({ token: 'passkey-session' })
+      await expect(useAuth().verifyPasskeyAuth(input)).resolves.toBe('passkey-session')
+      expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/user/login', body: input }))
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/session', expect.objectContaining({ body: JSON.stringify({ token: 'passkey-session' }) }))
+    })
+
+    it('does not replace a session established while the assertion is verified', async () => {
+      mockPost.mockImplementation(async () => {
+        cookieGet.mockReturnValue('replacement-session')
+        return { token: 'old-session' }
+      })
+      await expect(useAuth().verifyPasskeyAuth(input)).rejects.toThrow()
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+
+    it('does not adopt a canceled Passkey login response', async () => {
+      const controller = new AbortController()
+      mockPost.mockImplementation(async () => {
+        controller.abort()
+        return { token: 'late-session' }
+      })
+      await expect(useAuth().verifyPasskeyAuth(input, { signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' })
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+  })
+
   describe('collection attribution', () => {
     const attribution = { collection_id: 'Collection123', source_screen: 'collection', presentation: 'modal', trigger_element_id: 'collection_subscribe_button' } as const
 
@@ -237,6 +267,32 @@ describe('useAuth', () => {
       { provider: 'apple', clientId: 'a-client-id', attribution: resource }
     ] as const)('carries acquisition into the $provider login request', async ({ provider, clientId, attribution }) => {
       mockPost.mockResolvedValueOnce({ token: 'tok-acquisition' })
+      await useAuth().grantAuth('code-1', 'https://auth.test/auth', '', provider, attribution)
+      expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: '', type: provider, client_id: clientId, auth_attribution: attribution })
+    })
+  })
+
+  describe('snapshot save attribution', () => {
+    const attribution = { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: '00000000-0000-4000-8000-000000000001' } as const
+
+    it('keeps Google and Apple authorization contexts and omits ordinary attempts', async () => {
+      const auth = useAuth()
+      await auth.requestAuth({ redirect: '/b/source', affCode: '', authAttribution: attribution })
+      const google = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      await auth.requestAppleAuth({ redirect: '/b/source', affCode: '', authAttribution: attribution })
+      const apple = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      await auth.requestAuth({ redirect: '/bookmarks', affCode: '' })
+      const ordinary = JSON.parse(new URL(window.location.href).searchParams.get('state')!)
+      expect(google).toMatchObject({ platform: 'google', target: '/b/source', auth_attribution: attribution })
+      expect(apple).toMatchObject({ platform: 'apple', target: '/b/source', auth_attribution: attribution })
+      expect(ordinary).not.toHaveProperty('auth_attribution')
+    })
+
+    it.each([
+      { provider: 'google', clientId: 'g-client-id' },
+      { provider: 'apple', clientId: 'a-client-id' }
+    ] as const)('carries snapshot attribution into the $provider login request', async ({ provider, clientId }) => {
+      mockPost.mockResolvedValueOnce({ token: 'tok-snapshot' })
       await useAuth().grantAuth('code-1', 'https://auth.test/auth', '', provider, attribution)
       expect(mockPost.mock.calls[0]![0].body).toEqual({ code: 'code-1', redirect_uri: 'https://auth.test/auth', aff_code: '', type: provider, client_id: clientId, auth_attribution: attribution })
     })

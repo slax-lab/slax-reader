@@ -1,3 +1,4 @@
+import { assertExternalNewsletterTarget } from '@/utils/newsletterTarget'
 import { bookmarkContentType, isPdfContentKey, PDF_MAX_BYTES, pdfByteRange, pdfResponseHeaders, type PdfDescriptor, type PdfUploadResult } from '@slax-reader/contracts/pdf'
 import { readPdfBody, pdfFilename, pdfHash, extractPdfText, extractPdfMetadata, hasPdfSignature, PdfSaveInProgressError } from '@/utils/pdf'
 import { publicFetch } from '@/utils/publicFetch'
@@ -205,6 +206,7 @@ export class BookmarkService {
     isArchive?: boolean
     importMetadata?: { savedAt?: Date; starred: boolean }
   }) {
+    assertExternalNewsletterTarget(options.targetUrl)
     if (options.type === 1) {
       const urlEntity = new URL(options.targetUrl)
       const paths = urlEntity.pathname.split('/')
@@ -972,7 +974,8 @@ export class BookmarkService {
 
     if (!userId || !bmId || supportedLang.indexOf(lang) === -1) throw ErrorParam()
 
-    const summaries = await bmRepo.getBookmarkSummariesRaw(bmId, lang, userId, 6)
+    // Empty rows are failed earlier generations; hiding them lets the client generate again
+    const summaries = (await bmRepo.getBookmarkSummariesRaw(bmId, lang, userId, 6)).filter(summary => summary.content.trim().length > 0)
     const selfSummary = summaries.find(summary => summary.user_id === userId)
 
     return [...(selfSummary ? [selfSummary] : []), ...summaries.filter(summary => summary.user_id !== userId)].map(summary => {
@@ -1301,7 +1304,7 @@ export class BookmarkService {
 
   public async getBookmarkOutline(bookmarkId: number, userId: number): Promise<string | null> {
     const summary = await this.bookmarkRepo.getBookmarkOutline(bookmarkId, userId)
-    return summary?.content ?? null
+    return summary?.content.trim() ? summary.content : null
   }
 
   public async getUserBookmarkSummaryByMCP(bmId: number, userId: number, lang: string) {
@@ -1450,6 +1453,7 @@ export class BookmarkService {
    * 添加收藏
    */
   public async addBookmark(ctx: ContextManager, req: addBookmarkReq) {
+    assertExternalNewsletterTarget(req?.target_url)
     const source = readerBookmarkUuid(req?.target_url, [ctx.env.FRONT_END_URL])
     if (source) return { kind: 'completed' as const, ...(await this.forkService.admit(ctx, source)) }
     // Labs gate runs before any row is written; the crawl workflow starts too late to stop it
@@ -1463,6 +1467,7 @@ export class BookmarkService {
   }
 
   public async addUrlBookmarkItem(ctx: ContextManager, item: addUrlBookmarkReq): Promise<queueParseMessage | ImportedFork | null> {
+    assertExternalNewsletterTarget(item?.target_url)
     const source = readerBookmarkUuid(item.target_url, [ctx.env.FRONT_END_URL])
     if (source) {
       const result = await this.forkService.fork(ctx, source, {
@@ -1580,6 +1585,7 @@ export class BookmarkService {
   }
 
   public async addUrlBookmark(ctx: ContextManager, req: addUrlBookmarkReq, callback: callbackType, callbackPayload: any = {}) {
+    assertExternalNewsletterTarget(req?.target_url)
     const source = readerBookmarkUuid(req?.target_url, [ctx.env.FRONT_END_URL])
     if (source)
       return { kind: 'completed' as const, ...(await (callback === callbackType.NOT_CALLBACK ? this.forkService.admit(ctx, source) : this.forkService.fork(ctx, source))) }
@@ -1748,6 +1754,7 @@ export class BookmarkService {
   }
 
   private async kickoffWorkflowForRetry(ctx: ContextManager, bm: { id: number; target_url: string; user_id: number; updated_at?: Date }) {
+    assertExternalNewsletterTarget(bm.target_url)
     if (readerBookmarkUuid(bm.target_url, [ctx.env.FRONT_END_URL])) throw forkError()
     const hashids = new Hashid(ctx.env, bm.user_id)
     const enUserId = hashids.encodeId(bm.user_id)

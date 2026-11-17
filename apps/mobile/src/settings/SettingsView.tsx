@@ -96,12 +96,13 @@ export function SettingsView({t, locale, state, rss, pdf, showAdaptivePdfPrototy
         </View>
         {Platform.OS === 'ios' && systemSurfaceAvailable ? <View style={[styles.card, styles.labCard]}>
           <View style={[styles.row, styles.labRow]}>
-            <SourceText style={T.button}>{t('system_discovery_title')}</SourceText>
-            {systemDiscoveryAvailable ? <SourceSwitch label={t('system_discovery_title')} value={state.systemDiscovery} onChange={state.setSystemDiscovery} /> : <SourceText style={T.metadata}>{t('system_discovery_unavailable')}</SourceText>}
+            <SourceText style={[T.button, styles.systemSurfaceTitle]}>{t('system_discovery_title')}</SourceText>
+            {systemDiscoveryAvailable ? <SourceSwitch label={t('system_discovery_title')} value={state.systemDiscovery} onChange={state.setSystemDiscovery} /> : null}
           </View>
+          {!systemDiscoveryAvailable ? <SourceText style={[T.metadata, styles.systemDiscoveryUnavailable]}>{t('system_discovery_unavailable')}</SourceText> : null}
           <SourceText style={[T.metadata, {color: C.secondaryText, marginBottom: 8}]}>{t('system_discovery_description')}</SourceText>
           <View style={[styles.row, styles.labRow]}>
-            <SourceText style={T.button}>{t('system_donations_title')}</SourceText>
+            <SourceText style={[T.button, styles.systemSurfaceTitle]}>{t('system_donations_title')}</SourceText>
             <SourceSwitch label={t('system_donations_title')} value={state.systemDonations} onChange={state.setSystemDonations} />
           </View>
           <SourceText style={[T.metadata, {color: C.secondaryText}]}>{t('system_donations_description')}</SourceText>
@@ -156,6 +157,8 @@ const styles = StyleSheet.create({
   },
   labCard: {paddingVertical: 8},
   labRow: {minHeight: 48},
+  systemSurfaceTitle: {flex: 1},
+  systemDiscoveryUnavailable: {color: C.secondaryText, marginBottom: 8},
   language: {flexDirection: 'row', alignItems: 'center', gap: 20, paddingVertical: 16},
   radio: {
     width: 20, height: 20, borderWidth: 2, borderRadius: 10,

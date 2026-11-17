@@ -119,8 +119,9 @@ function oldPartCount(vector?: VectorizeVector): number {
   return Number(count)
 }
 
-function metadata(row: ArticleRow): Record<string, string | number | boolean> {
+function metadata(row: ArticleRow, publisherUserIds?: string): Record<string, string | number | boolean> {
   return {
+    ...(publisherUserIds?.split(',').some(id => id.trim() === String(row.user_id)) && { recommendable: true }),
     user_id: row.user_id,
     bookmark_id: row.id,
     source_updated_at: new Date(row.updated_at).getTime(),
@@ -145,7 +146,9 @@ async function contentWriteToken(identity: Record<string, string | number | bool
 
 function matchesMetadata(vector: VectorizeVector, expected: Record<string, string | number | boolean>, token: string): boolean {
   return (
-    vector.metadata?.recommendable === undefined && vector.metadata?.write_token === token && Object.entries(expected).every(([key, value]) => vector.metadata?.[key] === value)
+    vector.metadata?.recommendable === expected.recommendable &&
+    vector.metadata?.write_token === token &&
+    Object.entries(expected).every(([key, value]) => vector.metadata?.[key] === value)
   )
 }
 
@@ -253,7 +256,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
         ids.push(...page)
       }
     }
-    const expected = { ...metadata(row), ...fingerprint, kind: 'article', part_count: count }
+    const expected = { ...metadata(row, this.index.publisherUserIds), ...fingerprint, kind: 'article', part_count: count }
     if (!matchesMetadata(previous, expected, output.writeToken!)) await this.upsert('article', [{ id, values: previous.values, metadata: expected }], [output])
     output.vectorIds = ids
     output.state = 'written'
@@ -323,7 +326,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
             } else if (row.status !== 'success') failed(current[i], new Error('source_not_ready'))
             else {
               const fingerprint = await this.sources.fingerprint(row)
-              current[i].writeToken = await contentWriteToken({ target: id, title: row.title, ...fingerprint, ...metadata(row) })
+              current[i].writeToken = await contentWriteToken({ target: id, title: row.title, ...fingerprint, ...metadata(row, this.index.publisherUserIds) })
               if (await this.reuseArticle(row, fingerprint, stored, current[i])) continue
               if (stored) previous?.set(id, Array.from(stored.values))
               const images: ImageSelection = { selected: 0, skipped: {} }
@@ -466,7 +469,11 @@ export class VectorMaintenanceService implements VectorMaintenance {
           continue
         }
         if (item.oldParts > 1 && item.oldParts > item.count) await this.removeParts(id, item.count === 1 ? 0 : item.count, item.oldParts, item.result)
-        representatives.push({ id, values: item.sum.values(), metadata: { ...metadata(item.row), ...item.fingerprint, kind: 'article', part_count: item.count } })
+        representatives.push({
+          id,
+          values: item.sum.values(),
+          metadata: { ...metadata(item.row, this.index.publisherUserIds), ...item.fingerprint, kind: 'article', part_count: item.count }
+        })
         represented.push(item)
       } catch (error) {
         failed(item.result, error)

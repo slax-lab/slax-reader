@@ -1,4 +1,4 @@
-import { bookmarkMatchesSourceDomain, getBookmarkSourceDomain, normalizeSourceDomain } from '~~/app/utils/bookmarkSource'
+import { httpOriginalUrl, bookmarkMatchesSourceDomain, getBookmarkSourceDomain, normalizeSourceDomain } from '~~/app/utils/bookmarkSource'
 
 import { describe, expect, it } from 'vitest'
 
@@ -19,5 +19,18 @@ describe('bookmarkSource', () => {
   it('只匹配相同 hostname', () => {
     expect(bookmarkMatchesSourceDomain({ host_url: 'https://Example.com/path', target_url: '' }, 'example.com')).toBe(true)
     expect(bookmarkMatchesSourceDomain({ host_url: 'other.example', target_url: '' }, 'example.com')).toBe(false)
+  })
+})
+
+
+describe('HTTP original navigation policy', () => {
+  it.each([
+    ['http://example.com/a', 'http://example.com/a'],
+    ['HTTPS://example.com/a', 'HTTPS://example.com/a'],
+    [undefined, ''], [null, ''], ['', ''],
+    ['slax-newsletter://message/1', ''], ['slax-pdf://document/1', ''],
+    ['javascript:alert(1)', ''], ['mailto:a@example.com', ''], ['example.com/a', '']
+  ])('keeps only explicit HTTP(S) originals: %s', (input, expected) => {
+    expect(httpOriginalUrl(input)).toBe(expected)
   })
 })

@@ -3,7 +3,8 @@ import { configuredCookieName, persistSessionCookie, readStringCookie } from '~/
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
-import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
+import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, isSnapshotAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
+import type { PasskeyLoginRequest } from '@slax-reader/contracts/passkey'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import { useUserStore } from '~/stores/user'
 
@@ -41,7 +42,7 @@ const useAuth = {
 
     location.href = url + '?' + new URLSearchParams(params)
   },
-  async requestAppleAuth(options: { redirect: string; affCode: string; authAttribution?: AcquisitionAuthAttribution }) {
+  async requestAppleAuth(options: { redirect: string; affCode: string; authAttribution?: WebAuthAttribution }) {
     const { redirect, affCode, authAttribution } = options
     const $config = useRuntimeConfig().public
     const url = `https://appleid.apple.com/auth/authorize`
@@ -85,7 +86,7 @@ const useAuth = {
         redirect_uri: redirectUri,
         type: platformType,
         client_id: clientIdRef[platformType],
-        ...(authAttribution && (platformType === 'google' || isAcquisitionAuthAttribution(authAttribution)) ? { auth_attribution: authAttribution } : {})
+        ...(authAttribution && (platformType === 'google' || isAcquisitionAuthAttribution(authAttribution) || isSnapshotAuthAttribution(authAttribution)) ? { auth_attribution: authAttribution } : {})
       }
     })
 
@@ -104,6 +105,18 @@ const useAuth = {
       url: RESTMethodPath.LOGIN,
       body: { ...input, type: 'email' }
     })
+    options.signal?.throwIfAborted()
+    if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
+    return completeAuth(response, options.signal)
+  },
+  async verifyPasskeyAuth(
+    input: PasskeyLoginRequest,
+    options: Pick<FetchOptions, 'signal' | 'errorInterceptors'> = {}
+  ): Promise<string> {
+    const cookieName = configuredCookieName(useRuntimeConfig().public.COOKIE_TOKEN_NAME)
+    if (!cookieName) throw new Error('Missing valid COOKIE_TOKEN_NAME')
+    if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
+    const response = await request().post<{ token: string }>({ ...options, url: RESTMethodPath.LOGIN, body: input })
     options.signal?.throwIfAborted()
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
     return completeAuth(response, options.signal)

@@ -37,7 +37,7 @@ export function SearchScreen({navigation}: MobileScreenProps<'Search'>) {
       {bookmarkId: article.id, ...(article.kind === 'collection' ? {collectionId: article.collectionId, collectionOwnerId: article.ownerId} : {})});
   }
   function renderRow({item}: {item: SearchRow}) {
-    if (item.type === 'article') return <SearchArticleRow article={item.article} nested={item.nested} query={keyword} onOpen={open}/>;
+    if (item.type === 'article') return <SearchArticleRow article={item.article} nested={item.nested} query={keyword} t={t} onOpen={open}/>;
     if (item.type === 'source') return <SearchSourceRow row={item} query={keyword} t={t} onSelect={search.selectSource}/>;
     const label = t(item.scoped ? 'search_source_articles' : item.section === 'collections' ? 'search_collections' : item.section === 'rss' ? 'rss_feeds' : 'search_articles');
     const count = t(item.section === 'articles' ? 'search_article_count' : 'search_source_count').replace('{count}', String(item.count));

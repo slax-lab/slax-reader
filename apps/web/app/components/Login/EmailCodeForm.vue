@@ -21,7 +21,7 @@
       </template>
       <label v-else class="email-code-field">
         <span class="email-code-label">{{ t('email_auth.address_label') }}</span>
-        <input ref="emailInput" v-model.trim="email" type="email" autocomplete="email" maxlength="254" :disabled="Boolean(pending)" required />
+        <input ref="emailInput" v-model.trim="email" type="email" :autocomplete="passkeyAutofill ? 'username webauthn' : 'email'" maxlength="254" :disabled="Boolean(pending)" required @focus="startAutofill" @change="startAutofill" />
       </label>
 
       <p v-if="errorKey" class="email-code-error" role="alert">{{ t(errorKey) }}</p>
@@ -29,6 +29,9 @@
         {{ t(pending === 'verify' ? 'email_auth.verifying' : pending === 'send' && !challenge ? 'email_auth.sending' : challenge ? 'email_auth.verify' : 'email_auth.send') }}
       </button>
     </div>
+    <button v-if="authenticatePasskey && !challenge" class="email-passkey-button" type="button" :disabled="Boolean(pending)" @click="signInWithPasskey">
+      {{ t(pending === 'passkey' ? 'passkey_auth.authenticating' : 'passkey_auth.sign_in') }}
+    </button>
     <div v-if="challenge" class="email-code-actions">
       <button type="button" :disabled="Boolean(pending)" @click="editEmail">{{ t('email_auth.change_address') }}</button>
       <button type="button" :disabled="Boolean(pending) || secondsToResend > 0" @click="sendCode">
@@ -40,6 +43,8 @@
 
 <script lang="ts" setup>
 import { emailAuthErrorKey } from '~/utils/emailAuth'
+import type { PasskeyAuthenticationMode } from '~/utils/passkeyAuth'
+import { passkeyAuthErrorKey } from '~/utils/passkeyAuth'
 
 import type { FetchRequest } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -50,6 +55,8 @@ const props = defineProps<{
   initialEmail?: string
   retainPendingOnSuccess?: boolean
   client?: Pick<FetchRequest, 'post'>
+  passkeyAutofill?: boolean
+  authenticatePasskey?: (email: string, signal: AbortSignal, mode?: PasskeyAuthenticationMode) => Promise<void>
   verify: (proof: EmailCodeInput, signal: AbortSignal) => Promise<void>
 }>()
 const { $i18n } = useNuxtApp()
@@ -59,7 +66,7 @@ const code = ref('')
 const emailInput = ref<HTMLInputElement>()
 const codeInput = ref<HTMLInputElement>()
 const challenge = ref<EmailCodeChallenge>()
-const pending = ref<'send' | 'verify'>()
+const pending = ref<'send' | 'verify' | 'passkey'>()
 const errorKey = ref('')
 const clock = ref(Date.now())
 const sentAt = ref(0)
@@ -69,9 +76,22 @@ const secondsToResend = computed(() =>
 )
 
 let operation: AbortController | undefined
+let autofill: AbortController | undefined
 let ticker: ReturnType<typeof setInterval> | undefined
 
+const cancelAutofill = () => {
+  autofill?.abort()
+  autofill = undefined
+}
+
+watch(email, cancelAutofill, { flush: 'sync' })
+watch(() => props.passkeyAutofill, enabled => {
+  if (enabled && document.activeElement === emailInput.value) void startAutofill()
+  else if (!enabled) cancelAutofill()
+})
+
 const stop = () => {
+  cancelAutofill()
   operation?.abort()
   operation = undefined
   pending.value = undefined
@@ -92,8 +112,65 @@ const editEmail = async () => {
   emailInput.value?.focus()
 }
 
+const startAutofill = async () => {
+  if (!props.passkeyAutofill || !props.authenticatePasskey || pending.value || challenge.value || autofill || !email.value || !emailInput.value?.validity.valid) return
+  const address = email.value
+  const controller = new AbortController()
+  autofill = controller
+  let selected = false
+  let verified = false
+  try {
+    await props.authenticatePasskey(address, controller.signal, {
+      useBrowserAutofill: true,
+      onCredential: () => {
+        if (autofill !== controller || email.value !== address || pending.value) {
+          controller.abort()
+          return
+        }
+        selected = true
+        operation = controller
+        pending.value = 'passkey'
+        errorKey.value = ''
+      }
+    })
+    controller.signal.throwIfAborted()
+    verified = true
+  } catch (error) {
+    if (selected && !controller.signal.aborted) errorKey.value = passkeyAuthErrorKey(error)
+  } finally {
+    if (autofill === controller) autofill = undefined
+    if (operation === controller) {
+      operation = undefined
+      if (!verified || !props.retainPendingOnSuccess) pending.value = undefined
+    }
+  }
+}
+
+const signInWithPasskey = async () => {
+  if (pending.value || !props.authenticatePasskey || !emailInput.value?.reportValidity()) return
+  cancelAutofill()
+  const controller = new AbortController()
+  operation = controller
+  pending.value = 'passkey'
+  errorKey.value = ''
+  let verified = false
+  try {
+    await props.authenticatePasskey(email.value, controller.signal)
+    controller.signal.throwIfAborted()
+    verified = true
+  } catch (error) {
+    if (!controller.signal.aborted) errorKey.value = passkeyAuthErrorKey(error)
+  } finally {
+    if (operation === controller) {
+      operation = undefined
+      if (!verified || !props.retainPendingOnSuccess) pending.value = undefined
+    }
+  }
+}
+
 const sendCode = async () => {
   if (pending.value || secondsToResend.value > 0) return
+  cancelAutofill()
   const controller = new AbortController()
   operation = controller
   pending.value = 'send'
@@ -174,7 +251,8 @@ const verifyCode = async () => {
 }
 
 .email-code-field input,
-.email-code-button {
+.email-code-button,
+.email-passkey-button {
   min-height: 44px;
   width: 100%;
   padding: 0 12px;
@@ -186,11 +264,13 @@ const verifyCode = async () => {
 }
 
 .email-code-button,
+.email-passkey-button,
 .email-code-actions button {
   cursor: pointer;
 }
 
-.email-code-button:hover:not(:disabled) {
+.email-code-button:hover:not(:disabled),
+.email-passkey-button:hover:not(:disabled) {
   background: var(--slax-accent-bg);
   border-color: var(--slax-accent-soft);
 }
@@ -282,7 +362,7 @@ const verifyCode = async () => {
 }
 
 .email-code-form--inline .email-code-button:hover:not(:disabled) {
-  border-color: var(--slax-text);
+  border-color: var(--slax-accent-soft);
   background: var(--slax-accent);
 }
 
@@ -299,6 +379,13 @@ const verifyCode = async () => {
     min-width: 96px;
     padding-inline: 10px;
   }
+}
+
+.email-passkey-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .email-code-form--login .email-code-button {

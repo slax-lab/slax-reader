@@ -9,15 +9,16 @@ export interface EmailCodeOptions<T> {
   isCurrent(): boolean;
   send(body: SendEmailCode, signal: AbortSignal): Promise<EmailCodeChallenge>;
   verify(body: EmailCodeInput, signal: AbortSignal): Promise<T>;
+  passkey?(email: string, signal: AbortSignal): Promise<T | null>;
   onVerified(result: T, signal: AbortSignal): void | Promise<void>;
 }
 
-export function useEmailCode<T>({locale, isCurrent, send, verify, onVerified}: EmailCodeOptions<T>) {
+export function useEmailCode<T>({locale, isCurrent, send, verify, passkey, onVerified}: EmailCodeOptions<T>) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [challenge, setChallenge] = useState<{email: string; id: string; expiresAt: number; resendAt: number} | null>(null);
   const [now, setNow] = useState(Date.now);
-  const [busy, setBusy] = useState<'send' | 'verify' | null>(null);
+  const [busy, setBusy] = useState<'send' | 'verify' | 'passkey' | null>(null);
   const [error, setError] = useState<AppMessageKey>();
   const [spent, setSpent] = useState(false);
   const pending = useRef<AbortController | null>(null);
@@ -40,7 +41,7 @@ export function useEmailCode<T>({locale, isCurrent, send, verify, onVerified}: E
   const canEditCode = !busy && !expired && !spent;
   const canVerify = canEditCode && challenge !== null && code.length === 6;
 
-  async function run(action: 'send' | 'verify', task: (signal: AbortSignal, current: () => boolean) => Promise<void>) {
+  async function run(action: 'send' | 'verify' | 'passkey', task: (signal: AbortSignal, current: () => boolean) => Promise<void>) {
     if (pending.current || !mounted.current || !isCurrent()) return;
     const request = new AbortController();
     pending.current = request;
@@ -53,7 +54,7 @@ export function useEmailCode<T>({locale, isCurrent, send, verify, onVerified}: E
       if (!current()) return;
       const key = emailAuthError(reason);
       if (key === 'email_auth_attempts' || key === 'email_auth_existing_account' || key === 'email_auth_conflict') setSpent(true);
-      setError(key ?? (action === 'send' ? 'email_auth_send_failed' : 'email_auth_verify_failed'));
+      setError(key ?? (action === 'send' ? 'email_auth_send_failed' : action === 'passkey' ? 'passkey_action_failed' : 'email_auth_verify_failed'));
     } finally {
       if (pending.current === request) pending.current = null;
       if (current()) setBusy(null);
@@ -87,6 +88,14 @@ export function useEmailCode<T>({locale, isCurrent, send, verify, onVerified}: E
     });
   }
 
+  function signInWithPasskey() {
+    if (!canSend || !passkey) return;
+    void run('passkey', async (signal, current) => {
+      const result = await passkey(address, signal);
+      if (result && current()) await onVerified(result, signal);
+    });
+  }
+
   function changeEmail() {
     if (pending.current) return;
     setChallenge(null);
@@ -96,7 +105,7 @@ export function useEmailCode<T>({locale, isCurrent, send, verify, onVerified}: E
 
   return {
     email, code, sentTo: challenge?.email, busy, error, expired, resendSeconds, canSend, canEditCode, canVerify,
-    sendCode, verifyCode, changeEmail, cancel: () => pending.current?.abort(),
+    sendCode, verifyCode, signInWithPasskey, changeEmail, cancel: () => pending.current?.abort(),
     changeAddress: (value: string) => {setEmail(value); setError(undefined);},
     changeCode: (value: string) => {setCode(value.replace(/[^0-9]/g, '').slice(0, 6)); setError(undefined);},
   };

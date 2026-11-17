@@ -2,11 +2,66 @@ import { ContextManager } from '@/utils/context'
 import { TooManyRequestsError } from '../const/err'
 import { EDGE_IDENTITY_HEADER, EDGE_SECRET_HEADER } from '../const/edge'
 import { captureEventContext, submitServerEvent } from '../domain/events'
+import { readerBookmarkUuid } from '@slax-reader/contracts'
 
 const rateLimitedRoutes: Array<{ path: string; method: string }> = [
   { path: '/v1/bookmark/add', method: 'POST' },
   { path: '/v1/bookmark/add_url', method: 'POST' }
 ]
+
+const EVENT_BODY_LIMIT = 100 * 1024
+
+const readBoundedJson = async (request: Request, limit: number): Promise<{ target_url?: unknown } | null> => {
+  let clone: Request
+  try {
+    clone = request.clone()
+  } catch {
+    return null
+  }
+  const reader = clone.body?.getReader()
+  if (!reader) return null
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    let result = await reader.read()
+    while (!result.done) {
+      size += result.value.byteLength
+      if (size > limit) {
+        void reader.cancel().catch(() => {})
+        return null
+      }
+      chunks.push(result.value)
+      result = await reader.read()
+    }
+  } catch {
+    void reader.cancel().catch(() => {})
+    return null
+  }
+  try {
+    const bytes = new Uint8Array(size)
+    let offset = 0
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset)
+      offset += chunk.byteLength
+    }
+    return JSON.parse(new TextDecoder().decode(bytes)) as { target_url?: unknown } | null
+  } catch {
+    return null
+  }
+}
+
+const readRejectedJson = async (request: Request, limit: number): Promise<{ target_url?: unknown } | null> => {
+  try {
+    if (!request.headers.has('content-length')) return await readBoundedJson(request, limit)
+    const length = Number(request.headers.get('content-length') || 0)
+    if (!(length > 0 && length <= limit)) return null
+    return (await request.clone().json()) as { target_url?: unknown } | null
+  } catch {
+    return null
+  }
+}
+
+const normalizeTargetUrl = (value: string) => (value.startsWith('https://') || value.startsWith('http://') ? value : `https://${value}`)
 
 export const rateLimit = async (request: Request, ctx: ContextManager) => {
   const edgeSecret = ctx.env.EDGE_SHARED_SECRET
@@ -35,24 +90,22 @@ export const rateLimit = async (request: Request, ctx: ContextManager) => {
       ctx.execution.waitUntil(
         (async () => {
           // A rejected large/streaming body must not bypass the rate limiter through telemetry parsing.
-          const length = Number(request.headers.get('content-length') || 0)
-          const body =
-            length > 0 && length <= 100 * 1024
-              ? ((await request
-                  .clone()
-                  .json()
-                  .catch(() => null)) as { target_url?: unknown } | null)
-              : null
+          // A missing Content-Length is bounded explicitly instead of skipping a legitimate small body.
+          // A clone failure (locked or consumed body) drops telemetry, never the rate-limited response.
+          const body = await readRejectedJson(request, EVENT_BODY_LIMIT)
+          const targetUrl = typeof body?.target_url === 'string' && body.target_url ? normalizeTargetUrl(body.target_url) : ''
           let domain = ''
           try {
-            if (typeof body?.target_url === 'string') domain = new URL(body.target_url).hostname
+            if (targetUrl) domain = new URL(targetUrl).hostname
           } catch {}
+          const sourceBookmarkId = pathname === '/v1/bookmark/add_url' && targetUrl ? readerBookmarkUuid(targetUrl, [ctx.env.FRONT_END_URL]) : null
           submitServerEvent(ctx, request, 'bookmark_save_failed', {
             bookmark_id: null,
             url_domain: domain,
             source: context.source,
             content_type: 'full_content',
-            error_class: 'bookmark_add'
+            error_class: 'bookmark_add',
+            ...(sourceBookmarkId ? { source_bookmark_id: sourceBookmarkId } : {})
           })
         })()
       )

@@ -6,6 +6,12 @@
     <array>
       <string>Default</string>
     </array>
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+      <string>webcredentials:r.slax.dev</string>
+      <string>webcredentials:r-beta.slax.com</string>
+      <string>webcredentials:r.slax.com</string>
+    </array>
     <key>com.apple.security.application-groups</key>
     <array>
       <string>group.app.slax.reader</string>

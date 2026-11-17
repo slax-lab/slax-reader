@@ -1,3 +1,7 @@
+import { onBeforeUnmount, onMounted } from 'vue'
+
+import type { ReaderNavigation } from '~/utils/readerStartup'
+
 import { useEventListener, useThrottleFn } from '@vueuse/core'
 
 const TOP_DEAD_ZONE = 240
@@ -10,6 +14,7 @@ export interface ReadingAnchor {
 }
 
 interface ReadingPositionOptions {
+  navigation?: ReaderNavigation
   enabled?: () => boolean
   ready?: () => boolean
   skipRestore?: () => boolean
@@ -30,14 +35,20 @@ function getMaxScroll(): number {
 }
 
 export function useReadingPosition(uuid: string, options: ReadingPositionOptions) {
-  if (!uuid) return
+  if (import.meta.server || !uuid) return
 
   const enabled = () => options.enabled?.() ?? true
-  let restoring = false
+  let restoring = true
+  const navigation = options.navigation
+  let aborted = navigation?.interacted === true || navigation?.history === true || navigation?.explicit === true
+  navigation?.stop()
+  let disposed = false
+  let restored = false
+  const pending: (() => void)[] = []
   const cleanups: (() => void)[] = []
 
   const capture = () => {
-    if (restoring || !enabled()) return
+    if (disposed || restoring || !enabled() || options.ready?.() === false) return
     const container = document.querySelector<HTMLElement>(HTML_TEXT_SELECTOR)
     const headerOffset = getHeaderOffset()
     const scrollY = window.scrollY
@@ -77,70 +88,89 @@ export function useReadingPosition(uuid: string, options: ReadingPositionOptions
     return Math.max(0, saved.percent * getMaxScroll())
   }
 
+  const finish = () => {
+    restoring = false
+    pending.splice(0).forEach(stop => stop())
+  }
+  const abort = () => {
+    aborted = true
+    finish()
+  }
+  const frame = (callback: () => void) => {
+    const id = requestAnimationFrame(callback)
+    pending.push(() => cancelAnimationFrame(id))
+  }
+  const later = (callback: () => void, delay: number) => {
+    const id = window.setTimeout(callback, delay)
+    pending.push(() => clearTimeout(id))
+  }
+  const shouldSkip = () => disposed || aborted || options.skipRestore?.() === true || (!restored && navigation?.initial === true && window.scrollY > 0)
+
   const restore = async () => {
-    if (!enabled() || options.skipRestore?.()) return
+    if (!enabled() || shouldSkip()) { finish(); return }
     const saved = await options.load()
-    if (!saved) return
-
-    restoring = true
-    let aborted = false
-
-    const abort = () => {
-      aborted = true
-    }
-    const offWheel = useEventListener(window, 'wheel', abort, { passive: true })
-    const offTouch = useEventListener(window, 'touchstart', abort, { passive: true })
-    const offKey = useEventListener(window, 'keydown', abort)
+    if (!saved || !enabled() || shouldSkip()) { finish(); return }
 
     const jump = () => {
-      if (aborted) return
+      if (shouldSkip() || !enabled()) { finish(); return }
+      restored = true
       window.scrollTo({ top: computeTarget(saved), behavior: 'auto' })
     }
-
     jump()
-    
-    const timers = [requestAnimationFrame(jump), window.setTimeout(jump, 250), window.setTimeout(jump, 700), window.setTimeout(jump, 1500)]
-    const stop = window.setTimeout(() => {
-      restoring = false
-      offWheel()
-      offTouch()
-      offKey()
-    }, 1600)
-
-    cleanups.push(() => {
-      cancelAnimationFrame(timers[0]!)
-      timers.slice(1).forEach(t => clearTimeout(t))
-      clearTimeout(stop)
-      offWheel()
-      offTouch()
-      offKey()
-    })
+    frame(jump)
+    for (const delay of [250, 700, 1500]) later(jump, delay)
+    later(finish, 1600)
   }
+
+  cleanups.push(useEventListener(window, 'wheel', abort, { passive: true }))
+  cleanups.push(useEventListener(window, 'touchmove', abort, { passive: true }))
+  cleanups.push(useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement
+    if (target.closest?.('input, textarea, select, [contenteditable="true"]')) return
+    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) abort()
+  }))
+  cleanups.push(useEventListener(window, 'slax:reader-navigation', abort))
 
   const waitAndRestore = () => {
     let tries = 0
     const tick = () => {
+      if (shouldSkip()) { finish(); return }
       const container = document.querySelector(HTML_TEXT_SELECTOR)
       const domReady = container != null && container.childElementCount > 0
       const metaReady = options.ready?.() ?? true
       if (domReady && metaReady) {
-        requestAnimationFrame(() => void restore())
+        frame(() => void restore())
         return
       }
-      if (tries++ > 100) return // ~5s 仍未就绪则放弃
-      window.setTimeout(tick, 50)
+      if (tries++ > 100) { finish(); return }
+      later(tick, 50)
     }
     tick()
   }
 
+  let mounted = false
+  let navigationReady = !navigation || navigation.initial
+  if (!navigationReady) {
+    const off = useNuxtApp().hook('page:loading:end', () => {
+      off()
+      navigationReady = true
+      if (mounted) frame(waitAndRestore)
+    })
+    cleanups.push(off)
+  }
+
   onMounted(() => {
-    waitAndRestore()
+    mounted = true
+    if (navigation?.initial && window.scrollY > 0) abort()
+    if (navigationReady) waitAndRestore()
     cleanups.push(useEventListener(window, 'scroll', throttledCapture, { passive: true }))
     cleanups.push(useEventListener(document, 'visibilitychange', () => document.visibilityState === 'hidden' && capture()))
   })
 
   onBeforeUnmount(() => {
     capture()
+    disposed = true
+    finish()
     cleanups.forEach(fn => fn())
     cleanups.length = 0
   })

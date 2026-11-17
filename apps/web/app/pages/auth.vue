@@ -15,7 +15,7 @@
       <p>{{ t(recoveryMessage) }}</p>
       <a v-if="linkState" class="auth-recovery-link" href="/user#account">{{ t('email_auth.back_to_settings') }}</a>
       <a v-else-if="requiresExistingLogin" class="auth-recovery-link" :href="existingLoginTarget">{{ t('email_auth.back_to_sign_in') }}</a>
-      <AppleLoginButton v-else-if="recovery.platform === 'apple'" :redirect="recovery.target" :affcode="recovery.affCode" :auth-attribution="isAcquisitionAuthAttribution(recovery.authAttribution) ? recovery.authAttribution : undefined" />
+      <AppleLoginButton v-else-if="recovery.platform === 'apple'" :redirect="recovery.target" :affcode="recovery.affCode" :auth-attribution="isAcquisitionAuthAttribution(recovery.authAttribution) || isSnapshotAuthAttribution(recovery.authAttribution) ? recovery.authAttribution : undefined" />
       <GoogleLoginButton v-else :redirect="recovery.target" :affcode="recovery.affCode" :auth-attribution="recovery.authAttribution" />
     </section>
   </div>
@@ -31,7 +31,7 @@ import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
 import { authReturnTarget, emailAuthErrorKey } from '~/utils/emailAuth'
 import { finishProviderLink, isProviderLinkState, takePendingProviderLink } from '~/utils/providerLink'
 
-import { isAcquisitionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
+import { isAcquisitionAuthAttribution, isSnapshotAuthAttribution, SNAPSHOT_BOOKMARK_ID_PATTERN, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import { z } from 'zod'
 
 const { t } = useI18n()
@@ -47,6 +47,12 @@ const callbackState = z.object({
       source_screen: z.literal('collection'),
       presentation: z.literal('modal'),
       trigger_element_id: z.literal('collection_subscribe_button')
+    }),
+    z.object({
+      source_screen: z.literal('detail'),
+      presentation: z.literal('modal'),
+      trigger_element_id: z.literal('snapshot_save_button'),
+      source_bookmark_id: z.string().regex(SNAPSHOT_BOOKMARK_ID_PATTERN)
     }),
     z.object({
       source: z.literal('hackerlinks'),
@@ -135,7 +141,7 @@ if (import.meta.client) {
         return
       }
       const state = callbackState.parse(JSON.parse(z.string().parse(route.query.state)))
-      const authAttribution = state.platform === 'apple' && !isAcquisitionAuthAttribution(state.auth_attribution) ? undefined : state.auth_attribution
+      const authAttribution = state.platform === 'apple' && !isAcquisitionAuthAttribution(state.auth_attribution) && !isSnapshotAuthAttribution(state.auth_attribution) ? undefined : state.auth_attribution
       recovery.value = { target: state.target || '/bookmarks', affCode: state.affCode, platform: state.platform, authAttribution }
       deadline = setTimeout(() => {
         console.warn('[auth] callback timed out', { phase })

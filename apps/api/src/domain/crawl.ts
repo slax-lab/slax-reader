@@ -1,3 +1,4 @@
+import { assertExternalNewsletterTarget } from '@/utils/newsletterTarget'
 import { MarkRepo } from '@/infra/repository/dbMark'
 import { SocialMediaApi } from '../infra/external/socialMedia'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
@@ -32,6 +33,7 @@ import {
 } from '@/utils/podcastSource'
 import { renderPodcastText } from '@/utils/podcastArticle'
 import { parseHTML } from 'linkedom'
+import { sanitizeArticleBody } from '@/utils/articleBody'
 import { Imager } from '../utils/imager'
 import { ContentParser } from '../utils/parser'
 import { ZyteTimeoutError } from '../const/err'
@@ -148,6 +150,7 @@ export class CrawlService {
   }
 
   public async createWorkflow(env: Env, params: CrawlWorkflowParams, maxRetries: number = 3, trackingContext?: ContextManager) {
+    assertExternalNewsletterTarget(params.url)
     const raw = await this.snapshotRepo.snapshot(params.bookmarkId)
     if (!raw) throw forkError()
     if (params.captureRevision && params.captureRevision !== raw.updated_at.toISOString()) return
@@ -1118,6 +1121,33 @@ export class CrawlService {
 
   // ---------------- 社交媒体通用 parse + save ----------------
 
+  public async savePublisherHtml(ctx: ContextManager, document: Document, url: string, bookmarkId: number, userBookmarkUuid: string) {
+    if (document.documentElement?.localName !== 'html') return null
+    const head = document.head
+    const meta = (selector: string) => head.querySelector(selector)?.getAttribute('content')?.trim() || ''
+    const route = detectRoute(url)
+    const twitter = route === 'twitter' || route === 'twitter_article'
+    const title = document.title.trim() || document.body.querySelector('h1')?.textContent?.trim()
+    const { body, text, hasMedia } = sanitizeArticleBody(document.body.innerHTML, url, twitter)
+    if (!title || (!text && !hasMedia)) return null
+    const date = new Date(meta('meta[property="article:published_time"]'))
+    const data = await this.parseAndSaveSocialMedia(ctx, {
+      html: twitter ? body : `<article>${body}</article>`,
+      originalUrl: url,
+      bookmarkId,
+      userBookmarkUuid,
+      meta: {
+        title,
+        textContent: text,
+        excerpt: text.slice(0, 200),
+        byline: meta('meta[name="author"]'),
+        siteName: meta('meta[property="og:site_name"]') || (twitter ? 'Twitter' : route === 'weixin' ? '微信' : new URL(url).hostname),
+        publishedTime: Number.isFinite(date.valueOf()) ? date : undefined
+      }
+    })
+    return { data, hasMedia }
+  }
+
   /**
    * 通用的社交媒体 parse + save 流程：
    * 1. 构建 HTML → 2. 解析 DOM → 3. 替换图片 → 4. 写 R2 → 5. 更新 DB
@@ -1136,7 +1166,7 @@ export class CrawlService {
         excerpt: string
         byline: string
         siteName: string
-        publishedTime: Date
+        publishedTime?: Date
       }
     }
   ): Promise<CrawlResult> {

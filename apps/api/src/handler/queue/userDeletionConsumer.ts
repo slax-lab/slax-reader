@@ -22,7 +22,6 @@ export class UserDeletionConsumer {
       console.log(`User deletion completed successfully for userId: ${userId}`)
     } catch (error) {
       console.error(`User deletion failed for userId: ${userId}`, error)
-      throw error
     }
   }
 }

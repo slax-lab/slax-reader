@@ -51,7 +51,15 @@ export function useBookmarkFork(source?: MaybeRef<string>, status?: MaybeRef<Boo
       return null
     }
     if (!user.isLogin) {
-      showLoginModal({ redirect: location.href })
+      showLoginModal({
+        redirect: location.href,
+        authAttribution: {
+          source_screen: 'detail',
+          presentation: 'modal',
+          trigger_element_id: 'snapshot_save_button',
+          source_bookmark_id: sourceUuid
+        }
+      })
       return null
     }
     state.requests.add(key)

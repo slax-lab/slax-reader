@@ -78,7 +78,7 @@ export default defineConfig({
     host_permissions: [...(({
       production: ['https://*.slax.app/', 'https://*.slax.com/'],
       beta: ['https://*.slax.app/', 'https://*.slax.com/']
-    } as Record<string, string[]>)[env] ?? developmentHostPermissions), 'file:///*'],
+    } as Record<string, string[]>)[env] ?? developmentHostPermissions), 'http://*/*', 'https://*/*', 'file:///*'],
     content_security_policy: {
       extension_pages: "script-src 'self'; object-src 'self'"
     },

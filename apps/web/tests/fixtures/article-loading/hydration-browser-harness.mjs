@@ -2,13 +2,16 @@
 // Run from the repository root and open http://127.0.0.1:4321 in a browser.
 // This is a local mechanism/interaction fixture, not an authenticated Nuxt integration.
 // Optional argument: a directory of podcast/mole/wechat.json objects with string body fields.
+import transformerDirectives from '@unocss/transformer-directives'
+import { createJiti } from 'jiti'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { createRequire } from 'node:module'
-import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createGenerator } from 'unocss'
 
 const web = fileURLToPath(new URL('../../../', import.meta.url))
 const root = resolve(web, '../..')
@@ -18,6 +21,10 @@ const ts = require('typescript')
 const { build } = createRequire(require.resolve('wrangler'))('esbuild')
 const { createSSRApp, h } = require('vue')
 const { renderToString } = require('vue/server-renderer')
+const { default: MagicString } = createRequire(require.resolve('@unocss/transformer-directives'))('magic-string')
+const uno = await createGenerator(await createJiti(import.meta.url).import(resolve(web, 'uno.config.ts'), { default: true }))
+const directives = transformerDirectives({ applyVariable: ['--at-apply', '--style'] })
+const utilities = (await uno.generate('hidden opacity-0')).css
 const origin = 'http://127.0.0.1:4321'
 const articleFile = 'apps/web/app/components/Article/BookmarkArticle.vue'
 const baselineRef = '293847be14ea7c30f31713a275726e705b66bf9d'
@@ -57,7 +64,9 @@ async function compile(source, filename, ssr) {
   const script = compileScript(descriptor, { id, inlineTemplate: true, templateOptions: { ssr } })
   const auto = ['computed', 'onMounted', 'onBeforeUnmount', 'onUnmounted', 'watch', 'nextTick'].filter(name => !script.bindings[name] && new RegExp(`\\b${name}\\s*\\(`).test(script.content))
   const styles = await Promise.all(descriptor.styles.map(style => compileStyleAsync({ source: style.content, filename, id, scoped: !!style.scoped, preprocessLang: style.lang })))
-  const css = styles.map(style => style.code).join('\n')
+  const styleCode = new MagicString(styles.map(style => style.code).join('\n'))
+  await directives.transform(styleCode, filename + '.css', { uno })
+  const css = styleCode.toString()
   const code = script.content.replace('export default', 'const Component =')
   return { contents: `${auto.length ? `import { ${auto.join(',')} } from 'vue';` : ''}\n${code}\nComponent.__scopeId = '${id}'; Component.styles = [${JSON.stringify(css)}]; ${!ssr && !filename.endsWith('.ce.vue') && css ? `document.head.appendChild(Object.assign(document.createElement('style'), {textContent:${JSON.stringify(css)}}));` : ''} export default Component;`, resolveDir: web, loader: 'ts' }
 }
@@ -125,7 +134,7 @@ wav.write('RIFF', 0); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt '
 wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(8000, 24); wav.writeUInt32LE(16000, 28)
 wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(wav.length - 44, 40)
 const requests = new Map()
-const tokens = readFileSync(resolve(web, 'styles/theme.tokens.css'), 'utf8')
+const tokens = readFileSync(resolve(web, 'styles/theme.tokens.css'), 'utf8') + utilities
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, origin)

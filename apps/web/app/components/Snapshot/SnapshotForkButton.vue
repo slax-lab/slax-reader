@@ -1,6 +1,15 @@
 <template>
   <div class="fork-action">
-    <button type="button" class="fork-button" :class="{ 'is-saved': saved, 'is-unavailable': !ready }" :disabled="pending || saved || !ready" :aria-busy="pending" @click="submit">
+    <button
+      type="button"
+      class="fork-button"
+      data-analytics-element="snapshot_save_button"
+      :data-analytics-source-bookmark-id="bookmarkUid"
+      :class="{ 'is-saved': saved, 'is-unavailable': !ready }"
+      :disabled="pending || saved || !ready"
+      :aria-busy="pending"
+      @click="submit"
+    >
       <AppIcon :name="saved ? 'snapshot.saved' : 'snapshot.save'" class="fork-icon" />
       <span>{{ $t(pending ? 'bookmark_fork.submitting' : saved ? 'bookmark_fork.saved' : 'bookmark_fork.action') }}</span>
     </button>
