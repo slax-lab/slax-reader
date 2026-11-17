@@ -3,6 +3,8 @@ import * as Vue from "vue";
 
 import FeedPanel from "../../../app/components/FeedPanel.vue";
 
+import * as feedPreview from "../../../app/utils/rssPreview";
+
 import { mockNuxtImport } from "@nuxt/test-utils/runtime";
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -146,15 +148,18 @@ function panel() {
 
 describe("Newsletter Feed", () => {
   it('fits Newsletter preview tables and hides empty spacers after body replacement', async () => {
+    // Native sanitization is exercised in Chrome; Happy DOM drops nonempty tables.
+    vi.spyOn(feedPreview, 'sanitizeNewsletterPreview').mockImplementation(html => html);
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
     vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(400);
     rss.entries.value = [{ ...entry, id: 'newsletter:1', kind: 'newsletter', article_url: null }];
     const wrapper = panel();
     await wrapper.get('.article-main').trigger('click');
-    rss.detail.value = { content_html: '<table><tr><td>Content</td></tr></table><table><tr><td>&nbsp;</td></tr></table>' };
+    rss.detail.value = { content_html: '<table><tr><td>Content</td></tr><tr><td>A</td><td>B</td><td>C</td></tr></table><table><tr><td>&nbsp;</td></tr></table>' };
     await Vue.nextTick();
     expect(wrapper.find('.newsletter-body table.slax-table-empty').exists()).toBe(true);
     expect(wrapper.find('.newsletter-body table.slax-table-fit').exists()).toBe(true);
+    expect(wrapper.get('.newsletter-body table td').attributes('colspan')).toBe('3');
     rss.detail.value = { content_html: '<table><tr><td>New content</td></tr></table>' };
     await Vue.nextTick();
     expect(wrapper.find('.newsletter-body table.slax-table-empty').exists()).toBe(false);

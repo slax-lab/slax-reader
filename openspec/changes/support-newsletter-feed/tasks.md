@@ -52,6 +52,12 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 - [x] 6x. Add regressions, exercise both renderers across supported themes and responsive widths, and review the added scope for Bugs/Security/Compliance.
 - [x] 6y. Record renewed user hands-on acceptance of the table changes and update follow-up PR #628 with current evidence.
 
+## Mixed-column table follow-up (2026-11-17)
+
+- [x] 6z. Reproduce the hosted mixed-column layout, preserve safe incoming Newsletter spans without changing RSS output, and normalize missing full-width spans only in Newsletter rendering.
+- [x] 6aa. Remove Newsletter zebra backgrounds, exercise native browser rendering, run relevant checks and perform Bugs/Security/Compliance review.
+- [x] 6ab. Record renewed hands-on acceptance and deliver a new task PR after merged PR #628.
+
 ## Archive after merge
 
 - [ ] 7. After the task PR merges, classify unchecked tasks and archive this change through a separate documentation PR.

@@ -847,6 +847,8 @@
       "timed_out": "Sign-in timed out. Please check your connection and sign in again."
     },
     "bookmarks_detail": {
+      "subscription_checking": "Checking your subscription…",
+      "subscription_check_failed": "Unable to check your subscription. Please try again.",
       "ai_analyze": "Analysis",
       "chat": "Chat",
       "loading": "Content loading...",

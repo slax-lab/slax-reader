@@ -61,7 +61,7 @@ const value = (node: Element, tag: string) => child(node, tag)?.textContent?.tri
 const textOnly = (html: string) => new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html').documentElement.textContent || ''
 
 /** Rebuild markup from allowed nodes; no untrusted attribute or serialized source node is returned. */
-export function sanitizeFeedHtml(html: string, base: string): { html: string; text: string; image: string | null; truncated: boolean } {
+export function sanitizeFeedHtml(html: string, base: string, preserveTableSpans = false): { html: string; text: string; image: string | null; truncated: boolean } {
   const doc = new DOMParser().parseFromString(`<div>${html.slice(0, 512 * 1024)}</div>`, 'text/html')
   const allowed = new Set([
     'p',
@@ -143,6 +143,17 @@ export function sanitizeFeedHtml(html: string, base: string): { html: string; te
     if (tag === 'a') {
       const href = safeFeedUrl(element.getAttribute('href'), base)
       if (href) attrs = ` href="${escape(href)}" rel="noopener noreferrer"`
+    }
+    if (preserveTableSpans && (tag === 'td' || tag === 'th')) {
+      for (const [key, min, max] of [
+        ['colspan', 1, 1000],
+        ['rowspan', 0, 65534]
+      ] as const) {
+        const raw = element.getAttribute(key)
+        if (raw === null || !/^\d+$/.test(raw)) continue
+        const value = Number(raw)
+        if (value >= min && value <= max) attrs += ` ${key}="${value}"`
+      }
     }
     budget -= 100 + attrs.length
     const inner = Array.from(node.childNodes)

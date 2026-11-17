@@ -78,6 +78,12 @@ describe('RSS parsing', () => {
 })
 
 describe('HTML allowlist', () => {
+  test('keeps the shipped table attribute stripping policy by default', () => {
+    const clean = sanitizeFeedHtml('<table><tr><td colspan="3" rowspan="2">RSS</td></tr></table>', 'https://example.com/')
+    expect(clean.html).not.toMatch(/colspan|rowspan/)
+    expect(clean.html).toContain('<td>RSS</td>')
+  })
+
   test('uses picture and srcset candidates when the img source is unusable', () => {
     const clean = sanitizeFeedHtml('<picture><source srcset="/real.png 1x, /large.png 2x"><img src="data:placeholder"></picture>', 'https://example.com/feed')
     expect(clean.image).toBe('https://example.com/real.png')

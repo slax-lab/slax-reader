@@ -330,6 +330,10 @@
       border: 0;
     }
 
+    tbody tr:nth-child(even) td {
+      background-color: transparent;
+    }
+
     // Match the specificity of the shared first/last-row corner rules.
     tr:is(:first-child, :last-child) > :is(th, td):is(:first-child, :last-child) {
       border-radius: 0;

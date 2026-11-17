@@ -1,3 +1,5 @@
+import { isNewsletterBookmarkTarget } from '~/utils/bookmarkSource'
+
 import type { DOMProcessor, WebProcessorContext } from './types'
 
 // Keep the original DOM intact: saved annotations use direct-child selectors.
@@ -6,10 +8,23 @@ const FIT_CLASS = 'slax-table-fit'
 const MEDIA_SELECTOR = 'img, picture, video, audio, svg, canvas, iframe, object, embed, youtube-player-view, podcast-player-view, unsupported-video, wechat-video-info'
 
 /** Share table fitting and empty-spacer handling between Article and Feed readers. */
-export function observeTableLayout(container: HTMLElement): (() => void) | undefined {
+export function observeTableLayout(container: HTMLElement, newsletter = false): (() => void) | undefined {
   const tables = Array.from(container.querySelectorAll<HTMLTableElement>('table'))
   const view = container.ownerDocument.defaultView
   if (!view || !tables.length) return
+
+  if (newsletter) {
+    for (const table of tables) {
+      const rows = Array.from(table.rows)
+      // Existing mail may have lost span attributes during intake. Do not guess
+      // occupied columns in row-spanning layouts or replace explicit spans.
+      if (rows.some(row => Array.from(row.cells).some(cell => cell.rowSpan !== 1))) continue
+      const columns = Math.max(1, ...rows.map(row => Array.from(row.cells).reduce((sum, cell) => sum + cell.colSpan, 0)))
+      for (const row of rows) {
+        if (columns > 1 && row.cells.length === 1 && !row.cells[0]!.hasAttribute('colspan')) row.cells[0]!.colSpan = columns
+      }
+    }
+  }
 
   const update = () => {
     for (const table of tables) {
@@ -51,7 +66,7 @@ export class TableLayoutProcessor implements DOMProcessor {
   }
 
   process(context: WebProcessorContext): void {
-    const cleanup = observeTableLayout(context.container)
+    const cleanup = observeTableLayout(context.container, isNewsletterBookmarkTarget(context.url.href))
     if (cleanup) context.cleanups.push(cleanup)
   }
 }

@@ -1,3 +1,5 @@
+import { cancelReaderRestore } from '~/utils/readerStartup'
+
 import type { MarkCommentInfo, MarkItemInfo, QuoteData } from '@slax-reader/selection/types'
 import type { ReaderSelection } from '~/components/Article/Selection/ReaderSelection'
 import type { SnapshotPanelId } from '~/components/Snapshot/panels'
@@ -70,6 +72,7 @@ export function useCommentPanel({
 
   // 通过 info.id 闪烁正文划线
   const flashMarkByInfoId = (infoId: string) => {
+    cancelReaderRestore()
     if (articleSelection.value?.revealMark) { articleSelection.value.revealMark(infoId); return }
     const marks = document.querySelectorAll<HTMLElement>(`slax-mark[data-uuid="${infoId}"]`)
     if (!marks.length) return

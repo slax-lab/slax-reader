@@ -58,6 +58,54 @@ describe('TableLayoutProcessor', () => {
     ctx.cleanups.forEach(cleanup => cleanup())
   })
 
+  it('fills missing spans in mixed-column Newsletter rows without replacing annotated nodes', () => {
+    const ctx = buildContext('<table><tbody><tr><td><mark>Heading</mark></td></tr><tr><td>A</td><td>B</td><td>C</td></tr></tbody></table>')
+    ctx.url = new URL('slax-newsletter://message/1')
+    const cell = ctx.container.querySelector('td')!
+    const mark = cell.querySelector('mark')!
+    new TableLayoutProcessor().process(ctx)
+    expect(cell.colSpan).toBe(3)
+    expect(ctx.container.querySelector('tbody > tr > td > mark')).toBe(mark)
+    expect(ctx.container.querySelectorAll('tr')[1]!.cells).toHaveLength(3)
+    ctx.cleanups.forEach(cleanup => cleanup())
+  })
+
+  it('keeps ordinary Article spans unchanged', () => {
+    const ctx = buildContext('<table><tbody><tr><td>Heading</td></tr><tr><td>A</td><td>B</td></tr></tbody></table>')
+    new TableLayoutProcessor().process(ctx)
+    expect(ctx.container.querySelector('td')!.hasAttribute('colspan')).toBe(false)
+    ctx.cleanups.forEach(cleanup => cleanup())
+  })
+
+  it.each(['2', '0'])('does not infer spans in tables with rowspan=%s', rowspan => {
+    const ctx = buildContext(`<table><tbody><tr><td rowspan="${rowspan}">Side</td><td>A</td></tr><tr><td>B</td></tr></tbody></table>`)
+    ctx.url = new URL('slax-newsletter://message/1')
+    // Happy DOM treats rowspan=0 as 1; browsers reflect the zero value.
+    if (rowspan === '0') Object.defineProperty(ctx.container.querySelector('td'), 'rowSpan', { value: 0 })
+    new TableLayoutProcessor().process(ctx)
+    expect(ctx.container.querySelectorAll('tr')[1]!.cells[0]!.hasAttribute('colspan')).toBe(false)
+    ctx.cleanups.forEach(cleanup => cleanup())
+  })
+
+  it('preserves explicit spans and counts only the current table columns', () => {
+    const ctx = buildContext('<table id="outer"><tbody><tr><td><table id="inner"><tr><td>Inner</td></tr><tr><td>A</td><td>B</td><td>C</td></tr></table></td></tr><tr><td colspan="1">Explicit</td></tr><tr><td>A</td><td>B</td></tr></tbody></table>')
+    ctx.url = new URL('slax-newsletter://message/1')
+    // Happy DOM includes nested descendants in rows/cells. Model the native
+    // collections here; the matching case is also exercised in Chrome.
+    for (const table of ctx.container.querySelectorAll('table')) {
+      const rows = Array.from(table.querySelectorAll('tr')).filter(row => row.closest('table') === table)
+      Object.defineProperty(table, 'rows', { value: rows })
+      for (const row of rows) Object.defineProperty(row, 'cells', { value: Array.from(row.children).filter(cell => cell.matches('td,th')) })
+    }
+    new TableLayoutProcessor().process(ctx)
+    const outer = ctx.container.querySelector<HTMLTableElement>('#outer')!
+    const inner = ctx.container.querySelector<HTMLTableElement>('#inner')!
+    expect(outer.rows[0]!.cells[0]!.colSpan).toBe(2)
+    expect(outer.rows[1]!.cells[0]!.colSpan).toBe(1)
+    expect(inner.rows[0]!.cells[0]!.colSpan).toBe(3)
+    ctx.cleanups.forEach(cleanup => cleanup())
+  })
+
   it('uses native table layout when the content fits', () => {
     const observe = vi.fn()
     const disconnect = vi.fn()
