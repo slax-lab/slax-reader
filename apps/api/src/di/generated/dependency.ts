@@ -87,12 +87,12 @@ import { AigcBatchOrchestrator } from '../../domain/orchestrator/aigc'
 import { PodcastService } from '../../domain/podcast'
 import { SubscriptionOrchestrator } from '../../domain/orchestrator/subscription'
 import { SubscriptionAppleService } from '../../domain/subscriptionApple'
-import { UserDeletionService } from '../../domain/userDeletion'
 import { YoutubeArticleService } from '../../domain/youtubeArticle'
 import { ApiKeyService } from '../../domain/apiKey'
 import { BookmarkOrchestrator } from '../../domain/orchestrator/bookmark'
 import { BookmarkAddOrchestrator } from '../../domain/orchestrator/bookmarkAdd'
 import { UrlParserHandler } from '../../domain/orchestrator/urlParser'
+import { UserDeletionService } from '../../domain/userDeletion'
 import { CollectionOrchestrator } from '../../domain/orchestrator/collection'
 import { ContentRecommendationOrchestrator } from '../../domain/orchestrator/contentRecommendation'
 import { FeedService } from '../../domain/feed'
@@ -111,7 +111,6 @@ import { CollectionJob } from '../../handler/cron/collectionJob'
 import { PodcastJob } from '../../handler/cron/podcastJob'
 import { RssJob } from '../../handler/cron/rssJob'
 import { SubscriptionJob } from '../../handler/cron/subscriptionJob'
-import { UserDeletionJob } from '../../handler/cron/userDeletionJob'
 import { YoutubeArticleJob } from '../../handler/cron/youtubeArticleJob'
 import { BookmarkConsumer } from '../../handler/queue/bookmarkConsumer'
 import { SubscriptionConsumer } from '../../handler/queue/subscriptionConsumer'
@@ -634,14 +633,6 @@ container.register(RssJob, {
 
 container.register(SubscriptionJob, {
   useFactory: container => new SubscriptionJob(container.resolve(SubscriptionOrchestrator), container.resolve(SubscriptionAppleService), container.resolve(SubscriptionRepo))
-})
-
-container.register(UserDeletionJob, {
-  useFactory: container =>
-    new UserDeletionJob(
-      lazy(() => container.resolve(PRISIMA_HYPERDRIVE_CLIENT)),
-      container.resolve(UserDeletionService)
-    )
 })
 
 container.register(YoutubeArticleJob, {

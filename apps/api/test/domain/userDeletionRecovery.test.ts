@@ -1,44 +1,32 @@
 import { describe, expect, test, vi } from 'vitest'
-import { UserDeletionJob } from '@/handler/cron/userDeletionJob'
+import { UserDeletionConsumer } from '@/handler/queue/userDeletionConsumer'
+import { handleMessage } from '@/di/generated/consumer'
 
-const harness = () => {
-  const deleted_at = new Date('2026-09-18T00:00:00Z')
-  const values = new Map<string, string>()
-  const get = vi.fn(async (key: string) => values.get(key) ?? null)
-  const put = vi.fn(async (key: string, value: string) => void values.set(key, value))
-  const cleanupUserData = vi.fn().mockResolvedValue(undefined)
-  const revokeUser = vi.fn().mockResolvedValue(undefined)
-  const prisma = { sr_user: { findMany: vi.fn().mockResolvedValue([{ id: 1, deleted_at }]) } }
-  const job = new UserDeletionJob(() => prisma as never, { cleanupUserData } as never)
-  const ctx = { env: { KV: { get, put }, WEBSOCKET_SERVER: { idFromName: () => 'global', get: () => ({ revokeUser }) } } } as never
-  return { job, ctx, prisma, values, cleanupUserData, revokeUser, deleted_at }
-}
+vi.mock('@/handler/queue/bookmarkConsumer', () => ({ BookmarkConsumer: class {} }))
+vi.mock('@/handler/queue/subscriptionConsumer', () => ({ SubscriptionConsumer: class {} }))
 
-describe('deleted-account cleanup recovery', () => {
-  test('reconstructs lost queue work from durable tombstones', async () => {
-    const h = harness()
-    await h.job.recoverDeletedUsers(h.ctx)
-    expect(h.revokeUser).toHaveBeenCalledWith(1)
-    expect(h.cleanupUserData).toHaveBeenCalledWith(1, (h.ctx as { env: unknown }).env)
-    expect(h.values.get(`user-deletion-recovery:done:1:${h.deleted_at.getTime()}`)).toBe('1')
-    await h.job.recoverDeletedUsers(h.ctx)
-    expect(h.cleanupUserData).toHaveBeenCalledOnce()
-  })
-
-  test('retries failures on later scans without starving subsequent accounts', async () => {
-    const h = harness()
-    h.prisma.sr_user.findMany.mockResolvedValue([
-      { id: 1, deleted_at: h.deleted_at },
-      { id: 2, deleted_at: h.deleted_at }
-    ])
-    h.cleanupUserData.mockRejectedValueOnce(new Error('temporary database failure'))
-    await h.job.recoverDeletedUsers(h.ctx)
-    expect(h.cleanupUserData).toHaveBeenCalledWith(2, (h.ctx as { env: unknown }).env)
-    expect(h.values.has(`user-deletion-recovery:done:1:${h.deleted_at.getTime()}`)).toBe(false)
-    expect(h.values.get(`user-deletion-recovery:done:2:${h.deleted_at.getTime()}`)).toBe('1')
-    await h.job.recoverDeletedUsers(h.ctx)
-    expect(h.cleanupUserData).toHaveBeenCalledTimes(3)
-    expect(h.values.get(`user-deletion-recovery:done:1:${h.deleted_at.getTime()}`)).toBe('1')
+describe('best-effort account cleanup', () => {
+  test.each(['slax-reader-user-deletion', 'slax-reader-user-deletion-beta'])('%s consumes cleanup failure and continues the batch', async queue => {
+    const failure = new Error('cleanup failed after dispatch')
+    const cleanupUserData = vi.fn().mockRejectedValueOnce(failure).mockResolvedValue(undefined)
+    const consumer = new UserDeletionConsumer({ cleanupUserData } as never)
+    const messages = [1, 2].map(userId => ({ id: `delete-${userId}`, body: { userId }, ack: vi.fn(), retry: vi.fn() }))
+    const env = {} as Env
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await handleMessage({ resolve: () => consumer } as never, { queue, messages } as never, env, {} as ExecutionContext)
+      expect(cleanupUserData.mock.calls).toEqual([
+        [1, env],
+        [2, env]
+      ])
+      for (const message of messages) {
+        expect(message.ack).toHaveBeenCalledOnce()
+        expect(message.retry).not.toHaveBeenCalled()
+      }
+      expect(log).toHaveBeenCalledWith('User deletion failed for userId: 1', failure)
+    } finally {
+      log.mockRestore()
+    }
   })
 
   test.each(['missing-env', 'rejected'] as const)('vector cleanup %s aborts before any destructive delete', async failure => {
