@@ -349,7 +349,7 @@ export class BookmarkOrchestrator {
         if (!isForce) {
           const outline = readOnly ? await this.bookmarkSvc.getBookmarkOutline(bookmarkId, ownerId) : (await this.bookmarkSvc.getUserBookmarkSummary(ctx, { bmId, bmUId }))?.content
 
-          if (outline) {
+          if (outline?.trim()) {
             await this.writeProgress({ ...writerBaseParams, data: { outline } })
             await this.writeProgress({ ...writerBaseParams, data: { done: true } })
             return true
@@ -482,7 +482,7 @@ export class BookmarkOrchestrator {
         }
       })
 
-      if (outline.length > 0) {
+      if (result.completed && outline.trim().length > 0) {
         await this.writeProgress({ ...writerBaseParams, data: { outline: outline || '' } })
         bmId > 0 && (await this.bookmarkSvc.saveSummary(ctx, bmId, result.model, outline, result.model))
       }

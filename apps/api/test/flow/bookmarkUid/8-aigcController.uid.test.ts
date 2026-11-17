@@ -33,7 +33,6 @@ function mockReq(body: any) {
 async function wire() {
   const { AigcController } = await import('@/handler/http/aigcController')
   const aigcService = {
-    recordChunks: vi.fn(),
     bookmarkSummary: vi.fn().mockResolvedValue(undefined),
     bookmarkChat: vi.fn().mockResolvedValue(undefined)
   }
@@ -85,6 +84,15 @@ describe('POST /v1/aigc/summaries', () => {
       expect.anything(),
       expect.objectContaining({ bmUId: 'bm-uuid' })
     )
+    expect(env.aigcService.bookmarkSummary).toHaveBeenCalled()
+  })
+
+  test.each(['', '  \n'])('stored empty summary %j → treated as a miss and generated again', async content => {
+    env.bookmarkService.getUserBookmarkSummary.mockResolvedValue({ content })
+
+    await env.ctrl.handleSummariesRequest(createMockCtx({ userId: 7 }), mockReq({ bookmark_uid: 'bm-uuid', force: false }))
+
+    expect(env.bookmarkService.getBookmarkTitleContent).toHaveBeenCalled()
     expect(env.aigcService.bookmarkSummary).toHaveBeenCalled()
   })
 
