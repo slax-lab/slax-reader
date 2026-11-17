@@ -167,6 +167,24 @@ describe('single-target task refresh semantics', () => {
     expect(await repo.findCollection(2)).toBeUndefined()
   })
 
+  test('marks only publisher representatives and reuses unchanged vectors', async () => {
+    const writer = new VectorMaintenanceService(
+      repo,
+      new VectorSourceRepo(env),
+      new VectorEmbeddingClient(env),
+      new VectorIndexClient({ ...env, PUBLISHER_USER_IDS: '12, 2' }),
+      preferences.client
+    )
+    await seed(41, [1, 2], 'shared article')
+    const items = [1, 2].map(userId => ({ userId, id: 41 }))
+    await writer.refreshArticles(items)
+    expect(indexes[0].stored.get('a:1:41')?.metadata).not.toHaveProperty('recommendable')
+    expect(indexes[0].stored.get('a:2:41')?.metadata?.recommendable).toBe(true)
+    expect((await writer.refreshArticles(items)).map(r => r.mutationIds)).toEqual([[], []])
+    await service.refreshArticles(items)
+    expect(indexes[0].stored.get('a:2:41')?.metadata).not.toHaveProperty('recommendable')
+  })
+
   test('one article pair writes only that identity and never its owner preference or Collections', async () => {
     await seed(41, [2], 'stored owner article', { starred: true, published: true })
     const users = vi.spyOn(service, 'refreshUser')
