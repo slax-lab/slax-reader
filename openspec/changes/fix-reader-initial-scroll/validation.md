@@ -61,7 +61,7 @@ Code implementation and targeted agent verification are complete. The integrated
 
 Run with the explicit synthetic public configuration documented in the fixture README:
 
-- `pnpm web -- test`: **3089 passed, 8 failed, 3 skipped** across 255 files. The eight failures are the pre-existing link suffix expectations in `useSlaxRoutes.spec.ts` (five) and `BookmarkHighlightCell.spec.ts` (three); their implementations and tests are unchanged by this change. All 78 focused cases in the eight touched/new scroll, navigation, subscription, bookmark and status suites pass in this full run.
+- Final `pnpm web -- test` after the CI follow-up: **3098 passed, zero failed, 3 skipped** across 255 files, exit 0. The first PR head reproduced the eight previously recorded stale link expectations; the test-only follow-up below corrects them to the existing entry-attribution contract. All 97 targeted cases across the reader/subscription/status and reader-link suites pass in this full run.
 - `pnpm web -- typecheck`: **passed**, including a fresh Nuxt prepare after stopping the live server.
 - Changed-file ESLint (all production/test/config files in this diff): **zero errors**, 24 warnings (primarily explicit-any patterns in test mocks). `pnpm web -- lint`: 88 import-sort errors in **88 unchanged files**, 455 warnings. Compared every error-bearing file against the diff; none is changed here. No unrelated files were reformatted.
 - `pnpm exec openspec validate --all --strict`: **141 passed, zero failed**.
@@ -128,3 +128,12 @@ hands-on acceptance at `http://127.0.0.1:3218/reader-fixture`.
 - Key visuals are uploaded with `gh pr create --attach`: the 1280px light-theme delayed-start scroll recording, plus checking at 1280px/light and error/retry at 375px/dark and 1280px/e-ink. Media remains outside git.
 - The recording's visible article is synthetic and the paid-account states are synthetic. The caption describes the retained paragraph; no recording is presented as a live production/account test.
 - Local Bugs/Security/Compliance review is closed: all Important findings are resolved, and the human acceptance record predates PR creation. Remaining agent-executable integration gaps are classified in tasks 4.3 and 4.5.
+
+
+## CI follow-up: existing reader-link expectations
+
+- The first PR head (`0f4b0358`) failed Web CI with exactly the eight previously recorded URL expectations. `Extension CI gate` also failed as a shared-workflow consequence; the Extension application job itself was skipped.
+- Existing `useSlaxRoutes` decorates library/root reader links with `_slax_entry=bookmarks` through `eventEntryUrl`. Sibling `BookmarkCellNav.fork.spec.ts` and `BookmarkCell.spec.ts` already assert that contract. The two older route/highlight test files still expected URLs without the entry hint.
+- Updated only those stale URL assertions, retaining UUID/source precedence, `highlight` values and the Nuxt auto-import checks. Added a bootstrap regression proving `_slax_entry=bookmarks` does not reserve an explicit passage target or prevent ordinary progress restoration eligibility.
+- Full Web suite now passes: **3098 passed, 3 skipped, zero failed**, exit 0. Changed test-file ESLint and diff whitespace checks pass. The local reviewer confirmed no Important finding and no weakening of the original destination/highlight assertions.
+- This follow-up changes tests/evidence only; shipped behavior, package output, the recorded 21-scenario runtime exercise, visual evidence and the owner's prior hands-on acceptance remain applicable. It does not require another UI acceptance or application version decision.

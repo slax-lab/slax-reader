@@ -20,6 +20,11 @@ describe('reader document startup', () => {
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
     expect(window.__slaxReaderStartup!.navigation.interacted).toBe(false)
   })
+  it('does not classify library entry attribution as an explicit passage target', () => {
+    window.history.replaceState({}, '', '/b/first?_slax_entry=bookmarks')
+    window.eval(readerStartupScript)
+    expect(window.__slaxReaderStartup!.navigation.explicit).toBe(false)
+  })
   it('starts a fresh article decision rather than carrying old wheel input', () => {
     window.eval(readerStartupScript)
     window.dispatchEvent(new WheelEvent('wheel', { deltaY: 100 }))
