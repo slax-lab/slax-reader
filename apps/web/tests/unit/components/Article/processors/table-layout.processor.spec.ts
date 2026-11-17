@@ -34,6 +34,30 @@ describe('TableLayoutProcessor', () => {
     vi.restoreAllMocks()
   })
 
+  it('hides whitespace-only and nested empty tables without deleting their DOM', () => {
+    const ctx = buildContext('<table><tbody><tr><td> \n<br>&nbsp;<table><tbody><tr><td></td></tr></tbody></table></td></tr></tbody></table>')
+    const tables = [...ctx.container.querySelectorAll('table')]
+    const originalCell = tables[0]!.querySelector('td')
+    new TableLayoutProcessor().process(ctx)
+    expect(tables.every(table => table.classList.contains('slax-table-empty'))).toBe(true)
+    expect(tables[0]!.querySelector('td')).toBe(originalCell)
+    expect(ctx.container.querySelectorAll('table')).toHaveLength(2)
+    ctx.cleanups.forEach(cleanup => cleanup())
+  })
+
+  it.each([
+    'Readable text', '<img src="image.png">', '<video></video>', '<audio></audio>',
+    '<svg></svg>', '<iframe></iframe>', '<canvas></canvas>', '<picture><img src="image.png"></picture>',
+    '<object></object>', '<embed>', '<youtube-player-view></youtube-player-view>',
+    '<podcast-player-view></podcast-player-view>', '<unsupported-video></unsupported-video>',
+    '<wechat-video-info></wechat-video-info>'
+  ])('preserves text and media-only tables: %s', content => {
+    const ctx = buildContext(`<table><tbody><tr><td>${content}</td></tr></tbody></table>`)
+    new TableLayoutProcessor().process(ctx)
+    expect(ctx.container.querySelector('table')!.classList.contains('slax-table-empty')).toBe(false)
+    ctx.cleanups.forEach(cleanup => cleanup())
+  })
+
   it('uses native table layout when the content fits', () => {
     const observe = vi.fn()
     const disconnect = vi.fn()

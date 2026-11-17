@@ -46,6 +46,12 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 - [x] 6u. Complete full checks, actual runtime and independent review, update pilot guidance, and start local API/Web for renewed human acceptance.
 - [x] 6v. Record renewed human acceptance and update original PR with verified commits and CI; do not deploy.
 
+## Approved table presentation follow-up (2026-11-17)
+
+- [x] 6w. Reuse Article table layout in Newsletter previews, hide shared empty spacer tables while preserving media and DOM paths, and scope borderless square table styling and single-cell padding to Newsletter.
+- [x] 6x. Add regressions, exercise both renderers across supported themes and responsive widths, and review the added scope for Bugs/Security/Compliance.
+- [x] 6y. Record renewed user hands-on acceptance of the table changes and update follow-up PR #628 with current evidence.
+
 ## Archive after merge
 
 - [ ] 7. After the task PR merges, classify unchecked tasks and archive this change through a separate documentation PR.

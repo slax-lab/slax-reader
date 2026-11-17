@@ -145,6 +145,22 @@ function panel() {
 }
 
 describe("Newsletter Feed", () => {
+  it('fits Newsletter preview tables and hides empty spacers after body replacement', async () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(400);
+    rss.entries.value = [{ ...entry, id: 'newsletter:1', kind: 'newsletter', article_url: null }];
+    const wrapper = panel();
+    await wrapper.get('.article-main').trigger('click');
+    rss.detail.value = { content_html: '<table><tr><td>Content</td></tr></table><table><tr><td>&nbsp;</td></tr></table>' };
+    await Vue.nextTick();
+    expect(wrapper.find('.newsletter-body table.slax-table-empty').exists()).toBe(true);
+    expect(wrapper.find('.newsletter-body table.slax-table-fit').exists()).toBe(true);
+    rss.detail.value = { content_html: '<table><tr><td>New content</td></tr></table>' };
+    await Vue.nextTick();
+    expect(wrapper.find('.newsletter-body table.slax-table-empty').exists()).toBe(false);
+    expect(wrapper.get('.newsletter-body').text()).toBe('New content');
+  });
+
   it.each([null, 'slax-newsletter://message/1', 'mailto:a@example.com'])('hides non-HTTP originals in the preview: %s', async url => {
     rss.entries.value = [{ ...entry, id: 'newsletter:1', kind: 'newsletter', article_url: url }];
     const wrapper = panel();

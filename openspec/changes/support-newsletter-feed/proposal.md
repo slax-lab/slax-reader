@@ -23,6 +23,7 @@ Users need permanent Newsletter receiving addresses and one Web Feed for RSS and
 
 ### Modified Capabilities
 
+- article-table-layout: Shared empty spacer hiding without deleting table nodes or losing media content.
 - rss-labs: Always-visible Web Feed navigation and mixed-source presentation; shipped RSS storage/contracts/behavior remain unchanged.
 
 ## Impact
@@ -78,3 +79,11 @@ GitHub reported the task branch conflicting with the latest dev. The four confli
 ## Four-comment follow-up approval (2026-10-29)
 
 The requesting user approved [Newsletter Review Follow-up](../../../docs/superpowers/plans/2026-10-29-newsletter-review-followup.md) after self-review and independent builder review, and authorized implementation in the existing worktree followed by local API/Web startup for hands-on acceptance. Web follows Mobile's explicit HTTP(S)-only original-link policy. Feed ordering has one common contract and literal parity fixtures while keeping database pagination and local execution. Resource-cleanup failure is diagnostic and cannot change a successful receive or replace an original receive error. Inbound mail accepts up to 25 MiB through a bounded MIME splitter; ordinary attachment bytes are drained, retained text and CID budgets remain independent, and the existing parser handles only reconstructed retained content. This supersedes the earlier 5 MiB raw-mail limit. No migration, RSS persistence/stream change, Workflow, new cron or hosted configuration/deployment is included. The new splitter must first pass actual workerd compatibility checks under existing flags. No PR push occurs before renewed acceptance.
+
+## Empty-state regression follow-up (2026-11-17)
+
+The requesting user reported repeated empty-state/skeleton flashes after enabling Newsletter with no Feed data. This follow-up restores the approved local-first loading behavior: first synchronization and fresh ownership admission may show placeholders, while same-owner table notifications and Labs revalidation keep a settled empty view visible. It changes neither the approved layout/copy nor RSS behavior, API contracts, storage or routing. Implementation remains in the existing Web query/Feed state owners, with no debounce, timeout, global loading framework or additional dependency. The original feature PR #349 has merged; deliver the fix through its own branch from current dev and a new task PR after human hands-on acceptance.
+
+## Table presentation follow-up (2026-11-17)
+
+The user requested the same follow-up PR #628 to fix single-cell Newsletter layout in Feed previews and copied Inbox details. Reuse the existing Article table measurement without changing table structure or annotation paths. Hide whitespace-only tables without media in the shared Article/Newsletter layout processor. Preserve media-only tables, including Article player placeholders. Newsletter alone removes table/cell borders, corner radii and frame shadows, and removes horizontal padding on single-cell rows to avoid cumulative narrowing in nested email layout tables. Ordinary article table styling and RSS-specific rendering remain unchanged. The user explicitly authorized corrections to the shared detail surface. No backend, storage, API or application-version scope is added. Renewed hands-on acceptance covers this added UI scope before updating the PR.

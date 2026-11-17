@@ -243,6 +243,59 @@ test('owned pending streams keep mixed lists local and expose cached metadata be
   expect(get).not.toHaveBeenCalled()
 })
 
+test.each([false, true])('an empty Feed stays settled during Newsletter table updates after enablement (RSS: %s)', async rssEnabled => {
+  labs.rss.value = rssEnabled
+  labs.newsletter.value = false
+  const feed = create()
+  labs.newsletter.value = true
+  await flushPromises()
+  expect(feed.initializing.value).toBe(true)
+  streams.get('newsletter_v1')!.first.resolve()
+  streams.get('rss_v1')?.first.resolve()
+  await flushPromises()
+  expect(feed.initializing.value).toBe(false)
+  expect(feed.entries.value).toEqual([])
+
+  const reads: { sql: string; resolve: (rows: Record<string, unknown>[]) => void }[] = []
+  database.getAll.mockImplementation((sql: string) => new Promise(resolve => reads.push({ sql, resolve })))
+  for (let update = 0; update < 3; update++) {
+    tables.mail.value = []
+    tables.mailSaved.value = []
+    await flushPromises()
+    expect(feed.entries.value).toEqual([])
+    expect(feed.initializing.value).toBe(false)
+    reads.splice(0).forEach(read => read.resolve([]))
+    await flushPromises()
+    expect(feed.initializing.value).toBe(false)
+  }
+
+  tables.mail.value = [mail('11')]
+  await flushPromises()
+  expect(feed.initializing.value).toBe(false)
+  reads.splice(0).forEach(read => read.resolve(read.sql.includes('FROM sr_newsletter_feed') ? [mail('11')] : []))
+  await flushPromises()
+  expect(feed.entries.value.map(row => row.id)).toEqual(['newsletter:11'])
+  expect(get).not.toHaveBeenCalled()
+})
+
+test('revalidating an empty local Feed keeps its settled state while Labs refreshes', async () => {
+  labs.rss.value = false
+  const feed = create()
+  await feed.initialize()
+  streams.get('newsletter_v1')!.first.resolve()
+  await flushPromises()
+  expect(feed.initializing.value).toBe(false)
+
+  const refresh = pending()
+  labs.fetch.mockReturnValueOnce(refresh.promise)
+  const revalidating = feed.initialize(true)
+  expect(feed.initializing.value).toBe(false)
+  expect(feed.entries.value).toEqual([])
+  refresh.resolve()
+  await revalidating
+  expect(feed.initializing.value).toBe(false)
+})
+
 test('a Newsletter stream failure leaves healthy cached RSS local and reports the failure without mixed REST fallback', async () => {
   const feed = create()
   seed()

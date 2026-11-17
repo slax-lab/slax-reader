@@ -40,7 +40,7 @@
       <p v-else class="pdf-load-status" role="status">{{ t(pdfLoadError ? 'pdf.load_failed' : 'pdf.loading') }}<button v-if="pdfLoadError" @click="emits('retryPdf')">{{ t('pdf.retry') }}</button></p>
     </ClientOnly>
     <!-- 保留 .article-detail ref + articleStyle class，processors 管道 / mark 绘制依赖 -->
-    <div v-else class="article-detail article-body" ref="articleDetail" :class="{ [articleStyle]: true }">
+    <div v-else class="article-detail article-body" ref="articleDetail" :class="{ [articleStyle]: true, 'newsletter-body': isNewsletterBookmarkTarget(detail.target_url) }">
       <div class="html-text" lang="en" v-article-html="articleHTML"></div>
     </div>
     <!-- Content derived from the article (YouTube AI article). Outside .article-detail on purpose:
@@ -485,6 +485,10 @@ defineExpose({ findQuote, articleSelection: activeSelection })
 
   &.default {
     @include style('default');
+
+    &.newsletter-body {
+      @include article.newsletter-tables;
+    }
   }
 
   &.twitter {

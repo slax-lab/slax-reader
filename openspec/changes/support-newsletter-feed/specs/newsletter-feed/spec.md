@@ -104,6 +104,10 @@ Web SHALL always show Feed in navigation, support stable address provisioning/co
 - **WHEN** Newsletter is enabled and a local PowerSync database is healthy, pending or unavailable
 - **THEN** owned cached lists are immediately readable and update through separate RSS/Newsletter streams; empty pending lists wait for first sync rather than switching the whole Feed to REST, and body reads remain authenticated
 
+#### Scenario: Settled empty Feed during background updates
+- **WHEN** an enabled owner's first synchronization and local reads have confirmed an empty Feed, and table notifications or Labs revalidation trigger background reads
+- **THEN** the empty state remains visible without returning to initial-loading placeholders; new messages still appear, while ownership changes or re-enablement require fresh admission and first-sync readiness
+
 #### Scenario: Switch independent local Feed projections
 - **WHEN** Newsletter is enabled or disabled while RSS remains enabled
 - **THEN** the Feed changes its enabled local projections and stream subscriptions, fences obsolete requests/previews/cursors, and never exposes stale local Newsletter rows as RSS
@@ -235,3 +239,14 @@ Web original-navigation controls SHALL exist only for explicit HTTP(S) targets, 
 #### Scenario: Internal mail original and tied pagination
 - **WHEN** internal mail appears in list/detail/preview or mixed entries share a timestamp
 - **THEN** no nonfunctional original link is shown and local/server entry sequences agree without duplicates or gaps
+
+### Requirement: Readable Newsletter layout tables
+Newsletter previews and saved Inbox details SHALL share table fitting behavior and borderless, square table presentation. Single-cell layout rows SHALL not cumulatively indent nested email content. Shared Article table processing SHALL hide whitespace-only tables without media while preserving table structure, annotations and media-only content. Ordinary article data-table styling SHALL remain unchanged.
+
+#### Scenario: Nested email layout and empty spacers
+- **WHEN** a Newsletter contains nested single-cell tables and whitespace-only spacer tables
+- **THEN** Feed preview and Inbox detail stretch fitting rows, omit table frames and corners, and hide empty spacers without deleting DOM nodes
+
+#### Scenario: Media-only and wide tables
+- **WHEN** an Article or Newsletter table contains media or content wider than its reader
+- **THEN** media-only tables remain visible and wide tables retain horizontal scrolling without disturbing annotation paths

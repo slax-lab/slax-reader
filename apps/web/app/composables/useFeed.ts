@@ -381,7 +381,7 @@ export function useFeed() {
   const initialize = async (force = false) => {
     const initialization = ++initializeGeneration,
       account = session;
-    initializing.value = true;
+    initializing.value = !localMode.value;
     error.value = "";
     try {
       try {
