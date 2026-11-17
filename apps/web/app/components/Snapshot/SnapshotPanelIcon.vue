@@ -2,7 +2,6 @@
   <span class="snapshot-panel-icon" :class="{ 'is-loading': loading }" :data-panel-icon="panel" :style="{ width: size + 'px', height: size + 'px' }">
     <AppIcon class="panel-icon-art" :name="name" :size="size" />
     <span class="panel-icon-ring" aria-hidden="true" />
-    <span class="panel-icon-status" role="status">{{ $t('common.operate.loading') }}</span>
   </span>
 </template>
 
@@ -40,21 +39,9 @@ withDefaults(defineProps<{
   animation: panel-icon-spin 0.8s linear infinite;
 }
 
-.panel-icon-status {
-  display: none;
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 @mixin busy-icon {
   .panel-icon-art { display: none; }
-  .panel-icon-ring,
-  .panel-icon-status { display: block; }
+  .panel-icon-ring { display: block; }
 }
 
 .is-loading { @include busy-icon; }
@@ -64,8 +51,7 @@ withDefaults(defineProps<{
   :global(html[data-slax-pending-panel='#{$panel}'] [data-panel-icon='#{$panel}'] .panel-icon-art) {
     display: none;
   }
-  :global(html[data-slax-pending-panel='#{$panel}'] [data-panel-icon='#{$panel}'] .panel-icon-ring),
-  :global(html[data-slax-pending-panel='#{$panel}'] [data-panel-icon='#{$panel}'] .panel-icon-status) {
+  :global(html[data-slax-pending-panel='#{$panel}'] [data-panel-icon='#{$panel}'] .panel-icon-ring) {
     display: block;
   }
 }

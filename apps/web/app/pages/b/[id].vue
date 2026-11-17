@@ -792,11 +792,16 @@ const onBottomPanel = (id: SnapshotPanelId) => {
   activePanel.value = activePanel.value === id ? null : id
 }
 
+// Restore server-rendered ARIA attributes before Vue hydrates the controls.
+let pendingStartupPanel: SnapshotPanelId | null = null
+onBeforeMount(() => {
+  pendingStartupPanel = window.__slaxReaderStartup!.takePanel(readerPath)
+})
+
 // panelOpen 为共享 ref，需手动复位
 onMounted(() => {
   panelOpen.value = false
-  const pendingPanel = window.__slaxReaderStartup!.takePanel(route.path)
-  if (pendingPanel && sidePanels.value.includes(pendingPanel)) onUserPanelChange(pendingPanel)
+  if (pendingStartupPanel && sidePanels.value.includes(pendingStartupPanel)) onUserPanelChange(pendingStartupPanel)
   if (isOwner.value) shareInfo.ensure()
 
   // 埋点：bookmark_opened

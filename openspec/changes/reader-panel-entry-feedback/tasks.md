@@ -8,7 +8,7 @@
 
 ## 2. Consistent visible icon loading
 
-- [x] 2.1 Add `apps/web/app/components/Snapshot/SnapshotPanelIcon.vue` and stable entry markers to `SnapshotRightEdgeToolbar.vue`, `SnapshotSidePanel.vue`, and `SnapshotBottomToolbar.vue`; verify same-size ordinary/loading icons, translated control/loading names, retained keyboard focus, and reactive pending state in the existing Snapshot toolbar/side-panel unit suites.
+- [x] 2.1 Add `apps/web/app/components/Snapshot/SnapshotPanelIcon.vue` and stable entry markers to `SnapshotRightEdgeToolbar.vue`, `SnapshotSidePanel.vue`, and `SnapshotBottomToolbar.vue`; verify same-size ordinary/loading icons, translated control names and accessible busy state, retained keyboard focus, and reactive pending state in the existing Snapshot toolbar/side-panel unit suites.
 - [x] 2.2 Track pending AI and Chat component code in the existing async declarations in `/b/[id].vue` without altering their content loading component or access gates; verify held resolve, rejection, existing 15-second timeout, switching, closing, and already-resolved imports through focused tests or the actual reader lab.
 - [x] 2.3 Verify the new ring uses existing semantic colors, remains distinguishable without animation in reduced motion and e-ink, and retains the existing 18px/20px icon and 44px control geometry; run `pnpm icons:check` to confirm ordinary registry icons remain valid.
 

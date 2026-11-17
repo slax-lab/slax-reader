@@ -68,6 +68,7 @@ describe('reader panel activation before hydration', () => {
   const entry = (id: string, path = '/b/first') => {
     const button = document.createElement('button')
     button.dataset.snapshotPanel = id
+    button.setAttribute('aria-busy', 'false')
     button.innerHTML = '<span>Panel</span>'
     const article = document.createElement('section')
     article.dataset.readerPath = path
@@ -83,10 +84,12 @@ describe('reader panel activation before hydration', () => {
     button.addEventListener('click', handled)
     button.querySelector('span')!.click()
     expect(document.documentElement.dataset.slaxPendingPanel).toBe('ai')
+    expect(button.getAttribute('aria-busy')).toBe('true')
     expect(handled).not.toHaveBeenCalled()
     window.__slaxReaderStartup!.navigation.stop()
     expect(window.__slaxReaderStartup!.takePanel('/b/first')).toBe('ai')
     expect(document.documentElement.hasAttribute('data-slax-pending-panel')).toBe(false)
+    expect(button.getAttribute('aria-busy')).toBe('false')
     expect(window.__slaxReaderStartup!.takePanel('/b/first')).toBe(null)
     button.click()
     expect(handled).toHaveBeenCalledOnce()
@@ -97,7 +100,10 @@ describe('reader panel activation before hydration', () => {
     const ai = entry('ai')
     ai.click()
     ai.click()
-    entry('chat').click()
+    const chat = entry('chat')
+    chat.click()
+    expect(ai.getAttribute('aria-busy')).toBe('false')
+    expect(chat.getAttribute('aria-busy')).toBe('true')
     expect(document.documentElement.dataset.slaxPendingPanel).toBe('chat')
     expect(window.__slaxReaderStartup!.takePanel('/b/first')).toBe('chat')
     expect(window.__slaxReaderStartup!.takePanel('/b/first')).toBe(null)
@@ -105,8 +111,10 @@ describe('reader panel activation before hydration', () => {
 
   it('does not carry a pending panel to the next article', () => {
     window.eval(readerStartupScript)
-    entry('ai').click()
+    const ai = entry('ai')
+    ai.click()
     window.__slaxReaderStartup!.start('/b/second', false)
+    expect(ai.getAttribute('aria-busy')).toBe('false')
     expect(document.documentElement.hasAttribute('data-slax-pending-panel')).toBe(false)
     expect(window.__slaxReaderStartup!.takePanel('/b/second')).toBe(null)
   })

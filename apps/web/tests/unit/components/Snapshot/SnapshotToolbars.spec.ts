@@ -93,7 +93,7 @@ describe('Snapshot panel entry feedback', () => {
     const button = wrapper.get('[data-snapshot-panel="chat"]')
     expect(button.attributes('aria-label')).toBe('Chat')
     expect(button.attributes('aria-busy')).toBe('true')
-    expect(button.find('[role="status"]').text()).toBe('Loading...')
+    expect(button.find('.panel-icon-ring').attributes('aria-hidden')).toBe('true')
     expect(wrapper.get('[data-snapshot-panel="ai"]').attributes('aria-busy')).toBe('false')
     wrapper.unmount()
   })

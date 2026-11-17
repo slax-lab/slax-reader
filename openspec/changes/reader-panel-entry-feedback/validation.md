@@ -53,3 +53,13 @@ Bugs: the only Important finding (source-page click captured for a destination a
 ## Task PR
 
 Created https://github.com/slax-lab/slax-reader/pull/650 targeting `dev` after human acceptance, with the refreshed accent-loading recording attached. The PR is open for human review; no merge or archive was performed.
+
+## CI review follow-up
+
+The Web CI job passed on the original PR head; the failing check was the automated `review_verdict` gate from run `44070950475`. It reported an Important accessibility divergence: the early click changed only a CSS marker while the button still exposed `aria-busy=false`, and a nested status node inside the button could not supply the intended independent live-region semantics.
+
+The held-entry browser regression reproduced `aria-busy=false` after activation; two startup unit assertions also failed before the fix. The early listener now sets busy on the activated button and restores the previous button on replacement, navigation, or consumption. The page claims the pending choice in `onBeforeMount`, restoring the server-rendered ARIA attribute before control hydration, and applies the choice through the existing handler in `onMounted`. Decorative icon markup no longer contains the ineffective nested status node. The original accent color, dimensions, waiting, and access decisions are unchanged.
+
+The browser regression now additionally inspects Chromium's full accessibility tree before releasing the application entry and requires exactly one button with `busy=true`. Final rerun: 24 focused tests passed, Web typecheck passed, full Web suite passed 3111 tests with 3 skipped, changed-file ESLint reported no errors, all 147 OpenSpec items passed strict validation, and all 21 browser scenarios passed. Both early Analysis and Chat cases exposed exactly one busy button in Chromium's accessibility tree and emitted no hydration mismatch warnings. Native screen-reader speech output was not exercised; the browser accessibility-tree state was verified directly. The new panel-feedback runner also defaults to Playwright's bundled Chromium, with an explicit optional `--executable` argument instead of an author's absolute executable path, addressing that review Nit without changing the older fixtures.
+
+Follow-up local pre-push review: Bugs — busy cleanup and the before-mount / mounted handoff are covered by unit and browser regressions; Security — the fix adds no data source, network path, dependency, or access bypass; Compliance — the busy state now satisfies the approved entry-feedback specification, while visible presentation remains the human-accepted version. No unresolved Important findings in this diff.

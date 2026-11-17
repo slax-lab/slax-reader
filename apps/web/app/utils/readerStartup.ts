@@ -25,6 +25,7 @@ declare global {
 export const readerStartupScript = String.raw`(() => {
   const state = { navigation: null, historyPath: null, start, takePanel };
   let pendingPanel = null;
+  let pendingButton = null;
   let stopPanel = () => {};
   function takePanel(path) {
     if (path !== state.navigation.path) return null;
@@ -52,12 +53,19 @@ export const readerStartupScript = String.raw`(() => {
       if (button.closest('[data-reader-path]')?.dataset.readerPath !== path) return;
       event.preventDefault();
       event.stopImmediatePropagation();
+      if (pendingButton !== button) {
+        if (pendingButton) pendingButton.setAttribute('aria-busy', 'false');
+        pendingButton = button;
+        button.setAttribute('aria-busy', 'true');
+      }
       pendingPanel = panel;
       document.documentElement.dataset.slaxPendingPanel = panel;
     };
     addEventListener('click', panelClick, true);
     stopPanel = () => {
       removeEventListener('click', panelClick, true);
+      if (pendingButton) pendingButton.setAttribute('aria-busy', 'false');
+      pendingButton = null;
       pendingPanel = null;
       delete document.documentElement.dataset.slaxPendingPanel;
     };

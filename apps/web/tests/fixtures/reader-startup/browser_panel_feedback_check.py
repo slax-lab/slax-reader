@@ -9,6 +9,7 @@ import browser_check as lab
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--base-url', default='http://127.0.0.1:3228')
+parser.add_argument('--executable', help='Installed Chromium path; omit for the Playwright default')
 args = parser.parse_args()
 lab.BASE = args.base_url
 OUT = Path('/tmp/slax-reader-panel-feedback-evidence')
@@ -46,7 +47,7 @@ def assert_no_hydration_errors(page, state, messages):
 
 
 with sync_playwright() as p:
-    browser = p.chromium.launch(headless=True, executable_path='/Users/yjc/Library/Caches/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell')
+    browser = p.chromium.launch(headless=True, executable_path=args.executable)
 
     # Navigation starts before Nuxt replaces the source article DOM.
     ctx, page, state = lab.context(browser)
@@ -79,6 +80,10 @@ with sync_playwright() as p:
         entry.click()
         entry.click()
         expect(page.locator('html')).to_have_attribute('data-slax-pending-panel', panel)
+        expect(entry).to_have_attribute('aria-busy', 'true')
+        tree = ctx.new_cdp_session(page).send('Accessibility.getFullAXTree')
+        busy_controls = [node for node in tree['nodes'] if node.get('role', {}).get('value') == 'button' and any(prop['name'] == 'busy' and prop['value'].get('type') == 'boolean' and prop['value'].get('value') == 1 for prop in node.get('properties', []))]
+        assert len(busy_controls) == 1, busy_controls
         expect(entry.locator('.panel-icon-ring')).to_be_visible()
         expect(entry.locator('.panel-icon-art')).to_be_hidden()
         assert not page.evaluate('document.documentElement.dataset.readerMounted')
@@ -99,7 +104,7 @@ with sync_playwright() as p:
         expect(control.locator('.panel-icon-art')).to_be_visible()
         expect(page.locator('html')).not_to_have_attribute('data-slax-pending-panel', panel)
         assert_no_hydration_errors(page, state, messages)
-        record('early-click-handoff', panel=panel, module_requests=len(held), repeated_click='one activation', hydration_errors=[])
+        record('early-click-handoff', panel=panel, module_requests=len(held), repeated_click='one activation', accessibility_busy_buttons=len(busy_controls), hydration_errors=[])
         video = page.video
         lab.close(ctx, page)
         video.save_as(str(OUT / (panel + '-startup-and-code-loading.webm')))

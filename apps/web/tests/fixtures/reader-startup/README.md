@@ -64,6 +64,8 @@ configuration above, with the URL and port changed consistently when needed.
 PYTHONDONTWRITEBYTECODE=1 python3 apps/web/tests/fixtures/reader-startup/browser_panel_feedback_check.py --base-url http://127.0.0.1:3218
 ```
 
+This runner defaults to the Chromium bundled with the installed Python Playwright; install its browser before the first run, or pass `--executable /path/to/chromium` to select an already installed compatible browser. It also checks the early busy state in Chromium's accessibility tree and rejects hydration mismatch warnings.
+
 The script writes JSON, screenshots, and two short recordings under
 `/tmp/slax-reader-panel-feedback-evidence`; do not commit them. Holding client-entry
 and component responses independently makes the two waiting stages reproducible
