@@ -13,6 +13,7 @@ const tweetClasses = new Set([
   'quote-media',
   'quote-link'
 ])
+const footerCounts = new Set(['data-reply-count', 'data-retweet-count', 'data-favorite-count'])
 const allowedTags = new Set([
   'p',
   'div',
@@ -56,7 +57,7 @@ const allowedTags = new Set([
 const dropTags = new Set(['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'noscript', 'form', 'input', 'textarea', 'select', 'button', 'template'])
 
 /** Use an allowlist so scripts, CSS, event handlers and embedded executable documents cannot survive. */
-export function sanitizeArticleBody(content: string, canonicalUrl: string, tweet = false): { body: string; text: string } {
+export function sanitizeArticleBody(content: string, canonicalUrl: string, tweet = false): { body: string; text: string; hasMedia: boolean } {
   const { document } = parseHTML(`<html><head></head><body>${content}</body></html>`)
   for (const node of [...document.body.querySelectorAll('*')]) {
     const tag = node.localName.toLowerCase()
@@ -65,7 +66,8 @@ export function sanitizeArticleBody(content: string, canonicalUrl: string, tweet
       continue
     }
     const header = tweet && tag === 'tweet-header'
-    if (!allowedTags.has(tag) && !header && !(tweet && tag === 'video')) {
+    const footer = tweet && tag === 'tweet-footer'
+    if (!allowedTags.has(tag) && !header && !footer && !(tweet && tag === 'video')) {
       node.replaceWith(...node.childNodes)
       continue
     }
@@ -73,6 +75,8 @@ export function sanitizeArticleBody(content: string, canonicalUrl: string, tweet
       const name = attribute.toLowerCase()
       const value = node.getAttribute(attribute) || ''
       if (tweet && name === 'class' && tweetClasses.has(value) && (tag === 'div' || tag === 'a')) continue
+      if (tweet && tag === 'img' && name === 'class' && value === 'quote-avatar') continue
+      if (footer && footerCounts.has(name) && /^\d{1,15}$/.test(value)) continue
       if (header && (name === 'data-name' || name === 'data-screen-name')) continue
       if (tweet && tag === 'video' && name === 'controls') continue
       if (
@@ -81,6 +85,10 @@ export function sanitizeArticleBody(content: string, canonicalUrl: string, tweet
         (header && name === 'data-href') ||
         (tweet && tag === 'video' && (name === 'src' || name === 'poster'))
       ) {
+        if (!value.trim()) {
+          node.removeAttribute(attribute)
+          continue
+        }
         try {
           node.setAttribute(name, publicTarget(new URL(value, canonicalUrl)).href)
         } catch {
@@ -95,5 +103,8 @@ export function sanitizeArticleBody(content: string, canonicalUrl: string, tweet
       }
     }
   }
-  return { body: document.body.innerHTML, text: document.body.innerText.trim() }
+  const container = document.body
+  let body = container.innerHTML.trim()
+  if (tweet && !(body.startsWith('<div class="tweet">') && body === container.firstElementChild?.outerHTML)) body = `<div class="tweet">${body}</div>`
+  return { body, text: container.innerText.trim(), hasMedia: Boolean(container.querySelector('img[src], video[src]')) }
 }

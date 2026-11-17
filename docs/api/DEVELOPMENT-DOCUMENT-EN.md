@@ -78,6 +78,12 @@ Search hits also return additive `target_url` and `created_at` metadata. `create
 
 For Newsletter receiving, unified Feed APIs, dev console steps and acceptance cases, see [Newsletter dev pilot](NEWSLETTER-DEV-PILOT.md).
 
+## Saving publisher HTML
+
+An account listed in `PUBLISHER_USER_IDS` can submit its captured document in the `content` field of `POST /v1/bookmark/add`, with the original URL in `target_url`. For a preformatted article, set `data-slax-publisher="article"` on the document's root `<html>` element. The API reads this attribute from the parsed element. Allowlisted WeChat and X captures also accept unmarked HTML. YouTube, podcast and PDF captures use their dedicated routes.
+
+Include a `<title>` and a body containing text or supported media. Supply the byline with `<meta name="author">`, the site with `og:site_name`, and the original timestamp with `article:published_time`, using the `content` attribute for each value. X posts can include the Reader tweet container, quote markup and footer counts. WeChat photo posts and X photo or video posts may have an empty caption.
+
 ## Private bookmark and Fork runtime verification
 
 New captures use per-user private raw bookmarks. Saving a configured Reader `/b/<uuid>` URL delegates to the same copy operation as `POST /v1/bookmark/fork`; it does not parse the Reader page shell. The nullable `sr_user_bookmark.forked_from_id` references the immediate source user-bookmark row. See [the feasibility and implementation design](bookmark-fork-feasibility.md) for duplicate, access and all-format semantics.

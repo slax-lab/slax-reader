@@ -1,5 +1,6 @@
 import { container } from '@/decorators/di'
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:workers'
+import { parseHTML } from 'linkedom'
 import { NonRetryableError } from 'cloudflare:workflows'
 import { initializeInfrastructure, initializeCore } from '@/di/generated/dependency'
 import { ContextManager } from '@/utils/context'
@@ -20,7 +21,7 @@ import { MultiLangError } from '@/utils/multiLangError'
 import { ErrorName } from '@/const/err'
 import { ContentValidationWorkflowParams } from './contentValidationWorkflow'
 import { ImportService } from '@/domain/import'
-import { detectRoute, isSocialMediaRoute, normalizeYoutubeUrl, type RouteKind } from '@/utils/platformDetector'
+import { detectRoute, isSocialMediaRoute, normalizeYoutubeUrl } from '@/utils/platformDetector'
 import { isProhibitedContentUrl } from '@/utils/prohibitedContentDetector'
 import { OpenAIModerationClient, ModerationResult } from '@/infra/external/openaiModeration'
 import { extractImageUrls } from '@/utils/htmlImages'
@@ -246,15 +247,21 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
 
           if (isPublisher && inlineContent?.trim()) {
             const route = detectRoute(url)
-            const suppliedArticle = inlineContent.trimStart().startsWith('<!doctype html><html data-slax-publisher="article">')
+            const { document } = parseHTML(inlineContent)
+            const root = document.documentElement
+            const suppliedArticle = root?.localName === 'html' && root.getAttribute('data-slax-publisher') === 'article'
             if (
               route === 'weixin' ||
               route === 'twitter' ||
               route === 'twitter_article' ||
               (suppliedArticle && route !== 'youtube' && !new URL(url).pathname.toLowerCase().endsWith('.pdf') && !classifyPodcastUrl(url))
             ) {
-              const result = await trackStep('inline_content', () => crawlService.savePublisherHtml(ctxManager, inlineContent, url, bookmarkId, userBookmarkUuid))
-              return { kind: 'parsed', resolvedUrl: url, data: result, isSocialMedia: isSocialMediaRoute(route) }
+              const { data, hasMedia } = await trackStep('inline_content', async () => {
+                const saved = await crawlService.savePublisherHtml(ctxManager, document, url, bookmarkId, userBookmarkUuid)
+                if (!saved) throw new NonRetryableError('Publisher HTML needs a title and readable text or media')
+                return saved
+              })
+              return { kind: 'parsed', resolvedUrl: url, data, isSocialMedia: isSocialMediaRoute(route) || (route === 'weixin' && hasMedia && data.textContent.length < 15) }
             }
           }
           const resolvedUrl = await crawlService.resolveShortLink(ctxManager, url)

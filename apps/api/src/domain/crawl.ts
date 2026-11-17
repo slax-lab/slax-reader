@@ -1121,18 +1121,18 @@ export class CrawlService {
 
   // ---------------- 社交媒体通用 parse + save ----------------
 
-  public async savePublisherHtml(ctx: ContextManager, html: string, url: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
-    const { document } = parseHTML(html)
+  public async savePublisherHtml(ctx: ContextManager, document: Document, url: string, bookmarkId: number, userBookmarkUuid: string) {
+    if (document.documentElement?.localName !== 'html') return null
     const head = document.head
     const meta = (selector: string) => head.querySelector(selector)?.getAttribute('content')?.trim() || ''
     const route = detectRoute(url)
     const twitter = route === 'twitter' || route === 'twitter_article'
     const title = document.title.trim() || document.body.querySelector('h1')?.textContent?.trim()
-    const { body, text } = sanitizeArticleBody(document.body.innerHTML, url, twitter)
-    if (!title || !text) throw FetchThreePartyError('Publisher HTML needs a title and body')
+    const { body, text, hasMedia } = sanitizeArticleBody(document.body.innerHTML, url, twitter)
+    if (!title || (!text && !hasMedia)) return null
     const date = new Date(meta('meta[property="article:published_time"]'))
-    return this.parseAndSaveSocialMedia(ctx, {
-      html: `<article>${body}</article>`,
+    const data = await this.parseAndSaveSocialMedia(ctx, {
+      html: twitter ? body : `<article>${body}</article>`,
       originalUrl: url,
       bookmarkId,
       userBookmarkUuid,
@@ -1145,6 +1145,7 @@ export class CrawlService {
         publishedTime: Number.isFinite(date.valueOf()) ? date : undefined
       }
     })
+    return { data, hasMedia }
   }
 
   /**
