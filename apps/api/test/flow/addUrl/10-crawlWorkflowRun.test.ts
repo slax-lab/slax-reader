@@ -87,7 +87,7 @@ import {
 } from '@test/helpers/mockFactory'
 
 function wireWorkflow(labsEnabled = true) {
-  const cs = { ...createMockCrawlService(), fetchYoutubeData: vi.fn(), parseAndSaveYoutube: vi.fn() }
+  const cs = { ...createMockCrawlService(), savePublisherHtml: vi.fn(), fetchYoutubeData: vi.fn(), parseAndSaveYoutube: vi.fn() }
   const bs = createMockBookmarkService()
   Object.assign(cs, {
     setCaptureStatus: vi.fn(async (_ctx, id, status) => {
@@ -948,6 +948,94 @@ describe('published capture moderation boundaries', () => {
     } finally {
       moderate.mockRestore()
     }
+  })
+
+  test.each([
+    ['https://mp.weixin.qq.com/s/wx', '微信'],
+    ['https://x.com/test/status/123', 'Twitter'],
+    ['https://x.com/i/article/123', 'Twitter'],
+    ['https://example.com/publisher-story', 'example.com'],
+    ['https://weibo.com/123/abc', 'weibo.com']
+  ])('stores the submitted publisher body without fetching %s', async (url, site) => {
+    const { wf, cs, env, revision, uph } = wirePublishedCapture()
+    env.PUBLISHER_USER_IDS = '1'
+    const capture = vi.fn().mockResolvedValue({ content_key: 'html/body/example.html', publishedRevision: revision.toISOString() })
+    const service = Object.assign(Object.create(CrawlService.prototype), { snapshots: { capture } }) as CrawlService
+    cs.savePublisherHtml.mockImplementation(service.savePublisherHtml.bind(service))
+    const html =
+      '<!DOCTYPE html>\n<html lang="en" data-slax-publisher=article><head><title>Submitted title</title><meta name="author" content="Original author"><meta property="article:published_time" content="2026-01-02T03:04:00Z"></head><body><div class="tweet"><blockquote>Source</blockquote><div class="tweet-content">This is the submitted passage.</div><div class="quote-description">Quoted author and post</div><img class="quote-avatar" src="https://example.com/avatar.jpg"><tweet-footer data-reply-count="3" data-retweet-count="4" data-favorite-count="5"></tweet-footer><script>unsafe()</script><a href="javascript:run()">link</a></div></body></html>'
+    const moderate = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.NORMAL)
+    try {
+      await runWorkflow(wf, { url, inlineContent: html })
+      expect(cs.resolveShortLink).not.toHaveBeenCalled()
+      expect(cs.fetchRegular).not.toHaveBeenCalled()
+      expect(cs.fetchWeiboData).not.toHaveBeenCalled()
+      expect(cs.fetchWeixin).not.toHaveBeenCalled()
+      expect(cs.fetchTwitterData).not.toHaveBeenCalled()
+      expect(capture).toHaveBeenCalledOnce()
+      const [, , body, meta] = capture.mock.calls[0]
+      expect(body.html).toContain('<blockquote>Source</blockquote>')
+      expect(body.html).not.toMatch(/javascript:|unsafe\(\)/)
+      if (site === 'Twitter') {
+        expect(body.html.startsWith('<div class="tweet">')).toBe(true)
+        expect(body.html).toContain('class="quote-description"')
+        expect(body.html).toContain('class="quote-avatar"')
+        for (const attribute of ['data-reply-count="3"', 'data-retweet-count="4"', 'data-favorite-count="5"']) expect(body.html).toContain(attribute)
+      }
+      expect(meta).toMatchObject({ title: 'Submitted title', byline: 'Original author', site_name: site, published_at: new Date('2026-01-02T03:04:00Z') })
+      expect(moderate).toHaveBeenCalledOnce()
+      expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
+    } finally {
+      moderate.mockRestore()
+    }
+  })
+
+  test.each([
+    ['https://mp.weixin.qq.com/s/photos', '<img src="https://example.com/photo.jpg">', ''],
+    ['https://mp.weixin.qq.com/s/photos', '<p>图集</p><img src="https://example.com/photo.jpg">', '图集'],
+    ['https://x.com/person/status/123', '<video controls src="https://example.com/movie.mp4"></video>', '']
+  ])('stores and moderates the submitted media at %s', async (url, media, text) => {
+    const { wf, cs, env, revision } = wirePublishedCapture()
+    env.PUBLISHER_USER_IDS = '1'
+    const capture = vi.fn().mockResolvedValue({ content_key: 'html/body/media.html', publishedRevision: revision.toISOString() })
+    const service = Object.assign(Object.create(CrawlService.prototype), { snapshots: { capture } }) as CrawlService
+    cs.savePublisherHtml.mockImplementation(service.savePublisherHtml.bind(service))
+    const moderate = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.NORMAL)
+    try {
+      await runWorkflow(wf, { url, inlineContent: '<html><head><title>Gallery</title></head><body>' + media + '</body></html>' })
+      const [, , body] = capture.mock.calls[0]
+      expect(body.text).toBe(text)
+      expect(body.html).toMatch(/<(?:img|video) [^>]*src="/)
+      expect(moderate).toHaveBeenCalledOnce()
+      expect(cs.fetchWeixin).not.toHaveBeenCalled()
+      expect(cs.fetchTwitterData).not.toHaveBeenCalled()
+    } finally {
+      moderate.mockRestore()
+    }
+  })
+
+  test('rejects an empty or stripped media source as terminal before writing a snapshot', async () => {
+    const { wf, cs, env } = wireWorkflow()
+    env.PUBLISHER_USER_IDS = '1'
+    const capture = vi.fn()
+    const service = Object.assign(Object.create(CrawlService.prototype), { snapshots: { capture } }) as CrawlService
+    cs.savePublisherHtml.mockImplementation(service.savePublisherHtml.bind(service))
+    await expect(
+      runWorkflow(wf, { url: 'https://mp.weixin.qq.com/s/images', inlineContent: '<html><head><title>Gallery</title></head><body><img src=""><img src="data:,"></body></html>' })
+    ).rejects.toMatchObject({ name: 'NonRetryableError' })
+    expect(capture).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    ['2', '<p>not from publisher</p>'],
+    ['1', '  ']
+  ])('retains platform acquisition outside a publisher HTML save', async (ids, inlineContent) => {
+    const { wf, cs, env } = wireWorkflow()
+    env.PUBLISHER_USER_IDS = ids
+    cs.fetchTwitterData.mockRejectedValue(new Error('platform attempted'))
+    await expect(runWorkflow(wf, { url: 'https://x.com/test/status/123', inlineContent })).rejects.toThrow('platform attempted')
+    expect(cs.fetchTwitterData).toHaveBeenCalledOnce()
+    expect(cs.savePublisherHtml).not.toHaveBeenCalled()
   })
 
   test('the real ordinary-tweet publisher passes its revision into Workflow moderation and sharing revocation', async () => {
