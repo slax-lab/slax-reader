@@ -49,6 +49,28 @@ Outline locators. The presentation runner covers checking/error/retry at three w
 and three Web themes. Consult the change's `validation.md` for actual results and gaps;
 the presence of a script alone does not claim it passed.
 
+## Sidebar component loading
+
+For hands-on acceptance, choose **Centered panel loading** in the lab (or open
+`/reader-fixture?case=loading`). The opt-in Vite layer delays each AI/Chat component
+module by 2.5 seconds for that synthetic browser session. Open Analysis or Chat to
+inspect the centered placeholder and its replacement by the real panel. Reload to
+repeat a first-use load; selecting another lab scenario clears the module delay.
+This middleware is absent from ordinary development and shipped builds.
+
+The panel runner holds the actual component module independently of profile replies,
+checks its center against the live content slot at 375/768/1280px in all three themes,
+checks reduced motion, and releases the module to verify loaded content. Desktop
+light cases also switch to Comments or close the sidebar during loading and verify
+the selection is retained before reopening. It uses Playwright's installed browser by
+default; pass `--browser-executable /absolute/path/to/browser` to select another.
+
+```sh
+python3 -B apps/web/tests/fixtures/reader-startup/browser_panel_loading_check.py
+python3 -B apps/web/tests/fixtures/reader-startup/browser_panel_loading_check.py --selection-only
+# On the unmodified target branch, captures the top-left baseline instead:
+python3 -B apps/web/tests/fixtures/reader-startup/browser_panel_loading_check.py --before
+```
 
 ## Panel entry feedback
 

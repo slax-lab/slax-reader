@@ -207,7 +207,6 @@
 <script lang="ts" setup>
 import BookmarkArticleLocalFirst from '@/components/Article/BookmarkArticleLocalFirst.vue'
 import SnapshotMobileNotesEntry from '@/components/Snapshot/SnapshotMobileNotesEntry.vue'
-import DotLoading from '~/components/DotLoading.vue'
 import ThemeSwitcher from '~/components/global/ThemeSwitcher.vue'
 import SnapshotDetailLayout from '~/components/Layouts/SnapshotDetailLayout.vue'
 import SnapshotSidePanel from '~/components/Layouts/SnapshotSidePanel.vue'
@@ -218,6 +217,7 @@ import SnapshotCommentComposer from '~/components/Snapshot/SnapshotCommentCompos
 import SnapshotCommentList from '~/components/Snapshot/SnapshotCommentList.vue'
 import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
 import SnapshotMoreMenu, { type MoreMenuAction } from '~/components/Snapshot/SnapshotMoreMenu.vue'
+import SnapshotPanelLoading from '~/components/Snapshot/SnapshotPanelLoading.vue'
 import SnapshotRightEdgeToolbar from '~/components/Snapshot/SnapshotRightEdgeToolbar.vue'
 import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue'
 import SnapshotSubscriptionStatus from '~/components/Snapshot/SnapshotSubscriptionStatus.vue'
@@ -271,8 +271,8 @@ async function loadPanelCode<T>(id: 'ai' | 'chat', load: () => Promise<T>): Prom
   }
 }
 
-const SnapshotAIPanel = defineAsyncComponent({ loader: () => loadPanelCode('ai', () => import('~/components/Snapshot/SnapshotAIPanel.vue')), loadingComponent: DotLoading, timeout: PANEL_CODE_TIMEOUT, suspensible: false })
-const SnapshotChatPanel = defineAsyncComponent({ loader: () => loadPanelCode('chat', () => import('~/components/Snapshot/SnapshotChatPanel.vue')), loadingComponent: DotLoading, timeout: PANEL_CODE_TIMEOUT, suspensible: false })
+const SnapshotAIPanel = defineAsyncComponent({ loader: () => loadPanelCode('ai', () => import('~/components/Snapshot/SnapshotAIPanel.vue')), loadingComponent: SnapshotPanelLoading, timeout: PANEL_CODE_TIMEOUT, suspensible: false })
+const SnapshotChatPanel = defineAsyncComponent({ loader: () => loadPanelCode('chat', () => import('~/components/Snapshot/SnapshotChatPanel.vue')), loadingComponent: SnapshotPanelLoading, timeout: PANEL_CODE_TIMEOUT, suspensible: false })
 
 const { t, locale } = useI18n()
 definePageMeta({ key: route => String(route.params.id), scrollToTop: shouldScrollReaderToTop })
