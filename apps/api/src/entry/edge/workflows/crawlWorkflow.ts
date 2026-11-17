@@ -251,7 +251,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
               route === 'weixin' ||
               route === 'twitter' ||
               route === 'twitter_article' ||
-              (suppliedArticle && route === 'regular' && !new URL(url).pathname.toLowerCase().endsWith('.pdf'))
+              (suppliedArticle && route !== 'youtube' && !new URL(url).pathname.toLowerCase().endsWith('.pdf') && !classifyPodcastUrl(url))
             ) {
               const result = await trackStep('inline_content', () => crawlService.savePublisherHtml(ctxManager, inlineContent, url, bookmarkId, userBookmarkUuid))
               return { kind: 'parsed', resolvedUrl: url, data: result, isSocialMedia: isSocialMediaRoute(route) }

@@ -10,4 +10,4 @@ The workflow suite covers allowlisted WeChat/status/article saves, ordinary user
 
 This is a server-side ingestion change. No client renderers or layouts changed. No deployment or production recapture was performed; existing completed captures are not rewritten by this change.
 
-The final targeted run covers 154 tests across the workflow and Toutiao suites, including a marked ordinary article that never enters network acquisition. The full strict OpenSpec check passed (143 items). ESLint reported no errors.
+The final targeted run covers 155 tests across the workflow and Toutiao suites, including marked ordinary and Weibo articles that never enters network acquisition. The full strict OpenSpec check passed (143 items). ESLint reported no errors.

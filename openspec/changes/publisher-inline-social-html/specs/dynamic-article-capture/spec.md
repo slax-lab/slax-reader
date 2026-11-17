@@ -18,3 +18,9 @@ The API SHALL use supplied nonblank HTML for a fresh WeChat or X capture by an a
 
 - **WHEN** an allowlisted publisher submits a regular non-PDF article document explicitly marked as publisher article HTML
 - **THEN** Reader stores the supplied article and metadata without probing the source URL for a PDF
+
+#### Scenario: Other social sources submit articles explicitly
+
+- **WHEN** a publisher submits marked article HTML for another social source such as Weibo
+- **THEN** Reader captures the supplied article using ordinary article markup without calling its platform provider
+- **AND** dedicated video, podcast and file acquisition remains available for those media

@@ -954,7 +954,8 @@ describe('published capture moderation boundaries', () => {
     ['https://mp.weixin.qq.com/s/wx', '微信'],
     ['https://x.com/test/status/123', 'Twitter'],
     ['https://x.com/i/article/123', 'Twitter'],
-    ['https://example.com/publisher-story', 'example.com']
+    ['https://example.com/publisher-story', 'example.com'],
+    ['https://weibo.com/123/abc', 'weibo.com']
   ])('stores the submitted publisher body without fetching %s', async (url, site) => {
     const { wf, cs, env, revision, uph } = wirePublishedCapture()
     env.PUBLISHER_USER_IDS = '1'
@@ -968,6 +969,7 @@ describe('published capture moderation boundaries', () => {
       await runWorkflow(wf, { url, inlineContent: html })
       expect(cs.resolveShortLink).not.toHaveBeenCalled()
       expect(cs.fetchRegular).not.toHaveBeenCalled()
+      expect(cs.fetchWeiboData).not.toHaveBeenCalled()
       expect(cs.fetchWeixin).not.toHaveBeenCalled()
       expect(cs.fetchTwitterData).not.toHaveBeenCalled()
       expect(capture).toHaveBeenCalledOnce()
