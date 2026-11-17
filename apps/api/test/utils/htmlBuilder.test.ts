@@ -1,4 +1,5 @@
 import { describe, test, expect } from 'vitest'
+import { ContentParser } from '@/utils/parser'
 import { HtmlBuilder } from '@/utils/htmlBuilder'
 import type { XHSData } from '@/const/moreapi/xhs'
 import type { RedditData } from '@/const/moreapi/reddit'
@@ -227,4 +228,18 @@ describe('HtmlBuilder.buildTweet', () => {
     const item = { ...tweetBase, text: 'plain text only' } as any
     expect(content(HtmlBuilder.buildTweet(item))).toBe('plain text only')
   })
+})
+
+test.each([
+  ['Ada & Co', 'Ada & Co'],
+  [' ', 'Example Journal']
+])('ordinary WeChat article preserves attribution through parsing (%j)', async (author, expectedByline) => {
+  const content = HtmlBuilder.buildWeixinArticlePage({
+    title: 'Field report',
+    author,
+    nick_name: 'Example Journal',
+    content_noencode: '<p>A field report with specific observations.</p>'
+  })
+  const parsed = await ContentParser.parse({ url: new URL('https://mp.weixin.qq.com/s/example'), content })
+  expect(parsed).toMatchObject({ title: 'Field report', siteName: '微信', byline: expectedByline })
 })
