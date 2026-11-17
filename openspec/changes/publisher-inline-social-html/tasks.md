@@ -1,0 +1,2 @@
+- [x] Route allowlisted content saves to the existing snapshot writer with sanitized markup.
+- [x] Exercise fresh publisher captures and the unchanged platform fallback.

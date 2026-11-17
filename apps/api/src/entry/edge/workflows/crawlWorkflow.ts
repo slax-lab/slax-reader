@@ -126,6 +126,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     const alertBot = currentContainer.resolve(SlaxAlertBotClient)
 
     const { url, bookmarkId, userId, callbackChatId, callbackOriginMessageId, ignoreGenerateTag, inlineContent } = event.payload
+    const isPublisher = this.env.PUBLISHER_USER_IDS?.split(',').some(id => id.trim() === String(userId))
     const hostname = (() => {
       try {
         return new URL(url).hostname || 'unknown'
@@ -243,6 +244,19 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             }
           }
 
+          if (isPublisher && inlineContent?.trim()) {
+            const route = detectRoute(url)
+            const suppliedArticle = inlineContent.trimStart().startsWith('<!doctype html><html data-slax-publisher="article">')
+            if (
+              route === 'weixin' ||
+              route === 'twitter' ||
+              route === 'twitter_article' ||
+              (suppliedArticle && route === 'regular' && !new URL(url).pathname.toLowerCase().endsWith('.pdf'))
+            ) {
+              const result = await trackStep('inline_content', () => crawlService.savePublisherHtml(ctxManager, inlineContent, url, bookmarkId, userBookmarkUuid))
+              return { kind: 'parsed', resolvedUrl: url, data: result, isSocialMedia: isSocialMediaRoute(route) }
+            }
+          }
           const resolvedUrl = await crawlService.resolveShortLink(ctxManager, url)
           if (resolvedUrl !== url) {
             console.log(`Resolved short link: ${url} -> ${resolvedUrl}`)
@@ -534,7 +548,6 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     }
 
     // 触发内容验证 workflow（fire-and-forget）；命中审核（>0）的内容跳过截图与质量校验
-    const isPublisher = this.env.PUBLISHER_USER_IDS?.split(',').some(id => id.trim() === String(userId))
     if (crawlResult && !isSoft404 && crawlResult.contentKey && moderationResult === ModerationResult.NORMAL && !isPublisher) {
       try {
         await this.env.CONTENT_VALIDATION_WORKFLOW.create({

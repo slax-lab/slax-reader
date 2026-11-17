@@ -87,7 +87,7 @@ import {
 } from '@test/helpers/mockFactory'
 
 function wireWorkflow(labsEnabled = true) {
-  const cs = { ...createMockCrawlService(), fetchYoutubeData: vi.fn(), parseAndSaveYoutube: vi.fn() }
+  const cs = { ...createMockCrawlService(), savePublisherHtml: vi.fn(), fetchYoutubeData: vi.fn(), parseAndSaveYoutube: vi.fn() }
   const bs = createMockBookmarkService()
   Object.assign(cs, {
     setCaptureStatus: vi.fn(async (_ctx, id, status) => {
@@ -948,6 +948,51 @@ describe('published capture moderation boundaries', () => {
     } finally {
       moderate.mockRestore()
     }
+  })
+
+  test.each([
+    ['https://mp.weixin.qq.com/s/wx', '微信'],
+    ['https://x.com/test/status/123', 'Twitter'],
+    ['https://x.com/i/article/123', 'Twitter'],
+    ['https://example.com/publisher-story', 'example.com']
+  ])('stores the submitted publisher body without fetching %s', async (url, site) => {
+    const { wf, cs, env, revision, uph } = wirePublishedCapture()
+    env.PUBLISHER_USER_IDS = '1'
+    const capture = vi.fn().mockResolvedValue({ content_key: 'html/body/example.html', publishedRevision: revision.toISOString() })
+    const service = Object.assign(Object.create(CrawlService.prototype), { snapshots: { capture } }) as CrawlService
+    cs.savePublisherHtml.mockImplementation(service.savePublisherHtml.bind(service))
+    const html =
+      '<!doctype html><html data-slax-publisher="article"><head><title>Submitted title</title><meta name="author" content="Original author"><meta property="article:published_time" content="2026-01-02T03:04:00Z"></head><body><div class="tweet"><blockquote>Source</blockquote><div class="tweet-content">This is the submitted passage.</div><div class="quote-description">Quoted author and post</div><script>unsafe()</script><a href="javascript:run()">link</a></div></body></html>'
+    const moderate = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.NORMAL)
+    try {
+      await runWorkflow(wf, { url, inlineContent: html })
+      expect(cs.resolveShortLink).not.toHaveBeenCalled()
+      expect(cs.fetchRegular).not.toHaveBeenCalled()
+      expect(cs.fetchWeixin).not.toHaveBeenCalled()
+      expect(cs.fetchTwitterData).not.toHaveBeenCalled()
+      expect(capture).toHaveBeenCalledOnce()
+      const [, , body, meta] = capture.mock.calls[0]
+      expect(body.html).toContain('<blockquote>Source</blockquote>')
+      expect(body.html).not.toMatch(/javascript:|unsafe\(\)/)
+      if (site === 'Twitter') expect(body.html).toContain('class="quote-description"')
+      expect(meta).toMatchObject({ title: 'Submitted title', byline: 'Original author', site_name: site, published_at: new Date('2026-01-02T03:04:00Z') })
+      expect(moderate).toHaveBeenCalledOnce()
+      expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
+    } finally {
+      moderate.mockRestore()
+    }
+  })
+
+  test.each([
+    ['2', '<p>not from publisher</p>'],
+    ['1', '  ']
+  ])('retains platform acquisition outside a publisher HTML save', async (ids, inlineContent) => {
+    const { wf, cs, env } = wireWorkflow()
+    env.PUBLISHER_USER_IDS = ids
+    cs.fetchTwitterData.mockRejectedValue(new Error('platform attempted'))
+    await expect(runWorkflow(wf, { url: 'https://x.com/test/status/123', inlineContent })).rejects.toThrow('platform attempted')
+    expect(cs.fetchTwitterData).toHaveBeenCalledOnce()
+    expect(cs.savePublisherHtml).not.toHaveBeenCalled()
   })
 
   test('the real ordinary-tweet publisher passes its revision into Workflow moderation and sharing revocation', async () => {
