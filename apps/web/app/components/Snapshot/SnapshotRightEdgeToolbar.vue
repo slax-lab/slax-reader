@@ -2,22 +2,23 @@
   <div v-if="!isH5 && !panelOpen && buttons.length > 0" class="edge-toolbar">
     <template v-for="(btn, idx) in buttons" :key="btn.id">
       <div v-if="idx > 0" class="edge-sep" />
-      <button class="edge-btn" :class="{ active: modelValue === btn.id }" :title="btn.label" @click="toggle(btn.id)">
+      <button class="edge-btn" :class="{ active: modelValue === btn.id }" :title="btn.label" :aria-label="btn.label" :aria-busy="loadingPanel === btn.id" :data-snapshot-panel="btn.id" @click="toggle(btn.id)">
         <span class="edge-label">{{ btn.label }}</span>
-        <span class="edge-icon"><AppIcon :name="btn.icon" :size="20" /></span>
+        <span class="edge-icon"><SnapshotPanelIcon :panel="btn.id" :name="btn.icon" :size="20" :loading="loadingPanel === btn.id" /></span>
       </button>
     </template>
   </div>
 </template>
 
 <script lang="ts" setup>
-import AppIcon from '~/components/AppIcon.vue'
+import SnapshotPanelIcon from '~/components/Snapshot/SnapshotPanelIcon.vue'
 
 import { resolveSnapshotPanels, type SnapshotPanelId } from '~/components/Snapshot/panels'
 
 const props = defineProps<{
   modelValue: SnapshotPanelId | null
   panelOpen?: boolean
+  loadingPanel?: SnapshotPanelId | null
   // 展示的面板子集，不传则全部
   panels?: SnapshotPanelId[]
 }>()

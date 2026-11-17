@@ -71,3 +71,42 @@ describe('Snapshot icon-backed controls', () => {
     expect(mobile.findAll('.toolbar-btn')[4]!.classes()).toContain('active')
   })
 })
+
+
+describe('Snapshot panel entry feedback', () => {
+  it('keeps the expanded tab usable and labelled while its module is pending', async () => {
+    const wrapper = mountWithApp(SnapshotSidePanel, { props: { activeTab: 'ai', loadingPanel: 'ai' } })
+    const button = wrapper.get('[data-snapshot-panel="ai"]')
+    expect(button.attributes('aria-busy')).toBe('true')
+    expect(button.attributes('aria-label')).toBe('Analysis')
+    expect(button.find('.snapshot-panel-icon').classes()).toContain('is-loading')
+    await button.trigger('click')
+    expect(wrapper.emitted('update:activeTab')?.at(-1)).toEqual([null])
+    await wrapper.setProps({ loadingPanel: null })
+    expect(button.attributes('aria-busy')).toBe('false')
+    expect(button.find('.snapshot-panel-icon').classes()).not.toContain('is-loading')
+    wrapper.unmount()
+  })
+
+  it('renders an early-startup-ready marker and loading status at the outer entry', () => {
+    const wrapper = mountWithApp(SnapshotRightEdgeToolbar, { props: { modelValue: null, loadingPanel: 'chat' } })
+    const button = wrapper.get('[data-snapshot-panel="chat"]')
+    expect(button.attributes('aria-label')).toBe('Chat')
+    expect(button.attributes('aria-busy')).toBe('true')
+    expect(button.find('.panel-icon-ring').attributes('aria-hidden')).toBe('true')
+    expect(wrapper.get('[data-snapshot-panel="ai"]').attributes('aria-busy')).toBe('false')
+    wrapper.unmount()
+  })
+
+  it('uses the same feedback on a narrow mobile panel entry', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 375 })
+    const wrapper = mountWithApp(SnapshotBottomToolbar, { props: { actions: [], activePanel: null, loadingPanel: 'ai' } })
+    const button = wrapper.get('[data-snapshot-panel="ai"]')
+    expect(button.attributes('aria-label')).toBe('Analysis')
+    expect(button.attributes('aria-busy')).toBe('true')
+    expect(button.find('.snapshot-panel-icon').attributes('style')).toContain('18px')
+    await button.trigger('click')
+    expect(wrapper.emitted('panel')?.at(-1)).toEqual(['ai'])
+    wrapper.unmount()
+  })
+})

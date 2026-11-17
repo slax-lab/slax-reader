@@ -43,3 +43,16 @@ Independent read-only source review of the branch against `REVIEW.md` Bugs/Secur
 ## Delivery
 
 Submitted [PR #649](https://github.com/slax-lab/slax-reader/pull/649) targeting `dev` after hands-on acceptance, with an attached matched before/after visual group and the evidence trail above. The change remains unarchived until merge; archive belongs in a separate human-reviewed documentation PR.
+
+## Dev synchronization and conflict resolution
+
+On 2026-11-17, merged `origin/dev` at `77c5720f` after PR #650 introduced panel-entry loading feedback. Resolved two conflicts: `/b/[id].vue` retains the upstream `loadPanelCode` wrapper, pending flags, timeout, and early-click handoff while using `SnapshotPanelLoading` for both asynchronous fallback components; the fixture README retains both independent sections. The final page diff against the updated target only changes the loading-component import and two fallback references. Existing accepted layout and access behavior are preserved.
+
+Post-resolution verification, using the same explicit synthetic configuration and browser executable described above:
+
+- `pnpm web -- test` selecting `SnapshotToolbars`, `SnapshotSidePanel`, `SnapshotAIPanel`, `SnapshotChatPanel`, `readerNavigation`, `readerStartup`, `useReadingPosition`, and `useUserRelative`: eight files and 119 tests passed, zero failures.
+- `pnpm web -- typecheck`: passed; changed production Vue-file ESLint: passed with no errors or warnings; `pnpm exec openspec validate --all --strict`: 148 passed, zero failed; `git diff --check`: passed with no unresolved paths.
+- `browser_panel_loading_check.py --browser-executable <local-browser>`: all 18 theme/width/panel combinations passed after the merge, including the embedded desktop close/switch checks. The selected tab's upstream loading ring and the centered content placeholder coexist normally; module delivery restores the panel.
+- `browser_panel_feedback_check.py --base-url http://127.0.0.1:3218 --executable <local-browser>`: all 21 upstream feedback scenarios passed, including early AI/Chat clicks and accessible busy state, one-time handoff, latest choice, pending/inactive/failure-retry access decisions, theme/width presentation, module rejection/timeout, close/switch, and reduced motion.
+- Refreshed the after image from the merged running reader. The before capture remains explicitly sourced from unmodified production code at `82b84500`.
+- Independent read-only Bugs/Security/Compliance review of the conflict resolution found no Important or Nit findings. Existing scope boundaries and runtime-integration gaps above still apply; this synchronization does not add product behavior or replace the recorded human acceptance.

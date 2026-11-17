@@ -1,5 +1,6 @@
 import { container } from '@/decorators/di'
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:workers'
+import { parseHTML } from 'linkedom'
 import { NonRetryableError } from 'cloudflare:workflows'
 import { initializeInfrastructure, initializeCore } from '@/di/generated/dependency'
 import { ContextManager } from '@/utils/context'
@@ -20,7 +21,7 @@ import { MultiLangError } from '@/utils/multiLangError'
 import { ErrorName } from '@/const/err'
 import { ContentValidationWorkflowParams } from './contentValidationWorkflow'
 import { ImportService } from '@/domain/import'
-import { detectRoute, isSocialMediaRoute, normalizeYoutubeUrl, type RouteKind } from '@/utils/platformDetector'
+import { detectRoute, isSocialMediaRoute, normalizeYoutubeUrl } from '@/utils/platformDetector'
 import { isProhibitedContentUrl } from '@/utils/prohibitedContentDetector'
 import { OpenAIModerationClient, ModerationResult } from '@/infra/external/openaiModeration'
 import { extractImageUrls } from '@/utils/htmlImages'
@@ -126,6 +127,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     const alertBot = currentContainer.resolve(SlaxAlertBotClient)
 
     const { url, bookmarkId, userId, callbackChatId, callbackOriginMessageId, ignoreGenerateTag, inlineContent } = event.payload
+    const isPublisher = this.env.PUBLISHER_USER_IDS?.split(',').some(id => id.trim() === String(userId))
     const hostname = (() => {
       try {
         return new URL(url).hostname || 'unknown'
@@ -243,6 +245,25 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             }
           }
 
+          if (isPublisher && inlineContent?.trim()) {
+            const route = detectRoute(url)
+            const { document } = parseHTML(inlineContent)
+            const root = document.documentElement
+            const suppliedArticle = root?.localName === 'html' && root.getAttribute('data-slax-publisher') === 'article'
+            if (
+              route === 'weixin' ||
+              route === 'twitter' ||
+              route === 'twitter_article' ||
+              (suppliedArticle && route !== 'youtube' && !new URL(url).pathname.toLowerCase().endsWith('.pdf') && !classifyPodcastUrl(url))
+            ) {
+              const { data, hasMedia } = await trackStep('inline_content', async () => {
+                const saved = await crawlService.savePublisherHtml(ctxManager, document, url, bookmarkId, userBookmarkUuid)
+                if (!saved) throw new NonRetryableError('Publisher HTML needs a title and readable text or media')
+                return saved
+              })
+              return { kind: 'parsed', resolvedUrl: url, data, isSocialMedia: isSocialMediaRoute(route) || (route === 'weixin' && hasMedia && data.textContent.length < 15) }
+            }
+          }
           const resolvedUrl = await crawlService.resolveShortLink(ctxManager, url)
           if (resolvedUrl !== url) {
             console.log(`Resolved short link: ${url} -> ${resolvedUrl}`)
@@ -534,7 +555,6 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     }
 
     // 触发内容验证 workflow（fire-and-forget）；命中审核（>0）的内容跳过截图与质量校验
-    const isPublisher = this.env.PUBLISHER_USER_IDS?.split(',').some(id => id.trim() === String(userId))
     if (crawlResult && !isSoft404 && crawlResult.contentKey && moderationResult === ModerationResult.NORMAL && !isPublisher) {
       try {
         await this.env.CONTENT_VALIDATION_WORKFLOW.create({
