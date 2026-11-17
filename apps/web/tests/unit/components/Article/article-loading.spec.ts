@@ -37,6 +37,14 @@ describe('BookmarkArticle loading policy integration', () => {
     expect(wrapper.find('img').attributes('loading')).toBe('lazy')
   })
 
+  it('applies email table presentation only to saved Newsletter bodies', () => {
+    const html = '<table><tbody><tr><td>Body</td></tr></tbody></table>'
+    const mail = mountArticle(html, { target_url: 'slax-newsletter://message/1' })
+    const web = mountArticle(html, { target_url: 'https://example.com/article' })
+    expect(mail.get('.article-body').classes()).toContain('newsletter-body')
+    expect(web.get('.article-body').classes()).not.toContain('newsletter-body')
+  })
+
   it('retains the previous blanket loading path when disabled', () => {
     config.lcp.articleImagePriority = false
     const wrapper = mountArticle('<img src="first.png">')

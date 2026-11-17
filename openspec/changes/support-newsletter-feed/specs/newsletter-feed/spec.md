@@ -239,3 +239,14 @@ Web original-navigation controls SHALL exist only for explicit HTTP(S) targets, 
 #### Scenario: Internal mail original and tied pagination
 - **WHEN** internal mail appears in list/detail/preview or mixed entries share a timestamp
 - **THEN** no nonfunctional original link is shown and local/server entry sequences agree without duplicates or gaps
+
+### Requirement: Readable Newsletter layout tables
+Newsletter previews and saved Inbox details SHALL share table fitting behavior and borderless, square table presentation. Single-cell layout rows SHALL not cumulatively indent nested email content. Shared Article table processing SHALL hide whitespace-only tables without media while preserving table structure, annotations and media-only content. Ordinary article data-table styling SHALL remain unchanged.
+
+#### Scenario: Nested email layout and empty spacers
+- **WHEN** a Newsletter contains nested single-cell tables and whitespace-only spacer tables
+- **THEN** Feed preview and Inbox detail stretch fitting rows, omit table frames and corners, and hide empty spacers without deleting DOM nodes
+
+#### Scenario: Media-only and wide tables
+- **WHEN** an Article or Newsletter table contains media or content wider than its reader
+- **THEN** media-only tables remain visible and wide tables retain horizontal scrolling without disturbing annotation paths

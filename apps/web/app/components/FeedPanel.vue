@@ -346,6 +346,7 @@
           </p>
           <div
             v-else
+            ref="previewBody"
             :class="previewEntry.kind === 'newsletter' ? 'newsletter-body' : 'rss-body'"
             v-html="safeHtml"
             @error.capture="imageFailed"
@@ -524,6 +525,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { observeTableLayout } from "~/components/Article/processors/table-layout.processor";
 import { httpOriginalUrl } from "~/utils/bookmarkSource";
 import ListLayoutSwitcher from "~/components/BookmarkList/ListLayoutSwitcher.vue";
 import NewsletterAddress from "~/components/NewsletterAddress.vue";
@@ -619,6 +621,13 @@ const safeHtml = computed(() =>
     ? (previewEntry.value?.kind === 'newsletter' ? sanitizeNewsletterPreview : sanitizeRssPreview)(rss.detail.value.content_html, import.meta.dev)
     : "",
 );
+const previewBody = ref<HTMLElement>();
+watch([previewBody, safeHtml], ([body], _previous, onCleanup) => {
+  if (body && previewEntry.value?.kind === "newsletter") {
+    const cleanup = observeTableLayout(body);
+    if (cleanup) onCleanup(cleanup);
+  }
+}, { flush: "post" });
 const imageFailed = (event: Event) => {
   if (event.target instanceof HTMLImageElement) {
     event.target.removeAttribute("src");
@@ -1258,6 +1267,7 @@ input {
 :deep(.newsletter-body) {
   @include article.reset;
   @include article.content-styles;
+  @include article.newsletter-tables;
   overflow-wrap: anywhere;
 
   pre {
