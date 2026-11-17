@@ -624,7 +624,7 @@ const safeHtml = computed(() =>
 const previewBody = ref<HTMLElement>();
 watch([previewBody, safeHtml], ([body], _previous, onCleanup) => {
   if (body && previewEntry.value?.kind === "newsletter") {
-    const cleanup = observeTableLayout(body);
+    const cleanup = observeTableLayout(body, true);
     if (cleanup) onCleanup(cleanup);
   }
 }, { flush: "post" });

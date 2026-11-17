@@ -250,3 +250,14 @@ Newsletter previews and saved Inbox details SHALL share table fitting behavior a
 #### Scenario: Media-only and wide tables
 - **WHEN** an Article or Newsletter table contains media or content wider than its reader
 - **THEN** media-only tables remain visible and wide tables retain horizontal scrolling without disturbing annotation paths
+
+### Requirement: Preserve mixed-column email layout
+Newsletter intake SHALL preserve valid colspan (1–1000) and rowspan (0–65534) attributes on table cells while continuing to remove unsafe attributes; RSS sanitization SHALL retain its existing default. Newsletter rendering SHALL fill missing spans on single-cell rows to the width represented by the same table's rows, without counting nested table rows, replacing nodes or overriding explicit spans. Tables with row spans SHALL keep their original occupancy instead of inferring missing spans. Newsletter cells selected by Article zebra striping SHALL instead have transparent backgrounds, including cells inside nested tables under an outer even row.
+
+#### Scenario: Previously received mixed-column email
+- **WHEN** a Newsletter table mixes single-cell rows without span attributes and three-column rows
+- **THEN** single-cell rows fill the three columns in both Feed preview and saved Inbox detail, and no alternating Article cell background remains
+
+#### Scenario: Explicit table structure
+- **WHEN** incoming mail contains valid spans, invalid attribute payloads or row-spanning cells
+- **THEN** valid span semantics survive sanitization, unsafe attributes are removed, explicit spans and row-span occupancy are preserved, and RSS/ordinary Article behavior is unchanged
