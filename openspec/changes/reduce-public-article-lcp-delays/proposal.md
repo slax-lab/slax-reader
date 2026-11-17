@@ -17,6 +17,8 @@ The change requester initially deferred the missing-sample #605 verification, th
 
 The requester subsequently resumed first-byte attribution and authorized a necessary, demonstrated minimal optimization in the open #624. Existing public test articles were discovered through the test site's published collection sitemap. Successful Web/Edge/Core measurements and temporary tail observations now identify substantial wait outside the measured Core handler on slow requests; they do not establish its exact platform/startup cause or a safe query/placement correction. This pass records the results without expanding the runtime diff. The different test articles do not close same-content podcast/Mole or field-acceptance gaps.
 
+The November 17 continuation obtained an exact native trace using the matching client Ray ID, after requester-authorized temporary test-only tracing. It confirms same-HKG linked calls and large pre-operation prefixes, while cold initialization versus platform scheduling remains unproven. Both tracing switches were restored disabled. Next-morning field results, new leading URLs, sample counts and the incomplete 70% outcome are recorded separately in validation.md. This remains an evidence-only continuation of first-byte work, with no additional runtime patch.
+
 ## Capabilities
 
 ### New Capabilities

@@ -15,6 +15,7 @@
 
 - [x] 3.1 On November 16, discover two existing public test articles through the published collection sitemap; record five successful requests per document and five content-API requests with Web/Edge/Core/access/trace/collection stages, connection/TLS and whole-request durations. Add five fresh-connection controls and five temporally correlated Edge/Core tail observations. Available application-stage attribution is recorded in `validation.md`; the exact startup/dispatch cause and database execution-versus-transport split remain explicitly unproven. No production diagnostics, nested-span sums or query-time inference from frontend wait were added.
 - [x] 3.2 Trace the actual request-scoped client and pool used by owner/share reads; record that `max: 1` defeats the assumed independent connection capacity and exclude Promise-only overlap, pool enlargement and settlement machinery from this runtime scope.
+- [ ] 3.3 Continue physical attribution beyond the application timer. November 17 native traces now exactly match the client Ray ID and link same-HKG Edge/Core invocations, locating large pre-operation prefixes; cold initialization versus platform scheduling remains unproven because isolate lifecycle/startup fields are absent. Temporary test tracing was authorized, used for one bounded pass and restored disabled. Select a runtime correction only after demonstrating its cause and effect; do not infer a cold start from invocation sequence numbers or timer zeros.
 
 ## 4. Verify and hand off
 
