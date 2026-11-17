@@ -1,3 +1,4 @@
+import { parseHTML } from 'linkedom'
 import { assertExternalNewsletterTarget } from '@/utils/newsletterTarget'
 import { bookmarkContentType, isPdfContentKey, PDF_MAX_BYTES, pdfByteRange, pdfResponseHeaders, type PdfDescriptor, type PdfUploadResult } from '@slax-reader/contracts/pdf'
 import { readPdfBody, pdfFilename, pdfHash, extractPdfText, extractPdfMetadata, hasPdfSignature, PdfSaveInProgressError } from '@/utils/pdf'
@@ -305,6 +306,23 @@ export class BookmarkService {
     this.maintainReboundArticles(ctx, bmInfo)
     if (bmInfo.admitted === false) return bmInfo.id
     if (bmInfo.status === queueStatus.SUCCESS && !urlPolicie.isUrlShortcut()) {
+      if (
+        bmInfo.private_user === privateUser &&
+        bmInfo.content_key?.endsWith('.html') &&
+        (!bmInfo.title?.trim() || !bmInfo.site_name?.trim() || !bmInfo.byline?.trim()) &&
+        content?.trim() &&
+        ctx.env.PUBLISHER_USER_IDS?.split(',').some(id => id.trim() === String(privateUser))
+      ) {
+        const { document } = parseHTML(content)
+        const root = document.documentElement
+        if (root?.localName === 'html' && root.getAttribute('data-slax-publisher') === 'article') {
+          await this.bookmarkRepo.fillPublisherMetadata(bmInfo.id, privateUser, {
+            title: document.title.trim() || document.body.querySelector('h1')?.textContent?.trim() || target_title?.trim() || '',
+            siteName: document.head.querySelector('meta[property="og:site_name"]')?.getAttribute('content')?.trim() || '',
+            byline: document.head.querySelector('meta[name="author"]')?.getAttribute('content')?.trim() || ''
+          })
+        }
+      }
       await this.processCachedBookmark(ctx, bmInfo)
       return { kind: 'completed' as const, bookmark_id: bmInfo.id }
     }

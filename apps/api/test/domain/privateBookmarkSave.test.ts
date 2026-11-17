@@ -71,6 +71,24 @@ describe('bookmark save privacy', () => {
     expect(createBookmarkBase).toHaveBeenCalledWith(expect.objectContaining({ privateUser: userId }))
   })
 
+  test.each([
+    ['7', userId, 'article', '.html', true],
+    ['17', userId, 'article', '.html', false],
+    ['7', 0, 'article', '.html', false],
+    ['7', userId, 'other', '.html', false],
+    ['7', userId, 'article', '.pdf', false]
+  ] as const)('cached inline metadata admission %s/%i/%s/%s', async (allowed, owner, marker, ext, admitted) => {
+    const { service, createBookmarkBase, bookmarkRepo } = createService()
+    createBookmarkBase.mockResolvedValue({ id: 11, private_user: owner, status: 'success', content_key: 'snapshot' + ext, title: '', site_name: '', byline: '' })
+    const fill = vi.fn()
+    Object.assign(bookmarkRepo, { fillPublisherMetadata: fill })
+    const ctx = { getUserId: () => userId, env: { PUBLISHER_USER_IDS: allowed }, hashIds: { encodeId: String }, getlang: () => 'en' } as never
+    const content = `<html data-slax-publisher="${marker}"><head><meta name="author" content="Author"></head><body><p>Body</p></body></html>`
+    await service.addBookmark(ctx, { target_url: targetUrl, target_title: 'Source title', content, target_icon: '', taget_cover: '', description: '', tag: [] })
+    if (admitted) expect(fill).toHaveBeenCalledExactlyOnceWith(11, userId, { title: 'Source title', siteName: '', byline: 'Author' })
+    else expect(fill).not.toHaveBeenCalled()
+  })
+
   test('addUrlBookmarkItem creates the article for the current user', async () => {
     const { service, createBookmarkBase, bookmarkRepo } = createService()
 
