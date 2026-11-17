@@ -6,7 +6,10 @@ import type { ArticleQueryOptions, VectorIndexKind, VectorQueryOptions } from '@
 export class VectorIndexClient {
   private readonly rpc: VectorIndexRpc
 
+  readonly publisherUserIds?: string
+
   constructor(env: Env) {
+    this.publisherUserIds = env.PUBLISHER_USER_IDS
     this.rpc = env.VECTOR as unknown as VectorIndexRpc
   }
 

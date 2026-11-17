@@ -1,3 +1,4 @@
+import { assertExternalNewsletterTarget } from '@/utils/newsletterTarget'
 import { MarkRepo } from '@/infra/repository/dbMark'
 import { SocialMediaApi } from '../infra/external/socialMedia'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
@@ -148,6 +149,7 @@ export class CrawlService {
   }
 
   public async createWorkflow(env: Env, params: CrawlWorkflowParams, maxRetries: number = 3, trackingContext?: ContextManager) {
+    assertExternalNewsletterTarget(params.url)
     const raw = await this.snapshotRepo.snapshot(params.bookmarkId)
     if (!raw) throw forkError()
     if (params.captureRevision && params.captureRevision !== raw.updated_at.toISOString()) return

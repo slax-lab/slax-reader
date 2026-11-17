@@ -6,7 +6,7 @@
 </template>
 
 <script lang="ts" setup>
-import type { AcquisitionAuthAttribution } from '@slax-reader/contracts/events'
+import { isSnapshotAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import type { PropType } from 'vue'
 
 const t = (text: string) => {
@@ -15,7 +15,7 @@ const t = (text: string) => {
 
 const props = defineProps({
   authAttribution: {
-    type: Object as PropType<AcquisitionAuthAttribution>,
+    type: Object as PropType<WebAuthAttribution>,
     required: false
   },
   redirect: {
@@ -32,6 +32,12 @@ const props = defineProps({
 const auth = useAuth()
 
 const loginClick = async () => {
+  if (isSnapshotAuthAttribution(props.authAttribution)) {
+    eventLog({
+      event_name: 'element_clicked',
+      properties: { screen_name: 'signup', element_id: 'login_apple_button', ...props.authAttribution }
+    })
+  }
   analyticsLog({
     event: 'user_login_start',
     method: 'apple'

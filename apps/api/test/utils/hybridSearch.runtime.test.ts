@@ -54,6 +54,7 @@ async function bundle(contents: string) {
       write: false,
       platform: 'browser',
       format: 'esm',
+      banner: { js: "import { createRequire as createRuntimeRequire } from 'node:module'; const require = createRuntimeRequire('/worker.mjs');" },
       target: 'es2022',
       conditions: ['workerd', 'worker'],
       external: ['cloudflare:*'],

@@ -2,7 +2,6 @@ import { describe, expect, test, vi } from 'vitest'
 vi.mock('@/handler/cron/bookmarkJob', () => ({ BookmarkJob: class {} }))
 vi.mock('@/handler/cron/collectionJob', () => ({ CollectionJob: class {} }))
 vi.mock('@/handler/cron/subscriptionJob', () => ({ SubscriptionJob: class {} }))
-vi.mock('@/handler/cron/userDeletionJob', () => ({ UserDeletionJob: class {} }))
 import { handleCronjob } from '@/di/generated/cronjob'
 
 describe('scheduled job fanout', () => {
@@ -18,6 +17,6 @@ describe('scheduled job fanout', () => {
     for (let index = 0; index < pending.length; index++) await pending[index]
     expect(controller.checkImportProgress).toHaveBeenCalledOnce()
     expect(controller.recoverPayments).toHaveBeenCalledOnce()
-    expect(controller.recoverDeletedUsers).toHaveBeenCalledOnce()
+    expect(controller.recoverDeletedUsers).not.toHaveBeenCalled()
   })
 })

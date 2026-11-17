@@ -1,3 +1,4 @@
+import { PasskeyRepo } from '../infra/repository/dbPasskey'
 import { inject, injectable } from '../decorators/di'
 import type { LazyInstance } from '../decorators/lazy'
 import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
@@ -15,7 +16,8 @@ export class UserDeletionService {
     @inject(PRISIMA_HYPERDRIVE_CLIENT) private prismaPg: LazyInstance<HyperdrivePrismaClient>,
     @inject(UserRepo) private userRepo: UserRepo,
     @inject(BucketClient) private bucket: LazyInstance<BucketClient>,
-    @inject(VectorMaintenanceRepo) private vectorRepo: VectorMaintenanceRepo
+    @inject(VectorMaintenanceRepo) private vectorRepo: VectorMaintenanceRepo,
+    @inject(PasskeyRepo) private passkeys: PasskeyRepo
   ) {}
 
   public async ensureUserNotDeleted(userId: number): Promise<void> {
@@ -51,6 +53,12 @@ export class UserDeletionService {
 
     try {
       await this.dispatchVectorCleanup(userId, env)
+      for (;;) {
+        const rows = await this.userRepo.deleteNewsletterBatch(userId)
+        if (!rows.length) break
+        const keys = rows.map(row => row.content_key).filter((key): key is string => !!key && key.startsWith('newsletter-content/'))
+        if (keys.length) await this.bucket().R2Bucket.delete(keys)
+      }
       const reports = await this.prismaPg().sr_user_report.findMany({ where: { user_id: userId }, select: { user_id: true, extra_data: true } })
       await removeDiagnosticObjects(env, reports)
       await this.prismaPg().$executeRaw`DELETE FROM sr_rss_subscription WHERE user_id = ${userId}`
@@ -76,6 +84,7 @@ export class UserDeletionService {
       await this.deleteBookmarkSummaries(userId)
 
       // 绑定的TG等平台
+      await this.passkeys.deleteByUserId(userId)
       await this.deletePlatformBinds(userId)
 
       // 用户书签列表（必须在私有书签之前删除，因为有外键）
@@ -163,7 +172,7 @@ export class UserDeletionService {
 
   private async deletePlatformBinds(userId: number): Promise<void> {
     const result = await this.prismaPg().sr_platform_bind.deleteMany({
-      where: { user_id: userId }
+      where: { user_id: userId, platform: { not: 'newsletter' } }
     })
     console.log(`Deleted ${result.count} platform bindings`)
   }

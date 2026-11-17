@@ -26,7 +26,7 @@
 
           <div class="auth-btns">
             <GoogleLoginButton :redirect="redirect" :auth-attribution="authAttribution" @click.capture="emailLogin?.cancel()" />
-            <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" @click.capture="emailLogin?.cancel()" />
+            <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" :auth-attribution="appleAuthAttribution" @click.capture="emailLogin?.cancel()" />
             <EmailLoginForm ref="emailLogin" :redirect="redirect" :auth-attribution="authAttribution" />
           </div>
 
@@ -47,12 +47,12 @@ import AppleLoginButton from '~/components/AppleLoginButton.vue'
 import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
 import EmailLoginForm from '~/components/Login/EmailLoginForm.vue'
 
-import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
+import { isCollectionAuthAttribution, type LoginModalAttribution } from '@slax-reader/contracts/events'
 import type { PropType } from 'vue'
 
 const props = defineProps({
   authAttribution: {
-    type: Object as PropType<CollectionAuthAttribution>,
+    type: Object as PropType<LoginModalAttribution>,
     required: false
   },
   redirect: {
@@ -62,6 +62,7 @@ const props = defineProps({
 })
 
 const emits = defineEmits(['close', 'dismiss', 'success'])
+const appleAuthAttribution = computed(() => isCollectionAuthAttribution(props.authAttribution) ? undefined : props.authAttribution)
 const runtimeConfig = useRuntimeConfig().public
 const appleLoginEnabled = Boolean(runtimeConfig.APPLE_OAUTH_CLIENT_ID)
 

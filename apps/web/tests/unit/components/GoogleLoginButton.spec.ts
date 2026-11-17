@@ -90,6 +90,15 @@ describe('GoogleLoginButton', () => {
     wrapper.unmount()
   })
 
+  it('records a contextual click and passes snapshot save provenance', async () => {
+    const authAttribution = { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: '00000000-0000-4000-8000-000000000001' } as const
+    const wrapper = mountWithApp(GoogleLoginButton, { props: { redirect: '/b/source', authAttribution } })
+    await wrapper.get('button').trigger('click')
+    expect(mockEventLog).toHaveBeenCalledExactlyOnceWith({ event_name: 'element_clicked', properties: { screen_name: 'signup', element_id: 'login_google_button', ...authAttribution } })
+    expect(mockRequestAuth).toHaveBeenCalledWith({ redirect: '/b/source', affCode: '', authAttribution })
+    wrapper.unmount()
+  })
+
   it('leaves normal login first-party clicks to the existing route listener', async () => {
     const wrapper = mountWithApp(GoogleLoginButton, { props: { redirect: '/bookmarks' } })
     await wrapper.get('button').trigger('click')

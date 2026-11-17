@@ -1,6 +1,7 @@
 import { MessageTypeAction } from '@/config/message'
 
 import { $t } from '@/utils/locale'
+import type { ScriptPublicPath } from 'wxt/utils/inject-script'
 
 type AuthSession = { checkLogin: () => Promise<boolean> }
 const CONTENT_SCRIPT_READY_TABS = 'content-script-ready-tabs'
@@ -86,6 +87,36 @@ export class BrowserService {
     this.contentScriptReadyWaiters.clear()
     await this.readyTabsTransition
     await browser.storage.session.remove(CONTENT_SCRIPT_READY_TABS)
+  }
+
+  private static async injectCollector(tabId: number): Promise<void> {
+    const entries = browser.runtime.getManifest().content_scripts ?? []
+    const content = entries.find(entry => entry.js?.includes('content-scripts/content.js'))
+    if (!content?.js?.length) throw new Error('Collector bundle is missing from the manifest')
+
+    const vendor = entries.find(entry => entry.js?.includes('vendor.js'))
+    const css = entries.flatMap(entry => entry.css ?? []).filter(file => file === 'content-scripts/mark.css')
+    const target = { tabId, frameIds: [0] }
+    if (css.length) await browser.scripting.insertCSS({ target, files: [...new Set(css)] })
+    const files = [...(vendor?.js ?? []), ...content.js] as ScriptPublicPath[]
+    await browser.scripting.executeScript({ target, files })
+  }
+
+  static async activateContentScripts(): Promise<void> {
+    const tabs = await browser.tabs.query({ url: ['http://*/*', 'https://*/*'] })
+    await Promise.all(tabs.map(async tab => {
+      if (tab.id == null || !/^https?:\/\//i.test(tab.url ?? '')) return
+      try {
+        const response = await browser.tabs.sendMessage(tab.id, { action: MessageTypeAction.ContentScriptReady }, { frameId: 0 }).catch(() => undefined)
+        if (response?.ready === true) {
+          await this.markContentScriptReady(tab.id)
+          return
+        }
+        await this.injectCollector(tab.id)
+      } catch {
+        console.warn('[install] collector activation unavailable for tab', tab.id)
+      }
+    }))
   }
 
   static markContentScriptReady(tabId: number): Promise<void> {

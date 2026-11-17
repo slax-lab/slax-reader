@@ -1,7 +1,7 @@
 import { modalBootloader } from '~/utils/modal'
 
 import { ShareModalType } from './shareType'
-import type { CollectionAuthAttribution } from '@slax-reader/contracts/events'
+import type { LoginModalAttribution } from '@slax-reader/contracts/events'
 import { BookmarkParseStatus } from '@slax-reader/contracts/interface'
 import Toast, { ToastType } from '~/components/Toast'
 
@@ -88,7 +88,7 @@ export const showEditTagModal = (options: {
   }))
 }
 
-export const showLoginModal = (options: { redirect?: string; authAttribution?: CollectionAuthAttribution }) => {
+export const showLoginModal = (options: { redirect?: string; authAttribution?: LoginModalAttribution }) => {
   const nuxtApp = useNuxtApp()
   return import('./LoginModal.vue').then(({ default: LoginModal }) => nuxtApp.runWithContext(() => {
     const app = modalBootloader({

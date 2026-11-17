@@ -20,6 +20,25 @@ const bookmark = () => ({
   bookmark: { target_url: 'https://example.test/article' }
 })
 
+const snapshotSource = '00000000-0000-4000-8000-000000000001'
+const snapshotUrl = `https://reader.test/b/${snapshotSource}`
+
+function addUrlController() {
+  const controller = Object.create(BookmarkController.prototype)
+  controller.bookmarkService = { getUserBookmarkWithDetail: vi.fn().mockResolvedValue({ ...bookmark(), uuid: 'destination', type: 1 }) }
+  controller.bookmarkAddOrchestrator = { addByUrl: vi.fn().mockResolvedValue({ bookmarkId: 12, isShortcut: false, workflowParams: null }) }
+  controller.logsService = { track: vi.fn().mockResolvedValue(undefined) }
+  return controller
+}
+
+function addUrlRequest(targetUrl: string) {
+  return new Request('https://api.test/v1/bookmark/add_url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target_url: targetUrl, tags: [] })
+  })
+}
+
 function setup() {
   const records: Record<string, any>[] = []
   const pending: Promise<unknown>[] = []
@@ -195,6 +214,182 @@ describe('REST and asynchronous failure boundaries', () => {
         }
       }
     ])
+    expect(f.records[0]!.properties).not.toHaveProperty('source_bookmark_id')
+  })
+
+  test('attributes an accepted snapshot fork to its source while keeping the destination bookmark id', async () => {
+    const f = setup()
+    f.ctx.env.FRONT_END_URL = 'https://reader.test'
+    const controller = addUrlController()
+
+    const response = await controller.handleUserAddUrlBookmarkRequest(f.ctx, addUrlRequest(snapshotUrl))
+    await f.flush()
+
+    expect(response.status).toBe(200)
+    expect(f.records).toMatchObject([
+      {
+        event_name: 'bookmark_saved',
+        properties: {
+          bookmark_id: 'destination',
+          source_bookmark_id: snapshotSource,
+          source: 'web_button'
+        }
+      }
+    ])
+  })
+
+  test('attributes a rejected snapshot fork to its source', async () => {
+    const f = setup()
+    f.ctx.env.FRONT_END_URL = 'https://reader.test'
+    const controller = addUrlController()
+    controller.bookmarkAddOrchestrator.addByUrl.mockRejectedValue(new Error('fork rejected'))
+
+    const response = await controller.handleUserAddUrlBookmarkRequest(f.ctx, addUrlRequest(snapshotUrl))
+    await f.flush()
+
+    expect(response.status).toBe(400)
+    expect(f.records).toMatchObject([
+      {
+        event_name: 'bookmark_save_failed',
+        properties: {
+          bookmark_id: null,
+          source_bookmark_id: snapshotSource,
+          error_class: 'bookmark_add'
+        }
+      }
+    ])
+  })
+
+  test('does not treat a lookalike snapshot URL from another origin as a fork', async () => {
+    const f = setup()
+    f.ctx.env.FRONT_END_URL = 'https://reader.test'
+    const controller = addUrlController()
+
+    await controller.handleUserAddUrlBookmarkRequest(f.ctx, addUrlRequest(`https://evil.test/b/${snapshotSource}`))
+    await f.flush()
+
+    expect(f.records).toMatchObject([{ event_name: 'bookmark_saved', properties: { bookmark_id: 'destination' } }])
+    expect(f.records[0]!.properties).not.toHaveProperty('source_bookmark_id')
+  })
+
+  test('a rate-limited content save does not claim a snapshot source', async () => {
+    const f = setup()
+    f.ctx.env.FRONT_END_URL = 'https://reader.test'
+    f.ctx.env.BOOKMARK_ADD_RATE_LIMITER = { limit: vi.fn().mockResolvedValue({ success: false }) } as never
+    const body = JSON.stringify({ target_url: snapshotUrl })
+    const request = new Request('https://api.test/v1/bookmark/add', {
+      method: 'POST',
+      headers: { 'Content-Length': String(new TextEncoder().encode(body).length), 'X-Device-ID': 'device-1' },
+      body
+    })
+
+    await expect(rateLimit(request, f.ctx)).rejects.toBeDefined()
+    await f.flush()
+
+    expect(f.records).toMatchObject([{ event_name: 'bookmark_save_failed', properties: { error_class: 'bookmark_add' } }])
+    expect(f.records[0]!.properties).not.toHaveProperty('source_bookmark_id')
+  })
+
+  test('rate-limited snapshot forks keep their source attribution', async () => {
+    const f = setup()
+    f.ctx.env.FRONT_END_URL = 'https://reader.test'
+    f.ctx.env.BOOKMARK_ADD_RATE_LIMITER = { limit: vi.fn().mockResolvedValue({ success: false }) } as never
+    const body = JSON.stringify({ target_url: snapshotUrl })
+    const request = new Request('https://api.test/v1/bookmark/add_url', {
+      method: 'POST',
+      headers: { 'Content-Length': String(new TextEncoder().encode(body).length), 'X-Device-ID': 'device-1', 'X-CLIENT-VERSION': '2.0.11' },
+      body
+    })
+
+    await expect(rateLimit(request, f.ctx)).rejects.toBeDefined()
+    await f.flush()
+
+    expect(f.records).toMatchObject([
+      { event_name: 'bookmark_save_failed', user_id: 7, properties: { source_bookmark_id: snapshotSource, error_class: 'bookmark_add' } }
+    ])
+  })
+
+  test('rate-limited snapshot forks without Content-Length keep their source attribution', async () => {
+    const f = setup()
+    f.ctx.env.FRONT_END_URL = 'https://reader.test'
+    f.ctx.env.BOOKMARK_ADD_RATE_LIMITER = { limit: vi.fn().mockResolvedValue({ success: false }) } as never
+    const body = JSON.stringify({ target_url: snapshotUrl })
+    const request = new Request('https://api.test/v1/bookmark/add_url', {
+      method: 'POST',
+      headers: { 'X-Device-ID': 'device-1' },
+      body
+    })
+    expect(request.headers.has('content-length')).toBe(false)
+
+    await expect(rateLimit(request, f.ctx)).rejects.toBeDefined()
+    await f.flush()
+
+    expect(f.records).toMatchObject([
+      {
+        event_name: 'bookmark_save_failed',
+        properties: { source_bookmark_id: snapshotSource, url_domain: 'reader.test', error_class: 'bookmark_add' }
+      }
+    ])
+  })
+
+  test('rate-limited snapshot forks normalize a scheme-less target like the controller', async () => {
+    const f = setup()
+    f.ctx.env.FRONT_END_URL = 'https://reader.test'
+    f.ctx.env.BOOKMARK_ADD_RATE_LIMITER = { limit: vi.fn().mockResolvedValue({ success: false }) } as never
+    const body = JSON.stringify({ target_url: `reader.test/b/${snapshotSource}` })
+    const request = new Request('https://api.test/v1/bookmark/add_url', {
+      method: 'POST',
+      headers: { 'Content-Length': String(new TextEncoder().encode(body).length), 'X-Device-ID': 'device-1' },
+      body
+    })
+
+    await expect(rateLimit(request, f.ctx)).rejects.toBeDefined()
+    await f.flush()
+
+    expect(f.records).toMatchObject([
+      {
+        event_name: 'bookmark_save_failed',
+        properties: { source_bookmark_id: snapshotSource, url_domain: 'reader.test', error_class: 'bookmark_add' }
+      }
+    ])
+  })
+
+  test('rate-limited ordinary saves without Content-Length receive no snapshot source', async () => {
+    const f = setup()
+    f.ctx.env.FRONT_END_URL = 'https://reader.test'
+    f.ctx.env.BOOKMARK_ADD_RATE_LIMITER = { limit: vi.fn().mockResolvedValue({ success: false }) } as never
+    const body = JSON.stringify({ target_url: 'https://example.test/article' })
+    const request = new Request('https://api.test/v1/bookmark/add_url', {
+      method: 'POST',
+      headers: { 'X-Device-ID': 'device-1' },
+      body
+    })
+    expect(request.headers.has('content-length')).toBe(false)
+
+    await expect(rateLimit(request, f.ctx)).rejects.toBeDefined()
+    await f.flush()
+
+    expect(f.records).toMatchObject([{ event_name: 'bookmark_save_failed', properties: { url_domain: 'example.test', error_class: 'bookmark_add' } }])
+    expect(f.records[0]!.properties).not.toHaveProperty('source_bookmark_id')
+  })
+
+  test('rate-limited bodies over 100 KiB without Content-Length skip telemetry parsing', async () => {
+    const f = setup()
+    f.ctx.env.FRONT_END_URL = 'https://reader.test'
+    f.ctx.env.BOOKMARK_ADD_RATE_LIMITER = { limit: vi.fn().mockResolvedValue({ success: false }) } as never
+    const body = JSON.stringify({ target_url: snapshotUrl, padding: 'x'.repeat(100 * 1024) })
+    const request = new Request('https://api.test/v1/bookmark/add_url', {
+      method: 'POST',
+      headers: { 'X-Device-ID': 'device-1' },
+      body
+    })
+    expect(request.headers.has('content-length')).toBe(false)
+
+    await expect(rateLimit(request, f.ctx)).rejects.toBeDefined()
+    await f.flush()
+
+    expect(f.records).toMatchObject([{ event_name: 'bookmark_save_failed', properties: { error_class: 'bookmark_add' } }])
+    expect(f.records[0]!.properties).not.toHaveProperty('source_bookmark_id')
   })
 
   test('import restores the original request identity before emitting saved', async () => {

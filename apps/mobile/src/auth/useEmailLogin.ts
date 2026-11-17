@@ -1,6 +1,7 @@
 import {useLayoutEffect, useRef, useState} from 'react';
 import type {EmailCodeInput} from '@slax-reader/contracts/email-auth';
 import type {LoginResponse, SlaxApi} from '../data/api';
+import {loginWithPasskey, type NativePasskeys} from './passkeys';
 import type {SessionController} from '../domain/session';
 
 interface EmailLoginAttempt {
@@ -10,15 +11,17 @@ interface EmailLoginAttempt {
 }
 
 interface EmailLoginOptions {
-  api: Pick<SlaxApi, 'sendLoginEmail' | 'verifyLoginEmail'>;
+  api: Pick<SlaxApi, 'sendLoginEmail' | 'verifyLoginEmail' | 'getPasskeyLoginChallenge' | 'loginPasskey'>;
+  nativePasskeys: NativePasskeys;
   sessions: Pick<SessionController, 'accept'>;
   apiOrigin: string;
   onOpen(): void;
   onVerify(): void;
+  onPasskey(): void;
   onAuthenticated?(): void;
 }
 
-export function useEmailLogin({api, sessions, apiOrigin, onOpen, onVerify, onAuthenticated}: EmailLoginOptions) {
+export function useEmailLogin({api, sessions, nativePasskeys, apiOrigin, onOpen, onVerify, onPasskey, onAuthenticated}: EmailLoginOptions) {
   const active = useRef<EmailLoginAttempt | null>(null);
   const [flow, setFlow] = useState<EmailLoginAttempt | null>(null);
   const [committing, setCommitting] = useState(false);
@@ -80,5 +83,9 @@ export function useEmailLogin({api, sessions, apiOrigin, onOpen, onVerify, onAut
     }
   }
 
-  return {flow, dismissible: !committing, open, close, send: api.sendLoginEmail, verify, accept};
+  const passkey = (email: string, signal: AbortSignal) => {
+    onPasskey();
+    return loginWithPasskey({api, native: nativePasskeys, email, signal, isCurrent: () => Boolean(flow?.isCurrent())});
+  };
+  return {flow, passkey, dismissible: !committing, open, close, send: api.sendLoginEmail, verify, accept};
 }

@@ -47,7 +47,8 @@ export function searchRows(sections: SearchSections, collapsed: Record<SearchSec
   return rows;
 }
 
-export function searchHost(url: string): string {
+export function searchHost(url: string, newsletterLabel: string): string {
+  if (/^slax-newsletter:\/\/message\/\d+$/.test(url)) return newsletterLabel;
   try {return new URL(url).hostname.replace(/^www\./, '');} catch {return '';}
 }
 

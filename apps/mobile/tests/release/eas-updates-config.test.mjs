@@ -8,7 +8,7 @@ function appConfig(env) {
   const exports = {}, code = ts.transpileModule(readFileSync(new URL('../../app.config.ts', import.meta.url), 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).outputText;
   const boundaries = {'./assets/source-auth-public.json': {default: {}}, './tooling/deploy-environment.cjs': {applyMobileEnvironment() {}},
     './tooling/build-version.cjs': {readBuildVersion: () => ({version: '1.0.25', build: '794'})}};
-  vm.runInNewContext(code, {exports, process: {env}, require: name => {assert.ok(Object.hasOwn(boundaries, name), name); return boundaries[name];}});
+  vm.runInNewContext(code, {URL, exports, process: {env}, require: name => {assert.ok(Object.hasOwn(boundaries, name), name); return boundaries[name];}});
   return JSON.parse(JSON.stringify(exports.default));
 }
 
@@ -33,4 +33,10 @@ test('local, fixture and non-production-origin builds never receive production u
     {EXPO_PUBLIC_SLAX_BETA_API_URL: 'https://reader-api.slax.dev'}, {EXPO_PUBLIC_SLAX_WEB_URL: 'https://reader.slax.dev'}, {EXPO_PUBLIC_SLAX_WEB_DOMAIN: '.slax.dev'}]) {
     assert.deepEqual(appConfig({...ota, ...env}).updates, {enabled: false}, JSON.stringify(env));
   }
+});
+
+test('local native projects expose an explicit runtime version to the development server', () => {
+  assert.equal(appConfig({}).runtimeVersion, '1.0.25(794)');
+  assert.equal(appConfig({EXPO_PUBLIC_SLAX_WEB_URL: 'https://r.slax.dev'}).runtimeVersion, '1.0.25(794)');
+  assert.equal(appConfig({EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}).runtimeVersion, '1.0.0');
 });

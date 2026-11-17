@@ -338,6 +338,9 @@ export default defineBackground(() => {
   // 监听插件安装事件
   browser.runtime.onInstalled.addListener(async ({ reason }) => {
     await BrowserService.resetContentScripts()
+    if (reason === 'install') {
+      void BrowserService.activateContentScripts().catch(() => console.warn('[install] collector activation failed'))
+    }
     BrowserService.setupBadge()
     await BrowserService.registerContextMenus()
 

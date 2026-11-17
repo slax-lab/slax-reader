@@ -16,6 +16,15 @@ const acquisition = {
   campaign: 'mvp'
 } as const
 
+const snapshotSource = '00000000-0000-4000-8000-000000000001'
+
+const snapshot = {
+  source_screen: 'detail',
+  presentation: 'modal',
+  trigger_element_id: 'snapshot_save_button',
+  source_bookmark_id: snapshotSource
+} as const
+
 function fixture(isNew = false) {
   const pending: Promise<unknown>[] = []
   const send = vi.fn().mockResolvedValue(undefined)
@@ -35,6 +44,8 @@ function fixture(isNew = false) {
   const provider = vi.spyOn(SlaxAuth.prototype, 'login').mockResolvedValue({ sub: 'provider-id', email: 'fixture@example.test', picture: '', name: 'Fixture' } as never)
   const persisted = { id: 7, uuid: 'fixture-user', lang: 'en', email: 'fixture@example.test', name: 'Fixture' }
   const bindAlias = vi.fn().mockResolvedValue(undefined)
+  const verifyCode = vi.fn().mockResolvedValue({ key: 'email-key', delivery: 'fixture@example.test' })
+  const signInWithEmail = vi.fn().mockResolvedValue({ user: persisted, isNew })
   const collectionRepo = { ensureUserShareCollectWithCreation: vi.fn().mockResolvedValue({ collection: { id: 3 }, created: false }) }
   const service = new UserService(
     {
@@ -51,8 +62,8 @@ function fixture(isNew = false) {
     { trackEvent: vi.fn().mockResolvedValue(undefined) } as never,
     { track: vi.fn().mockResolvedValue(undefined) } as never,
     {} as never,
-    {} as never,
-    { signInWithProvider: vi.fn().mockResolvedValue({ user: persisted, isNew }) } as never,
+    { verifyCode } as never,
+    { signInWithProvider: vi.fn().mockResolvedValue({ user: persisted, isNew }), signInWithEmail } as never,
     {} as never
   )
   const login = (metadata: unknown, type = 'google') =>
@@ -64,7 +75,16 @@ function fixture(isNew = false) {
         body: JSON.stringify({ type, code: 'fixture-code', auth_attribution: metadata })
       })
     )
-  return { login, send, createBatch, provider, bindAlias, collectionRepo, settled: () => Promise.all(pending) }
+  const loginEmail = (metadata: unknown) =>
+    service.userLogin(
+      ctx,
+      new Request('https://fixture.test/v1/user/login', {
+        method: 'POST',
+        headers: { 'X-Device-ID': 'browser-1' },
+        body: JSON.stringify({ type: 'email', email: 'fixture@example.test', request_id: 'request-1', code: '012345', auth_attribution: metadata })
+      })
+    )
+  return { login, loginEmail, send, createBatch, provider, bindAlias, collectionRepo, verifyCode, signInWithEmail, settled: () => Promise.all(pending) }
 }
 
 afterEach(() => vi.restoreAllMocks())
@@ -233,5 +253,112 @@ describe('acquisition authentication attribution', () => {
     f.send.mockRejectedValue(new Error('stream unavailable'))
     await expect(f.login(acquisition)).resolves.toMatchObject({ is_new_user: true })
     await expect(f.settled()).resolves.toBeDefined()
+  })
+})
+
+describe('snapshot save authentication attribution', () => {
+  test.each([
+    { type: 'google', isNew: true },
+    { type: 'google', isNew: false },
+    { type: 'apple', isNew: true },
+    { type: 'apple', isNew: false }
+  ] as const)('attributes the server-confirmed $type account fact (new=$isNew)', async ({ type, isNew }) => {
+    const f = fixture(isNew)
+    const result = await f.login({ ...snapshot, user_id: 999, device_id: 'forged', method: 'other', token: 'discard' }, type)
+    await f.settled()
+    expect(result).toMatchObject({ is_new_user: isNew, login_type: type })
+    expect(result).not.toHaveProperty('auth_attribution')
+    expect(f.send).toHaveBeenCalledTimes(1)
+    expect(f.send).toHaveBeenCalledWith([
+      expect.objectContaining({
+        event_name: isNew ? 'user_created' : 'user_logged_in',
+        user_id: 7,
+        device_id: 'browser-1',
+        properties: { ...snapshot, method: type, platform: 'web', locale: 'en', client_version: 'unknown' }
+      })
+    ])
+    expect(f.bindAlias).toHaveBeenCalledWith('browser-1', 7, isNew ? 'signup' : 'login')
+  })
+
+  test.each([
+    undefined,
+    null,
+    'wrong-type',
+    [],
+    {},
+    { ...snapshot, source_screen: 'collection' },
+    { ...snapshot, presentation: 'screen' },
+    { ...snapshot, trigger_element_id: 'collection_subscribe_button' },
+    { ...snapshot, source_bookmark_id: '' },
+    { ...snapshot, source_bookmark_id: 'source-bookmark' },
+    { ...snapshot, source_bookmark_id: 'bad/source' },
+    { ...snapshot, source_bookmark_id: '00000000-0000-4000-8000-00000000000' },
+    { ...snapshot, source_bookmark_id: '00000000-0000-4000-8000-00000000000z' }
+  ])('omits invalid snapshot metadata without failing authentication: %j', async metadata => {
+    const f = fixture()
+    await expect(f.login(metadata)).resolves.toMatchObject({ is_new_user: false })
+    await f.settled()
+    expect(f.send).toHaveBeenCalledWith([
+      expect.objectContaining({
+        properties: {
+          method: 'google',
+          platform: 'web',
+          locale: 'en',
+          client_version: 'unknown'
+        }
+      })
+    ])
+  })
+
+  test('omits a malformed snapshot attribution from Apple without failing authentication', async () => {
+    const f = fixture()
+    await expect(f.login({ ...snapshot, source_bookmark_id: 'source-bookmark' }, 'apple')).resolves.toMatchObject({ is_new_user: false })
+    await f.settled()
+    expect(f.send).toHaveBeenCalledWith([
+      expect.objectContaining({
+        properties: { method: 'apple', platform: 'web', locale: 'en', client_version: 'unknown' }
+      })
+    ])
+  })
+
+  test('emits no snapshot success when Apple authentication fails', async () => {
+    const f = fixture(true)
+    f.provider.mockRejectedValue(new Error('authorization rejected'))
+    await expect(f.login(snapshot, 'apple')).rejects.toThrow('authorization rejected')
+    expect(f.send).not.toHaveBeenCalled()
+    expect(f.bindAlias).not.toHaveBeenCalled()
+  })
+
+  test.each([true, false])('carries snapshot attribution through the email code path (new=%s)', async isNew => {
+    const f = fixture(isNew)
+    const result = await f.loginEmail(snapshot)
+    await f.settled()
+    expect(result).toMatchObject({ is_new_user: isNew, login_type: 'email' })
+    expect(f.verifyCode).toHaveBeenCalledOnce()
+    expect(f.signInWithEmail).toHaveBeenCalledOnce()
+    expect(f.send).toHaveBeenCalledTimes(1)
+    expect(f.send).toHaveBeenCalledWith([
+      expect.objectContaining({
+        event_name: isNew ? 'user_created' : 'user_logged_in',
+        user_id: 7,
+        device_id: 'browser-1',
+        properties: { ...snapshot, method: 'email', platform: 'web', locale: 'en', client_version: 'unknown' }
+      })
+    ])
+  })
+
+  test.each([true, false])('preserves existing email collection and HackerLinks attribution behavior (new=%s)', async isNew => {
+    for (const metadata of [attribution, acquisition]) {
+      const f = fixture(isNew)
+      await expect(f.loginEmail(metadata)).resolves.toMatchObject({ is_new_user: isNew, login_type: 'email' })
+      await f.settled()
+      const preserved = metadata === attribution || isNew
+      expect(f.send).toHaveBeenCalledWith([
+        expect.objectContaining({
+          event_name: isNew ? 'user_created' : 'user_logged_in',
+          properties: { ...(preserved ? metadata : {}), method: 'email', platform: 'web', locale: 'en', client_version: 'unknown' }
+        })
+      ])
+    }
   })
 })

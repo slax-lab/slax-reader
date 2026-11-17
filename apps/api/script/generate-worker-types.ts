@@ -34,12 +34,14 @@ export function environmentTypes(source: string): string {
       '// Env bindings contain no configuration values; pnpm types preserves declarations and adds optional bindings from script/generate-worker-types.ts.'
     )
   for (const [name, type] of [
+    ['PASSKEY_ANDROID_ORIGINS', 'string'],
     ['EMAIL_AUTH_FROM', 'string'],
     ['EMAIL_AUTH_WEB_CALLBACK', 'string'],
     ['RESEND_API_KEY', 'string'],
     ['DEEPSEEK_API_KEY', 'string'],
     ['DIAGNOSTICS', 'R2Bucket'],
     ['DIAGNOSTIC_DOWNLOAD_SECRET', 'string'],
+    ['PUBLISHER_USER_IDS', 'string'],
     ['JINA_API_KEY', 'string'],
     ['VECTOR_REFRESH_SECRET', 'string'],
     ['VECTOR_V5_MAINTENANCE_WORKFLOW', 'Workflow<import("./src/domain/vectorMaintenanceHooks").VectorMaintenanceWorkflowParams>'],

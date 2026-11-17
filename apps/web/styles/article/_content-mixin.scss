@@ -94,6 +94,10 @@
     &.slax-table-fit {
       display: table;
     }
+
+    &.slax-table-empty {
+      display: none;
+    }
   }
 
   // 表格标题：居中弱化
@@ -260,7 +264,9 @@
        否则换行渲染成空行 */
     --style: 'list-none !whitespace-normal';
 
-    &.has-li {
+    // Raw HTML can render before the Article list processor adds its marker.
+    &.has-li,
+    &:has(li) {
       --style: pl-26px;
     }
 
@@ -310,4 +316,27 @@
 
   /* 注入 / 自定义 class 样式，见 _custom-classes.scss */
   @include custom-classes;
+}
+
+// Email tables usually arrange content rather than present a data grid.
+@mixin newsletter-tables {
+  table {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+
+    th,
+    td {
+      border: 0;
+    }
+
+    // Match the specificity of the shared first/last-row corner rules.
+    tr:is(:first-child, :last-child) > :is(th, td):is(:first-child, :last-child) {
+      border-radius: 0;
+    }
+
+    tr > :is(th, td):only-child {
+      padding-inline: 0;
+    }
+  }
 }
