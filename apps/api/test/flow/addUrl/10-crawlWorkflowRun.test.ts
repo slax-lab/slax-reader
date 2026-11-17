@@ -932,6 +932,24 @@ describe('published capture moderation boundaries', () => {
     return { ...w, row, share, db, revision, pushMessage }
   }
 
+  test.each([
+    ['12, 1 ,3', 0],
+    ['11,12', 1],
+    ['', 1]
+  ] as const)('publisher list "%s" dispatches %i quality checks for user 1', async (allowlist, expected) => {
+    const { wf, env, uph } = wirePublishedCapture()
+    env.PUBLISHER_USER_IDS = allowlist
+    const moderate = vi.spyOn(OpenAIModerationClient.prototype, 'moderateContent').mockResolvedValue(ModerationResult.NORMAL)
+    try {
+      await runWorkflow(wf, { userId: 1 })
+      expect(moderate).toHaveBeenCalledOnce()
+      expect(env.CONTENT_VALIDATION_WORKFLOW.create).toHaveBeenCalledTimes(expected)
+      expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
+    } finally {
+      moderate.mockRestore()
+    }
+  })
+
   test('the real ordinary-tweet publisher passes its revision into Workflow moderation and sharing revocation', async () => {
     const { wf, cs, db, row, share, revision } = wirePublishedCapture()
     const fetched: TwitterFetched = {
