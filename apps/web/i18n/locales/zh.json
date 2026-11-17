@@ -848,6 +848,8 @@
       "timed_out": "登录等待超时，请检查网络后重新登录。"
     },
     "bookmarks_detail": {
+      "subscription_checking": "正在确认订阅状态…",
+      "subscription_check_failed": "暂时无法确认订阅状态，请重试。",
       "ai_analyze": "AI 解析",
       "chat": "Chat",
       "loading": "内容加载中 ···",

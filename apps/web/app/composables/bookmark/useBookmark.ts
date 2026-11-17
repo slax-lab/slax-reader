@@ -1,9 +1,8 @@
-import { getCurrentScope, onScopeDispose, ref, watch } from 'vue'
+import { computed, getCurrentScope, onScopeDispose, ref, watch } from 'vue'
 
 import type { CommonBookmarkOptions } from './type'
 import { useResize } from './useCommon'
 import { isClient } from '@commons/frontend-utils/is'
-import type { UserInfo } from '@slax-reader/contracts/interface'
 import type { QuoteData } from '~/components/Chat/type'
 import { showLoginModal } from '~/components/Modal'
 import { useUserStore } from '~/stores/user'
@@ -21,6 +20,7 @@ interface BookmarkOptions extends CommonBookmarkOptions {
   initialTasksCompleted?: () => void
   initialTasksEnabled?: boolean
   quoteScope?: () => unknown
+  quoteActive?: () => boolean
 }
 
 export const useBookmark = (options: BookmarkOptions) => {
@@ -29,9 +29,9 @@ export const useBookmark = (options: BookmarkOptions) => {
   })()
 
   const userStore = useUserStore()
-  const user = ref<UserInfo | null>(userStore.userInfo)
+  const user = computed(() => userStore.userInfo)
   const redirectHref = useRequestURL().href
-  const { isSubscriptionExpired, checkSubscriptionExpired, updateSubscribeStatus } = useUserSubscribe()
+  const { isSubscriptionExpired, subscriptionStatus, checkSubscriptionExpired, refreshSubscription } = useUserSubscribe()
 
   const { chatbot, typeOptions } = options
   const { resizeAnimated, summariesExpanded, botExpanded, onResizeObserver, contentXOffset, isLocked, isNeedResized } = useResize(options)
@@ -77,17 +77,18 @@ export const useBookmark = (options: BookmarkOptions) => {
 
   const pendingQuotes: { data: QuoteData; scope: unknown }[] = []
   const deliverQuotes = () => {
-    if (typeof chatbot.value?.addQuoteData !== 'function') return
+    if (isSubscriptionExpired.value || options.quoteActive?.() === false || typeof chatbot.value?.addQuoteData !== 'function') return
     for (const quote of pendingQuotes.splice(0)) {
       if (quote.scope === options.quoteScope?.()) chatbot.value.addQuoteData(quote.data)
     }
   }
-  watch(chatbot, deliverQuotes, { flush: 'post' })
+  watch([chatbot, subscriptionStatus], deliverQuotes, { flush: 'post' })
+  if (options.quoteActive) watch(options.quoteActive, active => { if (!active) pendingQuotes.length = 0 }, { flush: 'sync' })
   if (getCurrentScope()) onScopeDispose(() => { pendingQuotes.length = 0 })
   if (options.quoteScope) watch(options.quoteScope, () => { pendingQuotes.length = 0 }, { flush: 'sync' })
 
   const chatBotQuote = (data: QuoteData) => {
-    if (!loginVerify() || checkSubscriptionExpired()) {
+    if (!loginVerify() || (subscriptionStatus.value === 'inactive' && checkSubscriptionExpired())) {
       return
     }
 
@@ -132,7 +133,7 @@ export const useBookmark = (options: BookmarkOptions) => {
   }
 
   const loginVerify = () => {
-    if (user.value) {
+    if (userStore.isLogin) {
       return true
     }
 
@@ -145,20 +146,7 @@ export const useBookmark = (options: BookmarkOptions) => {
 
   const tasks: Promise<void>[] = []
   if (isClient && options.initialTasksEnabled !== false) {
-    tasks.push(
-      (async () => {
-        if (!userStore.isLogin) {
-          return
-        }
-
-        const res = await userStore.getUserInfo()
-        if (!res) return
-
-        user.value = res
-        const refreshedUserInfo = await userStore.getUserInfo({ refresh: true })
-        updateSubscribeStatus(refreshedUserInfo)
-      })()
-    )
+    if (userStore.isLogin) tasks.push(refreshSubscription())
 
     try {
       const options = typeOptions()
@@ -182,6 +170,8 @@ export const useBookmark = (options: BookmarkOptions) => {
   return {
     user,
     isSubscriptionExpired,
+    subscriptionStatus,
+    refreshSubscription,
     redirectHref,
     resizeAnimated,
     summariesExpanded,

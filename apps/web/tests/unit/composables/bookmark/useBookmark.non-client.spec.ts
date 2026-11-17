@@ -46,7 +46,8 @@ describe('useBookmark — isClient=false', () => {
     mockUseUserSubscribe.mockReturnValue({
       isSubscriptionExpired: ref(false),
       checkSubscriptionExpired: vi.fn(() => false),
-      updateSubscribeStatus: vi.fn()
+      subscriptionStatus: ref('active'),
+      refreshSubscription: vi.fn()
     })
     mockUseResize.mockReturnValue({
       resizeAnimated: ref(false),

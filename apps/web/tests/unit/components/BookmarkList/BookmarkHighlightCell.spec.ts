@@ -140,7 +140,7 @@ describe('BookmarkList/BookmarkHighlightCell', () => {
         props: { highlight: { ...baseHighlight, source_type: 'share', source_id: 'SHR' } }
       })
       await wrapper.find('.highlight-card').trigger('click')
-      expect(mockPwaOpen).toHaveBeenCalledWith({ url: '/b/SHR?highlight=1' })
+      expect(mockPwaOpen).toHaveBeenCalledWith({ url: '/b/SHR?highlight=1&_slax_entry=bookmarks' })
     })
 
     it('source_type=collection → pwaOpen /b/<id>?highlight=<id>（fork：highlightRoute 统一跳 /b/）', async () => {
@@ -148,7 +148,7 @@ describe('BookmarkList/BookmarkHighlightCell', () => {
         props: { highlight: { ...baseHighlight, source_type: 'collection', source_id: 'COL' } }
       })
       await wrapper.find('.highlight-card').trigger('click')
-      expect(mockPwaOpen).toHaveBeenCalledWith({ url: '/b/COL?highlight=1' })
+      expect(mockPwaOpen).toHaveBeenCalledWith({ url: '/b/COL?highlight=1&_slax_entry=bookmarks' })
     })
 
     it('default source_type → pwaOpen /b/<id>?highlight=<id>（fork：highlightRoute 统一跳 /b/）', async () => {
@@ -156,7 +156,7 @@ describe('BookmarkList/BookmarkHighlightCell', () => {
         props: { highlight: { ...baseHighlight, source_type: 'bookmark', source_id: 100 } }
       })
       await wrapper.find('.highlight-card').trigger('click')
-      expect(mockPwaOpen).toHaveBeenCalledWith({ url: '/b/100?highlight=1' })
+      expect(mockPwaOpen).toHaveBeenCalledWith({ url: '/b/100?highlight=1&_slax_entry=bookmarks' })
     })
   })
 })

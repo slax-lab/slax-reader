@@ -70,10 +70,11 @@ import DotLoading from '~/components/DotLoading.vue'
 import ListEndHint from '~/components/ListEndHint.vue'
 import MarkdownText from '~/components/Markdown/MarkdownText.vue'
 
-import { extractMarkdownFromText } from '@commons/frontend-utils/text'
+import { cancelReaderRestore } from '~/utils/readerStartup'
+
 import { RequestMethodType } from '@commons/frontend-utils/request'
 import { findMatchingElement, queryMarkdownAnchorQuote, querySimularMarkdownAnchorQuote } from '@commons/frontend-utils/search'
-
+import { extractMarkdownFromText } from '@commons/frontend-utils/text'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { SummaryItemModel } from '@slax-reader/contracts/interface'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
@@ -226,6 +227,7 @@ const unflash = (marks: HTMLElement[]) => {
 }
 
 const handleAnchorClick = async (link: string) => {
+  cancelReaderRestore()
   const refText = anchorRefs[link]
   if (!refText) return
   if (props.pdf) {
