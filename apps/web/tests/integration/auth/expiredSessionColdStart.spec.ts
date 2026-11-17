@@ -52,6 +52,7 @@ vi.mock('~/components/Tips/InAppBrowserTip.vue', () => ({ default: { render: () 
 
 let pinia: Pinia
 let cookieName: string
+let restoreRuntimeConfig: () => void
 const token = (exp: number) => `header.${btoa(JSON.stringify({ id: 'cold-start-user', exp }))}.signature`
 const mountLayout = () => mountSuspended(DefaultLayout, {
   global: {
@@ -66,7 +67,16 @@ beforeEach(async () => {
   boundary.connect.mockResolvedValue(undefined)
   boundary.cookies = new Cookies()
   const app = useNuxtApp()
-  cookieName = String(useRuntimeConfig().public.COOKIE_TOKEN_NAME)
+  const config = useRuntimeConfig().public
+  const originalCookieName = config.COOKIE_TOKEN_NAME
+  const originalApiBaseUrl = config.DWEB_API_BASE_URL
+  config.COOKIE_TOKEN_NAME = 'cold_start_token'
+  config.DWEB_API_BASE_URL = 'https://api.test'
+  restoreRuntimeConfig = () => {
+    config.COOKIE_TOKEN_NAME = originalCookieName
+    config.DWEB_API_BASE_URL = originalApiBaseUrl
+  }
+  cookieName = config.COOKIE_TOKEN_NAME
   boundary.cookies.remove(cookieName, { path: '/' })
   localStorage.clear()
   localStorage.setItem(`slax:powersync:${POWER_SYNC_DATABASE_GENERATION}:dataVersion`, String(POWER_SYNC_LOCAL_DATA_VERSION))
@@ -79,6 +89,7 @@ beforeEach(async () => {
 })
 afterEach(() => {
   boundary.cookies.remove(cookieName, { path: '/' })
+  restoreRuntimeConfig()
   disposePinia(pinia)
   vi.restoreAllMocks()
   vi.unstubAllGlobals()

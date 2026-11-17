@@ -199,9 +199,9 @@ import ListLayoutSwitcher from '~/components/BookmarkList/ListLayoutSwitcher.vue
 import LocalSyncProgress from '~/components/BookmarkList/LocalSyncProgress.vue'
 import StarredSharePrompt from '~/components/BookmarkList/StarredSharePrompt.vue'
 import TabsSidebar from '~/components/BookmarkList/TabsSidebar.vue'
+import FeedPanel from '~/components/FeedPanel.vue'
 import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
 import BookmarksLayout from '~/components/Layouts/BookmarksLayout.vue'
-import FeedPanel from '~/components/FeedPanel.vue'
 
 import { isInboxPath } from '~/utils/promotionFlow'
 

@@ -2,12 +2,13 @@
 
 ## Scope and provenance
 
-- Evidence date: 2026-11-17. Change: `add-content-tabs`; branch: `feat/add-content-tabs`; base: `2203281e`; target: `dev`.
+- Evidence date: 2026-11-17. Change: `add-content-tabs`; branch: `feat/add-content-tabs`; rebased onto `origin/dev` at `82f890c6`, with feature commit `f107122f`; target: `dev`.
 - Worktree: `/Users/daguang/project/slax-reader/.local/worktrees/add-content-tabs`.
-- Earlier application checks and device observations are supplied from the implementation/review session; they were not repeated in this metadata follow-up. The requester's explicit 2026-11-17 renewed hands-on acceptance and version approval are recorded below. Checks actually run for the versioned source are listed separately.
-- Before the metadata follow-up, `git diff --stat 2203281e` showed **20 tracked files, 1026 insertions, 153 deletions**, plus untracked `apps/web/tests/unit/utils/isPossibleFeedUrl.spec.ts` and this change directory. The follow-up adds only the Mobile manifest and seven generator-owned native version files to that tracked scope.
-- Scope includes Web modal/BookmarksPage/RssPanel routing and tests; Mobile Library/RssFeed/dialog/controller behavior and tests; localization; the shared RSS policy; development-manifest/OTA configuration tests; and the approved Mobile version metadata. No backend endpoint or database migration is added.
-- No commit, push, PR creation, release, signing, or upload occurred. The follow-up changes Mobile version metadata, these approval/validation records, and `/tmp/add-content-tabs-pr-body.md`; Web, Extension, and CLI versions are unchanged.
+- Fresh Web suite, typecheck, build, Mobile check, and changed-file ESLint results below are supplied from verification on the rebased branch with the five staged Web fixes, run without local Web environment variables. This documentation-only follow-up does not claim to rerun those application checks; it runs scoped OpenSpec validation and `git diff --check`. Documentation-only edits are exempt from additional running-environment verification; the feature's existing implementation/runtime gaps remain open.
+- Earlier application checks and device observations retain their implementation/review-session provenance. The requester's explicit 2026-11-17 renewed hands-on acceptance and version approval are recorded below. Earlier checks actually run for the versioned source are listed separately.
+- Historical metadata-follow-up scope: `git diff --stat 2203281e` showed **20 tracked files, 1026 insertions, 153 deletions**, plus untracked `apps/web/tests/unit/utils/isPossibleFeedUrl.spec.ts` and this change directory. That follow-up added only the Mobile manifest and seven generator-owned native version files to that tracked scope; these are not current post-rebase diff counts.
+- Scope includes Web modal/BookmarksPage/RssPanel routing and tests; Mobile Library/RssFeed/dialog/controller behavior and tests; localization; the shared RSS policy; development-manifest/OTA configuration tests; and the approved Mobile version metadata. At the human's request, this PR also includes the test-fixture, environment-independent runtime-config typing, and import-order fixes described below. No backend endpoint or database migration is added.
+- The earlier metadata follow-up changed Mobile version metadata, approval/validation records, and `/tmp/add-content-tabs-pr-body.md`, without committing, pushing, creating a PR, releasing, signing, or uploading. This documentation follow-up edits only this repository document and prepares `/tmp/pr638-body-new.md` from the fetched PR #638 body; it leaves the five staged Web files unchanged and does not commit, push, or edit the PR. Web, Extension, and CLI versions are unchanged.
 
 ## Review fixes reflected in the current results
 
@@ -15,7 +16,11 @@
 
 - PDF selection preserves the shared URL/Feed address. URL validation errors remain scoped to URL; drafts reset on close.
 - `BookmarksPage` passes `submit-feed` to the modal; Feed submission uses the existing RssPanel-owned `rss.add()`, selects the new subscription, and does not trigger the bookmark-success toast. RSS-panel Add entries open the unified dialog on Feed; the old add form is removed and rename remains separate.
-- Import-sort lint was corrected. Added tests cover candidate policy, capability gates, hints, drafts, Feed ownership/failure, and contextual routing.
+- Added tests cover candidate policy, capability gates, hints, drafts, Feed ownership/failure, and contextual routing.
+- `expiredSessionColdStart.spec.ts` now supplies `COOKIE_TOKEN_NAME` and `DWEB_API_BASE_URL` runtime config and restores it after each test. The stale fixture passed an undefined cookie name to `useCookie`, causing `cookie-es` serialization to read `.length` before expired/rejected-token recovery could run. Assertions are unchanged; this is not a product change.
+- `userLocaleFallback.spec.ts` replaces an obsolete `useI18n` mock with explicit cookie-name/API-base runtime config. After commit `9a1737d3` introduced validated cookie reads, the stale setup's missing cookie name rejected before the server-confirmed/401 paths could run. Assertions are unchanged.
+- `nuxt.config.ts` declares empty-string defaults for `PUBLIC_BASE_URL`, `AUTH_BASE_URL`, `COOKIE_DOMAIN`, `COOKIE_TOKEN_NAME`, `SHARE_BASE_URL`, `DWEB_API_BASE_URL`, and `GOOGLE_OAUTH_CLIENT_ID` before `...envConfig`. `config/env.ts` drops missing keys, so generated public runtime-config types previously omitted them without local environment variables, producing `unknown` at `ext-bridge.vue:344,349`; CI supplies those values. Environment values still override the defaults, and the only fallback read uses `|| ''`, so runtime behavior is unchanged.
+- `BookmarksPage.vue` and `FeedPanel.vue` receive import-order-only fixes for `simple-import-sort`. The previously recorded test/typecheck/import-order failures are resolved by these changes in this PR, not left as pre-existing failures.
 
 ### Mobile
 
@@ -27,24 +32,22 @@
 
 ## Automated checks
 
-These results replace the earlier 1245-test Mobile and 18-test focused Web results and obsolete pending results. No all-green claim is made.
+Fresh results on base `82f890c6` with the staged fixes supersede the earlier full Web failures, environment-dependent Web typecheck failure, changed-file lint errors/warning count, and Mobile test count. Historical focused/export/repository-wide checks remain separately qualified. Passing scoped checks do not imply repository-wide lint cleanliness or overall feature completion.
 
 | Command or test target | Current result | Qualification |
 | --- | --- | --- |
-| `pnpm mobile -- check` | **PASS: 1272/1272 tests** | Architecture, asset/i18n baseline, fixtures, RSS controller verification, typecheck, and tests passed. |
-| `EXPO_NO_DOTENV=1 pnpm mobile -- bundle` | **PASS** | Android/iOS export; not native iOS verification. |
-| `pnpm web -- build` | **PASS** | Build success does not replace typecheck or browser evidence. |
-| Focused Web suites | **PASS: 128 total** | AddUrlTopModal 36; RssPanel 11; isPossibleFeedUrl 16; bookmarks-page integration 65. |
-| Full Web suite | **FAIL overall: 2928 passed, 4 failed, 25 skipped (2957 total)** | Two failures each in `expiredSessionColdStart.spec.ts` and `userLocaleFallback.spec.ts` fail identically on base `2203281e` in a clean temporary worktree. These four failures are established as pre-existing and unrelated. |
-| `pnpm web -- typecheck` | **FAIL: TS2322 at unchanged `apps/web/app/pages/x/ext-bridge.vue:344,349` only** | Local generated runtime types lack public-config fields. Recent dev CI run `44006785639` passed Web typecheck. Treated as a local-environment failure; **not reproduced on a clean base**, unlike the four suite failures. This is not a proven clean-base failure or a local typecheck pass. |
-| ESLint on changed Web files | **0 errors, 27 pre-existing warnings** | Supplied changed-file scope; not a zero-warning or repository-wide lint claim. |
-| `openspec validate --all --strict` | **PASS: 134** | Supplied repository-wide result, separate from the scoped check below. |
-| `git diff --check` | **PASS** | Supplied result for tracked changes; untracked documents require separate whitespace inspection. |
-| `pnpm exec openspec validate add-content-tabs --strict` | **PASS, exit 0** | Run during this documentation update after edits: `Change 'add-content-tabs' is valid`. `git diff --check` also passed. Separate checks passed for exact PR-template headings, OpenSpec line, all 13 tasks and intended checkbox states, and whitespace in all four edited documents. Final `git status --short` retained the same 20 modified tracked implementation files, untracked policy test, and change directory; no additional repository artifacts appeared. |
+| `pnpm mobile -- check` | **PASS: 1318/1318 tests** | Fresh post-rebase result; architecture, asset/i18n baseline, fixtures, RSS controller verification, typecheck, and tests passed. |
+| `EXPO_NO_DOTENV=1 pnpm mobile -- bundle` | **PASS** | Earlier Android/iOS export; not native iOS verification. |
+| `pnpm web -- build` | **PASS** | Fresh post-rebase result without local Web environment variables; build success does not replace browser evidence. |
+| Focused Web suites | **PASS: 128 total** | Earlier supplied result: AddUrlTopModal 36; RssPanel 11; isPossibleFeedUrl 16; bookmarks-page integration 65. |
+| `pnpm --filter @apps/slax-reader-dweb test` | **PASS: 3098 passed, 3 skipped, 0 failures** | Fresh full Web run: 251 files, 250 passed and 1 skipped, without local Web environment variables. Both stale test setups are fixed in this PR; assertions are unchanged. |
+| `pnpm web -- typecheck` | **PASS** | Fresh post-rebase result without local Web environment variables. Explicit public runtime-config defaults resolve the generated-type errors formerly reported at `ext-bridge.vue:344,349`. |
+| ESLint on all Web files changed versus `origin/dev` | **0 errors, 34 warnings** | Fresh changed-file result. Repository-wide Web lint still has other import-order errors outside this change; CI does not run Web lint. No zero-warning or repository-wide lint pass is claimed. |
+| `openspec validate --all --strict` | **PASS: 134** | Earlier supplied repository-wide result, not a fresh result on `82f890c6`; separate from the scoped check below. |
+| `git diff --check` | **PASS** | Run for this documentation follow-up; does not claim a clean worktree or modify the staged Web files. |
+| `pnpm exec openspec validate add-content-tabs --strict` | **PASS, exit 0** | Scoped validation for this documentation follow-up: `Change 'add-content-tabs' is valid`. Historical metadata/template/task checks retain their original provenance and are not represented as new runs. |
 
-<!-- RESULT: verification-invocations --> Pending exact runner invocations for the focused/full Web suites, clean-base comparison, and changed-file ESLint. Their supplied results are recorded above; no missing command is invented.
-
-<!-- VERIFY: ext-bridge --> Pending a reproducible local generated-types/typecheck resolution or clean-base comparison. The available evidence supports the stated local-environment treatment, not an assertion that the same errors were reproduced on base.
+<!-- RESULT: verification-invocations --> Exact runner invocations for the earlier focused Web suites, historical clean-base comparison, and changed-file ESLint were not supplied; no missing command is invented. The fresh full-suite command is recorded above. The historical clean-base failures are superseded by the fixes and fresh passing results, not an unresolved blocker.
 
 ### Scenario coverage and task boundaries
 
@@ -52,7 +55,7 @@ These results replace the earlier 1245-test Mobile and 18-test focused Web resul
 - `AddUrlTopModal.spec.ts` covers four gate combinations, unknown/removed gates, explicit hint switching/dismissal without detection requests, cross-mode address/name/PDF retention, picker cancellation, owner submission, failure/busy behavior, and close-reset behavior (task 3.1).
 - `RssPanel.spec.ts` and bookmarks-page integration tests establish contextual Add routing, existing-owner submission/selection, no bookmark toast, failure retention, and the separate rename form. URL/PDF component regressions also pass. Task 3.2 remains open because the specific **URL local-first/fork integration** proof in its wording is not identified by the supplied results or inspected integration cases; the routing itself is no longer missing.
 - Mobile mounted-host tests cover confirmed versus cached gating, mode entry/removal, Feed busy/error/late-result behavior, clipboard prefill, and unchanged title editing (task 4.1). Existing PDF tests cover handoff lifecycle; they do not implement the missing single-session cross-tab file draft (task 4.2).
-- Task 5.2 records completion of running/documenting the requested automated checks, including the qualified failures above. It does not certify an all-green check set or overall feature completion.
+- Task 5.2 records completion of running/documenting the requested automated checks, now including the fresh passing Web suite/typecheck/build and Mobile check. Changed-file ESLint has no errors but retains warnings; repository-wide Web lint is not clean. This does not certify overall feature completion.
 
 ## Running-environment evidence
 
@@ -98,7 +101,7 @@ No iOS device run occurred. The successful `EXPO_NO_DOTENV=1 pnpm mobile -- bund
 | Mobile file-session implementation | File hands off to `PdfImportDialog`; a single-session file draft across acquisition tabs is not implemented. Task 4.2 remains open; tests of the existing handoff do not close this design/spec gap. |
 | Native post-fix state matrix | User-requested keyboard-free testing stopped at the autofocus limitation; RSS rail Add was absent on this account. Feed/hint/File/gate/error/busy states were not all re-exercised. No iOS device run or matched source/target appearance matrix exists. Task 4.3 remains open. |
 | Real acquisition calls and smoke flows | No server URL-save, RSS-add, or PDF-upload success/failure calls occurred; original real-call scenarios and full affected-app smoke flows remain unverified. Tests are not presented as live server submissions. Task 5.3 remains open. |
-| Typecheck and readiness | Local Web typecheck still fails as qualified above. Human hands-on acceptance and the Mobile version decision are now recorded. Task 5.4's handoff checks are complete, but the separate implementation/runtime gaps and remaining tasks prevent an overall-completion claim. |
+| Readiness | Web typecheck now passes without local Web environment variables; the earlier generated-type issue is resolved in this PR. Human hands-on acceptance and the Mobile version decision remain recorded. Task 5.4's handoff checks are complete, but the separate implementation/runtime gaps and remaining tasks prevent an overall-completion claim. |
 
 - **Prescribed review:** the requester confirms that the `REVIEW.md` local pre-push Bugs/Security/Compliance review was run and its reported findings were fixed afterwards. This is supplied review evidence, not a fresh full review by this metadata follow-up. The single-session Mobile file-draft requirement remains explicitly unimplemented in task 4.2; no unqualified final compliance all-clear or complete-feature claim is inferred.
 - **Mobile version decision, approved 2026-11-17:** the requester explicitly approved **1.0.31 → 1.0.32**, **buildNumber 806 → 807**, and **previousBuildNumber 805 → 806**. The previous bound is the prior approved source build, not an independently checked store publication. `docs/mobile/release.md`, `parseBuildVersion`, and the CI `compareMobileVersion` contract require a valid three-part version and a higher integer build with a lower previous bound.

@@ -527,16 +527,16 @@
   </div>
 </template>
 <script setup lang="ts">
-import { observeTableLayout } from "~/components/Article/processors/table-layout.processor";
-import { httpOriginalUrl } from "~/utils/bookmarkSource";
 import ListLayoutSwitcher from "~/components/BookmarkList/ListLayoutSwitcher.vue";
 import NewsletterAddress from "~/components/NewsletterAddress.vue";
 import RssIcon from "~/components/RssIcon.vue";
 import RssPanel from "~/components/RssPanel.vue";
 
+import { httpOriginalUrl } from "~/utils/bookmarkSource";
 import { sanitizeNewsletterPreview, sanitizeRssPreview } from "~/utils/rssPreview";
 
 import type { FeedEntry, FeedSubscription } from "@slax-reader/contracts";
+import { observeTableLayout } from "~/components/Article/processors/table-layout.processor";
 import {
   feedSourceText,
   feedSubscriptionName,
