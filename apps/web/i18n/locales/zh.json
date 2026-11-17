@@ -1524,6 +1524,18 @@
       "source_unavailable": "源站暂时不可用，已缓存内容会保留"
     }
   },
+  "add_content": {
+    "title": "添加内容",
+    "url": "链接",
+    "feed": "订阅",
+    "file": "文件",
+    "feed_hint": "这个链接可能是 RSS 订阅源，订阅后可以持续收到更新。",
+    "switch_feed": "切换为订阅",
+    "keep_url": "继续作为链接",
+    "feed_placeholder": "RSS 地址",
+    "choose_file": "选择 PDF",
+    "replace_file": "更换 PDF"
+  },
   "promotion": {
     "identity_error": "暂时无法验证账号，请联网后重试。",
     "checking": "正在确认邀请资格…",

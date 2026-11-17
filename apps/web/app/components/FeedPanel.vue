@@ -1,9 +1,11 @@
 <template>
   <RssPanel
     v-if="rss.rssEnabled.value && !rss.newsletterEnabled.value"
+    ref="rssPanel"
     :active="props.active"
     :search="props.search"
     v-model:list-mode="listMode"
+    @add-feed="showAdd"
   />
   <div v-else class="rss-panel">
     <div class="rss-heading">
@@ -637,14 +639,24 @@ const imageFailed = (event: Event) => {
 const closeBackdrop = (event: MouseEvent, dialog?: HTMLDialogElement) => {
   if (event.target === dialog) dialog?.close();
 };
+const emit = defineEmits<{ addFeed: [] }>();
+const rssPanel = ref<InstanceType<typeof RssPanel>>();
 const showAdd = () => {
   rss.error.value = "";
-  editing.value = null;
-  url.value = "";
-  remark.value = "";
-  adding.value = true;
-  addDialog.value?.showModal();
+  emit("addFeed");
 };
+const addFeed = async (address: string, name: string) => {
+  if (!rss.rssEnabled.value) throw new Error("lab_disabled");
+  if (!rss.newsletterEnabled.value) {
+    if (!rssPanel.value) throw new Error("source_unavailable");
+    await rssPanel.value.addFeed(address, name);
+    return;
+  }
+  if (rss.pending.value) throw new Error("source_unavailable");
+  await rss.add(address, name);
+  if (rss.error.value) throw new Error(rss.error.value);
+};
+defineExpose({ addFeed });
 const showEdit = (row: Extract<FeedSubscription, { kind: "rss" }>) => {
   rss.error.value = "";
   editing.value = row;

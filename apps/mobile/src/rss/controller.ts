@@ -4,14 +4,14 @@ import type {SessionRequestScope} from '../domain/session.ts';
 import {throwIfAborted} from '../utils/abort.ts';
 
 export interface RssState {
-  ready: boolean; enabled: boolean; busy: boolean; subscriptions: RssSubscription[]; selected: string | null;
+  ready: boolean; enabled: boolean; confirmedEnabled: boolean; busy: boolean; subscriptions: RssSubscription[]; selected: string | null;
   entries: RssEntry[]; cursor: string | null; hasMore: boolean; historyStatus: RssEntriesResponse['history_status']; retryAt: string | null; error: string | null;
 }
 interface CachedList {items: RssEntry[]; cursor: string | null; pages: number; versions: string; savedAt: number; hasMore: boolean; historyStatus: RssState['historyStatus']; retryAt: string | null}
 interface RssRun {signal: AbortSignal; generation: number; scope?: SessionRequestScope}
 /** REST rows re-walked from `before=anchor` (null: the top) through `pages` pages; `next_cursor` is the walk's deepest cursor. */
 interface HistoryWalk extends RssEntriesResponse {anchor: string | null; pages: number}
-const emptyState = (): RssState => ({ready: false, enabled: false, busy: false, subscriptions: [], selected: null, entries: [], cursor: null, hasMore: false, historyStatus: 'exhausted', retryAt: null, error: null});
+const emptyState = (): RssState => ({ready: false, enabled: false, confirmedEnabled: false, busy: false, subscriptions: [], selected: null, entries: [], cursor: null, hasMore: false, historyStatus: 'exhausted', retryAt: null, error: null});
 const errorCodes = new Set(['lab_disabled', 'invalid_feed', 'invalid_remark', 'unsafe_url', 'limit_reached', 'refresh_limited', 'source_unavailable', 'not_found', 'article_url_missing']);
 export function rssDisplayName(source: RssSubscription) { return source.remark?.trim() || source.title; }
 export function rssErrorCode(error: unknown): string {
@@ -293,9 +293,12 @@ export class RssController {
     void (async () => {
       if (!current()) return;
       const result = await this.api.rssLabs(controller.signal);
-      if (!result.features.some(item => item.key === 'rss' && item.enabled)) disable();
+      if (!current()) return;
+      if (result.features.some(item => item.key === 'rss' && item.enabled)) this.update({confirmedEnabled: true});
+      else disable();
     })().catch(error => {
-      // Transient failure preserves admitted data. A confirmed disabled response still revokes it.
+      // Transient failure preserves admitted data, but does not authorize acquisition.
+      if (current()) this.update({confirmedEnabled: false});
       if (error instanceof ApiError && rssErrorCode(error) === 'lab_disabled') disable();
     }).finally(() => {if (this.labRequest === controller) this.labRequest = null;});
   }
@@ -318,6 +321,7 @@ export class RssController {
   }
   load = () => this.run(async run => {
     this.localUnavailable = false;
+    this.update({confirmedEnabled: false});
     if (!this.stopLocal && this.local?.hasCachedData) {
       let cached = false;
       try {cached = await this.checked(() => this.local!.hasCachedData!(), run);}
@@ -328,7 +332,7 @@ export class RssController {
     const enabled = (await this.checked(() => this.api.rssLabs(run.signal), run)).features.some(item => item.key === 'rss' && item.enabled);
     this.assertCurrent(run);
     if (!enabled) {this.clearLocal(); this.lists.clear(); this.update({...emptyState(), ready: true, busy: true}); return;}
-    this.update({enabled}); this.startLocal();
+    this.update({enabled, confirmedEnabled: true}); this.startLocal();
     if (this.stopLocal) {this.publishLocal(); return;}
     await this.reload(run);
   });

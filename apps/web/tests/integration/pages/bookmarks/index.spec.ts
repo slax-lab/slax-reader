@@ -1,6 +1,8 @@
 import { defineComponent, h, KeepAlive, nextTick, reactive, ref } from 'vue'
 
+import AddUrlTopModal from '~/components/BookmarkList/AddUrlTopModal.vue'
 import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
+import RssPanel from '~/components/RssPanel.vue'
 
 import { initialPromotionState } from '~~/app/utils/promotionFlow'
 
@@ -17,6 +19,7 @@ import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { enableAutoUnmount } from '@vue/test-utils'
 import { flushPromises } from '@vue/test-utils'
+import { useLabFeatures } from '~/composables/useLabFeatures'
 import { baseBookmarkItem } from '~~/tests/fixtures/bookmark'
 import { baseUser } from '~~/tests/fixtures/user'
 import { mountWithApp } from '~~/tests/setup/mount'
@@ -68,7 +71,7 @@ const {
     mockRequest: vi.fn(() => ({ get: mockGet, post: mockPost })),
     mockGet,
     mockPost,
-    mockUseI18n: vi.fn(() => ({ locale: { value: 'en' }, t: mockT })),
+    mockUseI18n: vi.fn(() => ({ locale: { value: 'en' }, t: mockT, te: (key: string) => key === 'rss.errors.invalid_feed' })),
     mockT,
     mockUseHead: vi.fn(),
     mockAnalyticsLog: vi.fn(),
@@ -244,6 +247,103 @@ describe('components/BookmarkList/BookmarksPage.vue', () => {
     mockPost.mockResolvedValue({})
     // 每例重置，避免跨用例串味
     mockUseExtensionDetection.mockReturnValue({ isInstalled: { value: true }, checked: { value: true } })
+  })
+
+  const setupRss = () => {
+    const labs = useLabFeatures()
+    const features = [{ key: 'rss', status: 'active' as const, enabled: true, enabled_at: null }]
+    labs.loaded.value = true
+    labs.features.value = features
+    mockGet.mockImplementation(async ({ url }: { url: string }) => {
+      if (url === '/v1/user/labs') return { features }
+      if (url === '/v1/rss/subscriptions') return { items: [] }
+      if (url === '/v1/rss/entries') return { items: [], next_cursor: null }
+      return []
+    })
+  }
+  const mountRssPage = () => mountWithApp(IndexPage, {
+    attachTo: document.body,
+    global: { stubs: { ...baseStubs, AddUrlTopModal: false } }
+  })
+  const fillModalInput = async (selector: string, value: string) => {
+    const input = document.querySelector(`.modal-dialog ${selector}`) as HTMLInputElement
+    input.value = value
+    input.dispatchEvent(new Event('input'))
+    await nextTick()
+  }
+
+  it('opens the unified modal on Feed from either RSS Add entry and resets ordinary entry to URL', async () => {
+    setupRss()
+    mockUseRoute.mockReturnValue(reactive({ ...mockUseRoute(), query: { ...mockUseRoute().query, view: 'rss' } }))
+    const wrapper = mountRssPage()
+    await flushPromises()
+    const panel = wrapper.findComponent(RssPanel)
+    const buttons = panel.findAll('.rss-heading > button, .empty-state > button')
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) {
+      await button.trigger('click')
+      expect(document.querySelector('#add-tab-feed')?.getAttribute('aria-selected')).toBe('true')
+      expect(panel.find('dialog[open]').exists()).toBe(false)
+      ;(document.querySelector('.modal-close') as HTMLButtonElement).click()
+      await nextTick()
+    }
+    wrapper.findComponent({ name: 'BookmarksFab' }).vm.$emit('click')
+    await nextTick()
+    expect(document.querySelector('#add-tab-url')?.getAttribute('aria-selected')).toBe('true')
+    expect(mockPost.mock.calls.filter(([options]) => (options as { url: string })?.url === '/v1/rss/subscriptions')).toHaveLength(0)
+  })
+
+  it.each([false, true])('submits Feed through one real RSS owner and selects its subscription (panel already visited: %s)', async visited => {
+    setupRss()
+    if (visited) mockUseRoute.mockReturnValue(reactive({ ...mockUseRoute(), query: { ...mockUseRoute().query, view: 'rss' } }))
+    const source = { id: 'new-feed', title: 'Publisher', remark: 'Daily reading', feed_url: 'https://example.com/feed/?token=a%2Fb', next_allowed_at: '2020-01-01', refreshing: false }
+    mockPost.mockImplementation(async ({ url }: { url: string }) => url === '/v1/rss/subscriptions' ? source : {})
+    const wrapper = mountRssPage()
+    await flushPromises()
+    const existing = wrapper.findComponent(RssPanel)
+    const ownerId = existing.exists() ? existing.vm.$.uid : undefined
+    wrapper.findComponent({ name: 'BookmarksFab' }).vm.$emit('click')
+    await nextTick()
+    ;(document.querySelector('#add-tab-feed') as HTMLButtonElement).click()
+    await nextTick()
+    await fillModalInput('input[type=url]', source.feed_url)
+    await fillModalInput('#add-feed-name', source.remark)
+    mockToastShowToast.mockClear()
+    ;(document.querySelector('.modal-btn-primary') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(mockPost.mock.calls.filter(([options]) => (options as { url: string })?.url === '/v1/rss/subscriptions')).toEqual([[{ url: '/v1/rss/subscriptions', body: { url: source.feed_url, remark: source.remark } }]])
+    const panel = wrapper.findComponent(RssPanel)
+    expect(wrapper.findAllComponents(RssPanel)).toHaveLength(1)
+    if (visited) expect(panel.vm.$.uid).toBe(ownerId)
+    expect(panel.get('.source-tile.active').text()).toContain('Daily reading')
+    expect(panel.get('.source-tile.active').attributes('aria-pressed')).toBe('true')
+    expect(mockGet).toHaveBeenCalledWith(expect.objectContaining({ url: '/v1/rss/entries', query: expect.objectContaining({ subscription_id: 'new-feed' }) }))
+    expect(wrapper.findComponent(AddUrlTopModal).props('show')).toBe(false)
+    expect(wrapper.findComponent(AddUrlTopModal).emitted('addUrlSuccess')).toBeFalsy()
+    expect(mockToastShowToast).not.toHaveBeenCalled()
+  })
+
+  it('retains the unified Feed form after a real RSS owner rejection', async () => {
+    setupRss()
+    mockPost.mockImplementation(async ({ url }: { url: string }) => {
+      if (url === '/v1/rss/subscriptions') throw new Error('invalid_feed')
+      return {}
+    })
+    const wrapper = mountRssPage()
+    await flushPromises()
+    wrapper.findComponent({ name: 'BookmarksFab' }).vm.$emit('click')
+    await nextTick()
+    ;(document.querySelector('#add-tab-feed') as HTMLButtonElement).click()
+    await nextTick()
+    await fillModalInput('input[type=url]', 'https://example.com/not-feed?token=a%2Fb')
+    await fillModalInput('#add-feed-name', 'Keep name')
+    ;(document.querySelector('.modal-btn-primary') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(wrapper.findComponent(AddUrlTopModal).props('show')).toBe(true)
+    expect(document.querySelector('.modal-dialog [role=alert]')?.textContent).toBe('rss.errors.invalid_feed')
+    expect((document.querySelector('.modal-dialog input[type=url]') as HTMLInputElement).value).toBe('https://example.com/not-feed?token=a%2Fb')
+    expect((document.querySelector('#add-feed-name') as HTMLInputElement).value).toBe('Keep name')
+    expect(wrapper.findComponent(AddUrlTopModal).emitted('addUrlSuccess')).toBeFalsy()
   })
 
   it('a pre-grant status response cannot restore the claimed ordinary offer', async () => {

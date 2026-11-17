@@ -16,6 +16,7 @@ async function load(file, boundaries = {}, globals = {}) {
   const drawer = {SourceDrawer: passthrough};
   boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null}, '../utils/source-url': sourceUrls,
     ...observeRelativeBoundaries(boundaries), ...boundaries};
+  if (file.endsWith('/LinkInputDialog.tsx')) boundaries['@slax-reader/contracts/rss'] = await load('../../../../packages/contracts/src/rss.ts', {}, {URL});
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -46,7 +47,7 @@ function views() {
     const key = React.useRef(Symbol(name)).current;
     React.useLayoutEffect(() => {nodes.set(key, {name, props}); return () => nodes.delete(key);});
     React.useImperativeHandle(ref, () => ({focus() {commands.push('focus');}, blur() {commands.push('blur');}, scrollToOffset() {}}), []);
-    return React.createElement('div', null, modal && !props.visible ? null : name === 'FlatList' ? props.ListHeaderComponent : props.children);
+    return React.createElement('div', null, modal && !props.visible ? null : name === 'FlatList' ? [props.ListHeaderComponent, props.data?.length ? null : props.ListEmptyComponent] : props.children);
   });
   const all = name => [...nodes.values()].filter(node => node.name === name).map(node => node.props);
   return {commands, native, all, one(name, predicate = () => true) {const matches = all(name).filter(predicate); assert.equal(matches.length, 1, `${name}: expected one node, got ${matches.length}`); return matches[0];},
@@ -110,17 +111,36 @@ async function harness(root, platform = 'ios', development = false) {
   h.submit = () => act(async () => h.button('pdf_upload').onPress());
   h.background = state => act(async () => {native.AppState.currentState = state; for (const callback of listeners) callback(state);});
   h.listenerCount = () => listeners.size;
-  h.loadLibrary = async () => {
+  h.loadLibrary = async (withRss = false) => {
     const observe = await countingObserve(load);
     h.observeCounter = observe.counter;
-    const rssState = {enabled: false};
-    class RssController {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}}
-    class FeedScrollPosition {reset() {}}
+    const rssState = {enabled: false, confirmedEnabled: false};
+    let RssController = class {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}};
+    let RssFeed = nil, RssFeedSwitcher = nil;
+    class FeedScrollPosition {reset() {} select(id) {this.source = id;}}
     const reset = value => h.reset.push(value);
+    if (withRss) {
+      class ApiError extends Error {constructor(code) {super(code); this.data = {error: code};}}
+      h.rssFailure = code => new ApiError(code);
+      const rssModule = await load('../../src/rss/controller.ts', {'../data/api': {ApiError}, '../utils/abort.ts': await load('../../src/utils/abort.ts')});
+      h.rssSources ??= []; h.rssAdds = [];
+      const rssApi = {
+        rssLabs: signal => h.rssLabs ? h.rssLabs(signal) : Promise.resolve({features: [{key: 'rss', enabled: true}]}),
+        rssSubscriptions: async () => ({items: h.rssSources}),
+        rssEntries: async () => ({items: [], next_cursor: null, cached_more: false, has_more: false, history_status: 'exhausted', retry_at: null}),
+        rssAdd: async (...args) => {h.rssAdds.push(args); if (h.rssAdd) return h.rssAdd(...args); const added = {id: 'added-source', title: 'Added', feed_url: args[0], remark: args[1], next_allowed_at: '2020-01-01T00:00:00Z'}; h.rssSources = [...h.rssSources, added]; return added;},
+      };
+      RssController = class extends rssModule.RssController {constructor(_api, now, active) {super(rssApi, now, active, h.rssLocal); h.rss = this;}};
+      ({RssFeed, RssFeedSwitcher} = await load('../../src/components/RssFeed.tsx', {...common,
+        'react-native': {...native, PixelRatio: {...native.PixelRatio, get: () => 1}}, '../rss/controller': rssModule,
+        './SourceUI': {...v.ui, SourceSheet: v.native('SourceSheet', true)}, './SourceLine': {SourceLine: v.native('SourceLine')}, './SourceMenu': {SourceMenu: v.native('RssSourceMenu')}, './AppImage': {AppImage: nil}, './fixture-actions': {},
+        './feed-scroll': {useFeedScrollPosition: () => ({events: {}, reset})}, './FeedList': {FeedList: props => React.createElement(v.primitives.FlatList, props)},
+      }));
+    }
     const {LibraryScreen} = await load('../../src/screens/LibraryScreen.tsx', {
       ...common, './LibraryDataStatus': {LibraryDataStatus: nil}, '@react-navigation/native': navigation, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
       '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
-      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: props => {h.sortMenu = props; return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../components/FeedList': {FeedList: props => React.createElement(v.primitives.FlatList, props)}, '../components/useAppForeground': await load('../../src/components/useAppForeground.ts', {react: React, 'react-native': native}), '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
+      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed, RssFeedSwitcher, SourceAvatar: nil, SourceMenu: props => {h.sortMenu = props; return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../components/FeedList': {FeedList: props => React.createElement(v.primitives.FlatList, props)}, '../components/useAppForeground': await load('../../src/components/useAppForeground.ts', {react: React, 'react-native': native}), '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
       '../observe': observe.module, '../observe/readiness': readiness,
     });
     const navigator = {navigate: (...args) => h.navigations.push(args)};
@@ -129,8 +149,11 @@ async function harness(root, platform = 'ios', development = false) {
   };
   h.openLibraryImport = async () => {
     await act(async () => v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
-    await act(async () => h.action('pdf_add_file').onPress());
-    const link = v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.testID === 'add-pdf-file'));
+    assert.equal(v.all('TextAction').some(props => props.label === 'pdf_add_file'), false);
+    await act(async () => v.one('Pressable', props => props.accessibilityRole === 'tab' && props.accessibilityLabel === 'add_content_tab_file').onPress());
+    assert.equal(h.dialog().visible, false);
+    await act(async () => h.button('pdf_add_file').onPress());
+    const link = v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist'));
     assert.equal(link.visible, false); assert.equal(h.dialog().visible, false);
     await act(async () => platform === 'ios' ? link.onDidDismiss() : timers.advance(200));
     assert.equal(h.dialog().visible, true);
@@ -345,17 +368,127 @@ test('Settings PDF switch uses server state, disables while changing, and offers
 test('Library hides import until Labs grants PDF, then preserves manual URL validation and submission', async () => mounted(async root => {
   const h = await harness(root), pending = deferred(); h.labs = () => pending.promise;
   await h.loadLibrary(); await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
-  assert.equal(h.v.all('TextAction').some(props => props.label === 'pdf_add_file'), false);
+  const fileTabs = () => h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab' && props.accessibilityLabel === 'add_content_tab_file');
+  assert.equal(fileTabs().length, 0);
   await act(async () => pending.resolve({features: [{key: 'pdf', enabled: false}]}));
-  assert.equal(h.v.all('TextAction').some(props => props.label === 'pdf_add_file'), false);
+  assert.equal(fileTabs().length, 0);
   h.focused = false; await act(async () => h.render());
   h.labs = async () => ({features: [{key: 'pdf', enabled: true}]}); h.focused = true; await act(async () => h.render());
-  assert.equal(h.action('pdf_add_file').testID, 'add-pdf-file');
+  assert.equal(fileTabs().length, 1);
+  assert.equal(h.v.all('TextAction').some(props => props.label === 'pdf_add_file'), false);
   await act(async () => h.v.one('TextInput').onChangeText('not a URL')); await act(async () => h.button('add_link_btn_submit').onPress());
   assert.equal(h.hasText('add_link_error_invalid_url'), true); assert.deepEqual(h.created, []);
   await act(async () => h.v.one('TextInput').onChangeText('  https://source.test/article  ')); await act(async () => h.v.one('TextInput').onSubmitEditing());
   assert.deepEqual(h.created, ['https://source.test/article']); assert.equal(h.reset.at(-1), true);
-  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.testID === 'add-pdf-file')).visible, false); assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 0);
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).visible, false); assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 0);
+}));
+
+for (const pdf of [false, true]) test(`Library cached RSS waits for confirmation before Feed tab and hint with PDF=${pdf}`, async () => mounted(async root => {
+  const h = await harness(root), labs = deferred();
+  h.labs = async () => ({features: [{key: 'pdf', enabled: pdf}]});
+  h.rssLabs = () => labs.promise;
+  const source = {id: 'cached-source', title: 'Cached', next_allowed_at: '2020-01-01T00:00:00Z'};
+  h.rssLocal = {hasCachedData: async () => true, connect: () => () => {}, watchSubscriptions: callback => {callback([source]); return () => {};}, watchEntries: (_id, callback) => {callback([]); return () => {};}, watchSaved: () => () => {}};
+  await h.loadLibrary(true);
+  assert.equal(h.rss.getSnapshot().enabled, true); assert.equal(h.rss.getSnapshot().confirmedEnabled, false);
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  const tabs = () => h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab' && props.accessibilityLabel.startsWith('add_content_tab_'));
+  assert.deepEqual(tabs().map(props => props.accessibilityLabel), pdf ? ['add_content_tab_url', 'add_content_tab_file'] : []);
+  await act(async () => h.v.one('TextInput').onChangeText('https://example.test/feed?format=atom&key=a%2Bb'));
+  assert.equal(h.hasText('add_content_feed_hint'), false);
+  await act(async () => labs.resolve({features: [{key: 'rss', enabled: true}]}));
+  assert.equal(h.rss.getSnapshot().confirmedEnabled, true); assert.equal(h.hasText('add_content_feed_hint'), true);
+  assert.deepEqual(tabs().map(props => props.accessibilityLabel), ['add_content_tab_url', 'add_content_tab_feed', ...(pdf ? ['add_content_tab_file'] : [])]);
+  const pending = deferred(); h.rssLabs = () => pending.promise;
+  await act(async () => h.rss.load());
+  assert.equal(h.rss.getSnapshot().enabled, true); assert.equal(h.hasText('add_content_feed_hint'), false);
+  await act(async () => pending.reject(new Error('offline')));
+  assert.equal(h.rss.getSnapshot().enabled, true); assert.equal(h.rss.getSnapshot().confirmedEnabled, false);
+  assert.equal(h.hasText('add_content_feed_hint'), false);
+  assert.equal(h.v.one('TextInput').value, 'https://example.test/feed?format=atom&key=a%2Bb');
+}));
+
+test('Library RSS rail and empty add open Feed, then successful subscription selects the returned source', async () => mounted(async root => {
+  const h = await harness(root); await h.loadLibrary(true);
+  await act(async () => h.sortMenu.items.find(item => item.label === 'rss_feeds').onPress());
+  await act(async () => h.v.one('Pressable', props => props.testID === 'rss-source-add').onPress());
+  const feed = () => h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed');
+  assert.equal(feed().accessibilityState.selected, true);
+  assert.equal(h.v.one('SourceSheet').visible, false);
+  await act(async () => h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).onDismiss());
+  await act(async () => h.action('rss_add').onPress());
+  assert.equal(feed().accessibilityState.selected, true);
+  const address = 'https://example.test/feed?format=atom&key=a%2Bb';
+  await act(async () => {h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder').onChangeText(address); h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').onChangeText('My source');});
+  await act(async () => h.button('rss_add').onPress());
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).visible, false);
+  assert.deepEqual(h.rssAdds.map(args => args.slice(0, 2)), [[address, 'My source']]);
+  assert.equal(h.rss.getSnapshot().selected, 'added-source');
+  assert.equal(h.v.one('Pressable', props => props.testID === 'rss-source-added-source').accessibilityState.selected, true);
+  await act(async () => h.sortMenu.items.find(item => item.label === 'inbox_title').onPress());
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  assert.equal(h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_url').accessibilityState.selected, true);
+}));
+
+test('Library Inbox Feed failures retain draft and mapped controller error without mounting RSS list', async () => mounted(async root => {
+  const h = await harness(root), pending = deferred(); await h.loadLibrary(true); h.rssAdd = () => pending.promise;
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed').onPress());
+  const address = () => h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder');
+  await act(async () => {address().onChangeText('https://example.test/feed'); h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').onChangeText('Draft');});
+  await act(async () => {void h.button('rss_add').onPress(); void h.button('rss_add').onPress();});
+  assert.equal(h.rssAdds.length, 1); assert.equal(h.button('rss_add').busy, true);
+  await act(async () => pending.reject(h.rssFailure('limit_reached')));
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).visible, true);
+  assert.equal(h.hasText('rss_error_limit_reached'), true); assert.equal(address().value, 'https://example.test/feed');
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').value, 'Draft');
+  assert.equal(h.v.all('SourceSheet').length, 0, 'Failure is visible in Inbox without the RSS list mounted');
+}));
+
+test('Library revoked RSS gate keeps the failed add visible and preserves the draft', async () => mounted(async root => {
+  const h = await harness(root), pending = deferred(); await h.loadLibrary(true); h.rssAdd = () => pending.promise;
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed').onPress());
+  await act(async () => {
+    h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder').onChangeText('https://example.test/feed');
+    h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').onChangeText('Draft');
+  });
+  await act(async () => {void h.button('rss_add').onPress();});
+  await act(async () => pending.reject(h.rssFailure('lab_disabled')));
+  assert.equal(h.rss.getSnapshot().confirmedEnabled, false);
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && props.visible).visible, true);
+  assert.equal(h.hasText('rss_error_lab_disabled'), true);
+  assert.equal(h.v.all('Pressable').filter(props => props.accessibilityLabel === 'add_content_tab_feed').length, 0);
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_link_placeholder').value, 'https://example.test/feed');
+  await act(async () => h.rss.load());
+  assert.equal(h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_url').accessibilityState.selected, true);
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed').onPress());
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').value, 'Draft');
+}));
+
+test('Library disabled RSS add retains Settings destination instead of opening acquisition', async () => mounted(async root => {
+  const h = await harness(root); await h.loadLibrary(true);
+  await act(async () => h.sortMenu.items.find(item => item.label === 'rss_feeds').onPress());
+  const railAdd = h.v.one('Pressable', props => props.testID === 'rss-source-add').onPress;
+  h.rssLabs = async () => ({features: [{key: 'rss', enabled: false}]});
+  await act(async () => h.rss.load());
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  await act(async () => railAdd());
+  assert.deepEqual(h.navigations, [['Settings'], ['Settings']]);
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).visible, false);
+}));
+
+test('Library ignores old account add completion and never selects its returned subscription', async () => mounted(async root => {
+  const h = await harness(root), pending = deferred(); await h.loadLibrary(true); h.rssAdd = () => pending.promise;
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed').onPress());
+  await act(async () => h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder').onChangeText('https://example.test/feed'));
+  await act(async () => {void h.button('rss_add').onPress();});
+  const old = h.rss; h.owner = 'account-b'; await act(async () => h.render());
+  await act(async () => pending.resolve({id: 'old-added-source', title: 'Old'}));
+  assert.notEqual(h.rss, old); assert.equal(h.rss.getSnapshot().selected, null);
+  assert.equal(h.v.all('SourceSheet').length, 0);
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).visible, false);
 }));
 
 test('Library stops bookmark watches while blurred or backgrounded and keeps the last rows visible', async () => mounted(async root => {

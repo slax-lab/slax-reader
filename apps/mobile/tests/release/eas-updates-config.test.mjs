@@ -26,6 +26,16 @@ test('EAS production builds check the production channel on launch without waiti
   assert.match(JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).scripts['update:publish'], /^SLAX_MOBILE_OTA=1 .*eas update --channel production /);
 });
 
+test('development manifest override is local-only and ignored in OTA contexts', () => {
+  const local = {SLAX_MOBILE_DEV_MANIFEST: '1'};
+  assert.equal(appConfig(local).runtimeVersion, '1.0.0');
+  assert.deepEqual(appConfig(local).updates, {enabled: false});
+  assert.deepEqual(appConfig({...ota, ...local}).runtimeVersion, {policy: 'nativeVersion'});
+  assert.equal(appConfig({...ota, ...local}).updates.enabled, true);
+  assert.equal(appConfig({...ota, ...local, EXPO_PUBLIC_SLAX_API_URL: 'https://fixture.invalid'}).runtimeVersion, '1.0.25(794)');
+  assert.equal(appConfig({...ota, ...local, EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}).runtimeVersion, '1.0.0', 'Fixture runtime behavior is independent of the ignored dev override');
+});
+
 test('local, fixture and non-production-origin builds never receive production updates', () => {
   assert.deepEqual(appConfig({}).updates, {enabled: false});
   assert.deepEqual(appConfig({SLAX_MOBILE_OTA: 'true'}).updates, {enabled: false});

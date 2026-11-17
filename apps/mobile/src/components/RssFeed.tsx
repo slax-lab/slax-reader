@@ -59,7 +59,7 @@ export function RssFeedSwitcher({state, controller, onAdd}: {state: RssState; co
   </ScrollView>;
 }
 function displayTime(raw: string) { const date = new Date(raw); if (!Number.isFinite(date.getTime())) return ''; const pad = (v: number) => String(v).padStart(2, '0'); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`; }
-export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, onOpenSettings, onOpen, scrollPosition, active = true, scrollsToTop = true, onScrollActivity, header}: {state: RssState; controller: RssController; adding: boolean; onDismissAdd(): void; onRequestAdd(): void; onOpenSettings(): void; onOpen(entry: RssEntry): void; scrollPosition: FeedScrollPosition; active?: boolean; scrollsToTop?: boolean; onScrollActivity?(scrolling: boolean): void; header?: React.ReactNode}) {
+export function RssFeed({state, controller, onRequestAdd, onOpenSettings, onOpen, scrollPosition, active = true, scrollsToTop = true, onScrollActivity, header}: {state: RssState; controller: RssController; onRequestAdd(): void; onOpenSettings(): void; onOpen(entry: RssEntry): void; scrollPosition: FeedScrollPosition; active?: boolean; scrollsToTop?: boolean; onScrollActivity?(scrolling: boolean): void; header?: React.ReactNode}) {
   const {t, fixtureOnly} = useMobile(); const list = useRef<FlatList<RssEntry>>(null), toolbar = useRef<ViewInstance>(null);
   const scrollTo = useCallback((offset: number, animated = false) => list.current?.scrollToOffset({offset, animated}), []);
   const scroll = useFeedScrollPosition(scrollPosition, scrollTo, true, state.selected);
@@ -79,7 +79,7 @@ export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, 
     if (changed) scroll.reset();
     setMenu(false);
   }, [state.selected, scrollPosition, scroll.reset]);
-  useEffect(() => {if (!state.enabled) {onDismissAdd(); setEditing(null); setRemoving(null);}}, [state.enabled, onDismissAdd]);
+  useEffect(() => {if (!state.enabled) {setEditing(null); setRemoving(null);}}, [state.enabled]);
   const canRefresh = Boolean(current && !state.busy && !current.refreshing && refreshAt <= now);
   const renderEntry = useCallback(({item}: {item: RssEntry}) => <RssEntryRow entry={item} busy={state.busy} t={t} controller={controller} onOpen={onOpen} />, [state.busy, t, controller, onOpen]);
   const openMenu = useCallback(() => {toolbar.current?.measureInWindow((x, y, width) => {setAnchor({x: x + width - 200, y: y + 40}); setMenu(true);});}, []);
@@ -106,7 +106,6 @@ export function RssFeed({state, controller, adding, onDismissAdd, onRequestAdd, 
       ItemSeparatorComponent={RssDivider}
       ListFooterComponent={state.enabled && state.hasMore ? <View style={{alignItems: 'center', padding: 24}}><TextAction label={t('rss_more')} disabled={state.busy || Boolean(state.retryAt && Date.parse(state.retryAt) > now)} onPress={() => void controller.more()} />{state.historyStatus === 'retry' || state.historyStatus === 'loading' ? <SourceText style={{fontSize: 12, color: C.mutedText}}>{t(state.historyStatus === 'retry' ? 'rss_history_retry' : 'rss_history_loading')}</SourceText> : null}</View> : state.enabled && state.entries.length && !state.busy ? <SourceText style={[T.metadata, {color: C.mutedText, marginHorizontal: 24, marginVertical: 34}]}>{t('rss_history_end')}</SourceText> : undefined} />
     {current ? <SourceMenu visible={menu} anchor={anchor} onDismiss={() => setMenu(false)} items={[{label: t(current.refreshing ? 'rss_refreshing' : 'rss_refresh'), disabled: !canRefresh, onPress: () => void controller.refresh(current.id)}, {label: t('rss_edit'), disabled: state.busy, onPress: () => setEditing(current)}, {label: t('rss_remove'), disabled: state.busy, onPress: () => setRemoving(current)}]} /> : null}
-    <RssEditor visible={adding && state.enabled} controller={controller} state={state} onDismiss={onDismissAdd} />
     <RssEditor visible={Boolean(editing)} source={editing ?? undefined} controller={controller} state={state} onDismiss={() => setEditing(null)} />
     <SourceDialog visible={Boolean(removing)} title={t('rss_remove')} onDismiss={() => setRemoving(null)} actions={<><TextAction label={t('rss_cancel')} onPress={() => setRemoving(null)} /><TextAction label={t('rss_remove')} disabled={state.busy} onPress={() => {if (removing) void controller.remove(removing.id); setRemoving(null);}} /></>}><SourceText>{removing ? rssDisplayName(removing) : ''}{'\n'}{t('rss_remove_hint')}</SourceText></SourceDialog>
   </View>;
@@ -119,11 +118,11 @@ function RssEditor({visible, source, controller, state, onDismiss}: {visible: bo
   const {t} = useMobile(); const [url, setUrl] = useState(''), [name, setName] = useState('');
   useEffect(() => {if (visible && source) {setUrl(source.feed_url); setName(source.remark ?? '');}}, [visible, source]);
   useEffect(() => {if (!state.enabled) {setUrl(''); setName('');}}, [state.enabled]);
-  return <SourceSheet visible={visible} busy={state.busy} onDismiss={onDismiss}><SourceText style={{fontSize: 20, fontWeight: '600'}}>{t(source ? 'rss_edit' : 'rss_add')}</SourceText>
-    <RssOutlinedField key={`url-${visible}`} label={t('rss_url')} value={url} onChangeText={source ? undefined : setUrl} maxLength={2048} busy={state.busy} placeholder="https://example.com/feed.xml" url />
+  return <SourceSheet visible={visible} busy={state.busy} onDismiss={onDismiss}><SourceText style={{fontSize: 20, fontWeight: '600'}}>{t('rss_edit')}</SourceText>
+    <RssOutlinedField key={`url-${visible}`} label={t('rss_url')} value={url} maxLength={2048} busy={state.busy} placeholder="https://example.com/feed.xml" url />
     <RssOutlinedField key={`name-${visible}`} label={t('rss_name')} value={name} onChangeText={setName} maxLength={120} busy={state.busy} supportingText={t('rss_name_hint')} />
     {state.error ? <SourceText style={{fontSize: 13, color: C.danger}}>{t(`rss_error_${state.error}`)}</SourceText> : null}
-    <SourceButton tone="rss" label={t(source ? 'rss_save_name' : 'rss_add')} busy={state.busy} disabled={state.busy || !url.trim()} onPress={() => {void (source ? controller.edit(source.id, name) : controller.add(url, name)).then(ok => {if (ok) {setUrl(''); setName(''); onDismiss();}});}} style={{minHeight: 48}} textStyle={{fontSize: 15}} />
+    <SourceButton tone="rss" label={t('rss_save_name')} busy={state.busy} disabled={state.busy || !url.trim()} onPress={() => {if (source) void controller.edit(source.id, name).then(ok => {if (ok) {setUrl(''); setName(''); onDismiss();}});}} style={{minHeight: 48}} textStyle={{fontSize: 15}} />
   </SourceSheet>;
 }
 function RssOutlinedField({label, value, onChangeText, maxLength, busy, placeholder, supportingText, url}: {label: string; value: string; onChangeText?: (value: string) => void; maxLength: number; busy: boolean; placeholder?: string; supportingText?: string; url?: boolean}) {

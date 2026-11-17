@@ -16,6 +16,7 @@ async function load(file, boundaries = {}, globals = {}) {
   const drawer = {SourceDrawer: passthrough};
   boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null}, '../utils/source-url': sourceUrls,
     ...observeRelativeBoundaries(boundaries), ...boundaries};
+  if (file.endsWith('/LinkInputDialog.tsx')) boundaries['@slax-reader/contracts/rss'] = await load('../../../../packages/contracts/src/rss.ts', {}, {URL});
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -161,45 +162,20 @@ test('add-link silently ignores unrelated clipboard text and never overwrites ty
   await act(async () => v.one('SourceButton').onPress()); assert.deepEqual(submitted, ['https://typed.test/first']);
 }));
 
-test('mounted RSS editor retains add draft on dismissal/failure, clears on success or Labs off, and offers selectable readonly URL', async () => mounted(async root => {
-  const v = views(), additions = [], edits = []; let adding = true, ok = false;
+test('mounted RSS editor keeps rename failure, busy state, selectable readonly URL and separate removal sheet', async () => mounted(async root => {
+  const v = views(), edits = []; let ok = false;
   let state = {enabled: true, busy: false, selected: 'feed-a', subscriptions: [{id: 'feed-a', feed_url: 'https://source.test/feed.xml', remark: 'Original', next_allowed_at: '2020-01-01T00:00:00Z'}], entries: [], ready: true, hasMore: false};
-  const controller = {add: async (...values) => {additions.push(values); return ok;}, edit: async (...values) => {edits.push(values); return true;}};
+  const controller = {edit: async (...values) => {edits.push(values); return ok;}};
   const {RssFeed} = await load('../../src/components/RssFeed.tsx', {
     react: React, 'react-native': {...v.primitives, StyleSheet: {create: value => value, absoluteFill: {}}}, '../runtime': {useMobile: () => ({t: value => value})}, '../rss/controller': {rssDisplayName: source => source.remark}, '../theme': theme, './SourceUI': v.ui, './SourceLine': {SourceLine: v.native('SourceLine')}, './SourceMenu': {SourceMenu: v.native('SourceMenu')}, './AppImage': {AppImage: v.native('AppImage')}, './fixture-actions': {}, './feed-scroll': {useFeedScrollPosition: () => ({events: {}, reset() {}})}, './FeedList': {FeedList: props => React.createElement(v.primitives.FlatList, props)},
   });
   const position = {source: 'feed-a', select() {}};
-  const onDismissAdd = () => {adding = false;};
-  const render = () => root.render(React.createElement(RssFeed, {state, controller, adding, onDismissAdd, scrollPosition: position}));
+  const render = () => root.render(React.createElement(RssFeed, {state, controller, scrollPosition: position}));
   const input = label => v.one('TextInput', props => props.accessibilityLabel === label);
   const button = label => v.one('SourceButton', props => props.label === label);
-  const sheet = () => v.one('SourceSheet', props => props.visible);
   await act(async () => render());
-  const initialLabel = v.one('SourceText', props => props.children === 'rss_url');
-  assert.equal(flat(initialLabel.style).fontSize, 16); assert.equal(input('rss_url').placeholder, undefined);
-  await act(async () => input('rss_url').onFocus());
-  assert.equal(flat(v.one('SourceText', props => props.children === 'rss_url').style).fontSize, 12);
-  assert.equal(flat(v.one('SourceText', props => props.children === 'rss_url').style).color, theme.mobileColors.rssAccent);
-  assert.equal(input('rss_url').placeholder, 'https://example.com/feed.xml');
-  assert.ok(v.all('View').some(props => flat(props.style).borderWidth === 2 && flat(props.style).borderColor === theme.mobileColors.rssAccent));
-  await act(async () => {input('rss_url').onChangeText('https://draft.test/feed'); input('rss_name').onChangeText('Draft');});
-  await act(async () => input('rss_url').onBlur());
-  assert.equal(flat(v.one('SourceText', props => props.children === 'rss_url').style).fontSize, 12);
-  await act(async () => {sheet().onDismiss(); render();});
-  adding = true; await act(async () => render());
-  assert.equal(input('rss_url').value, 'https://draft.test/feed'); assert.equal(input('rss_name').value, 'Draft');
-  assert.equal(input('rss_url').maxLength, 2048); assert.equal(input('rss_name').maxLength, 120);
-  await act(async () => button('rss_add').onPress());
-  assert.equal(adding, true); assert.equal(input('rss_name').value, 'Draft');
-  ok = true; await act(async () => button('rss_add').onPress()); await act(async () => render());
-  assert.deepEqual(additions, [['https://draft.test/feed', 'Draft'], ['https://draft.test/feed', 'Draft']]); assert.equal(adding, false);
-  adding = true; await act(async () => render());
-  assert.equal(input('rss_url').value, ''); assert.equal(input('rss_name').value, '');
-  await act(async () => {input('rss_url').onChangeText('https://discard.test'); input('rss_name').onChangeText('Discard');});
-  state = {...state, enabled: false}; await act(async () => render());
-  state = {...state, enabled: true}; adding = true; await act(async () => render());
-  assert.equal(input('rss_url').value, ''); assert.equal(input('rss_name').value, '');
-  adding = false; await act(async () => render());
+  assert.equal(v.all('SourceSheet').length, 1, 'Only the existing editor remains; acquisition has no bottom sheet');
+  assert.equal(v.one('SourceSheet').visible, false);
   await act(async () => v.one('SourceMenu').items.find(item => item.label === 'rss_edit').onPress());
   const readonly = v.one('SourceText', props => props.accessibilityLabel === 'rss_url');
   assert.equal(readonly.selectable, true); assert.equal(readonly.accessibilityState.disabled, false); assert.equal(readonly.children, 'https://source.test/feed.xml');
@@ -210,6 +186,129 @@ test('mounted RSS editor retains add draft on dismissal/failure, clears on succe
   state = {...state, busy: false}; await act(async () => render());
   await act(async () => button('rss_save_name').onPress());
   assert.deepEqual(edits, [['feed-a', 'Renamed']]);
+  state = {...state, error: 'invalid_remark'}; await act(async () => render());
+  assert.equal(v.one('SourceSheet').visible, true); assert.equal(input('rss_name').value, 'Renamed');
+  assert.ok(v.all('SourceText').some(props => props.children === 'rss_error_invalid_remark'));
+  ok = true; await act(async () => button('rss_save_name').onPress());
+  assert.equal(v.one('SourceSheet').visible, false);
+  await act(async () => v.one('SourceMenu').items.find(item => item.label === 'rss_remove').onPress());
+  assert.equal(v.one('SourceDialog').visible, true); assert.equal(v.one('SourceDialog').title, 'rss_remove');
+  state = {...state, enabled: false}; await act(async () => render());
+  assert.equal(v.one('SourceDialog').visible, false);
+}));
+
+const deferred = () => {let resolve, reject; const promise = new Promise((yes, no) => {resolve = yes; reject = no;}); return {promise, resolve, reject};};
+async function addDialogHarness(root, overrides = {}) {
+  const v = views(), submitted = [], feeds = [], imports = [];
+  const h = {v, owner: 'account-a', dismissals: 0, added: 0, submitted, feeds, imports};
+  h.submitFeed = async () => true;
+  const {LinkInputDialog} = await load('../../src/components/LinkInputDialog.tsx', {
+    react: React, 'react-native': {...v.primitives, Platform: {OS: 'ios'}, StyleSheet: {create: value => value}},
+    'expo-clipboard': {getStringAsync: async () => ''}, '../runtime': {useMobile: () => ({t: value => value, fixtureOnly: true, nativeResourceOwner: h.owner})},
+    '../theme': theme, '../theme/testIds': {mobileTestIds: {AddLinkError: 'add-error'}}, './SourceUI': v.ui,
+  });
+  h.props = {visible: true, rssEnabled: true, onImportPdf: () => imports.push(true), onSubmit: value => submitted.push(value),
+    onSubmitFeed: (...args) => {feeds.push(args); return h.submitFeed(...args);}, onFeedAdded: () => h.added++,
+    onDismiss: () => {h.dismissals++; h.props.visible = false; h.render();}, ...overrides};
+  h.render = () => root.render(React.createElement(LinkInputDialog, h.props));
+  h.tab = mode => v.one('Pressable', props => props.accessibilityRole === 'tab' && props.accessibilityLabel === `add_content_tab_${mode}`);
+  h.address = () => v.one('TextInput', props => props.accessibilityLabel !== 'add_content_feed_name');
+  h.name = () => v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name');
+  h.error = () => v.one('SourceText', props => props.testID === 'add-error');
+  h.hint = () => v.all('SourceText').some(props => props.children === 'add_content_feed_hint');
+  await act(async () => h.render());
+  return h;
+}
+
+for (const rssEnabled of [false, true]) for (const pdf of [false, true]) test(`unified add tabs and feed hints require confirmed RSS=${rssEnabled}, PDF=${pdf}`, async () => mounted(async root => {
+  const h = await addDialogHarness(root, {rssEnabled, onImportPdf: pdf ? () => {} : undefined});
+  const expected = ['url', ...(rssEnabled ? ['feed'] : []), ...(pdf ? ['file'] : [])];
+  const tabs = h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab');
+  assert.deepEqual(tabs.map(props => props.accessibilityLabel), expected.length > 1 ? expected.map(mode => `add_content_tab_${mode}`) : []);
+  await act(async () => h.address().onChangeText('https://example.test/feed/?format=atom&token=a%2Bb#keep'));
+  assert.equal(h.hint(), rssEnabled); assert.deepEqual(h.feeds, []); assert.deepEqual(h.submitted, []);
+}));
+
+test('File remains independent of the Feed callback and title editing ignores all acquisition props', async () => mounted(async root => {
+  const h = await addDialogHarness(root, {onSubmitFeed: undefined});
+  assert.equal(h.tab('file').accessibilityState.selected, false);
+  assert.equal(h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab').length, 2);
+  h.props.initialTitle = 'Existing title'; h.props.initialMode = 'feed'; await act(async () => h.render());
+  assert.equal(h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab').length, 0);
+  assert.equal(h.address().value, 'Existing title'); assert.equal(h.v.one('SourceButton').label, 'btn_confirm');
+  assert.equal(h.hint(), false);
+  await act(async () => h.address().onChangeText('  Renamed title  '));
+  await act(async () => h.address().onSubmitEditing());
+  assert.deepEqual(h.submitted, ['Renamed title']); assert.deepEqual(h.feeds, []); assert.deepEqual(h.imports, []);
+}));
+
+test('feed hint switch preserves the complete address, name draft, dismissal and accepted styles', async () => mounted(async root => {
+  const h = await addDialogHarness(root), address = 'https://example.test/feed/?format=atom&token=a%2Bb#keep';
+  await act(async () => h.address().onChangeText(address));
+  assert.equal(h.hint(), true);
+  await act(async () => h.v.one('TextAction', props => props.testID === 'add-feed-keep').onPress());
+  assert.equal(h.hint(), false);
+  await act(async () => h.address().onChangeText(`${address}2`));
+  await act(async () => h.v.one('TextAction', props => props.testID === 'add-feed-switch').onPress());
+  assert.equal(h.tab('feed').accessibilityState.selected, true); assert.equal(h.address().value, `${address}2`);
+  await act(async () => h.name().onChangeText('My feed'));
+  await act(async () => h.tab('file').onPress()); assert.deepEqual(h.imports, []);
+  await act(async () => h.tab('feed').onPress());
+  assert.equal(h.address().value, `${address}2`); assert.equal(h.name().value, 'My feed');
+  assert.equal(flat(h.address().style).minHeight, 50); assert.equal(flat(h.address().style).borderRadius, 8);
+  assert.equal(flat(h.address().style).paddingHorizontal, 12); assert.equal(flat(h.name().style).marginTop, 10);
+  assert.equal(flat(h.v.one('SourceButton').style).marginTop, 24); assert.equal(h.v.one('SourceButton').tone, undefined);
+  assert.deepEqual(h.feeds, []); assert.deepEqual(h.submitted, []);
+}));
+
+test('Feed awaits success, keeps localized failure and draft, and blocks duplicate submit and tab switching', async () => mounted(async root => {
+  const h = await addDialogHarness(root, {initialMode: 'feed'}), pending = deferred(); h.submitFeed = () => pending.promise;
+  await act(async () => {h.address().onChangeText('  https://example.test/feed?format=atom&key=full  '); h.name().onChangeText('  My feed  ');});
+  const submit = h.v.one('SourceButton').onPress;
+  await act(async () => {void submit(); void submit(); void h.address().onSubmitEditing(); h.tab('url').onPress();});
+  assert.equal(h.feeds.length, 1); assert.equal(h.v.one('SourceButton').busy, true); assert.equal(h.dismissals, 0);
+  assert.equal(h.tab('feed').accessibilityState.selected, true); assert.equal(h.tab('file').disabled, true);
+  assert.equal(h.address().editable, false);
+  await act(async () => {h.props.feedError = 'invalid_feed'; h.render(); pending.resolve(false);});
+  assert.equal(h.dismissals, 0); assert.equal(h.v.one('SourceButton').busy, false);
+  assert.equal(h.address().value, '  https://example.test/feed?format=atom&key=full  '); assert.equal(h.name().value, '  My feed  ');
+  assert.equal(h.error().children, 'rss_error_invalid_feed'); assert.equal(flat(h.error().style).marginTop, 8);
+  assert.equal(flat(h.error().style).fontSize, theme.mobileTypography.metadata.fontSize);
+  await act(async () => h.tab('url').onPress()); assert.equal(h.v.all('SourceText').some(props => props.testID === 'add-error'), false);
+  await act(async () => h.tab('feed').onPress()); assert.equal(h.error().children, 'rss_error_invalid_feed');
+  h.submitFeed = async () => true; await act(async () => h.v.one('SourceButton').onPress());
+  assert.equal(h.dismissals, 1); assert.equal(h.added, 1); assert.equal(h.v.one('SourceDialog').visible, false);
+  assert.deepEqual(h.feeds, [['https://example.test/feed?format=atom&key=full', 'My feed'], ['https://example.test/feed?format=atom&key=full', 'My feed']]);
+}));
+
+for (const mode of ['feed', 'file']) test(`removing active ${mode} gate resets stored mode to URL even after reenable`, async () => mounted(async root => {
+  const h = await addDialogHarness(root, {initialMode: mode}); assert.equal(h.tab(mode).accessibilityState.selected, true);
+  const importPdf = h.props.onImportPdf;
+  if (mode === 'feed') h.props.rssEnabled = false; else h.props.onImportPdf = undefined;
+  await act(async () => h.render()); assert.equal(h.tab('url').accessibilityState.selected, true);
+  h.props.rssEnabled = true; h.props.onImportPdf = importPdf; await act(async () => h.render());
+  assert.equal(h.tab('url').accessibilityState.selected, true); assert.equal(h.tab(mode).accessibilityState.selected, false);
+}));
+
+for (const lifecycle of ['close', 'account', 'unmount']) test(`late feed success cannot affect a replaced dialog after ${lifecycle}`, async () => mounted(async root => {
+  const h = await addDialogHarness(root, {initialMode: 'feed'}), pending = deferred(); h.submitFeed = () => pending.promise;
+  await act(async () => h.address().onChangeText('https://example.test/feed'));
+  await act(async () => {void h.v.one('SourceButton').onPress();});
+  if (lifecycle === 'close') {
+    await act(async () => h.v.one('SourceDialog').onDismiss());
+    h.props.visible = true; await act(async () => h.render());
+  } else if (lifecycle === 'account') {h.owner = 'account-b'; await act(async () => h.render());}
+  else await act(async () => root.render(null));
+  await act(async () => pending.resolve(true));
+  assert.equal(h.added, 0); assert.equal(h.dismissals, lifecycle === 'close' ? 1 : 0);
+  if (lifecycle !== 'unmount') {assert.equal(h.v.one('SourceDialog').visible, true); assert.equal(h.address().value, ''); assert.equal(h.v.one('SourceButton').busy, false);}
+}));
+
+test('controller busy false result without an error remains retryable and visible', async () => mounted(async root => {
+  const h = await addDialogHarness(root, {initialMode: 'feed'}); h.submitFeed = async () => false;
+  await act(async () => h.address().onChangeText('https://example.test/feed'));
+  await act(async () => h.v.one('SourceButton').onPress());
+  assert.equal(h.error().children, 'rss_error_source_unavailable'); assert.equal(h.dismissals, 0); assert.equal(h.address().value, 'https://example.test/feed');
 }));
 
 test('actual iOS SourceLine forwards middle, clip and default tail truncation to UIKit text', async () => mounted(async root => {

@@ -1,5 +1,21 @@
 import type { CursorPage } from "./http.js";
 
+export function isPossibleFeedUrl(input: string): boolean {
+  try {
+    const url = new URL(input.trim());
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    const path = url.pathname.toLowerCase();
+    if (/(?:^|\/)(?:feed|feeds|rss|rss2|atom)(?:\/|$)/.test(path)) return true;
+    if (/(?:^|\/)(?:feed|rss|rss2|atom)\.xml$/.test(path) || /\.(?:rss|atom)$/.test(path)) return true;
+    for (const [key, value] of url.searchParams) {
+      if (/^(?:feed|format|type|output)$/i.test(key) && /^(?:rss|rss2|rss1|atom|feed)$/i.test(value)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 /** Stable machine-readable RSS errors, carried by the existing API envelope. */
 export type RssErrorCode =
   | "lab_disabled"
