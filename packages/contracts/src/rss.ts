@@ -1,5 +1,13 @@
 import type { CursorPage } from "./http.js";
 
+// WHATWG URL is available in every supported runtime. Keep its type local so
+// contracts do not add browser or Node globals to their consumers.
+declare const URL: new (value: string) => {
+  protocol: string;
+  pathname: string;
+  searchParams: Iterable<[string, string]>;
+};
+
 export function isPossibleFeedUrl(input: string): boolean {
   try {
     const url = new URL(input.trim());
