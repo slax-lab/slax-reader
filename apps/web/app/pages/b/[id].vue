@@ -117,6 +117,7 @@
             <ClientOnly>
               <!-- overview 仅 owner；outline 用 SSR 数据 -->
               <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
+              <SnapshotSubscriptionStatus v-else-if="!hasOutline && subscriptionStatus !== 'active'" :status="subscriptionStatus" @retry="refreshSubscription" />
               <NuxtErrorBoundary v-else :key="accountGeneration">
                 <KeepAlive>
                   <SnapshotAIPanel v-if="activePanel === 'ai'" :pdf="!!detail.pdf" @find-quote="findQuote"
@@ -140,6 +141,7 @@
           <template #chat>
             <!-- Chat 仅 owner，组件不挂载 -->
             <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
+            <SnapshotSubscriptionStatus v-if="isOwner && subscriptionStatus !== 'active'" :status="subscriptionStatus" @retry="refreshSubscription" />
             <NuxtErrorBoundary v-if="isOwner && !isSubscriptionExpired && (!detail.pdf || detail.pdf.text_status === 'ready')" :key="accountGeneration">
               <KeepAlive>
                 <SnapshotChatPanel v-if="activePanel === 'chat'" ref="chatbot" :bookmark-uid="bookmarkUid"
@@ -216,6 +218,7 @@ import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
 import SnapshotMoreMenu, { type MoreMenuAction } from '~/components/Snapshot/SnapshotMoreMenu.vue'
 import SnapshotRightEdgeToolbar from '~/components/Snapshot/SnapshotRightEdgeToolbar.vue'
 import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue'
+import SnapshotSubscriptionStatus from '~/components/Snapshot/SnapshotSubscriptionStatus.vue'
 import SnapshotTopBar from '~/components/Snapshot/SnapshotTopBar.vue'
 import SnapshotTranscriptPanel from '~/components/Snapshot/SnapshotTranscriptPanel.vue'
 import YoutubeAiArticle from '~/components/Snapshot/YoutubeAiArticle.vue'
@@ -228,6 +231,7 @@ import { youtubeArticleView as pickYoutubeArticleView, youtubeBodyHasArticle as 
 import { tokenFingerprint } from '~/utils/accountContext'
 import type { PdfTitlePreview } from '~/utils/pdfPreview'
 import { pdfTitlePreview } from '~/utils/pdfPreview'
+import { cancelReaderRestore, shouldScrollReaderToTop } from '~/utils/readerStartup'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { useLocalMarks } from '@/composables/bookmark/useLocalMarks'
@@ -256,7 +260,7 @@ const SnapshotAIPanel = defineAsyncComponent({ loader: () => import('~/component
 const SnapshotChatPanel = defineAsyncComponent({ loader: () => import('~/components/Snapshot/SnapshotChatPanel.vue'), loadingComponent: DotLoading, timeout: 15000, suspensible: false })
 
 const { t, locale } = useI18n()
-definePageMeta({ key: route => String(route.params.id) })
+definePageMeta({ key: route => String(route.params.id), scrollToTop: shouldScrollReaderToTop })
 const account = useAccountContext()
 const accountGeneration = computed(() => account.context.value.generation)
 const route = useRoute()
@@ -413,9 +417,10 @@ async function refreshForkDetail() {
 }
 
 useReadingPosition(uuid, {
+  navigation: import.meta.client ? window.__slaxReaderStartup!.navigation : undefined,
   enabled: () => localFirst.value && !detail.value?.pdf,
   ready: () => localReady.value,
-  skipRestore: () => !!route.query.highlight,
+  skipRestore: () => !!route.query.highlight || !!route.hash,
   load: () => local?.getReadingPosition(uuid).then(r => (r ? { index: r.anchor_index, ratio: r.anchor_ratio, percent: r.percent } : null)) ?? Promise.resolve(null),
   save: anchor => local?.setReadingPosition(uuid, anchor),
   clear: () => local?.clearReadingPosition(uuid)
@@ -539,16 +544,24 @@ const tasksReady = ref(false)
 // 同步卡住兜底
 const forceDecide = ref(false)
 
-const { isSubscriptionExpired, showAnalyzed, showChatbot, chatBotQuote, showFeedback, screenLockUpdate } = useBookmark({
+const activePanel = ref<SnapshotPanelId | null>(null)
+const lastOpenedPanel = ref<SnapshotPanelId | null>(null)
+watch(() => account.context.value.accountKey, () => {
+  activePanel.value = null
+  lastOpenedPanel.value = null
+}, { flush: 'sync' })
+
+const { isSubscriptionExpired, subscriptionStatus, refreshSubscription, loginVerify, showAnalyzed, showChatbot, chatBotQuote, showFeedback, screenLockUpdate } = useBookmark({
   chatbot,
   quoteScope: () => accountGeneration.value,
+  quoteActive: () => activePanel.value === 'chat',
   typeOptions: () => ({
     type: BookmarkType.Snapshot,
     title: detail.value?.title || '',
     bookmarkUid: bookmarkUid.value,
     targetUrl: detail.value?.target_url
   }),
-  initialRequestTask: initializeClientDetail,
+  initialRequestTask: () => initializeClientDetail(false),
   initialTasksEnabled: !recoveringSession.value,
   // 就绪后决定初始侧栏
   initialTasksCompleted: () => {
@@ -664,9 +677,6 @@ const sidePanels = computed<SnapshotPanelId[]>(() => {
   return panels
 })
 
-const activePanel = ref<SnapshotPanelId | null>(null)
-// 收起后用于恢复的面板
-const lastOpenedPanel = ref<SnapshotPanelId | null>(null)
 // isH5 单一来源（≤768）
 const { panelOpen, panelWidth, isH5 } = useSnapshotLayout()
 // 本地偏好：收起过就不再自动展开，手动打开就恢复；没记录时看窗口够不够宽
@@ -676,7 +686,7 @@ const { shouldAutoOpen, markOpened, markClosed } = useSidePanelPreference()
 // 否则 owner+Pro 直开 AI；visitor/非 Pro 仅有 outline 才展开
 const autoDecided = ref(false)
 const decideInitialPanel = () => {
-  if (autoDecided.value || !tasksReady.value || isH5.value) return // 待初始任务完成
+  if (autoDecided.value || activePanel.value !== null || !tasksReady.value || isH5.value) return // 待初始任务完成
   if (!forceDecide.value && localFirst.value && localMarksQuery?.isLoading.value) return // 划线未就绪则等
   autoDecided.value = true
   // 用户收起过，或窗口放不下正文 + 面板，就不自动展开
@@ -699,7 +709,14 @@ if (localMarksQuery) {
   )
 }
 
-watch(activePanel, (val, oldVal) => {
+watch([activePanel, subscriptionStatus], ([val, status], [previous]) => {
+  const oldVal = previous !== val ? previous : null
+  const paid = val === 'chat' || (val === 'ai' && !hasOutline.value)
+  if (paid && (status === 'pending' || status === 'error')) {
+    if (!loginVerify()) { activePanel.value = oldVal ?? null; return }
+    panelOpen.value = true
+    return
+  }
   // AI/Chat 过登录+订阅校验
   // 有 outline 或 owner+Pro 则免校验直开
   if (val === 'ai' && !hasOutline.value && !(isOwner.value && isPro.value) && !showAnalyzed()) {
@@ -723,6 +740,7 @@ onMounted(() => {
 })
 // 用户主动开关面板走这里，记到本地偏好；程序性的开关（登录校验回退、小屏收起）不记
 const onUserPanelChange = (id: SnapshotPanelId | null) => {
+  autoDecided.value = true
   activePanel.value = id
   if (isH5.value) return
   if (id === null) markClosed()
@@ -750,6 +768,7 @@ onKeyStroke(['z', 'Z'], e => {
 
 // 小屏点击面板：切换 activePanel
 const onBottomPanel = (id: SnapshotPanelId) => {
+  autoDecided.value = true
   activePanel.value = activePanel.value === id ? null : id
 }
 
@@ -893,11 +912,13 @@ const onCancelReply = () => {
 // 选区菜单点 chat：侧栏可能停在别的 tab，
 // 先切到 chat 再塞引用
 const onChatBotQuote = (quote: QuoteData) => {
+  autoDecided.value = true
   if (activePanel.value !== 'chat') activePanel.value = 'chat'
   chatBotQuote(quote)
 }
 
 const findQuote = (quote: QuoteData) => {
+  cancelReaderRestore()
   bookmarkArticle.value?.findQuote(quote)
 }
 

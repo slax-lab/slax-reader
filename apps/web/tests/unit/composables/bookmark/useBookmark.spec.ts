@@ -5,8 +5,8 @@
 
 import { nextTick, ref } from 'vue'
 
-import type { UserInfo } from '@slax-reader/contracts/interface'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import type { UserInfo } from '@slax-reader/contracts/interface'
 import { baseUser } from '~~/tests/fixtures/user'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,7 +26,7 @@ const {
   mockHaveRequestToken,
   mockUseI18n,
   mockCheckSubscriptionExpired,
-  mockUpdateSubscribeStatus,
+  mockRefreshSubscription,
   yRef,
   summariesExpanded,
   botExpanded,
@@ -46,7 +46,7 @@ const {
     mockHaveRequestToken: vi.fn(() => false),
     mockUseI18n: vi.fn(() => ({ locale: { value: 'en' } })),
     mockCheckSubscriptionExpired: vi.fn(() => false),
-    mockUpdateSubscribeStatus: vi.fn(),
+    mockRefreshSubscription: vi.fn(),
     yRef: { value: 0 } as { value: number },
     summariesExpanded: { value: false } as { value: boolean },
     botExpanded: { value: false } as { value: boolean },
@@ -105,11 +105,13 @@ describe('useBookmark', () => {
     botExpanded.value = false
     isLocked.value = false
     mockUseScroll.mockReturnValue({ y: yRef })
-    mockHaveRequestToken.mockReturnValue(false)
+    mockHaveRequestToken.mockImplementation(() => !!useUserStore().user)
+    mockRefreshSubscription.mockImplementation(() => useUserStore().getUserInfo({ refresh: true }))
     mockUseUserSubscribe.mockReturnValue({
       isSubscriptionExpired: ref(false),
       checkSubscriptionExpired: mockCheckSubscriptionExpired,
-      updateSubscribeStatus: mockUpdateSubscribeStatus
+      subscriptionStatus: ref('active'),
+      refreshSubscription: mockRefreshSubscription
     })
     mockCheckSubscriptionExpired.mockReturnValue(false)
     mockUseResize.mockReturnValue({
@@ -339,6 +341,7 @@ describe('useBookmark', () => {
       const store = useUserStore()
       store.user = baseUser
       mockCheckSubscriptionExpired.mockReturnValue(true)
+      mockUseUserSubscribe.mockReturnValue({ subscriptionStatus: ref('inactive'), isSubscriptionExpired: ref(true), checkSubscriptionExpired: mockCheckSubscriptionExpired, refreshSubscription: mockRefreshSubscription })
       const options = makeOptions()
       const result = useBookmark(options)
       result.chatBotQuote({ text: 'q' } as any)
@@ -429,29 +432,25 @@ describe('useBookmark', () => {
       expect(spy).not.toHaveBeenCalled()
     })
 
-    it('C27: isLogin=true + getUserInfo 返 baseUser → user 更新 + refresh + updateSubscribeStatus', async () => {
+    it('refreshes the current profile once without a redundant cached lookup', async () => {
       mockHaveRequestToken.mockReturnValue(true)
       const store = useUserStore()
-      const spy = vi.spyOn(store, 'getUserInfo').mockResolvedValue(baseUser)
+      const spy = vi.spyOn(store, 'getUserInfo').mockImplementation(async () => {
+        store.user = baseUser
+        return baseUser
+      })
       const result = useBookmark(makeOptions())
-      await Promise.resolve()
-      await Promise.resolve()
-      await Promise.resolve()
-      expect(spy).toHaveBeenCalledTimes(2)
-      expect(spy).toHaveBeenNthCalledWith(2, { refresh: true })
+      await nextTick()
+      expect(spy).toHaveBeenCalledExactlyOnceWith({ refresh: true })
       expect(result.user.value).toEqual(baseUser)
-      expect(mockUpdateSubscribeStatus).toHaveBeenCalled()
     })
 
-    it('C28: isLogin=true + getUserInfo 首次返 null → 不调 refresh 不调 updateSubscribeStatus', async () => {
+    it('requests a profile even when the persisted user is absent', async () => {
       mockHaveRequestToken.mockReturnValue(true)
-      const store = useUserStore()
-      const spy = vi.spyOn(store, 'getUserInfo').mockResolvedValue(undefined as any)
+      const spy = vi.spyOn(useUserStore(), 'getUserInfo').mockResolvedValue(undefined as any)
       useBookmark(makeOptions())
-      await Promise.resolve()
-      await Promise.resolve()
-      expect(spy).toHaveBeenCalledTimes(1)
-      expect(mockUpdateSubscribeStatus).not.toHaveBeenCalled()
+      await nextTick()
+      expect(spy).toHaveBeenCalledExactlyOnceWith({ refresh: true })
     })
 
     it('C29: useLogBookmark throw → console.error 捕获，不影响 getUserInfo 后续调用', async () => {

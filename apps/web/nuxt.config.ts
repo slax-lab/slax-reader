@@ -3,6 +3,8 @@ import { backendStateV3 } from './config/backend-path'
 import { getDWebConfig, getEnv } from './config/env'
 import { scopedPdfStyles } from './config/pdf-assets'
 
+import { readerStartupScript } from './app/utils/readerStartup'
+
 import { createPowerSyncAssetBuild } from '../../tooling/powersync-assets.mjs'
 import { POWER_SYNC_WORKER_GENERATION } from './app/local-first/version'
 import pkg from './package.json'
@@ -185,7 +187,10 @@ export default defineNuxtConfig({
         { rel: 'canonical', href: `${siteBaseUrl}/` }
       ],
       style: [],
-      script: [{ type: 'application/ld+json', innerHTML: homeStructuredData }]
+      script: [
+        { key: 'reader-startup', innerHTML: readerStartupScript, tagPriority: 'critical', 'data-cfasync': 'false' },
+        { type: 'application/ld+json', innerHTML: homeStructuredData }
+      ]
     },
     rootId: 'slax-reader-dweb',
     viewTransition: true,

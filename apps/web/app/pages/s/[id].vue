@@ -1,6 +1,6 @@
 <template>
   <div>
-    <SnapshotDetailLayout class="bookmark-detail" :class="{ 'is-pdf': !!detail?.pdf }" @close-panel="activePanel = null">
+    <SnapshotDetailLayout class="bookmark-detail" :class="{ 'is-pdf': !!detail?.pdf }" @close-panel="onUserPanelChange(null)">
       <template #topbar>
         <SnapshotTopBar>
           <template #left>
@@ -57,7 +57,7 @@
       </ClientOnly>
 
       <template #right-edge-toolbar>
-        <SnapshotRightEdgeToolbar v-if="detail" v-model="activePanel" :panel-open="activePanel !== null" />
+        <SnapshotRightEdgeToolbar v-if="detail" :model-value="activePanel" @update:model-value="onUserPanelChange" :panel-open="activePanel !== null" />
       </template>
 
       <template #bottom-toolbar>
@@ -72,15 +72,17 @@
       </template>
 
       <template #side-panel>
-        <SnapshotSidePanel :keyboard-aware="!!detail?.pdf" v-if="detail" :active-tab="activePanel" @update:active-tab="activePanel = $event">
+        <SnapshotSidePanel :keyboard-aware="!!detail?.pdf" v-if="detail" :active-tab="activePanel" @update:active-tab="onUserPanelChange($event)">
           <template #ai>
             <ClientOnly>
               <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
+              <SnapshotSubscriptionStatus v-else-if="subscriptionStatus !== 'active'" :status="subscriptionStatus" @retry="refreshSubscription" />
               <SnapshotAIPanel v-else :pdf="!!detail.pdf" @find-quote="findQuote" :share-code="shareCode" :is-appeared="activePanel === 'ai'" @dismiss="activePanel = null" />
             </ClientOnly>
           </template>
           <template #chat>
             <p v-if="detail.pdf && detail.pdf.text_status !== 'ready'" class="pdf-ai-unavailable" role="status">{{ $t(`pdf.text_${detail.pdf.text_status}`) }}</p>
+            <SnapshotSubscriptionStatus v-if="subscriptionStatus !== 'active'" :status="subscriptionStatus" @retry="refreshSubscription" />
             <SnapshotChatPanel
               v-if="!isSubscriptionExpired && (!detail.pdf || detail.pdf.text_status === 'ready')"
               ref="chatbot"
@@ -146,8 +148,11 @@ import SnapshotCommentList from '~/components/Snapshot/SnapshotCommentList.vue'
 import SnapshotMoreMenu, { type MoreMenuAction } from '~/components/Snapshot/SnapshotMoreMenu.vue'
 import SnapshotRightEdgeToolbar from '~/components/Snapshot/SnapshotRightEdgeToolbar.vue'
 import SnapshotSharePopover from '~/components/Snapshot/SnapshotSharePopover.vue'
+import SnapshotSubscriptionStatus from '~/components/Snapshot/SnapshotSubscriptionStatus.vue'
 import SnapshotTopBar from '~/components/Snapshot/SnapshotTopBar.vue'
 import TopTips from '~/components/Tips/TopTips.vue'
+
+import { pdfTitlePreview } from '~/utils/pdfPreview'
 
 import type { MarkDetail, ShareBookmarkDetail } from '@commons/frontend-types/models'
 import { formatDate } from '@commons/frontend-utils/date'
@@ -161,7 +166,6 @@ import Toast, { ToastType } from '~/components/Toast'
 import { useBookmark } from '~/composables/bookmark/useBookmark'
 import { useCommentPanel } from '~/composables/useCommentPanel'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
-import { pdfTitlePreview } from '~/utils/pdfPreview'
 
 const { t } = useI18n()
 const router = useRoute()
@@ -198,26 +202,21 @@ const moreMenuActions = computed<MoreMenuAction[]>(() => [{ id: 'feedback', labe
 
 // Phase 3：activePanel + BottomToolbar（s 页仅 top 按钮）
 const activePanel = ref<SnapshotPanelId | null>(null)
+let panelChosen = false
+const onUserPanelChange = (id: SnapshotPanelId | null) => {
+  panelChosen = true
+  activePanel.value = id
+}
+const account = useAccountContext()
+watch(() => account.context.value.accountKey, () => { activePanel.value = null }, { flush: 'sync' })
 
 // 同步 panelOpen 到 useSnapshotLayout，驱动三档布局挤压
 const { panelOpen, isH5 } = useSnapshotLayout()
 
 // 小屏底部栏点击面板：切换 activePanel（经下面的 watch 走登录/订阅校验）
 const onBottomPanel = (id: SnapshotPanelId) => {
-  activePanel.value = activePanel.value === id ? null : id
+  onUserPanelChange(activePanel.value === id ? null : id)
 }
-
-watch(activePanel, (val, oldVal) => {
-  if (val === 'ai' && !showAnalyzed()) {
-    activePanel.value = oldVal ?? null
-    return
-  }
-  if (val === 'chat' && !showChatbot()) {
-    activePanel.value = oldVal ?? null
-    return
-  }
-  panelOpen.value = val !== null
-})
 
 // Phase 5：评论面板联动（必须在 activePanel 声明之后）
 const { activeInfoId, pendingSelection, pendingQuote, composeStroke, focusByInfoId, flashMarkByInfoId } = useCommentPanel({
@@ -397,6 +396,8 @@ await renderServerData()
 const {
   user,
   isSubscriptionExpired,
+  subscriptionStatus,
+  refreshSubscription,
   redirectHref,
   showAnalyzed,
   showChatbot,
@@ -409,6 +410,8 @@ const {
   navigateToBookmarks
 } = useBookmark({
   chatbot,
+  quoteScope: () => account.context.value.generation,
+  quoteActive: () => activePanel.value === 'chat',
   typeOptions: () => {
     return {
       type: BookmarkType.Share,
@@ -432,7 +435,7 @@ const {
     nextTick(() => {
       // 桌面态默认打开 comment tab（snapshot.md §4.3）
       const isMobile = window.innerWidth <= 768
-      if (!isMobile) {
+      if (!isMobile && !panelChosen) {
         activePanel.value = 'comment'
       }
     })
@@ -464,12 +467,27 @@ if (isClient) {
   )
 }
 
+watch([activePanel, subscriptionStatus], ([val, status], [previous]) => {
+  const oldVal = previous !== val ? previous : null
+  if ((val === 'ai' || val === 'chat') && (status === 'pending' || status === 'error')) {
+    if (!loginVerify()) { activePanel.value = oldVal ?? null; return }
+    panelOpen.value = true
+    return
+  }
+  if ((val === 'ai' && !showAnalyzed()) || (val === 'chat' && !showChatbot())) {
+    activePanel.value = oldVal ?? null
+    return
+  }
+  panelOpen.value = val !== null
+})
+
 const findQuote = (quote: QuoteData) => {
   bookmarkArticle.value?.findQuote(quote)
 }
 
 // 划词点 Chat：先切侧栏再塞引用
 const onChatBotQuote = (quote: QuoteData) => {
+  panelChosen = true
   if (activePanel.value !== 'chat') {
     activePanel.value = 'chat'
   }
