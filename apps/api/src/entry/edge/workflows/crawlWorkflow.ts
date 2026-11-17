@@ -534,7 +534,8 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     }
 
     // 触发内容验证 workflow（fire-and-forget）；命中审核（>0）的内容跳过截图与质量校验
-    if (crawlResult && !isSoft404 && crawlResult.contentKey && moderationResult === ModerationResult.NORMAL) {
+    const isPublisher = this.env.PUBLISHER_USER_IDS?.split(',').some(id => id.trim() === String(userId))
+    if (crawlResult && !isSoft404 && crawlResult.contentKey && moderationResult === ModerationResult.NORMAL && !isPublisher) {
       try {
         await this.env.CONTENT_VALIDATION_WORKFLOW.create({
           params: {
