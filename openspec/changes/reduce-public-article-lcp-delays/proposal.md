@@ -19,6 +19,8 @@ The requester subsequently resumed first-byte attribution and authorized a neces
 
 The November 17 continuation obtained an exact native trace using the matching client Ray ID, after requester-authorized temporary test-only tracing. It confirms same-HKG linked calls and large pre-operation prefixes, while cold initialization versus platform scheduling remains unproven. Both tracing switches were restored disabled. Next-morning field results, new leading URLs, sample counts and the incomplete 70% outcome are recorded separately in validation.md. This remains an evidence-only continuation of first-byte work, with no additional runtime patch.
 
+A further requester-authorized November 17 experiment temporarily wrapped the existing deployed test modules with a module-instance nonce and observed-handler counter. Forty successful content requests across two bounded passes distinguish first observed calls from reuse, and a matched native trace locates the large first-call prefixes before the Edge/Core handler-entry logs. Cloudflare upload validation reports startup times of 402ms/441ms for the diagnostic Edge/Core versions; those validation measurements are not per-request serving startup spans. First-use overhead is now demonstrated in this experiment, but its initialization-versus-platform-loading/scheduling split remains unavailable. Original test versions, binding names/types and observability settings were restored and verified, including disabled Traces. No temporary wrapper, configuration or additional runtime fix is included in this PR.
+
 ## Capabilities
 
 ### New Capabilities
