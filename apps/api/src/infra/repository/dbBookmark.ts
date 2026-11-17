@@ -547,6 +547,18 @@ export class BookmarkRepo {
       GROUP BY bt.tag_id`
   }
 
+  public async fillPublisherMetadata(bmId: number, ownerId: number, metadata: { title: string; siteName: string; byline: string }) {
+    const { title, siteName, byline } = metadata
+    await this.prismaPg().$executeRaw`
+      UPDATE sr_bookmark SET
+        title = CASE WHEN title ~ '^[[:space:]]*$' AND ${title} <> '' THEN ${title} ELSE title END,
+        site_name = CASE WHEN site_name ~ '^[[:space:]]*$' AND ${siteName} <> '' THEN ${siteName} ELSE site_name END,
+        byline = CASE WHEN byline ~ '^[[:space:]]*$' AND ${byline} <> '' THEN ${byline} ELSE byline END
+      WHERE id = ${bmId} AND private_user = ${ownerId} AND status = 'success' AND content_key LIKE '%.html'
+        AND ((title ~ '^[[:space:]]*$' AND ${title} <> '') OR (site_name ~ '^[[:space:]]*$' AND ${siteName} <> '') OR (byline ~ '^[[:space:]]*$' AND ${byline} <> ''))
+    `
+  }
+
   public async updateBookmark(bmId: number, info: bookmarkParsePO) {
     return this.prismaPg().sr_bookmark.update({
       where: { id: bmId },
