@@ -18,7 +18,7 @@
 ## 4. Real Mobile Add Surface
 
 - [x] 4.1 Compose the real Library acquisition flow within the existing centered compact dialog using the current native controls, typography, colors, and spacing; verify mounted-host tests cover mode entry, gate changes, clipboard prefill, and unchanged title editing.
-- [ ] 4.2 Reuse RSS submission and PDF lifecycle handling while keeping drafts outside the active panel; verify existing PDF import and RSS suites cover picker cancellation, tab switching, cleanup on close, upload failure, account replacement, and duplicate-submit prevention.
+- [x] 4.2 Reuse RSS submission and PDF lifecycle handling while keeping drafts outside the active panel; verify existing PDF import and RSS suites cover picker cancellation, tab switching, cleanup on close, upload failure, account replacement, and duplicate-submit prevention.
 - [ ] 4.3 Run the actual changed React Native application on an available native target and demonstrate URL, RSS hint, Feed, File, gate-off, error/busy, and keyboard-visible states; record the target and attach captures, without substituting a browser mock for native evidence.
 
 ## 5. Demo Feedback and Completion

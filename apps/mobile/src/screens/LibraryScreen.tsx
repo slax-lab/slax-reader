@@ -24,7 +24,6 @@ import {SourceDrawer} from '../components/SourceDrawer';
 import {FeedList} from '../components/FeedList';
 import {useAppForeground} from '../components/useAppForeground';
 import {parseSourceTimestamp} from '../utils/source-time';
-import {PdfImportDialog} from '../components/PdfImportDialog';
 import {usePdfLab} from '../pdf/usePdfLab';
 import {LibraryDataStatus} from './LibraryDataStatus';
 import {useVisibleSnapshot} from '../components/useVisibleSnapshot';
@@ -43,7 +42,6 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
   const telemetry = useTelemetry();
   const markInteractive = useObserveMarkInteractive();
   const pdfLab = usePdfLab();
-  const [importingPdf, setImportingPdf] = useState(false);
   const insets = useSafeAreaInsets(), window = useWindowDimensions();
   const [feedViewportHeight, setFeedViewportHeight] = useState(0);
   const measureFeedViewport = useCallback((event: {nativeEvent: {layout: {height: number}}}) => setFeedViewportHeight(event.nativeEvent.layout.height), []);
@@ -52,7 +50,7 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
   const [focused, setFocused] = useState(false), foreground = useAppForeground();
   useFocusEffect(useCallback(() => {
     setFocused(true);
-    return () => {setFocused(false); setImportingPdf(false);};
+    return () => {setFocused(false); setAdd(false);};
   }, []));
   // List watches, clocks and RSS polling suspend while the Library is covered or the app is backgrounded.
   const clockActive = focused && foreground;
@@ -77,7 +75,7 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
   const scrollTo = useCallback((offset: number, animated = false) => list.current?.scrollToOffset({offset, animated}), []);
   const inboxScroll = useFeedScrollPosition(feedPositions.inbox, scrollTo, !rssSelected, activeId);
   useEffect(() => {
-    inboxScroll.reset(); feedPositions.rss.reset(); feedPositions.rss.source = undefined; setDrawer(false); setAdd(false); setImportingPdf(false);
+    inboxScroll.reset(); feedPositions.rss.reset(); feedPositions.rss.source = undefined; setDrawer(false); setAdd(false);
   }, [nativeResourceOwner, feedPositions, inboxScroll.reset]);
   const collectionSelection = useRef(new CollectionSelection()).current;
   const rss = useMemo(() => new RssController(api, Date.now, () => runtime.getNativeResourceOwner() === nativeResourceOwner, dataReady ? repositories?.rss : undefined), [api, runtime, nativeResourceOwner, dataReady, repositories]);
@@ -267,13 +265,12 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
       </>}
     </SourceShape>
     <SourceMenu animatedFromTop visible={sortMenu} labelStyle={{fontWeight: '500'}} anchor={{x: insets.left + (window.width - insets.left - insets.right - 200) / 2, y: insets.top + 52}} onDismiss={() => setSortMenu(false)} items={[...(['inbox', 'starred', 'archived'] as const).map(value => ({label: t(sortKeys[value]), selected: !rssSelected && value === sort, onPress: () => {telemetry.element('inbox_sort_control', 'bookmarks'); setRssSelected(false); setSort(value);}})), ...(rssState.enabled ? [{label: t('rss_feeds'), selected: rssSelected, onPress: () => {telemetry.element('inbox_rss_control', 'bookmarks'); setRssSelected(true);}}] : [])]} />
-    <LinkInputDialog key={`add-content-${nativeResourceOwner}`} visible={add} initialMode={addMode} onDismiss={() => setAdd(false)} rssEnabled={rssState.confirmedEnabled} feedError={rssState.error} onImportPdf={pdfLab.ready && pdfLab.enabled ? () => setImportingPdf(true) : undefined} onSubmit={url => {telemetry.firebase('bookmark', 'add_start', {channel: 'app', method: 'manual_paste'}); void repositories?.createBookmark(url).then(() => inboxScroll.reset(true)).catch(showError);}} onSubmitFeed={async (url, name) => {
+    <LinkInputDialog key={`add-content-${nativeResourceOwner}`} visible={add} initialMode={addMode} onDismiss={() => setAdd(false)} rssEnabled={rssState.confirmedEnabled} feedError={rssState.error} pdfEnabled={pdfLab.ready && pdfLab.enabled} onPdfSaved={bookmarkId => {inboxScroll.reset(true); navigation.navigate('Reader', {bookmarkId});}} onSubmit={url => {telemetry.firebase('bookmark', 'add_start', {channel: 'app', method: 'manual_paste'}); void repositories?.createBookmark(url).then(() => inboxScroll.reset(true)).catch(showError);}} onSubmitFeed={async (url, name) => {
       if (!rss.getSnapshot().confirmedEnabled || runtime.getNativeResourceOwner() !== nativeResourceOwner) return false;
       telemetry.firebase('bookmark', 'add_start', {channel: 'app', method: 'manual_paste'});
       const ok = await rss.add(url, name);
       return ok && runtime.getNativeResourceOwner() === nativeResourceOwner;
     }} onFeedAdded={() => setRssSelected(true)} />
-    <PdfImportDialog key={`pdf-import-${nativeResourceOwner}`} visible={importingPdf} onDismiss={() => setImportingPdf(false)} onSaved={bookmarkId => {inboxScroll.reset(true); navigation.navigate('Reader', {bookmarkId});}} />
     <LinkInputDialog visible={edit !== null} initialTitle={edit ? edit.aliasTitle || edit.title : undefined} onDismiss={() => setEdit(null)} onSubmit={title => {if (edit) void repositories?.updateBookmark(edit.id, {aliasTitle: title}).catch(showError);}} />
     <SourceDialog compact visible={processing !== null} onDismiss={() => setProcessing(null)}><View style={{alignItems: 'flex-end'}}><Pressable accessibilityLabel={t('btn_close')} onPress={() => setProcessing(null)}><SourceIcon name="ic_xs_dialog_close" /></Pressable></View><SourceText style={[T.menu, {color: C.bodyText, marginTop: 20}]}>{t('processing_message')}</SourceText>{processingOriginalUrl ? <SourceButton label={t('processing_btn_read_original')} style={{marginTop: 24}} onPress={() => {setProcessing(null); if (fixtureOnly) {showError(new Error('External browser navigation has no prepared fixture provider')); return;} void Linking.openURL(processingOriginalUrl).catch(showError);}} /> : null}</SourceDialog>
     <SourceDialog visible={error !== null} title={t('feedback_error_title')} onDismiss={() => setError(null)} actions={<TextAction label={t('btn_ok')} onPress={() => setError(null)} />}><SourceText>{error}</SourceText></SourceDialog>

@@ -16,7 +16,15 @@ async function load(file, boundaries = {}, globals = {}) {
   const drawer = {SourceDrawer: passthrough};
   boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null}, '../utils/source-url': sourceUrls,
     ...observeRelativeBoundaries(boundaries), ...boundaries};
-  if (file.endsWith('/LinkInputDialog.tsx')) boundaries['@slax-reader/contracts/rss'] = await load('../../../../packages/contracts/src/rss.ts', {}, {URL});
+  if (file.endsWith('/LinkInputDialog.tsx')) {
+    boundaries['@slax-reader/contracts/rss'] = await load('../../../../packages/contracts/src/rss.ts', {}, {URL});
+    boundaries['../pdf/usePdfImportSession'] = await load('../../src/pdf/usePdfImportSession.ts', {
+      react: React, 'react-native': {...boundaries['react-native'], AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}},
+      '../runtime': boundaries['../runtime'], '@slax-reader/contracts/pdf': await load('../../../../packages/contracts/src/pdf.ts'),
+      'expo-file-system': {File: class {constructor() {assert.fail('No file IO without an explicit PDF action');}}},
+      '../native/pdf-import': {pickPdf() {assert.fail('No automatic picker in acquisition or title editing');}, removePickedPdf() {assert.fail('No temporary file exists in this fixture');}},
+    }, {AbortController});
+  }
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -45,7 +53,7 @@ function views() {
   const native = (name, visible = false) => React.forwardRef((props, ref) => {
     const key = React.useRef(Symbol(name)).current;
     React.useLayoutEffect(() => {nodes.set(key, {name, props, key}); return () => nodes.delete(key);});
-    React.useImperativeHandle(ref, () => ({focus() {}, scrollToOffset() {}, measureInWindow(callback) {callback(0, 0, 300, 40);}}), []);
+    React.useImperativeHandle(ref, () => ({focus() {}, blur() {}, scrollToOffset() {}, measureInWindow(callback) {callback(0, 0, 300, 40);}}), []);
     return React.createElement('div', null, visible && !props.visible ? null : name === 'FlatList' ? [props.ListHeaderComponent, props.children] : props.children);
   });
   const primitives = Object.fromEntries(['View', 'Text', 'Pressable', 'TextInput', 'Image', 'ScrollView', 'ActivityIndicator', 'FlatList', 'AppImage'].map(name => [name, native(name)]));
@@ -207,7 +215,7 @@ async function addDialogHarness(root, overrides = {}) {
     'expo-clipboard': {getStringAsync: async () => ''}, '../runtime': {useMobile: () => ({t: value => value, fixtureOnly: true, nativeResourceOwner: h.owner})},
     '../theme': theme, '../theme/testIds': {mobileTestIds: {AddLinkError: 'add-error'}}, './SourceUI': v.ui,
   });
-  h.props = {visible: true, rssEnabled: true, onImportPdf: () => imports.push(true), onSubmit: value => submitted.push(value),
+  h.props = {visible: true, rssEnabled: true, pdfEnabled: true, onPdfSaved: id => imports.push(id), onSubmit: value => submitted.push(value),
     onSubmitFeed: (...args) => {feeds.push(args); return h.submitFeed(...args);}, onFeedAdded: () => h.added++,
     onDismiss: () => {h.dismissals++; h.props.visible = false; h.render();}, ...overrides};
   h.render = () => root.render(React.createElement(LinkInputDialog, h.props));
@@ -221,7 +229,7 @@ async function addDialogHarness(root, overrides = {}) {
 }
 
 for (const rssEnabled of [false, true]) for (const pdf of [false, true]) test(`unified add tabs and feed hints require confirmed RSS=${rssEnabled}, PDF=${pdf}`, async () => mounted(async root => {
-  const h = await addDialogHarness(root, {rssEnabled, onImportPdf: pdf ? () => {} : undefined});
+  const h = await addDialogHarness(root, {rssEnabled, pdfEnabled: pdf});
   const expected = ['url', ...(rssEnabled ? ['feed'] : []), ...(pdf ? ['file'] : [])];
   const tabs = h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab');
   assert.deepEqual(tabs.map(props => props.accessibilityLabel), expected.length > 1 ? expected.map(mode => `add_content_tab_${mode}`) : []);
@@ -283,10 +291,10 @@ test('Feed awaits success, keeps localized failure and draft, and blocks duplica
 
 for (const mode of ['feed', 'file']) test(`removing active ${mode} gate resets stored mode to URL even after reenable`, async () => mounted(async root => {
   const h = await addDialogHarness(root, {initialMode: mode}); assert.equal(h.tab(mode).accessibilityState.selected, true);
-  const importPdf = h.props.onImportPdf;
-  if (mode === 'feed') h.props.rssEnabled = false; else h.props.onImportPdf = undefined;
+  const pdfEnabled = h.props.pdfEnabled;
+  if (mode === 'feed') h.props.rssEnabled = false; else h.props.pdfEnabled = false;
   await act(async () => h.render()); assert.equal(h.tab('url').accessibilityState.selected, true);
-  h.props.rssEnabled = true; h.props.onImportPdf = importPdf; await act(async () => h.render());
+  h.props.rssEnabled = true; h.props.pdfEnabled = pdfEnabled; await act(async () => h.render());
   assert.equal(h.tab('url').accessibilityState.selected, true); assert.equal(h.tab(mode).accessibilityState.selected, false);
 }));
 
@@ -360,7 +368,7 @@ for (const zone of ['Asia/Shanghai', 'America/Los_Angeles']) test(`mounted Libra
       react: React, 'react-native': {...v.primitives, Animated: {}, AppState: {currentState: 'active', addEventListener: () => ({remove() {}})}, Linking: {}, PixelRatio: {roundToNearestPixel: value => value}, Platform: {OS: 'ios', select: values => values.default}, StyleSheet: {create: value => value, absoluteFill: {}}, useWindowDimensions: () => ({width: 375, height: 800})},
       '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])}, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
       '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
-      './LibraryDataStatus': {LibraryDataStatus: nil}, '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
+      './LibraryDataStatus': {LibraryDataStatus: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: true, enabled: false})},
       '../components': components, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {}}, './collection-selection': selection, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../components/FeedList': {FeedList: props => React.createElement(v.primitives.FlatList, props)}, '../components/useAppForeground': {useAppForeground: () => true}, '../utils/source-time': time,
     }, {Date: class extends Date {static now() {return Date.UTC(2026, 9, 11, 12);}}});
     await act(async () => root.render(React.createElement(LibraryScreen, {navigation: {navigate() {}}, route: {params: {}}})));
