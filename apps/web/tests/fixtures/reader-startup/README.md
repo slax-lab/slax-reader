@@ -48,3 +48,28 @@ runner exercises the existing highlight/reply query consumption, comment-card an
 Outline locators. The presentation runner covers checking/error/retry at three widths
 and three Web themes. Consult the change's `validation.md` for actual results and gaps;
 the presence of a script alone does not claim it passed.
+
+
+## Panel entry feedback
+
+`browser_panel_feedback_check.py` covers clicks while the real client entry module is
+held, one-time activation after hydration, latest-choice replacement, source-page
+controls during pending navigation, component module completion/rejection/timeout,
+subscription decisions, keyboard activation, reduced motion, and the three-theme /
+three-width presentation matrix. Its default server URL is `http://127.0.0.1:3228`;
+use `--base-url` for a different port. Use the same opt-in layer and synthetic
+configuration above, with the URL and port changed consistently when needed.
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 apps/web/tests/fixtures/reader-startup/browser_panel_feedback_check.py --base-url http://127.0.0.1:3218
+```
+
+This runner defaults to the Chromium bundled with the installed Python Playwright; install its browser before the first run, or pass `--executable /path/to/chromium` to select an already installed compatible browser. It also checks the early busy state in Chromium's accessibility tree and rejects hydration mismatch warnings.
+
+The script writes JSON, screenshots, and two short recordings under
+`/tmp/slax-reader-panel-feedback-evidence`; do not commit them. Holding client-entry
+and component responses independently makes the two waiting stages reproducible
+without relying on a particular network speed. For a manual network smoke check,
+open the lab in Chrome, enable 3G and Disable cache in DevTools, choose a scenario,
+and activate Analysis or Chat before startup completes. The existing `startupDelay`
+query parameter can provide a longer manual observation window on a warm cache.

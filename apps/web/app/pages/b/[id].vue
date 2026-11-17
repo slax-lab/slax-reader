@@ -3,6 +3,7 @@
     <SnapshotDetailLayout
       v-if="detail"
       class="bookmark-detail"
+      :data-reader-path="readerPath"
       :class="{ 'has-save-action': !isOwner && bookmarkUid, 'is-pdf': !!detail.pdf, 'yt-transcript-folded': youtubeArticleReady && !youtubeTranscriptShown, 'podcast-translated': podcastShowsTranslation }"
       @close-panel="onUserPanelChange(null)"
     >
@@ -84,7 +85,7 @@
 
       <template #right-edge-toolbar>
         <!-- visitor 无内容则隐藏整条侧栏 -->
-        <SnapshotRightEdgeToolbar v-if="detail && sidePanels.length" :model-value="activePanel" :panel-open="activePanel !== null" :panels="sidePanels" @update:model-value="onUserPanelChange" />
+        <SnapshotRightEdgeToolbar v-if="detail && sidePanels.length" :model-value="activePanel" :panel-open="activePanel !== null" :loading-panel="loadingPanel" :panels="sidePanels" @update:model-value="onUserPanelChange" />
       </template>
 
       <template #bottom-toolbar>
@@ -95,6 +96,7 @@
           :actions="bottomToolbarActions"
           :panels="sidePanels"
           :active-panel="activePanel"
+          :loading-panel="loadingPanel"
           @action="bottomToolbarAction"
           @panel="onBottomPanel"
         />
@@ -112,7 +114,7 @@
       </template>
 
       <template #side-panel>
-        <SnapshotSidePanel :keyboard-aware="!!detail?.pdf" v-if="detail" :active-tab="activePanel" :panels="sidePanels" :shortcut="sidePanelShortcut" @update:active-tab="onUserPanelChange($event)">
+        <SnapshotSidePanel :keyboard-aware="!!detail?.pdf" v-if="detail" :active-tab="activePanel" :loading-panel="loadingPanel" :panels="sidePanels" :shortcut="sidePanelShortcut" @update:active-tab="onUserPanelChange($event)">
           <template #ai>
             <ClientOnly>
               <!-- overview 仅 owner；outline 用 SSR 数据 -->
@@ -256,14 +258,28 @@ import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import type { IconKey } from '~/icons/registry'
 import { useUserStore } from '~/stores/user'
 
-const SnapshotAIPanel = defineAsyncComponent({ loader: () => import('~/components/Snapshot/SnapshotAIPanel.vue'), loadingComponent: DotLoading, timeout: 15000, suspensible: false })
-const SnapshotChatPanel = defineAsyncComponent({ loader: () => import('~/components/Snapshot/SnapshotChatPanel.vue'), loadingComponent: DotLoading, timeout: 15000, suspensible: false })
+const pendingPanelCode = reactive({ ai: false, chat: false })
+const PANEL_CODE_TIMEOUT = 15000
+async function loadPanelCode<T>(id: 'ai' | 'chat', load: () => Promise<T>): Promise<T> {
+  pendingPanelCode[id] = true
+  const timeout = setTimeout(() => { pendingPanelCode[id] = false }, PANEL_CODE_TIMEOUT)
+  try {
+    return await load()
+  } finally {
+    clearTimeout(timeout)
+    pendingPanelCode[id] = false
+  }
+}
+
+const SnapshotAIPanel = defineAsyncComponent({ loader: () => loadPanelCode('ai', () => import('~/components/Snapshot/SnapshotAIPanel.vue')), loadingComponent: DotLoading, timeout: PANEL_CODE_TIMEOUT, suspensible: false })
+const SnapshotChatPanel = defineAsyncComponent({ loader: () => loadPanelCode('chat', () => import('~/components/Snapshot/SnapshotChatPanel.vue')), loadingComponent: DotLoading, timeout: PANEL_CODE_TIMEOUT, suspensible: false })
 
 const { t, locale } = useI18n()
 definePageMeta({ key: route => String(route.params.id), scrollToTop: shouldScrollReaderToTop })
 const account = useAccountContext()
 const accountGeneration = computed(() => account.context.value.generation)
 const route = useRoute()
+const readerPath = route.path
 const uuid = String(route.params.id)
 
 const requestUrl = useRequestURL()
@@ -545,6 +561,10 @@ const tasksReady = ref(false)
 const forceDecide = ref(false)
 
 const activePanel = ref<SnapshotPanelId | null>(null)
+const loadingPanel = computed(() => {
+  const id = activePanel.value
+  return (id === 'ai' || id === 'chat') && pendingPanelCode[id] ? id : null
+})
 const lastOpenedPanel = ref<SnapshotPanelId | null>(null)
 watch(() => account.context.value.accountKey, () => {
   activePanel.value = null
@@ -772,9 +792,16 @@ const onBottomPanel = (id: SnapshotPanelId) => {
   activePanel.value = activePanel.value === id ? null : id
 }
 
+// Restore server-rendered ARIA attributes before Vue hydrates the controls.
+let pendingStartupPanel: SnapshotPanelId | null = null
+onBeforeMount(() => {
+  pendingStartupPanel = window.__slaxReaderStartup!.takePanel(readerPath)
+})
+
 // panelOpen 为共享 ref，需手动复位
 onMounted(() => {
   panelOpen.value = false
+  if (pendingStartupPanel && sidePanels.value.includes(pendingStartupPanel)) onUserPanelChange(pendingStartupPanel)
   if (isOwner.value) shareInfo.ensure()
 
   // 埋点：bookmark_opened

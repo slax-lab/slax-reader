@@ -11,8 +11,8 @@
     <template v-if="isH5Mobile && panelButtons.length > 0">
       <template v-for="(panel, pIdx) in panelButtons" :key="panel.id">
         <div v-if="pIdx > 0 || visibleActions.length > 0" class="toolbar-sep" />
-        <button class="toolbar-btn" :class="{ active: activePanel === panel.id }" :title="panel.label" @click="$emit('panel', panel.id)">
-          <span class="btn-icon"><AppIcon :name="panel.icon" :size="18" /></span>
+        <button class="toolbar-btn" :class="{ active: activePanel === panel.id }" :title="panel.label" :aria-label="panel.label" :aria-busy="loadingPanel === panel.id" :data-snapshot-panel="panel.id" @click="$emit('panel', panel.id)">
+          <span class="btn-icon"><SnapshotPanelIcon :panel="panel.id" :name="panel.icon" :size="18" :loading="loadingPanel === panel.id" /></span>
           <span v-if="!isNarrow" class="btn-label">{{ panel.label }}</span>
         </button>
       </template>
@@ -22,6 +22,7 @@
 
 <script lang="ts" setup>
 import AppIcon from '~/components/AppIcon.vue'
+import SnapshotPanelIcon from '~/components/Snapshot/SnapshotPanelIcon.vue'
 
 import { resolveSnapshotPanels, type SnapshotPanelId } from '~/components/Snapshot/panels'
 import type { IconKey } from '~/icons/registry'
@@ -39,6 +40,7 @@ const props = defineProps<{
   // 小屏底部栏聚合的侧栏面板子集（不传则全部）；与右侧 edge toolbar 同源
   panels?: SnapshotPanelId[]
   activePanel?: SnapshotPanelId | null
+  loadingPanel?: SnapshotPanelId | null
 }>()
 
 defineEmits<{

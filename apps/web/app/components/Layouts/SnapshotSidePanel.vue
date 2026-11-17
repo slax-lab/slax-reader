@@ -48,9 +48,11 @@
             :class="{ active: activeTab === tab.id }"
             :title="tab.label"
             :aria-label="tab.label"
+            :aria-busy="loadingPanel === tab.id"
+            :data-snapshot-panel="tab.id"
             @click="$emit('update:activeTab', activeTab === tab.id ? null : tab.id)"
           >
-            <span class="tab-icon"><AppIcon :name="tab.icon" :size="20" /></span>
+            <span class="tab-icon"><SnapshotPanelIcon :panel="tab.id" :name="tab.icon" :size="20" :loading="loadingPanel === tab.id" /></span>
           </button>
         </template>
       </div>
@@ -60,6 +62,7 @@
 
 <script lang="ts" setup>
 import AppIcon from '~/components/AppIcon.vue'
+import SnapshotPanelIcon from '~/components/Snapshot/SnapshotPanelIcon.vue'
 
 import { resolveSnapshotPanels, type SnapshotPanelId } from '~/components/Snapshot/panels'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
@@ -70,6 +73,7 @@ defineOptions({ inheritAttrs: false })
 const props = defineProps<{
   activeTab: SnapshotPanelId | null
   keyboardAware?: boolean
+  loadingPanel?: SnapshotPanelId | null
   // 展示的面板子集，不传则全部
   panels?: SnapshotPanelId[]
   // 收起快捷键文案，不传则不提示
