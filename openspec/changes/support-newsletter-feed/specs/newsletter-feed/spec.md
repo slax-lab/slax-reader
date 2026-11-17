@@ -104,6 +104,10 @@ Web SHALL always show Feed in navigation, support stable address provisioning/co
 - **WHEN** Newsletter is enabled and a local PowerSync database is healthy, pending or unavailable
 - **THEN** owned cached lists are immediately readable and update through separate RSS/Newsletter streams; empty pending lists wait for first sync rather than switching the whole Feed to REST, and body reads remain authenticated
 
+#### Scenario: Settled empty Feed during background updates
+- **WHEN** an enabled owner's first synchronization and local reads have confirmed an empty Feed, and table notifications or Labs revalidation trigger background reads
+- **THEN** the empty state remains visible without returning to initial-loading placeholders; new messages still appear, while ownership changes or re-enablement require fresh admission and first-sync readiness
+
 #### Scenario: Switch independent local Feed projections
 - **WHEN** Newsletter is enabled or disabled while RSS remains enabled
 - **THEN** the Feed changes its enabled local projections and stream subscriptions, fences obsolete requests/previews/cursors, and never exposes stale local Newsletter rows as RSS

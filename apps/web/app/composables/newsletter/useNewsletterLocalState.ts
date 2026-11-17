@@ -69,7 +69,7 @@ function useOwnedNewsletterQuery<T>(
     if (!active.value || !fenced.value) return
     const stamp = generation,
       token = ++request
-    loading.value = true
+    // Only ownership admission starts loading; background reads keep the admitted snapshot visible.
     const current = () =>
       stamp === generation && token === request && active.value
     try {
