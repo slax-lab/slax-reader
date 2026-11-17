@@ -71,7 +71,6 @@ export type OutlineObjectStreamResult = {
 
 @injectable()
 export class AigcService {
-  private chunks: Uint8Array[] = []
   private ted = new TextEncoder()
   private wr!: WritableStreamDefaultWriter<Uint8Array>
 
@@ -83,11 +82,6 @@ export class AigcService {
     @inject(BookmarkRepo) bookmarkRepo: BookmarkRepo,
     @inject(GEMINI_BATCH_PROVIDER) private geminiBatchProvider: GeminiBatchProvider
   ) {}
-
-  async recordChunks(chunk: Uint8Array, controller: TransformStreamDefaultController<Uint8Array>) {
-    this.chunks.push(chunk)
-    controller.enqueue(chunk)
-  }
 
   public async writeDone() {
     await this.wr.write(this.ted.encode('data: [DONE]'))
@@ -387,8 +381,12 @@ export class AigcService {
     return { tags, overview, key_takeaways }
   }
 
-  // Generate outline from content
-  public async generateOutline(ctx: ContextManager, bmContent: string, callback: (chunk: MultiLangError | Partial<OutlineObjectStreamResult>) => Promise<void>) {
+  // Generate outline from content; `completed` is false when generation failed, so a partial outline is never persisted
+  public async generateOutline(
+    ctx: ContextManager,
+    bmContent: string,
+    callback: (chunk: MultiLangError | Partial<OutlineObjectStreamResult>) => Promise<void>
+  ): Promise<{ model: string; completed: boolean }> {
     const contents: Content[] = [
       { role: 'user', parts: [{ text: systemPrompt.replace('{ai_lang}', ctx.get('ai_lang')) }] },
       { role: 'user', parts: [{ text: bmContent }] }
@@ -409,11 +407,11 @@ export class AigcService {
         }
       )
 
-      return { model: 'gemini-3-flash-preview' }
+      return { model: 'gemini-3-flash-preview', completed: true }
     } catch (error) {
       console.error('Generate outline error:', error)
       await callback(AIError())
-      return { model: 'gemini-3-flash-preview' }
+      return { model: 'gemini-3-flash-preview', completed: false }
     }
   }
 
@@ -489,7 +487,9 @@ export class AigcService {
     writer: WritableStream<Uint8Array>,
     callbackHandler?: (result: { provider: string; model: string; response: string }) => Promise<void>
   ) {
-    this.wr = writer.getWriter()
+    const wr = writer.getWriter()
+    let response = ''
+    let completed = false
 
     try {
       const contents: Content[] = [
@@ -504,29 +504,39 @@ export class AigcService {
         },
         {
           onTextDelta: async (chunk: string) => {
-            await this.wr.write(this.ted.encode(chunk))
+            await wr.write(this.ted.encode(chunk))
+            response += chunk
           },
           onStep: async step => {
             console.log(`Step: ${step}`)
           }
         }
       )
+      completed = true
     } catch (error) {
       console.error(error)
-      void this.wr.write(this.ted.encode(error instanceof MultiLangError ? error.message : 'Failed to get summary, please try again later.\n'))
+      try {
+        await wr.write(this.ted.encode(error instanceof MultiLangError ? error.message : 'Failed to get summary, please try again later.\n'))
+      } catch (writeErr) {
+        console.error('[aigc.summary] failed to write error text', writeErr)
+      }
     } finally {
-      void this.wr.close()
-
-      if (!callbackHandler || !this.chunks) return
-
-      const blob = new Blob(this.chunks)
-
-      await callbackHandler({
-        provider: 'google',
-        model: 'gemini-3-flash-preview',
-        response: await blob.text()
-      })
+      try {
+        await wr.close()
+      } catch (closeErr) {
+        console.error('[aigc.summary] failed to close stream', closeErr)
+      }
     }
+
+    // A failed, interrupted or empty generation must not become the cached summary: reads would
+    // serve it forever and never generate again.
+    if (!completed || !callbackHandler || response.trim().length === 0) return
+
+    await callbackHandler({
+      provider: 'google',
+      model: 'gemini-3-flash-preview',
+      response
+    })
   }
   readonly overviewTagsJsonSchema = {
     type: 'OBJECT',

@@ -53,9 +53,7 @@ export class AigcController {
     const req = await RequestUtils.json<SummaryRequest>(request)
 
     const aiSvc = this.aigcService
-    const { readable, writable } = new TransformStream({
-      transform: (chunk, controller) => aiSvc.recordChunks(chunk, controller)
-    })
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
 
     const user = await this.userService.getUserInfo(ctx)
     ctx.set('ai_lang', user.ai_lang || user.lang?.slice(0, 2) || 'en')
@@ -71,7 +69,8 @@ export class AigcController {
         bmUId: req.bookmark_uid
       })
 
-      if (summary) {
+      // An empty stored summary is a failed earlier generation, not a cached result
+      if (summary?.content.trim()) {
         return new Response(summary.content, {
           headers: { 'Content-Type': 'text/event-stream; charset=utf-8', ...corsHeader }
         })
