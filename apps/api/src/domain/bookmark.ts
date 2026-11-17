@@ -974,7 +974,8 @@ export class BookmarkService {
 
     if (!userId || !bmId || supportedLang.indexOf(lang) === -1) throw ErrorParam()
 
-    const summaries = await bmRepo.getBookmarkSummariesRaw(bmId, lang, userId, 6)
+    // Empty rows are failed earlier generations; hiding them lets the client generate again
+    const summaries = (await bmRepo.getBookmarkSummariesRaw(bmId, lang, userId, 6)).filter(summary => summary.content.trim().length > 0)
     const selfSummary = summaries.find(summary => summary.user_id === userId)
 
     return [...(selfSummary ? [selfSummary] : []), ...summaries.filter(summary => summary.user_id !== userId)].map(summary => {
@@ -1303,7 +1304,7 @@ export class BookmarkService {
 
   public async getBookmarkOutline(bookmarkId: number, userId: number): Promise<string | null> {
     const summary = await this.bookmarkRepo.getBookmarkOutline(bookmarkId, userId)
-    return summary?.content ?? null
+    return summary?.content.trim() ? summary.content : null
   }
 
   public async getUserBookmarkSummaryByMCP(bmId: number, userId: number, lang: string) {

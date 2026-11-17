@@ -965,7 +965,7 @@ export class BookmarkRepo {
 
   public async getBookmarkOutline(bookmarkId: number, userId: number) {
     return await this.prismaPg().sr_bookmark_summary.findFirst({
-      where: { bookmark_id: bookmarkId, user_id: userId },
+      where: { bookmark_id: bookmarkId, user_id: userId, content: { not: '' } },
       orderBy: { id: 'desc' }
     })
   }
