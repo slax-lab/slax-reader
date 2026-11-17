@@ -37,4 +37,4 @@ None. Existing `outline-anchor-navigation`, local database startup/recovery, pub
 
 ## Planning Validation
 
-This revision contains planning documentation only and is exempt from product runtime verification under `docs/DEFINITION-OF-DONE.md`. On 2026-11-17, `pnpm exec openspec validate fix-reader-initial-scroll --strict` passed, and `pnpm exec openspec validate --all --strict` passed all 108 items with zero failures. These checks validate the proposal package, not an implemented fix; all implementation and acceptance tasks remain unchecked.
+This revision contains planning documentation only and is exempt from product runtime verification under `docs/DEFINITION-OF-DONE.md`. On 2026-11-17, `pnpm exec openspec validate fix-reader-initial-scroll --strict` passed, and `pnpm exec openspec validate --all --strict` passed all 108 items with zero failures. These checks validate the proposal package, not an implemented fix; implementation and acceptance tasks were unchecked at that planning checkpoint. The owner subsequently approved implementation and hands-on acceptance; current results and remaining verification gaps are recorded in `validation.md`.

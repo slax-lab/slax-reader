@@ -13,7 +13,7 @@
 
 ## Checks and runtime verification
 
-Code implementation and targeted agent verification are complete. The integrated smoke/BFCache gaps below remain explicit. Human hands-on acceptance is recorded below; commit, push, PR opening, merge, and deployment are pending.
+Code implementation and targeted agent verification are complete. The integrated smoke/BFCache gaps below remain explicit. Human hands-on acceptance is recorded below; the task branch is prepared for PR delivery; merge, deployment, and archive remain pending.
 - Baseline: existing `useBookmark.spec.ts` and `useSidePanelPreference.spec.ts` passed; new tests reproduced 6 scroll cancellation defects and 2 subscription startup defects (8 failures, 41 passes across four files). After the focused restoration fix, all 7 reading-position cases pass.
 - Review feedback: adopt current-account-derived subscription status, explicit unknown/error handling, reactive updates at the existing store/account boundary, and removal of the redundant cached `getUserInfo()` call. Ruling: retain `tasksReady`'s existing detail/mark dependency because it controls only initial automatic panel choice; manual panel permission readiness is separated instead. Changing the initial-panel heuristic is unnecessary for the approved fix and could change comment-first behavior.
 
@@ -69,9 +69,9 @@ Run with the explicit synthetic public configuration documented in the fixture R
 - Additional red/green regressions: a browser-established position appearing during the local query initially produced five old-position scroll calls, then passed after first-restore eligibility was rechecked; a new account initially failed to request a profile, then the real incremental key-before-generation sequence exposed incorrect merging with an older request. The final gate batches the account transition and coalesces by account plus generation. No failure-triggered automatic retry was added.
 - Final reviewer confirmed the incremental-account fix and reported no remaining Important Bugs/Security findings. Local Compliance review matches `fix-reader-initial-scroll`; the pending hands-on/PR gates below are explicit and not claimed complete.
 
-## Pending delivery and verification limits
+## Delivery gates and verification limits
 
-- Human hands-on acceptance was completed before PR creation, as recorded below. No task PR has yet been opened, and nothing is committed, pushed, merged, deployed, or archived.
+- Human hands-on acceptance was completed before PR creation, as recorded below. The implementation is committed on the dedicated task branch; PR delivery targets `dev`. No merge, deployment, or archive is performed by this task.
 - Changes remain Web-only. CLI, Extension, Mobile, shared contracts, runtime dependencies, and package versions are unchanged; no affected-application version decision is needed under the repository rule.
 - Real OAuth login, a production/development account's live subscription and server authorization denials, deployed PowerSync streaming, an actual PDF asset, and the paired installed Extension `/x/ext-bridge` flow are not exercised by these isolated fixtures. They require configured integrated services/accounts/assets unavailable in this worktree. The existing auth/session/store and PDF/chat error-handling suites ran in the full test run; they do not replace that integration verification.
 - No causal before/after LCP reproduction-rate benchmark is claimed. The defects predate the LCP work; earlier readable HTML can expose the startup window, while this fix retains those optimizations.
@@ -102,7 +102,7 @@ hands-on acceptance at `http://127.0.0.1:3218/reader-fixture`.
 - 4.3: ordinary SPA/document Back/Forward, deliberately conflicting local progress, hash/query changes, and the existing highlight/reply/comment/Outline locators are exercised; a true BFCache hit is not yet observed in this dev browser fixture. This task remains partial pending that environment-specific case.
 - 4.5: targeted Web presentation/reader checks are exercised. The integrated OAuth/library/installed Extension and actual PDF smoke cases remain declared gaps for the unavailable integrated environment; this task remains partial.
 - 5.1: completed by the requesting project owner on 2026-11-17, as recorded below.
-- 5.3: the PR description is prepared in `/tmp/slax-reader-pr-body.md`; opening the PR and attaching the selected recording/status screenshots wait for hands-on acceptance. No archive step is attempted.
+- 5.3: the single `dev`-targeting task PR is prepared with the template-based body, `OpenSpec: fix-reader-initial-scroll`, the scroll recording and status screenshots. Human acceptance preceded delivery. Merge and archive remain subsequent human-controlled steps.
 
 - Final complete `python3 -B -u apps/web/tests/fixtures/reader-startup/browser_check.py`: **21/21 checks passed**, exit 0, after the fixture hydration signal was corrected. This includes independently delayed startup/readiness/lookup, saved progress, SPA history/local conflict, no-hash reload, document Back, annotations with a delayed image, pending Chat/Analysis, error/retry, confirmed inactivity, abandonment, logout, account switch, and public Outline.
 - Manual lab adds opt-in Article A/B controls only when `manual=1`; they use the actual Nuxt router and are absent from normal application builds and automated visual captures.
@@ -119,3 +119,12 @@ hands-on acceptance at `http://127.0.0.1:3218/reader-fixture`.
 - Human response: accepted after hands-on testing ("Tested personally; passed", translated from the original Chinese response).
 - Requested adjustments: none. Acceptance was received before any task PR was opened.
 - The synthetic-fixture and integrated-smoke limits above remain declared; this acceptance is not represented as testing live production services or a true BFCache hit.
+
+
+## Task PR delivery
+
+- Branch: `fix/fix-reader-initial-scroll`; target: `dev`; OpenSpec: `fix-reader-initial-scroll`.
+- The implementation and acceptance evidence are committed together in this task branch. The PR follows the repository template and carries the recorded limits instead of claiming an all-green full-repository baseline.
+- Key visuals are uploaded with `gh pr create --attach`: the 1280px light-theme delayed-start scroll recording, plus checking at 1280px/light and error/retry at 375px/dark and 1280px/e-ink. Media remains outside git.
+- The recording's visible article is synthetic and the paid-account states are synthetic. The caption describes the retained paragraph; no recording is presented as a live production/account test.
+- Local Bugs/Security/Compliance review is closed: all Important findings are resolved, and the human acceptance record predates PR creation. Remaining agent-executable integration gaps are classified in tasks 4.3 and 4.5.

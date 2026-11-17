@@ -32,4 +32,4 @@
 
 - [x] 5.1 Obtain human hands-on acceptance of the weak-network reading, navigation, and subscription-gate behavior before opening a PR; record who, date, cases exercised, and adjustments in `validation.md` as required by `DESIGN.md` section 10.2.
 - [x] 5.2 Run the Bugs, Security, and Compliance local pre-push review in `REVIEW.md`, resolve Important findings, and verify the final scope remains Web-only; if the implementation expands to an application subject to the versioning rule, obtain its version decision before commit, push, or handoff.
-- [ ] 5.3 Prepare the single task PR targeting `dev` with `OpenSpec: fix-reader-initial-scroll`, a concrete Test plan/evidence link, and the required scroll-behavior recording; verify no archive is performed before the task PR merges.
+- [x] 5.3 Prepare the single task PR targeting `dev` with `OpenSpec: fix-reader-initial-scroll`, a concrete Test plan/evidence link, and the required scroll-behavior recording; verify no archive is performed before the task PR merges.
