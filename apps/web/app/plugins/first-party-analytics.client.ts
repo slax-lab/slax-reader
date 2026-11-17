@@ -64,11 +64,13 @@ export default defineNuxtPlugin((nuxtApp: NuxtApp): void => {
     if (!screen || error.value) return
     if ((elementId === 'login_google_button' || elementId === 'login_apple_button') && screen.screen_name !== 'signup') return
 
+    const sourceBookmarkId = element.dataset.analyticsSourceBookmarkId
     eventLog({
       event_name: 'element_clicked',
       properties: {
         element_id: elementId,
-        screen_name: screen.screen_name
+        screen_name: screen.screen_name,
+        ...(sourceBookmarkId ? { source_bookmark_id: sourceBookmarkId } : {})
       }
     })
   }

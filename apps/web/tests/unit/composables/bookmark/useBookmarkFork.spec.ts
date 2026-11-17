@@ -21,23 +21,56 @@ beforeEach(() => {
   mocks.user = reactive({ isLogin: true, userInfo: { userId: 1 }, generation: 0 })
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
 })
+const sourceUuid = '00000000-0000-4000-8000-000000000001'
 const deferred = () => { let resolve!: (value: any) => void; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
-const mountButton = (status: 'pending' | 'success' | 'failed' | null = null) => mount(SnapshotForkButton, {
-  props: { bookmarkUid: 'source', viewerForkStatus: status },
+const mountButton = (status: 'pending' | 'success' | 'failed' | null = null, source = 'source') => mount(SnapshotForkButton, {
+  props: { bookmarkUid: source, viewerForkStatus: status },
   global: { mocks: { $t: (key: string) => key } }
 })
 
 it('blocks offline and anonymous saves using existing feedback', async () => {
   const action = useBookmarkFork()
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
-  await action.fork('source')
+  await action.fork(sourceUuid)
   expect(mocks.post).not.toHaveBeenCalled()
   expect(action.error.value).toBe('bookmark_fork.offline')
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
   mocks.user.isLogin = false
-  await action.fork('source')
-  expect(mocks.login).toHaveBeenCalledOnce()
+  await action.fork(sourceUuid)
+  expect(mocks.login).toHaveBeenCalledExactlyOnceWith({
+    redirect: location.href,
+    authAttribution: {
+      source_screen: 'detail',
+      presentation: 'modal',
+      trigger_element_id: 'snapshot_save_button',
+      source_bookmark_id: sourceUuid
+    }
+  })
   expect(mocks.post).not.toHaveBeenCalled()
+})
+
+it('attributes anonymous and signed-in clicks to the same source snapshot', async () => {
+  const button = mountButton(null, sourceUuid)
+  expect(button.get('button').attributes('data-analytics-element')).toBe('snapshot_save_button')
+  expect(button.get('button').attributes('data-analytics-source-bookmark-id')).toBe(sourceUuid)
+
+  mocks.user.isLogin = false
+  await button.get('button').trigger('click')
+  expect(mocks.login).toHaveBeenCalledWith(expect.objectContaining({
+    authAttribution: expect.objectContaining({ source_bookmark_id: sourceUuid })
+  }))
+  expect(mocks.post).not.toHaveBeenCalled()
+
+  mocks.user.isLogin = true
+  mocks.post.mockResolvedValueOnce({ bmId: '' })
+  await button.get('button').trigger('click')
+  await flushPromises()
+  expect(mocks.login).toHaveBeenCalledOnce()
+  expect(mocks.post).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    url: '/v1/bookmark/add_url',
+    body: { target_url: `https://reader.test/b/${sourceUuid}`, tags: [] }
+  }))
+  button.unmount()
 })
 
 it('uses add_url admission without requiring a destination UUID; shares request and saved state', async () => {

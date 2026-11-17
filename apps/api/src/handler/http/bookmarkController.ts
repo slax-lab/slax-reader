@@ -159,23 +159,29 @@ export class BookmarkController {
     }
   }
 
-  private async submitBookmarkEvent(ctx: ContextManager, request: Request, eventName: string, bmId: number) {
+  private async submitBookmarkEvent(ctx: ContextManager, request: Request, eventName: string, bmId: number, sourceBookmarkId?: string) {
     try {
       const properties = await this.bookmarkEventProperties(ctx, bmId)
-      if (properties) submitServerEvent(ctx, request, eventName, { ...properties, source: this.bookmarkSource(ctx, request) })
+      if (properties)
+        submitServerEvent(ctx, request, eventName, {
+          ...properties,
+          source: this.bookmarkSource(ctx, request),
+          ...(sourceBookmarkId ? { source_bookmark_id: sourceBookmarkId } : {})
+        })
     } catch (error) {
       console.error(`[events] failed to load ${eventName} attributes:`, error)
     }
   }
 
-  private saveFailed(ctx: ContextManager, request: Request, targetUrl = '') {
+  private saveFailed(ctx: ContextManager, request: Request, targetUrl = '', sourceBookmarkId?: string) {
     submitServerEvent(ctx, request, 'bookmark_save_failed', {
       // A rejected request has no persisted bookmark relation yet.
       bookmark_id: null,
       error_class: 'bookmark_add',
       url_domain: this.urlDomain(targetUrl),
       source: this.bookmarkSource(ctx, request),
-      content_type: this.contentTypeForUrl(ctx, targetUrl)
+      content_type: this.contentTypeForUrl(ctx, targetUrl),
+      ...(sourceBookmarkId ? { source_bookmark_id: sourceBookmarkId } : {})
     })
   }
 
@@ -234,12 +240,13 @@ export class BookmarkController {
     if (!req.target_url.startsWith('https://') && !req.target_url.startsWith('http://')) {
       req.target_url = 'https://' + req.target_url
     }
+    const sourceBookmarkId = readerBookmarkUuid(req.target_url, [ctx.env.FRONT_END_URL]) ?? undefined
 
     try {
       const result = await this.bookmarkAddOrchestrator.addByUrl(ctx, req, { callback: callbackType.NOT_CALLBACK })
 
       ctx.execution.waitUntil(this.logsService.track(ctx.getUserId(), 'bookmark_add', { bookmark_id: result.bookmarkId, status: 'success' }))
-      await this.submitBookmarkEvent(ctx, request, 'bookmark_saved', result.bookmarkId)
+      await this.submitBookmarkEvent(ctx, request, 'bookmark_saved', result.bookmarkId, sourceBookmarkId)
 
       // 非 shortcut 触发 workflow
       if (!result.isShortcut && result.workflowParams) {
@@ -249,7 +256,7 @@ export class BookmarkController {
       // 按现有客户端约定固定返回空字符串
       return Successed({ bmId: '' } satisfies AddBookmarkResponse)
     } catch (e) {
-      this.saveFailed(ctx, request, req.target_url)
+      this.saveFailed(ctx, request, req.target_url, sourceBookmarkId)
       // Labs 拦截是预期行为：文案原样透出，前端据 LAB_FEATURE_DISABLED 引导去设置页
       if (LabService.isLabDisabledError(e)) {
         ctx.execution.waitUntil(this.logsService.track(ctx.getUserId(), 'bookmark_add', { channel: 'add_url', status: 'lab_disabled' }))

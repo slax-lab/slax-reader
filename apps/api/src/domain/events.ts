@@ -10,6 +10,7 @@ export interface BookmarkEventProperties extends Record<string, unknown> {
   url_domain: string
   source: BookmarkEventSource
   content_type: 'full_content' | 'url_only'
+  source_bookmark_id?: string
 }
 
 export interface EventRecord extends Record<string, unknown> {

@@ -41,7 +41,15 @@ import { RequestUtils } from '@/utils/requestUtils'
 import { SlaxAuth } from '@/utils/auth'
 import { hashMD5, hashSHA256 } from '@/utils/strings'
 import { diagnosticDownloadUrl, downloadDiagnostic, uploadDiagnostic, type DiagnosticAttachment } from '@/utils/diagnosticAttachment'
-import { isCollectionAuthAttribution, type AcquisitionAuthAttribution, type CollectionAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
+import {
+  isCollectionAuthAttribution,
+  isSnapshotAuthAttribution,
+  SNAPSHOT_BOOKMARK_ID_PATTERN,
+  type AcquisitionAuthAttribution,
+  type CollectionAuthAttribution,
+  type SnapshotAuthAttribution,
+  type WebAuthAttribution
+} from '@slax-reader/contracts/events'
 import { z } from 'zod'
 import { BIND_LOGIN_IDENTITY_SETTING, type EmailAuthClientPlatform, type EmailAuthProvider, type EmailLoginRequest } from '@slax-reader/contracts/email-auth'
 import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
@@ -60,13 +68,24 @@ const collectionAuthAttributionSchema = z.object({
   trigger_element_id: z.literal('collection_subscribe_button')
 }) satisfies z.ZodType<CollectionAuthAttribution>
 
+const snapshotAuthAttributionSchema = z.object({
+  source_screen: z.literal('detail'),
+  presentation: z.literal('modal'),
+  trigger_element_id: z.literal('snapshot_save_button'),
+  source_bookmark_id: z.string().regex(SNAPSHOT_BOOKMARK_ID_PATTERN)
+}) satisfies z.ZodType<SnapshotAuthAttribution>
+
 const acquisitionAuthAttributionSchema = z.object({
   source: z.literal('hackerlinks'),
   medium: z.enum(['header', 'resource_detail']),
   campaign: z.literal('mvp')
 }) satisfies z.ZodType<AcquisitionAuthAttribution>
 
-const webAuthAttributionSchema = z.union([collectionAuthAttributionSchema, acquisitionAuthAttributionSchema]) satisfies z.ZodType<WebAuthAttribution>
+const webAuthAttributionSchema = z.union([collectionAuthAttributionSchema, snapshotAuthAttributionSchema, acquisitionAuthAttributionSchema]) satisfies z.ZodType<WebAuthAttribution>
+
+const appleAuthAttributionSchema = z.union([snapshotAuthAttributionSchema, acquisitionAuthAttributionSchema]) satisfies z.ZodType<
+  SnapshotAuthAttribution | AcquisitionAuthAttribution
+>
 
 export interface userBindPlatformItem {
   platform: string
@@ -692,7 +711,7 @@ export class UserService {
       req.type === 'google'
         ? webAuthAttributionSchema.safeParse(req.auth_attribution).data
         : req.type === 'apple'
-          ? acquisitionAuthAttributionSchema.safeParse(req.auth_attribution).data
+          ? appleAuthAttributionSchema.safeParse(req.auth_attribution).data
           : undefined
     const result = await this.authenticateUser(ctx, request, req)
     return this.trackLogin(ctx, request, result, attribution)
@@ -712,7 +731,7 @@ export class UserService {
     if (version) metadata.version = version
 
     const userId = new Hashid(ctx.env).decodeId(parseInt(result.user_id))
-    const loginAttribution = isCollectionAuthAttribution(attribution) ? attribution : undefined
+    const loginAttribution = isCollectionAuthAttribution(attribution) || isSnapshotAuthAttribution(attribution) ? attribution : undefined
     if (result.is_new_user) {
       ctx.execution.waitUntil(this.logsService.track(userId, 'register', metadata))
       submitServerEvent(ctx, request, 'user_created', { ...attribution, method: result.login_type }, { userId })
