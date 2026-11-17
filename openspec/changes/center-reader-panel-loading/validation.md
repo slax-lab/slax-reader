@@ -39,3 +39,7 @@ On 2026-11-17, the change requester personally exercised `/reader-fixture?case=l
 ## Review
 
 Independent read-only source review of the branch against `REVIEW.md` Bugs/Security/Compliance passes found no Important findings. A documentation Nit requesting the selection-only results was addressed by adding the command and both outcomes above. Final local pre-push review confirmed the scoped production diff, no added external data access or dependency, matching approved OpenSpec intent, completed automated/runtime verification, and the pre-PR human acceptance above.
+
+## Delivery
+
+Submitted [PR #649](https://github.com/slax-lab/slax-reader/pull/649) targeting `dev` after hands-on acceptance, with an attached matched before/after visual group and the evidence trail above. The change remains unarchived until merge; archive belongs in a separate human-reviewed documentation PR.
