@@ -50,7 +50,7 @@ const config: ExpoConfig = {
   slug: uiFixture ? 'slax-reader-ui-fixture' : 'slax-reader',
   platforms: ['ios', 'android'],
   version: buildVersion.version,
-  runtimeVersion: fixtureMode || process.env.SLAX_MOBILE_DEV_MANIFEST === '1' && process.env.SLAX_MOBILE_OTA !== '1' ? '1.0.0' : productionBuild ? {policy: 'nativeVersion'} : `${buildVersion.version}(${buildVersion.build})`,
+  runtimeVersion: fixtureMode || (process.env.SLAX_MOBILE_DEV_MANIFEST === '1' && process.env.SLAX_MOBILE_OTA !== '1') ? '1.0.0' : productionBuild ? {policy: 'nativeVersion'} : `${buildVersion.version}(${buildVersion.build})`,
   updates,
   orientation: 'portrait',
   userInterfaceStyle: 'light',
