@@ -41,7 +41,7 @@ function sanitizeMailHtml(html: string) {
       }
       parent.removeChild(node)
     }
-  return sanitizeFeedHtml(doc.body.innerHTML, 'https://rss.invalid/')
+  return sanitizeFeedHtml(doc.body.innerHTML, 'https://rss.invalid/', true)
 }
 export function parseNewsletter(raw: Uint8Array): Promise<ParsedNewsletter> {
   return parseNewsletterStream({
@@ -151,7 +151,7 @@ async function renderNewsletter(input: NewsletterMimeInput): Promise<ParsedNewsl
       attachments.map(item => '<li>' + escape(item.filename) + ' (' + escape(item.mimeType) + ', ' + item.size + ' bytes)</li>').join('') +
       '</ul></section>'
     : ''
-  const clean = sanitizeFeedHtml(full.html, 'https://rss.invalid/')
+  const clean = sanitizeFeedHtml(full.html, 'https://rss.invalid/', true)
   // Attachment metadata remains visible even when the body reaches its render limit.
   const rendered = new DOMParser().parseFromString('<html><body>' + clean.html + attachmentHtml + '</body></html>', 'text/html') as unknown as Document
   let embeddedBytes = 0,

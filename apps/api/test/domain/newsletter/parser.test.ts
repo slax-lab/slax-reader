@@ -41,6 +41,30 @@ describe('bounded Newsletter input', () => {
     expect(big.truncated).toBe(true)
     expect(big.html).toContain('a'.repeat(100))
   })
+  test('preserves table spans through both Newsletter sanitization passes', async () => {
+    const value = await parseNewsletter(
+      mail(
+        '<table><thead><tr><th colspan="3" onclick="alert(1)">Heading</th></tr></thead><tbody><tr><td rowspan="2">Side</td><td>A</td><td>B</td></tr><tr><td colspan="2">Wide</td></tr><tr><td rowspan="0">Remaining</td></tr></tbody></table>',
+        'Content-Type: text/html\r\n'
+      )
+    )
+    expect(value.html).toContain('<th colspan="3">Heading</th>')
+    expect(value.html).toContain('<td rowspan="2">Side</td>')
+    expect(value.html).toContain('<td colspan="2">Wide</td>')
+    expect(value.html).toContain('<td rowspan="0">Remaining</td>')
+    expect(value.html).not.toContain('onclick')
+  })
+
+  test('rejects invalid or oversized table spans without retaining other attributes', async () => {
+    const value = await parseNewsletter(
+      mail(
+        '<table colspan="3"><tbody><tr><td colspan="0" rowspan="-1" style="color:red">A</td><td colspan="1001" rowspan="65535">B</td><td colspan="2px" rowspan="1e3">C</td></tr></tbody></table>',
+        'Content-Type: text/html\r\n'
+      )
+    )
+    expect(value.html).not.toMatch(/colspan|rowspan|style=/)
+  })
+
   test('rejects oversized declared size before consuming raw and verifies actual streamed bytes', async () => {
     let pulls = 0
     const stream = () =>
