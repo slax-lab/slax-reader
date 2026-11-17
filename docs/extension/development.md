@@ -89,6 +89,22 @@ For `pnpm extension -- build`, load `apps/extension/build/chrome-mv3` and manual
 
 `.wxt`, `.vendor` and `build` are generated directories and must not be committed. Zip files are generated under `build`. Firefox commands remain available in the source; this migration verifies the Chromium path on Chrome and does not claim full Firefox verification.
 
+## First-install activation verification
+
+A first installation activates the collector in already-open, loaded HTTP(S) tabs without reloading them. It probes the top-frame collector before injecting the declared page-level highlight CSS and scripts (development vendor first when present). Collector UI styles remain isolated in Shadow DOM. Only the `install` reason starts this pass; updates and worker restarts retain their existing behavior.
+
+Programmatic installation-time injection uses HTTP(S) host permissions, not the temporary `activeTab` grant from a user action. Site-access settings and protected pages remain browser-enforced. This host coverage also applies to existing host-sensitive APIs, so cookie and request listeners must retain their existing narrow application-origin filters. Local files and browser/extension pages are excluded from proactive activation; explicit PDF actions retain their permission guidance and recovery.
+
+Use a disposable extension-capable Chromium profile, not an uninstall of the extension in a personal profile:
+
+1. Build the regular unpacked artifact with the intended non-secret Web/API configuration. Open two ordinary article pages and a restricted page before installing it. Record a document marker or navigation timing on the articles.
+2. Load the unpacked extension for the first time. Reloading an already-installed extension does not prove this scenario. Do not refresh or navigate the original articles.
+3. Before invoking toolbar, shortcut, or context-menu collection, verify that the original articles have one collector host/sidebar, correct styling, and a live top-frame `content-script-ready` response. This prevents action-time recovery injection from hiding a broken install pass.
+4. Invoke a real collection action with an authorized test account. Verify normal feedback and the saved bookmark in the configured real service, with the original document marker unchanged. A mocked API or successful script injection alone is not end-to-end save acceptance.
+5. Confirm the restricted page did not block other tabs, no bookmark was created merely by installation, and a newly opened article, logged-out collection, and existing PDF/file-access recovery still behave normally.
+
+Record browser/build details, exact coverage, and unresolved gaps in the change's `validation.md`. Do not log credentials or private page contents, and do not silently substitute a different browser/profile when the requested browser cannot load extensions.
+
 ## Optional isolated browser tests
 
 The existing offscreen tests use a local test service and do not need a real API. Prepare Chromium or Chrome for Testing and set `CHROME_PATH` to its executable; other platforms should set it explicitly.
