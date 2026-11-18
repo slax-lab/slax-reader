@@ -3,7 +3,7 @@ import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
 import type { Prisma, PrismaClient } from '@prisma/hyperdrive-client'
 import { isNewsletterAccount, type NewsletterAddressResponse } from '@slax-reader/contracts'
-import { NEWSLETTER_LIMITS, NEWSLETTER_LOCAL_PREFIX, NewsletterError, newsletterLocalPart } from '@/utils/newsletter'
+import { NEWSLETTER_LIMITS, NEWSLETTER_LOCAL_PREFIX, NewsletterError } from '@/utils/newsletter'
 
 type Tx = Prisma.TransactionClient
 export interface NewsletterRecipient {
@@ -53,12 +53,8 @@ export class NewsletterRepo {
       const [existing] = await tx.$queryRaw<{ platform_id: string }[]>`
         SELECT platform_id FROM sr_platform_bind WHERE user_id=${userId} AND platform='newsletter'`
       if (existing) {
-        const address = existing.platform_id
+        const address = NEWSLETTER_LOCAL_PREFIX + existing.platform_id + '@' + domain
         if (provision && confirmedAddress !== undefined && confirmedAddress !== address) throw new NewsletterError('address_changed', 409)
-        const at = address.lastIndexOf('@')
-        if (address.slice(at + 1) !== domain) throw new NewsletterError('unavailable', 503)
-        const part = address.startsWith(NEWSLETTER_LOCAL_PREFIX) ? newsletterLocalPart(address.slice(NEWSLETTER_LOCAL_PREFIX.length, at)) : null
-        if (!part) throw new NewsletterError('invalid_account')
         return { address, domain, status: 'ready' }
       }
       const part = isNewsletterAccount(user.account) ? user.account : null
@@ -69,24 +65,23 @@ export class NewsletterRepo {
       }
       const address = NEWSLETTER_LOCAL_PREFIX + part + '@' + domain
       if (provision && confirmedAddress !== undefined && confirmedAddress !== address) throw new NewsletterError('address_changed', 409)
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${address},0))`
-      const reserved = await tx.$queryRaw<{ id: number }[]>`SELECT id FROM sr_platform_bind WHERE platform='newsletter' AND platform_id=${address}`
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'newsletter:' + part},0))`
+      const reserved = await tx.$queryRaw<{ id: number }[]>`SELECT id FROM sr_platform_bind WHERE platform='newsletter' AND platform_id=${part}`
       if (reserved.length) {
         if (provision) throw new NewsletterError('address_reserved', 409)
         return { address: null, domain, status: 'address_reserved' }
       }
       if (!provision) return { address: null, domain, status }
-      // Dedicated first binding: generic platform upsert must never replace an issued mailbox.
-      await tx.$executeRaw`INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES(${userId},'newsletter',${address},${address})`
+      // Dedicated first binding: generic platform upsert must never replace an issued receiving name.
+      await tx.$executeRaw`INSERT INTO sr_platform_bind(user_id,platform,platform_id,user_name) VALUES(${userId},'newsletter',${part},${part})`
       return { address, domain, status: 'ready' }
     })
   }
-  async recipient(domain: string, part: string): Promise<NewsletterRecipient | null> {
-    const address = NEWSLETTER_LOCAL_PREFIX + part + '@' + domain
+  async recipient(part: string): Promise<NewsletterRecipient | null> {
     const [row] = await this.pg().$queryRaw<NewsletterRecipient[]>`SELECT a.id,a.user_id,u.uuid FROM sr_platform_bind a
       JOIN sr_user u ON u.id=a.user_id AND u.deleted_at IS NULL
       JOIN sr_user_lab_feature l ON l.user_id=u.id AND l.feature='newsletter' AND l.enabled
-      WHERE a.platform='newsletter' AND a.platform_id=${address}`
+      WHERE a.platform='newsletter' AND a.platform_id=${part}`
     return row || null
   }
 

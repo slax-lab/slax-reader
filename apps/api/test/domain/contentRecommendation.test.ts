@@ -167,6 +167,40 @@ describe('published-pair content recommendations', () => {
   })
 
 
+  test('compares one recalled shortlist with independent article affinity and publication-time ablations', async () => {
+    await pg.exec(`
+      INSERT INTO sr_bookmark(id,target_url,published_at) VALUES
+        (21,'/older',now()-interval '5 days'),(22,'/newer',now()-interval '1 hour'),(23,'/subscription',now()-interval '2 days'),
+        (24,'/revoked',now()),(25,'/older',now()-interval '8 days');
+      INSERT INTO sr_user_bookmark(id,uuid,user_id,bookmark_id,starred_at) VALUES
+        (21,'older',3,21,now()),(22,'newer',3,22,now()-interval '2 hours'),(23,'subscription',3,23,now()-interval '3 hours'),
+        (24,'revoked',3,24,now()-interval '1 hour'),(25,'duplicate',3,25,now()-interval '4 hours');
+    `)
+    const vectors = runtime()
+    vi.mocked(vectors.queryCollections).mockResolvedValue([{ id: 30, score: 1 }])
+    vi.mocked(vectors.readUser).mockImplementation(async (_id, kind) => kind === 'article' ? [0, 1] : [1, 0])
+    vi.mocked(vectors.readArticles).mockImplementation(async () => {
+      await pg.exec('INSERT INTO sr_bookmark_share VALUES (3,24,false)')
+      return new Map([['a:3:21',[0,1]],['a:3:22',[0,1]],['a:3:23',[1,0]],['a:3:24',[0,1]],['a:3:25',[0,1]]])
+    })
+    const captures: Array<() => Promise<import('../../src/domain/contentRecommendation').RankTrace>> = []
+    const result = await new ContentRecommendationService(db, vectors).collections(1, 'collection', 1, evaluate => captures.push(evaluate))
+    expect(vectors.readArticles).not.toHaveBeenCalled()
+    const trace = await captures[0]()
+    expect(trace.preference).toBe('saved_articles')
+    const row = trace.collections[0]
+    expect(row.baseline).toEqual(result.items[0].articles.map(a => a.bookmarkUuid))
+    expect(row.baseline_position).toBe(0)
+    expect(row.ranked_position).toBe(0)
+    expect(row.comparison?.ranked[0]).toBe('newer')
+    expect(row.comparison?.without_freshness[0]).toBe('older')
+    expect(row.comparison?.using_subscriptions[0]).toBe('subscription')
+    expect(row.comparison?.candidates.map(candidate => candidate.id)).not.toContain('revoked')
+    expect(row.comparison?.ranked).not.toContain('duplicate')
+    expect(vectors.queryCollections).toHaveBeenCalledTimes(1)
+    expect(vectors.queryArticles).not.toHaveBeenCalled()
+  })
+
   test('cancelling renewal does not make an active unexpired subscription recommendable again', async () => {
     await pg.exec('UPDATE sr_user_collection_subscriber SET auto_renew=false,is_cancelled=true WHERE user_id=1 AND collection_id=20')
     const vectors = runtime()
