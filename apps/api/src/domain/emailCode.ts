@@ -51,7 +51,7 @@ export class EmailCodeService {
     await this.challenges.saveEmail(scope, challenge, EMAIL_CODE_CONFIG.ttlSeconds)
 
     if (logCode) {
-      console.log(`[Email login] email=${input.deliveryEmail} code=${code}`)
+      console.log(`[Email login] email=${input.deliveryEmail} code=${code} link=${link}`)
     } else {
       const email = {
         from: env.EMAIL_AUTH_FROM?.trim() || EMAIL_CODE_CONFIG.defaultFrom,

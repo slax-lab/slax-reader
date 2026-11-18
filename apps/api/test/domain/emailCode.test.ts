@@ -44,8 +44,14 @@ describe('email code delivery', () => {
     const email = 'reader@internal.invalid'
     const result = await new EmailCodeService(store).sendCode({ ...env, RUN_TYPE: runType, RESEND_API_KEY: undefined }, { ...input, emailKey: email, deliveryEmail: email }, sender)
     expect(sender).not.toHaveBeenCalled()
-    expect(log).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^\[Email login\] email=reader@internal\.invalid code=\d{6}$/))
-    const code = /code=(\d{6})$/.exec(log.mock.calls[0][0])![1]
+    expect(log).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^\[Email login\] email=reader@internal\.invalid code=\d{6} link=https:\/\/r\.slax\.dev\/email-login#\S+$/))
+    const code = /code=(\d{6}) /.exec(log.mock.calls[0][0])![1]
+    const link = new URL(/ link=(\S+)$/.exec(log.mock.calls[0][0])![1])
+    const proof = new URLSearchParams(link.hash.slice(1))
+    expect(proof.get('email')).toBe(email)
+    expect(proof.get('request_id')).toBe(result.request_id)
+    const linkDigest = Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${result.request_id}:${proof.get('token')}`))).toString('hex')
+    expect(save.mock.calls[0][1].linkDigest).toBe(linkDigest)
     const digest = Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${result.request_id}:${code}`))).toString('hex')
     expect(save.mock.calls[0][1]).toMatchObject({
       requestId: result.request_id,

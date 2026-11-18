@@ -6,6 +6,7 @@ Email-code and Passkey authentication are already implemented. Phase three lets 
 
 ## What Changes
 
+- For reserved `@internal.invalid` login addresses, extend the separately requested code-only backend log with the generated login link; do not call Resend. Ordinary login proof values remain absent from logs.
 - Login emails contain both the existing six-digit code and an HTTPS sign-in link. Both expire together after five minutes; successfully consuming either invalidates both. Mailbox-binding emails remain code-only.
 - Reuse `POST /v1/user/email/send` and `POST /v1/user/login`; add a typed email-link proof to the latter. Sending does not reveal the link secret to the requesting client.
 - Add a small Web email-link landing flow and native cold/warm URL handling. A supported installed App receives the link first; otherwise the HTTPS page completes Web login.
@@ -34,3 +35,5 @@ None. The additive capability depends on the implemented `add-email-otp-auth` an
 ## Review Status
 
 The change requester approved implementation on 2026-11-18 and chose to proceed directly from the reviewed proposal. Mobile version 1.0.33 (808), previous build 807, is authorized. Implementation starts from dev at `1e821fc5`; hands-on acceptance and the requested independent Codex/Claude Opus 5.5 reviews are required before delivery.
+
+On 2026-11-18 the change requester split internal log delivery into a code-only backend Draft PR (#661), followed by link logging in this feature PR. The feature incorporates that prerequisite and adds only the link to the existing internal log line. Public association support #660 has merged and preview publication has been verified.

@@ -11,6 +11,8 @@
 - [x] 2.3 Add link verification to `EmailCodeService` and dispatch through `UserService.userLogin` into `loginByVerifiedEmail`. Verify new/returning/blocked-address cases use the existing identity policy and no new account-binding path or auth endpoint is introduced.
 - [x] 2.4 Extend `test/infra/emailChallengeRedis.integration.test.ts` for expiry, replacement, shared attempts, and competing valid OTP/link consumption; keep real Redis setup in infra tests. Run the affected domain/infra suites, `pnpm api -- gen:all`, and `pnpm api -- test test/script/layerArchitecture.test.ts`; inspect generated drift without adding architecture baseline exceptions.
 
+- [x] 2.5 Extend the prerequisite internal-domain code log with its login link while skipping Resend; verify matching code/link digests, unchanged scope/response, and real Worker log-link login with replay rejection.
+
 ## 3. Web entry
 
 - [x] 3.1 Add a focused email-link URL parser and early client capture/scrub entry, plus exact public middleware/startup classification for the canonical page and its browser-only alias. Verify malformed input is rejected before submission and actual built-page startup removes proof values before GTM/telemetry without initializing unauthenticated account data.
@@ -24,6 +26,6 @@
 
 ## 5. End-to-end acceptance and delivery
 
-- [ ] 5.1 Exercise a delivered Resend email, its fragment link, OTP/link mutual consumption, fresh-email recovery, App entry, and browser fallback in a running environment. Check the configured sender and disabled click tracking with the operator; verify no proof values reach analytics/logs and no GET consumes proof. Record evidence in `validation.md` and identify any public-association publication dependency before seeking approval for a separate support Draft PR.
+- [ ] 5.1 Exercise a delivered Resend email, its fragment link, OTP/link mutual consumption, fresh-email recovery, App entry, and browser fallback in a running environment. Check the configured sender and disabled click tracking with the operator; verify ordinary proof values do not reach analytics/logs (only the explicitly requested internal-domain issuance log is exempt) and no GET consumes proof. Record evidence in `validation.md` and identify any public-association publication dependency before seeking approval for a separate support Draft PR.
 - [ ] 5.2 Obtain human hands-on acceptance for the changed Web/iOS/Android flows before opening the feature Draft PR, including the required Web themes/widths and existing-session branch. Resolve requested adjustments; record who, when, scope, and results in `validation.md`.
 - [ ] 5.3 Run scoped type/lint checks, `pnpm exec openspec validate --all --strict`, and `git diff --check`; perform the Bugs/Security/Compliance pre-push review from `REVIEW.md`, explicitly checking names, file placement, layer responsibilities, call order, and unrelated edits. Resolve Important findings and deliver one task Draft PR targeting `dev`; do not merge or archive it automatically.

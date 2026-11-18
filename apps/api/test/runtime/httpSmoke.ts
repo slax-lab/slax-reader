@@ -395,7 +395,7 @@ async function main() {
         const sent = await linkCall('/v1/user/email/send', { email })
         assert.equal(sent.code, 200)
         assert.deepEqual(Object.keys(sent.data).sort(), ['expires_in', 'request_id', 'resend_after'])
-        const messageResponse = await localFetch(`http://localhost:${httpPort}/__fixture/email-message?id=${sent.data.request_id}`)
+        const messageResponse = await localFetch(`http://localhost:${httpPort}/__fixture/email-message?id=${sent.data.request_id}`, { headers: { Authorization: `Bearer ${token}` } })
         const message = (await messageResponse.json()) as { code: string; link: string }
         const url = new URL(message.link)
         assert.equal(url.origin, vars.FRONT_END_URL)
@@ -438,7 +438,20 @@ async function main() {
       const internalInfo = (await authCall(userInfo, undefined, internalLogin.data.token)).data
       assert.equal(internalInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, internalEmail)
       assert.equal((await authCall('/v1/user/login', internalProof)).data, 'EMAIL_VERIFY_CODE_ERROR')
-      evidence.internalEmailLogin = 'code read from Worker logs; no provider delivery; existing login and verified binding succeeded; replay rejected'
+      const internalLinkEmail = 'internal-link@internal.invalid'
+      const internalLinkSent = await authCall('/v1/user/email/send', { email: internalLinkEmail }, undefined, 'beta')
+      assert.equal(internalLinkSent.code, 200)
+      const internalLinkPattern = /\[Email login\] email=internal-link@internal\.invalid code=(\d{6}) link=(\S+)/
+      await poll(() => internalLinkPattern.test(workerLog), 'internal login link in Worker logs')
+      const internalLink = internalLinkPattern.exec(workerLog)!
+      const internalParams = new URLSearchParams(new URL(internalLink[2]).hash.slice(1))
+      const internalLinkProof = { type: 'email_link', email: internalParams.get('email'), request_id: internalParams.get('request_id'), token: internalParams.get('token') }
+      const internalLinkLogin = await authCall('/v1/user/login', internalLinkProof, undefined, 'beta')
+      assert.equal(internalLinkLogin.code, 200)
+      assert.equal((await authCall('/v1/user/login', internalLinkProof, undefined, 'beta')).data, 'EMAIL_VERIFY_CODE_ERROR')
+      const internalCodeProof = { type: 'email', email: internalLinkEmail, request_id: internalLinkSent.data.request_id, code: internalLink[1] }
+      assert.equal((await authCall('/v1/user/login', internalCodeProof, undefined, 'beta')).data, 'EMAIL_VERIFY_CODE_ERROR')
+      evidence.internalEmailLogin = 'code and link read from Worker logs; no provider delivery; existing login/binding succeeded; link replay and consumed code rejected'
       evidence.passkeys = await exercisePasskeys(authCall, query => resources.sql(pg.id, 'http_reader', query), token, ownerToken, vars.FRONT_END_URL)
       evidence.emailAuthentication =
         'binding API works in dev, beta, and prod; user information returns login methods through the platform list; legacy sign-in guidance, existing-account login, and new-account session'

@@ -2,7 +2,7 @@
 
 ## Context
 
-See [proposal.md](proposal.md) for scope. Baseline: `origin/dev` at `01b202d5`.
+See [proposal.md](proposal.md) for scope. Implementation initially used dev `1e821fc5`; it is synchronized with dev `b3d0f693`, including the published association support.
 
 `UserController.handleSendEmailCodeRequest` parses the delivery request, `UserService.sendEmailCode` resolves the recipient, and the injected `EmailCodeService` owns issuance/verification. `EmailChallengeRepo` in `infra/repository/redisEmailChallenge.ts` owns Redis TTL, counters, and compare-and-delete. Resend is already an infra adapter. `UserService.loginByVerifiedEmail` applies existing identity policy and session completion.
 
@@ -40,7 +40,7 @@ Use the configured API `FRONT_END_URL` origin:
 https://<web-host>/email-login#email=<encoded-address>&request_id=<id>&token=<secret>
 ```
 
-The fragment avoids sending the proof in the landing page's HTTP request. The send API returns only its existing challenge metadata; the secret is delivered only inside the email. A public GET never verifies or consumes a challenge. Local Web/fixture tests may retain an explicitly configured HTTP localhost origin; do not rewrite its scheme or introduce global configuration checks that disable existing OTP behavior. Published email-link origins use HTTPS.
+The fragment avoids sending the proof in the landing page's HTTP request. The send API returns only its existing challenge metadata; ordinary login secrets are delivered only inside email. The approved reserved `@internal.invalid` login branch instead skips Resend and appends `link=<generated URL>` to its existing email/code backend log after successful challenge storage. It keeps the same limits, TTL and single-use proof, and does not require a Resend key. Binding delivery remains unchanged. A public GET never verifies or consumes a challenge. Local Web/fixture tests may retain an explicitly configured HTTP localhost origin; do not rewrite its scheme or introduce global configuration checks that disable existing OTP behavior. Published email-link origins use HTTPS.
 
 Clients validate the expected origin, exact path, and proof shape at the incoming URL boundary, then submit typed values in the `/login` request body. The API validates that external body once at its existing domain input boundary. Do not log raw incoming URLs, proof bodies, or email contents. No arbitrary `redirect` or API origin is accepted from the link.
 

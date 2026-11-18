@@ -17,3 +17,9 @@ Reviewed against `add-email-link-auth`, the applicable application rules, and th
 The final Codex recheck reported no remaining Important finding. Actual Claude Code runs requested `claude-opus-5.5`; returned `modelUsage` identifies that model. The final evidence follow-up reported no remaining Important or blocking finding. Review results do not replace native or real-mail acceptance.
 
 Temporary review receipts and RED/GREEN logs are under `/tmp/slax-email-link-20261118/`. No credentials or media are committed. One initial tool-driven Claude attempt exhausted its turn limit; only the subsequently completed reviews and their follow-ups count as review evidence.
+
+## Internal log follow-up
+
+A fresh Codex subagent reviewed the prerequisite code-only merge and current link-log diff against Bugs/Security/Compliance and API layer rules. No Important finding was reported. Its single documentation Nit (the generic mail scenario needed to specify ordinary addresses) was fixed. Actual Worker smoke confirms internal log proofs work and are single-use; this is not native or live-email acceptance.
+
+A fresh actual Claude Code review also completed with returned modelUsage `claude-opus-5.5` and no Important findings (`internal-link-opus.json`). Its two Nits were fixed: the HTTP log-match variable is now captured after polling rather than assigned through a closure, and duplicate blank lines were removed.

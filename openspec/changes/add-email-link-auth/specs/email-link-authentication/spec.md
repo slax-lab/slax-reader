@@ -8,13 +8,19 @@ Allow readers to sign in through a one-time link delivered to their email, using
 
 ### Requirement: Login emails offer code and link together
 
-The existing email delivery endpoint SHALL deliver both a six-digit code and an HTTPS sign-in link for login requests. The delivery response SHALL retain its current challenge metadata and SHALL NOT expose the link secret. Mailbox-binding requests SHALL continue to deliver only their existing code. Existing delivery limits SHALL continue to apply to the single combined login email.
+The existing email delivery endpoint SHALL deliver both a six-digit code and an HTTPS sign-in link for ordinary login addresses. Reserved `internal.invalid` login requests SHALL instead log their recipient email, code and login link without calling the email provider, retaining the same challenge rules and metadata response. The delivery response SHALL retain its current challenge metadata and SHALL NOT expose the link secret. Mailbox-binding requests SHALL continue to deliver only their existing code. Existing delivery limits SHALL continue to apply to the single combined login email.
 
 #### Scenario: Web or App requests login email
 
-- **WHEN** a valid login-email request is accepted from Web, iOS, or Android
+- **WHEN** a valid login-email request for an ordinary address is accepted from Web, iOS, or Android
 - **THEN** one email contains the code and sign-in link with the same five-minute expiry
 - **AND** the response contains challenge metadata without a usable link proof
+
+#### Scenario: An internal address requests login
+
+- **WHEN** a login request targets the exact normalized `internal.invalid` domain
+- **THEN** the backend issuance log contains its email, code and usable sign-in link without an email-provider call
+- **AND** code and link retain their shared expiry and consumption rules
 
 #### Scenario: An authenticated reader binds a mailbox
 
