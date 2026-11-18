@@ -39,3 +39,5 @@ The change requester approved implementation on 2026-11-18 and chose to proceed 
 On 2026-11-18 the change requester split internal log delivery into a code-only backend Draft PR (#661), followed by link logging in this feature PR. The feature incorporates that prerequisite and adds only the link to the existing internal log line. Public association support #660 has merged and preview publication has been verified.
 
 After accepting the Web flow and the exercised signed iPhone flows, the requester explicitly authorized opening the feature Draft PR before complete Android acceptance: Android will be verified using a Play Beta package. This is a task-specific adjustment to the normal pre-PR acceptance order, not an Android pass or a change to repository policy. Do not add debug certificate trust to work around that deferral.
+
+The requester subsequently clarified on 2026-11-18 that Android local dev had already been tested and requested correction of the record. Android local-dev hands-on acceptance is now recorded from that confirmation. Play-signed automatic App Link verification remains a Beta follow-up; it is not implied by local-dev acceptance.
