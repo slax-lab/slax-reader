@@ -33,4 +33,6 @@
 
   Progress on 2026-11-18: Web and the exercised signed iPhone flows have requester acceptance. Real Resend delivery and QQ Web fragment preservation passed; native-mail-client-specific interaction and Android acceptance are not claimed. The requester explicitly authorized opening the feature Draft PR first, with Android acceptance deferred to Play Beta. This task remains open for that follow-up.
 
-- [ ] 5.3 Run scoped type/lint checks, `pnpm exec openspec validate --all --strict`, and `git diff --check`; perform the Bugs/Security/Compliance pre-push review from `REVIEW.md`, explicitly checking names, file placement, layer responsibilities, call order, and unrelated edits. Resolve Important findings and deliver one task Draft PR targeting `dev`; do not merge or archive it automatically.
+- [x] 5.3 Run scoped type/lint checks, `pnpm exec openspec validate --all --strict`, and `git diff --check`; perform the Bugs/Security/Compliance pre-push review from `REVIEW.md`, explicitly checking names, file placement, layer responsibilities, call order, and unrelated edits. Resolve Important findings and deliver one task Draft PR targeting `dev`; do not merge or archive it automatically.
+
+  Delivered as Draft PR #663 targeting `dev`; Android acceptance remains deferred under the explicit requester decision above.

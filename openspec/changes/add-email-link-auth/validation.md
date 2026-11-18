@@ -82,3 +82,7 @@ After that decision, the task-owned live relay and Metro were stopped and ports 
 On 2026-11-18 the requester explicitly confirmed creating the feature Draft PR first and completing Android acceptance through Play Beta. That confirmation is recorded in `proposal.md`; tasks 4.3, 5.1 and 5.2 remain open for their stated unverified boundaries.
 
 Fresh pre-push checks on the final implementation passed: 80 focused API tests including all 18 real-Redis cases and 35 architecture checks (`pre-push-api.log`), 97 Web page/auth/startup/login regression tests (`pre-push-web.log`), 66 Mobile controller/mounted/native-config tests (`pre-push-mobile.log`), all 153 strict OpenSpec items (`pre-push-openspec.log`), and `git diff --check`. These reruns supplement the earlier full suites, builds, live service evidence and independent reviews. Only acceptance documentation changed after the exercised implementation.
+
+## Draft delivery
+
+Created [Draft PR #663](https://github.com/slax-lab/slax-reader/pull/663) targeting `dev` on 2026-11-18. The PR includes only synthetic Web screenshots and links this evidence trail; personal mailbox images, QR proofs and operator credentials remain excluded. Android follow-up and other unverified boundaries above remain open. CI status is reported by the PR checks and is not inferred from local results. The feature has not been merged, deployed or archived by the agent.
