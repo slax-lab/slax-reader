@@ -27,4 +27,3 @@ The system SHALL support email-code access on Web, iOS and Android, offer its lo
 - **WHEN** a verified code matches only a historical profile or provider email for an existing account
 - **THEN** the reader is directed to sign in with the existing method and link the address in account settings
 - **AND** the system neither signs into that account via email nor creates another user
-
