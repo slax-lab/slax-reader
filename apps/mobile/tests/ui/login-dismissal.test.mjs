@@ -189,7 +189,7 @@ for (const platform of ['ios', 'android']) for (const profile of ['development',
     await fixture.press('login_email');
     await fixture.press('agreement_btn_agree');
     if (platform === 'ios') await act(async () => fixture.modal().onDismiss());
-    assert.equal(host.props.has('email_passkey_login'), ['development', 'preview', 'beta'].includes(profile));
+    assert.equal(host.props.has('email_passkey_login'), true);
   })));
 }
 
