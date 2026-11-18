@@ -534,6 +534,25 @@ test('Library revoked RSS gate keeps the failed add visible and preserves the dr
   assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').value, 'Draft');
 }));
 
+test('Library RSS add while cached Labs confirmation is pending opens the dialog instead of Settings', async () => mounted(async root => {
+  const h = await harness(root), labs = deferred();
+  h.rssLabs = () => labs.promise;
+  const source = {id: 'cached-source', title: 'Cached', next_allowed_at: '2020-01-01T00:00:00Z'};
+  h.rssLocal = {hasCachedData: async () => true, connect: () => () => {}, watchSubscriptions: callback => {callback([source]); return () => {};}, watchEntries: (_id, callback) => {callback([]); return () => {};}, watchSaved: () => () => {}};
+  await h.loadLibrary(true);
+  assert.equal(h.rss.getSnapshot().enabled, true); assert.equal(h.rss.getSnapshot().confirmedEnabled, false);
+  await act(async () => h.sortMenu.items.find(item => item.label === 'rss_feeds').onPress());
+  await act(async () => h.v.one('Pressable', props => props.testID === 'rss-source-add').onPress());
+  assert.deepEqual(h.navigations, []);
+  const dialog = () => h.v.one('SourceDialog', props => props.testID === 'add-link' && props.visible);
+  assert.equal(dialog().visible, true);
+  assert.equal(h.v.all('Pressable').filter(props => props.accessibilityLabel === 'add_content_tab_feed').length, 0);
+  await act(async () => labs.resolve({features: [{key: 'rss', enabled: true}]}));
+  assert.equal(h.rss.getSnapshot().confirmedEnabled, true);
+  assert.equal(h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed').accessibilityState.selected, false);
+  assert.deepEqual(h.navigations, []);
+}));
+
 test('Library disabled RSS add retains Settings destination instead of opening acquisition', async () => mounted(async root => {
   const h = await harness(root); await h.loadLibrary(true);
   await act(async () => h.sortMenu.items.find(item => item.label === 'rss_feeds').onPress());

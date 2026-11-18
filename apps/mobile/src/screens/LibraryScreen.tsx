@@ -200,7 +200,7 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
   const feedContentStyle = useMemo(() => [{paddingBottom: insets.bottom + 16}, !hasRows && {flexGrow: 1}], [insets.bottom, hasRows]);
   const openRssSettings = useCallback(() => navigation.navigate('Settings'), [navigation]);
   const requestRss = useCallback(() => {
-    if (!rss.getSnapshot().confirmedEnabled) {openRssSettings(); return;}
+    if (!rss.getSnapshot().enabled) {openRssSettings(); return;}
     setAddMode('feed'); setAdd(true);
   }, [rss, openRssSettings]);
   const requestUrl = useCallback(() => {setAddMode('url'); setAdd(true);}, []);
