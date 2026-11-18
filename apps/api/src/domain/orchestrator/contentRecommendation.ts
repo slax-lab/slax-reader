@@ -1,8 +1,9 @@
+import { isWhiteEmail } from '@/utils/internalEmail'
 import { inject, injectable } from '@/decorators/di'
 import { ContextManager } from '@/utils/context'
 import { recommendationAlgorithm, type RecommendationFeedback } from '@/utils/recommendationFeedback'
 import type { PreferenceKind } from '@/utils/vectorMaintenanceTypes'
-import { ContentRecommendationService } from '../contentRecommendation'
+import { ContentRecommendationService, type RankTrace } from '../contentRecommendation'
 import { submitServerEvent, submitServerEvents } from '../events'
 
 @injectable()
@@ -11,12 +12,45 @@ export class ContentRecommendationOrchestrator {
 
   public async recommend(ctx: ContextManager, request: Request, kind: PreferenceKind, params: { limit: number; preferenceKind: PreferenceKind }) {
     const userId = ctx.getUserId()
+    const impressionId = crypto.randomUUID()
+    const algorithm = await recommendationAlgorithm()
+    let evaluate: (() => Promise<RankTrace>) | undefined
+    const traceRequested = kind === 'collection' && request.headers.get('Prefer') === 'slax-rank-trace' && isWhiteEmail(ctx.env, ctx.getUserEmail())
     const result =
       kind === 'article'
         ? await this.recommendations.articles(userId, params.preferenceKind, params.limit)
-        : await this.recommendations.collections(userId, params.preferenceKind, params.limit)
-    const impressionId = crypto.randomUUID()
-    const algorithm = await recommendationAlgorithm()
+        : traceRequested
+          ? await this.recommendations.collections(userId, params.preferenceKind, params.limit, compare => {
+              evaluate = compare
+            })
+          : await this.recommendations.collections(userId, params.preferenceKind, params.limit)
+    if (traceRequested) {
+      let expectedCollections = 0
+      let status: 'complete' | 'empty' | 'failed' = 'empty'
+      try {
+        if (evaluate) {
+          const trace = await evaluate()
+          expectedCollections = trace.collections.length
+          submitServerEvents(
+            ctx,
+            request,
+            trace.collections.map(collection => ({
+              eventName: 'recommendation_collection_comparison',
+              properties: { impression_id: impressionId, trace_version: 1, preference: trace.preference, scored_at: trace.scored_at, ...collection }
+            }))
+          )
+          status = 'complete'
+        }
+      } catch {
+        status = 'failed'
+      }
+      submitServerEvent(ctx, request, 'recommendation_comparison_finished', {
+        impression_id: impressionId,
+        trace_version: 1,
+        status,
+        expected_collections: expectedCollections
+      })
+    }
     submitServerEvent(ctx, request, 'recommendation_served', {
       impression_id: impressionId,
       kind,

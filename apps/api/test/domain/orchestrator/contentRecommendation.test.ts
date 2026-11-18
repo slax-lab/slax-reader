@@ -22,6 +22,27 @@ beforeEach(() => {
 })
 
 describe('ContentRecommendationOrchestrator', () => {
+  test('requires both the explicit diagnostic and the authenticated allowlisted identity', async () => {
+    const traceRequest = new Request(request, { headers: { Prefer: 'slax-rank-trace' } })
+    const internal = { getUserId: () => 7, getUserEmail: () => 'qa@example.invalid', env: { WHITE_EMAILS: 'qa@example.invalid' } } as unknown as ContextManager
+    const params = { limit: 2, preferenceKind: 'collection' as const }
+    await orchestrator.recommend({ ...internal, env: {} } as ContextManager, traceRequest, 'collection', params)
+    await orchestrator.recommend(internal, request, 'collection', params)
+    expect(collections.mock.calls.map(call => call.length)).toEqual([3, 3])
+    expect(events.submitServerEvents).not.toHaveBeenCalled()
+    const served = { items: [], preferenceKind: 'collection' }
+    collections.mockImplementationOnce(async (_id, _kind, _limit, observe) => {
+      observe(async () => { throw new Error('backend unavailable') })
+      return served
+    })
+    const response = await orchestrator.recommend(internal, traceRequest, 'collection', params)
+    expect(response).toMatchObject(served)
+    expect(events.submitServerEvent).toHaveBeenCalledWith(internal, traceRequest, 'recommendation_comparison_finished', {
+      impression_id: response.impressionId, trace_version: 1, status: 'failed', expected_collections: 0
+    })
+    expect(response).not.toHaveProperty('comparison')
+  })
+
   test('delegates article ranking with the parsed limit and records the served article list', async () => {
     articles.mockResolvedValue({
       items: [
