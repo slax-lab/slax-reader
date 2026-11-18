@@ -148,3 +148,10 @@ Each profile used an independent actual Nuxt process, public synthetic configura
 The independent reviewer repeated all three `REVIEW.md` passes after the preview correction and latest-dev rebase. No Important Bugs or Security findings were found. One Compliance Nit grouped two stale planning phrases; both were corrected to distinguish Web development/preview from native Mobile development-only rollout. The full-suite and final profile evidence above subsequently completed the verification trail. Final independent recheck of the completed evidence and artifacts found no remaining Important or Nit findings.
 
 The PR includes matched development-profile before/after images for the unbound account card (1280px/light), expanded standalone email login (320px/light), and focused expanded login modal (320x568/light). Captures and test harnesses remain outside Git; only this self-contained evidence record is tracked.
+
+## Archive
+
+Archived on 2026-11-18 in a separate documentation PR after task PR #584 merged into `dev`. All tasks were complete before archiving. The proposal's sequencing rule archives this change together with `add-email-otp-auth` (original authentication change) and the `refine-email-login-flow` follow-up; all three are in the same archive PR.
+
+- Spec sync: created `openspec/specs/web-account-sign-in-methods/spec.md` from 6 added requirements and `openspec/specs/web-email-sign-in-presentation/spec.md` from 3 added requirements.
+- Archive verification: `openspec validate --all --strict` passed (150 passed, 0 failed) and the staged whitespace check (`git diff --cached --check`) passed.

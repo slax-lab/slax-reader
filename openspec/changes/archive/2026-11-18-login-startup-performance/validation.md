@@ -46,3 +46,11 @@ The production-profile Chromium fixture passed cold `q` consumption, first retur
 ## Local hands-on acceptance
 
 On November 10, 2026, the requester exercised the local debug flow and approved opening the PR. The cross-review adjustment restored search handoff when returning to the cached Inbox. Two initial Google OAuth requests reached the local API on port 8787 with a matching client ID and localhost callback, then failed during the Worker fetch to Google's token endpoint with a connection loss and no provider response. Independent HTTPS probes also failed. The requester changed VPN and confirmed that the login test passed. The frontend OAuth callback, request payload, and API implementation have no changes in this branch.
+
+## Archive
+
+Archived on 2026-11-18 in a separate documentation PR after task PR #557 merged into `dev`.
+
+- Task classification: task 2.4 ("Archive this change in a separate docs PR after the task PR merges") is the archive step itself and is completed by this archive; every implementation and verification task was already complete.
+- Spec sync: created `openspec/specs/web-login-resource-loading/spec.md` from 3 added requirements.
+- Archive verification: `openspec validate --all --strict` passed (150 passed, 0 failed) and the staged whitespace check (`git diff --cached --check`) passed.
