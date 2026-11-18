@@ -23,3 +23,9 @@ Temporary review receipts and RED/GREEN logs are under `/tmp/slax-email-link-202
 A fresh Codex subagent reviewed the prerequisite code-only merge and current link-log diff against Bugs/Security/Compliance and API layer rules. No Important finding was reported. Its single documentation Nit (the generic mail scenario needed to specify ordinary addresses) was fixed. Actual Worker smoke confirms internal log proofs work and are single-use; this is not native or live-email acceptance.
 
 A fresh actual Claude Code review also completed with returned modelUsage `claude-opus-5.5` and no Important findings (`internal-link-opus.json`). Its two Nits were fixed: the HTTP log-match variable is now captured after polling rather than assigned through a closure, and duplicate blank lines were removed.
+
+## Final local pre-push pass
+
+The Bugs/Security/Compliance passes were rechecked against `origin/dev` at `c909a719` before submission. Existing route constants, domain orchestration, infra-only Redis access, account/session ownership and source-generated native configuration remain intact. No database, PowerSync, certificate trust, dependency or unrelated production refactor is included. No unresolved Important finding was identified. The explicit internal-domain log exception is the requester-approved scope; ordinary proofs and personal mailbox artifacts are excluded from committed/public evidence.
+
+Web and the exercised signed iPhone flows have human acceptance. On 2026-11-18 the requester explicitly authorized the task-specific order of opening the Draft PR before complete Android acceptance in Play Beta. This is recorded as an exception for this task, not as a completed Android test or a repository-policy change. The remaining tasks and mail-client/routing boundaries are retained in `validation.md`.

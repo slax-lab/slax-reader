@@ -37,3 +37,5 @@ None. The additive capability depends on the implemented `add-email-otp-auth` an
 The change requester approved implementation on 2026-11-18 and chose to proceed directly from the reviewed proposal. Mobile version 1.0.33 (808), previous build 807, is authorized. Implementation starts from dev at `1e821fc5`; hands-on acceptance and the requested independent Codex/Claude Opus 5.5 reviews are required before delivery.
 
 On 2026-11-18 the change requester split internal log delivery into a code-only backend Draft PR (#661), followed by link logging in this feature PR. The feature incorporates that prerequisite and adds only the link to the existing internal log line. Public association support #660 has merged and preview publication has been verified.
+
+After accepting the Web flow and the exercised signed iPhone flows, the requester explicitly authorized opening the feature Draft PR before complete Android acceptance: Android will be verified using a Play Beta package. This is a task-specific adjustment to the normal pre-PR acceptance order, not an Android pass or a change to repository policy. Do not add debug certificate trust to work around that deferral.
