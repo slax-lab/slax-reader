@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { EmailCodeService } from '@/domain/emailCode'
 import type { EmailChallengeRepo } from '@/infra/repository/redisEmailChallenge'
 
@@ -35,6 +35,64 @@ function mockStore() {
 }
 
 describe('email code delivery', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  test.each(['dev', 'beta', 'prod'] as const)('logs internal login codes without Resend in %s', async runType => {
+    const { store, save } = mockStore()
+    const sender = captureMail()
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const email = 'reader@internal.invalid'
+    const result = await new EmailCodeService(store).sendCode({ ...env, RUN_TYPE: runType, RESEND_API_KEY: undefined }, { ...input, emailKey: email, deliveryEmail: email }, sender)
+    expect(sender).not.toHaveBeenCalled()
+    expect(log).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^\[Email login\] email=reader@internal\.invalid code=\d{6}$/))
+    const code = /code=(\d{6})$/.exec(log.mock.calls[0][0])![1]
+    const digest = Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${result.request_id}:${code}`))).toString('hex')
+    expect(save.mock.calls[0][1]).toMatchObject({
+      requestId: result.request_id,
+      recipient: email,
+      digest
+    })
+    expect(save.mock.calls[0][2]).toBe(300)
+    expect(Object.keys(result).sort()).toEqual(['expires_in', 'request_id', 'resend_after'])
+  })
+
+  test.each([
+    ['reader@internal.invalid.example.com', 'login'],
+    ['reader@sub.internal.invalid', 'login'],
+    ['reader@notinternal.invalid', 'login'],
+    ['reader@example.com', 'login'],
+    ['reader@internal.invalid', 'bind']
+  ] as const)('keeps provider delivery for %s (%s)', async (email, purpose) => {
+    const { store } = mockStore()
+    const sender = captureMail()
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    await new EmailCodeService(store).sendCode(
+      env,
+      {
+        ...input,
+        purpose,
+        emailKey: email,
+        deliveryEmail: email,
+        userId: purpose === 'bind' ? 7 : undefined
+      },
+      sender
+    )
+    expect(sender).toHaveBeenCalledOnce()
+    expect(log).not.toHaveBeenCalled()
+  })
+
+  test.each(['limited', 'storage failure'])('does not log an internal code on %s', async failure => {
+    const { store, count, save } = mockStore()
+    if (failure === 'limited') count.mockResolvedValue(51)
+    else save.mockRejectedValue(new Error('storage unavailable'))
+    const sender = captureMail()
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const email = 'reader@internal.invalid'
+    await expect(new EmailCodeService(store).sendCode(env, { ...input, emailKey: email, deliveryEmail: email }, sender)).rejects.toThrow()
+    expect(log).not.toHaveBeenCalled()
+    expect(sender).not.toHaveBeenCalled()
+  })
+
   test.each([
     ['zh-CN', '你的 Slax Reader 验证码'],
     ['zh_HK', '你的 Slax Reader 验证码'],

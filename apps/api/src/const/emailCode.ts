@@ -1,5 +1,6 @@
 export const EMAIL_CODE_CONFIG = {
   length: 6,
+  internalEmailSuffix: '@internal.invalid',
   linkTokenBytes: 32,
   ttlSeconds: 300,
   resendCooldownSeconds: 60,
