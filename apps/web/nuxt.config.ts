@@ -3,6 +3,7 @@ import { backendStateV3 } from './config/backend-path'
 import { getDWebConfig, getEnv } from './config/env'
 import { scopedPdfStyles } from './config/pdf-assets'
 
+import { emailLoginStartupScript } from './app/utils/emailLinkAuth'
 import { readerStartupScript } from './app/utils/readerStartup'
 
 import { createPowerSyncAssetBuild } from '../../tooling/powersync-assets.mjs'
@@ -188,6 +189,7 @@ export default defineNuxtConfig({
       ],
       style: [],
       script: [
+        { key: 'email-login-startup', innerHTML: emailLoginStartupScript, tagPriority: 'critical', 'data-cfasync': 'false' },
         { key: 'reader-startup', innerHTML: readerStartupScript, tagPriority: 'critical', 'data-cfasync': 'false' },
         { type: 'application/ld+json', innerHTML: homeStructuredData }
       ]

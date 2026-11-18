@@ -60,7 +60,12 @@
     "too_many_requests": "Too many requests. Please try again later.",
     "stale_session": "Your session changed or expired. Reload Account Settings before continuing.",
     "back_to_sign_in": "Back to sign in",
-    "back_to_settings": "Back to Account Settings"
+    "back_to_settings": "Back to Account Settings",
+    "signing_in_link": "Signing you in",
+    "sign_in_link_active_title": "You are already signed in",
+    "sign_in_link_active": "Your current account has been kept. To use this email link, sign out first and reopen the email link.",
+    "sign_in_link_keep_account": "Continue with current account",
+    "sign_in_link_failed": "This link is invalid, expired, or already used. Return to sign in and request a new email."
   },
   "bookmark_fork": {
     "action": "Save for later",

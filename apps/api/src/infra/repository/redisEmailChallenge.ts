@@ -13,6 +13,7 @@ export interface EmailChallenge {
   requestId: string
   recipient: string
   digest: string
+  linkDigest?: string
   userId?: number
 }
 

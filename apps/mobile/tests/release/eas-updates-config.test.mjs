@@ -40,3 +40,24 @@ test('local native projects expose an explicit runtime version to the developmen
   assert.equal(appConfig({EXPO_PUBLIC_SLAX_WEB_URL: 'https://r.slax.dev'}).runtimeVersion, '1.0.25(794)');
   assert.equal(appConfig({EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}).runtimeVersion, '1.0.0');
 });
+
+
+test('email App Links add only the exact login path while preserving credential association and fixture isolation', () => {
+  const config = appConfig({});
+  const hosts = ['r.slax.dev', 'r-beta.slax.com', 'r.slax.com'];
+  for (const host of hosts) {
+    assert.ok(config.ios.associatedDomains.includes(`webcredentials:${host}`));
+    assert.ok(config.ios.associatedDomains.includes(`applinks:${host}`));
+    const filter = config.android.intentFilters.find(item => item.data.some(data => data.host === host));
+    assert.equal(filter.autoVerify, true);
+    assert.deepEqual(filter.data, [{scheme: 'https', host, path: '/email-login'}]);
+  }
+  assert.deepEqual(appConfig({EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}).ios.associatedDomains, []);
+  assert.deepEqual(appConfig({EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}).android.intentFilters, []);
+  const aasa = JSON.parse(readFileSync(new URL('../../../web/public/.well-known/apple-app-site-association', import.meta.url), 'utf8'));
+  assert.deepEqual(aasa.webcredentials.apps, ['8G3A932HJG.app.slax.reader']);
+  assert.deepEqual(aasa.applinks.details[0].components, [{'/': '/email-login'}]);
+  const assets = JSON.parse(readFileSync(new URL('../../../web/public/.well-known/assetlinks.json', import.meta.url), 'utf8'));
+  assert.ok(assets[0].relation.includes('delegate_permission/common.get_login_creds'));
+  assert.ok(assets[0].relation.includes('delegate_permission/common.handle_all_urls'));
+});

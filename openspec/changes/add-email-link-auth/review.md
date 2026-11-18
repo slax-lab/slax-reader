@@ -1,0 +1,19 @@
+# Implementation Review
+
+Reviewed against `add-email-link-auth`, the applicable application rules, and the Bugs/Security/Compliance passes in `REVIEW.md` on 2026-11-18.
+
+| Review | Finding | Resolution |
+| --- | --- | --- |
+| Codex | A signed-in refusal retained proof and revived it after sign-out | Clear the proof when showing the current-account notice. A session replacement cancels the old attempt; initial local readiness remains supported. Regression reproduced before the fix. |
+| Codex | Rebuilding the controller after an origin change replayed the cold launch URL | The hook owns a launch-consumed marker across controller replacements; activation generations reject callbacks from disposed controllers. New warm links remain usable. Regression reproduced before the fix. |
+| Codex / Claude Opus 5.5 | Restoring a logged-in session after the cold URL arrived hid the required notice | Initial loading-to-authenticated readiness now presents the current-account notice and discards the proof. Regression reproduced before the fix. |
+| Claude Opus 5.5 | A same-account credential refresh dismissed the notice | Preserve the notice for the same authenticated user, without retaining the proof. Regression reproduced before the fix. |
+| Claude Opus 5.5 | A link arriving during an existing email/Passkey session commit remained invisibly pending | Discard that link without interrupting the existing session commit. Mounted tests cover both existing login methods. |
+| Claude Opus 5.5 / follow-up | A canceled link left its old agreement sheet open | Close only the email-link agreement when its attempt retires; mounted iOS and Android tests reproduce the stale sheet before the fix. |
+| Codex | An unused copy of intent filters was passed to the Share plugin | Removed it; main-App intent filters remain under Expo's Android config. |
+| Claude Opus 5.5 | Suggested placing cross-environment handling before the current-session check | Not adopted: the reviewed requirement explicitly prioritizes preserving an authenticated account and explaining sign-out/reopen. The reviewer withdrew the reorder after checking that requirement. The delta scenario now states that cross-environment browser continuation concerns an unauthenticated App. |
+| Claude Opus 5.5 | Conditional concern that same-identity hydration would emit and discard pending links | Withdrawn after inspecting the actual session owner and running a new test with the real `SessionController`, `PreferenceStore`, and fixture storage. Agreement and an in-flight request both survive `restoreLocal()` followed by same-identity `restore()`. No production workaround was added. |
+
+The final Codex recheck reported no remaining Important finding. Actual Claude Code runs requested `claude-opus-5.5`; returned `modelUsage` identifies that model. The final evidence follow-up reported no remaining Important or blocking finding. Review results do not replace native or real-mail acceptance.
+
+Temporary review receipts and RED/GREEN logs are under `/tmp/slax-email-link-20261118/`. No credentials or media are committed. One initial tool-driven Claude attempt exhausted its turn limit; only the subsequently completed reviews and their follow-ups count as review evidence.

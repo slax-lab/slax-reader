@@ -2,7 +2,7 @@ import { configuredCookieName, persistSessionCookie, readStringCookie } from '~/
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
-import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
+import type { EmailCodeInput, EmailLinkInput } from '@slax-reader/contracts/email-auth'
 import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, isSnapshotAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import type { PasskeyLoginRequest } from '@slax-reader/contracts/passkey'
 import { useCookies } from '@vueuse/integrations/useCookies'
@@ -105,6 +105,15 @@ const useAuth = {
       url: RESTMethodPath.LOGIN,
       body: { ...input, type: 'email' }
     })
+    options.signal?.throwIfAborted()
+    if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
+    return completeAuth(response, options.signal)
+  },
+  async verifyEmailLinkAuth(input: EmailLinkInput, options: Pick<FetchOptions, 'signal' | 'errorInterceptors'> = {}): Promise<string> {
+    const cookieName = configuredCookieName(useRuntimeConfig().public.COOKIE_TOKEN_NAME)
+    if (!cookieName) throw new Error('Missing valid COOKIE_TOKEN_NAME')
+    if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
+    const response = await request().post<{ token: string }>({ ...options, url: RESTMethodPath.LOGIN, body: { ...input, type: 'email_link' } })
     options.signal?.throwIfAborted()
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
     return completeAuth(response, options.signal)

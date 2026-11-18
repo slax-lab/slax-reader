@@ -205,7 +205,9 @@ test('mounted MobileProvider exposes no repository or cache before admission, ev
   };
   const {MobileProvider, useMobile} = await loadComponent('../../src/runtime.tsx', {
     react: React, 'react-native': {...host.native, Platform: {OS: 'android'}}, 'expo-localization': {getLocales: () => [{languageTag: 'en'}]}, 'expo-file-system': {},
-    './data': {createMobileDataRuntime: () => runtime}, './i18n': {normalizeLocale: value => value, createTranslator: () => key => key}, './config': {mobileConfig: {apiUrl: 'https://fixture.test'}}, './reader/security.ts': {readerProtectedHosts: () => ['fixture.test'], readerImageProxyOrigins: () => ['https://fixture.test']},
+    './data': {createMobileDataRuntime: () => runtime}, './i18n': {normalizeLocale: value => value, createTranslator: () => key => key}, './native/email-links': {nativeEmailLinks: {initialURL: async () => null, subscribe: () => () => {}, openURL: async () => {}}},
+    './auth/EmailLinkLoginNotice': {EmailLinkLoginNotice: () => null},
+    './config': {mobileConfig: {webUrl: 'https://fixture.test', apiUrl: 'https://fixture.test'}}, './reader/security.ts': {readerProtectedHosts: () => ['fixture.test'], readerImageProxyOrigins: () => ['https://fixture.test']},
     './payments/controller': {PaymentController: class {}}, './payments/expo-store': {createExpoStore: () => ({})}, './native/platform': {setWebSessionCookie: async () => {}}, './controlled-upgrade-visibility': {},
     './system-actions/SaveURLHost': {SaveURLHost: () => null}
   });

@@ -1,3 +1,4 @@
+import { EMAIL_LOGIN_PATH, type EmailLinkInput } from '@slax-reader/contracts/email-auth'
 import { EMAIL_CODE_CONFIG } from '@/const/emailCode'
 import { i18n } from '@/const/i18n'
 
@@ -11,11 +12,23 @@ export function generateEmailVerificationCode(): string {
   return String(random[0] % range).padStart(EMAIL_CODE_CONFIG.length, '0')
 }
 
-export function createEmailCodeMessage(code: string, locale?: string) {
+export function generateEmailLoginToken(): string {
+  return Buffer.from(crypto.getRandomValues(new Uint8Array(EMAIL_CODE_CONFIG.linkTokenBytes))).toString('base64url')
+}
+
+export function createEmailLoginLink(frontEndUrl: string, proof: EmailLinkInput): string {
+  const url = new URL(EMAIL_LOGIN_PATH, frontEndUrl)
+  url.hash = new URLSearchParams({ email: proof.email, request_id: proof.request_id, token: proof.token }).toString()
+  return url.href
+}
+
+export function createEmailCodeMessage(code: string, locale?: string, link?: string) {
   const language = locale?.toLowerCase().split(/[-_]/)[0] === 'zh' ? 'zh' : 'en'
   const t = i18n(language)
   return {
     subject: t.emailVerificationCodeSubject({}),
-    text: t.emailVerificationCodeText({ code, minutes: String(EMAIL_CODE_CONFIG.ttlSeconds / 60) })
+    text:
+      t.emailVerificationCodeText({ code, minutes: String(EMAIL_CODE_CONFIG.ttlSeconds / 60) }) +
+      (link ? `\n\n${t.emailLoginLinkText({ link, minutes: String(EMAIL_CODE_CONFIG.ttlSeconds / 60) })}` : '')
   }
 }

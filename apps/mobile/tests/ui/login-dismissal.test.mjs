@@ -51,7 +51,7 @@ async function loginFixture(host, platform, run, props = {}, development = false
   const render = () => host.render(React.createElement(LoginScreen, props))
   const press = key => act(async () => controls.get(key).onPress())
   await render()
-  await run({render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
+  await run({setEmailLink: async value => {mobile.emailLink = value; await render()}, render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
     passkey: value => {nativePasskey = value}, setPasskeySupported: async value => {passkeySupported = value; await render()}, artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()}, verifyEmail: value => {verifyEmail = value},
     setProfile: async profile => {mobile.config.development = profile === 'development'; mobile.config.isBeta = profile === 'beta'; mobile.config.webUrl = {development: 'https://fixture.test', preview: 'https://r.slax.dev', beta: 'https://r.slax.com', production: 'https://r.slax.com'}[profile]; controls.clear(); await render()},
     changeOrigin: async () => {mobile.config.apiUrl = 'https://replacement.fixture.test'; await render()},
@@ -286,6 +286,9 @@ for (const method of ['email', 'passkey']) test(`${method} login keeps the dialo
     await act(async () => host.props.get('email_code_verify').onPress());
   }
   assert.equal(writing, true);
+  let dismissedLink = 0;
+  await fixture.setEmailLink({state: {status: 'agreement'}, confirm: async () => {throw new Error('Cannot replace a committing session');}, dismiss: () => {dismissedLink++;}});
+  assert.equal(dismissedLink, 1);
   assert.equal(host.props.get('email_code_cancel').disabled, true);
   await act(async () => host.props.get('email_code_cancel').onPress());
   assert.notEqual(host.window.document.querySelector(`[data-testid="${method === 'email' ? 'email_code_value' : 'email_code_address'}"]`), null);
@@ -333,4 +336,31 @@ for (const platform of ['ios', 'android']) test(`unsupported ${platform} hides P
   await act(async () => host.props.get('email_code_address').onChangeText('reader@example.test'));
   await act(async () => host.props.get('email_code_send').onPress());
   assert.deepEqual(fixture.requests.map(value => JSON.parse(JSON.stringify(value))), [{email: 'reader@example.test', locale: 'en'}]);
+})));
+
+for (const platform of ['ios', 'android']) test(`mounted ${platform} email link waits for the existing agreement before submitting`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
+  let confirmed = 0, dismissed = 0;
+  await fixture.setEmailLink({state: {status: 'agreement'}, confirm: async () => {confirmed++;}, dismiss: () => {dismissed++;}});
+  assert.equal(fixture.modal().visible, true); assert.equal(confirmed, 0);
+  await fixture.press('agreement_btn_agree');
+  if (platform === 'ios') {assert.equal(confirmed, 0); await act(async () => fixture.modal().onDismiss());}
+  assert.equal(confirmed, 1); assert.equal(dismissed, 0); assert.equal(fixture.providers.length, 0);
+})));
+
+for (const platform of ['ios', 'android']) test(`mounted ${platform} declining email-link agreement discards the pending proof`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
+  let confirmed = 0, dismissed = 0;
+  await fixture.setEmailLink({state: {status: 'agreement'}, confirm: async () => {confirmed++;}, dismiss: () => {dismissed++;}});
+  await fixture.press('agreement_btn_disagree');
+  if (platform === 'ios') await act(async () => fixture.modal().onDismiss());
+  assert.equal(confirmed, 0); assert.equal(dismissed, 1);
+})));
+for (const platform of ['ios', 'android']) test(`mounted ${platform} canceled email-link owner closes its stale agreement`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
+  let confirmed = 0;
+  const actions = {confirm: async () => {confirmed++;}, dismiss: () => {}};
+  await fixture.setEmailLink({...actions, state: {status: 'agreement'}});
+  assert.equal(fixture.modal().visible, true);
+  await fixture.setEmailLink({...actions, state: {status: 'idle'}});
+  assert.equal(fixture.modal().visible, false);
+  if (platform === 'ios') await act(async () => fixture.modal().onDismiss());
+  assert.equal(confirmed, 0);
 })));
