@@ -103,6 +103,7 @@
 
 <script setup lang="ts">
 import AppIcon from '~/components/AppIcon.vue'
+import DiscoveryMasthead from '~/components/DiscoveryMasthead.vue'
 import BookmarksTopBar from '~/components/BookmarkList/BookmarksTopBar.vue'
 
 import { discoveryTopics } from '~/utils/discoveryTopics'

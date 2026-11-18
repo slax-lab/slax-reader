@@ -69,3 +69,5 @@ On November 18, 2026, after the implemented Web preview and native iOS capture w
 The requester prioritized recognizing each Collection and identifying the publisher of each story. Both clients now present the linked Collection name and its initial together at the top of each card. Each companion includes its publisher, with the URL hostname available for legacy responses. Tests exercise the order of the links, the Collection name, an explicit source name and the hostname fallback.
 
 The first PR CI run exposed an incomplete Labs mock in the shared RSS sidebar suite and an unintended import of the Mobile add-link dialog through the components barrel. The RSS fixtures now model the feature list, and Discover imports the UI primitives it actually uses.
+
+On the revised layout, iOS XCTest navigated from the library drawer to Discover with multiple publisher names on each synthetic card. The full Mobile check passed with 1,331 passing tests and five skips. The Web RSS and Discover regression suites passed all 13 tests, including the Collection name and companion publishers.
