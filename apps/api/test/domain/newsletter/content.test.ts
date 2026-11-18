@@ -74,3 +74,16 @@ test('invalid envelope cannot store body or admit mail', async () => {
   expect(p.objects.size).toBe(0)
   expect((await db.query('SELECT * FROM sr_newsletter_feed')).rows).toEqual([])
 })
+
+test('domain changes receive for the bound name, never the renamed account or a foreign envelope domain', async () => {
+  await recipient()
+  await db.exec("UPDATE sr_user SET account='renamed' WHERE id=1")
+  const p = setup(),
+    env = { ...p.env, NEWSLETTER_DOMAIN: 'newslettereader.slax.app' }
+  for (const to of ['feed+jane01@newslettereader.slax.dev', 'feed+renamed@newslettereader.slax.app', 'feed+jane01@foreign.invalid', 'feed+jane01@slax.app'])
+    await expect(p.service.receive(p.message('bad', to), env)).rejects.toMatchObject({ code: 'not_found' })
+  expect(p.objects.size).toBe(0)
+  expect((await db.query('SELECT * FROM sr_newsletter_feed')).rows).toEqual([])
+  await p.service.receive(p.message('accepted', 'FEED+JANE01@NEWSLETTEREADER.SLAX.APP'), env)
+  expect((await db.query('SELECT user_id,state FROM sr_newsletter_feed')).rows).toEqual([{ user_id: 1, state: 'ready' }])
+})
