@@ -276,6 +276,13 @@ export default defineNuxtConfig({
     loginAssetPreloads: [] as string[],
     loginLocalePreloads: [] as string[],
     public: {
+      PUBLIC_BASE_URL: '',
+      AUTH_BASE_URL: '',
+      COOKIE_DOMAIN: '',
+      COOKIE_TOKEN_NAME: '',
+      SHARE_BASE_URL: '',
+      DWEB_API_BASE_URL: '',
+      GOOGLE_OAUTH_CLIENT_ID: '',
       ...envConfig,
       EXTENSION_BRIDGE_IDS: profile.extensionBridgeId,
       appVersion: pkg.version || '',

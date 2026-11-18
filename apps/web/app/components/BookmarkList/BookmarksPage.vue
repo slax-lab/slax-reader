@@ -18,11 +18,10 @@
       </Transition>
     </div>
 
-    <!-- AddUrlTopModal：由 FAB 触发 -->
-    <AddUrlTopModal v-model:show="isShowTopModal" @add-url-success="addUrlSuccess" />
+    <AddUrlTopModal v-model:show="isShowTopModal" :initial-mode="addInitialMode" :submit-feed="addFeed" @add-url-success="addUrlSuccess" />
 
     <!-- FAB：浮动添加按钮 -->
-    <BookmarksFab v-show="!rssActive" @click="isShowTopModal = true" />
+    <BookmarksFab v-show="!rssActive" @click="showAdd('url')" />
 
     <BookmarksLayout
       ref="bookmarksLayout"
@@ -94,7 +93,7 @@
         </div>
       </template>
       <template v-slot:content-list>
-        <FeedPanel v-if="rssVisited" v-show="rssActive" :active="rssActive" :search="rssSearch" v-model:list-mode="listMode" />
+        <FeedPanel v-if="rssVisited" ref="rssPanel" v-show="rssActive" :active="rssActive" :search="rssSearch" v-model:list-mode="listMode" @add-feed="showAdd('feed')" />
         <div v-show="!rssActive">
           <!-- fork-only：星标视图顶部合集引导横幅 -->
           <ClientOnly>
@@ -200,9 +199,9 @@ import ListLayoutSwitcher from '~/components/BookmarkList/ListLayoutSwitcher.vue
 import LocalSyncProgress from '~/components/BookmarkList/LocalSyncProgress.vue'
 import StarredSharePrompt from '~/components/BookmarkList/StarredSharePrompt.vue'
 import TabsSidebar from '~/components/BookmarkList/TabsSidebar.vue'
+import FeedPanel from '~/components/FeedPanel.vue'
 import ReceiveSubscribeModal from '~/components/GetSubscribeModal.vue'
 import BookmarksLayout from '~/components/Layouts/BookmarksLayout.vue'
-import FeedPanel from '~/components/FeedPanel.vue'
 
 import { isInboxPath } from '~/utils/promotionFlow'
 
@@ -249,6 +248,20 @@ const userStore = useUserStore()
 const searchText = ref('')
 const isSearching = ref(false)
 const isShowTopModal = ref(false)
+const addInitialMode = ref<'url' | 'feed'>('url')
+const rssPanel = ref<InstanceType<typeof FeedPanel>>()
+const showAdd = (mode: 'url' | 'feed') => {
+  addInitialMode.value = mode
+  isShowTopModal.value = true
+}
+const addFeed = async (url: string, name: string) => {
+  rssVisited.value = true
+  await nextTick()
+  if (!rssPanel.value) throw new Error('source_unavailable')
+  await rssPanel.value.addFeed(url, name)
+  rssSearch.value = ''
+  await inboxClick('rss')
+}
 
 // fork-only：本地 userInfo ref
 const userInfo = ref<UserInfo>()

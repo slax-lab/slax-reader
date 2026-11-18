@@ -1522,6 +1522,18 @@
       "source_unavailable": "The source is unavailable. Cached content is kept."
     }
   },
+  "add_content": {
+    "title": "Add content",
+    "url": "URL",
+    "feed": "Feed",
+    "file": "File",
+    "feed_hint": "This link looks like an RSS feed. Subscribe to keep receiving updates.",
+    "switch_feed": "Use subscription",
+    "keep_url": "Keep as URL",
+    "feed_placeholder": "RSS address",
+    "choose_file": "Choose PDF",
+    "replace_file": "Replace PDF"
+  },
   "promotion": {
     "identity_error": "We could not verify your account. Please retry when connected.",
     "checking": "Checking your invitation…",

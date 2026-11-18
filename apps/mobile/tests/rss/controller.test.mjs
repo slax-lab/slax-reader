@@ -407,6 +407,52 @@ test('late cached Labs disable is ignored after cancellation, disposal, or accou
   });
 });
 
+test('acquisition confirmation follows current Labs verification without changing cached browsing', async t => {
+  let resolveLabs;
+  const f = localFixture(t, {rssLabs: () => new Promise(resolve => {resolveLabs = resolve;})});
+  f.local.hasCachedData = async () => true;
+  await f.controller.load();
+  assert.equal(f.controller.getSnapshot().enabled, true);
+  assert.equal(f.controller.getSnapshot().confirmedEnabled, false);
+  assert.equal(f.controller.getSnapshot().entries[0].id, entry.id);
+  resolveLabs({features: [{key: 'rss', enabled: true}]}); await flush();
+  assert.equal(f.controller.getSnapshot().confirmedEnabled, true);
+  f.api.rssLabs = async () => {throw new TypeError('offline');};
+  await f.controller.load(); await flush();
+  assert.equal(f.controller.getSnapshot().confirmedEnabled, false);
+  assert.equal(f.controller.getSnapshot().enabled, true);
+  assert.equal(f.controller.getSnapshot().entries[0].id, entry.id);
+  f.api.rssLabs = async () => ({features: [{key: 'rss', enabled: true}]});
+  await f.controller.load(); await flush();
+  assert.equal(f.controller.getSnapshot().confirmedEnabled, true);
+  f.api.rssLabs = async () => ({features: [{key: 'rss', enabled: false}]});
+  await f.controller.load(); await flush();
+  assert.equal(f.controller.getSnapshot().confirmedEnabled, false);
+  assert.equal(f.controller.getSnapshot().enabled, false);
+});
+
+test('non-cached Labs confirmation is distinct from local list readiness', async t => {
+  const f = localFixture(t);
+  assert.equal(f.controller.getSnapshot().confirmedEnabled, false);
+  await f.controller.load();
+  assert.equal(f.controller.getSnapshot().ready, false);
+  assert.equal(f.controller.getSnapshot().confirmedEnabled, true);
+});
+
+for (const lifecycle of ['cancel', 'dispose', 'account replacement', 'request scope replacement']) test(`late cached Labs enable cannot authorize acquisition after ${lifecycle}`, async t => {
+  let resolveLabs, scopeCurrent = true;
+  const f = localFixture(t, {rssLabs: () => new Promise(resolve => {resolveLabs = resolve;})});
+  f.api.options = {sessions: {captureRequestScope: () => ({assertCurrent() {if (!scopeCurrent) throw new Error('Scope replaced');}})}};
+  f.local.hasCachedData = async () => true;
+  await f.controller.load();
+  if (lifecycle === 'cancel') f.controller.cancel();
+  else if (lifecycle === 'dispose') f.controller.dispose();
+  else if (lifecycle === 'account replacement') f.revoke();
+  else scopeCurrent = false;
+  resolveLabs({features: [{key: 'rss', enabled: true}]}); await flush();
+  assert.equal(f.controller.getSnapshot().confirmedEnabled, false);
+});
+
 test('sync-before-REST save retires on a reader event and a later bookmark deletion clears saved state', async t => {
   let resolveSave, started;
   const waiting = new Promise(resolve => {started = resolve;});

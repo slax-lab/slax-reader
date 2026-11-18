@@ -1,5 +1,29 @@
 import type { CursorPage } from "./http.js";
 
+// WHATWG URL is available in every supported runtime. Keep its type local so
+// contracts do not add browser or Node globals to their consumers.
+declare const URL: new (value: string) => {
+  protocol: string;
+  pathname: string;
+  searchParams: Iterable<[string, string]>;
+};
+
+export function isPossibleFeedUrl(input: string): boolean {
+  try {
+    const url = new URL(input.trim());
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    const path = url.pathname.toLowerCase();
+    if (/(?:^|\/)(?:feed|feeds|rss|rss2|atom)(?:\/|$)/.test(path)) return true;
+    if (/(?:^|\/)(?:feed|rss|rss2|atom)\.xml$/.test(path) || /\.(?:rss|atom)$/.test(path)) return true;
+    for (const [key, value] of url.searchParams) {
+      if (/^(?:feed|format|type|output)$/i.test(key) && /^(?:rss|rss2|rss1|atom|feed)$/i.test(value)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 /** Stable machine-readable RSS errors, carried by the existing API envelope. */
 export type RssErrorCode =
   | "lab_disabled"

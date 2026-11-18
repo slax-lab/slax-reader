@@ -155,17 +155,35 @@ describe('RSS inside Inbox', () => {
     expect(wrapper.get('article').element).toBe(original)
     expect(wrapper.find('.bookmarks-topbar').exists()).toBe(false)
   })
-  it('adds a feed with its custom display name', async () => {
+  it('routes both RSS Add buttons to the unified modal without opening the rename dialog', async () => {
+    rss.subscriptions.value = []
+    rss.entries.value = []
     const wrapper = panel()
-    await wrapper
-      .findAll('button')
-      .find(button => button.text() === 'rss.add')!
-      .trigger('click')
-    await wrapper.get('#rss-feed-url').setValue('https://example.com/new.xml')
-    await wrapper.get('#rss-remark').setValue('Daily reading')
-    await wrapper.get('form').trigger('submit')
-    await flushPromises()
-    expect(rss.add).toHaveBeenCalledWith('https://example.com/new.xml', 'Daily reading')
+    const buttons = wrapper.findAll('button').filter(button => button.text() === 'rss.add')
+    expect(buttons).toHaveLength(2)
+    for (const button of buttons) await button.trigger('click')
+    expect(wrapper.emitted('addFeed')).toEqual([[], []])
+    expect(wrapper.find('dialog[open]').exists()).toBe(false)
+    expect(rss.add).not.toHaveBeenCalled()
+  })
+  it('delegates unified Feed submission to the existing RSS owner', async () => {
+    const wrapper = panel()
+    await wrapper.vm.addFeed('https://example.com/new.xml?format=atom', 'Daily reading')
+    expect(rss.add).toHaveBeenCalledExactlyOnceWith('https://example.com/new.xml?format=atom', 'Daily reading')
+  })
+  it('forwards the RSS owner error instead of reporting a successful subscription', async () => {
+    rss.add.mockImplementation(async () => { rss.error.value = 'invalid_feed' })
+    const wrapper = panel()
+    await expect(wrapper.vm.addFeed('https://example.com/not-a-feed', 'Daily reading')).rejects.toThrow('invalid_feed')
+  })
+  it('does not report success for a disabled or already-pending owner', async () => {
+    const wrapper = panel()
+    rss.enabled.value = false
+    await expect(wrapper.vm.addFeed('https://example.com/feed', '')).rejects.toThrow('lab_disabled')
+    rss.enabled.value = true
+    rss.pending.value = true
+    await expect(wrapper.vm.addFeed('https://example.com/feed', '')).rejects.toThrow('source_unavailable')
+    expect(rss.add).not.toHaveBeenCalled()
   })
   it('edits or clears the display name without replacing the subscription URL', async () => {
     const wrapper = panel()

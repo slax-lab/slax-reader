@@ -1,20 +1,12 @@
-// AddUrlTopModal 组件单测（居中 modal 版本，使用 Teleport to="body"）
-// model: show
-// emit: addUrlSuccess
-// computed addUrlButtonEnable：text 非空 + http(s):// 前缀
-// topModalClick → request().post(ADD_URL) → 关闭 modal + emit + clear
-// watch show=true → focus input
-// 注意：Teleport 渲染到 document.body，需 attachTo: document.body 并从 document 查找
 import { nextTick } from 'vue'
 
 import AddUrlTopModal from '~~/app/components/BookmarkList/AddUrlTopModal.vue'
 
 import { RequestError } from '@commons/frontend-utils/request'
-import { useLabFeatures } from '~/composables/useLabFeatures'
-
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { flushPromises } from '@vue/test-utils'
-import { mountWithApp } from '~~/tests/setup/mount'
+import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
+import { useLabFeatures } from '~/composables/useLabFeatures'
+import { createTestI18n, mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockRequest, mockPost, mockGet, mockToastShowToast, mockNavigateTo } = vi.hoisted(() => {
@@ -53,13 +45,37 @@ const submitUrl = async (url: string) => {
 }
 
 // Teleport 渲染到 body，需要 attachTo 才能在 document 中找到元素
-const mountModal = (show: boolean) =>
+const mountModal = (show: boolean, props: { initialMode?: 'url' | 'feed' | 'file'; submitFeed?: (url: string, name: string) => Promise<void> } = {}) =>
   mountWithApp(AddUrlTopModal, {
-    props: { show },
+    props: { show, ...props },
     attachTo: document.body
   })
 
+enableAutoUnmount(afterEach)
+
+const setInput = async (selector: string, value: string) => {
+  const input = document.querySelector(selector) as HTMLInputElement
+  input.value = value
+  input.dispatchEvent(new Event('input'))
+  await nextTick()
+}
+
+const setLabs = (rss: boolean, pdf: boolean) => {
+  useLabFeatures().features.value = [
+    { key: 'rss', status: 'active', enabled: rss, enabled_at: null },
+    { key: 'pdf', status: 'active', enabled: pdf, enabled_at: null }
+  ]
+}
+
+const tabModes = () => [...document.querySelectorAll('.add-tabs button')].map(button => button.id.replace('add-tab-', ''))
+
+const openTab = async (mode: string) => {
+  ;(document.querySelector(`#add-tab-${mode}`) as HTMLButtonElement | null)?.click()
+  await nextTick()
+}
+
 const selectFile = async (file: File) => {
+  await openTab('file')
   const input = document.querySelector('input[type=file]') as HTMLInputElement
   Object.defineProperty(input, 'files', { value: [file], configurable: true })
   input.dispatchEvent(new Event('change'))
@@ -83,6 +99,200 @@ describe('AddUrlTopModal', () => {
     document.body.innerHTML = ''
   })
 
+  it.each([
+    { rss: true, pdf: true, modes: ['url', 'feed', 'file'] },
+    { rss: true, pdf: false, modes: ['url', 'feed'] },
+    { rss: false, pdf: true, modes: ['url', 'file'] },
+    { rss: false, pdf: false, modes: ['url'] }
+  ])('exposes only confirmed Labs modes: $modes', ({ rss, pdf, modes }) => {
+    setLabs(rss, pdf)
+    mountModal(true)
+    expect(document.querySelector('[role=tabpanel]')?.id).toBe('add-panel-url')
+    expect(tabModes()).toEqual(modes.length > 1 ? modes : [])
+    expect(!!document.querySelector('[role=tablist]')).toBe(modes.length > 1)
+  })
+
+  it.each([true, false])('uses initial Feed mode only when RSS is enabled: %s', enabled => {
+    setLabs(enabled, true)
+    mountModal(true, { initialMode: 'feed' })
+    expect(document.querySelector('[role=tabpanel]')?.id).toBe(enabled ? 'add-panel-feed' : 'add-panel-url')
+  })
+
+  it('keeps URL usable while RSS Labs is unconfirmed', async () => {
+    setLabs(true, true)
+    useLabFeatures().loaded.value = false
+    mockGet.mockResolvedValue({ features: [] })
+    mountModal(true, { initialMode: 'feed' })
+    expect(document.querySelector('[role=tabpanel]')?.id).toBe('add-panel-url')
+    expect(tabModes()).toEqual([])
+    await setInput('input[type=url]', 'https://example.com/feed/')
+    expect(document.querySelector('.feed-hint')).toBeNull()
+    await flushPromises()
+  })
+
+  it('shows a local feed hint only in URL mode with RSS enabled and keeps the complete address on switch', async () => {
+    setLabs(false, true)
+    const submitFeed = vi.fn().mockResolvedValue(undefined)
+    mountModal(true, { submitFeed })
+    const address = 'https://example.com/feed/?format=atom&token=a%2Fb&sort=new'
+    await setInput('input[type=url]', address)
+    expect(document.querySelector('.feed-hint')).toBeNull()
+    setLabs(true, true)
+    await nextTick()
+    expect(document.querySelector('.feed-hint')).not.toBeNull()
+    ;(document.querySelector('.hint-actions button') as HTMLButtonElement).click()
+    await nextTick()
+    expect(document.querySelector('#add-tab-feed')?.getAttribute('aria-selected')).toBe('true')
+    expect((document.querySelector('input[type=url]') as HTMLInputElement).value).toBe(address)
+    expect(document.querySelector('.feed-hint')).toBeNull()
+    await openTab('file')
+    expect(document.querySelector('.feed-hint')).toBeNull()
+    expect(mockRequest).not.toHaveBeenCalled()
+    expect(submitFeed).not.toHaveBeenCalled()
+  })
+
+  it('dismisses the feed hint for the unchanged address during the open session', async () => {
+    setLabs(true, true)
+    mountModal(true)
+    await setInput('input[type=url]', 'https://example.com/feed/?format=atom')
+    ;(document.querySelector('.hint-actions .muted') as HTMLButtonElement).click()
+    await nextTick()
+    expect(document.querySelector('.feed-hint')).toBeNull()
+    await openTab('feed')
+    await openTab('url')
+    expect(document.querySelector('.feed-hint')).toBeNull()
+    await setInput('input[type=url]', 'https://example.com/rss.xml')
+    expect(document.querySelector('.feed-hint')).not.toBeNull()
+    expect(mockRequest).not.toHaveBeenCalled()
+  })
+
+  it('preserves address, feed name, and selected PDF across mode switches and picker cancellation', async () => {
+    setLabs(true, true)
+    mountModal(true)
+    const address = 'https://example.com/feed/?token=a%2Fb&format=atom'
+    await setInput('input[type=url]', address)
+    await selectFile(new File(['%PDF-1.7'], 'draft.pdf', { type: 'application/pdf' }))
+    await openTab('feed')
+    expect((document.querySelector('input[type=url]') as HTMLInputElement).value).toBe(address)
+    await setInput('#add-feed-name', 'Daily reading')
+    await openTab('url')
+    await openTab('file')
+    expect(document.querySelector('.file-name')?.textContent).toContain('draft.pdf')
+    const input = document.querySelector('input[type=file]') as HTMLInputElement
+    Object.defineProperty(input, 'files', { value: [], configurable: true })
+    input.dispatchEvent(new Event('change'))
+    await nextTick()
+    expect(document.querySelector('.file-name')?.textContent).toContain('draft.pdf')
+    await openTab('feed')
+    expect((document.querySelector('#add-feed-name') as HTMLInputElement).value).toBe('Daily reading')
+    expect((document.querySelector('input[type=url]') as HTMLInputElement).value).toBe(address)
+    expect(mockRequest).not.toHaveBeenCalled()
+  })
+
+  it('submits Feed through its owner and closes without bookmark success or toast', async () => {
+    setLabs(true, true)
+    const submitFeed = vi.fn().mockResolvedValue(undefined)
+    const wrapper = mountModal(true, { initialMode: 'feed', submitFeed })
+    await setInput('#add-feed-name', ' Daily reading ')
+    await submitUrl('https://example.com/feed/?token=a%2Fb')
+    expect(submitFeed).toHaveBeenCalledExactlyOnceWith('https://example.com/feed/?token=a%2Fb', 'Daily reading')
+    expect(wrapper.emitted('update:show')).toEqual([[false]])
+    expect(wrapper.emitted('addUrlSuccess')).toBeFalsy()
+    expect(mockPost).not.toHaveBeenCalled()
+    expect(mockToastShowToast).not.toHaveBeenCalled()
+    expect(document.querySelector('.modal-dialog')).toBeNull()
+  })
+
+  it.each([['invalid_feed', 'rss.errors.invalid_feed'], ['unexpected', 'rss.source_error']])('retains Feed input with mapped failure %s', async (code, key) => {
+    setLabs(true, true)
+    const submitFeed = vi.fn().mockRejectedValue(new Error(code))
+    const wrapper = mountModal(true, { initialMode: 'feed', submitFeed })
+    await setInput('#add-feed-name', 'Daily reading')
+    await submitUrl('https://example.com/feed/?format=atom')
+    expect(document.querySelector('[role=alert]')?.textContent).toBe(createTestI18n().global.t(key))
+    expect((document.querySelector('input[type=url]') as HTMLInputElement).value).toBe('https://example.com/feed/?format=atom')
+    expect((document.querySelector('#add-feed-name') as HTMLInputElement).value).toBe('Daily reading')
+    expect(wrapper.emitted('update:show')).toBeFalsy()
+    expect(wrapper.emitted('addUrlSuccess')).toBeFalsy()
+    expect((document.querySelector('.modal-btn-primary') as HTMLButtonElement).disabled).toBe(false)
+    await openTab('url')
+    expect(document.querySelector('[role=alert]')).toBeNull()
+    await openTab('feed')
+    expect(document.querySelector('[role=alert]')).not.toBeNull()
+  })
+
+  it('prevents competing tabs and closing while a Feed submission is pending', async () => {
+    setLabs(true, true)
+    let resolve!: () => void
+    const submitFeed = vi.fn(() => new Promise<void>(done => { resolve = done }))
+    const wrapper = mountModal(true, { initialMode: 'feed', submitFeed })
+    await setInput('input[type=url]', 'https://example.com/feed/')
+    ;(document.querySelector('.modal-btn-primary') as HTMLButtonElement).click()
+    await nextTick()
+    await openTab('url')
+    ;(document.querySelector('.modal-close') as HTMLButtonElement).click()
+    expect(document.querySelector('[role=tabpanel]')?.id).toBe('add-panel-feed')
+    expect(wrapper.emitted('update:show')).toBeFalsy()
+    expect([...document.querySelectorAll('.add-tabs button')].every(button => (button as HTMLButtonElement).disabled)).toBe(true)
+    resolve()
+    await flushPromises()
+    expect(submitFeed).toHaveBeenCalledOnce()
+    expect(document.querySelector('.modal-dialog')).toBeNull()
+  })
+
+  it('keeps URL validation errors out of Feed and File modes', async () => {
+    setLabs(true, true)
+    mountModal(true)
+    await setInput('input[type=url]', 'invalid address')
+    ;(document.querySelector('input[type=url]') as HTMLInputElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+    await nextTick()
+    expect(document.querySelector('.modal-error')).not.toBeNull()
+    await openTab('feed')
+    expect(document.querySelector('.modal-error')).toBeNull()
+    expect(document.querySelector('.modal-input-wrap.error')).toBeNull()
+    await openTab('file')
+    expect(document.querySelector('.modal-error')).toBeNull()
+  })
+
+  it.each(['button', 'parent'])('resets drafts and errors at close via %s rather than waiting for reopening', async method => {
+    setLabs(true, true)
+    const wrapper = mountModal(true, { submitFeed: vi.fn().mockRejectedValue(new Error('source_unavailable')) })
+    await setInput('input[type=url]', 'https://example.com/feed/')
+    ;(document.querySelector('.hint-actions .muted') as HTMLButtonElement).click()
+    await selectFile(new File(['%PDF-1.7'], 'draft.pdf'))
+    await openTab('feed')
+    await setInput('#add-feed-name', 'Daily reading')
+    ;(document.querySelector('.modal-btn-primary') as HTMLButtonElement).click()
+    await flushPromises()
+    if (method === 'button') (document.querySelector('.modal-close') as HTMLButtonElement).click()
+    else await wrapper.setProps({ show: false })
+    await nextTick()
+    const state = wrapper.vm.$.setupState as Record<string, unknown>
+    expect(state.mode).toBe('url')
+    expect(state.addUrlText).toBe('')
+    expect(state.feedName).toBe('')
+    expect(state.pdfFile).toBeNull()
+    expect(state.feedError).toBe('')
+    expect(state.pdfError).toBe('')
+    expect(state.showError).toBe(false)
+    expect(state.dismissedFeedUrl).toBe('')
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true })
+    expect(document.querySelector('[role=tabpanel]')?.id).toBe('add-panel-url')
+    expect((document.querySelector('input[type=url]') as HTMLInputElement).value).toBe('')
+  })
+
+  it('returns to URL and hides feed hints if RSS is disabled while open', async () => {
+    setLabs(true, true)
+    mountModal(true, { initialMode: 'feed' })
+    await setInput('input[type=url]', 'https://example.com/feed/')
+    setLabs(false, true)
+    await nextTick()
+    expect(document.querySelector('[role=tabpanel]')?.id).toBe('add-panel-url')
+    expect(document.querySelector('.feed-hint')).toBeNull()
+    expect(mockRequest).not.toHaveBeenCalled()
+  })
+
   it('allows deliberate REST resubmission when no PowerSync state is available', async () => {
     const wrapper = mountModal(true)
     await submitUrl('https://example.com/accepted-still-processing')
@@ -98,17 +308,20 @@ describe('AddUrlTopModal', () => {
     const labs = useLabFeatures()
     labs.features.value[0]!.enabled = false
     const wrapper = mountModal(true)
-    expect(document.querySelector('input[type=file]')).toBeNull()
+    expect(tabModes()).not.toContain('file')
     labs.features.value[0]!.enabled = true
     await nextTick()
+    expect(tabModes()).toContain('file')
+    await openTab('file')
     expect(document.querySelector('input[type=file]')).not.toBeNull()
     wrapper.unmount()
     labs.loaded.value = false
     mockGet.mockResolvedValueOnce({ features: [{ key: 'pdf', status: 'active', enabled: true, enabled_at: null }] })
     mountModal(true)
-    expect(document.querySelector('input[type=file]')).toBeNull()
+    expect(tabModes()).not.toContain('file')
     await flushPromises()
     expect(mockGet).toHaveBeenCalledWith({ url: '/v1/user/labs' })
+    await openTab('file')
     expect(document.querySelector('input[type=file]')).not.toBeNull()
   })
 
@@ -118,6 +331,7 @@ describe('AddUrlTopModal', () => {
     const labs = useLabFeatures()
     labs.features.value[0]!.enabled = false
     await nextTick()
+    expect(tabModes()).not.toContain('file')
     expect(document.querySelector('input[type=file]')).toBeNull()
     expect((document.querySelector('.modal-btn-primary') as HTMLButtonElement).disabled).toBe(true)
     expect(mockPost).not.toHaveBeenCalled()

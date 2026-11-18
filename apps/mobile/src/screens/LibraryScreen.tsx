@@ -24,7 +24,6 @@ import {SourceDrawer} from '../components/SourceDrawer';
 import {FeedList} from '../components/FeedList';
 import {useAppForeground} from '../components/useAppForeground';
 import {parseSourceTimestamp} from '../utils/source-time';
-import {PdfImportDialog} from '../components/PdfImportDialog';
 import {usePdfLab} from '../pdf/usePdfLab';
 import {LibraryDataStatus} from './LibraryDataStatus';
 import {useVisibleSnapshot} from '../components/useVisibleSnapshot';
@@ -43,16 +42,15 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
   const telemetry = useTelemetry();
   const markInteractive = useObserveMarkInteractive();
   const pdfLab = usePdfLab();
-  const [importingPdf, setImportingPdf] = useState(false);
   const insets = useSafeAreaInsets(), window = useWindowDimensions();
   const [feedViewportHeight, setFeedViewportHeight] = useState(0);
   const measureFeedViewport = useCallback((event: {nativeEvent: {layout: {height: number}}}) => setFeedViewportHeight(event.nativeEvent.layout.height), []);
   const sourceStripHeight = 82 + T.rssSourceLabel.lineHeight * Math.max(1, window.fontScale);
-  const [sort, setSort] = useState<LibrarySort>('inbox'), [rssSelected, setRssSelected] = useState(false), [addingRss, setAddingRss] = useState(false);
+  const [sort, setSort] = useState<LibrarySort>('inbox'), [rssSelected, setRssSelected] = useState(false);
   const [focused, setFocused] = useState(false), foreground = useAppForeground();
   useFocusEffect(useCallback(() => {
     setFocused(true);
-    return () => {setFocused(false); setImportingPdf(false);};
+    return () => {setFocused(false); setAdd(false);};
   }, []));
   // List watches, clocks and RSS polling suspend while the Library is covered or the app is backgrounded.
   const clockActive = focused && foreground;
@@ -66,7 +64,7 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
   const setCollectionRows = useCallback((value: LibraryBookmark[]) => {if (scrolling.current && populated.current) deferred.current.set(publishCollectionRows, value); else publishCollectionRows(value);}, [publishCollectionRows]);
   const [collections, setCollections] = useState<LibraryCollection[]>([]), [activeId, setActiveId] = useState<string | null>(null);
   const [user, setUser] = useState<Record<string, unknown>>({}), [subscription, setSubscription] = useState<Record<string, unknown> | null>(null);
-  const [drawer, setDrawer] = useState(false), [sortMenu, setSortMenu] = useState(false), [add, setAdd] = useState(false), [edit, setEdit] = useState<LibraryBookmark | null>(null);
+  const [drawer, setDrawer] = useState(false), [sortMenu, setSortMenu] = useState(false), [add, setAdd] = useState(false), [addMode, setAddMode] = useState<'url' | 'feed'>('url'), [edit, setEdit] = useState<LibraryBookmark | null>(null);
   const [processing, setProcessing] = useState<string | null>(null), [error, setError] = useState<string | null>(null), [continueReading, setContinueReading] = useState<{value: ContinueReadingContext; owner: string; repositories: typeof repositories; preferences: typeof preferences} | null>(null), [now, setNow] = useState(Date.now());
   const processingOriginalUrl = httpOriginalUrl(processing ?? '');
   const visibleContinueReading = dataReady && continueReading?.owner === nativeResourceOwner && continueReading.repositories === repositories && continueReading.preferences === preferences ? continueReading.value : null;
@@ -77,7 +75,7 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
   const scrollTo = useCallback((offset: number, animated = false) => list.current?.scrollToOffset({offset, animated}), []);
   const inboxScroll = useFeedScrollPosition(feedPositions.inbox, scrollTo, !rssSelected, activeId);
   useEffect(() => {
-    inboxScroll.reset(); feedPositions.rss.reset(); feedPositions.rss.source = undefined; setDrawer(false); setAdd(false); setImportingPdf(false);
+    inboxScroll.reset(); feedPositions.rss.reset(); feedPositions.rss.source = undefined; setDrawer(false); setAdd(false);
   }, [nativeResourceOwner, feedPositions, inboxScroll.reset]);
   const collectionSelection = useRef(new CollectionSelection()).current;
   const rss = useMemo(() => new RssController(api, Date.now, () => runtime.getNativeResourceOwner() === nativeResourceOwner, dataReady ? repositories?.rss : undefined), [api, runtime, nativeResourceOwner, dataReady, repositories]);
@@ -153,7 +151,7 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
     if (!active && deferred.current.size) {const pending = [...deferred.current]; deferred.current.clear(); for (const [publish, value] of pending) publish(value);}
     scrollActivity(active);
   }, [scrollActivity]);
-  useEffect(() => {if (!rssState.enabled) setAddingRss(false);}, [rssState.enabled]);
+
   useEffect(() => {
     const source = route.params?.source;
     if (!source || !dataReady) return;
@@ -200,8 +198,12 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
   const listEmpty = useMemo(() => activeId !== null && blocked ? <View style={styles.collectionMessage}><SourceText style={[T.metadata, {color: C.rssIconMuted, lineHeight: 22}]}>{!active ? t('collection_unavailable') : closed ? t('collection_closed_message', [active.name]) : t('collection_expired_message', [active.name])}</SourceText></View> : !dataReady || activeId === null && !rowsReady ? <LibraryDataStatus upgrade={upgrade} t={t} retryStart={retryStart} /> : activeId !== null ? <View style={styles.collectionMessage}><SourceText style={[T.metadata, {color: C.rssIconMuted, lineHeight: 22}]}>{t('collection_empty')}</SourceText></View> : <EmptyInbox />, [activeId, blocked, active, closed, dataReady, rowsReady, upgrade, t, retryStart]);
   const listFooter = useMemo(() => hasRows ? <View><Divider inset={24} /><SourceLine text={t('list_no_more')} fontSize={14} lineHeight={20} centerAsGroup color={C.mutedText} style={{marginVertical: 34}} /></View> : undefined, [hasRows, t]);
   const feedContentStyle = useMemo(() => [{paddingBottom: insets.bottom + 16}, !hasRows && {flexGrow: 1}], [insets.bottom, hasRows]);
-  const requestRss = useCallback(() => setAddingRss(true), []), dismissRss = useCallback(() => setAddingRss(false), []);
   const openRssSettings = useCallback(() => navigation.navigate('Settings'), [navigation]);
+  const requestRss = useCallback(() => {
+    if (!rss.getSnapshot().enabled) {openRssSettings(); return;}
+    setAddMode('feed'); setAdd(true);
+  }, [rss, openRssSettings]);
+  const requestUrl = useCallback(() => {setAddMode('url'); setAdd(true);}, []);
   const openRss = useCallback((entry: {id: string}) => {
     if (dataReady && nativeResourceOwner && runtime.getNativeResourceOwner() === nativeResourceOwner && runtime.getRepositories() === repositories) navigation.navigate('Reader', {bookmarkId: '', rssEntryId: entry.id, openedFrom: 'rss'});
   }, [dataReady, nativeResourceOwner, runtime, repositories, navigation]);
@@ -225,10 +227,10 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
       }
       if (action.kind === 'open-sidebar') {setDrawer(true); return true;}
       if (action.kind === 'open-sort-menu') {setSortMenu(true); return true;}
-      if (action.kind === 'open-add-link') {setAdd(true); return true;}
+      if (action.kind === 'open-add-link') {requestUrl(); return true;}
       return false;
     });
-  }, [fixtureOnly, rss, rssSelected, rssState.busy, rssState.retryAt, collections, selectCollection]);
+  }, [fixtureOnly, rss, rssSelected, rssState.busy, rssState.retryAt, collections, selectCollection, requestUrl]);
   const sidebar = <ScrollView scrollsToTop={false} style={styles.drawer} contentContainerStyle={{width: '100%', flexGrow: 1, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8, paddingLeft: insets.left + 8, paddingRight: 8}} bounces={false} keyboardShouldPersistTaps="handled">
       <Pressable accessibilityRole="button" accessibilityLabel={t('sidebar_close')} onPress={() => setDrawer(false)} style={{marginLeft: 12, width: 24}} hitSlop={10}><SourceIcon name="ic_xs_sidebar_close" /></Pressable>
       <View style={{flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 12, marginVertical: 16}}><SourceAvatar resourceKey="self" uri={String(user.picture ?? '')} label={t('sidebar_user_avatar')} /><SourceText style={{fontSize: 16, lineHeight: 20, fontWeight: '600', flexShrink: 1}}>{String(user.name ?? '')}</SourceText></View>
@@ -244,12 +246,12 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
       <View style={styles.navigation}>
         <Pressable accessibilityRole="button" accessibilityLabel="Menu" onPress={() => {telemetry.element('sidebar_open_button', 'bookmarks'); setDrawer(true);}} style={({pressed}) => [styles.navLeft, {opacity: pressed ? 0.5 : 1}]}><SourceIcon name="ic_inbox_tab" /><LibrarySyncAvatar uri={String(user.picture ?? '')} /></Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Switch List" onPress={() => setSortMenu(true)} style={styles.navTitle}><SourceLine text={t(rssSelected ? 'rss_feeds' : sortKeys[sort])} fontSize={17} lineHeight={24} fontWeight={500} color={C.text} alignment="center" fitContent style={{alignSelf: 'center'}} /><SourceIcon name="inbox_more" size={10} /></Pressable>
-        <View style={{flexDirection: 'row', alignItems: 'center', paddingRight: 12}}><Pressable accessibilityRole="button" accessibilityLabel={t('search_action')} onPress={() => navigation.navigate('Search')} style={{minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center'}}><SearchGlyph/></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Add Link" disabled={!repositories} accessibilityState={{disabled: !repositories}} onPress={() => {telemetry.element('bookmark_add_button', 'bookmarks'); rssSelected ? setAddingRss(true) : setAdd(true);}} style={({pressed}) => [{minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center'}, {opacity: pressed ? 0.5 : 1}]}><SourceIcon name="ic_xs_inbox_add" /></Pressable></View>
+        <View style={{flexDirection: 'row', alignItems: 'center', paddingRight: 12}}><Pressable accessibilityRole="button" accessibilityLabel={t('search_action')} onPress={() => navigation.navigate('Search')} style={{minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center'}}><SearchGlyph/></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Add Link" disabled={!repositories} accessibilityState={{disabled: !repositories}} onPress={() => {telemetry.element('bookmark_add_button', 'bookmarks'); rssSelected ? requestRss() : requestUrl();}} style={({pressed}) => [{minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center'}, {opacity: pressed ? 0.5 : 1}]}><SourceIcon name="ic_xs_inbox_add" /></Pressable></View>
       </View>
       {Platform.OS === 'android' ? <Pressable accessible={false} style={{position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 10}} onPress={() => inboxScroll.reset(true)} /> : null}
     </View>
     <SourceShape testID="library-feed-viewport" onLayout={measureFeedViewport} radius={16} corners="top" fillColor={C.readerBackground} style={[styles.feed, Platform.OS === 'android' && {backgroundColor: 'transparent', borderTopLeftRadius: 0, borderTopRightRadius: 0, overflow: 'visible'}]}>
-      {rssSelected ? !dataReady ? <LibraryDataStatus upgrade={upgrade} t={t} retryStart={retryStart} /> : <RssFeed key={nativeResourceOwner} active={clockActive} scrollsToTop={!drawer} onScrollActivity={scrollActivity} state={rssState} controller={rss} scrollPosition={feedPositions.rss} adding={addingRss} onDismissAdd={dismissRss} onRequestAdd={requestRss} onOpenSettings={openRssSettings} onOpen={openRss} header={rssState.enabled ? <View style={{backgroundColor: C.background}}><SourceStripBackdrop height={feedViewportHeight} /><RssFeedSwitcher state={rssState} controller={rss} onAdd={requestRss} /></View> : null} /> : <>
+      {rssSelected ? !dataReady ? <LibraryDataStatus upgrade={upgrade} t={t} retryStart={retryStart} /> : <RssFeed key={nativeResourceOwner} active={clockActive} scrollsToTop={!drawer} onScrollActivity={scrollActivity} state={rssState} controller={rss} scrollPosition={feedPositions.rss} onRequestAdd={requestRss} onOpenSettings={openRssSettings} onOpen={openRss} header={rssState.enabled ? <View style={{backgroundColor: C.background}}><SourceStripBackdrop height={feedViewportHeight} /><RssFeedSwitcher state={rssState} controller={rss} onAdd={requestRss} /></View> : null} /> : <>
         <FeedList key={nativeResourceOwner} ref={list} {...inboxScroll.events} contentScope={JSON.stringify([sort, activeId])} active={clockActive && !drawer} onScrollActivity={inboxScrollActivity} data={shownRows} keyExtractor={bookmarkKey} getItemLayout={getItemLayout} initialNumToRender={16} contentContainerStyle={feedContentStyle}
           ListHeaderComponent={listHeader}
           renderItem={renderBookmark}
@@ -263,8 +265,12 @@ export function LibraryScreen({navigation, route}: MobileScreenProps<'Library'>)
       </>}
     </SourceShape>
     <SourceMenu animatedFromTop visible={sortMenu} labelStyle={{fontWeight: '500'}} anchor={{x: insets.left + (window.width - insets.left - insets.right - 200) / 2, y: insets.top + 52}} onDismiss={() => setSortMenu(false)} items={[...(['inbox', 'starred', 'archived'] as const).map(value => ({label: t(sortKeys[value]), selected: !rssSelected && value === sort, onPress: () => {telemetry.element('inbox_sort_control', 'bookmarks'); setRssSelected(false); setSort(value);}})), ...(rssState.enabled ? [{label: t('rss_feeds'), selected: rssSelected, onPress: () => {telemetry.element('inbox_rss_control', 'bookmarks'); setRssSelected(true);}}] : [])]} />
-    <LinkInputDialog visible={add} onDismiss={() => setAdd(false)} onImportPdf={pdfLab.ready && pdfLab.enabled ? () => setImportingPdf(true) : undefined} onSubmit={url => {telemetry.firebase('bookmark', 'add_start', {channel: 'app', method: 'manual_paste'}); void repositories?.createBookmark(url).then(() => inboxScroll.reset(true)).catch(showError);}} />
-    <PdfImportDialog key={`pdf-import-${nativeResourceOwner}`} visible={importingPdf} onDismiss={() => setImportingPdf(false)} onSaved={bookmarkId => {inboxScroll.reset(true); navigation.navigate('Reader', {bookmarkId});}} />
+    <LinkInputDialog key={`add-content-${nativeResourceOwner}`} visible={add} initialMode={addMode} onDismiss={() => setAdd(false)} rssEnabled={rssState.confirmedEnabled} feedError={rssState.error} pdfEnabled={pdfLab.ready && pdfLab.enabled} onPdfSaved={bookmarkId => {inboxScroll.reset(true); navigation.navigate('Reader', {bookmarkId});}} onSubmit={url => {telemetry.firebase('bookmark', 'add_start', {channel: 'app', method: 'manual_paste'}); void repositories?.createBookmark(url).then(() => inboxScroll.reset(true)).catch(showError);}} onSubmitFeed={async (url, name) => {
+      if (!rss.getSnapshot().confirmedEnabled || runtime.getNativeResourceOwner() !== nativeResourceOwner) return false;
+      telemetry.firebase('bookmark', 'add_start', {channel: 'app', method: 'manual_paste'});
+      const ok = await rss.add(url, name);
+      return ok && runtime.getNativeResourceOwner() === nativeResourceOwner;
+    }} onFeedAdded={() => setRssSelected(true)} />
     <LinkInputDialog visible={edit !== null} initialTitle={edit ? edit.aliasTitle || edit.title : undefined} onDismiss={() => setEdit(null)} onSubmit={title => {if (edit) void repositories?.updateBookmark(edit.id, {aliasTitle: title}).catch(showError);}} />
     <SourceDialog compact visible={processing !== null} onDismiss={() => setProcessing(null)}><View style={{alignItems: 'flex-end'}}><Pressable accessibilityLabel={t('btn_close')} onPress={() => setProcessing(null)}><SourceIcon name="ic_xs_dialog_close" /></Pressable></View><SourceText style={[T.menu, {color: C.bodyText, marginTop: 20}]}>{t('processing_message')}</SourceText>{processingOriginalUrl ? <SourceButton label={t('processing_btn_read_original')} style={{marginTop: 24}} onPress={() => {setProcessing(null); if (fixtureOnly) {showError(new Error('External browser navigation has no prepared fixture provider')); return;} void Linking.openURL(processingOriginalUrl).catch(showError);}} /> : null}</SourceDialog>
     <SourceDialog visible={error !== null} title={t('feedback_error_title')} onDismiss={() => setError(null)} actions={<TextAction label={t('btn_ok')} onPress={() => setError(null)} />}><SourceText>{error}</SourceText></SourceDialog>
