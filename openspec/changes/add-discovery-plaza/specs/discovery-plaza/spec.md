@@ -139,6 +139,11 @@ The Discover representation SHALL select cards using both Collection affinity an
 
 Discover SHALL emphasize the first recommended lead and give its companion stories directly readable links. On wide Web screens the second featured Collection SHALL sit alongside the first. On phones the cards SHALL stack in reading order. Web SHALL group Discover under new Labs features in the library sidebar. The signed-in Mobile application SHALL offer a Discover page from its library and use its authenticated recommendation service.
 
+#### Scenario: Identify the Collection and the article publisher
+
+- **WHEN** a reader scans a recommended card
+- **THEN** its linked masthead names the Collection, and the lead and companions each display their publisher site or the article URL hostname when available.
+
 #### Scenario: Open Discover on a phone
 
 - **WHEN** a signed-in reader opens Discover from the App library

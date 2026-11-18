@@ -31,6 +31,8 @@ it('shows the first three members under each Collection and keeps single-member 
   const groups = wrapper.findAll('.spotlight')
   expect(groups.map(group => group.get('.spot-collection').attributes('href'))).toEqual(['/c/first', '/c/second'])
   expect(groups.map(group => group.findAll('.lead-link, .related a').map(link => link.attributes('href')))).toEqual([['/b/a', '/b/b', '/b/c'], ['/b/e', '/b/f']])
+  expect(groups[0].get('.spot-collection strong').text()).toBe('first')
+  expect(groups[0].findAll('.related-source').map(source => source.text())).toEqual(['example.org', 'example.org'])
   expect(groups[0].get('.lead-excerpt').text()).toBe('Excerpt for a')
   expect(wrapper.get('#single-picks .article-link').attributes('href')).toBe('/b/d')
   expect(wrapper.get('#single-picks .single-source').attributes('href')).toBe('/c/single')

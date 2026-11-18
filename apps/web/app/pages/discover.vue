@@ -32,18 +32,15 @@
           </div>
           <div class="spotlights">
             <article v-for="{ collection, lead } in featured" :key="collection.code" class="spotlight">
-              <a class="spot-collection" :href="collectionLink(collection)">
-                <AppIcon aria-hidden="true" name="bookmark.collections" :size="16" />
-                {{ collection.name || $t('page.discovery.untitled') }} <span aria-hidden="true">↗</span>
-              </a>
+              <DiscoveryMasthead class="spot-collection" :href="collectionLink(collection)" :name="collection.name || $t('page.discovery.untitled')" />
               <h3><a class="lead-link" :href="articleLink(lead)">{{ lead.title || lead.url }}</a></h3>
               <p v-if="lead.description" class="lead-excerpt">{{ lead.description }}</p>
               <p class="lead-source">
-                {{ publication(lead) }}<template v-if="interestLabel(lead)"> · {{ interestLabel(lead) }}</template>
+                <strong>{{ publication(lead) }}</strong><span v-if="interestLabel(lead)">{{ interestLabel(lead) }}</span>
               </p>
               <ul class="related">
                 <li v-for="article in collection.articles.filter(item => item.bookmarkUuid !== lead.bookmarkUuid).slice(0, 2)" :key="article.bookmarkUuid">
-                  <a :href="articleLink(article)"><span>{{ article.title || article.url }}</span><span aria-hidden="true">↗</span></a>
+                  <a :href="articleLink(article)"><span class="related-title">{{ article.title || article.url }}</span><span v-if="publication(article)" class="related-source">{{ publication(article) }}</span></a>
                 </li>
               </ul>
             </article>
@@ -59,13 +56,7 @@
           <div class="feed">
             <article v-for="collection in remainingCollections" :key="collection.code" class="collection-card">
               <header>
-                <a class="collection-link" :href="collectionLink(collection)">
-                  <div class="collection-heading">
-                    <h3>{{ collection.name || $t('page.discovery.untitled') }}</h3>
-                    <p v-if="collection.description">{{ collection.description }}</p>
-                  </div>
-                  <span class="open-arrow" aria-hidden="true">↗</span>
-                </a>
+                <DiscoveryMasthead :description="collection.description" class="collection-link" :href="collectionLink(collection)" :name="collection.name || $t('page.discovery.untitled')" />
               </header>
               <ul class="members">
                 <li v-for="(article, index) in collection.articles.slice(0, 3)" :key="article.bookmarkUuid">
@@ -192,7 +183,7 @@ function collectionLink(collection: RecommendedCollection) {
   return '/c/' + encodeURIComponent(collection.code)
 }
 function publication(article: Article) {
-  if (article.siteName) return article.siteName
+  if (article.siteName?.trim()) return article.siteName.trim()
   try {
     return new URL(article.url).hostname.replace(/^www\./, '')
   } catch {
@@ -215,7 +206,7 @@ function feedback() {
   color: var(--slax-text);
   overflow-wrap: anywhere;
 }
-.masthead, .section-heading, .collection-link {
+.masthead, .section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -225,7 +216,7 @@ function feedback() {
   padding-bottom: 15px;
   border-bottom: 1px solid var(--slax-border-strong);
 }
-.masthead h1, .collection-heading h3, .section-heading h2 {
+.masthead h1, .section-heading h2 {
   font-family: var(--slax-font-serif);
 }
 .masthead h1 {
@@ -258,15 +249,19 @@ function feedback() {
 .spotlight:first-child :is(.lead-source, .spot-collection) { color: inherit; }
 .spotlight:first-child .related li { border-color: color-mix(in srgb, currentColor 32%, transparent); }
 .spotlight + .spotlight { border-block: 3px double var(--slax-text); padding-inline: 4px; }
-.spotlight .spot-collection { display: inline-flex; align-items: center; gap: 7px; font-size: var(--slax-fs-aux); font-weight: 600; color: var(--slax-accent); }
+.spot-collection { padding-bottom: 14px; border-bottom: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
 .spotlight h3 { margin-top: 12px; font: 650 clamp(20px, 2.2vw, 29px)/1.32 var(--slax-font-serif); }
 .spotlight a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .lead-excerpt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 6px; font-size: var(--slax-fs-aux); }
-.lead-source { margin-bottom: 13px; }
+.lead-source { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-block: 8px 16px; }
+.lead-source strong { font-weight: 650; }
+.lead-source span { padding-inline-start: 10px; border-inline-start: 1px solid currentColor; }
+.related-source { flex: none; max-width: 37%; overflow-wrap: anywhere; text-align: end; font-size: var(--slax-fs-tag); }
+
 .related { list-style: none; width: 100%; padding: 0; margin: auto 0 0; }
 .related li { border-top: 1px solid var(--slax-border-strong); }
 .related a { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 0; font-size: var(--slax-fs-aux); }
-.related a span:first-child { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.related-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .section-heading {
   margin: 23px 0 16px;
   align-items: end;
@@ -295,22 +290,6 @@ function feedback() {
 }
 .collection-link { justify-content: flex-start; padding: 14px 0 6px; min-height: 44px; }
 .masthead-deck { margin-top: 6px; font-size: var(--slax-fs-meta); color: var(--slax-text-muted); }
-.collection-heading h3 {
-  font-size: clamp(19px, 1.6vw, 23px);
-  font-weight: 650;
-  line-height: 1.3;
-}
-.collection-heading p {
-  margin-top: 3px;
-  color: var(--slax-text-muted);
-  font-size: var(--slax-fs-aux);
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.collection-card:first-child .collection-heading p { color: inherit; }
-.open-arrow { flex: none; margin-inline-start: auto; font-size: var(--slax-fs-card); }
 .members, .singles { list-style: none; margin: 0; }
 .members { padding: 0; }
 .members li:first-child .article-title { font: 650 var(--slax-fs-card)/1.4 var(--slax-font-serif); }
@@ -333,7 +312,7 @@ function feedback() {
   white-space: nowrap;
 }
 .source { color: var(--slax-text-muted); font-size: var(--slax-fs-tag); line-height: 1.4; }
-.collection-link:hover h3, .article-link:hover .article-title, .jump:hover, .single-source:hover {
+.article-link:hover .article-title, .jump:hover, .single-source:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
 }

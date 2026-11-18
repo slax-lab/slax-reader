@@ -2,6 +2,7 @@ export const appMessages = {
   en: {
     discover_title: 'Discover',
     discover_loading: 'Loading recommendations',
+    discover_collection: 'Collection',
     discover_for_you: 'Recommended for you',
     discover_saved_interest: 'Similar to your saved articles',
     discover_interest: 'Similar to collections you follow',
@@ -187,6 +188,7 @@ export const appMessages = {
   zh: {
     discover_title: '发现',
     discover_loading: '正在加载推荐',
+    discover_collection: '合集',
     discover_for_you: '为你推荐',
     discover_saved_interest: '与你收藏的文章相近',
     discover_interest: '与你订阅的合集相近',

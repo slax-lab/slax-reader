@@ -1,7 +1,7 @@
 import React from 'react';
 import {ActivityIndicator, Alert, FlatList, Linking, StyleSheet, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {ScreenSurface, SourceButton, SourceText} from '../components';
+import {ScreenSurface, SourceButton, SourceText} from '../components/SourceUI';
 import {DiscoveryCard} from '../discovery/DiscoveryCard';
 import {useDiscoveryFeed} from '../discovery/useDiscoveryFeed';
 import {useMobile} from '../runtime';

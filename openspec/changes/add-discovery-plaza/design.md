@@ -42,3 +42,5 @@ Available member counts vary with the reader and current publication status. Dis
 ## Editorial presentation
 
 The selected B layout uses a solid leading card, a ruled secondary lead, and compact companion links. Keep topic exploration available on Web as a secondary control. Mobile uses a native stack screen and virtualized list with the first card emphasized, reads the same representation through the credential-aware API client and opens public reader links for recommended material outside the local library. Only Web entry is opt-in through Labs.
+
+Each Collection masthead pairs its public name with a typographic bookplate and a localized Collection label. Each link below it identifies the article's publisher using its site name or URL hostname. This distinction applies to companion stories as well as the lead and preserves service order.

@@ -15,7 +15,7 @@ test('Discover requests ranked cards and discards responses from a replaced acco
     Linking: {openURL: async url => {opened.push(url);}}};
   const context = () => ({api, config: {webUrl: 'https://reader.test'}, session: {status: 'authenticated', session: {userId: account}}, t: key => key});
   const {DiscoverScreen} = await loadComponent('../../src/screens/DiscoverScreen.tsx', {
-    react: React, 'react-native': native, '../components': {...host.components, ScreenSurface: native.View},
+    react: React, 'react-native': native, '../components/SourceUI': {...host.components, ScreenSurface: native.View},
     '../runtime': {useMobile: context},
   });
   await host.render(React.createElement(DiscoverScreen));
@@ -26,11 +26,13 @@ test('Discover requests ranked cards and discards responses from a replaced acco
   assert.equal(pending[0].args[4].aborted, true);
   const response = (code, title) => ({items: [{code, name: code, articles: [
     {bookmarkUuid: 'lead', title, url: 'https://reader.test/lead'},
-    {bookmarkUuid: 'second', title: 'Sibling', url: 'https://reader.test/second'},
+    {bookmarkUuid: 'second', title: 'Sibling', siteName: 'Field Notes', url: 'https://reader.test/second'},
   ]}]});
   await act(async () => pending[1].resolve(response('new', 'Current lead')));
   await act(async () => pending[0].resolve(response('old', 'Retired lead')));
   assert.match(host.window.document.body.textContent, /Current lead.*Sibling/);
+  assert.match(host.window.document.body.textContent, /reader\.test/);
+  assert.match(host.window.document.body.textContent, /SiblingField Notes/);
   assert.doesNotMatch(host.window.document.body.textContent, /Retired lead/);
   const links = host.window.document.querySelectorAll('button');
   assert.equal(links.length, 3);

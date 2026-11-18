@@ -969,6 +969,7 @@
     },
     "discovery": {
       "nav": "发现",
+      "collectionLabel": "合集",
       "labGroup": "实验室新功能",
       "forYou": "为你推荐",
       "moreCollections": "更多推荐合集",

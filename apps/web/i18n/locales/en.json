@@ -968,6 +968,7 @@
     },
     "discovery": {
       "nav": "Discover",
+      "collectionLabel": "Collection",
       "labGroup": "New in Labs",
       "forYou": "For you",
       "moreCollections": "More collections",

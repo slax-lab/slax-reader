@@ -63,3 +63,9 @@ On an iOS 27.1 simulator, XCTest activated the app, opened the library menu, tap
 ## Hands-on acceptance
 
 On November 18, 2026, after the implemented Web preview and native iOS capture were shared, the change requester accepted layout B for the App and Web and authorized the pull request to dev. The requested design places the leading Collection in a solid editorial cover, stacks cards on phones, and groups the Web entry under New in Labs. No additional visual adjustments were requested at acceptance. The requester approved a Mobile patch increment to 1.0.33 (808), with previous build 807.
+
+## Collection identity refinement
+
+The requester prioritized recognizing each Collection and identifying the publisher of each story. Both clients now present the linked Collection name and its initial together at the top of each card. Each companion includes its publisher, with the URL hostname available for legacy responses. Tests exercise the order of the links, the Collection name, an explicit source name and the hostname fallback.
+
+The first PR CI run exposed an incomplete Labs mock in the shared RSS sidebar suite and an unintended import of the Mobile add-link dialog through the components barrel. The RSS fixtures now model the feature list, and Discover imports the UI primitives it actually uses.
