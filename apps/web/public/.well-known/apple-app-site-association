@@ -1,5 +1,21 @@
 {
   "webcredentials": {
-    "apps": ["8G3A932HJG.app.slax.reader"]
+    "apps": [
+      "8G3A932HJG.app.slax.reader"
+    ]
+  },
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "8G3A932HJG.app.slax.reader"
+        ],
+        "components": [
+          {
+            "/": "/email-login"
+          }
+        ]
+      }
+    ]
   }
 }
