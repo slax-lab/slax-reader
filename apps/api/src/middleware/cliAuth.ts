@@ -21,6 +21,7 @@ const apiKeyAllowedRoutes: Array<{ path: string; method: string }> = [
 ]
 
 export function isApiKeyRouteAllowed(pathname: string, method: string): boolean {
+  if (pathname === '/v1/bookmark/upload_pdf') return method.toUpperCase() === 'POST'
   return apiKeyAllowedRoutes.some(route => (pathname === route.path || pathname.startsWith(route.path + '/')) && method.toUpperCase() === route.method)
 }
 
