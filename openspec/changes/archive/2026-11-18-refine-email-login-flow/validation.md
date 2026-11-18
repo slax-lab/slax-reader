@@ -183,3 +183,10 @@ The requester explicitly replaced the intermediate 300/hour IP ceiling with **50
 - API/contracts type checking, production-constant ESLint, changed-file Prettier, strict OpenSpec validation, and whitespace checks passed. Web/Mobile code did not change, so their earlier acceptance remains historical and no fresh UI/native checks are claimed. API-only package-version exemption and the existing Mobile version decision remain applicable. Logs/harness/toolchain are outside Git under `/tmp/slax-email-ip50-*`.
 
 Final 50/hour pre-push review completed Bugs/Security/Compliance passes with no Important or Nit findings. Strict validation passed all 142 items and whitespace checks passed. PR #597’s summary and Test plan now describe the final 50/51 boundary, superseding the intermediate 300 target and retaining its ready-for-review state.
+
+## Archive
+
+Archived on 2026-11-18 in a separate documentation PR after task PR #597 merged into `dev`. All tasks were complete before archiving. The proposal's sequencing rule archives this follow-up together with its merged predecessors `add-email-otp-auth` and `polish-web-sign-in-methods`; all three are in the same archive PR.
+
+- Spec sync: created `openspec/specs/web-email-sign-in-continuation/spec.md` from 3 added requirements.
+- Archive verification: `openspec validate --all --strict` passed (150 passed, 0 failed) and the staged whitespace check (`git diff --cached --check`) passed.

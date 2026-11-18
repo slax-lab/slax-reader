@@ -96,3 +96,10 @@ Command: `NODE_PATH="$PWD/node_modules/.pnpm/happy-dom@20.14.5/node_modules:$PWD
 - `native/share/tests/android-diagnostics.test.cjs:17:1` — actual Kotlin diagnostic records and writer retain bounded private terminals with hostile sender metadata: missing `kotlinc` (`ENOENT`).
 - `tests/share-native/android-intent.test.cjs:22:1` — production Android share completion closes without animation and preserves replacement ownership: missing `kotlinc` (`ENOENT`).
 - `native/share/tests/android-transport.test.cjs:22:1` — actual Kotlin share HTTP transport enforces deadlines, exists recovery and cancellation: missing `kotlinc` (`ENOENT`).
+
+## Archive
+
+Archived on 2026-11-18 in a separate documentation PR after task PR #630 merged into `dev`. All tasks were complete before archiving.
+
+- Spec sync: created `openspec/specs/mobile-system-search-settings/spec.md` from 1 added requirement.
+- Archive verification: `openspec validate --all --strict` passed (150 passed, 0 failed) and the staged whitespace check (`git diff --cached --check`) passed.
