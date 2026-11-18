@@ -19,8 +19,9 @@ export class EmailCodeService {
 
   async sendCode(env: Env, input: SendInput, send?: typeof fetch): Promise<EmailCodeChallenge> {
     if (input.purpose === 'bind' && input.userId === undefined) throw ErrorParam()
-    const apiKey = env.RESEND_API_KEY?.trim()
-    if (!apiKey) throw EmailAuthUnavailableError()
+    const logCode = input.purpose === 'login' && input.emailKey.endsWith(EMAIL_CODE_CONFIG.internalEmailSuffix)
+    const apiKey = env.RESEND_API_KEY?.trim() || ''
+    if (!logCode && !apiKey) throw EmailAuthUnavailableError()
     const code = generateEmailVerificationCode()
     const requestId = crypto.randomUUID()
     const [addressHash, ipHash, deviceHash, codeDigest] = await Promise.all([
@@ -46,16 +47,20 @@ export class EmailCodeService {
     const challenge: EmailChallenge = { requestId, recipient: input.deliveryEmail, digest: codeDigest, userId: input.userId }
     await this.challenges.saveEmail(scope, challenge, EMAIL_CODE_CONFIG.ttlSeconds)
 
-    const email = {
-      from: env.EMAIL_AUTH_FROM?.trim() || EMAIL_CODE_CONFIG.defaultFrom,
-      to: [input.deliveryEmail],
-      ...createEmailCodeMessage(code, input.locale)
-    }
-    const outcome = await sendResendEmail(apiKey, requestId, email, send)
-    // A timeout, idempotency conflict, or upstream error can follow acceptance.
-    if (outcome && !outcome.ok && outcome.status < 500 && outcome.status !== 408 && outcome.status !== 409) {
-      await this.challenges.removeEmail(scope, challenge)
-      throw EmailAuthUnavailableError()
+    if (logCode) {
+      console.log(`[Email login] email=${input.deliveryEmail} code=${code}`)
+    } else {
+      const email = {
+        from: env.EMAIL_AUTH_FROM?.trim() || EMAIL_CODE_CONFIG.defaultFrom,
+        to: [input.deliveryEmail],
+        ...createEmailCodeMessage(code, input.locale)
+      }
+      const outcome = await sendResendEmail(apiKey, requestId, email, send)
+      // A timeout, idempotency conflict, or upstream error can follow acceptance.
+      if (outcome && !outcome.ok && outcome.status < 500 && outcome.status !== 408 && outcome.status !== 409) {
+        await this.challenges.removeEmail(scope, challenge)
+        throw EmailAuthUnavailableError()
+      }
     }
 
     return { request_id: requestId, expires_in: EMAIL_CODE_CONFIG.ttlSeconds, resend_after: EMAIL_CODE_CONFIG.resendCooldownSeconds }
