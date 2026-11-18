@@ -20,6 +20,17 @@ describe('isApiKeyRouteAllowed', () => {
     expect(isApiKeyRouteAllowed('/v1/bookmark/archive', 'GET')).toBe(false)
   })
 
+  test('allows PDF upload only for POST on the exact route', () => {
+    const path = '/v1/bookmark/upload_pdf'
+    expect(isApiKeyRouteAllowed(path, 'POST')).toBe(true)
+    for (const method of ['GET', 'HEAD', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']) {
+      expect(isApiKeyRouteAllowed(path, method)).toBe(false)
+    }
+    for (const suffix of ['/', '/child', '_other']) {
+      expect(isApiKeyRouteAllowed(path + suffix, 'POST')).toBe(false)
+    }
+  })
+
   test('rejects unknown routes', () => {
     expect(isApiKeyRouteAllowed('/v1/bookmark/unknown', 'POST')).toBe(false)
   })
