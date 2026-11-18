@@ -23,7 +23,7 @@ Logs are task-local under `/tmp/slax-email-link-20261118/`.
 | Mobile final focused checks | 66 passed: 13 controller cases including real-session hydration, 49 mounted login cases including old Google/Apple/OTP/Passkey and commit preservation, and 4 native configuration cases. See `mobile-real-session.log`, `mobile-focused-final.log`. |
 | Mobile typecheck / JS export | Passed; iOS and Android Hermes bundles exported, `mobile-type-final.log`, `mobile-bundle-reviewed.log`. |
 | Native configuration | Expo prebuild regenerated version 808, iOS associated domains, and exact-path Android filters. Configuration tests preserve credential associations, fixtures and certificate fingerprints. |
-| OpenSpec | All 150 items passed strict validation, `openspec.json`. |
+| OpenSpec | Latest acceptance-evidence check: all 153 items passed strict validation, `acceptance-openspec.log`. |
 
 ## Running environment
 
@@ -37,15 +37,17 @@ The actual preview-profile Cloudflare Pages build completed. Local Wrangler Page
 
 On 2026-11-18, the change requester exercised the local Web preview's three mail scenarios and explicitly replied “Web 验收通过”. The implemented page displays persistent localized guidance, preserves an existing account, and offers normal sign-in recovery. The earlier optional demo was declined in favor of the reviewed proposal.
 
+The requester also exercised the signed iPhone 12 build with real delivered email links and confirmed successful warm entry, protection of the currently signed-in account, and cold startup returning to the same account. Details and the mail-client boundary are recorded below. Android human acceptance has not occurred; the requester explicitly chose to wait for a Play Beta package for complete Android verification.
+
 ## Review closure
 
 See [review.md](review.md). Requested Codex architecture/scope review and actual Claude Opus 5.5 edge review completed. Confirmed findings were reproduced and fixed; evidence-based false positives were withdrawn. No Important finding remains from those reviews.
 
 ## Remaining acceptance
 
-- Signed iOS/Android cold/warm App Link routing and human App hands-on acceptance remain pending. Public association files must be published before that system-level routing can be exercised; existing Passkey-only association is insufficient. An untrusted local Android signature is not routing evidence, and no extra certificate trust was added.
-- Actual Resend delivery, recipient mail-client fragment preservation, and the operator's click-tracking setting remain pending. Captured local delivery is not a live-email result.
-- These are open tasks, not completed acceptance or permission to ship. No feature PR has been opened, no deployment performed, and no change archived. Any association-only support Draft PR requires the change requester's approval before creation.
+- Android signed cold/warm App Link routing and hands-on acceptance are deferred until a Play Beta package, as explicitly requested on 2026-11-18. The connected phone's installed application is 1.0.31 (806); it was not replaced or cleared. The local debug signer differs from the Play certificate trusted by the published association. No certificate trust or device verification state was changed, and no explicit-intent test is claimed as automatic App Link evidence.
+- Actual Resend delivery, QQ Web fragment preservation, and signed iPhone system-camera handoff have passed. Direct interaction with native mobile mail applications and the operator's global click-tracking setting remain unverified. Browser-only fallback was exercised locally, not by failure to launch an uninstalled App on a physical device.
+- Tasks 4.3, 5.1 and 5.2 remain partially complete; Android deferral is not recorded as acceptance. No feature PR has been opened and no feature code deployed or archived. Support PR #660 and the prerequisite code-only PR #661 were separately merged by the requester. The repository's pre-PR UI acceptance requirement still needs to be reconciled with the requested Play Beta verification order before opening the feature Draft PR.
 
 ## Internal-delivery follow-up and publication preflight (2026-11-18)
 
@@ -64,3 +66,13 @@ The requester supplied a temporary test-only Resend key and a designated mailbox
 Resend returned HTTP 200. The designated QQ Mail Inbox displayed the combined email from `noreply@reader.slax.dev`; its clickable URL retained the expected HTTPS origin/path, empty query and complete `email`, `request_id`, `token` fragment. This verifies one delivered message and its QQ Web link representation, not all mail clients or the operator's global tracking setting. No personal recipient or active proof is retained in durable project evidence.
 
 Apple's association CDN also returned the expected `applinks` entry for preview. After the requester enabled Developer Mode, the iPhone 12-specific signed build succeeded and version 1.0.33 (808) was installed and launched. The device had no installed Slax Reader app before installation. The local Metro and isolated API relay are running; actual on-device login and human acceptance remain pending. Device Hub reports that remote screen viewing needs iOS 27+, while this device runs iOS 26.6.1, so the requester must observe the screen directly. This does not change the application's supported OS floor.
+
+On 2026-11-18 the requester confirmed that the iPhone 12 reached the login page. Its first send attempt exposed a temporary relay issue: native `Accept-Encoding` was forwarded upstream, but the relay's raw Node HTTP response was parsed without decompression. Direct probes showed plain JSON for `identity` and gzip bytes for the native header. The ignored local relay now requests `identity` upstream; the same compressed-client-header, unauthenticated-binding probe returns the expected readable HTTP/application 401 instead of the relay's 500. No product source changed for this fix. The requester was asked to retry sending before link acceptance proceeds.
+
+## iPhone 12 live-mail handoff verification
+
+On 2026-11-18 the requester successfully requested a combined email from the iPhone 12's actual login UI after the temporary relay correction. The delivered QQ Web mail retained its complete link. A locally generated QR encoded that exact clickable URL for system-camera handoff; this is a verification tool, not a product QR feature. The requester explicitly confirmed that the link opened Slax Reader and signed in successfully. A subsequent submission of the sibling email code to the same real Core API returned `EMAIL_VERIFY_CODE_ERROR`.
+
+The requester then scanned the same link while signed in and explicitly confirmed the sign-out guidance and preservation of the current account. For cold launch, the requester signed out and requested a fresh real email; the agent terminated only Slax Reader PID 640 on the test iPhone and confirmed it was absent before the second QR was scanned. The requester explicitly confirmed cold startup, successful login and return to the same account. Receipts include `iphone12-cold-stop.log` and `iphone12-after-stop.json`; active proofs and personal mailbox details are excluded from this document. The result covers signed iOS system URL handoff from the real delivered link. Direct interaction with a native mobile mail app remains unverified; QQ Web representation and system-camera handoff are the exercised boundaries. Android remains deferred to Play Beta by the requester; overall feature-PR acceptance remains open.
+
+After that decision, the task-owned live relay and Metro were stopped and ports 8789 and 8081 had no listener. The test-only Resend key is no longer held by the relay process. Diagnostic records and signed build outputs remain local for the pending handoff; no mailbox screenshots or link QR images are committed or attached publicly.
