@@ -1,5 +1,6 @@
 import { parseHTML } from 'linkedom'
 import moment from 'moment-timezone'
+import { substackPublicationTime } from './sourcePublicationTime'
 import {
   bylineParserHandle,
   defuddleParse,
@@ -62,7 +63,7 @@ export class ContentParser {
     res.byline = bylineParserHandle(options.url, res.byline || '', document, rawDocument)
 
     // 发布时间提取
-    res.publishedTime = publishedTimeParserHandle(options.url, res.publishedTime || '', document)
+    res.publishedTime = substackPublicationTime(options.url, options.content) ?? publishedTimeParserHandle(options.url, res.publishedTime || '', document)
 
     // 后处理
     await postParserHandle(options.url, document)
@@ -95,6 +96,7 @@ export class ContentParser {
 
   public static async parseCandidates(options: { url: URL; content: string; title?: string }): Promise<ParseCandidate[]> {
     const content = this.getCleanHtml(options.content)
+    const sourceTime = substackPublicationTime(options.url, options.content)
     const preparedDocument = this.getDocument(content)
     setDocumentUri(preparedDocument, options.url.toString())
     const rawTitle = preparedDocument.title
@@ -113,7 +115,7 @@ export class ContentParser {
           setDocumentUri(rawDocument, options.url.toString())
           const result = await parse(rawDocument)
           if (!result) throw new Error(`${parser} returned empty result`)
-          const parseRes = await this.finalizeParse(options, rawDocument, rawTitle, result)
+          const parseRes = await this.finalizeParse(options, rawDocument, rawTitle, result, sourceTime)
           return { parser, parseRes }
         } catch (error) {
           return { parser, error: error instanceof Error ? error.message : String(error) }
@@ -122,11 +124,17 @@ export class ContentParser {
     )
   }
 
-  private static async finalizeParse(options: { url: URL; content: string; title?: string }, rawDocument: Document, rawTitle: string, result: RawParseResult): Promise<Preparse> {
+  private static async finalizeParse(
+    options: { url: URL; content: string; title?: string },
+    rawDocument: Document,
+    rawTitle: string,
+    result: RawParseResult,
+    sourceTime?: string
+  ): Promise<Preparse> {
     const document = this.getDocument(result.content || '')
     result.title = titleParserHandle(options.url, rawDocument, options.title, rawTitle)
     result.byline = bylineParserHandle(options.url, result.byline || '', document, rawDocument)
-    result.publishedTime = publishedTimeParserHandle(options.url, result.publishedTime || '', document)
+    result.publishedTime = sourceTime ?? publishedTimeParserHandle(options.url, result.publishedTime || '', document)
     await postParserHandle(options.url, document)
 
     let publishedTime = new Date()

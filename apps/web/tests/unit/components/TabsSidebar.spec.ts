@@ -76,6 +76,19 @@ describe('TabsSidebar', () => {
     expect(wrapper.emitted('changeTab')![0]![1]).toBe(0)
   })
 
+  it('groups Discover under Labs when the account can opt in', async () => {
+    const { default: TabsSidebar } = await import('~/components/BookmarkList/TabsSidebar.vue')
+    const wrapper = mountWithApp(TabsSidebar, { props: { tabType: 'inbox' } })
+    expect(wrapper.find('.labs-label').exists()).toBe(false)
+    for (const enabled of [false, true]) {
+      mockLabs.features.value = [{ key: 'discovery', status: 'active', enabled, enabled_at: null }]
+      await nextTick()
+      expect(wrapper.get('.labs-label').text()).toBeTruthy()
+      expect(wrapper.get('.labs-label + a').attributes('to')).toBe('/discover')
+    }
+    wrapper.unmount()
+  })
+
   it('clears cached Labs on logout and refetches when another account arrives', async () => {
     const { default: TabsSidebar } = await import('~/components/BookmarkList/TabsSidebar.vue')
     const { useUserStore } = await import('~/stores/user')

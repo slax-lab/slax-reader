@@ -45,7 +45,7 @@ beforeAll(async () => {
   pg = new PGlite()
   await pg.exec(`
     CREATE TABLE sr_user (id int PRIMARY KEY, deleted_at timestamptz, snapshot_sharing boolean DEFAULT true);
-    CREATE TABLE sr_bookmark (id int PRIMARY KEY, title text DEFAULT 'Article', target_url text, private_user int DEFAULT 0, status text DEFAULT 'success', moderation_result int DEFAULT 0, published_at timestamptz DEFAULT now());
+    CREATE TABLE sr_bookmark (id int PRIMARY KEY, title text DEFAULT 'Article', target_url text, content_word_count int DEFAULT 0, site_name text DEFAULT '', description text DEFAULT '', private_user int DEFAULT 0, status text DEFAULT 'success', moderation_result int DEFAULT 0, published_at timestamptz DEFAULT now());
     CREATE TABLE sr_user_bookmark (id int PRIMARY KEY, uuid text, user_id int, bookmark_id int, alias_title text DEFAULT '', is_starred boolean DEFAULT true, type int DEFAULT 0, deleted_at timestamptz, created_at timestamptz DEFAULT now(), starred_at timestamptz, UNIQUE(user_id, bookmark_id));
     CREATE TABLE sr_user_collection (id int PRIMARY KEY, owner_id int UNIQUE, collection_code text, display_name text DEFAULT 'Collection', description text DEFAULT '', status int DEFAULT 1);
     CREATE TABLE sr_bookmark_share (user_id int, bookmark_id int, is_enable boolean, UNIQUE(user_id, bookmark_id));
@@ -155,6 +155,7 @@ describe('published-pair content recommendations', () => {
       INSERT INTO sr_user_bookmark(id,uuid,user_id,bookmark_id,starred_at) VALUES
         (21,'member-21',3,21,'2026-11-01'),(22,'member-22',3,22,'2026-11-02'),(23,'member-23',3,23,'2026-11-03'),(24,'member-24',3,24,'2026-11-04');
       INSERT INTO sr_bookmark_share VALUES (3,24,false);
+      UPDATE sr_bookmark SET site_name='Publisher', description=repeat('x',450) WHERE id=23;
       UPDATE sr_user_bookmark SET starred_at='2026-10-01' WHERE user_id=3 AND bookmark_id=10;
     `)
     const vectors = runtime()
@@ -162,10 +163,111 @@ describe('published-pair content recommendations', () => {
     vi.mocked(vectors.readCollections).mockResolvedValue(new Map([[30, [0.8, 0.6]]]))
     const result = await new ContentRecommendationService(db, vectors).collections(1)
     expect(result.items[0].articles.map(article => article.id)).toEqual([23, 22, 21])
+    expect(result.items[0].articles[0]).toMatchObject({ siteName: 'Publisher', description: 'x'.repeat(400) })
     expect(result.items[0].score).toBeCloseTo(0.8, 10)
     expect(vectors.readArticles).not.toHaveBeenCalled()
   })
 
+
+  test('applies publication age before the member limit and excludes known nonmatches from discovery fillers', async () => {
+    await pg.exec(`
+      INSERT INTO sr_bookmark(id,target_url,published_at) VALUES
+        (21,'/stale',now()-interval '3 years'), (22,'/fresh',now()-interval '3 days'), (23,'/nonmatch',now()-interval '1 day');
+      INSERT INTO sr_user_bookmark(id,uuid,user_id,bookmark_id,starred_at) VALUES
+        (21,'old-newly-starred',3,21,now()+interval '3 days'), (22,'fresh',3,22,now()+interval '2 days'),
+        (23,'nonmatch',3,23,now()+interval '1 day');
+    `)
+    const window = { from: new Date(Date.now()-180*86_400_000), through: new Date() }
+    expect((await db.getRecentMembers([30],1,1))[0].uuid).toBe('old-newly-starred')
+    expect((await db.getRecentMembers([30],1,1,window))[0].uuid).toBe('fresh')
+    const vectors = runtime()
+    vi.mocked(vectors.queryCollections).mockResolvedValue([{id:30,score:1}])
+    vi.mocked(vectors.readArticles).mockResolvedValue(new Map([['a:3:22',[1,0]], ['a:3:23',[-1,0]]]))
+    const result = await new ContentRecommendationService(db,vectors).collections(1,'collection',1,undefined,true)
+    const ids = result.items[0].articles.map(a=>a.bookmarkUuid)
+    expect(ids).toContain('fresh')
+    expect(ids).not.toContain('nonmatch')
+    expect(ids).not.toContain('old-newly-starred')
+  })
+
+  test('excludes a newly captured WeChat article with an earlier original publication minute', async () => {
+    await pg.exec(`
+      INSERT INTO sr_bookmark(id,target_url,description,published_at) VALUES
+        (21,'https://mp.weixin.qq.com/s/old','2008-01-01 11:05',now()-interval '1 day');
+      INSERT INTO sr_user_bookmark(id,uuid,user_id,bookmark_id,starred_at) VALUES (21,'old-original',3,21,now());
+    `)
+    const vectors = runtime()
+    vi.mocked(vectors.queryCollections).mockResolvedValue([{ id: 30, score: 1 }])
+    vi.mocked(vectors.readArticles).mockResolvedValue(new Map([['a:3:21',[1,0]], ['a:3:10',[1,0]]]))
+    const result = await new ContentRecommendationService(db,vectors).collections(1,'collection',1,undefined,true)
+    expect(result.items[0].articles.map(article => article.bookmarkUuid)).toEqual(['same-bookmark-other-owner'])
+  })
+
+  test('ranks beyond the recent three and fills uncovered slots only from currently public, unseen URLs', async () => {
+    await pg.exec(`
+      INSERT INTO sr_bookmark(id,target_url) VALUES (21,'/match'),(22,'/saved'),(23,'/other'),(24,'/revoked'),(25,'/match');
+      INSERT INTO sr_user_bookmark(id,uuid,user_id,bookmark_id,starred_at) VALUES
+        (21,'older-match',3,21,'2026-10-01'),(22,'already-saved',3,22,'2026-11-01'),(23,'recent',3,23,'2026-11-02'),
+        (24,'revoked-after-read',3,24,'2026-11-03'),(25,'duplicate',3,25,'2026-11-04'),(26,'my-save',1,22,'2026-11-05');
+    `)
+    const vectors = runtime()
+    vi.mocked(vectors.queryCollections).mockResolvedValue([{ id: 30, score: 1 }])
+    vi.mocked(vectors.readUser).mockImplementation(async (_id, kind) => kind === 'collection' ? [1, 0] : null)
+    vi.mocked(vectors.readArticles).mockImplementation(async pairs => {
+      expect(pairs.map(pair => pair.id)).not.toContain(22)
+      await pg.exec('INSERT INTO sr_bookmark_share VALUES (3,24,false)')
+      return new Map([['a:3:21', [1, 0]], ['a:3:24', [1, 0]], ['a:3:25', [0.5, 0.5]]])
+    })
+    const { items } = await new ContentRecommendationService(db, vectors).collections(1, 'collection', 10, undefined, true)
+    const picks = items[0].articles
+    expect(picks[0]).toMatchObject({ bookmarkUuid: 'older-match', selectionReason: 'interest' })
+    expect(picks.map(a => a.id).sort()).toEqual([10, 21, 23])
+    expect(picks.slice(1).map(a => a.selectionReason)).toEqual(['recent', 'recent'])
+    expect(vectors.queryArticles).not.toHaveBeenCalled()
+  })
+
+  test('changes member order independently with saved-article affinity and publication age while preserving the Collection score', async () => {
+    await pg.exec(`
+      INSERT INTO sr_bookmark(id,target_url,published_at) VALUES
+        (21,'/design-history',now() - interval '5 days'),(22,'/design-today',now() - interval '2 hours'),
+        (23,'/software',now() - interval '1 hour');
+      INSERT INTO sr_user_bookmark(id,uuid,user_id,bookmark_id,starred_at) VALUES
+        (21,'design-history',3,21,now()),(22,'design-today',3,22,now() - interval '2 hours'),
+        (23,'software',3,23,now() - interval '1 hour');
+    `)
+    const vectors = runtime()
+    let savedPreference: number[] | null = [0, 1]
+    vi.mocked(vectors.readUser).mockImplementation(async (_id, kind) => kind === 'article' ? savedPreference : [1, 0])
+    vi.mocked(vectors.queryCollections).mockResolvedValue([{ id: 30, score: 1 }])
+    vi.mocked(vectors.readArticles).mockResolvedValue(new Map([['a:3:21', [0, 1]], ['a:3:22', [0, 1]], ['a:3:23', [1, 0]]]))
+    const service = new ContentRecommendationService(db, vectors)
+    async function first() {
+      const result = await service.collections(1, 'collection', 1, undefined, true)
+      expect(result.items[0]).toMatchObject({ id: 30, score: 1 })
+      return result.items[0].articles[0]
+    }
+    expect(await first()).toMatchObject({ id: 22, selectionReason: 'saved_interest' })
+    await pg.exec("UPDATE sr_bookmark SET published_at = now() - interval '15 days' WHERE id=22")
+    expect(await first()).toMatchObject({ id: 21, selectionReason: 'saved_interest' })
+    savedPreference = [1, 0]
+    expect(await first()).toMatchObject({ id: 23, selectionReason: 'saved_interest' })
+    savedPreference = null
+    expect(await first()).toMatchObject({ id: 23, selectionReason: 'interest' })
+  })
+
+  test('preserves Discover cards when an internal comparison is also requested', async () => {
+    const vectors = runtime()
+    vi.mocked(vectors.readUser).mockImplementation(async (_id, kind) => kind === 'article' ? axis(0) : [1, 0])
+    vi.mocked(vectors.queryCollections).mockResolvedValue([{ id: 30, score: .8 }, { id: 40, score: .7 }])
+    const service = new ContentRecommendationService(db, vectors)
+    const ordinary = await service.collections(1, 'collection', 2, undefined, true)
+    const captures: Array<() => Promise<import('../../src/domain/contentRecommendation').RankTrace>> = []
+    const traced = await service.collections(1, 'collection', 2, evaluate => captures.push(evaluate), true)
+    expect(traced.items.length).toBeGreaterThan(0)
+    expect(traced).toEqual(ordinary)
+    const trace = await captures[0]()
+    expect(trace.collections.length).toBeGreaterThan(0)
+  })
 
   test('compares one recalled shortlist with independent article affinity and publication-time ablations', async () => {
     await pg.exec(`

@@ -810,7 +810,7 @@ export class YoutubeArticleService {
       itemCtx.setUserInfo(row.user_id, 0, '', row.lang || 'en')
       try {
         if ((await this.snapshots.load(row.bookmark_id))?.managed) continue
-        const fetched = await this.crawlService.fetchYoutubeData(itemCtx, normalizeYoutubeUrl(row.target_url))
+        const fetched = await this.crawlService.fetchYoutubeData(itemCtx, normalizeYoutubeUrl(row.target_url), false)
         await this.crawlService.saveYoutubeCaptionArtifacts(itemCtx, fetched, row.bookmark_id)
         if (await this.repo.findRef(row.bookmark_id)) linked++
         else failed++

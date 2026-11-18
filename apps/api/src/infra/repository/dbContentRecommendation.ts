@@ -14,6 +14,13 @@ export interface ArticleRecommendationRow {
   collection_id: number
 }
 
+export interface CollectionMemberRow extends ArticleRecommendationRow {
+  source_title: string
+  content_word_count: number
+  site_name: string
+  description: string
+}
+
 export interface CollectionRecommendationRow {
   id: number
   owner_id: number
@@ -105,12 +112,12 @@ export class ContentRecommendationRepo {
     `)
   }
 
-  async getRecentMembers(ids: number[], limit: number, viewerId?: number): Promise<ArticleRecommendationRow[]> {
+  async getRecentMembers(ids: number[], limit: number, viewerId?: number, publication?: { from: Date; through: Date }): Promise<CollectionMemberRow[]> {
     if (!ids.length) return []
-    return this.prismaPg().$queryRaw<ArticleRecommendationRow[]>(Prisma.sql`
-      SELECT id, user_id, uuid, title, target_url, published_at, collection_id FROM (
+    return this.prismaPg().$queryRaw<CollectionMemberRow[]>(Prisma.sql`
+      SELECT id, user_id, uuid, title, target_url, site_name, description, source_title, content_word_count, published_at, collection_id FROM (
         SELECT b.id, ub.user_id, ub.uuid, COALESCE(NULLIF(ub.alias_title, ''), b.title) AS title,
-          b.target_url, b.published_at, c.id AS collection_id,
+          b.target_url, b.title AS source_title, b.content_word_count, b.site_name, LEFT(b.description, 400) AS description, b.published_at, c.id AS collection_id,
           row_number() OVER (PARTITION BY c.id ORDER BY COALESCE(ub.starred_at, ub.created_at) DESC, ub.id DESC) AS member_rank
         FROM sr_user_collection c
         JOIN sr_user owner ON owner.id = c.owner_id
@@ -118,6 +125,7 @@ export class ContentRecommendationRepo {
         JOIN sr_bookmark b ON b.id = ub.bookmark_id
         LEFT JOIN sr_bookmark_share share ON share.user_id = ub.user_id AND share.bookmark_id = b.id
         WHERE c.id IN (${Prisma.join(ids)}) AND ${viewerId === undefined ? PUBLIC_MEMBER : Prisma.sql`${publicCandidate(viewerId)} AND ${notSubscribed(viewerId)}`}
+          ${publication ? Prisma.sql`AND b.published_at BETWEEN ${publication.from} AND ${publication.through}` : Prisma.empty}
       ) members WHERE member_rank <= ${limit} ORDER BY collection_id, member_rank
     `)
   }

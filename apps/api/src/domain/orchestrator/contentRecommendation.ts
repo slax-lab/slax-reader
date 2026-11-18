@@ -10,20 +10,28 @@ import { submitServerEvent, submitServerEvents } from '../events'
 export class ContentRecommendationOrchestrator {
   constructor(@inject(ContentRecommendationService) private recommendations: ContentRecommendationService) {}
 
-  public async recommend(ctx: ContextManager, request: Request, kind: PreferenceKind, params: { limit: number; preferenceKind: PreferenceKind }) {
+  public async recommend(ctx: ContextManager, request: Request, kind: PreferenceKind, params: { limit: number; preferenceKind: PreferenceKind; discovery?: boolean }) {
     const userId = ctx.getUserId()
     const impressionId = crypto.randomUUID()
-    const algorithm = await recommendationAlgorithm()
+    const algorithm = await recommendationAlgorithm(params.discovery)
     let evaluate: (() => Promise<RankTrace>) | undefined
     const traceRequested = kind === 'collection' && request.headers.get('Prefer') === 'slax-rank-trace' && isWhiteEmail(ctx.env, ctx.getUserEmail())
     const result =
       kind === 'article'
         ? await this.recommendations.articles(userId, params.preferenceKind, params.limit)
         : traceRequested
-          ? await this.recommendations.collections(userId, params.preferenceKind, params.limit, compare => {
-              evaluate = compare
-            })
-          : await this.recommendations.collections(userId, params.preferenceKind, params.limit)
+          ? await this.recommendations.collections(
+              userId,
+              params.preferenceKind,
+              params.limit,
+              compare => {
+                evaluate = compare
+              },
+              params.discovery
+            )
+          : params.discovery
+            ? await this.recommendations.collections(userId, params.preferenceKind, params.limit, undefined, true)
+            : await this.recommendations.collections(userId, params.preferenceKind, params.limit)
     if (traceRequested) {
       let expectedCollections = 0
       let status: 'complete' | 'empty' | 'failed' = 'empty'
@@ -55,8 +63,14 @@ export class ContentRecommendationOrchestrator {
       impression_id: impressionId,
       kind,
       algorithm,
+      ...(params.discovery ? { representation: 'discovery_cards' } : {}),
       ...(result.reason ? { reason: result.reason } : {}),
-      items: result.items.map((item, position) => ({ position, item_id: 'bookmarkUuid' in item ? item.bookmarkUuid : item.code, score: item.score }))
+      items: result.items.map((item, position) => ({
+        position,
+        item_id: 'bookmarkUuid' in item ? item.bookmarkUuid : item.code,
+        score: item.score,
+        ...(params.discovery && 'articles' in item ? { members: item.articles.map(article => article.bookmarkUuid) } : {})
+      }))
     })
     return { ...result, impressionId, algorithm }
   }

@@ -7,6 +7,7 @@ import ts from 'typescript'
 import React, {act} from 'react'
 import * as contractConstants from '@slax-reader/contracts/const'
 import * as emailAuthContracts from '@slax-reader/contracts/email-auth'
+import * as collectionContracts from '../../../../packages/contracts/src/collections.ts'
 import * as passkeyContracts from '@slax-reader/contracts/passkey'
 import {motionModules} from '../ui/motion-modules.mjs'
 import {observeBoundaries} from './observe-mock.mjs'
@@ -42,6 +43,7 @@ export async function loadComponent(path, boundaries, globals = {}) {
     '@slax-reader/contracts/const': contractConstants,
     '@slax-reader/contracts/pdf': {PDF_MAX_BYTES: 50 * 1024 * 1024},
     '@slax-reader/contracts/email-auth': emailAuthContracts,
+    '@slax-reader/contracts/collections': collectionContracts,
     '@slax-reader/contracts/passkey': passkeyContracts,
     ...boundaries,
   }
@@ -50,10 +52,10 @@ export async function loadComponent(path, boundaries, globals = {}) {
   if (path.endsWith('/ReaderOverlays.tsx') && !boundaries['../components/SourceSheetModal']) {
     boundaries = {...boundaries, '../components/SourceSheetModal': await loadComponent('../../src/components/SourceSheetModal.tsx', {react: boundaries.react, 'react-native': boundaries['react-native'], 'react-native-safe-area-context': boundaries['react-native-safe-area-context'], '../theme': boundaries['../theme'], 'react-native-reanimated': boundaries['react-native-reanimated'], 'react-native-gesture-handler': boundaries['react-native-gesture-handler']}, globals)}
   }
-  if ((!boundaries['react-native-reanimated'] || !boundaries['react-native-gesture-handler']) && boundaries['react-native']?.View) {
+  if ((!boundaries['react-native-reanimated'] || !boundaries['react-native-gesture-handler'] || !boundaries['react-native-worklets']) && boundaries['react-native']?.View) {
     const {installedMotionHost} = await import('../ui/installed-motion-host.mjs')
     const motion = installedMotionHost(boundaries['react-native'].View)
-    boundaries = {...boundaries, 'react-native-reanimated': boundaries['react-native-reanimated'] ?? motion.reanimated, 'react-native-gesture-handler': boundaries['react-native-gesture-handler'] ?? motion.gestures}
+    boundaries = {...boundaries, 'react-native-reanimated': boundaries['react-native-reanimated'] ?? motion.reanimated, 'react-native-gesture-handler': boundaries['react-native-gesture-handler'] ?? motion.gestures, 'react-native-worklets': boundaries['react-native-worklets'] ?? motion.worklets}
   }
   const entry = new URL(path, import.meta.url)
   const normalize = url => url.href.replace(/\.(tsx?|jsx?)$/, '').replace(/\/index$/, '')

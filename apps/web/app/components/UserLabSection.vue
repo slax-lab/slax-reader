@@ -10,8 +10,9 @@
             <span class="lab-pill" :class="row.status">{{ $t(row.status === 'graduated' ? 'page.user.labs.status_graduated' : 'page.user.labs.status_active') }}</span>
           </div>
           <p class="lab-desc">{{ $t(`page.user.labs.${row.key}.desc`) }}</p>
+          <NuxtLink v-if="row.key === 'discovery' && row.enabled && pending !== row.key" class="discovery-link" to="/discover">{{ $t('page.discovery.open') }}</NuxtLink>
         </div>
-        <SwitchToggle :model-value="row.enabled" :disabled="row.status === 'graduated'" :loading="pending === row.key" @change="onToggle(row.key)" />
+        <SwitchToggle :aria-label="$t(`page.user.labs.${row.key}.name`)" :model-value="row.enabled" :disabled="row.status === 'graduated'" :loading="pending === row.key" @change="onToggle(row.key)" />
       </div>
     </div>
   </section>
@@ -87,6 +88,14 @@ const onToggle = async (key: string) => {
       color: var(--slax-text-light);
       background: color-mix(in srgb, var(--slax-text-light) 12%, transparent);
     }
+  }
+
+  .discovery-link {
+    display: inline-block;
+    margin-top: 6px;
+    color: var(--slax-accent);
+    font-size: var(--slax-fs-meta);
+    text-decoration: underline;
   }
 
   .lab-desc {

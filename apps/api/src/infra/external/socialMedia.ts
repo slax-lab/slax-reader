@@ -1,3 +1,5 @@
+import { publicFetch } from '@/utils/publicFetch'
+import { youtubePublicationTime } from '@/utils/sourcePublicationTime'
 import { XHSData, WeiboData } from '@/const/moreapi/base'
 import { TikHubXhsPgyResponse } from '@/const/moreapi/xhs'
 import { TikHubWeiboResponse } from '@/const/moreapi/weibo'
@@ -495,6 +497,24 @@ export class SocialMediaApi {
     }
 
     return data
+  }
+
+  static async fetchYoutubePublicationTime(videoId: string): Promise<string | undefined> {
+    try {
+      const page = await publicFetch(
+        'https://www.youtube.com/watch?v=' + encodeURIComponent(videoId),
+        { headers: { Accept: 'text/html', 'User-Agent': 'Mozilla/5.0 (compatible; SlaxReaderBot/1.0)' } },
+        { followRedirects: false, timeoutMs: 5000, maxBytes: 5 * 1024 * 1024 }
+      )
+      if (!page.ok) {
+        await page.body?.cancel()
+        return
+      }
+      return youtubePublicationTime(await page.text(), videoId)
+    } catch {
+      // Metadata is optional for saving the player and captions.
+      return
+    }
   }
 
   private static youtubeCaptionPath = '/api/v1/youtube/web_v2/get_video_captions'

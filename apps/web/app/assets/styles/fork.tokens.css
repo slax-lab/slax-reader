@@ -138,3 +138,17 @@
  */
 /* [data-slax-theme='dark'] { ... } */
 /* [data-slax-theme='eink'] { ... } */
+
+/* Editorial cover on the Discover front page. */
+:root {
+  --slax-discovery-cover: #704736;
+  --slax-discovery-cover-text: #fcf1db;
+}
+[data-slax-theme='dark'] {
+  --slax-discovery-cover: #51382d;
+  --slax-discovery-cover-text: var(--slax-text);
+}
+[data-slax-theme='eink'] {
+  --slax-discovery-cover: var(--slax-bg);
+  --slax-discovery-cover-text: var(--slax-text);
+}

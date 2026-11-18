@@ -1,6 +1,8 @@
 /** Mobile palette, including the owner-approved presentation refinements. */
 export const mobileColors = {
   background: '#F5F5F3',
+  discoveryCover: '#704736',
+  discoveryCoverText: '#FCF1DB',
   readerBackground: '#FCFCFC',
   surface: '#FFFFFF',
   text: '#0F1419',

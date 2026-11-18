@@ -207,6 +207,17 @@ describe('fetchYoutubeData', () => {
     expect(res.hasCaption).toBe(true)
   })
 
+  test('carries the original watch-page publication time through the snapshot write', async () => {
+    const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    const html = `<html><head><link rel="canonical" href="${url}"><meta itemprop="datePublished" content="2009-10-25T00:00:00Z"></head></html>`
+    vi.stubGlobal('fetch', vi.fn(async (target: string) => new Response(String(target).includes('/oembed?') ? JSON.stringify({ title: 'Example' }) : html)))
+    fetchCaption.mockResolvedValue({ cues: [], caption: null })
+    const { svc, br } = wire()
+    const data = await svc.fetchYoutubeData(createMockCtx(), url)
+    await svc.parseAndSaveYoutube(createMockCtx(), data, url, 10, 'ub-10')
+    expect(br.updateBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ published_at: new Date('2009-10-25T00:00:00Z') }))
+  })
+
   test('caption fetch failing → plain player, caption null', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ title: 'T' }) }))
     fetchCaption.mockRejectedValue(new Error('tikhub down'))

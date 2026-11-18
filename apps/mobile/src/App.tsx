@@ -17,6 +17,7 @@ import {readerScreenOptions, useReaderPrewarm} from './navigation/reader-route';
 const screens = {
   Login: () => require('./screens/LoginScreen').LoginScreen,
   Library: () => require('./screens/LibraryScreen').LibraryScreen,
+  Discover: () => require('./screens/DiscoverScreen').DiscoverScreen,
   Search: () => require('./screens/SearchScreen').SearchScreen,
   Reader: () => require('./screens/ReaderScreen').ReaderScreen,
   Settings: () => require('./screens/SettingsScreen').SettingsScreen,
@@ -69,6 +70,7 @@ export function ApplicationRoutes() {
     <Stack.Navigator screenOptions={{headerTintColor: C.text, headerStyle: {backgroundColor: C.background}, headerTitleAlign: 'center', headerTitleStyle: {fontSize: 17, fontWeight: '500'}, contentStyle: {backgroundColor: C.background}, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal'}}>
       {session.status === 'unauthenticated' ? <Stack.Screen name="Login" getComponent={screens.Login} options={{headerShown: false}}/> : <Stack.Group navigationKey={session.session.userId}>
         <Stack.Screen name="Library" getComponent={screens.Library} options={{headerShown: false}}/>
+        <Stack.Screen name="Discover" getComponent={screens.Discover} options={{title: t('discover_title'), headerStyle: {backgroundColor: C.readerBackground}}}/>
         <Stack.Screen name="Search" getComponent={screens.Search} options={{title: t('search_action'), headerStyle: {backgroundColor: C.readerBackground}}}/>
         <Stack.Screen name="Reader" getComponent={screens.Reader} options={readerScreenOptions}/>
         <Stack.Screen name="Settings" getComponent={screens.Settings} options={{title: t('setting_title'), headerTitle: sourceHeaderTitle}}/>

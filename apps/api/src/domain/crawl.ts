@@ -12,6 +12,7 @@ import { extractYoutubeVideoId, shouldUseBrowserHtml } from '../utils/platformDe
 import { captionPlainText, captionSourceHash, youtubeCaptionKeys, type YoutubeCaptionDocument } from '../utils/youtubeCaption'
 import { evaluateYoutubeEligibility } from '../utils/youtubeEligibility'
 import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION, YOUTUBE_ARTICLE_SCHEMA_VERSION } from '../infra/repository/dbYoutubeArticle'
+import { substackPublicationTime } from '@/utils/sourcePublicationTime'
 import { youtubeArticleLanguage } from '@/utils/youtubeArticle'
 import { PodcastEpisodeRepo, type podcastEpisodePO } from '../infra/repository/dbPodcastArticle'
 import { fetchPublicText } from '@/infra/external/podcastFetch'
@@ -105,6 +106,7 @@ const isWeixinBusinessTerminal = (e: unknown): boolean => e instanceof Error && 
 
 export interface YoutubeFetched {
   videoId: string
+  publishedAt?: string
   title: string
   author: string
   authorUrl: string
@@ -547,7 +549,7 @@ export class CrawlService {
    * 抓取 YouTube 视频数据：oembed 直连拿元信息（省 zyte 费用）+ TikHub 抓字幕（原语言优先，用户语言兜底）。
    * 字幕抓取整段降级：失败 / 无字幕 → cues=[], caption=null, hasCaption=false，不抛错。
    */
-  public async fetchYoutubeData(ctx: ContextManager, url: string): Promise<YoutubeFetched> {
+  public async fetchYoutubeData(ctx: ContextManager, url: string, includePublicationTime = true): Promise<YoutubeFetched> {
     const videoId = extractYoutubeVideoId(url)
     if (!videoId) throw FetchThreePartyError(`Invalid YouTube URL: ${url}`)
 
@@ -560,6 +562,8 @@ export class CrawlService {
       throw FetchThreePartyError(`YouTube oembed failed: ${oembedResp.status} for ${watchUrl}`)
     }
     const oembed = (await oembedResp.json()) as YoutubeOembed
+
+    const publishedAt = includePublicationTime ? SocialMediaApi.fetchYoutubePublicationTime(videoId) : undefined
 
     // 字幕：TikHub 列轨道 → 原语言优先选轨 → json3 解析；整段降级
     let cues: YoutubeCue[] = []
@@ -576,6 +580,7 @@ export class CrawlService {
 
     return {
       videoId,
+      publishedAt: await publishedAt,
       title: oembed.title || 'YouTube',
       author: oembed.author_name || '',
       authorUrl: oembed.author_url || '',
@@ -607,7 +612,7 @@ export class CrawlService {
         excerpt: fetched.title.substring(0, 50),
         byline: fetched.author,
         siteName: 'YouTube',
-        publishedTime: new Date()
+        publishedTime: fetched.publishedAt ? new Date(fetched.publishedAt) : undefined
       }
     })
     return result
@@ -1130,7 +1135,7 @@ export class CrawlService {
     const title = document.title.trim() || document.body.querySelector('h1')?.textContent?.trim()
     const { body, text, hasMedia } = sanitizeArticleBody(document.body.innerHTML, url, twitter)
     if (!title || (!text && !hasMedia)) return null
-    const date = new Date(meta('meta[property="article:published_time"]'))
+    const date = new Date(substackPublicationTime(new URL(url), document) ?? meta('meta[property="article:published_time"]'))
     const data = await this.parseAndSaveSocialMedia(ctx, {
       html: twitter ? body : `<article>${body}</article>`,
       originalUrl: url,

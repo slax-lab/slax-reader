@@ -1,3 +1,4 @@
+import { DISCOVERY_MEDIA_TYPE } from '@slax-reader/contracts/collections'
 import { Controller } from '../../decorators/controller'
 import { inject } from '../../decorators/di'
 import { Get, Post } from '../../decorators/route'
@@ -59,7 +60,9 @@ export class ContentRecommendationController {
     if (!Number.isSafeInteger(userId) || userId <= 0) return Failed(UnauthorizedError())
     const params = parseRecommendationQuery(request, kind)
     if (!params) return Failed(ErrorParam())
-    const response = Successed(await this.recommendations.recommend(ctx, request, kind, params))
+    const discovery = kind === 'collection' && request.headers.get('Accept') === DISCOVERY_MEDIA_TYPE
+    const response = Successed(await this.recommendations.recommend(ctx, request, kind, discovery ? { ...params, discovery } : params))
+    if (discovery) response.headers.set('Content-Type', DISCOVERY_MEDIA_TYPE)
     response.headers.set('Cache-Control', 'private, no-store')
     return response
   }
