@@ -63,9 +63,10 @@ Web and Mobile SHALL use existing login/account structures, account/session life
 
 #### Scenario: An environment displays authentication controls
 
-- **WHEN** the Web profile is development/preview/beta, or Mobile is development, uses the current Beta API, or is configured for the preview/Beta Web origin
-- **THEN** its existing authentication surfaces offer Passkey actions with usable localized controls
-- **AND** production keeps all Passkey login and management controls hidden without gating the backend by rollout environment
+- **WHEN** a reader uses Web or Mobile in any deployment environment, including production
+- **THEN** its existing authentication surfaces offer Passkey actions with usable localized controls, subject to browser/device capability and existing mailbox requirements
+- **AND** frontend visibility does not depend on the environment name, current API channel or configured Web origin
+- **AND** controlled Mobile fixtures retain their existing authentication isolation and the backend remains independent of frontend rollout
 - **AND** existing email/provider visibility and interaction remain consistent with the latest approved base implementation
 
 #### Scenario: A pointer hovers an email authentication action
