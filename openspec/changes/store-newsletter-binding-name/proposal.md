@@ -8,7 +8,7 @@ Newsletter platform bindings currently persist a complete receiving email addres
 - Build the complete display/confirmation address from `feed+`, the bound name and current `NEWSLETTER_DOMAIN`.
 - Reserve and look up the bound name independently of the domain, while validating the SMTP envelope domain before lookup.
 - Clarify setup copy: the receiving name is fixed; the domain is controlled by service configuration.
-- Keep public request/response shapes, layering, account validation, existing locks and deletion reservations.
+- Keep public request/response shapes, layering, account validation, owner-row locking and deletion reservations. Change the existing advisory-lock key from the complete address to `newsletter:<name>` so reservations serialize across configured domains.
 
 ## Scope
 No DDL, migrations, legacy reads, data conversion, RSS, R2, PowerSync, Mobile or configuration-repository changes. Operators own any existing-data edits and coordinate rollout; old full-address rows are not supported.
