@@ -24,7 +24,7 @@ const enable = async (body: object) => {
   const response = await controller().handleEnableUserSettingRequest(ctx, new Request('http://local/v1/user/setting/enable', { method: 'POST', body: JSON.stringify(body) }))
   return response.json() as Promise<any>
 }
-const bindings = async () => (await db.query("SELECT platform_id FROM sr_platform_bind WHERE platform='newsletter'")).rows
+const bindings = async () => (await db.query("SELECT platform_id,user_name FROM sr_platform_bind WHERE platform='newsletter'")).rows
 
 describe('confirmed Newsletter setup on existing user settings', () => {
   test.each(['alex', 'jane.doe', 'Reader01', '读者Reader'])('ordinary Reader setting preserves its existing spelling and format: %j', async value => {
@@ -46,7 +46,7 @@ describe('confirmed Newsletter setup on existing user settings', () => {
     const request = { key: 'lab:newsletter', newsletter_address: 'feed+jane01@newslettereader.slax.dev' }
     expect((await enable(request)).code).toBe(200)
     expect((await enable(request)).code).toBe(200)
-    expect(await bindings()).toEqual([{ platform_id: 'feed+jane01@newslettereader.slax.dev' }])
+    expect(await bindings()).toEqual([{ platform_id: 'jane01', user_name: 'jane01' }])
   })
   test.each(['alex', 'abcde', 'Reader01', 'jane.doe', 'reader-1', ' reader01', 'reader01 ', '读者reader', 'abcdefghijklmnop'])(
     'rejects first-configuration token %j before changing Labs or writing an address',

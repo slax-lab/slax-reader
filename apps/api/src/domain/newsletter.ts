@@ -27,7 +27,7 @@ export class NewsletterService {
     const at = message.to.lastIndexOf('@'),
       part = newsletterRecipientPart(message.to.slice(0, at))
     if (!domain || at < 1 || message.to.slice(at + 1).toLowerCase() !== domain || !part) throw new NewsletterError('not_found', 404)
-    const recipient = await timing.measure('recipient', () => this.repo.recipient(domain, part))
+    const recipient = await timing.measure('recipient', () => this.repo.recipient(part))
     if (!recipient) throw new NewsletterError('not_found', 404)
     const parsed = await parseNewsletterStream(message, timing)
     const source = await hashSHA256(recipient.uuid + '\n' + parsed.sender)
