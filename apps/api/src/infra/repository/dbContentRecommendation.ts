@@ -35,6 +35,12 @@ function publicCandidate(viewerId: number) {
       AND (saved.bookmark_id = b.id OR saved_b.target_url = b.target_url))`
 }
 
+function notSubscribed(viewerId: number) {
+  return Prisma.sql`NOT EXISTS (SELECT 1 FROM sr_user_collection_subscriber sub
+          WHERE sub.collection_id = c.id AND sub.user_id = ${viewerId} AND NOT sub.is_deleted
+          AND sub.is_active AND sub.subscription_end_time > now())`
+}
+
 @injectable()
 export class ContentRecommendationRepo {
   constructor(@inject(PRISIMA_HYPERDRIVE_CLIENT) private prismaPg: LazyInstance<HyperdrivePrismaClient>) {}
@@ -95,13 +101,11 @@ export class ContentRecommendationRepo {
       FROM sr_user_collection c JOIN sr_user owner ON owner.id = c.owner_id
       WHERE c.id IN (${Prisma.join(ids)}) AND c.status = 1 AND c.collection_code <> ''
         AND owner.deleted_at IS NULL AND c.owner_id <> ${viewerId}
-        AND NOT EXISTS (SELECT 1 FROM sr_user_collection_subscriber sub
-          WHERE sub.collection_id = c.id AND sub.user_id = ${viewerId} AND NOT sub.is_deleted
-          AND sub.is_active AND sub.subscription_end_time > now())
+        AND ${notSubscribed(viewerId)}
     `)
   }
 
-  async getRecentMembers(ids: number[], limit: number): Promise<ArticleRecommendationRow[]> {
+  async getRecentMembers(ids: number[], limit: number, viewerId?: number): Promise<ArticleRecommendationRow[]> {
     if (!ids.length) return []
     return this.prismaPg().$queryRaw<ArticleRecommendationRow[]>(Prisma.sql`
       SELECT id, user_id, uuid, title, target_url, published_at, collection_id FROM (
@@ -113,7 +117,7 @@ export class ContentRecommendationRepo {
         JOIN sr_user_bookmark ub ON ub.user_id = owner.id
         JOIN sr_bookmark b ON b.id = ub.bookmark_id
         LEFT JOIN sr_bookmark_share share ON share.user_id = ub.user_id AND share.bookmark_id = b.id
-        WHERE c.id IN (${Prisma.join(ids)}) AND ${PUBLIC_MEMBER}
+        WHERE c.id IN (${Prisma.join(ids)}) AND ${viewerId === undefined ? PUBLIC_MEMBER : Prisma.sql`${publicCandidate(viewerId)} AND ${notSubscribed(viewerId)}`}
       ) members WHERE member_rank <= ${limit} ORDER BY collection_id, member_rank
     `)
   }
