@@ -51,7 +51,7 @@ export function LinkInputDialog({visible, onDismiss, onSubmit, onSubmitFeed, onF
   function switchMode(next: Mode) {if (!submitting.current && !pdfBusy) {if (next === 'file') input.current?.blur(); setMode(next); setError(null);}}
   async function submit() {
     if (submitting.current || pdfBusy || !visible) return;
-    if (available === 'file') {void upload(); return;}
+    if (available === 'file') {if (file) void upload(); else requestPick(); return;}
     const value = text.trim();
     if (edit && !value) return;
     if (!edit && !httpUrl) {setError({key: 'add_link_error_invalid_url', color: C.validationError}); return;}
@@ -71,12 +71,12 @@ export function LinkInputDialog({visible, onDismiss, onSubmit, onSubmitFeed, onF
     onSubmit(value); dismiss();
   }
   const shownError = available === 'file' ? (pdfError ? {key: pdfError, color: C.danger} : null) : error ?? ((available === 'feed' || available === 'url' && !feedAvailable) && feedFailed ? {key: `rss_error_${feedError ?? 'source_unavailable'}`, color: C.danger} : null);
-  const label = available === 'feed' ? t('rss_add') : available === 'file' ? t(pdfBusy ? 'pdf_uploading' : 'pdf_upload') : t(edit ? 'btn_confirm' : 'add_link_btn_submit');
+  const label = available === 'feed' ? t('rss_add') : available === 'file' ? t(pdfBusy ? 'pdf_uploading' : file ? 'pdf_upload' : 'pdf_pick') : t(edit ? 'btn_confirm' : 'add_link_btn_submit');
   return <SourceDialog visible={visible && (edit || !picking && foreground)} onDismiss={dismiss} onDidDismiss={didDismiss} compact testID={edit ? undefined : IDs.AddLinkDialog}>
     <View style={styles.header}><SourceText style={[T.dialogTitle, {fontWeight: '500'}]}>{t(edit ? 'edit_title_dialog_title' : 'add_content_dialog_title')}</SourceText><Pressable testID={edit ? undefined : IDs.AddLinkClose} accessibilityRole="button" accessibilityLabel={t(pdfBusy ? 'rss_cancel' : 'btn_close')} hitSlop={10} onPress={dismiss}><SourceIcon name="ic_xs_dialog_close" /></Pressable></View>
     {tabs.length > 1 ? <View accessibilityRole="tablist" style={styles.tabs}>
       {tabs.map(tab => <Pressable key={tab} accessibilityRole="tab" accessibilityState={{selected: available === tab, disabled: submissionBusy}} disabled={submissionBusy} accessibilityLabel={t(`add_content_tab_${tab}`)} onPress={() => switchMode(tab)}
-        style={styles.tab}><SourceText style={[styles.tabText, available === tab && styles.tabTextSelected]}>{t(`add_content_tab_${tab}`)}</SourceText></Pressable>)}
+        style={styles.tab}><View style={[styles.tabIndicator, {borderBottomColor: available === tab ? C.accent : 'transparent'}]}><SourceText style={[styles.tabText, available === tab && styles.tabTextSelected]}>{t(`add_content_tab_${tab}`)}</SourceText></View></Pressable>)}
     </View> : null}
     {available !== 'file' ? <>
       <TextInput selectionColor={C.accent} cursorColor={C.accent} ref={input} testID={edit ? undefined : IDs.AddLinkInput} accessibilityLabel={t(edit ? 'edit_title_dialog_title' : available === 'feed' ? 'add_content_feed_placeholder' : 'add_link_placeholder')} value={text} editable={!submissionBusy} onChangeText={value => {edited.current = true; setText(value); setError(null); setFeedFailed(false);}} placeholder={edit ? undefined : available === 'feed' ? t('add_content_feed_placeholder') : t('add_link_placeholder')} placeholderTextColor={C.mutedText} autoCapitalize={edit ? 'sentences' : 'none'} autoCorrect={edit} returnKeyType="done" onSubmitEditing={submit} style={styles.input} />
@@ -89,22 +89,35 @@ export function LinkInputDialog({visible, onDismiss, onSubmit, onSubmitFeed, onF
       </View> : null}
       {available === 'feed' ? <TextInput selectionColor={C.accent} cursorColor={C.accent} value={name} editable={!submissionBusy} onChangeText={value => {setName(value); setFeedFailed(false);}} maxLength={120} accessibilityLabel={t('add_content_feed_name')} placeholder={t('add_content_feed_name')} placeholderTextColor={C.mutedText} autoCapitalize="sentences" style={[styles.input, styles.nameInput]} /> : null}
     </> : <>
-      <SourceText style={T.metadata}>{t('pdf_limit')}</SourceText>
-      {file ? <View style={{gap: 4, marginTop: 16}}><SourceText numberOfLines={3}>{file.name}</SourceText><SourceText style={[T.helper, {color: C.mutedText}]}>{(file.size / 1024 / 1024).toFixed(2)} MiB</SourceText></View> : null}
-      {savedId ? <View accessibilityLiveRegion="polite" style={{gap: 8, marginTop: 16}}><SourceText>{t('pdf_upload_complete')}</SourceText><SourceText style={T.metadata}>{t('pdf_upload_sync_pending')}</SourceText></View> : <TextAction label={t('pdf_pick')} disabled={submissionBusy} onPress={requestPick} />}
+      {savedId ? <View accessibilityLiveRegion="polite" style={[styles.fileCard, {gap: 8}]}><SourceText>{t('pdf_upload_complete')}</SourceText><SourceText style={T.metadata}>{t('pdf_upload_sync_pending')}</SourceText></View> :
+        <Pressable testID="add-pdf-pick" accessibilityRole="button" accessibilityLabel={t(file ? 'add_content_file_replace' : 'add_content_file_choose')} disabled={submissionBusy || Boolean(savedId)} onPress={requestPick}
+          style={({pressed}) => [styles.fileCard, file && styles.fileCardSelected, {opacity: pressed ? 0.6 : 1}]}>
+          {file ? <View style={styles.fileRow}>
+            <View style={styles.fileInfo}><SourceText numberOfLines={2} style={[T.body, {color: C.text}]}>{file.name}</SourceText><SourceText style={[T.metadata, {color: C.mutedText}]}>{(file.size / 1024 / 1024).toFixed(2) + ' MiB'}</SourceText></View>
+            <SourceText style={[T.metadata, {color: C.accent}]}>{t('add_content_file_replace')}</SourceText>
+          </View> : <>
+            <SourceText style={[T.body, {color: C.text, fontWeight: '500', textAlign: 'center'}]}>{t('add_content_file_choose')}</SourceText>
+            <SourceText style={[T.metadata, {color: C.mutedText, marginTop: 4, textAlign: 'center'}]}>{t('add_content_file_limit')}</SourceText>
+          </>}
+        </Pressable>}
     </>}
     {shownError ? <SourceText testID={IDs.AddLinkError} accessibilityLiveRegion="polite" style={[T.metadata, {color: shownError.color, marginTop: 8}]}>{t(shownError.key)}</SourceText> : null}
-    {available !== 'file' || !savedId ? <SourceButton testID={edit ? undefined : IDs.AddLinkConfirm} label={label} busy={submissionBusy} disabled={submissionBusy || available === 'file' && !file} onPress={submit} style={{marginTop: 24}} /> : null}
+    {available !== 'file' || !savedId ? <SourceButton testID={edit ? undefined : IDs.AddLinkConfirm} label={label} busy={submissionBusy} disabled={submissionBusy} onPress={submit} style={{marginTop: 24}} /> : null}
   </SourceDialog>;
 }
 const styles = StyleSheet.create({
   header: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 25, gap: 12},
-  tabs: {height: 40, flexDirection: 'row', marginTop: 16},
-  tab: {flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 8},
+  tabs: {height: 40, flexDirection: 'row', marginTop: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#33333314'},
+  tab: {flex: 1, justifyContent: 'flex-end', alignItems: 'center', marginBottom: -StyleSheet.hairlineWidth},
+  tabIndicator: {paddingBottom: 8, borderBottomWidth: 2},
   tabText: {fontSize: 16, lineHeight: 20, color: C.mutedText, textAlign: 'center'},
   tabTextSelected: {color: C.text, fontWeight: '600'},
   input: {borderWidth: 1, borderColor: C.border, borderRadius: 8, minHeight: 50, paddingHorizontal: 12, paddingVertical: 10, marginTop: 25, ...T.body, color: C.bodyText, includeFontPadding: false},
   nameInput: {marginTop: 10},
+  fileCard: {marginTop: 25, borderWidth: 1, borderStyle: 'dashed', borderColor: '#0F141933', borderRadius: 8, minHeight: 96, paddingHorizontal: 16, paddingVertical: 16, justifyContent: 'center', alignItems: 'center'},
+  fileCardSelected: {alignItems: 'stretch'},
+  fileRow: {flexDirection: 'row', alignItems: 'center', gap: 16},
+  fileInfo: {flex: 1, gap: 4},
   hint: {marginTop: 12, gap: 4},
   hintActions: {flexDirection: 'row', flexWrap: 'wrap', gap: 20, marginTop: 2},
 });

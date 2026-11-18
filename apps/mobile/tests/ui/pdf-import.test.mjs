@@ -92,7 +92,7 @@ async function harness(root, platform = 'ios', development = false) {
   Object.assign(runtime, {getRepositories: () => repositories, getAccountPreferences: () => mobile.preferences, getUpgradeSnapshot: () => mobile.upgrade});
   const useMobile = () => ({...mobile, nativeResourceOwner: h.owner, fixtureOnly: h.fixtureOnly});
   const navigation = {useFocusEffect: callback => React.useEffect(() => h.focused ? callback() : undefined, [callback, h.focused])};
-  const native = {...v.primitives, Platform: {OS: platform, select: values => values[platform] ?? values.default}, StyleSheet: {create: value => value, absoluteFill: {}}, PixelRatio: {roundToNearestPixel: value => value}, Animated: {}, Linking: {}, useWindowDimensions: () => ({width: 375, height: 800, fontScale: 1}), AppState: {currentState: 'active', addEventListener(name, callback) {assert.equal(name, 'change'); listeners.add(callback); return {remove() {listeners.delete(callback);}};}}};
+  const native = {...v.primitives, Platform: {OS: platform, select: values => values[platform] ?? values.default}, StyleSheet: {create: value => value, absoluteFill: {}, hairlineWidth: 0.5}, PixelRatio: {roundToNearestPixel: value => value}, Animated: {}, Linking: {}, useWindowDimensions: () => ({width: 375, height: 800, fontScale: 1}), AppState: {currentState: 'active', addEventListener(name, callback) {assert.equal(name, 'change'); listeners.add(callback); return {remove() {listeners.delete(callback);}};}}};
   const labsCache = await load('../../src/settings/labs-cache.ts');
   const common = {react: React, 'react-native': native, '../runtime': {useMobile, useMobileSettings: () => mobile.settings}, '../theme': theme, '../theme/testIds': {mobileTestIds: {AddLinkDialog: 'add-link', AddLinkError: 'link-error'}}, './SourceUI': v.ui, '../settings/labs-cache': labsCache};
   const pdfImportSession = await load('../../src/pdf/usePdfImportSession.ts', {...common, 'expo-file-system': {File}, '@slax-reader/contracts/pdf': contracts, '../native/pdf-import': {pickPdf() {h.pickCalls++; return h.pick();}, removePickedPdf: async uri => {h.removed.push(uri);}}}, {...timers, __DEV__: development});
@@ -105,8 +105,9 @@ async function harness(root, platform = 'ios', development = false) {
   h.hasText = value => v.all('SourceText').some(props => props.children === value);
   h.button = label => v.one('SourceButton', props => props.label === label);
   h.action = label => v.one('TextAction', props => props.label === label);
+  h.card = () => v.one('Pressable', props => props.testID === 'add-pdf-pick');
   h.choose = async () => {
-    await act(async () => h.action('pdf_pick').onPress());
+    await act(async () => h.card().onPress());
     assert.equal(h.dialog().visible, false);
     await act(async () => platform === 'ios' ? h.dialog().onDidDismiss() : timers.advance(250));
   };
@@ -155,7 +156,7 @@ async function harness(root, platform = 'ios', development = false) {
     await act(async () => v.one('Pressable', props => props.accessibilityRole === 'tab' && props.accessibilityLabel === 'add_content_tab_file').onPress());
     assert.equal(h.dialog().visible, true);
     assert.equal(h.tab('file').accessibilityState.selected, true);
-    assert.equal(h.button('pdf_upload').disabled, true);
+    assert.equal(h.button('pdf_pick').disabled, false);
     assert.equal(v.all('SourceDialog').filter(props => props.visible).length, 1);
   };
   h.loadSettings = async () => {
@@ -187,16 +188,79 @@ async function harness(root, platform = 'ios', development = false) {
 }
 const telemetry = {track() {}, element() {}, firebase() {}};
 
+for (const platform of ['ios', 'android']) test(`${platform} empty File primary action picks exactly once without uploading`, async () => mounted(async root => {
+  const h = await harness(root, platform); await act(async () => h.render());
+  const button = h.button('pdf_pick');
+  assert.equal(button.disabled, false); assert.equal(button.busy, false); assert.equal(h.pickCalls, 0);
+  await act(async () => button.onPress());
+  assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 0); assert.deepEqual(h.uploads, []);
+  await act(async () => platform === 'ios' ? h.dialog().onDidDismiss() : h.timers.advance(250));
+  assert.equal(h.pickCalls, 1); assert.equal(h.dialog().visible, true); assert.deepEqual(h.uploads, []); assert.deepEqual(h.labsCalls, []);
+  await act(async () => platform === 'ios' ? h.dialog().onDidDismiss() : h.timers.advance(1000));
+  assert.equal(h.pickCalls, 1); assert.deepEqual(h.uploads, []);
+  assert.equal(h.button('pdf_upload').disabled, false);
+}));
+
+test('File picker card shows empty guidance then file details and replacement action', async () => mounted(async root => {
+  const h = await harness(root); await act(async () => h.render());
+  const style = Object.assign({}, ...h.card().style({pressed: false}));
+  assert.equal(h.card().accessibilityRole, 'button'); assert.equal(h.card().accessibilityLabel, 'add_content_file_choose'); assert.equal(h.card().disabled, false);
+  assert.equal(h.hasText('add_content_file_choose'), true); assert.equal(h.hasText('add_content_file_limit'), true);
+  assert.equal(style.marginTop, 25); assert.equal(style.minHeight, 96); assert.equal(style.borderStyle, 'dashed'); assert.equal(style.borderColor, '#0F141933'); assert.equal(style.alignItems, 'center');
+  assert.equal(Object.assign({}, ...h.card().style({pressed: true})).opacity, 0.6);
+  await h.choose();
+  assert.equal(h.card().accessibilityLabel, 'add_content_file_replace'); assert.equal(h.hasText('add_content_file_replace'), true);
+  assert.equal(h.v.one('SourceText', props => props.children === h.selected.name).numberOfLines, 2);
+  assert.equal(h.hasText((h.selected.size / 1024 / 1024).toFixed(2) + ' MiB'), true);
+  assert.equal(Object.assign({}, ...h.card().style({pressed: false})).alignItems, 'stretch');
+  assert.equal(h.button('pdf_upload').disabled, false); assert.equal(h.hasText('add_content_file_limit'), false);
+}));
+
+test('File panel no longer renders the old limit sentence or separate picker TextAction', async () => mounted(async root => {
+  const h = await harness(root); await act(async () => h.render());
+  for (const selected of [false, true]) {
+    if (selected) await h.choose();
+    assert.equal(h.hasText('pdf_limit'), false);
+    assert.equal(h.v.all('TextAction').some(props => props.label === 'pdf_pick'), false);
+    assert.equal(h.v.all('Pressable').filter(props => props.testID === 'add-pdf-pick').length, 1);
+  }
+}));
+
+for (const rssEnabled of [false, true]) test(`${rssEnabled ? 'three' : 'two'} tabs underline only the selected text over the strip divider`, async () => mounted(async root => {
+  const h = await harness(root);
+  await act(async () => root.render(React.createElement(h.LinkInputDialog, {visible: true, initialMode: 'file', pdfEnabled: true, rssEnabled, onSubmitFeed: async () => true, onSubmit() {}, onDismiss() {}})));
+  const strip = h.v.one('View', props => props.accessibilityRole === 'tablist');
+  assert.equal(strip.style.height, 40); assert.equal(strip.style.marginTop, 16);
+  assert.equal(strip.style.borderBottomWidth, 0.5); assert.equal(strip.style.borderBottomColor, '#33333314');
+  const modes = ['url', ...(rssEnabled ? ['feed'] : []), 'file'];
+  assert.equal(h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab').length, modes.length);
+  for (const selected of ['file', 'url']) {
+    if (selected === 'url') await act(async () => h.tab('url').onPress());
+    for (const mode of modes) {
+      const tab = h.tab(mode), indicator = React.Children.only(tab.children), text = React.Children.only(indicator.props.children);
+      const indicatorStyle = Object.assign({}, ...indicator.props.style), textStyle = Object.assign({}, ...text.props.style);
+      assert.equal(indicator.type, h.v.primitives.View);
+      assert.equal(tab.accessibilityState.selected, mode === selected); assert.equal(tab.disabled, false);
+      assert.equal(tab.style.justifyContent, 'flex-end'); assert.equal(tab.style.marginBottom, -0.5);
+      assert.equal(indicatorStyle.paddingBottom, 8); assert.equal(indicatorStyle.borderBottomWidth, 2);
+      assert.equal(indicatorStyle.borderBottomColor, mode === selected ? theme.mobileColors.accent : 'transparent');
+      assert.equal(textStyle.color, mode === selected ? theme.mobileColors.text : theme.mobileColors.mutedText);
+      if (mode === selected) assert.equal(textStyle.fontWeight, '600');
+    }
+  }
+  assert.equal(h.v.one('TextInput').style.marginTop, 25); assert.equal(h.pickCalls, 0);
+}));
+
 for (const platform of ['ios', 'android']) test(`${platform} picker waits for modal dismissal, null cancellation restores the dialog without error`, async () => mounted(async root => {
   const h = await harness(root, platform); h.selected = null;
   await act(async () => h.render());
-  assert.equal(h.button('pdf_upload').disabled, true);
-  await act(async () => h.action('pdf_pick').onPress());
+  assert.equal(h.button('pdf_pick').disabled, false);
+  await act(async () => h.card().onPress());
   assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 0);
   await act(async () => h.timers.advance(platform === 'ios' ? 1000 : 249));
   assert.equal(h.pickCalls, 0, 'Never overlap the document picker with the outgoing modal');
   await act(async () => platform === 'ios' ? h.dialog().onDidDismiss() : h.timers.advance(1));
-  assert.equal(h.pickCalls, 1); assert.equal(h.dialog().visible, true); assert.equal(h.button('pdf_upload').disabled, true);
+  assert.equal(h.pickCalls, 1); assert.equal(h.dialog().visible, true); assert.equal(h.button('pdf_pick').disabled, false);
   assert.equal(h.hasText('pdf_pick_failed'), false); assert.deepEqual(h.removed, []); assert.deepEqual(h.uploads, []);
 }));
 
@@ -259,10 +323,12 @@ for (const platform of ['ios', 'android']) test(`${platform} Library uploads a r
   assert.equal(h.uploads.length, 1);
   const [body, filename, signal] = h.uploads[0];
   assert.ok(body instanceof h.File); assert.equal(body, h.files[0]); assert.equal(body.uri, h.selected.uri); assert.equal(filename, h.selected.name); assert.equal(signal, h.labsCalls.at(-1));
-  assert.equal(h.button('pdf_uploading').busy, true); assert.equal(h.action('pdf_pick').disabled, true);
+  assert.equal(h.button('pdf_uploading').busy, true); assert.equal(h.card().disabled, true);
   assert.deepEqual(h.navigations, []); assert.equal(h.watches.length, 0);
   await act(async () => upload.resolve({bookmark_uid: 'server-pdf'}));
   assert.equal(h.hasText('pdf_upload_complete'), true); assert.equal(h.hasText('pdf_upload_sync_pending'), true);
+  assert.equal(h.v.all('Pressable').some(props => props.testID === 'add-pdf-pick'), false); assert.equal(h.v.all('SourceButton').length, 0);
+  assert.equal(Object.assign({}, ...h.v.one('View', props => props.accessibilityLiveRegion === 'polite').style).minHeight, 96);
   assert.deepEqual(h.removed, [h.selected.uri]); assert.deepEqual(h.navigations, []); assert.deepEqual(h.created, []);
   const watch = h.watches[0]; assert.equal(watch.sql, 'SELECT id FROM sr_user_bookmark WHERE id = ?'); assert.deepEqual(Array.from(watch.params), ['server-pdf']);
   await act(async () => watch.rows([])); assert.deepEqual(h.navigations, []); assert.equal(h.dialog().visible, true);
@@ -296,7 +362,7 @@ for (const transition of ['close', 'account change', 'unmount']) test(`${transit
   else await act(async () => root.render(null));
   await act(async () => picker.resolve(h.selected));
   assert.deepEqual(h.removed, [h.selected.uri]); assert.equal(h.uploads.length, 0); assert.deepEqual(h.saved, []);
-  if (transition === 'account change') assert.equal(h.button('pdf_upload').disabled, true);
+  if (transition === 'account change') assert.equal(h.button('pdf_pick').disabled, false);
   if (transition === 'close') assert.equal(h.dialog().visible, false);
   if (transition === 'unmount') assert.equal(h.listenerCount(), 0);
 }));
@@ -311,7 +377,7 @@ for (const transition of ['account change', 'unmount']) test(`Library ${transiti
   assert.equal(h.watches.length, 0); assert.deepEqual(h.navigations, []);
   if (transition === 'account change') {
     assert.equal(h.dialog().visible, false);
-    await h.openLibraryImport(); assert.equal(h.button('pdf_upload').disabled, true);
+    await h.openLibraryImport(); assert.equal(h.button('pdf_pick').disabled, false);
   } else assert.equal(h.listenerCount(), 0);
 }));
 
@@ -539,7 +605,7 @@ test('a canceled upload settling after retry starts must not clear the new reque
   assert.equal(h.uploads.length, 2); assert.equal(h.button('pdf_uploading').busy, true);
   await act(async () => first.reject(new Error('The native upload finished aborting')));
   assert.equal(h.v.all('SourceButton').some(props => props.label === 'pdf_uploading' && props.busy), true, 'The old upload finally block must not enable a duplicate submission during its replacement');
-  assert.equal(h.action('pdf_pick').disabled, true); assert.equal(h.watches.length, 0);
+  assert.equal(h.card().disabled, true); assert.equal(h.watches.length, 0);
   await act(async () => retry.resolve({bookmark_uid: 'current-upload'}));
   assert.deepEqual(Array.from(h.watches[0].params), ['current-upload']);
 }));
@@ -567,7 +633,7 @@ for (const platform of ['ios', 'android']) for (const outcome of ['selected', 'c
   assert.equal(h.dismissals, 0); assert.deepEqual(h.saved, []); assert.deepEqual(h.uploads, []); assert.deepEqual(h.removed, []);
   await h.background('active');
   assert.equal(h.dialog().visible, true); assert.equal(h.pickCalls, 1);
-  assert.equal(h.button('pdf_upload').disabled, outcome !== 'selected'); assert.equal(h.hasText('pdf_pick_failed'), outcome === 'failed');
+  assert.equal(h.button(outcome === 'selected' ? 'pdf_upload' : 'pdf_pick').disabled, false); assert.equal(h.hasText('pdf_pick_failed'), outcome === 'failed');
   assert.equal(h.hasText(h.selected.name), outcome === 'selected');
   await act(async () => h.close().onPress());
   assert.deepEqual(h.removed, outcome === 'selected' ? [h.selected.uri] : []);
@@ -582,7 +648,7 @@ for (const platform of ['ios', 'android']) for (const completesAfterFocus of [fa
   assert.equal(h.dialog().visible, false); assert.deepEqual(h.removed, [h.selected.uri]); assert.deepEqual(h.navigations, []); assert.deepEqual(h.uploads, []);
   if (!completesAfterFocus) {h.focused = true; await act(async () => h.render());}
   assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 1);
-  await h.openLibraryImport(); assert.equal(h.button('pdf_upload').disabled, true); assert.equal(h.hasText(h.selected.name), false);
+  await h.openLibraryImport(); assert.equal(h.button('pdf_pick').disabled, false); assert.equal(h.hasText(h.selected.name), false);
 }));
 
 for (const platform of ['ios', 'android']) for (const outcome of ['selected', 'failed']) test(`${platform} closing and reopening the same owner fences an old picker ${outcome} without ending a new picker`, async () => mounted(async root => {
@@ -591,7 +657,7 @@ for (const platform of ['ios', 'android']) for (const outcome of ['selected', 'f
   h.pick = () => oldPicker.promise;
   await act(async () => h.render()); await h.choose();
   h.visible = false; await act(async () => h.render()); h.visible = true; await act(async () => h.render());
-  assert.equal(h.button('pdf_upload').disabled, true);
+  assert.equal(h.button('pdf_pick').disabled, false);
   h.pick = () => newPicker.promise; await h.choose();
   await act(async () => outcome === 'failed' ? oldPicker.reject(new Error('Obsolete native copy failed')) : oldPicker.resolve(oldFile));
   assert.equal(h.dialog().visible, false, 'An obsolete picker finally must not finish the current picker');
@@ -620,15 +686,15 @@ for (const platform of ['ios', 'android']) for (const [development, capability, 
   await act(async () => h.render()); await h.choose();
   assert.equal(h.pickCalls, permitted ? 1 : 0); assert.equal(h.hasText('pdf_pick_failed'), !permitted);
   if (permitted) {await h.submit(); assert.equal(h.uploads[0][0] instanceof h.File, true); assert.equal(h.uploads[0][0].uri, h.selected.uri);}
-  else {assert.equal(h.uploads.length, 0); assert.equal(h.button('pdf_upload').disabled, true);}
+  else {assert.equal(h.uploads.length, 0); assert.equal(h.button('pdf_pick').disabled, false);}
 }));
 
 for (const platform of ['ios', 'android']) test(`${platform} File selection survives URL and Feed switches without repicking or releasing`, async () => mounted(async root => {
   const h = await harness(root, platform); await act(async () => h.render());
-  assert.equal(h.pickCalls, 0); assert.equal(h.hasText('pdf_limit'), true);
+  assert.equal(h.pickCalls, 0); assert.equal(h.hasText('add_content_file_limit'), true);
   await h.choose();
-  assert.equal(h.v.one('SourceText', props => props.children === h.selected.name).numberOfLines, 3);
-  assert.equal(h.v.all('SourceText').some(props => Array.isArray(props.children) && props.children.join('') === '0.00 MiB'), true);
+  assert.equal(h.v.one('SourceText', props => props.children === h.selected.name).numberOfLines, 2);
+  assert.equal(h.hasText('0.00 MiB'), true);
   await act(async () => h.tab('url').onPress());
   await act(async () => h.v.one('TextInput').onChangeText('https://source.test/feed?format=atom&key=a%2Bb'));
   await act(async () => h.tab('feed').onPress());
@@ -669,7 +735,7 @@ test('closing the add session releases its file once and reopening resets every 
   await act(async () => h.close().onPress());
   assert.equal(h.dismissals, 1); assert.equal(h.dialog().visible, false); assert.deepEqual(h.removed, [h.selected.uri]);
   h.visible = true; await act(async () => h.render());
-  assert.equal(h.button('pdf_upload').disabled, true); assert.equal(h.hasText(h.selected.name), false);
+  assert.equal(h.button('pdf_pick').disabled, false); assert.equal(h.hasText(h.selected.name), false);
   await act(async () => h.tab('feed').onPress());
   assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder').value, '');
   assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').value, '');
@@ -681,7 +747,7 @@ for (const transition of ['account replacement', 'unmount']) test(`selected PDF 
   await act(async () => h.tab('url').onPress());
   if (transition === 'account replacement') {
     h.owner = 'account-b'; await act(async () => h.render());
-    assert.equal(h.button('pdf_upload').disabled, true); assert.equal(h.hasText(h.selected.name), false);
+    assert.equal(h.button('pdf_pick').disabled, false); assert.equal(h.hasText(h.selected.name), false);
   } else await act(async () => root.render(null));
   assert.deepEqual(h.removed, [h.selected.uri]); assert.equal(h.pickCalls, 1); assert.deepEqual(h.uploads, []);
   await act(async () => root.render(null)); assert.deepEqual(h.removed, [h.selected.uri]); assert.equal(h.listenerCount(), 0);
@@ -691,7 +757,7 @@ for (const platform of ['ios', 'android']) test(`${platform} upload blocks compe
   const h = await harness(root, platform), pending = deferred(); h.upload = () => pending.promise;
   await act(async () => h.render()); await h.choose(); await h.submit();
   assert.equal(h.tab('url').disabled, true); assert.equal(h.tab('feed').accessibilityState.disabled, true);
-  assert.equal(h.button('pdf_uploading').busy, true); assert.equal(h.action('pdf_pick').disabled, true);
+  assert.equal(h.button('pdf_uploading').busy, true); assert.equal(h.card().disabled, true);
   await act(async () => h.tab('url').onPress());
   assert.equal(h.tab('file').accessibilityState.selected, true); assert.deepEqual(h.created, []);
   assert.notEqual(h.close().disabled, true); assert.equal(h.close().accessibilityLabel, 'rss_cancel');
