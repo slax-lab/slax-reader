@@ -12,4 +12,4 @@
 - [x] 2.1 Run Web checks and strict OpenSpec validation.
 - [x] 2.2 Compare built login and root behavior in a browser and record the results and integration gaps.
 - [x] 2.3 Review Bugs, Security, and Compliance and address Important findings.
-- [ ] 2.4 Archive this change in a separate docs PR after the task PR merges.
+- [x] 2.4 Archive this change in a separate docs PR after the task PR merges.

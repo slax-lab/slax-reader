@@ -60,4 +60,4 @@ Earlier implementation/acceptance history is preserved in validation.md and supe
 
 ## Archive after merge
 
-- [ ] 7. After the task PR merges, classify unchecked tasks and archive this change through a separate documentation PR.
+- [x] 7. After the task PR merges, classify unchecked tasks and archive this change through a separate documentation PR.

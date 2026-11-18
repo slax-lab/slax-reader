@@ -116,3 +116,10 @@ Chromium exercised the changed worktree against a loopback API fixture with synt
 ### Review and handoff
 
 The whole-section follow-up reproduced the previously visible section heading and provider rows in mounted Web and Mobile tests before the component-level gates were added. The final focused suites, type checks, and both platform bundles were re-run after that adjustment. The local Bugs and Security passes found no additional issue in the four changed presentation files. The Compliance pass matches the corrected rollout requirements under `add-email-otp-auth`; the requester completed hands-on acceptance of the final whole-section correction on 2026-11-11 using the local Beta account-settings preview and explicitly requested creation of a Draft PR. The earlier feature PR #541 is already merged, so this correction uses the separate `fix/dev-only-email-ui` branch based on current `origin/dev`. The required acceptance preceded the follow-up Draft PR, as the requester instructed. No version files were changed, following the requester's existing preference to retain the Mobile version.
+
+## Archive
+
+Archived on 2026-11-18 in a separate documentation PR after task PR #541 merged into `dev`. All tasks were complete before archiving.
+
+- Spec sync: created `openspec/specs/email-authentication/spec.md` from 6 added requirements.
+- Archive verification: `openspec validate --all --strict` passed (150 passed, 0 failed) and the staged whitespace check (`git diff --cached --check`) passed.

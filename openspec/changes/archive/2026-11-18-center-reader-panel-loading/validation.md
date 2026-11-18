@@ -56,3 +56,10 @@ Post-resolution verification, using the same explicit synthetic configuration an
 - `browser_panel_feedback_check.py --base-url http://127.0.0.1:3218 --executable <local-browser>`: all 21 upstream feedback scenarios passed, including early AI/Chat clicks and accessible busy state, one-time handoff, latest choice, pending/inactive/failure-retry access decisions, theme/width presentation, module rejection/timeout, close/switch, and reduced motion.
 - Refreshed the after image from the merged running reader. The before capture remains explicitly sourced from unmodified production code at `82b84500`.
 - Independent read-only Bugs/Security/Compliance review of the conflict resolution found no Important or Nit findings. Existing scope boundaries and runtime-integration gaps above still apply; this synchronization does not add product behavior or replace the recorded human acceptance.
+
+## Archive
+
+Archived on 2026-11-18 in a separate documentation PR after task PR #649 merged into `dev`. All tasks were complete before archiving.
+
+- Spec sync: created `openspec/specs/web-reader-panel-loading/spec.md` from 2 added requirements.
+- Archive verification: `openspec validate --all --strict` passed (150 passed, 0 failed) and the staged whitespace check (`git diff --cached --check`) passed.
