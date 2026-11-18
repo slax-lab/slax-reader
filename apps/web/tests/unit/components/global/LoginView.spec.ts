@@ -127,7 +127,7 @@ describe('global/LoginView', () => {
     await flushPromises()
     await wrapper.get('.email-login-toggle').trigger('click')
     expect(analytics).toHaveBeenCalledWith({ event: 'user_login_start', method: 'email' })
-    expect(wrapper.find('.email-passkey-button').exists()).toBe(['development', 'preview', 'beta'].includes(environment))
+    expect(wrapper.find('.email-passkey-button').exists()).toBe(true)
     await wrapper.get('input[type=email]').setValue('Reader@example.com')
     await wrapper.get('form').trigger('submit')
     await flushPromises()

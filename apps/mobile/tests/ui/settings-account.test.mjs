@@ -625,21 +625,21 @@ for (const replacement of ['blur', 'origin', 'account']) test(`mounted Passkey r
   assert.equal(h.passkeyCreates.length, 0);
 }));
 
-for (const webUrl of ['https://r.slax.dev', 'https://r-beta.slax.com', 'https://r.slax.com']) test(`non-development settings keep email available and scope Passkeys to ${webUrl}`, async () => mounted(async root => {
+for (const webUrl of ['https://r.slax.dev', 'https://r-beta.slax.com', 'https://r.slax.com']) test(`non-development settings show email and Passkeys at ${webUrl}`, async () => mounted(async root => {
   const h = await harness(root, 'android', false);
   h.webUrl = webUrl;
   await h.renderRoute('SettingsScreen');
   assert.equal(h.all('SourceButton').filter(props => props.label === 'email_auth_bind').length, 1);
-  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_create').length, webUrl !== 'https://r.slax.com' ? 1 : 0);
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_create').length, 1);
 }));
 
-for (const isBeta of [false, true]) test(`non-development settings use the current Beta API flag with production Web origin: ${isBeta}`, async () => mounted(async root => {
+for (const isBeta of [false, true]) test(`production-origin settings show Passkeys with either API channel: ${isBeta}`, async () => mounted(async root => {
   const h = await harness(root, 'android', false);
   h.webUrl = 'https://r.slax.com';
   h.isBeta = isBeta;
   await h.renderRoute('SettingsScreen');
   assert.equal(h.all('SourceButton').filter(props => props.label === 'email_auth_bind').length, 1);
-  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_create').length, isBeta ? 1 : 0);
+  assert.equal(h.all('SourceButton').filter(props => props.label === 'passkey_create').length, 1);
 }));
 
 test('unsupported devices disable Passkey creation but keep existing credentials deletable', async () => mounted(async root => {
