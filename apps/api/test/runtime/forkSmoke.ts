@@ -6,6 +6,7 @@ import { resolve } from 'node:path'
 import { getPlatformProxy } from 'wrangler'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/hyperdrive-client'
+import type { LabFeature } from '@slax-reader/contracts/interface'
 import { BookmarkForkRepo } from '../../src/infra/repository/dbBookmarkFork'
 import { readEmbeddedSnapshot, SnapshotBundle } from '../../src/utils/snapshotBundle'
 import { MediaSnapshotService } from '../../src/domain/mediaSnapshot'
@@ -46,7 +47,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
     const sql = (query: string) => resources.sql(container, 'http_reader', query)
     const json = (query: string) => JSON.parse(sql(`SELECT row_to_json(r) FROM (${query}) r`))
     sql(
-      "UPDATE sr_user SET lang='en',ai_lang='en'; INSERT INTO sr_user_lab_feature(user_id,feature,enabled,updated_at) SELECT u.id,f.key,true,now() FROM sr_user u CROSS JOIN (VALUES ('pdf'),('youtube'),('youtube_article'),('podcast')) f(key);"
+      "UPDATE sr_user SET lang='en',ai_lang='en'; INSERT INTO sr_user_lab_feature(user_id,feature,enabled,updated_at) SELECT 2,f.key,true,now() FROM (VALUES ('pdf'),('youtube'),('youtube_article'),('podcast')) f(key);"
     )
     const sources: Record<string, Source> = {}
     const source = (name: string, url: string, key: string, textKey: string, type = 0) => {
@@ -127,6 +128,8 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         `INSERT INTO sr_youtube_article_ref(bookmark_id,user_id,media_kind,video_id,source_hash,updated_at) VALUES(${item.id},2,${sqlString(kind)},${sqlString(media.sourceId)},'saved-hash',now())`
       )
     }
+    const legacyYouTube = source('legacyYouTube', 'https://youtu.be/dQw4w9WgXcQ', 'legacy/video.html', '')
+    await bucket.put(legacyYouTube.key, '<article><youtube-player data-video-id="dQw4w9WgXcQ"></youtube-player>Original source body.</article>')
     return {
       dispose: async () => {
         try {
@@ -150,6 +153,15 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           const response = await fetch(path, { headers: asGuest ? {} : headers, ...(body !== undefined ? { method: 'POST', body: JSON.stringify(body) } : {}) })
           const result = (await response.json()) as any
           return { response, result }
+        }
+        const labs = async (): Promise<LabFeature[]> => {
+          const { result } = await call('/v1/user/labs')
+          assert.equal(result.code, 200)
+          return result.data.features
+        }
+        const setLab = async (feature: string, enabled: boolean) => {
+          const { result } = await call(`/v1/user/setting/${enabled ? 'enable' : 'disable'}`, { key: `lab:${feature}` })
+          assert.equal(result.code, 200)
         }
         const contentConfig = resolve(resources.workspace, 'fork-content.json')
         writeFileSync(
@@ -191,10 +203,39 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           return { ...response, destinationUuid }
         }
         const saved: Record<string, any> = {}
+        const matchingLabs: Record<string, string> = { uploadedPdf: 'pdf', urlPdf: 'pdf', youtube: 'youtube', podcast: 'podcast', legacyYouTube: 'youtube' }
+        const initialLabs = await labs()
+        assert.ok(initialLabs.length > 0)
+        assert.ok(initialLabs.every(feature => !feature.enabled))
+        const directYouTube = await call('/v1/bookmark/add_url', { target_url: sources.youtube.url, tags: [] })
+        assert.equal(directYouTube.result.code, 400)
+        assert.match(directYouTube.result.message, /still in Labs/)
+        const directUpload = await fetch('/v1/bookmark/upload_pdf?filename=direct.pdf', {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/pdf' },
+          body: new Uint8Array(pdf)
+        })
+        const blockedUpload = (await directUpload.json()) as { code: number; message: string }
+        assert.equal(blockedUpload.code, 400)
+        assert.match(blockedUpload.message, /still in Labs/)
+        assert.deepEqual(await labs(), initialLabs)
         for (const [name, src] of Object.entries(sources)) {
           console.log(`Fork HTTP exercise: ${name}`)
+          if (name === 'legacyYouTube') await setLab('youtube', false)
+          const before = await labs()
           const { response, result, destinationUuid } = await fork(src.uuid)
           assert.equal(response.status, 200, `${name}: ${JSON.stringify(result)}`)
+          const after = await labs()
+          const changed = after.filter((feature, index) => feature.enabled !== before[index].enabled)
+          const matching = before.find(feature => feature.key === matchingLabs[name])
+          assert.deepEqual(
+            changed.map(feature => [feature.key, feature.enabled]),
+            matching && !matching.enabled ? [[matching.key, true]] : []
+          )
+          assert.deepEqual(
+            after.filter(feature => feature.key !== matching?.key),
+            before.filter(feature => feature.key !== matching?.key)
+          )
           const dest = json(
             `SELECT ub.uuid,ub.bookmark_id,ub.forked_from_id,ub.is_starred,ub.alias_title,b.private_user,b.target_url,b.content_key,b.content_md_key FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id=ub.bookmark_id WHERE ub.uuid=${sqlString(destinationUuid)}`
           )
@@ -222,6 +263,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           const duplicate = await fork(src.uuid)
           assert.equal(duplicate.destinationUuid, dest.uuid)
           assert.equal(sql(`SELECT content_key FROM sr_bookmark WHERE id=${dest.bookmark_id}`), dest.content_key)
+          assert.deepEqual(await labs(), after)
         }
         sql(
           "INSERT INTO sr_user_subscription(user_id,first_subscription_time,subscription_end_time,next_invoice_time) VALUES(1,now(),now()+interval '1 day',now()+interval '1 day')"
@@ -230,30 +272,40 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         await exerciseSnapshotAi(fetch, headers, saved.html.uuid)
         // A missing copy object cannot prevent HTTP admission. The durable Workflow exhausts
         // its finite retries, then an explicit retry succeeds once the source becomes available.
-        const deferred = source('deferred', 'https://fixture.invalid/deferred', 'legacy/deferred.html', '')
+        const deferred = source('deferred', 'https://fixture.invalid/deferred', 'pdf/body/deferred.pdf', 'text/pdf/deferred.txt', 2)
+        sql(`UPDATE sr_user_bookmark SET metadata=metadata || jsonb_build_object('pdf_document_id',${sqlString(digest)}::text) WHERE uuid=${sqlString(deferred.uuid)}`)
+        await setLab('pdf', false)
+        const beforeDeferred = await labs()
         const accepted = await fork(deferred.uuid, false)
         assert.equal(accepted.response.status, 200)
         const admittedUuid = accepted.destinationUuid
-        assert.notEqual(sql(`SELECT b.status FROM sr_bookmark b JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id WHERE ub.uuid=${sqlString(admittedUuid)}`), 'success')
+        assert.equal(sql(`SELECT b.status FROM sr_bookmark b JOIN sr_user_bookmark ub ON ub.bookmark_id=b.id WHERE ub.uuid=${sqlString(admittedUuid)}`), 'parseing')
+        assert.deepEqual(await labs(), beforeDeferred)
         await settled(admittedUuid, 'failed')
+        assert.deepEqual(await labs(), beforeDeferred)
         const failedState = await detail(deferred.uuid)
         assert.equal(failedState.result.data.viewer_fork_status, 'failed')
-        await bucket.put(deferred.key, '<article>Recovered deferred source</article>')
+        await bucket.put(deferred.key, pdf, { httpMetadata: { contentType: 'application/pdf' }, customMetadata: { sha256: digest, filename: 'snapshot.pdf' } })
+        await bucket.put('pdf/meta/deferred.json', JSON.stringify({ text_status: 'ready', pages: 1 }))
+        await bucket.put(deferred.textKey, 'Independent PDF')
         const retried = await fork(deferred.uuid)
         assert.equal(retried.destinationUuid, admittedUuid)
+        assert.equal((await labs()).find(feature => feature.key === 'pdf')?.enabled, true)
         saved.deferred = json(
           `SELECT ub.uuid,ub.bookmark_id,b.content_key,b.content_md_key FROM sr_user_bookmark ub JOIN sr_bookmark b ON b.id=ub.bookmark_id WHERE ub.uuid=${sqlString(admittedUuid)}`
         )
-        assert.match(await (await bucket.get(saved.deferred.content_key))!.text(), /Recovered deferred source/)
+        assert.equal(await (await bucket.get(saved.deferred.content_md_key))!.text(), 'Independent PDF')
         assert.equal((await detail(deferred.uuid)).result.data.viewer_fork_status, 'success')
         assert.equal((await detail(deferred.uuid, true)).result.data.viewer_fork_status, null)
         const originalHtmlKey = saved.html.content_key
+        const beforeHtml = await labs()
         const refreshedHtml = '<div><h1>Independent article</h1><p>Original source body.</p><p>Refreshed source body.</p></div>'
         await bucket.put(html.key, refreshedHtml)
         const refresh = await fork(html.uuid)
         assert.equal(refresh.destinationUuid, saved.html.uuid)
         assert.equal(sql(`SELECT content_key FROM sr_bookmark WHERE id=${saved.html.bookmark_id}`), originalHtmlKey)
         assert.match(await (await bucket.get(originalHtmlKey))!.text(), /Refreshed source body/)
+        assert.deepEqual(await labs(), beforeHtml)
         assert.equal(saved.uploadedPdf.target_url, `slax-pdf://1/${digest}`)
         assert.equal(await (await bucket.get(saved.html.content_md_key))!.text(), 'Independent articleOriginal source body.Refreshed source body.')
         // A cached search made while trashed must not hide either form of restored save.
@@ -266,6 +318,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           assert.equal(await proxy.env.KV.get('search:valid_bm_ids:1'), null)
         }
         const recoverySources: Source[] = []
+        await setLab('youtube_article', true)
         for (const [kind, preserveTranscript, scenario] of [
           ['youtube', false, 'catchup'],
           ['youtube', false, 'disabled'],
@@ -454,13 +507,29 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
         }
         const visible = await detail(saved.html.uuid)
         assert.equal(visible.result.data.fork.display_name, 'Owner')
+        await setLab('podcast', false)
+        const beforeDeniedPodcast = await labs()
+        sql(`INSERT INTO sr_bookmark_share(user_id,bookmark_id,is_enable) VALUES(2,${sources.podcast.id},false)`)
+        assert.equal((await fork(sources.podcast.uuid)).result.code, 404)
+        assert.deepEqual(await labs(), beforeDeniedPodcast)
+        sql(`DELETE FROM sr_bookmark_share WHERE user_id=2 AND bookmark_id=${sources.podcast.id}`)
+        const reenabledPodcast = await fork(sources.podcast.uuid)
+        assert.equal(reenabledPodcast.destinationUuid, saved.podcast.uuid)
+        assert.deepEqual(
+          (await labs()).filter(feature => feature.key !== 'podcast'),
+          beforeDeniedPodcast.filter(feature => feature.key !== 'podcast')
+        )
+        assert.equal((await labs()).find(feature => feature.key === 'podcast')?.enabled, true)
         sql(`INSERT INTO sr_bookmark_share(user_id,bookmark_id,is_enable,show_userinfo) VALUES(2,${html.id},true,false)`)
         const hidden = await detail(saved.html.uuid, true)
         assert.equal(hidden.result.data.fork.display_name, null)
         sql(`UPDATE sr_bookmark_share SET is_enable=false WHERE bookmark_id=${html.id}`)
+        const beforeRevoked = await labs()
         const revoked = await fork(html.uuid)
         assert.equal(revoked.result.code, 404)
+        assert.deepEqual(await labs(), beforeRevoked)
         assert.equal((await detail(saved.html.uuid)).result.data.fork.status, 'unavailable')
+        console.log('Fork Labs HTTP acceptance passed for eligible and ordinary snapshots, pending and failed copies, denied sources, and direct acquisition.')
         for (const src of [...Object.values(sources), ...recoverySources]) {
           if (src.key) await bucket.delete([src.key, src.textKey].filter(Boolean))
           sql(

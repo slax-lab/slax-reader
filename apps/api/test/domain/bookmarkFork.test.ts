@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SearchService } from '@/domain/search'
 import { BookmarkForkService } from '@/domain/bookmarkFork'
+import { LabService } from '@/domain/lab'
 import { memoryBucket } from '../utils/snapshotBucket'
 
 describe('Fork service publication boundary', () => {
@@ -45,19 +46,26 @@ describe('Fork service publication boundary', () => {
       repo,
       search: { clearSearchCache: async () => {} },
       bucket: () => ({ R2Bucket: bucket.bucket }),
-      labs: { assertUrlAllowed: vi.fn(), assertEnabled: vi.fn() },
+      labs: new LabService({ isEnabled: async () => false } as any),
       media: { copyForFork: vi.fn() },
       afterCommit: effects
     })
   })
 
-  it('applies the acquisition gate to the resolved podcast kind', async () => {
-    ;(service as any).media.copyForFork.mockResolvedValue({ ref: { media_kind: 'podcast', source_id: 'episode', source_hash: 'hash' } })
-    ;(service as any).labs.assertEnabled.mockRejectedValue(new Error('Podcast Labs disabled'))
-    await expect(service.fork(ctx, source.uuid)).rejects.toThrow('Podcast Labs disabled')
-    expect((service as any).labs.assertEnabled).toHaveBeenCalledWith(ctx, 'podcast')
-    expect(repo.publish).not.toHaveBeenCalled()
-    expect([...bucket.objects.keys()].filter(key => key.startsWith('snapshots/'))).toHaveLength(0)
+  it.each([
+    { url: 'https://example.com/episode', mediaKind: 'podcast', feature: 'podcast' },
+    { url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', mediaKind: 'youtube', feature: 'youtube' },
+    { url: 'https://youtu.be/dQw4w9WgXcQ', feature: 'youtube' },
+    { url: 'https://podcasts.apple.com/us/podcast/example/id123456789?i=1000123456789' },
+    { url: 'https://example.com/article.pdf' },
+    { url: 'https://youtu.be/dQw4w9WgXcQ', shortcut: true }
+  ])('selects only $feature for synchronous Fork of $url (media: $mediaKind, shortcut: $shortcut)', async ({ url, mediaKind, feature, shortcut }) => {
+    source.bookmark.target_url = url
+    if (shortcut) source.type = 1
+    if (mediaKind) (service as any).media.copyForFork.mockResolvedValue({ ref: { media_kind: mediaKind, source_id: 'source', source_hash: 'hash' } })
+
+    await expect(service.fork(ctx, source.uuid)).resolves.toMatchObject({ disposition: 'created' })
+    expect(repo.publish.mock.calls[0][0].labFeature).toBe(feature)
   })
 
   it('leaves a confirmed copy readable when a post-commit index operation fails', async () => {
@@ -167,6 +175,7 @@ describe('Fork service publication boundary', () => {
     const input = repo.publish.mock.calls[0][0]
     expect(input.targetUrl).toBe(`slax-pdf://2/${'a'.repeat(64)}`)
     expect(input.pdfDocumentId).toBe('a'.repeat(64))
+    expect(input.labFeature).toBe('pdf')
     await bucket.bucket.delete(['pdf/body/source.pdf', 'pdf/meta/source.json', 'text/pdf/source.txt'])
     expect(await (await bucket.bucket.get(input.content.content_key))?.text()).toBe('%PDF-original')
     expect(input.content.content_md_key ? await (await bucket.bucket.get(input.content.content_md_key))?.text() : '').toBe(status === 'ready' ? 'PDF text' : '')
@@ -206,39 +215,6 @@ describe('Fork service publication boundary', () => {
     ctx.env.CRAWL_WORKFLOW = { create: vi.fn(async () => ({})) }
     return relation
   }
-
-  it('runs independent acquisition checks together and waits for all of them before admission', async () => {
-    admission()
-    source.bookmark.content_key = 'pdf/body/source.pdf'
-    let releaseUrl!: () => void
-    const urlResult = new Promise<void>(resolve => {
-      releaseUrl = resolve
-    })
-    ;(service as any).labs.assertUrlAllowed.mockReturnValue(urlResult)
-    const result = service.admit(ctx, source.uuid)
-    try {
-      await Promise.resolve()
-      expect((service as any).labs.assertEnabled).toHaveBeenCalledWith(ctx, 'pdf')
-      expect(repo.mediaRef).toHaveBeenCalledWith(10)
-      expect(repo.admit).not.toHaveBeenCalled()
-      expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
-    } finally {
-      releaseUrl()
-    }
-    expect(await result).toMatchObject({
-      disposition: 'created',
-      bookmark_id: 20
-    })
-  })
-
-  it('preserves acquisition-error priority and does not admit after any check fails', async () => {
-    admission()
-    ;(service as any).labs.assertUrlAllowed.mockRejectedValue(new Error('URL disabled'))
-    repo.mediaRef.mockRejectedValue(new Error('media unavailable'))
-    await expect(service.admit(ctx, source.uuid)).rejects.toThrow('URL disabled')
-    expect(repo.admit).not.toHaveBeenCalled()
-    expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
-  })
 
   it('acknowledges admission before blocked R2 work and binds the Workflow to the accepted revision', async () => {
     admission()
@@ -360,14 +336,13 @@ describe('Fork service publication boundary', () => {
     expect(repo.publish).not.toHaveBeenCalled()
     expect(bucket.objects.has('html/body/destination.html')).toBe(false)
   })
-  it.each(['podcast', 'youtube'])('rejects a resolved %s source before admission when its acquisition Lab is disabled', async kind => {
+  it.each(['pdf', 'podcast', 'youtube'])('admits a %s with its Lab off without publishing it', async kind => {
     admission()
-    repo.mediaRef.mockResolvedValue({ media_kind: kind, source_id: 'episode', source_hash: 'hash' })
-    ;(service as any).labs.assertEnabled.mockRejectedValue(new Error('Podcast Labs disabled'))
-    await expect(service.admit(ctx, source.uuid)).rejects.toThrow('Podcast Labs disabled')
-    expect(repo.admit).not.toHaveBeenCalled()
-    expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
-    expect(bucket.objects.has('html/body/destination.html')).toBe(false)
+    if (kind === 'pdf') source.bookmark.content_key = 'pdf/body/source.pdf'
+    else repo.mediaRef.mockResolvedValue({ media_kind: kind, source_id: 'media', source_hash: 'hash' })
+    await expect(service.admit(ctx, source.uuid)).resolves.toMatchObject({ disposition: 'created' })
+    expect(ctx.env.CRAWL_WORKFLOW.create).toHaveBeenCalledOnce()
+    expect(repo.publish).not.toHaveBeenCalled()
   })
 
   it.each(['queued', 'running', 'paused', 'waiting', 'waitingForPause', 'complete'])(
@@ -398,14 +373,13 @@ describe('Fork service publication boundary', () => {
     expect(repo.failWrite).not.toHaveBeenCalled()
   })
 
-  it('rechecks the resolved media acquisition gate before background copying', async () => {
+  it('requests podcast activation at background publication with the Lab off', async () => {
     admission()
     repo.snapshot = vi.fn(async () => ({ content_key: '' }))
     await service.admit(ctx, source.uuid)
     const job = ctx.env.CRAWL_WORKFLOW.create.mock.calls[0][0].params.fork
-    repo.mediaRef.mockResolvedValue({ media_kind: 'podcast', source_id: 'episode', source_hash: 'hash' })
-    ;(service as any).labs.assertEnabled.mockRejectedValue(new Error('Podcast Labs disabled'))
-    await expect(service.execute(ctx, 20, job)).rejects.toThrow('Podcast Labs disabled')
-    expect(bucket.objects.has('html/body/destination.html')).toBe(false)
+    ;(service as any).media.copyForFork.mockResolvedValue({ ref: { media_kind: 'podcast', source_id: 'episode', source_hash: 'hash' } })
+    await expect(service.execute(ctx, 20, job)).resolves.toBe(true)
+    expect(repo.publish.mock.calls[0][0].labFeature).toBe('podcast')
   })
 })
