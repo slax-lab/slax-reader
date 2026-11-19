@@ -234,7 +234,7 @@ export default defineNuxtPlugin({
     if (!db) {
       // The current document stays on REST; the next path change loads a fresh document
       // once the retained initialization is ready. The bridge is recreated by the Extension.
-      if (recovery.pending && !isBridgeFrame && window.parent === window) {
+      if (recovery.pending && !isBridgeFrame && topLevel) {
         const router = useRouter()
         void recovery.pending.ready.then(ready => {
           if (!ready) return

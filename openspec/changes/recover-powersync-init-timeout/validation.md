@@ -74,3 +74,11 @@ The automated review of `d34b1d4` on PR #678 reported no Important findings and 
 - `design.md` now describes `pending` as `{ mode, ready }` and documents the bounded disposal and guard failure handling.
 
 Re-verification on the final revision: `pnpm web -- typecheck` passed; the full Web suite passed (3,172 tests); ESLint on the touched files was clean; the production-profile beta build passed. The browser reproduction passed again: B timed out, completed in the background at 11,922 ms, its next navigation loaded `/user` as a new document that reported `connected: true` with a second sync stream, and the old document's navigation was cancelled. The 6 regression scenarios passed again (6/6).
+
+## Second review follow-up (2026-11-19)
+
+The automated review of `afffdd4` reported no Important Bugs or Security findings, one Important Compliance finding, and three Nits.
+
+- Nits addressed: a throwing diagnostics listener can no longer reject `ready` (a regression test shows `ready` still resolves `true`). The resume guard reuses the existing `topLevel` constant. The MODIFIED requirement now states that the retained instance is not closed while its initialization is pending and is disposed with bounded cleanup if it later fails, matching `design.md` and the code.
+- Re-verification on the final revision: 128 local-first unit tests passed (2 skipped), typecheck and ESLint were clean, the beta production build passed, the browser reproduction passed (`resumedLocal=true connected=true`, old document navigation cancelled), and the 6 regression scenarios passed.
+- Important Compliance finding (open): the review classifies the one-time full document load after a recovered timeout as a user-perceivable interaction change, which needs human hands-on acceptance recorded before merge (`DESIGN.md` §10.2). It has not been performed. It needs either the human's hands-on acceptance or the human reviewer's decision that the change is not UI-visible, recorded here and in the pull request Test plan.

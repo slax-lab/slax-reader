@@ -252,6 +252,21 @@ describe('initializePowerSyncWithFallback', () => {
     expect(busy.database.close).toHaveBeenCalledOnce()
   })
 
+  it('keeps ready resolved when a diagnostics listener throws', async () => {
+    vi.useFakeTimers()
+    let finish!: () => void
+    const busy = makeDb(() => new Promise<void>(resolve => { finish = resolve }))
+    const promise = initializePowerSyncWithFallback({
+      createDatabase: () => busy as never,
+      initTimeoutMs: 100,
+      onEvent: event => { if (event.type === 'background-ready') throw new Error('listener failed') }
+    })
+    await vi.advanceTimersByTimeAsync(100)
+    const result = await promise
+    finish()
+    await expect(result.pending?.ready).resolves.toBe(true)
+  })
+
   it('bounds disposal of a retained instance after its background failure', async () => {
     vi.useFakeTimers()
     let fail!: (error: Error) => void

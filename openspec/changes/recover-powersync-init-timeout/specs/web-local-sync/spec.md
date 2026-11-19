@@ -4,7 +4,7 @@
 
 ### Requirement: Preserve safe local recovery
 
-Platform selection SHALL preserve existing bounded recovery. Initialization timeout, cleanup timeout, or cleanup failure SHALL stop further local database attempts for that page initialization and select REST fallback. A definite initialization failure with completed cleanup SHALL permit the existing next-mode recovery path. An initialization timeout SHALL retain the timed-out database instance without closing it and SHALL let its initialization continue in the background; recovery SHALL NOT start another local database instance for that page initialization.
+Platform selection SHALL preserve existing bounded recovery. Initialization timeout, cleanup timeout, or cleanup failure SHALL stop further local database attempts for that page initialization and select REST fallback. A definite initialization failure with completed cleanup SHALL permit the existing next-mode recovery path. An initialization timeout SHALL retain the timed-out database instance, SHALL NOT close it while its initialization is pending, and SHALL let that initialization continue in the background; recovery SHALL NOT start another local database instance for that page initialization. If the retained initialization later fails, the instance SHALL be disposed with the existing bounded cleanup.
 
 #### Scenario: Dedicated initialization does not finish
 - **WHEN** a dedicated-first session reaches the initialization timeout
@@ -22,6 +22,7 @@ Platform selection SHALL preserve existing bounded recovery. Initialization time
 - **WHEN** any mode reaches the initialization timeout
 - **THEN** the page selects REST fallback at the timeout bound
 - **AND** the timed-out instance is not closed and its initialization continues
+- **AND** if that initialization later fails, the instance is disposed with bounded cleanup
 - **AND** diagnostics report whether the background initialization later completed or failed and its duration
 
 ## ADDED Requirements
