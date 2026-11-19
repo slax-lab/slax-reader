@@ -1,4 +1,4 @@
-export type ClientErrorApp = 'web' | 'extension'
+export type ClientErrorApp = 'web'
 export type ClientErrorEnv = 'development' | 'preview' | 'beta' | 'production'
 export type ClientErrorKind = 'error' | 'unhandledrejection' | 'vue' | 'resource' | 'powersync'
 
@@ -33,8 +33,6 @@ export interface ErrorCollectorOptions {
   env: string
   getContext?: () => ClientErrorContext | Promise<ClientErrorContext>
   pageUrl?: () => string | undefined
-  /** Properties merged into every record, such as the runtime context. */
-  baseProperties?: Record<string, unknown>
   flushDelayMs?: number
   now?: () => number
   send?: (endpoint: string, body: string, hiding: boolean) => Promise<void> | void
@@ -250,7 +248,7 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
       }
       if (!counts) provisional.add(fingerprint)
       const pageUrl = stripUrl(options.pageUrl ? options.pageUrl() : typeof location !== 'undefined' ? location.href : undefined)
-      const { source: _source, ...rest } = { ...options.baseProperties, ...properties }
+      const { source: _source, ...rest } = properties
       const ua = typeof navigator !== 'undefined' ? navigator.userAgent : undefined
       queue.set(fingerprint, {
         occurred_at: now(),

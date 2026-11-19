@@ -39,13 +39,6 @@ if (isDev) {
   }
   if (useLocalhost && normalizedEnvConfig.COOKIE_DOMAIN === '127.0.0.1') normalizedEnvConfig.COOKIE_DOMAIN = 'localhost'
 }
-// Basin Pipelines streams for client error records; empty disables collection. Kept off the
-// `  <profile>: '…'` line shape that release tooling reads as EXTENSION_KEYS entries.
-const TEST_ERROR_INGEST_URL = 'https://b074a7024a724161aa7fef982e585f88.ingest.cloudflare.com'
-const PRODUCTION_ERROR_INGEST_URL = 'https://b4923d0c3dcf453ea945e37d23a3d1cd.ingest.cloudflare.com'
-const CLIENT_ERROR_INGEST_URLS: Record<string, string> = { preview: TEST_ERROR_INGEST_URL, beta: PRODUCTION_ERROR_INGEST_URL, production: PRODUCTION_ERROR_INGEST_URL }
-const clientErrorIngestUrl = process.env.CLIENT_ERROR_INGEST_URL ?? CLIENT_ERROR_INGEST_URLS[env] ?? ''
-
 const developmentHostPermissions = [
   'https://*.slax.dev/',
   'http://localhost:3000/*',
@@ -60,7 +53,6 @@ const convertToProcessEnv = (envConfig: Record<string, unknown>) => {
 
   result['process.env.SLAX_ENV'] = JSON.stringify(env)
   result['process.env.VERSION'] = JSON.stringify(Version)
-  result['process.env.CLIENT_ERROR_INGEST_URL'] = JSON.stringify(clientErrorIngestUrl)
 
   return result
 }

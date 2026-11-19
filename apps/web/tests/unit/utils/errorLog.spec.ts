@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createErrorCollector, errorFingerprint, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
 import type { ClientErrorRecord } from '@commons/frontend-utils/errorLog'
+import { createErrorCollector, errorFingerprint, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const endpoint = 'https://stream.ingest.invalid'
 const make = (overrides: Partial<Parameters<typeof createErrorCollector>[0]> = {}) => {
@@ -170,8 +170,9 @@ describe('frontend-utils error log collector', () => {
 
 describe('installGlobalErrorCapture', () => {
   const listenerTarget = () => {
-    const listeners: Record<string, (event: any) => void> = {}
-    return { listeners, target: { addEventListener: (type: string, listener: (event: any) => void) => void (listeners[type] = listener) } }
+    type Listener = (event: Record<string, unknown>) => void
+    const listeners: Record<string, Listener> = {}
+    return { listeners, target: { addEventListener: (type: string, listener: Listener) => void (listeners[type] = listener) } }
   }
 
   it('captures uncaught errors, rejections, and failed scripts but ignores other resources', async () => {

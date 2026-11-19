@@ -7,7 +7,7 @@
 - Worktree: `.local/worktrees/frontend-error-logs` (repository-relative).
 - The change requester asked in conversation to implement and open the pull request directly; this record serves as the proposal's review artifact alongside the pull request.
 - The change is not UI-visible. It adds background telemetry with no rendered surface, so `DESIGN.md` hands-on UI acceptance does not apply.
-- No package version was changed. The Extension version decision is pending with the change requester per `docs/release/VERSIONING.md`.
+- No package version was changed. The final diff has no Extension change, so no Extension version increment applies; Web does not use package-version increments (`docs/release/VERSIONING.md`).
 - No secret files were read. Builds and tests used the synthetic public values from `docs/web/development.md`.
 
 ## Cloudflare resources
@@ -19,7 +19,7 @@ Created before implementation. Existing lake buckets, streams, sinks, and pipeli
 | Test (`development`, `preview`) | test account `52bb…` | `slax-reader-client-errors-dev` / `client_errors.errors` | `https://b074a7024a724161aa7fef982e585f88.ingest.cloudflare.com` | `https://r.slax.dev`, `http://localhost:3000`, `http://localhost:3100` |
 | Production (`production`, `beta`) | production account `f746…` | `slax-reader-client-errors` / `client_errors.errors` | `https://b4923d0c3dcf453ea945e37d23a3d1cd.ingest.cloudflare.com` | `https://r.slax.com`, `https://r-beta.slax.com` |
 
-Both pipelines run the same admission SQL, differing only in allowed `env` values, page origins, and extension IDs. Both buckets have Basin Catalog compaction enabled. `http://localhost:3100` was added to the test stream only, for this verification; see Gaps.
+Both pipelines run the same admission SQL, differing only in allowed `env` values and page origins, and admit only `app=web`. Both buckets have Basin Catalog compaction enabled. `http://localhost:3100` was added to the test stream only, for this verification; see Gaps.
 
 ## Automated checks
 
@@ -27,18 +27,18 @@ Run on the final diff with Node `v22.23.1`.
 
 | Command | Result |
 | --- | --- |
-| `pnpm web -- test` | 259 files passed, 1 skipped; 3171 tests passed, 3 skipped; exit 0 |
-| `pnpm extension -- test` | 29 files, 146 tests passed; exit 0 |
+| `pnpm web -- test` | 260 files passed, 1 skipped; 3187 tests passed, 3 skipped; exit 0 |
+| `pnpm extension -- test` | 27 files, 127 tests passed; exit 0 (no Extension change; regression only) |
 | `pnpm --filter @apps/slax-reader-dweb typecheck` | exit 0 |
 | `pnpm --filter @apps/slax-reader-extensions compile` | exit 0 |
 | `pnpm --filter @slax-reader/contracts typecheck` | exit 0 |
 | `eslint` on every changed or added Web file | exit 0 |
 | `openspec validate --all --strict` | 160 passed, 0 failed |
-| Extension production build (`SLAX_ENV=production wxt build`) | Production endpoint present in `background.js`, `offscreen.html`, and `pdf-save.html`; test endpoint absent |
+| `git diff origin/dev -- apps/extension` | empty |
 
 `eslint .` across all of `apps/web` reports 88 errors on the untouched `origin/dev` baseline and the same 88 with this change; none are in changed files. CI does not run Web lint.
 
-New tests cover collector grouping, byte limits, the 200-fingerprint session cap, batching and hidden-page flush, a disabled collector, swallowed delivery failures, error normalization, non-counting observers, Web script-versus-image capture, Vue hooks with identity, PowerSync logger and status capture, SDK double-log suppression, Extension context and identity, and Extension Vue handler preservation. Existing PowerSync specs gained a `registerListener` mock and a `logger` expectation.
+New tests cover collector grouping, byte limits, the 200-fingerprint session cap, batching and hidden-page flush with reused identity, a disabled collector, swallowed delivery failures, error normalization, URL query stripping, non-counting observers, Web script-versus-image capture, Vue hooks with identity and single counting across both Nuxt hooks, 4xx skipping, and PowerSync logger and status capture with SDK double-log suppression. Existing PowerSync specs gained a `registerListener` mock and a `logger` expectation.
 
 ## Running environment
 
@@ -67,9 +67,9 @@ One valid record and twelve invalid records were posted to the test stream in on
 
 ## Gaps
 
-- The Extension was not run against the stream in a loaded browser build. Its production build embeds the endpoint in all three entry points, unit tests cover context and identity, and a minimal MV3 extension confirmed that popup and service-worker `fetch` reach the stream without CORS restriction.
+- Extension reporting is out of scope by request. The Extension's PowerSync bridge is the Web `/x/ext-bridge` page, which reports as `app=web`; that page was not exercised inside the offscreen iframe.
 - The cause of a PowerSync Worker bootstrap crash is not captured; the SDK passes only its fixed message to the logger. Recovering it needs an application-owned worker factory.
-- Vue `useQuery` SQL errors and the Extension bridge iframe were not exercised.
+- Vue `useQuery` SQL errors were not exercised.
 - The test stream's CORS list still includes `http://localhost:3100`, added for this run. It affects only the test stream.
 - Rows written by this verification remain in the test table with messages starting `e2e-`, `e2e2-`, or `gate:`; pre-implementation probes left rows starting `case:` in the production table.
 - The read-only query token created for this run expires on 2026-11-20.
@@ -80,7 +80,7 @@ One valid record and twelve invalid records were posted to the test stream in on
 
 - Bugs (Important, fixed): Nuxt pages raise 4xx errors on purpose (`dashboard` middleware, `/b/[id]`, `/c/[id]`), which would have been recorded as faults through `vue:error` and `app:error`. 4xx Nuxt errors are now skipped and 5xx ones carry `status_code`; covered by a plugin test.
 - Security (Important, fixed): SDK and fetch errors embed request URLs in their message and stack, and application URLs can carry tokens in query strings. Query strings and fragments are now removed from every URL inside messages and stacks; covered by a collector test. Application-thrown messages were checked and carry status codes and icon keys only. No credentials, endpoints with secrets, or user content are added to records; the ingestion endpoints are public by design and documented as such.
-- Compliance: the implementation matches the proposal, design, and delta spec, which were updated for both fixes. Extension Vue capture is installed for the `pdf-save` page; content-script Vue apps run on third-party pages and are excluded by the design. No Important findings remain.
+- Compliance: the implementation matches the proposal, design, and delta spec, which were updated for both fixes. No Important findings remain.
 
 The automated checks above were re-run after these fixes.
 
@@ -93,6 +93,10 @@ The automated PR review reported no Important findings and five Nits, all fixed 
 - The SDK duplicate-suppression key uses normalized name and message, so distinct non-`Error` payloads stay distinct.
 - Query stripping also covers root-relative URLs such as `/v1/sync/changes?token=…`, and keeps stack `line:column` positions.
 - Page-hide batches reuse the identity resolved by the previous flush.
+
+## Extension reporting removed
+
+The change requester decided that the Extension does not report errors. The Extension code is restored to `origin/dev`, the collector accepts only `app=web`, and both pipelines were recreated with `WHERE app = 'web'` and Web-only origins. Verified on both streams by sending one Web record and three Extension-shaped records (`app=extension`, a `chrome-extension://` page URL, and both): each table stored only the Web record. The collector tests moved to `apps/web/tests/unit/utils/errorLog.spec.ts`.
 
 ## Pull request CI follow-up
 

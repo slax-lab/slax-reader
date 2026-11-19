@@ -2,7 +2,7 @@
 
 ## Context
 
-See `proposal.md` for motivation. Web is a Nuxt client app whose PowerSync runtime is created in `apps/web/app/plugins/powersync.client.ts` with SharedWorker, Dedicated Worker, main-thread, and REST fallback modes. The Extension runs a background service worker, an offscreen document that embeds the Web bridge page, and Vue extension pages. Both apps already depend on `@commons/frontend-utils`.
+See `proposal.md` for motivation. Web is a Nuxt client app whose PowerSync runtime is created in `apps/web/app/plugins/powersync.client.ts` with SharedWorker, Dedicated Worker, main-thread, and REST fallback modes. The Extension's offscreen document embeds the Web `/x/ext-bridge` page for PowerSync. Web already depends on `@commons/frontend-utils`.
 
 A pre-implementation probe exercised `@powersync/web` 2.4.0 against a real PowerSync service with injected faults in all three worker modes:
 
@@ -27,7 +27,7 @@ The browser posts JSON batches to the stream's public HTTP ingestion endpoint. A
 
 ### Collector in `packages/frontend-utils`
 
-A framework-neutral module exposes `createErrorCollector({ endpoint, app, release, env, getContext })` with `capture(kind, error, properties)`, `flush()`, and an `install(target)` helper for global listeners. Web and Extension supply their own identity context. Records are normalized client-side to the same limits the pipeline enforces, so a record the client sends is admitted.
+A framework-neutral module exposes `createErrorCollector({ endpoint, app, release, env, getContext })` with `capture(kind, error, properties)`, `flush()`, and an `install(target)` helper for global listeners. Web supplies its identity context. Records are normalized client-side to the same limits the pipeline enforces, so a record the client sends is admitted.
 
 ### Fingerprint excludes the capture source
 
@@ -47,23 +47,26 @@ In `powersync.client.ts`: pass a `logger` that forwards level-50 records and pre
 
 ### Configuration
 
-Web reads `CLIENT_ERROR_INGEST_URL` from the build environment into public runtime config. The Extension reads the same variable at build time. An empty value disables collection, so local builds and tests do not send unless configured. The Extension's own origin is a `chrome-extension://` URL and its fetches are not subject to CORS because the manifest grants `https://*/*` host access.
+Web reads `CLIENT_ERROR_INGEST_URL` from the build environment into public runtime config. An empty value disables collection, so local builds and tests do not send unless configured.
+
+### Extension excluded
+
+The Extension sends no records, and both pipelines admit only `app=web` and Web origins. The Extension's PowerSync bridge is the Web `/x/ext-bridge` page loaded in an offscreen iframe, so its failures are Web records under the Web origin.
 
 ### Environments and storage
 
 | Environment | Account | Bucket and table | Allowed `env` | Allowed origins |
 | --- | --- | --- | --- | --- |
-| Test | test account | `slax-reader-client-errors-dev`, `client_errors.errors` | `development`, `preview` | `r.slax.dev`, `localhost`, development and preview extension IDs |
-| Production | production account | `slax-reader-client-errors`, `client_errors.errors` | `production`, `beta` | `r.slax.com`, `r-beta.slax.com`, production and beta extension IDs |
+| Test | test account | `slax-reader-client-errors-dev`, `client_errors.errors` | `development`, `preview` | `r.slax.dev`, `localhost` |
+| Production | production account | `slax-reader-client-errors`, `client_errors.errors` | `production`, `beta` | `r.slax.com`, `r-beta.slax.com` |
 
 ## Risks / Trade-offs
 
 - [Forged records] → The endpoint is public; the SQL filter limits shape and origin, and agents must treat `user_id` as unauthenticated.
 - [Stream schema is immutable] → New fields go into `properties`; a new top-level field requires recreating the stream.
-- [Extension IDs live in the pipeline SQL] → A new extension ID requires recreating the pipeline.
 - [Pipeline SQL rejects `length`] → Limits use `octet_length`, which counts bytes; client limits are byte-based to match.
 - [Worker bootstrap crash cause is lost] → Recorded as the SDK's message only; recovering it needs an application-owned worker factory, deferred.
 
 ## Migration Plan
 
-The Cloudflare resources exist before merge. Deploying the Web and Extension builds with `CLIENT_ERROR_INGEST_URL` set starts collection; clearing the value or reverting the change stops it without data migration.
+The Cloudflare resources exist before merge. Deploying the Web build with `CLIENT_ERROR_INGEST_URL` set starts collection; clearing the value or reverting the change stops it without data migration.

@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Make Web and Extension runtime errors, including PowerSync failures, queryable in a per-environment data lake through a fixed record format that the ingestion pipeline enforces.
+Make Web runtime errors, including PowerSync failures, queryable in a per-environment data lake through a fixed record format that the ingestion pipeline enforces.
 
 ## ADDED Requirements
 
-### Requirement: Capture runtime errors from Web and Extension
+### Requirement: Capture runtime errors from the Web app
 
-The Web app SHALL capture uncaught errors, unhandled promise rejections, Vue application errors, and failed `<script>` element loads. The Extension SHALL capture uncaught errors and unhandled promise rejections in its background service worker, offscreen document, and extension pages, and Vue application errors in extension pages. Failed loads of images, stylesheets, media, and other non-script resources, `console` output, and Nuxt errors with a 4xx status code SHALL NOT be captured. Collection SHALL be active only when the build configures an ingestion endpoint.
+The Web app SHALL capture uncaught errors, unhandled promise rejections, Vue application errors, and failed `<script>` element loads. Failed loads of images, stylesheets, media, and other non-script resources, `console` output, and Nuxt errors with a 4xx status code SHALL NOT be captured. The Extension SHALL NOT report errors; the PowerSync bridge page it embeds is part of the Web app. Collection SHALL be active only when the build configures an ingestion endpoint.
 
 #### Scenario: An uncaught exception occurs on a Web page
 
@@ -24,6 +24,11 @@ The Web app SHALL capture uncaught errors, unhandled promise rejections, Vue app
 
 - **WHEN** an `<img>` element fails to load
 - **THEN** no record is created
+
+#### Scenario: An Extension context throws
+
+- **WHEN** the Extension background, offscreen document, or an Extension page throws
+- **THEN** no record is sent
 
 #### Scenario: A page reports not found
 
@@ -96,6 +101,11 @@ Each environment's ingestion pipeline SHALL admit a record only when its fields 
 
 - **WHEN** a record with `env=production` is sent to the test environment's endpoint
 - **THEN** it is not stored in the test table
+
+#### Scenario: A record claims to come from the Extension
+
+- **WHEN** a record with `app=extension` or a `chrome-extension://` page URL is sent
+- **THEN** it is not stored
 
 #### Scenario: A record has an unknown kind
 

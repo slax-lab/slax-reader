@@ -1,7 +1,3 @@
-import { installClientErrorLog } from '@/utils/clientErrorLog'
-
-installClientErrorLog('offscreen')
-
 const runtimeBrowser = (globalThis as typeof globalThis & { chrome: typeof browser }).chrome
 const WEB_ORIGIN = new URL(process.env.PUBLIC_BASE_URL || '').origin
 const BRIDGE_PATH = '/x/ext-bridge'
