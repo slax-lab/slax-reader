@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   clear: vi.fn(),
   capture: vi.fn(),
   sdkConsole: vi.fn(),
+  connectorOptions: [] as Array<{ onError?: (error: unknown) => void }>,
   listeners: [] as Array<{ statusChanged?: (status: unknown) => void }>,
   afterEach: vi.fn()
 }))
@@ -22,6 +23,16 @@ mockNuxtImport('useCookie', () => () => ({ value: undefined }))
 mockNuxtImport('watch', () => vi.fn())
 vi.mock('~/utils/request', () => ({ getUserToken: () => undefined, getClientEventHeaders: () => ({}) }))
 vi.mock('~/utils/clientErrorLog', () => ({ useClientErrorLog: () => ({ enabled: true, capture: state.capture, flush: async () => {} }) }))
+vi.mock('~/local-first/connector', async importOriginal => {
+  const actual = await importOriginal<typeof import('~/local-first/connector')>()
+  return {
+    ...actual,
+    createConnector: (options: Parameters<typeof actual.createConnector>[0]) => {
+      state.connectorOptions.push(options)
+      return actual.createConnector(options)
+    }
+  }
+})
 vi.mock('~/local-first/schema', () => ({ AppSchema: {} }))
 vi.mock('@powersync/vue', () => ({ createPowerSyncPlugin: () => ({}) }))
 vi.mock('@powersync/web', () => ({
@@ -50,6 +61,7 @@ const logger = () => (state.construct.mock.calls[0][0] as { logger: { log: (reco
 beforeEach(() => {
   vi.clearAllMocks()
   state.listeners = []
+  state.connectorOptions = []
   state.init.mockResolvedValue(undefined)
   vi.stubGlobal('SharedWorker', class {})
   window.history.replaceState(null, '', '/bookmarks')
@@ -124,6 +136,17 @@ describe('PowerSync error capture', () => {
     expect(state.capture.mock.calls.find(([, , props]) => ['init', 'recovery.attempt'].includes((props as { source: string }).source))?.[1]).toMatchObject({
       message: 'Aborted(CompileError: WebAssembly.instantiate())'
     })
+  })
+
+  it('records a rejected upload from the connector and keeps the original console line', async () => {
+    await start()
+    const [options] = state.connectorOptions
+    const failure = new Error('[powersync] upload changes failed: 500')
+    options.onError?.(failure)
+    expect(sources()).toEqual(['powersync:connector.upload'])
+    expect(state.capture.mock.calls[0][1]).toBe(failure)
+    expect(state.capture.mock.calls[0][3]).toEqual({ countOccurrence: true })
+    expect(console.error).toHaveBeenCalledWith('[powersync] uploadData failed:', failure)
   })
 
   it('does not record anything for a healthy startup', async () => {

@@ -153,7 +153,7 @@ export const firstFrame = (stack: string | undefined): string | undefined => {
 export const errorFingerprint = (kind: ClientErrorKind, name: string | undefined, message: string, stack: string | undefined): string =>
   fnv1a([kind, name ?? '', message.replace(/\d{4,}/g, 'N').slice(0, 512), (firstFrame(stack) ?? '').replace(/:\d+:\d+\)?$/, '')].join('|'))
 
-const boundedProperties = (properties: Record<string, unknown>): Record<string, unknown> | undefined => {
+export const boundedProperties = (properties: Record<string, unknown>): Record<string, unknown> | undefined => {
   const entries = Object.entries(properties).filter(([, value]) => value !== undefined)
   if (!entries.length) return undefined
   let serialized: string
@@ -162,7 +162,16 @@ const boundedProperties = (properties: Record<string, unknown>): Record<string, 
   } catch {
     return { serialization_error: true }
   }
-  return byteLength(serialized) <= MAX_PROPERTIES_BYTES ? JSON.parse(serialized) : { truncated: truncateBytes(serialized, MAX_PROPERTIES_BYTES - 64) }
+  if (byteLength(serialized) <= MAX_PROPERTIES_BYTES) return JSON.parse(serialized)
+  // JSON escaping can grow the cut text (quotes, backslashes, control characters), so the budget is
+  // checked on the final serialized form, not on the raw prefix.
+  let budget = MAX_PROPERTIES_BYTES - 32
+  for (;;) {
+    const bounded = { truncated: truncateBytes(serialized, budget) }
+    const size = byteLength(JSON.stringify(bounded))
+    if (size <= MAX_PROPERTIES_BYTES) return bounded
+    budget -= size - MAX_PROPERTIES_BYTES
+  }
 }
 
 const randomSessionId = (): string => {

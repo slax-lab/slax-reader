@@ -16,10 +16,10 @@ Created before implementation. Existing lake buckets, streams, sinks, and pipeli
 
 | Environment | Account | Bucket / table | Stream endpoint | CORS origins |
 | --- | --- | --- | --- | --- |
-| Test (`development`, `preview`) | test account `52bb…` | `slax-reader-client-errors-dev` / `client_errors.errors` | `https://b074a7024a724161aa7fef982e585f88.ingest.cloudflare.com` | `https://r.slax.dev`, `http://localhost:3000`, `http://localhost:3100` |
+| Test (`development`, `preview`) | test account `52bb…` | `slax-reader-client-errors-dev` / `client_errors.errors` | `https://b074a7024a724161aa7fef982e585f88.ingest.cloudflare.com` | `https://r.slax.dev` (the `localhost` origins used for verification were removed afterwards) |
 | Production (`production`, `beta`) | production account `f746…` | `slax-reader-client-errors` / `client_errors.errors` | `https://b4923d0c3dcf453ea945e37d23a3d1cd.ingest.cloudflare.com` | `https://r.slax.com`, `https://r-beta.slax.com` |
 
-Both pipelines run the same admission SQL, differing only in allowed `env` values and page origins, and admit only `app=web`. Both buckets have Basin Catalog compaction enabled. `http://localhost:3100` was added to the test stream only, for this verification; see Gaps.
+Both pipelines run the same admission SQL, differing only in allowed `env` values and page origins, and admit only `app=web`. Both buckets have Basin Catalog compaction enabled. `http://localhost:3100` was added to the test stream only, for this verification, and removed with `http://localhost:3000` after it.
 
 ## Automated checks
 
@@ -70,7 +70,6 @@ One valid record and twelve invalid records were posted to the test stream in on
 - Extension reporting is out of scope by request. The Extension's PowerSync bridge is the Web `/x/ext-bridge` page, which reports as `app=web`; that page was not exercised inside the offscreen iframe.
 - The cause of a PowerSync Worker bootstrap crash is not captured; the SDK passes only its fixed message to the logger. Recovering it needs an application-owned worker factory.
 - Vue `useQuery` SQL errors were not exercised.
-- The test stream's CORS list still includes `http://localhost:3100`, added for this run. It affects only the test stream.
 - Rows written by this verification remain in the test table with messages starting `e2e-`, `e2e2-`, or `gate:`; pre-implementation probes left rows starting `case:` in the production table.
 - The read-only query token created for this run expires on 2026-11-20.
 
@@ -144,6 +143,15 @@ Gaps for this re-run:
 - Safari and iOS older than 27 were not run. The iOS 15.4 through 16.2 simulator runtimes require Xcode 26.99 or earlier and macOS 26.99 or earlier, and this host runs macOS 27.2 with Xcode 27.1; `xcodebuild -downloadPlatform iOS -buildVersion 16.0` reports the runtime as not available. Only the static syntax check covers them.
 - Earlier Safari attempts were discarded as environment failures: another local session's `pkill -f "cli.js pages dev"` stopped the Pages server mid-run, and a still-open iOS simulator tab held the PowerSync database and delayed the first sync. `safari6` ran after both were removed.
 - Rows from these runs remain in the test table. A new read-only query token for this re-run expires on 2026-11-21.
+
+## Final review Nits
+
+- Oversized `properties` could exceed 8 KiB after truncation, because JSON escaping (quotes, backslashes, control characters) grows the cut text. The size is now checked on the final serialized form. A test covers five inputs and fails against the previous code.
+- A test now covers the connector's upload `onError`: the failure is recorded with source `connector.upload` and counted, and the console line `[powersync] uploadData failed:` is unchanged.
+
+Afterwards: `pnpm web -- test` 3190 passed, 3 skipped, and 1 failure in `useSlaxRoutes.spec.ts` (a 10-second timeout seen before), which passed 3 of 3 reruns; Web `typecheck` passes; lint on the changed Web test files passes.
+
+The test stream's CORS list now holds only `https://r.slax.dev`: the dashboard shows that single origin, and a preflight from `http://localhost:3000` or `http://localhost:3100` returns no `Access-Control-Allow-Origin`, while one from `https://r.slax.dev` does.
 
 ## Cleanup
 

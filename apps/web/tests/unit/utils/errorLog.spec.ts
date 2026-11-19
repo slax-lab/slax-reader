@@ -1,5 +1,5 @@
 import type { ClientErrorRecord } from '@commons/frontend-utils/errorLog'
-import { chunkBodies, createErrorCollector, errorFingerprint, firstFrame, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
+import { boundedProperties, chunkBodies, createErrorCollector, errorFingerprint, firstFrame, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const endpoint = 'https://stream.ingest.invalid'
@@ -178,6 +178,16 @@ describe('frontend-utils error log collector', () => {
     const unauthorized = errorFingerprint('powersync', 'Error', '[powersync] upload changes failed: 401', undefined)
     const serverError = errorFingerprint('powersync', 'Error', '[powersync] upload changes failed: 500', undefined)
     expect(unauthorized).not.toBe(serverError)
+  })
+
+  it('keeps oversized properties within 8 KiB after JSON escaping', () => {
+    const limit = 8 * 1024
+    for (const value of ['"'.repeat(20000), '\\'.repeat(20000), '\u0001'.repeat(20000), '中'.repeat(20000), 'a'.repeat(20000)]) {
+      const bounded = boundedProperties({ detail: value })
+      expect(bounded).toHaveProperty('truncated')
+      expect(new TextEncoder().encode(JSON.stringify(bounded)).length).toBeLessThanOrEqual(limit)
+    }
+    expect(boundedProperties({ src: 'https://r.slax.com/_nuxt/a.js' })).toEqual({ src: 'https://r.slax.com/_nuxt/a.js' })
   })
 
   it('splits a batch into request bodies below the keepalive and beacon limit', () => {
