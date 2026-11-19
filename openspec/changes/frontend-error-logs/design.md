@@ -31,11 +31,11 @@ A framework-neutral module exposes `createErrorCollector({ endpoint, app, releas
 
 ### Fingerprint excludes the capture source
 
-The fingerprint hashes `kind`, error name, a digit-normalized message, and the first stack frame. The capture source is stored in `properties.source` but is not part of the fingerprint, so the same PowerSync failure seen by the SDK logger and the status listener merges into one record. Within a page session, records accumulate counts until flushed.
+The fingerprint hashes `kind`, error name, the message with digit runs of four or more normalized (so identifiers and timestamps merge while HTTP status codes such as 401 and 500 stay distinct), and the first stack frame. The capture source is stored in `properties.source` but is not part of the fingerprint, so the same PowerSync failure seen by the SDK logger and the status listener merges into one record. Within a page session, records accumulate counts until flushed.
 
 ### Privacy and noise filtering
 
-Query strings and fragments are removed from absolute and root-relative URLs inside messages and stacks, keeping stack `line:column` positions, because SDK and fetch errors embed request URLs and some application URLs carry tokens. Nuxt errors with 4xx status codes are pages declaring not-found or forbidden routes on purpose and are skipped; 5xx Nuxt errors are recorded with `status_code`.
+Query strings and fragments are removed from absolute and root-relative URLs inside messages and stacks, keeping stack `line:column` positions, without RegExp lookbehind (unsupported before Safari 16.4, while the Web app supports Safari 15.4), because SDK and fetch errors embed request URLs and some application URLs carry tokens. Nuxt errors with 4xx status codes are pages declaring not-found or forbidden routes on purpose and are skipped; 5xx Nuxt errors are recorded with `status_code`.
 
 ### One call frame, not the full stack
 
@@ -43,7 +43,7 @@ A record keeps only the first call frame of the stack (at most 512 bytes), for e
 
 ### Batching and limits
 
-A page-hide flush cannot await identity during unload, so it reuses the identity resolved by the previous flush. Flush after 5 seconds of the first queued record, when the queue reaches 20 distinct fingerprints, and on `visibilitychange` to hidden or `pagehide`. Use `fetch` with `keepalive` and a `text/plain` body (no CORS preflight); fall back to `navigator.sendBeacon` when the page is hiding. Cap each page session at 200 distinct fingerprints, message at 16 KiB, the stored frame at 512 bytes, and `properties` at 8 KiB. Delivery errors are swallowed and never captured.
+A page-hide flush cannot await identity during unload, so it reuses the identity resolved by the previous flush. Each batch is split into request bodies below 60 KiB, under the 64 KiB keepalive and `sendBeacon` limit. Flush after 5 seconds of the first queued record, when the queue reaches 20 distinct fingerprints, and on `visibilitychange` to hidden or `pagehide`. Use `fetch` with `keepalive` and a `text/plain` body (no CORS preflight); fall back to `navigator.sendBeacon` when the page is hiding. Cap each page session at 200 distinct fingerprints, message at 16 KiB, the stored frame at 512 bytes, and `properties` at 8 KiB. Delivery errors are swallowed and never captured.
 
 ### PowerSync instrumentation
 

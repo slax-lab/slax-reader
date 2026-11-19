@@ -1,5 +1,5 @@
 import type { ClientErrorRecord } from '@commons/frontend-utils/errorLog'
-import { createErrorCollector, errorFingerprint, firstFrame, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
+import { chunkBodies, createErrorCollector, errorFingerprint, firstFrame, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const endpoint = 'https://stream.ingest.invalid'
@@ -106,6 +106,8 @@ describe('frontend-utils error log collector', () => {
     expect(firstFrame('TypeError: failed for user@example.com\n    at upload (https://r.slax.com/_nuxt/x.js:10:2)\n    at run (y.js:1:1)')).toBe('at upload (https://r.slax.com/_nuxt/x.js:10:2)')
     expect(firstFrame('upload@https://r.slax.com/_nuxt/x.js:10:2\nrun@y.js:1:1')).toBe('upload@https://r.slax.com/_nuxt/x.js:10:2')
     expect(firstFrame('Error: only a message')).toBeUndefined()
+    expect(firstFrame('Error: user@example.com is not valid\n    at check (https://r.slax.com/_nuxt/x.js:4:1)')).toBe('at check (https://r.slax.com/_nuxt/x.js:4:1)')
+    expect(firstFrame('user@example.com is not valid\ncheck@https://r.slax.com/_nuxt/x.js:4:1')).toBe('check@https://r.slax.com/_nuxt/x.js:4:1')
     expect(firstFrame(undefined)).toBeUndefined()
   })
 
@@ -168,11 +170,23 @@ describe('frontend-utils error log collector', () => {
     expect(normalizeError({ code: 7 }).message).toBe('{"code":7}')
   })
 
-  it('fingerprints ignore numbers and source line positions', () => {
-    const a = errorFingerprint('error', 'Error', 'status 503', 'Error\n    at f (https://r.slax.com/a.js:1:20)')
-    const b = errorFingerprint('error', 'Error', 'status 504', 'Error\n    at f (https://r.slax.com/a.js:9:99)')
+  it('fingerprints ignore long numbers and line positions but keep status codes', () => {
+    const a = errorFingerprint('error', 'Error', 'request 1795086933686 failed', 'Error\n    at f (https://r.slax.com/a.js:1:20)')
+    const b = errorFingerprint('error', 'Error', 'request 1795099999999 failed', 'Error\n    at f (https://r.slax.com/a.js:9:99)')
     expect(a).toBe(b)
-    expect(errorFingerprint('vue', 'Error', 'status 503', undefined)).not.toBe(a)
+    expect(errorFingerprint('vue', 'Error', 'request 1795086933686 failed', undefined)).not.toBe(a)
+    const unauthorized = errorFingerprint('powersync', 'Error', '[powersync] upload changes failed: 401', undefined)
+    const serverError = errorFingerprint('powersync', 'Error', '[powersync] upload changes failed: 500', undefined)
+    expect(unauthorized).not.toBe(serverError)
+  })
+
+  it('splits a batch into request bodies below the keepalive and beacon limit', () => {
+    const records = Array.from({ length: 20 }, (_, i) => ({ message: `m${i}:${'x'.repeat(16 * 1024)}` }) as unknown as ClientErrorRecord)
+    const bodies = chunkBodies(records)
+    expect(bodies.length).toBeGreaterThan(1)
+    for (const body of bodies) expect(new TextEncoder().encode(body).length).toBeLessThanOrEqual(60 * 1024)
+    expect(bodies.flatMap(body => JSON.parse(body) as unknown[])).toHaveLength(20)
+    expect(chunkBodies([])).toEqual([])
   })
 })
 

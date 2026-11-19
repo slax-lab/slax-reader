@@ -27,7 +27,7 @@ Run on the final diff with Node `v22.23.1`.
 
 | Command | Result |
 | --- | --- |
-| `pnpm web -- test` | 260 files passed, 1 skipped; 3188 tests passed, 3 skipped; exit 0 |
+| `pnpm web -- test` | 260 files passed, 1 skipped; 3189 tests passed, 3 skipped; exit 0 |
 | `pnpm extension -- test` | 27 files, 127 tests passed; exit 0 (no Extension change; regression only) |
 | `pnpm --filter @apps/slax-reader-dweb typecheck` | exit 0 |
 | `pnpm --filter @apps/slax-reader-extensions compile` | exit 0 |
@@ -93,6 +93,14 @@ The automated PR review reported no Important findings and five Nits, all fixed 
 - The SDK duplicate-suppression key uses normalized name and message, so distinct non-`Error` payloads stay distinct.
 - Query stripping also covers root-relative URLs such as `/v1/sync/changes?token=…`, and keeps stack `line:column` positions.
 - Page-hide batches reuse the identity resolved by the previous flush.
+
+## Review round on 12317c4
+
+The automated review reported one Important finding, fixed:
+
+- Important: the URL query pattern used RegExp lookbehind, which Safari and iOS before 16.4 cannot parse, while `apps/web/package.json` declares Safari 15.4. The collector chunk would have failed to parse there and stopped the app from booting. The pattern no longer uses lookbehind and passes the same 12 cases. A production `pnpm web -- build` was inspected: the chunk containing the collector has no lookbehind.
+
+Nits fixed with tests: a message line containing an address is no longer taken as a call frame; batches are split into request bodies below 60 KiB; HTTP status codes stay distinct in fingerprints (401 versus 500).
 
 ## First frame only, original PowerSync console output
 

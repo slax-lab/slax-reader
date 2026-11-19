@@ -56,6 +56,8 @@ const MAX_FRAME_BYTES = 512
 const MAX_PROPERTIES_BYTES = 8 * 1024
 const MAX_FINGERPRINTS_PER_SESSION = 200
 const MAX_QUEUED_PER_FLUSH = 20
+// Browsers cap keepalive fetch and sendBeacon bodies at 64 KiB; stay below it per request.
+const MAX_REQUEST_BYTES = 60 * 1024
 const MAX_COUNT = 100000
 const ERROR_NAME_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$.]{0,63}$/
 const RELEASE_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]{1,32})?$/
@@ -89,8 +91,11 @@ export const stripUrl = (value: string | undefined | null): string | undefined =
 // URLs inside messages and stacks keep origin and path; query strings and fragments may carry tokens.
 // Covers absolute URLs and root-relative paths such as `/v1/sync/changes?token=…`.
 // A trailing `:line:col` after the query belongs to a stack frame and is kept.
-const URL_QUERY_PATTERN = /((?:\b(?:https?|chrome-extension):\/\/|(?<![\w/:.])\/)[^\s"'<>()?#]*)[?#][^\s"'<>()]*?((?::\d+){1,2})?(?=[\s"'<>()]|$)/g
-export const stripUrlQueries = (text: string): string => text.replace(URL_QUERY_PATTERN, (_match, url: string, position?: string) => url + (position ?? ''))
+// No lookbehind: Safari before 16.4 cannot parse it, and the Web app supports Safari 15.4.
+// A root-relative path must start the text or follow a character that cannot precede a URL path.
+const URL_QUERY_PATTERN = /(^|[\s"'<>(=,])((?:(?:https?|chrome-extension):\/\/[^\s"'<>()?#]+|\/[^\s"'<>()?#/][^\s"'<>()?#]*))[?#][^\s"'<>()]*?((?::\d+){1,2})?(?=[\s"'<>()]|$)/g
+export const stripUrlQueries = (text: string): string =>
+  text.replace(URL_QUERY_PATTERN, (_match, lead: string, url: string, position?: string) => lead + url + (position ?? ''))
 
 const fnv1a = (input: string): string => {
   let a = 0x811c9dc5
@@ -133,9 +138,9 @@ export const normalizeError = (error: unknown): { name?: string; message: string
   return { name, message: message || 'Unknown error', stack }
 }
 
-// V8 frames start with `at `; Firefox and Safari frames are `fn@url`. A message line such as
-// `Error: failed for user@example.com` contains a space before `@` and is not a frame.
-const FRAME_PATTERN = /^\s*(?:at\s|[^@\s]*@)/
+// V8 frames start with `at `; Firefox and Safari frames are `fn@location:line:col`. A message line
+// containing an address such as `user@example.com is not valid` has no `:line:col` and is not a frame.
+const FRAME_PATTERN = /^\s*(?:at\s|[^@\s]*@\S*:\d+(?::\d+)?\s*$)/
 
 /** The first call frame of a stack, with URL queries already removed and bounded in size. */
 export const firstFrame = (stack: string | undefined): string | undefined => {
@@ -143,8 +148,10 @@ export const firstFrame = (stack: string | undefined): string | undefined => {
   return frame ? truncateBytes(frame, MAX_FRAME_BYTES) : undefined
 }
 
+// Long digit runs (ids, timestamps, byte counts) vary per occurrence; short ones such as HTTP status
+// codes distinguish failures (an expired-auth 401 must not merge with a server 500).
 export const errorFingerprint = (kind: ClientErrorKind, name: string | undefined, message: string, stack: string | undefined): string =>
-  fnv1a([kind, name ?? '', message.replace(/\d+/g, 'N').slice(0, 512), (firstFrame(stack) ?? '').replace(/:\d+:\d+\)?$/, '')].join('|'))
+  fnv1a([kind, name ?? '', message.replace(/\d{4,}/g, 'N').slice(0, 512), (firstFrame(stack) ?? '').replace(/:\d+:\d+\)?$/, '')].join('|'))
 
 const boundedProperties = (properties: Record<string, unknown>): Record<string, unknown> | undefined => {
   const entries = Object.entries(properties).filter(([, value]) => value !== undefined)
@@ -168,6 +175,26 @@ const defaultSend = async (endpoint: string, body: string, hiding: boolean): Pro
   // A text/plain body avoids a CORS preflight; sendBeacon survives page unload.
   if (hiding && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function' && navigator.sendBeacon(endpoint, body)) return
   await fetch(endpoint, { method: 'POST', body, keepalive: hiding, credentials: 'omit' })
+}
+
+/** Serializes records into JSON array bodies that each stay under the per-request byte limit. */
+export const chunkBodies = (records: ClientErrorRecord[], maxBytes = MAX_REQUEST_BYTES): string[] => {
+  const bodies: string[] = []
+  let current: string[] = []
+  let size = 2
+  for (const record of records) {
+    const json = JSON.stringify(record)
+    const bytes = byteLength(json) + 1
+    if (current.length && size + bytes > maxBytes) {
+      bodies.push(`[${current.join(',')}]`)
+      current = []
+      size = 2
+    }
+    current.push(json)
+    size += bytes
+  }
+  if (current.length) bodies.push(`[${current.join(',')}]`)
+  return bodies
 }
 
 const disabled: ErrorCollector = { enabled: false, capture: () => {}, flush: async () => {} }
@@ -209,7 +236,7 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
         if (userId && /^[0-9]{1,20}$/.test(userId)) record.user_id = userId
         if (deviceId) record.device_id = deviceId
       }
-      await send(endpoint, JSON.stringify(records), hiding)
+      for (const body of chunkBodies(records)) await send(endpoint, body, hiding)
     } catch {
       // Delivery is best effort; failures must not create new error records.
     }
