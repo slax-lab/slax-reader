@@ -95,13 +95,37 @@ describe('resuming local mode after a timed-out initialization', () => {
     expect(state.navigate).not.toHaveBeenCalled()
 
     const guard = state.guards[0]!
-    expect(guard(route('/bookmarks?filter=starred#top'), route('/bookmarks'))).toBeUndefined()
+    await expect(guard(route('/bookmarks?filter=starred#top'), route('/bookmarks'))).resolves.toBeUndefined()
     expect(state.navigate).not.toHaveBeenCalled()
 
-    expect(guard(route('/b/abc?highlight=1#p'), route('/bookmarks'))).toBe(false)
+    await expect(guard(route('/b/abc?highlight=1#p'), route('/bookmarks'))).resolves.toBe(false)
     expect(state.navigate).toHaveBeenCalledExactlyOnceWith('/b/abc?highlight=1#p', { external: true })
     expect(state.removed).toBe(1)
     expect(state.guards).toHaveLength(0)
+  })
+
+  it('keeps the guard when the document load fails so a later navigation can resume', async () => {
+    await start()
+    state.ready!.settle(true)
+    await flush()
+    const guard = state.guards[0]!
+    state.navigate.mockRejectedValueOnce(new Error('navigation blocked'))
+    await expect(guard(route('/user'), route('/bookmarks'))).resolves.toBeUndefined()
+    expect(state.guards).toHaveLength(1)
+
+    await expect(guard(route('/rss'), route('/bookmarks'))).resolves.toBe(false)
+    expect(state.navigate).toHaveBeenLastCalledWith('/rss', { external: true })
+    expect(state.guards).toHaveLength(0)
+  })
+
+  it('ignores destinations that are not internal paths', async () => {
+    await start()
+    state.ready!.settle(true)
+    await flush()
+    const guard = state.guards[0]!
+    await expect(guard({ path: '//evil.example/x', fullPath: '//evil.example/x' }, route('/bookmarks'))).resolves.toBeUndefined()
+    expect(state.navigate).not.toHaveBeenCalled()
+    expect(state.guards).toHaveLength(1)
   })
 
   it('installs no guard when the retained initialization fails', async () => {

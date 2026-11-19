@@ -238,11 +238,22 @@ export default defineNuxtPlugin({
         const router = useRouter()
         void recovery.pending.ready.then(ready => {
           if (!ready) return
-          const removeGuard = router.beforeEach((to, from) => {
-            if (to.path === from.path) return
-            removeGuard()
+          let resuming = false
+          const removeGuard = router.beforeEach(async (to, from) => {
+            if (resuming) return false
+            // Only internal destinations; mirrors powersync-public-restore.client.ts.
+            if (to.path === from.path || !/^\/(?![\\/])/.test(to.fullPath)) return
+            resuming = true
             powerSyncConsole.info('[powersync] resuming local database with a document load', { mode: recovery.pending?.mode, path: to.path })
-            void nuxtApp.runWithContext(() => navigateTo(to.fullPath, { external: true }))
+            try {
+              await nuxtApp.runWithContext(() => navigateTo(to.fullPath, { external: true }))
+            } catch (error) {
+              // Keep the guard for a later navigation and let this one continue on REST.
+              resuming = false
+              powerSyncConsole.warn('[powersync] document load for local resume failed', { error })
+              return
+            }
+            removeGuard()
             // Outside Nuxt middleware navigateTo does not cancel the SPA transition itself.
             return false
           })

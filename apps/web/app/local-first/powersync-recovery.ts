@@ -115,16 +115,19 @@ export async function initializePowerSyncWithFallback({
       const durationMs = Date.now() - startedAt
       onError?.(error, mode, attempt)
       onEvent?.({ type: 'attempt-error', mode, attempt, durationMs, error })
-      if (error instanceof PowerSyncInitializationTimeoutError && initialization) {
+      if (error instanceof PowerSyncInitializationTimeoutError && initialization && database) {
         // A timeout usually means the shared connection is busy, not broken. Keep this
         // instance and let its init() finish; recovery still opens no second instance.
+        const retained = database
         const ready = initialization.then(
           () => {
             onEvent?.({ type: 'background-ready', mode, attempt, durationMs: Date.now() - startedAt })
             return true
           },
-          backgroundError => {
+          async backgroundError => {
             onEvent?.({ type: 'background-error', mode, attempt, durationMs: Date.now() - startedAt, error: backgroundError })
+            // init() has settled, so closing can no longer race with its completion.
+            await Promise.race([dispose(retained).catch(() => {}), sleep(disposeTimeoutMs)])
             return false
           }
         )

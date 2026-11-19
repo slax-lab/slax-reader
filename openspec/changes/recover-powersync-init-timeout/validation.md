@@ -16,8 +16,8 @@ On 2026-11-19 the human asked, in this task conversation, to fix the intermitten
 
 - `pnpm install --frozen-lockfile` passed; no dependency or lockfile change.
 - New regressions failed against the base implementation: with the source changes stashed, 5 tests failed (`uses REST after a timeout without another instance` x2, `keeps a timed-out instance open ...`, `reports a background failure ...`, and the plugin's `keeps the current document on REST until a different path is visited`). All pass after the fix.
-- `pnpm exec vitest run tests/unit/local-first/`: 10 files, 124 passed, 2 skipped.
-- `pnpm web -- test` (full Web suite): 258 files passed, 1 skipped; 3,169 tests passed, 3 skipped.
+- `pnpm exec vitest run tests/unit/local-first/`: 10 files, 127 passed, 2 skipped (final revision).
+- `pnpm web -- test` (full Web suite, final revision): 258 files passed, 1 skipped; 3,172 tests passed, 3 skipped.
 - `pnpm web -- typecheck`: passed with synthetic public configuration.
 - ESLint on the four touched source and test files: zero errors and warnings.
 - `pnpm web -- build` with `SLAX_ENV=beta` and synthetic local public configuration: passed for both the base and the final revision. The beta profile keeps console diagnostics; the production profile drops them, but the code paths are identical.
@@ -64,3 +64,13 @@ Bugs, Security, and Compliance passes per `REVIEW.md` on the final diff.
 - Bugs (checked, no change): the retained `ready` promise never rejects, so no unhandled rejection is introduced; the guard removes itself before navigating, so a second navigation cannot trigger another load; `pending` is only produced for `PowerSyncInitializationTimeoutError`, so definite failures still dispose and follow the next-mode path; the development main-thread path never produces `pending`.
 - Security: no new network calls, storage, or dependencies. The new diagnostics log the mode, attempt, duration, visibility state, and destination path only; no token, account identifier, or query string is logged.
 - Compliance: the diff implements every delta scenario in `specs/web-local-sync/spec.md`, and the evidence above exercises each one. No Important findings remain.
+
+## PR review follow-up (2026-11-19)
+
+The automated review of `d34b1d4` on PR #678 reported no Important findings and three Nits. All three were addressed:
+
+- A retained instance whose background initialization fails is now disposed with the same bounded cleanup (`disposeTimeoutMs`) as definite failures. Its `init()` has settled, so closing no longer races with completion, and the SharedWorker client is released before the document unloads. Regressions: the background-failure test asserts the adapter close, and a new test confirms that a never-settling dispose still resolves `ready` to `false` after the bound.
+- The resume guard now awaits the external `navigateTo`. If the document load throws, the guard stays installed and lets that navigation continue client-side on REST, so a later navigation can still resume; there is no unhandled rejection. Destinations that do not start with a single `/` are ignored, matching `powersync-public-restore.client.ts`. Regressions: a failed load followed by a successful one, and a `//evil.example/x` destination that triggers nothing.
+- `design.md` now describes `pending` as `{ mode, ready }` and documents the bounded disposal and guard failure handling.
+
+Re-verification on the final revision: `pnpm web -- typecheck` passed; the full Web suite passed (3,172 tests); ESLint on the touched files was clean; the production-profile beta build passed. The browser reproduction passed again: B timed out, completed in the background at 11,922 ms, its next navigation loaded `/user` as a new document that reported `connected: true` with a second sync stream, and the old document's navigation was cancelled. The 6 regression scenarios passed again (6/6).

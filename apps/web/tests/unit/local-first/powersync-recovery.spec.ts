@@ -249,6 +249,26 @@ describe('initializePowerSyncWithFallback', () => {
     await expect(result.pending?.ready).resolves.toBe(false)
     expect(events.at(-1)).toMatchObject({ type: 'background-error', mode: 'shared', error: failure })
     expect(created).toEqual(['shared'])
+    expect(busy.database.close).toHaveBeenCalledOnce()
+  })
+
+  it('bounds disposal of a retained instance after its background failure', async () => {
+    vi.useFakeTimers()
+    let fail!: (error: Error) => void
+    const busy = makeDb(() => new Promise<void>((_, reject) => { fail = reject }))
+    const promise = initializePowerSyncWithFallback({
+      createDatabase: () => busy as never,
+      initTimeoutMs: 100,
+      disposeTimeoutMs: 50,
+      dispose: () => new Promise<void>(() => {})
+    })
+    await vi.advanceTimersByTimeAsync(100)
+    const result = await promise
+    fail(new Error('worker gone'))
+    const settled = vi.fn()
+    void result.pending?.ready.then(settled)
+    await vi.advanceTimersByTimeAsync(50)
+    expect(settled).toHaveBeenCalledExactlyOnceWith(false)
   })
 
   it('returns no pending initialization for definite failures', async () => {

@@ -14,13 +14,13 @@ See `proposal.md` for the confirmed diagnosis. The relevant SDK facts for `@powe
 
 `tryMode` keeps its timeout race but no longer disposes the database when the error is a `PowerSyncInitializationTimeoutError`. Disposal for definite failures is unchanged, including the cleanup-timeout and cleanup-error stop rules.
 
-`initializePowerSyncWithFallback` returns `{ database: null, mode: 'rest', pending }` for a timeout, where `pending` is `{ mode, database, ready }` and `ready` settles when the original `init()` promise settles. Recovery still stops after the timeout, so no second instance opens the same `dbFilename`. This removes the reason the current code stopped instead of retrying: concurrency comes from creating another instance, not from letting the first finish.
+`initializePowerSyncWithFallback` returns `{ database: null, mode: 'rest', pending }` for a timeout, where `pending` is `{ mode, ready }` and `ready` resolves `true` or `false` once the original `init()` promise settles; it never rejects. Recovery still stops after the timeout, so no second instance opens the same `dbFilename`. This removes the reason the current code stopped instead of retrying: concurrency comes from creating another instance, not from letting the first finish.
 
-A `background-ready` or `background-error` event reports the outcome with `durationMs` measured from the attempt start.
+A `background-ready` or `background-error` event reports the outcome with `durationMs` measured from the attempt start. After a background failure the retained instance is disposed with the same bounded cleanup used for definite failures: its `init()` has settled, so closing no longer races with completion, and the SharedWorker client is released before the document unloads.
 
 ### 2. Resume through a full document load on the next navigation
 
-For a top-level page with the plugin otherwise eligible for PowerSync, when `pending.ready` resolves, the plugin installs a one-shot `router.beforeEach` guard. When the next navigation targets a different path, the guard cancels the client-side transition and assigns `window.location.href` to the resolved destination, so the destination document starts PowerSync from scratch. The SharedWorker stays alive across the load because other tabs or the new document reconnect to it, and the new document's `init()` finds an already open, idle connection.
+For a top-level page with the plugin otherwise eligible for PowerSync, when `pending.ready` resolves `true`, the plugin installs a one-shot `router.beforeEach` guard. When the next navigation targets a different internal path, the guard starts Nuxt's external `navigateTo` document load and returns `false` to cancel the client-side transition, so the destination document starts PowerSync from scratch. Outside Nuxt middleware `navigateTo` does not cancel the transition by itself, so the explicit `false` is required. If the document load throws, the guard stays installed and lets that navigation continue on REST, so a later navigation can still resume. Destinations that do not start with a single `/` are ignored, matching `powersync-public-restore.client.ts`. The SharedWorker stays alive across the load because other tabs or the new document reconnect to it, and the new document's `init()` finds an already open, idle connection.
 
 Alternatives rejected:
 
