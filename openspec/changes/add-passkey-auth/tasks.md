@@ -16,3 +16,5 @@ Delivery: Draft PR https://github.com/slax-lab/slax-reader/pull/607 targets dev.
 - [x] 8. Extend existing frontend Passkey gates to Beta, preserve production hiding and ungated backend behavior, and verify all four profiles on login/account surfaces.
 
 - [x] 9. Remove the redundant credential UUID, add authoritative best-effort Web signals and mailbox-first conditional autofill, integrate Mobile capability detection, and complete focused/runtime/native-build verification and independent reviews.
+
+- [x] 10. Remove frontend environment restrictions on Web/Mobile login and account management, retain capability/fixture/session behavior, verify production and existing profiles, and deliver a separate Draft PR after version confirmation and hands-on acceptance.

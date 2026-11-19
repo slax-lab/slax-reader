@@ -389,6 +389,31 @@ async function main() {
       assert.equal(fresh.data.is_new_user, true)
       const freshInfo = (await authCall(userInfo, undefined, fresh.data.token)).data
       assert.equal(freshInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, 'new-reader@smoke.invalid')
+      const internalEmail = 'Internal-Reader@INTERNAL.INVALID'
+      const internalSent = await authCall('/v1/user/email/send', {
+        email: internalEmail
+      })
+      assert.equal(internalSent.code, 200)
+      assert.deepEqual(Object.keys(internalSent.data).sort(), ['expires_in', 'request_id', 'resend_after'])
+      let internalCode: string | undefined
+      await poll(() => {
+        internalCode = /\[Email login\] email=Internal-Reader@INTERNAL\.INVALID code=(\d{6})/.exec(workerLog)?.[1]
+        return Boolean(internalCode)
+      }, 'internal email code in Worker logs')
+      const undelivered = await localFetch(`http://localhost:${httpPort}/__fixture/email-code?id=${internalSent.data.request_id}`, { headers: { Authorization: `Bearer ${token}` } })
+      assert.equal(await undelivered.json(), null)
+      const internalProof = {
+        type: 'email',
+        email: internalEmail,
+        request_id: internalSent.data.request_id,
+        code: internalCode
+      }
+      const internalLogin = await authCall('/v1/user/login', internalProof)
+      assert.equal(internalLogin.code, 200)
+      const internalInfo = (await authCall(userInfo, undefined, internalLogin.data.token)).data
+      assert.equal(internalInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, internalEmail)
+      assert.equal((await authCall('/v1/user/login', internalProof)).data, 'EMAIL_VERIFY_CODE_ERROR')
+      evidence.internalEmailLogin = 'code read from Worker logs; no provider delivery; existing login and verified binding succeeded; replay rejected'
       evidence.passkeys = await exercisePasskeys(authCall, query => resources.sql(pg.id, 'http_reader', query), token, ownerToken, vars.FRONT_END_URL)
       evidence.emailAuthentication =
         'binding API works in dev, beta, and prod; user information returns login methods through the platform list; legacy sign-in guidance, existing-account login, and new-account session'
@@ -531,6 +556,10 @@ async function main() {
     )
     address = await request('newsletter-address-confirmed', '/v1/user/newsletter_address', { headers: mailHeaders })
     assert.equal(address.body.data.address, `feed+newslettersmoke@${newsletterDomain}`)
+    assert.equal(
+      resources.sql(pg.id, 'http_reader', "SELECT platform_id||':'||user_name FROM sr_platform_bind WHERE platform='newsletter' AND user_id=1"),
+      'newslettersmoke:newslettersmoke'
+    )
     const inlineImage = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jz1kAAAAASUVORK5CYII='
     const rawMail =
       'From: Smoke Weekly <weekly@example.com>\r\nTo: ignored@other.example\r\nSubject: Newsletter runtime smoke\r\nMessage-ID: <newsletter-runtime-smoke@example.com>\r\nContent-Type: multipart/related; boundary=mailpart\r\n\r\n' +

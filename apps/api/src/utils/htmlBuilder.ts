@@ -212,11 +212,12 @@ export class HtmlBuilder {
       </div></body></html>`
   }
 
-  /** 微信普通文章：合成文章页交 Readability 过滤（暂不含头像/昵称/作者） */
+  /** Build an ordinary WeChat article for Readability. */
   public static buildWeixinArticlePage(c: TikHubWeixinContent): string {
     // 数字时间戳先归一，避免 moment 解析失败
     const publishTime = /^\d+$/.test(c.create_time || '') ? parseWeixinCreateTime(c.create_time).toISOString() : c.create_time || ''
-    return `<html><head><meta property="og:title" content="${escAttr(c.title)}"></head><body>
+    return `<html><head><meta property="og:title" content="${escAttr(c.title)}">
+      <meta property="og:site_name" content="微信"><meta name="author" content="${escAttr(c.author?.trim() || c.nick_name)}"></head><body>
       <div id="js_article">
         <h1 class="rich_media_title">${escAttr(c.title)}</h1>
         <div id="publish_time">${escAttr(publishTime)}</div>

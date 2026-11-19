@@ -10,7 +10,7 @@ beforeEach(() => {
   window.eval(readerStartupScript)
   plugin.setup!({ $router: { beforeEach: (guard: typeof navigate) => { navigate = guard } } } as any)
 })
-afterEach(() => window.__slaxReaderStartup!.navigation.stop())
+afterEach(() => { window.__slaxReaderStartup!.takePanel(window.__slaxReaderStartup!.navigation.path); window.__slaxReaderStartup!.navigation.stop() })
 const from = { path: '/b/first', matched: [{}] }
 const to = (fullPath: string) => {
   const url = new URL(fullPath, location.origin)

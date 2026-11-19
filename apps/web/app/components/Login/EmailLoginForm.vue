@@ -10,7 +10,7 @@
         <span>{{ t(open ? 'email_auth.cancel' : 'email_auth.continue_with_email') }}</span>
       </button>
     </div>
-    <EmailCodeForm v-if="open" :id="formId" ref="form" class="email-code-form--inline email-code-form--login" :initial-email="initialEmail" retain-pending-on-success :verify="verifyEmail" :authenticate-passkey="passkeysEnabled && passkeysSupported ? authenticatePasskey : undefined" :passkey-autofill="passkeyAutofill" />
+    <EmailCodeForm v-if="open" :id="formId" ref="form" class="email-code-form--inline email-code-form--login" :initial-email="initialEmail" retain-pending-on-success :verify="verifyEmail" :authenticate-passkey="passkeysSupported ? authenticatePasskey : undefined" :passkey-autofill="passkeyAutofill" />
   </div>
 </template>
 
@@ -39,13 +39,11 @@ const nuxtApp = useNuxtApp()
 const { t } = nuxtApp.$i18n
 const auth = useAuth()
 const formId = useId()
-const passkeysEnabled = ['development', 'preview', 'beta'].includes(useRuntimeConfig().public.slaxEnv)
 const passkeysSupported = ref(false)
 const passkeyAutofill = ref(false)
 let mounted = true
 onBeforeUnmount(() => { mounted = false })
 onMounted(async () => {
-  if (!passkeysEnabled) return
   try {
     // Older supported browsers expose WebAuthn without the newer capabilities API.
     const supported = await browserSupportsPasskeys() || (browserSupportsWebAuthn() && typeof PublicKeyCredential.getClientCapabilities !== 'function')

@@ -175,16 +175,19 @@ APP SHALL 使用原生 Compose 实现实验室设置、订阅管理和文章列�
 - **THEN** 原列表保留缓存、选择和滚动位置，预览或收藏不会重新创建首页
 
 ### Requirement: Web 在 Inbox 中显示 RSS 并保留列表缓存
-
-Web SHALL 在 Inbox 侧栏紧接 Inbox 下方显示已启用的 RSS 入口，复用现有页面布局、搜索与列表模式切换组件。切换 RSS 与 Inbox SHALL 保留各自的列表状态，不重新挂载整个页面。When the local database is available, Web SHALL render subscriptions and latest entries from the local-first RSS list data, and the list SHALL survive reloads and be visible without a network round trip. When the local database is unavailable, RSS SHALL 按来源保存当前会话的列表、分页游标及已加载页数；定时检查和手动重新加载 SHALL 保留旧列表直到新数据成功返回，失败保留旧缓存。退出账号或关闭功能 SHALL 清除缓存。
+Web SHALL always show a Feed entry immediately below Inbox and use the existing layout, search and list-mode components. Feed SHALL combine independently enabled RSS and Newsletter sources and retain the existing view=rss navigation link. Switching Feed and Inbox SHALL preserve list state. In RSS-only sessions with local data available, Web SHALL immediately render owned RSS sources and latest entries before a network round trip. With Newsletter enabled and owned local storage available, the unified Feed SHALL combine independent local RSS and Newsletter projections without switching healthy RSS lists to REST. REST mode SHALL retain per-source lists, cursors and loaded pages until replacement succeeds. Logout SHALL clear user state; disabling a feature SHALL hide and clear that kind's session/body state while preserving the other enabled kind.
 
 #### Scenario: 切换与刷新期间保留列表
-- **WHEN** 用户切换来源、切回 Inbox，或者定时和手动更新 RSS 列表
-- **THEN** 已缓存列表立即可见，更新期间不清空列表，过期响应不会覆盖后来选择的来源
+- **WHEN** the user switches sources or returns from Inbox while refresh is in flight
+- **THEN** cached enabled content remains visible and stale responses cannot override a newer source selection
 
 #### Scenario: Reload with local data
-- **WHEN** a user with local RSS data reloads the page or opens it while offline
-- **THEN** the subscriptions and latest entries are shown from local data; article detail, add, rename, remove, refresh and save report the existing network errors instead of silently failing
+- **WHEN** a user with Newsletter disabled and owned local RSS data reloads or opens offline
+- **THEN** cached RSS subscriptions and entries are shown and network actions report existing network errors
+
+#### Scenario: No feature enabled
+- **WHEN** both RSS and Newsletter are disabled
+- **THEN** Feed remains visible with setup guidance and does not reveal disabled content
 
 ### Requirement: 自定义订阅显示名称
 

@@ -1,3 +1,4 @@
+import { isWhiteEmail } from '../utils/internalEmail'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { Auth } from '../utils/jwt'
 import { Failed } from '../utils/responseUtils'
@@ -47,19 +48,6 @@ const whiteList = [
   '/callback/twitter',
   '/events'
 ]
-// The internal/beta and dashboard allowlist is deployment configuration, not source. Personal
-// addresses must never be committed, so they are read from WHITE_EMAILS (comma-separated).
-// An unset or empty value denies every gated request.
-const parseWhiteEmails = (value: string | undefined): string[] =>
-  value === undefined
-    ? []
-    : value
-        .split(',')
-        .map(item => item.trim())
-        .filter(Boolean)
-
-const isWhiteEmail = (env: Env, email: string): boolean => parseWhiteEmails(env.WHITE_EMAILS).includes(email)
-
 export const isWhitelisted = (pathname: string): boolean => whiteList.some(item => pathname === item || pathname.startsWith(item + '/'))
 
 const isWhiteEmailExempt = (pathname: string): boolean => whiteEmailExemptPaths.some(item => pathname === item || pathname.startsWith(item + '/'))

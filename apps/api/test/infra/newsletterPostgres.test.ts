@@ -21,7 +21,7 @@ native('independent Newsletter native transactions', () => {
     const user = await pg.sr_user.create({ data: { email: account + '@fixture.invalid', account, created_at: new Date(), last_login_at: new Date() } })
     await lab.upsert(user.id, 'newsletter', true)
     await repo.address(user.id, 'newslettereader.slax.dev', true)
-    recipient = (await repo.recipient('newslettereader.slax.dev', account))!
+    recipient = (await repo.recipient(account))!
   })
   beforeEach(async () => {
     await pg.$executeRaw`DELETE FROM sr_newsletter_feed WHERE user_id=${recipient.user_id}`
@@ -31,7 +31,7 @@ native('independent Newsletter native transactions', () => {
     await pg.$disconnect()
     await pool.end()
   })
-  test('concurrent owners reserve one address through the application lock and retain it after deletion', async () => {
+  test('concurrent owners across domains reserve one name through the application lock and retain it after deletion', async () => {
     const account = 'race' + crypto.randomUUID().replaceAll('-', '').slice(0, 10)
     const owners = await Promise.all(
       [0, 1].map(async i => {
@@ -40,7 +40,7 @@ native('independent Newsletter native transactions', () => {
         return user
       })
     )
-    const attempts = await Promise.allSettled(owners.map(user => repo.address(user.id, 'newslettereader.slax.dev', true)))
+    const attempts = await Promise.allSettled(owners.map((user, i) => repo.address(user.id, i ? 'newslettereader.slax.app' : 'newslettereader.slax.dev', true)))
     expect(attempts.filter(x => x.status === 'fulfilled')).toHaveLength(1)
     expect(attempts.find(x => x.status === 'rejected')).toMatchObject({ reason: { code: 'address_reserved' } })
     const winner = owners[attempts.findIndex(x => x.status === 'fulfilled')]
