@@ -39,6 +39,7 @@
         :local-first="localFirst"
         :local-database="lateLocalSources?.database ?? undefined"
         :local-tags="!lateLocalSources"
+        @local-mark-write="handOverMarksOnLocalWrite"
         :bookmark-uuid="uuid"
         :local-ready="localReady"
         :is-owner="isOwner"
@@ -263,6 +264,7 @@ import { useShareCollectInfo } from '~/composables/useShareCollectInfo'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import type { IconKey } from '~/icons/registry'
 import { canTakeOverSnapshotLocally } from '~/local-first/snapshot-local-takeover'
+import { localMarksCoverShown } from '~/local-first/snapshot-mark-handover'
 import { useUserStore } from '~/stores/user'
 
 const pendingPanelCode = reactive({ ai: false, chat: false })
@@ -438,6 +440,7 @@ if (import.meta.client) watch(accountGeneration, () => {
   localReady.value = false
   lateLocalSources.value = null
   lateLocalDatabase.value = null
+  lateMarksHandedOver.value = false
   if (!recoveringSession.value && navigator.onLine) void refreshContent().then(() => initializeClientDetail(false)).catch(() => {})
 }, { flush: 'sync' })
 onBeforeUnmount(() => {
@@ -460,11 +463,21 @@ useReadingPosition(uuid, {
   clear: () => local.value?.clearReadingPosition(uuid)
 })
 
+// A late switch keeps REST marks until local rows cover them, or until the reader edits marks on this page.
+const lateMarksHandedOver = ref(false)
 const marks = computed<MarkDetail>(() => {
   const query = localMarksQuery.value
-  if (localFirst.value && query && !query.isLoading.value) return query.marks.value
-  return restMarks.value
+  if (!localFirst.value || !query || query.isLoading.value) return restMarks.value
+  if (!lateLocalSources.value || lateMarksHandedOver.value) return query.marks.value
+  return localMarksCoverShown(restMarks.value, query.marks.value) ? query.marks.value : restMarks.value
 })
+watch(marks, value => {
+  if (lateLocalSources.value && value === localMarksQuery.value?.marks.value) lateMarksHandedOver.value = true
+})
+// A mark written locally on this page must show from the local rows, even while they lag elsewhere.
+const handOverMarksOnLocalWrite = () => {
+  if (lateLocalSources.value) lateMarksHandedOver.value = true
+}
 
 // 窄字段+值短路：archive/star
 // 写库时 detail 不翻新，免崩溃
@@ -676,9 +689,18 @@ async function takeOverWhenReady(generation: number) {
 // SnapshotLocalDetail mounted its queries against the late database.
 function onLocalSourcesReady(sources: SnapshotLocalSources) {
   if (lateLocalDatabase.value !== sources.database) return
-  lateLocalSources.value = sources
-  localFirst.value = true
-  localReady.value = true
+  // Switch only once the row is loaded; until then local archive/star state would read as defaults.
+  const stop = watch(
+    () => sources.row.row.value,
+    row => {
+      if (!row || lateLocalDatabase.value !== sources.database) return
+      queueMicrotask(() => stop())
+      lateLocalSources.value = sources
+      localFirst.value = true
+      localReady.value = true
+    },
+    { immediate: true }
+  )
 }
 async function retryPdfContent() {
   await refreshContent()

@@ -10,7 +10,8 @@ export class LocalFirstHttpClient implements IHttpClient {
 
   constructor(
     private bookmarkUuid: string,
-    private database?: PowerSyncDatabase
+    private database?: PowerSyncDatabase,
+    private onLocalWrite?: () => void
   ) {}
 
   async post<T = unknown>(options: FetchOptions): Promise<T | undefined> {
@@ -18,12 +19,14 @@ export class LocalFirstHttpClient implements IHttpClient {
     const local = useLocalMarks(this.database)
 
     if (url === RESTMethodPath.ADD_MARK) {
+      this.onLocalWrite?.()
       const res = await local.addMark(this.bookmarkUuid, body as AddMarkBody)
       return res as T
     }
 
     if (url === RESTMethodPath.DELETE_MARK) {
       const { mark_uid: markUid } = (body ?? {}) as { mark_uid?: string }
+      this.onLocalWrite?.()
       if (markUid) await local.deleteMark(markUid)
       return { ok: true } as T
     }

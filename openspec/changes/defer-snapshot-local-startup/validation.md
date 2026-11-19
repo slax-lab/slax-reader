@@ -97,3 +97,34 @@ Bugs, Security, and Compliance passes per `REVIEW.md` on the final diff.
   - The diff implements every scenario in `specs/web-local-sync/spec.md`, and the evidence above covers each one.
   - The body-stays-server-rendered requirement is verified by the SSR checks.
   - Open item: human hands-on acceptance.
+
+## Switch flicker investigation (2026-11-19 follow-up)
+
+The requester asked whether the REST-to-local switch can flash. A frame-sampling harness (`requestAnimationFrame` sampling plus a `MutationObserver` on `slax-mark`) recorded, every rendered frame: the title, the highlight count, whether each highlight carries the reader's own style, and the archive and star toolbar state. The harness used 30 highlights, Chrome CPU throttling at 6x, and a 12 s held lease (slow path).
+
+Two real flashes were found and fixed:
+
+- **Archive/star toolbar.** The page switched as soon as the local queries mounted, before the local row loaded. Recorded toolbar sequence `11 -> 00` (archived+starred, then shown as neither). The page now switches only after the local row has loaded. After the fix: `11` only.
+- **Stale local data.** With REST showing 30 highlights and the local database holding 29, the count went `30 -> 29`. The page now keeps the shown REST highlights until the local rows cover them (`localMarksCoverShown`). Extra local highlights do not block, and the reader's own local writes hand over immediately. After the fix: `0 -> 30`, with no drop.
+
+Checked and found not to flash:
+
+- **Highlights with identical data.** `drawMarks` clears and repaints all marks, but no frame showed fewer than the full count. The clear and repaint finished within one task (for example `[12309, 12309, 12317]` ms), because `MarkRenderer.drawMark` does no asynchronous work.
+- **Title, own-highlight style, fast path.** Constant across all frames. The harness's synthetic `/v1/user/me` originally lacked `userId`, which hid own-highlight styling; that was corrected to the real response shape before these runs.
+- **Auto-opened side panel.** Decided once at first load, not on the switch.
+
+Final-revision results:
+
+| Case | Frames | Highlights below full after first paint | Title | Own-highlight style | Toolbar |
+| --- | --- | --- | --- | --- | --- |
+| Slow path, same data, 30 highlights, CPU 6x | 1,051 | 0 | constant | constant `self` | constant `11` |
+| Fast path, no held lease | 563 | 0 | constant | constant `self` | constant `11` |
+| Slow path, local missing 1 of 30 | n/a | count `0 -> 30` | n/a | n/a | n/a |
+
+New tests:
+
+- `snapshot-mark-handover.spec.ts` (7): superset, missing mark, comment change, deletion change, empty REST, and a deleted mark absent locally.
+- Local-first and Article tests after the change: 517 passed, 2 skipped. The full Web suite on the final revision passed with no failures (263 files, 1 skipped). Typecheck passed. The 7 regression scenarios passed again on the final build.
+- One run failed 2 of 7 scenarios with `title: null, body: false`. The synthetic `reader-edge` process had exited (`content meta returned 503`). After restarting it, all 7 passed; the product code was unchanged between those runs.
+
+Remaining limit: identical-data checks used one machine and synthetic content. Highlight anchors that resolve through the slower approximate-match path, and very large bodies, were not measured.

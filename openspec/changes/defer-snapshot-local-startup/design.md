@@ -42,7 +42,15 @@ The owner check waits at most 1.5 s for readiness before deciding, because `useR
 
 In the blocking path the page keeps today's in-setup local queries.
 
-### 5. Writes during the REST window
+### 5. No visible change at the switch
+
+The switch must not change what the reader already sees unless local data is newer:
+
+- `SnapshotLocalDetail` reports ready, and the page sets `localFirst`, only after the local bookmark row has loaded. Before that, local archive and star state would read as defaults and flip the toolbar.
+- On a late switch, the page keeps the REST marks it already painted until the local rows contain every shown mark with the same deletion state and comment (`localMarksCoverShown`). Extra local marks, such as ones made on another device, do not block the switch. A lagging local database therefore cannot remove a highlight the reader has just seen and paint it again after synchronization. The first mark write on the page through the local client hands marks over immediately, so the reader's own action shows from the local rows.
+- `MarkManager.drawMarks` clears and repaints all marks whenever the marks object changes. Its `await`s do not yield to rendering, because `MarkRenderer.drawMark` performs no asynchronous work. Measured runs of 30 marks at 6x CPU throttling showed the clear and repaint completing within a single task, with no frame below the full count.
+
+### 6. Writes during the REST window
 
 Before the upgrade, owner highlights, comments, archive, star, and title edits use REST, as they do today when local mode is unavailable. Synchronization later delivers the rows, so the local view shows them after the switch.
 

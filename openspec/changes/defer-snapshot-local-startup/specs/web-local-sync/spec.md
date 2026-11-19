@@ -31,6 +31,15 @@ After deferred startup completes on a `/b/[id]` document, the page SHALL switch 
 - **WHEN** deferred startup completes and every ownership condition holds
 - **THEN** the page switches to local data without reloading the article body
 
+#### Scenario: The switch does not flash
+- **WHEN** an owner page switches from REST to local data and the local rows match what is already shown
+- **THEN** the title, highlights, highlight styles, and archive and star state remain visually unchanged across every rendered frame
+
+#### Scenario: Local data lags behind REST
+- **WHEN** the local rows lack a highlight, a comment, or a deletion that the REST response already showed
+- **THEN** the page keeps showing the REST highlights until the local rows cover them
+- **AND** a highlight the reader writes on the page appears from the local rows immediately
+
 #### Scenario: Visitor or another account
 - **WHEN** the reader does not own the bookmark, or the local database belongs to another account
 - **THEN** the page never switches to local data

@@ -34,11 +34,12 @@ const props = withDefaults(
 )
 
 const userStore = useUserStore()
+const emit = defineEmits<{ localMarkWrite: [] }>()
 
 // 行为差异门控在 localFirst
 // 用 getter 延迟取值，晚绑定
 provide(ArticleSelectionAdaptersKey, {
-  httpClient: () => (props.localFirst && props.bookmarkUuid ? new LocalFirstHttpClient(props.bookmarkUuid, props.localDatabase) : new DwebHttpClient()),
+  httpClient: () => (props.localFirst && props.bookmarkUuid ? new LocalFirstHttpClient(props.bookmarkUuid, props.localDatabase, () => emit('localMarkWrite')) : new DwebHttpClient()),
   get allowActionOverride() {
     // snapshot owner（非 localFirst）也放开划线/评论/标签，对齐 463d6a21 isSnapshotOwner
     if (props.localFirst || props.isOwner) return true
