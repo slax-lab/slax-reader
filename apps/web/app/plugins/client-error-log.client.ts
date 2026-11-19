@@ -19,13 +19,18 @@ export default defineNuxtPlugin({
     if (!collector.enabled) return
     installGlobalErrorCapture(collector, window)
     // Hooks keep Nuxt's own error handler and error page in charge of rendering.
+    // A fatal component error reaches `vue:error` and then `app:error` wrapped by Nuxt's createError.
+    const seenComponentErrors = new WeakSet<object>()
     nuxtApp.hook('vue:error', (error, instance, info) => {
       if (isExpectedClientStatus(error)) return
+      if (error && typeof error === 'object') seenComponentErrors.add(error)
       collector.capture('vue', error, { source: 'vue', info, component: componentName(instance) })
     })
     nuxtApp.hook('app:error', error => {
       if (isExpectedClientStatus(error)) return
-      collector.capture('vue', error, { source: 'app', status_code: (error as { statusCode?: number }).statusCode })
+      const cause = (error as { cause?: unknown } | null)?.cause
+      if ((error && seenComponentErrors.has(error)) || (cause && typeof cause === 'object' && seenComponentErrors.has(cause))) return
+      collector.capture('vue', error, { source: 'app', status_code: (error as { statusCode?: number } | null)?.statusCode })
     })
   }
 })

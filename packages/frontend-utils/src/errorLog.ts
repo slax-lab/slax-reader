@@ -88,8 +88,10 @@ export const stripUrl = (value: string | undefined | null): string | undefined =
 }
 
 // URLs inside messages and stacks keep origin and path; query strings and fragments may carry tokens.
-const URL_QUERY_PATTERN = /(\b(?:https?|chrome-extension):\/\/[^\s"'<>()?#]+)[?#][^\s"'<>()]*/g
-export const stripUrlQueries = (text: string): string => text.replace(URL_QUERY_PATTERN, '$1')
+// Covers absolute URLs and root-relative paths such as `/v1/sync/changes?token=…`.
+// A trailing `:line:col` after the query belongs to a stack frame and is kept.
+const URL_QUERY_PATTERN = /((?:\b(?:https?|chrome-extension):\/\/|(?<![\w/:.])\/)[^\s"'<>()?#]*)[?#][^\s"'<>()]*?((?::\d+){1,2})?(?=[\s"'<>()]|$)/g
+export const stripUrlQueries = (text: string): string => text.replace(URL_QUERY_PATTERN, (_match, url: string, position?: string) => url + (position ?? ''))
 
 const fnv1a = (input: string): string => {
   let a = 0x811c9dc5
@@ -181,6 +183,8 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
   const provisional = new Set<string>()
   let timer: ReturnType<typeof setTimeout> | undefined
   let inFlight: Promise<void> | undefined
+  // Page unload cannot await identity, so a hiding flush reuses the last identity resolved.
+  let lastContext: ClientErrorContext | undefined
 
   const schedule = () => {
     if (timer || !queue.size) return
@@ -192,7 +196,8 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
 
   const deliver = async (records: ClientErrorRecord[], hiding: boolean) => {
     try {
-      const context = hiding ? undefined : await Promise.resolve(options.getContext?.()).catch(() => undefined)
+      const context = hiding ? lastContext : await Promise.resolve(options.getContext?.()).catch(() => undefined)
+      if (!hiding && context) lastContext = context
       const userId = context?.userId == null ? undefined : String(context.userId)
       const deviceId = context?.deviceId ? truncateBytes(String(context.deviceId), 128) : undefined
       for (const record of records) {

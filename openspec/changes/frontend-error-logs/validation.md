@@ -27,8 +27,8 @@ Run on the final diff with Node `v22.23.1`.
 
 | Command | Result |
 | --- | --- |
-| `pnpm web -- test` | 259 files passed, 1 skipped; 3170 tests passed, 3 skipped; exit 0 |
-| `pnpm extension -- test` | 29 files, 145 tests passed; exit 0 |
+| `pnpm web -- test` | 259 files passed, 1 skipped; 3171 tests passed, 3 skipped; exit 0 |
+| `pnpm extension -- test` | 29 files, 146 tests passed; exit 0 |
 | `pnpm --filter @apps/slax-reader-dweb typecheck` | exit 0 |
 | `pnpm --filter @apps/slax-reader-extensions compile` | exit 0 |
 | `pnpm --filter @slax-reader/contracts typecheck` | exit 0 |
@@ -83,6 +83,16 @@ One valid record and twelve invalid records were posted to the test stream in on
 - Compliance: the implementation matches the proposal, design, and delta spec, which were updated for both fixes. Extension Vue capture is installed for the `pdf-save` page; content-script Vue apps run on third-party pages and are excluded by the design. No Important findings remain.
 
 The automated checks above were re-run after these fixes.
+
+## Pull request review follow-up
+
+The automated PR review reported no Important findings and five Nits, all fixed with tests:
+
+- `app:error` with a nullish error no longer throws while reading `statusCode`.
+- A fatal component error that Nuxt reports through both `vue:error` and `app:error` (wrapped with `cause`) is recorded once.
+- The SDK duplicate-suppression key uses normalized name and message, so distinct non-`Error` payloads stay distinct.
+- Query stripping also covers root-relative URLs such as `/v1/sync/changes?token=…`, and keeps stack `line:column` positions.
+- Page-hide batches reuse the identity resolved by the previous flush.
 
 ## Pull request CI follow-up
 

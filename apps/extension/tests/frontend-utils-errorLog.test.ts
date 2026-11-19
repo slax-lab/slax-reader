@@ -83,8 +83,10 @@ describe('frontend-utils error log collector', () => {
     const [record] = sent[0].body
     expect(record.message).toBe('Failed to fetch https://r.slax.com/b/1 for reading')
     expect(record.stack).not.toMatch(/token|session=|\?v=/)
-    expect(record.stack).toContain('https://r.slax.com/_nuxt/a.js')
-    expect(stripUrlQueries('no urls here')).toBe('no urls here')
+    expect(record.stack).toContain('https://r.slax.com/_nuxt/a.js:1:5')
+    expect(record.stack).toContain('chrome-extension://abcdef/offscreen.html:3:4')
+    expect(stripUrlQueries('GET /v1/sync/changes?token=abc failed')).toBe('GET /v1/sync/changes failed')
+    expect(stripUrlQueries('ratio 3/4? no urls here')).toBe('ratio 3/4? no urls here')
   })
 
   it('bounds message and stack sizes in bytes', async () => {
@@ -128,6 +130,17 @@ describe('frontend-utils error log collector', () => {
     email.collector.capture('error', new Error('a'))
     await email.collector.flush()
     expect(email.sent[0].body[0].user_id).toBeUndefined()
+  })
+
+  it('attributes a hiding flush with the identity resolved by an earlier flush', async () => {
+    const getContext = vi.fn().mockResolvedValue({ userId: 7, deviceId: 'dev-7' })
+    const { collector, sent } = make({ getContext })
+    collector.capture('error', new Error('first'))
+    await collector.flush()
+    collector.capture('error', new Error('on unload'))
+    await collector.flush(true)
+    expect(getContext).toHaveBeenCalledOnce()
+    expect(sent[1]).toMatchObject({ hiding: true, body: [{ message: 'on unload', user_id: '7', device_id: 'dev-7' }] })
   })
 
   it('swallows delivery failures without capturing them', async () => {

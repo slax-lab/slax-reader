@@ -4,6 +4,7 @@ import { requestExtensionBridgeSession } from '~/utils/extensionBridgeSession'
 import { getClientEventHeaders, getUserToken } from '~/utils/request'
 import { getTokenUserId } from '~/utils/sessionOwner'
 
+import { normalizeError } from '@commons/frontend-utils/errorLog'
 import { createPowerSyncPlugin } from '@powersync/vue'
 import { PowerSyncDatabase, type PowerSyncLogger, SyncStreamConnectionMethod } from '@powersync/web'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -49,7 +50,8 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
       else emit(`[PowerSync]: ${message}`)
       if (level < SDK_LOG_ERROR) return
       const captured = error ?? { name: 'PowerSyncLog', message }
-      const key = `${(captured as Error).name}:${(captured as Error).message}`
+      const normalized = normalizeError(captured)
+      const key = `${normalized.name ?? ''}:${normalized.message}`
       const now = Date.now()
       const repeat = key === lastError && now - lastErrorAt < SDK_DUPLICATE_WINDOW_MS
       lastError = key
@@ -269,7 +271,11 @@ export default defineNuxtPlugin({
 
     // A safety net for failures the SDK logger and connector miss; it tags rather than recounts the
     // failures they already counted. Shared-worker status updates clone errors, so compare by name and message.
-    const errorKey = (error: unknown) => (error ? `${(error as Error).name}:${(error as Error).message}` : '')
+    const errorKey = (error: unknown) => {
+      if (!error) return ''
+      const normalized = normalizeError(error)
+      return `${normalized.name ?? ''}:${normalized.message}`
+    }
     let lastDownloadError = ''
     let lastUploadError = ''
     db.registerListener({

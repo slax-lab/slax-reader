@@ -87,6 +87,11 @@ describe('PowerSync error capture', () => {
       logger().log({ level: 50, message: 'Could not POST streaming to /sync/stream - 503', error: failure() })
       const counted = state.capture.mock.calls.map(([, , , options]) => (options as { countOccurrence: boolean }).countOccurrence)
       expect(counted).toEqual([true, false, true])
+      // Distinct non-Error payloads inside the window are separate failures.
+      logger().log({ level: 50, message: 'worker message A', error: 'string payload A' })
+      logger().log({ level: 50, message: 'worker message B', error: { reason: 'payload B' } })
+      const tail = state.capture.mock.calls.slice(-2).map(([, , , options]) => (options as { countOccurrence: boolean }).countOccurrence)
+      expect(tail).toEqual([true, true])
     } finally {
       vi.useRealTimers()
     }

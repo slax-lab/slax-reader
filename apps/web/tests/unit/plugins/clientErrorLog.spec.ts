@@ -58,6 +58,18 @@ describe('client error log plugin', () => {
     expect(records[0].properties).toMatchObject({ status_code: 502, sources: ['app'] })
   })
 
+  it('records a fatal component error once although Nuxt reports it through both hooks', async () => {
+    const collector = await start()
+    const original = new Error('fatal render failure')
+    hooks['vue:error'](original, null, 'render function')
+    hooks['app:error'](Object.assign(new Error('fatal render failure'), { statusCode: 500, cause: original }))
+    hooks['app:error'](original)
+    expect(() => hooks['app:error'](null)).not.toThrow()
+    await collector.flush()
+    const records = state.sent.flat() as Array<Record<string, unknown>>
+    expect(records.filter(record => record.message === 'fatal render failure')).toEqual([expect.objectContaining({ count: 1 })])
+  })
+
   it('stays inert without an endpoint', async () => {
     state.endpoint = ''
     const collector = await start()

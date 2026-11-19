@@ -35,11 +35,11 @@ The fingerprint hashes `kind`, error name, a digit-normalized message, and the f
 
 ### Privacy and noise filtering
 
-Query strings and fragments are removed from every URL inside messages and stacks, because SDK and fetch errors embed request URLs and some application URLs carry tokens. Nuxt errors with 4xx status codes are pages declaring not-found or forbidden routes on purpose and are skipped; 5xx Nuxt errors are recorded with `status_code`.
+Query strings and fragments are removed from absolute and root-relative URLs inside messages and stacks, keeping stack `line:column` positions, because SDK and fetch errors embed request URLs and some application URLs carry tokens. Nuxt errors with 4xx status codes are pages declaring not-found or forbidden routes on purpose and are skipped; 5xx Nuxt errors are recorded with `status_code`.
 
 ### Batching and limits
 
-Flush after 5 seconds of the first queued record, when the queue reaches 20 distinct fingerprints, and on `visibilitychange` to hidden or `pagehide`. Use `fetch` with `keepalive` and a `text/plain` body (no CORS preflight); fall back to `navigator.sendBeacon` when the page is hiding. Cap each page session at 200 distinct fingerprints, message at 16 KiB, stack at 64 KiB, and `properties` at 8 KiB. Delivery errors are swallowed and never captured.
+A page-hide flush cannot await identity during unload, so it reuses the identity resolved by the previous flush. Flush after 5 seconds of the first queued record, when the queue reaches 20 distinct fingerprints, and on `visibilitychange` to hidden or `pagehide`. Use `fetch` with `keepalive` and a `text/plain` body (no CORS preflight); fall back to `navigator.sendBeacon` when the page is hiding. Cap each page session at 200 distinct fingerprints, message at 16 KiB, stack at 64 KiB, and `properties` at 8 KiB. Delivery errors are swallowed and never captured.
 
 ### PowerSync instrumentation
 
