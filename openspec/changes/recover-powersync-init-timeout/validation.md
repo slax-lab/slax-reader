@@ -21,7 +21,7 @@ On 2026-11-19 the human asked, in this task conversation, to fix the intermitten
 - `pnpm web -- typecheck`: passed with synthetic public configuration.
 - ESLint on the four touched source and test files: zero errors and warnings.
 - `pnpm web -- build` with `SLAX_ENV=beta` and synthetic local public configuration: passed for both the base and the final revision. The beta profile keeps console diagnostics; the production profile drops them, but the code paths are identical.
-- `pnpm exec openspec validate --all --strict`: see the final review section.
+- `pnpm exec openspec validate --all --strict`: 160 passed, 0 failed (also enforced by the pre-commit hook).
 
 ## Running environment
 
@@ -55,3 +55,12 @@ Regression scenarios on the final fixed build (6 of 6 passed):
 
 - UI hands-on acceptance: the change has no new visible component or layout. Its user-visible effect is that one navigation after a recovered timeout loads as a full document. Whether that counts as a UI-visible change requiring hands-on acceptance before the pull request is the human's decision; the human asked for the pull request to be opened directly.
 - Version impact: no Extension, CLI, or Mobile code or shared package changes. Only `apps/web` changes. No application version changes are made.
+
+## Local review
+
+Bugs, Security, and Compliance passes per `REVIEW.md` on the final diff.
+
+- Bugs (Important, fixed): the first revision returned Nuxt's `navigateTo(..., { external: true })` from a plain `router.beforeEach` guard. Outside Nuxt middleware that call resolves instead of returning `false`, so Vue Router completed the SPA transition and the old document briefly reached the destination route before unloading. The guard now starts the document load and returns `false`, matching `powersync-public-restore.client.ts`. The unit test asserts the `false` result, and the browser harness confirmed the old document's router reported the navigation as cancelled (`cancelled:/user`), while the base build reached `/user` client-side.
+- Bugs (checked, no change): the retained `ready` promise never rejects, so no unhandled rejection is introduced; the guard removes itself before navigating, so a second navigation cannot trigger another load; `pending` is only produced for `PowerSyncInitializationTimeoutError`, so definite failures still dispose and follow the next-mode path; the development main-thread path never produces `pending`.
+- Security: no new network calls, storage, or dependencies. The new diagnostics log the mode, attempt, duration, visibility state, and destination path only; no token, account identifier, or query string is logged.
+- Compliance: the diff implements every delta scenario in `specs/web-local-sync/spec.md`, and the evidence above exercises each one. No Important findings remain.
