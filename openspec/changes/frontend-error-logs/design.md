@@ -15,7 +15,7 @@ A pre-implementation probe exercised `@powersync/web` 2.4.0 against a real Power
 
 ## Goals / Non-Goals
 
-**Goals:** one record format for both apps, PowerSync coverage across the three sources, bounded client cost, and storage that admits only that format.
+**Goals:** one record format for both apps, PowerSync coverage across its failure sources, bounded client cost, and storage that admits only that format.
 
 **Non-Goals:** recovering the cause of a Worker bootstrap crash that the SDK discards, symbolicating minified stacks, and capturing errors in content scripts running on third-party pages.
 
@@ -27,7 +27,7 @@ The browser posts JSON batches to the stream's public HTTP ingestion endpoint. A
 
 ### Collector in `packages/frontend-utils`
 
-A framework-neutral module exposes `createErrorCollector({ endpoint, app, release, env, getContext })` with `capture(kind, error, properties)`, `flush()`, and an `install(target)` helper for global listeners. Web supplies its identity context. Records are normalized client-side to the same limits the pipeline enforces, so a record the client sends is admitted.
+A framework-neutral module exposes `createErrorCollector({ endpoint, app, release, env, getContext })` with `capture(kind, error, properties)`, `flush()`, and an `installGlobalErrorCapture(collector, target)` helper for global listeners. Web supplies its identity context. Records are normalized client-side to the same limits the pipeline enforces, so a record the client sends is admitted.
 
 ### Fingerprint excludes the capture source
 
@@ -35,7 +35,7 @@ The fingerprint hashes `kind`, error name, the message with digit runs of four o
 
 ### Privacy and noise filtering
 
-Query strings and fragments are removed from absolute and root-relative URLs inside messages and stacks, keeping stack `line:column` positions, without RegExp lookbehind (unsupported before Safari 16.4, while the Web app supports Safari 15.4), because SDK and fetch errors embed request URLs and some application URLs carry tokens. Nuxt errors with 4xx status codes are pages declaring not-found or forbidden routes on purpose and are skipped; 5xx Nuxt errors are recorded with `status_code`.
+Query strings and fragments are removed from absolute, protocol-relative, and root-relative URLs inside messages and stacks, including Safari and Firefox `fn@url:line:col` frames, keeping stack `line:column` positions, without RegExp lookbehind (unsupported before Safari 16.4, while the Web app supports Safari 15.4), because SDK and fetch errors embed request URLs and some application URLs carry tokens. Nuxt errors with 4xx status codes are pages declaring not-found or forbidden routes on purpose and are skipped; 5xx Nuxt errors are recorded with `status_code`. Share (`/s/<code>`) and collection (`/c/<code>`) codes grant read access to their content, so `page_url` replaces them with `:code` (and a collection member id with `:id`); the route shape is enough to locate the failing page.
 
 ### One call frame, not the full stack
 
@@ -47,7 +47,7 @@ A page-hide flush cannot await identity during unload, so it reuses the identity
 
 ### PowerSync instrumentation
 
-In `powersync.client.ts`: pass a `logger` that hands every record to the SDK's own `createConsoleLogger()`, so console output is identical, and additionally records level-50 records; register a status listener that captures a new `downloadError` or `uploadError` only when its identity changes; capture `onError` and `unavailable` recovery events, `connect`, `disconnectAndClear`, and lifecycle failures. Behavior and log messages already emitted stay unchanged.
+In `powersync.client.ts`: pass a `logger` that hands every record to the SDK's own `createConsoleLogger()`, so console output is identical, and additionally records level-50 records; register a status listener that tags a new `downloadError` or `uploadError` only when its identity changes, without counting it again; count rejected uploads through the connector's `onError`, since the SDK logs them only at debug level; capture `onError` and `unavailable` recovery events, `connect`, `disconnectAndClear`, and lifecycle failures. Behavior and log messages already emitted stay unchanged.
 
 ### Configuration
 

@@ -66,7 +66,7 @@ The Web app SHALL record PowerSync failures with `kind=powersync` from SDK downl
 
 ### Requirement: Normalize, group, and deliver records
 
-Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `fingerprint`, `count`, `message`, and `session_id`, and MAY contain `error_name`, `stack`, `page_url`, `user_id`, `device_id`, `ua`, and `properties`. `stack` SHALL hold only the first call frame of the error's stack, never the full stack. `page_url` SHALL contain only the origin and path, and URLs inside `message` and `stack` SHALL have their query strings and fragments removed. Repeated errors with the same fingerprint SHALL be delivered as one record per flush with an occurrence count. Records SHALL be delivered in batches, including when the page is hidden or unloaded, and SHALL be bounded in size and number per page session. Delivery SHALL be best effort: a failure to deliver SHALL NOT throw, retry indefinitely, or change application behavior, and the collector SHALL NOT record errors caused by its own delivery.
+Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `fingerprint`, `count`, `message`, and `session_id`, and MAY contain `error_name`, `stack`, `page_url`, `user_id`, `device_id`, `ua`, and `properties`. `stack` SHALL hold only the first call frame of the error's stack, never the full stack. `page_url` SHALL contain only the origin and path, with share and collection codes in the path replaced by placeholders, and URLs inside `message` and `stack` SHALL have their query strings and fragments removed, including in `fn@url:line:col` frames. Repeated errors with the same fingerprint SHALL be delivered as one record per flush with an occurrence count. Records SHALL be delivered in batches, including when the page is hidden or unloaded, and SHALL be bounded in size and number per page session. Delivery SHALL be best effort: a failure to deliver SHALL NOT throw, retry indefinitely, or change application behavior, and the collector SHALL NOT record errors caused by its own delivery.
 
 #### Scenario: The same error fires many times
 
@@ -77,6 +77,11 @@ Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `finge
 
 - **WHEN** an error occurs on a page whose URL has query parameters
 - **THEN** the record's `page_url` omits the query and fragment
+
+#### Scenario: An error occurs on a share or collection page
+
+- **WHEN** an error occurs on `/s/<share code>` or `/c/<collection code>/<member id>`
+- **THEN** the record's `page_url` path is `/s/:code` or `/c/:code/:id`, without the code that grants access
 
 #### Scenario: An error message embeds a URL with a token
 

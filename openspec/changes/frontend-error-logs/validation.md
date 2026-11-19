@@ -154,6 +154,15 @@ Afterwards, and again after the follow-up: `pnpm web -- test` 3191 passed, 3 ski
 
 The test stream's CORS list now holds only `https://r.slax.dev`: the dashboard shows that single origin, and a preflight from `http://localhost:3000` or `http://localhost:3100` returns no `Access-Control-Allow-Origin`, while one from `https://r.slax.dev` does.
 
+## Security review on b23bedef
+
+The automated review raised two Important Security findings, both reproduced before fixing:
+
+- Queries survived in Safari and Firefox frames (`fetchStreamRaw@https://r.slax.com/_nuxt/a.js?v=1:12:3`), in bracketed or braced URLs, after `:` or `-`, and in protocol-relative URLs, because an absolute URL had to follow one of a few lead characters. Absolute URLs now match wherever they start; protocol-relative and root-relative paths still need a delimiter before them, so prose such as `and/or? maybe` is unchanged. Ten new cases pass alongside the existing ones, a Safari-format stack yields `fetchStreamRaw@https://r.slax.com/_nuxt/w.js:12:3`, the pattern still has no lookbehind or `v` flag, and 20,000-character adversarial inputs finish in under 1 ms.
+- `page_url` kept share codes (`/s/<code>`) and collection codes (`/c/<code>/<id>`), which grant read access to their content. The path is now recorded as `/s/:code`, `/c/:code`, or `/c/:code/:id`; other paths are unchanged. The production pipeline's `page_url` check (`^(https://(r\.slax\.com|r-beta\.slax\.com))(/[^?#]*)?$`, read back with `wrangler pipelines get`) admits these paths.
+
+The review's Compliance Nits were also addressed: `design.md` now names the connector's upload `onError` as a counting source and the `installGlobalErrorCapture` helper, and the spec states the path redaction with a scenario. Related tests: 149 passed, 2 skipped. `pnpm web -- test`: 3193 passed, 3 skipped, and the known `useSlaxRoutes.spec.ts` timeout, which passed 3 of 3 reruns; Web `typecheck`, lint on the changed test file, and `openspec validate --all --strict` pass.
+
 ## Cleanup
 
 The PowerSync test container, its replication slot and storage database, the local stub, proxy, and Pages server were removed. The existing `dev-powersync` service and its replication slot were unchanged.

@@ -88,6 +88,42 @@ describe('frontend-utils error log collector', () => {
     expect(stripUrlQueries('ratio 3/4? no urls here')).toBe('ratio 3/4? no urls here')
   })
 
+  it('removes queries from Safari and Firefox frames, bracketed URLs, and protocol-relative URLs', () => {
+    const cases: Array<[string, string]> = [
+      ['fetchStreamRaw@https://r.slax.com/_nuxt/a.js?v=1:12:3', 'fetchStreamRaw@https://r.slax.com/_nuxt/a.js:12:3'],
+      ['@https://r.slax.com/_nuxt/a.js?v=1#x:12:3', '@https://r.slax.com/_nuxt/a.js:12:3'],
+      ['Failed [https://r.slax.com/a?token=1]', 'Failed [https://r.slax.com/a]'],
+      ['{"url":"https://r.slax.com/a?token=1"}', '{"url":"https://r.slax.com/a"}'],
+      ['x:https://r.slax.com/a?token=1', 'x:https://r.slax.com/a'],
+      ['load-https://r.slax.com/a?token=1', 'load-https://r.slax.com/a'],
+      ['see //r.slax.com/a?token=1 now', 'see //r.slax.com/a now'],
+      ['fn@/_nuxt/a.js?v=1:2:3', 'fn@/_nuxt/a.js:2:3'],
+      ['[/v1/sync/changes?token=abc]', '[/v1/sync/changes]'],
+      ['and/or? maybe', 'and/or? maybe']
+    ]
+    for (const [input, expected] of cases) expect(stripUrlQueries(input)).toBe(expected)
+    const safari = Object.assign(new Error('boom'), { stack: 'fetchStreamRaw@https://r.slax.com/_nuxt/w.js?v=1:12:3\nother@https://r.slax.com/_nuxt/x.js?v=1:1:1' })
+    expect(firstFrame(normalizeError(safari).stack)).toBe('fetchStreamRaw@https://r.slax.com/_nuxt/w.js:12:3')
+  })
+
+  it('keeps only the route shape of share and collection pages in page_url', async () => {
+    const urls: Array<[string, string]> = [
+      ['https://r.slax.com/s/2kZx9abc1234?ref=x', 'https://r.slax.com/s/:code'],
+      ['https://r.slax.com/c/K8q2z/', 'https://r.slax.com/c/:code/'],
+      ['https://r.slax.com/c/K8q2z', 'https://r.slax.com/c/:code'],
+      ['https://r.slax.com/c/K8q2z/42', 'https://r.slax.com/c/:code/:id'],
+      ['https://r.slax.com/b/123', 'https://r.slax.com/b/123'],
+      ['https://r.slax.com/bookmarks', 'https://r.slax.com/bookmarks'],
+      ['https://r.slax.com/collection/manage', 'https://r.slax.com/collection/manage']
+    ]
+    for (const [pageUrl, expected] of urls) {
+      const { collector, sent } = make({ pageUrl: () => pageUrl })
+      collector.capture('error', new Error(`x ${pageUrl}`))
+      await collector.flush()
+      expect(sent[0].body[0].page_url).toBe(expected)
+    }
+  })
+
   it('bounds the message in bytes and keeps only the first call frame of the stack', async () => {
     const { collector, sent } = make()
     const error = new Error('é'.repeat(20000))

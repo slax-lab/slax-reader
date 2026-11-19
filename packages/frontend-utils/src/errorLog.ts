@@ -88,14 +88,29 @@ export const stripUrl = (value: string | undefined | null): string | undefined =
   }
 }
 
+// Share and collection codes in a page path grant read access to their content, so records keep
+// only the route shape: `/s/<code>` becomes `/s/:code`, `/c/<code>/<id>` becomes `/c/:code/:id`.
+const pagePathForRecord = (path: string): string =>
+  path.replace(/^\/s\/[^/]+/, '/s/:code').replace(/^\/c\/[^/]+(\/[^/]+)?/, (_match, member?: string) => (member ? '/c/:code/:id' : '/c/:code'))
+
+/** The page URL without its query, fragment, or the share and collection codes in its path. */
+export const pageUrlForRecord = (value: string | undefined | null): string | undefined => {
+  const stripped = stripUrl(value)
+  if (!stripped) return undefined
+  const url = new URL(stripped)
+  return `${url.protocol}//${url.host}${pagePathForRecord(url.pathname)}`
+}
+
 // URLs inside messages and stacks keep origin and path; query strings and fragments may carry tokens.
-// Covers absolute URLs and root-relative paths such as `/v1/sync/changes?token=…`.
-// A trailing `:line:col` after the query belongs to a stack frame and is kept.
-// No lookbehind: Safari before 16.4 cannot parse it, and the Web app supports Safari 15.4.
-// A root-relative path must start the text or follow a character that cannot precede a URL path.
-const URL_QUERY_PATTERN = /(^|[\s"'<>(=,])((?:(?:https?|chrome-extension):\/\/[^\s"'<>()?#]+|\/[^\s"'<>()?#/][^\s"'<>()?#]*))[?#][^\s"'<>()]*?((?::\d+){1,2})?(?=[\s"'<>()]|$)/g
+// Absolute URLs match wherever they start, so Safari and Firefox frames (`fn@https://…?v=1:2:3`)
+// and bracketed URLs are covered. Protocol-relative (`//host/a?…`) and root-relative
+// (`/v1/sync/changes?token=…`) paths must start the text or follow a delimiter, so prose
+// containing a slash is not rewritten. A trailing `:line:col` after the query belongs to a stack
+// frame and is kept. No lookbehind: Safari before 16.4 cannot parse it, and the Web app supports Safari 15.4.
+const URL_QUERY_PATTERN =
+  /(?:((?:https?|chrome-extension):\/\/[^\s"'<>()[\]{}?#]+)|(^|[\s"'<>()[\]{}=,@:])(\/\/?[^\s"'<>()[\]{}?#/][^\s"'<>()[\]{}?#]*))[?#][^\s"'<>()[\]{}]*?((?::\d+){1,2})?(?=[\s"'<>()[\]{}]|$)/g
 export const stripUrlQueries = (text: string): string =>
-  text.replace(URL_QUERY_PATTERN, (_match, lead: string, url: string, position?: string) => lead + url + (position ?? ''))
+  text.replace(URL_QUERY_PATTERN, (_match, absolute?: string, lead?: string, relative?: string, position?: string) => (absolute ?? `${lead ?? ''}${relative ?? ''}`) + (position ?? ''))
 
 const fnv1a = (input: string): string => {
   let a = 0x811c9dc5
@@ -310,7 +325,7 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
         seen.add(fingerprint)
       }
       if (!counts) provisional.add(fingerprint)
-      const pageUrl = stripUrl(options.pageUrl ? options.pageUrl() : typeof location !== 'undefined' ? location.href : undefined)
+      const pageUrl = pageUrlForRecord(options.pageUrl ? options.pageUrl() : typeof location !== 'undefined' ? location.href : undefined)
       const { source: _source, ...rest } = properties
       const ua = typeof navigator !== 'undefined' ? navigator.userAgent : undefined
       queue.set(fingerprint, {
