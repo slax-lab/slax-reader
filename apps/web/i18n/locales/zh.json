@@ -60,7 +60,12 @@
     "too_many_requests": "请求过于频繁，请稍后再试。",
     "stale_session": "登录状态已变更或过期。请重新加载账号设置后再试。",
     "back_to_sign_in": "返回登录",
-    "back_to_settings": "返回账号设置"
+    "back_to_settings": "返回账号设置",
+    "signing_in_link": "正在登录",
+    "sign_in_link_active_title": "你已登录",
+    "sign_in_link_active": "已保留当前账号。如需使用此邮件链接，请先退出账号，再重新打开邮件中的链接。",
+    "sign_in_link_keep_account": "继续使用当前账号",
+    "sign_in_link_failed": "链接无效、已过期或已使用。请返回登录页面重新发送邮件。"
   },
   "bookmark_fork": {
     "action": "收藏本篇",

@@ -11,7 +11,7 @@ import {readArticleBody} from './bounded-body.ts';
 import {PDF_MAX_BYTES} from '@slax-reader/contracts/pdf';
 import {RESTMethodPath} from '@slax-reader/contracts/const';
 import {DELETE_PASSKEY_SETTING, type PasskeyAuthenticationChallenge, type PasskeyRegistrationChallenge, type PasskeyInfo, type PasskeyDeleteResponse, type PasskeyLoginRequest, type PasskeyRegistrationInput} from '@slax-reader/contracts/passkey';
-import {BIND_LOGIN_IDENTITY_SETTING, type EmailAuthProviderChallenge, type EmailCodeChallenge, type EmailCodeInput} from '@slax-reader/contracts/email-auth';
+import {BIND_LOGIN_IDENTITY_SETTING, type EmailAuthProviderChallenge, type EmailCodeChallenge, type EmailCodeInput, type EmailLinkInput} from '@slax-reader/contracts/email-auth';
 import {DataTransportError, isNetworkTransportError, httpErrorCode, retryAfterMs, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS, PDF_RETRY_DELAYS_MS, type DataErrorStage, type DataErrorCode} from './transport-errors.ts';
 export {DataTransportError, isNetworkTransportError, getDataErrorDiagnostic, PDF_REQUEST_TIMEOUT_MS, PDF_REQUEST_MAX_ATTEMPTS} from './transport-errors.ts';
 
@@ -281,6 +281,15 @@ export class SlaxApi {
   }
   verifyLoginEmail = async (body: EmailCodeInput, signal?: AbortSignal) => {
     const result = await this.request<LoginResponse>(RESTMethodPath.LOGIN, 'POST', {...body, type: 'email'}, undefined, signal, {
+      access: 'public', retryable: false, abortable: true, deviceId: true, accountDiagnostic: {},
+    });
+    if (typeof result?.token !== 'string' || !result.token || typeof result.user_id !== 'string' || !result.user_id) {
+      throw new ApiError(502, 'Invalid email login session response');
+    }
+    return result;
+  };
+  verifyLoginEmailLink = async (body: EmailLinkInput, signal?: AbortSignal) => {
+    const result = await this.request<LoginResponse>(RESTMethodPath.LOGIN, 'POST', {...body, type: 'email_link'}, undefined, signal, {
       access: 'public', retryable: false, abortable: true, deviceId: true, accountDiagnostic: {},
     });
     if (typeof result?.token !== 'string' || !result.token || typeof result.user_id !== 'string' || !result.user_id) {

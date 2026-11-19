@@ -319,20 +319,20 @@ async function main() {
       }
     }, 'authenticated Core database ready')
     if (emailRedis) {
-      const authCall = async (path: string, body?: object, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
+      const authCall = async (path: string, body?: object, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev', deviceId = 'email-http-smoke') => {
         const response = await localFetch(`http://localhost:${httpPort}${path}`, {
           method: body ? 'POST' : 'GET',
           headers: {
             'Content-Type': 'application/json',
             'X-Fixture-Email-Run-Type': runType,
-            'X-Device-ID': 'email-http-smoke',
+            'X-Device-ID': deviceId,
             ...(bearer ? { Authorization: `Bearer ${bearer}` } : {})
           },
           body: body ? JSON.stringify(body) : undefined
         })
         return response.json() as Promise<{ code: number; data: any }>
       }
-      const prove = async (purpose: 'login' | 'bind', email: string, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
+      const prove = async (purpose: 'login' | 'bind', email: string, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev', deviceId = 'email-http-smoke') => {
         const sent = await authCall('/v1/user/email/send', { email, purpose }, bearer, runType)
         assert.equal(sent.code, 200, JSON.stringify(sent))
         const { request_id } = sent.data
@@ -389,6 +389,31 @@ async function main() {
       assert.equal(fresh.data.is_new_user, true)
       const freshInfo = (await authCall(userInfo, undefined, fresh.data.token)).data
       assert.equal(freshInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, 'new-reader@smoke.invalid')
+      const linkCall = (path: string, body?: object, bearer?: string) => authCall(path, body, bearer, 'dev', 'email-link-http-smoke')
+      for (const first of ['link', 'code']) {
+        const email = `link-${first}@smoke.invalid`
+        const sent = await linkCall('/v1/user/email/send', { email })
+        assert.equal(sent.code, 200)
+        assert.deepEqual(Object.keys(sent.data).sort(), ['expires_in', 'request_id', 'resend_after'])
+        const messageResponse = await localFetch(`http://localhost:${httpPort}/__fixture/email-message?id=${sent.data.request_id}`, { headers: { Authorization: `Bearer ${token}` } })
+        const message = (await messageResponse.json()) as { code: string; link: string }
+        const url = new URL(message.link)
+        assert.equal(url.origin, vars.FRONT_END_URL)
+        assert.equal(url.pathname, '/email-login')
+        assert.equal(url.search, '')
+        const params = new URLSearchParams(url.hash.slice(1))
+        const linkProof = { type: 'email_link', email, request_id: sent.data.request_id, token: params.get('token') }
+        const codeProof = { type: 'email', email, request_id: sent.data.request_id, code: message.code }
+        const result = await linkCall('/v1/user/login', first === 'link' ? linkProof : codeProof)
+        assert.equal(result.code, 200, JSON.stringify(result))
+        assert.equal(result.data.login_type, 'email')
+        const info = await linkCall('/v1/user/userinfo', undefined, result.data.token)
+        assert.equal(info.data.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, email)
+        const replay = await linkCall('/v1/user/login', first === 'link' ? codeProof : linkProof)
+        assert.notEqual(replay.code, 200)
+      }
+      evidence.emailLinks =
+        'real Core HTTP/DI/PostgreSQL/Redis: normalized fragment mail, /login email_link account creation and mail binding, OTP/link mutual consumption, unchanged send response; Resend is a local capture adapter'
       const internalEmail = 'Internal-Reader@INTERNAL.INVALID'
       const internalSent = await authCall('/v1/user/email/send', {
         email: internalEmail
@@ -413,7 +438,20 @@ async function main() {
       const internalInfo = (await authCall(userInfo, undefined, internalLogin.data.token)).data
       assert.equal(internalInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, internalEmail)
       assert.equal((await authCall('/v1/user/login', internalProof)).data, 'EMAIL_VERIFY_CODE_ERROR')
-      evidence.internalEmailLogin = 'code read from Worker logs; no provider delivery; existing login and verified binding succeeded; replay rejected'
+      const internalLinkEmail = 'internal-link@internal.invalid'
+      const internalLinkSent = await authCall('/v1/user/email/send', { email: internalLinkEmail }, undefined, 'beta')
+      assert.equal(internalLinkSent.code, 200)
+      const internalLinkPattern = /\[Email login\] email=internal-link@internal\.invalid code=(\d{6}) link=(\S+)/
+      await poll(() => internalLinkPattern.test(workerLog), 'internal login link in Worker logs')
+      const internalLink = internalLinkPattern.exec(workerLog)!
+      const internalParams = new URLSearchParams(new URL(internalLink[2]).hash.slice(1))
+      const internalLinkProof = { type: 'email_link', email: internalParams.get('email'), request_id: internalParams.get('request_id'), token: internalParams.get('token') }
+      const internalLinkLogin = await authCall('/v1/user/login', internalLinkProof, undefined, 'beta')
+      assert.equal(internalLinkLogin.code, 200)
+      assert.equal((await authCall('/v1/user/login', internalLinkProof, undefined, 'beta')).data, 'EMAIL_VERIFY_CODE_ERROR')
+      const internalCodeProof = { type: 'email', email: internalLinkEmail, request_id: internalLinkSent.data.request_id, code: internalLink[1] }
+      assert.equal((await authCall('/v1/user/login', internalCodeProof, undefined, 'beta')).data, 'EMAIL_VERIFY_CODE_ERROR')
+      evidence.internalEmailLogin = 'code and link read from Worker logs; no provider delivery; existing login/binding succeeded; link replay and consumed code rejected'
       evidence.passkeys = await exercisePasskeys(authCall, query => resources.sql(pg.id, 'http_reader', query), token, ownerToken, vars.FRONT_END_URL)
       evidence.emailAuthentication =
         'binding API works in dev, beta, and prod; user information returns login methods through the platform list; legacy sign-in guidance, existing-account login, and new-account session'

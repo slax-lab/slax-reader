@@ -62,7 +62,7 @@ const config: ExpoConfig = {
     ...(firebaseIosConfig ? {googleServicesFile: firebaseIosConfig} : {}),
     buildNumber: buildVersion.build,
     supportsTablet: true,
-    associatedDomains: fixtureMode ? [] : passkeyWebUrls.map(url => `webcredentials:${new URL(url).hostname}`),
+    associatedDomains: fixtureMode ? [] : passkeyWebUrls.flatMap(url => [`webcredentials:${new URL(url).hostname}`, `applinks:${new URL(url).hostname}`]),
     entitlements: uiFixture ? {} : { 'com.apple.security.application-groups': ['group.app.slax.reader'] },
     infoPlist: { ITSAppUsesNonExemptEncryption: false, FirebaseAutomaticScreenReportingEnabled: false,
       SlaxApiBaseURL: process.env.EXPO_PUBLIC_SLAX_API_URL ?? 'https://api-reader.slax.com',
@@ -75,6 +75,7 @@ const config: ExpoConfig = {
     package: uiFixture ? fixtureAndroidId : 'com.slax.reader',
     ...(firebaseAndroidConfig ? {googleServicesFile: firebaseAndroidConfig} : {}),
     versionCode: Number(buildVersion.build),
+    intentFilters: fixtureMode ? [] : passkeyWebUrls.map(url => ({action: 'VIEW', autoVerify: true, category: ['BROWSABLE', 'DEFAULT'], data: [{scheme: 'https', host: new URL(url).hostname, path: '/email-login'}]})),
     predictiveBackGestureEnabled: true,
     // expo-sensors declares ACTIVITY_RECOGNITION for its Pedometer/DeviceMotion
     // modules; the app only reads the accelerometer, so drop the permission and

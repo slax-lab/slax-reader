@@ -51,7 +51,13 @@ import {
   type WebAuthAttribution
 } from '@slax-reader/contracts/events'
 import { z } from 'zod'
-import { BIND_LOGIN_IDENTITY_SETTING, type EmailAuthClientPlatform, type EmailAuthProvider, type EmailLoginRequest } from '@slax-reader/contracts/email-auth'
+import {
+  BIND_LOGIN_IDENTITY_SETTING,
+  type EmailAuthClientPlatform,
+  type EmailAuthProvider,
+  type EmailLoginRequest,
+  type EmailLinkLoginRequest
+} from '@slax-reader/contracts/email-auth'
 import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
 import { EmailCodeService, type EmailCodeSendContext } from './emailCode'
 import { LoginIdentityService } from './loginIdentityService'
@@ -190,7 +196,7 @@ export interface userLoginReq {
   siteverify_code?: string
 }
 
-type UserLoginRequest = userLoginReq | EmailLoginRequest | PasskeyLoginRequest
+type UserLoginRequest = userLoginReq | EmailLoginRequest | EmailLinkLoginRequest | PasskeyLoginRequest
 
 export enum SubscriptionType {
   NO_SUBSCRIPTION = 0,
@@ -702,8 +708,8 @@ export class UserService {
       const result = await this.completeLogin(ctx, request, user, false, 'passkey')
       return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(req.auth_attribution).data)
     }
-    if (req.type === 'email') {
-      const { key, delivery } = await this.emailCodes.verifyCode(ctx.env, { ...req, purpose: 'login' })
+    if (req.type === 'email' || req.type === 'email_link') {
+      const { key, delivery } = req.type === 'email_link' ? await this.emailCodes.verifyLink(ctx.env, req) : await this.emailCodes.verifyCode(ctx.env, { ...req, purpose: 'login' })
       const result = await this.loginByVerifiedEmail(ctx, request, key, delivery)
       return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(req.auth_attribution).data)
     }

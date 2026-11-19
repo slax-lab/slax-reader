@@ -17,10 +17,10 @@ import {emailAuthError} from '../auth/email-auth-errors';
 import {nativePasskeys} from '../native/passkeys';
 import {useEmailLogin} from '../auth/useEmailLogin';
 
-type LoginMethod = LoginProvider | 'email';
+type LoginMethod = LoginProvider | 'email' | 'email_link';
 
 export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) {
-  const {api, sessions, runtime, t, locale, config, fixtureOnly} = useMobile();
+  const {api, sessions, runtime, t, locale, config, fixtureOnly, emailLink} = useMobile();
   const telemetry = useTelemetry();
   const {width, height} = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -81,6 +81,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
     setAgreementId(id); setAgreement(tab);
   }
   function proceed(method: LoginMethod, allowed = sessionGuard()) {
+    if (method === 'email_link') {if (allowed()) void emailLink?.confirm(); return;}
     if (method !== 'email') {
       void login(method, allowed);
       return;
@@ -92,7 +93,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
     if (!agreed) openAgreement(method === 'apple' ? 'privacy' : 'terms', method);
     else proceed(method);
   }
-  function dismissAgreement() {if (pending.current && pending.current.id !== agreementId) return; pending.current = null; setAgreement(null);}
+  function dismissAgreement() {if (pending.current && pending.current.id !== agreementId) return; if (pending.current?.method === 'email_link') emailLink?.dismiss(); pending.current = null; setAgreement(null);}
   function agreementDidDismiss() {
     const intent = pending.current;
     if (!intent || intent.id !== agreementId || !intent.accepted) return;
@@ -107,6 +108,15 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
     if (Platform.OS !== 'ios') agreementDidDismiss();
   }
   useEffect(() => {
+    if (emailLink?.state.status !== 'agreement') {
+      if (pending.current?.method === 'email_link') {pending.current = null; setAgreement(null);}
+      return;
+    }
+    if (email.flow && email.close() === false) {emailLink.dismiss(); return;}
+    if (agreed) void emailLink.confirm();
+    else openAgreement('terms', 'email_link');
+  }, [emailLink?.state]);
+  useEffect(() => {
     if (!__DEV__ || !fixtureOnly) return;
     return fixtureActions.subscribe('login', action => {
       if (action.kind === 'begin-login') {
@@ -120,7 +130,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
       return false;
     });
   }, [fixtureOnly, agreement, loading, agreed]);
-  const button = (method: LoginMethod) => <Pressable
+  const button = (method: LoginProvider | 'email') => <Pressable
     accessibilityRole="button" accessibilityLabel={t(`login_${method}`)}
     testID={`${mobileTestIds.LoginButton}_${method}`} disabled={Boolean(loading || email.flow)}
     onPress={() => begin(method)} style={({pressed}) => [styles.provider, {width: Math.min(width - 80, L.loginButtonMaximumWidth)}, method !== 'google' && {marginTop: 10}, method === 'email' && styles.emailEntry, pressed && {backgroundColor: C.pressedOverlay}]}>
