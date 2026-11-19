@@ -1,5 +1,5 @@
 import type { ClientErrorRecord } from '@commons/frontend-utils/errorLog'
-import { createErrorCollector, errorFingerprint, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
+import { createErrorCollector, errorFingerprint, firstFrame, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const endpoint = 'https://stream.ingest.invalid'
@@ -82,23 +82,31 @@ describe('frontend-utils error log collector', () => {
     await collector.flush()
     const [record] = sent[0].body
     expect(record.message).toBe('Failed to fetch https://r.slax.com/b/1 for reading')
-    expect(record.stack).not.toMatch(/token|session=|\?v=/)
-    expect(record.stack).toContain('https://r.slax.com/_nuxt/a.js:1:5')
-    expect(record.stack).toContain('chrome-extension://abcdef/offscreen.html:3:4')
+    expect(record.stack).toBe('at f (https://r.slax.com/_nuxt/a.js:1:5)')
+    expect(normalizeError(error).stack).toContain('chrome-extension://abcdef/offscreen.html:3:4')
     expect(stripUrlQueries('GET /v1/sync/changes?token=abc failed')).toBe('GET /v1/sync/changes failed')
     expect(stripUrlQueries('ratio 3/4? no urls here')).toBe('ratio 3/4? no urls here')
   })
 
-  it('bounds message and stack sizes in bytes', async () => {
+  it('bounds the message in bytes and keeps only the first call frame of the stack', async () => {
     const { collector, sent } = make()
     const error = new Error('é'.repeat(20000))
-    error.stack = 'x'.repeat(100000)
+    error.stack = `Error: ${'é'.repeat(20)}\n    at deep${'x'.repeat(2000)} (https://r.slax.com/a.js:1:2)\n    at second (https://r.slax.com/b.js:3:4)`
     collector.capture('error', error)
     await collector.flush()
     const [record] = sent[0].body
     expect(new TextEncoder().encode(record.message).length).toBeLessThanOrEqual(16 * 1024)
-    expect(record.stack?.length).toBe(64 * 1024)
+    expect(record.stack?.startsWith('at deepx')).toBe(true)
+    expect(new TextEncoder().encode(record.stack ?? '').length).toBeLessThanOrEqual(512)
+    expect(record.stack).not.toContain('second')
     expect(truncateBytes('abc', 2)).toBe('ab')
+  })
+
+  it('picks the first real frame in V8 and Firefox stacks, never a message line', () => {
+    expect(firstFrame('TypeError: failed for user@example.com\n    at upload (https://r.slax.com/_nuxt/x.js:10:2)\n    at run (y.js:1:1)')).toBe('at upload (https://r.slax.com/_nuxt/x.js:10:2)')
+    expect(firstFrame('upload@https://r.slax.com/_nuxt/x.js:10:2\nrun@y.js:1:1')).toBe('upload@https://r.slax.com/_nuxt/x.js:10:2')
+    expect(firstFrame('Error: only a message')).toBeUndefined()
+    expect(firstFrame(undefined)).toBeUndefined()
   })
 
   it('caps distinct fingerprints per session at 200', async () => {

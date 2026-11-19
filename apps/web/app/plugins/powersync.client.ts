@@ -6,7 +6,7 @@ import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { normalizeError } from '@commons/frontend-utils/errorLog'
 import { createPowerSyncPlugin } from '@powersync/vue'
-import { PowerSyncDatabase, type PowerSyncLogger, SyncStreamConnectionMethod } from '@powersync/web'
+import { createConsoleLogger, LogLevels, PowerSyncDatabase, type PowerSyncLogger, SyncStreamConnectionMethod } from '@powersync/web'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
 import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
@@ -29,26 +29,21 @@ const errorLog = () => useClientErrorLog()
 const capturePowerSyncError = (source: string, error: unknown, properties: Record<string, unknown> = {}, countOccurrence = true) =>
   errorLog().capture('powersync', error ?? { name: 'PowerSyncError', message: source }, { source, ...properties }, { countOccurrence })
 
-// PowerSync SDK log levels (`LogLevels` in @powersync/common).
-const SDK_LOG_INFO = 30
-const SDK_LOG_WARN = 40
-const SDK_LOG_ERROR = 50
-
 // The SDK logs one sync failure twice ("Could not POST streaming…", then "Sync error") within
 // milliseconds; its retries are seconds apart, so a short window separates repeats from retries.
 const SDK_DUPLICATE_WINDOW_MS = 1000
 
-// Matches the SDK's default console logger and also records error-level messages, which include worker crashes.
+// Keeps the SDK's default console logger unchanged and also records its error-level messages,
+// which include worker crashes.
 const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
+  const consoleLogger = createConsoleLogger()
   let lastError = ''
   let lastErrorAt = 0
   return {
-    log({ level, message, error }) {
-      if (level < SDK_LOG_INFO) return
-      const emit = level >= SDK_LOG_ERROR ? powerSyncConsole.error : level >= SDK_LOG_WARN ? powerSyncConsole.warn : powerSyncConsole.info
-      if (error) emit(`[PowerSync]: ${message}`, error)
-      else emit(`[PowerSync]: ${message}`)
-      if (level < SDK_LOG_ERROR) return
+    log(record) {
+      consoleLogger.log(record)
+      const { level, message, error } = record
+      if (level < LogLevels.error) return
       const captured = error ?? { name: 'PowerSyncLog', message }
       const normalized = normalizeError(captured)
       const key = `${normalized.name ?? ''}:${normalized.message}`
@@ -56,7 +51,7 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
       const repeat = key === lastError && now - lastErrorAt < SDK_DUPLICATE_WINDOW_MS
       lastError = key
       lastErrorAt = now
-      capturePowerSyncError('sdk.logger', captured, { worker_mode: mode, sdk_message: message }, !repeat)
+      capturePowerSyncError('sdk.logger', captured, { worker_mode: mode }, !repeat)
     }
   }
 }

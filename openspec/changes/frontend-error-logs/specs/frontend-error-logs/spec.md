@@ -13,7 +13,7 @@ The Web app SHALL capture uncaught errors, unhandled promise rejections, Vue app
 #### Scenario: An uncaught exception occurs on a Web page
 
 - **WHEN** a Web page throws an uncaught `TypeError`
-- **THEN** a record with `kind=error`, the error name, message, and stack is queued for delivery
+- **THEN** a record with `kind=error`, the error name, message, and first call frame is queued for delivery
 
 #### Scenario: A script chunk fails to load
 
@@ -66,7 +66,7 @@ The Web app SHALL record PowerSync failures with `kind=powersync` from SDK downl
 
 ### Requirement: Normalize, group, and deliver records
 
-Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `fingerprint`, `count`, `message`, and `session_id`, and MAY contain `error_name`, `stack`, `page_url`, `user_id`, `device_id`, `ua`, and `properties`. `page_url` SHALL contain only the origin and path, and URLs inside `message` and `stack` SHALL have their query strings and fragments removed. Repeated errors with the same fingerprint SHALL be delivered as one record per flush with an occurrence count. Records SHALL be delivered in batches, including when the page is hidden or unloaded, and SHALL be bounded in size and number per page session. Delivery SHALL be best effort: a failure to deliver SHALL NOT throw, retry indefinitely, or change application behavior, and the collector SHALL NOT record errors caused by its own delivery.
+Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `fingerprint`, `count`, `message`, and `session_id`, and MAY contain `error_name`, `stack`, `page_url`, `user_id`, `device_id`, `ua`, and `properties`. `stack` SHALL hold only the first call frame of the error's stack, never the full stack. `page_url` SHALL contain only the origin and path, and URLs inside `message` and `stack` SHALL have their query strings and fragments removed. Repeated errors with the same fingerprint SHALL be delivered as one record per flush with an occurrence count. Records SHALL be delivered in batches, including when the page is hidden or unloaded, and SHALL be bounded in size and number per page session. Delivery SHALL be best effort: a failure to deliver SHALL NOT throw, retry indefinitely, or change application behavior, and the collector SHALL NOT record errors caused by its own delivery.
 
 #### Scenario: The same error fires many times
 
@@ -81,7 +81,12 @@ Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `finge
 #### Scenario: An error message embeds a URL with a token
 
 - **WHEN** an error message or stack contains a URL with query parameters
-- **THEN** the recorded message and stack keep the URL's origin and path and omit its query and fragment
+- **THEN** the recorded message and frame keep the URL's origin and path and omit its query and fragment
+
+#### Scenario: An error has a deep stack
+
+- **WHEN** an error with a multi-frame stack is captured
+- **THEN** the record's `stack` holds only the first call frame, bounded in size
 
 #### Scenario: The visitor closes the tab
 

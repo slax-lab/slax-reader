@@ -27,7 +27,7 @@ Run on the final diff with Node `v22.23.1`.
 
 | Command | Result |
 | --- | --- |
-| `pnpm web -- test` | 260 files passed, 1 skipped; 3187 tests passed, 3 skipped; exit 0 |
+| `pnpm web -- test` | 260 files passed, 1 skipped; 3188 tests passed, 3 skipped; exit 0 |
 | `pnpm extension -- test` | 27 files, 127 tests passed; exit 0 (no Extension change; regression only) |
 | `pnpm --filter @apps/slax-reader-dweb typecheck` | exit 0 |
 | `pnpm --filter @apps/slax-reader-extensions compile` | exit 0 |
@@ -93,6 +93,15 @@ The automated PR review reported no Important findings and five Nits, all fixed 
 - The SDK duplicate-suppression key uses normalized name and message, so distinct non-`Error` payloads stay distinct.
 - Query stripping also covers root-relative URLs such as `/v1/sync/changes?token=…`, and keeps stack `line:column` positions.
 - Page-hide batches reuse the identity resolved by the previous flush.
+
+## First frame only, original PowerSync console output
+
+At the change requester's request:
+
+- A record's `stack` holds only the first call frame (at most 512 bytes), and the SDK log text is no longer copied into `properties`. A 503 sync failure is now recorded as `stack: "at WebRemote.fetchStreamRaw (https://r.slax.com/_nuxt/worker-v4.js:3239:35)"` with the error message. The frame finder no longer mistakes a message line containing `@` for a frame; V8 and Firefox formats are tested.
+- The PowerSync logger hands every record to the SDK's own `createConsoleLogger()`, so console output matches `dev` exactly (`[PowerSync]:` prefix, info/warn/error, debug below the SDK default level). A test asserts every level, debug included, reaches that logger unchanged.
+
+Re-run afterwards: `pnpm web -- test` 3188 passed, 3 skipped; Web `typecheck` passes; changed-file lint passes; `pnpm extension -- test` 127 passed. One run hit an unrelated flake in `useSlaxRoutes.spec.ts`, which passed 3 of 3 reruns and in the next full run.
 
 ## Extension reporting removed
 

@@ -37,13 +37,17 @@ The fingerprint hashes `kind`, error name, a digit-normalized message, and the f
 
 Query strings and fragments are removed from absolute and root-relative URLs inside messages and stacks, keeping stack `line:column` positions, because SDK and fetch errors embed request URLs and some application URLs carry tokens. Nuxt errors with 4xx status codes are pages declaring not-found or forbidden routes on purpose and are skipped; 5xx Nuxt errors are recorded with `status_code`.
 
+### One call frame, not the full stack
+
+A record keeps only the first call frame of the stack (at most 512 bytes), for example `at WebRemote.fetchStreamRaw (https://r.slax.com/_nuxt/worker-v4.js:3239:35)`. Full stacks add size and copy more page internals than diagnosis needs, and minified frames beyond the first rarely add meaning. The SDK's own log text is not copied into `properties`; the error message already carries it.
+
 ### Batching and limits
 
-A page-hide flush cannot await identity during unload, so it reuses the identity resolved by the previous flush. Flush after 5 seconds of the first queued record, when the queue reaches 20 distinct fingerprints, and on `visibilitychange` to hidden or `pagehide`. Use `fetch` with `keepalive` and a `text/plain` body (no CORS preflight); fall back to `navigator.sendBeacon` when the page is hiding. Cap each page session at 200 distinct fingerprints, message at 16 KiB, stack at 64 KiB, and `properties` at 8 KiB. Delivery errors are swallowed and never captured.
+A page-hide flush cannot await identity during unload, so it reuses the identity resolved by the previous flush. Flush after 5 seconds of the first queued record, when the queue reaches 20 distinct fingerprints, and on `visibilitychange` to hidden or `pagehide`. Use `fetch` with `keepalive` and a `text/plain` body (no CORS preflight); fall back to `navigator.sendBeacon` when the page is hiding. Cap each page session at 200 distinct fingerprints, message at 16 KiB, the stored frame at 512 bytes, and `properties` at 8 KiB. Delivery errors are swallowed and never captured.
 
 ### PowerSync instrumentation
 
-In `powersync.client.ts`: pass a `logger` that forwards level-50 records and preserves console output; register a status listener that captures a new `downloadError` or `uploadError` only when its identity changes; capture `onError` and `unavailable` recovery events, `connect`, `disconnectAndClear`, and lifecycle failures. Behavior and log messages already emitted stay unchanged.
+In `powersync.client.ts`: pass a `logger` that hands every record to the SDK's own `createConsoleLogger()`, so console output is identical, and additionally records level-50 records; register a status listener that captures a new `downloadError` or `uploadError` only when its identity changes; capture `onError` and `unavailable` recovery events, `connect`, `disconnectAndClear`, and lifecycle failures. Behavior and log messages already emitted stay unchanged.
 
 ### Configuration
 

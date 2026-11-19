@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   connect: vi.fn(),
   clear: vi.fn(),
   capture: vi.fn(),
+  sdkConsole: vi.fn(),
   listeners: [] as Array<{ statusChanged?: (status: unknown) => void }>,
   afterEach: vi.fn()
 }))
@@ -25,6 +26,8 @@ vi.mock('~/local-first/schema', () => ({ AppSchema: {} }))
 vi.mock('@powersync/vue', () => ({ createPowerSyncPlugin: () => ({}) }))
 vi.mock('@powersync/web', () => ({
   SyncStreamConnectionMethod: { HTTP: 'http' },
+  LogLevels: { trace: 10, debug: 20, info: 30, warn: 40, error: 50 },
+  createConsoleLogger: () => ({ log: state.sdkConsole }),
   PowerSyncDatabase: class {
     constructor(options: unknown) { state.construct(options) }
     init = state.init
@@ -62,8 +65,9 @@ afterEach(() => {
 })
 
 describe('PowerSync error capture', () => {
-  it('records SDK error-level logs only and keeps console output', async () => {
+  it('records SDK error-level logs only and passes every record to the SDK console logger unchanged', async () => {
     await start()
+    logger().log({ level: 20, message: 'Upload complete, no write checkpoint needed.' })
     logger().log({ level: 30, message: 'sync connected' })
     logger().log({ level: 40, message: 'Initial connect attempt did not successfully connect' })
     logger().log({ level: 50, message: 'Sync error', error: new Error('HTTP Service Unavailable') })
@@ -71,9 +75,9 @@ describe('PowerSync error capture', () => {
     expect(sources()).toEqual(['powersync:sdk.logger', 'powersync:sdk.logger'])
     expect(state.capture.mock.calls[0][1]).toMatchObject({ message: 'HTTP Service Unavailable' })
     expect(state.capture.mock.calls[1][1]).toMatchObject({ name: 'PowerSyncLog', message: 'Error in database or sync worker, this likely disrupts PowerSync.' })
-    expect(state.capture.mock.calls[1][2]).toMatchObject({ sdk_message: 'Error in database or sync worker, this likely disrupts PowerSync.' })
-    expect(console.info).toHaveBeenCalledWith('[PowerSync]: sync connected')
-    expect(console.error).toHaveBeenCalledWith('[PowerSync]: Sync error', expect.any(Error))
+    expect(state.capture.mock.calls[0][2]).not.toHaveProperty('sdk_message')
+    expect(state.sdkConsole.mock.calls.map(([record]) => (record as { level: number }).level)).toEqual([20, 30, 40, 50, 50])
+    expect(state.sdkConsole).toHaveBeenCalledWith({ level: 20, message: 'Upload complete, no write checkpoint needed.' })
   })
 
   it('counts one SDK failure logged twice in a row once, and later retries again', async () => {

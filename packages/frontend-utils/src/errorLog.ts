@@ -17,6 +17,7 @@ export interface ClientErrorRecord {
   count: number
   error_name?: string
   message: string
+  /** The first call frame only, never the full stack. */
   stack?: string
   page_url?: string
   session_id: string
@@ -51,7 +52,7 @@ export interface ErrorCollector {
 
 const ENVS = new Set<string>(['development', 'preview', 'beta', 'production'])
 const MAX_MESSAGE_BYTES = 16 * 1024
-const MAX_STACK_BYTES = 64 * 1024
+const MAX_FRAME_BYTES = 512
 const MAX_PROPERTIES_BYTES = 8 * 1024
 const MAX_FINGERPRINTS_PER_SESSION = 200
 const MAX_QUEUED_PER_FLUSH = 20
@@ -132,12 +133,18 @@ export const normalizeError = (error: unknown): { name?: string; message: string
   return { name, message: message || 'Unknown error', stack }
 }
 
-const firstFrame = (stack: string | undefined) =>
-  (stack?.split('\n').find(line => /^\s*at\s|@/.test(line)) ?? '').trim().replace(/:\d+:\d+\)?$/, '')
+// V8 frames start with `at `; Firefox and Safari frames are `fn@url`. A message line such as
+// `Error: failed for user@example.com` contains a space before `@` and is not a frame.
+const FRAME_PATTERN = /^\s*(?:at\s|[^@\s]*@)/
 
-/** Groups repeats of one failure regardless of which capture source observed it. */
+/** The first call frame of a stack, with URL queries already removed and bounded in size. */
+export const firstFrame = (stack: string | undefined): string | undefined => {
+  const frame = stack?.split('\n').find(line => FRAME_PATTERN.test(line))?.trim()
+  return frame ? truncateBytes(frame, MAX_FRAME_BYTES) : undefined
+}
+
 export const errorFingerprint = (kind: ClientErrorKind, name: string | undefined, message: string, stack: string | undefined): string =>
-  fnv1a([kind, name ?? '', message.replace(/\d+/g, 'N').slice(0, 512), firstFrame(stack)].join('|'))
+  fnv1a([kind, name ?? '', message.replace(/\d+/g, 'N').slice(0, 512), (firstFrame(stack) ?? '').replace(/:\d+:\d+\)?$/, '')].join('|'))
 
 const boundedProperties = (properties: Record<string, unknown>): Record<string, unknown> | undefined => {
   const entries = Object.entries(properties).filter(([, value]) => value !== undefined)
@@ -232,6 +239,8 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     try {
       const { name, message, stack } = normalizeError(error)
       const fingerprint = errorFingerprint(kind, name, message, stack)
+      // Only one frame is kept: deep stacks add size and copy more page internals than diagnosis needs.
+      const frame = firstFrame(stack)
       const source = typeof properties.source === 'string' ? properties.source : undefined
       const existing = queue.get(fingerprint)
       const counts = captureOptions.countOccurrence !== false
@@ -260,7 +269,7 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
         count: 1,
         ...(name ? { error_name: name } : {}),
         message: truncateBytes(message, MAX_MESSAGE_BYTES),
-        ...(stack ? { stack: truncateBytes(stack, MAX_STACK_BYTES) } : {}),
+        ...(frame ? { stack: frame } : {}),
         ...(pageUrl ? { page_url: pageUrl } : {}),
         session_id: sessionId,
         ...(ua ? { ua: truncateBytes(ua, 1024) } : {}),

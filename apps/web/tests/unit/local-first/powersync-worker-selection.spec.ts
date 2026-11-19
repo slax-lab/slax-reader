@@ -25,6 +25,8 @@ vi.mock('@powersync/vue', () => ({ createPowerSyncPlugin: () => ({}) }))
 // Keep the real plugin and recovery logic; replace only the browser database boundary.
 vi.mock('@powersync/web', () => ({
   SyncStreamConnectionMethod: { HTTP: 'http' },
+  LogLevels: { trace: 10, debug: 20, info: 30, warn: 40, error: 50 },
+  createConsoleLogger: () => ({ log: () => {} }),
   PowerSyncDatabase: class {
     constructor(options: unknown) { state.construct(options) }
     init = state.init
