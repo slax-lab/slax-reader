@@ -51,7 +51,7 @@ In `powersync.client.ts`: pass a `logger` that hands every record to the SDK's o
 
 ### Configuration
 
-Web reads `CLIENT_ERROR_INGEST_URL` from the build environment into public runtime config. An empty value disables collection, so local builds and tests do not send unless configured.
+Each Web build profile in `nuxt.config.ts` names its ingestion endpoint: `preview` the test stream, `beta` and `production` the production stream, and `development` none, so local builds and tests do not send. `CLIENT_ERROR_INGEST_URL` in the build environment overrides the profile value for local builds; the release deploy passes only its allowlisted build configuration, so deployed builds always use the profile value. An empty endpoint disables collection.
 
 ### Extension excluded
 
@@ -73,4 +73,4 @@ The Extension sends no records, and both pipelines admit only `app=web` and Web 
 
 ## Migration Plan
 
-The Cloudflare resources exist before merge. Deploying the Web build with `CLIENT_ERROR_INGEST_URL` set starts collection; clearing the value or reverting the change stops it without data migration.
+The Cloudflare resources exist before merge. Deploying the Web build starts collection; emptying a profile's endpoint in `nuxt.config.ts` or reverting the change stops it without data migration.
