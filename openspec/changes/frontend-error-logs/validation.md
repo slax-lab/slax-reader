@@ -84,6 +84,10 @@ One valid record and twelve invalid records were posted to the test stream in on
 
 The automated checks above were re-run after these fixes.
 
+## Pull request CI follow-up
+
+The first push failed `pnpm test:extension-tooling` with "Extension profile ID mismatch". Release tests read signing keys from `apps/extension/wxt.config.ts` with the pattern `^  (preview|beta|production): '…'`, and the new per-profile endpoint map used the same line shape, so the endpoint URLs replaced the keys. The map now uses a single-line form outside that pattern. Locally afterwards: `pnpm test:extension-tooling`, `pnpm test:preflight`, `pnpm test:ci`, and `pnpm test:cli-tooling` exit 0; Extension `compile` passes and 145 Extension tests pass.
+
 ## Cleanup
 
 The PowerSync test container, its replication slot and storage database, the local stub, proxy, and Pages server were removed. The existing `dev-powersync` service and its replication slot were unchanged.
