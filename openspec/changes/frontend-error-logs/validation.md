@@ -23,7 +23,7 @@ Both pipelines run the same admission SQL, differing only in allowed `env` value
 
 ## Automated checks
 
-Run on the final diff with Node `v22.23.1`.
+First run, on the diff before the review rounds below, with Node `v22.23.1`. Each later section records its own re-run; the latest Web count is 3193 passed.
 
 | Command | Result |
 | --- | --- |
