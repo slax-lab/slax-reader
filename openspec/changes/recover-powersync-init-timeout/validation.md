@@ -1,0 +1,57 @@
+# Implementation validation
+
+## Scope and approval
+
+On 2026-11-19 the human asked, in this task conversation, to fix the intermittent `PowerSyncInitializationTimeoutError ... timed out after 8000ms` REST fallback, open a new pull request, and reproduce the failure afterwards to confirm the fix. The scope recorded in `proposal.md` was chosen after the diagnosis below. The SDK (`@powersync/web` 2.4.0), VFS (`IDBBatchAtomicVFS`), timeout (8,000 ms), database generation, data version, and server are unchanged. Implementation is on `fix/recover-powersync-init-timeout`, cut from `origin/dev` at `ffd5ae00`.
+
+## Diagnosis evidence
+
+- Production nginx and PowerSync service logs on `powersync-sg-prod` (read only, last 24 hours): containers healthy, no 5xx, no nginx errors; non-2xx were expired-JWT 401s, client disconnect 499s, and two 408s. Sync sessions in the last 72 hours: 12,192, `operations_synced` p50 0, p99 1,260, max 14,179.
+- The deployed `/_nuxt/worker-v4.js` graph on `r.slax.com` (12 JS modules and `wa-sqlite-async.zc68fxQq.wasm`) returned valid JavaScript and WASM. The earlier missing-asset incident was ruled out.
+- SDK history: `@powersync/web` has been 2.4.0 since 2026-09-21, so a mixed-version SharedWorker was ruled out.
+- Upstream: powersync-js #1195 and #1114 (open) report that the single web connection is held for seconds while a checkpoint is applied, and #785 (open) reports Chrome renderer crashes with OPFS VFSes, which rules out an OPFS migration as the fix.
+- Mechanism reproduced with a disposable SDK-only page in Chrome 158: another tab holding the write lease for 12 s made a new tab's `init()` time out at 8,002 ms. With the last sync-connected tab closed and another tab holding the database, the shared worker logged `Could not open DB connection since no client is connected.` every 5 s (3.5 s, 8.6 s, 13.6 s, 18.7 s); a new tab still initialized in 9 ms and the errors stopped when a connected tab returned, so that log is unrelated to the timeout.
+
+## Automated checks
+
+- `pnpm install --frozen-lockfile` passed; no dependency or lockfile change.
+- New regressions failed against the base implementation: with the source changes stashed, 5 tests failed (`uses REST after a timeout without another instance` x2, `keeps a timed-out instance open ...`, `reports a background failure ...`, and the plugin's `keeps the current document on REST until a different path is visited`). All pass after the fix.
+- `pnpm exec vitest run tests/unit/local-first/`: 10 files, 124 passed, 2 skipped.
+- `pnpm web -- test` (full Web suite): 258 files passed, 1 skipped; 3,169 tests passed, 3 skipped.
+- `pnpm web -- typecheck`: passed with synthetic public configuration.
+- ESLint on the four touched source and test files: zero errors and warnings.
+- `pnpm web -- build` with `SLAX_ENV=beta` and synthetic local public configuration: passed for both the base and the final revision. The beta profile keeps console diagnostics; the production profile drops them, but the code paths are identical.
+- `pnpm exec openspec validate --all --strict`: see the final review section.
+
+## Running environment
+
+A local server served the built `apps/web/dist` on `127.0.0.1:4310` together with synthetic endpoints for `/v1/user/me`, `/v1/sync/token`, `/sync/stream` (an empty completed checkpoint followed by keepalives), and other `/v1/*` calls. A synthetic JWT cookie represented a signed-in user. No real account, API, or PowerSync service was used. Chrome 158 (headless) ran the real Nuxt application, plugins, router, and PowerSync SDK. Tab A loaded `/bookmarks`, connected, and held `$powersync.writeLock()` for 12 s; tab B then loaded `/bookmarks`.
+
+| Scenario | Base build | Fixed build |
+| --- | --- | --- |
+| B startup while A holds the lease | `recovery attempt failed ... durationMs: 8004`, `stopReason: initialization-timeout`, REST | Same timeout at 8,003-8,004 ms, REST; the diagnostic adds `visibility: visible` |
+| After the lease is released | No further PowerSync activity | `background initialization completed {mode: shared, durationMs: 11554-11927}` |
+| B navigates in-app to `/user?tab=profile` | Client-side navigation, `$powersync` null, no sync stream from B, no document request | `resuming local database with a document load`, document request for `/user?tab=profile`, new document `recovery attempt succeeded (13 ms)`, `connected: true`, second sync stream observed |
+| Old document reaches the destination route | Yes (SPA navigation) | No: the old document's router reported the navigation as cancelled |
+
+Regression scenarios on the final fixed build (6 of 6 passed):
+
+- Normal startup with no timeout: local mode, connected, client-side navigation with no extra document request, no background or resume diagnostics.
+- Same-path navigation (`/bookmarks?filter=starred#top`) after background completion: stays client-side on REST, no document request.
+- A later path change (`/user`) after that: document load, local mode, connected.
+- Staying on the page for 8 s after background completion: the same document remains (marker preserved), no document request.
+- B timed out while in the background: after returning to the foreground, its next navigation resumed local mode and connected.
+- After B resumed, a write in B (`local_reading_state`) was visible from tab A, confirming one shared database and no second database identity.
+
+## Not verified
+
+- Real production users, accounts, data volumes, and the real PowerSync service: the fix was exercised with synthetic endpoints and a forced 12 s lease, not with the production workload that holds the lease. What holds the connection for more than 8 s in production is still unconfirmed; the new `background initialization completed/failed` and `visibility` diagnostics are intended to measure it.
+- Safari, iOS, and Android: their dedicated-first policy and recovery code paths are unchanged; no device run was performed.
+- The hosted Extension bridge in a real Extension: covered only by the unit test that installs no guard inside the bridge. The bridge behavior is unchanged apart from not disposing a timed-out instance.
+- A background initialization that never settles: covered by unit tests (no guard is installed); not forced in the browser.
+- No remote deployment was performed.
+
+## Delivery checkpoints
+
+- UI hands-on acceptance: the change has no new visible component or layout. Its user-visible effect is that one navigation after a recovered timeout loads as a full document. Whether that counts as a UI-visible change requiring hands-on acceptance before the pull request is the human's decision; the human asked for the pull request to be opened directly.
+- Version impact: no Extension, CLI, or Mobile code or shared package changes. Only `apps/web` changes. No application version changes are made.

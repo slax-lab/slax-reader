@@ -7,7 +7,7 @@ import { createPowerSyncPlugin } from '@powersync/vue'
 import { PowerSyncDatabase, SyncStreamConnectionMethod } from '@powersync/web'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
-import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
+import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncRecoveryResult, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
 import { shouldUsePowerSyncSharedWorker } from '~/local-first/powersync-worker-policy'
 import { isPublicStartupEntryPath, type PublicTokenState, shouldBypassPublicDatabase } from '~/local-first/public-startup-policy'
 import { AppSchema } from '~/local-first/schema'
@@ -66,7 +66,23 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
     case 'unavailable':
       powerSyncConsole.error('[powersync] local database initialization unavailable; using REST fallback', {
         attemptedModes: event.attemptedModes,
-        stopReason: event.stopReason
+        stopReason: event.stopReason,
+        visibility: typeof document === 'undefined' ? undefined : document.visibilityState
+      })
+      break
+    case 'background-ready':
+      powerSyncConsole.info('[powersync] background initialization completed', {
+        mode: event.mode,
+        attempt: event.attempt,
+        durationMs: event.durationMs
+      })
+      break
+    case 'background-error':
+      powerSyncConsole.error('[powersync] background initialization failed', {
+        mode: event.mode,
+        attempt: event.attempt,
+        durationMs: event.durationMs,
+        error: event.error
       })
       break
     case 'fallback':
@@ -193,7 +209,7 @@ export default defineNuxtPlugin({
         }
       })
 
-    const recovery = useDatabaseWorker
+    const recovery: PowerSyncRecoveryResult = useDatabaseWorker
       ? await initializePowerSyncWithFallback({
           createDatabase,
           sharedWorkerAvailable: shouldUsePowerSyncSharedWorker(),
@@ -215,7 +231,25 @@ export default defineNuxtPlugin({
         })()
 
     const db = recovery.database
-    if (!db) return unavailable()
+    if (!db) {
+      // The current document stays on REST; the next path change loads a fresh document
+      // once the retained initialization is ready. The bridge is recreated by the Extension.
+      if (recovery.pending && !isBridgeFrame && window.parent === window) {
+        const router = useRouter()
+        void recovery.pending.ready.then(ready => {
+          if (!ready) return
+          const removeGuard = router.beforeEach((to, from) => {
+            if (to.path === from.path) return
+            removeGuard()
+            powerSyncConsole.info('[powersync] resuming local database with a document load', { mode: recovery.pending?.mode, path: to.path })
+            void nuxtApp.runWithContext(() => navigateTo(to.fullPath, { external: true }))
+            // Outside Nuxt middleware navigateTo does not cancel the SPA transition itself.
+            return false
+          })
+        })
+      }
+      return unavailable()
+    }
 
     powerSyncConsole.info('[powersync] database ready', { mode: recovery.mode, dbFilename: DATABASE_FILENAME })
 
