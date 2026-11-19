@@ -180,14 +180,27 @@ describe('frontend-utils error log collector', () => {
     expect(unauthorized).not.toBe(serverError)
   })
 
-  it('keeps oversized properties within 8 KiB after JSON escaping', () => {
-    const limit = 8 * 1024
+  it('keeps oversized properties within 8 KiB, with their keys and sources, after JSON escaping', () => {
+    const size = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length
     for (const value of ['"'.repeat(20000), '\\'.repeat(20000), '\u0001'.repeat(20000), '中'.repeat(20000), 'a'.repeat(20000)]) {
-      const bounded = boundedProperties({ detail: value })
-      expect(bounded).toHaveProperty('truncated')
-      expect(new TextEncoder().encode(JSON.stringify(bounded)).length).toBeLessThanOrEqual(limit)
+      const bounded = boundedProperties({ src: 'https://r.slax.com/_nuxt/a.js', detail: value, nested: { list: [value] }, sources: ['sdk.logger'] })
+      expect(bounded).toMatchObject({ truncated: true, src: 'https://r.slax.com/_nuxt/a.js', sources: ['sdk.logger'] })
+      expect(typeof bounded?.detail).toBe('string')
+      expect(bounded).toHaveProperty('nested')
+      expect(size(bounded)).toBeLessThanOrEqual(8 * 1024 - 1024)
     }
     expect(boundedProperties({ src: 'https://r.slax.com/_nuxt/a.js' })).toEqual({ src: 'https://r.slax.com/_nuxt/a.js' })
+  })
+
+  it('leaves room for sources merged into a queued record with oversized properties', async () => {
+    const { collector, sent } = make()
+    const error = new Error('oversized')
+    collector.capture('powersync', error, { source: 'sdk.logger', detail: 'x'.repeat(20000) })
+    for (const source of ['status.downloadError', 'status.uploadError', 'connector.upload', 'app.connect']) collector.capture('powersync', error, { source })
+    await collector.flush()
+    const [record] = sent[0].body
+    expect(record.properties?.sources).toEqual(['sdk.logger', 'status.downloadError', 'status.uploadError', 'connector.upload', 'app.connect'])
+    expect(new TextEncoder().encode(JSON.stringify(record.properties)).length).toBeLessThanOrEqual(8 * 1024)
   })
 
   it('splits a batch into request bodies below the keepalive and beacon limit', () => {

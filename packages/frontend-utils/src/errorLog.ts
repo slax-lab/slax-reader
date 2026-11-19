@@ -153,25 +153,43 @@ export const firstFrame = (stack: string | undefined): string | undefined => {
 export const errorFingerprint = (kind: ClientErrorKind, name: string | undefined, message: string, stack: string | undefined): string =>
   fnv1a([kind, name ?? '', message.replace(/\d{4,}/g, 'N').slice(0, 512), (firstFrame(stack) ?? '').replace(/:\d+:\d+\)?$/, '')].join('|'))
 
+// Room kept for capture sources merged into a queued record after it is bounded.
+const SOURCES_RESERVE_BYTES = 1024
+
+const serializedSize = (value: unknown) => byteLength(JSON.stringify(value))
+
 export const boundedProperties = (properties: Record<string, unknown>): Record<string, unknown> | undefined => {
   const entries = Object.entries(properties).filter(([, value]) => value !== undefined)
   if (!entries.length) return undefined
-  let serialized: string
+  let bounded: Record<string, unknown>
   try {
-    serialized = JSON.stringify(Object.fromEntries(entries))
+    bounded = JSON.parse(JSON.stringify(Object.fromEntries(entries)))
   } catch {
     return { serialization_error: true }
   }
-  if (byteLength(serialized) <= MAX_PROPERTIES_BYTES) return JSON.parse(serialized)
-  // JSON escaping can grow the cut text (quotes, backslashes, control characters), so the budget is
-  // checked on the final serialized form, not on the raw prefix.
-  let budget = MAX_PROPERTIES_BYTES - 32
-  for (;;) {
-    const bounded = { truncated: truncateBytes(serialized, budget) }
-    const size = byteLength(JSON.stringify(bounded))
-    if (size <= MAX_PROPERTIES_BYTES) return bounded
-    budget -= size - MAX_PROPERTIES_BYTES
+  const budget = MAX_PROPERTIES_BYTES - SOURCES_RESERVE_BYTES
+  if (serializedSize(bounded) <= budget) return bounded
+  // Shorten the largest values first so the object keeps its keys and its capture sources.
+  const keys = Object.keys(bounded)
+    .filter(key => key !== 'sources')
+    .sort((a, b) => serializedSize(bounded[b]) - serializedSize(bounded[a]))
+  for (const key of keys) {
+    const excess = serializedSize(bounded) - budget
+    if (excess <= 0) break
+    const value = bounded[key]
+    const text = typeof value === 'string' ? value : JSON.stringify(value)
+    // JSON escaping can grow the cut text, so the target is rechecked on the serialized form.
+    let keep = Math.max(0, byteLength(text) - excess - 16)
+    for (;;) {
+      const cut = truncateBytes(text, keep)
+      bounded[key] = cut
+      const over = serializedSize(bounded) - budget
+      if (over <= 0 || keep === 0) break
+      keep = Math.max(0, keep - over)
+    }
+    bounded.truncated = true
   }
+  return serializedSize(bounded) <= MAX_PROPERTIES_BYTES ? bounded : { truncated: true, ...(Array.isArray(bounded.sources) ? { sources: bounded.sources } : {}) }
 }
 
 const randomSessionId = (): string => {

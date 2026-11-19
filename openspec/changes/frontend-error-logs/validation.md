@@ -42,7 +42,7 @@ New tests cover collector grouping, byte limits, the 200-fingerprint session cap
 
 ## Running environment
 
-A production-mode Web build (`import.meta.dev` false, so real SharedWorker and Dedicated Worker paths) was served by `wrangler pages dev` at `http://localhost:3100` with `CLIENT_ERROR_INGEST_URL` set to the test stream. Port 3000 was occupied by an unrelated local server. A real `journeyapps/powersync-service` container on the local dev Postgres used a temporary signing key and its own storage database. A local stub served only `/v1/sync/token` and `/v1/sync/changes` and injected faults; a proxy in front of PowerSync injected sync-stream 503s. The session was the local dev user `100000000`. Chrome 158 drove the page.
+A production-mode Web build (`import.meta.dev` false, so real SharedWorker and Dedicated Worker paths) was built with `CLIENT_ERROR_INGEST_URL` set to the test stream in the build environment and served by `wrangler pages dev` at `http://localhost:3100`. Port 3000 was occupied by an unrelated local server. A real `journeyapps/powersync-service` container on the local dev Postgres used a temporary signing key and its own storage database. A local stub served only `/v1/sync/token` and `/v1/sync/changes` and injected faults; a proxy in front of PowerSync injected sync-stream 503s. The session was the local dev user `100000000`. Chrome 158 drove the page.
 
 | Scenario (spec) | Observed |
 | --- | --- |
@@ -147,9 +147,10 @@ Gaps for this re-run:
 ## Final review Nits
 
 - Oversized `properties` could exceed 8 KiB after truncation, because JSON escaping (quotes, backslashes, control characters) grows the cut text. The size is now checked on the final serialized form. A test covers five inputs and fails against the previous code.
+- The next review round noted that the overflow fallback replaced the whole object with one truncated string, losing its keys and `sources`. The largest values are now shortened instead, the record is marked `truncated: true`, and 1 KiB is kept for sources merged into a queued record later; tests cover both.
 - A test now covers the connector's upload `onError`: the failure is recorded with source `connector.upload` and counted, and the console line `[powersync] uploadData failed:` is unchanged.
 
-Afterwards: `pnpm web -- test` 3190 passed, 3 skipped, and 1 failure in `useSlaxRoutes.spec.ts` (a 10-second timeout seen before), which passed 3 of 3 reruns; Web `typecheck` passes; lint on the changed Web test files passes.
+Afterwards, and again after the follow-up: `pnpm web -- test` 3191 passed, 3 skipped, and 1 failure in `useSlaxRoutes.spec.ts` (a 10-second timeout seen before), which passed 3 of 3 reruns; Web `typecheck` passes; lint on the changed Web test files passes.
 
 The test stream's CORS list now holds only `https://r.slax.dev`: the dashboard shows that single origin, and a preflight from `http://localhost:3000` or `http://localhost:3100` returns no `Access-Control-Allow-Origin`, while one from `https://r.slax.dev` does.
 
