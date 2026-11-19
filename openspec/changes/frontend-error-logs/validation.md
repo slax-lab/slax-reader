@@ -119,6 +119,32 @@ The change requester decided that the Extension does not report errors. The Exte
 
 The first push failed `pnpm test:extension-tooling` with "Extension profile ID mismatch". Release tests read signing keys from `apps/extension/wxt.config.ts` with the pattern `^  (preview|beta|production): '…'`, and the new per-profile endpoint map used the same line shape, so the endpoint URLs replaced the keys. The map now uses a single-line form outside that pattern. Locally afterwards: `pnpm test:extension-tooling`, `pnpm test:preflight`, `pnpm test:ci`, and `pnpm test:cli-tooling` exit 0; Extension `compile` passes and 145 Extension tests pass.
 
+## Re-run on 402c1f61 (Chrome, Safari 27.2, iOS 27.1 simulator)
+
+The running-environment scenarios were repeated on `402c1f61` with the same production-mode build, PowerSync container, stub, and test stream, in three browsers, one at a time: Chrome 158 (run `chrome4`), macOS Safari 27.2 (`safari6`), and Mobile Safari on an iOS 27.1 simulator (`ios2`). An injected page probe waited for the first sync, raised the four front-end errors plus a failed `<img>`, rejected uploads with 500 for 12 seconds, then answered the sync stream with 503 for 16 seconds. Each run's records were selected by the `session_id` of its page load and queried back from `client_errors.errors`.
+
+| Check | Chrome | Safari 27.2 | iOS 27.1 |
+| --- | --- | --- | --- |
+| Startup mode | SharedWorker, multi-tab | SharedWorker, multi-tab | Dedicated Worker (multi-tab unsupported) |
+| `error`, `unhandledrejection`, `resource` (script), `vue` | 1 row each | 1 row each | 1 row each |
+| Failed `<img>` | no row | no row | no row |
+| Upload 500: stub rejections / summed `count` | 3 / 3 | 3 / 3 | 3 / 3 |
+| Sync 503: stub responses / summed `count` | 3 / 3 | 3 / 3 | 3 / 3 |
+| Recovery | `ps_crud` empty, reconnected | `ps_crud` empty, reconnected | `ps_crud` empty, reconnected |
+| `stack` | one frame, V8 `at …` | one frame, `fn@url:line:col` | one frame, `fn@url:line:col` |
+
+Across the 29 rows, no `stack` contains a newline, the longest is 78 bytes, no `message` keeps a query string, every row has `user_id=100000000` and `env=development`, and sync rows carry `worker_mode`. Each run also had one `kind=powersync` `TypeError` row for the live stream the stub dropped when the 503 window opened (`network error` in Chrome, `Load failed` in Safari).
+
+Console output was captured in each browser and matches `dev`: `[powersync] …` application lines, SDK lines with the `[PowerSync]:` prefix at info, warn and error (for example `[PowerSync]: calling the last port client provider for credentials`), and `[powersync] uploadData failed: …` as on `dev`. On iOS the SDK additionally warned that multiple tabs are not enabled, which is SDK behavior.
+
+A static check parsed all 273 chunks in `apps/web/dist/_nuxt` as ES2022 and found no RegExp lookbehind or `v` flag, so the bundle stays parseable on the declared Safari 15.4; a sample file containing lookbehind was detected as a control.
+
+Gaps for this re-run:
+
+- Safari and iOS older than 27 were not run. The iOS 15.4 through 16.2 simulator runtimes require Xcode 26.99 or earlier and macOS 26.99 or earlier, and this host runs macOS 27.2 with Xcode 27.1; `xcodebuild -downloadPlatform iOS -buildVersion 16.0` reports the runtime as not available. Only the static syntax check covers them.
+- Earlier Safari attempts were discarded as environment failures: another local session's `pkill -f "cli.js pages dev"` stopped the Pages server mid-run, and a still-open iOS simulator tab held the PowerSync database and delayed the first sync. `safari6` ran after both were removed.
+- Rows from these runs remain in the test table. A new read-only query token for this re-run expires on 2026-11-21.
+
 ## Cleanup
 
 The PowerSync test container, its replication slot and storage database, the local stub, proxy, and Pages server were removed. The existing `dev-powersync` service and its replication slot were unchanged.
