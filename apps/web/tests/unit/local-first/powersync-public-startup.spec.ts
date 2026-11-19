@@ -35,6 +35,7 @@ vi.mock('@powersync/web', () => ({
     disconnectAndClear = state.clear
     close = state.close
     getCrudBatch = state.batch
+    registerListener = () => () => {}
     connected = false
     connecting = false
   }

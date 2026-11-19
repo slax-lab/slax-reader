@@ -30,6 +30,7 @@ vi.mock('@powersync/web', () => ({
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
+    registerListener = () => () => {}
     connected = false
     connecting = false
   }
@@ -61,6 +62,7 @@ const start = async () => {
 const expectDatabaseMode = (mode: 'shared' | 'dedicated' | 'main') => {
   expect(state.construct).toHaveBeenCalledExactlyOnceWith({
     schema: {},
+    logger: expect.objectContaining({ log: expect.any(Function) }),
     database: {
       dbFilename: `slax-reader-${POWER_SYNC_DATABASE_GENERATION}.db`,
       useWebWorker: mode !== 'main',

@@ -1,10 +1,11 @@
+import { useClientErrorLog } from '~/utils/clientErrorLog'
 import { notifyExtensionBridgeAuthExpired, parseExtensionBridgeIds } from '~/utils/extensionBridge'
 import { requestExtensionBridgeSession } from '~/utils/extensionBridgeSession'
 import { getClientEventHeaders, getUserToken } from '~/utils/request'
 import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { createPowerSyncPlugin } from '@powersync/vue'
-import { PowerSyncDatabase, SyncStreamConnectionMethod } from '@powersync/web'
+import { PowerSyncDatabase, type PowerSyncLogger, SyncStreamConnectionMethod } from '@powersync/web'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
 import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
@@ -23,6 +24,41 @@ const DATABASE_FILENAME = `slax-reader-${DATABASE_GENERATION}.db`
 // 保留 PowerSync 现场日志，生产构建也可排障。
 const powerSyncConsole = globalThis.console
 
+const errorLog = () => useClientErrorLog()
+const capturePowerSyncError = (source: string, error: unknown, properties: Record<string, unknown> = {}, countOccurrence = true) =>
+  errorLog().capture('powersync', error ?? { name: 'PowerSyncError', message: source }, { source, ...properties }, { countOccurrence })
+
+// PowerSync SDK log levels (`LogLevels` in @powersync/common).
+const SDK_LOG_INFO = 30
+const SDK_LOG_WARN = 40
+const SDK_LOG_ERROR = 50
+
+// The SDK logs one sync failure twice ("Could not POST streaming…", then "Sync error") within
+// milliseconds; its retries are seconds apart, so a short window separates repeats from retries.
+const SDK_DUPLICATE_WINDOW_MS = 1000
+
+// Matches the SDK's default console logger and also records error-level messages, which include worker crashes.
+const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
+  let lastError = ''
+  let lastErrorAt = 0
+  return {
+    log({ level, message, error }) {
+      if (level < SDK_LOG_INFO) return
+      const emit = level >= SDK_LOG_ERROR ? powerSyncConsole.error : level >= SDK_LOG_WARN ? powerSyncConsole.warn : powerSyncConsole.info
+      if (error) emit(`[PowerSync]: ${message}`, error)
+      else emit(`[PowerSync]: ${message}`)
+      if (level < SDK_LOG_ERROR) return
+      const captured = error ?? { name: 'PowerSyncLog', message }
+      const key = `${(captured as Error).name}:${(captured as Error).message}`
+      const now = Date.now()
+      const repeat = key === lastError && now - lastErrorAt < SDK_DUPLICATE_WINDOW_MS
+      lastError = key
+      lastErrorAt = now
+      capturePowerSyncError('sdk.logger', captured, { worker_mode: mode, sdk_message: message }, !repeat)
+    }
+  }
+}
+
 const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
   switch (event.type) {
     case 'attempt-start':
@@ -36,6 +72,7 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
       })
       break
     case 'attempt-error':
+      capturePowerSyncError('recovery.attempt', event.error, { worker_mode: event.mode, attempt: event.attempt, duration_ms: event.durationMs })
       powerSyncConsole.error('[powersync] recovery attempt failed', {
         mode: event.mode,
         attempt: event.attempt,
@@ -50,6 +87,7 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
       })
       break
     case 'dispose-timeout':
+      capturePowerSyncError('recovery.dispose', { name: 'PowerSyncCleanupTimeout', message: 'failed database cleanup timed out' }, { worker_mode: event.mode, timeout_ms: event.timeoutMs })
       powerSyncConsole.warn('[powersync] failed database cleanup timed out; stopping local recovery', {
         mode: event.mode,
         attempt: event.attempt,
@@ -57,6 +95,7 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
       })
       break
     case 'dispose-error':
+      capturePowerSyncError('recovery.dispose', event.error, { worker_mode: event.mode, attempt: event.attempt })
       powerSyncConsole.warn('[powersync] failed database cleanup reported an error', {
         mode: event.mode,
         attempt: event.attempt,
@@ -64,6 +103,10 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
       })
       break
     case 'unavailable':
+      capturePowerSyncError('recovery.unavailable', { name: 'PowerSyncUnavailable', message: `local database unavailable: ${event.stopReason ?? 'exhausted'}` }, {
+        attempted_modes: event.attemptedModes,
+        stop_reason: event.stopReason
+      })
       powerSyncConsole.error('[powersync] local database initialization unavailable; using REST fallback', {
         attemptedModes: event.attemptedModes,
         stopReason: event.stopReason
@@ -178,12 +221,16 @@ export default defineNuxtPlugin({
         }
         if (!res.ok) throw new Error(`[powersync] upload changes failed: ${res.status}`)
       },
-      onError: e => powerSyncConsole.error('[powersync] uploadData failed:', e)
+      onError: e => {
+        capturePowerSyncError('connector.upload', e)
+        powerSyncConsole.error('[powersync] uploadData failed:', e)
+      }
     })
 
     const createDatabase = (mode: PowerSyncWorkerMode) =>
       new PowerSyncDatabase({
         schema: AppSchema,
+        logger: createPowerSyncLogger(mode),
         database: {
           dbFilename: DATABASE_FILENAME,
           // 生产环境启用 Worker；dev 模式关闭，避免 Vite 重复处理 Worker 前置代码。
@@ -205,6 +252,7 @@ export default defineNuxtPlugin({
             await database.init()
             return { database, mode: 'main' as const }
           } catch (error) {
+            capturePowerSyncError('init', error, { worker_mode: 'main' })
             powerSyncConsole.error('[powersync] local database initialization unavailable; using REST fallback', {
               attemptedModes: ['main'],
               reason: 'initialization-error',
@@ -218,6 +266,27 @@ export default defineNuxtPlugin({
     if (!db) return unavailable()
 
     powerSyncConsole.info('[powersync] database ready', { mode: recovery.mode, dbFilename: DATABASE_FILENAME })
+
+    // A safety net for failures the SDK logger and connector miss; it tags rather than recounts the
+    // failures they already counted. Shared-worker status updates clone errors, so compare by name and message.
+    const errorKey = (error: unknown) => (error ? `${(error as Error).name}:${(error as Error).message}` : '')
+    let lastDownloadError = ''
+    let lastUploadError = ''
+    db.registerListener({
+      statusChanged: status => {
+        const { downloadError, uploadError } = status.dataFlowStatus ?? {}
+        const downloadKey = errorKey(downloadError)
+        const uploadKey = errorKey(uploadError)
+        if (downloadKey && downloadKey !== lastDownloadError) {
+          capturePowerSyncError('status.downloadError', downloadError, { worker_mode: recovery.mode, connected: status.connected }, false)
+        }
+        if (uploadKey && uploadKey !== lastUploadError) {
+          capturePowerSyncError('status.uploadError', uploadError, { worker_mode: recovery.mode, connected: status.connected }, false)
+        }
+        lastDownloadError = downloadKey
+        lastUploadError = uploadKey
+      }
+    })
 
     let connected = false
     let connecting = false
@@ -235,6 +304,7 @@ export default defineNuxtPlugin({
           connecting: db.connecting
         })
       } catch (e) {
+        capturePowerSyncError('app.connect', e, { worker_mode: recovery.mode })
         powerSyncConsole.error('[powersync] connect failed:', e)
       } finally {
         connecting = false
@@ -247,6 +317,7 @@ export default defineNuxtPlugin({
       try {
         await db.disconnectAndClear()
       } catch (e) {
+        capturePowerSyncError('app.reset', e, { worker_mode: recovery.mode })
         powerSyncConsole.error('[powersync] disconnectAndClear failed:', e)
       }
       connected = false
@@ -265,6 +336,7 @@ export default defineNuxtPlugin({
         try {
           await db.disconnectAndClear()
         } catch (e) {
+          capturePowerSyncError('app.accountSwitch', e, { worker_mode: recovery.mode })
           powerSyncConsole.error('[powersync] clear on account switch failed, will retry next startup:', e)
           return false
         }
@@ -299,6 +371,7 @@ export default defineNuxtPlugin({
           await db.disconnectAndClear()
         } catch (e) {
           // 清失败不打版本戳，下次启动重试，避免陈旧数据被当成已迁移
+          capturePowerSyncError('app.dataVersion', e, { worker_mode: recovery.mode })
           powerSyncConsole.error('[powersync] data-version clear failed, will retry next startup:', e)
           throw e
         }
@@ -312,7 +385,10 @@ export default defineNuxtPlugin({
     // 串行化生命周期切换，避免 init 守卫与 watch/导航重连互相穿插
     let lifecycle: Promise<void> = Promise.resolve()
     const transition = (fn: () => Promise<void>) => {
-      lifecycle = lifecycle.then(fn).catch(e => powerSyncConsole.error('[powersync] lifecycle error:', e))
+      lifecycle = lifecycle.then(fn).catch(e => {
+        capturePowerSyncError('app.lifecycle', e, { worker_mode: recovery.mode })
+        powerSyncConsole.error('[powersync] lifecycle error:', e)
+      })
       return lifecycle
     }
 

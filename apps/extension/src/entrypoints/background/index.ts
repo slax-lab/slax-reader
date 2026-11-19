@@ -1,5 +1,6 @@
 import { BookmarkActionType, type BookmarkLookupResult, MessageTypeAction } from '@/config/message'
 
+import { installClientErrorLog } from '@/utils/clientErrorLog'
 import { setExtensionLocale } from '@/utils/locale'
 import { ACCOUNT_LOCALE_KEY, normalizeBrowserLocale } from '@/utils/localeCore'
 import { isLocaleSender } from '@/utils/localeRelay'
@@ -20,6 +21,7 @@ import type { MetricActionType } from '@slax-reader/contracts/analytics'
 import type { UserInfo } from '@slax-reader/contracts/interface'
 
 export default defineBackground(() => {
+  installClientErrorLog('background')
   const storageService = new StorageService()
   const sessionService = new SessionService()
   let sessionTransition: Promise<void> = Promise.resolve()

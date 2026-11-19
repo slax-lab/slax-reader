@@ -40,6 +40,7 @@ vi.mock('@powersync/web', () => ({
     connect = boundary.connect
     disconnectAndClear = async () => {}
     close = async () => {}
+    registerListener = () => () => {}
     connected = false
     connecting = false
   }

@@ -39,6 +39,7 @@ vi.mock('@powersync/web', () => ({
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
+    registerListener = () => () => {}
     connected = false
     connecting = false
   }
