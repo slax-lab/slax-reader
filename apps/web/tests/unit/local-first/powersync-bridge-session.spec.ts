@@ -27,7 +27,7 @@ mockNuxtImport('useState', () => (key: string) => {
   if (key === 'snapshot-session-navigation') return navigationState
   return ownership
 })
-mockNuxtImport('useRouter', () => () => ({ afterEach: state.afterEach }))
+mockNuxtImport('useRouter', () => () => ({ afterEach: state.afterEach, beforeEach: vi.fn() }))
 mockNuxtImport('useAuth', () => () => ({ clearAuth: state.clearAuth }))
 vi.mock('~/utils/request', () => ({ getUserToken: state.cookie, getClientEventHeaders: () => ({}) }))
 vi.mock('~/utils/extensionBridgeSession', () => ({ requestExtensionBridgeSession: state.session }))
@@ -53,6 +53,8 @@ const start = async () => {
   const plugin = (await import('~~/app/plugins/powersync.client')).default
   const result = await plugin(app as never)
   await Promise.resolve()
+  // Snapshot routes start local data in the background; wait until that startup settles.
+  await result?.provide?.powersyncWhenReady?.()
   return result
 }
 const getConnector = () => {

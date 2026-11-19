@@ -7,6 +7,8 @@ export interface PowerSyncPendingInitialization {
   mode: PowerSyncWorkerMode
   /** Settles with the retained instance's original init() outcome: true once it became ready. */
   ready: Promise<boolean>
+  /** The retained instance; usable only after `ready` resolves true, and disposed when it resolves false. */
+  database: PowerSyncDatabase
 }
 
 export interface PowerSyncRecoveryResult {
@@ -138,7 +140,7 @@ export async function initializePowerSyncWithFallback({
             return false
           }
         )
-        return { database: null, stopReason: 'initialization-timeout', pending: { mode, ready } }
+        return { database: null, stopReason: 'initialization-timeout', pending: { mode, ready, database: retained } }
       }
       let disposeFinished = false
       let disposeFailed = false

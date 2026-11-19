@@ -37,6 +37,8 @@
         :footer-show-via="!isOwner"
         :footer-collection="footerCollection"
         :local-first="localFirst"
+        :local-database="lateLocalSources?.database ?? undefined"
+        :local-tags="!lateLocalSources"
         :bookmark-uuid="uuid"
         :local-ready="localReady"
         :is-owner="isOwner"
@@ -201,6 +203,7 @@
     <div v-else-if="error" class="error">
       <p>{{ error.statusCode === 404 ? $t('page.bookmarks_detail.error_not_found') : $t('page.bookmarks_detail.error_generic') }}</p>
     </div>
+    <SnapshotLocalDetail v-if="lateLocalDatabase" :key="accountGeneration" :database="lateLocalDatabase" :bookmark-uuid="uuid" @ready="onLocalSourcesReady" />
   </div>
 </template>
 
@@ -216,6 +219,7 @@ import SnapshotBottomToolbar, { type BottomToolbarAction } from '~/components/Sn
 import SnapshotCommentComposer from '~/components/Snapshot/SnapshotCommentComposer.vue'
 import SnapshotCommentList from '~/components/Snapshot/SnapshotCommentList.vue'
 import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
+import SnapshotLocalDetail, { type SnapshotLocalSources } from '~/components/Snapshot/SnapshotLocalDetail.vue'
 import SnapshotMoreMenu, { type MoreMenuAction } from '~/components/Snapshot/SnapshotMoreMenu.vue'
 import SnapshotPanelLoading from '~/components/Snapshot/SnapshotPanelLoading.vue'
 import SnapshotRightEdgeToolbar from '~/components/Snapshot/SnapshotRightEdgeToolbar.vue'
@@ -234,6 +238,7 @@ import { tokenFingerprint } from '~/utils/accountContext'
 import type { PdfTitlePreview } from '~/utils/pdfPreview'
 import { pdfTitlePreview } from '~/utils/pdfPreview'
 import { cancelReaderRestore, shouldScrollReaderToTop } from '~/utils/readerStartup'
+import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { useLocalMarks } from '@/composables/bookmark/useLocalMarks'
@@ -242,6 +247,7 @@ import { useSidePanelPreference } from '@/composables/useSidePanelPreference'
 import type { MarkDetail, SnapshotBookmarkDetail, SnapshotMetadata } from '@commons/frontend-types/models'
 import { isClient, isServer } from '@commons/frontend-utils/is'
 import { extractHTMLTextContent } from '@commons/frontend-utils/text'
+import type { PowerSyncDatabase } from '@powersync/web'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { PodcastTranslation as PodcastTranslationContent } from '@slax-reader/contracts/interface'
 import { runArticleSsrProcessors } from '~/components/Article/processors/ssr-runner'
@@ -256,6 +262,7 @@ import { isLocallyFirstStar, useFirstStarCollectionCue } from '~/composables/use
 import { useShareCollectInfo } from '~/composables/useShareCollectInfo'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import type { IconKey } from '~/icons/registry'
+import { canTakeOverSnapshotLocally } from '~/local-first/snapshot-local-takeover'
 import { useUserStore } from '~/stores/user'
 
 const pendingPanelCode = reactive({ ai: false, chat: false })
@@ -408,10 +415,19 @@ const localReady = ref(false)
 const isOwner = computed(() => (pageData.value?.metadata as { role?: string } | undefined)?.role === 'owner')
 const shareInfo = useShareCollectInfo()
 const showFirstStarCue = useFirstStarCollectionCue()
-const local = import.meta.client && !recoveringSession.value && isLocalFirstEnabled() ? useLocalBookmarks() : null
-const localMarksQuery = local ? useLocalMarks().watchMarkDetail(uuid, localFirst) : null
+// A blocking-startup document has its database at setup. A deferred one receives it later and hands it to
+// SnapshotLocalDetail, which owns the same queries once the owner checks pass.
+const setupLocal = import.meta.client && !recoveringSession.value && isLocalFirstEnabled() ? useLocalBookmarks() : null
+const setupLocalSources = setupLocal ? { local: setupLocal, marksQuery: useLocalMarks().watchMarkDetail(uuid, localFirst), row: setupLocal.watchDetail(uuid, localFirst), database: null } : null
+const lateLocalSources = shallowRef<SnapshotLocalSources | null>(null)
+const lateLocalDatabase = shallowRef<PowerSyncDatabase | null>(null)
+const localSources = computed(() => lateLocalSources.value ?? setupLocalSources)
+const local = computed(() => localSources.value?.local ?? null)
+const localMarksQuery = computed(() => localSources.value?.marksQuery ?? null)
+const localRow = computed(() => localSources.value?.row ?? null)
 const canActOnMarks = computed(() => isOwner.value)
-const localRow = local ? local.watchDetail(uuid, localFirst) : null
+const nuxtApp = useNuxtApp()
+const deferredLocal = import.meta.client && !setupLocal && !recoveringSession.value && nuxtApp.$powersyncDeferred === true
 
 if (import.meta.client) watch(accountGeneration, () => {
   // Preserve the rejected request's error if cookie cleanup cannot complete.
@@ -420,6 +436,8 @@ if (import.meta.client) watch(accountGeneration, () => {
   restMarks.value = { mark_list: [], user_list: {} }
   localFirst.value = false
   localReady.value = false
+  lateLocalSources.value = null
+  lateLocalDatabase.value = null
   if (!recoveringSession.value && navigator.onLine) void refreshContent().then(() => initializeClientDetail(false)).catch(() => {})
 }, { flush: 'sync' })
 onBeforeUnmount(() => {
@@ -437,21 +455,22 @@ useReadingPosition(uuid, {
   enabled: () => localFirst.value && !detail.value?.pdf,
   ready: () => localReady.value,
   skipRestore: () => !!route.query.highlight || !!route.hash,
-  load: () => local?.getReadingPosition(uuid).then(r => (r ? { index: r.anchor_index, ratio: r.anchor_ratio, percent: r.percent } : null)) ?? Promise.resolve(null),
-  save: anchor => local?.setReadingPosition(uuid, anchor),
-  clear: () => local?.clearReadingPosition(uuid)
+  load: () => local.value?.getReadingPosition(uuid).then(r => (r ? { index: r.anchor_index, ratio: r.anchor_ratio, percent: r.percent } : null)) ?? Promise.resolve(null),
+  save: anchor => local.value?.setReadingPosition(uuid, anchor),
+  clear: () => local.value?.clearReadingPosition(uuid)
 })
 
 const marks = computed<MarkDetail>(() => {
-  if (localFirst.value && localMarksQuery && !localMarksQuery.isLoading.value) return localMarksQuery.marks.value
+  const query = localMarksQuery.value
+  if (localFirst.value && query && !query.isLoading.value) return query.marks.value
   return restMarks.value
 })
 
 // 窄字段+值短路：archive/star
 // 写库时 detail 不翻新，免崩溃
-const localHasRow = computed(() => localFirst.value && !!localRow?.row.value)
-const localTitle = computed<string | null>(() => (localFirst.value ? (localRow?.row.value?.m_title ?? null) : null))
-const localAlias = computed<string | null>(() => (localFirst.value ? (localRow?.row.value?.alias_title ?? null) : null))
+const localHasRow = computed(() => localFirst.value && !!localRow.value?.row.value)
+const localTitle = computed<string | null>(() => (localFirst.value ? (localRow.value?.row.value?.m_title ?? null) : null))
+const localAlias = computed<string | null>(() => (localFirst.value ? (localRow.value?.row.value?.alias_title ?? null) : null))
 
 const detail = computed<SnapshotBookmarkDetail | null>(() => {
   const meta = (pageData.value?.metadata ?? pdfPlaceholder.value) as SnapshotMetadata | undefined
@@ -615,18 +634,51 @@ async function initializeClientDetail(refreshIdentity = true) {
     }
   }
   if (generation !== accountGeneration.value) return
-  if (local) {
+  if (setupLocal) {
     try {
-      const exists = isOwner.value && (await local.exists(uuid))
+      const exists = isOwner.value && (await setupLocal.exists(uuid))
       if (generation !== accountGeneration.value) return
       if (exists && isOwner.value) localFirst.value = true
     } catch (e) {
       console.error('[b] local-first takeover failed:', e)
     }
+  } else if (deferredLocal && isOwner.value) {
+    // Reading-position restore waits on localReady; a short wait keeps the owner's restore on a normal startup.
+    const database = await Promise.race([nuxtApp.$powersyncWhenReady(), new Promise<null>(resolve => setTimeout(() => resolve(null), DEFERRED_TAKEOVER_WAIT_MS))])
+    if (generation !== accountGeneration.value) return
+    if (database && (await ownsLocalBookmark(database, generation))) lateLocalDatabase.value = database
+    else void takeOverWhenReady(generation)
   }
   if (generation !== accountGeneration.value) return
+  if (!lateLocalDatabase.value) localReady.value = true
+  if (!localFirst.value && !lateLocalDatabase.value) await loadMarks()
+}
+
+const DEFERRED_TAKEOVER_WAIT_MS = 1_500
+const databaseOwner = useState<string | null>('powersync-owner', () => null)
+async function ownsLocalBookmark(database: PowerSyncDatabase, generation: number): Promise<boolean> {
+  const lookup = useLocalBookmarks(database)
+  return canTakeOverSnapshotLocally(() => ({
+    isOwner: isOwner.value,
+    startedGeneration: generation,
+    currentGeneration: accountGeneration.value,
+    tokenOwner: getTokenUserId(getUserToken()),
+    databaseOwner: databaseOwner.value,
+    existsLocally: () => lookup.exists(uuid)
+  }))
+}
+// Startup finished after the bounded wait: switch the already readable REST page in place.
+async function takeOverWhenReady(generation: number) {
+  const database = await nuxtApp.$powersyncWhenReady()
+  if (!database || lateLocalDatabase.value || !(await ownsLocalBookmark(database, generation))) return
+  lateLocalDatabase.value = database
+}
+// SnapshotLocalDetail mounted its queries against the late database.
+function onLocalSourcesReady(sources: SnapshotLocalSources) {
+  if (lateLocalDatabase.value !== sources.database) return
+  lateLocalSources.value = sources
+  localFirst.value = true
   localReady.value = true
-  if (!localFirst.value) await loadMarks()
 }
 async function retryPdfContent() {
   await refreshContent()
@@ -707,7 +759,7 @@ const { shouldAutoOpen, markOpened, markClosed } = useSidePanelPreference()
 const autoDecided = ref(false)
 const decideInitialPanel = () => {
   if (autoDecided.value || activePanel.value !== null || !tasksReady.value || isH5.value) return // 待初始任务完成
-  if (!forceDecide.value && localFirst.value && localMarksQuery?.isLoading.value) return // 划线未就绪则等
+  if (!forceDecide.value && localFirst.value && localMarksQuery.value?.isLoading.value) return // 划线未就绪则等
   autoDecided.value = true
   // 用户收起过，或窗口放不下正文 + 面板，就不自动展开
   if (!shouldAutoOpen(window.innerWidth, panelWidth.value)) return
@@ -722,12 +774,10 @@ const decideInitialPanel = () => {
   }
 }
 // 划线加载完补判
-if (localMarksQuery) {
-  watch(
-    () => localMarksQuery.isLoading.value,
-    () => decideInitialPanel()
-  )
-}
+watch(
+  () => localMarksQuery.value?.isLoading.value,
+  () => decideInitialPanel()
+)
 
 watch([activePanel, subscriptionStatus], ([val, status], [previous]) => {
   const oldVal = previous !== val ? previous : null
@@ -1005,8 +1055,8 @@ const editTitle = () => {
     if (newTitle && newTitle !== fullTitle && bookmarkUid.value) {
       menuLoading.value = true
       try {
-        if (localFirst.value && local) {
-          await local.setAliasTitle(uuid, newTitle)
+        if (localFirst.value && local.value) {
+          await local.value.setAliasTitle(uuid, newTitle)
         } else {
           await request().post({ url: RESTMethodPath.BOOKMARK_ALIAS_TITLE, body: { bookmark_uid: bookmarkUid.value, alias_title: newTitle } })
           const meta = pageData.value?.metadata as SnapshotMetadata | undefined
@@ -1046,8 +1096,8 @@ watch(
   { immediate: true }
 )
 
-const localArchived = computed<'inbox' | 'archive'>(() => (localRow?.row.value?.archive_status === 1 ? 'archive' : 'inbox'))
-const localStarred = computed<'star' | 'unstar'>(() => (localRow?.row.value?.is_starred === 1 ? 'star' : 'unstar'))
+const localArchived = computed<'inbox' | 'archive'>(() => (localRow.value?.row.value?.archive_status === 1 ? 'archive' : 'inbox'))
+const localStarred = computed<'star' | 'unstar'>(() => (localRow.value?.row.value?.is_starred === 1 ? 'star' : 'unstar'))
 
 const isArchived = computed(() => (localFirst.value ? localArchived.value !== 'inbox' : restArchived.value !== 'inbox'))
 const isStarred = computed(() => (localFirst.value ? localStarred.value === 'star' : restStarred.value === 'star'))
@@ -1082,8 +1132,8 @@ const showSuccessToast = (text: string, trackDom: HTMLElement | null) => {
 const archiveBookmark = async (trackDom: HTMLElement | null) => {
   const status = isArchived.value ? 'inbox' : 'archive'
   try {
-    if (localFirst.value && local) {
-      await local.setArchive(uuid, status === 'archive')
+    if (localFirst.value && local.value) {
+      await local.value.setArchive(uuid, status === 'archive')
     } else {
       await request().post({ url: RESTMethodPath.BOOKMARK_ARCHIVE, body: { bookmark_uid: bookmarkUid.value, status } })
       restArchived.value = status
@@ -1098,8 +1148,8 @@ const starBookmark = async (trackDom: HTMLElement | null) => {
   const status = isStarred.value ? 'unstar' : 'star'
   const isFirstStar = status === 'star' && isLocallyFirstStar(isStarred.value, shareInfo.info.value?.starred_count)
   try {
-    if (localFirst.value && local) {
-      await local.setStar(uuid, status === 'star')
+    if (localFirst.value && local.value) {
+      await local.value.setStar(uuid, status === 'star')
     } else {
       await request().post({ url: RESTMethodPath.BOOKMARK_STAR, body: { bookmark_uid: bookmarkUid.value, status } })
       restStarred.value = status
