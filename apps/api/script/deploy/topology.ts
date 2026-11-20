@@ -56,7 +56,7 @@ const workflowNames = (config: ApiConfig) => ((config.workflows as { name?: unkn
 
 export async function readState(api: CloudflareApi, config: ApiConfig): Promise<TopologyState> {
   const names = workerNames(config)
-  const scripts = (await api.get<{ id: string }[]>('/workers/scripts')).map(script => script.id)
+  const scripts = (await api.list<{ id: string }>('/workers/scripts')).map(script => script.id)
   const wanted = new Set(workflowNames(config))
   const workflows = (await api.list<TopologyState['workflows'][number]>('/workflows')).filter(workflow => wanted.has(workflow.name))
   const queuesWanted = new Set(queueNames(config))
@@ -86,6 +86,8 @@ export function topologyProblems(state: TopologyState, config: ApiConfig): strin
   }
   for (const name of queueNames(config)) {
     const queue = state.queues.find(item => item.queue_name === name)
+    // A queue missing from the account has no consumer to split between Edge and Core; Core's deploy fails
+    // on its consumer binding until the queue is created (`pnpm api -- resources --apply`).
     if (!queue) continue
     const owners = queue.consumers.filter(consumer => consumer.type !== 'http_pull').map(consumerScript)
     if (owners.length !== 1 || owners[0] !== names.core) problems.push(`Queue ${name} is consumed by ${owners.join(', ') || 'nothing'}, not only ${names.core}`)

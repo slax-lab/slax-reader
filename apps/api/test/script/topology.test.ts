@@ -27,6 +27,7 @@ function account(owner: 'edge' | 'core', extra: Partial<TopologyState> = {}) {
   const api: CloudflareApi = {
     async list<T>(pathname: string) {
       calls.push(`GET ${pathname}`)
+      if (pathname === '/workers/scripts') return state.scripts.map(id => ({ id })) as T[]
       if (pathname === '/workflows') return structuredClone(state.workflows) as T[]
       if (pathname === '/queues') return structuredClone(state.queues) as T[]
       if (pathname === '/workers/durable_objects/namespaces')
@@ -35,7 +36,6 @@ function account(owner: 'edge' | 'core', extra: Partial<TopologyState> = {}) {
     },
     async get<T>(pathname: string) {
       calls.push(`GET ${pathname}`)
-      if (pathname === '/workers/scripts') return state.scripts.map(id => ({ id })) as T
       const schedule = /^\/workers\/scripts\/([^/]+)\/schedules$/.exec(pathname)
       if (schedule) return { schedules: (state.schedules[decodeURIComponent(schedule[1])] ?? []).map(cron => ({ cron })) } as T
       throw new Error(`unexpected ${pathname}`)
