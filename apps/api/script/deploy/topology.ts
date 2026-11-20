@@ -135,7 +135,7 @@ export async function requireTopology(api: CloudflareApi, config: ApiConfig): Pr
   const missing = await missingRuntimeValues(api, config, ['edge', 'core', 'ai', 'objects'])
   if (Object.keys(missing).length)
     throw new Error(
-      `These Workers lack values their code reads. Add them to [vars] of the selected configuration or set them as secrets, then release again:\n${describeMissing(missing)}`
+      `These Workers lack values their code reads. Run \`pnpm api -- secrets:sync --from <file with the values>\` (or add them to [vars] of the selected configuration), then release again:\n${describeMissing(missing)}`
     )
 }
 
@@ -172,7 +172,7 @@ export async function transition({ step, dryRun, api, config, deploy, log = cons
   const requireValues = async (targets: readonly (keyof typeof RUNTIME_KEYS)[]) => {
     const missing = await missingRuntimeValues(api, config, targets)
     if (!Object.keys(missing).length) return
-    const message = `These Workers lack values their code reads. Add them to [vars] of the selected configuration or run \`pnpm api -- wrangler <worker> secret put <NAME>\` for each, then rerun this step:\n${describeMissing(missing)}`
+    const message = `These Workers lack values their code reads. Run \`pnpm api -- secrets:sync --from <file with the values>\` (or add them to [vars] of the selected configuration), then rerun this step:\n${describeMissing(missing)}`
     if (dryRun) log(`would stop: ${message}`)
     else throw new Error(message)
   }

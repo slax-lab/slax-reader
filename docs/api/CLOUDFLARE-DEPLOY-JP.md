@@ -41,7 +41,14 @@ placement は `apps/api/script/deploy/config.ts` の `DATABASE_REGION`（主 Pos
 
 通常の `deploy` はアカウント状態（Worker、Workflow、キュー、cron、Durable Object namespace）を読み、Objects/AI/Core が未デプロイ、Workflow かキュー consumer が Edge に残っている、Edge に cron がある、または `SlaxMcpServer` namespace が残っている場合は公開前に停止します。移行は環境ごとに一度、test アカウント、beta、本番（低負荷時間帯）の順に実行します。`CLOUDFLARE_API_TOKEN`（Workers Scripts・Queues・Workflows・Durable Objects の編集権限）または `wrangler login` のトークンを使い、`--config`/`--env` は `deploy` と同じです。各ステップは状態を先に読み、再実行でき、`--dry-run` に対応します。ステップ 1〜3 は何も削除せず、Core と Edge はステップ 4 まで MCP スタブ（`src/entry/transition/`）を export し続けます。
 
-値はコードと一緒に移す必要があります。デプロイは `--keep-vars` を使うため、`wrangler secret put` で設定した secret は元のスクリプトにのみ残ります。`apps/api/script/deploy/runtimeKeys.ts` は各 Worker のコードが読む文字列変数と secret を列挙します（テストがバンドルから再導出します）。ステップ 1〜3 の公開前と通常リリースの前に、ある Worker が読み、同じ環境の別の API Worker が持つが、その Worker 自身にも選択した `[vars]` にもないキーを名前のみで列挙して停止します。非公開設定の `[vars]` に追加するか、その Worker に `pnpm api -- wrangler <worker> secret put <NAME>` を実行してください。2026-11-20 の読み取り専用チェックでは、本番と beta の `DEEPSEEK_API_KEY` が旧 Edge にのみあり（Core に移る YouTube 記事・ポッドキャスト Workflow と AI が読む）、test アカウントでは Core の 17 個・AI の 5 個のキーが旧 Edge にのみありました。どの Worker にもないキーは未設定の任意機能として報告しません。
+値はコードと一緒に移す必要があります。デプロイは `--keep-vars` を使うため、`wrangler secret put` で設定した secret は元のスクリプトにのみ残ります。`apps/api/script/deploy/runtimeKeys.ts` は各 Worker のコードが読む文字列変数と secret を列挙します（テストがバンドルから再導出します）。ステップ 1〜3 の公開前と通常リリースの前に、ある Worker が読み、同じ環境の別の API Worker が持つが、その Worker 自身にも選択した `[vars]` にもないキーを名前のみで列挙して停止します。Cloudflare は secret の値を返さないため旧 Edge からコピーできません。値を保存したファイル（パスワードマネージャーのエクスポートや元の `.env`、リポジトリ外か無視対象の `deploy/local/`）を用意して実行します。
+
+```bash
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # Worker 名とキー名のみ表示
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env             # wrangler secret bulk でアップロード
+```
+
+各 Worker には、そのコードが読み、別の API Worker が持つが自身にないキーのみをアップロードし、既存の secret は上書きしません。値は stdin で Wrangler に渡し、コマンドライン・ファイル・ログには出しません。未デプロイの Worker はスキップし、必要なキーがファイルにない場合は失敗します。Core と AI はステップ 1 の前に、Objects はステップ 1 の後に実行してください。値を非公開設定の `[vars]` に入れても構いません。2026-11-20 の読み取り専用チェックでは、本番と beta の `DEEPSEEK_API_KEY` が旧 Edge にのみあり（Core に移る YouTube 記事・ポッドキャスト Workflow と AI が読む）、test アカウントでは Core の 17 個・AI の 5 個のキーが旧 Edge にのみありました。どの Worker にもないキーは未設定の任意機能として報告しません。
 
 1. `--step 1` は Browser と Objects を公開します。Objects の三つの namespace を確認します。
 2. `--step 2` は AI を公開し、各キューの Edge consumer と Edge の cron を外してから、Workflow・consumer・cron・Objects への DO binding を持つ Core を公開します。その間メッセージはデプロイ一回分キューで待機します。全 Workflow とキュー consumer が Core に属さなければ失敗し、Workflow の所属を前後で表示します。実行中のインスタンスが進行することを確認します。

@@ -41,7 +41,14 @@ placement 由 `apps/api/script/deploy/config.ts` 的 `DATABASE_REGION` 决定，
 
 普通 `deploy` 会先读取账号状态（Worker、Workflow、队列、cron、Durable Object 命名空间）。若 Objects、AI 或 Core 未部署，有 Workflow 或队列消费者仍属于 Edge，Edge 仍有 cron，或仍存在 `SlaxMcpServer` 命名空间，则在发布前停止。每套安装执行一次迁移：先 test 账号，再 beta，最后在低峰期执行生产。凭据使用 `CLOUDFLARE_API_TOKEN`（需 Workers Scripts、Queues、Workflows、Durable Objects 编辑权限）或 `wrangler login` 的 token，配置选择与 `deploy` 相同（`--config`/`--env`）。每一步先读取状态，可重复执行，并支持 `--dry-run`。第 1 到 3 步不删除任何东西；Core 和 Edge 在第 4 步之前继续导出 MCP 空壳类（`src/entry/transition/`）。
 
-变量和 secret 要跟着代码走。部署使用 `--keep-vars`，用 `wrangler secret put` 设置的 secret 只留在原来那个脚本上。`apps/api/script/deploy/runtimeKeys.ts` 列出每个 Worker 的代码会读取的字符串变量和 secret（测试会从构建产物重新推导，防止过期）。第 1 到 3 步发布前，以及每次普通发布前，命令会按名称列出：某个 Worker 需要读取、本安装的其他 API Worker 上存在、但该 Worker 自己和所选 `[vars]` 都没有的 key，然后停止。请把这些 key 加到私有配置的 `[vars]`，或对该 Worker 执行 `pnpm api -- wrangler <worker> secret put <NAME>`。2026-11-20 的只读检查发现：生产和 beta 的 `DEEPSEEK_API_KEY` 只在旧 Edge 上（YouTube 转文章和播客 Workflow 会移到 Core，AI 也会读取）；test 账号有 17 个 Core 需要、5 个 AI 需要的 key 只在旧 Edge 上。任何 Worker 都没有的 key 属于当前未配置的可选功能，不会报出。
+变量和 secret 要跟着代码走。部署使用 `--keep-vars`，用 `wrangler secret put` 设置的 secret 只留在原来那个脚本上。`apps/api/script/deploy/runtimeKeys.ts` 列出每个 Worker 的代码会读取的字符串变量和 secret（测试会从构建产物重新推导，防止过期）。第 1 到 3 步发布前，以及每次普通发布前，命令会按名称列出：某个 Worker 需要读取、本安装的其他 API Worker 上存在、但该 Worker 自己和所选 `[vars]` 都没有的 key，然后停止。Cloudflare 不会返回 secret 的值，无法从旧 Edge 复制，需要你提供保存值的文件（密码管理器导出或原始 `.env`，放在仓库外或被忽略的 `deploy/local/` 下），然后执行：
+
+```bash
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 只列出 Worker 和 key 名
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env             # 用 wrangler secret bulk 上传
+```
+
+它只给每个 Worker 上传其代码会读取、其他 API Worker 已有但它自己缺少的 key，不会覆盖已有 secret；值通过 stdin 交给 Wrangler，不出现在命令行、文件或日志中；跳过尚未部署的 Worker；文件里缺少需要的 key 时返回失败。第 1 步之前为 Core 和 AI 执行一次，第 1 步之后再为 Objects 执行一次。也可以改为把值放进私有配置的 `[vars]`。2026-11-20 的只读检查发现：生产和 beta 的 `DEEPSEEK_API_KEY` 只在旧 Edge 上（YouTube 转文章和播客 Workflow 会移到 Core，AI 也会读取）；test 账号有 17 个 Core 需要、5 个 AI 需要的 key 只在旧 Edge 上。任何 Worker 都没有的 key 属于当前未配置的可选功能，不会报出。
 
 1. `--step 1` 发布 Browser 和 Objects。确认 Objects 的三个命名空间已存在。
 2. `--step 2` 发布 AI，移除每个队列的 Edge 消费者并清空 Edge 的 cron，然后发布 Core（含 Workflow、消费者、cron 和指向 Objects 的 DO 绑定）。期间消息在队列中等待约一次部署的时长。之后若有 Workflow 或队列消费者不属于 Core 则失败，并打印 Workflow 归属的前后对比。确认运行中的实例继续推进。
