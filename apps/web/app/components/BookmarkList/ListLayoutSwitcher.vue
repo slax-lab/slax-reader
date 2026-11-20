@@ -1,11 +1,14 @@
 <template>
   <!-- 列表工具栏：最近更新时间 + 布局切换器（card / text）。显隐 guard 由父级控制 -->
-  <div class="page-toolbar" :class="{ 'has-leading': showLeading }">
-    <div class="toolbar-leading">
+  <div class="page-toolbar" :class="{ 'has-leading': showLeading, 'with-avatars': $slots.avatars }">
+    <div v-if="$slots.avatars" class="toolbar-avatars">
+      <slot name="avatars" />
+    </div>
+    <div v-if="showToolbar && (showLeading || lastUpdatedText)" class="toolbar-leading">
       <slot v-if="showLeading" name="leading" />
       <p class="page-subtitle" v-else-if="lastUpdatedText">{{ lastUpdatedText }}</p>
     </div>
-    <div class="layout-switcher">
+    <div v-if="showToolbar" class="layout-switcher">
       <!-- 文字列表：三条横线 icon -->
       <button class="layout-btn" :class="{ active: listMode === 'text' }" @click="listMode = 'text'" :title="$t('page.bookmarks_index.layout_text')" type="button">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -25,10 +28,11 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
   lastUpdatedText: string
   showLeading?: boolean
-}>()
+  showToolbar?: boolean
+}>(), { showToolbar: true })
 
 // 布局模式：'card'（卡片）| 'text'（紧凑文字），由父级 v-model 持久化
 const listMode = defineModel<'card' | 'text'>({ required: true })
@@ -51,6 +55,39 @@ const listMode = defineModel<'card' | 'text'>({ required: true })
       }
     }
   }
+
+  &.with-avatars {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-bottom: 0;
+    padding-inline: 0;
+
+    .toolbar-leading {
+      grid-area: 2 / 1 / auto / -1;
+      margin: 12px 4px 0;
+    }
+
+    .layout-switcher {
+      grid-area: 1 / 2;
+      margin-inline-end: 4px;
+    }
+
+    @media (max-width: 768px) {
+      &:not(.has-leading) .toolbar-leading,
+      .layout-switcher {
+        display: none;
+      }
+    }
+  }
+}
+
+.toolbar-avatars {
+  grid-area: 1 / 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-block: 8px;
+  margin-block: -8px;
 }
 
 .toolbar-leading {
@@ -68,6 +105,7 @@ const listMode = defineModel<'card' | 'text'>({ required: true })
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-inline-start: auto;
 }
 
 .layout-btn {
@@ -90,6 +128,11 @@ const listMode = defineModel<'card' | 'text'>({ required: true })
 
   &.active {
     color: var(--slax-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--slax-accent);
+    outline-offset: 2px;
   }
 }
 

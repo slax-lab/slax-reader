@@ -29,71 +29,80 @@
         >{{ $t(copied ? 'newsletter.copied' : 'newsletter.copy') }}
       </button>
     </div>
-    <div v-else-if="collapsed && state && state.status !== 'unavailable'" class="setup-summary">
-      <span>{{ $t('newsletter.setup_summary') }}</span
-      ><button type="button" @click="expand">
-        {{ $t('newsletter.create') }}
-      </button>
+    <div
+      v-else-if="state && state.status !== 'unavailable'"
+      class="setup-disclosure"
+      :class="{ 'is-open': collapsed }"
+      :inert="!collapsed"
+    >
+      <div class="setup-disclosure-content">
+        <div class="setup-summary">
+          <span>{{ $t('newsletter.setup_summary') }}</span>
+          <button type="button" @click="expand">{{ $t('newsletter.create') }}</button>
+        </div>
+      </div>
     </div>
-    <div id="newsletter-details" v-show="!collapsed">
-      <template v-if="!loading && state?.address">
-        <p class="stable-address">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="5" y="10" width="14" height="11" rx="2" />
-            <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2" /></svg
-          ><span
-            ><strong>{{ $t('newsletter.address_permanent') }}</strong> {{ $t('newsletter.address_stable') }}</span
-          >
-        </p>
-        <p class="setup-description">{{ $t('newsletter.description') }}</p>
-      </template>
-      <form v-else-if="canConfigure" novalidate @submit.prevent="openConfirmation">
-        <p class="setup-description">{{ $t('newsletter.description') }}</p>
-        <label for="newsletter-account">{{ $t('newsletter.account_label') }}</label>
-        <div class="form-row">
-          <div class="account-field">
-            <input
-              id="newsletter-account"
-              ref="accountInput"
-              v-model="account"
-              type="text"
-              maxlength="15"
-              autocomplete="username"
-              autocapitalize="none"
-              :spellcheck="false"
-              :disabled="pending || !!confirmation"
-              :aria-invalid="!!fieldError"
-              :aria-describedby="fieldError ? 'newsletter-account-hint newsletter-account-error' : 'newsletter-account-hint'"
-              @input="clearFieldError"
-            />
-            <p id="newsletter-account-hint" class="field-hint">
-              {{ $t('newsletter.account_hint') }}
-            </p>
-            <p v-if="fieldError" id="newsletter-account-error" class="field-error" role="alert">
-              {{ $t('newsletter.errors.' + fieldError) }}
-            </p>
+    <div id="newsletter-details" class="setup-disclosure" :class="{ 'is-open': !collapsed }" :inert="collapsed">
+      <div class="setup-disclosure-content">
+        <template v-if="!loading && state?.address">
+          <p class="stable-address">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="5" y="10" width="14" height="11" rx="2" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2" /></svg
+            ><span
+              ><strong>{{ $t('newsletter.address_permanent') }}</strong> {{ $t('newsletter.address_stable') }}</span
+            >
+          </p>
+          <p class="setup-description">{{ $t('newsletter.description') }}</p>
+        </template>
+        <form v-else-if="canConfigure" novalidate @submit.prevent="openConfirmation">
+          <p class="setup-description">{{ $t('newsletter.description') }}</p>
+          <label for="newsletter-account">{{ $t('newsletter.account_label') }}</label>
+          <div class="form-row">
+            <div class="account-field">
+              <input
+                id="newsletter-account"
+                ref="accountInput"
+                v-model="account"
+                type="text"
+                maxlength="15"
+                autocomplete="username"
+                autocapitalize="none"
+                :spellcheck="false"
+                :disabled="pending || !!confirmation"
+                :aria-invalid="!!fieldError"
+                :aria-describedby="fieldError ? 'newsletter-account-hint newsletter-account-error' : 'newsletter-account-hint'"
+                @input="clearFieldError"
+              />
+              <p id="newsletter-account-hint" class="field-hint">
+                {{ $t('newsletter.account_hint') }}
+              </p>
+              <p v-if="fieldError" id="newsletter-account-error" class="field-error" role="alert">
+                {{ $t('newsletter.errors.' + fieldError) }}
+              </p>
+            </div>
+            <button ref="createButton" type="submit" class="primary" :disabled="pending || !candidate || !!fieldError">
+              {{ $t('newsletter.create') }}
+            </button>
           </div>
-          <button ref="createButton" type="submit" class="primary" :disabled="pending || !candidate || !!fieldError">
-            {{ $t('newsletter.create') }}
-          </button>
+          <div v-if="candidate" class="candidate-box">
+            <div class="candidate-label">{{ $t('newsletter.candidate') }}</div>
+            <code>{{ candidate }}</code>
+          </div>
+          <p class="stable-address">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="5" y="10" width="14" height="11" rx="2" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2" /></svg
+            ><span
+              ><strong>{{ $t('newsletter.address_permanent') }}</strong> {{ $t('newsletter.address_stable') }}</span
+            >
+          </p>
+        </form>
+        <div v-if="!loading && state && state.status !== 'unavailable'" class="receiving-details">
+          <p class="details-title">{{ $t('newsletter.receiving_details') }}</p>
+          <p>{{ $t('newsletter.privacy') }}</p>
+          <p>{{ $t('newsletter.management_hint') }}</p>
         </div>
-        <div v-if="candidate" class="candidate-box">
-          <div class="candidate-label">{{ $t('newsletter.candidate') }}</div>
-          <code>{{ candidate }}</code>
-        </div>
-        <p class="stable-address">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="5" y="10" width="14" height="11" rx="2" />
-            <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2" /></svg
-          ><span
-            ><strong>{{ $t('newsletter.address_permanent') }}</strong> {{ $t('newsletter.address_stable') }}</span
-          >
-        </p>
-      </form>
-      <div v-if="!loading && state && state.status !== 'unavailable'" class="receiving-details">
-        <p class="details-title">{{ $t('newsletter.receiving_details') }}</p>
-        <p>{{ $t('newsletter.privacy') }}</p>
-        <p>{{ $t('newsletter.management_hint') }}</p>
       </div>
     </div>
     <p v-if="globalError" class="setup-error" role="alert">
@@ -505,9 +514,32 @@ svg {
 .disclosure svg {
   width: 14px;
   height: 14px;
+  transition: transform var(--slax-dur-normal) var(--slax-ease-spring);
 }
 .disclosure svg.expanded {
   transform: rotate(180deg);
+}
+.setup-disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--slax-dur-normal) var(--slax-ease-spring),
+    opacity var(--slax-dur-normal) ease,
+    visibility 0s var(--slax-dur-normal);
+}
+.setup-disclosure.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.setup-disclosure-content {
+  min-height: 0;
+  display: flow-root;
+  overflow: clip;
+  overflow-clip-margin: 5px;
 }
 .address-row {
   margin-top: 16px;
@@ -741,6 +773,10 @@ input[aria-invalid='true'] {
 @media (prefers-reduced-motion: reduce) {
   .pending-spinner {
     animation: none;
+  }
+  .setup-disclosure,
+  .disclosure svg {
+    transition: none;
   }
 }
 @media (max-width: 768px) {
