@@ -33,12 +33,19 @@ vi.mock('~/utils/request', () => ({ getUserToken: state.cookie, getClientEventHe
 vi.mock('~/utils/extensionBridgeSession', () => ({ requestExtensionBridgeSession: state.session }))
 vi.mock('~/local-first/schema', () => ({ AppSchema: {} }))
 vi.mock('@powersync/vue', () => ({ createPowerSyncPlugin: () => ({}) }))
+const gate = vi.hoisted(() => vi.fn())
+vi.mock('~/local-first/powersync-visibility-gate', () => ({ deferLiveQueriesWhileHidden: gate }))
 vi.mock('@powersync/web', () => ({
   SyncStreamConnectionMethod: { HTTP: 'http' },
+  LogLevels: { trace: 10, debug: 20, info: 30, warn: 40, error: 50 },
+  createConsoleLogger: () => ({ log: () => {} }),
   PowerSyncDatabase: class {
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
+    onChangeWithCallback = () => () => {}
+    resolveTables = async () => []
+    registerListener = () => () => {}
     connected = false
     connecting = false
   }
@@ -157,6 +164,7 @@ describe('PowerSync in an authenticated extension iframe with no page cookie', (
     await start()
     expect(state.cookie).not.toHaveBeenCalled()
     expect(state.connect).toHaveBeenCalledOnce()
+    expect(gate).not.toHaveBeenCalled()
     const connector = getConnector()
     await expect(connector.fetchCredentials()).resolves.toEqual({ token: 'sync-token', endpoint: 'https://sync.test' })
     expect(fetch).toHaveBeenCalledWith(

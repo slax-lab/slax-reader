@@ -134,6 +134,10 @@ onBeforeUnmount(() => {
   gap: 8px 16px;
   margin: 0 0 16px;
   color: var(--slax-text);
+
+  &:has(.pod-status-region:empty):not(:has(.pod-switch)) {
+    margin-bottom: 0;
+  }
 }
 
 .pod-status-region:empty {

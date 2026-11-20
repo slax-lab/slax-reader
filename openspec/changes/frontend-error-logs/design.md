@@ -1,0 +1,80 @@
+# Design
+
+## Context
+
+See `proposal.md` for motivation. Web is a Nuxt client app whose PowerSync runtime is created in `apps/web/app/plugins/powersync.client.ts` with SharedWorker, Dedicated Worker, main-thread, and REST fallback modes. The Extension's offscreen document embeds the Web `/x/ext-bridge` page for PowerSync. Web already depends on `@commons/frontend-utils`.
+
+A pre-implementation probe exercised `@powersync/web` 2.4.0 against a real PowerSync service with injected faults in all three worker modes:
+
+| Failure | SDK logger (error) | Status `downloadError` / `uploadError` | Application catch |
+| --- | --- | --- | --- |
+| Sync stream 4xx/5xx, token failure, stream cut | yes, once per retry | yes, once per change | — |
+| Upload rejected by the sync API | no (debug only) | `uploadError` only | — |
+| Local database initialization failure | no | no | initialization path only |
+| Worker script crash | message only, no cause | no | no |
+
+## Goals / Non-Goals
+
+**Goals:** one record format for both apps, PowerSync coverage across its failure sources, bounded client cost, and storage that admits only that format.
+
+**Non-Goals:** recovering the cause of a Worker bootstrap crash that the SDK discards, symbolicating minified stacks, and capturing errors in content scripts running on third-party pages.
+
+## Decisions
+
+### Deliver directly to a Basin Pipelines stream
+
+The browser posts JSON batches to the stream's public HTTP ingestion endpoint. A stream schema enforces types and required fields, a pipeline SQL `WHERE` clause enforces value formats and the environment's allowlists, and an Iceberg sink stores admitted rows. Ingestion to a stream is free and needs no Worker request budget. A first-party Worker endpoint or a Queue was rejected because it adds per-request cost and latency for high-volume client logs without adding validation the pipeline cannot do. The endpoint is unauthenticated; CORS limits other sites' browsers only, so the SQL filter is the actual admission control.
+
+### Collector in `packages/frontend-utils`
+
+A framework-neutral module exposes `createErrorCollector({ endpoint, app, release, env, getContext })` with `capture(kind, error, properties)`, `flush()`, and an `installGlobalErrorCapture(collector, target)` helper for global listeners. Web supplies its identity context. Records are normalized client-side to the same limits the pipeline enforces, so a record the client sends is admitted.
+
+### Fingerprint excludes the capture source
+
+The fingerprint hashes `kind`, error name, the message with digit runs of four or more normalized (so identifiers and timestamps merge while HTTP status codes such as 401 and 500 stay distinct), and the first stack frame. The capture source is stored in `properties.sources` but is not part of the fingerprint. Records are grouped by fingerprint and user, so the same error under two accounts in one page session is counted separately.
+
+### Privacy and noise filtering
+
+Query strings and fragments are removed from absolute, protocol-relative, and root-relative URLs inside messages and stacks, including Safari and Firefox `fn@url:line:col` frames, keeping stack `line:column` positions, without RegExp lookbehind (unsupported before Safari 16.4, while the Web app supports Safari 15.4), because SDK and fetch errors embed request URLs and some application URLs carry tokens. Nuxt errors with 4xx status codes are pages declaring not-found or forbidden routes on purpose and are skipped; 5xx Nuxt errors are recorded with `status_code`. Share (`/s/<code>`) and collection (`/c/<code>`) codes grant read access to their content, so every outgoing text replaces them with `:code` (and a collection member id with `:id`): `page_url`, the message, the stack, and every string in `properties` such as `filename` and `src`. The route shape is enough to locate the failing page.
+
+### Compact stack, not the full stack
+
+A record keeps a compact stack of every frame within 4 KiB (512 bytes per frame). Each frame is reduced to its function name and position, for example `Object.uploadChanges (HkvhJBOe.js:17541:24)`; the origin and directory of bundles under `/_nuxt/` are dropped because every bundle is served from there, while other locations (third-party scripts, extensions, `<anonymous>` built-ins, `[native code]`) keep their text because it says whose code ran. Immediate repeats from recursion collapse into one line with `×N`. When the cap is reached, the last line reports how many frames were cut. The raw stack repeats the origin and path on every line, so the compact form fits the whole call path of an ordinary error in a fraction of the space. The fingerprint uses only the first frame, so grouping does not depend on the depth. The SDK's own log text is not copied into `properties`; the error message already carries it.
+
+### Batching and limits
+
+Identity (`user_id`, `device_id`) is read when an error is captured, straight from `document.cookie`: the shared cookie helpers use `useCookies()`, which registers a change listener (a `cookieStore` handler or a 300 ms poll) released only with a Vue scope, and the collector runs outside any scope. Binding identity at capture also means a record held for its repeat interval cannot be attributed to an account that signed in later. Each batch is split into request bodies below 60 KiB, under the 64 KiB keepalive and `sendBeacon` limit; a record whose message JSON escaping inflates past that limit has its message shortened and is marked `message_truncated`. Flush 5 seconds after a new fingerprint is queued, when 20 new fingerprints are queued, and on `visibilitychange` to hidden or `pagehide`. A repeat of a fingerprint already delivered in this page session only increments the pending record's `count` and `properties.last_occurred_at`; it is delivered once its interval has passed, which starts at one minute and doubles after each delivery up to one hour. Each delivered record carries `properties.session_count`, the session's running total for that fingerprint. Hiding the page delivers held repeats. A per-flush count alone was not enough: an error recurring every 40 seconds produced one `count=1` record per occurrence, 1084 rows in ten hours for one page. Send a `text/plain` body (no CORS preflight): with `fetch` while the page is visible, and with `navigator.sendBeacon` when it is hiding, falling back to `fetch` with `keepalive` if the beacon is refused. Cap each page session at 200 distinct fingerprints, message at 16 KiB, `page_url` at 2 KiB, the compact stack at 4 KiB (512 bytes per frame), and `properties` at 8 KiB. Delivery errors are swallowed and never captured.
+
+### Capture never affects the app
+
+Every entry point into capture is guarded: the PowerSync logger, connector `onError`, and application failure paths call one guarded helper; global listeners and Nuxt hooks wrap their bodies; plugin setup returns quietly if the collector cannot be created; and `flush` never rejects, so timers and page-hide listeners cannot raise an unhandled rejection. The PowerSync guard matters most: the SDK calls the logger from its sync retry loop without a `try`, so a throw there would skip its own error bookkeeping or end the loop. The SDK's console logger runs before capture and is unaffected by it.
+
+### PowerSync instrumentation
+
+In `powersync.client.ts`, every failure has exactly one counting source. Pass a `logger` that hands every record to the SDK's own `createConsoleLogger()`, so console output is identical, and additionally records level-50 records: this counts sync-stream failures (the SDK always logs them at error level before it sets `downloadError`) and worker crashes. The SDK logs one failure twice within milliseconds, so a 1-second window measured from the first log of a failure drops the second. Count rejected uploads through the connector's `onError`, since the SDK logs them only at debug level and the connector runs in one tab. The status `downloadError` and `uploadError` repeat failures those sources already count, and the shared worker replays the same status to every tab, so the status is not captured. The shared worker also broadcasts its log records to every tab, so in shared mode only the tab holding the `slax-ps-worker-log-reporter` Web Lock records them; the lock passes to another tab when the holder closes, and every tab records them where Web Locks are unavailable. Also capture recovery `onError` and `unavailable` events, `connect`, `disconnectAndClear`, and lifecycle failures. Behavior and log messages already emitted stay unchanged.
+
+### Configuration
+
+Each Web build profile in `nuxt.config.ts` names its ingestion endpoint: `preview` the test stream, `beta` and `production` the production stream, and `development` none, so local builds and tests do not send. `CLIENT_ERROR_INGEST_URL` in the build environment overrides the profile value for local builds; the release deploy passes only its allowlisted build configuration, so deployed builds always use the profile value. An empty endpoint disables collection.
+
+### Extension excluded
+
+The Extension sends no records, and both pipelines admit only `app=web` and Web origins. The Extension's PowerSync bridge is the Web `/x/ext-bridge` page loaded in an offscreen iframe, so its failures are Web records under the Web origin.
+
+### Environments and storage
+
+| Environment | Account | Bucket and table | Allowed `env` | Allowed origins |
+| --- | --- | --- | --- | --- |
+| Test | test account | `slax-reader-client-errors-dev`, `client_errors.errors` | `development`, `preview` | `r.slax.dev`, `localhost` |
+| Production | production account | `slax-reader-client-errors`, `client_errors.errors` | `production`, `beta` | `r.slax.com`, `r-beta.slax.com` |
+
+## Risks / Trade-offs
+
+- [Forged records] → The endpoint is public; the SQL filter limits shape and origin, and agents must treat `user_id` as unauthenticated.
+- [Stream schema is immutable] → New fields go into `properties`; a new top-level field requires recreating the stream.
+- [Pipeline SQL rejects `length`] → Limits use `octet_length`, which counts bytes; client limits are byte-based to match.
+- [Worker bootstrap crash cause is lost] → Recorded as the SDK's message only; recovering it needs an application-owned worker factory, deferred.
+
+## Migration Plan
+
+The Cloudflare resources exist before merge. Deploying the Web build starts collection; emptying a profile's endpoint in `nuxt.config.ts` or reverting the change stops it without data migration.

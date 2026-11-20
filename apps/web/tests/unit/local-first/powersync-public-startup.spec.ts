@@ -28,13 +28,18 @@ vi.mock('~/local-first/connector', () => ({ createConnector: state.connector, cl
 vi.mock('@powersync/vue', () => ({ createPowerSyncPlugin: () => ({}) }))
 vi.mock('@powersync/web', () => ({
   SyncStreamConnectionMethod: { HTTP: 'http' },
+  LogLevels: { trace: 10, debug: 20, info: 30, warn: 40, error: 50 },
+  createConsoleLogger: () => ({ log: () => {} }),
   PowerSyncDatabase: class {
     constructor(options: unknown) { state.construct(options) }
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
+    onChangeWithCallback = () => () => {}
+    resolveTables = async () => []
     close = state.close
     getCrudBatch = state.batch
+    registerListener = () => () => {}
     connected = false
     connecting = false
   }

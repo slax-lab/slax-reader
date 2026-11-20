@@ -27,7 +27,7 @@
           :title="rssSubscriptionName(sub)"
           @click="rss.select(sub.id)"
         >
-          <span class="source-avatar">
+          <span class="source-avatar" aria-hidden="true">
             <img v-if="sub.icon_url && !failedIcons.has(sub.icon_url)" :src="sub.icon_url" alt="" loading="lazy" referrerpolicy="no-referrer" @error="iconFailed(sub)" />
             <span v-else class="source-fallback" :class="{ 'source-word': rssSourceText(rssSubscriptionName(sub)).length > 1 }">{{ rssSourceText(rssSubscriptionName(sub)) }}</span>
           </span>
@@ -444,7 +444,7 @@ h1 {
   background: var(--slax-accent-bg);
 }
 .source-fallback {
-  font: 500 21px/1 var(--slax-font-serif);
+  font: 500 21px/1.4 var(--slax-font-serif);
   color: var(--slax-accent);
 }
 .source-word {
@@ -461,6 +461,7 @@ h1 {
   white-space: nowrap;
   text-align: center;
   font-size: 11px;
+  line-height: 1.4;
 }
 .source-tile:hover .source-avatar {
   transform: translateY(-2px);

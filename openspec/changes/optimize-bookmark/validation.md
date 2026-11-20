@@ -208,3 +208,14 @@ Self-check on the final build, 13/13 passed:
 Also passed: inbox timeout recovery through a document load, visitor without owner actions, anonymous HTML with the body, and no page errors or 5xx.
 
 Full Web suite: 3,231 passed, 1 failed. The failure is the untouched `useSlaxRoutes.spec.ts` case hitting its 10 s timeout under full-suite load. Typecheck passed.
+
+## Combined delivery with PowerSync 2.7.0 and the multi-tab fix (2026-11-20)
+
+At the change requester's direction, `fix-powersync-multitab-stall` (formerly #698) and `recover-powersync-init-timeout` (formerly #678) ship in this pull request. The merge brought in the latest `dev` through the #698 branch. Its only conflict was `apps/web/app/plugins/powersync.client.ts`: this change's `startLocal()` restructuring was kept, the client error capture from `dev` (12 call sites and the SDK logger) was re-applied, and the hidden-tab live-query gate now runs inside `startLocal()`, so deferred reader documents also install it. The `powersync-deferred-startup.spec.ts` database double gained `onChangeWithCallback`, `resolveTables`, `registerListener`, `LogLevels`, and `createConsoleLogger` for the merged plugin.
+
+Checks on the merged tree:
+- `pnpm web -- typecheck` and ESLint on changed files: pass.
+- `pnpm web -- test`: 3,290 passed, 3 skipped, 1 failed (`useSlaxRoutes.spec.ts` timed out under full-suite load; 6/6 alone).
+- PowerSync tooling tests 28/28; `pnpm exec openspec validate --all --strict` 165 passed.
+- Production build of the merged tree in the acceptance environment (SDK 2.7.0, `worker-v5.js`): the self-check above passed 13/13 again, including the 12 s held lease (interactive in 0.71 s, REST writes before the switch and local sync upload after it), local-behind-REST without a disappearing highlight, inbox timeout recovery through a document load, visitor, and anonymous.
+- Multi-tab startup in real Chrome without automation flags (7 of 7 background `/bookmarks` tabs not visible, synchronization changing one of 3,000 bookmarks per second, 3 runs of 3 new tabs): 9/9 new tabs started their local database, 413–1,069 ms, with no REST fallback. See `fix-powersync-multitab-stall/validation.md` for the comparison against `dev`.
