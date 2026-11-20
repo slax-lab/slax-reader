@@ -416,6 +416,9 @@ const localFirst = ref(false)
 const localReady = ref(false)
 // Holds the reading-position restore while a deferred owner page decides whether to switch to local data.
 const positionReady = ref(true)
+// Stops watching for a not-yet-synced bookmark row on a deferred owner page.
+let stopWaitingForLocalRow: (() => void) | null = null
+onBeforeUnmount(() => stopWaitingForLocalRow?.())
 const isOwner = computed(() => (pageData.value?.metadata as { role?: string } | undefined)?.role === 'owner')
 const shareInfo = useShareCollectInfo()
 const showFirstStarCue = useFirstStarCollectionCue()
@@ -444,6 +447,8 @@ if (import.meta.client) watch(accountGeneration, () => {
   lateLocalDatabase.value = null
   lateMarksHandedOver.value = false
   positionReady.value = true
+  stopWaitingForLocalRow?.()
+  stopWaitingForLocalRow = null
   if (!recoveringSession.value && navigator.onLine) void refreshContent().then(() => initializeClientDetail(false)).catch(() => {})
 }, { flush: 'sync' })
 onBeforeUnmount(() => {
@@ -680,7 +685,7 @@ async function decideDeferredTakeover(generation: number) {
   }
   if (generation !== accountGeneration.value) return
   positionReady.value = true
-  if (!database) void takeOverWhenReady(generation)
+  void takeOverWhenReady(generation)
 }
 const databaseOwner = useState<string | null>('powersync-owner', () => null)
 async function ownsLocalBookmark(database: PowerSyncDatabase, generation: number): Promise<boolean> {
@@ -694,12 +699,42 @@ async function ownsLocalBookmark(database: PowerSyncDatabase, generation: number
     existsLocally: () => lookup.exists(uuid)
   }))
 }
-// Startup finished after the bounded wait: switch the already readable REST page in place.
+// Startup finished after the bounded wait, or the bookmark had not synced yet: switch the readable REST page in
+// place once the owner checks pass, re-checking whenever synchronization changes the bookmark table.
 async function takeOverWhenReady(generation: number) {
   const database = await nuxtApp.$powersyncWhenReady()
-  if (!database || lateLocalDatabase.value || !(await ownsLocalBookmark(database, generation))) return
-  lateLocalDatabase.value = database
+  if (!database || generation !== accountGeneration.value) return
+  if (lateLocalDatabase.value) return
+  if (await ownsLocalBookmark(database, generation)) {
+    lateLocalDatabase.value = database
+    return
+  }
+  if (generation !== accountGeneration.value || !isOwner.value) return
+  let checking = false
+  const stop: () => void = database.onChange(
+    {
+      onChange: async (): Promise<void> => {
+        if (checking) return
+        checking = true
+        try {
+          if (lateLocalDatabase.value || generation !== accountGeneration.value) {
+            stop()
+            return
+          }
+          if (await ownsLocalBookmark(database, generation)) {
+            stop()
+            lateLocalDatabase.value = database
+          }
+        } finally {
+          checking = false
+        }
+      }
+    },
+    { tables: ['sr_user_bookmark'], throttleMs: 300 }
+  )
+  stopWaitingForLocalRow = stop
 }
+
 // SnapshotLocalDetail mounted its queries against the late database.
 function onLocalSourcesReady(sources: SnapshotLocalSources) {
   if (lateLocalDatabase.value !== sources.database) return

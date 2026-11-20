@@ -181,3 +181,30 @@ Browser run on real SSR (30 highlights, 12 s held lease):
 The exit scenario first reported `path: /onboarding`. The document load to `/bookmarks` did happen, and the new document had its local database. That run's synthetic data contained a single archived bookmark, so the Inbox was empty and the existing onboarding rule redirected. With the bookmark not archived, the same exit ended on `/bookmarks`. This is existing behavior, not a regression.
 
 The UI hands-on acceptance finding remains open; it needs the requester's acceptance.
+
+## Acceptance environment self-check (2026-11-20)
+
+While preparing a stateful local acceptance environment for the requester, a browser self-check of the real reader flows found two more defects on deferred owner pages. Both were fixed.
+
+The environment:
+- Synthetic backend that persists highlights, comments, archive, star, title, and tags across REST writes and `/v1/sync/changes` uploads.
+- Live PowerSync checkpoints, with legacy `write-checkpoint2.json` acknowledgement.
+- An on-page status badge.
+
+Defects found:
+- **Writes stayed on REST after the switch.** The selection layer keeps the HTTP client it receives on the first mark draw. Once REST marks drew immediately on a deferred owner page, that client was always the REST one. The page then showed local data but wrote new marks through REST. `BookmarkArticleLocalFirst` now hands out a client that resolves the transport on every request. A regression captures the client before the switch and checks the write after it. It failed on the earlier code and passes now.
+- **No switch for a bookmark not yet synced locally.** If the bookmark row was not yet in the local database when startup finished, `exists(uuid)` was false once and the page never switched. The page now subscribes to `sr_user_bookmark` changes with `onChange` and re-runs the owner checks after each change. The subscription stops on account change and unmount.
+
+Self-check on the final build, 13/13 passed:
+
+| Scenario | Write path observed |
+| --- | --- |
+| Owner, normal startup: highlight, archive, star | Local sync upload |
+| Owner, normal startup: after refresh | Saved state shown |
+| Owner, 12 s held lease: before the switch | REST (0.97 s to interactive) |
+| Owner, 12 s held lease: after the switch | Local sync upload |
+| Local behind REST | First highlight never disappeared |
+
+Also passed: inbox timeout recovery through a document load, visitor without owner actions, anonymous HTML with the body, and no page errors or 5xx.
+
+Full Web suite: 3,231 passed, 1 failed. The failure is the untouched `useSlaxRoutes.spec.ts` case hitting its 10 s timeout under full-suite load. Typecheck passed.
