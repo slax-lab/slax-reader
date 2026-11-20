@@ -27,6 +27,8 @@ vi.mock('~/local-first/powersync-visibility-gate', () => ({ deferLiveQueriesWhil
 // Keep the real plugin and recovery logic; replace only the browser database boundary.
 vi.mock('@powersync/web', () => ({
   SyncStreamConnectionMethod: { HTTP: 'http' },
+  LogLevels: { trace: 10, debug: 20, info: 30, warn: 40, error: 50 },
+  createConsoleLogger: () => ({ log: () => {} }),
   PowerSyncDatabase: class {
     constructor(options: unknown) { state.construct(options) }
     init = state.init
@@ -34,6 +36,7 @@ vi.mock('@powersync/web', () => ({
     disconnectAndClear = state.clear
     onChangeWithCallback = () => () => {}
     resolveTables = async () => []
+    registerListener = () => () => {}
     connected = false
     connecting = false
   }
@@ -65,6 +68,7 @@ const start = async () => {
 const expectDatabaseMode = (mode: 'shared' | 'dedicated' | 'main') => {
   expect(state.construct).toHaveBeenCalledExactlyOnceWith({
     schema: {},
+    logger: expect.objectContaining({ log: expect.any(Function) }),
     database: {
       dbFilename: `slax-reader-${POWER_SYNC_DATABASE_GENERATION}.db`,
       useWebWorker: mode !== 'main',

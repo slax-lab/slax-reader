@@ -49,8 +49,9 @@ The example values are for local placeholders only. Google OAuth is required for
 | `TURNSTILE_SITE_KEY`                                 | Optional                            | Turnstile; empty skips the related verification                        |
 | `SLAX_API_CONFIG` / `deploy/local/api.toml`          | Web dev only                        | API configuration path required for local Worker integration           |
 | `SLAX_ENV`                                           | Optional, defaults to `development` | `development`, `preview`, `beta` or `production`                       |
+| `CLIENT_ERROR_INGEST_URL`                            | Optional, local builds only         | Front-end error log endpoint; empty in `development` disables sending  |
 
-See `env.schema.ts` for other optional fields. Never put server secrets in frontend public configuration.
+See `env.schema.ts` for other optional fields. Deployed builds take the error log endpoint from their profile in `nuxt.config.ts`, not from `CLIENT_ERROR_INGEST_URL`. Never put server secrets in frontend public configuration.
 
 ## Create a Google OAuth client ID
 

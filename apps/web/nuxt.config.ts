@@ -58,6 +58,8 @@ interface EnvProfile {
    * 否则本地/beta/preview 的 offscreen bridge iframe 会被 CSP 直接拦截、永远拿不到 PowerSync 同步结果。
    */
   extensionBridgeId: string
+  /** Basin Pipelines stream for client error records; empty disables collection. */
+  clientErrorIngestUrl: string
 }
 
 // 所有「跟环境相关」的构建期决策都集中在这张表里：一个环境一列，所见即所得。
@@ -72,7 +74,8 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     pwaMode: 'development',
     swFilename: 'sw_dev.ts',
     enableGtm: false,
-    extensionBridgeId: 'jgaccepfhchlnpggghoodnklcfcbhhlh'
+    extensionBridgeId: 'jgaccepfhchlnpggghoodnklcfcbhhlh',
+    clientErrorIngestUrl: ''
   },
   preview: {
     favicon: '/favicon.d.ico',
@@ -83,7 +86,8 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     pwaMode: 'production',
     swFilename: 'sw_prod.ts',
     enableGtm: true,
-    extensionBridgeId: 'nkgkjnjkolpeiodphchpjiggkiciinik'
+    extensionBridgeId: 'nkgkjnjkolpeiodphchpjiggkiciinik',
+    clientErrorIngestUrl: 'https://b074a7024a724161aa7fef982e585f88.ingest.cloudflare.com'
   },
   beta: {
     favicon: '/favicon.ico',
@@ -94,7 +98,8 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     pwaMode: 'production',
     swFilename: 'sw_prod.ts',
     enableGtm: true,
-    extensionBridgeId: 'bfkggphckdjelkonpoaepppkcecikclp'
+    extensionBridgeId: 'bfkggphckdjelkonpoaepppkcecikclp',
+    clientErrorIngestUrl: 'https://b4923d0c3dcf453ea945e37d23a3d1cd.ingest.cloudflare.com'
   },
   production: {
     favicon: '/favicon.ico',
@@ -105,7 +110,8 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     pwaMode: 'production',
     swFilename: 'sw_prod.ts',
     enableGtm: true,
-    extensionBridgeId: 'gdnhaajlomjkhahnmiijphnodkcfikfd'
+    extensionBridgeId: 'gdnhaajlomjkhahnmiijphnodkcfikfd',
+    clientErrorIngestUrl: 'https://b4923d0c3dcf453ea945e37d23a3d1cd.ingest.cloudflare.com'
   }
 }
 
@@ -287,6 +293,7 @@ export default defineNuxtConfig({
       GOOGLE_OAUTH_CLIENT_ID: '',
       ...envConfig,
       EXTENSION_BRIDGE_IDS: profile.extensionBridgeId,
+      CLIENT_ERROR_INGEST_URL: process.env.CLIENT_ERROR_INGEST_URL ?? profile.clientErrorIngestUrl,
       appVersion: pkg.version || '',
       // 暴露构建环境名（development/preview/beta/production），供运行时判定是否为测试环境
       slaxEnv: env

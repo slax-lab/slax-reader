@@ -37,12 +37,15 @@ const gate = vi.hoisted(() => vi.fn())
 vi.mock('~/local-first/powersync-visibility-gate', () => ({ deferLiveQueriesWhileHidden: gate }))
 vi.mock('@powersync/web', () => ({
   SyncStreamConnectionMethod: { HTTP: 'http' },
+  LogLevels: { trace: 10, debug: 20, info: 30, warn: 40, error: 50 },
+  createConsoleLogger: () => ({ log: () => {} }),
   PowerSyncDatabase: class {
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
     onChangeWithCallback = () => () => {}
     resolveTables = async () => []
+    registerListener = () => () => {}
     connected = false
     connecting = false
   }
