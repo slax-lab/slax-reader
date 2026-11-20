@@ -533,10 +533,6 @@ export class BookmarkController {
   }
 
   /**
-   * 搜索书签
-   */
-
-  /**
    * TEMP: 本地开发环境修复全文索引数据缺失，用完即删
    */
   @Post('/dev_rebuild_search_index')

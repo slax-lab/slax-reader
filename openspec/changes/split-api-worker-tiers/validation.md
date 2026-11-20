@@ -8,7 +8,7 @@ Work runs in the isolated worktree on `perf/split-api-worker-tiers`, cut from `o
 |---|---|---|
 | `npx tsc --project tsconfig.json --noEmit` (apps/api) | passes | passes |
 | API ESLint | 0 errors, 344 warnings | 0 errors, 335 warnings |
-| Full API Vitest | 272 files, 4343 passed, 167 skipped | 278 files, 4455 passed, 167 skipped, 0 failed |
+| Full API Vitest | 272 files, 4343 passed, 167 skipped | 278 files, 4459 passed, 167 skipped, 0 failed |
 | Root tooling `node --test tooling/*.test.mjs` | not rerun | 282 passed, 2 skipped, 0 failed |
 | `test/script/layerArchitecture.test.ts` | passes | 45 passed; baseline keys renamed for moved files only, no count raised, no entry added |
 
@@ -116,10 +116,10 @@ Built with the published template, `--minify`, Wrangler 4.127.1 (the repository'
 
 ## Local pre-push review (REVIEW.md)
 
-**Bugs.** Checked tier dispatch (trailing slashes, the 148-route parity), DI closure completeness including lazy tokens, registry isolation when two tiers share an isolate, Workflow and queue ownership, the binding sets each target keeps, and the transition order. Two defects found by the running environment are fixed (registry replacement across tiers; per-Worker Hyperdrive requirement in setup). Review found the readiness check read only the first page of Workflows and queues, which could hide an Edge consumer on an account with more than 100 entries; the client now reads every page, with a test. `--transition` skips the readiness check and is passed only by `topology:transition`, whose steps check their own preconditions.
+**Bugs.** Checked tier dispatch (trailing slashes, the 148-route parity), DI closure completeness including lazy tokens, registry isolation when two tiers share an isolate, Workflow and queue ownership, the binding sets each target keeps, and the transition order. Two defects found by the running environment are fixed (registry replacement across tiers; per-Worker Hyperdrive requirement in setup). Review found the readiness check read only the first page of Workflows and queues, which could hide an Edge consumer on an account with more than 100 entries; the client now reads every page, with a test. The readiness check is skipped only when `topology:transition` calls `deploy` programmatically, and each transition step checks its own preconditions; `deploy` rejects `--transition` as an unknown argument, so a hand-typed release cannot skip the check. PR review then found three more gaps, now fixed with tests: the readiness check did not confirm that Core carries every configured cron schedule, `gen-routers` read `AI_ROUTES` with a regular expression that silently missed double-quoted or spread entries (it now parses the array with the TypeScript compiler and rejects anything that is not a string literal), and `gen-di` reported unknown and unprovided tokens through two overlapping checks (merged, and messages now distinguish symbol tokens from classes).
 
 **Security.** No new dependency is added; `agents`, `@modelcontextprotocol/*`, `moment-timezone` and `zod` are removed. The attribution parser replacing zod drops unknown keys and keeps every bound (unit tests plus the 31-case equivalence run). The Cloudflare client sends the token only to `api.cloudflare.com` for the configured account and reports error codes without response bodies. Local tooling keeps rejecting remote resources, secret files and non-loopback databases; the smoke-only Edge email fixture is accepted only with `SLAX_API_DIAGNOSTIC_HTTP_FIXTURE=1`. The retired Durable Object stubs carry no behavior beyond a 410.
 
 **Compliance.** The implementation matches proposal, design D1 to D11 and the delta specs; tasks marked complete are implemented and verified above. The layer baseline changed only by renaming keys of moved files at unchanged counts. Open items are 8.2 (cloud-bound flows), 8.3 (test-account transition, needs operator authorization) and 8.4's version question.
 
-No Important findings remain. Nit: `--transition` is an internal flag visible in `deploy`'s argument list.
+No Important findings remain.

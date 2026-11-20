@@ -2,7 +2,7 @@
 
 See proposal.md for the measurements. Current state that constrains the design (verified against `origin/dev` and the live accounts):
 
-- **Four Workers**: Edge (public route `api-reader.slax.com`; legacy names `slax-read-backend`, `slax-read-backend-beta`, `reader-backend`), Core (`reader-core`), AI (`reader-ai`) and Browser (`browser-backend`, shared by beta and production). All are generated from one `api.toml` by `apps/api/script/deploy/config.ts`. Normal release order is browser → ai → core → edge.
+- **Four Workers before this change**: Edge (public route `api-reader.slax.com`; legacy names `slax-read-backend`, `slax-read-backend-beta`, `reader-backend`), Core (`reader-core`), AI (`reader-ai`) and Browser (`browser-backend`, shared by beta and production). All are generated from one `api.toml` by `apps/api/script/deploy/config.ts`. Normal release order is browser → ai → core → edge.
 - **Edge owns** the routes, `ContentEntry`, every queue consumer (18 production queues list `slax-read-backend` as consumer), cron triggers, inbound email and the six Workflow classes. `src/entry/edge/index.ts` imports the queue, cron and email handlers from `../core` and re-exports every Durable Object class, so Edge bundles the whole backend.
 - **Durable Object namespaces exist in both Core and Edge.** In every environment, Core owns `SlaxJieba`, `SlaxWebSocketServer`, `ScreenshotBrowser` (key-value storage), `SlaxMcpServer` and `VectorPreferenceObject` (SQLite). Edge also owns older `SlaxJieba`, `SlaxWebSocketServer`, `ScreenshotBrowser` and `SlaxMcpServer` namespaces that no binding uses. Live migration tags differ: Core `vector-preference-v1`; Edge `v2` (production), `v3` (beta), `v4` (test). Over seven days, production Core `SlaxJieba` served 2,592 requests, `SlaxWebSocketServer` 3,368, `ScreenshotBrowser` 1,374 and `VectorPreferenceObject` 127,277; the `SlaxMcpServer` namespaces served none.
 - **Durable Object storage**: `SlaxJieba` stores nothing; `SlaxWebSocketServer` keeps only socket attachments; `ScreenshotBrowser` uses only an alarm; `VectorPreferenceObject` reads legacy SQLite tables and moves them into D1.
@@ -42,7 +42,7 @@ The AI route list (`AI_ROUTES` in `src/const/routes.ts`) is the single source fo
 
 ### D2. Remove the MCP server
 
-Delete `McpServerController`, `src/domain/orchestrator/mcp.ts`, `BookmarkService.getUserBookmarkSummaryByMCP`, the `MCP_OBJECT` binding, the `mcp:tool` script, the `agents`, `@modelcontextprotocol/sdk` and `@modelcontextprotocol/inspector` dependencies, MCP test mocks and the MCP row in the development documents. `zod` stays because `src/domain/user.ts` uses it.
+Delete `McpServerController`, `src/domain/orchestrator/mcp.ts`, `BookmarkService.getUserBookmarkSummaryByMCP`, the `MCP_OBJECT` binding, the `mcp:tool` script, the `agents`, `@modelcontextprotocol/sdk` and `@modelcontextprotocol/inspector` dependencies, MCP test mocks and the MCP row in the development documents. `zod` is removed later with the attribution parsers (D11).
 
 The `SlaxMcpServer` namespaces are deleted with their stored sessions. Live state (read-only, 2026-11-20): six namespaces, on production `slax-read-backend`, `slax-read-backend-beta`, `reader-core`, `reader-core-beta` and test `reader-backend`, `reader-core`; beta and test Edge still bind `MCP_OBJECT` to Core. Cloudflare deletes a namespace only when the class is no longer exported and no other Worker binds it, so the deletion runs in transition step 4, after the slim Edge (no MCP binding) is live, Edge first and then Core.
 
@@ -152,10 +152,12 @@ Startup CPU, measured with `wrangler check startup` (Wrangler 4.165) on minified
 
 | Worker | `origin/dev` | After this change | Upload |
 |---|---|---|---|
-| Edge | 238 ms | 15 ms | 16 MiB → 89 KiB |
-| Core | 209 ms | 86 ms | 15.9 MiB → 10.2 MiB |
-| AI | 218 ms | 59 ms | 15.9 MiB → 5.9 MiB |
-| Objects | n/a | 21 ms | 4.0 MiB |
+| Edge | 262 ms | 24 ms | 16 MiB → 89 KiB |
+| Core | 233 ms | 96 ms | 16 MiB → 9.9 MiB |
+| AI | 272 ms | 68 ms | 16 MiB → 5.9 MiB |
+| Objects | n/a | 23 ms | 4.0 MiB |
+
+These are the final-code measurements recorded in `validation.md`; earlier intermediate runs are superseded.
 
 - `defuddle` (16 ms of Core startup on its own) is imported inside `defuddleParse`; `slaxReadability` becomes async so a Defuddle rejection still falls back to Readability. `ContentParser` is imported inside `AigcService.chatToolBrowser`.
 - `@zone-eu/mailsplit` (with iconv-lite and encoding-japanese, about 0.7 MB) is imported inside `readNewsletterMime`.

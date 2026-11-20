@@ -94,6 +94,11 @@ export function topologyProblems(state: TopologyState, config: ApiConfig): strin
     if (owners.length !== 1 || owners[0] !== names.core) problems.push(`Queue ${name} is consumed by ${owners.join(', ') || 'nothing'}, not only ${names.core}`)
   }
   if (state.schedules[names.edge]?.length) problems.push(`Edge ${names.edge} still has cron schedules ${state.schedules[names.edge].join(', ')}`)
+  // The ownership move is complete only once Core runs every configured schedule.
+  const crons = ((config.triggers as { crons?: unknown[] } | undefined)?.crons ?? []).map(String)
+  const coreCrons = new Set(state.schedules[names.core] ?? [])
+  const missingCrons = crons.filter(cron => !coreCrons.has(cron))
+  if (state.scripts.includes(names.core) && missingCrons.length) problems.push(`Core ${names.core} lacks cron schedules ${missingCrons.join(', ')}`)
   for (const script of state.mcp) problems.push(`MCP namespace SlaxMcpServer still exists on ${script}`)
   return problems
 }
@@ -263,7 +268,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       config,
       deploy: async (targets, mcp) => {
         for (const target of targets) {
-          const status = await deploy([target, ...passthrough, '--transition'], mcp)
+          const status = await deploy([target, ...passthrough], { mcp })
           if (status) return status
         }
         return 0

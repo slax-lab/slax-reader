@@ -182,7 +182,9 @@ describe('repository-root generator paths', () => {
 
   test.each([
     ['a controller serving both Workers', "'/v1/bookmark/add',", 'Controllers mix AI and Core routes; split them so each Worker bundles only its own: BookmarkController'],
-    ['an AI route without a handler', "'/v1/aigc/missing',", 'AI_ROUTES lists paths without a handler: /v1/aigc/missing']
+    ['an AI route without a handler', "'/v1/aigc/missing',", 'AI_ROUTES lists paths without a handler: /v1/aigc/missing'],
+    ['a double-quoted route', '"/v1/bookmark/add",', 'Controllers mix AI and Core routes; split them so each Worker bundles only its own: BookmarkController'],
+    ['an entry that is not a string literal', '...EXTRA_ROUTES,', 'AI_ROUTES entries must be string literals, found ...EXTRA_ROUTES']
   ])('router generation rejects %s before writing', async (_case, extra, message) => {
     const writes = vi.fn()
     const routesFile = path.join(API_ROOT, 'src/const/routes.ts')

@@ -78,17 +78,18 @@ export const devPortInUseMessage = (port: number): string => {
   return `Error: 127.0.0.1:${port} is already in use by PID ${pid} (not a Slax dev session).\nStop that process or free the port, then retry.`
 }
 
-// `mcp` is set only by topology:transition; every other caller publishes the retired steady state.
-export async function deploy(args: string[], mcp: McpPhase = 'retired'): Promise<number> {
-  const options = parseArgs(args, ['--dev', '--dry-run', '--bootstrap', '--transition'])
+// `transition` is passed only by topology:transition, which checks each step's own preconditions and selects the
+// MCP phase. It is not a command-line flag, so a hand-typed deploy always runs the readiness checks.
+export async function deploy(args: string[], transition?: { mcp: McpPhase }): Promise<number> {
+  const mcp = transition?.mcp ?? 'retired'
+  const options = parseArgs(args, ['--dev', '--dry-run', '--bootstrap'])
   const local = options.flags.has('--dev')
   const config = readConfig(options.config, options.environment, local)
   const bootstrap = options.flags.has('--bootstrap')
   if (bootstrap && (local || options.target)) throw new Error('--bootstrap requires every remote Worker')
   if (!local && !options.flags.has('--dry-run')) checkDeployment(config)
   // A normal release must not split job ownership between an untransitioned Edge and the new Core.
-  // `--transition` is passed only by topology:transition, which checks each step's own preconditions.
-  if (!local && !bootstrap && !options.flags.has('--dry-run') && !options.flags.has('--transition')) {
+  if (!local && !bootstrap && !options.flags.has('--dry-run') && !transition) {
     loadApiEnv()
     await requireTopology(accountApi(config), config)
   }
@@ -173,7 +174,9 @@ export async function deploy(args: string[], mcp: McpPhase = 'retired'): Promise
       return results.find(code => code !== 0) ?? 0
     }
     // Callees publish before callers: Objects and Browser own Durable Objects others bind to, AI serves the
-    // VECTOR RPC Core binds to, and Edge binds to Core and AI.
+    // VECTOR RPC Core binds to, and Edge binds to Core and AI. A bootstrap breaks the AI -> Core cycle by first
+    // publishing an initial Core stripped of its service bindings and Workflows, so AI and Edge can bind to it; the
+    // complete Core is published last.
     const order: Target[] = options.target ? [options.target] : bootstrap ? ['browser', 'objects', 'ai', 'edge', 'core'] : ['browser', 'objects', 'ai', 'core', 'edge']
     for (const target of order) {
       if (initial && target === 'ai') {

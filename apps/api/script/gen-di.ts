@@ -492,10 +492,16 @@ class DIGenerator {
     const providers = Array.from(tokens)
       .filter(token => fs.existsSync(path.join(PROVIDERS_DIR, `${token}.ts`)))
       .sort()
-    const unknown = Array.from(tokens).filter(token => !providers.includes(token) && !this.isSymbolToken(token))
-    if (unknown.length) throw new Error(`${tier}: resolved names without a class or provider: ${unknown.sort().join(', ')}`)
+    // A resolved name that is neither a class nor a provided token: either a symbol token without its provider
+    // file, or a name that is not registered at all.
     const unprovided = Array.from(tokens).filter(token => !providers.includes(token))
-    if (unprovided.length) throw new Error(`${tier}: injection tokens without a provider in src/di/providers: ${unprovided.sort().join(', ')}`)
+    if (unprovided.length)
+      throw new Error(
+        `${tier}: ${unprovided
+          .sort()
+          .map(token => (this.isSymbolToken(token) ? `${token} (injection token without a provider in src/di/providers)` : `${token} (no class or provider)`))
+          .join(', ')}`
+      )
 
     const imports = new Map<string, Set<string>>()
     const add = (file: string, name: string) => {

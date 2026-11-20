@@ -58,11 +58,26 @@ const routeConfigurations: RouteConfig[] = [
   }
 ]
 
+// Reads AI_ROUTES with the TypeScript parser. Every entry must be a string literal: an entry the generator cannot
+// read would reach the Core router while Edge forwards it to AI, so anything else fails generation.
 function aiRoutes(projectRoot: string): Set<string> {
-  const source = fsUtils.readFileSync(pathUtils.join(projectRoot, 'src/const/routes.ts'), 'utf-8')
-  const list = source.match(/AI_ROUTES[^=]*=\s*\[([\s\S]*?)\]/)
-  if (!list) throw new Error('src/const/routes.ts must declare AI_ROUTES')
-  return new Set(Array.from(list[1].matchAll(/'([^']+)'/g), match => match[1]))
+  const filename = pathUtils.join(projectRoot, 'src/const/routes.ts')
+  const source = ts.createSourceFile(filename, fsUtils.readFileSync(filename, 'utf-8'), ts.ScriptTarget.Latest, true)
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'AI_ROUTES') continue
+      const list = declaration.initializer
+      if (!list || !ts.isArrayLiteralExpression(list)) throw new Error('src/const/routes.ts: AI_ROUTES must be an array literal')
+      const routes = new Set<string>()
+      for (const element of list.elements) {
+        if (!ts.isStringLiteralLike(element)) throw new Error(`src/const/routes.ts: AI_ROUTES entries must be string literals, found ${element.getText(source)}`)
+        routes.add(element.text)
+      }
+      return routes
+    }
+  }
+  throw new Error('src/const/routes.ts must declare AI_ROUTES')
 }
 
 function generateRoutes(): void {

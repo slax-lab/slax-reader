@@ -10,6 +10,7 @@ import { RUNTIME_KEYS } from '../../script/deploy/runtimeKeys'
 const config = parse(fs.readFileSync(path.join(ROOT, 'deploy/cloudflare/api.toml.example'), 'utf8')) as ApiConfig
 const workflows = (config.workflows as { name: string; class_name: string }[]).map(workflow => workflow.name)
 const queues = ((config.queues as { consumers: { queue: string }[] }).consumers ?? []).map(consumer => consumer.queue)
+const crons = ((config.triggers as { crons?: string[] } | undefined)?.crons ?? []).map(String)
 const names = workerNames(config)
 const EDGE = names.edge
 
@@ -24,7 +25,7 @@ function account(owner: 'edge' | 'core', extra: Partial<TopologyState> = {}) {
     scripts: ['reader-browser', 'reader-core', 'reader-ai', EDGE],
     workflows: (config.workflows as { name: string; class_name: string }[]).map(workflow => ({ ...workflow, script_name: script })),
     queues: queues.map((queue, index) => ({ queue_id: `q${index}`, queue_name: queue, consumers: [{ script, consumer_id: `c${index}`, type: 'worker' }] })),
-    schedules: { [EDGE]: owner === 'edge' ? ['*/5 * * * *'] : [], 'reader-core': owner === 'core' ? ['*/5 * * * *'] : [] },
+    schedules: { [EDGE]: owner === 'edge' ? [...crons] : [], 'reader-core': owner === 'core' ? [...crons] : [] },
     mcp: owner === 'edge' ? [EDGE, 'reader-core'] : [],
     ...extra
   }
@@ -69,6 +70,7 @@ function account(owner: 'edge' | 'core', extra: Partial<TopologyState> = {}) {
       }
       if (!state.scripts.includes(name)) state.scripts.push(name)
       if (target === 'core') {
+        state.schedules['reader-core'] = [...crons]
         for (const workflow of state.workflows) workflow.script_name = 'reader-core'
         for (const queue of state.queues) if (!queue.consumers.length) queue.consumers.push({ script: 'reader-core', consumer_id: `core-${queue.queue_id}`, type: 'worker' })
       }
@@ -87,7 +89,8 @@ describe('five-Worker topology check', () => {
     expect(problems).toContain('Worker reader-objects (objects) is not deployed')
     for (const name of workflows) expect(problems).toContain(`Workflow ${name} belongs to ${EDGE}, not reader-core`)
     for (const name of queues) expect(problems).toContain(`Queue ${name} is consumed by ${EDGE}, not only reader-core`)
-    expect(problems).toContain(`Edge ${EDGE} still has cron schedules */5 * * * *`)
+    expect(problems).toContain(`Edge ${EDGE} still has cron schedules ${crons.join(', ')}`)
+    expect(problems).toContain(`Core reader-core lacks cron schedules ${crons.join(', ')}`)
     for (const script of [EDGE, 'reader-core']) expect(problems).toContain(`MCP namespace SlaxMcpServer still exists on ${script}`)
     expect(problems.join('\n')).not.toContain('another-app')
     await expect(requireTopology(api, config)).rejects.toThrow('topology:transition')
@@ -193,6 +196,14 @@ describe('values that move with the code', () => {
     delete (withVars.vars as Record<string, unknown>).FRONT_END_URL
     await expect(transition({ step: 1, dryRun: false, api, config: withVars, deploy, log: quiet })).rejects.toThrow('reader-objects: FRONT_END_URL')
     expect(await transition({ step: 1, dryRun: false, api, config, deploy, log: quiet })).toBe(0)
+  })
+
+  test('Core without its configured cron schedules is an incomplete move', async () => {
+    const { state, api } = account('core', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    state.schedules[EDGE] = []
+    await expect(requireTopology(api, config)).resolves.toBeUndefined()
+    state.schedules['reader-core'] = crons.slice(1)
+    await expect(requireTopology(api, config)).rejects.toThrow(`Core reader-core lacks cron schedules ${crons[0]}`)
   })
 
   test('a key no Worker holds is an unconfigured optional feature and does not block', async () => {
