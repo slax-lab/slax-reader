@@ -26,6 +26,7 @@ function staged(t) {
   const put = (path, bytes) => { const file = join(directory, path); mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, bytes) }
   for (const [path, bytes] of Object.entries(files)) put(path, bytes)
   put('/_nuxt/powersync-assets.json', JSON.stringify(record('worker-v4.js', files)))
+  put('/_nuxt/build-assets.json', JSON.stringify({ assets: Object.entries(files).sort(([a], [b]) => a.localeCompare(b)).map(([path, bytes]) => ({ path, sha256: hash(bytes) })) }))
   put('/_headers', '/_nuxt/*\n  Cache-Control: public, max-age=31536000, immutable\n')
   put('/_routes.json', JSON.stringify({ version: 1, include: ['/*'], exclude: ['/_nuxt/*'] }))
   return { directory, files, put }
@@ -111,7 +112,9 @@ test('three releases retain multiple original versions, deduplicate, keep the cu
   assert.equal(report.retained.count, 2)
   assert.equal(report.expired.runtimes, 1)
   assert.equal(JSON.parse(readFileSync(join(directory, '_nuxt/powersync-assets.json'))).assets.length, 2)
-  assert.equal(report.warnings.length, 0)
+  // These snapshots predate the build asset index; that is the only kind of warning they may raise.
+  assert.deepEqual([...new Set(report.warnings.map(warning => warning.category))], ['missing-build-index'])
+  assert.equal(report.build.coverage, 'unknown')
 })
 
 test('unrecoverable HTML and digest mismatch warn while verified sibling assets still merge', async t => {
@@ -222,6 +225,8 @@ test('republishing older behavior uses the same retention path and keeps newer d
   const { directory, put } = staged(t)
   const old = runtime('old-HASH.js', 'export const revision = "old"')
   for (const [path, value] of Object.entries(old)) put(path, value)
+  // The republished build carries its own index for what it emitted.
+  put('/_nuxt/build-assets.json', JSON.stringify({ assets: Object.entries(old).filter(([path]) => path !== '/_nuxt/powersync-assets.json').sort(([a], [b]) => a.localeCompare(b)).map(([path, bytes]) => ({ path, sha256: hash(bytes) })) }))
   const newer = snapshot('b', 1)
   const report = await preparePowerSyncRetention({ directory, project: cloud(newer), now, readPage: async () => page([newer]), fetchImpl: staticFetch({ [newer.url]: runtime('new-HASH.js', 'export const revision = "new"') }) })
   assert.equal(readFileSync(join(directory, '_nuxt/old-HASH.js'), 'utf8'), 'export const revision = "old"')
@@ -267,4 +272,114 @@ test('static redirect, authorization, HTML and MIME failures remain warning-only
     assert.equal(report.coverage, 'partial')
     assert.doesNotMatch(formatRetentionSummary(report), /private-response|elsewhere/)
   }
+})
+
+const buildIndex = values => JSON.stringify({ assets: Object.entries(values).sort(([a], [b]) => a.localeCompare(b)).map(([path, bytes]) => ({ path, sha256: hash(bytes) })) })
+function buildFetch(snapshots) {
+  return async (input, options) => {
+    assert.equal(options.redirect, 'error')
+    const url = new URL(input)
+    const value = snapshots[url.origin]?.[url.pathname]
+    if (value instanceof Response) return value.clone()
+    if (value === undefined) return new Response('missing', { status: 404 })
+    const ext = url.pathname.slice(url.pathname.lastIndexOf('.') + 1)
+    const type = { json: 'application/json', wasm: 'application/wasm', css: 'text/css; charset=utf-8', woff2: 'font/woff2', png: 'image/png' }[ext] || 'text/javascript'
+    return new Response(value, { headers: { 'content-type': type } })
+  }
+}
+const withBuild = (files, extra) => ({ ...files, ...extra, '/_nuxt/build-assets.json': buildIndex(extra) })
+
+test('build assets from earlier deployments are retained beside the current build', async t => {
+  const { directory } = staged(t)
+  const a = snapshot('a', 3), b = snapshot('b', 1)
+  const aBuild = { '/_nuxt/page-A.js': 'export const page = "a"', '/_nuxt/page-A.css': '.a{}', '/_nuxt/font.woff2': 'wOF2-a' }
+  const bBuild = { '/_nuxt/page-B.js': 'export const page = "b"', '/_nuxt/font.woff2': 'wOF2-a', '/_nuxt/logo.png': 'PNG' }
+  const report = await preparePowerSyncRetention({ directory, project: cloud(b), now, readPage: async () => page([b, a]), fetchImpl: buildFetch({ [a.url]: withBuild(runtime('A-HASH.js'), aBuild), [b.url]: withBuild(runtime('B-HASH.js'), bBuild) }) })
+  for (const [path, bytes] of Object.entries({ ...aBuild, ...bBuild })) assert.equal(readFileSync(join(directory, path), 'utf8'), bytes)
+  const unique = new Map(Object.entries({ ...aBuild, ...bBuild }))
+  assert.deepEqual(report.build.retained, { count: unique.size, bytes: [...unique.values()].reduce((sum, bytes) => sum + Buffer.byteLength(bytes), 0) })
+  assert.equal(report.build.recovered, 2)
+  assert.equal(report.build.coverage, 'complete')
+  assert.equal(report.coverage, 'complete')
+  assert.equal(report.warnings.length, 0)
+})
+
+test('a current build file is never replaced and disagreeing snapshots drop the path', async t => {
+  const { directory, put } = staged(t)
+  put('/_nuxt/shared.css', '.current{}')
+  const a = snapshot('a', 3), b = snapshot('b', 1)
+  const report = await preparePowerSyncRetention({ directory, project: cloud(b), now, readPage: async () => page([b, a]), fetchImpl: buildFetch({
+    [a.url]: withBuild(runtime('A-HASH.js'), { '/_nuxt/shared.css': '.a{}', '/_nuxt/chunk.js': 'export const v = "a"' }),
+    [b.url]: withBuild(runtime('B-HASH.js'), { '/_nuxt/chunk.js': 'export const v = "b"' })
+  }) })
+  assert.equal(readFileSync(join(directory, '_nuxt/shared.css'), 'utf8'), '.current{}')
+  assert.equal(existsSync(join(directory, '_nuxt/chunk.js')), false)
+  assert.ok(report.warnings.some(warning => warning.category === 'current-conflict' && warning.path === '/_nuxt/shared.css'))
+  assert.ok(report.warnings.some(warning => warning.category === 'historical-conflict' && warning.path === '/_nuxt/chunk.js'))
+  assert.equal(report.build.coverage, 'partial')
+})
+
+test('HTML, wrong types, digest mismatches and redirects are skipped while verified siblings are kept', async t => {
+  const { directory } = staged(t)
+  const a = snapshot('a', 2)
+  const listed = { '/_nuxt/good.js': 'export const good = 1', '/_nuxt/html.js': 'export const html = 1', '/_nuxt/style.css': '.s{}', '/_nuxt/tampered.js': 'export const t = 1', '/_nuxt/moved.js': 'export const m = 1' }
+  const served = withBuild(runtime('A-HASH.js'), listed)
+  served['/_nuxt/html.js'] = new Response('<!DOCTYPE html><html></html>', { headers: { 'content-type': 'text/html' } })
+  served['/_nuxt/style.css'] = new Response('.s{}', { headers: { 'content-type': 'text/plain' } })
+  served['/_nuxt/tampered.js'] = 'export const t = 2'
+  served['/_nuxt/moved.js'] = new Response(null, { status: 302, headers: { location: 'https://example.invalid/' } })
+  const report = await preparePowerSyncRetention({ directory, project: cloud(a), now, readPage: async () => page([a]), fetchImpl: buildFetch({ [a.url]: served }) })
+  assert.equal(readFileSync(join(directory, '_nuxt/good.js'), 'utf8'), listed['/_nuxt/good.js'])
+  for (const path of ['html.js', 'style.css', 'tampered.js', 'moved.js']) assert.equal(existsSync(join(directory, '_nuxt', path)), false, path)
+  const byPath = Object.fromEntries(report.warnings.filter(warning => warning.path).map(warning => [warning.path, warning.category]))
+  assert.equal(byPath['/_nuxt/html.js'], 'html-resource')
+  assert.equal(byPath['/_nuxt/style.css'], 'invalid-content-type')
+  assert.equal(byPath['/_nuxt/tampered.js'], 'digest-mismatch')
+  assert.ok(byPath['/_nuxt/moved.js'])
+  assert.equal(report.build.coverage, 'partial')
+  // Build-asset gaps do not change the PowerSync coverage line.
+  assert.equal(report.coverage, 'complete')
+})
+
+test('an index outside /_nuxt/ or listing mutable build metadata is rejected without fetching it', async t => {
+  const { directory } = staged(t)
+  const a = snapshot('a', 2), requested = []
+  for (const bad of [{ '/index.html': '<html>' }, { '/_nuxt/builds/latest.json': '{}' }, { '/_nuxt/../secret.js': 'x' }]) {
+    const fetchImpl = async (input, options) => { requested.push(new URL(input).pathname); return buildFetch({ [a.url]: withBuild(runtime('A-HASH.js'), bad) })(input, options) }
+    const report = await preparePowerSyncRetention({ directory, project: cloud(a), now, readPage: async () => page([a]), fetchImpl })
+    assert.ok(report.warnings.some(warning => warning.category === 'invalid-build-index'))
+    assert.equal(report.build.coverage, 'unknown')
+  }
+  assert.equal(requested.some(path => !path.startsWith('/_nuxt/')), false)
+  assert.equal(requested.includes('/_nuxt/builds/latest.json'), false)
+})
+
+test('build assets of deployments replaced more than seven days ago are not retained', async t => {
+  const { directory } = staged(t)
+  const old = snapshot('a', 20), boundary = snapshot('b', 9), recent = snapshot('c', 1)
+  const report = await preparePowerSyncRetention({ directory, project: cloud(recent), now, readPage: async () => page([recent, boundary, old]), fetchImpl: buildFetch({
+    [old.url]: withBuild(runtime('A-HASH.js'), { '/_nuxt/old.js': 'export const old = 1' }),
+    [boundary.url]: withBuild(runtime('B-HASH.js'), { '/_nuxt/boundary.js': 'export const b = 1' }),
+    [recent.url]: withBuild(runtime('C-HASH.js'), { '/_nuxt/recent.js': 'export const r = 1' })
+  }) })
+  assert.equal(existsSync(join(directory, '_nuxt/old.js')), false)
+  assert.equal(existsSync(join(directory, '_nuxt/boundary.js')), true)
+  assert.equal(existsSync(join(directory, '_nuxt/recent.js')), true)
+  assert.equal(report.build.recovered, 2)
+})
+
+test('a current build without its build asset index cannot be published', async t => {
+  const { directory } = staged(t)
+  rmSync(join(directory, '_nuxt/build-assets.json'))
+  await assert.rejects(preparePowerSyncRetention({ directory, project: cloud(null), now, readPage: async () => page([]) }), { category: 'missing-build-index' })
+})
+
+test('the release summary reports build asset retention separately', async t => {
+  const { directory } = staged(t)
+  const a = snapshot('a', 2)
+  const report = await preparePowerSyncRetention({ directory, project: cloud(a), now, readPage: async () => page([a]), fetchImpl: buildFetch({ [a.url]: withBuild(runtime('A-HASH.js'), { '/_nuxt/page.js': 'export const p = 1' }) }) })
+  const summary = formatRetentionSummary(report)
+  assert.match(summary, /\| Current build assets \| 2 \| \d+ \|/)
+  assert.match(summary, /\| Added historical build assets \| 1 \| 18 \|/)
+  assert.match(summary, /Build asset coverage: \*\*complete\*\*; deployments fully recovered: 1\./)
 })
