@@ -52,7 +52,7 @@ The Web app SHALL record PowerSync failures with `kind=powersync` from SDK downl
 #### Scenario: The sync stream fails repeatedly
 
 - **WHEN** the sync stream fails with the same error on consecutive retries
-- **THEN** one record for that error is delivered per flush with its occurrence count
+- **THEN** the first failure is delivered at once, and later ones are counted into a few records whose `count` values add up to every failure
 
 #### Scenario: The local database cannot initialize
 
@@ -66,12 +66,17 @@ The Web app SHALL record PowerSync failures with `kind=powersync` from SDK downl
 
 ### Requirement: Normalize, group, and deliver records
 
-Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `fingerprint`, `count`, `message`, and `session_id`, and MAY contain `error_name`, `stack`, `page_url`, `user_id`, `device_id`, `ua`, and `properties`. `stack` SHALL hold a compact stack, never the full stack: at most five application frames, each reduced to its function and file position, with browser, extension, and framework frames and immediate repeats omitted. `page_url` SHALL contain only the origin and path, with share and collection codes in the path replaced by placeholders, and URLs inside `message` and `stack` SHALL have their query strings and fragments removed, including in `fn@url:line:col` frames. Repeated errors with the same fingerprint SHALL be delivered as one record per flush with an occurrence count. Records SHALL be delivered in batches, including when the page is hidden or unloaded, and SHALL be bounded in size and number per page session. Delivery SHALL be best effort: a failure to deliver SHALL NOT throw, retry indefinitely, or change application behavior, and the collector SHALL NOT record errors caused by its own delivery.
+Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `fingerprint`, `count`, `message`, and `session_id`, and MAY contain `error_name`, `stack`, `page_url`, `user_id`, `device_id`, `ua`, and `properties`. `stack` SHALL hold a compact stack, never the raw full stack: every frame reduced to its function and file position, with immediate repeats collapsed, bounded at 4 KiB, and ending with the number of frames cut when the bound is reached. `page_url` SHALL contain only the origin and path, with share and collection codes in the path replaced by placeholders, and URLs inside `message` and `stack` SHALL have their query strings and fragments removed, including in `fn@url:line:col` frames. A fingerprint's first occurrence in a page session SHALL be delivered promptly. Later occurrences SHALL be counted into the pending record and delivered no more often than an interval that starts at one minute and doubles up to one hour, so the `count` values of a fingerprint's records add up to its occurrences and each record carries the session total. Records SHALL be delivered in batches, including when the page is hidden or unloaded, and SHALL be bounded in size and number per page session. Delivery SHALL be best effort: a failure to deliver SHALL NOT throw, retry indefinitely, or change application behavior, and the collector SHALL NOT record errors caused by its own delivery.
 
 #### Scenario: The same error fires many times
 
 - **WHEN** one error fires 50 times before a flush
 - **THEN** a single record with `count=50` is delivered
+
+#### Scenario: An error recurs for hours on an open page
+
+- **WHEN** the same error fires every 40 seconds for 10 hours on one page
+- **THEN** fewer than 20 records are delivered for it, their `count` values add up to 900, and the last carries `session_count=900`
 
 #### Scenario: The page URL carries a token
 
@@ -91,7 +96,7 @@ Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `finge
 #### Scenario: An error has a deep stack
 
 - **WHEN** an error with a multi-frame stack is captured
-- **THEN** the record's `stack` holds at most five short application frames, bounded in size
+- **THEN** the record's `stack` holds the shortened frames, with recursion collapsed, within 4 KiB
 
 #### Scenario: The visitor closes the tab
 

@@ -17,7 +17,7 @@ export interface ClientErrorRecord {
   count: number
   error_name?: string
   message: string
-  /** The first call frame only, never the full stack. */
+  /** A compact stack: shortened frames within a byte cap, never the raw full stack. */
   stack?: string
   page_url?: string
   session_id: string
@@ -35,6 +35,8 @@ export interface ErrorCollectorOptions {
   getContext?: () => ClientErrorContext | Promise<ClientErrorContext>
   pageUrl?: () => string | undefined
   flushDelayMs?: number
+  /** First wait before a repeated fingerprint is delivered again; it doubles after each delivery. */
+  repeatIntervalMs?: number
   now?: () => number
   send?: (endpoint: string, body: string, hiding: boolean) => Promise<void> | void
 }
@@ -53,14 +55,15 @@ export interface ErrorCollector {
 const ENVS = new Set<string>(['development', 'preview', 'beta', 'production'])
 const MAX_MESSAGE_BYTES = 16 * 1024
 const MAX_FRAME_BYTES = 512
-const MAX_STACK_FRAMES = 5
-const MAX_STACK_BYTES = 1024
+const MAX_STACK_BYTES = 4 * 1024
 const MAX_PROPERTIES_BYTES = 8 * 1024
 const MAX_FINGERPRINTS_PER_SESSION = 200
 const MAX_QUEUED_PER_FLUSH = 20
 // Browsers cap keepalive fetch and sendBeacon bodies at 64 KiB; stay below it per request.
 const MAX_REQUEST_BYTES = 60 * 1024
 const MAX_COUNT = 100000
+// `session_count` is stored in properties, not a typed column, so it may exceed a record's own cap.
+const MAX_SESSION_COUNT = 100_000_000
 const ERROR_NAME_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$.]{0,63}$/
 const RELEASE_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]{1,32})?$/
 
@@ -155,9 +158,10 @@ export const normalizeError = (error: unknown): { name?: string; message: string
   return { name, message: message || 'Unknown error', stack }
 }
 
-// V8 frames start with `at `; Firefox and Safari frames are `fn@location:line:col`. A message line
-// containing an address such as `user@example.com is not valid` has no `:line:col` and is not a frame.
-const FRAME_PATTERN = /^\s*(?:at\s|[^@\s]*@\S*:\d+(?::\d+)?\s*$)/
+// V8 frames start with `at `; Firefox and Safari frames are `fn@location:line:col`, or `fn@[native code]`
+// for built-ins. A message line containing an address such as `user@example.com is not valid` has no
+// `:line:col` and is not a frame.
+const FRAME_PATTERN = /^\s*(?:at\s|[^@\s]*@(?:\S*:\d+(?::\d+)?|\[native code\])\s*$)/
 
 const stackFrames = (stack: string | undefined): string[] => (stack ? stack.split('\n').filter(line => FRAME_PATTERN.test(line)).map(line => line.trim()) : [])
 
@@ -167,41 +171,58 @@ export const firstFrame = (stack: string | undefined): string | undefined => {
   return frame ? truncateBytes(frame, MAX_FRAME_BYTES) : undefined
 }
 
-// Frames from the browser, extensions, and Vue internals say where the failure surfaced, not why.
-// Production bundles inline dependencies, so only frames that still name them can be recognized.
-// `<anonymous>` as the location (built-ins such as `Array.forEach`) is noise; an anonymous function
-// with a real file location is application code.
-const NOISE_FRAME = /\(<anonymous>\)$|@<anonymous>$|\[native code\]|^native\b|(?:chrome|moz|safari-web)-extension:|\/node_modules\/(?:\.pnpm\/)?@?vue|\bcallWith(?:Async)?ErrorHandling\b/
-
-// `at fn (https://r.slax.com/_nuxt/a.js:1:2)` → `fn (a.js:1:2)`; `fn@https://…/a.js:1:2` → `fn (a.js:1:2)`.
+// Bundles are all served from `/_nuxt/`, so their origin and directory add nothing; other locations
+// (workers elsewhere, third-party scripts, extensions) keep their full URL, which says whose code it is.
+// `at fn (https://r.slax.com/_nuxt/a.js:1:2)` → `fn (a.js:1:2)`; `fn@https://…/_nuxt/a.js:1:2` → `fn (a.js:1:2)`.
 const shortenFrame = (frame: string): string => {
   const v8 = frame.match(/^at\s+(?:(.*?)\s+\()?(.*?)\)?$/)
   const jsc = v8 ? null : frame.match(/^([^@]*)@(.*)$/)
-  const fn = ((v8 ? v8[1] : jsc?.[1]) || '').replace(/^<anonymous>$/, '')
-  const location = (v8 ? v8[2] : jsc?.[2]) || frame
-  const file = location.replace(/^(?:async\s+)?(?:[a-z][a-z0-9+.-]*:\/\/[^/]+)?(?:.*\/)?/i, '')
-  return truncateBytes(fn ? `${fn} (${file})` : file, MAX_FRAME_BYTES)
+  const rawLocation = (v8 ? v8[2] : jsc?.[2]) || frame
+  // V8 writes an anonymous async frame as `at async https://…`; keep the `async` marker on the name side.
+  const isAsync = /^async\s/.test(rawLocation)
+  const fn = `${isAsync ? 'async ' : ''}${((v8 ? v8[1] : jsc?.[1]) || '').replace(/^<anonymous>$/, '')}`.trim()
+  const location = rawLocation.replace(/^async\s+/, '').replace(/^(?:https?:\/\/[^/\s]+)?\/_nuxt\//, '')
+  return truncateBytes(fn ? `${fn} (${location})` : location, MAX_FRAME_BYTES)
 }
 
 /**
- * A compact stack: up to five application frames, each reduced to the function and file position,
- * with browser and framework frames and immediate repeats (recursion) dropped. When every frame is
- * noise, the first one is kept so the record still says where the error surfaced.
+ * A compact stack for diagnosis: every frame, shortened to its function and position, with immediate
+ * repeats from recursion collapsed into `×N`. Frames past the 4 KiB cap are dropped and counted.
  */
 export const compactStack = (stack: string | undefined): string | undefined => {
-  const frames = stackFrames(stack)
+  const frames = stackFrames(stack).map(shortenFrame)
   if (!frames.length) return undefined
-  const useful = frames.filter(frame => !NOISE_FRAME.test(frame))
-  const picked: string[] = []
-  for (const frame of useful.length ? useful : frames.slice(0, 1)) {
-    const short = shortenFrame(frame)
-    if (picked[picked.length - 1] === short) continue
-    picked.push(short)
-    if (picked.length === MAX_STACK_FRAMES) break
+  const lines: string[] = []
+  let previous: string | undefined
+  let run = 0
+  const close = () => {
+    if (previous !== undefined) lines.push(run > 1 ? `${previous} ×${run}` : previous)
   }
-  let result = picked.join('\n')
-  while (byteLength(result) > MAX_STACK_BYTES && picked.length > 1) result = (picked.pop(), picked.join('\n'))
-  return truncateBytes(result, MAX_STACK_BYTES)
+  for (const frame of frames) {
+    if (frame === previous) {
+      run++
+      continue
+    }
+    close()
+    previous = frame
+    run = 1
+  }
+  close()
+  const kept: string[] = []
+  let size = 0
+  for (const [index, line] of lines.entries()) {
+    const remaining = lines.length - index - 1
+    // Leave room for the marker that reports how many frames were cut.
+    const reserve = remaining ? 24 : 0
+    const bytes = byteLength(line) + (kept.length ? 1 : 0)
+    if (size + bytes + reserve > MAX_STACK_BYTES) {
+      kept.push(`… ${lines.length - index} more frames`)
+      break
+    }
+    kept.push(line)
+    size += bytes
+  }
+  return kept.join('\n')
 }
 
 // Long digit runs (ids, timestamps, byte counts) vary per occurrence; short ones such as HTTP status
@@ -292,22 +313,24 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
   const send = options.send ?? defaultSend
   const flushDelayMs = options.flushDelayMs ?? 5000
   const sessionId = randomSessionId()
+  const repeatIntervalMs = options.repeatIntervalMs ?? 60_000
+  // Repeats back off 1, 2, 4 … minutes up to an hour, so a page left failing all day sends a few
+  // dozen records per fingerprint while `count` and `session_count` still add up to every occurrence.
+  const maxRepeatIntervalMs = 60 * 60_000
   const seen = new Set<string>()
+  // One pending record per fingerprint. A repeat only increments its count, so an error that recurs
+  // every few seconds yields one record per repeat interval rather than one per flush.
   const queue = new Map<string, ClientErrorRecord>()
+  // When each fingerprint was last delivered, how many times, and how many occurrences it has sent.
+  const lastSentAt = new Map<string, number>()
+  const deliveries = new Map<string, number>()
+  const sessionCounts = new Map<string, number>()
   // Records opened by a non-counting observer; the next counting capture claims that first count.
   const provisional = new Set<string>()
   let timer: ReturnType<typeof setTimeout> | undefined
   let inFlight: Promise<void> | undefined
   // Page unload cannot await identity, so a hiding flush reuses the last identity resolved.
   let lastContext: ClientErrorContext | undefined
-
-  const schedule = () => {
-    if (timer || !queue.size) return
-    timer = setTimeout(() => {
-      timer = undefined
-      void flush(false)
-    }, flushDelayMs)
-  }
 
   const deliver = async (records: ClientErrorRecord[], hiding: boolean) => {
     try {
@@ -325,15 +348,50 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     }
   }
 
+  // A first occurrence is due at once; a repeat of a delivered fingerprint waits out its interval.
+  const dueAt = (fingerprint: string) => {
+    const sent = lastSentAt.get(fingerprint)
+    if (sent === undefined) return -Infinity
+    return sent + Math.min(repeatIntervalMs * 2 ** ((deliveries.get(fingerprint) ?? 1) - 1), maxRepeatIntervalMs)
+  }
+
+  let timerAt = Infinity
+  // Arms one timer for the earliest due record; a new error moves an armed timer earlier.
+  const schedule = () => {
+    if (!queue.size) return
+    const at = Math.min(...[...queue.keys()].map(fingerprint => Math.max(dueAt(fingerprint), now() + flushDelayMs)))
+    if (timer && timerAt <= at) return
+    if (timer) clearTimeout(timer)
+    timerAt = at
+    timer = setTimeout(() => {
+      timer = undefined
+      timerAt = Infinity
+      void flush(false)
+    }, Math.max(0, at - now()))
+  }
+
   const flush = async (hiding = false): Promise<void> => {
     if (timer) {
       clearTimeout(timer)
       timer = undefined
+      timerAt = Infinity
     }
-    if (!queue.size) return inFlight
-    const records = [...queue.values()]
-    queue.clear()
-    provisional.clear()
+    const sentAt = now()
+    // Hiding the page delivers everything held, since there may be no later flush.
+    const records = [...queue.values()].filter(record => hiding || dueAt(record.fingerprint) <= sentAt)
+    if (!records.length) {
+      schedule()
+      return inFlight
+    }
+    for (const record of records) {
+      queue.delete(record.fingerprint)
+      provisional.delete(record.fingerprint)
+      lastSentAt.set(record.fingerprint, sentAt)
+      deliveries.set(record.fingerprint, (deliveries.get(record.fingerprint) ?? 0) + 1)
+      const total = Math.min((sessionCounts.get(record.fingerprint) ?? 0) + record.count, MAX_SESSION_COUNT)
+      sessionCounts.set(record.fingerprint, total)
+      record.properties = { ...(record.properties ?? {}), session_count: total }
+    }
     const previous = inFlight
     const current = (async () => {
       if (!hiding) await previous
@@ -349,7 +407,7 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     try {
       const { name, message, stack } = normalizeError(error)
       const fingerprint = errorFingerprint(kind, name, message, stack)
-      // A few short application frames show the call path; full stacks add size and page internals.
+      // Shortened frames keep the whole call path within a small, bounded size.
       const frame = compactStack(stack)
       const source = typeof properties.source === 'string' ? properties.source : undefined
       const existing = queue.get(fingerprint)
@@ -357,6 +415,7 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
       if (existing) {
         if (counts && provisional.has(fingerprint)) provisional.delete(fingerprint)
         else if (counts) existing.count = Math.min(existing.count + 1, MAX_COUNT)
+        if (counts) existing.properties = { ...(existing.properties ?? {}), last_occurred_at: now() }
         const sources = existing.properties?.sources
         if (source && Array.isArray(sources) && !sources.includes(source)) sources.push(source)
         return
@@ -385,7 +444,8 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
         ...(ua ? { ua: truncateBytes(ua, 1024) } : {}),
         properties: boundedProperties({ ...rest, ...(source ? { sources: [source] } : {}) })
       })
-      if (queue.size >= MAX_QUEUED_PER_FLUSH) void flush(false)
+      // Only first occurrences fill a flush early; held repeats wait for their interval either way.
+      if ([...queue.keys()].filter(key => !lastSentAt.has(key)).length >= MAX_QUEUED_PER_FLUSH) void flush(false)
       else schedule()
     } catch {
       // Error capture must never throw into the caller.

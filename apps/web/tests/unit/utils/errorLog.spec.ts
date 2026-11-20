@@ -82,7 +82,7 @@ describe('frontend-utils error log collector', () => {
     await collector.flush()
     const [record] = sent[0].body
     expect(record.message).toBe('Failed to fetch https://r.slax.com/b/1 for reading')
-    expect(record.stack).toBe('f (a.js:1:5)')
+    expect(record.stack).toBe('f (a.js:1:5)\ng (chrome-extension://abcdef/offscreen.html:3:4)')
     expect(normalizeError(error).stack).toContain('chrome-extension://abcdef/offscreen.html:3:4')
     expect(stripUrlQueries('GET /v1/sync/changes?token=abc failed')).toBe('GET /v1/sync/changes failed')
     expect(stripUrlQueries('ratio 3/4? no urls here')).toBe('ratio 3/4? no urls here')
@@ -124,10 +124,10 @@ describe('frontend-utils error log collector', () => {
     }
   })
 
-  it('bounds the message in bytes and keeps a compact stack', async () => {
+  it('bounds the message in bytes and keeps a compact stack within 4 KiB', async () => {
     const { collector, sent } = make()
     const error = new Error('é'.repeat(20000))
-    error.stack = `Error: ${'é'.repeat(20)}\n    at deep${'x'.repeat(2000)} (https://r.slax.com/a.js:1:2)\n    at second (https://r.slax.com/b.js:3:4)`
+    error.stack = `Error: ${'é'.repeat(20)}\n    at deep${'x'.repeat(2000)} (https://r.slax.com/_nuxt/a.js:1:2)\n    at second (https://r.slax.com/_nuxt/b.js:3:4)`
     collector.capture('error', error)
     await collector.flush()
     const [record] = sent[0].body
@@ -136,33 +136,46 @@ describe('frontend-utils error log collector', () => {
     expect(frames[0].startsWith('deepx')).toBe(true)
     expect(new TextEncoder().encode(frames[0]).length).toBeLessThanOrEqual(512)
     expect(frames[1]).toBe('second (b.js:3:4)')
-    expect(new TextEncoder().encode(record.stack ?? '').length).toBeLessThanOrEqual(1024)
     expect(truncateBytes('abc', 2)).toBe('ab')
   })
 
-  it('compacts V8 and Safari stacks to five short application frames', () => {
+  it('keeps every frame of V8 and Safari stacks, shortened, with recursion collapsed', () => {
     const v8 = [
       'TypeError: Failed to fetch',
       '    at window.fetch (https://r.slax.com/_nuxt/HkvhJBOe.js:12:5)',
       '    at Object.uploadChanges (https://r.slax.com/_nuxt/HkvhJBOe.js:17541:24)',
-      '    at callWithErrorHandling (https://r.slax.com/_nuxt/vue.js:1:1)',
+      '    at JSON.parse (<anonymous>)',
       '    at chrome-extension://abcdef/content.js:2:2',
-      '    at Array.forEach (<anonymous>)',
-      '    at async uploadData (https://r.slax.com/_nuxt/HkvhJBOe.js:12000:9)',
+      '    at f (https://r.slax.com/_nuxt/a.js:1:1)',
       '    at f (https://r.slax.com/_nuxt/a.js:1:1)',
       '    at f (https://r.slax.com/_nuxt/a.js:1:1)',
       '    at async https://r.slax.com/_nuxt/worker-v4.js:3239:35',
-      '    at g (https://r.slax.com/_nuxt/b.js:2:2)',
-      '    at h (https://r.slax.com/_nuxt/c.js:3:3)'
+      '    at https://cdn.example.com/lib.js:1:1'
     ].join('\n')
-    expect(compactStack(v8)).toBe(['window.fetch (HkvhJBOe.js:12:5)', 'Object.uploadChanges (HkvhJBOe.js:17541:24)', 'async uploadData (HkvhJBOe.js:12000:9)', 'f (a.js:1:1)', 'worker-v4.js:3239:35'].join('\n'))
-    const safari = normalizeError(Object.assign(new Error('x'), { stack: 'fetchStreamRaw@https://r.slax.com/_nuxt/worker-v4.js?v=1:3239:44\n[native code]\n@https://r.slax.com/_nuxt/a.js:1:2' })).stack
-    expect(compactStack(safari)).toBe('fetchStreamRaw (worker-v4.js:3239:44)\na.js:1:2')
-    expect(compactStack('Error: x\n    at Array.forEach (<anonymous>)')).toBe('Array.forEach (<anonymous>)')
-    expect(compactStack('SyntaxError: x\n    at JSON.parse (<anonymous>)\n    at <anonymous> (https://r.slax.com/_nuxt/a.js:3:32)\n    at Array.forEach (<anonymous>)\n    at load (https://r.slax.com/_nuxt/a.js:3:11)')).toBe('a.js:3:32\nload (a.js:3:11)')
-    expect(compactStack('SyntaxError: x\nparse@[native code]\n@https://r.slax.com/_nuxt/a.js:3:32\nforEach@[native code]')).toBe('a.js:3:32')
+    expect(compactStack(v8)).toBe(
+      [
+        'window.fetch (HkvhJBOe.js:12:5)',
+        'Object.uploadChanges (HkvhJBOe.js:17541:24)',
+        'JSON.parse (<anonymous>)',
+        'chrome-extension://abcdef/content.js:2:2',
+        'f (a.js:1:1) ×3',
+        'async (worker-v4.js:3239:35)',
+        'https://cdn.example.com/lib.js:1:1'
+      ].join('\n')
+    )
+    const safari = normalizeError(Object.assign(new Error('x'), { stack: 'fetchStreamRaw@https://r.slax.com/_nuxt/worker-v4.js?v=1:3239:44\nparse@[native code]\n@https://r.slax.com/_nuxt/a.js:1:2' })).stack
+    expect(compactStack(safari)).toBe('fetchStreamRaw (worker-v4.js:3239:44)\nparse ([native code])\na.js:1:2')
     expect(compactStack('Error: only a message')).toBeUndefined()
     expect(compactStack(undefined)).toBeUndefined()
+  })
+
+  it('cuts a deep stack at 4 KiB and says how many frames were dropped', () => {
+    const deep = 'Error: x\n' + Array.from({ length: 400 }, (_, i) => `    at fn${i} (https://r.slax.com/_nuxt/a${i}.js:${i}:1)`).join('\n')
+    const compact = compactStack(deep) ?? ''
+    expect(new TextEncoder().encode(compact).length).toBeLessThanOrEqual(4 * 1024)
+    const lines = compact.split('\n')
+    expect(lines[0]).toBe('fn0 (a0.js:0:1)')
+    expect(lines.at(-1)).toBe(`… ${400 - (lines.length - 1)} more frames`)
   })
 
   it('picks the first real frame in V8 and Firefox stacks, never a message line', () => {
@@ -172,6 +185,54 @@ describe('frontend-utils error log collector', () => {
     expect(firstFrame('Error: user@example.com is not valid\n    at check (https://r.slax.com/_nuxt/x.js:4:1)')).toBe('at check (https://r.slax.com/_nuxt/x.js:4:1)')
     expect(firstFrame('user@example.com is not valid\ncheck@https://r.slax.com/_nuxt/x.js:4:1')).toBe('check@https://r.slax.com/_nuxt/x.js:4:1')
     expect(firstFrame(undefined)).toBeUndefined()
+  })
+
+  it('counts repeats across flushes and backs off instead of sending one record per occurrence', async () => {
+    const { collector, sent } = make()
+    const start = Date.now()
+    // A rejection every 40 seconds for 10 hours, as from a page left open while sync keeps failing.
+    for (let i = 0; i < 900; i++) {
+      collector.capture('unhandledrejection', new TypeError('Load failed'), { source: 'global' })
+      await vi.advanceTimersByTimeAsync(40_000)
+    }
+    await collector.flush(true)
+    const records = sent.flatMap(batch => batch.body)
+    expect(records.length).toBeLessThanOrEqual(20)
+    expect(records.reduce((sum, record) => sum + record.count, 0)).toBe(900)
+    expect(records.at(-1)?.properties?.session_count).toBe(900)
+    expect(records[0]).toMatchObject({ count: 1, properties: { session_count: 1 } })
+    // The wait between deliveries doubles from one minute and never exceeds an hour.
+    const gaps = records.slice(1).map((record, i) => record.occurred_at - records[i].occurred_at)
+    expect(Math.max(...gaps)).toBeLessThanOrEqual(61 * 60_000)
+    expect(records.every(record => record.occurred_at >= start)).toBe(true)
+  })
+
+  it('delivers a burst as one counted record and a new error at once', async () => {
+    const { collector, sent } = make()
+    const burst = new Error('burst')
+    for (let i = 0; i < 50; i++) collector.capture('error', burst)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(sent.flatMap(batch => batch.body).map(record => record.count)).toEqual([50])
+    collector.capture('error', burst)
+    collector.capture('error', new Error('other'))
+    await vi.advanceTimersByTimeAsync(5000)
+    // The repeat waits for its interval; the new error does not.
+    expect(sent.at(-1)?.body.map(record => record.message)).toEqual(['other'])
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(sent.at(-1)?.body).toMatchObject([{ message: 'burst', count: 1, properties: { session_count: 51 } }])
+  })
+
+  it('sends held repeats when the page is hidden', async () => {
+    const { collector, sent } = make()
+    const again = new Error('again')
+    collector.capture('error', again)
+    await collector.flush()
+    collector.capture('error', again)
+    collector.capture('error', again)
+    await collector.flush()
+    expect(sent).toHaveLength(1)
+    await collector.flush(true)
+    expect(sent[1]).toMatchObject({ hiding: true, body: [{ message: 'again', count: 2, properties: { session_count: 3 } }] })
   })
 
   it('caps distinct fingerprints per session at 200', async () => {
