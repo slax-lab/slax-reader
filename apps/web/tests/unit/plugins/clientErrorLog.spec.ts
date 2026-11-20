@@ -70,6 +70,59 @@ describe('client error log plugin', () => {
     expect(records.filter(record => record.message === 'fatal render failure')).toEqual([expect.objectContaining({ count: 1 })])
   })
 
+  it('never lets capture failures reach the page or Nuxt error handling', async () => {
+    const collector = await start()
+    const capture = vi.spyOn(collector, 'capture').mockImplementation(() => {
+      throw new Error('collector broken')
+    })
+    const pageErrors: unknown[] = []
+    const onError = (event: ErrorEvent) => pageErrors.push(event.error)
+    window.addEventListener('error', onError)
+    try {
+      expect(() => window.dispatchEvent(new ErrorEvent('error', { error: new Error('app failure') }))).not.toThrow()
+      expect(() => window.dispatchEvent(Object.assign(new Event('unhandledrejection'), { reason: new Error('rejected') }))).not.toThrow()
+      expect(() => hooks['vue:error'](new Error('render failed'), null, 'render function')).not.toThrow()
+      expect(() => hooks['app:error'](new Error('fatal'))).not.toThrow()
+      expect(capture).toHaveBeenCalled()
+      // Only the dispatched application error reached page listeners; the collector raised none of its own.
+      expect(pageErrors.map(error => (error as Error)?.message)).toEqual(['app failure'])
+    } finally {
+      window.removeEventListener('error', onError)
+    }
+  })
+
+  it('starts the app even when the collector cannot be created', async () => {
+    vi.resetModules()
+    vi.doMock('~/utils/clientErrorLog', () => ({
+      useClientErrorLog: () => {
+        throw new Error('runtime config unavailable')
+      }
+    }))
+    try {
+      const plugin = (await import('~~/app/plugins/client-error-log.client')).default
+      await expect(Promise.resolve(plugin({ hook: vi.fn() } as never))).resolves.toBeUndefined()
+    } finally {
+      vi.doUnmock('~/utils/clientErrorLog')
+    }
+  })
+
+  it('swallows delivery failures on page hide', async () => {
+    const collector = await start()
+    state.fetch.mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.stubGlobal('navigator', { ...navigator, sendBeacon: () => false })
+    collector.capture('error', new Error('before hide'))
+    const rejections: unknown[] = []
+    const onRejection = (event: PromiseRejectionEvent) => rejections.push(event.reason)
+    window.addEventListener('unhandledrejection', onRejection)
+    try {
+      window.dispatchEvent(new Event('pagehide'))
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(rejections).toEqual([])
+    } finally {
+      window.removeEventListener('unhandledrejection', onRejection)
+    }
+  })
+
   it('stays inert without an endpoint', async () => {
     state.endpoint = ''
     const collector = await start()

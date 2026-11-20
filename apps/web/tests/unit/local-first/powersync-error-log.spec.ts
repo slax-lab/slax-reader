@@ -149,6 +149,38 @@ describe('PowerSync error capture', () => {
     expect(console.error).toHaveBeenCalledWith('[powersync] uploadData failed:', failure)
   })
 
+  it('keeps the SDK logger, status listener, and connector working when capture throws', async () => {
+    state.capture.mockImplementation(() => {
+      throw new Error('collector broken')
+    })
+    const result = await start()
+    expect(result?.provide?.powersync).toBeTruthy()
+    // The SDK calls the logger inside its retry loop; it must still print and must not throw.
+    expect(() => logger().log({ level: 50, message: 'Sync error', error: new Error('HTTP 503') })).not.toThrow()
+    expect(state.sdkConsole).toHaveBeenCalledWith(expect.objectContaining({ message: 'Sync error' }))
+    expect(() => state.listeners[0].statusChanged?.(status({ downloadError: new Error('HTTP 503'), uploadError: new Error('500') }))).not.toThrow()
+    const failure = new Error('[powersync] upload changes failed: 500')
+    expect(() => state.connectorOptions[0].onError?.(failure)).not.toThrow()
+    expect(console.error).toHaveBeenCalledWith('[powersync] uploadData failed:', failure)
+    expect(state.capture).toHaveBeenCalled()
+  })
+
+  it('initializes PowerSync even when the collector cannot be created', async () => {
+    vi.resetModules()
+    vi.doMock('~/utils/clientErrorLog', () => ({
+      useClientErrorLog: () => {
+        throw new Error('runtime config unavailable')
+      }
+    }))
+    try {
+      const result = await start()
+      expect(result?.provide?.powersync).toBeTruthy()
+      expect(() => logger().log({ level: 50, message: 'Sync error', error: new Error('HTTP 503') })).not.toThrow()
+    } finally {
+      vi.doUnmock('~/utils/clientErrorLog')
+    }
+  })
+
   it('does not record anything for a healthy startup', async () => {
     await start()
     state.listeners[0].statusChanged?.(status({}))

@@ -15,22 +15,37 @@ export default defineNuxtPlugin({
   name: 'slax:client-error-log',
   enforce: 'pre',
   setup(nuxtApp) {
-    const collector = useClientErrorLog()
-    if (!collector.enabled) return
-    installGlobalErrorCapture(collector, window)
+    // Error capture is diagnostics only; failing to set it up must not stop the app from starting.
+    let collector: ReturnType<typeof useClientErrorLog>
+    try {
+      collector = useClientErrorLog()
+      if (!collector.enabled) return
+      installGlobalErrorCapture(collector, window)
+    } catch {
+      return
+    }
     // Hooks keep Nuxt's own error handler and error page in charge of rendering.
     // A fatal component error reaches `vue:error` and then `app:error` wrapped by Nuxt's createError.
     const seenComponentErrors = new WeakSet<object>()
+    // Nuxt awaits these hooks inside its own error handling, so a throw here must not escape.
     nuxtApp.hook('vue:error', (error, instance, info) => {
-      if (isExpectedClientStatus(error)) return
-      if (error && typeof error === 'object') seenComponentErrors.add(error)
-      collector.capture('vue', error, { source: 'vue', info, component: componentName(instance) })
+      try {
+        if (isExpectedClientStatus(error)) return
+        if (error && typeof error === 'object') seenComponentErrors.add(error)
+        collector.capture('vue', error, { source: 'vue', info, component: componentName(instance) })
+      } catch {
+        // Diagnostics must not affect error handling.
+      }
     })
     nuxtApp.hook('app:error', error => {
-      if (isExpectedClientStatus(error)) return
-      const cause = (error as { cause?: unknown } | null)?.cause
-      if ((error && seenComponentErrors.has(error)) || (cause && typeof cause === 'object' && seenComponentErrors.has(cause))) return
-      collector.capture('vue', error, { source: 'app', status_code: (error as { statusCode?: number } | null)?.statusCode })
+      try {
+        if (isExpectedClientStatus(error)) return
+        const cause = (error as { cause?: unknown } | null)?.cause
+        if ((error && seenComponentErrors.has(error)) || (cause && typeof cause === 'object' && seenComponentErrors.has(cause))) return
+        collector.capture('vue', error, { source: 'app', status_code: (error as { statusCode?: number } | null)?.statusCode })
+      } catch {
+        // Diagnostics must not affect error handling.
+      }
     })
   }
 })

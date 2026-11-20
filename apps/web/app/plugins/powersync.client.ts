@@ -25,9 +25,15 @@ const DATABASE_FILENAME = `slax-reader-${DATABASE_GENERATION}.db`
 // 保留 PowerSync 现场日志，生产构建也可排障。
 const powerSyncConsole = globalThis.console
 
-const errorLog = () => useClientErrorLog()
-const capturePowerSyncError = (source: string, error: unknown, properties: Record<string, unknown> = {}, countOccurrence = true) =>
-  errorLog().capture('powersync', error ?? { name: 'PowerSyncError', message: source }, { source, ...properties }, { countOccurrence })
+// Error capture is diagnostics only: any failure inside it, including creating the collector, is
+// swallowed so it can never change sync, upload, or recovery behavior.
+const capturePowerSyncError = (source: string, error: unknown, properties: Record<string, unknown> = {}, countOccurrence = true) => {
+  try {
+    useClientErrorLog().capture('powersync', error ?? { name: 'PowerSyncError', message: source }, { source, ...properties }, { countOccurrence })
+  } catch {
+    // Diagnostics must not affect the caller.
+  }
+}
 
 // The SDK logs one sync failure twice ("Could not POST streaming…", then "Sync error") within
 // milliseconds; its retries are seconds apart, so a short window separates repeats from retries.
@@ -42,16 +48,22 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
   return {
     log(record) {
       consoleLogger.log(record)
-      const { level, message, error } = record
-      if (level < LogLevels.error) return
-      const captured = error ?? { name: 'PowerSyncLog', message }
-      const normalized = normalizeError(captured)
-      const key = `${normalized.name ?? ''}:${normalized.message}`
-      const now = Date.now()
-      const repeat = key === lastError && now - lastErrorAt < SDK_DUPLICATE_WINDOW_MS
-      lastError = key
-      lastErrorAt = now
-      capturePowerSyncError('sdk.logger', captured, { worker_mode: mode }, !repeat)
+      // The SDK calls this from its sync retry loop without a guard, so a throw here could skip its
+      // error bookkeeping or end the loop. Capture runs fully guarded.
+      try {
+        const { level, message, error } = record
+        if (level < LogLevels.error) return
+        const captured = error ?? { name: 'PowerSyncLog', message }
+        const normalized = normalizeError(captured)
+        const key = `${normalized.name ?? ''}:${normalized.message}`
+        const now = Date.now()
+        const repeat = key === lastError && now - lastErrorAt < SDK_DUPLICATE_WINDOW_MS
+        lastError = key
+        lastErrorAt = now
+        capturePowerSyncError('sdk.logger', captured, { worker_mode: mode }, !repeat)
+      } catch {
+        // Diagnostics must not affect the SDK.
+      }
     }
   }
 }
@@ -275,17 +287,21 @@ export default defineNuxtPlugin({
     let lastUploadError = ''
     db.registerListener({
       statusChanged: status => {
-        const { downloadError, uploadError } = status.dataFlowStatus ?? {}
-        const downloadKey = errorKey(downloadError)
-        const uploadKey = errorKey(uploadError)
-        if (downloadKey && downloadKey !== lastDownloadError) {
-          capturePowerSyncError('status.downloadError', downloadError, { worker_mode: recovery.mode, connected: status.connected }, false)
+        try {
+          const { downloadError, uploadError } = status.dataFlowStatus ?? {}
+          const downloadKey = errorKey(downloadError)
+          const uploadKey = errorKey(uploadError)
+          if (downloadKey && downloadKey !== lastDownloadError) {
+            capturePowerSyncError('status.downloadError', downloadError, { worker_mode: recovery.mode, connected: status.connected }, false)
+          }
+          if (uploadKey && uploadKey !== lastUploadError) {
+            capturePowerSyncError('status.uploadError', uploadError, { worker_mode: recovery.mode, connected: status.connected }, false)
+          }
+          lastDownloadError = downloadKey
+          lastUploadError = uploadKey
+        } catch {
+          // Diagnostics must not affect other status listeners.
         }
-        if (uploadKey && uploadKey !== lastUploadError) {
-          capturePowerSyncError('status.uploadError', uploadError, { worker_mode: recovery.mode, connected: status.connected }, false)
-        }
-        lastDownloadError = downloadKey
-        lastUploadError = uploadKey
       }
     })
 

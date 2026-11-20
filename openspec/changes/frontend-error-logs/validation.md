@@ -186,6 +186,14 @@ The automated review found no Important issue. Its four Nits are fixed:
 
 `pnpm web -- test`: 3200 passed, 3 skipped, and the known `useSlaxRoutes.spec.ts` timeout, which passed on rerun; Web `typecheck`, lint, and `openspec validate --all --strict` pass.
 
+## Capture cannot affect the app
+
+Asked to guarantee that error capture never breaks the app, a review of every entry point found gaps: the PowerSync logger normalized the error and created the collector outside any guard, the status listener and plugin setup were unguarded, and a page-hide flush could reject. The SDK source (`AbstractStreamingSyncImplementation.ts`, `@powersync/shared-internals` 1.3.0) calls the logger from its sync retry loop without a `try`, so a throw there could skip setting `downloadError` or end the loop. All entry points are now guarded. Tests make the collector throw on every capture and fail at creation: the app plugin still installs and starts, PowerSync still initializes, the SDK logger still prints and does not throw, the status listener and connector `onError` do not throw, `[powersync] uploadData failed:` is still logged, and no page error or unhandled rejection is raised, including when delivery fails on page hide. Against the previous plugins, four of these tests fail.
+
+`pnpm web -- test`: 3205 passed, 3 skipped, and the known `useSlaxRoutes.spec.ts` timeout; Web `typecheck` and lint on the changed files pass.
+
+A production-mode build served at `http://localhost:3103` was then driven in Chrome 158 with the ingestion endpoint unreachable (`fetch` rejected, `sendBeacon` refused) and serialization of collector payloads forced to throw. An application error and rejection raised during that window reached the page's own listeners exactly as usual, no further page error or unhandled rejection appeared through capture, flush, or page hide, and the app then navigated to `/guide` and rendered it.
+
 ## Cleanup
 
 The PowerSync test container, its replication slot and storage database, the local stub, proxy, and Pages server were removed. The existing `dev-powersync` service and its replication slot were unchanged.

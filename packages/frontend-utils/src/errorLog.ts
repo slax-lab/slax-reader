@@ -373,7 +373,7 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     }, Math.max(0, at - now()))
   }
 
-  const flush = async (hiding = false): Promise<void> => {
+  const flushNow = async (hiding: boolean): Promise<void> => {
     if (timer) {
       clearTimeout(timer)
       timer = undefined
@@ -403,6 +403,15 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     await current
     if (inFlight === current) inFlight = undefined
     schedule()
+  }
+
+  // Never rejects: callers include timers and page-hide listeners that do not handle errors.
+  const flush = async (hiding = false): Promise<void> => {
+    try {
+      await flushNow(hiding)
+    } catch {
+      // Delivery is best effort.
+    }
   }
 
   const mergeSource = (record: ClientErrorRecord | undefined, source: string | undefined) => {
@@ -473,9 +482,20 @@ interface ListenerTarget {
  */
 export function installGlobalErrorCapture(collector: ErrorCollector, target: ListenerTarget = globalThis as unknown as ListenerTarget): void {
   if (!collector.enabled) return
+  // Listener bodies are guarded: a throw inside one would surface as a new uncaught error on the page.
+  const guarded =
+    <T>(listener: (event: T) => void) =>
+    (event: T) => {
+      try {
+        listener(event)
+      } catch {
+        // Diagnostics must not raise errors of their own.
+      }
+    }
+  const flushHidden = () => collector.flush(true).catch(() => {})
   target.addEventListener(
     'error',
-    (event: ErrorEvent) => {
+    guarded((event: ErrorEvent) => {
       const element = event.target as { tagName?: unknown; src?: string } | null
       if (element && element !== (target as unknown) && typeof element.tagName === 'string') {
         if (element.tagName === 'SCRIPT') {
@@ -490,15 +510,21 @@ export function installGlobalErrorCapture(collector: ErrorCollector, target: Lis
         lineno: event.lineno,
         colno: event.colno
       })
-    },
+    }),
     true
   )
-  target.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => collector.capture('unhandledrejection', event.reason, { source: 'global' }))
+  target.addEventListener(
+    'unhandledrejection',
+    guarded((event: PromiseRejectionEvent) => collector.capture('unhandledrejection', event.reason, { source: 'global' }))
+  )
   const doc = (target as { document?: Document }).document
   if (doc) {
-    doc.addEventListener('visibilitychange', () => {
-      if (doc.visibilityState === 'hidden') void collector.flush(true)
-    })
-    target.addEventListener('pagehide', () => void collector.flush(true))
+    doc.addEventListener(
+      'visibilitychange',
+      guarded(() => {
+        if (doc.visibilityState === 'hidden') void flushHidden()
+      })
+    )
+    target.addEventListener('pagehide', guarded(() => void flushHidden()))
   }
 }
