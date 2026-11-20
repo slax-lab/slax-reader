@@ -1,21 +1,23 @@
 <template>
   <div class="bookmark-article snapshot" ref="bookmarkArticle" :class="{ [articleStyle]: true }">
     <header class="article-header">
-      <SnapshotArticleSource
-        v-if="!isPdf && detail.target_url && !detail.target_url.startsWith('slax-pdf://') && !isNewsletterBookmarkTarget(detail.target_url)"
-        :url="detail.target_url"
-        :site-name="detail.site_name"
-        :column-name="(detail as BookmarkArticleDetail & { column_name?: string }).column_name"
-        :author="detail.byline"
-        :host-url="detail.host_url"
-      />
-      <SnapshotArticleSource
-        v-if="!isPdf && isNewsletterBookmarkTarget(detail.target_url)"
-        :site-name="t('newsletter.source')"
-        :author="detail.site_name?.trim() || detail.byline"
-      />
-      <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url" :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
-      <SnapshotForkAttribution v-if="!isPdf || detail.pdf" :has-fork="detail.has_fork === true" :attribution="detail.fork" />
+      <div v-if="!isPdf || detail.pdf" class="article-provenance" :class="{ 'is-forked': detail.has_fork === true }">
+        <SnapshotArticleSource
+          v-if="!isPdf && detail.target_url && !detail.target_url.startsWith('slax-pdf://') && !isNewsletterBookmarkTarget(detail.target_url)"
+          :url="detail.target_url"
+          :site-name="detail.site_name"
+          :column-name="(detail as BookmarkArticleDetail & { column_name?: string }).column_name"
+          :author="detail.byline"
+          :host-url="detail.host_url"
+        />
+        <SnapshotArticleSource
+          v-if="!isPdf && isNewsletterBookmarkTarget(detail.target_url)"
+          :site-name="t('newsletter.source')"
+          :author="detail.site_name?.trim() || detail.byline"
+        />
+        <PdfDocumentSource v-if="isPdf && detail.pdf" :pdf="detail.pdf" :url="detail.target_url" :site-name="detail.site_name" :host-url="detail.host_url" :author="pdfAuthor" />
+        <SnapshotForkAttribution :has-fork="detail.has_fork === true" :attribution="detail.fork" />
+      </div>
       <div v-if="!isPdf || detail.pdf" class="article-divider" />
       <h1 class="article-title" :title="title">{{ title }}</h1>
       <BookmarkTags
@@ -51,10 +53,10 @@
 </template>
 
 <script lang="ts" setup>
-import type { ObjectDirective } from 'vue'
 import PdfDocumentSource from './Pdf/PdfDocumentSource.vue'
 
 import type { ReaderSelection } from './Selection/ReaderSelection'
+import type { ObjectDirective } from 'vue'
 const PdfReader = defineAsyncComponent(() => import('./Pdf/PdfReader.client.vue'))
 import BookmarkTags from '~/components/BookmarkTags.vue'
 import SnapshotArticleFooter from '~/components/Snapshot/SnapshotArticleFooter.vue'
@@ -239,6 +241,48 @@ defineExpose({ findQuote, articleSelection: activeSelection })
 .article-header {
   display: flex;
   flex-direction: column;
+}
+
+.article-provenance {
+  display: contents;
+
+  &.is-forked {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    :deep(.article-source),
+    :deep(.pdf-upload-source) {
+      min-width: 0;
+    }
+
+    :deep(a.fork-attribution:not(:only-child)) {
+      max-width: 45%;
+    }
+
+    :deep(a.article-source:focus-visible) {
+      outline: 2px solid var(--slax-accent);
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 768px) {
+      min-height: 44px;
+
+      :deep(a.article-source) {
+        position: relative;
+        min-height: 0;
+
+        &::after {
+          content: '';
+          position: absolute;
+          inset-inline: 0;
+          top: 50%;
+          height: 44px;
+          transform: translateY(-50%);
+        }
+      }
+    }
+  }
 }
 
 .article-divider {
