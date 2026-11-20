@@ -3,6 +3,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { parse as parseDotenv } from 'dotenv'
+import { parse as parseToml } from 'smol-toml'
 import { API_ROOT, ROOT, parseArgs, readConfig, workerNames, writeGenerated, type ApiConfig } from './config'
 import { accountApi, missingRuntimeValues, type CloudflareApi } from './topology'
 import { loadApiEnv } from '../env'
@@ -12,14 +13,16 @@ type SecretTarget = (typeof TARGETS)[number]
 export type Upload = (target: SecretTarget, values: Record<string, string>) => number
 
 // Cloudflare never returns a secret's value, so values come from a file the operator holds (a password manager
-// export or the original .env), outside the repository or in an ignored path. Values are never printed, including in
-// errors: a JSON syntax error reports only its position, and an unsupported shape lists key names and value types.
+// export, the original .env or an old TOML backup), outside the repository or in an ignored path. Values are never
+// printed, including in errors: a syntax error reports only its position, and an unsupported shape lists key names and
+// value types.
 export function readSecretsFile(filename: string, isIgnored: (file: string) => boolean): Record<string, string> {
   const resolved = path.resolve(ROOT, filename)
   const relative = path.relative(ROOT, resolved)
   if (!relative.startsWith('..') && !path.isAbsolute(relative) && !isIgnored(resolved))
     throw new Error(`${relative} is inside the repository and not ignored by git; keep secret files outside the repository or in deploy/local/`)
   const text = fs.readFileSync(resolved, 'utf8').replace(/^\uFEFF/, '')
+  if (resolved.endsWith('.toml')) return secretsFromEntries(Object.entries(parseTomlFile(text)), TOML_EXPECTED)
   if (!/^\s*[{[]/.test(text) && !resolved.endsWith('.json')) return parseDotenv(text)
   return secretsFromJson(parseJson(text))
 }
@@ -33,33 +36,46 @@ function parseJson(text: string): unknown {
   }
 }
 
+// smol-toml quotes the offending line in its message, so only the line and column are kept.
+function parseTomlFile(text: string): Record<string, unknown> {
+  try {
+    return parseToml(text)
+  } catch (error) {
+    const { line, column } = (error ?? {}) as { line?: unknown; column?: unknown }
+    throw new Error(`The secrets file is not valid TOML${typeof line === 'number' && typeof column === 'number' ? ` at line ${line} column ${column}` : ''}`)
+  }
+}
+
 const describe = (value: unknown) => (Array.isArray(value) ? 'array' : value === null ? 'null' : typeof value)
 const article = (type: string) => (/^[aeiou]/.test(type) ? `an ${type}` : `a ${type}`)
+const JSON_EXPECTED = 'expected {"KEY": "value"} or [{"name": "KEY", "value": "value"}]'
+const TOML_EXPECTED = 'expected top-level KEY = "value" lines'
 
-const EXPECTED = 'expected {"KEY": "value"} or [{"name": "KEY", "value": "value"}]'
-
-// Accepts {"KEY": "value"} and [{"name" | "key": "KEY", "value": "value"}]; numbers and booleans become strings.
+// Accepts {"KEY": "value"} and [{"name" | "key": "KEY", "value": "value"}].
 function secretsFromJson(data: unknown): Record<string, string> {
-  let entries: [string, unknown][]
-  if (Array.isArray(data)) {
-    entries = data.map((entry: unknown, index) => {
-      const item = entry && typeof entry === 'object' && !Array.isArray(entry) ? (entry as Record<string, unknown>) : {}
-      const name = item.name ?? item.key
-      if (typeof name !== 'string' || !name || !('value' in item)) throw new Error(`Entry ${index} of the secrets file needs a "name" (or "key") and a "value"`)
-      return [name, item.value]
-    })
-  } else if (describe(data) === 'object') {
-    entries = Object.entries(data as Record<string, unknown>)
-  } else {
-    throw new Error(`The secrets file holds ${article(describe(data))}; ${EXPECTED}`)
-  }
+  if (Array.isArray(data))
+    return secretsFromEntries(
+      data.map((entry: unknown, index) => {
+        const item = entry && typeof entry === 'object' && !Array.isArray(entry) ? (entry as Record<string, unknown>) : {}
+        const name = item.name ?? item.key
+        if (typeof name !== 'string' || !name || !('value' in item)) throw new Error(`Entry ${index} of the secrets file needs a "name" (or "key") and a "value"`)
+        return [name, item.value]
+      }),
+      JSON_EXPECTED
+    )
+  if (describe(data) === 'object') return secretsFromEntries(Object.entries(data as Record<string, unknown>), JSON_EXPECTED)
+  throw new Error(`The secrets file holds ${article(describe(data))}; ${JSON_EXPECTED}`)
+}
+
+// Numbers and booleans become strings; anything else names its key and type only.
+function secretsFromEntries(entries: [string, unknown][], expected: string): Record<string, string> {
   const values: Record<string, string> = {}
   for (const [key, value] of entries) {
     if (typeof value === 'string') values[key] = value
-    else if (typeof value === 'number' || typeof value === 'boolean') values[key] = String(value)
+    else if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') values[key] = String(value)
     else
       throw new Error(
-        `${key} holds ${article(describe(value))}, not a string; ${EXPECTED}. This file has: ${entries.map(([name, item]) => `${name} (${describe(item)})`).join(', ')}`
+        `${key} holds ${article(describe(value))}, not a string; ${expected}. This file has: ${entries.map(([name, item]) => `${name} (${describe(item)})`).join(', ')}`
       )
   }
   return values
@@ -110,7 +126,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const source = index >= 0 ? args[index + 1] : undefined
   const rest = index >= 0 ? [...args.slice(0, index), ...args.slice(index + 2)] : args
   try {
-    if (!source) throw new Error('Usage: pnpm api -- secrets:sync --from <secrets .env or .json file> [--dry-run] [--config <path>] [--env <name>]')
+    if (!source) throw new Error('Usage: pnpm api -- secrets:sync --from <secrets .env, .json or .toml file> [--dry-run] [--config <path>] [--env <name>]')
     const options = parseArgs(rest, ['--dry-run'])
     if (options.target) throw new Error('secrets:sync selects the Workers that lack values itself')
     loadApiEnv()

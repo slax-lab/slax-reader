@@ -110,6 +110,31 @@ describe('secrets file', () => {
     expect(read('backup.txt', '  {"A":"b"}')).toEqual({ A: 'b' })
   })
 
+  test('reads TOML backups of top-level keys, including multi-line strings', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'secrets-'))
+    directories.push(directory)
+    const text = "\uFEFF# old backup\nDEEPSEEK_API_KEY = \"abc\"\nPORT = 443\nPEM = '''\n-----BEGIN-----\nabc'''\n"
+    expect(readSecretsFile(write(directory, 'old.toml', text), () => false)).toEqual({ DEEPSEEK_API_KEY: 'abc', PORT: '443', PEM: '-----BEGIN-----\nabc' })
+  })
+
+  test('TOML errors never echo a value', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'secrets-'))
+    directories.push(directory)
+    const failure = (name: string, text: string) => {
+      try {
+        readSecretsFile(write(directory, name, text), () => false)
+      } catch (error) {
+        return (error as Error).message
+      }
+      throw new Error('expected a failure')
+    }
+    const syntax = failure('syntax.toml', 'OPENAI_API_KEY = "sk-live-SECRET" x\n')
+    expect(syntax).toBe('The secrets file is not valid TOML at line 1 column 35')
+    const nested = failure('nested.toml', 'NOTE = "sk-live-SECRET"\n[vars]\nOPENAI_API_KEY = "sk-live-SECRET"\n')
+    expect(nested).toBe('vars holds an object, not a string; expected top-level KEY = "value" lines. This file has: NOTE (string), vars (object)')
+    for (const message of [syntax, nested]) expect(message).not.toContain('SECRET')
+  })
+
   test('JSON errors never echo a value', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'secrets-'))
     directories.push(directory)

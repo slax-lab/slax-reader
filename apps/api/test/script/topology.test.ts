@@ -54,16 +54,22 @@ function account(owner: 'edge' | 'core', extra: Partial<TopologyState> = {}) {
       if (method === 'DELETE' && consumer) {
         const queue = state.queues.find(item => item.queue_id === consumer[1])!
         queue.consumers = queue.consumers.filter(item => item.consumer_id !== consumer[2])
-      } else if (method === 'PUT' && pathname === `/workers/scripts/${EDGE}/schedules`) state.schedules[EDGE] = body as string[]
-      else throw new Error(`unexpected ${method} ${pathname}`)
+      } else if (method === 'PUT' && pathname === `/workers/scripts/${EDGE}/schedules`) {
+        // Cloudflare's Update Cron Triggers takes a bare array of { cron } objects, as Wrangler sends it.
+        if (!Array.isArray(body) || !body.every(item => typeof item?.cron === 'string')) throw new Error('400: schedules body must be [{ cron }]')
+        state.schedules[EDGE] = body.map(item => item.cron)
+      } else throw new Error(`unexpected ${method} ${pathname}`)
       return {} as T
     }
   }
   // A Core deploy takes every Workflow and becomes each queue's consumer, as Wrangler does. A retire-mcp deploy
-  // deletes the Worker's MCP namespace, which Cloudflare refuses while another Worker still binds to it.
+  // deletes the Worker's MCP namespace, which Cloudflare refuses while another Worker still binds to it. AI binds
+  // the Workflows by script_name = Core, so its upload is treated as failing until Core owns them; the reviewer
+  // could not rule that rejection out, and the order must not depend on it.
   const deploy = vi.fn(async (targets: Target[], mcp: McpPhase) => {
     for (const target of targets) {
       const name = names[target]
+      if (target === 'ai' && state.workflows.some(workflow => workflow.script_name !== 'reader-core')) throw new Error('workflow class not exported by reader-core')
       if (mcp === 'retire-mcp') {
         if (target === 'core' && state.mcp.includes(EDGE)) throw new Error('tombstone_delete_blocked_by_external_bindings')
         state.mcp = state.mcp.filter(script => script !== name)
@@ -122,9 +128,10 @@ describe('topology:transition', () => {
     const writes = calls.filter(call => !call.startsWith('GET '))
     // Edge consumers and schedules are released before Core is published, so no queue ever has two consumers.
     expect(writes).toEqual([...queues.map((_, index) => `DELETE /queues/q${index}/consumers/c${index}`), `PUT /workers/scripts/${EDGE}/schedules`])
+    // Core first: AI's Workflow bindings name Core, which exports those classes only from this release on.
     expect(deploy.mock.calls.slice(1)).toEqual([
-      [['ai'], 'keep-mcp'],
-      [['core'], 'keep-mcp']
+      [['core'], 'keep-mcp'],
+      [['ai'], 'keep-mcp']
     ])
     expect(state.mcp).toEqual([EDGE, 'reader-core'])
     expect(state.workflows.every(workflow => workflow.script_name === 'reader-core')).toBe(true)

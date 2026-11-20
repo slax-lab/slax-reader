@@ -188,16 +188,21 @@ export async function transition({ step, dryRun, api, config, deploy, log = cons
   if (step === 2) {
     if (!before.scripts.includes(names.objects)) throw new Error(`Step 2 requires ${names.objects}; run step 1 first`)
     await requireValues(['ai', 'core'])
-    const status = await publish(['ai'])
-    if (status) return status
+    // Core goes before AI: AI binds the Workflows by script_name, and only the new Core exports their classes (the
+    // old Core does not; the old Edge does). The old AI needs nothing the new Core drops, since its AiEntry methods
+    // are unchanged.
     for (const queue of before.queues)
       for (const consumer of queue.consumers)
         if (consumerScript(consumer) === names.edge && consumer.consumer_id)
           await act(`remove Edge consumer of ${queue.queue_name}`, () => api.send('DELETE', `/queues/${queue.queue_id}/consumers/${consumer.consumer_id}`))
     if (before.schedules[names.edge]?.length)
-      await act(`clear Edge cron schedules ${before.schedules[names.edge].join(', ')}`, () => api.send('PUT', `/workers/scripts/${encodeURIComponent(names.edge)}/schedules`, []))
+      await act(`clear Edge cron schedules ${before.schedules[names.edge].join(', ')}`, () =>
+        api.send('PUT', `/workers/scripts/${encodeURIComponent(names.edge)}/schedules`, [] satisfies { cron: string }[])
+      )
     const published = await publish(['core'])
-    if (published || dryRun) return published
+    if (published) return published
+    const ai = await publish(['ai'])
+    if (ai || dryRun) return ai
     const counts = (state: TopologyState) => Object.fromEntries(state.workflows.map(workflow => [workflow.name, workflow.script_name]))
     const after = await readState(api, config)
     log(`workflows before ${JSON.stringify(counts(before))}, after ${JSON.stringify(counts(after))}`)
