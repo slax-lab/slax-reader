@@ -1,5 +1,5 @@
 import { parseHTML } from 'linkedom'
-import moment from 'moment-timezone'
+import { parsePublishedTime } from './publishedTime'
 import {
   bylineParserHandle,
   defuddleParse,
@@ -46,7 +46,7 @@ export class ContentParser {
     await PreparserHandle(options.url, rawDocument)
 
     // Readability内容解析
-    let res = slaxReadability(options.url, rawDocument)
+    let res = await slaxReadability(options.url, rawDocument)
     if (!res) {
       res = await fallbackParserHandle(options.url, rawDocument)
     }
@@ -71,10 +71,7 @@ export class ContentParser {
     let publishedTime = new Date()
     if (res.publishedTime && res.publishedTime.trim()) {
       res.publishedTime = res.publishedTime.replace(/年|月/g, '-').replace('日', '')
-      try {
-        const parsedTime = moment(res.publishedTime)
-        if (parsedTime.isValid()) publishedTime = parsedTime.toDate()
-      } catch {}
+      publishedTime = parsePublishedTime(res.publishedTime) ?? publishedTime
     }
 
     return {
@@ -132,10 +129,7 @@ export class ContentParser {
     let publishedTime = new Date()
     if (result.publishedTime && String(result.publishedTime).trim()) {
       result.publishedTime = String(result.publishedTime).replace(/年|月/g, '-').replace('日', '')
-      try {
-        const parsedTime = moment(result.publishedTime)
-        if (parsedTime.isValid()) publishedTime = parsedTime.toDate()
-      } catch {}
+      publishedTime = parsePublishedTime(result.publishedTime) ?? publishedTime
     }
 
     return {

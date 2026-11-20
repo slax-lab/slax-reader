@@ -1,0 +1,257 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { parse } from 'smol-toml'
+import { describe, expect, test, vi } from 'vitest'
+import { ROOT } from '../../script/root'
+import { cloudflareApi, requireTopology, topologyProblems, transition, type CloudflareApi, type TopologyState } from '../../script/deploy/topology'
+import { workerNames, type ApiConfig, type McpPhase, type Target } from '../../script/deploy/config'
+import { RUNTIME_KEYS } from '../../script/deploy/runtimeKeys'
+
+const config = parse(fs.readFileSync(path.join(ROOT, 'deploy/cloudflare/api.toml.example'), 'utf8')) as ApiConfig
+const workflows = (config.workflows as { name: string; class_name: string }[]).map(workflow => workflow.name)
+const queues = ((config.queues as { consumers: { queue: string }[] }).consumers ?? []).map(consumer => consumer.queue)
+const crons = ((config.triggers as { crons?: string[] } | undefined)?.crons ?? []).map(String)
+const names = workerNames(config)
+const EDGE = names.edge
+
+// An in-memory account that applies the same changes the Cloudflare API would.
+function account(owner: 'edge' | 'core', extra: Partial<TopologyState> = {}) {
+  const script = owner === 'edge' ? EDGE : 'reader-core'
+  // Secret and plain-text names per script; by default every Worker already holds what its code reads, and the
+  // old Edge holds every key, as the live accounts did before the split.
+  const secrets: Record<string, Set<string>> = Object.fromEntries((['edge', 'core', 'ai', 'objects'] as const).map(target => [names[target], new Set(RUNTIME_KEYS[target])]))
+  for (const keys of Object.values(RUNTIME_KEYS)) for (const key of keys) secrets[EDGE].add(key)
+  const state: TopologyState = {
+    scripts: ['reader-browser', 'reader-core', 'reader-ai', EDGE],
+    workflows: (config.workflows as { name: string; class_name: string }[]).map(workflow => ({ ...workflow, script_name: script })),
+    queues: queues.map((queue, index) => ({ queue_id: `q${index}`, queue_name: queue, consumers: [{ script, consumer_id: `c${index}`, type: 'worker' }] })),
+    schedules: { [EDGE]: owner === 'edge' ? [...crons] : [], 'reader-core': owner === 'core' ? [...crons] : [] },
+    mcp: owner === 'edge' ? [EDGE, 'reader-core'] : [],
+    ...extra
+  }
+  const calls: string[] = []
+  const api: CloudflareApi = {
+    async list<T>(pathname: string) {
+      calls.push(`GET ${pathname}`)
+      if (pathname === '/workers/scripts') return state.scripts.map(id => ({ id })) as T[]
+      if (pathname === '/workflows') return structuredClone(state.workflows) as T[]
+      if (pathname === '/queues') return structuredClone(state.queues) as T[]
+      if (pathname === '/workers/durable_objects/namespaces')
+        return [...state.mcp.map(script => ({ class: 'SlaxMcpServer', script })), { class: 'SlaxMcpServer', script: 'another-app' }] as T[]
+      throw new Error(`unexpected list ${pathname}`)
+    },
+    async get<T>(pathname: string) {
+      calls.push(`GET ${pathname}`)
+      const settings = /^\/workers\/scripts\/([^/]+)\/settings$/.exec(pathname)
+      if (settings) return { bindings: [...(secrets[decodeURIComponent(settings[1])] ?? [])].map(name => ({ name, type: 'secret_text' })) } as T
+      const schedule = /^\/workers\/scripts\/([^/]+)\/schedules$/.exec(pathname)
+      if (schedule) return { schedules: (state.schedules[decodeURIComponent(schedule[1])] ?? []).map(cron => ({ cron })) } as T
+      throw new Error(`unexpected ${pathname}`)
+    },
+    async send<T>(method: 'PUT' | 'DELETE', pathname: string, body?: unknown) {
+      calls.push(`${method} ${pathname}`)
+      const consumer = /^\/queues\/([^/]+)\/consumers\/([^/]+)$/.exec(pathname)
+      if (method === 'DELETE' && consumer) {
+        const queue = state.queues.find(item => item.queue_id === consumer[1])!
+        queue.consumers = queue.consumers.filter(item => item.consumer_id !== consumer[2])
+      } else if (method === 'PUT' && pathname === `/workers/scripts/${EDGE}/schedules`) {
+        // Cloudflare's Update Cron Triggers takes a bare array of { cron } objects, as Wrangler sends it.
+        if (!Array.isArray(body) || !body.every(item => typeof item?.cron === 'string')) throw new Error('400: schedules body must be [{ cron }]')
+        state.schedules[EDGE] = body.map(item => item.cron)
+      } else throw new Error(`unexpected ${method} ${pathname}`)
+      return {} as T
+    }
+  }
+  // A Core deploy takes every Workflow and becomes each queue's consumer, as Wrangler does. A retire-mcp deploy
+  // deletes the Worker's MCP namespace, which Cloudflare refuses while another Worker still binds to it. AI binds
+  // the Workflows by script_name = Core, so its upload is treated as failing until Core owns them; the reviewer
+  // could not rule that rejection out, and the order must not depend on it.
+  const deploy = vi.fn(async (targets: Target[], mcp: McpPhase) => {
+    for (const target of targets) {
+      const name = names[target]
+      if (target === 'ai' && state.workflows.some(workflow => workflow.script_name !== 'reader-core')) throw new Error('workflow class not exported by reader-core')
+      if (mcp === 'retire-mcp') {
+        if (target === 'core' && state.mcp.includes(EDGE)) throw new Error('tombstone_delete_blocked_by_external_bindings')
+        state.mcp = state.mcp.filter(script => script !== name)
+      }
+      if (!state.scripts.includes(name)) state.scripts.push(name)
+      if (target === 'core') {
+        state.schedules['reader-core'] = [...crons]
+        for (const workflow of state.workflows) workflow.script_name = 'reader-core'
+        for (const queue of state.queues) if (!queue.consumers.length) queue.consumers.push({ script: 'reader-core', consumer_id: `core-${queue.queue_id}`, type: 'worker' })
+      }
+    }
+    return 0
+  })
+  return { state, api, calls, deploy, secrets }
+}
+
+const quiet = () => {}
+
+describe('five-Worker topology check', () => {
+  test('an untransitioned installation names every surface still owned by Edge and the transition command', async () => {
+    const { state, api } = account('edge')
+    const problems = topologyProblems(state, config)
+    expect(problems).toContain('Worker reader-objects (objects) is not deployed')
+    for (const name of workflows) expect(problems).toContain(`Workflow ${name} belongs to ${EDGE}, not reader-core`)
+    for (const name of queues) expect(problems).toContain(`Queue ${name} is consumed by ${EDGE}, not only reader-core`)
+    expect(problems).toContain(`Edge ${EDGE} still has cron schedules ${crons.join(', ')}`)
+    expect(problems).toContain(`Core reader-core lacks cron schedules ${crons.join(', ')}`)
+    for (const script of [EDGE, 'reader-core']) expect(problems).toContain(`MCP namespace SlaxMcpServer still exists on ${script}`)
+    expect(problems.join('\n')).not.toContain('another-app')
+    await expect(requireTopology(api, config)).rejects.toThrow('topology:transition')
+  })
+
+  test('a transitioned installation passes and a second consumer on a queue is reported', async () => {
+    const { state, api } = account('core', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    await expect(requireTopology(api, config)).resolves.toBeUndefined()
+    state.queues[0].consumers.push({ script: EDGE, consumer_id: 'again', type: 'worker' })
+    expect(topologyProblems(state, config)).toEqual([`Queue ${queues[0]} is consumed by reader-core, ${EDGE}, not only reader-core`])
+  })
+})
+
+describe('topology:transition', () => {
+  test('dry runs read state and change nothing at every step', async () => {
+    const { api, calls, deploy } = account('edge', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    for (const step of [1, 2, 3] as const) await transition({ step, dryRun: true, api, config, deploy, log: quiet }).catch(() => undefined)
+    expect(deploy).not.toHaveBeenCalled()
+    expect(calls.filter(call => !call.startsWith('GET '))).toEqual([])
+  })
+
+  test('steps 1 to 4 move every job surface to Core in order and verify it', async () => {
+    const { state, api, calls, deploy } = account('edge')
+    const log = vi.fn()
+    expect(await transition({ step: 1, dryRun: false, api, config, deploy, log })).toBe(0)
+    expect(deploy.mock.calls).toEqual([[['browser', 'objects'], 'keep-mcp']])
+    await expect(transition({ step: 3, dryRun: false, api, config, deploy, log })).rejects.toThrow('Step 3 requires step 2')
+    expect(await transition({ step: 2, dryRun: false, api, config, deploy, log })).toBe(0)
+    const writes = calls.filter(call => !call.startsWith('GET '))
+    // Edge consumers and schedules are released before Core is published, so no queue ever has two consumers.
+    expect(writes).toEqual([...queues.map((_, index) => `DELETE /queues/q${index}/consumers/c${index}`), `PUT /workers/scripts/${EDGE}/schedules`])
+    // Core first: AI's Workflow bindings name Core, which exports those classes only from this release on.
+    expect(deploy.mock.calls.slice(1)).toEqual([
+      [['core'], 'keep-mcp'],
+      [['ai'], 'keep-mcp']
+    ])
+    expect(state.mcp).toEqual([EDGE, 'reader-core'])
+    expect(state.workflows.every(workflow => workflow.script_name === 'reader-core')).toBe(true)
+    // Core already handles email after step 2, so the rule is repointed before the slim Edge (no email handler) ships.
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('Before step 3, repoint the newsletter Email Routing rule'))
+    log.mockClear()
+    expect(await transition({ step: 3, dryRun: false, api, config, deploy, log })).toBe(0)
+    const lines = log.mock.calls.map(call => String(call[0]))
+    expect(lines.findIndex(line => line.includes('repoint the newsletter Email Routing rule'))).toBeLessThan(lines.findIndex(line => line.startsWith(`will deploy ${EDGE}`)))
+    expect(state.mcp).toEqual([EDGE, 'reader-core'])
+    expect(await transition({ step: 4, dryRun: false, api, config, deploy, log })).toBe(0)
+    // Edge goes first: Cloudflare keeps Core's namespace while any Worker still binds to it.
+    expect(deploy.mock.calls.slice(-2)).toEqual([
+      [['edge'], 'retire-mcp'],
+      [['core'], 'retire-mcp']
+    ])
+    expect(state.mcp).toEqual([])
+    await expect(requireTopology(api, config)).resolves.toBeUndefined()
+    expect(await transition({ step: 4, dryRun: false, api, config, deploy, log })).toBe(0)
+    expect(deploy).toHaveBeenCalledTimes(6)
+    const before = calls.length
+    expect(await transition({ step: 2, dryRun: false, api, config, deploy, log })).toBe(0)
+    expect(calls.slice(before).filter(call => !call.startsWith('GET '))).toEqual([])
+  })
+
+  test('step 2 refuses to run before Objects exists, and a Core that does not take ownership fails loudly', async () => {
+    const missing = account('edge')
+    await expect(transition({ step: 2, dryRun: false, ...missing, config, log: quiet })).rejects.toThrow('run step 1 first')
+    expect(missing.deploy).not.toHaveBeenCalled()
+    const stuck = account('edge', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    const deploy = vi.fn(async () => 0)
+    await expect(transition({ step: 2, dryRun: false, api: stuck.api, config, deploy, log: quiet })).rejects.toThrow('Core did not take ownership')
+  })
+
+  test('step 4 deletes nothing while ownership is incomplete, and the dry run only plans the deletion', async () => {
+    const { state, api, deploy } = account('core', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE], mcp: [EDGE, 'reader-core'] })
+    const log = vi.fn()
+    expect(await transition({ step: 4, dryRun: true, api, config, deploy, log })).toBe(0)
+    expect(deploy).not.toHaveBeenCalled()
+    expect(log).toHaveBeenCalledWith(`would deploy ${EDGE} and delete its SlaxMcpServer namespace`)
+    state.queues[0].consumers = [{ script: EDGE, consumer_id: 'stale', type: 'worker' }]
+    expect(await transition({ step: 4, dryRun: false, api, config, deploy, log })).toBe(1)
+    expect(deploy).not.toHaveBeenCalled()
+    expect(state.mcp).toEqual([EDGE, 'reader-core'])
+  })
+
+  test('step 4 reports an incomplete transition without changing anything', async () => {
+    const { api, calls, deploy } = account('edge')
+    const log = vi.fn()
+    expect(await transition({ step: 4, dryRun: false, api, config, deploy, log })).toBe(1)
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('Transition incomplete'))
+    expect(calls.filter(call => !call.startsWith('GET '))).toEqual([])
+    expect(deploy).not.toHaveBeenCalled()
+  })
+})
+
+describe('values that move with the code', () => {
+  test('a secret set only on Edge stops the step that moves its reader, naming the key and never its value', async () => {
+    const { api, deploy, secrets } = account('edge', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    secrets['reader-core'].delete('DEEPSEEK_API_KEY')
+    secrets['reader-ai'].delete('DEEPSEEK_API_KEY')
+    await expect(transition({ step: 2, dryRun: false, api, config, deploy, log: quiet })).rejects.toThrow(/reader-ai: DEEPSEEK_API_KEY\n- reader-core: DEEPSEEK_API_KEY/)
+    expect(deploy).not.toHaveBeenCalled()
+    const log = vi.fn()
+    await transition({ step: 2, dryRun: true, api, config, deploy, log })
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('would stop: These Workers lack values'))
+  })
+
+  test('a value published through [vars] satisfies the check, and a new Worker needs keys other Workers hold', async () => {
+    const { api, deploy, secrets } = account('edge')
+    delete secrets['reader-objects']
+    const withVars = structuredClone(config)
+    delete (withVars.vars as Record<string, unknown>).FRONT_END_URL
+    await expect(transition({ step: 1, dryRun: false, api, config: withVars, deploy, log: quiet })).rejects.toThrow('reader-objects: FRONT_END_URL')
+    expect(await transition({ step: 1, dryRun: false, api, config, deploy, log: quiet })).toBe(0)
+  })
+
+  test('Core without its configured cron schedules is an incomplete move', async () => {
+    const { state, api } = account('core', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    state.schedules[EDGE] = []
+    await expect(requireTopology(api, config)).resolves.toBeUndefined()
+    state.schedules['reader-core'] = crons.slice(1)
+    await expect(requireTopology(api, config)).rejects.toThrow(`Core reader-core lacks cron schedules ${crons[0]}`)
+  })
+
+  test('a key no Worker holds is an unconfigured optional feature and does not block', async () => {
+    const { state, api, secrets } = account('core', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    state.schedules[EDGE] = []
+    for (const keys of Object.values(secrets)) keys.delete('TELEGRAM_WEBHOOK_SECRET')
+    expect(RUNTIME_KEYS.core).toContain('TELEGRAM_WEBHOOK_SECRET')
+    await expect(requireTopology(api, config)).resolves.toBeUndefined()
+  })
+
+  test('normal releases stop while any Worker lacks a value', async () => {
+    const { state, api, secrets } = account('core', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    state.schedules[EDGE] = []
+    await expect(requireTopology(api, config)).resolves.toBeUndefined()
+    secrets['reader-core'].delete('STRIPE_SECRET_KEY')
+    await expect(requireTopology(api, config)).rejects.toThrow('reader-core: STRIPE_SECRET_KEY')
+  })
+})
+
+describe('Cloudflare API client', () => {
+  test('lists read every page so a later page cannot hide an Edge consumer', async () => {
+    const pages = [[{ queue_name: 'a' }], [{ queue_name: 'b' }]]
+    const fetcher = vi.fn(async (url: string) => {
+      const page = Number(new URL(url).searchParams.get('page'))
+      return Response.json({ success: true, result: pages[page - 1], result_info: { page, total_pages: 2 } })
+    })
+    const api = cloudflareApi('a'.repeat(32), 'token-value', fetcher as unknown as typeof fetch)
+    expect(await api.list('/queues')).toEqual([{ queue_name: 'a' }, { queue_name: 'b' }])
+    expect(fetcher.mock.calls.map(([url]) => new URL(url).search)).toEqual(['?per_page=100&page=1', '?per_page=100&page=2'])
+  })
+
+  test('sends the bearer token, scopes calls to the account and reports error codes without response bodies', async () => {
+    const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => Response.json({ success: false, errors: [{ code: 10007, message: 'secret detail' }] }, { status: 403 }))
+    const api = cloudflareApi('a'.repeat(32), 'token-value', fetcher as unknown as typeof fetch)
+    await expect(api.get('/workers/scripts')).rejects.toThrow('Cloudflare API GET /workers/scripts failed (HTTP 403, codes 10007)')
+    await expect(api.get('/workers/scripts')).rejects.not.toThrow('secret detail')
+    expect(fetcher.mock.calls[0][0]).toBe(`https://api.cloudflare.com/client/v4/accounts/${'a'.repeat(32)}/workers/scripts`)
+    expect(new Headers(fetcher.mock.calls[0][1]?.headers).get('Authorization')).toBe('Bearer token-value')
+  })
+})

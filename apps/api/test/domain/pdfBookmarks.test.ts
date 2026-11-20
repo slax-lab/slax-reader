@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/decorators/di', () => ({ injectable: () => (target: unknown) => target, inject: () => () => undefined, singleton: () => (target: unknown) => target }))
 vi.mock('@/utils/publicFetch', () => ({ publicFetch: vi.fn() }))
-vi.mock('@/handler/http/mcpController', () => ({ McpServerController: class {} }))
 import { BookmarkService } from '../../src/domain/bookmark'
 import { publicFetch } from '../../src/utils/publicFetch'
 import { pdfFixture } from '../helpers/pdfFixture'
 import { pdfWithVisibleTitle, visiblePdfTitle } from '../helpers/pdfTitleFixture'
 import { createMockCtx } from '../helpers/mockFactory'
-import { getRouter } from '@/di/generated/readerRouter'
+import { getRouter } from '@/di/generated/core/readerRouter'
 import { LabService } from '@/domain/lab'
 
 const pdfRevision = new Date('2026-10-23T00:00:00Z')
@@ -291,7 +290,12 @@ describe('PDF bookmark persistence', () => {
     vi.mocked(publicFetch).mockImplementation(async () => new Response(bytes, { headers: { 'Content-Type': 'application/pdf' } }))
     expect(await service.capturePdf(ctx, 10, 'uuid', 'https://example.com/file.pdf')).toBe(true)
     expect(bucket.put.mock.calls[0][0]).toBe('pdf/body/uuid.pdf')
-    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, expect.objectContaining({ status: 'success' }), expect.any(String), expect.objectContaining({ expectedRevision: pdfRevision.toISOString() }))
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({ status: 'success' }),
+      expect.any(String),
+      expect.objectContaining({ expectedRevision: pdfRevision.toISOString() })
+    )
     expect(bucket.delete).not.toHaveBeenCalled()
   })
   it('reacquires bytes for a converted legacy PDF reserved at its new fixed key', async () => {
@@ -314,8 +318,8 @@ describe('PDF bookmark persistence', () => {
   it('does not refetch a published scanned PDF whose body is missing but extraction state remains', async () => {
     const { service, bucket, repo } = wire()
     repo.getBookmarkById.mockResolvedValue({ content_key: 'pdf/body/scanned.pdf', content_md_key: '' })
-    bucket.get.mockImplementation(async (key: string) => key === 'pdf/meta/scanned.json' ? { json: async () => ({ text_status: 'empty', pages: 2 }) } : null)
-    bucket.head.mockImplementation(async (key: string) => key === 'pdf/meta/scanned.json' ? { size: 100 } : null)
+    bucket.get.mockImplementation(async (key: string) => (key === 'pdf/meta/scanned.json' ? { json: async () => ({ text_status: 'empty', pages: 2 }) } : null))
+    bucket.head.mockImplementation(async (key: string) => (key === 'pdf/meta/scanned.json' ? { size: 100 } : null))
     await expect(service.capturePdf(createMockCtx(), 10, 'scanned', 'https://example.com/file.pdf')).rejects.toThrow('Stored PDF file is unavailable')
     expect(publicFetch).not.toHaveBeenCalled()
     expect(bucket.put).not.toHaveBeenCalled()
@@ -344,8 +348,20 @@ describe('PDF upload', () => {
     const value = wire()
     const create = vi.fn().mockResolvedValue({ id: 10, status: 'pending', updated_at: pdfRevision, content_key: existing ? 'pdf/body/saved.pdf' : '' })
     value.repo.getBookmarkById.mockResolvedValue({ status: 'pending', updated_at: pdfRevision, content_key: existing ? 'pdf/body/saved.pdf' : '' })
-    Object.assign(value.service, { createBookmarkBase: create, crawlService: { createWorkflow: vi.fn(), claimCapture: vi.fn().mockResolvedValue(true), ownsCapture: vi.fn().mockResolvedValue(true), setCaptureStatus: vi.fn().mockResolvedValue(true) } })
-    Object.assign(value.repo, { getUserBookmarkWithDetail: vi.fn().mockResolvedValue({ uuid: 'saved' }), updateBookmarkStatus: vi.fn(), casBookmarkStatus: vi.fn().mockResolvedValue(true) })
+    Object.assign(value.service, {
+      createBookmarkBase: create,
+      crawlService: {
+        createWorkflow: vi.fn(),
+        claimCapture: vi.fn().mockResolvedValue(true),
+        ownsCapture: vi.fn().mockResolvedValue(true),
+        setCaptureStatus: vi.fn().mockResolvedValue(true)
+      }
+    })
+    Object.assign(value.repo, {
+      getUserBookmarkWithDetail: vi.fn().mockResolvedValue({ uuid: 'saved' }),
+      updateBookmarkStatus: vi.fn(),
+      casBookmarkStatus: vi.fn().mockResolvedValue(true)
+    })
     return { ...value, create }
   }
   it('rejects upload with Labs off before consuming its body or creating rows', async () => {
@@ -433,13 +449,27 @@ describe('PDF upload', () => {
       new Request('https://reader.test/upload?filename=download.pdf', { method: 'POST', body: pdfFixture(['Text'], [], 'Actual Paper Title', 'Jane Doe') })
     )
     expect(result.title).toBe('Actual Paper Title')
-    expect(repo.completePdfBookmark).toHaveBeenCalledWith(10, { title: 'Actual Paper Title', byline: 'Jane Doe', status: 'success' }, expect.any(String), expect.objectContaining({ expectedRevision: pdfRevision.toISOString() }))
+    expect(repo.completePdfBookmark).toHaveBeenCalledWith(
+      10,
+      { title: 'Actual Paper Title', byline: 'Jane Doe', status: 'success' },
+      expect.any(String),
+      expect.objectContaining({ expectedRevision: pdfRevision.toISOString() })
+    )
     expect(bucket.put).not.toHaveBeenCalled()
     expect((service as any).crawlService.createWorkflow).not.toHaveBeenCalled()
   })
   it('completed duplicate upload repairs supplied bytes and disables tag/overview generation in the cached workflow', async () => {
     const { service, create, repo } = uploadWire()
-    create.mockResolvedValue({ id: 10, status: 'success', updated_at: pdfRevision, content_key: 'pdf/body/saved.pdf', title: 'download', byline: '', target_url: 'slax-pdf://7/hash', private_user: 7 })
+    create.mockResolvedValue({
+      id: 10,
+      status: 'success',
+      updated_at: pdfRevision,
+      content_key: 'pdf/body/saved.pdf',
+      title: 'download',
+      byline: '',
+      target_url: 'slax-pdf://7/hash',
+      private_user: 7
+    })
     repo.getUserBookmarkWithDetail.mockResolvedValue({ uuid: 'saved' })
     ;(service as any).crawlService.createWorkflow.mockResolvedValue(undefined)
     const result = await service.uploadPdf(
@@ -455,7 +485,16 @@ describe('PDF upload', () => {
 
   it('completed duplicate upload still returns the committed save when cached workflow admission is exhausted', async () => {
     const { service, create, repo } = uploadWire()
-    create.mockResolvedValue({ id: 10, status: 'success', updated_at: pdfRevision, content_key: 'pdf/body/saved.pdf', title: 'download', byline: '', target_url: 'slax-pdf://7/hash', private_user: 7 })
+    create.mockResolvedValue({
+      id: 10,
+      status: 'success',
+      updated_at: pdfRevision,
+      content_key: 'pdf/body/saved.pdf',
+      title: 'download',
+      byline: '',
+      target_url: 'slax-pdf://7/hash',
+      private_user: 7
+    })
     repo.getUserBookmarkWithDetail.mockResolvedValue({ uuid: 'saved' })
     ;(service as any).crawlService.createWorkflow.mockRejectedValue(new Error('admission unavailable'))
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})

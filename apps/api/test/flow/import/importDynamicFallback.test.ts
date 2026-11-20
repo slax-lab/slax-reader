@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 vi.mock('cloudflare:workers', () => ({ WorkflowEntrypoint: class {} }))
 vi.mock('cloudflare:workflows', () => ({ NonRetryableError: class extends Error {} }))
-vi.mock('@/di/generated/dependency', () => ({ initializeInfrastructure: vi.fn(), initializeCore: vi.fn() }))
+vi.mock('@/di/generated/core/dependency', () => ({ initializeInfrastructure: vi.fn(), initializeCore: vi.fn() }))
 vi.mock('@/domain/crawl', () => ({ CrawlService: class {} }))
 vi.mock('@/domain/orchestrator/urlParser', () => ({ UrlParserHandler: class {} }))
 vi.mock('@/domain/bookmark', () => ({ BookmarkService: class {} }))
@@ -9,7 +9,7 @@ vi.mock('@/domain/import', () => ({ ImportService: class {} }))
 vi.mock('@/domain/events', () => ({ EVENT_CONTEXT_KEY: 'event' }))
 vi.mock('@/utils/browser', () => ({}))
 import { SlaxFetch } from '@/infra/external/remoteFetcher'
-import { fetchImportContent } from '@/entry/edge/workflows/importParseWorkflow'
+import { fetchImportContent } from '@/entry/core/workflows/importParseWorkflow'
 
 const good = { url: 'https://example.com/article', content: `<html><body><article><p>${'Substantive article text about the topic. '.repeat(12)}</p></article></body></html>` }
 const empty = { url: good.url, content: '<html><body><div id="app"></div><script>renderApp()</script></body></html>' }

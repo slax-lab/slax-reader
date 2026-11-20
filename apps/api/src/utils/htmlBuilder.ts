@@ -201,7 +201,7 @@ export class HtmlBuilder {
       .filter(p => p.cdn_url)
       .map(p => `<div class="swiper_item"><div class="swiper_item_img"><img id="img_item_placeholder" src="${escAttr(p.cdn_url)}"></div></div>`)
       .join('')
-    // 数字时间戳先归一，避免 moment 解析失败
+    // 数字时间戳先归一，避免发布时间解析失败
     const publishTime = /^\d+$/.test(c.create_time || '') ? parseWeixinCreateTime(c.create_time).toISOString() : c.create_time || ''
     return `<html><head><meta property="og:title" content="${escAttr(c.title)}"></head><body>
       <div id="js_article">
@@ -214,7 +214,7 @@ export class HtmlBuilder {
 
   /** Build an ordinary WeChat article for Readability. */
   public static buildWeixinArticlePage(c: TikHubWeixinContent): string {
-    // 数字时间戳先归一，避免 moment 解析失败
+    // 数字时间戳先归一，避免发布时间解析失败
     const publishTime = /^\d+$/.test(c.create_time || '') ? parseWeixinCreateTime(c.create_time).toISOString() : c.create_time || ''
     return `<html><head><meta property="og:title" content="${escAttr(c.title)}">
       <meta property="og:site_name" content="微信"><meta name="author" content="${escAttr(c.author?.trim() || c.nick_name)}"></head><body>

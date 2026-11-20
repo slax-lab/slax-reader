@@ -13,8 +13,8 @@ test('Workerd consumes failed cleanup once and later cron ticks do not replay it
     stdin: {
       contents: `
         import { UserDeletionConsumer } from './src/handler/queue/userDeletionConsumer';
-        import { handleMessage } from './src/di/generated/consumer';
-        import { handleCronjob } from './src/di/generated/cronjob';
+        import { handleMessage } from './src/di/generated/core/consumer';
+        import { handleCronjob } from './src/di/generated/core/cronjob';
         const audit = { attempts: [], admitted: 0, acknowledged: [], retried: [], scheduled: [] };
         const consumer = new UserDeletionConsumer({ async cleanupUserData(id) {
           audit.attempts.push(id);

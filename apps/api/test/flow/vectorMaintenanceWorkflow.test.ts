@@ -28,7 +28,7 @@ vi.mock('cloudflare:workers', () => ({
   }
 }))
 vi.mock('@/decorators/di', () => ({ container: { clone: mocks.clone } }))
-vi.mock('@/di/generated/dependency', () => ({ initializeCore: mocks.initializeCore, initializeInfrastructure: mocks.initializeInfrastructure }))
+vi.mock('@/di/generated/core/dependency', () => ({ initializeCore: mocks.initializeCore, initializeInfrastructure: mocks.initializeInfrastructure }))
 vi.mock('@/utils/context', () => ({
   ContextManager: class {
     cleanup = mocks.cleanup
@@ -41,7 +41,7 @@ vi.mock('@/utils/context', () => ({
 vi.mock('@/domain/vectorMaintenance', () => ({ VectorMaintenanceService: class {} }))
 vi.mock('@/infra/repository/dbVectorMaintenance', () => ({ VectorMaintenanceRepo: class {} }))
 
-import { VectorMaintenanceWorkflow, requireRefreshSuccess, validateMaintenanceEvent, verifyVectorVisibility } from '@/entry/edge/workflows/vectorMaintenanceWorkflow'
+import { VectorMaintenanceWorkflow, requireRefreshSuccess, validateMaintenanceEvent, verifyVectorVisibility } from '@/entry/core/workflows/vectorMaintenanceWorkflow'
 import { VectorMaintenanceService } from '@/domain/vectorMaintenance'
 import type { VectorMaintenanceEvent } from '@/domain/vectorMaintenanceHooks'
 import type { VectorRefreshResult } from '@/utils/vectorMaintenanceTypes'

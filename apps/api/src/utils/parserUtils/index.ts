@@ -146,7 +146,7 @@ export const postProcessUrl = (url: URL, document: Document) => {
   })
 }
 
-export const slaxReadability = (url: URL, document: Document) => {
+export const slaxReadability = async (url: URL, document: Document) => {
   const checkWeixin = function () {
     return url.host === 'mp.weixin.qq.com'
   }
@@ -165,7 +165,7 @@ export const slaxReadability = (url: URL, document: Document) => {
       return new Readability(document, { debug: false, keepImgImportantStyles: true }).parse()
     }
 
-    return defuddleParse(url.toString(), document)
+    return await defuddleParse(url.toString(), document)
   } catch (error) {
     console.log(`Defuddle parse error: `, error)
     return new Readability(document, { debug: false }).parse()

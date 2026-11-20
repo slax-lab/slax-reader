@@ -1,5 +1,14 @@
 import { DELETE_PASSKEY_SETTING, type PasskeyLoginRequest } from '@slax-reader/contracts/passkey'
 import { PasskeyService } from './passkey'
+import {
+  UserProfileService,
+  userSubscriptionInfo,
+  SubscriptionType,
+  type UserSubscription,
+  type userInfo,
+  type userBindPlatformItem,
+  type userShareCollectInfo
+} from './userProfile'
 import { parsePasskeyProof } from '@/utils/passkey'
 import {
   SaveReportError,
@@ -41,16 +50,8 @@ import { RequestUtils } from '@/utils/requestUtils'
 import { SlaxAuth } from '@/utils/auth'
 import { hashMD5, hashSHA256 } from '@/utils/strings'
 import { diagnosticDownloadUrl, downloadDiagnostic, uploadDiagnostic, type DiagnosticAttachment } from '@/utils/diagnosticAttachment'
-import {
-  isCollectionAuthAttribution,
-  isSnapshotAuthAttribution,
-  SNAPSHOT_BOOKMARK_ID_PATTERN,
-  type AcquisitionAuthAttribution,
-  type CollectionAuthAttribution,
-  type SnapshotAuthAttribution,
-  type WebAuthAttribution
-} from '@slax-reader/contracts/events'
-import { z } from 'zod'
+import { isCollectionAuthAttribution, isSnapshotAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
+import { parseAppleAuthAttribution, parseWebAuthAttribution } from '@/utils/authAttribution'
 import {
   BIND_LOGIN_IDENTITY_SETTING,
   type EmailAuthClientPlatform,
@@ -62,42 +63,6 @@ import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
 import { EmailCodeService, type EmailCodeSendContext } from './emailCode'
 import { LoginIdentityService } from './loginIdentityService'
 import { LoginIdentityLinkService } from './loginIdentityLinkService'
-
-const collectionAuthAttributionSchema = z.object({
-  collection_id: z
-    .string()
-    .min(1)
-    .max(64)
-    .regex(/^[a-zA-Z0-9]+$/),
-  source_screen: z.literal('collection'),
-  presentation: z.literal('modal'),
-  trigger_element_id: z.literal('collection_subscribe_button')
-}) satisfies z.ZodType<CollectionAuthAttribution>
-
-const snapshotAuthAttributionSchema = z.object({
-  source_screen: z.literal('detail'),
-  presentation: z.literal('modal'),
-  trigger_element_id: z.literal('snapshot_save_button'),
-  source_bookmark_id: z.string().regex(SNAPSHOT_BOOKMARK_ID_PATTERN)
-}) satisfies z.ZodType<SnapshotAuthAttribution>
-
-const acquisitionAuthAttributionSchema = z.object({
-  source: z.literal('hackerlinks'),
-  medium: z.enum(['header', 'resource_detail']),
-  campaign: z.literal('mvp')
-}) satisfies z.ZodType<AcquisitionAuthAttribution>
-
-const webAuthAttributionSchema = z.union([collectionAuthAttributionSchema, snapshotAuthAttributionSchema, acquisitionAuthAttributionSchema]) satisfies z.ZodType<WebAuthAttribution>
-
-const appleAuthAttributionSchema = z.union([snapshotAuthAttributionSchema, acquisitionAuthAttributionSchema]) satisfies z.ZodType<
-  SnapshotAuthAttribution | AcquisitionAuthAttribution
->
-
-export interface userBindPlatformItem {
-  platform: string
-  user_name: string
-  created_at: Date
-}
 
 export enum reportPlatform {
   WEB = 'web',
@@ -134,6 +99,9 @@ export type saveReportReq = Omit<reportInfoReq, 'share_code' | 'cb_id' | 'collec
   ip_address?: string
 }
 
+export { SubscriptionType }
+export type { userInfo, userBindPlatformItem, userShareCollectInfo }
+
 export interface userInfoResp {
   userId: number
   email: string
@@ -143,43 +111,6 @@ export interface userInfoResp {
   timezone: string
   subscription_type: SubscriptionType
   subscription_end_at: Date
-}
-
-interface subscription {
-  first_subscription_at?: Date
-  subscription_end_at?: Date
-  next_invoice_at?: Date
-  subscription_homepage?: string
-  subscription_type: SubscriptionType
-  subscription_credit?: number
-  stripe_stripe_currency?: string
-}
-
-export interface userInfo {
-  account: string
-  email: string
-  lang: string
-  ai_lang: string
-  timezone: string
-  avatar: string
-  name: string
-  id: number
-  platform: userBindPlatformItem[]
-  subscription: subscription
-  aff_code?: string
-  share_collect: userShareCollectInfo
-  uuid: string
-}
-
-export interface userShareCollectInfo {
-  show_name: string
-  avatar: string
-  description: string
-  collection_code: string
-  status: number
-  show_marks: boolean
-  allow_marks: boolean
-  show_profile: boolean
 }
 
 export interface userLoginReq {
@@ -197,12 +128,6 @@ export interface userLoginReq {
 }
 
 type UserLoginRequest = userLoginReq | EmailLoginRequest | EmailLinkLoginRequest | PasskeyLoginRequest
-
-export enum SubscriptionType {
-  NO_SUBSCRIPTION = 0,
-  FREE_SUBSCRIPTION = 1,
-  PAID_SUBSCRIPTION = 2
-}
 
 export interface userLoginResp {
   token: string
@@ -232,10 +157,24 @@ export class UserService {
     @inject(EmailCodeService) private emailCodes: EmailCodeService,
     @inject(LoginIdentityService) private loginIdentities: LoginIdentityService,
     @inject(LoginIdentityLinkService) private identityLink: LoginIdentityLinkService,
-    @inject(PasskeyService) private passkeys: PasskeyService
+    @inject(PasskeyService) private passkeys: PasskeyService,
+    @inject(UserProfileService) private profiles: UserProfileService
   ) {
     this.userRepoData = userRepo
     this.reportRepoData = reportRepo
+  }
+
+  // Profile reads live in UserProfileService so the AI Worker avoids login and Passkey dependencies.
+  public getUserInfo(ctx: ContextManager): Promise<userInfo> {
+    return this.profiles.getUserInfo(ctx)
+  }
+
+  public getUserSubscriptionInfo(ctx: ContextManager): Promise<UserSubscription> {
+    return this.profiles.getUserSubscriptionInfo(ctx)
+  }
+
+  public static getUserSubscriptionInfoWithPO(env: Env, subscription?: subscriptionPO): UserSubscription {
+    return userSubscriptionInfo(env, subscription)
   }
 
   /**
@@ -564,80 +503,12 @@ export class UserService {
     ctx.execution.waitUntil(new SlaxAlertBotClient(ctx.env).report.pushMessage(diagnosticLink + content).catch(() => console.error(`Report notification unavailable: ${res.id}`)))
   }
 
-  public async getUserSubscriptionInfo(ctx: ContextManager): Promise<subscription> {
-    const subscription = await this.subscriptionRepo.getUserSubscriptionInfoPO(ctx.getUserId())
-    return UserService.getUserSubscriptionInfoWithPO(ctx.env, subscription)
-  }
-
-  public static getUserSubscriptionInfoWithPO(env: Env, subscription?: subscriptionPO): subscription {
-    const subType =
-      !subscription || subscription.endTime.getTime() < Date.now()
-        ? SubscriptionType.NO_SUBSCRIPTION
-        : subscription.stripeSubId && subscription.endTime.getTime() > Date.now()
-          ? SubscriptionType.PAID_SUBSCRIPTION
-          : SubscriptionType.FREE_SUBSCRIPTION
-    return {
-      first_subscription_at: subscription?.first_subscription_time,
-      subscription_end_at: subscription?.endTime,
-      next_invoice_at: subscription?.nextInvoiceAt,
-      subscription_homepage: env.STRIPE_SUBSCRIPTION_HOME,
-      subscription_type: subType,
-      subscription_credit: subscription?.stripeCredit,
-      stripe_stripe_currency: subscription?.stripeCurrency
-    }
-  }
-
   /**
    * 获取用户设置信息接口
    * @param ctx
    * @param env
    * @returns
    */
-  public async getUserInfo(ctx: ContextManager): Promise<userInfo> {
-    const [user, bindList, shareCollect, subInfoPO] = await Promise.all([
-      this.userRepoData.getInfoWithSubscription(ctx.getUserId()),
-      this.userRepoData.getUserBindPlatform(ctx.getUserId()),
-      this.collectionRepo.getUserShareCollect(ctx.getUserId()),
-      this.subscriptionRepo.getUserSubscriptionInfoPO(ctx.getUserId())
-    ])
-
-    const subInfo = UserService.getUserSubscriptionInfoWithPO(ctx.env, subInfoPO)
-    const ai_lang = user.ai_lang ? user.ai_lang : user.lang ? user.lang : 'en'
-
-    return {
-      name: user.name,
-      account: user.account,
-      email: user.email,
-      lang: user.lang,
-      ai_lang,
-      timezone: user.timezone,
-      avatar: user.picture,
-      uuid: user.uuid,
-      id: ctx.hashIds.encodeId(ctx.getUserId()),
-      platform: bindList
-        .filter(item => item.platform !== platformBindType.NEWSLETTER)
-        .map(item => {
-          return {
-            platform: item.platform,
-            user_name: item.user_name,
-            created_at: item.created_at
-          }
-        }),
-      // 上线一周后，再把它删除
-      share_collect: {
-        show_name: shareCollect?.display_name || '',
-        avatar: shareCollect?.avatar || '',
-        description: shareCollect?.description || '',
-        collection_code: shareCollect?.collection_code || '',
-        status: shareCollect?.status || 0,
-        show_marks: shareCollect?.show_marks || false,
-        allow_marks: shareCollect?.allow_marks || false,
-        show_profile: shareCollect?.show_profile || false
-      },
-      subscription: subInfo,
-      aff_code: user.invite_code
-    }
-  }
 
   /**
    * 用户设置开关
@@ -706,19 +577,14 @@ export class UserService {
       const profile = UserService.getUserReuqestInfo(request, { last_login_at: new Date() } as userInfoPO)
       const user = await this.passkeys.authenticate(ctx.env, parsePasskeyProof(req, 'login'), profile)
       const result = await this.completeLogin(ctx, request, user, false, 'passkey')
-      return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(req.auth_attribution).data)
+      return this.trackLogin(ctx, request, result, parseWebAuthAttribution(req.auth_attribution))
     }
     if (req.type === 'email' || req.type === 'email_link') {
       const { key, delivery } = req.type === 'email_link' ? await this.emailCodes.verifyLink(ctx.env, req) : await this.emailCodes.verifyCode(ctx.env, { ...req, purpose: 'login' })
       const result = await this.loginByVerifiedEmail(ctx, request, key, delivery)
-      return this.trackLogin(ctx, request, result, webAuthAttributionSchema.safeParse(req.auth_attribution).data)
+      return this.trackLogin(ctx, request, result, parseWebAuthAttribution(req.auth_attribution))
     }
-    const attribution =
-      req.type === 'google'
-        ? webAuthAttributionSchema.safeParse(req.auth_attribution).data
-        : req.type === 'apple'
-          ? appleAuthAttributionSchema.safeParse(req.auth_attribution).data
-          : undefined
+    const attribution = req.type === 'google' ? parseWebAuthAttribution(req.auth_attribution) : req.type === 'apple' ? parseAppleAuthAttribution(req.auth_attribution) : undefined
     const result = await this.authenticateUser(ctx, request, req)
     return this.trackLogin(ctx, request, result, attribution)
   }

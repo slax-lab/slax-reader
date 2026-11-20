@@ -10,7 +10,7 @@ interface CronGenTask {
 }
 
 const CRONGEN_CONTROLLER_DIR: string = 'src/handler/cron'
-const CRONGEN_OUTPUT_PATH: string = 'src/di/generated/cronjob.ts'
+const CRONGEN_OUTPUT_PATH: string = 'src/di/generated/core/cronjob.ts'
 
 function cronGenStart(): void {
   const cronGenRoot: string = API_ROOT
@@ -106,13 +106,13 @@ function cronGenEvalExpression(expression: any, sourceFile: any): string {
 }
 
 function cronGenCreateOutput(tasks: CronGenTask[], imports: Map<string, string>, outputPath: string, rootDir: string): void {
-  const cronGenOutput: string = `import { Container } from '../../decorators/di'
+  const cronGenOutput: string = `import { Container } from '../../../decorators/di'
 import { ContextManager } from '@/utils/context'
 ${Array.from(imports.entries())
   .map(entry => {
     const className: string = entry[0]
     const fileName: string = entry[1]
-    return `import { ${className} } from '../../handler/cron/${fileName}'`
+    return `import { ${className} } from '../../../handler/cron/${fileName}'`
   })
   .join('\n')}
 

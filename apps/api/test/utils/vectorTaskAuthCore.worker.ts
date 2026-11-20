@@ -1,6 +1,9 @@
 import { container } from '@/decorators/di'
-import '@/di/generated/dependency'
+import '@/di/generated/core/dependency'
+import '@/di/generated/ai/dependency'
 import core from '@/entry/core'
+import ai from '@/entry/ai'
+import { isAiRoute } from '@/const/routes'
 import { DatabaseRegistry } from '@/di/data'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import { VectorMaintenanceService } from '@/domain/vectorMaintenance'
@@ -8,6 +11,7 @@ import { ContentRecommendationService } from '@/domain/contentRecommendation'
 import { BookmarkService } from '@/domain/bookmark'
 import { CollectionService } from '@/domain/collection'
 import { BookmarkOrchestrator } from '@/domain/orchestrator/bookmark'
+import { BookmarkAiOrchestrator } from '@/domain/orchestrator/bookmarkAi'
 import { BookmarkAddOrchestrator } from '@/domain/orchestrator/bookmarkAdd'
 import { CollectionOrchestrator } from '@/domain/orchestrator/collection'
 import { ImportService } from '@/domain/import'
@@ -112,6 +116,7 @@ for (const dependency of [
   BookmarkService,
   CollectionService,
   BookmarkOrchestrator,
+  BookmarkAiOrchestrator,
   BookmarkAddOrchestrator,
   CollectionOrchestrator,
   ImportService,
@@ -191,6 +196,8 @@ export default {
       }
       return Response.json({ ...counts, legacy: stored.has('u:7:collection') })
     }
-    return core.fetch(request, { ...env, VECTOR_V5_MAINTENANCE_WORKFLOW: { create: async () => ({ id: 'repair-fixture' }) } } as unknown as Env, ctx)
+    // One isolate serves both tiers so the in-memory fixtures are shared, dispatched exactly as Edge does.
+    const entry = isAiRoute(new URL(request.url).pathname) ? ai : core
+    return entry.fetch(request, { ...env, VECTOR_V5_MAINTENANCE_WORKFLOW: { create: async () => ({ id: 'repair-fixture' }) } } as unknown as Env, ctx)
   }
 }

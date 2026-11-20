@@ -76,7 +76,7 @@ describe('callback and deployment boundaries', () => {
   })
 
   test('generated Reader routes contain no Note login controller', () => {
-    const router = readFileSync(new URL('../../../src/di/generated/readerRouter.ts', import.meta.url), 'utf8')
+    const router = readFileSync(new URL('../../../src/di/generated/core/readerRouter.ts', import.meta.url), 'utf8')
     expect(router).not.toContain('SlaxNoteController')
     expect(router).not.toContain('/v1/user/sessions')
     expect(router).not.toContain('/v1/user/silent/sessions')

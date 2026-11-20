@@ -26,7 +26,7 @@ vi.mock('@/decorators/di', () => ({
   singleton: () => (target: any) => target,
   inject: () => () => undefined
 }))
-vi.mock('@/di/generated/dependency', () => ({ initializeCore: vi.fn(), initializeInfrastructure: vi.fn() }))
+vi.mock('@/di/generated/core/dependency', () => ({ initializeCore: vi.fn(), initializeInfrastructure: vi.fn() }))
 vi.mock('@/utils/context', () => ({
   ContextManager: vi.fn().mockImplementation((_ctx: any, env: any) => ({
     setUserInfo: vi.fn(),
@@ -41,7 +41,7 @@ vi.mock('@/utils/hashids', () => ({
   Hashid: vi.fn().mockImplementation(() => ({ encodeId: vi.fn((id: number) => id * 100) }))
 }))
 
-import { CrawlWorkflow } from '@/entry/edge/workflows/crawlWorkflow'
+import { CrawlWorkflow } from '@/entry/core/workflows/crawlWorkflow'
 import { CrawlService } from '@/domain/crawl'
 import { BookmarkService } from '@/domain/bookmark'
 import { LabService } from '@/domain/lab'

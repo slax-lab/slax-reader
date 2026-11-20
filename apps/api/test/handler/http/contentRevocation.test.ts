@@ -8,22 +8,26 @@ vi.mock('@/domain/bookmark', () => ({ BookmarkService: class {} }))
 vi.mock('@/domain/collection', () => ({ CollectionService: class {} }))
 vi.mock('@/handler/http/collectionController', () => ({ CollectionController: { collectionCodeIsValidate: () => true } }))
 vi.mock('@/middleware/requestLog', () => ({ requestLog: vi.fn() }))
-vi.mock('@/di/generated/dependency', async () => {
+vi.mock('@/di/generated/core/dependency', async () => {
   const { PRISIMA_HYPERDRIVE_CLIENT } = await import('@/const/symbol')
   const { ContentOrchestrator } = await import('@/domain/orchestrator/content')
-  return { initializeInfrastructure: (ctx: any, scope: any) => {
-    mocks.init()
-    scope.registerInstance(PRISIMA_HYPERDRIVE_CLIENT, { $queryRaw: mocks.query })
-    scope.registerInstance(ContentOrchestrator, { getContentMeta: mocks.business })
-  } }
+  return {
+    initializeInfrastructure: (ctx: any, scope: any) => {
+      mocks.init()
+      scope.registerInstance(PRISIMA_HYPERDRIVE_CLIENT, { $queryRaw: mocks.query })
+      scope.registerInstance(ContentOrchestrator, { getContentMeta: mocks.business })
+    }
+  }
 })
-import { handleContentRequest } from '@/handler/http/contentHandler'
+import { handleContentRequest } from '@/entry/core/contentHandler'
 import { BookmarkNotFoundError, UnauthorizedError } from '@/const/err'
 import { EDGE_RAY_ID_HEADER } from '@/const/edge'
 afterEach(() => vi.restoreAllMocks())
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.auth.mockImplementation(async ctx => { ctx.setUserInfo(42, 84, '', 'en') })
+  mocks.auth.mockImplementation(async ctx => {
+    ctx.setUserInfo(42, 84, '', 'en')
+  })
   mocks.query.mockResolvedValue([{ id: 42 }])
   mocks.business.mockResolvedValue({ title: 'allowed' })
 })

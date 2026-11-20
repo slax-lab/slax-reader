@@ -24,7 +24,7 @@ vi.mock('@/decorators/di', () => ({
   injectable: () => (target: any) => target,
   singleton: () => (target: any) => target
 }))
-vi.mock('@/di/generated/dependency', () => ({ initializeCore: vi.fn(), initializeInfrastructure: vi.fn() }))
+vi.mock('@/di/generated/core/dependency', () => ({ initializeCore: vi.fn(), initializeInfrastructure: vi.fn() }))
 vi.mock('@/utils/context', () => ({
   ContextManager: vi.fn().mockImplementation((_ctx: any, env: any) => ({
     env,
@@ -46,7 +46,7 @@ vi.mock('@/utils/async', () => ({
 
 import { CrawlService } from '@/domain/crawl'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
-import { ContentValidationWorkflow } from '@/entry/edge/workflows/contentValidationWorkflow'
+import { ContentValidationWorkflow } from '@/entry/core/workflows/contentValidationWorkflow'
 
 const qualityReview = {
   version: 'slax-corpus-scoring-v3' as const,

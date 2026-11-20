@@ -2,11 +2,26 @@ import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
 import { execFileSync, spawn } from 'node:child_process'
-import { API_ROOT, CONFIG_DIR, GENERATED_DIR, LOCAL_STATE, TARGETS, checkDeployment, parseArgs, readConfig, writeGenerated, type Target } from './config'
+import { API_ROOT, CONFIG_DIR, GENERATED_DIR, LOCAL_STATE, TARGETS, checkDeployment, entryFile, parseArgs, readConfig, writeGenerated, type McpPhase, type Target } from './config'
 import { fileURLToPath } from 'node:url'
 import { loadApiEnv } from '../env'
+import { accountApi, requireTopology } from './topology'
 
-const ports: Record<Target, number> = { edge: 8787, core: 8686, ai: 8788, browser: 8789 }
+const DEFAULT_PORTS: Record<Target, number> = { edge: 8787, core: 8686, ai: 8788, browser: 8789, objects: 8790 }
+
+// SLAX_API_DEV_PORTS="ai=8798,objects=8791" moves individual local Workers off ports another process holds.
+export function devPorts(value = process.env.SLAX_API_DEV_PORTS): Record<Target, number> {
+  const ports = { ...DEFAULT_PORTS }
+  for (const entry of (value ?? '').split(',').filter(Boolean)) {
+    const [target, port] = entry.split('=')
+    const number = Number(port)
+    if (!(target in ports) || !Number.isInteger(number) || number < 1 || number > 65535)
+      throw new Error(`SLAX_API_DEV_PORTS entry "${entry}" must be <${Object.keys(ports).join('|')}>=<port>`)
+    ports[target as Target] = number
+  }
+  if (new Set(Object.values(ports)).size !== Object.keys(ports).length) throw new Error('SLAX_API_DEV_PORTS gives two Workers the same port')
+  return ports
+}
 
 export const devPortOccupied = (port: number): Promise<boolean> =>
   new Promise(resolve => {
@@ -63,18 +78,27 @@ export const devPortInUseMessage = (port: number): string => {
   return `Error: 127.0.0.1:${port} is already in use by PID ${pid} (not a Slax dev session).\nStop that process or free the port, then retry.`
 }
 
-export async function deploy(args: string[]): Promise<number> {
+// `transition` is passed only by topology:transition, which checks each step's own preconditions and selects the
+// MCP phase. It is not a command-line flag, so a hand-typed deploy always runs the readiness checks.
+export async function deploy(args: string[], transition?: { mcp: McpPhase }): Promise<number> {
+  const mcp = transition?.mcp ?? 'retired'
   const options = parseArgs(args, ['--dev', '--dry-run', '--bootstrap'])
   const local = options.flags.has('--dev')
   const config = readConfig(options.config, options.environment, local)
   const bootstrap = options.flags.has('--bootstrap')
-  if (bootstrap && (local || options.target)) throw new Error('--bootstrap requires all four remote Workers')
+  if (bootstrap && (local || options.target)) throw new Error('--bootstrap requires every remote Worker')
   if (!local && !options.flags.has('--dry-run')) checkDeployment(config)
+  // A normal release must not split job ownership between an untransitioned Edge and the new Core.
+  if (!local && !bootstrap && !options.flags.has('--dry-run') && !transition) {
+    loadApiEnv()
+    await requireTopology(accountApi(config), config)
+  }
   // Fail before touching any shared state: the generated configs, the dev
   // registry and the containers are machine-wide singletons, so even a
-  // --target session is a session and all four ports are probed. Fixtures
+  // --target session is a session and every Worker port is probed. Fixtures
   // that stub wrangler never bind ports and opt out to stay independent of
   // the machine's dev-session state.
+  const ports = devPorts()
   if (local && !options.flags.has('--dry-run')) {
     if (process.env.SLAX_API_SKIP_DEV_PORT_GUARD) {
       console.warn('Dev port guard skipped: SLAX_API_SKIP_DEV_PORT_GUARD is set (test fixtures only).')
@@ -88,7 +112,7 @@ export async function deploy(args: string[]): Promise<number> {
     }
   }
   // Validate every configuration before the first remote mutation.
-  const files = Object.fromEntries(TARGETS.map(target => [target, writeGenerated(config, target, GENERATED_DIR, local)]))
+  const files = Object.fromEntries(TARGETS.map(target => [target, writeGenerated(config, target, GENERATED_DIR, local, false, mcp)]))
   const initial = bootstrap ? writeGenerated(config, 'core', GENERATED_DIR, false, true) : undefined
   if (options.flags.has('--dry-run')) {
     console.log('Generated Worker configs in deploy/local/.generated')
@@ -103,7 +127,7 @@ export async function deploy(args: string[]): Promise<number> {
   process.once('SIGTERM', stop)
   const run = (target: Target, filename = files[target]) =>
     new Promise<number>((resolve, reject) => {
-      const common = [path.join(API_ROOT, `src/entry/${target}/index.ts`), '--tsconfig', path.join(API_ROOT, 'tsconfig.json'), '--config', filename]
+      const common = [entryFile(target, mcp), '--tsconfig', path.join(API_ROOT, 'tsconfig.json'), '--config', filename]
       const workerEnv = path.join(CONFIG_DIR, '.dev.vars')
       const loadRuntimeFile = local && fs.existsSync(workerEnv)
       const dev = [
@@ -118,7 +142,7 @@ export async function deploy(args: string[]): Promise<number> {
         '--inspector-port',
         '0',
         ...(loadRuntimeFile ? ['--env-file', workerEnv] : []),
-        ...(target === 'edge' ? ['--test-scheduled'] : [])
+        ...(target === 'core' ? ['--test-scheduled'] : [])
       ]
       // Preserve unrecovered remote bindings; explicit TOML vars replace matching names.
       const child = spawn('wrangler', local ? dev : ['deploy', ...common, '--minify', '--keep-vars'], {
@@ -149,7 +173,11 @@ export async function deploy(args: string[]): Promise<number> {
       const results = await Promise.all(targets.map(target => run(target)))
       return results.find(code => code !== 0) ?? 0
     }
-    const order: Target[] = options.target ? [options.target] : bootstrap ? ['browser', 'ai', 'edge', 'core'] : ['browser', 'ai', 'core', 'edge']
+    // Callees publish before callers: Objects and Browser own Durable Objects others bind to, AI serves the
+    // VECTOR RPC Core binds to, and Edge binds to Core and AI. A bootstrap breaks the AI -> Core cycle by first
+    // publishing an initial Core stripped of its service bindings and Workflows, so AI and Edge can bind to it; the
+    // complete Core is published last.
+    const order: Target[] = options.target ? [options.target] : bootstrap ? ['browser', 'objects', 'ai', 'edge', 'core'] : ['browser', 'objects', 'ai', 'core', 'edge']
     for (const target of order) {
       if (initial && target === 'ai') {
         const status = await run('core', initial)
