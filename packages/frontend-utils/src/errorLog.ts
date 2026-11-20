@@ -57,6 +57,7 @@ const MAX_MESSAGE_BYTES = 16 * 1024
 const MAX_FRAME_BYTES = 512
 const MAX_STACK_BYTES = 4 * 1024
 const MAX_PROPERTIES_BYTES = 8 * 1024
+const MAX_PAGE_URL_BYTES = 2 * 1024
 const MAX_FINGERPRINTS_PER_SESSION = 200
 const MAX_QUEUED_PER_FLUSH = 20
 // Browsers cap keepalive fetch and sendBeacon bodies at 64 KiB; stay below it per request.
@@ -103,19 +104,20 @@ export const pageUrlForRecord = (value: string | undefined | null): string | und
   const stripped = stripUrl(value)
   if (!stripped) return undefined
   const url = new URL(stripped)
-  return `${url.protocol}//${url.host}${pagePathForRecord(url.pathname)}`
+  return truncateBytes(`${url.protocol}//${url.host}${pagePathForRecord(url.pathname)}`, MAX_PAGE_URL_BYTES)
 }
 
 // URLs inside messages and stacks keep origin and path; query strings and fragments may carry tokens.
 // Absolute URLs match wherever they start, so Safari and Firefox frames (`fn@https://…?v=1:2:3`)
 // and bracketed URLs are covered. Protocol-relative (`//host/a?…`) and root-relative
 // (`/v1/sync/changes?token=…`) paths must start the text or follow a delimiter, so prose
-// containing a slash is not rewritten. A trailing `:line:col` after the query belongs to a stack
-// frame and is kept. No lookbehind: Safari before 16.4 cannot parse it, and the Web app supports Safari 15.4.
+// containing a slash is not rewritten. In a stack, a trailing `:line:col` after the query belongs to
+// the frame and is kept; in a message it is part of the query and removed with it.
+// No lookbehind: Safari before 16.4 cannot parse it, and the Web app supports Safari 15.4.
 const URL_QUERY_PATTERN =
   /(?:((?:https?|chrome-extension):\/\/[^\s"'<>()[\]{}?#]+)|(^|[\s"'<>()[\]{}=,@:])(\/\/?[^\s"'<>()[\]{}?#/][^\s"'<>()[\]{}?#]*))[?#][^\s"'<>()[\]{}]*?((?::\d+){1,2})?(?=[\s"'<>()[\]{}]|$)/g
-export const stripUrlQueries = (text: string): string =>
-  text.replace(URL_QUERY_PATTERN, (_match, absolute?: string, lead?: string, relative?: string, position?: string) => (absolute ?? `${lead ?? ''}${relative ?? ''}`) + (position ?? ''))
+export const stripUrlQueries = (text: string, { keepPosition = false } = {}): string =>
+  text.replace(URL_QUERY_PATTERN, (_match, absolute?: string, lead?: string, relative?: string, position?: string) => (absolute ?? `${lead ?? ''}${relative ?? ''}`) + (keepPosition ? (position ?? '') : ''))
 
 const fnv1a = (input: string): string => {
   let a = 0x811c9dc5
@@ -154,7 +156,7 @@ export const normalizeError = (error: unknown): { name?: string; message: string
   const rawStack = readField(target, 'stack')
   const name = typeof rawName === 'string' && ERROR_NAME_PATTERN.test(rawName) ? rawName : undefined
   const message = stripUrlQueries(typeof rawMessage === 'string' && rawMessage ? rawMessage : describe(target ?? 'Unknown error'))
-  const stack = typeof rawStack === 'string' && rawStack ? stripUrlQueries(rawStack) : undefined
+  const stack = typeof rawStack === 'string' && rawStack ? stripUrlQueries(rawStack, { keepPosition: true }) : undefined
   return { name, message: message || 'Unknown error', stack }
 }
 
@@ -325,7 +327,8 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
   const lastSentAt = new Map<string, number>()
   const deliveries = new Map<string, number>()
   const sessionCounts = new Map<string, number>()
-  // Records opened by a non-counting observer; the next counting capture claims that first count.
+  // Occurrences opened by a non-counting observer that no counting capture has claimed yet. Kept apart
+  // from the queue so a flush between the two captures of one occurrence does not count it twice.
   const provisional = new Set<string>()
   let timer: ReturnType<typeof setTimeout> | undefined
   let inFlight: Promise<void> | undefined
@@ -385,7 +388,6 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     }
     for (const record of records) {
       queue.delete(record.fingerprint)
-      provisional.delete(record.fingerprint)
       lastSentAt.set(record.fingerprint, sentAt)
       deliveries.set(record.fingerprint, (deliveries.get(record.fingerprint) ?? 0) + 1)
       const total = Math.min((sessionCounts.get(record.fingerprint) ?? 0) + record.count, MAX_SESSION_COUNT)
@@ -403,6 +405,11 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     schedule()
   }
 
+  const mergeSource = (record: ClientErrorRecord | undefined, source: string | undefined) => {
+    const sources = record?.properties?.sources
+    if (source && Array.isArray(sources) && !sources.includes(source)) sources.push(source)
+  }
+
   const capture: ErrorCollector['capture'] = (kind, error, properties = {}, captureOptions = {}) => {
     try {
       const { name, message, stack } = normalizeError(error)
@@ -412,12 +419,13 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
       const source = typeof properties.source === 'string' ? properties.source : undefined
       const existing = queue.get(fingerprint)
       const counts = captureOptions.countOccurrence !== false
+      // A counting capture claims an occurrence a non-counting observer already recorded, queued or sent.
+      const claimed = counts && provisional.delete(fingerprint)
+      if (claimed) return mergeSource(queue.get(fingerprint), source)
       if (existing) {
-        if (counts && provisional.has(fingerprint)) provisional.delete(fingerprint)
-        else if (counts) existing.count = Math.min(existing.count + 1, MAX_COUNT)
+        if (counts) existing.count = Math.min(existing.count + 1, MAX_COUNT)
         if (counts) existing.properties = { ...(existing.properties ?? {}), last_occurred_at: now() }
-        const sources = existing.properties?.sources
-        if (source && Array.isArray(sources) && !sources.includes(source)) sources.push(source)
+        mergeSource(existing, source)
         return
       }
       if (!seen.has(fingerprint)) {

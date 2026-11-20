@@ -175,6 +175,17 @@ A simulation of that page (one rejection every 40 seconds for 10 hours) now deli
 
 A production-mode build with the test endpoint was then served at `http://localhost:3103` and driven in Chrome 158; the records were queried back from `client_errors.errors` by the page's `session_id`. One uncaught error from 12-deep recursion stored a 413-byte stack of two lines (`recurse (…:12:44)` and `recurse (…:12:81) ×9`). Eleven unhandled `Failed to fetch` rejections from one call path stored two rows instead of eleven: `count=4` (`session_count=4`), then `count=7` (`session_count=11`) one minute later, each with `last_occurred_at` and a six-frame stack of about 1.2 KiB naming `loadBookmarks` and `refreshList`. `pnpm web -- test`: 3198 passed, 3 skipped, and the known `useSlaxRoutes.spec.ts` timeout, which passed 3 of 3 reruns; Web `typecheck`, lint, and `openspec validate --all --strict` pass.
 
+## Review Nits on 4a032fc0
+
+The automated review found no Important issue. Its four Nits are fixed:
+
+- One occurrence could be counted twice when a flush fell between its non-counting observer (status listener) and its counting capture (SDK logger), because the claim state was cleared with the queued record. That state is now kept apart from the queue; a test fails against the previous code.
+- `page_url` had no byte cap, so a very long path could make one record exceed the 60 KiB request body. It is now capped at 2 KiB.
+- In messages, `:digits` after a query was reattached to the URL as if it were a stack position; the position is now kept only in stacks.
+- `design.md` described `fetch` as primary and `sendBeacon` as the hiding fallback; it now matches the code.
+
+`pnpm web -- test`: 3200 passed, 3 skipped, and the known `useSlaxRoutes.spec.ts` timeout, which passed on rerun; Web `typecheck`, lint, and `openspec validate --all --strict` pass.
+
 ## Cleanup
 
 The PowerSync test container, its replication slot and storage database, the local stub, proxy, and Pages server were removed. The existing `dev-powersync` service and its replication slot were unchanged.

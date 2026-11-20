@@ -101,7 +101,10 @@ describe('frontend-utils error log collector', () => {
       ['[/v1/sync/changes?token=abc]', '[/v1/sync/changes]'],
       ['and/or? maybe', 'and/or? maybe']
     ]
-    for (const [input, expected] of cases) expect(stripUrlQueries(input)).toBe(expected)
+    for (const [input, expected] of cases) expect(stripUrlQueries(input, { keepPosition: true })).toBe(expected)
+    // In a message, `:digits` after a query belongs to the query and goes with it.
+    expect(stripUrlQueries('see https://r.slax.com/a?b=:1:2 now')).toBe('see https://r.slax.com/a now')
+    expect(stripUrlQueries('see https://r.slax.com/a#:42 now')).toBe('see https://r.slax.com/a now')
     const safari = Object.assign(new Error('boom'), { stack: 'fetchStreamRaw@https://r.slax.com/_nuxt/w.js?v=1:12:3\nother@https://r.slax.com/_nuxt/x.js?v=1:1:1' })
     expect(firstFrame(normalizeError(safari).stack)).toBe('fetchStreamRaw@https://r.slax.com/_nuxt/w.js:12:3')
   })
@@ -233,6 +236,28 @@ describe('frontend-utils error log collector', () => {
     expect(sent).toHaveLength(1)
     await collector.flush(true)
     expect(sent[1]).toMatchObject({ hiding: true, body: [{ message: 'again', count: 2, properties: { session_count: 3 } }] })
+  })
+
+  it('counts one occurrence once when a flush falls between its observers', async () => {
+    const { collector, sent } = make()
+    const failure = new Error('sync stream 503')
+    collector.capture('powersync', failure, { source: 'status.downloadError' }, { countOccurrence: false })
+    await collector.flush(true)
+    collector.capture('powersync', failure, { source: 'sdk.logger' })
+    collector.capture('powersync', failure, { source: 'sdk.logger' })
+    await collector.flush(true)
+    const records = sent.flatMap(batch => batch.body)
+    expect(records.map(record => record.count)).toEqual([1, 1])
+    expect(records.at(-1)?.properties?.session_count).toBe(2)
+  })
+
+  it('bounds page_url so one record always fits a request body', async () => {
+    const { collector, sent } = make({ pageUrl: () => `https://r.slax.com/b/${'x'.repeat(70_000)}` })
+    collector.capture('error', new Error('long path'))
+    await collector.flush()
+    const [record] = sent[0].body
+    expect(record.page_url?.startsWith('https://r.slax.com/b/xxx')).toBe(true)
+    expect(new TextEncoder().encode(record.page_url ?? '').length).toBeLessThanOrEqual(2 * 1024)
   })
 
   it('caps distinct fingerprints per session at 200', async () => {
