@@ -33,7 +33,7 @@ In production, the Web reader SHALL attempt Dedicated Worker initialization firs
 
 ### Requirement: Preserve safe local recovery
 
-Platform selection SHALL preserve existing bounded recovery. Initialization timeout, cleanup timeout, or cleanup failure SHALL stop further local database attempts for that page initialization and select REST fallback. A definite initialization failure with completed cleanup SHALL permit the existing next-mode recovery path.
+Platform selection SHALL preserve existing bounded recovery. Initialization timeout, cleanup timeout, or cleanup failure SHALL stop further local database attempts for that page initialization and select REST fallback. A definite initialization failure with completed cleanup SHALL permit the existing next-mode recovery path. An initialization timeout SHALL retain the timed-out database instance, SHALL NOT close it while its initialization is pending, and SHALL let that initialization continue in the background; recovery SHALL NOT start another local database instance for that page initialization. If the retained initialization later fails, the instance SHALL be disposed with the existing bounded cleanup.
 
 #### Scenario: Dedicated initialization does not finish
 - **WHEN** a dedicated-first session reaches the initialization timeout
@@ -46,6 +46,13 @@ Platform selection SHALL preserve existing bounded recovery. Initialization time
 #### Scenario: Dedicated initialization fails and cleanup succeeds
 - **WHEN** dedicated initialization fails before its timeout and cleanup completes successfully
 - **THEN** recovery can attempt main-thread initialization
+
+#### Scenario: Timed-out initialization is retained
+- **WHEN** any mode reaches the initialization timeout
+- **THEN** the page selects REST fallback at the timeout bound
+- **AND** the timed-out instance is not closed and its initialization continues
+- **AND** if that initialization later fails, the instance is disposed with bounded cleanup
+- **AND** diagnostics report whether the background initialization later completed or failed and its duration
 
 ### Requirement: Preserve development and stored data behavior
 
@@ -192,3 +199,137 @@ Asset-retention and cache-policy changes SHALL preserve the existing database fi
 - **WHEN** the first attempted mode fails and its cleanup fails or times out
 - **THEN** diagnostics identify the attempted mode and early-stop reason
 - **AND** REST fallback is reported without claiming that unattempted modes failed
+
+### Requirement: A top-level page resumes local mode after a background initialization completes
+
+When a timed-out initialization later completes in a top-level page that was otherwise eligible for local mode, the next client-side navigation to a different path SHALL perform a full document load of the destination so that it starts local mode normally. The current document SHALL NOT reload by itself. Navigations that keep the same path SHALL remain client-side. The hosted extension bridge, anonymous public bypass, and pages that stopped before creating a database SHALL keep their existing behavior. Resumption SHALL preserve the database filename, data-version state, and pending local mutations.
+
+#### Scenario: Navigation after background completion
+- **WHEN** a top-level page fell back to REST after an initialization timeout and its retained initialization has completed
+- **AND** the user navigates to a different path
+- **THEN** the destination loads as a new document
+- **AND** that document opens the local database and requests synchronization
+
+#### Scenario: Background initialization has not completed
+- **WHEN** a top-level page fell back to REST after an initialization timeout and the retained initialization has not completed or failed
+- **THEN** navigation stays client-side and the page remains on REST
+
+#### Scenario: Same-path navigation
+- **WHEN** the retained initialization has completed and a navigation changes only the query or hash
+- **THEN** the navigation stays client-side
+
+#### Scenario: Reading is not interrupted
+- **WHEN** the retained initialization completes while the user remains on the current page
+- **THEN** the current page does not reload
+
+#### Scenario: Extension bridge times out
+- **WHEN** the hosted extension bridge times out and its retained initialization later completes
+- **THEN** the bridge does not perform a navigation-time document load and keeps REST behavior until it is recreated
+
+### Requirement: Deferrable reader documents do not wait for local database startup
+
+A top-level document initially opened at `/b/[id]`, `/user`, or `/collection/manage`, outside the extension bridge, the anonymous public bypass, and snapshot session recovery, SHALL mount and become interactive without waiting for local database initialization, data-version migration, or account ownership checks. It SHALL start that startup in the background. Until the document's own startup completes those checks, every local-data consumer on it SHALL behave as when local mode is unavailable. Every other document SHALL keep its existing blocking startup.
+
+#### Scenario: Local startup is slow on a reader document
+- **WHEN** a signed-in reader opens `/b/[id]` while local database initialization is delayed
+- **THEN** the page mounts and its article, links, highlight tools, and panels respond without waiting for the delay
+- **AND** marks, highlights, comments, archive, star, and title edits use the existing REST path
+
+#### Scenario: Settings while local startup is slow
+- **WHEN** a signed-in reader opens `/user` while local database initialization is delayed
+- **THEN** the page mounts without waiting and shows its REST content and notifications
+
+#### Scenario: Startup checks fail
+- **WHEN** deferred startup times out, fails data-version migration, or fails the account ownership check
+- **THEN** the document stays on REST for its lifetime and no local row is read
+
+#### Scenario: Other entry routes
+- **WHEN** a document initially opens at `/`, `/bookmarks`, the extension bridge, or a route not listed above
+- **THEN** existing startup, recovery, ownership, onboarding readiness, and REST fallback behavior applies unchanged
+
+### Requirement: The snapshot detail page upgrades to local data only for a verified owner
+
+After deferred startup completes on a `/b/[id]` document, the page SHALL switch marks, title, archive and star state, and reading position to local data only when the current content response marks the reader as owner, the local database owner equals the current token's account, the account generation is unchanged since the page started waiting, and the bookmark exists locally. The switch SHALL NOT reload the article body. Otherwise the page SHALL remain on REST.
+
+#### Scenario: Owner bookmark after readiness
+- **WHEN** deferred startup completes and every ownership condition holds
+- **THEN** the page switches to local data without reloading the article body
+
+#### Scenario: The switch does not flash
+- **WHEN** an owner page switches from REST to local data and the local rows match what is already shown
+- **THEN** the title, highlights, highlight styles, and archive and star state remain visually unchanged across every rendered frame
+
+#### Scenario: Local data lags behind REST
+- **WHEN** the local rows lack a highlight, a comment, or a deletion that the REST response already showed
+- **THEN** the page keeps showing the REST highlights until the local rows cover them
+- **AND** a highlight the reader writes on the page appears from the local rows immediately
+
+#### Scenario: Visitor or another account
+- **WHEN** the reader does not own the bookmark, or the local database belongs to another account
+- **THEN** the page never switches to local data
+
+#### Scenario: Account changes while waiting
+- **WHEN** the account generation or token changes before deferred startup completes
+- **THEN** the page does not switch to local data for the earlier account
+
+### Requirement: Leaving a deferred document gives the destination normal startup
+
+When a deferred document navigates to a path outside the deferrable routes, the navigation SHALL load the destination as a new document so that it runs its normal startup, after waiting a bounded time for in-progress local startup. Navigation among deferrable routes SHALL stay client-side.
+
+#### Scenario: Reader returns to the Inbox
+- **WHEN** a deferred `/b/[id]` document navigates to `/bookmarks`
+- **THEN** the destination loads as a new document with its normal local-first startup
+- **AND** the old document does not mount the Inbox
+
+#### Scenario: Reader opens another article
+- **WHEN** a deferred `/b/[id]` document navigates to another `/b/[id]`
+- **THEN** the navigation stays client-side
+
+### Requirement: The snapshot detail body stays server-rendered
+
+The snapshot detail page SHALL keep its article body in the initial server-rendered HTML for requests the server renders today, including anonymous edge-cached responses. Deferring local startup SHALL NOT replace the server-rendered body with a client-only loading state.
+
+#### Scenario: Anonymous visitor opens a public snapshot
+- **WHEN** an anonymous visitor requests `/b/[id]`
+- **THEN** the initial HTML contains the article title, metadata, and first-screen body as before
+
+### Requirement: Hidden tabs do not block local database startup in other tabs
+
+While a Web page is hidden, it SHALL defer its live local query work, including resolving a query's tables, its initial run, and re-runs after local database changes. It SHALL release that work once it has remained visible for a short settling interval, re-running each affected query once. Deferral SHALL NOT drop changes: after release, live queries SHALL reflect every change made while the page was hidden. Writes from a hidden page SHALL NOT be deferred. The extension bridge frame SHALL NOT defer queries.
+
+#### Scenario: New tab opens while background tabs watch a changing database
+- **WHEN** several hidden tabs have live local queries open and synchronization keeps writing to the local database
+- **AND** the user opens a new tab
+- **THEN** the new tab's local database initialization completes without waiting for the hidden tabs' query work
+- **AND** it does not fall back to REST because of that work
+
+#### Scenario: Hidden tab returns to the foreground
+- **WHEN** local data changes while a tab is hidden
+- **AND** the tab becomes visible and stays visible
+- **THEN** its live queries re-run and show the changed data without a page reload
+
+#### Scenario: Tab is shown only briefly
+- **WHEN** a hidden tab becomes visible and is hidden again before the settling interval ends, for example while another tab closes
+- **THEN** its live query work remains deferred
+
+#### Scenario: Page opened in the background
+- **WHEN** a page starts while hidden, for example opened in a background tab
+- **THEN** its live local data loads after the page is shown
+
+#### Scenario: Extension bridge frame
+- **WHEN** the extension bridge frame uses the local database
+- **THEN** its queries and change handling run without visibility deferral
+
+### Requirement: SDK upgrades that change the Worker protocol use a new Worker generation
+
+A PowerSync SDK upgrade that changes the protocol between pages and the SharedWorker SHALL use a new Worker entry generation, so a page never attaches to a running SharedWorker from an incompatible SDK. The upgrade SHALL preserve the database filename, database generation, data version, stored rows, and pending local mutations.
+
+#### Scenario: Old and new releases are open together after deployment
+- **WHEN** a tab still runs the previous release's SharedWorker and a new tab loads the upgraded release
+- **THEN** the new tab starts its own SharedWorker under the new generation
+- **AND** both tabs read and write the same local database without errors or data loss
+
+#### Scenario: Existing local data after the upgrade
+- **WHEN** a user with an existing local database loads the upgraded release
+- **THEN** the same database file and data version are used
+- **AND** no reset, full re-download, or loss of pending local writes occurs
