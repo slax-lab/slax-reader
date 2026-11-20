@@ -35,6 +35,8 @@ vi.mock('@powersync/web', () => ({
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
+    onChangeWithCallback = () => () => {}
+    resolveTables = async () => []
     close = state.close
     getCrudBatch = state.batch
     registerListener = () => () => {}
@@ -83,7 +85,7 @@ describe('real PowerSync plugin public bypass', () => {
     expect(localStorage.getItem('slax:powersync:lastUser')).toBe('old-account')
     expect(localStorage.getItem(`slax:powersync:${POWER_SYNC_DATABASE_GENERATION}:dataVersion`)).toBe('0')
   })
-  it.each(['/bookmarks', '/auth', '/b/example', '/s/example', '/login/extra', '/guide/extra', '/x/ext-bridge', '/pricing?next=/login'])('keeps normal startup for %s', async path => {
+  it.each(['/bookmarks', '/auth', '/s/example', '/login/extra', '/guide/extra', '/x/ext-bridge', '/pricing?next=/login'])('keeps normal startup for %s', async path => {
     window.history.replaceState(null, '', path)
     const result = await start()
     expect(result?.provide?.powersyncPublicBypass).toBe(false)

@@ -44,6 +44,8 @@ vi.mock('@powersync/web', () => ({
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
+    onChangeWithCallback = () => () => {}
+    resolveTables = async () => []
     registerListener = (listener: { statusChanged?: (status: unknown) => void }) => {
       state.listeners.push(listener)
       return () => {}

@@ -640,17 +640,17 @@ importers:
         specifier: ^1.1.3
         version: 1.1.3(@nuxt/scripts@1.3.9(a9a34458d88e8b7415b0336b47140dfc))(magicast@0.5.5)
       '@powersync/common':
-        specifier: ^2.2.0
-        version: 2.3.0
+        specifier: ^2.5.0
+        version: 2.5.0
       '@powersync/shared-internals':
-        specifier: ^1.2.0
-        version: 1.3.0(@powersync/common@2.3.0)
+        specifier: ^1.6.0
+        version: 1.6.0(@powersync/common@2.5.0)
       '@powersync/vue':
-        specifier: ^0.6.0
-        version: 0.6.0(@powersync/common@2.3.0)(@powersync/shared-internals@1.3.0(@powersync/common@2.3.0))(vue@3.5.42(typescript@6.0.3))
+        specifier: ^0.7.0
+        version: 0.7.0(@powersync/common@2.5.0)(@powersync/shared-internals@1.6.0(@powersync/common@2.5.0))(vue@3.5.42(typescript@6.0.3))
       '@powersync/web':
-        specifier: ^2.2.0
-        version: 2.4.0(@powersync/common@2.3.0)(@powersync/shared-internals@1.3.0(@powersync/common@2.3.0))
+        specifier: ^2.7.0
+        version: 2.7.0(@powersync/common@2.5.0)(@powersync/shared-internals@1.6.0(@powersync/common@2.5.0))
       '@resvg/resvg-js':
         specifier: ^2.6.2
         version: 2.6.2
@@ -4340,8 +4340,8 @@ packages:
     resolution: {integrity: sha512-u3UPsIilWKOM3F9CXtrG8LEJmNxwoCQC/XVj4IKYXvvpx7QIi/Kg1LI5uDmDpKlac62NUtX7eLjRh+jVZcLOzw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
-  '@journeyapps/wa-sqlite@2.0.5':
-    resolution: {integrity: sha512-hsyqMcrcv4V4oBzGfX4IdHrOzuyOGeb5yR+DBOmaK4ulGYuLBhYzZiYTK78CIpohhmkxGKZp7g+WeYFCbuFX3Q==}
+  '@journeyapps/wa-sqlite@2.0.10':
+    resolution: {integrity: sha512-6Wo5ZijOc4/6M9u+MDsJdW8zDCdrct/p+7LcG7S7CT5YKu42j6lshMfUvgtGYMaZeuH7rpQHULZupPTQFqbS0w==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -6049,11 +6049,11 @@ packages:
   '@poppinss/exception@1.2.2':
     resolution: {integrity: sha512-m7bpKCD4QMlFCjA/nKTs23fuvoVFoA83brRKmObCUNmi/9tVu8Ve3w4YQAnJu4q3Tjf5fr685HYIC/IA2zHRSg==}
 
-  '@powersync/common@2.3.0':
-    resolution: {integrity: sha512-sGhd3UKwqRmzBtwAFi7DgWAAfVU7ZCBZx93eeat0gtHKfAhGN0t9X5MNJNu90RILGSPDUcLjqp6bH+Vj8HPApg==}
-
   '@powersync/common@2.3.1':
     resolution: {integrity: sha512-9ZUJt6TW448+WqCXV7cgwTUrHTiIWn4lWCfXHhjqpccJ7jYtJkXbmHwJXISju88oBbjp2WoMS9q7SrUQk+1g8w==}
+
+  '@powersync/common@2.5.0':
+    resolution: {integrity: sha512-kMlAfrQddGIAFuO7qCyYxf2yxAKdCrwGany9VcHs8Rx9f5KuqxqaCikzq/SC4Evf/f/sTS5eIwczZPPQboTjxw==}
 
   '@powersync/react-native@2.3.1':
     resolution: {integrity: sha512-Yk5l4BGPWCtysjYP/bhiTPmzNXBOS6HxKnetN9ZXJp4RWQa4WpSTiHGw9T2iJrGhJ6aRbxlIp06KsVw3QK7GAg==}
@@ -6069,29 +6069,32 @@ packages:
       '@powersync/common': ^2.3.1
       react: '*'
 
-  '@powersync/shared-internals@1.3.0':
-    resolution: {integrity: sha512-dEsyvUl8NVSOJhj/rPxRUZ9OcPG6DxNz487HdZZqCpd2ZSNvyVJJ1WQY5Icw6oO0AP9aSjtQniRZqoUIf9sGlw==}
-    peerDependencies:
-      '@powersync/common': ^2.3.0
-
   '@powersync/shared-internals@1.3.1':
     resolution: {integrity: sha512-C6zpNSEeiL2+C+Jd+DPxB6ltoTBfLIdFp2fP1sz88VcSL5Y6DimrUe3p1NglXa+kKZgG7Nm3Hn0M9AVIJZx21Q==}
     peerDependencies:
       '@powersync/common': ^2.3.1
 
-  '@powersync/vue@0.6.0':
-    resolution: {integrity: sha512-xkW3LiSguDTk87cKrEcB39EEJloF9Jsed205OS11S90F0x5P8dPX7dx/umynkAaHhJyLcVO5WQAfTT6/qKxjEg==}
+  '@powersync/shared-internals@1.6.0':
+    resolution: {integrity: sha512-UduDSVv9qfonIezOklBUR6c3KNlwOQ8/XCsTDwrBUXnVv4wmAZuIDO7C2hX2KKcQGKn+rU0Z5R9uPtgl1uK7Vg==}
     peerDependencies:
-      '@powersync/common': ^2.0.0
-      '@powersync/shared-internals': ^1.0.1
-      vue: 3.5.42
+      '@powersync/common': ^2.5.0
+    peerDependenciesMeta:
+      '@powersync/common':
+        optional: true
 
-  '@powersync/web@2.4.0':
-    resolution: {integrity: sha512-h0VKeZht3IcsOiTbQO2Vl7g3Yu7DvnlvlFFTa+qW1XI4vl0QI22JkjaiaV03WwK0oBwOaIj69pKBf5ee43Msng==}
-    hasBin: true
+  '@powersync/vue@0.7.0':
+    resolution: {integrity: sha512-7RIoOkbIG9srKPmf0LvAVu/iaF/ZAAaXox7VCU7h9XwC1PVE8bQj8b3IeAPLH1Q+HrNyPh5q+ouFI2oaLIEBTQ==}
     peerDependencies:
       '@powersync/common': ^2.3.0
       '@powersync/shared-internals': ^1.3.0
+      vue: 3.5.42
+
+  '@powersync/web@2.7.0':
+    resolution: {integrity: sha512-nRUVB6ybqR5TeoQqGs16IAn//4eHlp5AToWuAPlsaAxwQFTXBSHnFemh5YQtgLR4Mb7YpQjc3OKfjt5eXCYLHQ==}
+    hasBin: true
+    peerDependencies:
+      '@powersync/common': ^2.5.0
+      '@powersync/shared-internals': ^1.6.0
 
   '@prisma/adapter-d1@7.2.0':
     resolution: {integrity: sha512-bB41Mzc/ONsZS1GK+z4jl4C6KA6Njyxscezoof+kStPp56kxb+NVgzy738Q3Q/Y2ZvTnttcvjVWqumWXRYBG3g==}
@@ -19990,7 +19993,7 @@ snapshots:
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
-  '@journeyapps/wa-sqlite@2.0.5': {}
+  '@journeyapps/wa-sqlite@2.0.10': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -22142,9 +22145,9 @@ snapshots:
 
   '@poppinss/exception@1.2.2': {}
 
-  '@powersync/common@2.3.0': {}
-
   '@powersync/common@2.3.1': {}
+
+  '@powersync/common@2.5.0': {}
 
   '@powersync/react-native@2.3.1(@op-engineering/op-sqlite@18.2.5(react-native@0.88.1(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0))(@powersync/common@2.3.1)(react-native@0.88.1(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)':
     dependencies:
@@ -22160,25 +22163,25 @@ snapshots:
       '@powersync/common': 2.3.1
       react: 19.3.0
 
-  '@powersync/shared-internals@1.3.0(@powersync/common@2.3.0)':
-    dependencies:
-      '@powersync/common': 2.3.0
-
   '@powersync/shared-internals@1.3.1(@powersync/common@2.3.1)':
     dependencies:
       '@powersync/common': 2.3.1
 
-  '@powersync/vue@0.6.0(@powersync/common@2.3.0)(@powersync/shared-internals@1.3.0(@powersync/common@2.3.0))(vue@3.5.42(typescript@6.0.3))':
+  '@powersync/shared-internals@1.6.0(@powersync/common@2.5.0)':
+    optionalDependencies:
+      '@powersync/common': 2.5.0
+
+  '@powersync/vue@0.7.0(@powersync/common@2.5.0)(@powersync/shared-internals@1.6.0(@powersync/common@2.5.0))(vue@3.5.42(typescript@6.0.3))':
     dependencies:
-      '@powersync/common': 2.3.0
-      '@powersync/shared-internals': 1.3.0(@powersync/common@2.3.0)
+      '@powersync/common': 2.5.0
+      '@powersync/shared-internals': 1.6.0(@powersync/common@2.5.0)
       vue: 3.5.42(typescript@6.0.3)
 
-  '@powersync/web@2.4.0(@powersync/common@2.3.0)(@powersync/shared-internals@1.3.0(@powersync/common@2.3.0))':
+  '@powersync/web@2.7.0(@powersync/common@2.5.0)(@powersync/shared-internals@1.6.0(@powersync/common@2.5.0))':
     dependencies:
-      '@journeyapps/wa-sqlite': 2.0.5
-      '@powersync/common': 2.3.0
-      '@powersync/shared-internals': 1.3.0(@powersync/common@2.3.0)
+      '@journeyapps/wa-sqlite': 2.0.10
+      '@powersync/common': 2.5.0
+      '@powersync/shared-internals': 1.6.0(@powersync/common@2.5.0)
       comlink: 4.4.2
       commander: 12.1.0
 

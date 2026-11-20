@@ -22,6 +22,8 @@ mockNuxtImport('watch', () => vi.fn())
 vi.mock('~/utils/request', () => ({ getUserToken: () => undefined, getClientEventHeaders: () => ({}) }))
 vi.mock('~/local-first/schema', () => ({ AppSchema: {} }))
 vi.mock('@powersync/vue', () => ({ createPowerSyncPlugin: () => ({}) }))
+const gate = vi.hoisted(() => vi.fn())
+vi.mock('~/local-first/powersync-visibility-gate', () => ({ deferLiveQueriesWhileHidden: gate }))
 // Keep the real plugin and recovery logic; replace only the browser database boundary.
 vi.mock('@powersync/web', () => ({
   SyncStreamConnectionMethod: { HTTP: 'http' },
@@ -32,6 +34,8 @@ vi.mock('@powersync/web', () => ({
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
+    onChangeWithCallback = () => () => {}
+    resolveTables = async () => []
     registerListener = () => () => {}
     connected = false
     connecting = false
@@ -93,6 +97,11 @@ describe.skipIf(import.meta.dev)('production PowerSync worker selection', () => 
   it('retains shared mode on eligible desktop browsers', async () => {
     await start()
     expectDatabaseMode('shared')
+  })
+
+  it('defers live queries while hidden on the started database', async () => {
+    const result = await start()
+    expect(gate).toHaveBeenCalledExactlyOnceWith(result?.provide?.powersync)
   })
 
   it('starts in dedicated mode when SharedWorker is unavailable', async () => {
