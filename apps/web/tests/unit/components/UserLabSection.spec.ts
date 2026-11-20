@@ -76,6 +76,20 @@ describe('UserLabSection', () => {
     expect(rows[1]!.find('.lab-name span').text()).toBe('RSS feeds')
   })
 
+  it('links to Discover only while the Lab is enabled', async () => {
+    const wrapper = await mountSection([{ ...rss(), key: 'discovery' }])
+    expect(wrapper.find('.discovery-link').exists()).toBe(false)
+    const toggle = wrapper.get('[role="switch"]')
+    expect(toggle.attributes('aria-label')).toBe('Discover')
+    await toggle.trigger('click')
+    await flushPromises()
+    expect(mockPost).toHaveBeenCalledWith({ url: '/v1/user/setting/enable', body: { key: 'lab:discovery' } })
+    expect(wrapper.get('.discovery-link').text()).toBe('Open Discover')
+    await toggle.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.discovery-link').exists()).toBe(false)
+  })
+
   it('renders the PDF bookmarks row and toggles it', async () => {
     const wrapper = await mountSection([{ key: 'pdf', status: 'active', enabled: false, enabled_at: null }])
     const row = wrapper.find('.lab-row')

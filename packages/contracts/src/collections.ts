@@ -72,3 +72,29 @@ export interface CollectionCodeRequest {
 export interface SubscribeCollectionRequest extends CollectionCodeRequest {
   referrer?: string
 }
+
+export const DISCOVERY_MEDIA_TYPE = 'application/vnd.slax.discovery+json'
+
+export interface RecommendedCollection {
+  code: string
+  name: string
+  description: string
+  /** Backend display order. The first article leads the card. */
+  articles: Array<{
+    bookmarkUuid: string
+    title: string
+    url: string
+    selectionReason?: 'saved_interest' | 'interest' | 'recent'
+    siteName?: string
+    description?: string
+  }>
+}
+
+export interface CollectionRecommendations {
+  impressionId: string
+  algorithm: string
+  preferenceKind: 'collection'
+  reason?: 'cold_start' | 'no_public_candidates'
+  /** Discover orders multi-story cards first, followed by unique single-story picks. */
+  items: RecommendedCollection[]
+}

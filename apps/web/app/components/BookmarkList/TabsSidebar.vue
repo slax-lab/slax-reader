@@ -17,6 +17,14 @@
       <span>{{ item.title }}</span>
     </button>
 
+    <template v-if="labs.features.value.some(feature => feature.key === 'discovery')">
+      <p class="labs-label">{{ $t('page.discovery.labGroup') }}</p>
+      <NuxtLink class="sidebar-item" to="/discover" :title="$t('page.discovery.nav')" :aria-label="$t('page.discovery.nav')">
+        <AppIcon class="item-icon" name="bookmark.collections" :size="18" />
+        <span>{{ $t('page.discovery.nav') }}</span>
+      </NuxtLink>
+    </template>
+
     <!-- 分隔线 -->
     <div class="sidebar-divider" />
 
@@ -130,6 +138,10 @@ defineExpose({
     }
   }
 }
+
+.labs-label { margin: 16px 14px 2px; font-size: var(--slax-fs-aux); color: var(--slax-text-muted); }
+.collapsed .labs-label { display: none; }
+@media (max-width: 768px) { .labs-label { display: none; } }
 
 .sidebar-item {
   display: flex;

@@ -973,6 +973,46 @@
     "c_detail": {
       "subscribe_text": "来自 {user} 的订阅收藏"
     },
+    "discovery": {
+      "nav": "发现",
+      "collectionLabel": "合集",
+      "labGroup": "实验室新功能",
+      "forYou": "为你推荐",
+      "moreCollections": "更多推荐合集",
+      "exploreTopics": "按话题发现",
+      "topicEvidence": "为你推荐的 {count} 个合集都在读这个话题",
+      "nextPair": "换组文章",
+      "savedInterest": "与你保存或加星的文章相近",
+      "interest": "与你订阅的合集相近",
+      "topics": {
+        "coding": "AI 编程",
+        "design": "产品设计",
+        "agents": "AI 智能体",
+        "openSource": "开源",
+        "business": "创业公司",
+        "science": "科学与医学",
+        "culture": "文学与电影",
+        "writing": "写作",
+        "money": "投资",
+        "cities": "城市生活"
+      },
+      "retry": "重试",
+      "personalized": "结合你的合集偏好和文章兴趣推荐",
+      "open": "进入广场",
+      "disabled": "在设置的实验室中开启发现广场，即可浏览推荐。",
+      "settings": "前往实验室",
+      "empty": "暂时没有可以推荐的新合集。",
+      "error": "合集加载失败，请再试一次。",
+      "loading": "正在加载合集…",
+      "untitled": "未命名合集",
+      "collections": "为你推荐的合集",
+      "cold": "你的阅读兴趣，从一个合集开始",
+      "coldHint": "订阅感兴趣的合集后，广场会根据你的订阅推荐相关合集和文章。",
+      "myCollections": "我的合集",
+      "totals": "{collections} 个合集 · {articles} 篇选读",
+      "singles": "单篇选读",
+      "singlesHint": "这些推荐合集各有一篇文章可以先读。"
+    },
     "c_index": {
       "badge": "加星合集",
       "stat_articles": "星标",
@@ -1377,6 +1417,10 @@
         "status_active": "实验中",
         "status_graduated": "已正式发布",
         "title": "实验室",
+        "discovery": {
+          "name": "发现广场",
+          "desc": "探索其他读者的公开合集，阅读他们最近推荐的文章。"
+        },
         "youtube": {
           "name": "YouTube 视频",
           "desc": "保存 YouTube 链接，自动拉取字幕，边看边读。目前英文字幕优先，App 端不支持字幕跟随",

@@ -106,7 +106,7 @@ beforeAll(async () => {
   pg = new PGlite()
   await pg.exec(`
     CREATE TABLE sr_user(id int PRIMARY KEY, deleted_at timestamptz, snapshot_sharing boolean DEFAULT true);
-    CREATE TABLE sr_bookmark(id int PRIMARY KEY, uuid text, title text DEFAULT '', target_url text, private_user int DEFAULT 0, status text DEFAULT 'success', moderation_result int DEFAULT 0, updated_at timestamptz DEFAULT now(), published_at timestamptz DEFAULT now());
+    CREATE TABLE sr_bookmark(id int PRIMARY KEY, uuid text, title text DEFAULT '', target_url text, content_word_count int DEFAULT 0, site_name text DEFAULT '', description text DEFAULT '', private_user int DEFAULT 0, status text DEFAULT 'success', moderation_result int DEFAULT 0, updated_at timestamptz DEFAULT now(), published_at timestamptz DEFAULT now());
     CREATE TABLE sr_user_bookmark(id serial PRIMARY KEY, uuid text, alias_title text DEFAULT '', user_id int, bookmark_id int, is_starred boolean DEFAULT false, deleted_at timestamptz, type int DEFAULT 0, created_at timestamptz DEFAULT now(), starred_at timestamptz);
     CREATE TABLE sr_user_collection(id int PRIMARY KEY, owner_id int, status int DEFAULT 1, collection_code text DEFAULT '', display_name text DEFAULT 'Collection', description text DEFAULT '', created_at timestamptz DEFAULT now());
     CREATE TABLE sr_bookmark_share(user_id int, bookmark_id int, is_enable boolean, UNIQUE(user_id, bookmark_id));

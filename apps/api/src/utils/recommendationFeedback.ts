@@ -9,18 +9,23 @@ export interface RecommendationFeedback {
   events: { item_id: string; position: number; action: (typeof ACTIONS)[number]; occurred_at?: string }[]
 }
 
-let algorithm: Promise<string> | undefined
+const algorithms = new Map<boolean, Promise<string>>()
 
-export function recommendationAlgorithm(): Promise<string> {
-  algorithm ??= (async () => {
+export function recommendationAlgorithm(discovery = false): Promise<string> {
+  const existing = algorithms.get(discovery)
+  if (existing) return existing
+  const algorithm = (async () => {
     const parameters = Object.entries(recommendationAlgorithms)
       .filter(([key, value]) => /^[A-Z][A-Z0-9_]*$/.test(key) && ['number', 'string', 'boolean'].includes(typeof value))
       .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(Object.fromEntries(parameters))))
+    const version = Object.fromEntries(parameters)
+    const settings = discovery ? { ...version, DISCOVERY_CARD_RANK: 'cards-v2' } : version
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(settings)))
     return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0'))
       .join('')
       .slice(0, 12)
   })()
+  algorithms.set(discovery, algorithm)
   return algorithm
 }
 

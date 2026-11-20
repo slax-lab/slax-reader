@@ -32,6 +32,7 @@ export class LabService {
 
   protected features(): Record<string, LabFeatureDef> {
     return {
+      discovery: { status: 'active', name: { zh: '发现广场', en: 'Discover', es: 'Descubrir' } },
       newsletter: { status: 'active', name: { zh: 'Newsletter 订阅', en: 'Newsletters', es: 'Boletines' } },
       rss: { status: 'active', name: { zh: 'RSS 订阅', en: 'RSS feeds', es: 'Fuentes RSS' } },
       youtube: { status: 'active', forkContentKind: 'youtube', name: { zh: 'YouTube 视频', en: 'YouTube videos', es: 'Los vídeos de YouTube' } },

@@ -972,6 +972,46 @@
     "c_detail": {
       "subscribe_text": "Originally collected by {user}"
     },
+    "discovery": {
+      "nav": "Discover",
+      "collectionLabel": "Collection",
+      "labGroup": "New in Labs",
+      "forYou": "For you",
+      "moreCollections": "More collections",
+      "exploreTopics": "Explore by topic",
+      "topicEvidence": "{count} collections recommended for you cover this topic",
+      "nextPair": "More reads",
+      "savedInterest": "Similar to articles you saved or starred",
+      "interest": "Related to collections you follow",
+      "topics": {
+        "coding": "AI coding",
+        "design": "Product design",
+        "agents": "AI agents",
+        "openSource": "Open source",
+        "business": "Startups",
+        "science": "Science & medicine",
+        "culture": "Books & film",
+        "writing": "Writing",
+        "money": "Investing",
+        "cities": "City life"
+      },
+      "retry": "Retry",
+      "personalized": "Selected using your collection and reading interests",
+      "open": "Open Discover",
+      "disabled": "Turn on Discover in Labs to browse collections.",
+      "settings": "Go to Labs",
+      "empty": "There are no new collections to explore right now.",
+      "error": "Collections couldn’t be loaded. Try again.",
+      "loading": "Loading collections…",
+      "untitled": "Untitled collection",
+      "collections": "Collections for you",
+      "cold": "Start with a collection",
+      "coldHint": "Follow a collection you enjoy to get related collections and stories here.",
+      "myCollections": "My collections",
+      "totals": "{collections} collections · {articles} reads",
+      "singles": "Single reads",
+      "singlesHint": "One story to explore from each of these recommended collections."
+    },
     "c_index": {
       "badge": "Starred Collection",
       "stat_articles": "Starred",
@@ -1376,6 +1416,10 @@
         "status_active": "In Labs",
         "status_graduated": "Released",
         "title": "Labs",
+        "discovery": {
+          "name": "Discover",
+          "desc": "Explore public collections and read the articles other readers have recently recommended."
+        },
         "youtube": {
           "name": "YouTube videos",
           "desc": "Save a YouTube link and read along with its transcript. English captions are preferred for now, and the app does not follow the transcript yet.",

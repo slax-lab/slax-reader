@@ -81,6 +81,13 @@ describe('recommendation HTTP boundary', () => {
     expect(await response.json()).toMatchObject({ data: { items: [], reason: 'cold_start' } })
   })
 
+  test('negotiates interest-ranked members on the existing Collection endpoint', async () => {
+    const r = new Request('https://api.example.com/v1/recommendations/collections', { headers: { Accept: 'application/vnd.slax.discovery+json' } })
+    const response = await controller.collections(context(1), r)
+    expect(collections).toHaveBeenCalledExactlyOnceWith(1, 'collection', 10, undefined, true)
+    expect(response.headers.get('Content-Type')).toBe('application/vnd.slax.discovery+json')
+  })
+
   test('dispatches collection requests to the injected collection method', async () => {
     await controller.collections(context(1), request())
     expect(collections).toHaveBeenCalledExactlyOnceWith(1, 'collection', 10)

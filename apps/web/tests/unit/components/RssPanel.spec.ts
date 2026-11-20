@@ -60,7 +60,7 @@ const entry = {
   image_url: null
 }
 beforeEach(() => {
-  labs = { loaded: Vue.ref(true), isEnabled: () => true, fetch: vi.fn().mockResolvedValue(undefined) }
+  labs = { features: Vue.ref([]), loaded: Vue.ref(true), isEnabled: () => true, fetch: vi.fn().mockResolvedValue(undefined) }
   localDatabase = null
   presence.value = []
   vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementation(function (this: HTMLDialogElement) {
@@ -121,7 +121,7 @@ describe('RSS inside Inbox', () => {
   })
   it('keeps the shared Feed entry visible before and after RSS is disabled', async () => {
     const enabled = Vue.ref(false)
-    labs = { loaded: Vue.ref(false), isEnabled: () => enabled.value, fetch: vi.fn().mockRejectedValue(new Error('offline')) }
+    labs = { features: Vue.ref([]), loaded: Vue.ref(false), isEnabled: () => enabled.value, fetch: vi.fn().mockRejectedValue(new Error('offline')) }
     localDatabase = {}
     presence.value = [{ present: 1 }]
     const wrapper = mount(TabsSidebar, { global: { mocks: { $t: translate } } })
@@ -133,7 +133,7 @@ describe('RSS inside Inbox', () => {
     expect(wrapper.findAll('button').map(button => button.text())).toContain('rss.title')
   })
   it('keeps the shared Feed entry visible without a laboratory response or local rows', async () => {
-    labs = { loaded: Vue.ref(false), isEnabled: () => true, fetch: vi.fn().mockRejectedValue(new Error('offline')) }
+    labs = { features: Vue.ref([]), loaded: Vue.ref(false), isEnabled: () => true, fetch: vi.fn().mockRejectedValue(new Error('offline')) }
     localDatabase = {}
     const wrapper = mount(TabsSidebar, { global: { mocks: { $t: translate } } })
     mounted.push(wrapper)
