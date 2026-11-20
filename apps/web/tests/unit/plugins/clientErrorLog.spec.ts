@@ -4,8 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({ endpoint: 'https://stream.ingest.invalid', sent: [] as unknown[][], fetch: vi.fn() }))
 
-mockNuxtImport('useRuntimeConfig', () => () => ({ public: { CLIENT_ERROR_INGEST_URL: state.endpoint, appVersion: '2.1.0', slaxEnv: 'production' } }))
-vi.mock('~/utils/request', () => ({ getUserToken: () => `h.${btoa(JSON.stringify({ id: 10001 }))}.s`, getDeviceId: () => 'device-1' }))
+mockNuxtImport('useRuntimeConfig', () => () => ({ public: { CLIENT_ERROR_INGEST_URL: state.endpoint, appVersion: '2.1.0', slaxEnv: 'production', COOKIE_TOKEN_NAME: 'token' } }))
+// The shared cookie helpers register change listeners; the collector must not call them.
+vi.mock('~/utils/request', () => ({
+  getUserToken: () => {
+    throw new Error('getUserToken must not be used by the collector')
+  },
+  getDeviceId: () => {
+    throw new Error('getDeviceId must not be used by the collector')
+  }
+}))
 
 let hooks: Record<string, (...args: unknown[]) => void> = {}
 const start = async () => {
@@ -16,7 +24,11 @@ const start = async () => {
   return (await import('~/utils/clientErrorLog')).useClientErrorLog()
 }
 
+const setCookie = (name: string, value: string) => (document.cookie = `${name}=${encodeURIComponent(value)}; path=/`)
+
 beforeEach(() => {
+  setCookie('token', `h.${btoa(JSON.stringify({ id: 10001 }))}.s`)
+  setCookie('_su', 'device-1')
   state.endpoint = 'https://stream.ingest.invalid'
   state.sent = []
   state.fetch.mockReset().mockImplementation(async (_url: string, init: { body: string }) => {
@@ -121,6 +133,27 @@ describe('client error log plugin', () => {
     } finally {
       window.removeEventListener('unhandledrejection', onRejection)
     }
+  })
+
+  it('reads identity from document.cookie without registering cookie listeners', async () => {
+    const collector = await start()
+    const addEventListener = vi.fn()
+    vi.stubGlobal('cookieStore', { addEventListener, removeEventListener: vi.fn() })
+    const setInterval = vi.spyOn(globalThis, 'setInterval')
+    for (let i = 0; i < 5; i++) {
+      collector.capture('error', new Error(`batch ${i}`))
+      await collector.flush()
+    }
+    expect(addEventListener).not.toHaveBeenCalled()
+    expect(setInterval).not.toHaveBeenCalled()
+    const records = state.sent.flat() as Array<Record<string, unknown>>
+    expect(records).toHaveLength(5)
+    expect(records.every(record => record.user_id === '10001' && record.device_id === 'device-1')).toBe(true)
+    // A later sign-in is picked up by the next capture.
+    setCookie('token', `h.${btoa(JSON.stringify({ id: 20002 }))}.s`)
+    collector.capture('error', new Error('after sign-in'))
+    await collector.flush()
+    expect((state.sent.flat().at(-1) as Record<string, unknown>).user_id).toBe('20002')
   })
 
   it('stays inert without an endpoint', async () => {

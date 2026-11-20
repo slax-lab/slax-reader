@@ -53,7 +53,11 @@ vi.mock('@powersync/web', () => ({
   }
 }))
 
-const start = async () => (await import('~~/app/plugins/powersync.client')).default({ vueApp: { use: vi.fn() } } as never)
+// The reporter lock state is module-level, so each test loads the plugin fresh.
+const start = async () => {
+  vi.resetModules()
+  return (await import('~~/app/plugins/powersync.client')).default({ vueApp: { use: vi.fn() } } as never)
+}
 const sources = () => state.capture.mock.calls.map(([kind, , props]) => `${kind}:${(props as { source: string }).source}`)
 const status = (dataFlowStatus: Record<string, unknown>) => ({ connected: false, dataFlowStatus })
 const logger = () => (state.construct.mock.calls[0][0] as { logger: { log: (record: { level: number; message: string; error?: unknown }) => void } }).logger
@@ -101,31 +105,54 @@ describe('PowerSync error capture', () => {
       logger().log({ level: 50, message: 'Sync error', error: failure() })
       vi.setSystemTime(Date.now() + 5000)
       logger().log({ level: 50, message: 'Could not POST streaming to /sync/stream - 503', error: failure() })
-      const counted = state.capture.mock.calls.map(([, , , options]) => (options as { countOccurrence: boolean }).countOccurrence)
-      expect(counted).toEqual([true, false, true])
+      expect(state.capture).toHaveBeenCalledTimes(2)
       // Distinct non-Error payloads inside the window are separate failures.
       logger().log({ level: 50, message: 'worker message A', error: 'string payload A' })
       logger().log({ level: 50, message: 'worker message B', error: { reason: 'payload B' } })
-      const tail = state.capture.mock.calls.slice(-2).map(([, , , options]) => (options as { countOccurrence: boolean }).countOccurrence)
-      expect(tail).toEqual([true, true])
+      expect(state.capture).toHaveBeenCalledTimes(4)
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('records each changed download and upload error once, including cloned shared-worker errors', async () => {
+  it('measures the duplicate window from the first log, so a fast repeating failure is counted each window', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      await start()
+      // The same SDK error every 400 ms for 4 seconds.
+      for (let i = 0; i < 10; i++) {
+        logger().log({ level: 50, message: 'Sync error', error: new Error('HTTP 503') })
+        vi.setSystemTime(Date.now() + 400)
+      }
+      expect(state.capture).toHaveBeenCalledTimes(4)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('counts each failure from one source: the status listener does not record the same failure again', async () => {
     await start()
     const [listener] = state.listeners
-    const upload = new Error('[powersync] upload changes failed: 500')
-    listener.statusChanged?.(status({ uploadError: upload }))
-    listener.statusChanged?.(status({ uploadError: Object.assign(new Error(upload.message)) }))
-    listener.statusChanged?.(status({ downloadError: new TypeError('network error') }))
-    listener.statusChanged?.(status({ downloadError: new TypeError('network error') }))
-    listener.statusChanged?.(status({}))
-    listener.statusChanged?.(status({ downloadError: new TypeError('network error') }))
-    expect(sources()).toEqual(['powersync:status.uploadError', 'powersync:status.downloadError', 'powersync:status.downloadError'])
-    // Status observations tag failures the SDK logger or connector already count.
-    expect(state.capture.mock.calls.every(([, , , options]) => (options as { countOccurrence?: boolean }).countOccurrence === false)).toBe(true)
+    logger().log({ level: 50, message: 'Sync error', error: new TypeError('network error') })
+    listener?.statusChanged?.(status({ downloadError: new TypeError('network error') }))
+    listener?.statusChanged?.(status({ uploadError: new Error('[powersync] upload changes failed: 500') }))
+    expect(sources()).toEqual(['powersync:sdk.logger'])
+  })
+
+  it('records shared-worker log records only in the tab holding the reporter lock', async () => {
+    const granted: Array<() => void> = []
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      locks: { request: (_name: string, callback: () => Promise<void>) => new Promise<void>(resolve => granted.push(() => void callback().then(resolve))) }
+    })
+    await start()
+    logger().log({ level: 50, message: 'Sync error', error: new Error('HTTP 503 before lock') })
+    expect(state.capture).not.toHaveBeenCalled()
+    granted[0]?.()
+    await Promise.resolve()
+    logger().log({ level: 50, message: 'Sync error', error: new Error('HTTP 503 after lock') })
+    expect(state.capture).toHaveBeenCalledOnce()
+    expect(state.capture.mock.calls[0][1]).toMatchObject({ message: 'HTTP 503 after lock' })
   })
 
   it('records a local database initialization failure', async () => {
@@ -145,11 +172,10 @@ describe('PowerSync error capture', () => {
     options.onError?.(failure)
     expect(sources()).toEqual(['powersync:connector.upload'])
     expect(state.capture.mock.calls[0][1]).toBe(failure)
-    expect(state.capture.mock.calls[0][3]).toEqual({ countOccurrence: true })
     expect(console.error).toHaveBeenCalledWith('[powersync] uploadData failed:', failure)
   })
 
-  it('keeps the SDK logger, status listener, and connector working when capture throws', async () => {
+  it('keeps the SDK logger and connector working when capture throws', async () => {
     state.capture.mockImplementation(() => {
       throw new Error('collector broken')
     })
@@ -158,7 +184,6 @@ describe('PowerSync error capture', () => {
     // The SDK calls the logger inside its retry loop; it must still print and must not throw.
     expect(() => logger().log({ level: 50, message: 'Sync error', error: new Error('HTTP 503') })).not.toThrow()
     expect(state.sdkConsole).toHaveBeenCalledWith(expect.objectContaining({ message: 'Sync error' }))
-    expect(() => state.listeners[0].statusChanged?.(status({ downloadError: new Error('HTTP 503'), uploadError: new Error('500') }))).not.toThrow()
     const failure = new Error('[powersync] upload changes failed: 500')
     expect(() => state.connectorOptions[0].onError?.(failure)).not.toThrow()
     expect(console.error).toHaveBeenCalledWith('[powersync] uploadData failed:', failure)
@@ -183,7 +208,8 @@ describe('PowerSync error capture', () => {
 
   it('does not record anything for a healthy startup', async () => {
     await start()
-    state.listeners[0].statusChanged?.(status({}))
+    state.listeners[0]?.statusChanged?.(status({}))
+    logger().log({ level: 30, message: 'sync connected' })
     expect(state.capture).not.toHaveBeenCalled()
   })
 })

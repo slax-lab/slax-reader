@@ -66,7 +66,7 @@ The Web app SHALL record PowerSync failures with `kind=powersync` from SDK downl
 
 ### Requirement: Normalize, group, and deliver records
 
-Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `fingerprint`, `count`, `message`, and `session_id`, and MAY contain `error_name`, `stack`, `page_url`, `user_id`, `device_id`, `ua`, and `properties`. `stack` SHALL hold a compact stack, never the raw full stack: every frame reduced to its function and file position, with immediate repeats collapsed, bounded at 4 KiB, and ending with the number of frames cut when the bound is reached. `page_url` SHALL contain only the origin and path, with share and collection codes in the path replaced by placeholders, and URLs inside `message` and `stack` SHALL have their query strings and fragments removed, including in `fn@url:line:col` frames. A fingerprint's first occurrence in a page session SHALL be delivered promptly. Later occurrences SHALL be counted into the pending record and delivered no more often than an interval that starts at one minute and doubles up to one hour, so the `count` values of a fingerprint's records add up to its occurrences and each record carries the session total. Records SHALL be delivered in batches, including when the page is hidden or unloaded, and SHALL be bounded in size and number per page session. Delivery SHALL be best effort: a failure to deliver SHALL NOT throw, retry indefinitely, or change application behavior, and the collector SHALL NOT record errors caused by its own delivery. A failure anywhere in error capture, including creating the collector, SHALL NOT propagate to the caller, raise a new page error or unhandled rejection, stop the app from starting, or change PowerSync sync, upload, recovery, or console output.
+Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `fingerprint`, `count`, `message`, and `session_id`, and MAY contain `error_name`, `stack`, `page_url`, `user_id`, `device_id`, `ua`, and `properties`. `stack` SHALL hold a compact stack, never the raw full stack: every frame reduced to its function and file position, with immediate repeats collapsed, bounded at 4 KiB, and ending with the number of frames cut when the bound is reached. `page_url` SHALL contain only the origin and path. URLs inside `message`, `stack`, and `properties` SHALL have their query strings and fragments removed, including in `fn@url:line:col` frames, and share and collection codes SHALL be replaced by placeholders in every field of the record. `user_id` and `device_id` SHALL be the identity at the time of the error, and occurrences under different users SHALL be counted separately. Each PowerSync failure SHALL be counted once, however many tabs share its worker. A fingerprint's first occurrence in a page session SHALL be delivered promptly. Later occurrences SHALL be counted into the pending record and delivered no more often than an interval that starts at one minute and doubles up to one hour, so the `count` values of a fingerprint's records add up to its occurrences and each record carries the session total. Records SHALL be delivered in batches, including when the page is hidden or unloaded, and SHALL be bounded in size and number per page session. Delivery SHALL be best effort: a failure to deliver SHALL NOT throw, retry indefinitely, or change application behavior, and the collector SHALL NOT record errors caused by its own delivery. A failure anywhere in error capture, including creating the collector, SHALL NOT propagate to the caller, raise a new page error or unhandled rejection, stop the app from starting, or change PowerSync sync, upload, recovery, or console output.
 
 #### Scenario: The same error fires many times
 
@@ -85,8 +85,18 @@ Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `finge
 
 #### Scenario: An error occurs on a share or collection page
 
-- **WHEN** an error occurs on `/s/<share code>` or `/c/<collection code>/<member id>`
-- **THEN** the record's `page_url` path is `/s/:code` or `/c/:code/:id`, without the code that grants access
+- **WHEN** an error occurs on `/s/<share code>` or `/c/<collection code>/<member id>`, and its message, stack, or `filename` contains that URL
+- **THEN** no field of the record contains the code; each URL shows `/s/:code` or `/c/:code/:id`
+
+#### Scenario: The account changes before delivery
+
+- **WHEN** an error occurs under one account and the user switches accounts before the record is delivered
+- **THEN** the record carries the account it occurred under
+
+#### Scenario: Several tabs share the PowerSync worker
+
+- **WHEN** the shared sync worker fails once while three tabs are open
+- **THEN** one occurrence is recorded
 
 #### Scenario: An error message embeds a URL with a token
 

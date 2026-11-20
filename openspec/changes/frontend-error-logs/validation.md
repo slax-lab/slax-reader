@@ -66,6 +66,7 @@ Two counting defects found during this run were fixed and re-verified with the c
 One valid record and twelve invalid records were posted to the test stream in one batch; the endpoint accepted all 13 and only the valid record reached the table. Rejected cases: `env=production`, `kind=console`, `app=mobile`, release `latest`, a foreign origin, the production origin `r.slax.com`, a URL with a query, `user_id=admin`, a malformed `session_id`, `count=0`, a 30-day-old timestamp, and a missing `session_id`. A pre-implementation run against both environments covered the same rules plus extension-ID allowlists and the production/test isolation in both directions.
 
 ## Gaps
+- The PowerSync connector reads its token through `getUserToken()` on each credential fetch, which registers a `useCookies()` change listener outside any Vue scope; while credentials keep failing, listeners accumulate about one per retry. This predates this change (`dev` has the same path) and is left for a separate fix.
 
 - Extension reporting is out of scope by request. The Extension's PowerSync bridge is the Web `/x/ext-bridge` page, which reports as `app=web`; that page was not exercised inside the offscreen iframe.
 - The cause of a PowerSync Worker bootstrap crash is not captured; the SDK passes only its fixed message to the logger. Recovering it needs an application-owned worker factory.
@@ -193,6 +194,24 @@ Asked to guarantee that error capture never breaks the app, a review of every en
 `pnpm web -- test`: 3205 passed, 3 skipped, and the known `useSlaxRoutes.spec.ts` timeout; Web `typecheck` and lint on the changed files pass.
 
 A production-mode build served at `http://localhost:3103` was then driven in Chrome 158 with the ingestion endpoint unreachable (`fetch` rejected, `sendBeacon` refused) and serialization of collector payloads forced to throw. An application error and rejection raised during that window reached the page's own listeners exactly as usual, no further page error or unhandled rejection appeared through capture, flush, or page hide, and the app then navigated to `/guide` and rendered it.
+
+## External review on e310fb6d
+
+An external review of `e310fb6d` reported six boundaries. Each was reproduced or confirmed in source before fixing, and each has a test that fails against `e310fb6d`:
+
+- Cookie listeners leaked (P1). `getUserToken()` and `getDeviceId()` call `useCookies()`, which creates a `universal-cookie` instance and registers a change listener (`cookieStore` `change`, or a 300 ms `setInterval` without it) released only with a Vue scope (`@vueuse/integrations` 14.4.0, `universal-cookie` 8.1.2). The collector called them on every flush outside any scope. It now reads both cookies from `document.cookie` and registers nothing; the shared helpers are unchanged. The test fails if the collector touches either helper, `cookieStore.addEventListener`, or `setInterval` over five flushes.
+- Share and collection codes survived outside `page_url` (P1). Messages, stacks, and `properties` strings such as `filename` and `src` now pass the same redaction; the test serializes the whole record and asserts neither code appears, while `/usr/s/x` and `/bookmarks/s/x` stay.
+- One PowerSync failure was counted several times (P2). The SDK sources (`@powersync/web` 2.4.0 `BroadcastLogger` and `SharedSyncImplementation`) show the shared worker broadcasts each log record and each status to every tab. In the same tab, the status listener's non-counting capture and the SDK logger's capture could fall on two sides of a flush and count twice. Each failure now has one counting source (the SDK logger for sync-stream failures, the connector for uploads); the status is not captured; and in shared mode only the tab holding a Web Lock records worker log records. The provisional-claim mechanism is gone. The duplicate window is now measured from the first log, so a failure repeating faster than once a second is counted once per second rather than once in total.
+- A delayed record could be attributed to another account (P2). Identity is now read at capture and is part of the grouping key, so the same error under two accounts is two records, each with its own `session_count`.
+- Repeats recompacted the full stack (P2). The compact stack is now built only for a new record.
+- JSON escaping could push one record past 60 KiB. A record that does not fit has its message shortened and `properties.message_truncated` set; a 16 KiB control-character message now serializes to 55,428 bytes instead of about 98,558.
+
+Related suites: 166 passed, 2 skipped. `pnpm web -- test`: 3210 passed, 3 skipped, and the known `useSlaxRoutes.spec.ts` timeout; Web `typecheck` passes.
+
+A production-mode build at `http://localhost:3103` was then driven in Chrome 158 (with `cookieStore`):
+
+- Five failing delivery batches carrying a share URL in the message, stack, and `filename` produced six records with no occurrence of either code, `user_id=100000000` from the cookie, and no 300 ms interval. The collector registered no `cookieStore` change listener. Listeners still grew about one per retry while idle, all from `fetchCredentials → refreshPowerSyncUserToken → getUserToken → useCookies`: the PowerSync connector's credential path, unchanged from `dev` and outside this change, which grows only while credentials keep failing. It is listed under Gaps.
+- Three tabs shared one PowerSync worker whose sync failed on every retry (no local sync service). One tab held `slax-ps-worker-log-reporter` with two waiting; every tab printed `[PowerSync]: Sync error Failed to fetch`, but only the holder recorded it (one record, `count=36`, `worker_mode=shared`), and the other two recorded none. After the holder closed, the next tab took the lock and recorded the failure (`count=2`), and the third kept waiting.
 
 ## Cleanup
 

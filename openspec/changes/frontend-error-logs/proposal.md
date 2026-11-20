@@ -8,7 +8,7 @@ Web failures are invisible after release: uncaught exceptions, rejected promises
 
 - Add a shared browser error collector that normalizes errors into a fixed record format, groups repeats by fingerprint with an occurrence count, batches records, and delivers them directly to a Cloudflare Basin Pipelines stream over HTTP.
 - Capture uncaught errors, unhandled promise rejections, Vue application errors, and failed `<script>` resource loads in the Web app. Other resource failures (images, stylesheets, media) and `console` output are not captured.
-- Capture PowerSync failures in the Web app from four sources: SDK status download and upload errors, the SDK logger at error level, the connector's rejected uploads, and the application's own initialization, connection, reset, and lifecycle failure paths.
+- Capture PowerSync failures in the Web app with one counting source per failure: the SDK logger at error level for sync-stream failures and worker crashes, the connector's rejected uploads, and the application's own initialization, connection, reset, and lifecycle failure paths.
 - Do not report Extension errors. The Extension's PowerSync runs inside the Web `/x/ext-bridge` page, whose errors are Web records.
 - Attribute each record to the application, release, environment, page origin and path, a per-page session, and the user and device identifiers already available to the client.
 - Configure one ingestion endpoint per build environment; builds without a configured endpoint do not collect.

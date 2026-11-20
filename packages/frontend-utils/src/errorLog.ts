@@ -32,7 +32,8 @@ export interface ErrorCollectorOptions {
   app: ClientErrorApp
   release: string
   env: string
-  getContext?: () => ClientErrorContext | Promise<ClientErrorContext>
+  /** Synchronous identity, read when an error is captured so a later account switch cannot reassign it. */
+  getContext?: () => ClientErrorContext
   pageUrl?: () => string | undefined
   flushDelayMs?: number
   /** First wait before a repeated fingerprint is delivered again; it doubles after each delivery. */
@@ -41,14 +42,10 @@ export interface ErrorCollectorOptions {
   send?: (endpoint: string, body: string, hiding: boolean) => Promise<void> | void
 }
 
-export interface CaptureOptions {
-  /** False for an observer that reports a failure another source already counts; it only adds its source. */
-  countOccurrence?: boolean
-}
-
 export interface ErrorCollector {
   readonly enabled: boolean
-  capture(kind: ClientErrorKind, error: unknown, properties?: Record<string, unknown>, options?: CaptureOptions): void
+  /** Records one occurrence. Each failure must reach capture from exactly one source. */
+  capture(kind: ClientErrorKind, error: unknown, properties?: Record<string, unknown>): void
   flush(hiding?: boolean): Promise<void>
 }
 
@@ -98,6 +95,21 @@ export const stripUrl = (value: string | undefined | null): string | undefined =
 // only the route shape: `/s/<code>` becomes `/s/:code`, `/c/<code>/<id>` becomes `/c/:code/:id`.
 const pagePathForRecord = (path: string): string =>
   path.replace(/^\/s\/[^/]+/, '/s/:code').replace(/^\/c\/[^/]+(\/[^/]+)?/, (_match, member?: string) => (member ? '/c/:code/:id' : '/c/:code'))
+
+// The same codes inside free text: `/s/<code>` or `/c/<code>[/<id>]` as the path of an absolute,
+// protocol-relative, or root-relative URL, wherever the URL starts. A code segment ends at `/`,
+// whitespace, a quote, a bracket, `:` (a stack position), or the end of the text.
+const CAPABILITY_PATH_PATTERN = /((?:[a-z][a-z0-9+.-]*:)?\/\/[^\s"'<>()[\]{}/]+|^|[\s"'<>()[\]{}=,@:])\/(s|c)\/([^\s"'<>()[\]{}/:?#]+)(\/[^\s"'<>()[\]{}/:?#]+)?/gi
+export const redactCapabilityPaths = (text: string): string =>
+  text.replace(CAPABILITY_PATH_PATTERN, (_match, lead: string, kind: string, _code: string, member?: string) =>
+    kind.toLowerCase() === 's' ? `${lead}/s/:code${member ?? ''}` : `${lead}/c/:code${member ? '/:id' : ''}`
+  )
+
+/** A URL for a record field: no query or fragment, and no share or collection code in its path. */
+export const urlForRecord = (value: string | undefined | null): string | undefined => {
+  const stripped = stripUrl(value)
+  return stripped ? redactCapabilityPaths(stripped) : undefined
+}
 
 /** The page URL without its query, fragment, or the share and collection codes in its path. */
 export const pageUrlForRecord = (value: string | undefined | null): string | undefined => {
@@ -155,8 +167,8 @@ export const normalizeError = (error: unknown): { name?: string; message: string
   const rawName = readField(target, 'name')
   const rawStack = readField(target, 'stack')
   const name = typeof rawName === 'string' && ERROR_NAME_PATTERN.test(rawName) ? rawName : undefined
-  const message = stripUrlQueries(typeof rawMessage === 'string' && rawMessage ? rawMessage : describe(target ?? 'Unknown error'))
-  const stack = typeof rawStack === 'string' && rawStack ? stripUrlQueries(rawStack, { keepPosition: true }) : undefined
+  const message = redactCapabilityPaths(stripUrlQueries(typeof rawMessage === 'string' && rawMessage ? rawMessage : describe(target ?? 'Unknown error')))
+  const stack = typeof rawStack === 'string' && rawStack ? redactCapabilityPaths(stripUrlQueries(rawStack, { keepPosition: true })) : undefined
   return { name, message: message || 'Unknown error', stack }
 }
 
@@ -237,8 +249,19 @@ const SOURCES_RESERVE_BYTES = 1024
 
 const serializedSize = (value: unknown) => byteLength(JSON.stringify(value))
 
+// Every string in properties gets the same URL treatment as the message: callers pass URLs such as
+// `filename` and `src`, and one that missed it must not carry a token or an access code.
+const sanitizeValue = (value: unknown, depth = 0): unknown => {
+  if (typeof value === 'string') return redactCapabilityPaths(stripUrlQueries(value, { keepPosition: true }))
+  if (depth > 4 || value === null || typeof value !== 'object') return value
+  if (Array.isArray(value)) return value.map(item => sanitizeValue(item, depth + 1))
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitizeValue(item, depth + 1)]))
+}
+
 export const boundedProperties = (properties: Record<string, unknown>): Record<string, unknown> | undefined => {
-  const entries = Object.entries(properties).filter(([, value]) => value !== undefined)
+  const entries = Object.entries(properties)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => [key, sanitizeValue(value)] as const)
   if (!entries.length) return undefined
   let bounded: Record<string, unknown>
   try {
@@ -284,12 +307,27 @@ const defaultSend = async (endpoint: string, body: string, hiding: boolean): Pro
 }
 
 /** Serializes records into JSON array bodies that each stay under the per-request byte limit. */
+// Field caps are on raw bytes, but JSON escaping can multiply them (`"`, `\`, and control characters
+// take up to six bytes each), so one record could still exceed a request body. Such a record has
+// its message shortened until its serialized form fits.
+const serializeRecord = (record: ClientErrorRecord, maxBytes: number): string => {
+  let json = JSON.stringify(record)
+  let bytes = byteLength(json) + 2
+  let message = record.message
+  while (bytes > maxBytes && message.length > 1) {
+    message = truncateBytes(message, Math.max(1, Math.floor(byteLength(message) * (maxBytes / bytes) * 0.9)))
+    json = JSON.stringify({ ...record, message, properties: { ...(record.properties ?? {}), message_truncated: true } })
+    bytes = byteLength(json) + 2
+  }
+  return json
+}
+
 export const chunkBodies = (records: ClientErrorRecord[], maxBytes = MAX_REQUEST_BYTES): string[] => {
   const bodies: string[] = []
   let current: string[] = []
   let size = 2
   for (const record of records) {
-    const json = JSON.stringify(record)
+    const json = serializeRecord(record, maxBytes)
     const bytes = byteLength(json) + 1
     if (current.length && size + bytes > maxBytes) {
       bodies.push(`[${current.join(',')}]`)
@@ -320,31 +358,30 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
   // dozen records per fingerprint while `count` and `session_count` still add up to every occurrence.
   const maxRepeatIntervalMs = 60 * 60_000
   const seen = new Set<string>()
-  // One pending record per fingerprint. A repeat only increments its count, so an error that recurs
+  // One pending record per group: the fingerprint plus the user it happened to, so occurrences under
+  // different accounts are never merged. A repeat only increments its count, so an error that recurs
   // every few seconds yields one record per repeat interval rather than one per flush.
   const queue = new Map<string, ClientErrorRecord>()
-  // When each fingerprint was last delivered, how many times, and how many occurrences it has sent.
+  // Per group: when it was last delivered, how many times, and how many occurrences it has sent.
   const lastSentAt = new Map<string, number>()
   const deliveries = new Map<string, number>()
   const sessionCounts = new Map<string, number>()
-  // Occurrences opened by a non-counting observer that no counting capture has claimed yet. Kept apart
-  // from the queue so a flush between the two captures of one occurrence does not count it twice.
-  const provisional = new Set<string>()
+  const groupKey = (record: Pick<ClientErrorRecord, 'fingerprint' | 'user_id'>) => `${record.fingerprint}|${record.user_id ?? ''}`
   let timer: ReturnType<typeof setTimeout> | undefined
   let inFlight: Promise<void> | undefined
-  // Page unload cannot await identity, so a hiding flush reuses the last identity resolved.
-  let lastContext: ClientErrorContext | undefined
+  const identity = (): { user_id?: string; device_id?: string } => {
+    try {
+      const context = options.getContext?.()
+      const userId = context?.userId == null ? undefined : String(context.userId)
+      const deviceId = context?.deviceId ? truncateBytes(String(context.deviceId), 128) : undefined
+      return { ...(userId && /^[0-9]{1,20}$/.test(userId) ? { user_id: userId } : {}), ...(deviceId ? { device_id: deviceId } : {}) }
+    } catch {
+      return {}
+    }
+  }
 
   const deliver = async (records: ClientErrorRecord[], hiding: boolean) => {
     try {
-      const context = hiding ? lastContext : await Promise.resolve(options.getContext?.()).catch(() => undefined)
-      if (!hiding && context) lastContext = context
-      const userId = context?.userId == null ? undefined : String(context.userId)
-      const deviceId = context?.deviceId ? truncateBytes(String(context.deviceId), 128) : undefined
-      for (const record of records) {
-        if (userId && /^[0-9]{1,20}$/.test(userId)) record.user_id = userId
-        if (deviceId) record.device_id = deviceId
-      }
       for (const body of chunkBodies(records)) await send(endpoint, body, hiding)
     } catch {
       // Delivery is best effort; failures must not create new error records.
@@ -352,17 +389,17 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
   }
 
   // A first occurrence is due at once; a repeat of a delivered fingerprint waits out its interval.
-  const dueAt = (fingerprint: string) => {
-    const sent = lastSentAt.get(fingerprint)
+  const dueAt = (key: string) => {
+    const sent = lastSentAt.get(key)
     if (sent === undefined) return -Infinity
-    return sent + Math.min(repeatIntervalMs * 2 ** ((deliveries.get(fingerprint) ?? 1) - 1), maxRepeatIntervalMs)
+    return sent + Math.min(repeatIntervalMs * 2 ** ((deliveries.get(key) ?? 1) - 1), maxRepeatIntervalMs)
   }
 
   let timerAt = Infinity
   // Arms one timer for the earliest due record; a new error moves an armed timer earlier.
   const schedule = () => {
     if (!queue.size) return
-    const at = Math.min(...[...queue.keys()].map(fingerprint => Math.max(dueAt(fingerprint), now() + flushDelayMs)))
+    const at = Math.min(...[...queue.keys()].map(key => Math.max(dueAt(key), now() + flushDelayMs)))
     if (timer && timerAt <= at) return
     if (timer) clearTimeout(timer)
     timerAt = at
@@ -381,17 +418,18 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     }
     const sentAt = now()
     // Hiding the page delivers everything held, since there may be no later flush.
-    const records = [...queue.values()].filter(record => hiding || dueAt(record.fingerprint) <= sentAt)
+    const records = [...queue.values()].filter(record => hiding || dueAt(groupKey(record)) <= sentAt)
     if (!records.length) {
       schedule()
       return inFlight
     }
     for (const record of records) {
-      queue.delete(record.fingerprint)
-      lastSentAt.set(record.fingerprint, sentAt)
-      deliveries.set(record.fingerprint, (deliveries.get(record.fingerprint) ?? 0) + 1)
-      const total = Math.min((sessionCounts.get(record.fingerprint) ?? 0) + record.count, MAX_SESSION_COUNT)
-      sessionCounts.set(record.fingerprint, total)
+      const key = groupKey(record)
+      queue.delete(key)
+      lastSentAt.set(key, sentAt)
+      deliveries.set(key, (deliveries.get(key) ?? 0) + 1)
+      const total = Math.min((sessionCounts.get(key) ?? 0) + record.count, MAX_SESSION_COUNT)
+      sessionCounts.set(key, total)
       record.properties = { ...(record.properties ?? {}), session_count: total }
     }
     const previous = inFlight
@@ -419,21 +457,18 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     if (source && Array.isArray(sources) && !sources.includes(source)) sources.push(source)
   }
 
-  const capture: ErrorCollector['capture'] = (kind, error, properties = {}, captureOptions = {}) => {
+  const capture: ErrorCollector['capture'] = (kind, error, properties = {}) => {
     try {
       const { name, message, stack } = normalizeError(error)
       const fingerprint = errorFingerprint(kind, name, message, stack)
-      // Shortened frames keep the whole call path within a small, bounded size.
-      const frame = compactStack(stack)
+      // Identity is bound now: a record waiting for its interval must not move to another account.
+      const who = identity()
+      const key = groupKey({ fingerprint, user_id: who.user_id })
       const source = typeof properties.source === 'string' ? properties.source : undefined
-      const existing = queue.get(fingerprint)
-      const counts = captureOptions.countOccurrence !== false
-      // A counting capture claims an occurrence a non-counting observer already recorded, queued or sent.
-      const claimed = counts && provisional.delete(fingerprint)
-      if (claimed) return mergeSource(queue.get(fingerprint), source)
+      const existing = queue.get(key)
       if (existing) {
-        if (counts) existing.count = Math.min(existing.count + 1, MAX_COUNT)
-        if (counts) existing.properties = { ...(existing.properties ?? {}), last_occurred_at: now() }
+        existing.count = Math.min(existing.count + 1, MAX_COUNT)
+        existing.properties = { ...(existing.properties ?? {}), last_occurred_at: now() }
         mergeSource(existing, source)
         return
       }
@@ -441,11 +476,12 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
         if (seen.size >= MAX_FINGERPRINTS_PER_SESSION) return
         seen.add(fingerprint)
       }
-      if (!counts) provisional.add(fingerprint)
+      // The stack is compacted only for a new record; a repeat above reuses the queued one.
+      const frame = compactStack(stack)
       const pageUrl = pageUrlForRecord(options.pageUrl ? options.pageUrl() : typeof location !== 'undefined' ? location.href : undefined)
       const { source: _source, ...rest } = properties
       const ua = typeof navigator !== 'undefined' ? navigator.userAgent : undefined
-      queue.set(fingerprint, {
+      queue.set(key, {
         occurred_at: now(),
         app: options.app,
         release: options.release,
@@ -458,11 +494,12 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
         ...(frame ? { stack: frame } : {}),
         ...(pageUrl ? { page_url: pageUrl } : {}),
         session_id: sessionId,
+        ...who,
         ...(ua ? { ua: truncateBytes(ua, 1024) } : {}),
         properties: boundedProperties({ ...rest, ...(source ? { sources: [source] } : {}) })
       })
       // Only first occurrences fill a flush early; held repeats wait for their interval either way.
-      if ([...queue.keys()].filter(key => !lastSentAt.has(key)).length >= MAX_QUEUED_PER_FLUSH) void flush(false)
+      if ([...queue.keys()].filter(queued => !lastSentAt.has(queued)).length >= MAX_QUEUED_PER_FLUSH) void flush(false)
       else schedule()
     } catch {
       // Error capture must never throw into the caller.
@@ -499,14 +536,14 @@ export function installGlobalErrorCapture(collector: ErrorCollector, target: Lis
       const element = event.target as { tagName?: unknown; src?: string } | null
       if (element && element !== (target as unknown) && typeof element.tagName === 'string') {
         if (element.tagName === 'SCRIPT') {
-          const src = stripUrl(element.src) ?? 'inline'
+          const src = urlForRecord(element.src) ?? 'inline'
           collector.capture('resource', { name: 'ResourceError', message: `Script failed to load: ${src}` }, { source: 'script', src })
         }
         return
       }
       collector.capture('error', event.error ?? { message: event.message }, {
         source: 'global',
-        filename: stripUrl(event.filename),
+        filename: urlForRecord(event.filename),
         lineno: event.lineno,
         colno: event.colno
       })

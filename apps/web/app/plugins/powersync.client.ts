@@ -27,24 +27,54 @@ const powerSyncConsole = globalThis.console
 
 // Error capture is diagnostics only: any failure inside it, including creating the collector, is
 // swallowed so it can never change sync, upload, or recovery behavior.
-const capturePowerSyncError = (source: string, error: unknown, properties: Record<string, unknown> = {}, countOccurrence = true) => {
+const capturePowerSyncError = (source: string, error: unknown, properties: Record<string, unknown> = {}) => {
   try {
-    useClientErrorLog().capture('powersync', error ?? { name: 'PowerSyncError', message: source }, { source, ...properties }, { countOccurrence })
+    useClientErrorLog().capture('powersync', error ?? { name: 'PowerSyncError', message: source }, { source, ...properties })
   } catch {
     // Diagnostics must not affect the caller.
   }
 }
 
+// The shared sync worker broadcasts its log records to every tab, so with several tabs open one
+// worker failure reaches each of them. Only the tab holding this lock records worker log records;
+// the lock moves to another tab when the holder closes. Without Web Locks every tab records them.
+const WORKER_LOG_REPORTER_LOCK = 'slax-ps-worker-log-reporter'
+let isWorkerLogReporter = true
+let workerLogReporterRequested = false
+const claimWorkerLogReporter = () => {
+  if (workerLogReporterRequested) return
+  workerLogReporterRequested = true
+  try {
+    const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
+    if (!locks?.request) return
+    isWorkerLogReporter = false
+    void locks
+      .request(WORKER_LOG_REPORTER_LOCK, () => {
+        isWorkerLogReporter = true
+        // Held for the page's lifetime; released by the browser when the tab closes.
+        return new Promise<void>(() => {})
+      })
+      .catch(() => {
+        isWorkerLogReporter = true
+      })
+  } catch {
+    isWorkerLogReporter = true
+  }
+}
+
 // The SDK logs one sync failure twice ("Could not POST streaming…", then "Sync error") within
-// milliseconds; its retries are seconds apart, so a short window separates repeats from retries.
+// milliseconds; its retries are seconds apart. The window is measured from the first log of a
+// failure, so a failure repeating faster than the window is still counted once per window.
 const SDK_DUPLICATE_WINDOW_MS = 1000
 
 // Keeps the SDK's default console logger unchanged and also records its error-level messages,
-// which include worker crashes.
+// which include sync failures and worker crashes. This is the only counting source for sync-stream
+// failures; the status listener below sees the same failures again and does not count them.
 const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
   const consoleLogger = createConsoleLogger()
-  let lastError = ''
-  let lastErrorAt = 0
+  let windowKey = ''
+  let windowStart = 0
+  if (mode === 'shared') claimWorkerLogReporter()
   return {
     log(record) {
       consoleLogger.log(record)
@@ -53,14 +83,15 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
       try {
         const { level, message, error } = record
         if (level < LogLevels.error) return
+        if (mode === 'shared' && !isWorkerLogReporter) return
         const captured = error ?? { name: 'PowerSyncLog', message }
         const normalized = normalizeError(captured)
         const key = `${normalized.name ?? ''}:${normalized.message}`
         const now = Date.now()
-        const repeat = key === lastError && now - lastErrorAt < SDK_DUPLICATE_WINDOW_MS
-        lastError = key
-        lastErrorAt = now
-        capturePowerSyncError('sdk.logger', captured, { worker_mode: mode }, !repeat)
+        if (key === windowKey && now - windowStart < SDK_DUPLICATE_WINDOW_MS) return
+        windowKey = key
+        windowStart = now
+        capturePowerSyncError('sdk.logger', captured, { worker_mode: mode })
       } catch {
         // Diagnostics must not affect the SDK.
       }
@@ -276,34 +307,10 @@ export default defineNuxtPlugin({
 
     powerSyncConsole.info('[powersync] database ready', { mode: recovery.mode, dbFilename: DATABASE_FILENAME })
 
-    // A safety net for failures the SDK logger and connector miss; it tags rather than recounts the
-    // failures they already counted. Shared-worker status updates clone errors, so compare by name and message.
-    const errorKey = (error: unknown) => {
-      if (!error) return ''
-      const normalized = normalizeError(error)
-      return `${normalized.name ?? ''}:${normalized.message}`
-    }
-    let lastDownloadError = ''
-    let lastUploadError = ''
-    db.registerListener({
-      statusChanged: status => {
-        try {
-          const { downloadError, uploadError } = status.dataFlowStatus ?? {}
-          const downloadKey = errorKey(downloadError)
-          const uploadKey = errorKey(uploadError)
-          if (downloadKey && downloadKey !== lastDownloadError) {
-            capturePowerSyncError('status.downloadError', downloadError, { worker_mode: recovery.mode, connected: status.connected }, false)
-          }
-          if (uploadKey && uploadKey !== lastUploadError) {
-            capturePowerSyncError('status.uploadError', uploadError, { worker_mode: recovery.mode, connected: status.connected }, false)
-          }
-          lastDownloadError = downloadKey
-          lastUploadError = uploadKey
-        } catch {
-          // Diagnostics must not affect other status listeners.
-        }
-      }
-    })
+    // Every failure the status reports is already counted by its one counting source: sync-stream
+    // failures by the SDK logger (always logged at error level just before the status changes) and
+    // upload failures by the connector's `onError`. The shared worker also replays the same status
+    // to every tab. Counting the status too would double every failure, so it is not captured.
 
     let connected = false
     let connecting = false

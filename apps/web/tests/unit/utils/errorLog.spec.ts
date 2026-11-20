@@ -1,5 +1,5 @@
 import type { ClientErrorRecord } from '@commons/frontend-utils/errorLog'
-import { boundedProperties, chunkBodies, compactStack, createErrorCollector, errorFingerprint, firstFrame, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
+import { boundedProperties, chunkBodies, compactStack, createErrorCollector, errorFingerprint, firstFrame, installGlobalErrorCapture, normalizeError, redactCapabilityPaths, stripUrl, stripUrlQueries, truncateBytes,urlForRecord } from '@commons/frontend-utils/errorLog'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const endpoint = 'https://stream.ingest.invalid'
@@ -44,25 +44,6 @@ describe('frontend-utils error log collector', () => {
     expect(record.properties?.sources).toEqual(['status.downloadError', 'sdk.logger'])
     expect(record.fingerprint).toMatch(/^[0-9a-f]{16}$/)
     expect(record.session_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
-  })
-
-  it('lets a non-counting observer tag a failure without inflating its count', async () => {
-    const { collector, sent } = make()
-    const upload = () => new Error('[powersync] upload changes failed: 500')
-    // Each retry: the connector counts it, the status listener only tags it.
-    for (let i = 0; i < 3; i++) {
-      collector.capture('powersync', upload(), { source: 'connector.upload' })
-      collector.capture('powersync', upload(), { source: 'status.uploadError' }, { countOccurrence: false })
-    }
-    // The status listener alone, then its counting source arriving later.
-    collector.capture('powersync', new Error('sync stream 503'), { source: 'status.downloadError' }, { countOccurrence: false })
-    collector.capture('powersync', new Error('sync stream 503'), { source: 'sdk.logger' })
-    collector.capture('powersync', new Error('only seen by status'), { source: 'status.uploadError' }, { countOccurrence: false })
-    await collector.flush()
-    const byMessage = Object.fromEntries(sent[0].body.map(record => [record.message, record]))
-    expect(byMessage['[powersync] upload changes failed: 500']).toMatchObject({ count: 3, properties: { sources: ['connector.upload', 'status.uploadError'] } })
-    expect(byMessage['sync stream 503']).toMatchObject({ count: 1, properties: { sources: ['status.downloadError', 'sdk.logger'] } })
-    expect(byMessage['only seen by status'].count).toBe(1)
   })
 
   it('strips the query and fragment from page and script URLs', async () => {
@@ -238,19 +219,6 @@ describe('frontend-utils error log collector', () => {
     expect(sent[1]).toMatchObject({ hiding: true, body: [{ message: 'again', count: 2, properties: { session_count: 3 } }] })
   })
 
-  it('counts one occurrence once when a flush falls between its observers', async () => {
-    const { collector, sent } = make()
-    const failure = new Error('sync stream 503')
-    collector.capture('powersync', failure, { source: 'status.downloadError' }, { countOccurrence: false })
-    await collector.flush(true)
-    collector.capture('powersync', failure, { source: 'sdk.logger' })
-    collector.capture('powersync', failure, { source: 'sdk.logger' })
-    await collector.flush(true)
-    const records = sent.flatMap(batch => batch.body)
-    expect(records.map(record => record.count)).toEqual([1, 1])
-    expect(records.at(-1)?.properties?.session_count).toBe(2)
-  })
-
   it('bounds page_url so one record always fits a request body', async () => {
     const { collector, sent } = make({ pageUrl: () => `https://r.slax.com/b/${'x'.repeat(70_000)}` })
     collector.capture('error', new Error('long path'))
@@ -258,6 +226,49 @@ describe('frontend-utils error log collector', () => {
     const [record] = sent[0].body
     expect(record.page_url?.startsWith('https://r.slax.com/b/xxx')).toBe(true)
     expect(new TextEncoder().encode(record.page_url ?? '').length).toBeLessThanOrEqual(2 * 1024)
+  })
+
+  it('removes share and collection codes from every URL field, not only page_url', async () => {
+    const { collector, sent } = make({ pageUrl: () => 'https://r.slax.com/s/2kZx9abc1234' })
+    const error = new TypeError('Failed to load https://r.slax.com/s/2kZx9abc1234 and /c/K8q2z/42')
+    error.stack = 'TypeError: x\n    at https://r.slax.com/s/2kZx9abc1234:39:51\n    at f (https://r.slax.com/c/K8q2z/42:3:4)'
+    collector.capture('error', error, { source: 'global', filename: 'https://r.slax.com/s/2kZx9abc1234' })
+    await collector.flush()
+    const serialized = JSON.stringify(sent[0].body)
+    expect(serialized).not.toContain('2kZx9abc1234')
+    expect(serialized).not.toContain('K8q2z')
+    const [record] = sent[0].body
+    expect(record.message).toBe('Failed to load https://r.slax.com/s/:code and /c/:code/:id')
+    expect(record.stack).toContain('https://r.slax.com/s/:code:39:51')
+    expect(record.page_url).toBe('https://r.slax.com/s/:code')
+    expect(redactCapabilityPaths('files in /usr/s/x and https://r.slax.com/bookmarks/s/x stay')).toBe('files in /usr/s/x and https://r.slax.com/bookmarks/s/x stay')
+    expect(urlForRecord('https://r.slax.com/c/K8q2z?x=1')).toBe('https://r.slax.com/c/:code')
+  })
+
+  it('compacts the stack only for a new record, not for each repeat', async () => {
+    const { collector, sent } = make()
+    const failure = new Error('repeat')
+    failure.stack = 'Error: repeat\n' + Array.from({ length: 50 }, (_, i) => `    at fn${i} (https://r.slax.com/_nuxt/a.js:${i}:1)`).join('\n')
+    // Compacting splits the stack into lines; count those splits on this stack.
+    const split = vi.spyOn(String.prototype, 'split')
+    for (let i = 0; i < 1000; i++) collector.capture('error', failure)
+    const stackSplits = split.mock.contexts.filter(context => String(context).startsWith('Error: repeat\n')).length
+    split.mockRestore()
+    await collector.flush()
+    expect(sent[0].body[0]).toMatchObject({ count: 1000 })
+    // Fingerprinting reads the first frame each time; compacting the whole stack happens once.
+    expect(stackSplits).toBeLessThanOrEqual(1001)
+  })
+
+  it('keeps one record within a request body even when JSON escaping inflates its message', () => {
+    const base = { occurred_at: 1, app: 'web', release: '2.1.0', env: 'production', kind: 'error', fingerprint: 'abcd1234abcd1234', count: 1, session_id: 's', properties: { sources: ['global'] } } as const
+    for (const character of ['\u0001', '"', '\\']) {
+      const bodies = chunkBodies([{ ...base, message: character.repeat(16 * 1024) }])
+      expect(bodies).toHaveLength(1)
+      expect(new TextEncoder().encode(bodies[0]).length).toBeLessThanOrEqual(60 * 1024)
+    }
+    const [record] = JSON.parse(chunkBodies([{ ...base, message: '\u0001'.repeat(16 * 1024) }])[0])
+    expect(record.properties).toMatchObject({ message_truncated: true, sources: ['global'] })
   })
 
   it('caps distinct fingerprints per session at 200', async () => {
@@ -291,15 +302,35 @@ describe('frontend-utils error log collector', () => {
     expect(email.sent[0].body[0].user_id).toBeUndefined()
   })
 
-  it('attributes a hiding flush with the identity resolved by an earlier flush', async () => {
-    const getContext = vi.fn().mockResolvedValue({ userId: 7, deviceId: 'dev-7' })
-    const { collector, sent } = make({ getContext })
-    collector.capture('error', new Error('first'))
+  it('binds identity when an error is captured, so an account switch before delivery cannot move it', async () => {
+    let userId = 1001
+    const { collector, sent } = make({ getContext: () => ({ userId, deviceId: 'dev-1' }) })
+    const failure = new Error('stale data')
+    collector.capture('error', failure)
+    userId = 2002
     await collector.flush()
-    collector.capture('error', new Error('on unload'))
+    expect(sent[0].body).toMatchObject([{ message: 'stale data', user_id: '1001', count: 1 }])
+    // The same error under another account is a separate record with its own count.
+    collector.capture('error', failure)
+    collector.capture('error', failure)
+    userId = 1001
+    collector.capture('error', failure)
     await collector.flush(true)
-    expect(getContext).toHaveBeenCalledOnce()
-    expect(sent[1]).toMatchObject({ hiding: true, body: [{ message: 'on unload', user_id: '7', device_id: 'dev-7' }] })
+    const byUser = Object.fromEntries(sent[1].body.map(record => [record.user_id, record]))
+    expect(byUser['2002']).toMatchObject({ count: 2, properties: { session_count: 2 } })
+    expect(byUser['1001']).toMatchObject({ count: 1, properties: { session_count: 2 } })
+  })
+
+  it('keeps capturing when identity cannot be read', async () => {
+    const { collector, sent } = make({
+      getContext: () => {
+        throw new Error('cookies unavailable')
+      }
+    })
+    collector.capture('error', new Error('still recorded'))
+    await collector.flush()
+    expect(sent[0].body[0]).toMatchObject({ message: 'still recorded' })
+    expect(sent[0].body[0].user_id).toBeUndefined()
   })
 
   it('swallows delivery failures without capturing them', async () => {
