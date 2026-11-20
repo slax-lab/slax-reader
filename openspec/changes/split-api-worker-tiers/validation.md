@@ -8,7 +8,7 @@ Work runs in the isolated worktree on `perf/split-api-worker-tiers`, cut from `o
 |---|---|---|
 | `npx tsc --project tsconfig.json --noEmit` (apps/api) | passes | passes |
 | API ESLint | 0 errors, 344 warnings | 0 errors, 335 warnings |
-| Full API Vitest | 272 files, 4343 passed, 167 skipped | 278 files, 4454 passed, 167 skipped, 0 failed |
+| Full API Vitest | 272 files, 4343 passed, 167 skipped | 278 files, 4455 passed, 167 skipped, 0 failed |
 | Root tooling `node --test tooling/*.test.mjs` | not rerun | 282 passed, 2 skipped, 0 failed |
 | `test/script/layerArchitecture.test.ts` | passes | 45 passed; baseline keys renamed for moved files only, no count raised, no entry added |
 
@@ -71,6 +71,26 @@ The change requester pointed out that local `pnpm api -- dev` uses remote bindin
 - **Bookmark pipeline:** `add_url` for a real page ran Crawl Workflow → content validation Workflow → full-text record → semantic normalize and remote Vectorize upsert → screenshot through `ScreenshotBrowser` (Objects on the new code) and remote Browser Rendering into R2, ending `success` with 732 words on both. One of three new-code runs lost the remote browser session ("Network connection lost"); the other two saved screenshots. `vector_mutation_not_visible` and `missing_vector_preference_object` (no `VECTOR_V5_PREFERENCE` in the local configuration) appear on both versions.
 - **WebSocket, API key, cron:** `/v1/user/messages` upgraded (101) through Edge to `SlaxWebSocketServer` and delivered the reminder frame on both; an API key read the bookmark list and was refused (403) on a route outside its allowlist on both; the `*/5` cron ran on Core (new) and Edge (baseline), each hitting the same local-schema error in a media-article query.
 - **Cleanup:** the five bookmarks, three tags and one API key created in the shared local PostgreSQL were deleted in one transaction, with their dependent rows; the worktrees' own local state was restored and the snapshots removed. Remote Vectorize received test vectors for those bookmarks in the test account's indexes.
+
+## Service bindings between local Workers (2026-11-20)
+
+Local `pnpm api -- dev` connects the five Workers through Wrangler's dev registry, so every cross-Worker binding was exercised locally. Each entry (`fetch` of Edge, Core, AI and Browser; the `AiEntry` RPC methods; the three Objects classes) was temporarily instrumented with a marker log, real requests went through Edge with a login token, and the markers each request produced were read back. The instrumentation and two temporary trigger routes were removed afterwards.
+
+| Binding | Exercise | Reached |
+|---|---|---|
+| Edge `CORE` | `GET /v1/bookmark/list` | edge → core |
+| Edge `AIGC` | `POST /v1/bookmark/search`, `GET /v1/recommendations/articles`, `POST /v1/bookmark/overview` (real Gemini stream) | edge → ai |
+| AI → Objects `SLAX_JIEBA` | hybrid search tokenization | ai → objects `SlaxJieba` |
+| Core → Objects `WEBSOCKET_SERVER` | `/v1/user/messages` upgrade, reminder frame delivered | edge → core → objects `SlaxWebSocketServer` |
+| Core → Objects `SLAX_JIEBA`, `SCREENSHOT_BROWSER` | `add_url` for a real page: Crawl and content validation Workflows, full-text record, screenshot saved to R2 | core → objects `SlaxJieba` ×2, `ScreenshotBrowser` |
+| Core `VECTOR` → `AiEntry` | the same `add_url` vector writes | `getVectorsByIds` ×4, `upsertVectors`, `upsert`, `deleteByIds` on AI |
+| Core `SlaxBrowser` | `SlaxFetch.headless` from Core | core → browser, page returned |
+| AI → Core `VECTOR_V5_MAINTENANCE_WORKFLOW` | `enqueueVectorMaintenance` from AI | Workflow ran on Core and wrote through `AiEntry` |
+| Web `BACKEND` → Edge `ContentEntry` | a stand-in Worker calling `getContentMeta` and `trackEvent` | edge `ContentEntry` → core `/content/meta`, `/content/visit` |
+
+Not exercisable locally: `VECTOR_V5_PREFERENCE` (the local configuration declares no such Durable Object; the baseline reports `missing_vector_preference_object` too) and the external `fxembed` service (no local process).
+
+The comparison found that AI bound `VECTOR` to its own `AiEntry` and `SlaxBrowser` it never uses. On `origin/dev` AI read the Vectorize indexes natively. AI now binds neither; `VectorIndexClient` uses the native indexes when `VECTOR` is absent, and Core still calls `AiEntry` (`deployPaths.test.ts`, `vectorIndexRepo.test.ts`).
 
 ## Bundle size and startup CPU
 

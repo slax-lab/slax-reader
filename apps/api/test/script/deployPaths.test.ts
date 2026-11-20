@@ -126,7 +126,10 @@ describe('single API configuration', () => {
     for (const output of [core, edge, objects, browser]) expect(output.vectorize).toBeUndefined()
     expect(ai.vectorize).toEqual(config.vectorize)
     for (const row of workerConfig(config, 'ai', true).vectorize as TomlTable[]) expect(row.remote).toBe(true)
-    for (const output of [core, ai]) expect(output.services).toContainEqual({ binding: 'VECTOR', service: 'custom-ai', entrypoint: 'AiEntry' })
+    expect(core.services).toContainEqual({ binding: 'VECTOR', service: 'custom-ai', entrypoint: 'AiEntry' })
+    // AI binds the indexes natively and never calls itself; only Core fetches through the Browser Worker.
+    for (const binding of ['VECTOR', 'SlaxBrowser']) expect((ai.services as TomlTable[]).map(row => row.binding)).not.toContain(binding)
+    expect(core.services).toContainEqual({ binding: 'SlaxBrowser', service: 'custom-browser' })
     for (const output of [objects, browser]) expect(output.services ?? []).toEqual([])
     for (const key of ['d1_databases', 'hyperdrive', 'kv_namespaces', 'ai', 'browser', 'rules']) expect(edge[key]).toBeUndefined()
     expect((objects.d1_databases as TomlTable[]).map(row => row.binding)).toEqual(['DB'])

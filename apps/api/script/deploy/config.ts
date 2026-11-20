@@ -232,8 +232,9 @@ export function workerConfig(config: ApiConfig, target: Target, local = false, m
   const internal = { CORE: names.core, EDGE: names.edge, AIGC: names.ai, VECTOR: names.ai, OBJECTS: names.objects, SlaxBrowser: names.browser }
   const services = target === 'edge' ? [] : rows(output.services).filter(service => !Object.prototype.hasOwnProperty.call(internal, String(service.binding)))
   if (target === 'edge') services.push({ binding: 'CORE', service: names.core }, { binding: 'AIGC', service: names.ai })
-  if (target === 'core' || target === 'ai') services.push({ binding: 'VECTOR', service: names.ai, entrypoint: 'AiEntry' })
-  if (target === 'core' || target === 'ai') services.push({ binding: 'SlaxBrowser', service: names.browser })
+  // Core reaches the Vectorize indexes through AI's RPC; AI binds them natively, so it needs no binding to itself.
+  if (target === 'core') services.push({ binding: 'VECTOR', service: names.ai, entrypoint: 'AiEntry' })
+  if (target === 'core') services.push({ binding: 'SlaxBrowser', service: names.browser })
   output.services = target === 'objects' ? [] : services
   const queue = output.queues as TomlTable | undefined
   if (target === 'core') {
