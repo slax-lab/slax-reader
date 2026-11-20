@@ -12,7 +12,8 @@ const state = vi.hoisted(() => ({
   sdkConsole: vi.fn(),
   connectorOptions: [] as Array<{ onError?: (error: unknown) => void }>,
   listeners: [] as Array<{ statusChanged?: (status: unknown) => void }>,
-  afterEach: vi.fn()
+  afterEach: vi.fn(),
+  report: vi.fn()
 }))
 
 mockNuxtImport('useAppConfig', () => () => ({ lcp: { anonymousPublicStartup: false } }))
@@ -33,6 +34,7 @@ vi.mock('~/local-first/connector', async importOriginal => {
     }
   }
 })
+vi.mock('~/composables/useUpdateNotice', () => ({ useUpdateNotice: () => ({ report: state.report }) }))
 vi.mock('~/local-first/schema', () => ({ AppSchema: {} }))
 vi.mock('@powersync/vue', () => ({ createPowerSyncPlugin: () => ({}) }))
 vi.mock('@powersync/web', () => ({
@@ -66,6 +68,7 @@ const logger = () => (state.construct.mock.calls[0][0] as { logger: { log: (reco
 
 beforeEach(() => {
   vi.clearAllMocks()
+  state.report.mockReset()
   state.listeners = []
   state.connectorOptions = []
   state.init.mockResolvedValue(undefined)
@@ -192,6 +195,50 @@ describe('PowerSync error capture', () => {
     expect(state.capture).toHaveBeenCalled()
   })
 
+  it('asks for a refresh when the database WASM or worker script was replaced by an HTML page', async () => {
+    state.init.mockRejectedValue(new Error('WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 44 4f @+0'))
+    const result = await start()
+    expect(result?.provide?.powersync).toBeNull()
+    expect(state.report).toHaveBeenCalledWith('outdated')
+    expect(state.capture).toHaveBeenCalled()
+  })
+
+  it.each([
+    new DOMException('The operation is insecure.', 'SecurityError'),
+    new DOMException('Encountered full disk while opening backing store', 'QuotaExceededError'),
+    new Error('Timeout while acquiring lock'),
+    new Error('Aborted(CompileError: WebAssembly.instantiate())')
+  ])('does not ask for a refresh for %s', async error => {
+    state.init.mockRejectedValue(error)
+    await start()
+    expect(state.report).not.toHaveBeenCalled()
+  })
+
+  it('keeps recovery, fallback, and capture unchanged when the notice throws', async () => {
+    state.report.mockImplementation(() => {
+      throw new Error('notice broken')
+    })
+    state.init.mockRejectedValue(new Error("Unexpected token '<'"))
+    const result = await start()
+    expect(result?.provide?.powersync).toBeNull()
+    expect(state.report).toHaveBeenCalled()
+    expect(sources().some(source => source === 'powersync:init' || source === 'powersync:recovery.attempt')).toBe(true)
+  })
+
+  it('initializes PowerSync even when the notice cannot be created', async () => {
+    vi.resetModules()
+    vi.doMock('~/composables/useUpdateNotice', () => ({
+      useUpdateNotice: () => {
+        throw new Error('no nuxt context')
+      }
+    }))
+    try {
+      expect((await start())?.provide?.powersync).toBeTruthy()
+    } finally {
+      vi.doMock('~/composables/useUpdateNotice', () => ({ useUpdateNotice: () => ({ report: state.report }) }))
+    }
+  })
+
   it('initializes PowerSync even when the collector cannot be created', async () => {
     vi.resetModules()
     vi.doMock('~/utils/clientErrorLog', () => ({
@@ -214,4 +261,5 @@ describe('PowerSync error capture', () => {
     logger().log({ level: 30, message: 'sync connected' })
     expect(state.capture).not.toHaveBeenCalled()
   })
+
 })

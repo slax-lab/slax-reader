@@ -4,6 +4,7 @@
     <NuxtPage :keepalive="{ include: cacheRoutes }" />
     <ClientOnly><KocPromotionHost /></ClientOnly>
     <ClientOnly><InAppBrowserTip /></ClientOnly>
+    <ClientOnly><UpdateNotice /></ClientOnly>
   </AppLayoutShell>
 </template>
 
@@ -11,6 +12,7 @@
 import AppLayoutShell from '~/components/Layouts/AppLayoutShell.vue'
 import KocPromotionHost from '~/components/Promotion/KocPromotionHost.vue'
 import InAppBrowserTip from '~/components/Tips/InAppBrowserTip.vue'
+import UpdateNotice from '~/components/Tips/UpdateNotice.vue'
 
 const cacheRoutes = ['bookmarks']
 
