@@ -49,6 +49,19 @@ Two real defects were found in this run and fixed. First, both tier registries r
 
 `FORK_SMOKE=1 pnpm api -- test:http` fails at `test/runtime/forkSmoke.ts:654` (`'failed' !== 'success'`). The same command on the `origin/dev` baseline worktree fails at the same line with the same assertion, so this is a pre-existing failure outside this change and was not modified.
 
+## Additional local suites against the baseline (2026-11-20)
+
+Run on this change and, with identical commands, on the `origin/dev` baseline worktree.
+
+| Suite | This change | Baseline |
+|---|---|---|
+| `pnpm api -- test:integration:local` (historical PostgreSQL and logs migrations, Collection pagination and triggers, tags, Labs, payment, account revocation) | 10/10 passed | not rerun |
+| Integration tests skipped by default (`RUN_PG_INTEGRATION_TESTS`, `FORK_TEST_DATABASE_URL`, `NEWSLETTER_LOCAL_PG_TEST`, `PASSKEY_LOCAL_PG_TEST`, `PASSKEY_REDIS_TEST`) against a disposable migrated PostgreSQL | 86 passed; `bookmarkFork.integration` "deletes only the removed account managed bundles and tolerates R2 deletion failure" fails; `passkeyChallengeRedis.integration` fails in its Redis fixture | identical: same 86 pass, same two fail |
+| `pnpm api -- test:setup:local` (PowerSync) | fails: `powersync-api` container restarts | identical failure |
+| `pnpm api -- test:http` (rerun on the final code) | passed | — |
+
+The three failures are pre-existing and unrelated to the Worker split; they are not modified here.
+
 ## Bundle size and startup CPU
 
 Built with the published template, `--minify`, Wrangler 4.127.1 (the repository's version). Startup CPU is the busy time in `wrangler check startup` profiles (Wrangler 4.165.0, outside the repository), seven runs each; the median is the fourth value.
