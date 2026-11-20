@@ -4,7 +4,7 @@
 
 On 2026-11-19 the requester asked that article startup load content by request first and wait for PowerSync afterwards, and asked for a partly client-rendered detail page. After discussion in this task conversation the requester chose "only do 1", asked that permission checks be handled carefully, and asked which other pages can use the same fallback. The client-rendered body request is not implemented; see `proposal.md`.
 
-Implementation is on `feat/defer-snapshot-local-startup`. The branch is based on `fix/recover-powersync-init-timeout` (PR #678, head `025faef4`) because both change `apps/web/app/plugins/powersync.client.ts`; it must merge after #678. The SDK, VFS, timeouts, database generation, data version, SSR, edge caching, and `/api/content` are unchanged.
+Implementation is on `feat/optimize-bookmark` (the change was first proposed as `defer-snapshot-local-startup` and renamed on 2026-11-20 at the requester's request). The branch is based on `fix/recover-powersync-init-timeout` (PR #678, head `025faef4`) because both change `apps/web/app/plugins/powersync.client.ts`; it must merge after #678. The SDK, VFS, timeouts, database generation, data version, SSR, edge caching, and `/api/content` are unchanged.
 
 ## Route classification evidence
 
@@ -36,7 +36,7 @@ All 23 Web pages were checked for direct and indirect local-database use (`$powe
   - Existing plugin tests were adjusted only for the new route behavior: `/b/example` moved out of the blocking-route list, bridge tests wait for readiness, and a router mock gained `beforeEach`. All 180 local-first tests passed.
 - ESLint on every touched file: clean.
 - `pnpm web -- build` (beta profile, synthetic local configuration): passed.
-- `openspec validate defer-snapshot-local-startup --strict`: valid.
+- `openspec validate optimize-bookmark --strict`: valid.
 
 ## Running environment
 
@@ -128,3 +128,27 @@ New tests:
 - One run failed 2 of 7 scenarios with `title: null, body: false`. The synthetic `reader-edge` process had exited (`content meta returned 503`). After restarting it, all 7 passed; the product code was unchanged between those runs.
 
 Remaining limit: identical-data checks used one machine and synthetic content. Highlight anchors that resolve through the slower approximate-match path, and very large bodies, were not measured.
+
+## Recorded verification (2026-11-20)
+
+At the requester's request, a `slax/deepseek-flash` subagent screen-recorded the switch on the production build with Chrome DevTools `Page.startScreencast`. It captured JPEG q92 frames at repaint time, up to about 60 fps, and encoded them losslessly to VP9.
+
+Recordings, all with an owner, 30 highlights, and an archived and starred bookmark:
+
+| Recording | Setup | Switch at | Result |
+| --- | --- | --- | --- |
+| Slow path, throttled | Lease held 12 s, CPU throttled 6x | 12.04 s | No change in title, highlight, or toolbar regions |
+| Slow path, unthrottled | Lease held 12 s, no throttling | 12.02 s | No change |
+| Fast path | No held lease | 0.39 s | First render only; no region changed and returned |
+
+Evidence:
+
+- After the first load, every consecutive frame pair differed by 0 pixels through the end of each recording, switch included.
+- On the slow path, the frames before the switch, after the DOM replaced all 30 `slax-mark` nodes, and 6 s later had the identical md5 `a976442269b3a3625d2e9d091cc7141a`.
+- A full-size key frame was inspected manually: highlights and the Archived/Starred buttons were visible.
+
+Limits:
+
+- The screencast emits frames only on repaint.
+- At 1280x800 only the first 10 or so highlights are visible on screen; the remaining 20 were checked through DOM sampling, not pixels.
+- The recordings are local test artifacts and were not committed.
