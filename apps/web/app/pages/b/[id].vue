@@ -414,6 +414,8 @@ const restMarks = ref<MarkDetail>({ mark_list: [], user_list: {} })
 
 const localFirst = ref(false)
 const localReady = ref(false)
+// Holds the reading-position restore while a deferred owner page decides whether to switch to local data.
+const positionReady = ref(true)
 const isOwner = computed(() => (pageData.value?.metadata as { role?: string } | undefined)?.role === 'owner')
 const shareInfo = useShareCollectInfo()
 const showFirstStarCue = useFirstStarCollectionCue()
@@ -441,6 +443,7 @@ if (import.meta.client) watch(accountGeneration, () => {
   lateLocalSources.value = null
   lateLocalDatabase.value = null
   lateMarksHandedOver.value = false
+  positionReady.value = true
   if (!recoveringSession.value && navigator.onLine) void refreshContent().then(() => initializeClientDetail(false)).catch(() => {})
 }, { flush: 'sync' })
 onBeforeUnmount(() => {
@@ -456,7 +459,7 @@ async function refreshForkDetail() {
 useReadingPosition(uuid, {
   navigation: import.meta.client ? window.__slaxReaderStartup!.navigation : undefined,
   enabled: () => localFirst.value && !detail.value?.pdf,
-  ready: () => localReady.value,
+  ready: () => localReady.value && positionReady.value,
   skipRestore: () => !!route.query.highlight || !!route.hash,
   load: () => local.value?.getReadingPosition(uuid).then(r => (r ? { index: r.anchor_index, ratio: r.anchor_ratio, percent: r.percent } : null)) ?? Promise.resolve(null),
   save: anchor => local.value?.setReadingPosition(uuid, anchor),
@@ -656,18 +659,29 @@ async function initializeClientDetail(refreshIdentity = true) {
       console.error('[b] local-first takeover failed:', e)
     }
   } else if (deferredLocal && isOwner.value) {
-    // Reading-position restore waits on localReady; a short wait keeps the owner's restore on a normal startup.
-    const database = await Promise.race([nuxtApp.$powersyncWhenReady(), new Promise<null>(resolve => setTimeout(() => resolve(null), DEFERRED_TAKEOVER_WAIT_MS))])
-    if (generation !== accountGeneration.value) return
-    if (database && (await ownsLocalBookmark(database, generation))) lateLocalDatabase.value = database
-    else void takeOverWhenReady(generation)
+    // REST marks draw now; only the reading-position restore waits for the takeover decision.
+    positionReady.value = false
+    void decideDeferredTakeover(generation)
   }
   if (generation !== accountGeneration.value) return
-  if (!lateLocalDatabase.value) localReady.value = true
-  if (!localFirst.value && !lateLocalDatabase.value) await loadMarks()
+  localReady.value = true
+  if (!localFirst.value) await loadMarks()
 }
 
 const DEFERRED_TAKEOVER_WAIT_MS = 1_500
+// A short wait lets a promptly ready database restore the owner's reading position, as on a blocking startup.
+async function decideDeferredTakeover(generation: number) {
+  const database = await Promise.race([nuxtApp.$powersyncWhenReady(), new Promise<null>(resolve => setTimeout(() => resolve(null), DEFERRED_TAKEOVER_WAIT_MS))])
+  if (generation !== accountGeneration.value) return
+  if (database && (await ownsLocalBookmark(database, generation))) {
+    // positionReady follows once SnapshotLocalDetail has switched the page.
+    lateLocalDatabase.value = database
+    return
+  }
+  if (generation !== accountGeneration.value) return
+  positionReady.value = true
+  if (!database) void takeOverWhenReady(generation)
+}
 const databaseOwner = useState<string | null>('powersync-owner', () => null)
 async function ownsLocalBookmark(database: PowerSyncDatabase, generation: number): Promise<boolean> {
   const lookup = useLocalBookmarks(database)
@@ -698,6 +712,7 @@ function onLocalSourcesReady(sources: SnapshotLocalSources) {
       lateLocalSources.value = sources
       localFirst.value = true
       localReady.value = true
+      positionReady.value = true
     },
     { immediate: true }
   )

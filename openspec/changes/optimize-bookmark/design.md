@@ -23,7 +23,7 @@ Both paths provide `$powersyncReady: ShallowRef<PowerSyncDatabase | null>` and `
 
 ### 3. Leaving a deferred document
 
-The plugin registers a `router.beforeEach` guard on deferred documents. For a destination where `needsLocalStartupDocumentExit` is true, it cancels the client transition and performs a full document load (`navigateTo(fullPath, { external: true })`, then `false`), after awaiting `$powersyncWhenReady()` bounded by 2 s so pending local writes and the account guard can finish. Destinations that do not start with a single `/` are ignored. This gives the Inbox its normal local-first startup and onboarding guarantees. Navigation among deferrable routes stays client-side.
+The plugin registers a `router.beforeEach` guard on deferred documents. For a destination where `needsLocalStartupDocumentExit` is true, it cancels the client transition and performs a full document load (`navigateTo(fullPath, { external: true })`, then `false`), after awaiting `$powersyncWhenReady()` bounded by 2 s so pending local writes and the account guard can finish. Destinations that do not start with a single `/` are ignored. `navigateTo` only assigns `location`, so if the browser or an extension suppresses the unload, the guard re-arms after 3 s and a later navigation can retry instead of being cancelled forever. This gives the Inbox its normal local-first startup and onboarding guarantees. Navigation among deferrable routes stays client-side.
 
 ### 4. Detail page upgrade
 
@@ -38,7 +38,7 @@ The plugin registers a `router.beforeEach` guard on deferred documents. For a de
 
 It then mounts `SnapshotLocalDetail`, a renderless child that calls `providePowerSync(database)` and sets up `useLocalBookmarks(database)`, `watchDetail(uuid)`, and `watchMarkDetail(uuid)`, then emits them to the page. `useLocalBookmarks`, `useLocalMarks`, and `LocalFirstHttpClient` accept an optional database; existing callers pass none and keep reading `$powersync`.
 
-The owner check waits at most 1.5 s for readiness before deciding, because `useReadingPosition` waits on `localReady` for up to about 5 s. A database that becomes ready later still upgrades the page in place, without a reading-position restore. The page sets `localFirst = true` only when the child emits, so `marks`, `detail.title`, archive/star state, and the selection client switch together. The body is never refetched. Local writes (`setAliasTitle`, `setArchive`, `setStar`, local marks) use the child's composables.
+REST marks load and draw immediately for every reader; the owner takeover decision runs in the background and never delays them. Only the reading-position restore waits for that decision, through a separate `positionReady` gate, for at most 1.5 s, because `useReadingPosition` polls its readiness for up to about 5 s. A database that becomes ready later still upgrades the page in place, without a reading-position restore. The page sets `localFirst = true` only when the child emits, so `marks`, `detail.title`, archive/star state, and the selection client switch together. The body is never refetched. Local writes (`setAliasTitle`, `setArchive`, `setStar`, local marks) use the child's composables.
 
 In the blocking path the page keeps today's in-setup local queries.
 

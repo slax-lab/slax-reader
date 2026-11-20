@@ -152,3 +152,32 @@ Limits:
 - The screencast emits frames only on repaint.
 - At 1280x800 only the first 10 or so highlights are visible on screen; the remaining 20 were checked through DOM sampling, not pixels.
 - The recordings are local test artifacts and were not committed.
+
+## PR #688 review follow-up (2026-11-20)
+
+The automated review of `91bfffcb` reported no Important Bugs or Security findings and two Nits. Both were fixed:
+
+- **Exit guard could stay stuck.** The guard cleared `leaving` only when the document load threw. If the browser or an extension suppressed the unload, every later navigation was cancelled. The guard now re-arms 3 s after a successful hand-off. A regression covers a suppressed unload followed by a retry.
+- **Owner REST marks waited for the takeover decision.** REST marks, mark drawing, and `localReady` waited up to 1.5 s plus the local `exists()` lookup. Now REST marks load and draw at once, and only the reading-position restore waits, through a separate `positionReady` gate.
+
+Re-verification on the final revision:
+
+- Typecheck passed.
+- Local-first and Article unit tests: 518 passed, 2 skipped.
+- Full Web suite: 3,230 passed, 1 failed. The failure was the untouched `useSlaxRoutes.spec.ts` case hitting its 10 s timeout under full-suite load; run alone it took 2.9 s and passed 6/6.
+- The beta production build passed.
+
+Browser run on real SSR (30 highlights, 12 s held lease):
+
+- **Owner:** REST highlights drew at 2,486 ms, about 9.6 s before local readiness at 12,099 ms. Across 968 frames at 6x CPU throttling, through the switch:
+  - the highlight count never dropped below 30;
+  - own-highlight style, toolbar (`11`), and title were each constant.
+- **Visitor:** 704 ms to hydrate, REST only.
+- **`/user`:** 565 ms to hydrate.
+- **`/bookmarks`:** kept blocking startup, 8,582 ms.
+- **`/b/` -> `/user`:** stayed client-side.
+- **Anonymous HTML:** contained the title and body.
+
+The exit scenario first reported `path: /onboarding`. The document load to `/bookmarks` did happen, and the new document had its local database. That run's synthetic data contained a single archived bookmark, so the Inbox was empty and the existing onboarding rule redirected. With the bookmark not archived, the same exit ended on `/bookmarks`. This is existing behavior, not a regression.
+
+The UI hands-on acceptance finding remains open; it needs the requester's acceptance.

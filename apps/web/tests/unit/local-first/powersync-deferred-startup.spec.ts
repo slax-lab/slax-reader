@@ -212,6 +212,22 @@ describe('leaving a deferred reader document', () => {
     expect(state.navigate).toHaveBeenCalledExactlyOnceWith('/bookmarks', { external: true })
   })
 
+  it('re-arms the guard when the document does not unload', async () => {
+    vi.useFakeTimers()
+    const result = await start()
+    await result?.provide?.powersyncWhenReady()
+    const guard = state.guards[0]!
+    await expect(guard(route('/bookmarks'), route('/b/article'))).resolves.toBe(false)
+    // The unload was suppressed: an immediate retry is still treated as the same exit.
+    await expect(guard(route('/bookmarks'), route('/b/article'))).resolves.toBe(false)
+    expect(state.navigate).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(3_000)
+    const retry = guard(route('/bookmarks'), route('/b/article')) as Promise<unknown>
+    await vi.advanceTimersByTimeAsync(2_000)
+    await expect(retry).resolves.toBe(false)
+    expect(state.navigate).toHaveBeenCalledTimes(2)
+  })
+
   it('lets the navigation continue when the document load fails', async () => {
     state.navigate.mockRejectedValueOnce(new Error('blocked'))
     const result = await start()

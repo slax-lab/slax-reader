@@ -24,6 +24,7 @@ const useDatabaseWorker = !import.meta.dev
 
 const DATABASE_FILENAME = `slax-reader-${DATABASE_GENERATION}.db`
 const DEFERRED_EXIT_WAIT_MS = 2_000
+const DEFERRED_EXIT_RETRY_MS = 3_000
 // 保留 PowerSync 现场日志，生产构建也可排障。
 const powerSyncConsole = globalThis.console
 
@@ -508,6 +509,10 @@ export default defineNuxtPlugin({
           powerSyncConsole.warn('[powersync] document load for deferred exit failed', { error })
           return
         }
+        // navigateTo only assigns location; if the unload is suppressed, let a later navigation try again.
+        setTimeout(() => {
+          leaving = false
+        }, DEFERRED_EXIT_RETRY_MS)
         return false
       })
     }
