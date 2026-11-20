@@ -120,6 +120,6 @@ Built with the published template, `--minify`, Wrangler 4.127.1 (the repository'
 
 **Security.** No new dependency is added; `agents`, `@modelcontextprotocol/*`, `moment-timezone` and `zod` are removed. The attribution parser replacing zod drops unknown keys and keeps every bound (unit tests plus the 31-case equivalence run). The Cloudflare client sends the token only to `api.cloudflare.com` for the configured account and reports error codes without response bodies. Local tooling keeps rejecting remote resources, secret files and non-loopback databases; the smoke-only Edge email fixture is accepted only with `SLAX_API_DIAGNOSTIC_HTTP_FIXTURE=1`. The retired Durable Object stubs carry no behavior beyond a 410.
 
-**Compliance.** The implementation matches proposal, design D1 to D11 and the delta specs; tasks marked complete are implemented and verified above. The layer baseline changed only by renaming keys of moved files at unchanged counts. Open items are 8.2 (cloud-bound flows), 8.3 (test-account transition, needs operator authorization) and 8.4's version question.
+**Compliance.** The implementation matches proposal, design D1 to D11 and the delta specs; tasks marked complete are implemented and verified above. The layer baseline changed only by renaming keys of moved files at unchanged counts. Open items are 8.2 (cloud-bound flows) and 8.3 (test-account transition, needs operator authorization); 8.4 records the no-increment version decision.
 
 No Important findings remain.
