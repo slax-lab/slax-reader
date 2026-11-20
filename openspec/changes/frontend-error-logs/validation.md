@@ -163,6 +163,10 @@ The automated review raised two Important Security findings, both reproduced bef
 
 The review's Compliance Nits were also addressed: `design.md` now names the connector's upload `onError` as a counting source and the `installGlobalErrorCapture` helper, and the spec states the path redaction with a scenario. Related tests: 149 passed, 2 skipped. `pnpm web -- test`: 3193 passed, 3 skipped, and the known `useSlaxRoutes.spec.ts` timeout, which passed 3 of 3 reruns; Web `typecheck`, lint on the changed test file, and `openspec validate --all --strict` pass.
 
+## Compact stack instead of one frame
+
+Querying the test table after the re-run showed that one frame was too little: 1535 of 1633 rows were Safari `TypeError: Load failed` records, with no frame at all, from the `safari6` page left open for ten hours (sync retries and an uncaught rejection about every 40 seconds), so nothing said which code path failed. At the change requester's direction the record now keeps a compact stack rather than the first frame only: up to five application frames, each shortened to `function (file:line:col)`, with browser, extension, and Vue wrapper frames and recursion repeats removed, bounded at 1 KiB. The fingerprint still uses the first frame. Tests cover V8 and Safari stacks, noise-only stacks, and the size bounds; the related suites pass (150 tests, 2 skipped). `pnpm web -- test`: 3194 passed, 3 skipped, and the known `useSlaxRoutes.spec.ts` timeout, which passed 3 of 3 reruns; Web `typecheck`, lint, and `openspec validate --all --strict` pass.
+
 ## Cleanup
 
 The PowerSync test container, its replication slot and storage database, the local stub, proxy, and Pages server were removed. The existing `dev-powersync` service and its replication slot were unchanged.

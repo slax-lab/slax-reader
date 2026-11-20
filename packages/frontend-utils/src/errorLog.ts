@@ -53,6 +53,8 @@ export interface ErrorCollector {
 const ENVS = new Set<string>(['development', 'preview', 'beta', 'production'])
 const MAX_MESSAGE_BYTES = 16 * 1024
 const MAX_FRAME_BYTES = 512
+const MAX_STACK_FRAMES = 5
+const MAX_STACK_BYTES = 1024
 const MAX_PROPERTIES_BYTES = 8 * 1024
 const MAX_FINGERPRINTS_PER_SESSION = 200
 const MAX_QUEUED_PER_FLUSH = 20
@@ -157,10 +159,47 @@ export const normalizeError = (error: unknown): { name?: string; message: string
 // containing an address such as `user@example.com is not valid` has no `:line:col` and is not a frame.
 const FRAME_PATTERN = /^\s*(?:at\s|[^@\s]*@\S*:\d+(?::\d+)?\s*$)/
 
+const stackFrames = (stack: string | undefined): string[] => (stack ? stack.split('\n').filter(line => FRAME_PATTERN.test(line)).map(line => line.trim()) : [])
+
 /** The first call frame of a stack, with URL queries already removed and bounded in size. */
 export const firstFrame = (stack: string | undefined): string | undefined => {
-  const frame = stack?.split('\n').find(line => FRAME_PATTERN.test(line))?.trim()
+  const frame = stackFrames(stack)[0]
   return frame ? truncateBytes(frame, MAX_FRAME_BYTES) : undefined
+}
+
+// Frames from the browser, extensions, and Vue internals say where the failure surfaced, not why.
+// Production bundles inline dependencies, so only frames that still name them can be recognized.
+const NOISE_FRAME = /<anonymous>|\[native code\]|^native\b|(?:chrome|moz|safari-web)-extension:|\/node_modules\/(?:\.pnpm\/)?@?vue|\bcallWith(?:Async)?ErrorHandling\b/
+
+// `at fn (https://r.slax.com/_nuxt/a.js:1:2)` → `fn (a.js:1:2)`; `fn@https://…/a.js:1:2` → `fn (a.js:1:2)`.
+const shortenFrame = (frame: string): string => {
+  const v8 = frame.match(/^at\s+(?:(.*?)\s+\()?(.*?)\)?$/)
+  const jsc = v8 ? null : frame.match(/^([^@]*)@(.*)$/)
+  const fn = (v8 ? v8[1] : jsc?.[1]) || ''
+  const location = (v8 ? v8[2] : jsc?.[2]) || frame
+  const file = location.replace(/^(?:async\s+)?(?:[a-z][a-z0-9+.-]*:\/\/[^/]+)?(?:.*\/)?/i, '')
+  return truncateBytes(fn ? `${fn} (${file})` : file, MAX_FRAME_BYTES)
+}
+
+/**
+ * A compact stack: up to five application frames, each reduced to the function and file position,
+ * with browser and framework frames and immediate repeats (recursion) dropped. When every frame is
+ * noise, the first one is kept so the record still says where the error surfaced.
+ */
+export const compactStack = (stack: string | undefined): string | undefined => {
+  const frames = stackFrames(stack)
+  if (!frames.length) return undefined
+  const useful = frames.filter(frame => !NOISE_FRAME.test(frame))
+  const picked: string[] = []
+  for (const frame of useful.length ? useful : frames.slice(0, 1)) {
+    const short = shortenFrame(frame)
+    if (picked[picked.length - 1] === short) continue
+    picked.push(short)
+    if (picked.length === MAX_STACK_FRAMES) break
+  }
+  let result = picked.join('\n')
+  while (byteLength(result) > MAX_STACK_BYTES && picked.length > 1) result = (picked.pop(), picked.join('\n'))
+  return truncateBytes(result, MAX_STACK_BYTES)
 }
 
 // Long digit runs (ids, timestamps, byte counts) vary per occurrence; short ones such as HTTP status
@@ -308,8 +347,8 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     try {
       const { name, message, stack } = normalizeError(error)
       const fingerprint = errorFingerprint(kind, name, message, stack)
-      // Only one frame is kept: deep stacks add size and copy more page internals than diagnosis needs.
-      const frame = firstFrame(stack)
+      // A few short application frames show the call path; full stacks add size and page internals.
+      const frame = compactStack(stack)
       const source = typeof properties.source === 'string' ? properties.source : undefined
       const existing = queue.get(fingerprint)
       const counts = captureOptions.countOccurrence !== false

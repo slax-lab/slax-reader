@@ -1,5 +1,5 @@
 import type { ClientErrorRecord } from '@commons/frontend-utils/errorLog'
-import { boundedProperties, chunkBodies, createErrorCollector, errorFingerprint, firstFrame, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
+import { boundedProperties, chunkBodies, compactStack, createErrorCollector, errorFingerprint, firstFrame, installGlobalErrorCapture, normalizeError, stripUrl, stripUrlQueries, truncateBytes } from '@commons/frontend-utils/errorLog'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const endpoint = 'https://stream.ingest.invalid'
@@ -82,7 +82,7 @@ describe('frontend-utils error log collector', () => {
     await collector.flush()
     const [record] = sent[0].body
     expect(record.message).toBe('Failed to fetch https://r.slax.com/b/1 for reading')
-    expect(record.stack).toBe('at f (https://r.slax.com/_nuxt/a.js:1:5)')
+    expect(record.stack).toBe('f (a.js:1:5)')
     expect(normalizeError(error).stack).toContain('chrome-extension://abcdef/offscreen.html:3:4')
     expect(stripUrlQueries('GET /v1/sync/changes?token=abc failed')).toBe('GET /v1/sync/changes failed')
     expect(stripUrlQueries('ratio 3/4? no urls here')).toBe('ratio 3/4? no urls here')
@@ -124,7 +124,7 @@ describe('frontend-utils error log collector', () => {
     }
   })
 
-  it('bounds the message in bytes and keeps only the first call frame of the stack', async () => {
+  it('bounds the message in bytes and keeps a compact stack', async () => {
     const { collector, sent } = make()
     const error = new Error('é'.repeat(20000))
     error.stack = `Error: ${'é'.repeat(20)}\n    at deep${'x'.repeat(2000)} (https://r.slax.com/a.js:1:2)\n    at second (https://r.slax.com/b.js:3:4)`
@@ -132,10 +132,35 @@ describe('frontend-utils error log collector', () => {
     await collector.flush()
     const [record] = sent[0].body
     expect(new TextEncoder().encode(record.message).length).toBeLessThanOrEqual(16 * 1024)
-    expect(record.stack?.startsWith('at deepx')).toBe(true)
-    expect(new TextEncoder().encode(record.stack ?? '').length).toBeLessThanOrEqual(512)
-    expect(record.stack).not.toContain('second')
+    const frames = record.stack?.split('\n') ?? []
+    expect(frames[0].startsWith('deepx')).toBe(true)
+    expect(new TextEncoder().encode(frames[0]).length).toBeLessThanOrEqual(512)
+    expect(frames[1]).toBe('second (b.js:3:4)')
+    expect(new TextEncoder().encode(record.stack ?? '').length).toBeLessThanOrEqual(1024)
     expect(truncateBytes('abc', 2)).toBe('ab')
+  })
+
+  it('compacts V8 and Safari stacks to five short application frames', () => {
+    const v8 = [
+      'TypeError: Failed to fetch',
+      '    at window.fetch (https://r.slax.com/_nuxt/HkvhJBOe.js:12:5)',
+      '    at Object.uploadChanges (https://r.slax.com/_nuxt/HkvhJBOe.js:17541:24)',
+      '    at callWithErrorHandling (https://r.slax.com/_nuxt/vue.js:1:1)',
+      '    at chrome-extension://abcdef/content.js:2:2',
+      '    at Array.forEach (<anonymous>)',
+      '    at async uploadData (https://r.slax.com/_nuxt/HkvhJBOe.js:12000:9)',
+      '    at f (https://r.slax.com/_nuxt/a.js:1:1)',
+      '    at f (https://r.slax.com/_nuxt/a.js:1:1)',
+      '    at async https://r.slax.com/_nuxt/worker-v4.js:3239:35',
+      '    at g (https://r.slax.com/_nuxt/b.js:2:2)',
+      '    at h (https://r.slax.com/_nuxt/c.js:3:3)'
+    ].join('\n')
+    expect(compactStack(v8)).toBe(['window.fetch (HkvhJBOe.js:12:5)', 'Object.uploadChanges (HkvhJBOe.js:17541:24)', 'async uploadData (HkvhJBOe.js:12000:9)', 'f (a.js:1:1)', 'worker-v4.js:3239:35'].join('\n'))
+    const safari = normalizeError(Object.assign(new Error('x'), { stack: 'fetchStreamRaw@https://r.slax.com/_nuxt/worker-v4.js?v=1:3239:44\n[native code]\n@https://r.slax.com/_nuxt/a.js:1:2' })).stack
+    expect(compactStack(safari)).toBe('fetchStreamRaw (worker-v4.js:3239:44)\na.js:1:2')
+    expect(compactStack('Error: x\n    at Array.forEach (<anonymous>)')).toBe('Array.forEach (<anonymous>)')
+    expect(compactStack('Error: only a message')).toBeUndefined()
+    expect(compactStack(undefined)).toBeUndefined()
   })
 
   it('picks the first real frame in V8 and Firefox stacks, never a message line', () => {

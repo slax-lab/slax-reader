@@ -13,7 +13,7 @@ The Web app SHALL capture uncaught errors, unhandled promise rejections, Vue app
 #### Scenario: An uncaught exception occurs on a Web page
 
 - **WHEN** a Web page throws an uncaught `TypeError`
-- **THEN** a record with `kind=error`, the error name, message, and first call frame is queued for delivery
+- **THEN** a record with `kind=error`, the error name, message, and compact stack is queued for delivery
 
 #### Scenario: A script chunk fails to load
 
@@ -66,7 +66,7 @@ The Web app SHALL record PowerSync failures with `kind=powersync` from SDK downl
 
 ### Requirement: Normalize, group, and deliver records
 
-Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `fingerprint`, `count`, `message`, and `session_id`, and MAY contain `error_name`, `stack`, `page_url`, `user_id`, `device_id`, `ua`, and `properties`. `stack` SHALL hold only the first call frame of the error's stack, never the full stack. `page_url` SHALL contain only the origin and path, with share and collection codes in the path replaced by placeholders, and URLs inside `message` and `stack` SHALL have their query strings and fragments removed, including in `fn@url:line:col` frames. Repeated errors with the same fingerprint SHALL be delivered as one record per flush with an occurrence count. Records SHALL be delivered in batches, including when the page is hidden or unloaded, and SHALL be bounded in size and number per page session. Delivery SHALL be best effort: a failure to deliver SHALL NOT throw, retry indefinitely, or change application behavior, and the collector SHALL NOT record errors caused by its own delivery.
+Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `fingerprint`, `count`, `message`, and `session_id`, and MAY contain `error_name`, `stack`, `page_url`, `user_id`, `device_id`, `ua`, and `properties`. `stack` SHALL hold a compact stack, never the full stack: at most five application frames, each reduced to its function and file position, with browser, extension, and framework frames and immediate repeats omitted. `page_url` SHALL contain only the origin and path, with share and collection codes in the path replaced by placeholders, and URLs inside `message` and `stack` SHALL have their query strings and fragments removed, including in `fn@url:line:col` frames. Repeated errors with the same fingerprint SHALL be delivered as one record per flush with an occurrence count. Records SHALL be delivered in batches, including when the page is hidden or unloaded, and SHALL be bounded in size and number per page session. Delivery SHALL be best effort: a failure to deliver SHALL NOT throw, retry indefinitely, or change application behavior, and the collector SHALL NOT record errors caused by its own delivery.
 
 #### Scenario: The same error fires many times
 
@@ -91,7 +91,7 @@ Each record SHALL contain `occurred_at`, `app`, `release`, `env`, `kind`, `finge
 #### Scenario: An error has a deep stack
 
 - **WHEN** an error with a multi-frame stack is captured
-- **THEN** the record's `stack` holds only the first call frame, bounded in size
+- **THEN** the record's `stack` holds at most five short application frames, bounded in size
 
 #### Scenario: The visitor closes the tab
 
