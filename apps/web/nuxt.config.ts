@@ -6,6 +6,7 @@ import { scopedPdfStyles } from './config/pdf-assets'
 import { emailLoginStartupScript } from './app/utils/emailLinkAuth'
 import { readerStartupScript } from './app/utils/readerStartup'
 
+import { writeBuildAssetsIndex } from '../../tooling/build-assets.mjs'
 import { createPowerSyncAssetBuild } from '../../tooling/powersync-assets.mjs'
 import { POWER_SYNC_WORKER_GENERATION } from './app/local-first/version'
 import pkg from './package.json'
@@ -640,6 +641,8 @@ export default defineNuxtConfig({
       // Register on Nitro itself, after the Pages preset's output writers.
       nitro.hooks.hook('compiled', async nitro => {
         await powerSyncAssets.write(nitro.options.output.publicDir)
+        // After the PowerSync index, so it is excluded; later releases recover old pages' assets from it.
+        await writeBuildAssetsIndex(nitro.options.output.publicDir)
         writeWebBuildConfig(webBinding)
       })
     },

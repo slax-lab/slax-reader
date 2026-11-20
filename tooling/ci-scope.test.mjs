@@ -30,7 +30,7 @@ test('dispatchers select actual consumers and release tooling never selects fron
 })
 
 test('PowerSync asset helpers select the Web build that consumes them', () => {
-  for (const path of ['tooling/powersync-assets.mjs', 'tooling/powersync-assets.test.mjs']) {
+  for (const path of ['tooling/powersync-assets.mjs', 'tooling/powersync-assets.test.mjs', 'tooling/build-assets.mjs', 'tooling/build-assets.test.mjs']) {
     assert.deepEqual(selectedApps([path]), ['web'])
     assert.equal(selectScopes([path]).scopes.tooling, true)
   }
