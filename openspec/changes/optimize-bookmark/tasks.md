@@ -14,4 +14,4 @@
 ## 3. Verification and review
 
 - [x] 3.1 Run affected Web unit tests, typecheck, touched-file lint, the full Web suite, and a production-profile build.
-- [ ] 3.2 Exercise in Chrome with a held database lease: `/b/[id]` and `/user` mount time, REST interaction, owner upgrade and visitor non-upgrade, leaving to `/bookmarks`, unchanged `/bookmarks` startup, and anonymous body HTML. Record evidence in `validation.md`, run strict OpenSpec validation, and complete the local Bugs, Security, and Compliance review.
+- [x] 3.2 Exercise in Chrome with a held database lease: `/b/[id]` and `/user` mount time, REST interaction, owner upgrade and visitor non-upgrade, leaving to `/bookmarks`, unchanged `/bookmarks` startup, and anonymous body HTML. Record evidence in `validation.md`, run strict OpenSpec validation, and complete the local Bugs, Security, and Compliance review.

@@ -706,10 +706,12 @@ async function takeOverWhenReady(generation: number) {
   if (!database || generation !== accountGeneration.value) return
   if (lateLocalDatabase.value) return
   if (await ownsLocalBookmark(database, generation)) {
-    lateLocalDatabase.value = database
+    if (!lateLocalDatabase.value) lateLocalDatabase.value = database
     return
   }
-  if (generation !== accountGeneration.value || !isOwner.value) return
+  if (lateLocalDatabase.value || generation !== accountGeneration.value || !isOwner.value) return
+  // A repeated decision (for example after a PDF retry) replaces the previous subscription.
+  stopWaitingForLocalRow?.()
   let checking = false
   const stop: () => void = database.onChange(
     {

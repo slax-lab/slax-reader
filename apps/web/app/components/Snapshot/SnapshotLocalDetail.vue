@@ -1,6 +1,8 @@
 <template><span v-if="false" /></template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
+
 // Renderless: owns the local-first queries of a snapshot detail document whose database became ready after setup.
 import { useLocalBookmarks } from '@/composables/bookmark/useLocalBookmarks'
 import { useLocalMarks } from '@/composables/bookmark/useLocalMarks'
@@ -26,5 +28,6 @@ const sources: SnapshotLocalSources = {
   row: local.watchDetail(props.bookmarkUuid),
   database: props.database
 }
-emit('ready', sources)
+// Emit after setup so the parent never mutates its state while this component is being created.
+onMounted(() => emit('ready', sources))
 </script>
