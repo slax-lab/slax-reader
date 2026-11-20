@@ -40,7 +40,7 @@ The summary table gains a "Build assets" row beside "Current runtime" and "Added
 - [Deployment size grows] → Only files absent from the current build are added; content hashing means unchanged files are not duplicated. With 407 files per build and most unchanged between releases, a week of releases adds hundreds of files, far under the 20,000-file limit; the summary reports the count so growth is visible.
 - [Release time grows with downloads] → Bounded concurrency and per-request timeouts; failures warn and continue.
 - [A retained stylesheet or chunk references a file that was not retained] → All files a deployment emitted are listed and retained together, so references inside one build resolve; a partial recovery is reported as such.
-- [Beta and production still require Access] → Their releases keep reporting unknown coverage, which is the current behavior, until their Access setting changes.
+- [A project re-enables Access on deployment addresses] → Its releases report every deployment as `download-unavailable` and coverage `unknown`, and publish the current build as before.
 
 ## Migration Plan
 

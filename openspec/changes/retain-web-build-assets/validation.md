@@ -8,7 +8,7 @@ Release tooling only: the Web build writes `/_nuxt/build-assets.json`, and the r
 
 - Pages answers a missing `/_nuxt/` file with the HTML shell and status 200: on `r.slax.dev`, `/_nuxt/wa-sqlite-async-CXmNm_EE.js`, `/_nuxt/definitely-missing.js`, `/_nuxt/missing.wasm`, and `/_nuxt/missing.css` all returned `200 text/html`.
 - Comparing two test deployments a few releases apart, 25 of the earlier one's entry files are absent from the newest build, and 7 of those now return HTML from `r.slax.dev`.
-- Until the test project's Access policy was removed on 2026-11-20, every earlier deployment address answered `302` to `slax-test.cloudflareaccess.com`, and the `dev` release (run 44693801170) and the latest `beta` release (run 44457355313) logged `download-unavailable` for every deployment and retained nothing. After the change requester removed it, all checked test deployment addresses return `200 application/json` for `/_nuxt/powersync-assets.json`. The beta and production projects still redirect to Access.
+- Until the test project's Access policy was removed on 2026-11-20, every earlier deployment address answered `302` to `slax-test.cloudflareaccess.com`, and the `dev` release (run 44693801170) and the latest `beta` release (run 44457355313) logged `download-unavailable` for every deployment and retained nothing. After the change requester removed it, all checked test deployment addresses return `200 application/json` for `/_nuxt/powersync-assets.json`. The beta and production projects were opened the same way later that day; the three most recent deployment addresses of each (`slax-reader-frontend`, `slax-reader-frontend-beta`) return `200 application/json` for the same file.
 
 ## Automated checks
 
@@ -37,7 +37,7 @@ A `preview` build (`pnpm build` with `SLAX_ENV=preview`) wrote `/_nuxt/build-ass
 
 ## Pending after merge
 
-Task 3.2: the first `dev` release after merge should warn `missing-build-index` and retain PowerSync resources; the second should report earlier deployments fully recovered with retained build assets, and a chunk only the earlier deployment emitted should load from `r.slax.dev` as JavaScript. Beta and production need their Access requirement on deployment addresses removed for the same result.
+Task 3.2: the first `dev` release after merge should warn `missing-build-index` and retain PowerSync resources; the second should report earlier deployments fully recovered with retained build assets, and a chunk only the earlier deployment emitted should load from `r.slax.dev` as JavaScript. The same should then hold for the next beta and production releases.
 
 ## Local review
 

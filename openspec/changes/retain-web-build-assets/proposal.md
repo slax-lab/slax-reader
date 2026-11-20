@@ -10,7 +10,7 @@ Each Web release replaces every content-hashed file under `/_nuxt/`, and Pages a
 - Each build records the files it emitted under `/_nuxt/` with their digests in a generated index served beside them, so a later release can recover exactly that set from the earlier deployment's own `pages.dev` address and verify it.
 - Recovered files keep their original paths and bytes and never replace a file of the current build; a file whose content conflicts, cannot be downloaded, or arrives as HTML is skipped with a warning, as PowerSync retention already does.
 - Release summaries report retained files and bytes for both the PowerSync graph and the general build assets, and the coverage per earlier deployment.
-- The test project no longer requires Cloudflare Access on deployment addresses. The beta and production projects still do, so their retention keeps warning until the same change is made there; this change does not alter Access.
+- The test, beta, and production projects no longer require Cloudflare Access on deployment addresses (changed in the Cloudflare dashboard on 2026-11-20); this change does not alter Access.
 
 ## Capabilities
 
@@ -32,4 +32,4 @@ None.
 
 - The 7-day window and the selection of earlier deployments are the ones PowerSync retention already uses.
 - Files outside `/_nuxt/` (HTML, `_payload.json`, `builds/latest.json`, the Service Worker) are not retained: they are not content-hashed and must reflect the current build.
-- Changing the beta and production Access settings is outside this change; it is the change requester's decision and is noted as a deployment prerequisite.
+- Deployment addresses stay readable without Cloudflare Access; that is a project setting outside this change.
