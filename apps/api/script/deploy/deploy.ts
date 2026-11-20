@@ -7,7 +7,21 @@ import { fileURLToPath } from 'node:url'
 import { loadApiEnv } from '../env'
 import { accountApi, requireTopology } from './topology'
 
-const ports: Record<Target, number> = { edge: 8787, core: 8686, ai: 8788, browser: 8789, objects: 8790 }
+const DEFAULT_PORTS: Record<Target, number> = { edge: 8787, core: 8686, ai: 8788, browser: 8789, objects: 8790 }
+
+// SLAX_API_DEV_PORTS="ai=8798,objects=8791" moves individual local Workers off ports another process holds.
+export function devPorts(value = process.env.SLAX_API_DEV_PORTS): Record<Target, number> {
+  const ports = { ...DEFAULT_PORTS }
+  for (const entry of (value ?? '').split(',').filter(Boolean)) {
+    const [target, port] = entry.split('=')
+    const number = Number(port)
+    if (!(target in ports) || !Number.isInteger(number) || number < 1 || number > 65535)
+      throw new Error(`SLAX_API_DEV_PORTS entry "${entry}" must be <${Object.keys(ports).join('|')}>=<port>`)
+    ports[target as Target] = number
+  }
+  if (new Set(Object.values(ports)).size !== Object.keys(ports).length) throw new Error('SLAX_API_DEV_PORTS gives two Workers the same port')
+  return ports
+}
 
 export const devPortOccupied = (port: number): Promise<boolean> =>
   new Promise(resolve => {
@@ -83,6 +97,7 @@ export async function deploy(args: string[], mcp: McpPhase = 'retired'): Promise
   // --target session is a session and every Worker port is probed. Fixtures
   // that stub wrangler never bind ports and opt out to stay independent of
   // the machine's dev-session state.
+  const ports = devPorts()
   if (local && !options.flags.has('--dry-run')) {
     if (process.env.SLAX_API_SKIP_DEV_PORT_GUARD) {
       console.warn('Dev port guard skipped: SLAX_API_SKIP_DEV_PORT_GUARD is set (test fixtures only).')
