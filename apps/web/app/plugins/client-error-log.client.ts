@@ -27,11 +27,17 @@ export default defineNuxtPlugin({
     // Hooks keep Nuxt's own error handler and error page in charge of rendering.
     // A fatal component error reaches `vue:error` and then `app:error` wrapped by Nuxt's createError.
     const seenComponentErrors = new WeakSet<object>()
+    // A thrown primitive (`throw 'boom'`) cannot go in the WeakSet, so the latest one is kept by value
+    // until Nuxt reports it again through `app:error`, wrapped with it as `cause`.
+    let lastComponentPrimitive: { value: unknown } | undefined
+    const isSeen = (value: unknown) =>
+      value !== null && value !== undefined && (typeof value === 'object' ? seenComponentErrors.has(value) : lastComponentPrimitive !== undefined && Object.is(lastComponentPrimitive.value, value))
     // Nuxt awaits these hooks inside its own error handling, so a throw here must not escape.
     nuxtApp.hook('vue:error', (error, instance, info) => {
       try {
         if (isExpectedClientStatus(error)) return
         if (error && typeof error === 'object') seenComponentErrors.add(error)
+        else lastComponentPrimitive = { value: error }
         collector.capture('vue', error, { source: 'vue', info, component: componentName(instance) })
       } catch {
         // Diagnostics must not affect error handling.
@@ -41,7 +47,10 @@ export default defineNuxtPlugin({
       try {
         if (isExpectedClientStatus(error)) return
         const cause = (error as { cause?: unknown } | null)?.cause
-        if ((error && seenComponentErrors.has(error)) || (cause && typeof cause === 'object' && seenComponentErrors.has(cause))) return
+        if (isSeen(error) || isSeen(cause)) {
+          lastComponentPrimitive = undefined
+          return
+        }
         collector.capture('vue', error, { source: 'app', status_code: (error as { statusCode?: number } | null)?.statusCode })
       } catch {
         // Diagnostics must not affect error handling.

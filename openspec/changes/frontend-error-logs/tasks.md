@@ -7,7 +7,7 @@
 ## 2. Web
 
 - [x] 2.1 Add the `CLIENT_ERROR_INGEST_URL` public runtime value and a client plugin that installs global error, unhandled rejection, `<script>` load failure, and Vue error capture with Web identity context. Verify with a unit test that script failures are captured and image failures are ignored.
-- [x] 2.2 Instrument `powersync.client.ts` with the SDK logger, status listener, recovery events, and application failure paths without changing existing sync behavior or console output. Verify with unit tests that changed download and upload errors are captured once per change and that recovery `onError` is captured.
+- [x] 2.2 Instrument `powersync.client.ts` with the SDK logger, the connector's upload `onError`, recovery events, and application failure paths, one counting source per failure, without changing existing sync behavior or console output. Verify with unit tests that each sync and upload failure is captured once, including across tabs sharing a worker, and that recovery `onError` is captured.
 
 ## 3. Extension
 

@@ -77,7 +77,9 @@ export const truncateBytes = (value: string, maxBytes: number): string => {
     if (byteLength(value.slice(0, mid)) <= maxBytes) low = mid
     else high = mid - 1
   }
-  return value.slice(0, low)
+  // Never end on the first half of a surrogate pair, which would serialize as an unpaired surrogate.
+  const last = value.charCodeAt(low - 1)
+  return value.slice(0, last >= 0xd800 && last <= 0xdbff ? low - 1 : low)
 }
 
 export const stripUrl = (value: string | undefined | null): string | undefined => {

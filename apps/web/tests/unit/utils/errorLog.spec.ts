@@ -121,6 +121,9 @@ describe('frontend-utils error log collector', () => {
     expect(new TextEncoder().encode(frames[0]).length).toBeLessThanOrEqual(512)
     expect(frames[1]).toBe('second (b.js:3:4)')
     expect(truncateBytes('abc', 2)).toBe('ab')
+    // A cut inside an astral character drops the whole character rather than half a surrogate pair.
+    expect(truncateBytes('a😀b', 4)).toBe('a')
+    expect(truncateBytes('a😀b', 5)).toBe('a😀')
   })
 
   it('keeps every frame of V8 and Safari stacks, shortened, with recursion collapsed', () => {

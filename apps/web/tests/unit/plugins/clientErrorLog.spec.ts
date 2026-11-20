@@ -77,9 +77,13 @@ describe('client error log plugin', () => {
     hooks['app:error'](Object.assign(new Error('fatal render failure'), { statusCode: 500, cause: original }))
     hooks['app:error'](original)
     expect(() => hooks['app:error'](null)).not.toThrow()
+    // A thrown primitive reaches app:error wrapped with the primitive as its cause.
+    hooks['vue:error']('primitive boom', null, 'render function')
+    hooks['app:error'](Object.assign(new Error('primitive boom'), { statusCode: 500, cause: 'primitive boom' }))
     await collector.flush()
     const records = state.sent.flat() as Array<Record<string, unknown>>
     expect(records.filter(record => record.message === 'fatal render failure')).toEqual([expect.objectContaining({ count: 1 })])
+    expect(records.filter(record => record.message === 'primitive boom')).toEqual([expect.objectContaining({ count: 1 })])
   })
 
   it('never lets capture failures reach the page or Nuxt error handling', async () => {

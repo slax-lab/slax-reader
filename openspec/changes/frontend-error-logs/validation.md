@@ -213,6 +213,10 @@ A production-mode build at `http://localhost:3103` was then driven in Chrome 158
 - Five failing delivery batches carrying a share URL in the message, stack, and `filename` produced six records with no occurrence of either code, `user_id=100000000` from the cookie, and no 300 ms interval. The collector registered no `cookieStore` change listener. Listeners still grew about one per retry while idle, all from `fetchCredentials → refreshPowerSyncUserToken → getUserToken → useCookies`: the PowerSync connector's credential path, unchanged from `dev` and outside this change, which grows only while credentials keep failing. It is listed under Gaps.
 - Three tabs shared one PowerSync worker whose sync failed on every retry (no local sync service). One tab held `slax-ps-worker-log-reporter` with two waiting; every tab printed `[PowerSync]: Sync error Failed to fetch`, but only the holder recorded it (one record, `count=36`, `worker_mode=shared`), and the other two recorded none. After the holder closed, the next tab took the lock and recorded the failure (`count=2`), and the third kept waiting.
 
+## Review Nits on ed2238c9
+
+The automated review found no Important issue. Its Nits are fixed, each with a test that fails against `ed2238c9`: `truncateBytes` no longer ends on the first half of a surrogate pair, a primitive thrown in a component (`throw 'boom'`) is recorded once although Nuxt reports it again through `app:error`, and task 2.2 now names the connector rather than the status listener. `pnpm web -- test`: 3210 passed, 3 skipped, and the known `useSlaxRoutes.spec.ts` timeout, which passed on rerun; Web `typecheck`, lint, and `openspec validate --all --strict` pass.
+
 ## Cleanup
 
 The PowerSync test container, its replication slot and storage database, the local stub, proxy, and Pages server were removed. The existing `dev-powersync` service and its replication slot were unchanged.
