@@ -88,7 +88,9 @@ Local `pnpm api -- dev` connects the five Workers through Wrangler's dev registr
 | AI → Core `VECTOR_V5_MAINTENANCE_WORKFLOW` | `enqueueVectorMaintenance` from AI | Workflow ran on Core and wrote through `AiEntry` |
 | Web `BACKEND` → Edge `ContentEntry` | a stand-in Worker calling `getContentMeta` and `trackEvent` | edge `ContentEntry` → core `/content/meta`, `/content/visit` |
 
-Not exercisable locally: `VECTOR_V5_PREFERENCE` (the local configuration declares no such Durable Object; the baseline reports `missing_vector_preference_object` too) and the external `fxembed` service (no local process).
+`VECTOR_V5_PREFERENCE` is Core's own Durable Object and runs locally. The operator's `deploy/local/api.toml` did not declare it (the test account's `reader-core` and the public template do), which caused `missing_vector_preference_object` on both versions. With a temporary copy of that configuration adding the binding and the `vector-preference-v1` migration, and local D1 migration `00066_add_vector_preference_state.sql` applied to the snapshot copies only, `add_url` ran the maintenance Workflow on Core, which called the preference object and stored a user preference row in `slax_vector_preference_state` on both versions (eligible = used = 10 on this change, 11 on the baseline after one more saved bookmark). Neither reported `missing_vector_preference_object`; `vector_mutation_not_visible` remained on both. The operator's configuration and local D1 were not modified.
+
+Not exercisable locally: the external `fxembed` service (no local process).
 
 The comparison found that AI bound `VECTOR` to its own `AiEntry` and `SlaxBrowser` it never uses. On `origin/dev` AI read the Vectorize indexes natively. AI now binds neither; `VectorIndexClient` uses the native indexes when `VECTOR` is absent, and Core still calls `AiEntry` (`deployPaths.test.ts`, `vectorIndexRepo.test.ts`).
 
