@@ -33,6 +33,7 @@ const {
   mockGetUserInfo,
   mockUseRoute,
   mockUseRouterGo,
+  mockUseRouterReplace,
   mockNavigateTo,
   mockRequest,
   mockGet,
@@ -67,6 +68,7 @@ const {
       fullPath: '/bookmarks'
     })),
     mockUseRouterGo: vi.fn(),
+    mockUseRouterReplace: vi.fn(),
     mockNavigateTo: vi.fn(() => Promise.resolve()),
     mockRequest: vi.fn(() => ({ get: mockGet, post: mockPost })),
     mockGet,
@@ -105,7 +107,7 @@ mockNuxtImport('useRouter', () => () => ({
   beforeResolve: vi.fn(() => () => {}),
   onError: vi.fn(() => () => {}),
   push: vi.fn(),
-  replace: vi.fn(),
+  replace: mockUseRouterReplace,
   back: vi.fn(),
   forward: vi.fn()
 }))
@@ -939,6 +941,30 @@ describe('components/BookmarkList/BookmarksPage.vue', () => {
       await tabs.vm.$emit('change-tab', 'starred')
       await flushPromises()
       expect(mockNavigateTo).toHaveBeenCalledWith('/bookmarks?filter=starred', expect.objectContaining({ replace: true }))
+    })
+
+    it.each([undefined, 'rss'])('clears bookmark filters on Feed selection while preserving other parameters (previous view: %s)', async view => {
+      mockUseRoute.mockReturnValue(reactive({
+        ...mockUseRoute(),
+        query: {
+          view, filter: 'topics', topic_id: 'old', topic_ids: 'tag', topic_name: 'Tag',
+          c_id: '2', c_code: 'collection', c_name: 'Collection', q: view ? undefined : 'bookmarks', utm_source: 'test'
+        },
+        hash: '#feed'
+      }))
+      const wrapper = mountWithApp(IndexPage, { global: { stubs: { ...baseStubs, FeedPanel: true } } })
+      await flushPromises()
+      if (view === 'rss') expect(wrapper.findComponent({ name: 'TagsHeader' }).exists()).toBe(false)
+      mockUseRouterReplace.mockClear()
+
+      wrapper.getComponent({ name: 'TabsSidebar' }).vm.$emit('change-tab', 'rss')
+      await flushPromises()
+
+      expect(mockUseRouterReplace).toHaveBeenCalledExactlyOnceWith({
+        path: '/bookmarks',
+        query: { view: 'rss', utm_source: 'test' },
+        hash: '#feed'
+      })
     })
 
     it('C28: 插件探测未就位（checked=false）→ inbox 空态不渲染任何结论态，也不触发跳转 /onboarding', async () => {

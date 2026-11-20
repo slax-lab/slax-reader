@@ -23,7 +23,8 @@
     "./mouse": "./src/mouse.ts",
     "./socket": "./src/socket.ts",
     "./range": "./src/range.ts",
-    "./draggable": "./src/draggable.ts"
+    "./draggable": "./src/draggable.ts",
+    "./errorLog": "./src/errorLog.ts"
   },
   "scripts": {},
   "keywords": [],

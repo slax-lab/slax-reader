@@ -877,7 +877,7 @@ h1 {
   background: var(--slax-accent-bg);
 }
 .source-fallback {
-  font: 500 21px/1 var(--slax-font-serif);
+  font: 500 21px/1.4 var(--slax-font-serif);
   color: var(--slax-accent);
 }
 .source-word {
@@ -894,6 +894,7 @@ h1 {
   white-space: nowrap;
   text-align: center;
   font-size: 11px;
+  line-height: 1.4;
 }
 .source-tile:hover .source-avatar {
   transform: translateY(-2px);

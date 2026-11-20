@@ -264,6 +264,22 @@ describe('Article/BookmarkArticle', () => {
       expect(wrapper.get('.article-source').text()).toContain('Weekly')
     })
 
+    it('places a Fork link alongside the original Source link only for the Forked detail', async () => {
+      const wrapper = mountWithApp(BookmarkArticle, {
+        props: { detail: buildDetail() },
+        global: { stubs: { ...stubs, SnapshotArticleSource: false } }
+      })
+      expect(wrapper.get('a.article-source').attributes('href')).toBe('https://example.com/article')
+      expect(wrapper.find('.fork-attribution').exists()).toBe(false)
+
+      await wrapper.setProps({
+        detail: buildDetail({ has_fork: true, fork: { status: 'available', source_bookmark_uid: 'source-1', display_name: 'Alex' } })
+      })
+      const provenance = wrapper.get('.article-provenance.is-forked')
+      expect(provenance.get('a.article-source').attributes('href')).toBe('https://example.com/article')
+      expect(provenance.get('a.fork-attribution').attributes('to')).toBe('/b/source-1')
+    })
+
     it('mount → 渲染 .bookmark-article + title + source', () => {
       const wrapper = mountWithApp(BookmarkArticle, { props: { detail: buildDetail() }, global: { stubs } })
       expect(wrapper.find('.bookmark-article').exists()).toBe(true)

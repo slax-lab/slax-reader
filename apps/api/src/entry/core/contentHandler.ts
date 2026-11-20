@@ -12,6 +12,7 @@ import { authToken } from '@/middleware/auth'
 import { requestLog } from '@/middleware/requestLog'
 import { MultiLangError } from '@/utils/multiLangError'
 import { appendTiming, copyResponse, elapsedMs, serverTimingEnabled } from '@/utils/diagnosticHeaders'
+import { ContentTiming } from '@/utils/contentTiming'
 
 const CONTENT_HOST = 'content.internal'
 const MAX_PAGE = 10000
@@ -22,6 +23,7 @@ export async function handleContentRequest(request: Request, env: Env, ctx: Exec
   const requestStartedAt = performance.now()
   const timings: Record<string, number> = {}
   const url = new URL(request.url)
+  const timing = request.method === 'GET' && url.pathname === '/content/meta' ? new ContentTiming('core', request) : undefined
   const authorization = request.headers.get('Authorization')
   const token = authorization !== null ? (authorization.startsWith('Bearer ') ? authorization.slice(7) : '') : (request.headers.get('x-slax-token') ?? undefined)
   let response: Response
@@ -42,6 +44,7 @@ export async function handleContentRequest(request: Request, env: Env, ctx: Exec
   }
 
   timings.total = elapsedMs(requestStartedAt)
+  timing?.log(timings, response.status)
   if (!serverTimingEnabled(env)) return response
   return addServerTiming(response, timings)
 }

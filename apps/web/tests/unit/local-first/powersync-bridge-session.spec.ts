@@ -35,10 +35,13 @@ vi.mock('~/local-first/schema', () => ({ AppSchema: {} }))
 vi.mock('@powersync/vue', () => ({ createPowerSyncPlugin: () => ({}) }))
 vi.mock('@powersync/web', () => ({
   SyncStreamConnectionMethod: { HTTP: 'http' },
+  LogLevels: { trace: 10, debug: 20, info: 30, warn: 40, error: 50 },
+  createConsoleLogger: () => ({ log: () => {} }),
   PowerSyncDatabase: class {
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
+    registerListener = () => () => {}
     connected = false
     connecting = false
   }
