@@ -493,7 +493,12 @@ export default defineNuxtConfig({
   },
   experimental: {
     sharedPrerenderData: false,
-    ssrStreaming: true
+    ssrStreaming: true,
+    // An open page learns of a new build within 5 minutes and shows the update notice.
+    checkOutdatedBuildInterval: 5 * 60_000,
+    // Keeps chunk-error events but drops Nuxt's silent reload on the next navigation after a new
+    // build; `update-notice.client.ts` keeps the reload for a navigation whose chunk failed.
+    emitRouteChunkError: 'manual'
   },
   robots: {
     sitemap: [`/sitemap.xml`],
@@ -579,8 +584,10 @@ export default defineNuxtConfig({
     filename: profile.swFilename,
     strategies: 'injectManifest',
     registerType: 'autoUpdate',
-    // 通知/推送移除后,SW 不再由 useNotification 手动注册;改由 vite-pwa 自动注册以保留 PWA(离线缓存/可安装)
-    injectRegister: 'auto',
+    // `pwa-register.client.ts` is the only registration, so a new worker shows the update notice
+    // instead of reloading the page; no generated register script or @vite-pwa/nuxt client plugin.
+    injectRegister: false,
+    client: { registerPlugin: false },
     includeManifestIcons: false,
     injectManifest: {
       maximumFileSizeToCacheInBytes: 10000000,

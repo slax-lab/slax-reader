@@ -5,11 +5,13 @@ import { notifyExtensionBridgeAuthExpired, parseExtensionBridgeIds } from '~/uti
 import { requestExtensionBridgeSession } from '~/utils/extensionBridgeSession'
 import { getClientEventHeaders, getUserToken } from '~/utils/request'
 import { getTokenUserId } from '~/utils/sessionOwner'
+import { isVersionSkewError } from '~/utils/versionSkew'
 
 import { normalizeError } from '@commons/frontend-utils/errorLog'
 import { createPowerSyncPlugin } from '@powersync/vue'
 import { createConsoleLogger, LogLevels, PowerSyncDatabase, type PowerSyncLogger, SyncStreamConnectionMethod } from '@powersync/web'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
+import { useUpdateNotice } from '~/composables/useUpdateNotice'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
 import { isDeferredLocalStartupPath, needsLocalStartupDocumentExit } from '~/local-first/deferred-startup-policy'
 import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncRecoveryResult, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
@@ -105,6 +107,16 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
   }
 }
 
+// An initialization failure caused by a replaced build asset asks the user to refresh; it never changes
+// recovery, fallback, or logging.
+const reportVersionSkew = (notice: ReturnType<typeof useUpdateNotice> | null, error: unknown) => {
+  try {
+    if (notice && isVersionSkewError(error)) notice.report('outdated')
+  } catch {
+    // The notice is advisory.
+  }
+}
+
 const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
   switch (event.type) {
     case 'attempt-start':
@@ -184,6 +196,13 @@ export default defineNuxtPlugin({
   name: 'slax:powersync',
   async setup(nuxtApp) {
     const cfg = useRuntimeConfig().public
+    // Resolved before the first await, while the Nuxt context is still available.
+    let updateNotice: ReturnType<typeof useUpdateNotice> | null = null
+    try {
+      updateNotice = useUpdateNotice()
+    } catch {
+      // The notice is advisory.
+    }
     const localOwner = useState<string | null>('powersync-owner', () => null)
     localOwner.value = null
     const isBridgeFrame = window.parent !== window && window.location.pathname === '/x/ext-bridge'
@@ -326,7 +345,10 @@ export default defineNuxtPlugin({
         ? await initializePowerSyncWithFallback({
             createDatabase,
             sharedWorkerAvailable: shouldUsePowerSyncSharedWorker(),
-            onEvent: logPowerSyncRecoveryEvent
+            onEvent: event => {
+              if (event.type === 'attempt-error') reportVersionSkew(updateNotice, event.error)
+              logPowerSyncRecoveryEvent(event)
+            }
           })
         : await (async () => {
             const database = createDatabase('main')
@@ -334,6 +356,7 @@ export default defineNuxtPlugin({
               await database.init()
               return { database, mode: 'main' as const }
             } catch (error) {
+              reportVersionSkew(updateNotice, error)
               capturePowerSyncError('init', error, { worker_mode: 'main' })
               powerSyncConsole.error('[powersync] local database initialization unavailable; using REST fallback', {
                 attemptedModes: ['main'],

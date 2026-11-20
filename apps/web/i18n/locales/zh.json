@@ -234,6 +234,14 @@
     },
     "tips": {
       "interface_load_failed": "界面加载失败。可刷新页面后重试；未保存的草稿将丢失。",
+      "update_notice": {
+        "available_title": "有新版本可用",
+        "available_message": "刷新页面即可使用最新版 Slax Reader。",
+        "outdated_title": "当前页面版本已过期",
+        "outdated_message": "请刷新页面后继续使用 Slax Reader。",
+        "refresh": "刷新",
+        "close": "关闭更新提示"
+      },
       "in_app_browser": {
         "title": "建议在浏览器中打开",
         "message_before": "为获得更好的使用体验，请点击右上角的",
