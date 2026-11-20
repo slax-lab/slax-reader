@@ -98,7 +98,38 @@ describe('secrets file', () => {
     directories.push(directory)
     expect(readSecretsFile(write(directory, 'prod.env', 'DEEPSEEK_API_KEY=abc\nMULTI="a\\nb"\n'), () => false)).toEqual({ DEEPSEEK_API_KEY: 'abc', MULTI: 'a\nb' })
     expect(readSecretsFile(write(directory, 'prod.json', '{"DEEPSEEK_API_KEY":"abc"}'), () => false)).toEqual({ DEEPSEEK_API_KEY: 'abc' })
-    expect(() => readSecretsFile(write(directory, 'bad.json', '{"KEY":1}'), () => false)).toThrow('KEY must be a string')
+  })
+
+  test('reads JSON backups: flat objects, name/value arrays, a byte order mark and scalar values', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'secrets-'))
+    directories.push(directory)
+    const read = (name: string, text: string) => readSecretsFile(write(directory, name, text), () => false)
+    expect(read('bom.json', '\uFEFF{"A":"b"}')).toEqual({ A: 'b' })
+    expect(read('scalars.json', '{"PORT":443,"ENABLED":true,"PEM":"-----BEGIN-----\\nabc"}')).toEqual({ PORT: '443', ENABLED: 'true', PEM: '-----BEGIN-----\nabc' })
+    expect(read('pairs.json', '[{"name":"A","value":"1"},{"key":"B","value":"2"}]')).toEqual({ A: '1', B: '2' })
+    expect(read('backup.txt', '  {"A":"b"}')).toEqual({ A: 'b' })
+  })
+
+  test('JSON errors never echo a value', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'secrets-'))
+    directories.push(directory)
+    const failure = (name: string, text: string) => {
+      try {
+        readSecretsFile(write(directory, name, text), () => false)
+      } catch (error) {
+        return (error as Error).message
+      }
+      throw new Error('expected a failure')
+    }
+    const syntax = failure('syntax.json', '{"OPENAI_API_KEY":"sk-live-SECRET" "B":"c"}')
+    expect(syntax).toMatch(/^The secrets file is not valid JSON at position \d+/)
+    const nested = failure('nested.json', '{"prod":{"OPENAI_API_KEY":"sk-live-SECRET"},"note":"sk-live-SECRET"}')
+    expect(nested).toBe('prod holds an object, not a string; expected {"KEY": "value"} or [{"name": "KEY", "value": "value"}]. This file has: prod (object), note (string)')
+    expect(failure('null.json', '{"A":null}')).toContain('A holds a null')
+    expect(failure('scalar.json', '"sk-live-SECRET"')).toContain('holds a string;')
+    expect(failure('entry.json', '[{"name":"A"}, "sk-live-SECRET"]')).toBe('Entry 0 of the secrets file needs a "name" (or "key") and a "value"')
+    expect(failure('loose.json', '["sk-live-SECRET"]')).toBe('Entry 0 of the secrets file needs a "name" (or "key") and a "value"')
+    for (const message of [syntax, nested]) expect(message).not.toContain('SECRET')
   })
 
   test('refuses a file inside the repository unless git ignores it', () => {

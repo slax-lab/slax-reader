@@ -41,7 +41,7 @@ placement 由 `apps/api/script/deploy/config.ts` 的 `DATABASE_REGION` 决定，
 
 普通 `deploy` 会先读取账号状态（Worker、Workflow、队列、cron、Durable Object 命名空间）。若 Objects、AI 或 Core 未部署，有 Workflow 或队列消费者仍属于 Edge，Edge 仍有 cron，或仍存在 `SlaxMcpServer` 命名空间，则在发布前停止。每套安装执行一次迁移：先 test 账号，再 beta，最后在低峰期执行生产。凭据使用 `CLOUDFLARE_API_TOKEN`（需 Workers Scripts、Queues、Workflows、Durable Objects 编辑权限）或 `wrangler login` 的 token，配置选择与 `deploy` 相同（`--config`/`--env`）。每一步先读取状态，可重复执行，并支持 `--dry-run`。第 1 到 3 步不删除任何东西；Core 和 Edge 在第 4 步之前继续导出 MCP 空壳类（`src/entry/transition/`）。
 
-变量和 secret 要跟着代码走。部署使用 `--keep-vars`，用 `wrangler secret put` 设置的 secret 只留在原来那个脚本上。`apps/api/script/deploy/runtimeKeys.ts` 列出每个 Worker 的代码会读取的字符串变量和 secret（测试会从构建产物重新推导，防止过期）。第 1 到 3 步发布前，以及每次普通发布前，命令会按名称列出：某个 Worker 需要读取、本安装的其他 API Worker 上存在、但该 Worker 自己和所选 `[vars]` 都没有的 key，然后停止。Cloudflare 不会返回 secret 的值，无法从旧 Edge 复制，需要你提供保存值的文件（密码管理器导出或原始 `.env`，放在仓库外或被忽略的 `deploy/local/` 下），然后执行：
+变量和 secret 要跟着代码走。部署使用 `--keep-vars`，用 `wrangler secret put` 设置的 secret 只留在原来那个脚本上。`apps/api/script/deploy/runtimeKeys.ts` 列出每个 Worker 的代码会读取的字符串变量和 secret（测试会从构建产物重新推导，防止过期）。第 1 到 3 步发布前，以及每次普通发布前，命令会按名称列出：某个 Worker 需要读取、本安装的其他 API Worker 上存在、但该 Worker 自己和所选 `[vars]` 都没有的 key，然后停止。Cloudflare 不会返回 secret 的值，无法从旧 Edge 复制，需要你提供保存值的文件（密码管理器导出或原始 `.env`，放在仓库外或被忽略的 `deploy/local/` 下）。文件可以是 `.env`，也可以是 JSON：`{"KEY": "value"}` 或 `[{"name": "KEY", "value": "value"}]`（也接受 `key`），数字和布尔值按字符串上传；内容以 `{` 或 `[` 开头即按 JSON 读取。读取失败时只报告位置、key 名和值的类型，不会输出值，然后执行：
 
 ```bash
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 只列出 Worker 和 key 名
