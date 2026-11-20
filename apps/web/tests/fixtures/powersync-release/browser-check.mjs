@@ -21,6 +21,7 @@ const temporary = await mkdtemp(join(tmpdir(), 'powersync-release-browser-'))
 const bytesHash = value => createHash('sha256').update(value).digest('hex')
 const sourceIndex = (await validateCurrentAssets(source)).index
 const workerEntry = sourceIndex.roots.find(root => /\/worker-v\d+\.js$/.test(root))
+assert(workerEntry, 'PowerSync asset index has no worker-v<N>.js root')
 const originalLoader = sourceIndex.assets.find(asset => /\/wa-sqlite-async-[^/]+\.js$/.test(asset.path)).path
 const originalWasm = sourceIndex.assets.find(asset => /\/wa-sqlite-async\.[^/]+\.wasm$/.test(asset.path)).path
 const snapshots = new Map()

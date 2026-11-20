@@ -32,7 +32,7 @@ Bare-SDK fixtures (no app code, 2.4.0 and 2.7.0) did not stall with 8 idle hidde
 ## Behavior checks on this branch
 
 - A bookmark renamed in the foreground tab is not shown in a hidden `/bookmarks` tab while hidden and appears within 10 s after the tab is activated, without a reload.
-- Mixed release window (bare-SDK fixture): a 2.4.0 page on its v4 worker and a 2.7.0 page on its v5 worker initialized, read, and wrote the same database file without errors, before and after each other's writes; new pages of either version then started normally.
+- Mixed release window (bare-SDK fixture, headless Chrome): a 2.4.0 page and a 2.7.0 page, each on its own SharedWorker (`worker-v24.js` and `worker-v27.js` running at once), opened the same database and wrote concurrently, 40 transactions of 25 rows each per page interleaved, in 3 rounds. Each round completed in 1.8–3.8 s with no transaction errors; both pages read every row from both writers, `PRAGMA integrity_check` returned `ok`, and every write remained queued in `ps_crud` for upload (2,000, 4,000, 6,000 cumulative). Overlapping synchronization applies from two SDK versions were not exercised.
 - Owner regression on the 4330 build (`selfcheck.mjs`, 8/8): highlight, archive, and star from `/b/e2e-snap` are uploaded through local synchronization and persist after reload; a visitor sees the owner's highlights without owner actions; anonymous HTML contains the article body; no page errors or 5xx responses.
 - Production build log: `database ready {mode: shared, dbFilename: slax-reader-v3.db}`; the database filename is unchanged.
 
