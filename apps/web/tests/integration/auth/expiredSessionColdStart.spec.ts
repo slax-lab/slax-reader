@@ -39,6 +39,8 @@ vi.mock('@powersync/web', () => ({
     init = async () => {}
     connect = boundary.connect
     disconnectAndClear = async () => {}
+    onChangeWithCallback = () => () => {}
+    resolveTables = async () => []
     close = async () => {}
     connected = false
     connecting = false

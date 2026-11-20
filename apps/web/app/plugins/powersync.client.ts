@@ -8,6 +8,7 @@ import { PowerSyncDatabase, SyncStreamConnectionMethod } from '@powersync/web'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
 import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
+import { deferLiveQueriesWhileHidden } from '~/local-first/powersync-visibility-gate'
 import { shouldUsePowerSyncSharedWorker } from '~/local-first/powersync-worker-policy'
 import { isPublicStartupEntryPath, type PublicTokenState, shouldBypassPublicDatabase } from '~/local-first/public-startup-policy'
 import { AppSchema } from '~/local-first/schema'
@@ -216,6 +217,8 @@ export default defineNuxtPlugin({
 
     const db = recovery.database
     if (!db) return unavailable()
+    // The extension bridge frame is never visible and runs no live queries.
+    if (!isBridgeFrame) deferLiveQueriesWhileHidden(db)
 
     powerSyncConsole.info('[powersync] database ready', { mode: recovery.mode, dbFilename: DATABASE_FILENAME })
 

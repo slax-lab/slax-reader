@@ -20,6 +20,7 @@ const source = resolve(process.argv[2] || join(web, 'dist'))
 const temporary = await mkdtemp(join(tmpdir(), 'powersync-release-browser-'))
 const bytesHash = value => createHash('sha256').update(value).digest('hex')
 const sourceIndex = (await validateCurrentAssets(source)).index
+const workerEntry = sourceIndex.roots.find(root => /\/worker-v\d+\.js$/.test(root))
 const originalLoader = sourceIndex.assets.find(asset => /\/wa-sqlite-async-[^/]+\.js$/.test(asset.path)).path
 const originalWasm = sourceIndex.assets.find(asset => /\/wa-sqlite-async\.[^/]+\.wasm$/.test(asset.path)).path
 const snapshots = new Map()
@@ -73,8 +74,8 @@ try {
     const schema=new Schema({notes:new Table({body:column.text})});
     let db, held;
     window.fixture={
-      hold(){held=new SharedWorker('/_nuxt/worker-v4.js',{name:'shared-powersync-'+filename,type:'module'});held.port.start();},
-      async init(){db=new PowerSyncDatabase({schema,database:{dbFilename:filename,useWebWorker:true,enableMultiTabs:true,worker:location.origin+'/_nuxt/worker-v4.js'}});await db.init();return true;},
+      hold(){held=new SharedWorker(${JSON.stringify(workerEntry)},{name:'shared-powersync-'+filename,type:'module'});held.port.start();},
+      async init(){db=new PowerSyncDatabase({schema,database:{dbFilename:filename,useWebWorker:true,enableMultiTabs:true,worker:location.origin+${JSON.stringify(workerEntry)}}});await db.init();return true;},
       async put(id,body){await db.execute('INSERT OR REPLACE INTO notes(id, body) VALUES (?, ?)',[id,body]);},
       async rows(){return db.getAll('SELECT id, body FROM notes ORDER BY id');},
       async pending(){return (await db.getCrudBatch())?.crud.map(row=>({id:row.id,op:row.op,table:row.table}));},
@@ -95,7 +96,7 @@ try {
     try {
       const bytes = await readFile(join(name.startsWith('/_nuxt/') ? active : clientDir, name))
       response.setHeader('content-type', contentType(name))
-      response.setHeader('cache-control', name === '/_nuxt/worker-v4.js' || name.endsWith('powersync-assets.json') ? 'no-cache, max-age=0, must-revalidate' : 'public, max-age=31536000, immutable')
+      response.setHeader('cache-control', name === workerEntry || name.endsWith('powersync-assets.json') ? 'no-cache, max-age=0, must-revalidate' : 'public, max-age=31536000, immutable')
       response.end(bytes)
     } catch (error) {
       if (error.code !== 'ENOENT') throw error
@@ -114,7 +115,7 @@ try {
   await page.waitForFunction(() => window.fixture)
   await page.evaluate(() => window.fixture.hold())
   await page.waitForTimeout(500)
-  assert(requests.includes('/_nuxt/worker-v4.js'))
+  assert(requests.includes(workerEntry))
   assert(!requests.includes(a.loaderPath), 'Old SQLite loading must remain deferred')
   assert(!requests.includes(a.wasmPath), 'Old WASM loading must remain deferred')
   const bReport = await retain(b, [a])

@@ -33,6 +33,8 @@ vi.mock('@powersync/web', () => ({
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
+    onChangeWithCallback = () => () => {}
+    resolveTables = async () => []
     close = state.close
     getCrudBatch = state.batch
     connected = false
