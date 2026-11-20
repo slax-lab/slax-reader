@@ -219,3 +219,9 @@ Checks on the merged tree:
 - PowerSync tooling tests 28/28; `pnpm exec openspec validate --all --strict` 165 passed.
 - Production build of the merged tree in the acceptance environment (SDK 2.7.0, `worker-v5.js`): the self-check above passed 13/13 again, including the 12 s held lease (interactive in 0.71 s, REST writes before the switch and local sync upload after it), local-behind-REST without a disappearing highlight, inbox timeout recovery through a document load, visitor, and anonymous.
 - Multi-tab startup in real Chrome without automation flags (7 of 7 background `/bookmarks` tabs not visible, synchronization changing one of 3,000 bookmarks per second, 3 runs of 3 new tabs): 9/9 new tabs started their local database, 413–1,069 ms, with no REST fallback. See `fix-powersync-multitab-stall/validation.md` for the comparison against `dev`.
+
+## Human hands-on acceptance (2026-11-20)
+
+The change requester performed hands-on acceptance on 2026-11-20 at about 17:59 CST, in the local acceptance environment (`http://127.0.0.1:4320/__accept`) running a production build of `feat/optimize-bookmark` at `5c4a3664` (SDK 2.7.0, `worker-v5.js`, synthetic data). The panel covered normal owner reading and writes, a slow local database with an in-place switch, local data behind REST, initialization-timeout recovery through the next navigation, visitor and anonymous views, and multi-tab startup. The requester reported no problems and requested no adjustments. Earlier pending-acceptance notes in this file are resolved by this entry.
+
+Before acceptance, the environment's page renderer had stopped answering because its temporary build directory had been deleted while it ran; it was restarted, and the pages were re-checked in Chrome (owner `/b/` interactive in 0.64 s, `/bookmarks` in 1.08 s, no page errors) and by the 13-scenario self-check (13/13). This was an environment issue, not a product change.
