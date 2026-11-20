@@ -135,8 +135,12 @@ describe('topology:transition', () => {
     ])
     expect(state.mcp).toEqual([EDGE, 'reader-core'])
     expect(state.workflows.every(workflow => workflow.script_name === 'reader-core')).toBe(true)
+    // Core already handles email after step 2, so the rule is repointed before the slim Edge (no email handler) ships.
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('Before step 3, repoint the newsletter Email Routing rule'))
+    log.mockClear()
     expect(await transition({ step: 3, dryRun: false, api, config, deploy, log })).toBe(0)
-    expect(log).toHaveBeenCalledWith(expect.stringContaining('Repoint the newsletter Email Routing rule'))
+    const lines = log.mock.calls.map(call => String(call[0]))
+    expect(lines.findIndex(line => line.includes('repoint the newsletter Email Routing rule'))).toBeLessThan(lines.findIndex(line => line.startsWith(`will deploy ${EDGE}`)))
     expect(state.mcp).toEqual([EDGE, 'reader-core'])
     expect(await transition({ step: 4, dryRun: false, api, config, deploy, log })).toBe(0)
     // Edge goes first: Cloudflare keeps Core's namespace while any Worker still binds to it.

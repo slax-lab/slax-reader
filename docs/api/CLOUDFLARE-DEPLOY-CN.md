@@ -52,7 +52,7 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env             # 用 wrangl
 
 1. `--step 1` 发布 Browser 和 Objects。确认 Objects 的三个命名空间已存在。
 2. `--step 2` 移除每个队列的 Edge 消费者并清空 Edge 的 cron，发布 Core（含 Workflow、消费者、cron 和指向 Objects 的 DO 绑定），再发布 AI（AI 绑定的 Workflow 由新 Core 导出）。期间消息在队列中等待约一次部署的时长；AI 发布完成前书签搜索会失败，因为旧 AI 仍通过 Core 已下线的 jieba 命名空间分词，请在低峰期执行。之后若有 Workflow 或队列消费者不属于 Core 则失败，并打印 Workflow 归属的前后对比。确认运行中的实例继续推进。
-3. `--step 3` 发布精简后的 Edge。随后在控制台把 newsletter 的 Email Routing 规则从 Edge 改到 Core。
+3. 执行 `--step 3` 之前，先在控制台把 newsletter 的 Email Routing 规则从 Edge 改到 Core（Core 从第 2 步起已能处理邮件，精简后的 Edge 没有邮件处理），再执行 `--step 3` 发布精简后的 Edge。
 4. 先在精简后的 Edge 上检查路由、`ContentEntry`、图片代理、一条 AI 路由、WebSocket 升级、一次队列往返和一次 Workflow 创建。然后执行 `--step 4`：要求所有归属检查通过，依次发布带 `retire-mcp-v1` 的 Edge 和 Core，并确认不再有 `SlaxMcpServer` 命名空间。这一步不可逆，会永久删除保存的 MCP 会话。先发 Edge 是因为只要还有 Worker 绑定 Core 的命名空间，Cloudflare 就拒绝删除。若私有配置中 Core 的迁移历史没有记录 `SlaxMcpServer`，第 4 步前按 Cloudflare 报告的标签补上（例如 `{ tag = "v2", new_sqlite_classes = ["SlaxMcpServer"] }`），这样 Wrangler 只追加删除这一步。
 
 回滚：第 2 步之前，用 `wrangler rollback` 回到旧版本即可。第 2 步之后、第 4 步之前，先为 Edge 重新加上队列消费者和 cron，部署旧版 Edge（仍声明 Workflow），再部署旧版 Core，并把 Email Routing 改回 Edge；此时没有删除任何命名空间，不会丢失对象数据。第 4 步之后 MCP 命名空间已删除，Wrangler 拒绝回滚到这次部署之前；其余拓扑变更仍可按上述方式回退，但所用版本不能再导出 `SlaxMcpServer`。

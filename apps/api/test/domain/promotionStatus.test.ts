@@ -48,4 +48,13 @@ describe('promotion status and grant compatibility', () => {
     expect(h.repo.claimReward).toHaveBeenCalledWith(expect.objectContaining({ userId: 7, key: `reward:activity:7:${activity}`, count: days, credit }))
     expect(await h.service.getReceiveStatus(h.ctx, activity)).toEqual({ status: false, reason: 'eligible', reward: { kind: 'trial', days } })
   })
+  test('a claimed trial reports its end date, and an unparseable one does not fail the claim', async () => {
+    const h = setup()
+    const valid = await h.service.receiveSubscription(h.ctx, receiveActivityType.PLATFORM_0527)
+    expect(valid.message).toContain('2027-01-01')
+    h.repo.claimReward.mockResolvedValueOnce({ credit: false, endTime: 'not a date' })
+    const invalid = await h.service.receiveSubscription(h.ctx, receiveActivityType.PLATFORM_0527)
+    expect(invalid.title).toBe(valid.title)
+    expect(invalid.message).not.toContain('2027')
+  })
 })

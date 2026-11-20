@@ -155,6 +155,9 @@ export interface TransitionOptions {
   log?: (line: string) => void
 }
 
+// Core handles inbound email from step 2 on; repointing the rule then leaves no window without a handler.
+const EMAIL_ROUTING = (names: Record<Target, string>) => `Before step 3, repoint the newsletter Email Routing rule from ${names.edge} to ${names.core} in the Cloudflare dashboard.`
+
 // Each step checks the state it starts from, is safe to repeat, and prints every change it makes.
 export async function transition({ step, dryRun, api, config, deploy, log = console.log }: TransitionOptions): Promise<number> {
   const names = workerNames(config)
@@ -208,14 +211,17 @@ export async function transition({ step, dryRun, api, config, deploy, log = cons
     log(`workflows before ${JSON.stringify(counts(before))}, after ${JSON.stringify(counts(after))}`)
     const left = pendingOwnership(after)
     if (left.length) throw new Error(`Core did not take ownership:\n- ${left.join('\n- ')}`)
+    log(EMAIL_ROUTING(names))
     return 0
   }
   if (step === 3) {
     const pending = pendingOwnership(before)
     if (pending.length) throw new Error(`Step 3 requires step 2:\n- ${pending.join('\n- ')}`)
     await requireValues(['edge'])
+    // The slim Edge has no email handler, so the rule must already target Core before it is published.
+    log(`${EMAIL_ROUTING(names)} The slim Edge published next has no email handler.`)
     const status = await publish(['edge'])
-    log(`Repoint the newsletter Email Routing rule from ${names.edge} to ${names.core} in the Cloudflare dashboard, check the slim Edge, then run step 4.`)
+    if (!status) log('Check the slim Edge, then run step 4.')
     return status
   }
   // Step 4 is the only irreversible step: it deletes the MCP server's stored sessions.

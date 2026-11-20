@@ -52,7 +52,7 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env             # wrangler s
 
 1. `--step 1` は Browser と Objects を公開します。Objects の三つの namespace を確認します。
 2. `--step 2` は各キューの Edge consumer と Edge の cron を外し、Workflow・consumer・cron・Objects への DO binding を持つ Core を公開してから AI を公開します（AI が束縛する Workflow は新しい Core がエクスポートします）。その間メッセージはデプロイ一回分キューで待機し、AI の公開が終わるまでブックマーク検索は失敗します（旧 AI が Core の廃止済み jieba 名前空間で分かち書きするため）。低負荷の時間帯に実行してください。全 Workflow とキュー consumer が Core に属さなければ失敗し、Workflow の所属を前後で表示します。実行中のインスタンスが進行することを確認します。
-3. `--step 3` は軽量化した Edge を公開します。その後ダッシュボードで newsletter の Email Routing ルールを Edge から Core に向けます。
+3. `--step 3` の前に、ダッシュボードで newsletter の Email Routing ルールを Edge から Core に向けます（Core は第 2 段階からメールを処理でき、軽量化した Edge にはメール処理がありません）。その後 `--step 3` で軽量化した Edge を公開します。
 4. 軽量化した Edge でルート、`ContentEntry`、画像プロキシ、AI ルート、WebSocket upgrade、キューの往復、Workflow 作成を確認します。その後 `--step 4` は全所属チェックの合格を求め、`retire-mcp-v1` を持つ Edge、Core の順に公開し、`SlaxMcpServer` namespace が残っていないことを確認します。このステップは不可逆で、保存済み MCP セッションを完全に削除します。Edge を先にするのは、他の Worker が Core の namespace を binding している間は Cloudflare が削除を拒否するためです。非公開設定の Core 履歴に `SlaxMcpServer` が記録されていない場合は、ステップ 4 の前に Cloudflare が報告する tag で追加してください（例：`{ tag = "v2", new_sqlite_classes = ["SlaxMcpServer"] }`）。Wrangler は削除のみを追加します。
 
 ロールバック：ステップ 2 より前は `wrangler rollback` で旧版に戻します。ステップ 2 以降ステップ 4 より前は、Edge にキュー consumer と cron を戻し、旧 Edge（Workflow を宣言）、旧 Core の順に再デプロイし、Email Routing を Edge に戻します。namespace は削除されていないためデータは失われません。ステップ 4 以降は MCP namespace が削除済みで、Wrangler はそのデプロイより前へのロールバックを拒否します。他の構成変更は上記の方法で戻せますが、`SlaxMcpServer` を export しない版を使います。

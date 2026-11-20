@@ -1,6 +1,6 @@
 import type { PromotionStatus } from '@slax-reader/contracts/interface'
 import { receiveActivityType, subscriptionInterval } from '../infra/repository/dbSubscription'
-import { differenceInDays, differenceInMilliseconds, format } from 'date-fns'
+import { differenceInDays, differenceInMilliseconds, format, isValid } from 'date-fns'
 import Stripe from 'stripe'
 import { ErrorParam, NotSubscriptionError, ReceiveActivityAlreadyReceivedError, SubscriptionNotExpired, UnknownStripePriceId, UserNotFoundError } from '../const/err'
 import { SlaxEvent, SlaxEventResult, subscriptionCancelReason, SubscriptionService } from './subscription'
@@ -647,7 +647,9 @@ export class SubscriptionServiceMain {
         subMessage: $i.receiveActivitySubMessage({})
       }
     }
-    return { title: $i.receiveActivityTitle({}), message: $i.receiveActivityResult({ end_time: format(new Date(result.endTime), 'yyyy-MM-dd') }), subMessage: '' }
+    // An unparseable end time must not turn a claimed reward into a 500 (date-fns throws where moment printed "Invalid date").
+    const endTime = new Date(result.endTime)
+    return { title: $i.receiveActivityTitle({}), message: $i.receiveActivityResult({ end_time: isValid(endTime) ? format(endTime, 'yyyy-MM-dd') : '' }), subMessage: '' }
   }
 
   public async redeemSubscription(ctx: ContextManager, code: string) {
