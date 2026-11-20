@@ -8,7 +8,7 @@ Work runs in the isolated worktree on `perf/split-api-worker-tiers`, cut from `o
 |---|---|---|
 | `npx tsc --project tsconfig.json --noEmit` (apps/api) | passes | passes |
 | API ESLint | 0 errors, 344 warnings | 0 errors, 335 warnings |
-| Full API Vitest | 272 files, 4343 passed, 167 skipped | 277 files, 4439 passed, 167 skipped, 0 failed |
+| Full API Vitest | 272 files, 4343 passed, 167 skipped | 277 files, 4447 passed, 167 skipped, 0 failed |
 | Root tooling `node --test tooling/*.test.mjs` | not rerun | 282 passed, 2 skipped, 0 failed |
 | `test/script/layerArchitecture.test.ts` | passes | 45 passed; baseline keys renamed for moved files only, no count raised, no entry added |
 
@@ -31,6 +31,14 @@ The change requester asked for the `SlaxMcpServer` namespaces to be deleted comp
 - Generated configuration per phase, checked with a Wrangler dry run against a history containing `SlaxMcpServer`: steady Core has tags `v1 v2 vector-preference-v1 retire-mcp-v1` and the normal entry; step 2–3 Core has the history without `retire-mcp-v1` and `src/entry/transition/core.ts`; step 3 Edge has no migrations and `src/entry/transition/edge.ts`; step 4 Edge has only `retire-mcp-v1` and the normal entry. All four bundle.
 - `deployPaths.test.ts` covers each phase, histories that already delete or never created the class, and the per-phase entry file. `topology.test.ts` shows steps 1 to 3 delete nothing, step 4 refuses to run while ownership is incomplete, publishes Edge before Core (the fake account rejects Core first, as Cloudflare does), verifies no namespace remains, is idempotent, and that a remaining namespace blocks normal releases. A namespace of the same class on an unrelated script is ignored.
 - Not exercised: the deletion on a real account, which is part of task 8.3.
+
+## Runtime values, bindings and entries per Worker (2026-11-20)
+
+The change requester asked whether the split affects `ctx.env`, secrets or the behavior of each entry. Each Worker's built bundle (metafile inputs with bytes in output) was scanned for `env.X` reads and compared with its generated configuration and, read-only and by name only, with the live script settings of production, beta and test. No secret value was read.
+
+- **Bindings.** Every binding a bundle reads is in its generated configuration, except that `browserConfig` dropped the Browser Worker's `BROWSER` binding (a defect introduced in this change; `origin/dev` kept it). Fixed and covered in `deployPaths.test.ts`. Core's `VECTORIZE1..5` are fallbacks only when `VECTOR` is absent; Core binds `VECTOR`, as `origin/dev` did.
+- **Secrets.** Deploys use `--keep-vars`, so secrets set with `wrangler secret put` stay on their original script. `DEEPSEEK_API_KEY` exists only on the old Edge in production and beta; the YouTube article and podcast Workflows that read it move to Core, and AI reads it too, so those Workflows would fail after step 2. The test account has 17 Core and 5 AI keys only on the old Edge. Added `script/deploy/runtimeKeys.ts`, a bundle-derived test keeping it exact, and a check (`missingRuntimeValues`) that stops steps 1 to 3 and normal releases while a Worker lacks a key another API Worker holds and `[vars]` does not publish. Run read-only against the three environments, it reported exactly these keys (plus `FRONT_END_URL` for Objects, which the real `[vars]` publishes). Keys held by no Worker (for example `APP_STORE_*` and `TELEGRAM_WEBHOOK_SECRET` in production) are unconfigured today and are not reported.
+- **Entries.** The six Workflow bodies and `contentHandler` differ from `origin/dev` only in the generated-registry import path. Edge's forwarding (identity, shared secret, ray ID, Authorization stripping) is unchanged; AI now receives 13 routes instead of 5 through the same middleware chain (CORS, auth, request log, rate limit) as Core, so authentication, allowlists and limits apply as before. `ContentEntry` still forwards to `CORE`. Objects reads only `BROWSER`, `OSS`, `DB`, `HYPERDRIVE` and `FRONT_END_URL`, all bound.
 
 ## Running environment
 

@@ -21,6 +21,7 @@ function fixture() {
     'script/deploy/build.ts',
     'script/deploy/deploy.ts',
     'script/deploy/topology.ts',
+    'script/deploy/runtimeKeys.ts',
     'script/deploy/wrangler.ts',
     'script/deploy/gen-config.ts',
     'script/deploy/init-config.ts'

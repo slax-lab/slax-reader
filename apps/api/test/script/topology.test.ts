@@ -5,6 +5,7 @@ import { describe, expect, test, vi } from 'vitest'
 import { ROOT } from '../../script/root'
 import { cloudflareApi, requireTopology, topologyProblems, transition, type CloudflareApi, type TopologyState } from '../../script/deploy/topology'
 import { workerNames, type ApiConfig, type McpPhase, type Target } from '../../script/deploy/config'
+import { RUNTIME_KEYS } from '../../script/deploy/runtimeKeys'
 
 const config = parse(fs.readFileSync(path.join(ROOT, 'deploy/cloudflare/api.toml.example'), 'utf8')) as ApiConfig
 const workflows = (config.workflows as { name: string; class_name: string }[]).map(workflow => workflow.name)
@@ -15,6 +16,10 @@ const EDGE = names.edge
 // An in-memory account that applies the same changes the Cloudflare API would.
 function account(owner: 'edge' | 'core', extra: Partial<TopologyState> = {}) {
   const script = owner === 'edge' ? EDGE : 'reader-core'
+  // Secret and plain-text names per script; by default every Worker already holds what its code reads, and the
+  // old Edge holds every key, as the live accounts did before the split.
+  const secrets: Record<string, Set<string>> = Object.fromEntries((['edge', 'core', 'ai', 'objects'] as const).map(target => [names[target], new Set(RUNTIME_KEYS[target])]))
+  for (const keys of Object.values(RUNTIME_KEYS)) for (const key of keys) secrets[EDGE].add(key)
   const state: TopologyState = {
     scripts: ['reader-browser', 'reader-core', 'reader-ai', EDGE],
     workflows: (config.workflows as { name: string; class_name: string }[]).map(workflow => ({ ...workflow, script_name: script })),
@@ -36,6 +41,8 @@ function account(owner: 'edge' | 'core', extra: Partial<TopologyState> = {}) {
     },
     async get<T>(pathname: string) {
       calls.push(`GET ${pathname}`)
+      const settings = /^\/workers\/scripts\/([^/]+)\/settings$/.exec(pathname)
+      if (settings) return { bindings: [...(secrets[decodeURIComponent(settings[1])] ?? [])].map(name => ({ name, type: 'secret_text' })) } as T
       const schedule = /^\/workers\/scripts\/([^/]+)\/schedules$/.exec(pathname)
       if (schedule) return { schedules: (state.schedules[decodeURIComponent(schedule[1])] ?? []).map(cron => ({ cron })) } as T
       throw new Error(`unexpected ${pathname}`)
@@ -68,7 +75,7 @@ function account(owner: 'edge' | 'core', extra: Partial<TopologyState> = {}) {
     }
     return 0
   })
-  return { state, api, calls, deploy }
+  return { state, api, calls, deploy, secrets }
 }
 
 const quiet = () => {}
@@ -164,6 +171,44 @@ describe('topology:transition', () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining('Transition incomplete'))
     expect(calls.filter(call => !call.startsWith('GET '))).toEqual([])
     expect(deploy).not.toHaveBeenCalled()
+  })
+})
+
+describe('values that move with the code', () => {
+  test('a secret set only on Edge stops the step that moves its reader, naming the key and never its value', async () => {
+    const { api, deploy, secrets } = account('edge', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    secrets['reader-core'].delete('DEEPSEEK_API_KEY')
+    secrets['reader-ai'].delete('DEEPSEEK_API_KEY')
+    await expect(transition({ step: 2, dryRun: false, api, config, deploy, log: quiet })).rejects.toThrow(/reader-ai: DEEPSEEK_API_KEY\n- reader-core: DEEPSEEK_API_KEY/)
+    expect(deploy).not.toHaveBeenCalled()
+    const log = vi.fn()
+    await transition({ step: 2, dryRun: true, api, config, deploy, log })
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('would stop: These Workers lack values'))
+  })
+
+  test('a value published through [vars] satisfies the check, and a new Worker needs keys other Workers hold', async () => {
+    const { api, deploy, secrets } = account('edge')
+    delete secrets['reader-objects']
+    const withVars = structuredClone(config)
+    delete (withVars.vars as Record<string, unknown>).FRONT_END_URL
+    await expect(transition({ step: 1, dryRun: false, api, config: withVars, deploy, log: quiet })).rejects.toThrow('reader-objects: FRONT_END_URL')
+    expect(await transition({ step: 1, dryRun: false, api, config, deploy, log: quiet })).toBe(0)
+  })
+
+  test('a key no Worker holds is an unconfigured optional feature and does not block', async () => {
+    const { state, api, secrets } = account('core', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    state.schedules[EDGE] = []
+    for (const keys of Object.values(secrets)) keys.delete('TELEGRAM_WEBHOOK_SECRET')
+    expect(RUNTIME_KEYS.core).toContain('TELEGRAM_WEBHOOK_SECRET')
+    await expect(requireTopology(api, config)).resolves.toBeUndefined()
+  })
+
+  test('normal releases stop while any Worker lacks a value', async () => {
+    const { state, api, secrets } = account('core', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    state.schedules[EDGE] = []
+    await expect(requireTopology(api, config)).resolves.toBeUndefined()
+    secrets['reader-core'].delete('STRIPE_SECRET_KEY')
+    await expect(requireTopology(api, config)).rejects.toThrow('reader-core: STRIPE_SECRET_KEY')
   })
 })
 

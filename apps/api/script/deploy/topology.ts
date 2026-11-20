@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { type ApiConfig, type McpPhase, parseArgs, readConfig, workerNames, type Target } from './config'
 import { loadApiEnv } from '../env'
+import { RUNTIME_KEYS } from './runtimeKeys'
 
 // Read-only view of the Cloudflare account state that decides which Worker owns each job surface.
 export interface TopologyState {
@@ -97,11 +98,45 @@ export function topologyProblems(state: TopologyState, config: ApiConfig): strin
   return problems
 }
 
+// Values that would be lost when code moves to another Worker, by name only. Deploys use --keep-vars, so a
+// secret set by `wrangler secret put` stays only on the script that had it. A key the new owner's code reads that
+// another API Worker of this installation holds, but neither the new owner nor the published [vars] provides, is
+// such a loss. Keys no API Worker holds are optional features that are unconfigured today and are not reported.
+export async function missingRuntimeValues(api: CloudflareApi, config: ApiConfig, targets: readonly (keyof typeof RUNTIME_KEYS)[]): Promise<Record<string, string[]>> {
+  const names = workerNames(config)
+  const scripts = new Set((await api.list<{ id: string }>('/workers/scripts')).map(script => script.id))
+  const published = new Set(Object.keys((config.vars as Record<string, unknown> | undefined) ?? {}))
+  const held: Record<string, Set<string>> = {}
+  for (const target of ['edge', 'core', 'ai', 'objects'] as const) {
+    held[target] = new Set()
+    if (!scripts.has(names[target])) continue
+    const settings = await api.get<{ bindings?: { name: string; type: string }[] }>(`/workers/scripts/${encodeURIComponent(names[target])}/settings`)
+    for (const binding of settings.bindings ?? []) if (binding.type === 'secret_text' || binding.type === 'plain_text') held[target].add(binding.name)
+  }
+  const anywhere = new Set(Object.values(held).flatMap(keys => [...keys]))
+  const missing: Record<string, string[]> = {}
+  for (const target of targets) {
+    const lacking = RUNTIME_KEYS[target].filter(key => anywhere.has(key) && !published.has(key) && !held[target].has(key))
+    if (lacking.length) missing[names[target]] = lacking
+  }
+  return missing
+}
+
+const describeMissing = (missing: Record<string, string[]>) =>
+  Object.entries(missing)
+    .map(([script, keys]) => `- ${script}: ${keys.join(', ')}`)
+    .join('\n')
+
 export const TRANSITION_HINT = 'Run `pnpm api -- topology:transition --step <1..4>` for this installation first (docs/api/CLOUDFLARE-DEPLOY-EN.md, "Five-Worker transition").'
 
 export async function requireTopology(api: CloudflareApi, config: ApiConfig): Promise<void> {
   const problems = topologyProblems(await readState(api, config), config)
   if (problems.length) throw new Error(`This installation has not completed the five-Worker transition:\n- ${problems.join('\n- ')}\n${TRANSITION_HINT}`)
+  const missing = await missingRuntimeValues(api, config, ['edge', 'core', 'ai', 'objects'])
+  if (Object.keys(missing).length)
+    throw new Error(
+      `These Workers lack values their code reads. Add them to [vars] of the selected configuration or set them as secrets, then release again:\n${describeMissing(missing)}`
+    )
 }
 
 export type Deploy = (targets: Target[], mcp: McpPhase) => Promise<number>
@@ -133,9 +168,21 @@ export async function transition({ step, dryRun, api, config, deploy, log = cons
   }
   // Steps 1 to 3 change only ownership and keep every namespace, so each can be rolled back.
   const pendingOwnership = (state: TopologyState) => topologyProblems(state, config).filter(problem => !problem.startsWith('Edge ') && !problem.startsWith('MCP '))
-  if (step === 1) return publish(['browser', 'objects'])
+  // Every Worker that newly runs moved code must already hold the values that code reads.
+  const requireValues = async (targets: readonly (keyof typeof RUNTIME_KEYS)[]) => {
+    const missing = await missingRuntimeValues(api, config, targets)
+    if (!Object.keys(missing).length) return
+    const message = `These Workers lack values their code reads. Add them to [vars] of the selected configuration or run \`pnpm api -- wrangler <worker> secret put <NAME>\` for each, then rerun this step:\n${describeMissing(missing)}`
+    if (dryRun) log(`would stop: ${message}`)
+    else throw new Error(message)
+  }
+  if (step === 1) {
+    await requireValues(['objects'])
+    return publish(['browser', 'objects'])
+  }
   if (step === 2) {
     if (!before.scripts.includes(names.objects)) throw new Error(`Step 2 requires ${names.objects}; run step 1 first`)
+    await requireValues(['ai', 'core'])
     const status = await publish(['ai'])
     if (status) return status
     for (const queue of before.queues)
@@ -156,6 +203,7 @@ export async function transition({ step, dryRun, api, config, deploy, log = cons
   if (step === 3) {
     const pending = pendingOwnership(before)
     if (pending.length) throw new Error(`Step 3 requires step 2:\n- ${pending.join('\n- ')}`)
+    await requireValues(['edge'])
     const status = await publish(['edge'])
     log(`Repoint the newsletter Email Routing rule from ${names.edge} to ${names.core} in the Cloudflare dashboard, check the slim Edge, then run step 4.`)
     return status

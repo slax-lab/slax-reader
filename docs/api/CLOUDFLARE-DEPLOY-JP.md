@@ -41,6 +41,8 @@ placement は `apps/api/script/deploy/config.ts` の `DATABASE_REGION`（主 Pos
 
 通常の `deploy` はアカウント状態（Worker、Workflow、キュー、cron、Durable Object namespace）を読み、Objects/AI/Core が未デプロイ、Workflow かキュー consumer が Edge に残っている、Edge に cron がある、または `SlaxMcpServer` namespace が残っている場合は公開前に停止します。移行は環境ごとに一度、test アカウント、beta、本番（低負荷時間帯）の順に実行します。`CLOUDFLARE_API_TOKEN`（Workers Scripts・Queues・Workflows・Durable Objects の編集権限）または `wrangler login` のトークンを使い、`--config`/`--env` は `deploy` と同じです。各ステップは状態を先に読み、再実行でき、`--dry-run` に対応します。ステップ 1〜3 は何も削除せず、Core と Edge はステップ 4 まで MCP スタブ（`src/entry/transition/`）を export し続けます。
 
+値はコードと一緒に移す必要があります。デプロイは `--keep-vars` を使うため、`wrangler secret put` で設定した secret は元のスクリプトにのみ残ります。`apps/api/script/deploy/runtimeKeys.ts` は各 Worker のコードが読む文字列変数と secret を列挙します（テストがバンドルから再導出します）。ステップ 1〜3 の公開前と通常リリースの前に、ある Worker が読み、同じ環境の別の API Worker が持つが、その Worker 自身にも選択した `[vars]` にもないキーを名前のみで列挙して停止します。非公開設定の `[vars]` に追加するか、その Worker に `pnpm api -- wrangler <worker> secret put <NAME>` を実行してください。2026-11-20 の読み取り専用チェックでは、本番と beta の `DEEPSEEK_API_KEY` が旧 Edge にのみあり（Core に移る YouTube 記事・ポッドキャスト Workflow と AI が読む）、test アカウントでは Core の 17 個・AI の 5 個のキーが旧 Edge にのみありました。どの Worker にもないキーは未設定の任意機能として報告しません。
+
 1. `--step 1` は Browser と Objects を公開します。Objects の三つの namespace を確認します。
 2. `--step 2` は AI を公開し、各キューの Edge consumer と Edge の cron を外してから、Workflow・consumer・cron・Objects への DO binding を持つ Core を公開します。その間メッセージはデプロイ一回分キューで待機します。全 Workflow とキュー consumer が Core に属さなければ失敗し、Workflow の所属を前後で表示します。実行中のインスタンスが進行することを確認します。
 3. `--step 3` は軽量化した Edge を公開します。その後ダッシュボードで newsletter の Email Routing ルールを Edge から Core に向けます。

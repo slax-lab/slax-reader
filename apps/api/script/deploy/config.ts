@@ -309,10 +309,12 @@ export function workerConfig(config: ApiConfig, target: Target, local = false, m
 }
 
 function browserConfig(output: TomlTable): TomlTable {
+  // The Browser Rendering binding is the Browser Worker's only resource; keep it before clearing the rest.
+  const browser = structuredClone(output.browser)
   for (const key of [...BINDING_KEYS, 'limits', 'placement']) delete output[key]
   output.durable_objects = { bindings: [{ name: 'SLAX_BROWSER', class_name: 'SlaxBrowser' }] }
   output.migrations = [{ tag: 'v1', new_classes: ['SlaxBrowser'] }]
-  output.browser = structuredClone(output.browser)
+  output.browser = browser
   delete output.pipelines
   if (output.vars) delete (output.vars as TomlTable).DIAGNOSTIC_DOWNLOAD_SECRET
   output.workers_dev = false

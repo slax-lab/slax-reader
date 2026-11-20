@@ -3,7 +3,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+import ts from 'typescript'
 import { API_ROOT, ROOT } from '../../script/root'
+import { RUNTIME_KEYS } from '../../script/deploy/runtimeKeys'
 
 // Builds every Worker with the published configuration (minified, offline) and inspects which
 // modules reach each bundle, so a stray import fails here before it reaches a deploy.
@@ -13,6 +15,7 @@ const BIN = path.join(API_ROOT, 'node_modules/.bin')
 
 let directory: string
 const modules: Partial<Record<Target, string[]>> = {}
+const configs: Partial<Record<Target, Record<string, any>>> = {}
 const assets: Partial<Record<Target, string[]>> = {}
 
 beforeAll(() => {
@@ -87,5 +90,35 @@ describe('each Worker bundles only its own code', () => {
     expect(assets.objects!.some(name => /jieba.*\.wasm$/.test(name))).toBe(true)
     for (const owned of ['src/utils/hybridSearch/jieba.ts', 'src/infra/message/websocket.ts', 'src/entry/objects/screenshotBrowser.ts'])
       expect(modules.objects, owned).toContain(owned)
+  })
+})
+
+// Env names a Worker's bundled source reads, from the same declarations the Env type uses.
+const envText = fs.readFileSync(path.join(API_ROOT, 'worker-configuration.d.ts'), 'utf8').split('// Begin runtime types')[0]
+const declared = new Map([...envText.matchAll(/^\s+([A-Za-z][A-Za-z0-9_]*)\??:\s*([^\n]+)/gm)].map(match => [match[1], match[2].trim()]))
+const STRING = /^string\b/
+function envReads(target: Target): Set<string> {
+  const found = new Set<string>()
+  for (const file of modules[target]!.filter(name => /^src\/.*\.ts$/.test(name))) {
+    const source = ts.createSourceFile(file, fs.readFileSync(path.join(API_ROOT, file), 'utf8'), ts.ScriptTarget.Latest, true)
+    const envLike = (node: ts.Node) => /(^|\.)env[!?]?$|^env$|Env$/.test(node.getText(source))
+    const visit = (node: ts.Node) => {
+      if (ts.isPropertyAccessExpression(node) && declared.has(node.name.text) && envLike(node.expression)) found.add(node.name.text)
+      if (ts.isVariableDeclaration(node) && node.initializer && ts.isObjectBindingPattern(node.name) && envLike(node.initializer))
+        for (const element of node.name.elements) {
+          const key = element.propertyName ?? element.name
+          if (ts.isIdentifier(key) && declared.has(key.text)) found.add(key.text)
+        }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+  }
+  return found
+}
+
+describe('runtime values follow the code', () => {
+  test.each(['edge', 'core', 'ai', 'objects'] as const)('RUNTIME_KEYS.%s lists exactly the string values its bundle reads', target => {
+    const strings = [...envReads(target)].filter(name => STRING.test(declared.get(name)!) && name !== 'API_QUEUE_CHANNELS').sort()
+    expect([...RUNTIME_KEYS[target]].sort(), 'update script/deploy/runtimeKeys.ts so the transition and release checks cover it').toEqual(strings)
   })
 })

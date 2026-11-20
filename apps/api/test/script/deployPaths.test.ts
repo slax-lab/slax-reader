@@ -102,6 +102,10 @@ describe('single API configuration', () => {
     expect(doTargets(ai)).toEqual({ SLAX_JIEBA: 'custom-objects', WEBSOCKET_SERVER: 'custom-objects', SCREENSHOT_BROWSER: 'custom-objects', VECTOR_V5_PREFERENCE: 'custom-core' })
     expect(doTargets(objects)).toEqual({ SLAX_JIEBA: 'self', WEBSOCKET_SERVER: 'self', SCREENSHOT_BROWSER: 'self' })
     expect(doTargets(browser)).toEqual({ SLAX_BROWSER: 'self' })
+    // Browser Rendering is reached only through the Browser Worker (src/utils/browser.ts reads env.BROWSER).
+    expect(browser.browser).toEqual(config.browser)
+    expect(core.browser).toEqual(config.browser)
+    for (const output of [edge, ai]) expect(output.browser).toBeUndefined()
     expect(edge.durable_objects).toBeUndefined()
     for (const workflow of core.workflows as TomlTable[]) expect(workflow.script_name).toBeUndefined()
     for (const workflow of ai.workflows as TomlTable[]) expect(workflow.script_name).toBe('custom-core')

@@ -20,7 +20,7 @@ function harness(local: boolean, runtimeFile: boolean) {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'slax-dev-runtime-'))
   fixtures.push(root)
   const api = path.join(root, 'apps/api')
-  for (const file of ['script/root.ts', 'script/env.ts', 'script/deploy/config.ts', 'script/deploy/deploy.ts', 'script/deploy/topology.ts']) {
+  for (const file of ['script/root.ts', 'script/env.ts', 'script/deploy/config.ts', 'script/deploy/deploy.ts', 'script/deploy/topology.ts', 'script/deploy/runtimeKeys.ts']) {
     const destination = path.join(api, file)
     fs.mkdirSync(path.dirname(destination), { recursive: true })
     fs.copyFileSync(path.join(API_ROOT, file), destination)
