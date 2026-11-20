@@ -1,5 +1,7 @@
 import { WorkerEntrypoint } from 'cloudflare:workers'
 import { appendTiming, copyResponse, elapsedMs, serverTimingEnabled } from '@/utils/diagnosticHeaders'
+import { ContentTiming } from '@/utils/contentTiming'
+import { EDGE_RAY_ID_HEADER } from '@/const/edge'
 
 type ContentMeta = Record<string, unknown>
 
@@ -20,6 +22,9 @@ export class ContentEntry extends WorkerEntrypoint<Env> {
     const edgeStartedAt = performance.now()
     const forwardedHeaders = new Headers(request.headers)
     const pathname = new URL(request.url).pathname
+    const timing = request.method === 'GET' && pathname === '/content/meta' ? new ContentTiming('edge', request) : undefined
+    const rayId = request.headers.get('CF-Ray')
+    if (timing && rayId) forwardedHeaders.set(EDGE_RAY_ID_HEADER, rayId)
     const authorization = forwardedHeaders.get('Authorization') || ''
     if (pathname.startsWith('/content/') && authorization.startsWith('Bearer ')) {
       forwardedHeaders.set('x-slax-token', authorization.slice(7))
@@ -27,13 +32,19 @@ export class ContentEntry extends WorkerEntrypoint<Env> {
     }
 
     const coreStartedAt = performance.now()
-    const response = await this.env.CORE.fetch(new Request(request, { headers: forwardedHeaders }))
-    if (!serverTimingEnabled(this.env)) return response
+    let statusCode: number | undefined
+    try {
+      const response = await this.env.CORE.fetch(new Request(request, { headers: forwardedHeaders }))
+      statusCode = response.status
+      if (!serverTimingEnabled(this.env)) return response
 
-    const headers = new Headers(response.headers)
-    appendTiming(headers, 'edge', 'core-fetch', elapsedMs(coreStartedAt))
-    appendTiming(headers, 'edge', 'total', elapsedMs(edgeStartedAt))
-    return copyResponse(response, headers)
+      const headers = new Headers(response.headers)
+      appendTiming(headers, 'edge', 'core-fetch', elapsedMs(coreStartedAt))
+      appendTiming(headers, 'edge', 'total', elapsedMs(edgeStartedAt))
+      return copyResponse(response, headers)
+    } finally {
+      timing?.log({ 'core-fetch': elapsedMs(coreStartedAt) }, statusCode)
+    }
   }
 
   async getContentMeta(uuid: string, token?: string): Promise<ContentMeta | null> {

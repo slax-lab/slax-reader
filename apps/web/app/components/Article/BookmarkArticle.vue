@@ -507,6 +507,38 @@ defineExpose({ findQuote, articleSelection: activeSelection })
 @use '~~/styles/article/index.scss' as article;
 @use '~~/styles/article/github-light.css' as *;
 
+// Reserve the existing card's metadata line, gap, controls and padding/borders.
+// Keep the enhanced sticky player outside the annotation root without moving it.
+.bookmark-article.snapshot:has(slax-media[data-kind='audio'], > podcast-player-view) {
+  --slax-podcast-player-height: calc(13px * 1.4 + 4px + 36px + 22px);
+
+  > .article-detail.article-body {
+    position: relative;
+    padding-top: calc(28px + var(--slax-podcast-player-height));
+
+    slax-media[data-kind='audio'] {
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      display: flex;
+      align-items: center;
+      height: var(--slax-podcast-player-height);
+
+      > audio {
+        display: block;
+        width: 100%;
+        max-width: 440px;
+      }
+    }
+  }
+
+  > podcast-player-view {
+    min-height: var(--slax-podcast-player-height);
+    margin-bottom: calc(-1 * var(--slax-podcast-player-height));
+  }
+}
+
 /* 该类下所有样式都是使用入侵的形式去调整，设置时可以根据下方注释的分类来进行对应设置 */
 
 @mixin style($type) {

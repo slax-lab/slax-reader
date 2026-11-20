@@ -1,4 +1,4 @@
-import { beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({ auth: vi.fn(), query: vi.fn(), business: vi.fn(), init: vi.fn() }))
 vi.mock('@/middleware/auth', () => ({ authToken: mocks.auth }))
 vi.mock('@/domain/orchestrator/content', () => ({ ContentOrchestrator: class {} }))
@@ -19,6 +19,8 @@ vi.mock('@/di/generated/dependency', async () => {
 })
 import { handleContentRequest } from '@/handler/http/contentHandler'
 import { BookmarkNotFoundError, UnauthorizedError } from '@/const/err'
+import { EDGE_RAY_ID_HEADER } from '@/const/edge'
+afterEach(() => vi.restoreAllMocks())
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.auth.mockImplementation(async ctx => { ctx.setUserInfo(42, 84, '', 'en') })
@@ -66,4 +68,32 @@ test('retains granular diagnostic stages for successful metadata', async () => {
     return { title: 'allowed' }
   })
   expect((await call()).headers.get('Server-Timing')).toContain('core_access-owner;dur=12.0')
+})
+
+test('records successful Core metadata stages in prod without exposing response diagnostics', async () => {
+  const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+  mocks.business.mockImplementation(async (_ctx, _uuid, recordTiming) => {
+    recordTiming('access-owner', 12)
+    return { title: 'allowed' }
+  })
+  const response = await handleContentRequest(
+    new Request('https://content.internal/content/meta?uuid=private-bookmark', { headers: { [EDGE_RAY_ID_HEADER]: 'outer-ray' } }),
+    { HASH_IDS_SALT: 'salt', RUN_TYPE: 'prod' } as Env,
+    {} as ExecutionContext
+  )
+  expect(response.status).toBe(200)
+  expect(response.headers.get('Server-Timing')).toBeNull()
+  expect(info.mock.calls.map(call => call[1])).toEqual([
+    expect.objectContaining({ scope: 'core', phase: 'entry', ray_id: 'outer-ray' }),
+    expect.objectContaining({ scope: 'core', phase: 'response', status_code: 200, phases_ms: expect.objectContaining({ 'access-owner': 12 }) })
+  ])
+  expect(JSON.stringify(info.mock.calls)).not.toContain('private-bookmark')
+})
+
+test('records the actual denied metadata status without logging the error payload', async () => {
+  const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+  mocks.business.mockRejectedValue(BookmarkNotFoundError())
+  expect((await call()).status).toBe(404)
+  expect(info.mock.calls[1][1]).toMatchObject({ scope: 'core', phase: 'response', status_code: 404, outcome: 'returned' })
+  expect(info.mock.calls[1][1]).not.toHaveProperty('error')
 })
