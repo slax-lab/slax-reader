@@ -159,6 +159,8 @@ describe('frontend-utils error log collector', () => {
     const safari = normalizeError(Object.assign(new Error('x'), { stack: 'fetchStreamRaw@https://r.slax.com/_nuxt/worker-v4.js?v=1:3239:44\n[native code]\n@https://r.slax.com/_nuxt/a.js:1:2' })).stack
     expect(compactStack(safari)).toBe('fetchStreamRaw (worker-v4.js:3239:44)\na.js:1:2')
     expect(compactStack('Error: x\n    at Array.forEach (<anonymous>)')).toBe('Array.forEach (<anonymous>)')
+    expect(compactStack('SyntaxError: x\n    at JSON.parse (<anonymous>)\n    at <anonymous> (https://r.slax.com/_nuxt/a.js:3:32)\n    at Array.forEach (<anonymous>)\n    at load (https://r.slax.com/_nuxt/a.js:3:11)')).toBe('a.js:3:32\nload (a.js:3:11)')
+    expect(compactStack('SyntaxError: x\nparse@[native code]\n@https://r.slax.com/_nuxt/a.js:3:32\nforEach@[native code]')).toBe('a.js:3:32')
     expect(compactStack('Error: only a message')).toBeUndefined()
     expect(compactStack(undefined)).toBeUndefined()
   })

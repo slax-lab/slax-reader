@@ -169,13 +169,15 @@ export const firstFrame = (stack: string | undefined): string | undefined => {
 
 // Frames from the browser, extensions, and Vue internals say where the failure surfaced, not why.
 // Production bundles inline dependencies, so only frames that still name them can be recognized.
-const NOISE_FRAME = /<anonymous>|\[native code\]|^native\b|(?:chrome|moz|safari-web)-extension:|\/node_modules\/(?:\.pnpm\/)?@?vue|\bcallWith(?:Async)?ErrorHandling\b/
+// `<anonymous>` as the location (built-ins such as `Array.forEach`) is noise; an anonymous function
+// with a real file location is application code.
+const NOISE_FRAME = /\(<anonymous>\)$|@<anonymous>$|\[native code\]|^native\b|(?:chrome|moz|safari-web)-extension:|\/node_modules\/(?:\.pnpm\/)?@?vue|\bcallWith(?:Async)?ErrorHandling\b/
 
 // `at fn (https://r.slax.com/_nuxt/a.js:1:2)` → `fn (a.js:1:2)`; `fn@https://…/a.js:1:2` → `fn (a.js:1:2)`.
 const shortenFrame = (frame: string): string => {
   const v8 = frame.match(/^at\s+(?:(.*?)\s+\()?(.*?)\)?$/)
   const jsc = v8 ? null : frame.match(/^([^@]*)@(.*)$/)
-  const fn = (v8 ? v8[1] : jsc?.[1]) || ''
+  const fn = ((v8 ? v8[1] : jsc?.[1]) || '').replace(/^<anonymous>$/, '')
   const location = (v8 ? v8[2] : jsc?.[2]) || frame
   const file = location.replace(/^(?:async\s+)?(?:[a-z][a-z0-9+.-]*:\/\/[^/]+)?(?:.*\/)?/i, '')
   return truncateBytes(fn ? `${fn} (${file})` : file, MAX_FRAME_BYTES)
