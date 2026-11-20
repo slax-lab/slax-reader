@@ -20,6 +20,7 @@ function fixture() {
     'script/deploy/config.ts',
     'script/deploy/build.ts',
     'script/deploy/deploy.ts',
+    'script/deploy/topology.ts',
     'script/deploy/wrangler.ts',
     'script/deploy/gen-config.ts',
     'script/deploy/init-config.ts'
@@ -52,7 +53,14 @@ function run(root: string, script: string, args: string[], status = 0, env: Node
   return spawnSync(path.join(API_ROOT, 'node_modules/.bin/tsx'), [path.join(root, filename), ...args], {
     cwd: root,
     encoding: 'utf8',
-    env: { PATH: `${path.join(root, 'bin')}:${process.env.PATH}`, HOME: root, SLAX_API_SKIP_DEV_PORT_GUARD: '1', MOCK_LOG: path.join(root, 'calls.jsonl'), MOCK_EXIT: String(status), ...env }
+    env: {
+      PATH: `${path.join(root, 'bin')}:${process.env.PATH}`,
+      HOME: root,
+      SLAX_API_SKIP_DEV_PORT_GUARD: '1',
+      MOCK_LOG: path.join(root, 'calls.jsonl'),
+      MOCK_EXIT: String(status),
+      ...env
+    }
   })
 }
 function calls(root: string): any[] {
@@ -167,7 +175,7 @@ describe('API build and deployment processes', () => {
     const root = fixture()
     const result = run(root, 'build', [])
     expect(result.status, result.stderr).toBe(0)
-    expect(calls(root)).toHaveLength(4)
+    expect(calls(root)).toHaveLength(5)
     for (const call of calls(root)) {
       expect(call.cwd).toBe(path.join(root, 'apps/api'))
       expect(call.args).toContain('--dry-run')
@@ -183,7 +191,7 @@ describe('API build and deployment processes', () => {
     const before = fs.readdirSync(directory).map(name => [name, fs.readFileSync(path.join(directory, name), 'utf8')])
     const result = run(root, 'build', [], status)
     expect(result.status, result.stderr).toBe(status)
-    expect(calls(root)).toHaveLength(status ? 1 : 4)
+    expect(calls(root)).toHaveLength(status ? 1 : 5)
     for (const [name, content] of before) expect(fs.readFileSync(path.join(directory, name), 'utf8')).toBe(content)
     expect(fs.readdirSync(directory).some(name => name.startsWith('.build-'))).toBe(false)
   })
@@ -213,11 +221,11 @@ describe('API build and deployment processes', () => {
     const result = run(root, 'deploy', ['--bootstrap'])
     expect(result.status, result.stderr).toBe(0)
     const output = calls(root).map(call => parse(call.config))
-    expect(output.map(config => config.name)).toEqual(['reader-browser', 'reader-core', 'reader-ai', 'reader-edge', 'reader-core'])
-    expect(output[1].services).toBeUndefined()
-    expect(output[1].workflows).toBeUndefined()
-    expect(output[4].services).toBeDefined()
-    expect(output[4].workflows).toBeDefined()
+    expect(output.map(config => config.name)).toEqual(['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', 'reader-edge', 'reader-core'])
+    expect(output[2].services).toBeUndefined()
+    expect(output[2].workflows).toBeUndefined()
+    expect(output[5].services).toBeDefined()
+    expect(output[5].workflows).toBeDefined()
   })
   test('local migration wrapper preserves arguments, persistence directory and nonzero status', () => {
     const root = fixture()

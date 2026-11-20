@@ -5,9 +5,9 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import { Auth } from '@/utils/jwt'
 import { Hashid } from '@/utils/hashids'
 
-// Actual Workerd run over a Miniflare direct socket. Edge, the generated Core router, auth,
+// Actual Workerd run over a Miniflare direct socket. Edge, the generated AI router, auth,
 // SearchController, HybridSearchOrchestrator and HybridSearchService are real. Repository,
-// fulltext, provider and native-index boundaries are fixtures in the test-only Core worker.
+// fulltext, provider and native-index boundaries are fixtures in the test-only AI worker.
 // Audit/mode state lives in a Node-side fetcher binding so service-binding isolates share it.
 
 const require = createRequire(import.meta.url)
@@ -191,8 +191,8 @@ describe('actual Workerd unified search stream', () => {
   let token: string
 
   beforeAll(async () => {
-    const [coreBundle, edgeBundle] = await Promise.all([
-      bundle(`import worker from './test/utils/hybridSearchCore.worker.ts'; export default worker;`),
+    const [aiBundle, edgeBundle] = await Promise.all([
+      bundle(`import worker from './test/utils/hybridSearchAi.worker.ts'; export default worker;`),
       bundle(`import edge from './src/entry/edge/index.ts'; export default edge;`)
     ])
     runtime = new Miniflare({
@@ -205,11 +205,11 @@ describe('actual Workerd unified search stream', () => {
             EDGE_SHARED_SECRET: text('edge-shared'),
             FRONT_END_URL: text('http://localhost:3000'),
             ...Object.fromEntries(Object.entries(JWT_ENV).map(([key, value]) => [key, text(String(value))])),
-            CORE: { type: 'worker', worker: 'core' }
+            AIGC: { type: 'worker', worker: 'ai' }
           }),
           dev: { unsafeDirectSockets: [{ host: '127.0.0.1', port: 0 }] }
         },
-        workerConfig('core', 'core.mjs', coreBundle, {
+        workerConfig('ai', 'ai.mjs', aiBundle, {
           EDGE_SHARED_SECRET: text('edge-shared'),
           FRONT_END_URL: text('http://localhost:3000'),
           ...Object.fromEntries(Object.entries(JWT_ENV).map(([key, value]) => [key, text(String(value))])),

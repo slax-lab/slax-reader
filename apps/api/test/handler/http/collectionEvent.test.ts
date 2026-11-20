@@ -11,11 +11,10 @@ vi.mock('cloudflare:workers', () => ({
   WorkflowEntrypoint: class {},
   env: {}
 }))
-vi.mock('agents/mcp', () => ({ McpAgent: class {} }))
 
 import { container } from '@/decorators/di'
 import { LogsService } from '@/domain/logs'
-import { handleContentRequest } from '@/handler/http/contentHandler'
+import { handleContentRequest } from '@/entry/core/contentHandler'
 
 const track = vi.fn().mockResolvedValue(undefined)
 
@@ -228,18 +227,15 @@ describe('collection_event platform 判定', () => {
   })
 })
 
-describe('collection_event dispatcher 挂载', () => {  test('GET 不命中该路由（只接受 POST）', async () => {
+describe('collection_event dispatcher 挂载', () => {
+  test('GET 不命中该路由（只接受 POST）', async () => {
     const res = await handleContentRequest(new Request('https://content.internal/content/collection_event'), env, execution)
     expect(res.status).toBe(404)
     expect(track).not.toHaveBeenCalled()
   })
 
   test('body 非 JSON → 500（被 dispatcher 的 catch 兜住，不抛出 worker）', async () => {
-    const res = await handleContentRequest(
-      new Request('https://content.internal/content/collection_event', { method: 'POST', body: 'not-json' }),
-      env,
-      execution
-    )
+    const res = await handleContentRequest(new Request('https://content.internal/content/collection_event', { method: 'POST', body: 'not-json' }), env, execution)
     expect(res.status).toBe(500)
     expect(track).not.toHaveBeenCalled()
   })

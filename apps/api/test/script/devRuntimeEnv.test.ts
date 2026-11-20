@@ -20,7 +20,7 @@ function harness(local: boolean, runtimeFile: boolean) {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'slax-dev-runtime-'))
   fixtures.push(root)
   const api = path.join(root, 'apps/api')
-  for (const file of ['script/root.ts', 'script/env.ts', 'script/deploy/config.ts', 'script/deploy/deploy.ts']) {
+  for (const file of ['script/root.ts', 'script/env.ts', 'script/deploy/config.ts', 'script/deploy/deploy.ts', 'script/deploy/topology.ts']) {
     const destination = path.join(api, file)
     fs.mkdirSync(path.dirname(destination), { recursive: true })
     fs.copyFileSync(path.join(API_ROOT, file), destination)
@@ -92,7 +92,8 @@ test.each([
   const { root, run } = harness(local, runtimeFile)
   // The stubbed wrangler never binds ports; skip the dev port guard so the
   // suite does not depend on whether a real dev session is running.
-  const result = run([...(local ? ['--dev'] : []), 'core'], { SLAX_API_SKIP_DEV_PORT_GUARD: '1' })
+  // The remote case runs under --transition: this fixture has no Cloudflare API for the topology check.
+  const result = run([...(local ? ['--dev'] : ['--transition']), 'core'], { SLAX_API_SKIP_DEV_PORT_GUARD: '1' })
   expect(result.status, result.stderr).toBe(0)
   const call = JSON.parse(fs.readFileSync(path.join(root, 'result.json'), 'utf8'))
   const shouldLoad = local && runtimeFile

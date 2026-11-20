@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest'
-import { BookmarkOrchestrator } from '../../src/domain/orchestrator/bookmark'
+import { BookmarkAiOrchestrator } from '../../src/domain/orchestrator/bookmarkAi'
 import { createMockCtx } from '../helpers/mockFactory'
 import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
 
@@ -13,7 +13,11 @@ function createWriter() {
 
   return {
     writer,
-    output: () => chunks.flatMap(chunk => chunk.trim().split('\n')).filter(Boolean).map(line => JSON.parse(line))
+    output: () =>
+      chunks
+        .flatMap(chunk => chunk.trim().split('\n'))
+        .filter(Boolean)
+        .map(line => JSON.parse(line))
   }
 }
 
@@ -41,16 +45,7 @@ function wire() {
     generateOverviewTag: vi.fn(),
     generateSummary: vi.fn()
   }
-  const orchestrator = new BookmarkOrchestrator(
-    bookmarkService as any,
-    tagService as any,
-    {} as any,
-    {} as any,
-    {} as any,
-    aigcService as any,
-    {} as any,
-    (() => ({})) as any
-  )
+  const orchestrator = new BookmarkAiOrchestrator(bookmarkService as any, tagService as any, aigcService as any, {} as any)
 
   return { orchestrator, bookmarkService, tagService, aigcService, repo, userRepo }
 }
@@ -131,7 +126,8 @@ describe('Collection bookmark AI data', () => {
     const { orchestrator, bookmarkService, repo, userRepo } = wire()
     if (reason === 'disabled') repo.getBookmarkShareByBookmarkId.mockResolvedValue({ is_enable: false } as never)
     if (reason === 'global-off') userRepo.getInfoByUserId.mockResolvedValue({ snapshot_sharing: false })
-    if (reason === 'deleted') repo.getUserBookmarkByUuidWithDetail.mockResolvedValue({ user_id: 10, bookmark_id: 42, deleted_at: new Date(), bookmark: { moderation_result: 0 } } as never)
+    if (reason === 'deleted')
+      repo.getUserBookmarkByUuidWithDetail.mockResolvedValue({ user_id: 10, bookmark_id: 42, deleted_at: new Date(), bookmark: { moderation_result: 0 } } as never)
     if (reason === 'moderated') repo.getUserBookmarkByUuidWithDetail.mockResolvedValue({ user_id: 10, bookmark_id: 42, deleted_at: null, bookmark: { moderation_result: 1 } })
     if (reason === 'missing') repo.getUserBookmarkByUuidWithDetail.mockResolvedValue(null as never)
     bookmarkService.getUserBookmarkOverview.mockResolvedValue({ overview: 'secret' })
@@ -140,7 +136,10 @@ describe('Collection bookmark AI data', () => {
     for (const method of ['generateBookmarkOverviewStream', 'generateBookmarkOutlineStream'] as const) {
       const stream = createWriter()
       await orchestrator[method](createMockCtx({ userId: 20 }), {
-        bmUId: 'owner-bookmark-uuid', writer: stream.writer, encoder: new TextEncoder(), isForce: false
+        bmUId: 'owner-bookmark-uuid',
+        writer: stream.writer,
+        encoder: new TextEncoder(),
+        isForce: false
       })
       expect(stream.output()).toEqual([{ type: 'progress', data: { done: true } }])
     }

@@ -20,9 +20,9 @@ pnpm api -- build
 
 Prisma は `deploy/local/.env` から `HYPERDRIVE_DATABASE_URL` と `LOGS_DATABASE_URL` を自動ロードします。手動の export は不要です。仮 URL は生成専用です。`migration:local` は logs を含まず、別コマンドを使います。`gen:pull` は pgsql/logs を明示し、schema を変更し得ます。D1 diff の入力はルート基準で、既存のマイグレーションを上書きしません。履歴 SQL は変更しないでください。
 
-`types` は api.toml の互換日付・flags を使い、隔離ディレクトリと空 env で runtime 型を生成し、手動管理の Env を維持します。wrangler types を直接実行しないでください。新しい binding はテンプレート、`script/deploy/config.ts`、Env を更新します。HTTP controller は `script/gen-routers.ts` に登録します。
+`types` は api.toml の互換日付・flags を使い、隔離ディレクトリと空 env で runtime 型を生成し、手動管理の Env を維持します。wrangler types を直接実行しないでください。新しい binding はテンプレート、`script/deploy/config.ts`、Env を更新します。HTTP controller は `script/gen-routers.ts` に登録します。`AI_ROUTES`（`src/const/routes.ts`）のパスは AI Worker、それ以外は Core が提供します。一つの controller は一つの Worker のみを担当し、混在すると生成が失敗します。Worker ごとの生成レジストリ（`src/di/generated/core` / `src/di/generated/ai`）は、その Worker の `src/entry/<worker>` からのみ import できます。
 
-任意 smoke はキャッシュ済み `postgres:17-alpine`、統合テストは追加で `redis:7-alpine` を必要とし、`--pull=never` で起動します。HTTP はポート 8787、統合テストは `slax-payment-review` と 6543 を専有し、既存リソースを再利用しません。DB テストは TRUNCATE を行い得るため、使い捨て DB のみ使用します。ログは隔離 `.tmp-root-tooling-http-*` に残ります。`dev:local` の四つのパスは同ワークスペース内に置き、空 env、dev 環境、loopback PostgreSQL、本地 Edge→Core のみを許可します。
+任意 smoke はキャッシュ済み `postgres:17-alpine`、統合テストは追加で `redis:7-alpine` を必要とし、`--pull=never` で起動します。HTTP はポート 8787、統合テストは `slax-payment-review` と 6543 を専有し、既存リソースを再利用しません。DB テストは TRUNCATE を行い得るため、使い捨て DB のみ使用します。ログは隔離 `.tmp-root-tooling-http-*` に残ります。`dev:local` はローカルの Edge・Core・AI・Objects を同時に起動します。六つのパスは同ワークスペース内に置き、空 env、dev 環境、loopback PostgreSQL、ローカルの Edge→Core・Edge→AI・Core→AI service binding と Core→Objects の Durable Object binding のみを許可します。
 
 クラウド操作には明示的な許可が必要です。[デプロイ](CLOUDFLARE-DEPLOY-JP.md)を参照してください。backfill は読み取り専用・既定で件数のみ・ルート基準の SQL 出力で、自動適用しません。Apple 証明書生成はネットワーク、Stripe は別途 CLI を必要とします。seed はありません。`keys:powersync` は PowerSync 専用の鍵を生成するもので、ブラウザーの Web Push とは関係ありません。
 
@@ -40,17 +40,18 @@ Prisma は `deploy/local/.env` から `HYPERDRIVE_DATABASE_URL` と `LOGS_DATABA
 | Local logs migrations | `pnpm api -- migration:local:logs` |
 | Deploy PostgreSQL / logs migrations | `pnpm api -- migration:deploy:pgsql` / `migration:deploy:logs` |
 | Remote D1 / fulltext migrations | `pnpm api -- migration:remote:d1` / `migration:remote:fulltext` |
-| Offline bundle | `pnpm api -- build [core\|edge\|ai\|browser]` |
+| Offline bundle | `pnpm api -- build [core\|edge\|ai\|objects\|browser]` |
 | Config generation only | `pnpm api -- deploy --dry-run` |
-| Dev with explicit isolated configs | `pnpm api -- dev:local --edge-config <file> --core-config <file> --state <dir> --env-file <empty-file>` |
+| Dev with explicit isolated configs | `pnpm api -- dev:local --edge-config <file> --core-config <file> --ai-config <file> --objects-config <file> --state <dir> --env-file <empty-file>` |
 | Real HTTP / database integration | `pnpm api -- test:http` / `test:integration:local` |
+| Move an existing installation to five Workers | `pnpm api -- topology:transition --step <1..4> [--dry-run]` |
 | Resource plan / create | `pnpm api -- resources` / `resources --apply` |
 | Wrangler command with actual config | `pnpm api -- wrangler edge <command> [args...]` |
 | Edge logs | `pnpm api -- tail` |
 | Complete local API setup | `pnpm api -- setup` |
 | Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` |
 | Diagnostics | `pnpm api -- debug:hashids` / `debug:hash-article` |
-| Optional CLI tools | `pnpm api -- stripe:webhook` / `mcp:tool` / `update:cli` |
+| Optional CLI tools | `pnpm api -- stripe:webhook` / `update:cli` |
 
 ## 環境ファイルの配置
 

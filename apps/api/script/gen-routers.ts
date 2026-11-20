@@ -5,8 +5,10 @@ import fsUtils from 'fs'
 
 interface RouteConfig {
   controllers: string[]
-  outputFile: string
+  tiers: Record<RouterTier, string>
 }
+
+type RouterTier = 'core' | 'ai'
 
 interface ControllerInfo {
   name: string
@@ -28,8 +30,10 @@ const routeConfigurations: RouteConfig[] = [
     controllers: [
       'src/handler/http/aigcController.ts',
       'src/handler/http/bookmarkController.ts',
+      'src/handler/http/bookmarkAiController.ts',
       'src/handler/http/callbackController.ts',
       'src/handler/http/collectionController.ts',
+      'src/handler/http/collectionVectorController.ts',
       'src/handler/http/markController.ts',
       'src/handler/http/shareController.ts',
       'src/handler/http/subscriptionController.ts',
@@ -39,7 +43,6 @@ const routeConfigurations: RouteConfig[] = [
       'src/handler/http/userController.ts',
       'src/handler/http/passkeyController.ts',
       'src/handler/http/diagnosticController.ts',
-      'src/handler/http/mcpController.ts',
       'src/handler/http/syncController.ts',
       'src/handler/http/promotionController.ts',
       'src/handler/http/apiKeyController.ts',
@@ -51,9 +54,16 @@ const routeConfigurations: RouteConfig[] = [
       'src/handler/http/contentRecommendationController.ts',
       'src/handler/http/searchController.ts'
     ],
-    outputFile: 'src/di/generated/readerRouter.ts'
+    tiers: { core: 'src/di/generated/core/readerRouter.ts', ai: 'src/di/generated/ai/aiRouter.ts' }
   }
 ]
+
+function aiRoutes(projectRoot: string): Set<string> {
+  const source = fsUtils.readFileSync(pathUtils.join(projectRoot, 'src/const/routes.ts'), 'utf-8')
+  const list = source.match(/AI_ROUTES[^=]*=\s*\[([\s\S]*?)\]/)
+  if (!list) throw new Error('src/const/routes.ts must declare AI_ROUTES')
+  return new Set(Array.from(list[1].matchAll(/'([^']+)'/g), match => match[1]))
+}
 
 function generateRoutes(): void {
   const projectRoot: string = API_ROOT
@@ -64,7 +74,6 @@ function generateRoutes(): void {
 }
 
 function generateRouteRegistration(config: RouteConfig, projectRoot: string): void {
-  const outputFile: string = pathUtils.join(projectRoot, config.outputFile)
   const routes: RouteInfo[] = []
   const controllerImports: Map<string, string> = new Map<string, string>()
   if (!config.controllers || config.controllers.length === 0) {
@@ -90,7 +99,20 @@ function generateRouteRegistration(config: RouteConfig, projectRoot: string): vo
     })
   }
 
-  generateOutput(routes, controllerImports, outputFile, projectRoot, DEFAULT_CONTROLLER_DIR)
+  const ai = aiRoutes(projectRoot)
+  const missing = Array.from(ai).filter(path => !routes.some(route => route.path === path))
+  if (missing.length) throw new Error(`AI_ROUTES lists paths without a handler: ${missing.join(', ')}`)
+  // A controller's constructor graph is bundled whole, so one controller must not serve both Workers.
+  const mixed = Array.from(controllerImports.keys()).filter(name => {
+    const own = routes.filter(route => route.controllerName === name)
+    return own.some(route => ai.has(route.path)) && own.some(route => !ai.has(route.path))
+  })
+  if (mixed.length) throw new Error(`Controllers mix AI and Core routes; split them so each Worker bundles only its own: ${mixed.join(', ')}`)
+  for (const tier of ['core', 'ai'] as const) {
+    const selected = routes.filter(route => ai.has(route.path) === (tier === 'ai'))
+    const imports = new Map(Array.from(controllerImports).filter(([name]) => selected.some(route => route.controllerName === name)))
+    generateOutput(selected, imports, pathUtils.join(projectRoot, config.tiers[tier]), projectRoot, DEFAULT_CONTROLLER_DIR)
+  }
 }
 
 function scanDirectoryController(dir: string, routes: RouteInfo[], controllerImports: Map<string, string>, baseDirPath: string): void {
@@ -218,13 +240,13 @@ function generateOutput(routes: RouteInfo[], controllerImports: Map<string, stri
   const controllersToImportPath: string = pathUtils.relative(pathUtils.dirname(outputFile), pathUtils.join(projectRoot, baseDirPath)).replace(/\\/g, '/')
 
   const routeRegistrationCode: string = `import { Router } from 'itty-router'
-import { auth } from '../../middleware/auth'
-import { requestLog } from '../../middleware/requestLog'
-import { cors } from '../../middleware/cors'
-import { rateLimit } from '../../middleware/rateLimit'
+import { auth } from '../../../middleware/auth'
+import { requestLog } from '../../../middleware/requestLog'
+import { cors } from '../../../middleware/cors'
+import { rateLimit } from '../../../middleware/rateLimit'
 import { ContextManager } from '@/utils/context'
-import { Container } from '../../decorators/di'
-import { NotFound, Successed } from '../../utils/responseUtils'
+import { Container } from '../../../decorators/di'
+import { NotFound, Successed } from '../../../utils/responseUtils'
 ${Array.from(controllerImports.entries())
   .map(entry => {
     const className: string = entry[0]

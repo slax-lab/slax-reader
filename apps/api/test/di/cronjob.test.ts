@@ -1,7 +1,7 @@
 /**
  * The generated cron dispatcher runs every job of a schedule. Two jobs on "*\/5" (import progress
  * and the YouTube article sweep) must both run; a Map keyed by schedule alone kept only the last.
- * 来源: script/gen-cron.ts → src/di/generated/cronjob.ts
+ * 来源: script/gen-cron.ts → src/di/generated/core/cronjob.ts
  */
 import { describe, expect, test, vi } from 'vitest'
 
@@ -13,7 +13,7 @@ vi.mock('../../src/handler/cron/bookmarkJob', () => ({ BookmarkJob: class Bookma
 vi.mock('../../src/handler/cron/collectionJob', () => ({ CollectionJob: class CollectionJob {} }))
 vi.mock('../../src/handler/cron/youtubeArticleJob', () => ({ YoutubeArticleJob: class YoutubeArticleJob {} }))
 
-import { handleCronjob } from '@/di/generated/cronjob'
+import { handleCronjob } from '@/di/generated/core/cronjob'
 
 function fakeContainer() {
   const called: string[] = []

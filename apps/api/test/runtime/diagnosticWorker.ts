@@ -1,10 +1,12 @@
 import core from '../../src/entry/core/index'
+import ai from '../../src/entry/ai/index'
 import { container } from '../../src/decorators/di'
-import { initializeInfrastructure } from '../../src/di/generated/dependency'
+import { initializeInfrastructure } from '../../src/di/generated/core/dependency'
 import { ContextManager } from '../../src/utils/context'
 import { UserDeletionService } from '../../src/domain/userDeletion'
 import { snapshotAiProviderResponse } from './snapshotAiSmoke'
-export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser } from '../../src/entry/core/index'
+export { SlaxJieba, SlaxWebSocketServer, ScreenshotBrowser } from '../../src/entry/retired'
+export { CrawlWorkflow } from '../../src/entry/core/index'
 
 const sink = 'https://diagnostic-capture.fixture.invalid/report'
 const messages: string[] = []
@@ -38,10 +40,9 @@ export default {
     if (!local && !contentBinding) return new Response('Local fixture only', { status: 403 })
     const aiFeature = /^\/__fixture\/snapshot-ai\/(outline|overview|chat)$/.exec(url.pathname)?.[1]
     if (aiFeature) {
-      // The isolated launcher supports Edge-to-Core only. Route to the real Core AI
-      // handlers here; production AiEntry delegates to the same Core worker.
+      // Serve the real AI Worker handlers inside this fixture so the provider stub in this isolate answers them.
       url.pathname = aiFeature === 'chat' ? '/v1/aigc/chat' : `/v1/bookmark/${aiFeature}`
-      return core.fetch(new Request(url, request), { ...env, VERTEX_API_KEY: 'snapshot-ai-fixture' }, execution)
+      return ai.fetch(new Request(url, request), { ...env, VERTEX_API_KEY: 'snapshot-ai-fixture' }, execution)
     }
     if (url.pathname === '/__fixture/diagnostic-object-missing') return Response.json((await env.DIAGNOSTICS!.head(url.searchParams.get('key')!)) === null)
     if (url.pathname === '/__fixture/diagnostic-notifications') return Response.json(messages)
@@ -86,5 +87,6 @@ export default {
       }
     } as Queue
     return core.fetch(request, fixtureEnv, execution)
-  }
+  },
+  email: core.email
 }

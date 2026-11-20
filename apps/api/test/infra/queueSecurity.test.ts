@@ -4,7 +4,7 @@ vi.mock('@/handler/queue/bookmarkConsumer', () => ({ BookmarkConsumer: class {} 
 vi.mock('@/handler/queue/subscriptionConsumer', () => ({ SubscriptionConsumer: class {} }))
 vi.mock('@/handler/queue/userDeletionConsumer', () => ({ UserDeletionConsumer: class {} }))
 
-import { handleMessage } from '@/di/generated/consumer'
+import { handleMessage } from '@/di/generated/core/consumer'
 import { QueueClient } from '@/infra/queue/queueClient'
 
 describe('queue delivery failures', () => {

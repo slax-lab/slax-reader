@@ -1,4 +1,4 @@
-import { SlaxJieba } from './jieba'
+import type { SlaxJieba } from './jieba'
 import { embedding } from './vectorize'
 
 export interface contentShard {

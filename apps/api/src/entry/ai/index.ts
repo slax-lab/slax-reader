@@ -1,7 +1,18 @@
 import { WorkerEntrypoint } from 'cloudflare:workers'
-import coreWorker from '../core'
+import { MultiLangError } from '@/utils/multiLangError'
+import { Failed } from '@/utils/responseUtils'
+import { ServerError } from '@/const/err'
+import { container } from '@/decorators/di'
+import { ContextManager } from '@/utils/context'
+import { initializeInfrastructure, initializeCore } from '@/di/generated/ai/dependency'
+import { getRouter as aiRouter } from '@/di/generated/ai/aiRouter'
+import { getRouter } from '@/di/router'
+import { EDGE_RAY_ID_HEADER } from '@/const/edge'
+import { applyApiResponseHeaders } from '@/middleware/cors'
 import { VectorIndexRepo } from '@/infra/repository/vectorIndexRepo'
 import type { ArticleQueryOptions, VectorIndexKind, VectorQueryOptions } from '@/utils/vectorMaintenanceTypes'
+
+initializeCore()
 
 export class AiEntry extends WorkerEntrypoint<Env> {
   private readonly vectors = new VectorIndexRepo(this.env)
@@ -35,8 +46,35 @@ export class AiEntry extends WorkerEntrypoint<Env> {
   }
 }
 
+async function handleFetch(request: Request, env: Env, ctx: ExecutionContext) {
+  const currentContainer = container.clone()
+  const ctxManager = new ContextManager(ctx, env)
+  ctxManager.set('rayId', request.headers.get(EDGE_RAY_ID_HEADER) ?? '')
+
+  const router = getRouter(new URL(request.url).host, currentContainer, env.BACKEND_API_PREFIX, aiRouter)
+  if (!router) return Failed('host not found')
+
+  initializeInfrastructure(ctxManager, currentContainer)
+
+  const response = await router
+    .fetch(request, ctxManager)
+    .catch(err => {
+      if (err instanceof MultiLangError) return Failed(err)
+      console.error(err)
+      return Failed(ServerError())
+    })
+    .then(res => {
+      if (res instanceof Response) return res
+      console.error(`[${request.method}] ${new URL(request.url).pathname} is not a response`)
+      return Failed(ServerError())
+    })
+  await ctxManager.cleanup()
+
+  return response
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    return coreWorker.fetch(request, env, ctx)
+    return applyApiResponseHeaders(await handleFetch(request, env, ctx), request, env.FRONT_END_URL)
   }
 }

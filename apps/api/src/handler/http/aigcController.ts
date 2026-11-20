@@ -4,8 +4,8 @@ import { NotSubscriptionError, ProhibitedContentError } from '@/const/err'
 import { inject } from '@/decorators/di'
 import { Controller } from '@/decorators/controller'
 import { Post } from '@/decorators/route'
-import { UserService } from '@/domain/user'
-import { BookmarkService } from '@/domain/bookmark'
+import { UserProfileService } from '@/domain/userProfile'
+import { BookmarkReadService } from '@/domain/bookmarkRead'
 import { LogsService } from '@/domain/logs'
 import { RequestUtils } from '@/utils/requestUtils'
 import { ChatCompletionMessageParam } from 'openai/resources/index.mjs'
@@ -43,8 +43,8 @@ const DEFAULT_CHAT_MODEL = 'gemini-3-flash-preview'
 export class AigcController {
   constructor(
     @inject(AigcService) private aigcService: AigcService,
-    @inject(UserService) private userService: UserService,
-    @inject(BookmarkService) private bookmarkService: BookmarkService,
+    @inject(UserProfileService) private userService: UserProfileService,
+    @inject(BookmarkReadService) private bookmarkService: BookmarkReadService,
     @inject(LogsService) private logsSvc: LogsService
   ) {}
 

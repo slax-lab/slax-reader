@@ -116,10 +116,10 @@ interface __BaseEnv_Env {
   JIZHILE_API_KEY: string
   POWERSYNC_JWK_PRIVATE_KEY: string
   OPENAI_MODERATION_KEYS: string
-  SLAX_JIEBA: DurableObjectNamespace<import('./src/entry/core/index').SlaxJieba>
-  WEBSOCKET_SERVER: DurableObjectNamespace<import('./src/entry/core/index').SlaxWebSocketServer>
+  SLAX_JIEBA: DurableObjectNamespace<import('./src/entry/objects/index').SlaxJieba>
+  WEBSOCKET_SERVER: DurableObjectNamespace<import('./src/entry/objects/index').SlaxWebSocketServer>
   SLAX_BROWSER: DurableObjectNamespace /* SlaxBrowser from browser-backend */
-  SCREENSHOT_BROWSER: DurableObjectNamespace<import('./src/entry/core/index').ScreenshotBrowser>
+  SCREENSHOT_BROWSER: DurableObjectNamespace<import('./src/entry/objects/index').ScreenshotBrowser>
   SlaxBrowser: Fetcher /* browser-backend */
   SlaxTwitterFxembed: Fetcher /* fxembed */
   AIGC: Fetcher /* reader-ai */

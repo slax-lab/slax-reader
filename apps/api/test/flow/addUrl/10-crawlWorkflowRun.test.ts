@@ -31,7 +31,7 @@ vi.mock('@/decorators/di', () => ({
   singleton: () => (target: any) => target,
   inject: () => () => undefined
 }))
-vi.mock('@/di/generated/dependency', () => ({
+vi.mock('@/di/generated/core/dependency', () => ({
   initializeCore: vi.fn(),
   initializeInfrastructure: vi.fn()
 }))
@@ -56,8 +56,8 @@ vi.mock('@/utils/hashids', () => ({
   Hashid: vi.fn().mockImplementation(() => ({ encodeId: vi.fn((id: number) => id * 100) }))
 }))
 
-import { CrawlWorkflow } from '@/entry/edge/workflows/crawlWorkflow'
-import { ImportParseWorkflow } from '@/entry/edge/workflows/importParseWorkflow'
+import { CrawlWorkflow } from '@/entry/core/workflows/crawlWorkflow'
+import { ImportParseWorkflow } from '@/entry/core/workflows/importParseWorkflow'
 import { CrawlService, type TwitterFetched } from '@/domain/crawl'
 import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
