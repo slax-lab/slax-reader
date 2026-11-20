@@ -25,6 +25,17 @@ New tests cover: the index lists every emitted `/_nuxt/` file sorted with its di
 
 `tooling/web-pages-deploy.test.mjs` "interrupted publication cleans the entire staging directory" fails when run alone with `--test-name-pattern` on `origin/dev` as well (an `AbortError` message mismatch); it passes in the full suite.
 
+## Review follow-up (2026-11-20)
+
+Addresses the automated review of `994140d7`:
+
+- `tooling/build-assets*.mjs` is now in both the `web-deploy.yml` trigger paths and its release freshness list, so a change to the index tooling alone publishes a Web release (`openspec/specs/web-pages-release/spec.md`, release path scope). `node --test tooling/web-pages-workflow.test.mjs` passes (4).
+- A recovered PowerSync file with the same bytes as the current file is skipped before it can become a cache-header root, restoring the earlier behavior; a current Worker entry that changed under its stable name is no longer a build-asset `current-conflict`; a historical `build-assets.json` that is unavailable or has the wrong type is reported as a build-asset warning and leaves PowerSync coverage unchanged. Three new tests in `tooling/powersync-retention.test.mjs` fail on `994140d7` and pass now (27 passed).
+- Source maps (`.map`) are accepted in the index with a JSON or plain-text content type, so a build with Vite source maps enabled no longer fails; HTML is still rejected (`tooling/build-assets.test.mjs`, 5 passed).
+- The manual `browser-check.mjs` fixture writes each synthetic release's `build-assets.json`. It was not run in this follow-up.
+- The delta spec now names the deployment that was current when the 7-day window began, matching `design.md` and the boundary test; `design.md` records that the entry point kept its name; `docs/web/deployment.md` states that a current build without its index stops the release.
+- Rerun on the follow-up: `pnpm test:preflight` 151 passed, 2 skipped, 0 failed; `pnpm test:ci` 82 passed; `SLAX_TEST_PAGES_BUILD=1 node --test --test-name-pattern "actual Nuxt output" tooling/web-pages-deploy.test.mjs` passes; `openspec validate --all --strict` 163 passed; `git diff --check` passes.
+
 ## Build output
 
 A `preview` build (`pnpm build` with `SLAX_ENV=preview`) wrote `/_nuxt/build-assets.json` (45,470 bytes) listing 404 files; every file under `_nuxt/` except `builds/` and the two indexes is listed, and every digest matches the file on disk.

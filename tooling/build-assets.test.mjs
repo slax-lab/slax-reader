@@ -40,7 +40,7 @@ test('an unexpected or empty emitted file fails the build', async t => {
 })
 
 test('paths are confined to hashed /_nuxt/ assets', () => {
-  for (const ok of ['/_nuxt/a.js', '/_nuxt/x/y.css', '/_nuxt/k.woff2', '/_nuxt/l.png', '/_nuxt/m.json']) assert.equal(buildAssetPath(ok), ok)
+  for (const ok of ['/_nuxt/a.js', '/_nuxt/x/y.css', '/_nuxt/k.woff2', '/_nuxt/l.png', '/_nuxt/m.json', '/_nuxt/a.js.map']) assert.equal(buildAssetPath(ok), ok)
   for (const bad of ['/index.html', '/_nuxt/../a.js', '/_nuxt/.hidden.js', '/_nuxt/a.txt', '/_nuxt/builds/latest.json', '/_nuxt/build-assets.json', '/_nuxt/powersync-assets.json', 'https://x/_nuxt/a.js', 42]) {
     assert.throws(() => buildAssetPath(bad), { category: 'invalid-path' }, String(bad))
   }
@@ -59,6 +59,8 @@ test('content types must fit the extension', () => {
   assert.equal(acceptsContentType('/_nuxt/a.js', 'text/html'), false)
   assert.equal(acceptsContentType('/_nuxt/a.css', 'text/css; charset=utf-8'), true)
   assert.equal(acceptsContentType('/_nuxt/a.css', 'text/plain'), false)
+  assert.equal(acceptsContentType('/_nuxt/a.js.map', 'application/json'), true)
+  assert.equal(acceptsContentType('/_nuxt/a.js.map', 'text/html'), false)
   assert.equal(acceptsContentType('/_nuxt/a.wasm', 'application/wasm'), true)
   assert.equal(acceptsContentType('/_nuxt/a.woff2', 'font/woff2'), true)
   assert.equal(acceptsContentType('/_nuxt/a.ttf', 'application/octet-stream'), true)

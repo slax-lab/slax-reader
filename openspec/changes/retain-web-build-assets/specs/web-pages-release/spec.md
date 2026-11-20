@@ -2,7 +2,7 @@
 
 ### Requirement: Releases retain recent build assets for open pages
 
-A Web release SHALL include, besides its own build, the files under `/_nuxt/` emitted by each production deployment that the target project replaced within the last 7 days, at their original paths and with their original bytes, so a page loaded from such a deployment can still load its chunks, stylesheets, fonts, images, Worker scripts, and WASM. Each build SHALL publish an index of the files it emitted under `/_nuxt/` with their digests, and recovery SHALL take only files listed in an earlier deployment's index whose bytes match the listed digest. A retained file SHALL NOT replace or conflict with a file of the current build. Files outside `/_nuxt/` SHALL NOT be retained. Recovery failures SHALL warn and SHALL NOT block publication of a valid current build.
+A Web release SHALL include, besides its own build, the files under `/_nuxt/` emitted by each production deployment that the target project replaced within the last 7 days and by the deployment that was current when that 7-day window began, at their original paths and with their original bytes, so a page loaded from such a deployment can still load its chunks, stylesheets, fonts, images, Worker scripts, and WASM. Each build SHALL publish an index of the files it emitted under `/_nuxt/` with their digests, and recovery SHALL take only files listed in an earlier deployment's index whose bytes match the listed digest. A retained file SHALL NOT replace or conflict with a file of the current build. Files outside `/_nuxt/` SHALL NOT be retained. Recovery failures SHALL warn and SHALL NOT block publication of a valid current build.
 
 #### Scenario: A page from the previous release loads a route chunk
 
@@ -26,7 +26,7 @@ A Web release SHALL include, besides its own build, the files under `/_nuxt/` em
 
 #### Scenario: A file is older than the window
 
-- **WHEN** a file was emitted only by deployments replaced more than 7 days ago
+- **WHEN** a file was emitted only by deployments replaced more than 7 days ago, other than the deployment that was current when the window began
 - **THEN** it is not retained, even if a later release had carried it
 
 ### Requirement: Release summaries report build asset retention

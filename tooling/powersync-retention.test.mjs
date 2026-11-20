@@ -383,3 +383,42 @@ test('the release summary reports build asset retention separately', async t => 
   assert.match(summary, /\| Added historical build assets \| 1 \| 18 \|/)
   assert.match(summary, /Build asset coverage: \*\*complete\*\*; deployments fully recovered: 1\./)
 })
+
+test('an unchanged current PowerSync file that an earlier build used as a Worker root keeps the immutable cache rule', async t => {
+  const { directory, put } = staged(t)
+  const shared = 'export const shared = 1'
+  const currentFiles = { '/_nuxt/worker-v4.js': 'export const load = () => [import("./current-HASH.js"), import("./shared-HASH.js")]', '/_nuxt/current-HASH.js': 'export const current = true', '/_nuxt/shared-HASH.js': shared }
+  for (const [path, bytes] of Object.entries(currentFiles)) put(path, bytes)
+  put('/_nuxt/powersync-assets.json', JSON.stringify(record('worker-v4.js', currentFiles)))
+  put('/_nuxt/build-assets.json', buildIndex(currentFiles))
+  const a = snapshot('a', 2)
+  const old = { '/_nuxt/shared-HASH.js': shared }
+  const oldIndex = { roots: ['/_nuxt/shared-HASH.js'], assets: Object.entries(old).map(([path, bytes]) => ({ path, sha256: hash(bytes) })) }
+  const report = await preparePowerSyncRetention({ directory, project: cloud(a), now, readPage: async () => page([a]), fetchImpl: staticFetch({ [a.url]: { ...old, '/_nuxt/powersync-assets.json': JSON.stringify(oldIndex) } }) })
+  assert.equal(report.coverage, 'complete')
+  assert.doesNotMatch(readFileSync(join(directory, '_headers'), 'utf8'), /\/_nuxt\/shared-HASH\.js\n {2}! Cache-Control/)
+})
+
+test('a changed Worker entry under its stable name is not a build conflict', async t => {
+  const { directory } = staged(t)
+  const a = snapshot('a', 2)
+  const old = runtime('A-HASH.js')
+  const report = await preparePowerSyncRetention({ directory, project: cloud(a), now, readPage: async () => page([a]), fetchImpl: buildFetch({ [a.url]: withBuild(old, { '/_nuxt/worker-v4.js': old['/_nuxt/worker-v4.js'], '/_nuxt/A-HASH.js': old['/_nuxt/A-HASH.js'] }) }) })
+  assert.equal(report.warnings.some(warning => warning.category === 'current-conflict'), false)
+  assert.equal(report.build.coverage, 'complete')
+  assert.equal(readFileSync(join(directory, '_nuxt/worker-v4.js'), 'utf8'), 'export const load = () => import("./current-HASH.js")')
+})
+
+test('an unreadable historical build index is reported as a build gap, not a PowerSync gap', async t => {
+  for (const response of [new Response('<!DOCTYPE html>', { headers: { 'content-type': 'text/html' } }), new Response('forbidden', { status: 403 })]) {
+    const { directory } = staged(t)
+    const a = snapshot('a', 2)
+    const served = { ...runtime('A-HASH.js'), '/_nuxt/build-assets.json': response }
+    const report = await preparePowerSyncRetention({ directory, project: cloud(a), now, readPage: async () => page([a]), fetchImpl: buildFetch({ [a.url]: served }) })
+    assert.equal(report.coverage, 'complete')
+    assert.equal(report.build.coverage, 'unknown')
+    assert.ok(report.warnings.every(warning => warning.kind === 'build'))
+    assert.match(formatRetentionSummary(report), /Build asset history: /)
+    assert.doesNotMatch(formatRetentionSummary(report), /PowerSync history: /)
+  }
+})

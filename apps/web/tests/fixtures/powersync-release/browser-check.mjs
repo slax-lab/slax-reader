@@ -1,5 +1,6 @@
 // Run after a production Web build: node apps/web/tests/fixtures/powersync-release/browser-check.mjs
 // Uses disposable databases and local HTTP fixtures only. No credentials or remote publication.
+import { writeBuildAssetsIndex } from '../../../../../tooling/build-assets.mjs'
 import { applyPowerSyncHeaders,generateAssetIndex, validateCurrentAssets } from '../../../../../tooling/powersync-assets.mjs'
 import { HistoricalRecoveryError, preparePowerSyncRetention } from '../../../../../tooling/powersync-retention.mjs'
 import assert from 'node:assert/strict'
@@ -44,6 +45,8 @@ async function release(label) {
   await writeFile(join(directory, '_headers'), '/_nuxt/*\n  Cache-Control: public, max-age=31536000, immutable\n')
   await writeFile(join(directory, '_routes.json'), JSON.stringify({ version: 1, include: ['/*'], exclude: ['/_nuxt/*'] }))
   await generateAssetIndex(directory, sourceIndex.roots)
+  // Each release needs its own build index; retention refuses a current build without one.
+  await writeBuildAssetsIndex(directory)
   await applyPowerSyncHeaders(directory, sourceIndex.roots)
   const short = label.charCodeAt(0).toString(16).repeat(4)
   const snapshot = { id: `${short}-0000-0000-0000-000000000000`, short_id: short, url: `https://${short}.fixture.pages.dev`, environment: 'production', latest_stage: { name: 'deploy', status: 'success', ended_on: `2026-11-0${label.charCodeAt(0) - 64}T00:00:00Z` } }

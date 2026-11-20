@@ -285,8 +285,9 @@ export async function preparePowerSyncRetention({ directory, project, readPage, 
       coverage.set(snapshot.id, recovered.complete)
       for (const [path, bytes] of recovered.files) {
         const existing = current.files.get(path)
-        // Worker entries keep their stable names across releases; the current entry wins.
-        if (existing && !existing.equals(bytes) && current.index.roots.includes(path) && recovered.index.roots.includes(path)) continue
+        // A current file is never replaced. Worker entries keep their stable names across releases, so
+        // a differing current entry is expected; the current entry wins either way.
+        if (existing && (existing.equals(bytes) || (current.index.roots.includes(path) && recovered.index.roots.includes(path)))) continue
         if (!(await merge(snapshot, path, bytes, warnForSnapshot, 'powersync'))) { coverage.set(snapshot.id, false); continue }
         if (recovered.index.roots.includes(path)) roots.add(path)
       }
@@ -298,7 +299,7 @@ export async function preparePowerSyncRetention({ directory, project, readPage, 
     } catch (error) {
       signal?.throwIfAborted()
       if (!(error instanceof AssetValidationError) && !(error instanceof HistoricalRecoveryError)) throw error
-      warnForSnapshot({ category: error.category, ...(error.path ? { path: error.path } : {}) })
+      warnForSnapshot({ category: error.category, ...(error.path ? { path: error.path } : {}), kind: 'build' })
       buildUnknown = true
       buildCoverage.set(snapshot.id, false)
       continue
@@ -308,6 +309,8 @@ export async function preparePowerSyncRetention({ directory, project, readPage, 
       // The PowerSync graph above already decided these paths for this snapshot.
       if (retained.get(path)?.kinds.has('powersync') && retained.get(path).owners.has(snapshot.id)) { retained.get(path).kinds.add('build'); continue }
       if (current.files.has(path) && current.files.get(path).equals(bytes)) continue
+      // The current PowerSync Worker entry wins over an earlier one under the same stable name, as above.
+      if (current.files.has(path) && current.index.roots.includes(path)) continue
       const warnForBuild = warning => warnForSnapshot({ ...warning, kind: 'build' })
       if (!(await merge(snapshot, path, bytes, warnForBuild, 'build'))) { buildCoverage.set(snapshot.id, false); continue }
     }

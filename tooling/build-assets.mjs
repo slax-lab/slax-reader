@@ -7,7 +7,7 @@ import { AssetValidationError, POWER_SYNC_INDEX_PATH } from './powersync-assets.
 // Every content-hashed file the Web build emits under /_nuxt/, so a later release can recover the
 // exact set an earlier deployment served to pages that are still open.
 export const BUILD_ASSETS_INDEX_PATH = '/_nuxt/build-assets.json'
-const extensions = ['js', 'mjs', 'css', 'wasm', 'woff', 'woff2', 'ttf', 'otf', 'eot', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'ico', 'json']
+const extensions = ['js', 'mjs', 'css', 'map', 'wasm', 'woff', 'woff2', 'ttf', 'otf', 'eot', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'ico', 'json']
 const pathPattern = new RegExp(`^/_nuxt/(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\\.(?:${extensions.join('|')})$`)
 // Mutable build metadata changes meaning per release and must reflect the current build only.
 const excluded = new Set([BUILD_ASSETS_INDEX_PATH, POWER_SYNC_INDEX_PATH])
@@ -24,6 +24,7 @@ const contentTypes = {
   js: /^(?:text|application)\/(?:javascript|ecmascript)(?:;|$)/i,
   mjs: /^(?:text|application)\/(?:javascript|ecmascript)(?:;|$)/i,
   css: /^text\/css(?:;|$)/i,
+  map: /^(?:application\/(?:json|octet-stream)|text\/plain)(?:;|$)/i,
   wasm: /^application\/wasm(?:;|$)/i,
   json: /^application\/(?:[a-z0-9.+-]+\+)?json(?:;|$)/i,
   svg: /^image\/svg\+xml(?:;|$)/i
