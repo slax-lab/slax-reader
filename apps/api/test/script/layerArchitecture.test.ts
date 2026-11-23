@@ -117,10 +117,28 @@ describe('layer rule detectors', () => {
       'layer-import infra -> domain ../../domain/bookmark'
     ],
     ['src/utils/a.ts', `import type { User } from '@/domain/user'\nexport type U = User`, 'layer-import utils -> domain (type) @/domain/user'],
-    ['src/domain/a.ts', `export const load = () => import('@/entry/edge/workflows/crawlWorkflow')`, 'layer-import domain -> entry @/entry/edge/workflows/crawlWorkflow'],
+    ['src/domain/a.ts', `export const load = () => import('@/entry/core/workflows/crawlWorkflow')`, 'layer-import domain -> entry @/entry/core/workflows/crawlWorkflow'],
     ['src/middleware/a.ts', `export { submitServerEvent } from '../domain/events'`, 'layer-import middleware -> domain ../domain/events'],
     ['src/const/a.ts', `import { MultiLangError } from '@/utils/multiLangError'\nexport const e = MultiLangError`, 'layer-import const -> utils @/utils/multiLangError'],
-    ['src/domain/a.ts', `import { x } from '@/unknown/thing'\nexport const y = x`, 'layer-import domain -> unknown @/unknown/thing']
+    ['src/domain/a.ts', `import { x } from '@/unknown/thing'\nexport const y = x`, 'layer-import domain -> unknown @/unknown/thing'],
+    [
+      'src/entry/edge/a.ts',
+      `import { initializeCore } from '@/di/generated/core/dependency'\nexport const i = initializeCore`,
+      'tier-registry core @/di/generated/core/dependency'
+    ],
+    [
+      'src/entry/ai/a.ts',
+      `import { getRouter } from '../../di/generated/core/readerRouter'\nexport const r = getRouter`,
+      'tier-registry core ../../di/generated/core/readerRouter'
+    ],
+    ['src/entry/core/a.ts', `import type { getRouter } from '@/di/generated/ai/aiRouter'\nexport type R = typeof getRouter`, 'tier-registry ai @/di/generated/ai/aiRouter'],
+    ['src/di/router.ts', `export const load = () => import('./generated/core/dependency')`, 'tier-registry core ./generated/core/dependency'],
+    ['src/entry/objects/a.ts', `import { initializeCore } from '@/di/generated/ai/dependency'\nexport const i = initializeCore`, 'tier-registry ai @/di/generated/ai/dependency'],
+    [
+      'src/entry/core-tools/a.ts',
+      `import { initializeCore } from '@/di/generated/core/dependency'\nexport const i = initializeCore`,
+      'tier-registry core @/di/generated/core/dependency'
+    ]
   ])('%s flags %#', (file, text, expected) => {
     expect(rules(file, text)).toContain(expected)
   })
@@ -141,7 +159,11 @@ describe('layer rule detectors', () => {
     ],
     ['src/domain/a.ts', `import { ContextManager } from '@/utils/context'\nexport const make = (ctx: any, env: any) => new ContextManager(ctx, env)`],
     ['src/handler/http/a.ts', `import { BookmarkService } from '@/domain/bookmark'\nimport { auth } from '@/middleware/auth'\nexport const h = [BookmarkService, auth]`],
-    ['src/domain/a.ts', `export const text = 'Select the files from your library'\nexport const run = (env: any) => env.RUN_ENV`]
+    ['src/domain/a.ts', `export const text = 'Select the files from your library'\nexport const run = (env: any) => env.RUN_ENV`],
+    ['src/entry/core/workflows/a.ts', `import { initializeInfrastructure } from '@/di/generated/core/dependency'\nexport const i = initializeInfrastructure`],
+    ['src/entry/ai/index.ts', `import { getRouter } from '@/di/generated/ai/aiRouter'\nexport const r = getRouter`],
+    ['src/di/generated/core/readerRouter.ts', `import { x } from './dependency'\nexport const y = x`],
+    ['src/entry/core/a.ts', `import { APPLE_ROOT_CA_G3_BASE64 } from '@/di/generated/apple-certs'\nexport const c = APPLE_ROOT_CA_G3_BASE64`]
   ])('%s allows the expected pattern %#', (file, text) => {
     expect(rules(file, text)).toEqual([])
   })

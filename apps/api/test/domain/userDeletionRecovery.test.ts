@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import { UserDeletionConsumer } from '@/handler/queue/userDeletionConsumer'
-import { handleMessage } from '@/di/generated/consumer'
+import { handleMessage } from '@/di/generated/core/consumer'
 
 vi.mock('@/handler/queue/bookmarkConsumer', () => ({ BookmarkConsumer: class {} }))
 vi.mock('@/handler/queue/subscriptionConsumer', () => ({ SubscriptionConsumer: class {} }))

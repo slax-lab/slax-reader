@@ -6,7 +6,6 @@ import { GEMINI_BATCH_PROVIDER, GEMINI_AGENT } from '@/const/symbol'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { ContextManager } from '@/utils/context'
 import { SlaxFetch } from '@/infra/external/remoteFetcher'
-import { ContentParser } from '@/utils/parser'
 import {
   generateOverviewTagsPrompt,
   generateOverviewTagsUserPrompt,
@@ -632,6 +631,8 @@ export class AigcService {
       const fetcher = new SlaxFetch(env)
       const result = await fetcher.scrapingBot(args.url)
 
+      // The article parser is loaded only when the chat model asks to browse a page.
+      const { ContentParser } = await import('@/utils/parser')
       const content = await ContentParser.parse({ url: new URL(args.url), content: result.content, title: args.title })
 
       await this.writeProgress('tool', 'browser', args.title, toolStatus.SUCCESSFULLY)

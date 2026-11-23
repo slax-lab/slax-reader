@@ -317,6 +317,13 @@ describe('AiEntry is a thin RPC boundary', () => {
 })
 
 describe('VectorIndexClient remote adapter', () => {
+  test('without a VECTOR binding (inside AI) the client uses the native indexes directly', async () => {
+    const native = { getByIds: vi.fn(async () => []), upsert: vi.fn(async () => ({ mutationId: 'native' })), deleteByIds: vi.fn(), query: vi.fn() }
+    const client = new VectorIndexClient({ VECTOR_V5_USER: native } as unknown as Env)
+    await client.get('user', ['u:1:article'])
+    expect(native.getByIds).toHaveBeenCalledExactlyOnceWith(['u:1:article'])
+  })
+
   test('the adapter uses Repository-side RPC names instead of the Entry class', async () => {
     const rpc = {
       getVectorsByIds: vi.fn(async () => []),

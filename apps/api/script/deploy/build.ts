@@ -26,8 +26,11 @@ export function buildWorkers(args: string[] = []): number {
           empty,
           '--config',
           generated,
+          '--minify',
           '--outdir',
-          path.join(GENERATED_DIR, `bundle-${target}`)
+          path.join(GENERATED_DIR, `bundle-${target}`),
+          '--metafile',
+          path.join(GENERATED_DIR, `bundle-${target}.meta.json`)
         ],
         {
           cwd: API_ROOT,

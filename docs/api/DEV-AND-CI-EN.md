@@ -20,7 +20,7 @@ CI verifies that the configuration repository is private, resolves its default b
 
 Release files must use the declarative subset enforced by the CI loader:
 
-- The top-level `[vars]` table accepts strings, including runtime tokens, private keys, salts, webhook URLs and allowlists. Maintain their real values only in these private TOMLs; multiline strings use native TOML syntax. All four Workers receive the selected environment's runtime values through normal publication.
+- The top-level `[vars]` table accepts strings, including runtime tokens, private keys, salts, webhook URLs and allowlists. Maintain their real values only in these private TOMLs; multiline strings use native TOML syntax. All five Workers receive the selected environment's runtime values through normal publication.
 - Outside that `[vars]` table, keys named `localConnectionString`, `build`, `assets`, `site`, `define`, `unsafe` or `containers` are forbidden at any nesting depth.
 - Outside `[vars]`, keys matching `secret|password|private.?key|api.?key|auth.?key|token|credential|command` and strings containing `PRIVATE KEY-----`, `postgres://`, `postgresql://` or HTTP(S) URLs with user information (`https?://...@`) are forbidden. These matches are case-insensitive.
 - Non-empty top-level `env` and `dev` tables are forbidden. Each release file must supply the selected environment's settings at the top level.
@@ -81,7 +81,7 @@ pnpm api -- migration:remote:fulltext
 pnpm api -- deploy
 ```
 
-D1 migrations use --remote. Normal publication keeps Browser -> AI -> Core -> Edge, including the selected TOML's runtime values. Each migration checks its database connection; a failure stops later commands. As in the legacy pipeline, a primary migration may already be applied when the subsequent logs migration fails. Routine releases never provision resources or bootstrap. Beta migrations must remain compatible with currently serving production code.
+D1 migrations use --remote. Normal publication runs Browser -> Objects -> Core -> AI -> Edge, including the selected TOML's runtime values. It first reads the account: it stops before any publication while a Worker lacks a value its code reads, and while a removed `SlaxMcpServer` namespace remains it publishes Core twice to delete it ([deployment guide](CLOUDFLARE-DEPLOY-EN.md)); the deployment token therefore also needs read access to Workers Scripts and Durable Objects. Each migration checks its database connection; a failure stops later commands. As in the legacy pipeline, a primary migration may already be applied when the subsequent logs migration fails. Routine releases never provision resources or bootstrap. Beta migrations must remain compatible with currently serving production code.
 
 Private configuration stays in `$RUNNER_TEMP/slax-api-release/api.toml`; the effective Core configuration is generated at `$RUNNER_TEMP/slax-api-release/generated/core.toml`. The generator rewrites D1 migration directories to the checked-out API's Prisma migration folders. Wrangler resolves those paths relative to the generated configuration file. Before opening database access, CI checks that `DB` resolves to `apps/api/prisma/d1_migrations` and `DB_FULLTEXT` to its `fulltext` directory, and that both contain SQL files. A failed migration reports its exit status, recognized error category and numeric Cloudflare error codes when available; raw diagnostics remain withheld.
 

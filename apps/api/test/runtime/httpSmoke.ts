@@ -78,6 +78,8 @@ async function main() {
   const state = resolve(resources.workspace, 'state')
   const coreConfig = resolve(resources.workspace, 'core.json')
   const edgeConfig = resolve(resources.workspace, 'edge.json')
+  const aiConfig = resolve(resources.workspace, 'ai.json')
+  const objectsConfig = resolve(resources.workspace, 'objects.json')
   const localPath = (path: string) => relative(resources.workspace, resolve(ROOT, path))
   mkdirSync(state)
   const d1Args = ['--config', coreConfig, '--local', '--env-file', resources.emptyEnv, '--persist-to', state]
@@ -164,73 +166,73 @@ async function main() {
       vars,
       rules: [{ type: 'CompiledWasm', globs: ['**/*.wasm'], fallthrough: true }]
     }
-    writeFileSync(
-      coreConfig,
-      JSON.stringify(
+    const names = { core: `root-tooling-${httpPort}-core`, edge: `root-tooling-${httpPort}-edge`, ai: `root-tooling-${httpPort}-ai`, objects: `root-tooling-${httpPort}-objects` }
+    const data = {
+      hyperdrive: [
         {
-          ...shared,
-          name: `root-tooling-${httpPort}-core`,
-          main: localPath('apps/api/test/runtime/diagnosticWorker.ts'),
-          hyperdrive: [
-            {
-              binding: 'HYPERDRIVE',
-              id: '00000000000000000000000000000002',
-              localConnectionString: url('http_reader')
-            },
-            {
-              binding: 'HYPERDRIVE_LOGS',
-              id: '00000000000000000000000000000003',
-              localConnectionString: url('http_logs')
-            }
-          ],
-          d1_databases: [
-            {
-              binding: 'DB',
-              database_name: 'http-reader',
-              database_id: '00000000-0000-0000-0000-000000000001',
-              migrations_dir: localPath('apps/api/prisma/d1_migrations')
-            },
-            {
-              binding: 'DB_FULLTEXT',
-              database_name: 'http-fulltext',
-              database_id: '00000000-0000-0000-0000-000000000002',
-              migrations_dir: localPath('apps/api/prisma/d1_migrations/fulltext')
-            }
-          ],
-          kv_namespaces: [{ binding: 'KV', id: '00000000000000000000000000000001' }],
-          r2_buckets: [
-            { binding: 'OSS', bucket_name: 'http-reader' },
-            { binding: 'DIAGNOSTICS', bucket_name: 'http-diagnostics' }
-          ],
-          workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow', script_name: `root-tooling-${httpPort}-edge` }],
-          durable_objects: {
-            bindings: [
-              { name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' },
-              { name: 'SLAX_JIEBA', class_name: 'SlaxJieba' }
-            ]
-          },
-          migrations: [{ tag: 'v1', new_classes: ['SlaxWebSocketServer', 'SlaxJieba'] }]
+          binding: 'HYPERDRIVE',
+          id: '00000000000000000000000000000002',
+          localConnectionString: url('http_reader')
         },
-        null,
-        2
-      )
-    )
-    writeFileSync(
-      edgeConfig,
-      JSON.stringify(
         {
-          ...shared,
-          ...JSON.parse(readFileSync(coreConfig, 'utf8')),
-          name: `root-tooling-${httpPort}-edge`,
-          workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow' }],
-          main: localPath('apps/api/src/entry/edge/index.ts'),
-          services: [{ binding: 'CORE', service: `root-tooling-${httpPort}-core` }],
-          ratelimits: [{ name: 'BOOKMARK_ADD_RATE_LIMITER', namespace_id: '1001', simple: { limit: 30, period: 60 } }]
+          binding: 'HYPERDRIVE_LOGS',
+          id: '00000000000000000000000000000003',
+          localConnectionString: url('http_logs')
+        }
+      ],
+      d1_databases: [
+        {
+          binding: 'DB',
+          database_name: 'http-reader',
+          database_id: '00000000-0000-0000-0000-000000000001',
+          migrations_dir: localPath('apps/api/prisma/d1_migrations')
         },
-        null,
-        2
-      )
-    )
+        {
+          binding: 'DB_FULLTEXT',
+          database_name: 'http-fulltext',
+          database_id: '00000000-0000-0000-0000-000000000002',
+          migrations_dir: localPath('apps/api/prisma/d1_migrations/fulltext')
+        }
+      ],
+      kv_namespaces: [{ binding: 'KV', id: '00000000000000000000000000000001' }]
+    }
+    const objectBindings = [
+      { name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' },
+      { name: 'SLAX_JIEBA', class_name: 'SlaxJieba' }
+    ]
+    const write = (file: string, config: Record<string, unknown>) => writeFileSync(file, JSON.stringify({ ...shared, ...config }, null, 2))
+    write(coreConfig, {
+      ...data,
+      name: names.core,
+      main: localPath('apps/api/test/runtime/diagnosticWorker.ts'),
+      r2_buckets: [
+        { binding: 'OSS', bucket_name: 'http-reader' },
+        { binding: 'DIAGNOSTICS', bucket_name: 'http-diagnostics' }
+      ],
+      workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow' }],
+      durable_objects: { bindings: objectBindings.map(binding => ({ ...binding, script_name: names.objects })) }
+    })
+    write(aiConfig, { ...data, name: names.ai, main: localPath('apps/api/src/entry/ai/index.ts'), r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }] })
+    write(objectsConfig, {
+      name: names.objects,
+      main: localPath('apps/api/src/entry/objects/index.ts'),
+      d1_databases: data.d1_databases.slice(0, 1),
+      hyperdrive: data.hyperdrive.slice(0, 1),
+      r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
+      durable_objects: { bindings: objectBindings },
+      migrations: [{ tag: 'objects-v1', new_sqlite_classes: objectBindings.map(binding => binding.class_name) }]
+    })
+    write(edgeConfig, {
+      name: names.edge,
+      main: localPath('apps/api/src/entry/edge/index.ts'),
+      r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
+      services: [
+        { binding: 'CORE', service: names.core },
+        { binding: 'CORE_JOBS', service: names.core, entrypoint: 'CoreJobs' },
+        { binding: 'AIGC', service: names.ai }
+      ],
+      ratelimits: [{ name: 'BOOKMARK_ADD_RATE_LIMITER', namespace_id: '1001', simple: { limit: 30, period: 60 } }]
+    })
     const pgStatus = await resources.migrate('migrate-pgsql', url('http_reader'), 'pgsql')
     const logsStatus = await resources.migrate('migrate-logs', url('http_logs'), 'logs')
     const d1Statuses = []
@@ -253,7 +255,7 @@ async function main() {
       INSERT INTO sr_bookmark_share (user_id,bookmark_id,share_code) VALUES (2,1,'SmokeA1');
     `
     )
-    if (process.env.FORK_SMOKE === '1') forks = await prepareForkSmoke(resources, pg.id, state, url('http_reader'), `root-tooling-${httpPort}-edge`)
+    if (process.env.FORK_SMOKE === '1') forks = await prepareForkSmoke(resources, pg.id, state, url('http_reader'), names.edge)
     const token = await new Auth(vars as Env).sign({
       id: String(new Hashid(vars as Env).encodeId(1)),
       email: 'saver@smoke.invalid',
@@ -263,7 +265,22 @@ async function main() {
     process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE = '1'
     let options: ReturnType<typeof localDevOptions>
     try {
-      options = localDevOptions(['--edge-config', edgeConfig, '--core-config', coreConfig, '--state', state, '--env-file', resources.emptyEnv, '--port', String(httpPort)])
+      options = localDevOptions([
+        '--edge-config',
+        edgeConfig,
+        '--core-config',
+        coreConfig,
+        '--ai-config',
+        aiConfig,
+        '--objects-config',
+        objectsConfig,
+        '--state',
+        state,
+        '--env-file',
+        resources.emptyEnv,
+        '--port',
+        String(httpPort)
+      ])
     } finally {
       if (previousDiagnosticFixture === undefined) delete process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE
       else process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE = previousDiagnosticFixture
@@ -395,7 +412,9 @@ async function main() {
         const sent = await linkCall('/v1/user/email/send', { email })
         assert.equal(sent.code, 200)
         assert.deepEqual(Object.keys(sent.data).sort(), ['expires_in', 'request_id', 'resend_after'])
-        const messageResponse = await localFetch(`http://localhost:${httpPort}/__fixture/email-message?id=${sent.data.request_id}`, { headers: { Authorization: `Bearer ${token}` } })
+        const messageResponse = await localFetch(`http://localhost:${httpPort}/__fixture/email-message?id=${sent.data.request_id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
         const message = (await messageResponse.json()) as { code: string; link: string }
         const url = new URL(message.link)
         assert.equal(url.origin, vars.FRONT_END_URL)
@@ -425,7 +444,9 @@ async function main() {
         internalCode = /\[Email login\] email=Internal-Reader@INTERNAL\.INVALID code=(\d{6})/.exec(workerLog)?.[1]
         return Boolean(internalCode)
       }, 'internal email code in Worker logs')
-      const undelivered = await localFetch(`http://localhost:${httpPort}/__fixture/email-code?id=${internalSent.data.request_id}`, { headers: { Authorization: `Bearer ${token}` } })
+      const undelivered = await localFetch(`http://localhost:${httpPort}/__fixture/email-code?id=${internalSent.data.request_id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
       assert.equal(await undelivered.json(), null)
       const internalProof = {
         type: 'email',

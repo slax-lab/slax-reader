@@ -66,7 +66,8 @@ const APP_CHECKS = {
     variables: [],
     generatedState: [
       'deploy/local/.wrangler/state/v3/d1',
-      'apps/api/src/di/generated/dependency.ts',
+      'apps/api/src/di/generated/core/dependency.ts',
+      'apps/api/src/di/generated/ai/dependency.ts',
       'apps/api/node_modules/.prisma/client/default.js',
       'apps/api/node_modules/@prisma/hyperdrive-client/index.js',
       'apps/api/node_modules/@prisma/logs-client/index.js'

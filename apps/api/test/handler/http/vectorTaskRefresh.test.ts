@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { BookmarkController } from '../../../src/handler/http/bookmarkController'
-import { CollectionController } from '../../../src/handler/http/collectionController'
+import { BookmarkAiController } from '../../../src/handler/http/bookmarkAiController'
+import { CollectionVectorController } from '../../../src/handler/http/collectionVectorController'
 import { auth, isWhitelisted } from '../../../src/middleware/auth'
 import { requireVectorRefreshSecret } from '../../../src/utils/vectorRefreshAuth'
 import { EDGE_IDENTITY_HEADER, EDGE_SECRET_HEADER, encodeEdgeIdentity } from '../../../src/const/edge'
@@ -47,12 +47,12 @@ function maintenance() {
 }
 
 function bookmark(mock = maintenance()) {
-  const controller = Object.assign(Object.create(BookmarkController.prototype), { vectorMaintenanceService: mock })
+  const controller = Object.assign(Object.create(BookmarkAiController.prototype), { vectorMaintenanceService: mock })
   return { controller, mock }
 }
 
 function collection(mock = maintenance()) {
-  const controller = Object.assign(Object.create(CollectionController.prototype), { vectorMaintenanceService: mock })
+  const controller = Object.assign(Object.create(CollectionVectorController.prototype), { vectorMaintenanceService: mock })
   return { controller, mock }
 }
 

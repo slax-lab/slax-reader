@@ -10,16 +10,12 @@ import { matchCacheableRequest } from '@/middleware/cacheableRoutes'
 import { applyCacheHeaders } from '@/middleware/cacheHeaders'
 import { ContentEntry } from './contentEntry'
 import { handleImageProxy } from '@/handler/http/imageProxy'
-import { handleQueueEvent, handleScheduledEvent, handleEmailEvent } from '../core'
+import { isAiRoute } from '@/const/routes'
+import { forwardEmail, forwardQueue, forwardScheduled } from './jobs'
 
 type ForwardMode = 'user' | 'anon' | 'apikey'
 
-const AIGC_PATHS = new Set(['/v1/aigc/summaries', '/v1/aigc/chat', '/v1/bookmark/overview', '/v1/bookmark/outline', '/v1/bookmark/search'])
-
 const worker = {
-  async email(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) {
-    await handleEmailEvent(message, env, ctx)
-  },
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     request = new Request(request.url, request)
     request.headers.delete(EDGE_SECRET_HEADER)
@@ -57,14 +53,6 @@ const worker = {
       console.error(`[edge] ${request.method} ${pathname} error: ${err}`)
       return Failed(ServerError())
     }
-  },
-
-  async queue(batch: MessageBatch, env: Env, ctx: ExecutionContext) {
-    return handleQueueEvent(batch, env, ctx)
-  },
-
-  async scheduled(event: Event, env: Env, ctx: ExecutionContext) {
-    return handleScheduledEvent(event, env, ctx)
   }
 }
 
@@ -72,7 +60,10 @@ export default {
   ...worker,
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     return applyApiResponseHeaders(await worker.fetch(request, env, ctx), request, env.FRONT_END_URL)
-  }
+  },
+  queue: forwardQueue,
+  scheduled: forwardScheduled,
+  email: forwardEmail
 }
 
 async function forward(env: Env, request: Request, mode: ForwardMode, ctx: ContextManager): Promise<Response> {
@@ -104,15 +95,9 @@ async function forward(env: Env, request: Request, mode: ForwardMode, ctx: Conte
     }
   }
 
-  const target = AIGC_PATHS.has(new URL(request.url).pathname) ? env.AIGC : env.CORE
+  const target = isAiRoute(new URL(request.url).pathname) ? env.AIGC : env.CORE
   return target.fetch(forwarded)
 }
 
 export { ContentEntry }
-export { CrawlWorkflow } from './workflows/crawlWorkflow'
-export { ContentValidationWorkflow } from './workflows/contentValidationWorkflow'
-export { ImportParseWorkflow } from './workflows/importParseWorkflow'
-export { YoutubeArticleWorkflow } from './workflows/youtubeArticleWorkflow'
-export { PodcastWorkflow } from './workflows/podcastWorkflow'
-export { VectorMaintenanceWorkflow } from './workflows/vectorMaintenanceWorkflow'
-export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser, VectorPreferenceObject } from '../core'
+export { SlaxJieba, SlaxWebSocketServer, ScreenshotBrowser } from '../retired'

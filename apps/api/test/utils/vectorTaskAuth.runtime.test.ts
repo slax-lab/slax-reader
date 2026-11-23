@@ -5,7 +5,7 @@ import { Auth } from '@/utils/jwt'
 import { Hashid } from '@/utils/hashids'
 import { EDGE_IDENTITY_HEADER, EDGE_SECRET_HEADER, encodeEdgeIdentity } from '@/const/edge'
 
-// Actual Workerd run: the Edge and Core entry modules are bundled by esbuild (the same
+// Actual Workerd run: the Edge, Core and AI entry modules are bundled by esbuild (the same
 // installed esbuild/wrangler Miniflare pair used by vectorPdf.runtime.test.ts), served by
 // Miniflare over its loopback HTTP dispatcher, and exercised through the real generated
 // router, middleware and Controllers. Only the data boundaries are fixtures.
@@ -125,7 +125,8 @@ test('actual Workerd serves the fixed-key task routes through Edge and Core', as
         EDGE_SHARED_SECRET: text(EDGE_SHARED_SECRET),
         FRONT_END_URL: text('http://localhost:3000'),
         ...Object.fromEntries(Object.entries(jwtSeed).map(([key, value]) => [key, text(String(value))])),
-        CORE: { type: 'worker', worker: 'core' }
+        CORE: { type: 'worker', worker: 'core' },
+        AIGC: { type: 'worker', worker: 'core' }
       })
     ]
   })

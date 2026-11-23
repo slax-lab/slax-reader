@@ -20,7 +20,7 @@ function harness(local: boolean, runtimeFile: boolean) {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'slax-dev-runtime-'))
   fixtures.push(root)
   const api = path.join(root, 'apps/api')
-  for (const file of ['script/root.ts', 'script/env.ts', 'script/deploy/config.ts', 'script/deploy/deploy.ts']) {
+  for (const file of ['script/root.ts', 'script/env.ts', 'script/deploy/config.ts', 'script/deploy/deploy.ts', 'script/deploy/topology.ts', 'script/deploy/runtimeKeys.ts']) {
     const destination = path.join(api, file)
     fs.mkdirSync(path.dirname(destination), { recursive: true })
     fs.copyFileSync(path.join(API_ROOT, file), destination)
@@ -67,8 +67,15 @@ fs.writeFileSync(process.env.MOCK_LOG, JSON.stringify({
 `,
     { mode: 0o755 }
   )
-  const run = (args: string[], extraEnv: NodeJS.ProcessEnv = {}) =>
-    spawnSync(process.execPath, ['--import', 'tsx', path.join(api, 'script/deploy/deploy.ts'), ...args], {
+  // A remote publication first reads the Cloudflare account; this fixture has no API, so the remote case passes an
+  // account with every value present and no MCP namespace.
+  const transitionRunner = path.join(root, 'transition-run.ts')
+  fs.writeFileSync(
+    transitionRunner,
+    `import { deploy } from './apps/api/script/deploy/deploy.ts'\nconst api = { list: async () => [], get: async () => ({}), send: async () => ({}) }\nprocess.exitCode = await deploy(process.argv.slice(2), api)\n`
+  )
+  const run = (args: string[], extraEnv: NodeJS.ProcessEnv = {}, viaTransition = false) =>
+    spawnSync(process.execPath, ['--import', 'tsx', viaTransition ? transitionRunner : path.join(api, 'script/deploy/deploy.ts'), ...args], {
       cwd: root,
       encoding: 'utf8',
       timeout: 20000,
@@ -92,7 +99,7 @@ test.each([
   const { root, run } = harness(local, runtimeFile)
   // The stubbed wrangler never binds ports; skip the dev port guard so the
   // suite does not depend on whether a real dev session is running.
-  const result = run([...(local ? ['--dev'] : []), 'core'], { SLAX_API_SKIP_DEV_PORT_GUARD: '1' })
+  const result = run([...(local ? ['--dev'] : []), 'core'], { SLAX_API_SKIP_DEV_PORT_GUARD: '1' }, !local)
   expect(result.status, result.stderr).toBe(0)
   const call = JSON.parse(fs.readFileSync(path.join(root, 'result.json'), 'utf8'))
   const shouldLoad = local && runtimeFile
@@ -125,4 +132,21 @@ test('dev port guard exits before touching shared state when any dev port is occ
   // The stub never ran and no generated config was written.
   expect(fs.existsSync(path.join(root, 'result.json'))).toBe(false)
   expect(fs.existsSync(path.join(root, 'deploy/local/.generated'))).toBe(false)
+})
+
+test('deploy has no transition flag, so a release never skips the value checks', () => {
+  const { run } = harness(false, true)
+  const result = run(['--transition', 'core'])
+  expect(result.status).not.toBe(0)
+  expect(result.stderr).toContain('Unknown argument: --transition')
+})
+
+test('a malformed SLAX_API_DEV_PORTS only affects local sessions, never a remote release', () => {
+  const { root, run } = harness(false, true)
+  const remote = run(['core'], { SLAX_API_DEV_PORTS: 'ai=not-a-port' }, true)
+  expect(remote.status, remote.stderr).toBe(0)
+  expect(JSON.parse(fs.readFileSync(path.join(root, 'result.json'), 'utf8')).args[0]).toBe('deploy')
+  const local = harness(true, false).run(['--dev', 'core'], { SLAX_API_DEV_PORTS: 'ai=not-a-port', SLAX_API_SKIP_DEV_PORT_GUARD: '1' })
+  expect(local.status).not.toBe(0)
+  expect(local.stderr).toContain('SLAX_API_DEV_PORTS entry "ai=not-a-port"')
 })

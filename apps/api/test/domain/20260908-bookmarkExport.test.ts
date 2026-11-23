@@ -2,12 +2,10 @@ import { describe, expect, test, vi } from 'vitest'
 import { BookmarkService } from '@/domain/bookmark'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { BookmarkController } from '@/handler/http/bookmarkController'
-import { getRouter } from '@/di/generated/readerRouter'
+import { getRouter } from '@/di/generated/core/readerRouter'
 import { Auth } from '@/utils/jwt'
 import { isWhitelisted } from '@/middleware/auth'
 import { createMockCtx } from '@test/helpers/mockFactory'
-
-vi.mock('@/handler/http/mcpController', () => ({ McpServerController: class {} }))
 
 vi.mock('@/decorators/di', () => ({ injectable: () => (target: any) => target, singleton: () => (target: any) => target, inject: () => () => undefined }))
 

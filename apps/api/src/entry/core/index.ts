@@ -1,19 +1,16 @@
 import { NewsletterTiming } from '@/utils/newsletterTiming'
 import { NewsletterService, receiveNewsletterEmail } from '@/domain/newsletter'
-import { SlaxJieba } from '@/utils/hybridSearch/jieba'
 import { MultiLangError } from '@/utils/multiLangError'
 import { Failed } from '@/utils/responseUtils'
 import { ServerError } from '@/const/err'
 import { container } from '@/decorators/di'
 import { ContextManager } from '@/utils/context'
-import { SlaxWebSocketServer } from '@/infra/message/websocket'
-import { initializeInfrastructure, initializeCore } from '@/di/generated/dependency'
+import { initializeInfrastructure, initializeCore } from '@/di/generated/core/dependency'
+import { getRouter as readerRouter } from '@/di/generated/core/readerRouter'
 import { getRouter } from '@/di/router'
-import { handleMessage } from '@/di/generated/consumer'
-import { handleCronjob } from '@/di/generated/cronjob'
-import { SlaxMcpServer } from '@/domain/orchestrator/mcp'
-import { handleContentRequest, isContentRequest } from '@/handler/http/contentHandler'
-import { ScreenshotBrowser } from './screenshotBrowser'
+import { handleMessage } from '@/di/generated/core/consumer'
+import { handleCronjob } from '@/di/generated/core/cronjob'
+import { handleContentRequest, isContentRequest } from './contentHandler'
 import { VectorPreferenceObject } from './vectorPreferenceObject'
 import { EDGE_RAY_ID_HEADER } from '@/const/edge'
 import { applyApiResponseHeaders } from '@/middleware/cors'
@@ -34,7 +31,7 @@ async function handleFetch(request: Request, env: Env, ctx: ExecutionContext) {
   const ctxManager = new ContextManager(ctx, env)
   ctxManager.set('rayId', request.headers.get(EDGE_RAY_ID_HEADER) ?? '')
 
-  const router = getRouter(new URL(request.url).host, currentContainer, env.BACKEND_API_PREFIX)
+  const router = getRouter(new URL(request.url).host, currentContainer, env.BACKEND_API_PREFIX, readerRouter)
   if (!router) return Failed('host not found')
 
   initializeInfrastructure(ctxManager, currentContainer)
@@ -97,7 +94,18 @@ export async function handleScheduledEvent(event: Event, env: Env, ctx: Executio
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     return applyApiResponseHeaders(await handleFetch(request, env, ctx), request, env.FRONT_END_URL)
-  }
+  },
+  email: handleEmailEvent,
+  queue: handleQueueEvent,
+  scheduled: handleScheduledEvent
 }
 
-export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser, VectorPreferenceObject }
+export { VectorPreferenceObject }
+export { CoreJobs } from './jobs'
+export { SlaxJieba, SlaxWebSocketServer, ScreenshotBrowser } from '../retired'
+export { CrawlWorkflow } from './workflows/crawlWorkflow'
+export { ContentValidationWorkflow } from './workflows/contentValidationWorkflow'
+export { ImportParseWorkflow } from './workflows/importParseWorkflow'
+export { YoutubeArticleWorkflow } from './workflows/youtubeArticleWorkflow'
+export { PodcastWorkflow } from './workflows/podcastWorkflow'
+export { VectorMaintenanceWorkflow } from './workflows/vectorMaintenanceWorkflow'

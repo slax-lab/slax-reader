@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { BookmarkConsumer } from '@/handler/queue/bookmarkConsumer'
-import { handleMessage } from '@/di/generated/consumer'
+import { handleMessage } from '@/di/generated/core/consumer'
 import { Hashid } from '@/utils/hashids'
 
 const env = { HASH_IDS_SALT: 'queue-test-only' } as Env

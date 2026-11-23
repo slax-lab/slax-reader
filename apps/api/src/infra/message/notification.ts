@@ -1,7 +1,7 @@
 import { ContextManager } from '@/utils/context'
 import { UserRepo, userNoticePO, noticeType } from '@/infra/repository/dbUser'
 import { inject, injectable } from '@/decorators/di'
-import { SlaxWebSocketServer } from '@/infra/message/websocket'
+import type { SlaxWebSocketServer } from '@/infra/message/websocket'
 import { bookmarkActionChangePO } from '@/infra/repository/dbBookmark'
 
 @injectable()

@@ -102,11 +102,14 @@ describe('repository-root generator paths', () => {
         ]
       }
     })
-    await runScript('gen-di.ts', { fs: { writeFileSync: writes }, 'ts-morph': { Project: project } })
+    // The fake project declares no classes, so the entries it reads must resolve nothing either.
+    const fsMock = { existsSync: fs.existsSync, readFileSync: () => '', statSync: fs.statSync, readdirSync: fs.readdirSync, mkdirSync: vi.fn(), writeFileSync: writes }
+    await runScript('gen-di.ts', { fs: fsMock, 'ts-morph': { Project: project } })
     expect(project).toHaveBeenCalledWith({ tsConfigFilePath: API_TSCONFIG })
     expect(insideClasses).toHaveBeenCalledOnce()
     expect(outsideClasses).not.toHaveBeenCalled()
-    expect(writes).toHaveBeenCalledWith(path.join(API_ROOT, 'src/di/generated/dependency.ts'), expect.stringContaining('initializeCore'))
+    expect(writes).toHaveBeenCalledWith(path.join(API_ROOT, 'src/di/generated/core/dependency.ts'), expect.stringContaining('initializeCore'))
+    expect(writes).toHaveBeenCalledWith(path.join(API_ROOT, 'src/di/generated/ai/dependency.ts'), expect.stringContaining('initializeCore'))
   })
 
   test.each([
@@ -124,7 +127,7 @@ describe('repository-root generator paths', () => {
       return ['fixture.ts']
     })
     await runScript(script, { fs: { existsSync: () => true, readdirSync: readdir, statSync: () => ({ isDirectory: () => false }), readFileSync: read, writeFileSync: writes } })
-    expect(writes).toHaveBeenCalledWith(path.join(API_ROOT, 'src/di/generated', output), expect.stringContaining(`from '../../handler/${handler}/fixture'`))
+    expect(writes).toHaveBeenCalledWith(path.join(API_ROOT, 'src/di/generated/core', output), expect.stringContaining(`from '../../../handler/${handler}/fixture'`))
     expect(writes.mock.calls[0][1]).toContain(exported)
     expect(writes.mock.calls[0][1]).not.toContain(ROOT)
   })
@@ -136,6 +139,7 @@ describe('repository-root generator paths', () => {
       fs: {
         existsSync: () => true,
         readFileSync: (filename: string) => {
+          if (filename === path.join(API_ROOT, 'src/const/routes.ts')) return 'export const AI_ROUTES: readonly string[] = []'
           reads.push(filename)
           return "@Controller('/fixture') class FixtureController { @Get('/test') run() {} }"
         },
@@ -146,8 +150,10 @@ describe('repository-root generator paths', () => {
       [
         'aigc',
         'bookmark',
+        'bookmarkAi',
         'callback',
         'collection',
+        'collectionVector',
         'mark',
         'share',
         'subscription',
@@ -157,7 +163,6 @@ describe('repository-root generator paths', () => {
         'user',
         'passkey',
         'diagnostic',
-        'mcp',
         'sync',
         'promotion',
         'apiKey',
@@ -170,23 +175,37 @@ describe('repository-root generator paths', () => {
         'search'
       ].map(name => path.join(API_ROOT, `src/handler/http/${name}Controller.ts`))
     )
-    expect(writes).toHaveBeenCalledWith(
-      path.join(API_ROOT, 'src/di/generated/readerRouter.ts'),
-      expect.stringContaining("from '../../handler/http/searchController'")
-    )
+    expect(writes).toHaveBeenCalledWith(path.join(API_ROOT, 'src/di/generated/core/readerRouter.ts'), expect.stringContaining("from '../../../handler/http/searchController'"))
     expect(writes.mock.calls[0][1]).toContain("router.get('/fixture/test'")
     expect(writes.mock.calls[0][1]).not.toContain(ROOT)
+  })
+
+  test.each([
+    ['a controller serving both Workers', "'/v1/bookmark/add',", 'Controllers mix AI and Core routes; split them so each Worker bundles only its own: BookmarkController'],
+    ['an AI route without a handler', "'/v1/aigc/missing',", 'AI_ROUTES lists paths without a handler: /v1/aigc/missing'],
+    ['a double-quoted route', '"/v1/bookmark/add",', 'Controllers mix AI and Core routes; split them so each Worker bundles only its own: BookmarkController'],
+    ['an entry that is not a string literal', '...EXTRA_ROUTES,', 'AI_ROUTES entries must be string literals, found ...EXTRA_ROUTES']
+  ])('router generation rejects %s before writing', async (_case, extra, message) => {
+    const writes = vi.fn()
+    const routesFile = path.join(API_ROOT, 'src/const/routes.ts')
+    const readFileSync = (file: string, encoding: BufferEncoding) => {
+      const text = fs.readFileSync(file, encoding)
+      return file === routesFile ? text.replace('export const AI_ROUTES: readonly string[] = [', `export const AI_ROUTES: readonly string[] = [\n  ${extra}`) : text
+    }
+    await expect(runScript('gen-routers.ts', { fs: { existsSync: fs.existsSync, readFileSync, writeFileSync: writes, mkdirSync: vi.fn() } })).rejects.toThrow(message)
+    expect(writes).not.toHaveBeenCalled()
   })
 
   test('registers four task refresh actions on existing controllers after ordinary middleware', async () => {
     const writes = vi.fn()
     await runScript('gen-routers.ts', { fs: { existsSync: fs.existsSync, readFileSync: fs.readFileSync, writeFileSync: writes } })
-    const output = writes.mock.calls[0][1] as string
+    const written = (file: string) => writes.mock.calls.find(([target]) => target === path.join(API_ROOT, 'src/di/generated', file))?.[1] as string
+    const output = written('ai/aiRouter.ts')
     const actions = [
-      ['/v1/bookmark/vector/refresh', 'BookmarkController', 'handleUserBookmarkVectorRefreshRequest'],
-      ['/v1/bookmark/preference/refresh', 'BookmarkController', 'handleUserBookmarkPreferenceRefreshRequest'],
-      ['/v1/collection/vector/refresh', 'CollectionController', 'handleUserCollectionVectorRefreshRequest'],
-      ['/v1/collection/preference/refresh', 'CollectionController', 'handleUserCollectionPreferenceRefreshRequest']
+      ['/v1/bookmark/vector/refresh', 'BookmarkAiController', 'handleUserBookmarkVectorRefreshRequest'],
+      ['/v1/bookmark/preference/refresh', 'BookmarkAiController', 'handleUserBookmarkPreferenceRefreshRequest'],
+      ['/v1/collection/vector/refresh', 'CollectionVectorController', 'handleUserCollectionVectorRefreshRequest'],
+      ['/v1/collection/preference/refresh', 'CollectionVectorController', 'handleUserCollectionPreferenceRefreshRequest']
     ]
     for (const [pathname, controller, handler] of actions) {
       expect(output).toContain(
@@ -198,6 +217,7 @@ describe('repository-root generator paths', () => {
     }
     expect(output).not.toContain('vectorRefreshController')
     expect(output).not.toContain('/internal/v1/vector-refresh')
+    for (const [pathname] of actions) expect(written('core/readerRouter.ts')).not.toContain(`'${pathname}'`)
   })
 
   test('D1 diff resolves root-relative SQLite input, preserves filtering and exclusive writes', async () => {

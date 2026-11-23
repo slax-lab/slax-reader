@@ -11,7 +11,7 @@ interface QueueTask {
 }
 
 const CONTROLLER_DIR: string = 'src/handler/queue'
-const OUTPUT_PATH: string = 'src/di/generated/consumer.ts'
+const OUTPUT_PATH: string = 'src/di/generated/core/consumer.ts'
 
 function generateConsumer(): void {
   const rootDir: string = API_ROOT
@@ -104,11 +104,11 @@ function processFiles(filePath: string, tasks: QueueTask[], imports: Map<string,
 }
 
 function generateOutputFile(tasks: QueueTask[], imports: Map<string, string>, outputPath: string): void {
-  const output: string = `import { queueChannel } from '../../utils/queueChannel'
-import { Container } from '../../decorators/di'
+  const output: string = `import { queueChannel } from '../../../utils/queueChannel'
+import { Container } from '../../../decorators/di'
 import { ContextManager } from '@/utils/context'
 ${Array.from(imports.entries())
-  .map(entry => `import { ${entry[0]} } from '../../handler/queue/${entry[1]}'`)
+  .map(entry => `import { ${entry[0]} } from '../../../handler/queue/${entry[1]}'`)
   .join('\n')}
 
 const handleMessages = async (exec: ExecutionContext, env: Env, messages: readonly Message[], processFunction: (ctx: ContextManager, body: any) => Promise<void>) => {

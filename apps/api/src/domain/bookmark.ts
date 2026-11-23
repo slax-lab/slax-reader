@@ -17,16 +17,7 @@ import { callbackType, QueueClient, queueParseMessage } from '@/infra/queue/queu
 import { ContextManager } from '@/utils/context'
 import { NotificationMessage } from '@/infra/message/notification'
 import { parserType, processTargetUrl, URLPolicie } from '@/utils/urlPolicie'
-import {
-  ServerError,
-  ErrorParam,
-  BookmarkContentNotFoundError,
-  PdfTextUnavailableError,
-  BookmarkNotFoundError,
-  CreateBookmarkFailError,
-  UserNotFoundError,
-  BlockTargetUrlError
-} from '@/const/err'
+import { ServerError, ErrorParam, BookmarkContentNotFoundError, BookmarkNotFoundError, CreateBookmarkFailError, UserNotFoundError, BlockTargetUrlError } from '@/const/err'
 import { CrawlService } from '@/domain/crawl'
 import { Hashid } from '@/utils/hashids'
 import { LabService } from '@/domain/lab'
@@ -40,11 +31,11 @@ import { MultiLangError } from '@/utils/multiLangError'
 import { authToken } from '@/middleware/auth'
 import { randomUUID } from 'crypto'
 import { selectDORegion } from '@/utils/location'
-import { resolveBookmarkReadAccess } from '@/utils/bookmarkAccess'
 import { readerBookmarkUuid } from '@slax-reader/contracts'
 import { BookmarkForkService } from './bookmarkFork'
 import { MediaSnapshotService } from './mediaSnapshot'
-import { snapshotBundleMembers, snapshotKeys, snapshotText } from '@/utils/snapshotBundle'
+import { BookmarkReadService } from './bookmarkRead'
+import { snapshotBundleMembers } from '@/utils/snapshotBundle'
 import { forkError } from '@/utils/bookmarkForkError'
 import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
 
@@ -112,18 +103,18 @@ export type UpdateParseQueueRetryOptions =
   | { status: bookmarkFetchRetryStatus.PARSING; retryCount: number }
 
 @injectable()
-export class BookmarkService {
+export class BookmarkService extends BookmarkReadService {
   private bookmarkData: BookmarkRepo
   private bucketData: LazyInstance<BucketClient>
   private userData: UserRepo
 
   constructor(
-    @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
-    @inject(BucketClient) private bucket: LazyInstance<BucketClient>,
+    @inject(BookmarkRepo) bookmarkRepo: BookmarkRepo,
+    @inject(BucketClient) bucket: LazyInstance<BucketClient>,
     @inject(BookmarkSearchRepo) private bookmarkSearchRepo: BookmarkSearchRepo,
     @inject(VectorizeRepo) private dbVectorize: VectorizeRepo,
     @inject(MarkRepo) private markRepo: MarkRepo,
-    @inject(UserRepo) private userRepo: UserRepo,
+    @inject(UserRepo) userRepo: UserRepo,
     @inject(QueueClient) private queue: LazyInstance<QueueClient>,
     @inject(NotificationMessage) private notifyMessage: NotificationMessage,
     @inject(CrawlService) private crawlService: CrawlService,
@@ -132,8 +123,9 @@ export class BookmarkService {
     @inject(YoutubeArticleRepo) private youtubeArticleRepo: YoutubeArticleRepo,
     @inject(PodcastArticleRepo) private podcastArticleRepo: PodcastArticleRepo,
     @inject(BookmarkForkService) private forkService: BookmarkForkService,
-    @inject(MediaSnapshotService) private snapshots: MediaSnapshotService
+    @inject(MediaSnapshotService) snapshots: MediaSnapshotService
   ) {
+    super(bookmarkRepo, bucket, userRepo, snapshots)
     this.bookmarkData = bookmarkRepo
     this.bucketData = bucket
     this.userData = userRepo
@@ -655,21 +647,6 @@ export class BookmarkService {
     return this.bookmarkListByTopics(ctx, page, size, [tagId])
   }
 
-  public async getBookmarkContent(bmKey: string) {
-    if (!bmKey || isPdfContentKey(bmKey)) return
-    const target = await this.bucket().R2Bucket.get(bmKey)
-    if (target) {
-      const content = await target.text()
-      const snapshot = !content && /^text\/body\/([^/]+)\.txt$/.exec(bmKey)
-      if (snapshot) {
-        const html = await this.bucket().R2Bucket.get(snapshotKeys(snapshot[1]).content_key)
-        if (html) return snapshotText(await html.text())
-      }
-      return content
-    }
-    throw new Error('Stored bookmark content is unavailable')
-  }
-
   public async getPdfDescriptor(contentKey: string, uuid: string): Promise<PdfDescriptor | undefined> {
     if (!isPdfContentKey(contentKey)) return
     const object = await this.bucket().R2Bucket.head(contentKey)
@@ -1007,64 +984,6 @@ export class BookmarkService {
     })
   }
 
-  public async getBookmarkReadAccess(ctx: ContextManager, uuid: string, recordTiming?: (step: string, durationMs: number) => void) {
-    const access = await resolveBookmarkReadAccess(this.bookmarkRepo, this.userRepo, ctx.getUserId(), uuid, recordTiming)
-    if (access) {
-      const startedAt = performance.now()
-      const allowed = await this.snapshots.allowsBody(access.bookmark.bookmark_id)
-      recordTiming?.('access-media', performance.now() - startedAt)
-      if (!allowed) return null
-    }
-    return access
-  }
-
-  /** 获取当前用户有权访问的书签ID */
-  public async getBookmarkId(
-    ctx: ContextManager,
-    params: {
-      bmId?: number
-      shareCode?: string
-      cbId?: number
-      collectionCode?: string
-      bmUId?: string
-      uBmId?: string
-    }
-  ) {
-    const { bmId, shareCode, cbId, collectionCode, bmUId, uBmId } = params
-    const userId = ctx.getUserId()
-    if (bmId) {
-      if (userId < 1) return 0
-      const bookmark = await this.bookmarkRepo.getUserBookmarkWithDetail(ctx.hashIds.decodeId(bmId), userId)
-      if (!bookmark?.bookmark || (bookmark.bookmark.private_user > 0 && bookmark.bookmark.private_user !== userId)) return 0
-      return bookmark.bookmark_id
-    }
-
-    if (shareCode) {
-      const share = await this.bookmarkRepo.getBookmarkShareByShareCode(shareCode)
-      if (!share) return 0
-      const bookmark = await this.bookmarkRepo.getUserBookmark(share.bookmark_id, share.user_id)
-      if (!bookmark) return 0
-      const access = await this.getBookmarkReadAccess(ctx, bookmark.uuid)
-      return access?.bookmark.bookmark_id ?? 0
-    }
-    if (cbId) {
-      if (!collectionCode) return 0
-      const bookmark = await this.bookmarkRepo.getCollectionBookmarkById(ctx.hashIds.decodeId(cbId), collectionCode, userId)
-      if (!bookmark) return 0
-      const access = await this.getBookmarkReadAccess(ctx, bookmark.uuid)
-      return access?.bookmark.bookmark_id ?? 0
-    }
-
-    const uuid = bmUId || uBmId
-    if (uuid && userId > 0) {
-      const bookmark = await this.bookmarkRepo.getUserBookmarkByUId(uuid, userId)
-      if (!bookmark?.bookmark || (bookmark.bookmark.private_user > 0 && bookmark.bookmark.private_user !== userId)) return 0
-      return bookmark.bookmark_id
-    }
-
-    return 0
-  }
-
   /**
    * AI attaches vocabulary words to a bookmark. Names are resolved without touching
    * ownership or display, links are written with source "ai", last_used_at stays put.
@@ -1076,16 +995,6 @@ export class BookmarkService {
     const rows = await this.bookmarkRepo.getUserTagsByNames(userId, tags)
     if (rows.length < 1) return
     await this.bookmarkRepo.upsertBookmarkTags(bmId, userId, rows, 'ai')
-  }
-
-  /** 创建书签概述 */
-  public async createBookmarkOverview(userId: number, bookmarkId: number, overview: string, content: string) {
-    return await this.bookmarkRepo.createBookmarkOverview(userId, bookmarkId, overview, content)
-  }
-
-  /** 获取用户书签概述 */
-  public async getUserBookmarkOverview(userId: number, bookmarkId: number) {
-    return await this.bookmarkRepo.getUserBookmarkOverview(userId, bookmarkId)
   }
 
   /** 更新书签解析队列重试 */
@@ -1221,14 +1130,6 @@ export class BookmarkService {
     return await this.bookmarkRepo.updateBookmarkStarStatus(bmId, userId, status)
   }
 
-  public async getBookmarkById(bmId: number) {
-    return await this.bookmarkRepo.getBookmarkById(bmId)
-  }
-
-  public async getUserBookmark(bmId: number, userId: number) {
-    return await this.bookmarkRepo.getUserBookmark(bmId, userId)
-  }
-
   public async updateBookmark(bmId: number, info: bookmarkParsePO) {
     const bookmark = await this.bookmarkRepo.updateBookmark(bmId, info)
 
@@ -1304,84 +1205,8 @@ export class BookmarkService {
       })
   }
 
-  public async getUserBookmarkSummary(
-    ctx: ContextManager,
-    params: {
-      bmId?: number
-      shareCode?: string
-      cbId?: number
-      collectionCode?: string
-      bmUId?: string
-    }
-  ) {
-    const bookmarkId = await this.getBookmarkId(ctx, params)
-    if (!bookmarkId || bookmarkId < 1) throw ErrorParam()
-
-    return await this.bookmarkRepo.getUserBookmarkSummary(bookmarkId, ctx.getUserId(), ctx.get('ai_lang'))
-  }
-
-  public async getBookmarkOutline(bookmarkId: number, userId: number): Promise<string | null> {
-    const summary = await this.bookmarkRepo.getBookmarkOutline(bookmarkId, userId)
-    return summary?.content.trim() ? summary.content : null
-  }
-
-  public async getUserBookmarkSummaryByMCP(bmId: number, userId: number, lang: string) {
-    const bookmark = await this.getBookmarkById(bmId)
-    if (!bookmark || bookmark instanceof MultiLangError || !bookmark.content_md_key) {
-      throw BookmarkNotFoundError()
-    }
-    return await this.bookmarkRepo.getUserBookmarkSummary(bmId, userId, lang)
-  }
-
-  async saveSummary(ctx: ContextManager, bmId: number, provider: string, content: string, model: string) {
-    const info = { content: content, ai_name: provider || '', ai_model: model || '', bookmark_id: bmId, user_id: ctx.getUserId(), lang: ctx.get('ai_lang') }
-    await this.bookmarkRepo.upsertBookmarkSummary(info)
-  }
-
   public getQueue(): LazyInstance<QueueClient> {
     return this.queue
-  }
-
-  public async getBookmarkTitleContent(
-    ctx: ContextManager,
-    params: {
-      bmId?: number
-      shareCode?: string
-      cbId?: number
-      collectionCode?: string
-      title?: string
-      content?: string
-      bmUId?: string
-    }
-  ): Promise<{
-    title: string
-    content: string
-    bmId: number
-    targetUrl: string
-    moderationResult: number
-  }> {
-    const { bmId, shareCode, cbId, collectionCode, title, content, bmUId } = params
-
-    const emptyId = !bmId && !shareCode && !cbId && !bmUId
-    if (emptyId && !title && !content) throw ErrorParam()
-    if (emptyId && title && content) {
-      return { title, content, bmId: 0, targetUrl: '', moderationResult: 0 }
-    }
-
-    const bookmarkId = await this.getBookmarkId(ctx, { bmId, shareCode, cbId, collectionCode, bmUId })
-    if (!bookmarkId || bookmarkId < 1) throw ErrorParam()
-
-    const bookmark = await this.getBookmarkById(bookmarkId)
-    if (bookmark && !(bookmark instanceof MultiLangError) && isPdfContentKey(bookmark.content_key) && !bookmark.content_md_key) throw PdfTextUnavailableError()
-    if (!bookmark || bookmark instanceof MultiLangError || !bookmark.content_md_key) {
-      throw BookmarkNotFoundError()
-    }
-
-    const body = await this.getBookmarkContent(bookmark.content_md_key)
-
-    if (!body) throw BookmarkContentNotFoundError()
-
-    return { title: bookmark.title, content: body, bmId: bookmarkId, targetUrl: bookmark.target_url, moderationResult: bookmark.moderation_result }
   }
 
   private static readonly EXPORT_PAGE_SIZE = 500
@@ -1699,10 +1524,6 @@ export class BookmarkService {
 
   public async updateAigcBatchTaskStatus(batchId: string, status: AigcBatchTaskStatus, result: string, errorMessage?: string) {
     return this.bookmarkData.updateAigcBatchTaskStatus(batchId, status, result, errorMessage)
-  }
-
-  public async getUserBookmarkBatchTasks(userId: number, bookmarkId: number, taskType: string) {
-    return this.bookmarkData.getUserBookmarkBatchTasks(userId, bookmarkId, taskType)
   }
 
   public async updateUserBookmarkCreateAt(bmId: number, userId: number, createdAt: Date) {
