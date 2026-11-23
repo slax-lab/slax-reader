@@ -68,6 +68,12 @@ export function shouldUseBrowserHtml(url: string): boolean {
   }
 }
 
+export function isReutersUrl(url: string): boolean {
+  if (!URL.canParse(url)) return false
+  const { hostname } = new URL(url)
+  return hostname === 'www.reuters.com' || hostname === 'reuters.com'
+}
+
 /** YouTube 域名粗匹配（youtube.com / youtu.be，含 www/m/music 子域） */
 export const YOUTUBE_RE = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be)\//i
 

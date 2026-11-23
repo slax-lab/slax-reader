@@ -8,7 +8,7 @@ import { BookmarkForkRepo, type MediaSnapshotRef } from '@/infra/repository/dbBo
 import type { MediaSnapshot } from '@/utils/mediaSnapshot'
 import { FetchError, SlaxFetch } from '../infra/external/remoteFetcher'
 import { HtmlBuilder, YoutubeCue } from '../utils/htmlBuilder'
-import { extractYoutubeVideoId, shouldUseBrowserHtml } from '../utils/platformDetector'
+import { extractYoutubeVideoId, isReutersUrl, shouldUseBrowserHtml } from '../utils/platformDetector'
 import { captionPlainText, captionSourceHash, youtubeCaptionKeys, type YoutubeCaptionDocument } from '../utils/youtubeCaption'
 import { evaluateYoutubeEligibility } from '../utils/youtubeEligibility'
 import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION, YOUTUBE_ARTICLE_SCHEMA_VERSION } from '../infra/repository/dbYoutubeArticle'
@@ -88,6 +88,22 @@ export interface CrawlResult {
 export type WeixinFetched = { source: 'tikhub'; content: TikHubWeixinContent } | { source: 'legacy'; fetchRes: fetchResult }
 
 const DYNAMIC_LOADING_PLACEHOLDER_RE = /^(?:加载中|正在加载中?|loading|pleasewait|cancel|ok|确定|取消|加载中确定删除吗取消确定|确定删除吗取消确定)+$/i
+
+function rejectReutersAccessNotice(url: string, text: string, document: Document) {
+  if (!/^\s*please\s+enable\s+js\s+and\s+disable\s+any\s+ad\s+blocker[.!]?\s*$/i.test(text) || !isReutersUrl(url)) return
+
+  // A photo or chart caption can quote the notice. Tracking pixels do not constitute article content.
+  for (const image of document.querySelectorAll('img[src][alt]')) {
+    if (!image.getAttribute('alt')?.trim()) continue
+    const isPixel = ['width', 'height'].some(attr => {
+      const size = image.getAttribute(attr)
+      return size !== null && /^\d+$/.test(size) && Number(size) <= 2
+    })
+    if (!isPixel) return
+  }
+  if (document.querySelector('video[src], video source[src], audio[src], audio source[src]')) return
+  throw FetchThreePartyError('Reuters returned an access notice')
+}
 
 export const isDynamicLoadingPlaceholder = (title: string, textContent: string): boolean => {
   if (title.trim()) return false
@@ -474,10 +490,11 @@ export class CrawlService {
     const fetcher = new SlaxFetch(ctx.env)
 
     const useBrowserHtml = shouldUseBrowserHtml(url)
-    console.log(`using browser html for ${url}: ${useBrowserHtml}`)
+    const useZyteBrowserHtml = useBrowserHtml || isReutersUrl(url)
+    console.log(`using Zyte browser html for ${url}: ${useZyteBrowserHtml}`)
 
     try {
-      return await fetcher.zyte(url, useBrowserHtml)
+      return await fetcher.zyte(url, useZyteBrowserHtml)
     } catch (zyteErr) {
       console.log(`Zyte fetch failed for ${url}: ${zyteErr}`)
     }
@@ -833,6 +850,7 @@ export class CrawlService {
   public async parseAndSaveContent(ctx: ContextManager, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
     if (detectRoute(fetchRes.url) === 'regular') {
       const selected = await this.createBestParseRes(ctx, fetchRes)
+      rejectReutersAccessNotice(fetchRes.url, selected.parseRes.textContent, selected.parseRes.contentDocument)
       if (isDynamicLoadingPlaceholder(selected.parseRes.title, selected.parseRes.textContent)) {
         console.warn(`Dynamic page returned a loading placeholder for ${fetchRes.url}`)
         throw FetchThreePartyError('Dynamic page returned a loading placeholder')
@@ -1171,6 +1189,7 @@ export class CrawlService {
     }
   ): Promise<CrawlResult> {
     const { document } = parseHTML(opts.html)
+    rejectReutersAccessNotice(opts.originalUrl, opts.meta.textContent, document)
     await new Imager(ctx.env).batchReplaceImage(new URL(opts.originalUrl), document)
 
     const content = await this.snapshots.capture(

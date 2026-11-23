@@ -254,6 +254,20 @@ describe('CrawlWorkflow fetch step 状态转换', () => {
     expect(uph.processContentPostProcessing).toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
   })
+
+  test('a Reuters access notice marks the capture failed before post-processing', async () => {
+    const { wf, cs, bs, uph, env } = wireWorkflow()
+    const url = 'https://www.reuters.com/world/china/china-ai-bubble-has-already-burst-2026-10-26/'
+    const content = '<html><head><title>reuters.com</title></head><body><p>Please enable JS and disable any ad blocker</p></body></html>'
+    cs.fetchRegular.mockResolvedValue({ url, title: '', content })
+    const service: CrawlService = Object.create(CrawlService.prototype)
+    cs.parseAndSaveContent.mockImplementation(service.parseAndSaveContent.bind(service))
+
+    await expect(runWorkflow(wf, { url })).rejects.toThrow('Reuters returned an access notice')
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
+    expect(env.CONTENT_VALIDATION_WORKFLOW.create).not.toHaveBeenCalled()
+  })
 })
 
 describe('Toutiao workflow', () => {

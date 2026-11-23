@@ -1,5 +1,6 @@
 import { createMockMediaSnapshots } from '@test/helpers/mockFactory'
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import { parseHTML } from 'linkedom'
 import { CrawlService } from '@/domain/crawl'
 import { createMockCtx } from '@test/helpers/mockFactory'
 
@@ -125,5 +126,83 @@ describe('regular DXY fetch', () => {
     expect(String(fetch.mock.calls[1][0])).toBe('https://api.scrapingrobot.com/?token=test-token')
     expect(JSON.parse(fetch.mock.calls[1][1]!.body as string)).toEqual({ url: DXY_URL, module: 'HtmlChromeScraper', params: { render: true } })
     expect(result).toEqual({ url: DXY_URL, title: '', content: html })
+  })
+})
+
+describe('Reuters regular capture', () => {
+  const url = 'https://www.reuters.com/world/china/china-ai-bubble-has-already-burst-2026-10-26/'
+  const notice = 'Please enable JS and disable any ad blocker'
+  const page = (body: string) => `<html><head><title>Reuters report</title></head><body><article>${body}</article></body></html>`
+
+  test.each([url, 'https://reuters.com/world/article/?source=reader'])('saves the body rendered by Zyte for %s', async target => {
+    const body = 'The report covers new investment figures in China.'
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        url: target,
+        statusCode: 200,
+        browserHtml: page(`<p>${body}</p>`),
+        httpResponseBody: Buffer.from(page(`<p>${notice}</p>`)).toString('base64url')
+      })
+    )
+    const { service, putIfKeyExists, updateBookmark } = createService()
+    const ctx = createMockCtx()
+    const fetched = await service.fetchRegular(ctx, target)
+    await service.parseAndSaveContent(ctx, fetched, 42, 'bookmark-uuid')
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(String(fetch.mock.calls[0][0])).toBe('https://api.zyte.com/v1/extract')
+    expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({ url: target, browserHtml: true, javascript: true })
+    expect(putIfKeyExists).toHaveBeenCalledWith(expect.stringMatching(/body\.txt$/), expect.stringContaining(body))
+    expect(updateBookmark).toHaveBeenCalledWith(42, expect.objectContaining({ status: 'success' }))
+  })
+
+  test.each(['https://www.reuters.com.example.org/story', 'https://example.org/?article=' + url])('preserves raw HTTP mode for %s', async target => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        url: target,
+        statusCode: 200,
+        httpResponseBody: Buffer.from('Ordinary story').toString('base64url')
+      })
+    )
+    const { service } = createService()
+    expect((await service.fetchRegular(createMockCtx(), target)).content).toBe('Ordinary story')
+    expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({ url: target, httpResponseBody: true, followRedirect: true })
+  })
+
+  test('uses the existing HTTP fallback and rejects its notice before writing a snapshot', async () => {
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ url, statusCode: 401 }))
+      .mockResolvedValueOnce(Response.json({ status: 'SUCCESS', httpCode: 200, result: page(`<p>${notice}</p>`) }))
+    const { service, putIfKeyExists, updateBookmark } = createService()
+    const ctx = createMockCtx()
+    const fetched = await service.fetchRegular(ctx, url)
+    expect(JSON.parse(fetch.mock.calls[1][1]!.body as string)).toEqual({ url, module: 'HtmlRequestScraper' })
+    await expect(service.parseAndSaveContent(ctx, fetched, 42, 'bookmark-uuid')).rejects.toThrow('Reuters returned an access notice')
+    expect(putIfKeyExists).not.toHaveBeenCalled()
+    expect(updateBookmark).not.toHaveBeenCalled()
+  })
+
+  test.each(['zyte', 'publisher'])('rejects a notice with a tracking pixel from %s', async path => {
+    const html = page(`<p>${notice}.</p><img src="https://example.org/tracker.gif" alt="pixel" width="1" height="1">`)
+    const { service, putIfKeyExists, updateBookmark } = createService()
+    const ctx = createMockCtx()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ url, statusCode: 200, browserHtml: html }))
+    const capture =
+      path === 'zyte'
+        ? service.parseAndSaveContent(ctx, await service.fetchRegular(ctx, url), 42, 'bookmark-uuid')
+        : service.savePublisherHtml(ctx, parseHTML(html).document, url, 42, 'bookmark-uuid')
+    await expect(capture).rejects.toThrow('Reuters returned an access notice')
+    expect(putIfKeyExists).not.toHaveBeenCalled()
+    expect(updateBookmark).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    `<p>Here is the full message: ${notice}. The report explains its origin.</p>`,
+    `<p>${notice}</p><img src="https://example.org/diagram.png" alt="Diagram of the reported issue">`
+  ])('saves an article quoting the notice alongside reporting or an illustration', async body => {
+    const { service, updateBookmark } = createService()
+    await service.parseAndSaveContent(createMockCtx(), { url, content: page(body), title: '' }, 42, 'bookmark-uuid')
+    expect(updateBookmark).toHaveBeenCalledWith(42, expect.objectContaining({ status: 'success' }))
   })
 })
