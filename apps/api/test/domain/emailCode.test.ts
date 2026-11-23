@@ -4,7 +4,8 @@ import type { EmailChallengeRepo } from '@/infra/repository/redisEmailChallenge'
 
 const env = {
   RUN_TYPE: 'dev',
-  RESEND_API_KEY: 'test-resend-key'
+  RESEND_API_KEY: 'test-resend-key',
+  FRONT_END_URL: 'https://r.slax.dev'
 } as Env
 
 const input = {
@@ -43,8 +44,14 @@ describe('email code delivery', () => {
     const email = 'reader@internal.invalid'
     const result = await new EmailCodeService(store).sendCode({ ...env, RUN_TYPE: runType, RESEND_API_KEY: undefined }, { ...input, emailKey: email, deliveryEmail: email }, sender)
     expect(sender).not.toHaveBeenCalled()
-    expect(log).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^\[Email login\] email=reader@internal\.invalid code=\d{6}$/))
-    const code = /code=(\d{6})$/.exec(log.mock.calls[0][0])![1]
+    expect(log).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^\[Email login\] email=reader@internal\.invalid code=\d{6} link=https:\/\/r\.slax\.dev\/email-login#\S+$/))
+    const code = /code=(\d{6}) /.exec(log.mock.calls[0][0])![1]
+    const link = new URL(/ link=(\S+)$/.exec(log.mock.calls[0][0])![1])
+    const proof = new URLSearchParams(link.hash.slice(1))
+    expect(proof.get('email')).toBe(email)
+    expect(proof.get('request_id')).toBe(result.request_id)
+    const linkDigest = Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${result.request_id}:${proof.get('token')}`))).toString('hex')
+    expect(save.mock.calls[0][1].linkDigest).toBe(linkDigest)
     const digest = Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${result.request_id}:${code}`))).toString('hex')
     expect(save.mock.calls[0][1]).toMatchObject({
       requestId: result.request_id,
@@ -112,9 +119,11 @@ describe('email code delivery', () => {
       from: 'Slax Reader <noreply@reader.slax.com>',
       to: [input.deliveryEmail],
       subject,
-      text: locale.startsWith('zh')
-        ? `你的 Slax Reader 验证码是 ${code}。验证码在 5 分钟内有效。如果你没有发起此请求，可以忽略这封邮件。`
-        : `Your Slax Reader verification code is ${code}. It expires in 5 minutes. If you did not request a code, you can ignore this email.`
+      text: expect.stringContaining(
+        locale.startsWith('zh')
+          ? `你的 Slax Reader 验证码是 ${code}。验证码在 5 分钟内有效。如果你没有发起此请求，可以忽略这封邮件。`
+          : `Your Slax Reader verification code is ${code}. It expires in 5 minutes. If you did not request a code, you can ignore this email.`
+      )
     })
     expect(JSON.stringify(count.mock.calls)).not.toContain(input.emailKey)
     expect(JSON.stringify(count.mock.calls)).not.toContain(input.clientIp)
@@ -122,6 +131,30 @@ describe('email code delivery', () => {
     expect(save.mock.calls[0][1]).toMatchObject({ requestId: result.request_id, digest: expect.stringMatching(/^[0-9a-f]{64}$/) })
     expect(save.mock.calls[0][1]).not.toHaveProperty('code')
     expect(remove).not.toHaveBeenCalled()
+  })
+
+  test('delivers a login link only in the email and stores only its digest', async () => {
+    const { store, save } = mockStore()
+    const sender = captureMail()
+    const result = await new EmailCodeService(store).sendCode(env, input, sender)
+    const link = new URL(readMail(sender).body.text.match(/https:\/\/\S+/)![0])
+    expect(link.origin + link.pathname).toBe('https://r.slax.dev/email-login')
+    expect(link.search).toBe('')
+    const proof = new URLSearchParams(link.hash.slice(1))
+    expect(proof.get('email')).toBe(input.emailKey)
+    expect(proof.get('request_id')).toBe(result.request_id)
+    expect(proof.get('token')).toMatch(/^[a-zA-Z0-9_-]{43}$/)
+    expect(save.mock.calls[0][1]).toHaveProperty('linkDigest', expect.stringMatching(/^[a-f0-9]{64}$/))
+    expect(JSON.stringify(save.mock.calls)).not.toContain(proof.get('token'))
+    expect(Object.keys(result).sort()).toEqual(['expires_in', 'request_id', 'resend_after'])
+  })
+
+  test('mailbox binding remains code-only and does not need a Web URL', async () => {
+    const { store, save } = mockStore()
+    const sender = captureMail()
+    await new EmailCodeService(store).sendCode({ ...env, FRONT_END_URL: undefined } as unknown as Env, { ...input, purpose: 'bind', userId: 7 }, sender)
+    expect(readMail(sender).body.text).not.toContain('/email-login')
+    expect(save.mock.calls[0][1]).not.toHaveProperty('linkDigest')
   })
 
   test.each(['login', 'bind'] as const)('permits shared-IP %s sends through 50 and rejects request 51', async purpose => {

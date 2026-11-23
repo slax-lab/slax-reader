@@ -12,6 +12,7 @@ import { RedisClient } from '@/infra/repository/redisClient'
 const env = {
   RUN_TYPE: 'dev',
   RESEND_API_KEY: 'test-resend-key',
+  FRONT_END_URL: 'https://r.slax.dev',
   UPSTASH_REDIS_REST_URL: 'http://redis.test.invalid',
   UPSTASH_REDIS_REST_TOKEN: 'test-redis-token'
 } as Env
@@ -97,6 +98,8 @@ describe.skipIf(process.env.EMAIL_OTP_REDIS_TEST !== '1')('email code challenges
     const config = { ...env, RUN_TYPE: runType }
     const service = new EmailCodeService(new EmailChallengeRepo(() => new RedisClient(config)))
     return {
+      service,
+      config,
       sendCode: (params: Parameters<EmailCodeService['sendCode']>[1]) => service.sendCode(config, params, send),
       verifyCode: ({ emailKey, requestId, ...params }: { emailKey: string; requestId: string } & Omit<Parameters<EmailCodeService['verifyCode']>[1], 'email' | 'request_id'>) =>
         service.verifyCode(config, { ...params, email: emailKey, request_id: requestId }).then(result => result.delivery)
@@ -108,6 +111,61 @@ describe.skipIf(process.env.EMAIL_OTP_REDIS_TEST !== '1')('email code challenges
     expect(key).toBeTypeOf('string')
     return key as string
   }
+
+  function linkProof(sender: ReturnType<typeof captureMail>) {
+    const link = new URL(readMail(sender).body.text.match(/https:\/\/\S+/)![0])
+    const proof = new URLSearchParams(link.hash.slice(1))
+    return { email: proof.get('email')!, request_id: proof.get('request_id')!, token: proof.get('token')! }
+  }
+
+  test.each(['code', 'link'])('consuming %s invalidates both proofs', async first => {
+    const sender = captureMail()
+    const { service, config } = setup(sender)
+    const challenge = await service.sendCode(config, input, sender)
+    const proof = linkProof(sender)
+    const code = { email: input.emailKey, request_id: challenge.request_id, code: readMail(sender).code, purpose: 'login' as const }
+    const verify = () => service.verifyLink(config, proof)
+    if (first === 'link') {
+      await expect(verify()).resolves.toEqual({ key: input.emailKey, delivery: input.deliveryEmail })
+      await expect(service.verifyCode(config, code)).rejects.toMatchObject({ name: 'EMAIL_VERIFY_CODE_ERROR' })
+    } else {
+      await service.verifyCode(config, code)
+      await expect(verify()).rejects.toMatchObject({ name: 'EMAIL_VERIFY_CODE_ERROR' })
+    }
+  })
+
+  test('competing OTP and link requests share consumption and the attempt budget', async () => {
+    const sender = captureMail()
+    const { service, config } = setup(sender)
+    await service.sendCode(config, input, sender)
+    const proof = linkProof(sender)
+    const results = await Promise.allSettled([
+      service.verifyLink(config, proof),
+      service.verifyLink(config, proof),
+      service.verifyCode(config, { ...proof, code: readMail(sender).code, purpose: 'login' })
+    ])
+    expect(results.filter(item => item.status === 'fulfilled')).toHaveLength(1)
+  })
+
+  test('replacement, expiry, and wrong attempts apply to the link without refreshing TTL', async () => {
+    const sender = captureMail()
+    const { service, config } = setup(sender)
+    await service.sendCode(config, input, sender)
+    const first = linkProof(sender)
+    await redis('DEL', await redisKey('*:cooldown:*'))
+    await service.sendCode(config, input, sender)
+    await expect(service.verifyLink(config, first)).rejects.toMatchObject({ name: 'EMAIL_VERIFY_CODE_ERROR' })
+    const proof = linkProof(sender)
+    const key = await redisKey('*:challenge:*')
+    await redis('EXPIRE', key, '180')
+    const wrong = { ...proof, token: 'x'.repeat(43) }
+    for (let attempt = 0; attempt < 4; attempt++) await expect(service.verifyLink(config, wrong)).rejects.toMatchObject({ name: 'EMAIL_VERIFY_CODE_ERROR' })
+    await expect(service.verifyCode(config, { ...proof, purpose: 'login', code: 'invalid' })).rejects.toMatchObject({ name: 'EMAIL_VERIFY_CODE_RATE_LIMIT' })
+    await expect(service.verifyLink(config, proof)).rejects.toMatchObject({ name: 'EMAIL_VERIFY_CODE_RATE_LIMIT' })
+    expect(await redis('TTL', key)).toBeLessThanOrEqual(180)
+    await redis('PEXPIREAT', key, '1')
+    await expect(service.verifyLink(config, proof)).rejects.toMatchObject({ name: 'EMAIL_VERIFY_CODE_ERROR' })
+  })
 
   test('only one concurrent submission redeems a code and returns the exact address', async () => {
     const sender = captureMail()

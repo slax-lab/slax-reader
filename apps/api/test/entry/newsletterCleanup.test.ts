@@ -5,8 +5,10 @@ import type { ContextManager } from '@/utils/context'
 import type { Container } from '@/decorators/di'
 import type { NewsletterTiming } from '@/utils/newsletterTiming'
 
+vi.mock('cloudflare:workers', () => ({ WorkerEntrypoint: class {}, DurableObject: class {} }))
+
 const state = vi.hoisted(() => ({ cleanupFails: false, receive: 'ready', cleaned: 0 }))
-vi.mock('@/di/generated/dependency', () => ({
+vi.mock('@/di/generated/core/dependency', () => ({
   initializeCore() {},
   initializeInfrastructure(ctx: ContextManager, container: Container) {
     ctx.onCleanup(async () => {
@@ -23,14 +25,17 @@ vi.mock('@/di/generated/dependency', () => ({
   }
 }))
 vi.mock('@/di/router', () => ({ getRouter: vi.fn() }))
-vi.mock('@/di/generated/consumer', () => ({ handleMessage: vi.fn() }))
-vi.mock('@/di/generated/cronjob', () => ({ handleCronjob: vi.fn() }))
-vi.mock('@/handler/http/contentHandler', () => ({ handleContentRequest: vi.fn(), isContentRequest: vi.fn() }))
-vi.mock('@/utils/hybridSearch/jieba', () => ({ SlaxJieba: class {} }))
-vi.mock('@/infra/message/websocket', () => ({ SlaxWebSocketServer: class {} }))
-vi.mock('@/domain/orchestrator/mcp', () => ({ SlaxMcpServer: class {} }))
+vi.mock('@/di/generated/core/consumer', () => ({ handleMessage: vi.fn() }))
+vi.mock('@/di/generated/core/cronjob', () => ({ handleCronjob: vi.fn() }))
+vi.mock('@/entry/core/contentHandler', () => ({ handleContentRequest: vi.fn(), isContentRequest: vi.fn() }))
 vi.mock('@/entry/core/vectorPreferenceObject', () => ({ VectorPreferenceObject: class {} }))
-vi.mock('@/entry/core/screenshotBrowser', () => ({ ScreenshotBrowser: class {} }))
+vi.mock('@/entry/retired', () => ({ SlaxJieba: class {}, SlaxWebSocketServer: class {}, ScreenshotBrowser: class {}, SlaxMcpServer: class {} }))
+vi.mock('@/entry/core/workflows/crawlWorkflow', () => ({ CrawlWorkflow: class {} }))
+vi.mock('@/entry/core/workflows/contentValidationWorkflow', () => ({ ContentValidationWorkflow: class {} }))
+vi.mock('@/entry/core/workflows/importParseWorkflow', () => ({ ImportParseWorkflow: class {} }))
+vi.mock('@/entry/core/workflows/youtubeArticleWorkflow', () => ({ YoutubeArticleWorkflow: class {} }))
+vi.mock('@/entry/core/workflows/podcastWorkflow', () => ({ PodcastWorkflow: class {} }))
+vi.mock('@/entry/core/workflows/vectorMaintenanceWorkflow', () => ({ VectorMaintenanceWorkflow: class {} }))
 
 import { handleEmailEvent } from '@/entry/core'
 

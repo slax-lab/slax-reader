@@ -15,7 +15,9 @@ import {
   queueMapping,
   selectEnvironment,
   workerNames,
-  type ApiConfig
+  DATABASE_REGION,
+  type ApiConfig,
+  type McpPhase
 } from '../../script/deploy/config'
 
 const template = path.join(ROOT, 'deploy/cloudflare/api.toml.example')
@@ -52,7 +54,7 @@ describe('single API configuration', () => {
     for (const target of TARGETS) {
       const output = workerConfig(config, target)
       const buckets = (output.r2_buckets ?? []) as TomlTable[]
-      expect(buckets.some(bucket => bucket.binding === 'DIAGNOSTICS')).toBe(['core', 'edge'].includes(target))
+      expect(buckets.some(bucket => bucket.binding === 'DIAGNOSTICS')).toBe(target === 'core')
       expect((output.vars as TomlTable).DIAGNOSTIC_DOWNLOAD_SECRET).toBe(target === 'core' ? 'synthetic-test-secret' : undefined)
       if (['core', 'edge'].includes(target)) {
         expect(output.observability).toMatchObject({ logs: { invocation_logs: false }, traces: { enabled: false } })
@@ -62,7 +64,7 @@ describe('single API configuration', () => {
   test('fails when the configured file is missing instead of deploying an example', () => {
     expect(() => readConfig(path.join(directory(), 'api.toml'))).toThrow('configuration is missing')
   })
-  test('all four targets resolve app source, tsconfig and historical D1 migrations', () => {
+  test('every target resolves app source, tsconfig and historical D1 migrations', () => {
     const dir = path.join(directory(), 'nested/output')
     const config = readConfig(template)
     for (const target of TARGETS) {
@@ -81,40 +83,86 @@ describe('single API configuration', () => {
       const role = { CORE: 'core', EDGE: 'edge', AIGC: 'ai', VECTOR: 'ai', SlaxBrowser: 'browser' }[String(row.binding)]
       if (role) row.service = `custom-${role}`
     }
+    ;(config.services as TomlTable[]).push({ binding: 'OBJECTS', service: 'custom-objects' })
     const original = structuredClone(config.migrations)
-    const core = workerConfig(config, 'core'),
-      edge = workerConfig(config, 'edge'),
-      ai = workerConfig(config, 'ai'),
-      browser = workerConfig(config, 'browser')
-    expect(core.name).toBe('custom-core')
-    expect(edge.name).toBe('custom-edge')
-    expect(edge.services).toEqual(
-      expect.arrayContaining([
-        { binding: 'CORE', service: 'custom-core' },
-        { binding: 'AIGC', service: 'custom-ai' }
-      ])
-    )
-    expect((ai.durable_objects as TomlTable).bindings).toEqual([{ name: 'SLAX_JIEBA', class_name: 'SlaxJieba', script_name: 'custom-core' }])
-    expect((edge.durable_objects as TomlTable).bindings).toEqual(
-      expect.arrayContaining([{ name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer', script_name: 'custom-core' }])
-    )
-    for (const workflow of core.workflows as TomlTable[]) expect(workflow.script_name).toBe('custom-edge')
-    for (const workflow of edge.workflows as TomlTable[]) expect(workflow.script_name).toBeUndefined()
+    const [core, edge, ai, objects, browser] = (['core', 'edge', 'ai', 'objects', 'browser'] as const).map(target => workerConfig(config, target))
+    expect([core.name, edge.name, ai.name, objects.name, browser.name]).toEqual(['custom-core', 'custom-edge', 'custom-ai', 'custom-objects', 'custom-browser'])
+    expect(edge.services).toEqual([
+      { binding: 'CORE', service: 'custom-core' },
+      { binding: 'AIGC', service: 'custom-ai' }
+    ])
+    const doTargets = (output: TomlTable) => Object.fromEntries(((output.durable_objects as TomlTable).bindings as TomlTable[]).map(row => [row.name, row.script_name ?? 'self']))
+    expect(doTargets(core)).toEqual({
+      SLAX_JIEBA: 'custom-objects',
+      WEBSOCKET_SERVER: 'custom-objects',
+      SCREENSHOT_BROWSER: 'custom-objects',
+      SLAX_BROWSER: 'custom-browser',
+      VECTOR_V5_PREFERENCE: 'self'
+    })
+    expect(doTargets(ai)).toEqual({ SLAX_JIEBA: 'custom-objects', WEBSOCKET_SERVER: 'custom-objects', SCREENSHOT_BROWSER: 'custom-objects', VECTOR_V5_PREFERENCE: 'custom-core' })
+    expect(doTargets(objects)).toEqual({ SLAX_JIEBA: 'self', WEBSOCKET_SERVER: 'self', SCREENSHOT_BROWSER: 'self' })
+    expect(doTargets(browser)).toEqual({ SLAX_BROWSER: 'self' })
+    // Browser Rendering is reached only through the Browser Worker (src/utils/browser.ts reads env.BROWSER).
+    expect(browser.browser).toEqual(config.browser)
+    expect(core.browser).toEqual(config.browser)
+    for (const output of [edge, ai]) expect(output.browser).toBeUndefined()
+    expect(edge.durable_objects).toBeUndefined()
+    for (const workflow of core.workflows as TomlTable[]) expect(workflow.script_name).toBeUndefined()
+    for (const workflow of ai.workflows as TomlTable[]) expect(workflow.script_name).toBe('custom-core')
+    for (const output of [edge, objects, browser]) expect(output.workflows).toBeUndefined()
     expect(core.migrations).toEqual(original)
-    expect(edge.migrations).toBeUndefined()
-    for (const output of [core, ai, browser]) {
+    expect(objects.migrations).toEqual([{ tag: 'objects-v1', new_sqlite_classes: ['SlaxJieba', 'SlaxWebSocketServer', 'ScreenshotBrowser'] }])
+    for (const output of [edge, ai]) expect(output.migrations).toBeUndefined()
+    for (const output of [core, ai, objects, browser]) {
       expect(output.workers_dev).toBe(false)
       expect(output.routes).toEqual([])
       expect(output.preview_urls).toBe(false)
     }
-    expect(edge.triggers).toBeDefined()
-    expect(core.triggers).toBeUndefined()
-    expect((core.queues as TomlTable).consumers).toBeUndefined()
-    for (const output of [core, edge, browser]) expect(output.vectorize).toBeUndefined()
+    // Edge keeps the cron triggers and queue consumers every account already has and forwards them to Core.
+    expect((edge.triggers as TomlTable).crons).toEqual((config.triggers as TomlTable).crons)
+    for (const output of [core, ai, objects]) expect(output.triggers).toEqual({ crons: [] })
+    expect(edge.queues).toEqual({ consumers: (config.queues as TomlTable).consumers })
+    expect(core.queues).toEqual({ producers: (config.queues as TomlTable).producers })
+    expect((ai.queues as TomlTable).consumers).toBeUndefined()
+    for (const output of [objects, browser]) expect(output.queues).toBeUndefined()
+    for (const output of [core, edge, objects, browser]) expect(output.vectorize).toBeUndefined()
     expect(ai.vectorize).toEqual(config.vectorize)
-    expect((ai.vectorize as TomlTable[]).map(row => row.binding)).toEqual(expect.arrayContaining(['VECTOR_V5_ARTICLE', 'VECTOR_V5_USER', 'VECTOR_V5_COLLECTION']))
     for (const row of workerConfig(config, 'ai', true).vectorize as TomlTable[]) expect(row.remote).toBe(true)
-    for (const output of [core, edge]) expect(output.services).toContainEqual({ binding: 'VECTOR', service: 'custom-ai', entrypoint: 'AiEntry' })
+    expect(core.services).toContainEqual({ binding: 'VECTOR', service: 'custom-ai', entrypoint: 'AiEntry' })
+    // AI binds the indexes natively and never calls itself; only Core fetches through the Browser Worker.
+    for (const binding of ['VECTOR', 'SlaxBrowser']) expect((ai.services as TomlTable[]).map(row => row.binding)).not.toContain(binding)
+    expect(core.services).toContainEqual({ binding: 'SlaxBrowser', service: 'custom-browser' })
+    for (const output of [objects, browser]) expect(output.services ?? []).toEqual([])
+    for (const key of ['d1_databases', 'hyperdrive', 'kv_namespaces', 'ai', 'browser', 'rules']) expect(edge[key]).toBeUndefined()
+    expect((objects.d1_databases as TomlTable[]).map(row => row.binding)).toEqual(['DB'])
+    expect((objects.hyperdrive as TomlTable[]).map(row => row.binding)).toEqual(['HYPERDRIVE'])
+    expect((objects.r2_buckets as TomlTable[]).map(row => row.binding)).toEqual(['OSS'])
+  })
+  test('Objects identity is derived from Core and must be distinct', () => {
+    const config = readConfig(template)
+    expect(workerNames(config).objects).toBe('reader-objects')
+    expect(workerNames({ ...config, name: 'reader-core-beta' }).objects).toBe('reader-objects-beta')
+    expect(workerNames({ ...config, name: 'acme-api' }).objects).toBe('acme-api-objects')
+    const dir = directory(),
+      file = path.join(dir, 'api.toml')
+    ;(config.services as TomlTable[]).push({ binding: 'OBJECTS', service: String(config.name) })
+    fs.writeFileSync(file, stringify(config))
+    expect(() => readConfig(file)).toThrow('services.OBJECTS.service')
+  })
+  test('placement is owned by the deployment script', () => {
+    const config = readConfig(template)
+    for (const target of TARGETS) {
+      const remote = workerConfig(config, target)
+      expect(remote.placement).toEqual(['core', 'ai', 'objects'].includes(target) ? { region: DATABASE_REGION } : undefined)
+      expect(workerConfig(config, target, true).placement).toBeUndefined()
+    }
+    expect(DATABASE_REGION).toBe('aws:ap-southeast-1')
+    const dir = directory(),
+      file = path.join(dir, 'api.toml')
+    for (const placed of [{ placement: { mode: 'smart' } }, { env: { prod: { placement: { region: 'aws:us-east-1' } } } }]) {
+      fs.writeFileSync(file, stringify({ ...readConfig(template), ...placed }))
+      expect(() => readConfig(file, 'env' in placed ? 'prod' : undefined)).toThrow('remove placement')
+    }
   })
   test('custom physical queue names retain logical dispatch including DLQ', () => {
     const config = readConfig(template)
@@ -125,9 +173,9 @@ describe('single API configuration', () => {
     }
     expect(queueMapping(config)['custom-slax-reader-parser-stripe']).toBe('slax-reader-parser-stripe')
     expect(queueMapping(config)['custom-slax-reader-import-other-dql']).toBe('slax-reader-import-other-dql')
-    const output = workerConfig(config, 'edge')
+    const output = workerConfig(config, 'core')
     expect(JSON.parse(String((output.vars as TomlTable).API_QUEUE_CHANNELS))).toEqual(queueMapping(config))
-    for (const row of (output.queues as { consumers: TomlTable[] }).consumers) expect(row.channel).toBeUndefined()
+    for (const row of (workerConfig(config, 'edge').queues as { consumers: TomlTable[] }).consumers) expect(row.channel).toBeUndefined()
   })
   test('rejects ambiguous identities, unknown queue roles and retired variables', () => {
     const dir = directory(),
@@ -213,7 +261,8 @@ describe('single API configuration', () => {
     expect(local.pipelines).toEqual(stream)
     expect(workerConfig(local, 'core').pipelines).toEqual(stream)
     expect(workerConfig(local, 'edge').pipelines).toEqual(stream)
-    expect(workerConfig(local, 'ai').pipelines).toBeUndefined()
+    expect(workerConfig(local, 'ai').pipelines).toEqual(stream)
+    expect(workerConfig(local, 'objects').pipelines).toBeUndefined()
     expect(selectEnvironment(base, 'dev').pipelines).toBeUndefined()
     expect(selectEnvironment(base).pipelines).toEqual(stream)
   })
@@ -266,6 +315,49 @@ describe('single API configuration', () => {
     expect(() => checkRemote(config)).toThrow('RUN_ENV')
     ;(config.vars as TomlTable).RUN_ENV = 'prod'
     expect(workerConfig(config, 'core').migrations).toEqual(config.migrations)
-    expect(workerConfig(config, 'edge').d1_databases).toEqual(config.d1_databases)
+    expect(workerConfig(config, 'ai').d1_databases).toEqual(config.d1_databases)
+    expect(workerConfig(config, 'edge').d1_databases).toBeUndefined()
+  })
+
+  test('the removed MCP server is deleted from Core histories that created it, and from Edge only in retire-mcp', () => {
+    const config = readConfig(template)
+    const created = [
+      { tag: 'v1', new_classes: ['SlaxJieba', 'SlaxWebSocketServer', 'ScreenshotBrowser'] },
+      { tag: 'v2', new_sqlite_classes: ['SlaxMcpServer'] },
+      { tag: 'vector-preference-v1', new_sqlite_classes: ['VectorPreferenceObject'] }
+    ]
+    config.migrations = created
+    const retire = { tag: 'retire-mcp-v1', deleted_classes: ['SlaxMcpServer'] }
+    expect(workerConfig(config, 'core').migrations).toEqual([...created, retire])
+    // While the old Edge still binds Core's namespace, Core publishes without the deletion.
+    expect(workerConfig(config, 'core', false, 'keep-mcp').migrations).toEqual(created)
+    expect(workerConfig(config, 'core', false, 'retire-mcp').migrations).toEqual([...created, retire])
+    // An operator history that already deletes it, or never created it, is left as it is.
+    config.migrations = [...created, { tag: 'operator-delete', deleted_classes: ['SlaxMcpServer'] }]
+    expect(workerConfig(config, 'core').migrations).toEqual(config.migrations)
+    config.migrations = [created[0], created[2]]
+    expect(workerConfig(config, 'core').migrations).toEqual(config.migrations)
+    // Once Core's live tag is the deletion tag, later releases keep it even if the history never created the class.
+    expect(workerConfig(config, 'core', false, 'retire-mcp').migrations).toEqual([...config.migrations, retire])
+    // Edge's legacy history is not in configuration: it carries only the deletion, and only in retire-mcp.
+    expect(workerConfig(config, 'edge').migrations).toBeUndefined()
+    expect(workerConfig(config, 'edge', false, 'keep-mcp').migrations).toBeUndefined()
+    expect(workerConfig(config, 'edge', false, 'retire-mcp').migrations).toEqual([retire])
+    for (const target of ['ai', 'objects', 'browser'] as const)
+      expect(JSON.stringify(workerConfig(config, target, false, 'retire-mcp').migrations ?? [])).not.toContain('SlaxMcpServer')
+  })
+
+  test('only Core in keep-mcp publishes the stub that keeps the MCP namespace', () => {
+    const config = readConfig(template)
+    const dir = fs.mkdtempSync(path.join(tmpdir(), 'mcp-phase-'))
+    try {
+      const main = (target: 'core' | 'edge' | 'ai', mcp: McpPhase) => String(parse(fs.readFileSync(writeGenerated(config, target, dir, false, false, mcp), 'utf8')).main)
+      expect(main('core', 'keep-mcp')).toMatch(/src\/entry\/transition\/core\.ts$/)
+      for (const target of ['core', 'edge', 'ai'] as const)
+        for (const mcp of ['retired', 'retire-mcp'] as const) expect(main(target, mcp)).toMatch(new RegExp(`src/entry/${target}/index\\.ts$`))
+      for (const target of ['edge', 'ai'] as const) expect(main(target, 'keep-mcp')).toMatch(new RegExp(`src/entry/${target}/index\\.ts$`))
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

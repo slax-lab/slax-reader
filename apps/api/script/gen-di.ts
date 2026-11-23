@@ -4,7 +4,22 @@ import path from 'path'
 
 import { Project, SyntaxKind } from 'ts-morph'
 
-const GENERATED_PATH = path.resolve(API_ROOT, 'src/di/generated/dependency.ts')
+const GENERATED_DIR = path.resolve(API_ROOT, 'src/di/generated')
+const PROVIDERS_DIR = path.resolve(API_ROOT, 'src/di/providers')
+
+// Each Worker tier registers only the classes reachable from its own roots: the controllers, consumers
+// and cron jobs in its generated dispatch files, plus classes its entry files resolve directly.
+const TIERS = {
+  core: {
+    dispatch: ['core/readerRouter.ts', 'core/consumer.ts', 'core/cronjob.ts'],
+    entries: ['src/entry/core']
+  },
+  ai: {
+    dispatch: ['ai/aiRouter.ts'],
+    entries: ['src/entry/ai']
+  }
+} as const
+type Tier = keyof typeof TIERS
 
 interface ServiceTypeInfo {
   className: string
@@ -34,6 +49,7 @@ class DIGenerator {
   private serviceInfoMap = new Map<string, ServiceTypeInfo>()
   private symbolUsages = new Map<string, Set<string>>()
   private registeredTypes = new Set<string>()
+  private registrationOf = new Map<string, string>()
 
   private readonly CONFIG = {
     decorators: {
@@ -53,7 +69,49 @@ class DIGenerator {
     this.scanSymbols()
     this.analyzeClassDependencies()
     this.generateRegistrations()
-    this.generateOutput()
+    for (const tier of Object.keys(TIERS) as Tier[]) this.generateTier(tier)
+  }
+
+  private resolvedNames(files: string[]): Set<string> {
+    const names = new Set<string>()
+    for (const file of files) {
+      const text = fs.readFileSync(file, 'utf8')
+      for (const match of text.matchAll(/\.resolve(?:<[^>]*>)?\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)/g)) names.add(match[1])
+    }
+    return names
+  }
+
+  private tierFiles(tier: Tier): string[] {
+    const files: string[] = []
+    const walk = (target: string) => {
+      const absolute = path.resolve(API_ROOT, target)
+      if (!fs.existsSync(absolute)) return
+      if (fs.statSync(absolute).isDirectory()) for (const child of fs.readdirSync(absolute)) walk(path.join(target, child))
+      else if (absolute.endsWith('.ts')) files.push(absolute)
+    }
+    for (const entry of TIERS[tier].entries) walk(entry)
+    for (const dispatch of TIERS[tier].dispatch) files.push(path.join(GENERATED_DIR, dispatch))
+    return files
+  }
+
+  private closure(tier: Tier): { classes: Set<string>; tokens: Set<string> } {
+    const classes = new Set<string>()
+    const tokens = new Set<string>()
+    const pending = Array.from(this.resolvedNames(this.tierFiles(tier)))
+    while (pending.length) {
+      const name = pending.pop()!
+      if (classes.has(name) || tokens.has(name)) continue
+      const info = this.serviceInfoMap.get(name)
+      // Infrastructure clients are classes too, but each request scope must bind them to its env through their provider.
+      if (fs.existsSync(path.join(PROVIDERS_DIR, `${name}.ts`))) tokens.add(name)
+      if (!info) {
+        tokens.add(name)
+        continue
+      }
+      classes.add(name)
+      for (const dep of info.dependencies) pending.push(dep.typeName)
+    }
+    return { classes, tokens }
   }
 
   private shouldSkipFile(filePath: string): boolean {
@@ -340,19 +398,24 @@ class DIGenerator {
       if (this.registeredTypes.has(className)) continue
 
       this.registeredTypes.add(className)
-      this.addImport(serviceInfo.sourceFilePath, className)
 
       if (serviceInfo.requiresEnv) {
-        this.registrations.add(`container.register(${className}, { 
+        this.registrationOf.set(
+          className,
+          `container.register(${className}, { 
   useClass: ${className} 
-})`)
+})`
+        )
         continue
       }
 
       if (serviceInfo.isRegistry) {
-        this.registrations.add(`container.register(${className}, { 
+        this.registrationOf.set(
+          className,
+          `container.register(${className}, { 
   useFactory: (container) => new ${className}()
-})`)
+})`
+        )
         continue
       }
 
@@ -366,13 +429,19 @@ class DIGenerator {
           })
           .join(', ')
 
-        this.registrations.add(`container.register(${className}, { 
+        this.registrationOf.set(
+          className,
+          `container.register(${className}, { 
   useFactory: (container) => new ${className}(${depsString})
-})`)
+})`
+        )
       } else {
-        this.registrations.add(`container.register(${className}, { 
+        this.registrationOf.set(
+          className,
+          `container.register(${className}, { 
   useFactory: () => new ${className}()
-})`)
+})`
+        )
       }
     }
   }
@@ -397,7 +466,7 @@ class DIGenerator {
 
   private getRelativeImportPath(filePath: string): string {
     let relativePath = path
-      .relative(path.dirname(GENERATED_PATH), filePath)
+      .relative(GENERATED_DIR, filePath)
       .replace(/\\/g, '/')
       .replace(/\.tsx?$/, '')
       .replace(/\/index$/, '')
@@ -409,52 +478,91 @@ class DIGenerator {
     return relativePath
   }
 
-  private generateOutput() {
-    const coreImports = [
-      `import { container, Container } from '../../decorators/di'`,
-      `import { lazy } from '../../decorators/lazy'`,
-      `import { ContextManager } from '@/utils/context'`
-    ]
+  private generateTier(tier: Tier) {
+    const { classes, tokens } = this.closure(tier)
+    const output = path.join(GENERATED_DIR, tier, 'dependency.ts')
+    const relative = (file: string) => {
+      let result = path
+        .relative(path.dirname(output), file)
+        .replace(/\\/g, '/')
+        .replace(/\.tsx?$/, '')
+      if (!result.startsWith('.')) result = './' + result
+      return result
+    }
+    const providers = Array.from(tokens)
+      .filter(token => fs.existsSync(path.join(PROVIDERS_DIR, `${token}.ts`)))
+      .sort()
+    // A resolved name that is neither a class nor a provided token: either a symbol token without its provider
+    // file, or a name that is not registered at all.
+    const unprovided = Array.from(tokens).filter(token => !providers.includes(token))
+    if (unprovided.length)
+      throw new Error(
+        `${tier}: ${unprovided
+          .sort()
+          .map(token => (this.isSymbolToken(token) ? `${token} (injection token without a provider in src/di/providers)` : `${token} (no class or provider)`))
+          .join(', ')}`
+      )
 
-    const symbolModuleImports = Array.from(this.symbolImports).map(path => {
-      if (this.symbolUsages.has(path)) {
-        const symbols = Array.from(this.symbolUsages.get(path) || []).join(', ')
-        return `import { ${symbols} } from '${path}'`
+    const imports = new Map<string, Set<string>>()
+    const add = (file: string, name: string) => {
+      const key = relative(file)
+      if (!imports.has(key)) imports.set(key, new Set())
+      imports.get(key)!.add(name)
+    }
+    const ordered = Array.from(this.registrationOf.keys()).filter(name => classes.has(name))
+    for (const name of ordered) {
+      const info = this.serviceInfoMap.get(name)!
+      add(info.sourceFilePath, name)
+      for (const dep of info.dependencies) {
+        const depInfo = this.serviceInfoMap.get(dep.typeName)
+        if (depInfo) add(depInfo.sourceFilePath, dep.typeName)
+        else {
+          const symbolFile = this.symbolFileOf(dep.typeName)
+          if (symbolFile) add(symbolFile, dep.typeName)
+        }
       }
-      return `import * as Symbols from '${path}'`
-    })
+    }
+    const header = [
+      `import { container, Container } from '${relative(path.join(API_ROOT, 'src/decorators/di.ts'))}'`,
+      `import { lazy } from '${relative(path.join(API_ROOT, 'src/decorators/lazy.ts'))}'`,
+      `import { ContextManager } from '@/utils/context'`,
+      `import { DatabaseRegistry } from '${relative(path.join(API_ROOT, 'src/di/data.ts'))}'`,
+      ...providers.map(token => `import { provide as provide${token} } from '${relative(path.join(PROVIDERS_DIR, `${token}.ts`))}'`),
+      ...Array.from(imports.entries()).map(([from, names]) => `import { ${Array.from(names).sort().join(', ')} } from '${from}'`)
+    ].join('\n')
 
-    const moduleImports = Array.from(this.imports.entries())
-      .filter(([path, classes]) => classes.size > 0)
-      .map(([importPath, classes]) => {
-        const classNames = Array.from(classes).join(', ')
-        return `import { ${classNames} } from '${importPath}'`
-      })
+    const text = `// Generated by script/gen-di.ts for the ${tier} Worker. Do not edit.
+${header}
 
-    const importStatements = [...coreImports, ...symbolModuleImports, ...moduleImports].join('\n')
+${ordered.map(name => this.registrationOf.get(name)).join('\n\n')}
 
-    const registryInitializations = Array.from(this.serviceInfoMap.entries())
-      .filter(([_, info]) => info.isRegistry)
-      .map(([registry, _]) => `  container.resolve(${registry}).register(ctx, targetContainer);`)
-      .join('\n')
-
-    const output = `
-${importStatements}
-
-${Array.from(this.registrations).join('\n\n')}
+// Kept per module so two tiers loaded into one isolate never replace each other's providers.
+const registry = new DatabaseRegistry([${providers.map(token => `provide${token}`).join(', ')}])
 
 export function initializeInfrastructure(ctx: ContextManager, targetContainer: Container) {
-${registryInitializations}
+  const selected = container.isRegistered(DatabaseRegistry) ? container.resolve(DatabaseRegistry) : registry
+  selected.register(ctx, targetContainer)
 }
 
 export function initializeCore() {
   return {
     container
-  };
-}`
+  }
+}
+`
+    fs.mkdirSync(path.dirname(output), { recursive: true })
+    fs.writeFileSync(output, text)
+    console.log(`✅ Generated ${tier} DI configuration (${ordered.length} classes, ${providers.length} providers) at ${output}`)
+  }
 
-    fs.writeFileSync(GENERATED_PATH, output)
-    console.log(`✅ Generated DI configuration at ${GENERATED_PATH}`)
+  private isSymbolToken(name: string): boolean {
+    return this.symbolFileOf(name) !== undefined
+  }
+
+  private symbolFileOf(name: string): string | undefined {
+    for (const [importPath, symbols] of this.symbolUsages.entries())
+      if (symbols.has(name)) return path.resolve(path.dirname(path.join(GENERATED_DIR, 'dependency.ts')), importPath) + '.ts'
+    return undefined
   }
 }
 

@@ -1,3 +1,7 @@
+import {useEmailLinkLogin} from './auth/useEmailLinkLogin';
+import {emailLinkWebOrigin} from './auth/email-link-login';
+import {nativeEmailLinks} from './native/email-links';
+import {EmailLinkLoginNotice} from './auth/EmailLinkLoginNotice';
 import {AvatarResourcesContext} from './components/AvatarResources';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {AppState, Platform} from 'react-native';
@@ -44,6 +48,7 @@ export interface MobileContextValue {
   systemSurfaces?: SystemSurfacesController;
   systemIntentsAvailable?: boolean;
   systemDiscoveryAvailable?: boolean;
+  emailLink?: ReturnType<typeof useEmailLinkLogin>;
   systemEntry?: ReturnType<typeof createSystemEntryRouter>;
   webSession: {ready: boolean; error: Error|null};
   acquireWebSession?(): () => void;
@@ -200,6 +205,7 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   const t = useMemo(() => createTranslator(locale), [locale]);
   const apiUrl = runtime.api.options.baseUrl;
   const config = useMemo(() => ({...mobileConfig, apiUrl, isBeta: !mobileConfig.development && apiUrl === mobileConfig.betaApiUrl}), [apiUrl]);
+  const emailLink = useEmailLinkLogin({source: nativeEmailLinks, api: runtime.api, sessions: runtime.sessions, webOrigin: emailLinkWebOrigin(mobileConfig, apiUrl)});
   const retryFlight = useRef<Promise<void> | null>(null);
   const retryStart = useCallback(() => {
     if (retryFlight.current) return retryFlight.current;
@@ -215,14 +221,14 @@ export function MobileProvider({children, appIntents}: {children: React.ReactNod
   const value = useMemo<MobileServices>(() => ({
     runtime, api: runtime.api, preferences, sessions: runtime.sessions, nativeResourceOwner, systemSurfaces, systemEntry,
     repositories, cache, session, upgrade, credentialState, locale, t, config, payments, systemIntentsAvailable: surfaceCapabilities.intents, systemDiscoveryAvailable: surfaceCapabilities.discovery,
-    acquireWebSession, retryStart,
-  }), [runtime, preferences, nativeResourceOwner, systemSurfaces, systemEntry, repositories, cache, session, upgrade, credentialState, locale, t, config, payments, surfaceCapabilities.intents, surfaceCapabilities.discovery, acquireWebSession, retryStart]);
+    acquireWebSession, retryStart, emailLink,
+  }), [runtime, preferences, nativeResourceOwner, systemSurfaces, systemEntry, repositories, cache, session, upgrade, credentialState, locale, t, config, payments, surfaceCapabilities.intents, surfaceCapabilities.discovery, acquireWebSession, retryStart, emailLink]);
   const reading = useMemo<MobileServices>(() => ({runtime, api: runtime.api, preferences, sessions: runtime.sessions, nativeResourceOwner, systemSurfaces, systemEntry,
     repositories, cache, session, upgrade, locale, t, config, payments, retryStart}),
   [runtime, preferences, nativeResourceOwner, systemSurfaces, systemEntry, repositories, cache, session, upgrade, locale, t, config, payments, retryStart]);
   const saveOwner = session.status === 'authenticated' && nativeResourceOwner ? {userId: session.session.userId, origin: apiUrl, generation: nativeResourceOwner} : null;
   const saveReady = Boolean(saveOwner && upgrade.status === 'ready' && credentialState.status === 'ready' && repositories);
-  return <MobileContexts services={value} reading={reading} settings={settingsStore} webSession={visibleWebSession}><AvatarResourcesContext.Provider value={dataReady ? runtime.getAvatarCache?.() ?? null : null}>{children}<SaveURLHost controller={systemActions} router={systemEntry.router} owner={saveOwner} ready={saveReady} appIntents={appIntents} t={t}/></AvatarResourcesContext.Provider></MobileContexts>;
+  return <MobileContexts services={value} reading={reading} settings={settingsStore} webSession={visibleWebSession}><AvatarResourcesContext.Provider value={dataReady ? runtime.getAvatarCache?.() ?? null : null}>{children}<EmailLinkLoginNotice {...emailLink} t={t}/><SaveURLHost controller={systemActions} router={systemEntry.router} owner={saveOwner} ready={saveReady} appIntents={appIntents} t={t}/></AvatarResourcesContext.Provider></MobileContexts>;
 }
 export function useReadingMobile(): MobileServices {
   const context = useContext(ReadingContext);

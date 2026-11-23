@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
 vi.mock('cloudflare:workers', () => ({
   WorkerEntrypoint: class<Environment> {
@@ -11,10 +11,50 @@ vi.mock('cloudflare:workers', () => ({
 }))
 
 import { ContentEntry } from '@/entry/edge/contentEntry'
+import { EDGE_RAY_ID_HEADER } from '@/const/edge'
 
 const execution = {} as ExecutionContext
+afterEach(() => vi.restoreAllMocks())
 
 describe('ContentEntry edge adapter', () => {
+  test('logs metadata stages in prod while retaining the original response and Ray linkage', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const original = Response.json({ uuid: 'bookmark-1' })
+    const fetch = vi.fn().mockResolvedValue(original)
+    const entry = new ContentEntry(execution, { CORE: { fetch }, RUN_TYPE: 'prod' } as unknown as Env)
+
+    const response = await entry.fetch(new Request('https://content.internal/content/meta?uuid=bookmark-1', {
+      headers: { 'CF-Ray': 'outer-ray' }
+    }))
+
+    expect(response).toBe(original)
+    expect(response.headers.get('Server-Timing')).toBeNull()
+    expect((fetch.mock.calls[0][0] as Request).headers.get(EDGE_RAY_ID_HEADER)).toBe('outer-ray')
+    expect(info.mock.calls.map(call => call[1])).toEqual([
+      expect.objectContaining({ scope: 'edge', phase: 'entry', ray_id: 'outer-ray' }),
+      expect.objectContaining({ scope: 'edge', phase: 'response', status_code: 200, phases_ms: { 'core-fetch': expect.any(Number) } })
+    ])
+    info.mockRestore()
+  })
+
+  test('logs a binding failure and propagates the original error', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const error = new Error('binding failed')
+    const entry = new ContentEntry(execution, { CORE: { fetch: vi.fn().mockRejectedValue(error) }, RUN_TYPE: 'prod' } as unknown as Env)
+
+    await expect(entry.fetch(new Request('https://content.internal/content/meta?uuid=bookmark-1'))).rejects.toBe(error)
+    expect(info.mock.calls[1][1]).toMatchObject({ scope: 'edge', phase: 'response', outcome: 'failed' })
+    info.mockRestore()
+  })
+
+  test('does not add metadata logs to other content operations', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const entry = new ContentEntry(execution, { CORE: { fetch: vi.fn().mockResolvedValue(Response.json({ ok: true })) }, RUN_TYPE: 'prod' } as unknown as Env)
+    await entry.fetch(new Request('https://content.internal/content/visit', { method: 'POST' }))
+    expect(info).not.toHaveBeenCalled()
+    info.mockRestore()
+  })
+
   test('translates direct fetch bearer auth into the internal core token header', async () => {
     const fetch = vi.fn().mockResolvedValue(Response.json({ role: 'owner' }))
     const entry = new ContentEntry(execution, { CORE: { fetch }, RUN_TYPE: 'beta' } as unknown as Env)

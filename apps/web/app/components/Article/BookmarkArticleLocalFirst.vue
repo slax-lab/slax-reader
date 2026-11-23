@@ -11,26 +11,75 @@ import BookmarkArticle from '~/components/Article/BookmarkArticle.vue'
 
 import { LocalFirstHttpClient } from './Selection/adapters/LocalFirstHttpClient'
 import type { MarkDetail } from '@commons/frontend-types/models'
+import type { FetchOptions } from '@commons/frontend-utils/request'
+import type { PowerSyncDatabase } from '@powersync/web'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import type { IHttpClient } from '@slax-reader/selection/adapters'
 import { DwebHttpClient } from '~/components/Article/Selection/adapters'
 import { ArticleSelectionAdaptersKey } from '~/components/Article/Selection/injection'
 import type { QuoteData } from '~/components/Chat/type'
 import { useUserStore } from '~/stores/user'
 
-const props = defineProps<{
-  detail: BookmarkArticleDetail
-  bookmarkUuid: string
-  localFirst: boolean
-  localReady: boolean
-  marks?: MarkDetail
-  isOwner?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    detail: BookmarkArticleDetail
+    bookmarkUuid: string
+    localFirst: boolean
+    localReady: boolean
+    // A database received after setup; the app-level client stays absent on a deferred document.
+    localDatabase?: PowerSyncDatabase
+    // Tag editing needs the setup-time local adapter; a deferred document keeps tags on REST.
+    localTags?: boolean
+    marks?: MarkDetail
+    isOwner?: boolean
+  }>(),
+  { localTags: true, localDatabase: undefined, marks: undefined, isOwner: undefined }
+)
 
 const userStore = useUserStore()
+const emit = defineEmits<{ localMarkWrite: []; restMarkWrite: [change: { added?: string; deleted?: string }] }>()
+const dwebClient = new DwebHttpClient()
+// Marks written over REST before a deferred page switches to local data must stay shown until local rows include them.
+const restClient: IHttpClient = {
+  post: async <T = unknown>(options: FetchOptions) => {
+    const result = await dwebClient.post<T>(options)
+    try {
+      if (options.url === RESTMethodPath.ADD_MARK) {
+        const added = (result as { mark_uid?: unknown } | undefined)?.mark_uid
+        if (typeof added === 'string' && added) emit('restMarkWrite', { added })
+      } else if (options.url === RESTMethodPath.DELETE_MARK) {
+        const deleted = (options.body as { mark_uid?: unknown } | undefined)?.mark_uid
+        if (typeof deleted === 'string' && deleted) emit('restMarkWrite', { deleted })
+      }
+    } catch {
+      // Reporting is advisory; the write itself already succeeded.
+    }
+    return result
+  },
+  get: <T = unknown>(options: FetchOptions) => dwebClient.get<T>(options),
+  put: <T = unknown>(options: FetchOptions) => dwebClient.put<T>(options),
+  delete: <T = unknown>(options: FetchOptions) => dwebClient.delete<T>(options)
+}
+let localClient: { key: unknown; client: LocalFirstHttpClient } | null = null
+const currentClient = (): IHttpClient => {
+  if (!props.localFirst || !props.bookmarkUuid) return restClient
+  const key = props.localDatabase ?? props.bookmarkUuid
+  if (localClient?.key !== key) localClient = { key, client: new LocalFirstHttpClient(props.bookmarkUuid, props.localDatabase, () => emit('localMarkWrite')) }
+  return localClient.client
+}
+const switchingClient: IHttpClient = {
+  post: options => currentClient().post(options),
+  get: options => currentClient().get(options),
+  put: options => currentClient().put(options),
+  delete: options => currentClient().delete(options)
+}
 
 // 行为差异门控在 localFirst
 // 用 getter 延迟取值，晚绑定
 provide(ArticleSelectionAdaptersKey, {
-  httpClient: () => (props.localFirst && props.bookmarkUuid ? new LocalFirstHttpClient(props.bookmarkUuid) : new DwebHttpClient()),
+  // The selection layer keeps the first client it receives; resolve the transport per request so a page that
+  // switches to local data after the first mark draw writes locally from then on.
+  httpClient: () => switchingClient,
   get allowActionOverride() {
     // snapshot owner（非 localFirst）也放开划线/评论/标签，对齐 463d6a21 isSnapshotOwner
     if (props.localFirst || props.isOwner) return true
@@ -47,10 +96,10 @@ provide(ArticleSelectionAdaptersKey, {
     return props.localFirst ? 'props' : 'detail'
   },
   get tagsDataSource() {
-    return props.localFirst ? 'local' : 'rest'
+    return props.localFirst && props.localTags ? 'local' : 'rest'
   },
   get tagsBookmarkUuid() {
-    return props.localFirst ? props.bookmarkUuid : ''
+    return props.localFirst && props.localTags ? props.bookmarkUuid : ''
   },
   // 行末评论 icon：快照页常开
   commentTailIndicator: true

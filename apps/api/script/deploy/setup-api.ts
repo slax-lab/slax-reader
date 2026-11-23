@@ -45,7 +45,7 @@ export function checkDevelopment(filename = CONFIG_PATH, environment = process.e
     const vars = effective.vars as TomlTable
     if (vars.RUN_ENV !== 'development' || vars.RUN_TYPE !== 'dev') throw new Error('setup requires RUN_ENV=development and RUN_TYPE=dev for every Worker')
     const bindings = (effective.hyperdrive ?? []) as TomlTable[]
-    if (target !== 'browser' && ['HYPERDRIVE', 'HYPERDRIVE_LOGS'].some(name => !bindings.some(binding => binding.binding === name)))
+    if (['core', 'ai'].includes(target) && ['HYPERDRIVE', 'HYPERDRIVE_LOGS'].some(name => !bindings.some(binding => binding.binding === name)))
       throw new Error('setup requires both HYPERDRIVE and HYPERDRIVE_LOGS bindings')
     for (const binding of bindings) {
       const database = binding.binding === 'HYPERDRIVE' ? 'slax-reader-backend-internal' : binding.binding === 'HYPERDRIVE_LOGS' ? 'slax-reader-logs' : undefined

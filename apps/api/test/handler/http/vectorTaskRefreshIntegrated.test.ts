@@ -11,27 +11,16 @@ vi.mock('cloudflare:workers', () => ({
   WorkflowEntrypoint: class {}
 }))
 vi.mock('cloudflare:workflows', () => ({ NonRetryableError: class extends Error {} }))
-vi.mock('agents/mcp', () => ({ McpAgent: class {} }))
 vi.mock('@/utils/activeUser', () => ({ requireActiveUser: vi.fn(async () => undefined) }))
 
 import { container } from '@/decorators/di'
-import '@/di/generated/dependency'
-import core from '@/entry/core'
+import '@/di/generated/ai/dependency'
+import ai from '@/entry/ai'
 import edge from '@/entry/edge'
 import { Auth } from '@/utils/jwt'
 import { Hashid } from '@/utils/hashids'
-import { BookmarkService } from '@/domain/bookmark'
-import { CollectionService } from '@/domain/collection'
-import { BookmarkOrchestrator } from '@/domain/orchestrator/bookmark'
-import { BookmarkAddOrchestrator } from '@/domain/orchestrator/bookmarkAdd'
-import { CollectionOrchestrator } from '@/domain/orchestrator/collection'
-import { ImportService } from '@/domain/import'
+import { BookmarkAiOrchestrator } from '@/domain/orchestrator/bookmarkAi'
 import { SearchService } from '@/domain/search'
-import { TagService } from '@/domain/tag'
-import { UrlParserHandler } from '@/domain/orchestrator/urlParser'
-import { UserDeletionService } from '@/domain/userDeletion'
-import { CrawlService } from '@/domain/crawl'
-import { LogsService } from '@/domain/logs'
 import { VectorMaintenanceService } from '@/domain/vectorMaintenance'
 import { EDGE_IDENTITY_HEADER, EDGE_SECRET_HEADER, encodeEdgeIdentity } from '@/const/edge'
 import { memoryPreferences } from '../../helpers/preferenceMemory'
@@ -97,7 +86,7 @@ function boundary() {
 }
 
 let current: ReturnType<typeof boundary>
-let coreEnv: Env
+let aiEnv: Env
 let edgeEnv: Env
 
 function execution() {
@@ -109,7 +98,7 @@ function execution() {
   return { ctx, pending }
 }
 
-function coreRequest(path: string, body: unknown, headers: Record<string, string> = {}) {
+function taskRequest(path: string, body: unknown, headers: Record<string, string> = {}) {
   return new Request(`https://api-reader.slax.com${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
@@ -120,24 +109,14 @@ function coreRequest(path: string, body: unknown, headers: Record<string, string
 const task = (secret = SECRET) => ({ 'X-Vector-Refresh-Secret': secret })
 
 beforeAll(() => {
-  container.register(BookmarkService, { useValue: {} })
-  container.register(CollectionService, { useValue: {} })
-  container.register(BookmarkOrchestrator, { useValue: {} })
-  container.register(BookmarkAddOrchestrator, { useValue: {} })
-  container.register(CollectionOrchestrator, { useValue: {} })
-  container.register(ImportService, { useValue: {} })
+  container.register(BookmarkAiOrchestrator, { useValue: {} })
   container.register(SearchService, { useValue: {} })
-  container.register(TagService, { useValue: {} })
-  container.register(UrlParserHandler, { useValue: {} })
-  container.register(UserDeletionService, { useValue: {} })
-  container.register(CrawlService, { useValue: {} })
-  container.register(LogsService, { useValue: {} })
 })
 
 beforeEach(() => {
   current = boundary()
   container.register(VectorMaintenanceService, { useValue: current.service })
-  coreEnv = {
+  aiEnv = {
     VECTOR_REFRESH_SECRET: SECRET,
     VECTOR_V5_MAINTENANCE_WORKFLOW: { create: vi.fn(async () => ({ id: 'repair-workflow' })) },
     EDGE_SHARED_SECRET: EDGE_SHARED_SECRET,
@@ -149,7 +128,7 @@ beforeEach(() => {
     JWT_EXPIRES: '3600',
     RUN_ENV: 'test'
   } as unknown as Env
-  // The task secret belongs to Core and the caller only; Edge must work without it.
+  // The task secret belongs to AI and the caller only; Edge must work without it.
   edgeEnv = {
     EDGE_SHARED_SECRET: EDGE_SHARED_SECRET,
     FRONT_END_URL: 'http://localhost:3000',
@@ -162,21 +141,21 @@ beforeEach(() => {
   } as unknown as Env
 })
 
-async function atCore(path: string, body: unknown, headers: Record<string, string> = {}) {
-  const request = coreRequest(path, body, headers)
+async function atAi(path: string, body: unknown, headers: Record<string, string> = {}) {
+  const request = taskRequest(path, body, headers)
   const { ctx, pending } = execution()
-  const response = await core.fetch(request, coreEnv, ctx)
+  const response = await ai.fetch(request, aiEnv, ctx)
   await Promise.all(pending)
   return { request, response, ctx }
 }
 
 async function throughEdge(path: string, body: unknown, headers: Record<string, string> = {}) {
-  const coreFetch = vi.fn((request: Request) => core.fetch(request, coreEnv, execution().ctx))
-  edgeEnv = { ...edgeEnv, CORE: { fetch: coreFetch } } as unknown as Env
+  const aiFetch = vi.fn((request: Request) => ai.fetch(request, aiEnv, execution().ctx))
+  edgeEnv = { ...edgeEnv, AIGC: { fetch: aiFetch } } as unknown as Env
   const { ctx, pending } = execution()
-  const response = await edge.fetch(coreRequest(path, body, headers), edgeEnv, ctx)
+  const response = await edge.fetch(taskRequest(path, body, headers), edgeEnv, ctx)
   await Promise.all(pending)
-  return { response, coreFetch, forwarded: coreFetch.mock.calls[0]?.[0] as Request | undefined }
+  return { response, aiFetch, forwarded: aiFetch.mock.calls[0]?.[0] as Request | undefined }
 }
 
 function assertUntouched() {
@@ -192,10 +171,10 @@ function assertUntouched() {
   expect(current.index.delete).not.toHaveBeenCalled()
 }
 
-describe('direct Core task routes through the generated router', () => {
+describe('direct AI task routes through the generated router', () => {
   test('the bookmark action writes only the requested private article from repository and model fixtures', async () => {
     current.repo.findArticles.mockResolvedValue([articleRow])
-    const { request, response } = await atCore('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, task())
+    const { request, response } = await atAi('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, task())
     const body = (await response.json()) as { code: number; data: { state: string; target: unknown } }
     expect(body).toMatchObject({ code: 200, data: { state: 'written', target: { kind: 'article', userId: USER, id: 41 } } })
     expect(request.bodyUsed).toBe(true)
@@ -213,7 +192,7 @@ describe('direct Core task routes through the generated router', () => {
     current.stored.set('u:7:article', { id: 'u:7:article', namespace: 'user-article', values: unit() })
     current.stored.set('u:7:article:centered', { id: 'u:7:article:centered', namespace: 'user-article', values: unit(1) })
     current.stored.set('u:7:collection', { id: 'u:7:collection', namespace: 'user-collection', values: unit(2) })
-    const { response } = await atCore('/v1/bookmark/preference/refresh', { user_id: USER }, task())
+    const { response } = await atAi('/v1/bookmark/preference/refresh', { user_id: USER }, task())
     const body = (await response.json()) as { code: number; data: { state: string; target: unknown } }
     expect(body).toMatchObject({ code: 200, data: { state: 'deleted', target: { kind: 'user', id: USER, preference: 'article' } } })
     expect(current.repo.listUserArticles).toHaveBeenCalled()
@@ -230,7 +209,7 @@ describe('direct Core task routes through the generated router', () => {
     current.stored.set('c:80', { id: 'c:80', values: unit() })
     current.stored.set('c:81', { id: 'c:81', values: unit() })
     current.stored.set('u:7:article', { id: 'u:7:article', namespace: 'user-article', values: unit() })
-    const { response } = await atCore('/v1/collection/vector/refresh', { collection_id: 81 }, task())
+    const { response } = await atAi('/v1/collection/vector/refresh', { collection_id: 81 }, task())
     const body = (await response.json()) as { code: number; data: { state: string; target: unknown } }
     expect(body).toMatchObject({ code: 200, data: { state: 'deleted', target: { kind: 'collection', id: 81 } } })
     expect(new Set(current.repo.findCollection.mock.calls.map(([id]) => id))).toEqual(new Set([81]))
@@ -246,7 +225,7 @@ describe('direct Core task routes through the generated router', () => {
   test('the retired Collection-preference action only cleans that user legacy key', async () => {
     current.stored.set('u:7:article', { id: 'u:7:article', namespace: 'user-article', values: unit() })
     current.stored.set('u:7:collection', { id: 'u:7:collection', namespace: 'user-collection', values: unit() })
-    const { response } = await atCore('/v1/collection/preference/refresh', { user_id: USER }, task())
+    const { response } = await atAi('/v1/collection/preference/refresh', { user_id: USER }, task())
     const body = (await response.json()) as { code: number; data: { state: string; target: unknown } }
     expect(body).toMatchObject({ code: 200, data: { state: 'deleted', target: { kind: 'user', id: USER, preference: 'collection' } } })
     expect(current.repo.listUserCollections).not.toHaveBeenCalled()
@@ -265,7 +244,7 @@ describe('direct Core task routes through the generated router', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      const { request, response } = await atCore('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, headers as Record<string, string>)
+      const { request, response } = await atAi('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, headers as Record<string, string>)
       expect(response.status).toBe(401)
       expect(request.bodyUsed).toBe(false)
       assertUntouched()
@@ -278,10 +257,10 @@ describe('direct Core task routes through the generated router', () => {
   })
 
   test('a valid Reader JWT without the task header cannot replace the secret', async () => {
-    const token = await new Auth(coreEnv).sign({ id: String(new Hashid(coreEnv).encodeId(USER)), email: 'reader@example.com', lang: 'en' })
+    const token = await new Auth(aiEnv).sign({ id: String(new Hashid(aiEnv).encodeId(USER)), email: 'reader@example.com', lang: 'en' })
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     try {
-      const { request, response } = await atCore('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { Authorization: `Bearer ${token}` })
+      const { request, response } = await atAi('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { Authorization: `Bearer ${token}` })
       expect(response.status).toBe(401)
       expect(request.bodyUsed).toBe(false)
       expect(JSON.stringify(log.mock.calls)).not.toContain(token)
@@ -292,13 +271,13 @@ describe('direct Core task routes through the generated router', () => {
   })
 
   test('an API key alone cannot invoke a task route', async () => {
-    const { response } = await atCore('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { 'X-API-Key': 'reader-api-key' })
+    const { response } = await atAi('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { 'X-API-Key': 'reader-api-key' })
     expect(await response.json()).toMatchObject({ code: 403 })
     assertUntouched()
   })
 
   test('forwarded Edge identity headers cannot replace the task secret', async () => {
-    const { request, response } = await atCore(
+    const { request, response } = await atAi(
       '/v1/bookmark/vector/refresh',
       { user_id: USER, bookmark_id: 41 },
       {
@@ -316,14 +295,14 @@ describe('direct Core task routes through the generated router', () => {
     ['/v1/bookmark/vector/refreshfoo', 401],
     ['/x/v1/bookmark/vector/refresh', 401]
   ] as const)('the noncanonical path %s cannot reach a task handler (%i)', async (path, status) => {
-    const { request, response } = await atCore(path, { user_id: USER, bookmark_id: 41 }, task())
+    const { request, response } = await atAi(path, { user_id: USER, bookmark_id: 41 }, task())
     expect(response.status).toBe(status)
     expect(request.bodyUsed).toBe(false)
     assertUntouched()
   })
 
   test('a trailing-slash path rejects after the secret and before parsing', async () => {
-    const { request, response } = await atCore('/v1/bookmark/vector/refresh/', { user_id: USER, bookmark_id: 41 }, task())
+    const { request, response } = await atAi('/v1/bookmark/vector/refresh/', { user_id: USER, bookmark_id: 41 }, task())
     expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({ code: 400, data: 'ERROR_PARAM' })
     expect(request.bodyUsed).toBe(false)
@@ -331,8 +310,8 @@ describe('direct Core task routes through the generated router', () => {
   })
 
   test('a valid Reader JWT on a trailing slash is rejected by the secret first', async () => {
-    const token = await new Auth(coreEnv).sign({ id: String(new Hashid(coreEnv).encodeId(USER)), email: 'reader@example.com', lang: 'en' })
-    const { request, response } = await atCore('/v1/bookmark/vector/refresh/', { user_id: USER, bookmark_id: 41 }, { Authorization: `Bearer ${token}` })
+    const token = await new Auth(aiEnv).sign({ id: String(new Hashid(aiEnv).encodeId(USER)), email: 'reader@example.com', lang: 'en' })
+    const { request, response } = await atAi('/v1/bookmark/vector/refresh/', { user_id: USER, bookmark_id: 41 }, { Authorization: `Bearer ${token}` })
     expect(response.status).toBe(401)
     expect(request.bodyUsed).toBe(false)
     assertUntouched()
@@ -340,15 +319,15 @@ describe('direct Core task routes through the generated router', () => {
 
   test('a GET on a canonical task path is not routed to a handler', async () => {
     const request = new Request('https://api-reader.slax.com/v1/bookmark/vector/refresh', { method: 'GET', headers: task() })
-    const response = await core.fetch(request, coreEnv, execution().ctx)
+    const response = await ai.fetch(request, aiEnv, execution().ctx)
     expect(response.status).toBe(404)
     expect(await response.json()).toMatchObject({ code: 404 })
     assertUntouched()
   })
 
-  test.each([undefined, '', '   '])('a missing, empty or whitespace Core configuration fails closed (%j)', async secret => {
-    coreEnv = { ...coreEnv, VECTOR_REFRESH_SECRET: secret } as unknown as Env
-    const { request, response } = await atCore('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, task())
+  test.each([undefined, '', '   '])('a missing, empty or whitespace AI configuration fails closed (%j)', async secret => {
+    aiEnv = { ...aiEnv, VECTOR_REFRESH_SECRET: secret } as unknown as Env
+    const { request, response } = await atAi('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, task())
     expect(response.status).toBe(401)
     expect(request.bodyUsed).toBe(false)
     assertUntouched()
@@ -357,7 +336,7 @@ describe('direct Core task routes through the generated router', () => {
   test('a pending verification result is reported without a second target write', async () => {
     current.repo.findArticles.mockResolvedValue([articleRow])
     current.index.get.mockResolvedValueOnce([]).mockResolvedValueOnce([])
-    const { response } = await atCore('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, task())
+    const { response } = await atAi('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, task())
     expect(await response.json()).toMatchObject({ data: { state: 'pending', target: { kind: 'article', userId: USER, id: 41 } } })
     expect(current.repo.findArticles).toHaveBeenCalledOnce()
     expect(current.index.upsert).toHaveBeenCalledOnce()
@@ -377,10 +356,10 @@ describe('Edge anonymous forwarding preserves the task header', () => {
   ] as const)('%s forwards the custom header unchanged and reaches the real Controller/Domain', async (path, body) => {
     current.repo.findArticles.mockResolvedValue([articleRow])
     current.repo.findCollection.mockResolvedValue({ id: 81, owner_id: USER, published_at: 1, sharing: true })
-    const { response, coreFetch, forwarded } = await throughEdge(path, body, task())
+    const { response, aiFetch, forwarded } = await throughEdge(path, body, task())
     expect(response.status).toBe(200)
     expect((await response.json()).code).toBe(200)
-    expect(coreFetch).toHaveBeenCalledOnce()
+    expect(aiFetch).toHaveBeenCalledOnce()
     expect(forwarded!.headers.get('X-Vector-Refresh-Secret')).toBe(SECRET)
     expect(forwarded!.headers.has('Authorization')).toBe(false)
     expect(forwarded!.headers.has(EDGE_IDENTITY_HEADER)).toBe(false)
@@ -390,25 +369,25 @@ describe('Edge anonymous forwarding preserves the task header', () => {
     if (path.includes('collection/preference')) expect(current.repo.listUserCollections).not.toHaveBeenCalled()
   })
 
-  test('a wrong task header is forwarded and denied by Core', async () => {
-    const { response, coreFetch } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, task(OTHER_SECRET))
+  test('a wrong task header is forwarded and denied by AI', async () => {
+    const { response, aiFetch } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, task(OTHER_SECRET))
     expect(response.status).toBe(401)
-    expect(coreFetch).toHaveBeenCalledOnce()
+    expect(aiFetch).toHaveBeenCalledOnce()
     assertUntouched()
   })
 
-  test('a missing task header is forwarded and denied by Core', async () => {
-    const { response, coreFetch } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, {})
+  test('a missing task header is forwarded and denied by AI', async () => {
+    const { response, aiFetch } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, {})
     expect(response.status).toBe(401)
-    expect(coreFetch).toHaveBeenCalledOnce()
+    expect(aiFetch).toHaveBeenCalledOnce()
     assertUntouched()
   })
 
-  test('a valid Reader JWT is forwarded in user mode, but Core still requires the task header', async () => {
-    const token = await new Auth(coreEnv).sign({ id: String(new Hashid(coreEnv).encodeId(USER)), email: 'reader@example.com', lang: 'en' })
-    const { response, coreFetch, forwarded } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { Authorization: `Bearer ${token}` })
+  test('a valid Reader JWT is forwarded in user mode, but AI still requires the task header', async () => {
+    const token = await new Auth(aiEnv).sign({ id: String(new Hashid(aiEnv).encodeId(USER)), email: 'reader@example.com', lang: 'en' })
+    const { response, aiFetch, forwarded } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { Authorization: `Bearer ${token}` })
     expect(response.status).toBe(401)
-    expect(coreFetch).toHaveBeenCalledOnce()
+    expect(aiFetch).toHaveBeenCalledOnce()
     expect(forwarded!.headers.has('Authorization')).toBe(false)
     expect(forwarded!.headers.has(EDGE_IDENTITY_HEADER)).toBe(true)
     assertUntouched()
@@ -416,10 +395,10 @@ describe('Edge anonymous forwarding preserves the task header', () => {
 
   test('a JWT plus the task header keeps the header and succeeds', async () => {
     current.repo.findArticles.mockResolvedValue([articleRow])
-    const token = await new Auth(coreEnv).sign({ id: String(new Hashid(coreEnv).encodeId(USER)), email: 'reader@example.com', lang: 'en' })
-    const { response, coreFetch, forwarded } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { Authorization: `Bearer ${token}`, ...task() })
+    const token = await new Auth(aiEnv).sign({ id: String(new Hashid(aiEnv).encodeId(USER)), email: 'reader@example.com', lang: 'en' })
+    const { response, aiFetch, forwarded } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { Authorization: `Bearer ${token}`, ...task() })
     expect(response.status).toBe(200)
-    expect(coreFetch).toHaveBeenCalledOnce()
+    expect(aiFetch).toHaveBeenCalledOnce()
     expect(forwarded!.headers.get('X-Vector-Refresh-Secret')).toBe(SECRET)
     expect([...current.stored.keys()]).toEqual(['a:7:41'])
   })
@@ -431,10 +410,10 @@ describe('Edge anonymous forwarding preserves the task header', () => {
     assertUntouched()
   })
 
-  test('an API key is forwarded but Core rejects it for task routes', async () => {
-    const { response, coreFetch } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { 'X-API-Key': 'reader-api-key' })
+  test('an API key is forwarded but AI rejects it for task routes', async () => {
+    const { response, aiFetch } = await throughEdge('/v1/bookmark/vector/refresh', { user_id: USER, bookmark_id: 41 }, { 'X-API-Key': 'reader-api-key' })
     expect(await response.json()).toMatchObject({ code: 403 })
-    expect(coreFetch).toHaveBeenCalledOnce()
+    expect(aiFetch).toHaveBeenCalledOnce()
     assertUntouched()
   })
 

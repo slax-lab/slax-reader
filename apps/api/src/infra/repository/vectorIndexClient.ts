@@ -1,5 +1,5 @@
 import { injectable } from '@/decorators/di'
-import type { VectorIndexRpc } from './vectorIndexRepo'
+import { VectorIndexRepo, type VectorIndexRpc } from './vectorIndexRepo'
 import type { ArticleQueryOptions, VectorIndexKind, VectorQueryOptions } from '@/utils/vectorMaintenanceTypes'
 
 @injectable()
@@ -10,7 +10,8 @@ export class VectorIndexClient {
 
   constructor(env: Env) {
     this.publisherUserIds = env.PUBLISHER_USER_IDS
-    this.rpc = env.VECTOR as unknown as VectorIndexRpc
+    // Core reaches the indexes through the VECTOR RPC; the AI Worker binds them itself and uses them directly.
+    this.rpc = env.VECTOR ? (env.VECTOR as unknown as VectorIndexRpc) : new VectorIndexRepo(env)
   }
 
   get(kind: VectorIndexKind, ids: string[]): Promise<VectorizeVector[]> {

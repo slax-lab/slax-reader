@@ -15,26 +15,58 @@ function fixture() {
   workspaces.push(workspace)
   const edge = resolve(workspace, 'edge.json')
   const core = resolve(workspace, 'core.json')
+  const ai = resolve(workspace, 'ai.json')
+  const objects = resolve(workspace, 'objects.json')
   const state = resolve(workspace, 'state')
   const empty = resolve(workspace, 'empty.env-file')
   mkdirSync(state)
   writeFileSync(empty, '')
   const shared = { tsconfig: relative(workspace, resolve(ROOT, 'apps/api/tsconfig.json')), vars: { RUN_ENV: 'development', RUN_TYPE: 'dev' } }
+  const entry = (name: string) => relative(workspace, resolve(ROOT, `apps/api/src/entry/${name}/index.ts`))
+  const hyperdrive = [{ binding: 'HYPERDRIVE', localConnectionString: 'postgresql://postgres:test@127.0.0.1:6543/disposable' }]
   const coreData = {
     ...shared,
     name: 'local-core',
-    main: relative(workspace, resolve(ROOT, 'apps/api/src/entry/core/index.ts')),
-    hyperdrive: [{ binding: 'HYPERDRIVE', localConnectionString: 'postgresql://postgres:test@127.0.0.1:6543/disposable' }]
+    main: entry('core'),
+    hyperdrive,
+    services: [{ binding: 'VECTOR', service: 'local-ai', entrypoint: 'AiEntry' }],
+    durable_objects: { bindings: [{ name: 'SLAX_JIEBA', class_name: 'SlaxJieba', script_name: 'local-objects' }] }
   }
   const edgeData = {
     ...shared,
     name: 'local-edge',
-    main: relative(workspace, resolve(ROOT, 'apps/api/src/entry/edge/index.ts')),
-    services: [{ binding: 'CORE', service: 'local-core' }]
+    main: entry('edge'),
+    services: [
+      { binding: 'CORE', service: 'local-core' },
+      { binding: 'AIGC', service: 'local-ai' }
+    ]
+  }
+  const aiData = { ...shared, name: 'local-ai', main: entry('ai'), hyperdrive }
+  const objectsData = {
+    ...shared,
+    name: 'local-objects',
+    main: entry('objects'),
+    durable_objects: { bindings: [{ name: 'SLAX_JIEBA', class_name: 'SlaxJieba' }] },
+    migrations: [{ tag: 'objects-v1', new_sqlite_classes: ['SlaxJieba'] }]
   }
   writeFileSync(core, JSON.stringify(coreData))
   writeFileSync(edge, JSON.stringify(edgeData))
-  return { workspace, edge, core, state, empty, coreData, edgeData, args: ['--edge-config', edge, '--core-config', core, '--state', state, '--env-file', empty] }
+  writeFileSync(ai, JSON.stringify(aiData))
+  writeFileSync(objects, JSON.stringify(objectsData))
+  return {
+    workspace,
+    edge,
+    core,
+    ai,
+    objects,
+    state,
+    empty,
+    coreData,
+    edgeData,
+    aiData,
+    objectsData,
+    args: ['--edge-config', edge, '--core-config', core, '--ai-config', ai, '--objects-config', objects, '--state', state, '--env-file', empty]
+  }
 }
 
 describe('explicit isolated local Worker launcher', () => {
@@ -42,14 +74,31 @@ describe('explicit isolated local Worker launcher', () => {
     const f = fixture()
     const main = relative(f.workspace, resolve(ROOT, 'apps/api/test/runtime/diagnosticWorker.ts'))
     writeFileSync(f.core, JSON.stringify({ ...f.coreData, main }))
-    expect(() => localDevOptions(f.args)).toThrow('actual Edge/Core entrypoints')
+    expect(() => localDevOptions(f.args)).toThrow('actual Edge/Core/AI/Objects entrypoints')
     vi.stubEnv('SLAX_API_DIAGNOSTIC_HTTP_FIXTURE', '1')
     expect(localDevOptions(f.args).args).toContain('--local')
     writeFileSync(f.core, JSON.stringify({ ...f.coreData, main: 'arbitrary.ts' }))
-    expect(() => localDevOptions(f.args)).toThrow('actual Edge/Core entrypoints')
+    expect(() => localDevOptions(f.args)).toThrow('actual Edge/Core/AI/Objects entrypoints')
+    writeFileSync(f.core, JSON.stringify(f.coreData))
+    // The diagnostic fixture replaces only Core; another Worker cannot borrow it.
+    writeFileSync(f.ai, JSON.stringify({ ...f.aiData, main }))
+    expect(() => localDevOptions(f.args)).toThrow('actual Edge/Core/AI/Objects entrypoints')
+    vi.unstubAllEnvs()
+    writeFileSync(f.ai, JSON.stringify(f.aiData))
+    expect(localDevOptions(f.args).args).toContain('--local')
   })
+  test('only the Core-to-AI VECTOR binding names an entrypoint', () => {
+    const f = fixture()
+    expect(localDevOptions(f.args).args).toContain('--local')
+    const edge = (core: Record<string, string>) => ({ ...f.edgeData, services: [core, { binding: 'AIGC', service: 'local-ai' }] })
+    writeFileSync(f.edge, JSON.stringify(edge({ binding: 'CORE', service: 'local-core', entrypoint: 'AiEntry' })))
+    expect(() => localDevOptions(f.args)).toThrow('names an entrypoint')
+    writeFileSync(f.edge, JSON.stringify(edge({ binding: 'CORE', service: 'local-core', entrypoint: 'CoreJobs' })))
+    expect(() => localDevOptions(f.args)).toThrow('names an entrypoint')
+  })
+
   test('requires all inputs and never defaults to production-capable dev configs', () => {
-    expect(() => localDevOptions([])).toThrow('All four explicit')
+    expect(() => localDevOptions([])).toThrow('All six explicit')
     expect(() => localDevOptions(['--remote', 'true'])).toThrow('Usage')
   })
   test('uses root CLI cwd, explicit local state, safe host and scrubbed process environment', () => {
@@ -93,26 +142,55 @@ describe('explicit isolated local Worker launcher', () => {
     writeFileSync(f.core, JSON.stringify({ ...f.coreData, [key]: {} }))
     expect(() => localDevOptions(f.args)).toThrow('minimal local binding')
   })
-  test('allows only the declared local Crawl Workflow across Edge and Core', () => {
+  test('allows only the declared local Crawl Workflow, owned by Core', () => {
     const f = fixture()
     const workflow = { binding: 'CRAWL_WORKFLOW', name: 'local-crawl', class_name: 'CrawlWorkflow' }
-    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, workflows: [workflow] }))
-    writeFileSync(f.core, JSON.stringify({ ...f.coreData, workflows: [{ ...workflow, script_name: 'local-edge' }] }))
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, workflows: [workflow] }))
     expect(localDevOptions(f.args).args).toContain('--local')
     writeFileSync(f.core, JSON.stringify({ ...f.coreData, workflows: [{ ...workflow, script_name: 'remote-edge' }] }))
     expect(() => localDevOptions(f.args)).toThrow('local Crawl Workflow')
-    writeFileSync(f.core, JSON.stringify({ ...f.coreData, workflows: [{ ...workflow, class_name: 'OtherWorkflow', script_name: 'local-edge' }] }))
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, workflows: [{ ...workflow, class_name: 'OtherWorkflow' }] }))
     expect(() => localDevOptions(f.args)).toThrow('local Crawl Workflow')
     writeFileSync(f.core, JSON.stringify({ ...f.coreData, workflows: {} }))
     expect(() => localDevOptions(f.args)).toThrow('local Crawl Workflow')
+    writeFileSync(f.core, JSON.stringify(f.coreData))
+    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, workflows: [workflow] }))
+    expect(() => localDevOptions(f.args)).toThrow('local Crawl Workflow')
+  })
+  test('starts all four local Workers with Edge as the served primary', () => {
+    const f = fixture()
+    const args = localDevOptions(f.args).args
+    expect(args.flatMap((arg, index) => (arg === '-c' ? [args[index + 1]] : []))).toEqual([f.edge, f.core, f.ai, f.objects])
+  })
+  test('Durable Objects live in the local Objects Worker and are reached from Core only', () => {
+    const f = fixture()
+    const binding = { name: 'SLAX_JIEBA', class_name: 'SlaxJieba' }
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, durable_objects: { bindings: [binding] } }))
+    expect(() => localDevOptions(f.args)).toThrow('through the local Objects Worker')
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, durable_objects: { bindings: [{ ...binding, script_name: 'remote-objects' }] } }))
+    expect(() => localDevOptions(f.args)).toThrow('through the local Objects Worker')
+    writeFileSync(f.core, JSON.stringify(f.coreData))
+    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, durable_objects: { bindings: [{ ...binding, script_name: 'local-objects' }] } }))
+    expect(() => localDevOptions(f.args)).toThrow('Objects-owned Durable Objects')
+    writeFileSync(f.edge, JSON.stringify(f.edgeData))
+    writeFileSync(f.core, JSON.stringify({ ...f.coreData, migrations: [{ tag: 'v1', new_classes: ['SlaxJieba'] }] }))
+    expect(() => localDevOptions(f.args)).toThrow('Only the local Objects Worker declares')
   })
   test('rejects remote Hyperdrive and unmatched service targets', () => {
     const f = fixture()
     writeFileSync(f.core, JSON.stringify({ ...f.coreData, hyperdrive: [{ localConnectionString: 'postgresql://u:p@example.com:5432/db' }] }))
     expect(() => localDevOptions(f.args)).toThrow('loopback')
     writeFileSync(f.core, JSON.stringify(f.coreData))
-    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, services: [{ binding: 'CORE', service: 'external-core' }] }))
+    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, services: [{ binding: 'CORE', service: 'external-core' }, f.edgeData.services[1]] }))
     expect(() => localDevOptions(f.args)).toThrow('local Edge-to-Core')
+    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, services: [f.edgeData.services[0]] }))
+    expect(() => localDevOptions(f.args)).toThrow('local Edge-to-Core')
+    writeFileSync(f.edge, JSON.stringify(f.edgeData))
+    writeFileSync(f.ai, JSON.stringify({ ...f.aiData, services: [{ binding: 'CORE', service: 'local-core' }] }))
+    expect(() => localDevOptions(f.args)).toThrow('local Edge-to-Core')
+    writeFileSync(f.ai, JSON.stringify(f.aiData))
+    writeFileSync(f.objects, JSON.stringify({ ...f.objectsData, name: 'local-core' }))
+    expect(() => localDevOptions(f.args)).toThrow('its own name')
   })
   test('does not inherit dotenv, Node injection or cloud credential variables', () => {
     vi.stubEnv('NODE_OPTIONS', '--require forbidden')

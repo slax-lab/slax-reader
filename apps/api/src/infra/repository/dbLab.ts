@@ -1,7 +1,7 @@
 import { inject, injectable } from '@/decorators/di'
 import { PRISIMA_HYPERDRIVE_CLIENT } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
-import { PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
+import type { Prisma, PrismaClient as HyperdrivePrismaClient } from '@prisma/hyperdrive-client'
 
 export interface userLabFeaturePO {
   id: number
@@ -10,6 +10,15 @@ export interface userLabFeaturePO {
   enabled: boolean
   created_at: Date
   updated_at: Date
+}
+
+export async function enableLabFeature(db: Prisma.TransactionClient, userId: number, feature: string): Promise<void> {
+  await db.$executeRaw`
+    INSERT INTO sr_user_lab_feature (user_id, feature, enabled, updated_at)
+    VALUES (${userId}, ${feature}, true, now())
+    ON CONFLICT (user_id, feature) DO UPDATE SET enabled = true, updated_at = EXCLUDED.updated_at
+    WHERE NOT sr_user_lab_feature.enabled
+  `
 }
 
 @injectable()

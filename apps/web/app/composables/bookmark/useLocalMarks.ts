@@ -4,11 +4,11 @@ import { computed, type MaybeRef, ref, toValue, watchEffect } from 'vue'
 
 import { toUtcDate } from '@/utils/date'
 
-import type { HighlightItem, MarkUserInfo } from '@slax-reader/contracts/interface'
 import type { MarkDetail, MarkInfo } from '@commons/frontend-types/models'
 import type { SelectionMarkContent as MarkSelectContent, SelectionMarkPathApprox as MarkPathApprox, SelectionMarkPathItem as MarkPathItem } from '@commons/frontend-types/selection'
 import { useQuery } from '@powersync/vue'
 import type { PowerSyncDatabase } from '@powersync/web'
+import type { HighlightItem, MarkUserInfo } from '@slax-reader/contracts/interface'
 import { useUserStore } from '~/stores/user'
 
 const HIGHLIGHT_TYPE: Record<number, HighlightItem['type']> = { 1: 'mark', 2: 'comment', 3: 'reply', 4: 'mark', 5: 'comment' }
@@ -127,9 +127,9 @@ const HIGHLIGHTS_SQL = `
   WHERE c.is_deleted = 0
   ORDER BY c.created_at DESC`
 
-export const useLocalMarks = () => {
-  const { $powersync } = useNuxtApp()
-  const db = $powersync as PowerSyncDatabase
+// `database` lets a document that became ready after setup pass its late database explicitly.
+export const useLocalMarks = (database?: PowerSyncDatabase) => {
+  const db = database ?? (useNuxtApp().$powersync as PowerSyncDatabase)
   const userStore = useUserStore()
   const nowIso = () => new Date().toISOString()
 

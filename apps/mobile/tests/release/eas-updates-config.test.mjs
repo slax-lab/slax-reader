@@ -26,6 +26,16 @@ test('EAS production builds check the production channel on launch without waiti
   assert.match(JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).scripts['update:publish'], /^SLAX_MOBILE_OTA=1 .*eas update --channel production /);
 });
 
+test('development manifest override is local-only and ignored in OTA contexts', () => {
+  const local = {SLAX_MOBILE_DEV_MANIFEST: '1'};
+  assert.equal(appConfig(local).runtimeVersion, '1.0.0');
+  assert.deepEqual(appConfig(local).updates, {enabled: false});
+  assert.deepEqual(appConfig({...ota, ...local}).runtimeVersion, {policy: 'nativeVersion'});
+  assert.equal(appConfig({...ota, ...local}).updates.enabled, true);
+  assert.equal(appConfig({...ota, ...local, EXPO_PUBLIC_SLAX_API_URL: 'https://fixture.invalid'}).runtimeVersion, '1.0.25(794)');
+  assert.equal(appConfig({...ota, ...local, EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}).runtimeVersion, '1.0.0', 'Fixture runtime behavior is independent of the ignored dev override');
+});
+
 test('local, fixture and non-production-origin builds never receive production updates', () => {
   assert.deepEqual(appConfig({}).updates, {enabled: false});
   assert.deepEqual(appConfig({SLAX_MOBILE_OTA: 'true'}).updates, {enabled: false});
@@ -39,4 +49,25 @@ test('local native projects expose an explicit runtime version to the developmen
   assert.equal(appConfig({}).runtimeVersion, '1.0.25(794)');
   assert.equal(appConfig({EXPO_PUBLIC_SLAX_WEB_URL: 'https://r.slax.dev'}).runtimeVersion, '1.0.25(794)');
   assert.equal(appConfig({EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}).runtimeVersion, '1.0.0');
+});
+
+
+test('email App Links add only the exact login path while preserving credential association and fixture isolation', () => {
+  const config = appConfig({});
+  const hosts = ['r.slax.dev', 'r-beta.slax.com', 'r.slax.com'];
+  for (const host of hosts) {
+    assert.ok(config.ios.associatedDomains.includes(`webcredentials:${host}`));
+    assert.ok(config.ios.associatedDomains.includes(`applinks:${host}`));
+    const filter = config.android.intentFilters.find(item => item.data.some(data => data.host === host));
+    assert.equal(filter.autoVerify, true);
+    assert.deepEqual(filter.data, [{scheme: 'https', host, path: '/email-login'}]);
+  }
+  assert.deepEqual(appConfig({EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}).ios.associatedDomains, []);
+  assert.deepEqual(appConfig({EXPO_PUBLIC_SLAX_UI_FIXTURE: 'library'}).android.intentFilters, []);
+  const aasa = JSON.parse(readFileSync(new URL('../../../web/public/.well-known/apple-app-site-association', import.meta.url), 'utf8'));
+  assert.deepEqual(aasa.webcredentials.apps, ['8G3A932HJG.app.slax.reader']);
+  assert.deepEqual(aasa.applinks.details[0].components, [{'/': '/email-login'}]);
+  const assets = JSON.parse(readFileSync(new URL('../../../web/public/.well-known/assetlinks.json', import.meta.url), 'utf8'));
+  assert.ok(assets[0].relation.includes('delegate_permission/common.get_login_creds'));
+  assert.ok(assets[0].relation.includes('delegate_permission/common.handle_all_urls'));
 });

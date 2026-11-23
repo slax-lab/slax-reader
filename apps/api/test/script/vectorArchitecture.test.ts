@@ -11,9 +11,9 @@ vi.mock('cloudflare:workflows', () => ({
   NonRetryableError: class extends Error {}
 }))
 vi.mock('@/entry/core', () => ({ default: { fetch: vi.fn() } }))
-vi.mock('agents/mcp', () => ({ McpAgent: class {} }))
 import { container } from '../../src/decorators/di'
-import '../../src/di/generated/dependency'
+import '../../src/di/generated/core/dependency'
+import '../../src/di/generated/ai/dependency'
 import { API_ROOT } from '../../script/root'
 
 const read = (file: string) => fs.readFileSync(path.join(API_ROOT, file), 'utf8')
@@ -34,7 +34,7 @@ const applicationFiles = [
   'src/handler/http/contentRecommendationController.ts',
   'src/handler/http/bookmarkController.ts',
   'src/handler/http/collectionController.ts',
-  'src/entry/edge/workflows/vectorMaintenanceWorkflow.ts'
+  'src/entry/core/workflows/vectorMaintenanceWorkflow.ts'
 ]
 
 describe('vector feature follows existing application architecture', () => {
@@ -68,9 +68,9 @@ describe('vector feature follows existing application architecture', () => {
     expect(/@inject\(ContentRecommendationOrchestrator\)/.test(source), 'Controller must inject ContentRecommendationOrchestrator').toBe(true)
     expect(/@inject\(ContentRecommendationService\)/.test(source), 'Controller must not inject the ranking Service directly').toBe(false)
     expect(/new\s+ContentRecommendationOrchestrator/.test(source), 'Controller must not construct its orchestrator').toBe(false)
-    expect(
-      violations(controller, node => ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text.includes('domain/events'))
-    ).toEqual([])
+    expect(violations(controller, node => ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text.includes('domain/events'))).toEqual(
+      []
+    )
     expect(source).not.toMatch(/crypto\.randomUUID|recommendationAlgorithm|recommendation_served|recommendation_feedback|impression_id/)
     const orchestrator = read('src/domain/orchestrator/contentRecommendation.ts')
     expect(/@inject\(ContentRecommendationService\)/.test(orchestrator), 'Orchestrator must inject the ranking Service').toBe(true)
@@ -78,7 +78,8 @@ describe('vector feature follows existing application architecture', () => {
   })
 
   test('generated DI resolves Controller -> Orchestrator -> Service with local fixture dependencies', async () => {
-    const generated = read('src/di/generated/dependency.ts')
+    expect(read('src/di/generated/core/dependency.ts')).not.toContain('ContentRecommendation')
+    const generated = read('src/di/generated/ai/dependency.ts')
     expect(generated).toContain('new ContentRecommendationController(container.resolve(ContentRecommendationOrchestrator))')
     expect(generated).toContain('new ContentRecommendationOrchestrator(container.resolve(ContentRecommendationService))')
     expect(generated).toContain('new ContentRecommendationService(container.resolve(ContentRecommendationRepo), container.resolve(VectorMaintenanceService))')
@@ -147,14 +148,15 @@ describe('vector feature follows existing application architecture', () => {
     expect(source).not.toMatch(/\b(?:dispatchVectorMaintenance|enqueueVectorMaintenance|waitUntil|beforeUpdate)\b/)
   })
 
-  test('task refresh uses the four existing Controller routes, a Core-only secret helper and the anonymous whitelist', () => {
+  test('task refresh uses the four Controller routes on the AI Worker, an AI-only secret helper and the anonymous whitelist', () => {
     expect(fs.existsSync(path.join(API_ROOT, 'src/handler/http/vectorRefreshController.ts'))).toBe(false)
     expect(fs.existsSync(path.join(API_ROOT, 'src/middleware/vectorRefreshAuth.ts'))).toBe(false)
-    for (const file of ['src/entry/core/index.ts', 'src/entry/edge/index.ts']) {
+    for (const file of ['src/entry/core/index.ts', 'src/entry/edge/index.ts', 'src/entry/ai/index.ts']) {
       expect(/isVectorRefreshRequest|handleVectorRefreshRequest|authorizeVectorRefresh|requireVectorRefreshSecret/.test(read(file)), file).toBe(false)
     }
-    const bookmark = read('src/handler/http/bookmarkController.ts')
-    const collection = read('src/handler/http/collectionController.ts')
+    for (const file of ['src/handler/http/bookmarkController.ts', 'src/handler/http/collectionController.ts']) expect(read(file)).not.toContain('/refresh')
+    const bookmark = read('src/handler/http/bookmarkAiController.ts')
+    const collection = read('src/handler/http/collectionVectorController.ts')
     expect(bookmark).toContain("@Post('/vector/refresh')")
     expect(bookmark).toContain("@Post('/preference/refresh')")
     expect(collection).toContain("@Post('/vector/refresh')")
@@ -166,7 +168,12 @@ describe('vector feature follows existing application architecture', () => {
       for (const path of paths) expect(source).toContain(`pathname !== '${path}'`)
       expect(source).not.toMatch(/user_bookmark_id|subscription_id|refreshBookmark|refreshOwnedCollection|refreshSubscription/)
     }
-    for (const handler of ['handleUserBookmarkVectorRefreshRequest', 'handleUserBookmarkPreferenceRefreshRequest', 'handleUserCollectionVectorRefreshRequest', 'handleUserCollectionPreferenceRefreshRequest']) {
+    for (const handler of [
+      'handleUserBookmarkVectorRefreshRequest',
+      'handleUserBookmarkPreferenceRefreshRequest',
+      'handleUserCollectionVectorRefreshRequest',
+      'handleUserCollectionPreferenceRefreshRequest'
+    ]) {
       const source = handler.startsWith('handleUserBookmark') ? bookmark : collection
       const handlerStart = source.indexOf(`public async ${handler}(`)
       const secret = source.indexOf('requireVectorRefreshSecret(request, ctx.env)', handlerStart)

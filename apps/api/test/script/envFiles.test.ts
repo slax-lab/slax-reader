@@ -19,6 +19,8 @@ function fixture() {
     'script/deploy/config.ts',
     'script/deploy/wrangler.ts',
     'script/deploy/deploy.ts',
+    'script/deploy/topology.ts',
+    'script/deploy/runtimeKeys.ts',
     'script/deploy/build.ts',
     'script/deploy/gen-config.ts',
     'prisma/d1.config.ts',

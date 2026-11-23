@@ -149,6 +149,7 @@ export function useReadingPosition(uuid: string, options: ReadingPositionOptions
   }
 
   let mounted = false
+  let scrollAtMount = 0
   let navigationReady = !navigation || navigation.initial
   if (!navigationReady) {
     const off = useNuxtApp().hook('page:loading:end', () => {
@@ -161,6 +162,7 @@ export function useReadingPosition(uuid: string, options: ReadingPositionOptions
 
   onMounted(() => {
     mounted = true
+    scrollAtMount = window.scrollY
     if (navigation?.initial && window.scrollY > 0) abort()
     if (navigationReady) waitAndRestore()
     cleanups.push(useEventListener(window, 'scroll', throttledCapture, { passive: true }))
@@ -174,4 +176,19 @@ export function useReadingPosition(uuid: string, options: ReadingPositionOptions
     cleanups.forEach(fn => fn())
     cleanups.length = 0
   })
+
+  // A source that becomes enabled after the first attempt (a deferred page switching to local data)
+  // restores once, unless the reader has already moved the page.
+  const retry = () => {
+    // The first attempt is still waiting for the article or running its corrections.
+    if (restoring || disposed || aborted || restored || !mounted || !navigationReady || !enabled()) return
+    if (Math.abs(window.scrollY - scrollAtMount) > 1) {
+      finish()
+      return
+    }
+    restoring = true
+    frame(waitAndRestore)
+  }
+
+  return { retry }
 }

@@ -80,11 +80,13 @@ export function ScreenSurface({children, style, testID, bottomInset = true, sour
 export function SourceDialog({visible, onDismiss, onDidDismiss, title, children, actions, testID, compact = false, dismissible = true}: {
   visible: boolean; onDismiss(): void; onDidDismiss?(): void; title?: string; children?: React.ReactNode; actions?: React.ReactNode; testID?: string; compact?: boolean; dismissible?: boolean;
 }) {
+  // Padding lifts the centered dialog above the keyboard without resizing its content. The Android
+  // -32 offset accounts for the translucent system-bar geometry in this modal.
   return <Modal visible={visible} transparent presentationStyle="overFullScreen" animationType="fade" statusBarTranslucent onDismiss={onDidDismiss} onRequestClose={() => { if (dismissible) onDismiss(); }}>
     <SafeAreaProvider>
     <Pressable accessibilityLabel="" accessible={false} onPress={() => { if (dismissible) onDismiss(); }} style={[StyleSheet.absoluteFill, styles.scrim]} />
     <SafeAreaView style={{flex: 1}} pointerEvents="box-none">
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modal} pointerEvents="box-none">
+    <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={Platform.OS === 'android' ? -32 : 0} style={styles.modal} pointerEvents="box-none">
       <View accessibilityViewIsModal testID={testID} style={[styles.dialog, compact && styles.compactDialog]}>
         {title ? <SourceText accessibilityRole="header" style={[T.dialogTitle, styles.dialogTitle]}>{title}</SourceText> : null}
         {children}

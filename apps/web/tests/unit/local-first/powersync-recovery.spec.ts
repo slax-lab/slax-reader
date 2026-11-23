@@ -195,8 +195,104 @@ describe('initializePowerSyncWithFallback', () => {
     })
 
     await vi.advanceTimersByTimeAsync(100)
-    await expect(promise).resolves.toEqual({ database: null, mode: 'rest' })
+    const result = await promise
+    expect(result).toMatchObject({ database: null, mode: 'rest', pending: { mode: sharedWorkerAvailable ? 'shared' : 'dedicated' } })
     expect(created).toEqual([sharedWorkerAvailable ? 'shared' : 'dedicated'])
+  })
+
+  it('keeps a timed-out instance open and reports its later background completion', async () => {
+    vi.useFakeTimers()
+    const events: PowerSyncRecoveryEvent[] = []
+    let finish!: () => void
+    const busy = makeDb(() => new Promise<void>(resolve => { finish = resolve }))
+    const dispose = vi.fn(async () => {})
+
+    const promise = initializePowerSyncWithFallback({
+      createDatabase: () => busy as never,
+      initTimeoutMs: 100,
+      dispose,
+      onEvent: event => events.push(event)
+    })
+    await vi.advanceTimersByTimeAsync(100)
+    const result = await promise
+    expect(result.database).toBeNull()
+    expect(dispose).not.toHaveBeenCalled()
+    expect(busy.database.close).not.toHaveBeenCalled()
+    expect(busy.init).toHaveBeenCalledOnce()
+
+    await vi.advanceTimersByTimeAsync(2400)
+    finish()
+    await expect(result.pending?.ready).resolves.toBe(true)
+    expect(events.at(-1)).toEqual({ type: 'background-ready', mode: 'shared', attempt: 1, durationMs: 2500 })
+    expect(busy.database.close).not.toHaveBeenCalled()
+  })
+
+  it('reports a background failure of a timed-out instance without opening another', async () => {
+    vi.useFakeTimers()
+    const events: PowerSyncRecoveryEvent[] = []
+    const created: PowerSyncWorkerMode[] = []
+    let fail!: (error: Error) => void
+    const busy = makeDb(() => new Promise<void>((_, reject) => { fail = reject }))
+
+    const promise = initializePowerSyncWithFallback({
+      createDatabase: mode => {
+        created.push(mode)
+        return busy as never
+      },
+      initTimeoutMs: 100,
+      onEvent: event => events.push(event)
+    })
+    await vi.advanceTimersByTimeAsync(100)
+    const result = await promise
+    const failure = new Error('worker gone')
+    fail(failure)
+    await expect(result.pending?.ready).resolves.toBe(false)
+    expect(events.at(-1)).toMatchObject({ type: 'background-error', mode: 'shared', error: failure })
+    expect(created).toEqual(['shared'])
+    expect(busy.database.close).toHaveBeenCalledOnce()
+  })
+
+  it('keeps ready resolved when a diagnostics listener throws', async () => {
+    vi.useFakeTimers()
+    let finish!: () => void
+    const busy = makeDb(() => new Promise<void>(resolve => { finish = resolve }))
+    const promise = initializePowerSyncWithFallback({
+      createDatabase: () => busy as never,
+      initTimeoutMs: 100,
+      onEvent: event => { if (event.type === 'background-ready') throw new Error('listener failed') }
+    })
+    await vi.advanceTimersByTimeAsync(100)
+    const result = await promise
+    finish()
+    await expect(result.pending?.ready).resolves.toBe(true)
+  })
+
+  it('bounds disposal of a retained instance after its background failure', async () => {
+    vi.useFakeTimers()
+    let fail!: (error: Error) => void
+    const busy = makeDb(() => new Promise<void>((_, reject) => { fail = reject }))
+    const promise = initializePowerSyncWithFallback({
+      createDatabase: () => busy as never,
+      initTimeoutMs: 100,
+      disposeTimeoutMs: 50,
+      dispose: () => new Promise<void>(() => {})
+    })
+    await vi.advanceTimersByTimeAsync(100)
+    const result = await promise
+    fail(new Error('worker gone'))
+    const settled = vi.fn()
+    void result.pending?.ready.then(settled)
+    await vi.advanceTimersByTimeAsync(50)
+    expect(settled).toHaveBeenCalledExactlyOnceWith(false)
+  })
+
+  it('returns no pending initialization for definite failures', async () => {
+    const result = await initializePowerSyncWithFallback({
+      createDatabase: () => makeDb(async () => { throw new Error('transaction aborted') }) as never,
+      maxSharedAttempts: 1,
+      sleep: vi.fn()
+    })
+    expect(result).toEqual({ database: null, mode: 'rest' })
   })
 
   it.each([true, false])('uses REST when cleanup does not finish (shared eligible: %s)', async sharedWorkerAvailable => {
@@ -284,8 +380,8 @@ describe('initializePowerSyncWithFallback', () => {
       onEvent: event => events.push(event)
     })
     await vi.advanceTimersByTimeAsync(100)
-    expect(await promise).toEqual({ database: null, mode: 'rest' })
-    expect(events.at(-1)).toEqual({
+    expect(await promise).toMatchObject({ database: null, mode: 'rest' })
+    expect(events.find(event => event.type === 'unavailable')).toEqual({
       type: 'unavailable',
       attemptedModes: reason === 'modes-exhausted' ? ['shared', 'dedicated', 'main'] : ['shared'],
       stopReason: reason

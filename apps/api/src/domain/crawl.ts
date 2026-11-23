@@ -8,7 +8,7 @@ import { BookmarkForkRepo, type MediaSnapshotRef } from '@/infra/repository/dbBo
 import type { MediaSnapshot } from '@/utils/mediaSnapshot'
 import { FetchError, SlaxFetch } from '../infra/external/remoteFetcher'
 import { HtmlBuilder, YoutubeCue } from '../utils/htmlBuilder'
-import { extractYoutubeVideoId, shouldUseBrowserHtml } from '../utils/platformDetector'
+import { extractYoutubeVideoId, isReutersUrl, shouldUseBrowserHtml, shouldUseZyteBrowserHtml } from '../utils/platformDetector'
 import { captionPlainText, captionSourceHash, youtubeCaptionKeys, type YoutubeCaptionDocument } from '../utils/youtubeCaption'
 import { evaluateYoutubeEligibility } from '../utils/youtubeEligibility'
 import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION, YOUTUBE_ARTICLE_SCHEMA_VERSION } from '../infra/repository/dbYoutubeArticle'
@@ -43,8 +43,9 @@ import { BookmarkRepo, queueStatus } from '../infra/repository/dbBookmark'
 import { inject, injectable } from '@/decorators/di'
 import { LazyInstance } from '@/decorators/lazy'
 import { ContextManager } from '@/utils/context'
-import { CrawlWorkflowParams } from '@/entry/edge/workflows/crawlWorkflow'
-import { ImportParseWorkflowParams } from '@/entry/edge/workflows/importParseWorkflow'
+import type { CrawlWorkflowParams } from '@/entry/core/workflows/crawlWorkflow'
+import type { ImportParseWorkflowParams } from '@/entry/core/workflows/importParseWorkflow'
+import { prepareFxArticle } from '@/utils/parserUtils/processTwitterArticle'
 import { Preparse } from '@/utils/parserUtils/type'
 import { LogsService } from './logs'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
@@ -66,6 +67,7 @@ export type TwitterFetched =
   | {
       kind: 'article'
       sourceUrl: string
+      embedArticleTitle?: string
       viaFxEmbedHtml: string | null
       fallbackTweetInfo: TweetArticleInfo | null
     }
@@ -88,6 +90,57 @@ export interface CrawlResult {
 export type WeixinFetched = { source: 'tikhub'; content: TikHubWeixinContent } | { source: 'legacy'; fetchRes: fetchResult }
 
 const DYNAMIC_LOADING_PLACEHOLDER_RE = /^(?:加载中|正在加载中?|loading|pleasewait|cancel|ok|确定|取消|加载中确定删除吗取消确定|确定删除吗取消确定)+$/i
+
+const ENABLE_JS_INSTRUCTIONS = [
+  /(?:^|[,.!?，。！？]\s*)(?:please\s+)?(?:enable|turn on)\s+(?:javascript|js)\b/i,
+  /\b(?:enable|turn on)\s+(?:javascript|js)\s+to (?:view|read|display|load|use|run|continue|proceed)\b/i,
+  /\b(?:you (?:must|need to)|requires? you to)\s+(?:enable|turn on)\s+(?:javascript|js)\b/i,
+  /\b(?:javascript|js)\s+(?:is (?:currently )?(?:disabled|required)|must be enabled)\b/i,
+  /(?:启用|开启|打开)\s*(?:javascript|js)\b|(?:javascript|js)\s*(?:未启用|未开启|已禁用)/i
+]
+const MAX_JS_NOTICE_LENGTH = 120
+
+export class JavaScriptNoticeError extends Error {
+  constructor(
+    message: string,
+    readonly textLength: number
+  ) {
+    super(message)
+  }
+}
+
+function hasArticleMedia(document: Document): boolean {
+  // A photo or chart caption can quote the notice. Tracking pixels do not constitute article content.
+  for (const image of document.querySelectorAll('img[src][alt]')) {
+    const alt = image.getAttribute('alt')?.trim()
+    if (!alt || /\blogo\b|^reuters$/i.test(alt)) continue
+    const isPixel = ['width', 'height'].some(attr => {
+      const size = image.getAttribute(attr)
+      return size !== null && /^\d+$/.test(size) && Number(size) <= 2
+    })
+    if (!isPixel) return true
+  }
+  return !!document.querySelector('video[src], video source[src], audio[src], audio source[src]')
+}
+
+function rejectAccessNotice(url: string, text: string, document: Document, detectJavaScript = false) {
+  const reuters = isReutersUrl(url)
+  if (!reuters && !detectJavaScript) return
+  const normalized = text
+    .normalize('NFKC')
+    .replace(/[\u200b\ufeff]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+  if (normalized.length > MAX_JS_NOTICE_LENGTH * 2) return
+  const textLength = [...normalized].length
+  if (textLength > MAX_JS_NOTICE_LENGTH) return
+  const reutersNotice = reuters && /^please enable js and disable any ad blocker[.!]?$/i.test(normalized)
+  if (!reutersNotice && !(detectJavaScript && ENABLE_JS_INSTRUCTIONS.some(pattern => pattern.test(normalized)))) return
+  if (hasArticleMedia(document)) return
+  const message = reutersNotice ? 'Reuters returned an access notice' : 'Page requires JavaScript'
+  if (detectJavaScript) throw new JavaScriptNoticeError(message, textLength)
+  throw FetchThreePartyError(message)
+}
 
 export const isDynamicLoadingPlaceholder = (title: string, textContent: string): boolean => {
   if (title.trim()) return false
@@ -360,17 +413,6 @@ export class CrawlService {
     return null
   }
 
-  private static hasUsableFxEmbedArticle(document: Document): boolean {
-    const article = document.querySelector('article')
-    if (!article) return false
-    const content = article.cloneNode(true) as Element
-    for (const element of content.querySelectorAll('script, style, noscript, template')) element.remove()
-    if (content.textContent?.trim()) return true
-    return [...article.querySelectorAll('img[src], video[src], video source[src], audio[src], audio source[src], iframe[src]')].some(element =>
-      Boolean(element.getAttribute('src')?.trim())
-    )
-  }
-
   private static hasUsableTweetArticle(article: TweetArticleInfo | null | undefined): article is TweetArticleInfo {
     if (!article || !Array.isArray(article.contents)) return false
     return article.contents.some(block => {
@@ -385,20 +427,26 @@ export class CrawlService {
     statusId?: string,
     fetchUrl = sourceUrl
   ): Promise<Extract<TwitterFetched, { kind: 'article' }> | null> {
+    let untitledEmbed: Extract<TwitterFetched, { kind: 'article' }> | null = null
     try {
-      const fxRes = await this.fetchWithFxEmbed(ctx, fetchUrl)
-      if (CrawlService.hasUsableFxEmbedArticle(fxRes.document)) {
-        // Workflow fetch steps must serialize strings, not Document objects.
-        return { kind: 'article', sourceUrl, viaFxEmbedHtml: fxRes.document.toString(), fallbackTweetInfo: null }
+      const { document } = await this.fetchWithFxEmbed(ctx, fetchUrl)
+      const prepared = prepareFxArticle(document)
+      if (prepared.usable) {
+        const embedded = { kind: 'article' as const, sourceUrl, viaFxEmbedHtml: document.toString(), fallbackTweetInfo: null }
+        if (!prepared.preview) return embedded
+        if (prepared.title) return { ...embedded, embedArticleTitle: prepared.title }
+        untitledEmbed = { ...embedded, embedArticleTitle: 'X Article' }
+      } else {
+        console.log(`fxembed returned no usable article body for ${sourceUrl}`)
       }
-      console.log(`fxembed returned no usable article body for ${sourceUrl}`)
     } catch (fxErr) {
       console.log(`fxembed article capture failed for ${sourceUrl}: ${fxErr}`)
     }
 
-    if (!statusId) return null
+    if (!statusId) return untitledEmbed
     try {
       const article = await SocialMediaApi.fetchTwitterArticle(ctx.env, statusId)
+      if (untitledEmbed) return { ...untitledEmbed, embedArticleTitle: article?.title?.trim() || untitledEmbed.embedArticleTitle }
       if (CrawlService.hasUsableTweetArticle(article)) {
         return { kind: 'article', sourceUrl, viaFxEmbedHtml: null, fallbackTweetInfo: article }
       }
@@ -406,7 +454,7 @@ export class CrawlService {
     } catch (apiErr) {
       console.log(`Twitter article API failed for ${sourceUrl}: ${apiErr}`)
     }
-    return null
+    return untitledEmbed
   }
 
   public async resolveFinalUrl(ctx: ContextManager, url: string): Promise<string> {
@@ -470,19 +518,26 @@ export class CrawlService {
   /**
    * 抓取普通网页
    */
-  public async fetchRegular(ctx: ContextManager, url: string): Promise<fetchResult> {
+  public async fetchRegular(
+    ctx: ContextManager,
+    url: string,
+    mode?: 'zyte-browser-only'
+  ): Promise<fetchResult & { targetErrorStatus?: number; rawFallbackAfterBrowserFailure?: true }> {
     const fetcher = new SlaxFetch(ctx.env)
 
-    const useBrowserHtml = shouldUseBrowserHtml(url)
-    console.log(`using browser html for ${url}: ${useBrowserHtml}`)
+    if (mode === 'zyte-browser-only') return fetcher.zyte(url, true)
+    const useZyteBrowserHtml = shouldUseZyteBrowserHtml(url)
+    console.log(`using Zyte browser html for ${url}: ${useZyteBrowserHtml}`)
 
     try {
-      return await fetcher.zyte(url, useBrowserHtml)
+      return await fetcher.zyte(url, useZyteBrowserHtml)
     } catch (zyteErr) {
       console.log(`Zyte fetch failed for ${url}: ${zyteErr}`)
     }
     try {
-      return await fetcher.scrapingBot(url, useBrowserHtml)
+      const fallbackBrowserHtml = shouldUseBrowserHtml(url)
+      const page = await fetcher.scrapingBot(url, fallbackBrowserHtml)
+      return useZyteBrowserHtml && !fallbackBrowserHtml ? { ...page, rawFallbackAfterBrowserFailure: true } : page
     } catch (scrapingErr) {
       console.log(`ScrapingBot fetch failed for ${url}: ${scrapingErr}`)
     }
@@ -830,9 +885,23 @@ export class CrawlService {
     }
   }
 
-  public async parseAndSaveContent(ctx: ContextManager, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveContent(
+    ctx: ContextManager,
+    fetchRes: fetchResult,
+    bookmarkId: number,
+    userBookmarkUuid: string,
+    jsNoticeCheck?: 'initial' | 'retry'
+  ): Promise<CrawlResult> {
     if (detectRoute(fetchRes.url) === 'regular') {
       const selected = await this.createBestParseRes(ctx, fetchRes)
+      rejectAccessNotice(fetchRes.url, selected.parseRes.textContent, selected.parseRes.contentDocument, !!jsNoticeCheck)
+      if (
+        jsNoticeCheck === 'retry' &&
+        !selected.parseRes.textContent.trim() &&
+        !selected.parseRes.contentDocument.querySelector('img[src], img[data-src], video[src], audio[src], source[src]')
+      ) {
+        throw FetchThreePartyError('Browser retry returned an empty page')
+      }
       if (isDynamicLoadingPlaceholder(selected.parseRes.title, selected.parseRes.textContent)) {
         console.warn(`Dynamic page returned a loading placeholder for ${fetchRes.url}`)
         throw FetchThreePartyError('Dynamic page returned a loading placeholder')
@@ -1082,6 +1151,10 @@ export class CrawlService {
     if (viaFxEmbedHtml) {
       // fetch 阶段序列化为 HTML string，这里还原为 Document
       const { document: tweetDocument } = parseHTML(viaFxEmbedHtml)
+      if (fetched.embedArticleTitle) {
+        const heading = tweetDocument.querySelector('article > h1:first-child')
+        if (heading) heading.textContent = fetched.embedArticleTitle
+      }
       const coverSource = tweetDocument.querySelector('meta[property="og:image"]')?.getAttribute('content')
       const coverWidth = Number(tweetDocument.querySelector('meta[property="og:image:width"]')?.getAttribute('content'))
       const coverHeight = Number(tweetDocument.querySelector('meta[property="og:image:height"]')?.getAttribute('content'))
@@ -1097,7 +1170,8 @@ export class CrawlService {
       const content = HtmlBuilder.buildTweetArticleWithDocument(tweetDocument)
       parseRes = await this.createParseRes(ctx, {
         url: sourceUrl,
-        title: tweetDocument.querySelector('meta[property="og:title"]')?.getAttribute('content') || tweetDocument.querySelector('title')?.textContent || '',
+        title:
+          fetched.embedArticleTitle || tweetDocument.querySelector('meta[property="og:title"]')?.getAttribute('content') || tweetDocument.querySelector('title')?.textContent || '',
         content
       })
     } else if (fallbackTweetInfo) {
@@ -1171,6 +1245,7 @@ export class CrawlService {
     }
   ): Promise<CrawlResult> {
     const { document } = parseHTML(opts.html)
+    rejectAccessNotice(opts.originalUrl, opts.meta.textContent, document)
     await new Imager(ctx.env).batchReplaceImage(new URL(opts.originalUrl), document)
 
     const content = await this.snapshots.capture(

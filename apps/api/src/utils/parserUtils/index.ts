@@ -34,10 +34,21 @@ const forumAndFeedPreHandler = (url: URL, document: Document) => {
   }
 }
 
+function discardCacTools(url: URL, document: Document) {
+  const paths = new Set(['/cms/pub/interact/jiucuo.htm', '/inc/date/My97DatePicker.htm'])
+  for (const frame of document.querySelectorAll('iframe[src]')) {
+    const source = frame.getAttribute('src') || ''
+    if (!URL.canParse(source, url.href)) continue
+    const target = new URL(source, url)
+    if (target.origin === url.origin && paths.has(target.pathname)) frame.remove()
+  }
+}
+
 const parserHostHandlers: Map<string, Function[]> = new Map([
   [hostIndex.WEIXIN, [weixinProcess.mpWeixinQQPreHandler]],
   [hostIndex.BOWTIEDBULL, [bowtiedbullHandler.bowtiedbullHandler]],
   [hostIndex.GITHUB, [githubProcess.githubPreHandler]],
+  ['www.cac.gov.cn', [discardCacTools]],
   ['sherwood.news', [forumAndFeedPreHandler]],
   ['www.sherwood.news', [forumAndFeedPreHandler]],
   ['stackoverflow.com', [forumAndFeedPreHandler]],
@@ -146,7 +157,7 @@ export const postProcessUrl = (url: URL, document: Document) => {
   })
 }
 
-export const slaxReadability = (url: URL, document: Document) => {
+export const slaxReadability = async (url: URL, document: Document) => {
   const checkWeixin = function () {
     return url.host === 'mp.weixin.qq.com'
   }
@@ -165,7 +176,7 @@ export const slaxReadability = (url: URL, document: Document) => {
       return new Readability(document, { debug: false, keepImgImportantStyles: true }).parse()
     }
 
-    return defuddleParse(url.toString(), document)
+    return await defuddleParse(url.toString(), document)
   } catch (error) {
     console.log(`Defuddle parse error: `, error)
     return new Readability(document, { debug: false }).parse()

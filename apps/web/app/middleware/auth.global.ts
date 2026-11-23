@@ -3,6 +3,7 @@ import { readStringCookie } from '~/utils/authCookie'
 import { isProviderLinkState } from '~/utils/providerLink'
 
 import { isServer } from '@commons/frontend-utils/is'
+import { EMAIL_LOGIN_PATH, EMAIL_LOGIN_WEB_PATH } from '@slax-reader/contracts/email-auth'
 import { useCookies } from '@vueuse/integrations/useCookies'
 
 const cookies = useCookies()
@@ -10,6 +11,8 @@ export default defineNuxtRouteMiddleware((to, from) => {
   if (isServer) {
     return
   }
+
+  if (to.path === EMAIL_LOGIN_PATH || to.path === EMAIL_LOGIN_WEB_PATH) return
 
   if (to.path === '/auth' && isProviderLinkState(to.query.state)) return
 

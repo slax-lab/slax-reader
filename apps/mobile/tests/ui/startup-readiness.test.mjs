@@ -102,7 +102,7 @@ async function libraryFixture(host, rows = []) {
     react: React, 'react-native': native, '@react-navigation/native': {useFocusEffect: callback => React.useEffect(callback, [callback])},
     'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: false})},
     '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: props => React.createElement(host.native.View, null, props.text)}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: primitive}, '../components/sync-state': {sourceSyncState: () => ({kind: 'offline'})}, '../components/fixture-actions': {},
-    '../components/PdfImportDialog': {PdfImportDialog: nil}, '../pdf/usePdfLab': {usePdfLab: () => ({ready: false, enabled: false})}, './LibraryDataStatus': {LibraryDataStatus},
+    '../pdf/usePdfLab': {usePdfLab: () => ({ready: false, enabled: false})}, './LibraryDataStatus': {LibraryDataStatus},
     '../components': components, '../data': {readContinueReading}, '../rss/controller': {RssController}, '../runtime': {useMobile: () => context}, '../theme': theme, '../theme/testIds': {mobileTestIds: {EmptyInbox: 'empty-inbox'}}, './collection-selection': {CollectionSelection}, '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: props => React.createElement(host.native.View, null, props.children, props.open ? props.drawer : null)}, '../components/FeedList': {FeedList: props => React.createElement(native.FlatList, props)}, '../utils/source-time': {parseSourceTimestamp},
   }, {setInterval, clearInterval});
   const render = () => {controls.clear(); return host.render(React.createElement(LibraryScreen, {navigation: {navigate: (...args) => navigations.push(args)}, route: {params: {}}}));};
@@ -205,7 +205,9 @@ test('mounted MobileProvider exposes no repository or cache before admission, ev
   };
   const {MobileProvider, useMobile} = await loadComponent('../../src/runtime.tsx', {
     react: React, 'react-native': {...host.native, Platform: {OS: 'android'}}, 'expo-localization': {getLocales: () => [{languageTag: 'en'}]}, 'expo-file-system': {},
-    './data': {createMobileDataRuntime: () => runtime}, './i18n': {normalizeLocale: value => value, createTranslator: () => key => key}, './config': {mobileConfig: {apiUrl: 'https://fixture.test'}}, './reader/security.ts': {readerProtectedHosts: () => ['fixture.test'], readerImageProxyOrigins: () => ['https://fixture.test']},
+    './data': {createMobileDataRuntime: () => runtime}, './i18n': {normalizeLocale: value => value, createTranslator: () => key => key}, './native/email-links': {nativeEmailLinks: {initialURL: async () => null, subscribe: () => () => {}, openURL: async () => {}}},
+    './auth/EmailLinkLoginNotice': {EmailLinkLoginNotice: () => null},
+    './config': {mobileConfig: {webUrl: 'https://fixture.test', apiUrl: 'https://fixture.test'}}, './reader/security.ts': {readerProtectedHosts: () => ['fixture.test'], readerImageProxyOrigins: () => ['https://fixture.test']},
     './payments/controller': {PaymentController: class {}}, './payments/expo-store': {createExpoStore: () => ({})}, './native/platform': {setWebSessionCookie: async () => {}}, './controlled-upgrade-visibility': {},
     './system-actions/SaveURLHost': {SaveURLHost: () => null}
   });

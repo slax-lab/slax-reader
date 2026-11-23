@@ -55,13 +55,6 @@ export class BookmarkForkService {
     if (typeof sourceUuid !== 'string' || !uuidPattern.test(sourceUuid)) throw ErrorParam()
     const source = await this.repo.source(userId, sourceUuid.toLowerCase())
     if (!source) throw BookmarkNotFoundError()
-    const checks = await Promise.allSettled([
-      this.labs.assertUrlAllowed(ctx, source.bookmark.target_url),
-      isPdfContentKey(source.bookmark.content_key) ? this.labs.assertEnabled(ctx, 'pdf') : Promise.resolve(),
-      this.assertMediaAllowed(ctx, source.bookmark_id)
-    ])
-    // Preserve validation priority and require every gate before creating a write claim.
-    for (const check of checks) if (check.status === 'rejected') throw check.reason
     if (source.user_id === userId) return this.existingResult(ctx, await this.repo.ownSource(userId, sourceUuid))
     if (source.bookmark.status !== 'success') throw forkError()
     const admission = await this.repo.admit({ userId, source, targetUrl: this.destinationUrl(source, userId), uuid: crypto.randomUUID() })
@@ -125,10 +118,7 @@ export class BookmarkForkService {
       source.type !== job.sourceType
     )
       throw forkError()
-    await this.labs.assertUrlAllowed(ctx, source.bookmark.target_url)
     const pdf = isPdfContentKey(source.bookmark.content_key)
-    if (pdf) await this.labs.assertEnabled(ctx, 'pdf')
-    await this.assertMediaAllowed(ctx, source.bookmark_id)
     const raw = await this.repo.snapshot(bookmarkId)
     if (!raw || !(await ownsWrite())) {
       await this.repo.failWrite(bookmarkId, revision)
@@ -150,7 +140,6 @@ export class BookmarkForkService {
             ? await this.copyPdf(source, bundle)
             : await bundle.copyHtml(source.bookmark.content_key)
       const copiedMedia = source.type !== 1 && !pdf ? await this.media.copyForFork(source.bookmark, bundle) : undefined
-      if (copiedMedia) await this.labs.assertEnabled(ctx, copiedMedia.ref.media_kind === 'podcast' ? 'podcast' : 'youtube')
       await bundle.assertUnchanged()
       publishing = true
       const result = await this.repo.publish({
@@ -162,6 +151,7 @@ export class BookmarkForkService {
         destination: { id: job.destinationId, bookmark_id: bookmarkId, updated_at: revision, requireLive: true },
         mediaRef: copiedMedia?.ref,
         mediaInput: copiedMedia?.input,
+        labFeature: this.featureForFork(source, pdf, copiedMedia?.ref.media_kind),
         pdfDocumentId: pdf ? this.documentId(source) : undefined
       })
       await this.afterCommit(ctx, result.relation).catch(error => console.error('Fork indexing failed', error))
@@ -174,9 +164,9 @@ export class BookmarkForkService {
     }
   }
 
-  private async assertMediaAllowed(ctx: ContextManager, bookmarkId: number) {
-    const ref = await this.repo.mediaRef(bookmarkId)
-    if (ref) await this.labs.assertEnabled(ctx, ref.media_kind === 'podcast' ? 'podcast' : 'youtube')
+  private featureForFork(source: ForkSource, pdf: boolean, mediaKind: string | undefined) {
+    if (source.type === 1) return undefined
+    return this.labs.featureForFork(pdf ? 'pdf' : mediaKind, source.bookmark.target_url)
   }
 
   async failExecution(bookmarkId: number, job: ForkWorkflowJob) {
@@ -189,9 +179,7 @@ export class BookmarkForkService {
     if (typeof sourceUuid !== 'string' || !uuidPattern.test(sourceUuid)) throw ErrorParam()
     const source = await this.repo.source(userId, sourceUuid.toLowerCase())
     if (!source) throw BookmarkNotFoundError()
-    await this.labs.assertUrlAllowed(ctx, source.bookmark.target_url)
     const pdf = isPdfContentKey(source.bookmark.content_key)
-    if (pdf) await this.labs.assertEnabled(ctx, 'pdf')
     if (source.user_id === userId) return this.existingResult(ctx, await this.repo.ownSource(userId, sourceUuid))
 
     const targetUrl = this.destinationUrl(source, userId)
@@ -214,7 +202,6 @@ export class BookmarkForkService {
             ? await this.copyPdf(source, bundle)
             : await bundle.copyHtml(source.bookmark.content_key)
       const copiedMedia = source.type !== 1 && !pdf ? await this.media.copyForFork(source.bookmark, bundle) : undefined
-      if (copiedMedia) await this.labs.assertEnabled(ctx, copiedMedia.ref.media_kind === 'podcast' ? 'podcast' : 'youtube')
       await bundle.assertUnchanged()
       publicationStarted = true
       result = await this.repo.publish({
@@ -233,6 +220,7 @@ export class BookmarkForkService {
           : undefined,
         mediaRef: copiedMedia?.ref,
         mediaInput: copiedMedia?.input,
+        labFeature: this.featureForFork(source, pdf, copiedMedia?.ref.media_kind),
         pdfDocumentId: pdf ? this.documentId(source) : undefined
       })
     } catch (error) {

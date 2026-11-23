@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { afterEach, describe, expect, test } from 'vitest'
-import { devPortInUseMessage, devPortOccupied } from '../../script/deploy/deploy'
+import { devPortInUseMessage, devPortOccupied, devPorts } from '../../script/deploy/deploy'
 
 // PID-based cases need lsof/ps to identify the listener; without them the
 // guard degrades to the generic message, so those cases would fail spuriously.
@@ -118,3 +118,11 @@ describe('dev port guard', () => {
     expect(message).toBe(`Error: 127.0.0.1:${port} is already in use.\nOnly one local API dev session can run at a time. Free the port, then retry.`)
   })
 })
+
+test('SLAX_API_DEV_PORTS moves individual local Workers and rejects invalid or clashing ports', () => {
+  expect(devPorts(undefined)).toEqual({ edge: 8787, core: 8686, ai: 8788, browser: 8789, objects: 8790 })
+  expect(devPorts('ai=8798,objects=8791')).toEqual({ edge: 8787, core: 8686, ai: 8798, browser: 8789, objects: 8791 })
+  for (const value of ['web=1', 'ai=0', 'ai=x', 'ai=70000']) expect(() => devPorts(value)).toThrow('must be')
+  expect(() => devPorts('ai=8787')).toThrow('same port')
+})
+

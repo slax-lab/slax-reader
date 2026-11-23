@@ -9,7 +9,10 @@ import { makeUser } from '~~/tests/fixtures/user'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({ token: '', load: vi.fn(), clear: vi.fn(), navigate: vi.fn() }))
-mockNuxtImport('useI18n', () => () => ({ locale: { value: 'en' } }))
+mockNuxtImport('useRuntimeConfig', () => () => ({
+  app: { baseURL: '/' },
+  public: { COOKIE_TOKEN_NAME: 'token', DWEB_API_BASE_URL: 'https://api.test', TURNSTILE_SITE_KEY: '' }
+}))
 mockNuxtImport('isLocalFirstEnabled', () => () => true)
 mockNuxtImport('loadLocalUserInfo', () => mocks.load)
 mockNuxtImport('useAuth', () => () => ({ clearAuth: mocks.clear }))

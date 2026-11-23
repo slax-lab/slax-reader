@@ -4,7 +4,7 @@ import { parse, stringify, type TomlTable } from 'smol-toml'
 import { API_ROOT, API_TSCONFIG, ROOT, LOCAL_DIR } from '../root'
 
 export { API_ROOT, ROOT }
-export const TARGETS = ['core', 'edge', 'ai', 'browser'] as const
+export const TARGETS = ['core', 'edge', 'ai', 'objects', 'browser'] as const
 export type Target = (typeof TARGETS)[number]
 export const CONFIG_DIR = LOCAL_DIR
 export const CONFIG_TEMPLATE = path.join(ROOT, 'deploy/cloudflare/api.toml.example')
@@ -22,6 +22,64 @@ const channels: Record<string, string> = {
   USER_DELETION_QUEUE: 'slax-reader-user-deletion'
 }
 const rows = (value: unknown): TomlTable[] => (Array.isArray(value) ? (value as TomlTable[]) : [])
+
+// Core, AI and Objects query the primary PostgreSQL database; Edge and Browser stay next to the user.
+export const DATABASE_REGION = 'aws:ap-southeast-1'
+const PLACED: readonly Target[] = ['core', 'ai', 'objects']
+// Stateless Durable Objects owned by the Objects Worker.
+export const OBJECT_CLASSES: Record<string, string> = { SLAX_JIEBA: 'SlaxJieba', WEBSOCKET_SERVER: 'SlaxWebSocketServer', SCREENSHOT_BROWSER: 'ScreenshotBrowser' }
+export const OBJECTS_MIGRATIONS = [{ tag: 'objects-v1', new_sqlite_classes: Object.values(OBJECT_CLASSES) }]
+// The removed MCP server's namespaces are deleted with their stored sessions. Core appends this tag to the
+// operator history whenever that history created the class, and in `retire-mcp`. Edge's legacy history is not in
+// configuration, so Edge carries only this tag and only in `retire-mcp`.
+export const MCP_RETIREMENT = { tag: 'retire-mcp-v1', deleted_classes: ['SlaxMcpServer'] }
+// Per-Worker MCP handling chosen by the release from the account state (deploy.ts releaseOrder): `keep-mcp`
+// publishes Core still exporting the stub class while the old Edge binds its namespace; `retire-mcp` deletes the
+// Worker's namespace, or keeps Core's deletion tag once Core's live migration tag is it.
+export type McpPhase = 'retired' | 'keep-mcp' | 'retire-mcp'
+const createsMcp = (history: unknown) => rows(history).some(row => Array.isArray(row.new_sqlite_classes) && row.new_sqlite_classes.includes('SlaxMcpServer'))
+const deletesMcp = (history: unknown) => rows(history).some(row => Array.isArray(row.deleted_classes) && row.deleted_classes.includes('SlaxMcpServer'))
+// Bindings each Worker reads at runtime; every other binding is removed from its generated configuration.
+const OWNED: Record<Exclude<Target, 'browser'>, readonly string[]> = {
+  edge: ['r2_buckets', 'ratelimits', 'pipelines', 'services', 'queues', 'triggers'],
+  core: [
+    'ai',
+    'browser',
+    'd1_databases',
+    'hyperdrive',
+    'kv_namespaces',
+    'r2_buckets',
+    'ratelimits',
+    'pipelines',
+    'services',
+    'queues',
+    'triggers',
+    'workflows',
+    'durable_objects',
+    'migrations',
+    'rules'
+  ],
+  ai: ['d1_databases', 'hyperdrive', 'kv_namespaces', 'r2_buckets', 'ratelimits', 'pipelines', 'services', 'queues', 'workflows', 'durable_objects', 'vectorize', 'rules'],
+  objects: ['browser', 'd1_databases', 'hyperdrive', 'r2_buckets', 'durable_objects', 'migrations', 'rules']
+}
+const BINDING_KEYS = [
+  'ai',
+  'browser',
+  'd1_databases',
+  'hyperdrive',
+  'kv_namespaces',
+  'r2_buckets',
+  'ratelimits',
+  'pipelines',
+  'services',
+  'queues',
+  'triggers',
+  'workflows',
+  'durable_objects',
+  'migrations',
+  'vectorize',
+  'rules'
+]
 
 // Wrangler bindings and vars are not inherited by named environments.
 const environmentBindings = [
@@ -107,14 +165,23 @@ export function workerNames(config: ApiConfig): Record<Target, string> {
     core,
     edge: String(service('EDGE') ?? legacyEdge[core] ?? `${core}-edge`),
     ai: String(service('AIGC') ?? service('VECTOR') ?? ''),
+    objects: String(service('OBJECTS') ?? (core.startsWith('reader-core') ? core.replace(/^reader-core/, 'reader-objects') : `${core}-objects`)),
     browser: String(service('SlaxBrowser') ?? '')
   }
 }
 
 export function validateConfig(config: ApiConfig, filename: string): ApiConfig {
   if (config.workers) throw new Error(`${filename}: use native Wrangler name/services/[env.*] configuration; [workers.*] is not supported`)
+  if (config.placement !== undefined)
+    throw new Error(`${filename}: remove placement; apps/api/script/deploy/config.ts places Core, AI and Objects in ${DATABASE_REGION} and Edge/Browser near the user`)
   const names = workerNames(config)
-  const fields = { core: 'name', edge: 'services.EDGE.service', ai: 'services.AIGC.service (or VECTOR)', browser: 'services.SlaxBrowser.service' }
+  const fields = {
+    core: 'name',
+    edge: 'services.EDGE.service',
+    ai: 'services.AIGC.service (or VECTOR)',
+    objects: 'services.OBJECTS.service',
+    browser: 'services.SlaxBrowser.service'
+  }
   const owners = new Map<string, string>()
   for (const target of TARGETS) {
     const name = names[target]
@@ -158,77 +225,74 @@ export function queueMapping(config: ApiConfig): Record<string, string> {
   return result
 }
 
-export function workerConfig(config: ApiConfig, target: Target, local = false): TomlTable {
+export function workerConfig(config: ApiConfig, target: Target, local = false, mcp: McpPhase = 'retired'): TomlTable {
   const output = structuredClone(config)
   const names = workerNames(config)
   output.name = names[target]
-  const internal = { CORE: names.core, EDGE: names.edge, AIGC: names.ai, VECTOR: names.ai, SlaxBrowser: names.browser }
-  const services = rows(output.services).filter(service => !Object.prototype.hasOwnProperty.call(internal, String(service.binding)))
+  if (target === 'browser') return browserConfig(output)
+  const internal = { CORE: names.core, EDGE: names.edge, AIGC: names.ai, VECTOR: names.ai, OBJECTS: names.objects, SlaxBrowser: names.browser }
+  const services = target === 'edge' ? [] : rows(output.services).filter(service => !Object.prototype.hasOwnProperty.call(internal, String(service.binding)))
+  // Edge forwards HTTP, and the queue, cron and email events it receives, to Core and AI.
   if (target === 'edge') services.push({ binding: 'CORE', service: names.core }, { binding: 'AIGC', service: names.ai })
-  if (target === 'core' || target === 'edge') services.push({ binding: 'VECTOR', service: names.ai, entrypoint: 'AiEntry' })
-  if (target !== 'browser') services.push({ binding: 'SlaxBrowser', service: names.browser })
-  output.services = services
+  // Core reaches the Vectorize indexes through AI's RPC; AI binds them natively, so it needs no binding to itself.
+  if (target === 'core') services.push({ binding: 'VECTOR', service: names.ai, entrypoint: 'AiEntry' }, { binding: 'SlaxBrowser', service: names.browser })
+  output.services = target === 'objects' ? [] : services
+  // Edge stays every queue's consumer and forwards batches to Core, which maps queue names to handlers.
   const queue = output.queues as TomlTable | undefined
-  if (target === 'edge') {
+  if (target === 'core') {
     ;(output.vars as TomlTable).API_QUEUE_CHANNELS = JSON.stringify(queueMapping(output as ApiConfig))
-  } else {
-    delete output.triggers
     if (queue?.producers) output.queues = { producers: queue.producers }
     else delete output.queues
-  }
-  const bindings = rows((output.durable_objects as TomlTable | undefined)?.bindings)
-  if (target === 'core' || target === 'edge') {
-    output.durable_objects = {
-      bindings: bindings.map(binding => {
-        if (binding.name === 'SLAX_BROWSER') return { ...binding, script_name: names.browser }
-        if (target === 'edge') return { ...binding, script_name: names.core }
+  } else if (target === 'edge' && queue?.consumers) output.queues = { consumers: queue.consumers }
+  else if (queue?.producers && target === 'ai') output.queues = { producers: queue.producers }
+  else delete output.queues
+  const bindings = rows((output.durable_objects as TomlTable | undefined)?.bindings).filter(binding => binding.name !== 'MCP_OBJECT')
+  output.durable_objects = {
+    bindings: bindings.flatMap(binding => {
+      const name = String(binding.name)
+      if (name === 'SLAX_BROWSER') return target === 'core' ? [{ ...binding, script_name: names.browser }] : []
+      if (Object.prototype.hasOwnProperty.call(OBJECT_CLASSES, name)) {
+        if (target === 'edge') return []
         const own = { ...binding }
-        delete own.script_name
-        return own
-      })
-    }
+        if (target === 'objects') delete own.script_name
+        else own.script_name = names.objects
+        return [own]
+      }
+      if (name === 'VECTOR_V5_PREFERENCE') {
+        if (target === 'core') {
+          const own = { ...binding }
+          delete own.script_name
+          return [own]
+        }
+        return target === 'ai' ? [{ ...binding, script_name: names.core }] : []
+      }
+      return target === 'core' ? [binding] : []
+    })
+  }
+  if (target === 'core' || target === 'ai')
     output.workflows = rows(output.workflows).map(workflow => {
       const result = { ...workflow }
-      if (target === 'edge') delete result.script_name
-      else result.script_name = names.edge
+      if (target === 'core') delete result.script_name
+      else result.script_name = names.core
       return result
     })
-    if (target === 'edge') delete output.migrations
-  }
+  if (target === 'objects') output.migrations = structuredClone(OBJECTS_MIGRATIONS)
+  if (target === 'core' && mcp !== 'keep-mcp' && (mcp === 'retire-mcp' || createsMcp(output.migrations)) && !deletesMcp(output.migrations))
+    output.migrations = [...rows(output.migrations), structuredClone(MCP_RETIREMENT)]
   if (target !== 'ai') delete output.vectorize
-  if (target === 'ai') {
-    for (const key of ['ai', 'browser', 'migrations', 'workflows', 'rules', 'placement']) delete output[key]
-    const jieba = bindings.find(binding => binding.name === 'SLAX_JIEBA')
-    output.durable_objects = { bindings: jieba ? [{ ...jieba, script_name: names.core }] : [] }
-    if (local) output.vectorize = rows(output.vectorize).map(binding => ({ ...binding, remote: true }))
-  }
-  if (target === 'browser') {
-    for (const key of [
-      'ai',
-      'd1_databases',
-      'hyperdrive',
-      'kv_namespaces',
-      'limits',
-      'placement',
-      'queues',
-      'r2_buckets',
-      'ratelimits',
-      'rules',
-      'services',
-      'triggers',
-      'vectorize',
-      'workflows'
-    ])
-      delete output[key]
-    output.durable_objects = { bindings: [{ name: 'SLAX_BROWSER', class_name: 'SlaxBrowser' }] }
-    output.migrations = [{ tag: 'v1', new_classes: ['SlaxBrowser'] }]
-  }
-  if (!['core', 'edge'].includes(target)) {
-    delete output.pipelines
-    if (output.r2_buckets) output.r2_buckets = rows(output.r2_buckets).filter(binding => binding.binding !== 'DIAGNOSTICS')
+  else if (local) output.vectorize = rows(output.vectorize).map(binding => ({ ...binding, remote: true }))
+  for (const key of BINDING_KEYS) if (!OWNED[target].includes(key)) delete output[key]
+  if (target === 'edge' && mcp === 'retire-mcp') output.migrations = [structuredClone(MCP_RETIREMENT)]
+  // Edge owns the cron triggers and forwards each tick to Core; an empty list clears any left on another Worker.
+  if (target !== 'edge') output.triggers = { crons: [] }
+  if (target !== 'core' && output.r2_buckets) output.r2_buckets = rows(output.r2_buckets).filter(binding => binding.binding === 'OSS')
+  if (target === 'objects') {
+    output.d1_databases = rows(output.d1_databases).filter(binding => binding.binding === 'DB')
+    output.hyperdrive = rows(output.hyperdrive).filter(binding => binding.binding === 'HYPERDRIVE')
   }
   if (target !== 'core' && output.vars) delete (output.vars as TomlTable).DIAGNOSTIC_DOWNLOAD_SECRET
-  if (['core', 'edge'].includes(target) && rows(output.r2_buckets).some(binding => binding.binding === 'DIAGNOSTICS')) {
+  // Edge receives diagnostic download URLs and Core serves them; neither may record request URLs.
+  if (['core', 'edge'].includes(target) && rows(config.r2_buckets).some(binding => binding.binding === 'DIAGNOSTICS')) {
     const observability = (output.observability || {}) as TomlTable
     output.observability = {
       ...observability,
@@ -242,22 +306,42 @@ export function workerConfig(config: ApiConfig, target: Target, local = false): 
     output.routes = []
     output.preview_urls = false
   }
+  delete output.placement
   if (local) {
     delete output.route
     delete output.routes
-    delete output.placement
-  }
+  } else if (PLACED.includes(target)) output.placement = { region: DATABASE_REGION }
   return output
 }
 
-export function writeGenerated(config: ApiConfig, target: Target, outputDir = GENERATED_DIR, local = false, bootstrap = false): string {
+function browserConfig(output: TomlTable): TomlTable {
+  // The Browser Rendering binding is the Browser Worker's only resource; keep it before clearing the rest.
+  const browser = structuredClone(output.browser)
+  for (const key of [...BINDING_KEYS, 'limits', 'placement']) delete output[key]
+  output.durable_objects = { bindings: [{ name: 'SLAX_BROWSER', class_name: 'SlaxBrowser' }] }
+  output.migrations = [{ tag: 'v1', new_classes: ['SlaxBrowser'] }]
+  output.browser = browser
+  delete output.pipelines
+  if (output.vars) delete (output.vars as TomlTable).DIAGNOSTIC_DOWNLOAD_SECRET
+  output.workers_dev = false
+  delete output.route
+  output.routes = []
+  output.preview_urls = false
+  return output
+}
+
+// During keep-mcp, Core publishes a wrapper that also exports the MCP stub.
+export const entryFile = (target: Target, mcp: McpPhase = 'retired') =>
+  path.join(API_ROOT, mcp === 'keep-mcp' && target === 'core' ? 'src/entry/transition/core.ts' : `src/entry/${target}/index.ts`)
+
+export function writeGenerated(config: ApiConfig, target: Target, outputDir = GENERATED_DIR, local = false, bootstrap = false, mcp: McpPhase = 'retired'): string {
   const directory = path.resolve(outputDir)
-  const output = workerConfig(config, target, local)
+  const output = workerConfig(config, target, local, mcp)
   if (bootstrap) {
     delete output.services
     delete output.workflows
   }
-  output.main = path.relative(directory, path.join(API_ROOT, `src/entry/${target}/index.ts`))
+  output.main = path.relative(directory, entryFile(target, mcp))
   output.tsconfig = path.relative(directory, API_TSCONFIG)
   for (const db of rows(output.d1_databases))
     db.migrations_dir = path.relative(directory, path.join(API_ROOT, 'prisma/d1_migrations', db.binding === 'DB_FULLTEXT' ? 'fulltext' : ''))
@@ -308,7 +392,7 @@ export function parseArgs(args: string[], allow: string[] = []) {
     else if ((arg === '--env' || arg === '-e') && args[i + 1]) environment = args[++i]
     else if (allow.includes(arg)) flags.add(arg)
     else if (TARGETS.includes(arg as Target) && !target) target = arg as Target
-    else throw new Error(`Unknown argument: ${arg}. Use [core|edge|ai|browser] [--config <path>] [--env <name>] ${allow.join(' ')}`)
+    else throw new Error(`Unknown argument: ${arg}. Use [${TARGETS.join('|')}] [--config <path>] [--env <name>] ${allow.join(' ')}`)
   }
   return { config, environment, target, flags }
 }

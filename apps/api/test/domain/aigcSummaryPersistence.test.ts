@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { AigcService } from '@/domain/aigc'
 import { BookmarkService } from '@/domain/bookmark'
-import { BookmarkOrchestrator } from '@/domain/orchestrator/bookmark'
+import { BookmarkAiOrchestrator } from '@/domain/orchestrator/bookmarkAi'
 import { AIProviderError } from '@/infra/external/vertexAIClient'
 import { setGlobalLanguage } from '@/utils/multiLangError'
 import { createMockCtx } from '@test/helpers/mockFactory'
@@ -128,20 +128,11 @@ describe('outline stream persists only a completed outline', () => {
       saveSummary: vi.fn().mockResolvedValue(undefined)
     }
     const userService = { getUserInfo: vi.fn().mockResolvedValue({ ai_lang: 'zh' }) }
-    const orchestrator = new BookmarkOrchestrator(
-      bookmarkService as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      { generateOutline } as never,
-      userService as never,
-      (() => ({})) as never
-    )
+    const orchestrator = new BookmarkAiOrchestrator(bookmarkService as never, {} as never, { generateOutline } as never, userService as never)
     return { orchestrator, bookmarkService }
   }
 
-  const run = async (orchestrator: BookmarkOrchestrator) => {
+  const run = async (orchestrator: BookmarkAiOrchestrator) => {
     const stream = captureWriter()
     await orchestrator.generateBookmarkOutlineStream(createMockCtx({ userId: 7 }) as never, {
       bmId: 42,

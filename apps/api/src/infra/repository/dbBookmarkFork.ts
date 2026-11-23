@@ -6,6 +6,7 @@ import { BookmarkNotFoundError } from '@/const/err'
 import { ErrorName } from '@slax-reader/contracts'
 import { forkError } from '@/utils/bookmarkForkError'
 import { podcastInputFingerprint, type PodcastSnapshotInput } from '@/utils/mediaSnapshot'
+import { enableLabFeature } from './dbLab'
 
 type Database = Prisma.TransactionClient
 export type MediaSnapshotRef = {
@@ -33,6 +34,7 @@ export type ForkPublication = {
   pdfDocumentId?: string
   mediaRef?: MediaSnapshotRef
   mediaInput?: PodcastSnapshotInput
+  labFeature?: string
   personal?: ForkPersonalState
   destination?: { id: number; bookmark_id: number; updated_at: Date; requireLive?: boolean }
 }
@@ -356,6 +358,7 @@ export class BookmarkForkRepo {
             relation: await this.restore(db, existing)
           }
 
+        if (input.labFeature) await enableLabFeature(db, input.userId, input.labFeature)
         const now = new Date(Math.max(Date.now(), (input.destination?.updated_at.getTime() ?? 0) + 1))
         if (input.destination) {
           await db.$queryRaw`SELECT id FROM sr_bookmark WHERE id = ${input.destination.bookmark_id} FOR UPDATE`

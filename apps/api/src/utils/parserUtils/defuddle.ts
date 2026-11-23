@@ -1,4 +1,3 @@
-import Defuddle from 'defuddle/full'
 import { parseHTML } from 'linkedom'
 
 function getDocument(src: string): Document {
@@ -6,7 +5,9 @@ function getDocument(src: string): Document {
   return document
 }
 
-export function defuddleParse(url: string, document: Document) {
+export async function defuddleParse(url: string, document: Document) {
+  // Loaded on first use: the extractor is large and only parsing paths need it, not Worker startup.
+  const { default: Defuddle } = await import('defuddle/full')
   const window = (document as any).defaultView || (document as any).ownerDocument?.defaultView
 
   if (!document.URL && url) {

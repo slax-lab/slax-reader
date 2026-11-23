@@ -1,5 +1,5 @@
 // Worker 版本：改动实现、协议或加载方式时递增；只影响 Worker URL。
-export const POWER_SYNC_WORKER_GENERATION = 'v4'
+export const POWER_SYNC_WORKER_GENERATION = 'v5'
 
 // 数据库版本：无法安全复用或迁移时递增；会创建 slax-reader-<version>.db。
 export const POWER_SYNC_DATABASE_GENERATION = 'v3'

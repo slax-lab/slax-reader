@@ -11,7 +11,7 @@ pnpm api -- setup
 pnpm api -- dev
 ```
 
-`setup` 先检查配置，再在 apps/api 中执行一次 `pnpm exec wrangler login`（需要在浏览器完成授权）。登录成功后启动 PostgreSQL，执行主库/logs/D1/fulltext 迁移、生成 Prisma/types/路由，再启动 PowerSync、等待健康检查通过，然后退出。它只启动 PostgreSQL/PowerSync 依赖，不启动 Core、Edge、AI、Browser。`pnpm api -- dev` 单独启动四个 Worker。登录失败或被中断会停止后续初始化。
+`setup` 先检查配置，再在 apps/api 中执行一次 `pnpm exec wrangler login`（需要在浏览器完成授权）。登录成功后启动 PostgreSQL，执行主库/logs/D1/fulltext 迁移、生成 Prisma/types/路由，再启动 PowerSync、等待健康检查通过，然后退出。它只启动 PostgreSQL/PowerSync 依赖，不启动 Core、Edge、AI、Objects、Browser。`pnpm api -- dev` 单独启动五个 Worker（本地端口：Edge 8787、Core 8686、AI 8788、Browser 8789、Objects 8790；端口被占用时可用 `SLAX_API_DEV_PORTS="ai=8798"` 单独改）。登录失败或被中断会停止后续初始化。
 
 配置由你准备：`api.toml` 使用原生 Wrangler 格式（`name`、`services`、`[env.dev]` 等）；`.dev.vars` 至少包含 JWT_SECRET_TEXT、HASH_IDS_SALT、EDGE_SHARED_SECRET 和有效的 RSA 签名私钥 POWERSYNC_JWK_PRIVATE_KEY（包括 kid）。本地 PowerSync 使用从该私钥推导出的公钥，通过启动进程传给 Compose；不再要求 dev-jwks-private.json、dev-jwks-public.json、compose.env 三份文件，也不读取或改写其中的旧密钥。工具凭据和 Prisma URL 放在同目录 `.env`，CI 也可通过进程变量提供。
 
@@ -19,7 +19,7 @@ pnpm api -- dev
 
 `setup`、`dev` 和本地 D1 默认选择文件中的 `[env.dev]`；没有该环境时读取顶层。`build`、`types`、资源计划和远程部署默认读取顶层；`--env <name>` 或 `SLAX_API_ENV` 可显式选择命名环境。遵循 Wrangler 的环境隔离：vars 和资源 bindings 不从生产顶层继承。所有环境可以放在同一份 api.toml，不需要 `[workers.*]`。
 
-Worker 身份来自原生 name 和服务绑定：Core 使用所选环境的 name，AI 使用 AIGC/VECTOR，Browser 使用 SlaxBrowser。已有 reader-core 系列的 Edge 名称沿用原后端；其他自定义名称默认追加 -edge，也可用原生 EDGE 服务绑定显式指定。脚本仅在 deploy/local/.generated 生成各入口使用的运行配置，不改写 api.toml。
+Worker 身份来自原生 name 和服务绑定：Core 使用所选环境的 name，AI 使用 AIGC/VECTOR，Browser 使用 SlaxBrowser，Objects 默认把 Core 名称中的 `reader-core` 换成 `reader-objects`，也可用 OBJECTS 服务绑定指定。已有 reader-core 系列的 Edge 名称沿用原后端；其他自定义名称默认追加 -edge，也可用原生 EDGE 服务绑定显式指定。脚本仅在 deploy/local/.generated 生成各入口使用的运行配置，不改写 api.toml。
 
 本地文件集中在 `deploy/local/`：
 
