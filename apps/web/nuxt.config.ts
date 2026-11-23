@@ -398,6 +398,11 @@ export default defineNuxtConfig({
         prerender: false,
         headers: { 'content-security-policy': `frame-ancestors chrome-extension://${profile.extensionBridgeId}` }
       },
+      '/x/ext-bridge/': {
+        ssr: false,
+        prerender: false,
+        headers: { 'content-security-policy': `frame-ancestors chrome-extension://${profile.extensionBridgeId}` }
+      },
       // i18n 为 no_prefix 策略，/en /zh 不再是有效路由，统一重定向回首页
       '/en': { redirect: '/' },
       '/zh': { redirect: '/' },

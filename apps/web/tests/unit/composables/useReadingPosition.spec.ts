@@ -8,11 +8,12 @@ const saved = { index: -1, ratio: 0, percent: 0.5 }
 let wrapper: ReturnType<typeof mount>
 let y = 0
 let scroll: ReturnType<typeof vi.spyOn>
+let handle: ReturnType<typeof useReadingPosition>
 const start = (overrides: Partial<Parameters<typeof useReadingPosition>[1]> = {}) => {
   const options = { load: vi.fn().mockResolvedValue(saved), save: vi.fn(), clear: vi.fn(), ...overrides }
   wrapper = mount(defineComponent({
     setup() {
-      useReadingPosition('article', options)
+      handle = useReadingPosition('article', options)
       return () => h('div', { class: 'bookmark-detail' }, h('div', { class: 'html-text' }, h('p', 'Long article')))
     }
   }), { attachTo: document.body })
@@ -140,5 +141,68 @@ describe('reading position restoration', () => {
     await vi.advanceTimersByTimeAsync(800)
     input.remove()
     expect(scroll).toHaveBeenCalled()
+  })
+
+  describe('a source enabled after the first attempt', () => {
+    it('restores once when retried after the source becomes enabled', async () => {
+      let enabled = false
+      const options = start({ enabled: () => enabled })
+      await vi.advanceTimersByTimeAsync(1700)
+      expect(options.load).not.toHaveBeenCalled()
+      expect(scroll).not.toHaveBeenCalled()
+      enabled = true
+      handle?.retry()
+      await vi.advanceTimersByTimeAsync(1700)
+      expect(options.load).toHaveBeenCalledOnce()
+      expect(scroll).toHaveBeenCalledWith({ top: 750, behavior: 'auto' })
+      handle?.retry()
+      await vi.advanceTimersByTimeAsync(1700)
+      expect(options.load).toHaveBeenCalledOnce()
+    })
+
+    it('neither clears nor saves the position while the source is disabled', async () => {
+      let enabled = false
+      const options = start({ enabled: () => enabled })
+      await vi.advanceTimersByTimeAsync(1700)
+      window.dispatchEvent(new Event('scroll'))
+      document.dispatchEvent(new Event('visibilitychange'))
+      await vi.advanceTimersByTimeAsync(500)
+      wrapper.unmount()
+      expect(options.clear).not.toHaveBeenCalled()
+      expect(options.save).not.toHaveBeenCalled()
+    })
+
+    it('does not move a page the reader scrolled before the source became enabled', async () => {
+      let enabled = false
+      const options = start({ enabled: () => enabled })
+      await vi.advanceTimersByTimeAsync(1700)
+      y = 400
+      enabled = true
+      handle?.retry()
+      await vi.advanceTimersByTimeAsync(1700)
+      expect(options.load).not.toHaveBeenCalled()
+      expect(scroll).not.toHaveBeenCalled()
+      window.dispatchEvent(new Event('scroll'))
+      await vi.advanceTimersByTimeAsync(500)
+      expect(options.save).toHaveBeenCalled()
+    })
+
+    it('does not restore after the reader took control with the keyboard or wheel', async () => {
+      let enabled = false
+      const options = start({ enabled: () => enabled })
+      await vi.advanceTimersByTimeAsync(1700)
+      window.dispatchEvent(new WheelEvent('wheel'))
+      enabled = true
+      handle?.retry()
+      await vi.advanceTimersByTimeAsync(1700)
+      expect(options.load).not.toHaveBeenCalled()
+    })
+
+    it('ignores a retry while the first attempt is still running', async () => {
+      const options = start()
+      handle?.retry()
+      await vi.advanceTimersByTimeAsync(1700)
+      expect(options.load).toHaveBeenCalledOnce()
+    })
   })
 })

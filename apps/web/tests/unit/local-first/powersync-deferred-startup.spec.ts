@@ -170,13 +170,22 @@ describe('deferred local startup on reader documents', () => {
     expect(state.owner.value).toBeNull()
   })
 
-  it.each(['/bookmarks', '/', '/s/article', '/x/ext-bridge'])('keeps blocking startup on %s', async path => {
+  it.each(['/bookmarks', '/', '/s/article'])('keeps blocking startup on %s', async path => {
     window.history.replaceState(null, '', path)
     const result = await start()
     expect(result?.provide?.powersyncDeferred).toBe(false)
     expect(result?.provide?.powersync).not.toBeNull()
     expect(result?.provide?.powersyncReady.value).toBe(result?.provide?.powersync)
     expect(state.guards).toHaveLength(0)
+  })
+
+  it.each(['/x/ext-bridge', '/x/ext-bridge/'])('starts no local database for a top-level extension bridge page at %s', async path => {
+    window.history.replaceState(null, '', path)
+    const result = await start()
+    expect(result?.provide).toMatchObject({ powersync: null, powersyncDeferred: false })
+    await expect(result?.provide?.powersyncWhenReady()).resolves.toBeNull()
+    expect(state.init).not.toHaveBeenCalled()
+    expect(state.connect).not.toHaveBeenCalled()
   })
 
   it('does not defer inside an iframe', async () => {
@@ -240,6 +249,40 @@ describe('leaving a deferred reader document', () => {
     const guard = state.guards[0]!
     await expect(guard(route('/bookmarks'), route('/b/article'))).resolves.toBeUndefined()
     await expect(guard(route('/bookmarks'), route('/b/article'))).resolves.toBe(false)
+  })
+
+  it('reloads the destination of Back or Forward without cancelling the history traversal', async () => {
+    vi.useFakeTimers()
+    const replace = vi.fn()
+    const result = await start()
+    await result?.provide?.powersyncWhenReady()
+    const guard = state.guards[0]!
+    // A traversal has already moved the address when guards run.
+    window.history.replaceState(null, '', '/bookmarks?filter=inbox')
+    vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, href: new URL('/bookmarks?filter=inbox', window.location.origin).href, replace } as Location)
+    let settled: unknown = 'pending'
+    const leaving = (guard(route('/bookmarks?filter=inbox'), route('/b/article')) as Promise<unknown>).then(value => (settled = value))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(replace).toHaveBeenCalledExactlyOnceWith('/bookmarks?filter=inbox')
+    expect(state.navigate).not.toHaveBeenCalled()
+    // The navigation stays pending so the router neither rewinds history nor mounts the destination.
+    await vi.advanceTimersByTimeAsync(2_999)
+    expect(settled).toBe('pending')
+    // If the unload is suppressed, the navigation is cancelled and the guard re-arms.
+    await vi.advanceTimersByTimeAsync(1)
+    await leaving
+    expect(settled).toBe(false)
+  })
+
+  it('keeps the push exit for a navigation whose address has not changed yet', async () => {
+    const replace = vi.fn()
+    const result = await start()
+    await result?.provide?.powersyncWhenReady()
+    vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, href: new URL('/b/article', window.location.origin).href, replace } as Location)
+    const guard = state.guards[0]!
+    await expect(guard(route('/bookmarks'), route('/b/article'))).resolves.toBe(false)
+    expect(state.navigate).toHaveBeenCalledExactlyOnceWith('/bookmarks', { external: true })
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('ignores destinations that are not internal paths', async () => {

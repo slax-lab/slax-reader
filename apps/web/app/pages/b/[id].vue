@@ -40,6 +40,7 @@
         :local-database="lateLocalSources?.database ?? undefined"
         :local-tags="!lateLocalSources"
         @local-mark-write="handOverMarksOnLocalWrite"
+        @rest-mark-write="recordRestMarkWrite"
         :bookmark-uuid="uuid"
         :local-ready="localReady"
         :is-owner="isOwner"
@@ -264,7 +265,7 @@ import { useShareCollectInfo } from '~/composables/useShareCollectInfo'
 import { useSnapshotLayout } from '~/composables/useSnapshotLayout'
 import type { IconKey } from '~/icons/registry'
 import { canTakeOverSnapshotLocally } from '~/local-first/snapshot-local-takeover'
-import { localMarksCoverShown } from '~/local-first/snapshot-mark-handover'
+import { localMarksCoverShown, type RestMarkWrites } from '~/local-first/snapshot-mark-handover'
 import { useUserStore } from '~/stores/user'
 
 const pendingPanelCode = reactive({ ai: false, chat: false })
@@ -411,6 +412,16 @@ if (error.value && !recoveringSession.value) {
 }
 
 const restMarks = ref<MarkDetail>({ mark_list: [], user_list: {} })
+// Marks the reader wrote over REST on this page; the hand-over waits until local rows include them.
+const restMarkWrites = shallowRef<RestMarkWrites>({ added: new Set(), deleted: new Set() })
+const recordRestMarkWrite = (change: { added?: string; deleted?: string }) => {
+  if (localFirst.value) return
+  const added = new Set(restMarkWrites.value.added)
+  const deleted = new Set(restMarkWrites.value.deleted)
+  if (change.added) added.add(change.added)
+  if (change.deleted) deleted.add(change.deleted)
+  restMarkWrites.value = { added, deleted }
+}
 
 const localFirst = ref(false)
 const localReady = ref(false)
@@ -441,6 +452,7 @@ if (import.meta.client) watch(accountGeneration, () => {
   if (!recoveringSession.value) clearContent()
   pdfPlaceholder.value = undefined
   restMarks.value = { mark_list: [], user_list: {} }
+  restMarkWrites.value = { added: new Set(), deleted: new Set() }
   localFirst.value = false
   localReady.value = false
   lateLocalSources.value = null
@@ -461,7 +473,7 @@ async function refreshForkDetail() {
   await refreshContent().catch(() => {})
 }
 
-useReadingPosition(uuid, {
+const readingPosition = useReadingPosition(uuid, {
   navigation: import.meta.client ? window.__slaxReaderStartup!.navigation : undefined,
   enabled: () => localFirst.value && !detail.value?.pdf,
   ready: () => localReady.value && positionReady.value,
@@ -477,7 +489,7 @@ const marks = computed<MarkDetail>(() => {
   const query = localMarksQuery.value
   if (!localFirst.value || !query || query.isLoading.value) return restMarks.value
   if (!lateLocalSources.value || lateMarksHandedOver.value) return query.marks.value
-  return localMarksCoverShown(restMarks.value, query.marks.value) ? query.marks.value : restMarks.value
+  return localMarksCoverShown(restMarks.value, query.marks.value, restMarkWrites.value) ? query.marks.value : restMarks.value
 })
 watch(marks, value => {
   if (lateLocalSources.value && value === localMarksQuery.value?.marks.value) lateMarksHandedOver.value = true
@@ -750,6 +762,7 @@ function onLocalSourcesReady(sources: SnapshotLocalSources) {
       localFirst.value = true
       localReady.value = true
       positionReady.value = true
+      readingPosition?.retry()
     },
     { immediate: true }
   )

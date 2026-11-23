@@ -85,7 +85,7 @@ describe('real PowerSync plugin public bypass', () => {
     expect(localStorage.getItem('slax:powersync:lastUser')).toBe('old-account')
     expect(localStorage.getItem(`slax:powersync:${POWER_SYNC_DATABASE_GENERATION}:dataVersion`)).toBe('0')
   })
-  it.each(['/bookmarks', '/auth', '/s/example', '/login/extra', '/guide/extra', '/x/ext-bridge', '/pricing?next=/login'])('keeps normal startup for %s', async path => {
+  it.each(['/bookmarks', '/auth', '/s/example', '/login/extra', '/guide/extra', '/pricing?next=/login'])('keeps normal startup for %s', async path => {
     window.history.replaceState(null, '', path)
     const result = await start()
     expect(result?.provide?.powersyncPublicBypass).toBe(false)
