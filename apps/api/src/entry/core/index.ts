@@ -11,6 +11,7 @@ import { getRouter } from '@/di/router'
 import { handleMessage } from '@/di/generated/core/consumer'
 import { handleCronjob } from '@/di/generated/core/cronjob'
 import { handleContentRequest, isContentRequest } from './contentHandler'
+import { handleJobsRequest, isJobsRequest } from './jobs'
 import { VectorPreferenceObject } from './vectorPreferenceObject'
 import { EDGE_RAY_ID_HEADER } from '@/const/edge'
 import { applyApiResponseHeaders } from '@/middleware/cors'
@@ -20,7 +21,10 @@ initializeCore()
 const internalRoutes: ReadonlyArray<{
   match: (request: Request) => boolean
   handle: (request: Request, env: Env, ctx: ExecutionContext) => Promise<Response>
-}> = [{ match: isContentRequest, handle: handleContentRequest }]
+}> = [
+  { match: isContentRequest, handle: handleContentRequest },
+  { match: isJobsRequest, handle: handleJobsRequest }
+]
 
 async function handleFetch(request: Request, env: Env, ctx: ExecutionContext) {
   for (const route of internalRoutes) {
@@ -101,7 +105,6 @@ export default {
 }
 
 export { VectorPreferenceObject }
-export { CoreJobs } from './jobs'
 export { SlaxJieba, SlaxWebSocketServer, ScreenshotBrowser } from '../retired'
 export { CrawlWorkflow } from './workflows/crawlWorkflow'
 export { ContentValidationWorkflow } from './workflows/contentValidationWorkflow'

@@ -6,7 +6,7 @@ import { ContextManager } from '../../src/utils/context'
 import { UserDeletionService } from '../../src/domain/userDeletion'
 import { snapshotAiProviderResponse } from './snapshotAiSmoke'
 export { SlaxJieba, SlaxWebSocketServer, ScreenshotBrowser } from '../../src/entry/retired'
-export { CrawlWorkflow, CoreJobs } from '../../src/entry/core/index'
+export { CrawlWorkflow } from '../../src/entry/core/index'
 
 const sink = 'https://diagnostic-capture.fixture.invalid/report'
 const messages: string[] = []
@@ -37,7 +37,9 @@ export default {
     const url = new URL(request.url)
     const local = ['localhost', '127.0.0.1'].includes(url.hostname)
     const contentBinding = url.hostname === 'content.internal' && url.pathname.startsWith('/content/')
-    if (!local && !contentBinding) return new Response('Local fixture only', { status: 403 })
+    // Edge forwards queue, cron and email events to the jobs host, which authenticates them itself.
+    const jobsBinding = url.hostname === 'jobs.internal'
+    if (!local && !contentBinding && !jobsBinding) return new Response('Local fixture only', { status: 403 })
     const aiFeature = /^\/__fixture\/snapshot-ai\/(outline|overview|chat)$/.exec(url.pathname)?.[1]
     if (aiFeature) {
       // Serve the real AI Worker handlers inside this fixture so the provider stub in this isolate answers them.
@@ -87,6 +89,5 @@ export default {
       }
     } as Queue
     return core.fetch(request, fixtureEnv, execution)
-  },
-  email: core.email
+  }
 }

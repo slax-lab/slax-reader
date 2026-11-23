@@ -38,7 +38,6 @@ function fixture() {
     main: entry('edge'),
     services: [
       { binding: 'CORE', service: 'local-core' },
-      { binding: 'CORE_JOBS', service: 'local-core', entrypoint: 'CoreJobs' },
       { binding: 'AIGC', service: 'local-ai' }
     ]
   }
@@ -87,15 +86,6 @@ describe('explicit isolated local Worker launcher', () => {
     vi.unstubAllEnvs()
     writeFileSync(f.ai, JSON.stringify(f.aiData))
     expect(localDevOptions(f.args).args).toContain('--local')
-  })
-
-  test('Edge reaches Core jobs only through the CoreJobs entrypoint', () => {
-    const f = fixture()
-    const services = (jobs: Record<string, string>) => [{ binding: 'CORE', service: 'local-core' }, jobs, { binding: 'AIGC', service: 'local-ai' }]
-    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, services: services({ binding: 'CORE_JOBS', service: 'local-core' }) }))
-    expect(() => localDevOptions(f.args)).toThrow('CoreJobs entrypoint')
-    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, services: services({ binding: 'CORE_JOBS', service: 'local-core', entrypoint: 'AiEntry' }) }))
-    expect(() => localDevOptions(f.args)).toThrow('CoreJobs entrypoint')
   })
   test('requires all inputs and never defaults to production-capable dev configs', () => {
     expect(() => localDevOptions([])).toThrow('All six explicit')

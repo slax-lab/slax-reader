@@ -29,8 +29,8 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 首次五 
 
 | Worker | 运行位置 | 负责 |
 |---|---|---|
-| Edge（公开） | 不设置，就近运行 | HTTP 入口：CORS、缓存、图片代理、鉴权，转发到 Core 或 AI；`ContentEntry`；队列消费者、cron 和 Email Routing 的接收方，收到的事件原样转给 Core 的 `CoreJobs` 入口 |
-| Core | `aws:ap-southeast-1` | `AI_ROUTES` 以外的 Reader 路由；通过 `CoreJobs` 执行的队列、cron 和 newsletter 邮件处理；六个 Workflow、`VectorPreferenceObject` |
+| Edge（公开） | 不设置，就近运行 | HTTP 入口：CORS、缓存、图片代理、鉴权，转发到 Core 或 AI；`ContentEntry`；队列消费者、cron 和 Email Routing 的接收方，收到的事件原样转给 Core 的内部主机 `jobs.internal` |
+| Core | `aws:ap-southeast-1` | `AI_ROUTES` 以外的 Reader 路由；通过内部主机 `jobs.internal` 执行的队列、cron 和 newsletter 邮件处理；六个 Workflow、`VectorPreferenceObject` |
 | AI | `aws:ap-southeast-1` | `apps/api/src/const/routes.ts` 中 `AI_ROUTES` 列出的路由（AIGC、概要/大纲、搜索、推荐、向量刷新）和 `AiEntry` 向量 RPC |
 | Objects | `aws:ap-southeast-1` | `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` 三个 Durable Object，不提供 HTTP |
 | Browser | 不设置 | `SlaxBrowser`（不变） |
@@ -39,7 +39,7 @@ placement 由 `apps/api/script/deploy/config.ts` 的 `DATABASE_REGION` 决定，
 
 ## 首次五 Worker 发布（已有安装）
 
-Edge 保留它现有的队列消费者、cron 和 Email Routing 接收方，把每个事件通过服务绑定（`CORE_JOBS`，入口 `CoreJobs`；服务绑定调用不额外计请求费）原样转给 Core。因此没有任何触发器、消费者或邮件规则需要移动，首次五 Worker 发布就是一次普通 `deploy`（CI 或 `pnpm api -- deploy`）。远程发布在第一次发布前读取账号：
+Edge 保留它现有的队列消费者、cron 和 Email Routing 接收方，把每个事件通过现有的 `CORE` 服务绑定以 `fetch` 方式原样发到内部主机 `jobs.internal`，并用 `EDGE_SHARED_SECRET` 鉴权。与 RPC 不同，fetch 会遵循 Core 的 placement，所以这些任务在新加坡、靠近数据库执行；服务绑定的 fetch 与 RPC 计费相同（不额外计请求费，只计 CPU 时间）。因此没有任何触发器、消费者或邮件规则需要移动，首次五 Worker 发布就是一次普通 `deploy`（CI 或 `pnpm api -- deploy`）。远程发布在第一次发布前读取账号：
 
 - 若某个 Worker 缺少其代码读取的值（见下文），停止并列出 Worker 和 key 名；
 - 决定发布顺序。账号中还有 `SlaxMcpServer` 命名空间时，按 Browser → Objects → Core（仍导出 MCP 空壳，因为旧 Edge 绑定着 Core 的命名空间）→ AI → Edge（删除 Edge 的命名空间）→ Core（删除 Core 的命名空间）发布；Wrangler 在 Core 首次发布时把 Workflow 转到 Core。之后的发布不再有命名空间，按 Browser → Objects → Core → AI → Edge 发布。

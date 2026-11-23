@@ -29,8 +29,8 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 最初の�
 
 | Worker | 配置 | 担当 |
 |---|---|---|
-| Edge（公開） | 指定なし（利用者の近く） | HTTP 入口：CORS、キャッシュ、画像プロキシ、認証と Core/AI への転送、`ContentEntry`、キュー consumer・cron・Email Routing の受信先（各イベントをそのまま Core の `CoreJobs` に転送） |
-| Core | `aws:ap-southeast-1` | `AI_ROUTES` 以外の Reader ルート、`CoreJobs` 経由のキュー・cron・newsletter メール処理、六つの Workflow、`VectorPreferenceObject` |
+| Edge（公開） | 指定なし（利用者の近く） | HTTP 入口：CORS、キャッシュ、画像プロキシ、認証と Core/AI への転送、`ContentEntry`、キュー consumer・cron・Email Routing の受信先（各イベントをそのまま Core の内部ホスト `jobs.internal` に転送） |
+| Core | `aws:ap-southeast-1` | `AI_ROUTES` 以外の Reader ルート、内部ホスト `jobs.internal` 経由のキュー・cron・newsletter メール処理、六つの Workflow、`VectorPreferenceObject` |
 | AI | `aws:ap-southeast-1` | `apps/api/src/const/routes.ts` の `AI_ROUTES`（AIGC、概要/アウトライン、検索、推薦、ベクトル更新）と `AiEntry` ベクトル RPC |
 | Objects | `aws:ap-southeast-1` | `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` の Durable Object（HTTP なし） |
 | Browser | 指定なし | `SlaxBrowser`（変更なし） |
@@ -39,7 +39,7 @@ placement は `apps/api/script/deploy/config.ts` の `DATABASE_REGION`（主 Pos
 
 ## 最初の五 Worker リリース（既存環境）
 
-Edge は既存のキュー consumer・cron・Email Routing の受信先をそのまま持ち、各イベントを service binding（`CORE_JOBS`、entrypoint `CoreJobs`。service binding の呼び出しは追加リクエストとして課金されません）で Core に転送します。トリガー・consumer・メールルールは一切移動しないため、最初の五 Worker リリースも通常の `deploy`（CI または `pnpm api -- deploy`）です。リモートリリースは最初の公開前にアカウントを読み、次を行います。
+Edge は既存のキュー consumer・cron・Email Routing の受信先をそのまま持ち、各イベントを既存の `CORE` service binding の `fetch` で内部ホスト `jobs.internal` にそのまま転送し、`EDGE_SHARED_SECRET` で認証します。RPC と違い fetch は Core の placement に従うため、ジョブはデータベースに近いシンガポールで実行されます。service binding の fetch は RPC と同じ課金です（追加リクエストなし、CPU 時間のみ）。トリガー・consumer・メールルールは一切移動しないため、最初の五 Worker リリースも通常の `deploy`（CI または `pnpm api -- deploy`）です。リモートリリースは最初の公開前にアカウントを読み、次を行います。
 
 - コードが読む値をいずれかの Worker が持たない場合（下記）、Worker 名と key 名を示して停止します。
 - 公開順序を決めます。`SlaxMcpServer` namespace が残っている間は Browser → Objects → Core（旧 Edge が Core の namespace を束縛しているため MCP スタブを export したまま）→ AI → Edge（Edge の namespace を削除）→ Core（Core の namespace を削除）の順に公開します。Workflow は Core の最初の公開で Wrangler が Core に移します。以降のリリースは namespace が無いため Browser → Objects → Core → AI → Edge です。

@@ -228,7 +228,6 @@ async function main() {
       r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
       services: [
         { binding: 'CORE', service: names.core },
-        { binding: 'CORE_JOBS', service: names.core, entrypoint: 'CoreJobs' },
         { binding: 'AIGC', service: names.ai }
       ],
       ratelimits: [{ name: 'BOOKMARK_ADD_RATE_LIMITER', namespace_id: '1001', simple: { limit: 30, period: 60 } }]
