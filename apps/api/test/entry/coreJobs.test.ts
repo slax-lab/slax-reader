@@ -5,9 +5,17 @@ const handlers = vi.hoisted(() => ({
   cron: vi.fn<(event: { cron: string; scheduledTime: number }, env: Env, ctx: ExecutionContext) => Promise<void>>(),
   email: vi.fn<(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) => Promise<void>>()
 }))
-vi.mock('@/entry/core/index', () => ({ handleQueueEvent: handlers.queue, handleScheduledEvent: handlers.cron, handleEmailEvent: handlers.email }))
+vi.mock('@/entry/core/handlers', () => ({ handleQueueEvent: handlers.queue, handleScheduledEvent: handlers.cron, handleEmailEvent: handlers.email }))
+vi.mock('cloudflare:workers', () => ({
+  WorkerEntrypoint: class {
+    constructor(
+      protected ctx: ExecutionContext,
+      protected env: Env
+    ) {}
+  }
+}))
 
-import { handleJobsRequest, isJobsRequest } from '@/entry/core/jobs'
+import { CoreJobs, handleJobsRequest, isJobsRequest } from '@/entry/core/jobs'
 import { forwardEmail, forwardQueue, forwardScheduled } from '@/entry/edge/jobs'
 import { EDGE_SECRET_HEADER } from '@/const/edge'
 
@@ -77,24 +85,27 @@ describe('Edge forwards job events to Core over fetch, where placement applies',
     expect(finished).toBe(true)
   })
 
-  test('email reaches Core with envelope, headers and the raw body, and a rejection returns to Edge', async () => {
+  test('email reaches Core with its recipient and raw body, and a rejection returns to Edge', async () => {
     handlers.email.mockImplementationOnce(async message => {
-      expect([message.from, message.to, message.rawSize, message.headers.get('subject')]).toEqual(['发件人@example.com', 'feed+x@news.example', 5, 'Hello, 世界'])
+      expect([message.to, message.rawSize]).toEqual(['订阅+x@news.example', 5])
       expect(await new Response(message.raw).text()).toBe('hello')
       message.setReject('Newsletter delivery is not available for this message.')
     })
-    // Email Routing exposes decoded header values, which may hold any Unicode, unlike HTTP header values.
-    const decoded = new Map([['subject', 'Hello, 世界']])
+    // Email Routing exposes decoded values, which may hold any Unicode, unlike HTTP header values. Headers of any
+    // size stay in the raw MIME, which the handler parses; none travel in request headers.
+    const huge = new Map([['subject', 'Hello, 世界 '.repeat(4000)]])
     const incoming = {
       from: '发件人@example.com',
-      to: 'feed+x@news.example',
-      headers: { [Symbol.iterator]: () => decoded[Symbol.iterator](), get: (name: string) => decoded.get(name) ?? null },
+      to: '订阅+x@news.example',
+      headers: { [Symbol.iterator]: () => huge[Symbol.iterator](), get: (name: string) => huge.get(name) ?? null },
       raw: new Response('hello').body,
       rawSize: 5,
       setReject: vi.fn()
     } as unknown as ForwardableEmailMessage
-    await forwardEmail(incoming, edgeEnv().env)
+    const { env, fetch } = edgeEnv()
+    await forwardEmail(incoming, env)
     expect(incoming.setReject).toHaveBeenCalledWith('Newsletter delivery is not available for this message.')
+    expect(JSON.stringify([...new Headers(fetch.mock.calls[0][1]!.headers).keys()])).not.toContain('subject')
     handlers.email.mockImplementationOnce(async () => {})
     const accepted = { ...incoming, raw: new Response('hello').body, setReject: vi.fn() } as unknown as ForwardableEmailMessage
     await forwardEmail(accepted, edgeEnv().env)
@@ -120,5 +131,24 @@ describe('Edge forwards job events to Core over fetch, where placement applies',
     await expect(forwardScheduled({ cron: '* * * * *', scheduledTime: 1 } as unknown as ScheduledController, edgeEnv('wrong').env)).rejects.toThrow('HTTP 403')
     expect(handlers.cron).not.toHaveBeenCalledWith(expect.objectContaining({ cron: '* * * * *' }), expect.anything(), expect.anything())
     expect(isJobsRequest(new Request('https://reader-api.slax.dev/queue'))).toBe(false)
+  })
+
+  test('the RPC entrypoint kept for one release runs the same handlers, so an Edge published before this change keeps working', async () => {
+    const jobs = new (CoreJobs as unknown as new (ctx: ExecutionContext, env: Env) => CoreJobs)(parent, {} as Env)
+    handlers.queue.mockImplementationOnce(async batch => {
+      expect(batch.messages[0].timestamp.getTime()).toBe(0)
+      batch.messages[0].retry({ delaySeconds: 9 })
+    })
+    expect(
+      await jobs.runQueue({ queue: 'q', metadata: { metrics: { backlogCount: 0, backlogBytes: 0 } }, messages: [{ id: 'a', timestamp: new Date(0), body: 1, attempts: 1 }] })
+    ).toEqual({
+      acked: [],
+      retried: [{ id: 'a', delaySeconds: 9 }],
+      ackAll: false
+    })
+    handlers.cron.mockImplementationOnce(async event => expect(event).toMatchObject({ cron: '0 */1 * * *', scheduledTime: 7 }))
+    await jobs.runCron('0 */1 * * *', 7)
+    handlers.email.mockImplementationOnce(async message => message.setReject('no'))
+    expect(await jobs.receiveEmail({ to: 'a@b', raw: new Response('x').body!, rawSize: 1 })).toEqual({ rejected: 'no' })
   })
 })

@@ -3,8 +3,9 @@
 // database. Shared by both entries; it carries no runtime dependency.
 export const JOBS_HOST = 'jobs.internal'
 export const JOBS_PATHS = { queue: '/queue', cron: '/cron', email: '/email' } as const
-// Email metadata travels URI-encoded in headers, so the raw message body streams unchanged.
-export const EMAIL_HEADERS = { from: 'x-slax-email-from', to: 'x-slax-email-to', size: 'x-slax-email-size', headers: 'x-slax-email-headers' } as const
+// The email recipient and size travel in headers (the recipient URI-encoded, since it may hold any Unicode), so the
+// raw message body streams unchanged. The handler parses everything else from the MIME.
+export const EMAIL_HEADERS = { to: 'x-slax-email-to', size: 'x-slax-email-size' } as const
 
 export interface QueueJobMessage {
   id: string

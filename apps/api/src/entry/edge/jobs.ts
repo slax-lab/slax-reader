@@ -35,11 +35,9 @@ export async function forwardScheduled(controller: ScheduledController, env: Env
 export async function forwardEmail(message: ForwardableEmailMessage, env: Env): Promise<void> {
   const response = await post(env, JOBS_PATHS.email, message.raw, {
     'Content-Type': 'message/rfc822',
-    // Header values must be ByteStrings, and addresses and header values may hold any Unicode.
-    [EMAIL_HEADERS.from]: encodeURIComponent(message.from),
+    // Header values must be byte strings; an address may hold any Unicode.
     [EMAIL_HEADERS.to]: encodeURIComponent(message.to),
-    [EMAIL_HEADERS.size]: String(message.rawSize),
-    [EMAIL_HEADERS.headers]: encodeURIComponent(JSON.stringify([...message.headers]))
+    [EMAIL_HEADERS.size]: String(message.rawSize)
   })
   const outcome = await response.json<EmailJobOutcome>()
   if (outcome.rejected !== undefined) message.setReject(outcome.rejected)

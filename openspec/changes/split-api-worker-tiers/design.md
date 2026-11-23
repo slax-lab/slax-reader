@@ -109,7 +109,7 @@ The account-level surfaces that a coordinated migration would move (queue consum
 
 Core precedes AI because AI binds the Workflows with `script_name` = Core and only the new Core exports those classes; Wrangler's Workflow upsert on Core's first publication moves each Workflow name from Edge to Core. A single-Worker release of Core keeps the stub while Edge still binds the namespace. New installations deploy through `--bootstrap`.
 
-*Alternative considered*: a four-step `topology:transition` that moved consumers, schedules and the email rule to Core and was attended per environment. Rejected after review: it needed a manual Email Routing change, two account writes outside Wrangler and its own readiness checks, each of which had defects; forwarding through `CoreJobs` removes them at the cost of one service-binding hop per event, which is not billed as a request.
+*Alternative considered*: a four-step `topology:transition` that moved consumers, schedules and the email rule to Core and was attended per environment. Rejected after review: it needed a manual Email Routing change, two account writes outside Wrangler and its own readiness checks, each of which had defects; forwarding each event to Core (D12) removes them at the cost of one service-binding hop per event, which is not billed as a request.
 
 ## Risks / Trade-offs
 
@@ -172,8 +172,12 @@ The jobs host is reachable only through the service binding, and Core answers 40
 
 - **Queue**: Edge posts the queue name, batch metadata and each message's id, ISO timestamp, body and attempts as JSON. Core runs the generated consumer against a batch whose `ack`, `retry`, `ackAll` and `retryAll` record decisions, and returns them; Edge applies them to the real batch. A non-2xx answer fails the Edge invocation, so the queue's retry policy applies to every message, as with a failing local handler.
 - **Cron**: Edge posts `cron` and `scheduledTime`. The generated job table registers work with `waitUntil`, so Core waits for every promise registered through its context before answering; Edge's scheduled event keeps the invocation alive.
-- **Email**: Edge posts the raw message as the body, streamed unchanged, with the envelope, `rawSize` and the message headers URI-encoded in request headers (HTTP header values must be byte strings; email values may be any Unicode). Core applies a rejection by answering `{ rejected }`, which Edge passes to `setReject`; an admission failure answers 500, so Email Routing reports the delivery failure.
+- **Email**: Edge posts the raw message as the body, streamed unchanged, with the recipient (URI-encoded, since HTTP header values must be byte strings and an address may be any Unicode) and `rawSize` in request headers. The newsletter handler parses sender, subject and every other header from the MIME, so no header list travels and messages with large headers are not bounded by request-header limits. Core applies a rejection by answering `{ rejected }`, which Edge passes to `setReject`; an admission failure answers 500, so Email Routing reports the delivery failure.
 
 Edge imports only the protocol constants and types from `src/const/jobs.ts`, so its bundle carries no Core code (the bundle check in D8 covers it). Local `dev:local` runs the real Edge entry with the same binding.
 
+The queue, cron and email handlers live in `src/entry/core/handlers.ts`, imported by both the entry and the jobs route, so the two modules have no import cycle.
+
 *Alternative considered*: a named RPC entrypoint (`CoreJobs` over a `CORE_JOBS` binding), shipped first. Rejected after the test-account release showed its invocations in DFW, MIA, MAD and other Edge locations while Core's fetch traffic ran in SIN.
+
+**Expand, then contract.** The test account's live Edge forwards over `CORE_JOBS`, and a release publishes Core before Edge. Removing `CoreJobs` in the same release would fail every queue batch, cron tick and newsletter email between the two publications (cron ticks lost, email bounced). Core therefore keeps exporting `CoreJobs` for one release, running the same functions as the fetch route; the new Edge drops the `CORE_JOBS` binding. A follow-up removes `CoreJobs` once every installation's Edge forwards over fetch (task 6.7). Beta and production never ran the RPC Edge; for them the export is unused.

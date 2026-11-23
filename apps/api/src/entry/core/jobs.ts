@@ -1,6 +1,7 @@
+import { WorkerEntrypoint } from 'cloudflare:workers'
 import { EDGE_SECRET_HEADER } from '@/const/edge'
 import { EMAIL_HEADERS, JOBS_HOST, JOBS_PATHS, type CronJob, type EmailJobOutcome, type QueueJobBatch, type QueueJobOutcome } from '@/const/jobs'
-import { handleEmailEvent, handleQueueEvent, handleScheduledEvent } from './index'
+import { handleEmailEvent, handleQueueEvent, handleScheduledEvent } from './handlers'
 
 // Core's side of the jobs protocol (src/const/jobs.ts). Requests reach this host only through Edge's service
 // binding; the shared secret also authenticates them.
@@ -46,22 +47,15 @@ async function runQueue({ queue, metadata, messages }: QueueJobBatch, env: Env, 
   return outcome
 }
 
-// Email header values are decoded text that may hold any Unicode, which a Fetch Headers object rejects.
-const emailHeaders = (entries: [string, string][]) => {
-  const map = new Map(entries.map(([name, value]) => [name.toLowerCase(), value]))
-  return { get: (name: string) => map.get(name.toLowerCase()) ?? null, has: (name: string) => map.has(name.toLowerCase()), [Symbol.iterator]: () => map.entries() }
+async function runCron({ cron, scheduledTime }: CronJob, env: Env, parent: ExecutionContext): Promise<void> {
+  await drained(parent, ctx => handleScheduledEvent({ type: 'scheduled', cron, scheduledTime } as unknown as Event, env, ctx))
 }
 
-async function receiveEmail(request: Request, env: Env, parent: ExecutionContext): Promise<EmailJobOutcome> {
+// The newsletter handler reads only the recipient, the raw MIME stream and its size; the sender and headers are
+// parsed from the MIME, so no envelope header list travels with the job.
+async function receiveEmail(job: { to: string; raw: ReadableStream<Uint8Array>; rawSize: number }, env: Env, parent: ExecutionContext): Promise<EmailJobOutcome> {
   const outcome: EmailJobOutcome = {}
-  const message = {
-    from: decodeURIComponent(request.headers.get(EMAIL_HEADERS.from) ?? ''),
-    to: decodeURIComponent(request.headers.get(EMAIL_HEADERS.to) ?? ''),
-    headers: emailHeaders(JSON.parse(decodeURIComponent(request.headers.get(EMAIL_HEADERS.headers) || '%5B%5D')) as [string, string][]),
-    raw: request.body ?? new ReadableStream<Uint8Array>({ start: controller => controller.close() }),
-    rawSize: Number(request.headers.get(EMAIL_HEADERS.size)),
-    setReject: (reason: string) => void (outcome.rejected = reason)
-  } as unknown as ForwardableEmailMessage
+  const message = { to: job.to, raw: job.raw, rawSize: job.rawSize, setReject: (reason: string) => void (outcome.rejected = reason) } as unknown as ForwardableEmailMessage
   await drained(parent, ctx => handleEmailEvent(message, env, ctx))
   return outcome
 }
@@ -76,14 +70,34 @@ export async function handleJobsRequest(request: Request, env: Env, ctx: Executi
   try {
     if (pathname === JOBS_PATHS.queue) return Response.json(await runQueue(await request.json<QueueJobBatch>(), env, ctx))
     if (pathname === JOBS_PATHS.cron) {
-      const { cron, scheduledTime } = await request.json<CronJob>()
-      await drained(ctx, run => handleScheduledEvent({ type: 'scheduled', cron, scheduledTime } as unknown as Event, env, run))
+      await runCron(await request.json<CronJob>(), env, ctx)
       return Response.json({})
     }
-    if (pathname === JOBS_PATHS.email) return Response.json(await receiveEmail(request, env, ctx))
+    if (pathname === JOBS_PATHS.email) {
+      const raw = request.body ?? new ReadableStream<Uint8Array>({ start: controller => controller.close() })
+      const to = decodeURIComponent(request.headers.get(EMAIL_HEADERS.to) ?? '')
+      return Response.json(await receiveEmail({ to, raw, rawSize: Number(request.headers.get(EMAIL_HEADERS.size)) }, env, ctx))
+    }
   } catch (error) {
     console.error(`[jobs] ${pathname} failed: ${error instanceof Error ? error.message : 'unknown error'}`)
     return new Response('Job failed', { status: 500 })
   }
   return new Response('Not Found', { status: 404 })
+}
+
+// Kept for one release so the Edge published before the fetch path keeps working while Core is published ahead of
+// Edge. It runs outside Core's placement (RPC ignores placement) and is removed once no live Edge binds CORE_JOBS.
+export class CoreJobs extends WorkerEntrypoint<Env> {
+  // queue, scheduled and email are reserved handler names on WorkerEntrypoint.
+  async runQueue(batch: Omit<QueueJobBatch, 'messages'> & { messages: (Omit<QueueJobBatch['messages'][number], 'timestamp'> & { timestamp: Date | string })[] }) {
+    return runQueue({ ...batch, messages: batch.messages.map(message => ({ ...message, timestamp: new Date(message.timestamp).toISOString() })) }, this.env, this.ctx)
+  }
+
+  async runCron(cron: string, scheduledTime: number) {
+    await runCron({ cron, scheduledTime }, this.env, this.ctx)
+  }
+
+  async receiveEmail(job: { to: string; raw: ReadableStream<Uint8Array>; rawSize: number }) {
+    return receiveEmail(job, this.env, this.ctx)
+  }
 }

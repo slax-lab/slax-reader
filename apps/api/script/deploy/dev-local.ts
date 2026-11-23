@@ -115,6 +115,9 @@ export function localDevOptions(args: string[]) {
       services.some(service => wanted[service.binding] !== service.service || Object.keys(service).some(key => !['binding', 'service', 'entrypoint'].includes(key)))
     )
       throw new Error('Only local Edge-to-Core, Edge-to-AI and Core-to-AI service bindings are supported')
+    // Only Core's vector RPC names an entrypoint; Edge reaches Core and AI through their default fetch handlers.
+    if (services.some(service => service.entrypoint !== undefined && !(service.binding === 'VECTOR' && service.entrypoint === 'AiEntry')))
+      throw new Error('Only the local Core-to-AI VECTOR binding names an entrypoint (AiEntry)')
     const objects = config.durable_objects?.bindings ?? []
     for (const binding of objects) {
       const owned = (role === 'objects' || role === 'core') && OBJECT_CLASSES.includes(binding.class_name)
