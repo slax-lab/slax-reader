@@ -51,7 +51,7 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # Worker 名
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env             # wrangler secret bulk でアップロード
 ```
 
-各 Worker には、コードが読み、別の API Worker が持ち、自身に無い key だけをアップロードし、既存の secret は上書きしません。値は stdin で Wrangler に渡し、コマンドライン・ファイル・ログには出しません。未デプロイの Worker はスキップし、必要な key がファイルに無ければ失敗します。最初のリリース前に Core と AI 向けに一度実行します。Objects は新しい Worker で、必要な値は `[vars]` から受け取るか、リリースが作成した後にもう一度実行します。値を非公開設定の `[vars]` に置くこともできます。2026-11-23 の読み取り専用チェックでは、本番と beta の Core と AI に `DEEPSEEK_API_KEY` がありませんでした。test アカウントは揃っています。どの Worker にも無い key は現在未設定の任意機能で、報告されません。
+各 Worker には、コードが読み、別の API Worker が持ち、自身に無い key だけをアップロードし、既存の secret は上書きしません。値は stdin で Wrangler に渡し、コマンドライン・ファイル・ログには出しません。未デプロイの Worker はスキップし、必要な key がファイルに無ければ失敗します。最初のリリース前に Core と AI 向けに一度実行します。Objects は新しい Worker で、作成前は secret を持てないため、読む値（現在は `FRONT_END_URL` のみ）は `[vars]` に置く必要があります。無い場合リリースは停止します。値を非公開設定の `[vars]` に置くこともできます。2026-11-23 の読み取り専用チェックでは、本番と beta の Core と AI に `DEEPSEEK_API_KEY` がありませんでした。test アカウントは揃っています。どの Worker にも無い key は現在未設定の任意機能で、報告されません。
 
 最初のリリース中、数回の公開にかかる時間だけ、次のことが起こり得ます。AI の Workflow binding が新しい Core を待つ間 AI ルートが失敗する、Core と AI の公開の間は旧 AI が Core の廃止済み jieba namespace を使うため検索の分かち書きが失敗する、旧 Edge 上で Core の廃止済み Durable Object を呼ぶジョブが失敗しキューが再試行する。低負荷の時間帯に、test アカウント、beta、本番の順に実行してください。
 

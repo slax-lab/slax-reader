@@ -57,9 +57,11 @@ describe('the only release precondition is that every Worker holds the values it
     const withoutVars = structuredClone(config)
     delete (withoutVars.vars as Record<string, unknown>).FRONT_END_URL
     await expect(requireValues(api, withoutVars)).rejects.toThrow(`${names.objects}: FRONT_END_URL`)
-    // A Worker not deployed yet is not checked; the release that creates it publishes [vars] with it.
+    // A Worker not deployed yet is checked too: it cannot hold secrets before it exists, so its first release
+    // needs the value in [vars], which the template provides.
     const undeployed = account({ scripts: [names.browser, names.core, names.ai, names.edge] })
     await expect(requireValues(undeployed.api, config)).resolves.toBeUndefined()
+    await expect(requireValues(undeployed.api, withoutVars)).rejects.toThrow(`${names.objects}: FRONT_END_URL`)
   })
 
   test('a key no Worker holds is an unconfigured optional feature and does not block', async () => {

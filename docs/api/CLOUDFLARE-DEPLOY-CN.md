@@ -51,7 +51,7 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 只列出 
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env             # 用 wrangler secret bulk 上传
 ```
 
-它只给每个 Worker 上传其代码会读取、其他 API Worker 已有但它自己缺少的 key，不会覆盖已有 secret；值通过 stdin 交给 Wrangler，不出现在命令行、文件或日志中；跳过尚未部署的 Worker；文件里缺少需要的 key 时返回失败。首次发布前为 Core 和 AI 执行一次；Objects 是新 Worker，通过 `[vars]` 获得所需的值，或在发布创建它之后再执行一次。也可以改为把值放进私有配置的 `[vars]`。2026-11-23 的只读检查发现：生产和 beta 的 Core、AI 缺少 `DEEPSEEK_API_KEY`；test 账号已齐全。任何 Worker 都没有的 key 属于当前未配置的可选功能，不会报出。
+它只给每个 Worker 上传其代码会读取、其他 API Worker 已有但它自己缺少的 key，不会覆盖已有 secret；值通过 stdin 交给 Wrangler，不出现在命令行、文件或日志中；跳过尚未部署的 Worker；文件里缺少需要的 key 时返回失败。首次发布前为 Core 和 AI 执行一次。Objects 是新 Worker，创建前无法持有 secret，它读取的值（目前只有 `FRONT_END_URL`）必须放在 `[vars]` 中，否则发布会停止。也可以改为把值放进私有配置的 `[vars]`。2026-11-23 的只读检查发现：生产和 beta 的 Core、AI 缺少 `DEEPSEEK_API_KEY`；test 账号已齐全。任何 Worker 都没有的 key 属于当前未配置的可选功能，不会报出。
 
 首次发布期间，大约在几次发布的时间内：AI 路由在 AI 的 Workflow 绑定等待新 Core 时可能失败；Core 与 AI 两次发布之间搜索分词会失败，因为旧 AI 仍访问 Core 已下线的 jieba 命名空间；旧 Edge 上调用 Core 已下线 Durable Object 的任务会失败并由队列重试。请在低峰期执行：先 test 账号，再 beta，最后生产。
 

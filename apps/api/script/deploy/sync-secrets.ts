@@ -100,7 +100,7 @@ export async function syncSecrets(options: {
     const keys = missing[names[target]]
     if (!keys?.length) continue
     if (!scripts.has(names[target])) {
-      log(`${names[target]}: not deployed yet; run the transition step that publishes it, then sync again (${keys.join(', ')})`)
+      log(`${names[target]}: not deployed yet, so it cannot hold secrets; add these keys to [vars] of the selected configuration for its first release (${keys.join(', ')})`)
       continue
     }
     const absent = keys.filter(key => !(key in values))
