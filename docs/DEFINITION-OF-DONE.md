@@ -42,6 +42,31 @@ This document owns the operational evidence procedure. The normative requirement
   agent-executable verification. Silence is not. The UI hands-on acceptance described below
   has no declared-gap path.
 
+## Requested outcome and completion claims
+
+- Start from the original user request and reported input. The proposal and delta-spec checks
+  come beside them, not instead of them.
+- Separate component checks from the requested outcome. Give each requested outcome one result:
+  `verified`, `partial`, or `unverified`, with its limits.
+- Name the dependencies that were real and the ones that were substituted (fixtures, stubs,
+  isolated stores).
+- Record a user instruction that narrows the immediate target. Keep the original outcome in the
+  record as a separate line.
+- A declared agent-verification gap keeps the change reviewable under the rules above. It does
+  not prove success for that outcome.
+
+Apply when relevant, not as a fixed form:
+
+- When the requested outcome is a final user-visible state produced by a background process,
+  confirm that state through an independent read path, not only the process result.
+- When a screenshot or a read of shared content is the evidence, say whether the state shown is
+  real or substituted, and which reader role made the read.
+- Do not expand authorization to obtain evidence. Declare the gap instead.
+
+Example: a visitor can read every saved transcript entry. That verifies transcript access. It
+does not verify AI article generation. A finished job without a readable saved article leaves
+the readable-article outcome `partial`.
+
 ## Recording evidence
 
 - Record verification in `openspec/changes/<change-id>/validation.md`: commands run and their
