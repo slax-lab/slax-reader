@@ -45,6 +45,7 @@ import { LazyInstance } from '@/decorators/lazy'
 import { ContextManager } from '@/utils/context'
 import type { CrawlWorkflowParams } from '@/entry/core/workflows/crawlWorkflow'
 import type { ImportParseWorkflowParams } from '@/entry/core/workflows/importParseWorkflow'
+import { prepareFxArticle } from '@/utils/parserUtils/processTwitterArticle'
 import { Preparse } from '@/utils/parserUtils/type'
 import { LogsService } from './logs'
 import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
@@ -66,6 +67,7 @@ export type TwitterFetched =
   | {
       kind: 'article'
       sourceUrl: string
+      embedArticleTitle?: string
       viaFxEmbedHtml: string | null
       fallbackTweetInfo: TweetArticleInfo | null
     }
@@ -411,17 +413,6 @@ export class CrawlService {
     return null
   }
 
-  private static hasUsableFxEmbedArticle(document: Document): boolean {
-    const article = document.querySelector('article')
-    if (!article) return false
-    const content = article.cloneNode(true) as Element
-    for (const element of content.querySelectorAll('script, style, noscript, template')) element.remove()
-    if (content.textContent?.trim()) return true
-    return [...article.querySelectorAll('img[src], video[src], video source[src], audio[src], audio source[src], iframe[src]')].some(element =>
-      Boolean(element.getAttribute('src')?.trim())
-    )
-  }
-
   private static hasUsableTweetArticle(article: TweetArticleInfo | null | undefined): article is TweetArticleInfo {
     if (!article || !Array.isArray(article.contents)) return false
     return article.contents.some(block => {
@@ -436,20 +427,26 @@ export class CrawlService {
     statusId?: string,
     fetchUrl = sourceUrl
   ): Promise<Extract<TwitterFetched, { kind: 'article' }> | null> {
+    let untitledEmbed: Extract<TwitterFetched, { kind: 'article' }> | null = null
     try {
-      const fxRes = await this.fetchWithFxEmbed(ctx, fetchUrl)
-      if (CrawlService.hasUsableFxEmbedArticle(fxRes.document)) {
-        // Workflow fetch steps must serialize strings, not Document objects.
-        return { kind: 'article', sourceUrl, viaFxEmbedHtml: fxRes.document.toString(), fallbackTweetInfo: null }
+      const { document } = await this.fetchWithFxEmbed(ctx, fetchUrl)
+      const prepared = prepareFxArticle(document)
+      if (prepared.usable) {
+        const embedded = { kind: 'article' as const, sourceUrl, viaFxEmbedHtml: document.toString(), fallbackTweetInfo: null }
+        if (!prepared.preview) return embedded
+        if (prepared.title) return { ...embedded, embedArticleTitle: prepared.title }
+        untitledEmbed = { ...embedded, embedArticleTitle: 'X Article' }
+      } else {
+        console.log(`fxembed returned no usable article body for ${sourceUrl}`)
       }
-      console.log(`fxembed returned no usable article body for ${sourceUrl}`)
     } catch (fxErr) {
       console.log(`fxembed article capture failed for ${sourceUrl}: ${fxErr}`)
     }
 
-    if (!statusId) return null
+    if (!statusId) return untitledEmbed
     try {
       const article = await SocialMediaApi.fetchTwitterArticle(ctx.env, statusId)
+      if (untitledEmbed) return { ...untitledEmbed, embedArticleTitle: article?.title?.trim() || untitledEmbed.embedArticleTitle }
       if (CrawlService.hasUsableTweetArticle(article)) {
         return { kind: 'article', sourceUrl, viaFxEmbedHtml: null, fallbackTweetInfo: article }
       }
@@ -457,7 +454,7 @@ export class CrawlService {
     } catch (apiErr) {
       console.log(`Twitter article API failed for ${sourceUrl}: ${apiErr}`)
     }
-    return null
+    return untitledEmbed
   }
 
   public async resolveFinalUrl(ctx: ContextManager, url: string): Promise<string> {
@@ -521,7 +518,11 @@ export class CrawlService {
   /**
    * 抓取普通网页
    */
-  public async fetchRegular(ctx: ContextManager, url: string, mode?: 'zyte-browser-only'): Promise<fetchResult & { targetErrorStatus?: number }> {
+  public async fetchRegular(
+    ctx: ContextManager,
+    url: string,
+    mode?: 'zyte-browser-only'
+  ): Promise<fetchResult & { targetErrorStatus?: number; rawFallbackAfterBrowserFailure?: true }> {
     const fetcher = new SlaxFetch(ctx.env)
 
     if (mode === 'zyte-browser-only') return fetcher.zyte(url, true)
@@ -534,7 +535,9 @@ export class CrawlService {
       console.log(`Zyte fetch failed for ${url}: ${zyteErr}`)
     }
     try {
-      return await fetcher.scrapingBot(url, shouldUseBrowserHtml(url))
+      const fallbackBrowserHtml = shouldUseBrowserHtml(url)
+      const page = await fetcher.scrapingBot(url, fallbackBrowserHtml)
+      return useZyteBrowserHtml && !fallbackBrowserHtml ? { ...page, rawFallbackAfterBrowserFailure: true } : page
     } catch (scrapingErr) {
       console.log(`ScrapingBot fetch failed for ${url}: ${scrapingErr}`)
     }
@@ -1148,6 +1151,10 @@ export class CrawlService {
     if (viaFxEmbedHtml) {
       // fetch 阶段序列化为 HTML string，这里还原为 Document
       const { document: tweetDocument } = parseHTML(viaFxEmbedHtml)
+      if (fetched.embedArticleTitle) {
+        const heading = tweetDocument.querySelector('article > h1:first-child')
+        if (heading) heading.textContent = fetched.embedArticleTitle
+      }
       const coverSource = tweetDocument.querySelector('meta[property="og:image"]')?.getAttribute('content')
       const coverWidth = Number(tweetDocument.querySelector('meta[property="og:image:width"]')?.getAttribute('content'))
       const coverHeight = Number(tweetDocument.querySelector('meta[property="og:image:height"]')?.getAttribute('content'))
@@ -1163,7 +1170,8 @@ export class CrawlService {
       const content = HtmlBuilder.buildTweetArticleWithDocument(tweetDocument)
       parseRes = await this.createParseRes(ctx, {
         url: sourceUrl,
-        title: tweetDocument.querySelector('meta[property="og:title"]')?.getAttribute('content') || tweetDocument.querySelector('title')?.textContent || '',
+        title:
+          fetched.embedArticleTitle || tweetDocument.querySelector('meta[property="og:title"]')?.getAttribute('content') || tweetDocument.querySelector('title')?.textContent || '',
         content
       })
     } else if (fallbackTweetInfo) {

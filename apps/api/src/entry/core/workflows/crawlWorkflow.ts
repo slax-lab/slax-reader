@@ -377,7 +377,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
                     event: 'capture_js_notice',
                     hostname: new URL(resolvedUrl).hostname,
                     textLength: err.textLength,
-                    outcome: fetchRes.targetErrorStatus ? 'source_error' : 'already_rendered',
+                    outcome: fetchRes.targetErrorStatus ? 'source_error' : fetchRes.rawFallbackAfterBrowserFailure ? 'browser_unavailable' : 'already_rendered',
                     targetStatus: fetchRes.targetErrorStatus
                   })
                   throw new NonRetryableError(err.message)
@@ -400,7 +400,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             console.info({ ...fields, outcome: 'recovered', renderedTextLength: data.textContent.trim().replace(/\s+/g, ' ').length })
             return { kind: 'parsed', resolvedUrl: initial.resolvedUrl, data, isSocialMedia: false }
           } catch (err) {
-            if (err instanceof JavaScriptNoticeError) console.warn({ ...fields, outcome: 'still_notice', renderedTextLength: err.textLength })
+            if (err instanceof JavaScriptNoticeError) console.warn({ ...fields, outcome: 'still_notice', noticeTextLength: err.textLength })
             else console.warn({ ...fields, outcome: 'retry_failed' })
             throw err
           }

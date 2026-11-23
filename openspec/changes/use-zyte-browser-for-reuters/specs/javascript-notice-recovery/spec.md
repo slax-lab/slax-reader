@@ -25,6 +25,11 @@ For regular remote bookmark saves, the system SHALL recognize explicit English a
 - **WHEN** the initial capture already attempted browser mode and produces a short JavaScript notice
 - **THEN** the workflow records the outcome and makes no additional browser request
 
+#### Scenario: A raw fallback supplies the notice after a browser error
+
+- **WHEN** Zyte browser rendering fails and the raw fallback returns a JavaScript notice
+- **THEN** the workflow records that the browser was unavailable and makes no second browser request
+
 #### Scenario: The fallback reports a target error
 
 - **WHEN** the fallback reports an unsuccessful target HTTP status

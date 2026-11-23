@@ -15,3 +15,9 @@
 
 - [x] 3.1 Detect short notices in regular remote captures and attempt Zyte browser rendering once. Record detection and outcome without logging article text or URLs.
 - [x] 3.2 Exercise recovery, failure, existing browser mode and false-positive controls; record evidence and run API and OpenSpec checks.
+
+## 4. Complete the other reports under t105556
+
+- [x] 4.1 Filter the two CAC utility frames and exercise the original page and reported snapshot.
+- [x] 4.2 Recover the X Article title, remove the provider footer and exercise capture of the original status and provider fallback cases.
+- [x] 4.3 Verify all three saved bodies on the combined code and record the checks and integration boundaries.

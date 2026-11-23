@@ -293,6 +293,30 @@ describe('short JavaScript notice browser recovery', () => {
     }
   })
 
+  test('logs an unavailable browser when the Reuters raw fallback supplies the notice', async () => {
+    const { wf, cs } = wireWorkflow()
+    const target = 'https://www.reuters.com/world/article/'
+    const service: CrawlService = Object.create(CrawlService.prototype)
+    cs.fetchRegular.mockImplementation(service.fetchRegular.bind(service))
+    cs.parseAndSaveContent.mockImplementation(service.parseAndSaveContent.bind(service))
+    const provider = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ status: 'SUCCESS', httpCode: 200, result: shell }))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await expect(runWorkflow(wf, { url: target })).rejects.toThrow('Page requires JavaScript')
+      expect(provider.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))).toEqual([
+        { url: target, browserHtml: true, javascript: true },
+        { url: target, module: 'HtmlRequestScraper' }
+      ])
+      expect(warn).toHaveBeenCalledWith(expect.objectContaining({ event: 'capture_js_notice', outcome: 'browser_unavailable' }))
+    } finally {
+      provider.mockRestore()
+      warn.mockRestore()
+    }
+  })
+
   test.each(['recovered', 'still_notice', 'retry_failed', 'already_rendered'])('records %s and bounds the number of requests and writes', async outcome => {
     const { wf, cs, bs, uph } = wireWorkflow()
     const target = outcome === 'already_rendered' ? 'https://www.infoq.cn/story' : url
@@ -336,6 +360,10 @@ describe('short JavaScript notice browser recovery', () => {
       const events = [...info.mock.calls, ...warn.mock.calls].map(([event]) => event).filter(event => event?.event === 'capture_js_notice')
       expect(events.map(event => event.outcome)).toEqual(outcome === 'already_rendered' ? [outcome] : ['retry_started', outcome])
       expect(events[0]).toMatchObject({ hostname: new URL(target).hostname, textLength: 17 })
+      if (outcome === 'still_notice') {
+        expect(events.at(-1)).toMatchObject({ noticeTextLength: 17 })
+        expect(events.at(-1)).not.toHaveProperty('renderedTextLength')
+      }
       expect(JSON.stringify(events)).not.toMatch(/private|Please enable JS/)
       const requests = provider.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))
       expect(requests.map(request => request.browserHtml ?? false)).toEqual(outcome === 'already_rendered' ? [true] : [false, true])
