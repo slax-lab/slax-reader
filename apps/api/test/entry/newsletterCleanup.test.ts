@@ -5,6 +5,8 @@ import type { ContextManager } from '@/utils/context'
 import type { Container } from '@/decorators/di'
 import type { NewsletterTiming } from '@/utils/newsletterTiming'
 
+vi.mock('cloudflare:workers', () => ({ WorkerEntrypoint: class {}, DurableObject: class {} }))
+
 const state = vi.hoisted(() => ({ cleanupFails: false, receive: 'ready', cleaned: 0 }))
 vi.mock('@/di/generated/core/dependency', () => ({
   initializeCore() {},

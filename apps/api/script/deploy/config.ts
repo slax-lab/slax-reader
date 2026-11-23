@@ -30,17 +30,18 @@ const PLACED: readonly Target[] = ['core', 'ai', 'objects']
 export const OBJECT_CLASSES: Record<string, string> = { SLAX_JIEBA: 'SlaxJieba', WEBSOCKET_SERVER: 'SlaxWebSocketServer', SCREENSHOT_BROWSER: 'ScreenshotBrowser' }
 export const OBJECTS_MIGRATIONS = [{ tag: 'objects-v1', new_sqlite_classes: Object.values(OBJECT_CLASSES) }]
 // The removed MCP server's namespaces are deleted with their stored sessions. Core appends this tag to the
-// operator history whenever that history created the class; Edge's legacy history is not in configuration, so
-// Edge carries it only in topology:transition step 4, after which Edge needs no migrations again.
+// operator history whenever that history created the class, and in `retire-mcp`. Edge's legacy history is not in
+// configuration, so Edge carries only this tag and only in `retire-mcp`.
 export const MCP_RETIREMENT = { tag: 'retire-mcp-v1', deleted_classes: ['SlaxMcpServer'] }
-// Deployment phases: `keep-mcp` (transition steps 2 and 3) still exports the stub so those steps stay reversible;
-// `retire-mcp` (step 4) deletes Edge's namespace too.
+// Per-Worker MCP handling chosen by the release from the account state (deploy.ts releaseOrder): `keep-mcp`
+// publishes Core still exporting the stub class while the old Edge binds its namespace; `retire-mcp` deletes the
+// Worker's namespace, or keeps Core's deletion tag once Core's live migration tag is it.
 export type McpPhase = 'retired' | 'keep-mcp' | 'retire-mcp'
 const createsMcp = (history: unknown) => rows(history).some(row => Array.isArray(row.new_sqlite_classes) && row.new_sqlite_classes.includes('SlaxMcpServer'))
 const deletesMcp = (history: unknown) => rows(history).some(row => Array.isArray(row.deleted_classes) && row.deleted_classes.includes('SlaxMcpServer'))
 // Bindings each Worker reads at runtime; every other binding is removed from its generated configuration.
 const OWNED: Record<Exclude<Target, 'browser'>, readonly string[]> = {
-  edge: ['r2_buckets', 'ratelimits', 'pipelines', 'services', 'triggers'],
+  edge: ['r2_buckets', 'ratelimits', 'pipelines', 'services', 'queues', 'triggers'],
   core: [
     'ai',
     'browser',
@@ -231,15 +232,20 @@ export function workerConfig(config: ApiConfig, target: Target, local = false, m
   if (target === 'browser') return browserConfig(output)
   const internal = { CORE: names.core, EDGE: names.edge, AIGC: names.ai, VECTOR: names.ai, OBJECTS: names.objects, SlaxBrowser: names.browser }
   const services = target === 'edge' ? [] : rows(output.services).filter(service => !Object.prototype.hasOwnProperty.call(internal, String(service.binding)))
-  if (target === 'edge') services.push({ binding: 'CORE', service: names.core }, { binding: 'AIGC', service: names.ai })
+  // Edge forwards HTTP to Core and AI, and the queue, cron and email events it receives to Core's job entrypoint.
+  if (target === 'edge')
+    services.push({ binding: 'CORE', service: names.core }, { binding: 'CORE_JOBS', service: names.core, entrypoint: 'CoreJobs' }, { binding: 'AIGC', service: names.ai })
   // Core reaches the Vectorize indexes through AI's RPC; AI binds them natively, so it needs no binding to itself.
-  if (target === 'core') services.push({ binding: 'VECTOR', service: names.ai, entrypoint: 'AiEntry' })
-  if (target === 'core') services.push({ binding: 'SlaxBrowser', service: names.browser })
+  if (target === 'core') services.push({ binding: 'VECTOR', service: names.ai, entrypoint: 'AiEntry' }, { binding: 'SlaxBrowser', service: names.browser })
   output.services = target === 'objects' ? [] : services
+  // Edge stays every queue's consumer and forwards batches to Core, which maps queue names to handlers.
   const queue = output.queues as TomlTable | undefined
   if (target === 'core') {
     ;(output.vars as TomlTable).API_QUEUE_CHANNELS = JSON.stringify(queueMapping(output as ApiConfig))
-  } else if (queue?.producers && target === 'ai') output.queues = { producers: queue.producers }
+    if (queue?.producers) output.queues = { producers: queue.producers }
+    else delete output.queues
+  } else if (target === 'edge' && queue?.consumers) output.queues = { consumers: queue.consumers }
+  else if (queue?.producers && target === 'ai') output.queues = { producers: queue.producers }
   else delete output.queues
   const bindings = rows((output.durable_objects as TomlTable | undefined)?.bindings).filter(binding => binding.name !== 'MCP_OBJECT')
   output.durable_objects = {
@@ -272,14 +278,14 @@ export function workerConfig(config: ApiConfig, target: Target, local = false, m
       return result
     })
   if (target === 'objects') output.migrations = structuredClone(OBJECTS_MIGRATIONS)
-  if (target === 'core' && mcp !== 'keep-mcp' && createsMcp(output.migrations) && !deletesMcp(output.migrations))
+  if (target === 'core' && mcp !== 'keep-mcp' && (mcp === 'retire-mcp' || createsMcp(output.migrations)) && !deletesMcp(output.migrations))
     output.migrations = [...rows(output.migrations), structuredClone(MCP_RETIREMENT)]
   if (target !== 'ai') delete output.vectorize
   else if (local) output.vectorize = rows(output.vectorize).map(binding => ({ ...binding, remote: true }))
   for (const key of BINDING_KEYS) if (!OWNED[target].includes(key)) delete output[key]
   if (target === 'edge' && mcp === 'retire-mcp') output.migrations = [structuredClone(MCP_RETIREMENT)]
-  // An empty schedule list makes Wrangler clear cron triggers left on a Worker that no longer owns them.
-  if (target !== 'core') output.triggers = { crons: [] }
+  // Edge owns the cron triggers and forwards each tick to Core; an empty list clears any left on another Worker.
+  if (target !== 'edge') output.triggers = { crons: [] }
   if (target !== 'core' && output.r2_buckets) output.r2_buckets = rows(output.r2_buckets).filter(binding => binding.binding === 'OSS')
   if (target === 'objects') {
     output.d1_databases = rows(output.d1_databases).filter(binding => binding.binding === 'DB')
@@ -325,9 +331,9 @@ function browserConfig(output: TomlTable): TomlTable {
   return output
 }
 
-// Entry modules per phase: during keep-mcp, Core and Edge publish a wrapper that also exports the MCP stub.
+// During keep-mcp, Core publishes a wrapper that also exports the MCP stub.
 export const entryFile = (target: Target, mcp: McpPhase = 'retired') =>
-  path.join(API_ROOT, mcp === 'keep-mcp' && (target === 'core' || target === 'edge') ? `src/entry/transition/${target}.ts` : `src/entry/${target}/index.ts`)
+  path.join(API_ROOT, mcp === 'keep-mcp' && target === 'core' ? 'src/entry/transition/core.ts' : `src/entry/${target}/index.ts`)
 
 export function writeGenerated(config: ApiConfig, target: Target, outputDir = GENERATED_DIR, local = false, bootstrap = false, mcp: McpPhase = 'retired'): string {
   const directory = path.resolve(outputDir)

@@ -8,9 +8,9 @@ Define which API Worker owns each entry point, route, binding and Durable Object
 
 The API SHALL deploy five Workers with these responsibilities:
 
-- **Edge** SHALL be the only publicly routed API Worker. It SHALL handle CORS preflight, JWT authentication, rate limiting, the image proxy and cacheable responses, and the `ContentEntry` RPC used by the Web application, and SHALL forward every other request to Core or AI with the existing signed edge identity. API-key requests SHALL be forwarded unauthenticated by Edge and authenticated by the receiving Worker, as today.
+- **Edge** SHALL be the only publicly routed API Worker. It SHALL handle CORS preflight, JWT authentication, rate limiting, the image proxy and cacheable responses, and the `ContentEntry` RPC used by the Web application, and SHALL forward every other request to Core or AI with the existing signed edge identity. API-key requests SHALL be forwarded unauthenticated by Edge and authenticated by the receiving Worker, as today. Edge SHALL remain every queue's consumer, the owner of the cron triggers and the Email Routing target, and SHALL forward each queue batch, scheduled event and inbound email unchanged to Core without running a handler itself.
 - **AI** SHALL serve the AI routes: `/v1/aigc/summaries`, `/v1/aigc/chat`, `/v1/bookmark/overview`, `/v1/bookmark/outline`, `/v1/bookmark/search`, `/v1/search`, `/v1/recommendations/*`, `/v1/bookmark/vector/refresh`, `/v1/bookmark/preference/refresh`, `/v1/collection/vector/refresh` and `/v1/collection/preference/refresh`, and the `AiEntry` vector RPC.
-- **Core** SHALL serve every other Reader HTTP route, and SHALL own every queue consumer, cron trigger, the inbound email handler, every Workflow class, and the `VectorPreferenceObject` Durable Object class.
+- **Core** SHALL serve every other Reader HTTP route, and SHALL run every queue, cron and inbound email handler for the events Edge forwards, and SHALL own every Workflow class and the `VectorPreferenceObject` Durable Object class.
 - **Objects** SHALL own the `SlaxJieba`, `ScreenshotBrowser` and `SlaxWebSocketServer` Durable Object classes and SHALL answer every HTTP request to its own `fetch` with not found.
 - **Browser** SHALL continue to own the `SlaxBrowser` Durable Object.
 
@@ -27,8 +27,16 @@ One route list SHALL define the AI routes for both Edge forwarding and route gen
 - **THEN** Edge forwards it to AI and the response is unchanged
 
 #### Scenario: A queue message, cron tick, email or Workflow step runs
-- **WHEN** Cloudflare delivers a queue batch, a scheduled event, an inbound email, or resumes a Workflow instance
-- **THEN** Core handles it; Edge has no queue consumer, cron trigger, email handler or Workflow class
+- **WHEN** Cloudflare delivers a queue batch, a scheduled event or an inbound email to Edge, or resumes a Workflow instance
+- **THEN** Core runs the handler or the Workflow step; Edge only forwards the event and has no Workflow class
+
+#### Scenario: A forwarded queue batch settles its messages
+- **WHEN** Core's queue handler acknowledges some messages and retries others
+- **THEN** Edge applies the same acknowledgement and retry, with the requested delay, to the delivered batch, and a failure of the forwarded call leaves the batch to the queue's retry policy
+
+#### Scenario: A forwarded email is rejected
+- **WHEN** Core rejects an inbound newsletter email
+- **THEN** Edge rejects the delivered message with the same reason, and an admission failure in Core fails the delivery
 
 #### Scenario: A WebSocket notification connection is opened
 - **WHEN** a client upgrades `/v1/user/messages`
@@ -83,35 +91,31 @@ Moving ownership onto this topology SHALL preserve existing data and in-flight w
 
 - Workflow names, class names and instances SHALL be preserved when Workflow ownership moves from Edge to Core; no Workflow MAY be deleted or renamed.
 - The stateless Durable Objects SHALL be created as new classes in Objects. The existing `SlaxJieba`, `SlaxWebSocketServer` and `ScreenshotBrowser` namespaces in Core and Edge SHALL be retained behind stub classes rather than deleted. The `VectorPreferenceObject` namespace SHALL remain in Core unchanged.
-- The removed MCP server's `SlaxMcpServer` namespaces in Core and Edge SHALL be deleted, with their stored sessions, only in the final transition step, after every other ownership move is complete and no Worker binds them. Earlier transition steps MUST NOT delete any namespace.
-- Every queue SHALL keep at most one consumer at any moment and SHALL regain exactly one consumer at the end of the move; messages produced during the handover SHALL remain queued and be delivered afterwards. Every cron schedule and the email route SHALL end with exactly one handler.
+- The removed MCP server's `SlaxMcpServer` namespaces in Core and Edge SHALL be deleted, with their stored sessions, by the first release that finds them, after the new Core is published and once Edge no longer binds Core's namespace. No other Durable Object namespace MAY be deleted.
+- Queue consumers, cron triggers and the Email Routing target SHALL NOT move; every queue SHALL keep its single existing consumer.
 
-Existing installations SHALL reach this topology through a documented transition run before normal releases resume. Normal releases MUST detect an installation that has not completed the transition and stop before publication with a message naming the transition. That check SHALL cover every queue in the account consumed by the legacy Edge, including queues absent from the selected configuration, and MUST NOT require a cron schedule or queue consumer that the release itself creates. New installations SHALL deploy directly into this topology through bootstrap.
+Existing installations SHALL reach this topology through a normal release, without a manual transition step. Before its first publication a remote release SHALL stop while any API Worker lacks a value its code reads that another API Worker of the installation holds, naming the Worker and key and never the value, and SHALL choose a publication order from the account state that publishes Core before AI and deletes the MCP namespaces as above. New installations SHALL deploy directly into this topology through bootstrap.
 
-#### Scenario: A Workflow instance is running during the transition
-- **WHEN** a Workflow instance created before the transition resumes after Core takes ownership
+#### Scenario: A Workflow instance is running during the first release
+- **WHEN** a Workflow instance created before the first five-Worker release resumes after Core takes ownership
 - **THEN** it continues from its last completed step under the same Workflow name
 
-#### Scenario: A preference ledger exists before the transition
-- **WHEN** a preference refresh addresses an existing `VectorPreferenceObject` after the transition
+#### Scenario: A preference ledger exists before the first release
+- **WHEN** a preference refresh addresses an existing `VectorPreferenceObject` after the first five-Worker release
 - **THEN** Core serves it with its previously stored state
 
-#### Scenario: The transition completes
-- **WHEN** the final transition step finishes
-- **THEN** no `SlaxMcpServer` namespace remains on Core or Edge, and normal releases stop before publication while one does
+#### Scenario: The first release completes
+- **WHEN** the first five-Worker release finishes
+- **THEN** no `SlaxMcpServer` namespace remains on Core or Edge, and later releases publish each Worker once
 
 #### Scenario: A client calls the removed MCP endpoint
 - **WHEN** a client requests `/v1/mcp/sse`
 - **THEN** the API returns the existing not-found response
 
-#### Scenario: A normal release runs before the transition
-- **WHEN** a normal release targets an installation that has not completed the transition
-- **THEN** it stops before the first Worker publication and names the transition that must be run
+#### Scenario: A Worker lacks a value its code reads
+- **WHEN** a release finds a key that a Worker reads, another API Worker holds and neither that Worker nor the selected `[vars]` provides
+- **THEN** it stops before the first Worker publication and names the Worker and key
 
-#### Scenario: Edge consumes a queue the configuration omits
-- **WHEN** the legacy Edge consumes a queue that the selected configuration does not list
-- **THEN** a normal release stops and names the queue, and the transition removes that Edge consumer without assigning the queue to Core
-
-#### Scenario: A release adds a cron schedule or a queue consumer
-- **WHEN** a release on a transitioned installation adds a cron schedule or a consumer for a new queue
-- **THEN** the readiness check passes and the Core publication creates them
+#### Scenario: A release adds a cron schedule or a queue
+- **WHEN** a release adds a cron schedule or a consumer for a new queue
+- **THEN** Edge's publication creates it and no precondition requires it in advance

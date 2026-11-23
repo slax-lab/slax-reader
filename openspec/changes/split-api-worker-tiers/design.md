@@ -30,13 +30,13 @@ See proposal.md for the measurements. Current state that constrains the design (
 
 | Worker | Entry | Owns | Placement |
 |---|---|---|---|
-| Edge | `src/entry/edge/index.ts` | routes, `fetch` (CORS, JWT, rate limit, image proxy, cacheable), `ContentEntry` | none |
-| Core | `src/entry/core/index.ts` | Reader HTTP router (non-AI), `queue`, `scheduled`, `email`, six Workflow classes, `VectorPreferenceObject` | `aws:ap-southeast-1` |
+| Edge | `src/entry/edge/index.ts` | routes, `fetch` (CORS, JWT, rate limit, image proxy, cacheable), `ContentEntry`; the queue consumers, cron triggers and Email Routing target, forwarded to Core (D12) | none |
+| Core | `src/entry/core/index.ts` | Reader HTTP router (non-AI), the queue, cron and email handlers behind `CoreJobs` (D12), six Workflow classes, `VectorPreferenceObject` | `aws:ap-southeast-1` |
 | AI | `src/entry/ai/index.ts` | AI router, `AiEntry` RPC | `aws:ap-southeast-1` |
 | Objects | `src/entry/objects/index.ts` (new) | `SlaxJieba`, `ScreenshotBrowser`, `SlaxWebSocketServer` | `aws:ap-southeast-1` |
 | Browser | `src/entry/browser/index.ts` | `SlaxBrowser` | none |
 
-Queue, cron, email and Workflows go to Core because their bodies resolve the same domain services Core already loads and they talk to the database. A separate jobs Worker would duplicate most of Core's graph; it can be split later once per-tier sizes are measured.
+Queue, cron and email handlers and the Workflows run in Core because their bodies resolve the same domain services Core already loads and they talk to the database. A separate jobs Worker would duplicate most of Core's graph; it can be split later once per-tier sizes are measured. The triggers themselves stay on Edge, which forwards each event to Core (D12), so no account-level trigger moves.
 
 The AI route list (`AI_ROUTES` in `src/const/routes.ts`) is the single source for Edge forwarding and router generation: `/v1/aigc/summaries`, `/v1/aigc/chat`, `/v1/bookmark/overview`, `/v1/bookmark/outline`, `/v1/bookmark/search`, `/v1/search`, `/v1/recommendations/articles`, `/v1/recommendations/collections`, `/v1/recommendations/feedback`, `/v1/bookmark/vector/refresh`, `/v1/bookmark/preference/refresh`, `/v1/collection/vector/refresh` and `/v1/collection/preference/refresh`.
 
@@ -44,9 +44,9 @@ The AI route list (`AI_ROUTES` in `src/const/routes.ts`) is the single source fo
 
 Delete `McpServerController`, `src/domain/orchestrator/mcp.ts`, `BookmarkService.getUserBookmarkSummaryByMCP`, the `MCP_OBJECT` binding, the `mcp:tool` script, the `agents`, `@modelcontextprotocol/sdk` and `@modelcontextprotocol/inspector` dependencies, MCP test mocks and the MCP row in the development documents. `zod` is removed later with the attribution parsers (D11).
 
-The `SlaxMcpServer` namespaces are deleted with their stored sessions. Live state (read-only, 2026-11-20): six namespaces, on production `slax-read-backend`, `slax-read-backend-beta`, `reader-core`, `reader-core-beta` and test `reader-backend`, `reader-core`; beta and test Edge still bind `MCP_OBJECT` to Core. Cloudflare deletes a namespace only when the class is no longer exported and no other Worker binds it, so the deletion runs in transition step 4, after the slim Edge (no MCP binding) is live, Edge first and then Core.
+The `SlaxMcpServer` namespaces are deleted with their stored sessions. Live state (read-only, 2026-11-20): six namespaces, on production `slax-read-backend`, `slax-read-backend-beta`, `reader-core`, `reader-core-beta` and test `reader-backend`, `reader-core`; beta and test Edge still bind `MCP_OBJECT` to Core. Cloudflare deletes a namespace only when the class is no longer exported and no other Worker binds it, so Edge, which binds Core's namespace, must stop binding it before Core's deletion (D9).
 
-The deletion tag is `retire-mcp-v1` with `deleted_classes = ["SlaxMcpServer"]`. Core's generated configuration appends it whenever the operator history creates the class and does not already delete it; Wrangler 4.127 applies only steps after the live tag (`vector-preference-v1`). Edge's legacy history (`v2`/`v3`/`v4`) is not in configuration, so Edge carries the single tag only in step 4: when the live tag is not listed, Wrangler applies every listed step, which here is only the deletion. Steps 2 and 3 publish wrapper entries (`src/entry/transition/{core,edge}.ts`) that still export the stub, so those steps stay reversible; normal entries no longer export `SlaxMcpServer`.
+The deletion tag is `retire-mcp-v1` with `deleted_classes = ["SlaxMcpServer"]`. Wrangler 4.127 applies only the steps after a script's live tag, and every step when the live tag is not listed. Core's generated configuration appends the deletion when the operator history creates the class, and in the `retire-mcp` phase the release selects while an MCP namespace remains or once Core's live tag is the deletion tag; production's private history lists only `vector-preference-v1`, so the phase, not the history, decides there. Edge's legacy history (`v2`/`v3`/`v4`) is not in configuration, so Edge carries the single deletion tag only in `retire-mcp`. The transitional entry `src/entry/transition/core.ts` still exports the stub for the one Core publication that precedes Edge's; normal entries no longer export `SlaxMcpServer`.
 
 ### D3. Per-tier generated registration
 
@@ -68,7 +68,7 @@ Shared layers MUST NOT import `src/di/generated/**`. `contentHandler.ts` and the
 
 ### D4. Edge without the DI graph
 
-Edge keeps today's behavior with modules that do not import the registry: `cors`, `authToken`, `isWhitelisted`, `rateLimit`, `matchCacheableRequest`, `applyCacheHeaders`, `handleImageProxy`, `ContentEntry` and `forward`. API-key requests are already forwarded in `apikey` mode before any container use. Edge loses `queue`, `scheduled`, `email`, Workflow exports, Durable Object re-exports and the WebAssembly rule. Its generated configuration lists only the bindings this module set uses (`CORE`, `AIGC`, `OSS`, `BOOKMARK_ADD_RATE_LIMITER`, the event Pipeline) plus the retired Durable Object stubs described in D6.
+Edge keeps today's behavior with modules that do not import the registry: `cors`, `authToken`, `isWhitelisted`, `rateLimit`, `matchCacheableRequest`, `applyCacheHeaders`, `handleImageProxy`, `ContentEntry` and `forward`. API-key requests are already forwarded in `apikey` mode before any container use. Edge loses its Workflow exports, Durable Object re-exports and the WebAssembly rule; its `queue`, `scheduled` and `email` handlers only forward (D12). Its generated configuration lists only the bindings this module set uses (`CORE`, `CORE_JOBS`, `AIGC`, `OSS`, `BOOKMARK_ADD_RATE_LIMITER`, the event Pipeline, the queue consumers and cron triggers) plus the retired Durable Object stubs described in D6.
 
 ### D5. Durable Object references by type only
 
@@ -80,14 +80,14 @@ Cloudflare rejects a deploy that stops exporting a class whose namespace still e
 
 | Worker | Live classes | Stub classes | Deleted |
 |---|---|---|---|
-| Core | `VectorPreferenceObject` | `SlaxJieba`, `SlaxWebSocketServer`, `ScreenshotBrowser` (and `SlaxMcpServer` during steps 2–3) | `SlaxMcpServer` (step 4) |
-| Edge | none | `SlaxJieba`, `SlaxWebSocketServer`, `ScreenshotBrowser` (and `SlaxMcpServer` during step 3) | `SlaxMcpServer` (step 4) |
+| Core | `VectorPreferenceObject` | `SlaxJieba`, `SlaxWebSocketServer`, `ScreenshotBrowser` (and `SlaxMcpServer` in the first release's `keep-mcp` publication) | `SlaxMcpServer` (first release, last publication) |
+| Edge | none | `SlaxJieba`, `SlaxWebSocketServer`, `ScreenshotBrowser` | `SlaxMcpServer` (first release) |
 | Objects | `SlaxJieba`, `SlaxWebSocketServer`, `ScreenshotBrowser` | none | none |
 
 Migration ownership per Worker:
 
 - **Core** keeps the operator's top-level `migrations` history and appends only `retire-mcp-v1` (D2).
-- **Edge** generates no migrations, as today, except `retire-mcp-v1` in transition step 4.
+- **Edge** generates no migrations, as today, except `retire-mcp-v1` in the `retire-mcp` phase.
 - **Objects** gets its history from a constant in `config.ts`: `{ tag = "objects-v1", new_sqlite_classes = ["SlaxJieba", "SlaxWebSocketServer", "ScreenshotBrowser"] }`. SQLite-backed objects support the alarm and WebSocket hibernation these classes use, and no existing data needs a key-value backend.
 
 Stubs are exported by both Core and Edge in every environment. In a fresh installation an exported class without a namespace has no effect.
@@ -100,35 +100,33 @@ Stubs are exported by both Core and Edge in every environment. In a fresh instal
 
 `build.ts` writes a Wrangler metafile per target (`--metafile`). `test/script/workerTopology.test.ts` reads them and asserts: Edge has no `.wasm`, no `@prisma/*`, no `src/di/generated/**`, no Workflow, no Durable Object implementation and no `src/entry/{core,ai,objects}/**`; Core and AI contain no `jieba`, `@cloudflare/puppeteer`, `agents` or `@modelcontextprotocol` module and no Objects entry module; AI contains no `src/di/generated/core/**`; Objects contains no `src/di/generated/**`. When metafiles are absent the test builds them first. Build output prints each target's `Total Upload`.
 
-### D9. Transition for existing installations
+### D9. Existing installations move through a normal release
 
-`pnpm api -- topology:transition --step <1..4> [--dry-run]` runs per environment with the same configuration selection as `deploy`. Each step verifies the remote state it expects, is idempotent, and prints what it changed.
+The account-level surfaces that a coordinated migration would move (queue consumers, cron triggers, the Email Routing target) stay on Edge (D12), so no manual step remains and existing installations reach the topology through an ordinary `deploy`, from CI or by hand. Before its first publication a remote release reads the account once:
 
-1. **Objects**: deploy the Objects Worker. Verify its three namespaces exist.
-2. **Core and AI**: the command removes each queue's Edge consumer and clears Edge's cron schedules through the Cloudflare API (`PUT .../schedules` with an empty array of `{cron}` objects, the body Wrangler sends), then deploys Core immediately with Durable Object bindings pointing at Objects, the stub classes, the six Workflows, queue consumers, cron triggers and the `email` handler, then AI. Core goes first because AI binds the Workflows with `script_name` = Core and only the new Core exports those classes; the old AI keeps working against the new Core because `AiEntry`'s methods are unchanged. The queue gap is the duration of one deploy and messages wait in the queue. Generated Edge configuration carries `triggers.crons = []` so later releases keep Edge's schedules empty. Wrangler's Workflow upsert reassigns each Workflow name to Core. Verify every queue's only consumer is Core, every Workflow's `script_name` is Core with unchanged instance counts, and running instances keep progressing.
-3. **Edge**: the operator repoints the newsletter Email Routing rule from Edge to Core first (Core handles `email` from step 2 on; the command prints the rule and target at the end of step 2 and again before publishing), then the command deploys the slim Edge with stubs, which has no `email` handler.
-4. **Retire MCP and verify**: after checks of routes, `ContentEntry`, image proxy, an AI route, WebSocket upgrade, one queue round trip and one Workflow creation, require every ownership check to pass, publish Edge and then Core with `retire-mcp-v1`, and verify no `SlaxMcpServer` namespace remains. This is the only irreversible step.
+- it stops while a Worker lacks a value its code reads that another API Worker of the installation holds (`requireValues`, `runtimeKeys.ts`), naming Worker and key; `pnpm api -- secrets:sync` copies them from an operator file;
+- it chooses the order (`releaseOrder` in `deploy.ts`). While a `SlaxMcpServer` namespace remains: Browser → Objects → Core in `keep-mcp` (the transitional entry; the old Edge still binds Core's namespace) → AI → Edge in `retire-mcp` (deletes Edge's namespace and drops the binding) → Core in `retire-mcp` (deletes Core's). Otherwise Browser → Objects → Core → AI → Edge, once each.
 
-Normal `deploy` checks what the old topology still holds (Objects, AI or Core missing; a Workflow, queue consumer or cron on Edge, including an Edge consumer of a queue the configuration omits; an MCP namespace) and stops with the transition instruction while any remains. It does not require Core to hold every configured cron or queue consumer, since the Core deploy creates them; the transition checks that after publishing Core (step 2) and before deleting MCP (step 4). Step 2 removes Edge consumers of unconfigured queues too and logs each one: the current Edge already rejects their batches (`Unconfigured queue`), and the queues themselves are left for the operator. New installations deploy directly through `--bootstrap`.
+Core precedes AI because AI binds the Workflows with `script_name` = Core and only the new Core exports those classes; Wrangler's Workflow upsert on Core's first publication moves each Workflow name from Edge to Core. A single-Worker release of Core keeps the stub while Edge still binds the namespace. New installations deploy through `--bootstrap`.
 
-*Alternative considered*: fold the transition into normal releases. Rejected: the queue handover and email-rule change need an attended run and verification between steps.
+*Alternative considered*: a four-step `topology:transition` that moved consumers, schedules and the email rule to Core and was attended per environment. Rejected after review: it needed a manual Email Routing change, two account writes outside Wrangler and its own readiness checks, each of which had defects; forwarding through `CoreJobs` removes them at the cost of one service-binding hop per event, which is not billed as a request.
 
 ## Risks / Trade-offs
 
-- **Workflow reassignment** → Workflows are account-scoped resources with a mutable `script_name`; Wrangler's deploy upserts them. Step 2 runs on the test account first and checks instance counts and progress before continuing. If reassignment is rejected, the fallback (keep Workflow ownership on the Edge script name in a dedicated Worker) requires a design update before beta.
-- **Queue delivery pause in step 2** → bounded by one Core deploy; messages are retained.
-- **Search tokenizer gap in step 2** → between Core's and AI's deploys the old AI still reaches `SlaxJieba` through Core, which now exports the 410 stub, so bookmark search degrades (strict tokenization fails the request) for the length of one AI deploy. Publishing AI first is not an alternative: its Workflow bindings would name classes the old Core does not export. Run step 2 in a low-traffic window.
+- **Workflow reassignment** → Workflows are account-scoped resources with a mutable `script_name`; Wrangler's deploy upserts them on Core's first publication. The release runs on the test account first and its Workflow instance counts and progress are checked before beta.
+- **First-release window** → for about the duration of the publications: AI routes that bind Workflows can fail until the new Core is live; search tokenization fails between Core's and AI's publications, because the old AI still reaches `SlaxJieba` through Core's 410 stub; old Edge jobs that call Core's retired Durable Objects fail and their queue retries them, while forwarded jobs already run on the new Core. Publishing AI first is not an alternative: its Workflow bindings would name classes the old Core does not export. Run the first release in a low-traffic window.
 - **Stub classes receive traffic during rollout** → between Core's and Edge's deploys an older Worker version could address a stub. Every caller is deployed with bindings to Objects before any stub replaces a live implementation in the same Worker, and stubs return 410 so a stale caller fails loudly rather than silently.
+- **Forwarding hop** → each queue batch, cron tick and inbound email costs one extra in-account RPC from Edge to Core (a few milliseconds, not billed as a request). A failed forward fails the Edge invocation, so the queue retries the batch and Email Routing reports the delivery failure, matching a failing local handler.
 - **`DB_FULLTEXT` in ENAM** → search queries from Singapore cross the Pacific once per fulltext query; measured before and after, handled in a later change.
 - **Generator misses a lookup** → a test boots each tier container and resolves every route controller, consumer, cron job and Core entry root; a missing provider fails it.
 
 ## Migration Plan
 
-1. Merge with the topology marker check, so releases to untransitioned environments stop with instructions.
-2. Run the transition on the test account, then the acceptance checks.
-3. Repeat on beta, then production, in low-traffic windows.
+1. Before merging, run `secrets:sync` per environment until a dry run reports nothing missing (test is complete; beta and production lack `DEEPSEEK_API_KEY` on Core and AI as of 2026-11-23).
+2. Merge; the dev release publishes the test account through the first-release order, then the acceptance checks run.
+3. Promote to beta, then production, in low-traffic windows.
 
-**Rollback**: before step 2, delete nothing; redeploy previous versions with `wrangler rollback`. After step 2, roll back by re-adding Edge's queue consumers and cron triggers and redeploying the previous Edge with its Workflow bindings, in reverse order. No Durable Object namespace is deleted, so rollback never loses object data.
+**Rollback**: until the release's last two publications delete the MCP namespaces, `wrangler rollback` each Worker. Afterwards Wrangler refuses to roll Edge or Core back past the deletion; other changes are reversed by deploying versions that do not export `SlaxMcpServer`. No other Durable Object namespace is deleted, so rollback never loses object data.
 
 ## Open Questions
 
@@ -165,3 +163,14 @@ These are the final-code measurements recorded in `validation.md`; earlier inter
 - `moment-timezone` (716 KB, three call sites) is replaced by `parsePublishedTime` (`date-fns` `parseISO`, then the platform parser) and `date-fns` `format`. The two were compared on 27 inputs in three time zones with no difference.
 - `zod` (333 KB, one schema set) is replaced by `parseWebAuthAttribution` / `parseAppleAuthAttribution`, compared with the zod schemas on 31 inputs, including unknown-key stripping and first-match order, with no difference.
 - `unpdf` stays a dynamic import inside `utils/pdf.ts`; it costs upload size but no startup time. Moving PDF parsing out of Core is a separate change.
+
+### D12. Edge forwards job events to Core
+
+Every account already delivers queue batches, cron ticks and newsletter email to the Edge script. Edge keeps those triggers (its generated configuration carries the queue consumers and cron triggers; Core keeps only the producers and the queue channel map) and forwards each event, unchanged, to Core's named entrypoint `CoreJobs` through the `CORE_JOBS` service binding (`src/entry/edge/jobs.ts`, `src/entry/core/jobs.ts`). Service bindings to other Workers support only `fetch` and RPC in production, so forwarding uses RPC methods named `runQueue`, `runCron` and `receiveEmail` (the handler names are reserved on `WorkerEntrypoint`):
+
+- **Queue**: Edge sends the queue name, batch metadata and each message's id, timestamp, body and attempts. Core runs the generated consumer against a batch whose `ack`, `retry`, `ackAll` and `retryAll` record decisions, and returns them; Edge applies them to the real batch. A thrown call fails the Edge invocation, so the queue's retry policy applies to every message, as with a failing local handler.
+- **Cron**: Edge sends `cron` and `scheduledTime`. The generated job table registers work with `waitUntil`, which would end with the RPC call, so `CoreJobs` waits for every promise registered through its context before returning; Edge's scheduled event keeps the invocation alive.
+- **Email**: Edge sends the envelope, headers, the raw byte stream (RPC streams it with flow control) and `rawSize`, and applies a returned rejection with `setReject`. Core's admission errors propagate, so Email Routing reports the failure.
+
+Edge imports only the `CoreJobs` type, so its bundle carries no Core code (the bundle check in D8 covers it). Local `dev:local` runs the real Edge entry with the same binding, replacing the smoke-only email fixture.
+

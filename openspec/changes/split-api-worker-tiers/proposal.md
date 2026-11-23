@@ -8,16 +8,16 @@ Production API latency is dominated by two deployment-shape problems measured on
 ## What Changes
 
 - **Tiers that each bundle only their own code**:
-  - **Edge** (public, near the user): CORS, JWT authentication, rate limiting, image proxy, cacheable responses, `ContentEntry`, and forwarding to Core or AI. No dependency registry, Prisma, Workflow, queue, cron, email or Durable Object code, and no WebAssembly.
-  - **Core** (pinned near the primary database): the Reader HTTP API except AI routes, queue consumers, cron triggers, inbound email, all six Workflows (moved from Edge), and the stateful `VectorPreferenceObject` Durable Object.
+  - **Edge** (public, near the user): CORS, JWT authentication, rate limiting, image proxy, cacheable responses, `ContentEntry`, and forwarding to Core or AI. It keeps the queue consumers, cron triggers and Email Routing target every account already has and forwards each event to Core. No dependency registry, Prisma, Workflow, handler or Durable Object code, and no WebAssembly.
+  - **Core** (pinned near the primary database): the Reader HTTP API except AI routes, the queue, cron and inbound email handlers for the events Edge forwards, all six Workflows (moved from Edge), and the stateful `VectorPreferenceObject` Durable Object.
   - **AI** (pinned near the primary database): AIGC, search, recommendation and vector/preference refresh routes plus the `AiEntry` vector RPC, with its own registry and without importing Core.
 - **A new Objects Worker** hosts the stateless Durable Objects `SlaxJieba`, `ScreenshotBrowser` and `SlaxWebSocketServer`, so the jieba WebAssembly and puppeteer leave every other Worker. These classes are created fresh in Objects; their old Core namespaces are retained, not deleted, so no data transfer is needed.
-- **Remove the deprecated MCP server**: `/v1/mcp/*`, `McpServerController`, the `SlaxMcpServer` Durable Object, its MCP-only domain method, and the `agents`, `@modelcontextprotocol/sdk` and `@modelcontextprotocol/inspector` dependencies are deleted. The live `SlaxMcpServer` namespaces received no requests in the seven days before this proposal. Their namespaces and stored sessions are deleted in the final transition step (`retire-mcp-v1`), which is irreversible; steps 1 to 3 delete nothing, and Core and Edge keep exporting an inert stub until then.
+- **Remove the deprecated MCP server**: `/v1/mcp/*`, `McpServerController`, the `SlaxMcpServer` Durable Object, its MCP-only domain method, and the `agents`, `@modelcontextprotocol/sdk` and `@modelcontextprotocol/inspector` dependencies are deleted. The live `SlaxMcpServer` namespaces received no requests in the seven days before this proposal. Their namespaces and stored sessions are deleted by the first five-Worker release (`retire-mcp-v1`, Edge before Core), which is irreversible; until then Core keeps exporting an inert stub.
 - **Per-tier registration**: the DI, router, consumer and cron generators emit one module set per tier containing only the classes that tier reaches. One route list decides which routes belong to AI, and a controller may not mix AI and Core routes.
 - **Narrow AI services**: AI routes move to `BookmarkAiController` and `CollectionVectorController`, and call `BookmarkReadService`, `UserProfileService` and `BookmarkAiOrchestrator` instead of the full `BookmarkService` and `UserService` graphs. The full services delegate to the narrow ones, so each behavior has one implementation.
 - **Startup-cost reductions**: the article extractor (`defuddle`) and newsletter MIME splitter (`@zone-eu/mailsplit`) load on first use; `moment-timezone` is replaced by `date-fns` and `zod` by a dependency-free attribution parser, both with unchanged results.
 - **Fixed placement owned by the deployment script**: one constant (`aws:ap-southeast-1`) applies to Core, AI and Objects. Edge and Browser never receive placement. Placement in private configuration is rejected before any remote operation.
-- **BREAKING (operators)**: each environment needs a new Worker identity `services.OBJECTS.service`, and existing installations run a one-time, documented transition that moves Workflow, queue, cron and email ownership from Edge to Core before normal releases resume.
+- **BREAKING (operators)**: each environment needs a new Worker identity `services.OBJECTS.service`, and each Worker must hold the secrets its code reads before the first five-Worker release (`pnpm api -- secrets:sync`). That release is a normal `deploy`: no trigger, consumer or email rule moves.
 
 Out of scope: moving search reads off PostgreSQL, D1 read-replica sessions for `DB_FULLTEXT`, server-side PDF parsing, transferring `VectorPreferenceObject`, and any HTTP contract change other than removing `/v1/mcp/*`.
 
@@ -25,7 +25,7 @@ Out of scope: moving search reads off PostgreSQL, D1 read-replica sessions for `
 
 ### New Capabilities
 
-- `api-worker-topology`: Worker responsibilities, route ownership, per-tier bundle isolation, fixed execution locations, and the ownership transition rules that preserve Workflow instances, queue messages and Durable Object data.
+- `api-worker-topology`: Worker responsibilities, route ownership, per-tier bundle isolation, fixed execution locations, and the release rules that preserve Workflow instances, queue messages and Durable Object data.
 
 ### Modified Capabilities
 
@@ -41,4 +41,4 @@ Out of scope: moving search reads off PostgreSQL, D1 read-replica sessions for `
 - Deployment scripts `apps/api/script/deploy/{config,deploy,build,dev-local,setup-api}.ts`, `deploy/cloudflare/api.toml.example`, local dev ports, the API deploy workflow checks, and their tests.
 - `apps/web` keeps its service binding on Edge's `ContentEntry`.
 - API documentation under `docs/api/` (EN, CN, JP).
-- Live environments: test, beta and production each gain an Objects Worker and run the transition once. State at risk: in-flight Workflow instances and queued messages during the consumer handover. MCP session data is deleted in the final transition step, which is irreversible; earlier steps delete nothing.
+- Live environments: test, beta and production each gain an Objects Worker through their first five-Worker release. State at risk: in-flight Workflow instances when Workflows move to Core, and a short window in which AI routes, search tokenization and old Edge jobs can fail. MCP session data is deleted by that release, which is irreversible.

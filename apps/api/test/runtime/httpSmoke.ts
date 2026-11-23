@@ -224,11 +224,11 @@ async function main() {
     })
     write(edgeConfig, {
       name: names.edge,
-      main: localPath('apps/api/test/runtime/edgeEmailFixture.ts'),
-      compatibility_flags: [...shared.compatibility_flags, 'service_binding_extra_handlers'],
+      main: localPath('apps/api/src/entry/edge/index.ts'),
       r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
       services: [
         { binding: 'CORE', service: names.core },
+        { binding: 'CORE_JOBS', service: names.core, entrypoint: 'CoreJobs' },
         { binding: 'AIGC', service: names.ai }
       ],
       ratelimits: [{ name: 'BOOKMARK_ADD_RATE_LIMITER', namespace_id: '1001', simple: { limit: 30, period: 60 } }]

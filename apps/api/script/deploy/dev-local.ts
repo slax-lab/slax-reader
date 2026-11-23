@@ -81,7 +81,7 @@ export function localDevOptions(args: string[]) {
   // Each local Worker may bind only to the other local Workers, in the same direction as the published topology.
   // Edge needs both callees; Core's vector RPC to AI is optional because local runs may omit Vectorize.
   const expectedServices: Record<Role, Record<string, string>> = {
-    edge: { CORE: names.core, AIGC: names.ai },
+    edge: { CORE: names.core, CORE_JOBS: names.core, AIGC: names.ai },
     core: { VECTOR: names.ai },
     ai: {},
     objects: {}
@@ -91,7 +91,7 @@ export function localDevOptions(args: string[]) {
     const config = configs[role]
     if (Object.keys(config).some(key => !allowed.has(key))) throw new Error('Only the minimal local binding configuration is supported')
     const expected = resolve(ROOT, `apps/api/src/entry/${role}/index.ts`)
-    const fixtures: Partial<Record<Role, string>> = { core: 'apps/api/test/runtime/diagnosticWorker.ts', edge: 'apps/api/test/runtime/edgeEmailFixture.ts' }
+    const fixtures: Partial<Record<Role, string>> = { core: 'apps/api/test/runtime/diagnosticWorker.ts' }
     const diagnosticFixture = !!fixtures[role] && process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE === '1' && resolve(workspace, config.main) === resolve(ROOT, fixtures[role]!)
     if (resolve(workspace, config.main) !== expected && !diagnosticFixture) throw new Error('Use the actual Edge/Core/AI/Objects entrypoints')
     if (resolve(workspace, config.tsconfig) !== resolve(ROOT, 'apps/api/tsconfig.json')) throw new Error('Use the root API tsconfig')
@@ -115,6 +115,12 @@ export function localDevOptions(args: string[]) {
       services.some(service => wanted[service.binding] !== service.service || Object.keys(service).some(key => !['binding', 'service', 'entrypoint'].includes(key)))
     )
       throw new Error('Only local Edge-to-Core, Edge-to-AI and Core-to-AI service bindings are supported')
+    if (
+      services.some(
+        service => (service.binding === 'CORE_JOBS') !== (service.entrypoint === 'CoreJobs') || (service.entrypoint && !['CoreJobs', 'AiEntry'].includes(service.entrypoint))
+      )
+    )
+      throw new Error('Edge reaches Core jobs only through the CoreJobs entrypoint')
     const objects = config.durable_objects?.bindings ?? []
     for (const binding of objects) {
       const owned = (role === 'objects' || role === 'core') && OBJECT_CLASSES.includes(binding.class_name)

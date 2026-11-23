@@ -44,7 +44,7 @@ See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operat
 | Config generation only | `pnpm api -- deploy --dry-run` |
 | Dev with explicit isolated configs | `pnpm api -- dev:local --edge-config <file> --core-config <file> --ai-config <file> --objects-config <file> --state <dir> --env-file <empty-file>` |
 | Real HTTP / database integration | `pnpm api -- test:http` / `test:integration:local` |
-| Move an existing installation to five Workers | `pnpm api -- topology:transition --step <1..4> [--dry-run]` |
+| Copy values each Worker reads before the first five-Worker release | `pnpm api -- secrets:sync --from <file> [--dry-run]` |
 | Resource plan / create | `pnpm api -- resources` / `resources --apply` |
 | Wrangler command with actual config | `pnpm api -- wrangler edge <command> [args...]` |
 | Edge logs | `pnpm api -- tail` |

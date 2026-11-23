@@ -16,8 +16,8 @@ import { Hashid } from '@/utils/hashids'
 import { EDGE_SECRET_HEADER, EDGE_IDENTITY_HEADER } from '@/const/edge'
 
 describe('edge routing', () => {
-  test('owns only HTTP: email, queue and cron belong to Core', () => {
-    expect(Object.keys(edge).sort()).toEqual(['fetch'])
+  test('keeps the queue, cron and email triggers it already owns and forwards each to Core jobs', () => {
+    expect(Object.keys(edge).sort()).toEqual(['email', 'fetch', 'queue', 'scheduled'])
   })
   test('forwards Reader identity verified by Core and strips the external bearer', async () => {
     const env = {

@@ -18,44 +18,44 @@ pnpm api -- deploy --bootstrap        # NEW installation only
 pnpm api -- deploy                    # subsequent updates
 pnpm api -- deploy edge               # update one existing Worker
 pnpm api -- wrangler edge secret put EDGE_SHARED_SECRET
-pnpm api -- topology:transition --step 1 --dry-run   # 已有安装执行一次，见下文
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 首次五 Worker 发布前执行，见下文
 ```
 
 `build` 真正离线打包（minify）五个 Worker，使用临时配置与空 env，不覆盖开发中的生成配置，并为每个 Worker 写出 `bundle-<worker>.meta.json`。`deploy --dry-run` 只生成 `.generated/`，不打包也不调用云端。生成文件不是第二份配置源，请勿手动维护。
 
-新安装的 bootstrap 顺序为 Browser → Objects → Core（临时移除 service/Workflow 绑定）→ AI → Edge → Core（恢复完整绑定，并创建 Workflow、队列消费者和 cron），解决循环依赖。普通发布顺序为 Browser → Objects → AI → Core → Edge。仅在新安装使用；中断后重新运行 bootstrap 完成初始化。已有部署使用普通 deploy。部署/secret/资源创建与远程迁移均是真实云操作，自动化代理需获得明确授权。
+新安装的 bootstrap 顺序为 Browser → Objects → AI → Edge，其中 AI 之前先发布一个临时移除 service/Workflow 绑定的 Core，最后发布带完整绑定和 Workflow 的 Core，解决循环依赖。普通发布顺序为 Browser → Objects → Core → AI → Edge。仅在新安装使用；中断后重新运行 bootstrap 完成初始化。已有部署使用普通 deploy。部署/secret/资源创建与远程迁移均是真实云操作，自动化代理需获得明确授权。
 
 ## Worker 拓扑
 
 | Worker | 运行位置 | 负责 |
 |---|---|---|
-| Edge（公开） | 不设置，就近运行 | HTTP 入口：CORS、缓存、图片代理、鉴权，转发到 Core 或 AI；`ContentEntry` |
-| Core | `aws:ap-southeast-1` | `AI_ROUTES` 以外的 Reader 路由、队列消费者、cron、newsletter 邮件、六个 Workflow、`VectorPreferenceObject` |
+| Edge（公开） | 不设置，就近运行 | HTTP 入口：CORS、缓存、图片代理、鉴权，转发到 Core 或 AI；`ContentEntry`；队列消费者、cron 和 Email Routing 的接收方，收到的事件原样转给 Core 的 `CoreJobs` 入口 |
+| Core | `aws:ap-southeast-1` | `AI_ROUTES` 以外的 Reader 路由；通过 `CoreJobs` 执行的队列、cron 和 newsletter 邮件处理；六个 Workflow、`VectorPreferenceObject` |
 | AI | `aws:ap-southeast-1` | `apps/api/src/const/routes.ts` 中 `AI_ROUTES` 列出的路由（AIGC、概要/大纲、搜索、推荐、向量刷新）和 `AiEntry` 向量 RPC |
 | Objects | `aws:ap-southeast-1` | `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` 三个 Durable Object，不提供 HTTP |
 | Browser | 不设置 | `SlaxBrowser`（不变） |
 
-placement 由 `apps/api/script/deploy/config.ts` 的 `DATABASE_REGION` 决定，即离主 PostgreSQL 最近的区域。私有配置中出现 `[placement]` 会在任何远程操作前被拒绝。Core 和 Edge 保留原有的 `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` 命名空间，由返回 410 的空壳类承接（`apps/api/src/entry/retired.ts`），这些数据不会被删除。MCP Server 已下线，其 `SlaxMcpServer` 命名空间连同保存的会话一起删除：只要私有迁移历史创建过这个类，Core 的生成配置就会追加 `retire-mcp-v1`（`deleted_classes = ["SlaxMcpServer"]`），迁移第 4 步把它应用到 Edge 和 Core。Objects 使用独立迁移标签 `objects-v1`。
+placement 由 `apps/api/script/deploy/config.ts` 的 `DATABASE_REGION` 决定，即离主 PostgreSQL 最近的区域。私有配置中出现 `[placement]` 会在任何远程操作前被拒绝。Core 和 Edge 保留原有的 `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` 命名空间，由返回 410 的空壳类承接（`apps/api/src/entry/retired.ts`），这些数据不会被删除。MCP Server 已下线，其 `SlaxMcpServer` 命名空间连同保存的会话一起删除：只要账号中还有这个命名空间，发布就会给 Edge 和 Core 加上 `retire-mcp-v1`（`deleted_classes = ["SlaxMcpServer"]`，见下文），私有迁移历史无需修改。Objects 使用独立迁移标签 `objects-v1`。
 
-## 五 Worker 迁移（已有安装）
+## 首次五 Worker 发布（已有安装）
 
-普通 `deploy` 会先读取账号状态（Worker、Workflow、队列、cron、Durable Object 命名空间）。若 Objects、AI 或 Core 未部署，有 Workflow 或队列消费者仍属于 Edge（包括配置中没有列出的队列），Edge 仍有 cron，或仍存在 `SlaxMcpServer` 命名空间，则在发布前停止。本次发布新增的 cron 或队列消费者不要求事先存在，由 Core 的部署创建。第 2 步也会移除配置中没有的队列上的 Edge 消费者，并逐条列出；不会删除队列。每套安装执行一次迁移：先 test 账号，再 beta，最后在低峰期执行生产。凭据使用 `CLOUDFLARE_API_TOKEN`（需 Workers Scripts、Queues、Workflows、Durable Objects 编辑权限）或 `wrangler login` 的 token，配置选择与 `deploy` 相同（`--config`/`--env`）。每一步先读取状态，可重复执行，并支持 `--dry-run`。第 1 到 3 步不删除任何东西；Core 和 Edge 在第 4 步之前继续导出 MCP 空壳类（`src/entry/transition/`）。
+Edge 保留它现有的队列消费者、cron 和 Email Routing 接收方，把每个事件通过服务绑定（`CORE_JOBS`，入口 `CoreJobs`；服务绑定调用不额外计请求费）原样转给 Core。因此没有任何触发器、消费者或邮件规则需要移动，首次五 Worker 发布就是一次普通 `deploy`（CI 或 `pnpm api -- deploy`）。远程发布在第一次发布前读取账号：
 
-变量和 secret 要跟着代码走。部署使用 `--keep-vars`，用 `wrangler secret put` 设置的 secret 只留在原来那个脚本上。`apps/api/script/deploy/runtimeKeys.ts` 列出每个 Worker 的代码会读取的字符串变量和 secret（测试会从构建产物重新推导，防止过期）。第 1 到 3 步发布前，以及每次普通发布前，命令会按名称列出：某个 Worker 需要读取、本安装的其他 API Worker 上存在、但该 Worker 自己和所选 `[vars]` 都没有的 key，然后停止。Cloudflare 不会返回 secret 的值，无法从旧 Edge 复制，需要你提供保存值的文件（密码管理器导出或原始 `.env`，放在仓库外或被忽略的 `deploy/local/` 下）。文件可以是 `.env`、JSON（`{"KEY": "value"}` 或 `[{"name": "KEY", "value": "value"}]`，也接受 `key`），或由顶层 `KEY = "value"` 行组成的 `.toml`；数字和布尔值按字符串上传；其他以 `{` 或 `[` 开头的内容按 JSON 读取。读取失败时只报告位置、key 名和值的类型，不会输出值，然后执行：
+- 若某个 Worker 缺少其代码读取的值（见下文），停止并列出 Worker 和 key 名；
+- 决定发布顺序。账号中还有 `SlaxMcpServer` 命名空间时，按 Browser → Objects → Core（仍导出 MCP 空壳，因为旧 Edge 绑定着 Core 的命名空间）→ AI → Edge（删除 Edge 的命名空间）→ Core（删除 Core 的命名空间）发布；Wrangler 在 Core 首次发布时把 Workflow 转到 Core。之后的发布不再有命名空间，按 Browser → Objects → Core → AI → Edge 发布。
+
+变量和 secret 要跟着代码走。部署使用 `--keep-vars`，用 `wrangler secret put` 设置的 secret 只留在原来那个脚本上。`apps/api/script/deploy/runtimeKeys.ts` 列出每个 Worker 的代码会读取的字符串变量和 secret（测试会从构建产物重新推导，防止过期）。发布前会按名称列出：某个 Worker 需要读取、本安装的其他 API Worker 上存在、但该 Worker 自己和所选 `[vars]` 都没有的 key，然后停止。Cloudflare 不会返回 secret 的值，无法从旧 Edge 复制，需要你提供保存值的文件（密码管理器导出或原始 `.env`，放在仓库外或被忽略的 `deploy/local/` 下）。文件可以是 `.env`、JSON（`{"KEY": "value"}` 或 `[{"name": "KEY", "value": "value"}]`，也接受 `key`），或由顶层 `KEY = "value"` 行组成的 `.toml`；数字和布尔值按字符串上传；其他以 `{` 或 `[` 开头的内容按 JSON 读取。读取失败时只报告位置、key 名和值的类型，不会输出值，然后执行：
 
 ```bash
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 只列出 Worker 和 key 名
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env             # 用 wrangler secret bulk 上传
 ```
 
-它只给每个 Worker 上传其代码会读取、其他 API Worker 已有但它自己缺少的 key，不会覆盖已有 secret；值通过 stdin 交给 Wrangler，不出现在命令行、文件或日志中；跳过尚未部署的 Worker；文件里缺少需要的 key 时返回失败。第 1 步之前为 Core 和 AI 执行一次，第 1 步之后再为 Objects 执行一次。也可以改为把值放进私有配置的 `[vars]`。2026-11-20 的只读检查发现：生产和 beta 的 `DEEPSEEK_API_KEY` 只在旧 Edge 上（YouTube 转文章和播客 Workflow 会移到 Core，AI 也会读取）；test 账号有 17 个 Core 需要、5 个 AI 需要的 key 只在旧 Edge 上。任何 Worker 都没有的 key 属于当前未配置的可选功能，不会报出。
+它只给每个 Worker 上传其代码会读取、其他 API Worker 已有但它自己缺少的 key，不会覆盖已有 secret；值通过 stdin 交给 Wrangler，不出现在命令行、文件或日志中；跳过尚未部署的 Worker；文件里缺少需要的 key 时返回失败。首次发布前为 Core 和 AI 执行一次；Objects 是新 Worker，通过 `[vars]` 获得所需的值，或在发布创建它之后再执行一次。也可以改为把值放进私有配置的 `[vars]`。2026-11-23 的只读检查发现：生产和 beta 的 Core、AI 缺少 `DEEPSEEK_API_KEY`；test 账号已齐全。任何 Worker 都没有的 key 属于当前未配置的可选功能，不会报出。
 
-1. `--step 1` 发布 Browser 和 Objects。确认 Objects 的三个命名空间已存在。
-2. `--step 2` 移除每个队列的 Edge 消费者并清空 Edge 的 cron，发布 Core（含 Workflow、消费者、cron 和指向 Objects 的 DO 绑定），再发布 AI（AI 绑定的 Workflow 由新 Core 导出）。期间消息在队列中等待约一次部署的时长；AI 发布完成前书签搜索会失败，因为旧 AI 仍通过 Core 已下线的 jieba 命名空间分词，请在低峰期执行。之后若有 Workflow 或队列消费者不属于 Core 则失败，并打印 Workflow 归属的前后对比。确认运行中的实例继续推进。
-3. 执行 `--step 3` 之前，先在控制台把 newsletter 的 Email Routing 规则从 Edge 改到 Core（Core 从第 2 步起已能处理邮件，精简后的 Edge 没有邮件处理），再执行 `--step 3` 发布精简后的 Edge。
-4. 先在精简后的 Edge 上检查路由、`ContentEntry`、图片代理、一条 AI 路由、WebSocket 升级、一次队列往返和一次 Workflow 创建。然后执行 `--step 4`：要求所有归属检查通过，依次发布带 `retire-mcp-v1` 的 Edge 和 Core，并确认不再有 `SlaxMcpServer` 命名空间。这一步不可逆，会永久删除保存的 MCP 会话。先发 Edge 是因为只要还有 Worker 绑定 Core 的命名空间，Cloudflare 就拒绝删除。若私有配置中 Core 的迁移历史没有记录 `SlaxMcpServer`，第 4 步前按 Cloudflare 报告的标签补上（例如 `{ tag = "v2", new_sqlite_classes = ["SlaxMcpServer"] }`），这样 Wrangler 只追加删除这一步。
+首次发布期间，大约在几次发布的时间内：AI 路由在 AI 的 Workflow 绑定等待新 Core 时可能失败；Core 与 AI 两次发布之间搜索分词会失败，因为旧 AI 仍访问 Core 已下线的 jieba 命名空间；旧 Edge 上调用 Core 已下线 Durable Object 的任务会失败并由队列重试。请在低峰期执行：先 test 账号，再 beta，最后生产。
 
-回滚：第 2 步之前，用 `wrangler rollback` 回到旧版本即可。第 2 步之后、第 4 步之前，先为 Edge 重新加上队列消费者和 cron，部署旧版 Edge（仍声明 Workflow），再部署旧版 Core，并把 Email Routing 改回 Edge；此时没有删除任何命名空间，不会丢失对象数据。第 4 步之后 MCP 命名空间已删除，Wrangler 拒绝回滚到这次部署之前；其余拓扑变更仍可按上述方式回退，但所用版本不能再导出 `SlaxMcpServer`。
+回滚：MCP 命名空间删除之前（即本次发布的最后两次发布之前），用 `wrangler rollback` 把各 Worker 回到上一版本。删除之后，Wrangler 拒绝把 Edge 或 Core 回滚到删除之前；其余变更仍可通过部署不导出 `SlaxMcpServer` 的版本回退。
 
 这仍是 Cloudflare Workers 架构，并非可直接用 Docker 部署的 Node API。离线构建与本地测试不能替代真实账号的资源权限、secrets 和第三方功能验收。上线后检查鉴权、书签、异步队列、支付回调和同步功能。
 

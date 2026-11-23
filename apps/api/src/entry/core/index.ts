@@ -101,6 +101,7 @@ export default {
 }
 
 export { VectorPreferenceObject }
+export { CoreJobs } from './jobs'
 export { SlaxJieba, SlaxWebSocketServer, ScreenshotBrowser } from '../retired'
 export { CrawlWorkflow } from './workflows/crawlWorkflow'
 export { ContentValidationWorkflow } from './workflows/contentValidationWorkflow'

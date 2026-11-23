@@ -2,7 +2,7 @@
 
 ### Requirement: Existing environment and resource identities are preserved
 
-The pipeline SHALL map `dev` to the legacy test installation, `beta` to the existing beta installation, and `main` to the existing production installation. Test SHALL use the legacy test Cloudflare account and databases. Beta and production SHALL retain their existing production-account resources, shared PostgreSQL/logs databases, and shared Browser Worker. Selected configuration MUST preserve existing Worker names, routes, resource IDs, and Durable Object migration history, and SHALL add the Objects Worker as the only new Worker identity; no existing Durable Object namespace MAY be deleted, except the removed MCP server's `SlaxMcpServer` namespaces in the final transition step; the pipeline MUST NOT substitute a template, create replacement resources, or bootstrap an existing installation. Missing environment metadata or a configuration/account mismatch MUST fail before remote mutation.
+The pipeline SHALL map `dev` to the legacy test installation, `beta` to the existing beta installation, and `main` to the existing production installation. Test SHALL use the legacy test Cloudflare account and databases. Beta and production SHALL retain their existing production-account resources, shared PostgreSQL/logs databases, and shared Browser Worker. Selected configuration MUST preserve existing Worker names, routes, resource IDs, and Durable Object migration history, and SHALL add the Objects Worker as the only new Worker identity; no existing Durable Object namespace MAY be deleted, except the removed MCP server's `SlaxMcpServer` namespaces in the first five-Worker release; the pipeline MUST NOT substitute a template, create replacement resources, or bootstrap an existing installation. Missing environment metadata or a configuration/account mismatch MUST fail before remote mutation.
 
 #### Scenario: A change is merged into dev
 - **WHEN** the target branch is `dev`
@@ -17,8 +17,8 @@ The pipeline SHALL map `dev` to the legacy test installation, `beta` to the exis
 - **THEN** the release fails with the missing or invalid prerequisite identified without exposing secret values or beginning remote operations
 
 #### Scenario: Stateless Durable Objects move to the Objects Worker
-- **WHEN** an existing installation runs the documented topology transition
-- **THEN** the Objects Worker creates its classes, and every existing Durable Object namespace remains in place except the `SlaxMcpServer` namespaces, which only the final transition step deletes
+- **WHEN** an existing installation runs its first five-Worker release
+- **THEN** the Objects Worker creates its classes, and every existing Durable Object namespace remains in place except the `SlaxMcpServer` namespaces, which that release deletes after Edge stops binding Core's
 
 ### Requirement: Validation and migrations precede Worker publication
 

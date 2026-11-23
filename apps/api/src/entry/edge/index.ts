@@ -11,6 +11,7 @@ import { applyCacheHeaders } from '@/middleware/cacheHeaders'
 import { ContentEntry } from './contentEntry'
 import { handleImageProxy } from '@/handler/http/imageProxy'
 import { isAiRoute } from '@/const/routes'
+import { forwardEmail, forwardQueue, forwardScheduled } from './jobs'
 
 type ForwardMode = 'user' | 'anon' | 'apikey'
 
@@ -59,7 +60,10 @@ export default {
   ...worker,
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     return applyApiResponseHeaders(await worker.fetch(request, env, ctx), request, env.FRONT_END_URL)
-  }
+  },
+  queue: forwardQueue,
+  scheduled: forwardScheduled,
+  email: forwardEmail
 }
 
 async function forward(env: Env, request: Request, mode: ForwardMode, ctx: ContextManager): Promise<Response> {

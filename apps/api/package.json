@@ -70,7 +70,6 @@
     "dev": "tsx --tsconfig tsconfig.json script/deploy/deploy.ts --dev",
     "dev:local": "tsx --tsconfig tsconfig.json script/deploy/dev-local.ts",
     "deploy": "tsx --tsconfig tsconfig.json script/deploy/deploy.ts",
-    "topology:transition": "tsx --tsconfig tsconfig.json script/deploy/topology.ts",
     "secrets:sync": "tsx --tsconfig tsconfig.json script/deploy/sync-secrets.ts",
     "build": "tsx --tsconfig tsconfig.json script/deploy/build.ts",
     "resources": "tsx --tsconfig tsconfig.json script/deploy/gen-config.ts",

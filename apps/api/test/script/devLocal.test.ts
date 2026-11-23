@@ -38,6 +38,7 @@ function fixture() {
     main: entry('edge'),
     services: [
       { binding: 'CORE', service: 'local-core' },
+      { binding: 'CORE_JOBS', service: 'local-core', entrypoint: 'CoreJobs' },
       { binding: 'AIGC', service: 'local-ai' }
     ]
   }
@@ -80,14 +81,21 @@ describe('explicit isolated local Worker launcher', () => {
     writeFileSync(f.core, JSON.stringify({ ...f.coreData, main: 'arbitrary.ts' }))
     expect(() => localDevOptions(f.args)).toThrow('actual Edge/Core/AI/Objects entrypoints')
     writeFileSync(f.core, JSON.stringify(f.coreData))
-    const edgeFixture = relative(f.workspace, resolve(ROOT, 'apps/api/test/runtime/edgeEmailFixture.ts'))
-    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, main: edgeFixture }))
-    expect(localDevOptions(f.args).args).toContain('--local')
-    writeFileSync(f.ai, JSON.stringify({ ...f.aiData, main: edgeFixture }))
+    // The diagnostic fixture replaces only Core; another Worker cannot borrow it.
+    writeFileSync(f.ai, JSON.stringify({ ...f.aiData, main }))
     expect(() => localDevOptions(f.args)).toThrow('actual Edge/Core/AI/Objects entrypoints')
     vi.unstubAllEnvs()
     writeFileSync(f.ai, JSON.stringify(f.aiData))
-    expect(() => localDevOptions(f.args)).toThrow('actual Edge/Core/AI/Objects entrypoints')
+    expect(localDevOptions(f.args).args).toContain('--local')
+  })
+
+  test('Edge reaches Core jobs only through the CoreJobs entrypoint', () => {
+    const f = fixture()
+    const services = (jobs: Record<string, string>) => [{ binding: 'CORE', service: 'local-core' }, jobs, { binding: 'AIGC', service: 'local-ai' }]
+    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, services: services({ binding: 'CORE_JOBS', service: 'local-core' }) }))
+    expect(() => localDevOptions(f.args)).toThrow('CoreJobs entrypoint')
+    writeFileSync(f.edge, JSON.stringify({ ...f.edgeData, services: services({ binding: 'CORE_JOBS', service: 'local-core', entrypoint: 'AiEntry' }) }))
+    expect(() => localDevOptions(f.args)).toThrow('CoreJobs entrypoint')
   })
   test('requires all inputs and never defaults to production-capable dev configs', () => {
     expect(() => localDevOptions([])).toThrow('All six explicit')

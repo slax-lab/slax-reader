@@ -22,10 +22,11 @@ import { getRouter as readerRouter } from '@/di/generated/core/readerRouter'
 import { EDGE_IDENTITY_HEADER, EDGE_SECRET_HEADER, encodeEdgeIdentity } from '@/const/edge'
 
 describe('retired Durable Object namespaces', () => {
-  test('normal Core and Edge entries no longer export the removed MCP class; only the transition wrappers do', async () => {
+  test('normal Core and Edge entries no longer export the removed MCP class; only the transitional Core entry does', async () => {
     const read = (file: string) => fs.readFileSync(path.join(API_ROOT, file), 'utf8')
     for (const file of ['src/entry/core/index.ts', 'src/entry/edge/index.ts']) expect(read(file)).not.toContain('SlaxMcpServer')
-    for (const file of ['src/entry/transition/core.ts', 'src/entry/transition/edge.ts']) expect(read(file)).toContain("export { SlaxMcpServer } from '../retired'")
+    expect(read('src/entry/transition/core.ts')).toContain("export { SlaxMcpServer } from '../retired'")
+    expect(fs.existsSync(path.join(API_ROOT, 'src/entry/transition/edge.ts'))).toBe(false)
   })
 
   test.each(['SlaxJieba', 'SlaxWebSocketServer', 'ScreenshotBrowser', 'SlaxMcpServer'] as const)('%s keeps its name and answers 410 without behavior', async name => {

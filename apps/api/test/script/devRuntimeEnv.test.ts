@@ -67,10 +67,13 @@ fs.writeFileSync(process.env.MOCK_LOG, JSON.stringify({
 `,
     { mode: 0o755 }
   )
-  // A remote publication outside topology:transition first reads the Cloudflare account; this fixture has no API,
-  // so the remote case calls deploy() the way topology:transition does.
+  // A remote publication first reads the Cloudflare account; this fixture has no API, so the remote case passes an
+  // account with every value present and no MCP namespace.
   const transitionRunner = path.join(root, 'transition-run.ts')
-  fs.writeFileSync(transitionRunner, `import { deploy } from './apps/api/script/deploy/deploy.ts'\nprocess.exitCode = await deploy(process.argv.slice(2), { mcp: 'retired' })\n`)
+  fs.writeFileSync(
+    transitionRunner,
+    `import { deploy } from './apps/api/script/deploy/deploy.ts'\nconst api = { list: async () => [], get: async () => ({}), send: async () => ({}) }\nprocess.exitCode = await deploy(process.argv.slice(2), api)\n`
+  )
   const run = (args: string[], extraEnv: NodeJS.ProcessEnv = {}, viaTransition = false) =>
     spawnSync(process.execPath, ['--import', 'tsx', viaTransition ? transitionRunner : path.join(api, 'script/deploy/deploy.ts'), ...args], {
       cwd: root,
@@ -131,7 +134,7 @@ test('dev port guard exits before touching shared state when any dev port is occ
   expect(fs.existsSync(path.join(root, 'deploy/local/.generated'))).toBe(false)
 })
 
-test('a hand-typed --transition is rejected, so a release never skips the readiness checks', () => {
+test('deploy has no transition flag, so a release never skips the value checks', () => {
   const { run } = harness(false, true)
   const result = run(['--transition', 'core'])
   expect(result.status).not.toBe(0)

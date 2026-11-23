@@ -6,7 +6,7 @@ import { ContextManager } from '../../src/utils/context'
 import { UserDeletionService } from '../../src/domain/userDeletion'
 import { snapshotAiProviderResponse } from './snapshotAiSmoke'
 export { SlaxJieba, SlaxWebSocketServer, ScreenshotBrowser } from '../../src/entry/retired'
-export { CrawlWorkflow } from '../../src/entry/core/index'
+export { CrawlWorkflow, CoreJobs } from '../../src/entry/core/index'
 
 const sink = 'https://diagnostic-capture.fixture.invalid/report'
 const messages: string[] = []

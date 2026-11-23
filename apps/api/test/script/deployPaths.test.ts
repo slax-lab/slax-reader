@@ -89,6 +89,7 @@ describe('single API configuration', () => {
     expect([core.name, edge.name, ai.name, objects.name, browser.name]).toEqual(['custom-core', 'custom-edge', 'custom-ai', 'custom-objects', 'custom-browser'])
     expect(edge.services).toEqual([
       { binding: 'CORE', service: 'custom-core' },
+      { binding: 'CORE_JOBS', service: 'custom-core', entrypoint: 'CoreJobs' },
       { binding: 'AIGC', service: 'custom-ai' }
     ])
     const doTargets = (output: TomlTable) => Object.fromEntries(((output.durable_objects as TomlTable).bindings as TomlTable[]).map(row => [row.name, row.script_name ?? 'self']))
@@ -118,11 +119,13 @@ describe('single API configuration', () => {
       expect(output.routes).toEqual([])
       expect(output.preview_urls).toBe(false)
     }
-    expect((core.triggers as TomlTable).crons).toEqual((config.triggers as TomlTable).crons)
-    for (const output of [edge, ai, objects]) expect(output.triggers).toEqual({ crons: [] })
-    expect((core.queues as TomlTable).consumers).toEqual((config.queues as TomlTable).consumers)
+    // Edge keeps the cron triggers and queue consumers every account already has and forwards them to Core.
+    expect((edge.triggers as TomlTable).crons).toEqual((config.triggers as TomlTable).crons)
+    for (const output of [core, ai, objects]) expect(output.triggers).toEqual({ crons: [] })
+    expect(edge.queues).toEqual({ consumers: (config.queues as TomlTable).consumers })
+    expect(core.queues).toEqual({ producers: (config.queues as TomlTable).producers })
     expect((ai.queues as TomlTable).consumers).toBeUndefined()
-    for (const output of [edge, objects, browser]) expect(output.queues).toBeUndefined()
+    for (const output of [objects, browser]) expect(output.queues).toBeUndefined()
     for (const output of [core, edge, objects, browser]) expect(output.vectorize).toBeUndefined()
     expect(ai.vectorize).toEqual(config.vectorize)
     for (const row of workerConfig(config, 'ai', true).vectorize as TomlTable[]) expect(row.remote).toBe(true)
@@ -173,7 +176,7 @@ describe('single API configuration', () => {
     expect(queueMapping(config)['custom-slax-reader-import-other-dql']).toBe('slax-reader-import-other-dql')
     const output = workerConfig(config, 'core')
     expect(JSON.parse(String((output.vars as TomlTable).API_QUEUE_CHANNELS))).toEqual(queueMapping(config))
-    for (const row of (output.queues as { consumers: TomlTable[] }).consumers) expect(row.channel).toBeUndefined()
+    for (const row of (workerConfig(config, 'edge').queues as { consumers: TomlTable[] }).consumers) expect(row.channel).toBeUndefined()
   })
   test('rejects ambiguous identities, unknown queue roles and retired variables', () => {
     const dir = directory(),
@@ -270,7 +273,7 @@ describe('single API configuration', () => {
     queues.producers.push({ binding: 'PRODUCER', queue: 'slax-reader-parser-dev' })
     queues.consumers.push({ queue: 'slax-reader-parser-dev' })
     expect(queueMapping(config)['slax-reader-parser-dev']).toBeUndefined()
-    expect((workerConfig(config, 'core').queues as any).consumers).toContainEqual({ queue: 'slax-reader-parser-dev' })
+    expect((workerConfig(config, 'edge').queues as any).consumers).toContainEqual({ queue: 'slax-reader-parser-dev' })
   })
   test('preserves operator resource IDs and migration history; only deployment preflight requires v5 bindings', () => {
     const config = readConfig(template)
@@ -317,7 +320,7 @@ describe('single API configuration', () => {
     expect(workerConfig(config, 'edge').d1_databases).toBeUndefined()
   })
 
-  test('the removed MCP server is deleted from Core histories that created it, and from Edge only in step 4', () => {
+  test('the removed MCP server is deleted from Core histories that created it, and from Edge only in retire-mcp', () => {
     const config = readConfig(template)
     const created = [
       { tag: 'v1', new_classes: ['SlaxJieba', 'SlaxWebSocketServer', 'ScreenshotBrowser'] },
@@ -327,7 +330,7 @@ describe('single API configuration', () => {
     config.migrations = created
     const retire = { tag: 'retire-mcp-v1', deleted_classes: ['SlaxMcpServer'] }
     expect(workerConfig(config, 'core').migrations).toEqual([...created, retire])
-    // Steps 2 and 3 keep the namespace, so they stay reversible.
+    // While the old Edge still binds Core's namespace, Core publishes without the deletion.
     expect(workerConfig(config, 'core', false, 'keep-mcp').migrations).toEqual(created)
     expect(workerConfig(config, 'core', false, 'retire-mcp').migrations).toEqual([...created, retire])
     // An operator history that already deletes it, or never created it, is left as it is.
@@ -335,7 +338,9 @@ describe('single API configuration', () => {
     expect(workerConfig(config, 'core').migrations).toEqual(config.migrations)
     config.migrations = [created[0], created[2]]
     expect(workerConfig(config, 'core').migrations).toEqual(config.migrations)
-    // Edge's legacy history is not in configuration: it carries only the deletion, and only in step 4.
+    // Once Core's live tag is the deletion tag, later releases keep it even if the history never created the class.
+    expect(workerConfig(config, 'core', false, 'retire-mcp').migrations).toEqual([...config.migrations, retire])
+    // Edge's legacy history is not in configuration: it carries only the deletion, and only in retire-mcp.
     expect(workerConfig(config, 'edge').migrations).toBeUndefined()
     expect(workerConfig(config, 'edge', false, 'keep-mcp').migrations).toBeUndefined()
     expect(workerConfig(config, 'edge', false, 'retire-mcp').migrations).toEqual([retire])
@@ -343,17 +348,15 @@ describe('single API configuration', () => {
       expect(JSON.stringify(workerConfig(config, target, false, 'retire-mcp').migrations ?? [])).not.toContain('SlaxMcpServer')
   })
 
-  test('the stub that keeps the MCP namespace is published only during steps 2 and 3', () => {
+  test('only Core in keep-mcp publishes the stub that keeps the MCP namespace', () => {
     const config = readConfig(template)
     const dir = fs.mkdtempSync(path.join(tmpdir(), 'mcp-phase-'))
     try {
-      for (const target of ['core', 'edge'] as const) {
-        const main = (mcp: McpPhase) => String(parse(fs.readFileSync(writeGenerated(config, target, dir, false, false, mcp), 'utf8')).main)
-        expect(main('retired')).toMatch(new RegExp(`src/entry/${target}/index\\.ts$`))
-        expect(main('retire-mcp')).toMatch(new RegExp(`src/entry/${target}/index\\.ts$`))
-        expect(main('keep-mcp')).toMatch(new RegExp(`src/entry/transition/${target}\\.ts$`))
-      }
-      expect(String(parse(fs.readFileSync(writeGenerated(config, 'ai', dir, false, false, 'keep-mcp'), 'utf8')).main)).toMatch(/src\/entry\/ai\/index\.ts$/)
+      const main = (target: 'core' | 'edge' | 'ai', mcp: McpPhase) => String(parse(fs.readFileSync(writeGenerated(config, target, dir, false, false, mcp), 'utf8')).main)
+      expect(main('core', 'keep-mcp')).toMatch(/src\/entry\/transition\/core\.ts$/)
+      for (const target of ['core', 'edge', 'ai'] as const)
+        for (const mcp of ['retired', 'retire-mcp'] as const) expect(main(target, mcp)).toMatch(new RegExp(`src/entry/${target}/index\\.ts$`))
+      for (const target of ['edge', 'ai'] as const) expect(main(target, 'keep-mcp')).toMatch(new RegExp(`src/entry/${target}/index\\.ts$`))
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }
