@@ -14,6 +14,9 @@ export const useUserSubscribe = () => {
   const error = shallowRef<unknown>()
   let disposed = false
   let pending: { generation: number; accountKey: string | null; promise: Promise<void> } | undefined
+  // The identity a finished check ended under. A check that fails invalidates the server user itself, and that
+  // generation change must not start another check, or a failure would be retried without end.
+  let settled: { generation: number; accountKey: string | null } | undefined
 
   const profile = computed(() => {
     const context = account.context.value
@@ -30,7 +33,10 @@ export const useUserSubscribe = () => {
     return subscriptionStatus.value !== 'active'
   }
 
-  const refreshSubscription = (): Promise<void> => {
+  // Follow-up checks started because the identity changed under a check; bounded so a flapping identity cannot
+  // keep the page requesting. An explicit retry starts a new series.
+  const MAX_FOLLOW_UPS = 2
+  const check = (followUps: number): Promise<void> => {
     const { generation, accountKey } = account.context.value
     if (pending?.generation === generation && pending.accountKey === accountKey) return pending.promise
     error.value = undefined
@@ -41,16 +47,33 @@ export const useUserSubscribe = () => {
         if (!disposed && account.context.value.accountKey === accountKey && store.isLogin) error.value = reason
       }
     })().finally(() => {
-      if (pending?.promise === promise) pending = undefined
+      if (pending?.promise !== promise) return
+      pending = undefined
+      const current = account.context.value
+      settled = { generation: current.generation, accountKey: current.accountKey }
+      // The identity changed while this check ran (a rotated token, for example) and it ended without a decision,
+      // so its result could not be adopted. A failure stops here and waits for an explicit retry.
+      if (disposed || !store.isLogin || current.accountKey !== accountKey || current.generation === generation) return
+      if (profile.value || error.value) return
+      if (followUps < MAX_FOLLOW_UPS) void check(followUps + 1)
+      else error.value = new Error('The account identity kept changing during the subscription check')
     })
     pending = { generation, accountKey, promise }
     return promise
   }
+  const refreshSubscription = (): Promise<void> => check(0)
 
   watch(() => account.context.value.generation, () => { error.value = undefined }, { flush: 'sync' })
-  // Wait until the account context has updated both its key and generation.
-  watch(() => account.context.value.accountKey, key => {
-    if (key && store.isLogin) void refreshSubscription()
+  // Wait until the account context has updated both its key and generation. A generation change for the same
+  // account (token refresh, identity invalidation) also needs a check, or the decision would stay pending.
+  watch([() => account.context.value.accountKey, () => account.context.value.generation], ([key, generation], [previousKey]) => {
+    if (!key || !store.isLogin) return
+    // A confirmed profile for the same account still decides.
+    if (key === previousKey && profile.value) return
+    // A running check for this account settles the decision itself.
+    if (pending?.accountKey === key) return
+    if (settled?.accountKey === key && settled.generation === generation) return
+    void refreshSubscription()
   })
   onScopeDispose(() => { disposed = true })
 

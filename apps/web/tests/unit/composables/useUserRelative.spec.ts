@@ -148,4 +148,90 @@ describe('reader subscription startup', () => {
     mocks.store.userInfo = makeUser({ subscription_end_at: '2099-01-01T00:00:00Z', subscription_type: 2 })
     expect(gate().isSubscriptionExpired.value).toBe(true)
   })
+
+  describe('identity refreshed for the same account', () => {
+    it('checks again after a generation bump left the decision pending', async () => {
+      const subscription = gate()
+      mocks.store.refreshServerUserInfo.mockResolvedValueOnce(undefined)
+      await subscription.refreshSubscription()
+      expect(subscription.subscriptionStatus.value).toBe('pending')
+      mocks.store.refreshServerUserInfo.mockImplementationOnce(async () => {
+        mocks.store.userInfo = makeUser({ subscription_end_at: '2099-01-01T00:00:00Z', subscription_type: 2 })
+        mocks.account.context.value = { status: 'ready', serverUserId: 1, generation: 1, accountKey: 'account-a' }
+      })
+      mocks.account.context.value = { status: 'local', serverUserId: null, generation: 1, accountKey: 'account-a' }
+      await nextTick()
+      await vi.waitFor(() => expect(subscription.subscriptionStatus.value).toBe('active'))
+      expect(mocks.store.refreshServerUserInfo).toHaveBeenCalledTimes(2)
+    })
+
+    it('reports an error with retry when the check after the bump fails', async () => {
+      const subscription = gate()
+      mocks.store.refreshServerUserInfo.mockRejectedValueOnce(new Error('offline'))
+      mocks.account.context.value = { status: 'local', serverUserId: null, generation: 1, accountKey: 'account-a' }
+      await nextTick()
+      await vi.waitFor(() => expect(subscription.subscriptionStatus.value).toBe('error'))
+    })
+
+    it('does not loop when each failed check invalidates the identity again', async () => {
+      // A failed profile read invalidates the server user, which bumps the generation for the same account.
+      mocks.store.refreshServerUserInfo.mockImplementation(async () => {
+        const context = mocks.account.context.value
+        mocks.account.context.value = { ...context, status: 'local', serverUserId: null, generation: context.generation + 1 }
+        throw new Error('offline')
+      })
+      const subscription = gate()
+      await subscription.refreshSubscription()
+      for (let i = 0; i < 20; i++) await nextTick()
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(mocks.store.refreshServerUserInfo).toHaveBeenCalledOnce()
+      await vi.waitFor(() => expect(subscription.subscriptionStatus.value).toBe('error'))
+    })
+
+    it('bounds follow-up checks when every check ends under a newer identity without a decision', async () => {
+      mocks.store.refreshServerUserInfo.mockImplementation(async () => {
+        const context = mocks.account.context.value
+        mocks.account.context.value = { ...context, status: 'local', serverUserId: null, generation: context.generation + 1 }
+      })
+      const subscription = gate()
+      await subscription.refreshSubscription()
+      for (let i = 0; i < 20; i++) await nextTick()
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(mocks.store.refreshServerUserInfo).toHaveBeenCalledTimes(3)
+      expect(subscription.subscriptionStatus.value).toBe('error')
+      await subscription.refreshSubscription()
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(mocks.store.refreshServerUserInfo.mock.calls.length).toBeGreaterThan(3)
+    })
+
+    it('joins a check already running for the current identity', async () => {
+      let resolve!: () => void
+      mocks.store.refreshServerUserInfo.mockImplementation(() => new Promise<void>(r => { resolve = r }))
+      mocks.account.context.value = { status: 'local', serverUserId: null, generation: 1, accountKey: 'account-a' }
+      const subscription = gate()
+      void subscription.refreshSubscription()
+      mocks.account.context.value = { status: 'local', serverUserId: null, generation: 1, accountKey: 'account-a' }
+      await nextTick()
+      expect(mocks.store.refreshServerUserInfo).toHaveBeenCalledOnce()
+      resolve()
+    })
+
+    it('keeps a confirmed profile without a new request', async () => {
+      mocks.store.userInfo = makeUser({ subscription_end_at: '2099-01-01T00:00:00Z', subscription_type: 2 })
+      mocks.account.context.value = { status: 'ready', serverUserId: 1, generation: 0, accountKey: 'account-a' }
+      const subscription = gate()
+      mocks.account.context.value = { status: 'ready', serverUserId: 1, generation: 1, accountKey: 'account-a' }
+      await nextTick()
+      expect(mocks.store.refreshServerUserInfo).not.toHaveBeenCalled()
+      expect(subscription.subscriptionStatus.value).toBe('active')
+    })
+
+    it('starts no check after signing out', async () => {
+      gate()
+      mocks.store.isLogin = false
+      mocks.account.context.value = { status: 'empty', serverUserId: null, generation: 1, accountKey: null }
+      await nextTick()
+      expect(mocks.store.refreshServerUserInfo).not.toHaveBeenCalled()
+    })
+  })
 })
