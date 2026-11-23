@@ -75,6 +75,7 @@ import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { OpenAIModerationClient, ModerationResult } from '@/infra/external/openaiModeration'
 import { fetchZhihuByUrl, ZhihuCaptureUnavailableError } from '@/infra/external/zhihu'
 import {
+  createMockMediaSnapshots,
   createMockEnv,
   createMockCrawlService,
   createMockBookmarkService,
@@ -253,6 +254,128 @@ describe('CrawlWorkflow fetch step 状态转换', () => {
     expect(cs.parseAndSaveContent).toHaveBeenCalled()
     expect(uph.processContentPostProcessing).toHaveBeenCalled()
     expect(cs.sendAddBookmarkStepEvent).toHaveBeenCalledWith(1, 42, 'example.com', 'complete', 'success')
+  })
+
+  test('a Reuters access notice marks the capture failed before post-processing', async () => {
+    const { wf, cs, bs, uph, env } = wireWorkflow()
+    const url = 'https://www.reuters.com/world/china/china-ai-bubble-has-already-burst-2026-10-26/'
+    const content = '<html><head><title>reuters.com</title></head><body><p>Please enable JS and disable any ad blocker</p></body></html>'
+    cs.fetchRegular.mockResolvedValue({ url, title: '', content })
+    const service: CrawlService = Object.create(CrawlService.prototype)
+    cs.parseAndSaveContent.mockImplementation(service.parseAndSaveContent.bind(service))
+
+    await expect(runWorkflow(wf, { url })).rejects.toThrow('Reuters returned an access notice')
+    expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+    expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
+    expect(env.CONTENT_VALIDATION_WORKFLOW.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('short JavaScript notice browser recovery', () => {
+  const url = 'https://reader.example.org/story?source=private'
+  const shell = '<html><head><title>Story</title></head><body><article><p>Please enable JS.</p></article></body></html>'
+  const body = 'The rendered article is ready to read.'
+  const article = `<html><head><title>Story</title></head><body><article><p>${body}</p></article></body></html>`
+
+  test('a fallback target error with a matching notice fails without another browser request', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    const service: CrawlService = Object.create(CrawlService.prototype)
+    cs.fetchRegular.mockResolvedValue({ url, content: shell, targetErrorStatus: 403 })
+    cs.parseAndSaveContent.mockImplementation(service.parseAndSaveContent.bind(service))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await expect(runWorkflow(wf, { url })).rejects.toThrow('Page requires JavaScript')
+      expect(cs.fetchRegular).toHaveBeenCalledOnce()
+      expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+      expect(warn).toHaveBeenCalledWith(expect.objectContaining({ event: 'capture_js_notice', outcome: 'source_error', targetStatus: 403 }))
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  test('logs an unavailable browser when the Reuters raw fallback supplies the notice', async () => {
+    const { wf, cs } = wireWorkflow()
+    const target = 'https://www.reuters.com/world/article/'
+    const service: CrawlService = Object.create(CrawlService.prototype)
+    cs.fetchRegular.mockImplementation(service.fetchRegular.bind(service))
+    cs.parseAndSaveContent.mockImplementation(service.parseAndSaveContent.bind(service))
+    const provider = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ status: 'SUCCESS', httpCode: 200, result: shell }))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await expect(runWorkflow(wf, { url: target })).rejects.toThrow('Page requires JavaScript')
+      expect(provider.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))).toEqual([
+        { url: target, browserHtml: true, javascript: true },
+        { url: target, module: 'HtmlRequestScraper' }
+      ])
+      expect(warn).toHaveBeenCalledWith(expect.objectContaining({ event: 'capture_js_notice', outcome: 'browser_unavailable' }))
+    } finally {
+      provider.mockRestore()
+      warn.mockRestore()
+    }
+  })
+
+  test.each(['recovered', 'still_notice', 'retry_failed', 'already_rendered'])('records %s and bounds the number of requests and writes', async outcome => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    const target = outcome === 'already_rendered' ? 'https://www.infoq.cn/story' : url
+    const snapshots = createMockMediaSnapshots()
+    const service: CrawlService = Object.assign(Object.create(CrawlService.prototype), { snapshots })
+    cs.fetchRegular.mockImplementation(service.fetchRegular.bind(service))
+    cs.parseAndSaveContent.mockImplementation(service.parseAndSaveContent.bind(service))
+    const provider = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      Response.json({
+        url: target,
+        statusCode: 200,
+        httpResponseBody: Buffer.from(shell).toString('base64url'),
+        browserHtml: shell
+      })
+    )
+    provider.mockResolvedValueOnce(
+      outcome === 'retry_failed' ? new Response(null, { status: 503 }) : Response.json({ url: target, statusCode: 200, browserHtml: outcome === 'recovered' ? article : shell })
+    )
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const step = createMockStep()
+      const run = runWorkflow(wf, { url: target }, step)
+      if (outcome === 'recovered') {
+        await run
+        expect(snapshots.capture).toHaveBeenCalledOnce()
+        expect(snapshots.capture.mock.calls[0][2].text).toContain(body)
+        expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
+        const acquisitionEvents = cs.sendAddBookmarkStepEvent.mock.calls.filter(call => ['zyte_fetching', 'parsing'].includes(call[3]))
+        expect(acquisitionEvents.map(call => call.slice(3, 5))).toEqual([
+          ['zyte_fetching', 'success'],
+          ['zyte_fetching', 'success'],
+          ['parsing', 'success']
+        ])
+      } else {
+        await expect(run).rejects.toThrow()
+        expect(snapshots.capture).not.toHaveBeenCalled()
+        expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+        expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
+      }
+      const events = [...info.mock.calls, ...warn.mock.calls].map(([event]) => event).filter(event => event?.event === 'capture_js_notice')
+      expect(events.map(event => event.outcome)).toEqual(outcome === 'already_rendered' ? [outcome] : ['retry_started', outcome])
+      expect(events[0]).toMatchObject({ hostname: new URL(target).hostname, textLength: 17 })
+      if (outcome === 'still_notice') {
+        expect(events.at(-1)).toMatchObject({ noticeTextLength: 17 })
+        expect(events.at(-1)).not.toHaveProperty('renderedTextLength')
+      }
+      expect(JSON.stringify(events)).not.toMatch(/private|Please enable JS/)
+      const requests = provider.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))
+      expect(requests.map(request => request.browserHtml ?? false)).toEqual(outcome === 'already_rendered' ? [true] : [false, true])
+      expect(requests.at(-1)).toEqual({ url: target, browserHtml: true, javascript: true })
+      const checkpoint = step.do.mock.calls.find(([name]) => name === 'retry-js-notice-in-browser')
+      if (outcome === 'already_rendered') expect(checkpoint).toBeUndefined()
+      else expect(checkpoint?.[1]).toMatchObject({ retries: { limit: 0 } })
+    } finally {
+      provider.mockRestore()
+      info.mockRestore()
+      warn.mockRestore()
+    }
   })
 })
 
