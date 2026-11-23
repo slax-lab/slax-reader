@@ -11,7 +11,9 @@ import BookmarkArticle from '~/components/Article/BookmarkArticle.vue'
 
 import { LocalFirstHttpClient } from './Selection/adapters/LocalFirstHttpClient'
 import type { MarkDetail } from '@commons/frontend-types/models'
+import type { FetchOptions } from '@commons/frontend-utils/request'
 import type { PowerSyncDatabase } from '@powersync/web'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { IHttpClient } from '@slax-reader/selection/adapters'
 import { DwebHttpClient } from '~/components/Article/Selection/adapters'
 import { ArticleSelectionAdaptersKey } from '~/components/Article/Selection/injection'
@@ -35,8 +37,29 @@ const props = withDefaults(
 )
 
 const userStore = useUserStore()
-const emit = defineEmits<{ localMarkWrite: [] }>()
-const restClient = new DwebHttpClient()
+const emit = defineEmits<{ localMarkWrite: []; restMarkWrite: [change: { added?: string; deleted?: string }] }>()
+const dwebClient = new DwebHttpClient()
+// Marks written over REST before a deferred page switches to local data must stay shown until local rows include them.
+const restClient: IHttpClient = {
+  post: async <T = unknown>(options: FetchOptions) => {
+    const result = await dwebClient.post<T>(options)
+    try {
+      if (options.url === RESTMethodPath.ADD_MARK) {
+        const added = (result as { mark_uid?: unknown } | undefined)?.mark_uid
+        if (typeof added === 'string' && added) emit('restMarkWrite', { added })
+      } else if (options.url === RESTMethodPath.DELETE_MARK) {
+        const deleted = (options.body as { mark_uid?: unknown } | undefined)?.mark_uid
+        if (typeof deleted === 'string' && deleted) emit('restMarkWrite', { deleted })
+      }
+    } catch {
+      // Reporting is advisory; the write itself already succeeded.
+    }
+    return result
+  },
+  get: <T = unknown>(options: FetchOptions) => dwebClient.get<T>(options),
+  put: <T = unknown>(options: FetchOptions) => dwebClient.put<T>(options),
+  delete: <T = unknown>(options: FetchOptions) => dwebClient.delete<T>(options)
+}
 let localClient: { key: unknown; client: LocalFirstHttpClient } | null = null
 const currentClient = (): IHttpClient => {
   if (!props.localFirst || !props.bookmarkUuid) return restClient

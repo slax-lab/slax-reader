@@ -205,7 +205,9 @@ export default defineNuxtPlugin({
     }
     const localOwner = useState<string | null>('powersync-owner', () => null)
     localOwner.value = null
-    const isBridgeFrame = window.parent !== window && window.location.pathname === '/x/ext-bridge'
+    const isBridgePath = window.location.pathname === '/x/ext-bridge'
+    const isBridgeFrame = window.parent !== window && isBridgePath
+    const servesBridgePage = /^\/x\/ext-bridge\/?$/.test(window.location.pathname)
     let bridgeToken: string | null = null
     let bridgeUserId: string | null = null
     const getPowerSyncUserToken = () => (isBridgeFrame ? bridgeToken : getUserToken())
@@ -254,6 +256,8 @@ export default defineNuxtPlugin({
     const recoveringSnapshotSession = useSnapshotSessionRecoveryPending()
     const snapshotNavigation = useSnapshotSessionNavigation()
     if (recoveringSnapshotSession.value) return unavailable()
+    // The bridge page only serves the extension frame; opened directly it has nothing to read or sync.
+    if (servesBridgePage && !isBridgeFrame) return unavailable()
     const publicStartupEnabled = Boolean(useAppConfig().lcp?.anonymousPublicStartup)
     const initialPathname = window.location.pathname
     const topLevel = window.parent === window
@@ -623,12 +627,39 @@ export default defineNuxtPlugin({
     function installDeferredExitGuard() {
       const router = useRouter()
       let leaving = false
+      // Back and Forward have already moved the address when guards run. Cancelling such a navigation makes the
+      // router rewind history, and that traversal cancels a document load started here, so the reader stays put.
+      // For a traversal the guard reloads the address it already shows and keeps the navigation pending, so the
+      // router neither rewinds nor mounts the destination; if the unload is suppressed, the navigation is then
+      // cancelled and the address returns to this page.
+      const isHistoryTraversal = (fullPath: string) => {
+        try {
+          return new URL(fullPath, window.location.href).href === window.location.href
+        } catch {
+          return false
+        }
+      }
       router.beforeEach(async (to, from) => {
         if (leaving) return false
         if (to.path === from.path || !needsLocalStartupDocumentExit(to.path) || !/^\/(?![\\/])/.test(to.fullPath)) return
         leaving = true
         await Promise.race([readyPromise, new Promise(resolve => setTimeout(resolve, DEFERRED_EXIT_WAIT_MS))])
         powerSyncConsole.info('[powersync] leaving deferred reader with a document load', { path: to.path, ready: !!powersyncReady.value })
+        if (isHistoryTraversal(to.fullPath)) {
+          try {
+            window.location.replace(to.fullPath)
+          } catch (error) {
+            leaving = false
+            powerSyncConsole.warn('[powersync] document load for deferred exit failed', { error })
+            return
+          }
+          return new Promise<false>(resolve => {
+            setTimeout(() => {
+              leaving = false
+              resolve(false)
+            }, DEFERRED_EXIT_RETRY_MS)
+          })
+        }
         try {
           await nuxtApp.runWithContext(() => navigateTo(to.fullPath, { external: true }))
         } catch (error) {

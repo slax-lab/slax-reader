@@ -67,4 +67,27 @@ describe('BookmarkArticleLocalFirst adapters for a late local database', () => {
     expect(localPost).toHaveBeenCalledOnce()
     expect(restPost).toHaveBeenCalledOnce()
   })
+
+  it('reports marks written and deleted over REST before the switch', async () => {
+    const wrapper = mountWith({ localFirst: false })
+    const client = adapters!.httpClient!()
+    restPost.mockResolvedValueOnce({ mark_uid: 'mark-new', root_uid: 'mark-new' } as never)
+    await client.post({ url: '/v1/mark/create', body: { type: 1 } })
+    await client.post({ url: '/v1/mark/delete', body: { mark_uid: 'mark-old' } })
+    await client.post({ url: '/v1/bookmark/alias_title', body: { bookmark_uid: 'bm-1' } })
+    expect(wrapper.emitted('restMarkWrite')).toEqual([[{ added: 'mark-new' }], [{ deleted: 'mark-old' }]])
+  })
+
+  it('does not report a REST write that returned no mark id', async () => {
+    const wrapper = mountWith({ localFirst: false })
+    restPost.mockResolvedValueOnce(undefined as never)
+    await adapters!.httpClient!().post({ url: '/v1/mark/create', body: { type: 1 } })
+    expect(wrapper.emitted('restMarkWrite')).toBeUndefined()
+  })
+
+  it('does not report local writes as REST writes', async () => {
+    const wrapper = mountWith({ localFirst: true })
+    await adapters!.httpClient!().post({ url: '/v1/mark/create', body: { type: 1 } })
+    expect(wrapper.emitted('restMarkWrite')).toBeUndefined()
+  })
 })
