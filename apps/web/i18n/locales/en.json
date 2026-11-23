@@ -60,15 +60,21 @@
     "too_many_requests": "Too many requests. Please try again later.",
     "stale_session": "Your session changed or expired. Reload Account Settings before continuing.",
     "back_to_sign_in": "Back to sign in",
-    "back_to_settings": "Back to Account Settings"
+    "back_to_settings": "Back to Account Settings",
+    "signing_in_link": "Signing you in",
+    "sign_in_link_active_title": "You are already signed in",
+    "sign_in_link_active": "Your current account has been kept. To use this email link, sign out first and reopen the email link.",
+    "sign_in_link_keep_account": "Continue with current account",
+    "sign_in_link_failed": "This link is invalid, expired, or already used. Return to sign in and request a new email."
   },
   "bookmark_fork": {
     "action": "Save for later",
     "submitting": "Saving…",
     "saved": "Saved",
-    "label": "Fork:",
-    "generic_source": "Reader snapshot",
-    "unavailable": "Source unavailable",
+    "saved_from": "Saved from {name}",
+    "generic_source": "Reader",
+    "pending_source": "From another save",
+    "unavailable": "Original save unavailable",
     "offline": "Connect to the internet to save this article.",
     "failed": "Could not save this article. Please try again."
   },
@@ -228,6 +234,14 @@
     },
     "tips": {
       "interface_load_failed": "Unable to load this interface. Reload to try again; unsaved drafts will be lost.",
+      "update_notice": {
+        "available_title": "A new version is available",
+        "available_message": "Refresh to get the latest version of Slax Reader.",
+        "outdated_title": "This page is out of date",
+        "outdated_message": "Refresh to keep using Slax Reader.",
+        "refresh": "Refresh",
+        "close": "Dismiss update notice"
+      },
       "in_app_browser": {
         "title": "Open this page in your browser",
         "message_before": "For the best experience, tap",
@@ -1521,6 +1535,18 @@
       "article_url_missing": "This article has no supported original URL",
       "source_unavailable": "The source is unavailable. Cached content is kept."
     }
+  },
+  "add_content": {
+    "title": "Add content",
+    "url": "URL",
+    "feed": "Feed",
+    "file": "File",
+    "feed_hint": "This link looks like an RSS feed. Subscribe to keep receiving updates.",
+    "switch_feed": "Use subscription",
+    "keep_url": "Keep as URL",
+    "feed_placeholder": "RSS address",
+    "choose_file": "Choose PDF",
+    "replace_file": "Replace PDF"
   },
   "promotion": {
     "identity_error": "We could not verify your account. Please retry when connected.",

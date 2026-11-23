@@ -195,31 +195,32 @@ const feedItems = computed(() => {
 }
 
 .cfeed-count {
-  position: relative;
   flex-shrink: 0;
-  padding-left: 8px;
   font-weight: 300;
   white-space: nowrap;
+}
+
+.cfeed-source {
+  min-width: 0;
+  font-weight: 300;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cfeed-meta > span + span {
+  position: relative;
+  padding-inline-start: 8px;
 
   &::before {
     content: '';
     position: absolute;
-    left: 0;
+    inset-inline-start: 0;
     top: 50%;
     width: 1px;
     height: 12px;
     background: var(--slax-border);
     transform: translateY(-50%);
   }
-}
-
-.cfeed-source {
-  min-width: 0;
-  padding-left: 8px;
-  border-left: 1px solid var(--slax-border);
-  font-weight: 300;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 </style>

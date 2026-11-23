@@ -27,7 +27,7 @@
           :title="rssSubscriptionName(sub)"
           @click="rss.select(sub.id)"
         >
-          <span class="source-avatar">
+          <span class="source-avatar" aria-hidden="true">
             <img v-if="sub.icon_url && !failedIcons.has(sub.icon_url)" :src="sub.icon_url" alt="" loading="lazy" referrerpolicy="no-referrer" @error="iconFailed(sub)" />
             <span v-else class="source-fallback" :class="{ 'source-word': rssSourceText(rssSubscriptionName(sub)).length > 1 }">{{ rssSourceText(rssSubscriptionName(sub)) }}</span>
           </span>
@@ -148,17 +148,17 @@
     </dialog>
 
     <dialog ref="addDialog" class="rss-dialog compact-dialog" aria-labelledby="rss-add-title" @close="adding = false" @click="closeBackdrop($event, addDialog)">
-      <form @submit.prevent="add">
+      <form @submit.prevent="update">
         <header class="dialog-header">
-          <h2 id="rss-add-title">{{ $t(editing ? 'rss.edit' : 'rss.add') }}</h2>
+          <h2 id="rss-add-title">{{ $t('rss.edit') }}</h2>
           <button type="button" class="icon-button" :aria-label="$t('rss.close')" @click="addDialog?.close()"><RssIcon name="close" /></button>
         </header>
-        <p class="dialog-description">{{ $t(editing ? 'rss.edit_hint' : 'rss.add_hint') }}</p>
+        <p class="dialog-description">{{ $t('rss.edit_hint') }}</p>
         <label class="input-label" for="rss-feed-url">{{ $t('rss.url') }}</label
         ><input
           id="rss-feed-url"
           v-model="url"
-          :readonly="!!editing"
+          readonly
           type="url"
           required
           maxlength="2048"
@@ -169,12 +169,11 @@
         <label class="input-label remark-label" for="rss-remark">{{ $t('rss.remark') }}</label>
         <input id="rss-remark" v-model="remark" type="text" maxlength="120" :placeholder="editing?.title || $t('rss.remark_placeholder')" />
         <p class="update-caption">{{ $t('rss.remark_hint') }}</p>
-        <p v-if="!editing" class="update-caption">{{ $t('rss.feed_limit', { count: rss.subscriptions.value.length }) }}</p>
         <p v-if="rss.error.value" class="rss-notice" role="alert">{{ errorText }}</p>
         <footer class="dialog-actions">
           <button type="button" class="rss-button" @click="addDialog?.close()">{{ $t('rss.cancel') }}</button
           ><button class="rss-button primary" type="submit" :disabled="rss.pending.value">
-            <RssIcon v-if="rss.pending.value" name="refresh" class="spinning" />{{ $t(rss.pending.value ? 'rss.saving' : editing ? 'rss.save_changes' : 'rss.add') }}
+            <RssIcon v-if="rss.pending.value" name="refresh" class="spinning" />{{ $t(rss.pending.value ? 'rss.saving' : 'rss.save_changes') }}
           </button>
         </footer>
       </form>
@@ -249,14 +248,18 @@ const imageFailed = (event: Event) => {
 const closeBackdrop = (event: MouseEvent, dialog?: HTMLDialogElement) => {
   if (event.target === dialog) dialog?.close()
 }
+const emit = defineEmits<{ addFeed: [] }>()
 const showAdd = () => {
   rss.error.value = ''
-  editing.value = null
-  url.value = ''
-  remark.value = ''
-  adding.value = true
-  addDialog.value?.showModal()
+  emit('addFeed')
 }
+const addFeed = async (address: string, name: string) => {
+  if (!rss.enabled.value) throw new Error('lab_disabled')
+  if (rss.pending.value) throw new Error('source_unavailable')
+  await rss.add(address, name)
+  if (rss.error.value) throw new Error(rss.error.value)
+}
+defineExpose({ addFeed })
 const showEdit = (row: RssSubscription) => {
   rss.error.value = ''
   editing.value = row
@@ -265,9 +268,9 @@ const showEdit = (row: RssSubscription) => {
   adding.value = true
   addDialog.value?.showModal()
 }
-const add = async () => {
-  if (editing.value) await rss.update(editing.value.id, remark.value)
-  else await rss.add(url.value.trim(), remark.value)
+const update = async () => {
+  if (!editing.value) return
+  await rss.update(editing.value.id, remark.value)
   if (!rss.error.value) {
     url.value = ''
     addDialog.value?.close()
@@ -441,7 +444,7 @@ h1 {
   background: var(--slax-accent-bg);
 }
 .source-fallback {
-  font: 500 21px/1 var(--slax-font-serif);
+  font: 500 21px/1.4 var(--slax-font-serif);
   color: var(--slax-accent);
 }
 .source-word {
@@ -458,6 +461,7 @@ h1 {
   white-space: nowrap;
   text-align: center;
   font-size: 11px;
+  line-height: 1.4;
 }
 .source-tile:hover .source-avatar {
   transform: translateY(-2px);

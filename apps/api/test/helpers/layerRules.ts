@@ -79,7 +79,10 @@ const FORWARDING = /^(Service|Fetcher|DurableObjectNamespace)\b/
 // Only composition roots and infra itself may construct infra classes; everyone else receives them by injection.
 const CONSTRUCTS_INFRA: readonly Layer[] = ['infra', 'di', 'entry']
 
-export type Rule = 'layer-import' | 'io-module' | 'io-fetch' | 'io-global' | 'env-binding' | 'prisma' | 'raw-sql' | 'infra-construct'
+// Each Worker's generated registry, router and job dispatch belong to that Worker's entry modules only.
+const TIER_REGISTRY = /^src\/di\/generated\/(core|ai)(\/|$)/
+
+export type Rule = 'layer-import' | 'tier-registry' | 'io-module' | 'io-fetch' | 'io-global' | 'env-binding' | 'prisma' | 'raw-sql' | 'infra-construct'
 export interface Violation {
   rule: Rule
   file: string
@@ -132,6 +135,8 @@ export function analyzeSource(file: string, text: string, context: Context): Vio
   const reference = (specifier: string, node: ts.Node, isType: boolean) => {
     const target = targetOf(file, specifier)
     if (target) {
+      const tier = TIER_REGISTRY.exec(target)?.[1]
+      if (tier && !file.startsWith(`src/entry/${tier}/`) && !file.startsWith(`src/di/generated/${tier}/`)) add('tier-registry', `${tier} ${specifier}`, node)
       const to = layerOf(target)
       if (!to) add('layer-import', `${layer} -> unknown ${specifier}`, node)
       else if (to !== layer && !ALLOWED[layer].includes(to)) add('layer-import', `${layer} -> ${to}${isType ? ' (type)' : ''} ${specifier}`, node)

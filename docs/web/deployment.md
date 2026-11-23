@@ -94,7 +94,7 @@ On first rollout, check that the log reports Cloudflare accepted the purge, then
 
 ## PowerSync Worker compatibility across releases
 
-The Worker stays split into its existing entry and content-hashed JavaScript/WASM dependencies. Every build writes `/_nuxt/powersync-assets.json` from the actual PowerSync Worker graph. This public file contains only root paths, dependency paths, and SHA-256 digests for that build. It contains no release timestamps, deployment identifiers, credentials, or environment configuration and is not fetched during browser startup. Unrelated application/PDF assets are outside this retention policy unless a PowerSync Worker actually references them.
+The Worker stays split into its existing entry and content-hashed JavaScript/WASM dependencies. Every build writes `/_nuxt/powersync-assets.json` from the actual PowerSync Worker graph. This public file contains only root paths, dependency paths, and SHA-256 digests for that build. It contains no release timestamps, deployment identifiers, credentials, or environment configuration and is not fetched during browser startup. Other application assets are retained separately; see "Application build assets across releases".
 
 Before upload, the release helper validates the current index, dependency graph and file bytes. It then lists successful production deployments in the selected Pages project, following all API pages, and selects:
 
@@ -105,6 +105,14 @@ Before upload, the release helper validates the current index, dependency graph 
 This covers multiple releases in a day, not only the immediately previous release. Requests use each original deployment's unique HTTPS `*.pages.dev` URL, never a mutable branch alias or custom domain. The Cloudflare API token is sent only to the API and is never forwarded to static asset requests. Keep the original deployment snapshots accessible; no additional storage service is used.
 
 Eligible original dependency bytes are verified and copied to their original `/_nuxt/` paths in the new publication. Identical paths/bytes are stored once. Current files remain authoritative, including the mutable Worker entry. Conflicting historical files are skipped with a warning; a path with conflicting historical bytes and no current authoritative file is omitted. Old server code, HTML, configuration, routing, and release metadata are never copied. The current-only index is not expanded by these copies, so carrying an old dependency forward does not restart its retention period. A subsequent release omits expired dependencies no longer referenced by an eligible runtime; there is no scheduled deletion job.
+
+## Application build assets across releases
+
+The same retention also covers every other file the Web build emits under `/_nuxt/`: route and component chunks, stylesheets, fonts, images, and WASM. Pages answers a request for a missing file with the application shell (HTML, status 200), so without these copies a page opened before a release loads HTML where it expects JavaScript or CSS and breaks.
+
+Every build writes `/_nuxt/build-assets.json`, a flat list of each emitted `/_nuxt/` file and its SHA-256 digest. It excludes `/_nuxt/builds/` (mutable build metadata) and the two index files. For each deployment selected above, the release helper reads that index from the deployment's `*.pages.dev` URL, downloads the listed files with bounded concurrency, rejects HTML, unexpected content types, redirects, and digest mismatches, and copies verified files to their original paths under the same conflict rules: a current file is never replaced, and a path two deployments disagree on is omitted. A deployment published before the index existed reports `missing-build-index`, so the first release after this change still retains only PowerSync resources; later releases retain build assets. The current build is validated differently: a staged build without its own `/_nuxt/build-assets.json` stops the release before upload with `missing-build-index`, because every published build must carry the index the next release recovers from.
+
+The summary's "Added historical build assets" row and "Build asset coverage" line report this separately from the PowerSync rows. Build-asset gaps do not change PowerSync coverage. Deployment addresses must be readable without Cloudflare Access for either kind of recovery; when a project requires Access on them, every deployment reports `download-unavailable`.
 
 ### Failure policy and first rollout
 
@@ -146,13 +154,13 @@ pnpm exec openspec validate --all --strict
 Focused release checks:
 
 ```sh
-node --test tooling/powersync-assets.test.mjs tooling/powersync-retention.test.mjs tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs
+node --test tooling/powersync-assets.test.mjs tooling/powersync-retention.test.mjs tooling/build-assets.test.mjs tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs
 ```
 
 These use synthetic configuration, temporary build trees, mocked Cloudflare responses, and a fake deployment subprocess. After a successful build, also verify the actual staged output and render it through the installed workerd runtime:
 
 ```sh
-SLAX_TEST_PAGES_BUILD=1 node --test tooling/powersync-assets.test.mjs tooling/powersync-retention.test.mjs tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs
+SLAX_TEST_PAGES_BUILD=1 node --test tooling/powersync-assets.test.mjs tooling/powersync-retention.test.mjs tooling/build-assets.test.mjs tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs
 ```
 
 The pinned Wrangler 4.127.0 local `pages dev --no-bundle` path has been observed to fail while locating its generated middleware facade on macOS. This does not change the upload command; the explicit workerd smoke test checks the precompiled application independently of that dev wrapper. It is not a claim that the Wrangler local preview command passes.

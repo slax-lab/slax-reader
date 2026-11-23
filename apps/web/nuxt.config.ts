@@ -3,8 +3,10 @@ import { backendStateV3 } from './config/backend-path'
 import { getDWebConfig, getEnv } from './config/env'
 import { scopedPdfStyles } from './config/pdf-assets'
 
+import { emailLoginStartupScript } from './app/utils/emailLinkAuth'
 import { readerStartupScript } from './app/utils/readerStartup'
 
+import { writeBuildAssetsIndex } from '../../tooling/build-assets.mjs'
 import { createPowerSyncAssetBuild } from '../../tooling/powersync-assets.mjs'
 import { POWER_SYNC_WORKER_GENERATION } from './app/local-first/version'
 import pkg from './package.json'
@@ -57,6 +59,8 @@ interface EnvProfile {
    * 否则本地/beta/preview 的 offscreen bridge iframe 会被 CSP 直接拦截、永远拿不到 PowerSync 同步结果。
    */
   extensionBridgeId: string
+  /** Basin Pipelines stream for client error records; empty disables collection. */
+  clientErrorIngestUrl: string
 }
 
 // 所有「跟环境相关」的构建期决策都集中在这张表里：一个环境一列，所见即所得。
@@ -71,7 +75,8 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     pwaMode: 'development',
     swFilename: 'sw_dev.ts',
     enableGtm: false,
-    extensionBridgeId: 'jgaccepfhchlnpggghoodnklcfcbhhlh'
+    extensionBridgeId: 'jgaccepfhchlnpggghoodnklcfcbhhlh',
+    clientErrorIngestUrl: ''
   },
   preview: {
     favicon: '/favicon.d.ico',
@@ -82,7 +87,8 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     pwaMode: 'production',
     swFilename: 'sw_prod.ts',
     enableGtm: true,
-    extensionBridgeId: 'nkgkjnjkolpeiodphchpjiggkiciinik'
+    extensionBridgeId: 'nkgkjnjkolpeiodphchpjiggkiciinik',
+    clientErrorIngestUrl: 'https://b074a7024a724161aa7fef982e585f88.ingest.cloudflare.com'
   },
   beta: {
     favicon: '/favicon.ico',
@@ -93,7 +99,8 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     pwaMode: 'production',
     swFilename: 'sw_prod.ts',
     enableGtm: true,
-    extensionBridgeId: 'bfkggphckdjelkonpoaepppkcecikclp'
+    extensionBridgeId: 'bfkggphckdjelkonpoaepppkcecikclp',
+    clientErrorIngestUrl: 'https://b4923d0c3dcf453ea945e37d23a3d1cd.ingest.cloudflare.com'
   },
   production: {
     favicon: '/favicon.ico',
@@ -104,7 +111,8 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
     pwaMode: 'production',
     swFilename: 'sw_prod.ts',
     enableGtm: true,
-    extensionBridgeId: 'gdnhaajlomjkhahnmiijphnodkcfikfd'
+    extensionBridgeId: 'gdnhaajlomjkhahnmiijphnodkcfikfd',
+    clientErrorIngestUrl: 'https://b4923d0c3dcf453ea945e37d23a3d1cd.ingest.cloudflare.com'
   }
 }
 
@@ -188,6 +196,7 @@ export default defineNuxtConfig({
       ],
       style: [],
       script: [
+        { key: 'email-login-startup', innerHTML: emailLoginStartupScript, tagPriority: 'critical', 'data-cfasync': 'false' },
         { key: 'reader-startup', innerHTML: readerStartupScript, tagPriority: 'critical', 'data-cfasync': 'false' },
         { type: 'application/ld+json', innerHTML: homeStructuredData }
       ]
@@ -276,8 +285,16 @@ export default defineNuxtConfig({
     loginAssetPreloads: [] as string[],
     loginLocalePreloads: [] as string[],
     public: {
+      PUBLIC_BASE_URL: '',
+      AUTH_BASE_URL: '',
+      COOKIE_DOMAIN: '',
+      COOKIE_TOKEN_NAME: '',
+      SHARE_BASE_URL: '',
+      DWEB_API_BASE_URL: '',
+      GOOGLE_OAUTH_CLIENT_ID: '',
       ...envConfig,
       EXTENSION_BRIDGE_IDS: profile.extensionBridgeId,
+      CLIENT_ERROR_INGEST_URL: process.env.CLIENT_ERROR_INGEST_URL ?? profile.clientErrorIngestUrl,
       appVersion: pkg.version || '',
       // 暴露构建环境名（development/preview/beta/production），供运行时判定是否为测试环境
       slaxEnv: env
@@ -381,6 +398,11 @@ export default defineNuxtConfig({
         prerender: false,
         headers: { 'content-security-policy': `frame-ancestors chrome-extension://${profile.extensionBridgeId}` }
       },
+      '/x/ext-bridge/': {
+        ssr: false,
+        prerender: false,
+        headers: { 'content-security-policy': `frame-ancestors chrome-extension://${profile.extensionBridgeId}` }
+      },
       // i18n 为 no_prefix 策略，/en /zh 不再是有效路由，统一重定向回首页
       '/en': { redirect: '/' },
       '/zh': { redirect: '/' },
@@ -477,7 +499,12 @@ export default defineNuxtConfig({
   },
   experimental: {
     sharedPrerenderData: false,
-    ssrStreaming: true
+    ssrStreaming: true,
+    // An open page learns of a new build within 5 minutes and shows the update notice.
+    checkOutdatedBuildInterval: 5 * 60_000,
+    // Keeps chunk-error events but drops Nuxt's silent reload on the next navigation after a new
+    // build; `update-notice.client.ts` keeps the reload for a navigation whose chunk failed.
+    emitRouteChunkError: 'manual'
   },
   robots: {
     sitemap: [`/sitemap.xml`],
@@ -563,8 +590,10 @@ export default defineNuxtConfig({
     filename: profile.swFilename,
     strategies: 'injectManifest',
     registerType: 'autoUpdate',
-    // 通知/推送移除后,SW 不再由 useNotification 手动注册;改由 vite-pwa 自动注册以保留 PWA(离线缓存/可安装)
-    injectRegister: 'auto',
+    // `pwa-register.client.ts` is the only registration, so a new worker shows the update notice
+    // instead of reloading the page; no generated register script or @vite-pwa/nuxt client plugin.
+    injectRegister: false,
+    client: { registerPlugin: false },
     includeManifestIcons: false,
     injectManifest: {
       maximumFileSizeToCacheInBytes: 10000000,
@@ -624,6 +653,8 @@ export default defineNuxtConfig({
       // Register on Nitro itself, after the Pages preset's output writers.
       nitro.hooks.hook('compiled', async nitro => {
         await powerSyncAssets.write(nitro.options.output.publicDir)
+        // After the PowerSync index, so it is excluded; later releases recover old pages' assets from it.
+        await writeBuildAssetsIndex(nitro.options.output.publicDir)
         writeWebBuildConfig(webBinding)
       })
     },

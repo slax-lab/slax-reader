@@ -1,7 +1,9 @@
+import { EMAIL_LOGIN_PATH, EMAIL_LOGIN_WEB_PATH } from '@slax-reader/contracts/email-auth'
+
 export type PublicTokenState = 'absent' | 'present' | 'error'
 
 export function isFastPublicPath(pathname: string): boolean {
-  return pathname === '/login' || pathname === '/login/' || pathname === '/guide' || pathname === '/guide/'
+  return pathname === EMAIL_LOGIN_PATH || pathname === EMAIL_LOGIN_WEB_PATH || pathname === '/login' || pathname === '/login/' || pathname === '/guide' || pathname === '/guide/'
 }
 
 export function isPublicStartupEntryPath(pathname: string): boolean {

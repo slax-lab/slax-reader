@@ -1,8 +1,9 @@
-import { describe, expect, test, vi } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ coreFetch: vi.fn() }))
+const mocks = vi.hoisted(() => ({ routerFetch: vi.fn(), initializeInfrastructure: vi.fn() }))
 
-vi.mock('@/entry/core', () => ({ default: { fetch: mocks.coreFetch } }))
+vi.mock('@/di/generated/ai/aiRouter', () => ({ getRouter: () => ({ fetch: mocks.routerFetch }) }))
+vi.mock('@/di/generated/ai/dependency', () => ({ initializeCore: vi.fn(), initializeInfrastructure: mocks.initializeInfrastructure }))
 
 vi.mock('cloudflare:workers', () => ({
   WorkerEntrypoint: class<Environment> {
@@ -34,16 +35,24 @@ function buildEnv() {
 }
 
 describe('AiEntry RPC surface', () => {
-  test('default fetch delegates AIGC requests to the existing HTTP worker', async () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  test('fetch serves AI routes with its own router and registry, not through Core', async () => {
     const request = new Request('https://api-reader.slax.com/v1/aigc/chat', { method: 'POST' })
-    const env = {} as Env
-    const ctx = {} as ExecutionContext
-    mocks.coreFetch.mockResolvedValueOnce(new Response('ok'))
+    const env = { BACKEND_API_PREFIX: 'https://api-reader.slax.com', FRONT_END_URL: 'https://r.slax.com' } as Env
+    mocks.routerFetch.mockResolvedValueOnce(new Response('ok'))
 
-    const response = await ai.fetch(request, env, ctx)
+    const response = await ai.fetch(request, env, { waitUntil: vi.fn() } as unknown as ExecutionContext)
 
-    expect(mocks.coreFetch).toHaveBeenCalledWith(request, env, ctx)
+    expect(mocks.initializeInfrastructure).toHaveBeenCalledOnce()
+    expect(mocks.routerFetch).toHaveBeenCalledWith(request, expect.anything())
     expect(await response.text()).toBe('ok')
+  })
+
+  test('fetch rejects an unknown host before touching infrastructure', async () => {
+    const response = await ai.fetch(new Request('https://attacker.example/v1/aigc/chat'), { BACKEND_API_PREFIX: 'https://api-reader.slax.com' } as Env, {} as ExecutionContext)
+    expect(mocks.initializeInfrastructure).not.toHaveBeenCalled()
+    expect(await response.json()).toMatchObject({ data: 'host not found' })
   })
 
   test('query forwards to the shard matching the 0-based shard index', async () => {

@@ -54,6 +54,12 @@ binding = "KV"
 id = "00000000000000000000000000000001"
 
 # Native service bindings also identify the corresponding deployment entries.
+# The deployment script publishes five Workers: Edge (public), Core, AI, Objects and Browser.
+# Core, AI and Objects run next to the PostgreSQL region and Edge/Browser near the user;
+# apps/api/script/deploy/config.ts owns placement, so do not add a [placement] table here.
+# Objects defaults to this Worker's name with reader-core replaced by reader-objects; add an
+# OBJECTS service binding only to choose another name. Existing installations run
+# `pnpm api -- topology:transition` once before normal releases (docs/api/CLOUDFLARE-DEPLOY-EN.md).
 [[services]]
 binding = "CORE"
 service = "reader-core"
@@ -138,9 +144,6 @@ class_name = "SlaxJieba"
 name = "WEBSOCKET_SERVER"
 class_name = "SlaxWebSocketServer"
 [[durable_objects.bindings]]
-name = "MCP_OBJECT"
-class_name = "SlaxMcpServer"
-[[durable_objects.bindings]]
 name = "SLAX_BROWSER"
 class_name = "SlaxBrowser"
 [[durable_objects.bindings]]
@@ -154,12 +157,11 @@ class_name = "VectorPreferenceObject"
 type = "CompiledWasm"
 globs = ["**/*.wasm"]
 fallthrough = true
+# Existing installations keep their own history. If it created SlaxMcpServer (the removed MCP server),
+# the deployment script appends tag retire-mcp-v1 to delete it; topology:transition step 4 applies it.
 [[migrations]]
 tag = "v1"
 new_classes = ["SlaxJieba", "SlaxWebSocketServer", "ScreenshotBrowser"]
-[[migrations]]
-tag = "v2"
-new_sqlite_classes = ["SlaxMcpServer"]
 [[migrations]]
 tag = "v3"
 new_sqlite_classes = ["VectorPreferenceObject"]

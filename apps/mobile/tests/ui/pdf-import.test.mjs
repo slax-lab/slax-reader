@@ -16,6 +16,7 @@ async function load(file, boundaries = {}, globals = {}) {
   const drawer = {SourceDrawer: passthrough};
   boundaries = {'./SourceDrawer': drawer, '../components/SourceDrawer': drawer, '../components/SearchGlyph': {SearchGlyph: () => null}, '../utils/source-url': sourceUrls,
     ...observeRelativeBoundaries(boundaries), ...boundaries};
+  if (file.endsWith('/LinkInputDialog.tsx')) boundaries['@slax-reader/contracts/rss'] = await load('../../../../packages/contracts/src/rss.ts', {}, {URL});
   const code = ts.transpileModule(await readFile(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true},
   }).outputText;
@@ -46,7 +47,7 @@ function views() {
     const key = React.useRef(Symbol(name)).current;
     React.useLayoutEffect(() => {nodes.set(key, {name, props}); return () => nodes.delete(key);});
     React.useImperativeHandle(ref, () => ({focus() {commands.push('focus');}, blur() {commands.push('blur');}, scrollToOffset() {}}), []);
-    return React.createElement('div', null, modal && !props.visible ? null : name === 'FlatList' ? props.ListHeaderComponent : props.children);
+    return React.createElement('div', null, modal && !props.visible ? null : name === 'FlatList' ? [props.ListHeaderComponent, props.data?.length ? null : props.ListEmptyComponent] : props.children);
   });
   const all = name => [...nodes.values()].filter(node => node.name === name).map(node => node.props);
   return {commands, native, all, one(name, predicate = () => true) {const matches = all(name).filter(predicate); assert.equal(matches.length, 1, `${name}: expected one node, got ${matches.length}`); return matches[0];},
@@ -91,36 +92,58 @@ async function harness(root, platform = 'ios', development = false) {
   Object.assign(runtime, {getRepositories: () => repositories, getAccountPreferences: () => mobile.preferences, getUpgradeSnapshot: () => mobile.upgrade});
   const useMobile = () => ({...mobile, nativeResourceOwner: h.owner, fixtureOnly: h.fixtureOnly});
   const navigation = {useFocusEffect: callback => React.useEffect(() => h.focused ? callback() : undefined, [callback, h.focused])};
-  const native = {...v.primitives, Platform: {OS: platform, select: values => values[platform] ?? values.default}, StyleSheet: {create: value => value, absoluteFill: {}}, PixelRatio: {roundToNearestPixel: value => value}, Animated: {}, Linking: {}, useWindowDimensions: () => ({width: 375, height: 800, fontScale: 1}), AppState: {currentState: 'active', addEventListener(name, callback) {assert.equal(name, 'change'); listeners.add(callback); return {remove() {listeners.delete(callback);}};}}};
+  const native = {...v.primitives, Platform: {OS: platform, select: values => values[platform] ?? values.default}, StyleSheet: {create: value => value, absoluteFill: {}, hairlineWidth: 0.5}, PixelRatio: {roundToNearestPixel: value => value}, Animated: {}, Linking: {}, useWindowDimensions: () => ({width: 375, height: 800, fontScale: 1}), AppState: {currentState: 'active', addEventListener(name, callback) {assert.equal(name, 'change'); listeners.add(callback); return {remove() {listeners.delete(callback);}};}}};
   const labsCache = await load('../../src/settings/labs-cache.ts');
   const common = {react: React, 'react-native': native, '../runtime': {useMobile, useMobileSettings: () => mobile.settings}, '../theme': theme, '../theme/testIds': {mobileTestIds: {AddLinkDialog: 'add-link', AddLinkError: 'link-error'}}, './SourceUI': v.ui, '../settings/labs-cache': labsCache};
-  const {PdfImportDialog} = await load('../../src/components/PdfImportDialog.tsx', {...common, 'expo-file-system': {File}, '@slax-reader/contracts/pdf': contracts, '../native/pdf-import': {pickPdf() {h.pickCalls++; return h.pick();}, removePickedPdf: async uri => {h.removed.push(uri);}}}, {...timers, __DEV__: development});
-  const {LinkInputDialog} = await load('../../src/components/LinkInputDialog.tsx', {...common, 'expo-clipboard': {getStringAsync: async () => {h.clipboardCalls++; return h.clipboard;}}}, timers);
+  const pdfImportSession = await load('../../src/pdf/usePdfImportSession.ts', {...common, 'expo-file-system': {File}, '@slax-reader/contracts/pdf': contracts, '../native/pdf-import': {pickPdf() {h.pickCalls++; return h.pick();}, removePickedPdf: async uri => {h.removed.push(uri);}}}, {...timers, __DEV__: development});
+  const {LinkInputDialog} = await load('../../src/components/LinkInputDialog.tsx', {...common, '../pdf/usePdfImportSession': pdfImportSession, 'expo-clipboard': {getStringAsync: async () => {h.clipboardCalls++; return h.clipboard;}}}, timers);
   const {usePdfLab} = await load('../../src/pdf/usePdfLab.ts', {...common, '@react-navigation/native': navigation});
-  h.render = () => root.render(React.createElement(PdfImportDialog, {key: h.owner, visible: h.visible, onDismiss() {h.dismissals++; h.visible = false; h.render();}, onSaved: id => h.saved.push(id)}));
-  h.dialog = () => v.one('SourceDialog', props => props.title === 'pdf_import_title');
+  h.render = () => root.render(React.createElement(LinkInputDialog, {key: h.owner, visible: h.visible, initialMode: 'file', pdfEnabled: true, rssEnabled: true, onSubmitFeed: async () => true, onSubmit: value => h.created.push(value), onDismiss() {h.dismissals++; h.visible = false; h.render();}, onPdfSaved: id => h.saved.push(id)}));
+  h.dialog = () => v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist'));
+  h.tab = mode => v.one('Pressable', props => props.accessibilityRole === 'tab' && props.accessibilityLabel === `add_content_tab_${mode}`);
+  h.close = () => v.one('Pressable', props => props.accessibilityRole === 'button' && ['btn_close', 'rss_cancel'].includes(props.accessibilityLabel));
   h.hasText = value => v.all('SourceText').some(props => props.children === value);
   h.button = label => v.one('SourceButton', props => props.label === label);
   h.action = label => v.one('TextAction', props => props.label === label);
+  h.card = () => v.one('Pressable', props => props.testID === 'add-pdf-pick');
   h.choose = async () => {
-    await act(async () => h.action('pdf_pick').onPress());
+    await act(async () => h.card().onPress());
     assert.equal(h.dialog().visible, false);
     await act(async () => platform === 'ios' ? h.dialog().onDidDismiss() : timers.advance(250));
   };
   h.submit = () => act(async () => h.button('pdf_upload').onPress());
   h.background = state => act(async () => {native.AppState.currentState = state; for (const callback of listeners) callback(state);});
   h.listenerCount = () => listeners.size;
-  h.loadLibrary = async () => {
+  h.loadLibrary = async (withRss = false) => {
     const observe = await countingObserve(load);
     h.observeCounter = observe.counter;
-    const rssState = {enabled: false};
-    class RssController {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}}
-    class FeedScrollPosition {reset() {}}
+    const rssState = {enabled: false, confirmedEnabled: false};
+    let RssController = class {subscribe = () => () => {}; getSnapshot = () => rssState; activate() {} dispose() {} cancel() {} poll() {} async load() {}};
+    let RssFeed = nil, RssFeedSwitcher = nil;
+    class FeedScrollPosition {reset() {} select(id) {this.source = id;}}
     const reset = value => h.reset.push(value);
+    if (withRss) {
+      class ApiError extends Error {constructor(code) {super(code); this.data = {error: code};}}
+      h.rssFailure = code => new ApiError(code);
+      const rssModule = await load('../../src/rss/controller.ts', {'../data/api': {ApiError}, '../utils/abort.ts': await load('../../src/utils/abort.ts')});
+      h.rssSources ??= []; h.rssAdds = [];
+      const rssApi = {
+        rssLabs: signal => h.rssLabs ? h.rssLabs(signal) : Promise.resolve({features: [{key: 'rss', enabled: true}]}),
+        rssSubscriptions: async () => ({items: h.rssSources}),
+        rssEntries: async () => ({items: [], next_cursor: null, cached_more: false, has_more: false, history_status: 'exhausted', retry_at: null}),
+        rssAdd: async (...args) => {h.rssAdds.push(args); if (h.rssAdd) return h.rssAdd(...args); const added = {id: 'added-source', title: 'Added', feed_url: args[0], remark: args[1], next_allowed_at: '2020-01-01T00:00:00Z'}; h.rssSources = [...h.rssSources, added]; return added;},
+      };
+      RssController = class extends rssModule.RssController {constructor(_api, now, active) {super(rssApi, now, active, h.rssLocal); h.rss = this;}};
+      ({RssFeed, RssFeedSwitcher} = await load('../../src/components/RssFeed.tsx', {...common,
+        'react-native': {...native, PixelRatio: {...native.PixelRatio, get: () => 1}}, '../rss/controller': rssModule,
+        './SourceUI': {...v.ui, SourceSheet: v.native('SourceSheet', true)}, './SourceLine': {SourceLine: v.native('SourceLine')}, './SourceMenu': {SourceMenu: v.native('RssSourceMenu')}, './AppImage': {AppImage: nil}, './fixture-actions': {},
+        './feed-scroll': {useFeedScrollPosition: () => ({events: {}, reset})}, './FeedList': {FeedList: props => React.createElement(v.primitives.FlatList, props)},
+      }));
+    }
     const {LibraryScreen} = await load('../../src/screens/LibraryScreen.tsx', {
       ...common, './LibraryDataStatus': {LibraryDataStatus: nil}, '@react-navigation/native': navigation, 'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 44, bottom: 34})}, 'expo-network': {useNetworkState: () => ({isConnected: true})},
       '../telemetry': {useTelemetry: () => telemetry}, '../components/LibrarySyncAvatar': {LibrarySyncAvatar: nil}, '../components/LibrarySyncStatus': {LibrarySyncStatus: nil}, '../components/SourceSyncAvatar': {SourceSyncAvatar: nil}, '../components/SourceLine': {SourceLine: nil}, '../components/SourceRing': {SourceCircle: nil}, '../components/SourceShape': {SourceShape: v.native('SourceShape')}, '../components/sync-state': {sourceSyncState: () => ({kind: 'idle'})}, '../components/fixture-actions': {},
-      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed: nil, RssFeedSwitcher: nil, SourceAvatar: nil, SourceMenu: props => {h.sortMenu = props; return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../components/FeedList': {FeedList: props => React.createElement(v.primitives.FlatList, props)}, '../components/useAppForeground': await load('../../src/components/useAppForeground.ts', {react: React, 'react-native': native}), '../utils/source-time': await load('../../src/utils/source-time.ts'), '../components/PdfImportDialog': {PdfImportDialog}, '../pdf/usePdfLab': {usePdfLab},
+      '../components': {...v.ui, BookmarkRow: nil, LinkInputDialog, RssFeed, RssFeedSwitcher, SourceAvatar: nil, SourceMenu: props => {h.sortMenu = props; return null;}}, '../components/useVisibleSnapshot': await load('../../src/components/useVisibleSnapshot.ts', {react: React}), '../data': {readContinueReading: async () => null}, '../rss/controller': {RssController}, './collection-selection': await load('../../src/screens/collection-selection.ts'), '../components/feed-scroll': {FeedScrollPosition, useFeedScrollPosition: () => ({events: {}, reset})}, '../components/SourceDrawer': {SourceDrawer: v.native('SourceDrawer')}, '../components/FeedList': {FeedList: props => React.createElement(v.primitives.FlatList, props)}, '../components/useAppForeground': await load('../../src/components/useAppForeground.ts', {react: React, 'react-native': native}), '../utils/source-time': await load('../../src/utils/source-time.ts'), '../pdf/usePdfLab': {usePdfLab},
       '../observe': observe.module, '../observe/readiness': readiness,
     });
     const navigator = {navigate: (...args) => h.navigations.push(args)};
@@ -129,11 +152,12 @@ async function harness(root, platform = 'ios', development = false) {
   };
   h.openLibraryImport = async () => {
     await act(async () => v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
-    await act(async () => h.action('pdf_add_file').onPress());
-    const link = v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.testID === 'add-pdf-file'));
-    assert.equal(link.visible, false); assert.equal(h.dialog().visible, false);
-    await act(async () => platform === 'ios' ? link.onDidDismiss() : timers.advance(200));
+    assert.equal(v.all('TextAction').some(props => props.label === 'pdf_add_file'), false);
+    await act(async () => v.one('Pressable', props => props.accessibilityRole === 'tab' && props.accessibilityLabel === 'add_content_tab_file').onPress());
     assert.equal(h.dialog().visible, true);
+    assert.equal(h.tab('file').accessibilityState.selected, true);
+    assert.equal(h.button('pdf_pick').disabled, false);
+    assert.equal(v.all('SourceDialog').filter(props => props.visible).length, 1);
   };
   h.loadSettings = async () => {
     mobile.session = {status: 'authenticated', session: {userId: 'settings-user'}};
@@ -164,16 +188,79 @@ async function harness(root, platform = 'ios', development = false) {
 }
 const telemetry = {track() {}, element() {}, firebase() {}};
 
+for (const platform of ['ios', 'android']) test(`${platform} empty File primary action picks exactly once without uploading`, async () => mounted(async root => {
+  const h = await harness(root, platform); await act(async () => h.render());
+  const button = h.button('pdf_pick');
+  assert.equal(button.disabled, false); assert.equal(button.busy, false); assert.equal(h.pickCalls, 0);
+  await act(async () => button.onPress());
+  assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 0); assert.deepEqual(h.uploads, []);
+  await act(async () => platform === 'ios' ? h.dialog().onDidDismiss() : h.timers.advance(250));
+  assert.equal(h.pickCalls, 1); assert.equal(h.dialog().visible, true); assert.deepEqual(h.uploads, []); assert.deepEqual(h.labsCalls, []);
+  await act(async () => platform === 'ios' ? h.dialog().onDidDismiss() : h.timers.advance(1000));
+  assert.equal(h.pickCalls, 1); assert.deepEqual(h.uploads, []);
+  assert.equal(h.button('pdf_upload').disabled, false);
+}));
+
+test('File picker card shows empty guidance then file details and replacement action', async () => mounted(async root => {
+  const h = await harness(root); await act(async () => h.render());
+  const style = Object.assign({}, ...h.card().style({pressed: false}));
+  assert.equal(h.card().accessibilityRole, 'button'); assert.equal(h.card().accessibilityLabel, 'add_content_file_choose'); assert.equal(h.card().disabled, false);
+  assert.equal(h.hasText('add_content_file_choose'), true); assert.equal(h.hasText('add_content_file_limit'), true);
+  assert.equal(style.marginTop, 25); assert.equal(style.minHeight, 96); assert.equal(style.borderStyle, 'dashed'); assert.equal(style.borderColor, '#0F141933'); assert.equal(style.alignItems, 'center');
+  assert.equal(Object.assign({}, ...h.card().style({pressed: true})).opacity, 0.6);
+  await h.choose();
+  assert.equal(h.card().accessibilityLabel, 'add_content_file_replace'); assert.equal(h.hasText('add_content_file_replace'), true);
+  assert.equal(h.v.one('SourceText', props => props.children === h.selected.name).numberOfLines, 2);
+  assert.equal(h.hasText((h.selected.size / 1024 / 1024).toFixed(2) + ' MiB'), true);
+  assert.equal(Object.assign({}, ...h.card().style({pressed: false})).alignItems, 'stretch');
+  assert.equal(h.button('pdf_upload').disabled, false); assert.equal(h.hasText('add_content_file_limit'), false);
+}));
+
+test('File panel no longer renders the old limit sentence or separate picker TextAction', async () => mounted(async root => {
+  const h = await harness(root); await act(async () => h.render());
+  for (const selected of [false, true]) {
+    if (selected) await h.choose();
+    assert.equal(h.hasText('pdf_limit'), false);
+    assert.equal(h.v.all('TextAction').some(props => props.label === 'pdf_pick'), false);
+    assert.equal(h.v.all('Pressable').filter(props => props.testID === 'add-pdf-pick').length, 1);
+  }
+}));
+
+for (const rssEnabled of [false, true]) test(`${rssEnabled ? 'three' : 'two'} tabs underline only the selected text over the strip divider`, async () => mounted(async root => {
+  const h = await harness(root);
+  await act(async () => root.render(React.createElement(h.LinkInputDialog, {visible: true, initialMode: 'file', pdfEnabled: true, rssEnabled, onSubmitFeed: async () => true, onSubmit() {}, onDismiss() {}})));
+  const strip = h.v.one('View', props => props.accessibilityRole === 'tablist');
+  assert.equal(strip.style.height, 40); assert.equal(strip.style.marginTop, 16);
+  assert.equal(strip.style.borderBottomWidth, 0.5); assert.equal(strip.style.borderBottomColor, '#33333314');
+  const modes = ['url', ...(rssEnabled ? ['feed'] : []), 'file'];
+  assert.equal(h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab').length, modes.length);
+  for (const selected of ['file', 'url']) {
+    if (selected === 'url') await act(async () => h.tab('url').onPress());
+    for (const mode of modes) {
+      const tab = h.tab(mode), indicator = React.Children.only(tab.children), text = React.Children.only(indicator.props.children);
+      const indicatorStyle = Object.assign({}, ...indicator.props.style), textStyle = Object.assign({}, ...text.props.style);
+      assert.equal(indicator.type, h.v.primitives.View);
+      assert.equal(tab.accessibilityState.selected, mode === selected); assert.equal(tab.disabled, false);
+      assert.equal(tab.style.justifyContent, 'flex-end'); assert.equal(tab.style.marginBottom, -0.5);
+      assert.equal(indicatorStyle.paddingBottom, 8); assert.equal(indicatorStyle.borderBottomWidth, 2);
+      assert.equal(indicatorStyle.borderBottomColor, mode === selected ? theme.mobileColors.accent : 'transparent');
+      assert.equal(textStyle.color, mode === selected ? theme.mobileColors.text : theme.mobileColors.mutedText);
+      if (mode === selected) assert.equal(textStyle.fontWeight, '600');
+    }
+  }
+  assert.equal(h.v.one('TextInput').style.marginTop, 25); assert.equal(h.pickCalls, 0);
+}));
+
 for (const platform of ['ios', 'android']) test(`${platform} picker waits for modal dismissal, null cancellation restores the dialog without error`, async () => mounted(async root => {
   const h = await harness(root, platform); h.selected = null;
   await act(async () => h.render());
-  assert.equal(h.button('pdf_upload').disabled, true);
-  await act(async () => h.action('pdf_pick').onPress());
+  assert.equal(h.button('pdf_pick').disabled, false);
+  await act(async () => h.card().onPress());
   assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 0);
   await act(async () => h.timers.advance(platform === 'ios' ? 1000 : 249));
   assert.equal(h.pickCalls, 0, 'Never overlap the document picker with the outgoing modal');
   await act(async () => platform === 'ios' ? h.dialog().onDidDismiss() : h.timers.advance(1));
-  assert.equal(h.pickCalls, 1); assert.equal(h.dialog().visible, true); assert.equal(h.button('pdf_upload').disabled, true);
+  assert.equal(h.pickCalls, 1); assert.equal(h.dialog().visible, true); assert.equal(h.button('pdf_pick').disabled, false);
   assert.equal(h.hasText('pdf_pick_failed'), false); assert.deepEqual(h.removed, []); assert.deepEqual(h.uploads, []);
 }));
 
@@ -183,7 +270,7 @@ test('picker cancellation retains an earlier selection; replacing and closing re
   assert.equal(h.hasText(first.name), true); assert.deepEqual(h.removed, []);
   h.selected = {uri: 'file:///cache/replacement.pdf', name: 'Replacement.pdf', size: 2048}; await h.choose();
   assert.deepEqual(h.removed, [first.uri]); assert.equal(h.hasText('Replacement.pdf'), true);
-  await act(async () => h.action('btn_close').onPress());
+  await act(async () => h.close().onPress());
   assert.deepEqual(h.removed, [first.uri, h.selected.uri]); assert.equal(h.dialog().visible, false);
   await act(async () => root.render(null)); assert.equal(h.removed.length, 2); assert.equal(h.listenerCount(), 0);
 }));
@@ -236,10 +323,12 @@ for (const platform of ['ios', 'android']) test(`${platform} Library uploads a r
   assert.equal(h.uploads.length, 1);
   const [body, filename, signal] = h.uploads[0];
   assert.ok(body instanceof h.File); assert.equal(body, h.files[0]); assert.equal(body.uri, h.selected.uri); assert.equal(filename, h.selected.name); assert.equal(signal, h.labsCalls.at(-1));
-  assert.equal(h.button('pdf_uploading').busy, true); assert.equal(h.action('pdf_pick').disabled, true);
+  assert.equal(h.button('pdf_uploading').busy, true); assert.equal(h.card().disabled, true);
   assert.deepEqual(h.navigations, []); assert.equal(h.watches.length, 0);
   await act(async () => upload.resolve({bookmark_uid: 'server-pdf'}));
   assert.equal(h.hasText('pdf_upload_complete'), true); assert.equal(h.hasText('pdf_upload_sync_pending'), true);
+  assert.equal(h.v.all('Pressable').some(props => props.testID === 'add-pdf-pick'), false); assert.equal(h.v.all('SourceButton').length, 0);
+  assert.equal(Object.assign({}, ...h.v.one('View', props => props.accessibilityLiveRegion === 'polite').style).minHeight, 96);
   assert.deepEqual(h.removed, [h.selected.uri]); assert.deepEqual(h.navigations, []); assert.deepEqual(h.created, []);
   const watch = h.watches[0]; assert.equal(watch.sql, 'SELECT id FROM sr_user_bookmark WHERE id = ?'); assert.deepEqual(Array.from(watch.params), ['server-pdf']);
   await act(async () => watch.rows([])); assert.deepEqual(h.navigations, []); assert.equal(h.dialog().visible, true);
@@ -273,7 +362,7 @@ for (const transition of ['close', 'account change', 'unmount']) test(`${transit
   else await act(async () => root.render(null));
   await act(async () => picker.resolve(h.selected));
   assert.deepEqual(h.removed, [h.selected.uri]); assert.equal(h.uploads.length, 0); assert.deepEqual(h.saved, []);
-  if (transition === 'account change') assert.equal(h.button('pdf_upload').disabled, true);
+  if (transition === 'account change') assert.equal(h.button('pdf_pick').disabled, false);
   if (transition === 'close') assert.equal(h.dialog().visible, false);
   if (transition === 'unmount') assert.equal(h.listenerCount(), 0);
 }));
@@ -288,7 +377,7 @@ for (const transition of ['account change', 'unmount']) test(`Library ${transiti
   assert.equal(h.watches.length, 0); assert.deepEqual(h.navigations, []);
   if (transition === 'account change') {
     assert.equal(h.dialog().visible, false);
-    await h.openLibraryImport(); assert.equal(h.button('pdf_upload').disabled, true);
+    await h.openLibraryImport(); assert.equal(h.button('pdf_pick').disabled, false);
   } else assert.equal(h.listenerCount(), 0);
 }));
 
@@ -345,17 +434,148 @@ test('Settings PDF switch uses server state, disables while changing, and offers
 test('Library hides import until Labs grants PDF, then preserves manual URL validation and submission', async () => mounted(async root => {
   const h = await harness(root), pending = deferred(); h.labs = () => pending.promise;
   await h.loadLibrary(); await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
-  assert.equal(h.v.all('TextAction').some(props => props.label === 'pdf_add_file'), false);
+  const fileTabs = () => h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab' && props.accessibilityLabel === 'add_content_tab_file');
+  assert.equal(fileTabs().length, 0);
   await act(async () => pending.resolve({features: [{key: 'pdf', enabled: false}]}));
-  assert.equal(h.v.all('TextAction').some(props => props.label === 'pdf_add_file'), false);
+  assert.equal(fileTabs().length, 0);
   h.focused = false; await act(async () => h.render());
   h.labs = async () => ({features: [{key: 'pdf', enabled: true}]}); h.focused = true; await act(async () => h.render());
-  assert.equal(h.action('pdf_add_file').testID, 'add-pdf-file');
+  assert.equal(h.v.all('SourceDialog').filter(props => props.visible).length, 0, 'Focus exit ends the add session');
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  assert.equal(fileTabs().length, 1);
+  assert.equal(h.v.all('TextAction').some(props => props.label === 'pdf_add_file'), false);
   await act(async () => h.v.one('TextInput').onChangeText('not a URL')); await act(async () => h.button('add_link_btn_submit').onPress());
   assert.equal(h.hasText('add_link_error_invalid_url'), true); assert.deepEqual(h.created, []);
   await act(async () => h.v.one('TextInput').onChangeText('  https://source.test/article  ')); await act(async () => h.v.one('TextInput').onSubmitEditing());
   assert.deepEqual(h.created, ['https://source.test/article']); assert.equal(h.reset.at(-1), true);
-  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.testID === 'add-pdf-file')).visible, false); assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 0);
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).visible, false); assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 0);
+}));
+
+for (const pdf of [false, true]) test(`Library cached RSS waits for confirmation before Feed tab and hint with PDF=${pdf}`, async () => mounted(async root => {
+  const h = await harness(root), labs = deferred();
+  h.labs = async () => ({features: [{key: 'pdf', enabled: pdf}]});
+  h.rssLabs = () => labs.promise;
+  const source = {id: 'cached-source', title: 'Cached', next_allowed_at: '2020-01-01T00:00:00Z'};
+  h.rssLocal = {hasCachedData: async () => true, connect: () => () => {}, watchSubscriptions: callback => {callback([source]); return () => {};}, watchEntries: (_id, callback) => {callback([]); return () => {};}, watchSaved: () => () => {}};
+  await h.loadLibrary(true);
+  assert.equal(h.rss.getSnapshot().enabled, true); assert.equal(h.rss.getSnapshot().confirmedEnabled, false);
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  const tabs = () => h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab' && props.accessibilityLabel.startsWith('add_content_tab_'));
+  assert.deepEqual(tabs().map(props => props.accessibilityLabel), pdf ? ['add_content_tab_url', 'add_content_tab_file'] : []);
+  await act(async () => h.v.one('TextInput').onChangeText('https://example.test/feed?format=atom&key=a%2Bb'));
+  assert.equal(h.hasText('add_content_feed_hint'), false);
+  await act(async () => labs.resolve({features: [{key: 'rss', enabled: true}]}));
+  assert.equal(h.rss.getSnapshot().confirmedEnabled, true); assert.equal(h.hasText('add_content_feed_hint'), true);
+  assert.deepEqual(tabs().map(props => props.accessibilityLabel), ['add_content_tab_url', 'add_content_tab_feed', ...(pdf ? ['add_content_tab_file'] : [])]);
+  const pending = deferred(); h.rssLabs = () => pending.promise;
+  await act(async () => h.rss.load());
+  assert.equal(h.rss.getSnapshot().enabled, true); assert.equal(h.hasText('add_content_feed_hint'), false);
+  await act(async () => pending.reject(new Error('offline')));
+  assert.equal(h.rss.getSnapshot().enabled, true); assert.equal(h.rss.getSnapshot().confirmedEnabled, false);
+  assert.equal(h.hasText('add_content_feed_hint'), false);
+  assert.equal(h.v.one('TextInput').value, 'https://example.test/feed?format=atom&key=a%2Bb');
+}));
+
+test('Library RSS rail and empty add open Feed, then successful subscription selects the returned source', async () => mounted(async root => {
+  const h = await harness(root); await h.loadLibrary(true);
+  await act(async () => h.sortMenu.items.find(item => item.label === 'rss_feeds').onPress());
+  await act(async () => h.v.one('Pressable', props => props.testID === 'rss-source-add').onPress());
+  const feed = () => h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed');
+  assert.equal(feed().accessibilityState.selected, true);
+  assert.equal(h.v.one('SourceSheet').visible, false);
+  await act(async () => h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).onDismiss());
+  await act(async () => h.action('rss_add').onPress());
+  assert.equal(feed().accessibilityState.selected, true);
+  const address = 'https://example.test/feed?format=atom&key=a%2Bb';
+  await act(async () => {h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder').onChangeText(address); h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').onChangeText('My source');});
+  await act(async () => h.button('rss_add').onPress());
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).visible, false);
+  assert.deepEqual(h.rssAdds.map(args => args.slice(0, 2)), [[address, 'My source']]);
+  assert.equal(h.rss.getSnapshot().selected, 'added-source');
+  assert.equal(h.v.one('Pressable', props => props.testID === 'rss-source-added-source').accessibilityState.selected, true);
+  await act(async () => h.sortMenu.items.find(item => item.label === 'inbox_title').onPress());
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  assert.equal(h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_url').accessibilityState.selected, true);
+}));
+
+test('Library Inbox Feed failures retain draft and mapped controller error without mounting RSS list', async () => mounted(async root => {
+  const h = await harness(root), pending = deferred(); await h.loadLibrary(true); h.rssAdd = () => pending.promise;
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed').onPress());
+  const address = () => h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder');
+  await act(async () => {address().onChangeText('https://example.test/feed'); h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').onChangeText('Draft');});
+  await act(async () => {void h.button('rss_add').onPress(); void h.button('rss_add').onPress();});
+  assert.equal(h.rssAdds.length, 1); assert.equal(h.button('rss_add').busy, true);
+  await act(async () => pending.reject(h.rssFailure('limit_reached')));
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).visible, true);
+  assert.equal(h.hasText('rss_error_limit_reached'), true); assert.equal(address().value, 'https://example.test/feed');
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').value, 'Draft');
+  assert.equal(h.v.all('SourceSheet').length, 0, 'Failure is visible in Inbox without the RSS list mounted');
+}));
+
+test('Library revoked RSS gate keeps the failed add visible and preserves the draft', async () => mounted(async root => {
+  const h = await harness(root), pending = deferred(); await h.loadLibrary(true); h.rssAdd = () => pending.promise;
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed').onPress());
+  await act(async () => {
+    h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder').onChangeText('https://example.test/feed');
+    h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').onChangeText('Draft');
+  });
+  await act(async () => {void h.button('rss_add').onPress();});
+  await act(async () => pending.reject(h.rssFailure('lab_disabled')));
+  assert.equal(h.rss.getSnapshot().confirmedEnabled, false);
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && props.visible).visible, true);
+  assert.equal(h.hasText('rss_error_lab_disabled'), true);
+  assert.equal(h.v.all('Pressable').filter(props => props.accessibilityLabel === 'add_content_tab_feed').length, 0);
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_link_placeholder').value, 'https://example.test/feed');
+  await act(async () => h.rss.load());
+  assert.equal(h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_url').accessibilityState.selected, true);
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed').onPress());
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').value, 'Draft');
+}));
+
+test('Library RSS add while cached Labs confirmation is pending opens the dialog instead of Settings', async () => mounted(async root => {
+  const h = await harness(root), labs = deferred();
+  h.rssLabs = () => labs.promise;
+  const source = {id: 'cached-source', title: 'Cached', next_allowed_at: '2020-01-01T00:00:00Z'};
+  h.rssLocal = {hasCachedData: async () => true, connect: () => () => {}, watchSubscriptions: callback => {callback([source]); return () => {};}, watchEntries: (_id, callback) => {callback([]); return () => {};}, watchSaved: () => () => {}};
+  await h.loadLibrary(true);
+  assert.equal(h.rss.getSnapshot().enabled, true); assert.equal(h.rss.getSnapshot().confirmedEnabled, false);
+  await act(async () => h.sortMenu.items.find(item => item.label === 'rss_feeds').onPress());
+  await act(async () => h.v.one('Pressable', props => props.testID === 'rss-source-add').onPress());
+  assert.deepEqual(h.navigations, []);
+  const dialog = () => h.v.one('SourceDialog', props => props.testID === 'add-link' && props.visible);
+  assert.equal(dialog().visible, true);
+  assert.equal(h.v.all('Pressable').filter(props => props.accessibilityLabel === 'add_content_tab_feed').length, 0);
+  await act(async () => labs.resolve({features: [{key: 'rss', enabled: true}]}));
+  assert.equal(h.rss.getSnapshot().confirmedEnabled, true);
+  assert.equal(h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed').accessibilityState.selected, false);
+  assert.deepEqual(h.navigations, []);
+}));
+
+test('Library disabled RSS add retains Settings destination instead of opening acquisition', async () => mounted(async root => {
+  const h = await harness(root); await h.loadLibrary(true);
+  await act(async () => h.sortMenu.items.find(item => item.label === 'rss_feeds').onPress());
+  const railAdd = h.v.one('Pressable', props => props.testID === 'rss-source-add').onPress;
+  h.rssLabs = async () => ({features: [{key: 'rss', enabled: false}]});
+  await act(async () => h.rss.load());
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  await act(async () => railAdd());
+  assert.deepEqual(h.navigations, [['Settings'], ['Settings']]);
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).visible, false);
+}));
+
+test('Library ignores old account add completion and never selects its returned subscription', async () => mounted(async root => {
+  const h = await harness(root), pending = deferred(); await h.loadLibrary(true); h.rssAdd = () => pending.promise;
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'Add Link').onPress());
+  await act(async () => h.v.one('Pressable', props => props.accessibilityLabel === 'add_content_tab_feed').onPress());
+  await act(async () => h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder').onChangeText('https://example.test/feed'));
+  await act(async () => {void h.button('rss_add').onPress();});
+  const old = h.rss; h.owner = 'account-b'; await act(async () => h.render());
+  await act(async () => pending.resolve({id: 'old-added-source', title: 'Old'}));
+  assert.notEqual(h.rss, old); assert.equal(h.rss.getSnapshot().selected, null);
+  assert.equal(h.v.all('SourceSheet').length, 0);
+  assert.equal(h.v.one('SourceDialog', props => props.testID === 'add-link' && React.Children.toArray(props.children).some(child => child.props.accessibilityRole === 'tablist')).visible, false);
 }));
 
 test('Library stops bookmark watches while blurred or backgrounded and keeps the last rows visible', async () => mounted(async root => {
@@ -380,19 +600,20 @@ test('Library stops bookmark watches while blurred or backgrounded and keeps the
   assert.equal(h.bookmarkWatches.length, 3);
 }));
 
-test('add-link keeps clipboard import and title-edit behavior separate from PDF handoff', async () => mounted(async root => {
+test('add-link keeps clipboard import and title-edit behavior separate from File acquisition', async () => mounted(async root => {
   const h = await harness(root), submitted = []; let visible = true, imports = 0, title;
   h.clipboard = 'Read https://clipboard.test/article';
-  const render = () => root.render(React.createElement(h.LinkInputDialog, {visible, initialTitle: title, onImportPdf: () => imports++, onDismiss() {visible = false; render();}, onSubmit: value => submitted.push(value)}));
+  const render = () => root.render(React.createElement(h.LinkInputDialog, {visible, initialTitle: title, pdfEnabled: true, onPdfSaved: () => imports++, onDismiss() {visible = false; render();}, onSubmit: value => submitted.push(value)}));
   await act(async () => render()); await act(async () => h.timers.advance(350));
   assert.equal(h.v.one('TextInput').value, 'https://clipboard.test/article'); assert.equal(h.clipboardCalls, 1);
   await act(async () => h.button('add_link_btn_submit').onPress()); assert.deepEqual(submitted, ['https://clipboard.test/article']);
   await act(async () => h.v.one('SourceDialog').onDidDismiss()); assert.equal(imports, 0);
   title = 'Original title'; visible = true; await act(async () => render()); await act(async () => h.timers.advance(100));
   assert.equal(h.v.all('TextAction').length, 0); assert.equal(h.clipboardCalls, 1);
+  assert.equal(h.v.all('Pressable').filter(props => props.accessibilityRole === 'tab').length, 0); assert.equal(h.pickCalls, 0);
   await act(async () => h.v.one('TextInput').onChangeText(' \t ')); await act(async () => h.button('btn_confirm').onPress()); assert.equal(visible, true);
   await act(async () => h.v.one('TextInput').onChangeText('  New title  ')); await act(async () => h.v.one('TextInput').onSubmitEditing());
-  assert.deepEqual(submitted, ['https://clipboard.test/article', 'New title']); assert.equal(imports, 0);
+  assert.deepEqual(submitted, ['https://clipboard.test/article', 'New title']); assert.equal(imports, 0); assert.equal(h.pickCalls, 0);
 }));
 
 test('a canceled upload settling after retry starts must not clear the new request busy state', async () => mounted(async root => {
@@ -403,7 +624,7 @@ test('a canceled upload settling after retry starts must not clear the new reque
   assert.equal(h.uploads.length, 2); assert.equal(h.button('pdf_uploading').busy, true);
   await act(async () => first.reject(new Error('The native upload finished aborting')));
   assert.equal(h.v.all('SourceButton').some(props => props.label === 'pdf_uploading' && props.busy), true, 'The old upload finally block must not enable a duplicate submission during its replacement');
-  assert.equal(h.action('pdf_pick').disabled, true); assert.equal(h.watches.length, 0);
+  assert.equal(h.card().disabled, true); assert.equal(h.watches.length, 0);
   await act(async () => retry.resolve({bookmark_uid: 'current-upload'}));
   assert.deepEqual(Array.from(h.watches[0].params), ['current-upload']);
 }));
@@ -431,9 +652,9 @@ for (const platform of ['ios', 'android']) for (const outcome of ['selected', 'c
   assert.equal(h.dismissals, 0); assert.deepEqual(h.saved, []); assert.deepEqual(h.uploads, []); assert.deepEqual(h.removed, []);
   await h.background('active');
   assert.equal(h.dialog().visible, true); assert.equal(h.pickCalls, 1);
-  assert.equal(h.button('pdf_upload').disabled, outcome !== 'selected'); assert.equal(h.hasText('pdf_pick_failed'), outcome === 'failed');
+  assert.equal(h.button(outcome === 'selected' ? 'pdf_upload' : 'pdf_pick').disabled, false); assert.equal(h.hasText('pdf_pick_failed'), outcome === 'failed');
   assert.equal(h.hasText(h.selected.name), outcome === 'selected');
-  await act(async () => h.action('btn_close').onPress());
+  await act(async () => h.close().onPress());
   assert.deepEqual(h.removed, outcome === 'selected' ? [h.selected.uri] : []);
 }));
 
@@ -446,7 +667,7 @@ for (const platform of ['ios', 'android']) for (const completesAfterFocus of [fa
   assert.equal(h.dialog().visible, false); assert.deepEqual(h.removed, [h.selected.uri]); assert.deepEqual(h.navigations, []); assert.deepEqual(h.uploads, []);
   if (!completesAfterFocus) {h.focused = true; await act(async () => h.render());}
   assert.equal(h.dialog().visible, false); assert.equal(h.pickCalls, 1);
-  await h.openLibraryImport(); assert.equal(h.button('pdf_upload').disabled, true); assert.equal(h.hasText(h.selected.name), false);
+  await h.openLibraryImport(); assert.equal(h.button('pdf_pick').disabled, false); assert.equal(h.hasText(h.selected.name), false);
 }));
 
 for (const platform of ['ios', 'android']) for (const outcome of ['selected', 'failed']) test(`${platform} closing and reopening the same owner fences an old picker ${outcome} without ending a new picker`, async () => mounted(async root => {
@@ -455,7 +676,7 @@ for (const platform of ['ios', 'android']) for (const outcome of ['selected', 'f
   h.pick = () => oldPicker.promise;
   await act(async () => h.render()); await h.choose();
   h.visible = false; await act(async () => h.render()); h.visible = true; await act(async () => h.render());
-  assert.equal(h.button('pdf_upload').disabled, true);
+  assert.equal(h.button('pdf_pick').disabled, false);
   h.pick = () => newPicker.promise; await h.choose();
   await act(async () => outcome === 'failed' ? oldPicker.reject(new Error('Obsolete native copy failed')) : oldPicker.resolve(oldFile));
   assert.equal(h.dialog().visible, false, 'An obsolete picker finally must not finish the current picker');
@@ -463,7 +684,7 @@ for (const platform of ['ios', 'android']) for (const outcome of ['selected', 'f
   await act(async () => newPicker.resolve(newFile));
   assert.equal(h.dialog().visible, true); assert.equal(h.hasText(newFile.name), true); assert.equal(h.hasText(oldFile.name), false); assert.equal(h.hasText('pdf_pick_failed'), false);
   assert.equal(h.button('pdf_upload').disabled, false);
-  await act(async () => h.action('btn_close').onPress());
+  await act(async () => h.close().onPress());
   assert.deepEqual(h.removed, [...(outcome === 'selected' ? [oldFile.uri] : []), newFile.uri]);
 }));
 
@@ -484,5 +705,93 @@ for (const platform of ['ios', 'android']) for (const [development, capability, 
   await act(async () => h.render()); await h.choose();
   assert.equal(h.pickCalls, permitted ? 1 : 0); assert.equal(h.hasText('pdf_pick_failed'), !permitted);
   if (permitted) {await h.submit(); assert.equal(h.uploads[0][0] instanceof h.File, true); assert.equal(h.uploads[0][0].uri, h.selected.uri);}
-  else {assert.equal(h.uploads.length, 0); assert.equal(h.button('pdf_upload').disabled, true);}
+  else {assert.equal(h.uploads.length, 0); assert.equal(h.button('pdf_pick').disabled, false);}
+}));
+
+for (const platform of ['ios', 'android']) test(`${platform} File selection survives URL and Feed switches without repicking or releasing`, async () => mounted(async root => {
+  const h = await harness(root, platform); await act(async () => h.render());
+  assert.equal(h.pickCalls, 0); assert.equal(h.hasText('add_content_file_limit'), true);
+  await h.choose();
+  assert.equal(h.v.one('SourceText', props => props.children === h.selected.name).numberOfLines, 2);
+  assert.equal(h.hasText('0.00 MiB'), true);
+  await act(async () => h.tab('url').onPress());
+  await act(async () => h.v.one('TextInput').onChangeText('https://source.test/feed?format=atom&key=a%2Bb'));
+  await act(async () => h.tab('feed').onPress());
+  await act(async () => h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').onChangeText('My feed'));
+  await act(async () => h.tab('file').onPress());
+  assert.equal(h.hasText(h.selected.name), true); assert.equal(h.pickCalls, 1); assert.deepEqual(h.removed, []);
+  await act(async () => h.tab('feed').onPress());
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').value, 'My feed');
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder').value, 'https://source.test/feed?format=atom&key=a%2Bb');
+  assert.deepEqual(h.uploads, []); assert.equal(h.dismissals, 0);
+}));
+
+for (const platform of ['ios', 'android']) test(`${platform} canceled picker restores File and existing drafts without rerunning autofocus or clipboard`, async () => mounted(async root => {
+  const h = await harness(root, platform); h.selected = null;
+  await act(async () => h.render()); await act(async () => h.tab('url').onPress());
+  h.clipboard = 'https://clipboard.test/original'; await act(async () => h.timers.advance(350));
+  await act(async () => h.v.one('TextInput').onChangeText('https://typed.test/feed?format=atom&token=a%2Bb'));
+  await act(async () => h.tab('feed').onPress());
+  await act(async () => h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').onChangeText('Retained feed'));
+  await act(async () => h.tab('file').onPress());
+  assert.equal(h.pickCalls, 0);
+  const focusCount = h.v.commands.filter(command => command === 'focus').length;
+  await h.choose(); await act(async () => h.timers.advance(1000));
+  assert.equal(h.dialog().visible, true); assert.equal(h.tab('file').accessibilityState.selected, true);
+  assert.equal(h.pickCalls, 1); assert.equal(h.clipboardCalls, 1); assert.equal(h.dismissals, 0);
+  assert.equal(h.v.commands.filter(command => command === 'focus').length, focusCount);
+  await act(async () => h.tab('feed').onPress());
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').value, 'Retained feed');
+  await act(async () => h.tab('url').onPress());
+  assert.equal(h.v.one('TextInput').value, 'https://typed.test/feed?format=atom&token=a%2Bb');
+  assert.deepEqual(h.removed, []); assert.deepEqual(h.uploads, []);
+}));
+
+test('closing the add session releases its file once and reopening resets every draft', async () => mounted(async root => {
+  const h = await harness(root); await act(async () => h.render()); await h.choose();
+  await act(async () => h.tab('feed').onPress());
+  await act(async () => {h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder').onChangeText('https://source.test/feed'); h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').onChangeText('Old feed');});
+  await act(async () => h.close().onPress());
+  assert.equal(h.dismissals, 1); assert.equal(h.dialog().visible, false); assert.deepEqual(h.removed, [h.selected.uri]);
+  h.visible = true; await act(async () => h.render());
+  assert.equal(h.button('pdf_pick').disabled, false); assert.equal(h.hasText(h.selected.name), false);
+  await act(async () => h.tab('feed').onPress());
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_placeholder').value, '');
+  assert.equal(h.v.one('TextInput', props => props.accessibilityLabel === 'add_content_feed_name').value, '');
+  await act(async () => root.render(null)); assert.deepEqual(h.removed, [h.selected.uri]);
+}));
+
+for (const transition of ['account replacement', 'unmount']) test(`selected PDF releases once on ${transition} even while URL is selected`, async () => mounted(async root => {
+  const h = await harness(root); await act(async () => h.render()); await h.choose();
+  await act(async () => h.tab('url').onPress());
+  if (transition === 'account replacement') {
+    h.owner = 'account-b'; await act(async () => h.render());
+    assert.equal(h.button('pdf_pick').disabled, false); assert.equal(h.hasText(h.selected.name), false);
+  } else await act(async () => root.render(null));
+  assert.deepEqual(h.removed, [h.selected.uri]); assert.equal(h.pickCalls, 1); assert.deepEqual(h.uploads, []);
+  await act(async () => root.render(null)); assert.deepEqual(h.removed, [h.selected.uri]); assert.equal(h.listenerCount(), 0);
+}));
+
+for (const platform of ['ios', 'android']) test(`${platform} upload blocks competing tabs but leaves close available to abort and clean up`, async () => mounted(async root => {
+  const h = await harness(root, platform), pending = deferred(); h.upload = () => pending.promise;
+  await act(async () => h.render()); await h.choose(); await h.submit();
+  assert.equal(h.tab('url').disabled, true); assert.equal(h.tab('feed').accessibilityState.disabled, true);
+  assert.equal(h.button('pdf_uploading').busy, true); assert.equal(h.card().disabled, true);
+  await act(async () => h.tab('url').onPress());
+  assert.equal(h.tab('file').accessibilityState.selected, true); assert.deepEqual(h.created, []);
+  assert.notEqual(h.close().disabled, true); assert.equal(h.close().accessibilityLabel, 'rss_cancel');
+  await act(async () => h.close().onPress());
+  assert.equal(h.uploads[0][2].aborted, true); assert.equal(h.dialog().visible, false); assert.deepEqual(h.removed, [h.selected.uri]);
+  await act(async () => pending.resolve({bookmark_uid: 'late-closed'}));
+  assert.deepEqual(h.saved, []); assert.equal(h.watches.length, 0); assert.equal(h.dismissals, 1);
+}));
+
+test('File errors use the existing error line and remain scoped to File across tab switches', async () => mounted(async root => {
+  const h = await harness(root); h.upload = async () => {throw new Error('Upload rejected');};
+  await act(async () => h.render()); await h.choose(); await h.submit();
+  const error = h.v.one('SourceText', props => props.children === 'pdf_upload_failed');
+  assert.equal(Object.assign({}, ...error.style).marginTop, 8); assert.equal(Object.assign({}, ...error.style).fontSize, theme.mobileTypography.metadata.fontSize);
+  await act(async () => h.tab('url').onPress()); assert.equal(h.hasText('pdf_upload_failed'), false);
+  await act(async () => h.tab('file').onPress()); assert.equal(h.hasText('pdf_upload_failed'), true);
+  assert.equal(h.hasText(h.selected.name), true); assert.equal(h.pickCalls, 1); assert.deepEqual(h.removed, []);
 }));

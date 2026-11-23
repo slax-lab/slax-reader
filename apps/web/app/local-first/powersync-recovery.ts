@@ -3,9 +3,19 @@ import type { PowerSyncDatabase } from '@powersync/web'
 export type PowerSyncWorkerMode = 'shared' | 'dedicated' | 'main'
 export type PowerSyncStopReason = 'initialization-timeout' | 'cleanup-timeout' | 'cleanup-error' | 'modes-exhausted'
 
+export interface PowerSyncPendingInitialization {
+  mode: PowerSyncWorkerMode
+  /** Settles with the retained instance's original init() outcome: true once it became ready. */
+  ready: Promise<boolean>
+  /** The retained instance; usable only after `ready` resolves true, and disposed when it resolves false. */
+  database: PowerSyncDatabase
+}
+
 export interface PowerSyncRecoveryResult {
   database: PowerSyncDatabase | null
   mode: PowerSyncWorkerMode | 'rest'
+  /** Present after an initialization timeout; the timed-out instance keeps initializing in the background. */
+  pending?: PowerSyncPendingInitialization
 }
 
 export type PowerSyncRecoveryEvent =
@@ -17,6 +27,8 @@ export type PowerSyncRecoveryEvent =
   | { type: 'dispose-error'; mode: PowerSyncWorkerMode; attempt: number; error: unknown }
   | { type: 'dispose-timeout'; mode: PowerSyncWorkerMode; attempt: number; timeoutMs: number }
   | { type: 'unavailable'; attemptedModes: PowerSyncWorkerMode[]; stopReason: PowerSyncStopReason }
+  | { type: 'background-ready'; mode: PowerSyncWorkerMode; attempt: number; durationMs: number }
+  | { type: 'background-error'; mode: PowerSyncWorkerMode; attempt: number; durationMs: number; error: unknown }
 
 export interface PowerSyncRecoveryOptions {
   createDatabase: (mode: PowerSyncWorkerMode) => PowerSyncDatabase
@@ -81,27 +93,55 @@ export async function initializePowerSyncWithFallback({
 }: PowerSyncRecoveryOptions): Promise<PowerSyncRecoveryResult> {
   const recoveryDeadline = Date.now() + recoveryTimeoutMs
   const attemptedModes = new Set<PowerSyncWorkerMode>()
-  const unavailable = (from: PowerSyncWorkerMode, stopReason: PowerSyncStopReason): PowerSyncRecoveryResult => {
+  const unavailable = (from: PowerSyncWorkerMode, stopReason: PowerSyncStopReason, pending?: PowerSyncPendingInitialization): PowerSyncRecoveryResult => {
     onEvent?.({ type: 'fallback', from, to: 'rest' })
     onEvent?.({ type: 'unavailable', attemptedModes: [...attemptedModes], stopReason })
-    return { database: null, mode: 'rest' }
+    return pending ? { database: null, mode: 'rest', pending } : { database: null, mode: 'rest' }
   }
-  const tryMode = async (mode: PowerSyncWorkerMode, attempt: number): Promise<{ database: PowerSyncDatabase | null; stopReason: PowerSyncStopReason | null }> => {
+  type AttemptResult = { database: PowerSyncDatabase | null; stopReason: PowerSyncStopReason | null; pending?: PowerSyncPendingInitialization }
+  const tryMode = async (mode: PowerSyncWorkerMode, attempt: number): Promise<AttemptResult> => {
     const startedAt = Date.now()
     attemptedModes.add(mode)
     onEvent?.({ type: 'attempt-start', mode, attempt })
     let database: PowerSyncDatabase | null = null
+    let initialization: Promise<void> | null = null
     try {
       const timeoutMs = Math.min(initTimeoutMs, Math.max(1, recoveryDeadline - startedAt))
       // 构造失败也要进入下一种模式。
       database = createDatabase(mode)
-      await withTimeout(database.init(), timeoutMs, mode)
+      initialization = database.init()
+      await withTimeout(initialization, timeoutMs, mode)
       onEvent?.({ type: 'attempt-success', mode, attempt, durationMs: Date.now() - startedAt })
       return { database, stopReason: null }
     } catch (error) {
       const durationMs = Date.now() - startedAt
       onError?.(error, mode, attempt)
       onEvent?.({ type: 'attempt-error', mode, attempt, durationMs, error })
+      if (error instanceof PowerSyncInitializationTimeoutError && initialization && database) {
+        // A timeout usually means the shared connection is busy, not broken. Keep this
+        // instance and let its init() finish; recovery still opens no second instance.
+        const retained = database
+        const report = (event: PowerSyncRecoveryEvent) => {
+          try {
+            onEvent?.(event)
+          } catch {
+            // Diagnostics must not reject `ready`.
+          }
+        }
+        const ready = initialization.then(
+          () => {
+            report({ type: 'background-ready', mode, attempt, durationMs: Date.now() - startedAt })
+            return true
+          },
+          async backgroundError => {
+            report({ type: 'background-error', mode, attempt, durationMs: Date.now() - startedAt, error: backgroundError })
+            // init() has settled, so closing can no longer race with its completion.
+            await Promise.race([dispose(retained).catch(() => {}), sleep(disposeTimeoutMs)])
+            return false
+          }
+        )
+        return { database: null, stopReason: 'initialization-timeout', pending: { mode, ready, database: retained } }
+      }
       let disposeFinished = false
       let disposeFailed = false
       let disposeError: unknown
@@ -124,7 +164,7 @@ export async function initializePowerSyncWithFallback({
       if (!disposeFinished) onEvent?.({ type: 'dispose-timeout', mode, attempt, timeoutMs: disposeTimeoutMs })
       return {
         database: null,
-        stopReason: disposeFailed ? 'cleanup-error' : !disposeFinished ? 'cleanup-timeout' : error instanceof PowerSyncInitializationTimeoutError ? 'initialization-timeout' : null
+        stopReason: disposeFailed ? 'cleanup-error' : !disposeFinished ? 'cleanup-timeout' : null
       }
     }
   }
@@ -135,8 +175,8 @@ export async function initializePowerSyncWithFallback({
       const result = await tryMode('shared', attempt)
       if (result.database) return { database: result.database, mode: 'shared' }
       // PowerSync 没有取消 init() 的 API。超时后继续打开同一 dbFilename
-      // 可能产生并发实例，因此直接切 REST，等待下次页面加载再恢复。
-      if (result.stopReason) return unavailable('shared', result.stopReason)
+      // 可能产生并发实例，因此直接切 REST；超时实例保留在后台完成初始化。
+      if (result.stopReason) return unavailable('shared', result.stopReason, result.pending)
       if (attempt < sharedAttempts) {
         const delayMs = sharedRetryDelaysMs[Math.min(attempt - 1, sharedRetryDelaysMs.length - 1)] ?? 0
         onEvent?.({ type: 'retry-scheduled', mode: 'shared', attempt, delayMs })
@@ -148,12 +188,12 @@ export async function initializePowerSyncWithFallback({
 
   const dedicated = await tryMode('dedicated', 1)
   if (dedicated.database) return { database: dedicated.database, mode: 'dedicated' }
-  if (dedicated.stopReason) return unavailable('dedicated', dedicated.stopReason)
+  if (dedicated.stopReason) return unavailable('dedicated', dedicated.stopReason, dedicated.pending)
 
   onEvent?.({ type: 'fallback', from: 'dedicated', to: 'main' })
 
   const main = await tryMode('main', 1)
   if (main.database) return { database: main.database, mode: 'main' }
 
-  return unavailable('main', main.stopReason ?? 'modes-exhausted')
+  return unavailable('main', main.stopReason ?? 'modes-exhausted', main.pending)
 }

@@ -27,18 +27,25 @@ mockNuxtImport('useState', () => (key: string) => {
   if (key === 'snapshot-session-navigation') return navigationState
   return ownership
 })
-mockNuxtImport('useRouter', () => () => ({ afterEach: state.afterEach }))
+mockNuxtImport('useRouter', () => () => ({ afterEach: state.afterEach, beforeEach: vi.fn() }))
 mockNuxtImport('useAuth', () => () => ({ clearAuth: state.clearAuth }))
 vi.mock('~/utils/request', () => ({ getUserToken: state.cookie, getClientEventHeaders: () => ({}) }))
 vi.mock('~/utils/extensionBridgeSession', () => ({ requestExtensionBridgeSession: state.session }))
 vi.mock('~/local-first/schema', () => ({ AppSchema: {} }))
 vi.mock('@powersync/vue', () => ({ createPowerSyncPlugin: () => ({}) }))
+const gate = vi.hoisted(() => vi.fn())
+vi.mock('~/local-first/powersync-visibility-gate', () => ({ deferLiveQueriesWhileHidden: gate }))
 vi.mock('@powersync/web', () => ({
   SyncStreamConnectionMethod: { HTTP: 'http' },
+  LogLevels: { trace: 10, debug: 20, info: 30, warn: 40, error: 50 },
+  createConsoleLogger: () => ({ log: () => {} }),
   PowerSyncDatabase: class {
     init = state.init
     connect = state.connect
     disconnectAndClear = state.clear
+    onChangeWithCallback = () => () => {}
+    resolveTables = async () => []
+    registerListener = () => () => {}
     connected = false
     connecting = false
   }
@@ -53,6 +60,8 @@ const start = async () => {
   const plugin = (await import('~~/app/plugins/powersync.client')).default
   const result = await plugin(app as never)
   await Promise.resolve()
+  // Snapshot routes start local data in the background; wait until that startup settles.
+  await result?.provide?.powersyncWhenReady?.()
   return result
 }
 const getConnector = () => {
@@ -155,6 +164,7 @@ describe('PowerSync in an authenticated extension iframe with no page cookie', (
     await start()
     expect(state.cookie).not.toHaveBeenCalled()
     expect(state.connect).toHaveBeenCalledOnce()
+    expect(gate).not.toHaveBeenCalled()
     const connector = getConnector()
     await expect(connector.fetchCredentials()).resolves.toEqual({ token: 'sync-token', endpoint: 'https://sync.test' })
     expect(fetch).toHaveBeenCalledWith(

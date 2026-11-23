@@ -17,6 +17,15 @@ const SHORT_URL = 'https://t.co/article123'
 const BODY = '这是完整文章的正文，应该出现在阅读器和下游文本中，而不是只有推文导语。'
 const ARTICLE_HTML = `<html><head><title>完整文章</title></head><body><article><h1>完整文章</h1><p>${BODY}</p></article></body></html>`
 
+function authorPreview(body: string, coverTitle = 'Article title') {
+  const threadLink = `<a href="${STATUS_URL}">View full thread</a>`
+  return `<html><head><meta property="og:title" content="Writer (@writer)"><meta property="og:url" content="${STATUS_URL}">
+    <meta property="og:description" content="Thread summary"></head><body><article><sub>${threadLink}</sub><h1>Writer (@writer)</h1>
+    <img src="https://pbs.fxtwitter.com/media/cover.jpg" alt="${coverTitle}">${body}
+    <hr><p>Thread summary</p><p>Reply</p><p>💬 1 👁 2</p><br>${threadLink}<hr><h2>About author</h2><img src="/avatar">
+    <p>Provider biography</p>${threadLink}</article></body></html>`
+}
+
 function wire(text = `文章导语 ${SHORT_URL}`, expandedUrl: string | null = ARTICLE_URL) {
   const ctx = createMockCtx()
   const embed = vi.fn().mockImplementation(async () => new Response(ARTICLE_HTML))
@@ -177,7 +186,11 @@ describe('X Article provider fallback', () => {
   ])('preserves only known unsized cover dimensions: %o', async ({ width, height, attrs, expected }) => {
     const { service, ctx, embed, put } = wire()
     const cover = 'https://pbs.twimg.com/media/cover.jpg'
-    embed.mockResolvedValue(new Response(`<html><head><meta property="og:image" content="${cover}"><meta property="og:image:width" content="${width}"><meta property="og:image:height" content="${height}"></head><body><article><p id="body">${BODY}</p><img id="cover" src="${cover}" ${attrs}><img id="other" src="https://pbs.twimg.com/media/other.jpg"></article></body></html>`))
+    embed.mockResolvedValue(
+      new Response(
+        `<html><head><meta property="og:image" content="${cover}"><meta property="og:image:width" content="${width}"><meta property="og:image:height" content="${height}"></head><body><article><p id="body">${BODY}</p><img id="cover" src="${cover}" ${attrs}><img id="other" src="https://pbs.twimg.com/media/other.jpg"></article></body></html>`
+      )
+    )
     const fetched = await service.fetchTwitterData(ctx, STATUS_URL)
     await service.parseAndSaveTwitter(ctx, fetched, 42, 'article-test')
     const html = put.mock.calls.find(([key]) => key.endsWith('/body.html'))![1]
@@ -188,6 +201,45 @@ describe('X Article provider fallback', () => {
     expect(document.querySelector('#other')!.hasAttribute('width')).toBe(false)
     expect(document.querySelector('#other')!.hasAttribute('height')).toBe(false)
     expect(document.querySelector('#body')!.textContent).toBe(BODY)
+  })
+
+  test('saves the article title and authored HTML while omitting the matched provider card and thread', async () => {
+    const { service, ctx, embed, api, put, repo } = wire()
+    embed.mockResolvedValue(new Response(authorPreview(`<p>${BODY}</p><hr><h2>About author</h2><p><b>Authored note</b></p>`)))
+    const result = await service.fetchAndSaveTwitter(ctx, STATUS_URL, 42, 'article-test')
+    const { document } = parseHTML(put.mock.calls.find(([key]) => key.endsWith('/body.html'))![1] as string)
+    expect(result.title).toBe('Article title')
+    expect(repo.updateBookmark).toHaveBeenCalledWith(42, expect.objectContaining({ title: 'Article title' }))
+    expect(result.textContent).toContain('Article title')
+    expect([...document.querySelectorAll('h1,h2,h3')].filter(h => h.textContent === 'About author')).toHaveLength(1)
+    expect(document.querySelector('b')?.textContent).toBe('Authored note')
+    expect(document.querySelectorAll('img')).toHaveLength(1)
+    expect(result.textContent).toContain(BODY)
+    expect(result.textContent).not.toMatch(/Thread summary|Provider biography|View full thread|💬/)
+    expect(api).not.toHaveBeenCalled()
+  })
+
+  test.each(['structured title', 'unavailable', 'internal URL'])('preserves the authored embed when its cover lacks a title: %s', async mode => {
+    const { service, ctx, embed, api, article, put } = wire()
+    embed.mockResolvedValue(new Response(authorPreview(`<p><b>${BODY}</b></p>`, '')))
+    if (mode === 'unavailable') api.mockRejectedValue(new Error('unavailable'))
+    else api.mockResolvedValue({ ...article, title: 'Recovered title', contents: [] })
+    const url = mode === 'internal URL' ? ARTICLE_URL : STATUS_URL
+    const result = await service.fetchAndSaveTwitter(ctx, url, 42, 'article-test')
+    const html = put.mock.calls.find(([key]) => key.endsWith('/body.html'))![1] as string
+    const { document } = parseHTML(html)
+    expect(document.querySelector('b')?.textContent).toBe(BODY)
+    expect(result.title).toBe(mode === 'structured title' ? 'Recovered title' : 'X Article')
+    expect(result.textContent).toContain(result.title)
+    expect(result.textContent).not.toContain('About author')
+    expect(api).toHaveBeenCalledTimes(mode === 'internal URL' ? 0 : 1)
+  })
+
+  test('a provider profile and cover without authored content cannot qualify as a complete article', async () => {
+    const { service, ctx, embed, api, article } = wire()
+    embed.mockResolvedValue(new Response(authorPreview('<script>preview()</script>')))
+    expect(await service.fetchTwitterData(ctx, STATUS_URL)).toMatchObject({ fallbackTweetInfo: article, viaFxEmbedHtml: null })
+    expect(api).toHaveBeenCalledExactlyOnceWith(ctx.env, '2100956349601624464')
   })
 
   test('an explicit author/article link uses its own status ID while preserving the saved source', async () => {

@@ -1,14 +1,16 @@
 import core from '../../src/entry/core/index'
+import ai from '../../src/entry/ai/index'
 import { container } from '../../src/decorators/di'
-import { initializeInfrastructure } from '../../src/di/generated/dependency'
+import { initializeInfrastructure } from '../../src/di/generated/core/dependency'
 import { ContextManager } from '../../src/utils/context'
 import { UserDeletionService } from '../../src/domain/userDeletion'
 import { snapshotAiProviderResponse } from './snapshotAiSmoke'
-export { SlaxJieba, SlaxWebSocketServer, SlaxMcpServer, ScreenshotBrowser } from '../../src/entry/core/index'
+export { SlaxJieba, SlaxWebSocketServer, ScreenshotBrowser } from '../../src/entry/retired'
+export { CrawlWorkflow } from '../../src/entry/core/index'
 
 const sink = 'https://diagnostic-capture.fixture.invalid/report'
 const messages: string[] = []
-const emailCodes = new Map<string, string>()
+const emailCodes = new Map<string, { code: string; link?: string }>()
 const maintenanceAdmissions: unknown[] = []
 let failNotification = false
 const originalFetch = globalThis.fetch.bind(globalThis)
@@ -16,9 +18,11 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = input instanceof Request ? input.url : String(input)
   if (url === 'https://api.resend.com/emails') {
     const id = new Headers(init?.headers).get('Idempotency-Key')
-    const code = /\b\d{6}\b/.exec(JSON.parse(String(init?.body)).text)?.[0]
+    const text = JSON.parse(String(init?.body)).text as string
+    const code = /\b\d{6}\b/.exec(text)?.[0]
+    const link = /https?:\/\/\S+/.exec(text)?.[0]
     if (!id || !code) return Promise.resolve(new Response(null, { status: 400 }))
-    emailCodes.set(id, code)
+    emailCodes.set(id, { code, link })
     return Promise.resolve(Response.json({ id }))
   }
   if (new URL(url).hostname === 'aiplatform.googleapis.com') return snapshotAiProviderResponse(new Request(input, init))
@@ -33,21 +37,22 @@ export default {
     const url = new URL(request.url)
     const local = ['localhost', '127.0.0.1'].includes(url.hostname)
     const contentBinding = url.hostname === 'content.internal' && url.pathname.startsWith('/content/')
-    if (!local && !contentBinding) return new Response('Local fixture only', { status: 403 })
+    // Edge forwards queue, cron and email events to the jobs host, which authenticates them itself.
+    const jobsBinding = url.hostname === 'jobs.internal'
+    if (!local && !contentBinding && !jobsBinding) return new Response('Local fixture only', { status: 403 })
     const aiFeature = /^\/__fixture\/snapshot-ai\/(outline|overview|chat)$/.exec(url.pathname)?.[1]
     if (aiFeature) {
-      // The isolated launcher supports Edge-to-Core only. Route to the real Core AI
-      // handlers here; production AiEntry delegates to the same Core worker.
+      // Serve the real AI Worker handlers inside this fixture so the provider stub in this isolate answers them.
       url.pathname = aiFeature === 'chat' ? '/v1/aigc/chat' : `/v1/bookmark/${aiFeature}`
-      return core.fetch(new Request(url, request), { ...env, VERTEX_API_KEY: 'snapshot-ai-fixture' }, execution)
+      return ai.fetch(new Request(url, request), { ...env, VERTEX_API_KEY: 'snapshot-ai-fixture' }, execution)
     }
     if (url.pathname === '/__fixture/diagnostic-object-missing') return Response.json((await env.DIAGNOSTICS!.head(url.searchParams.get('key')!)) === null)
     if (url.pathname === '/__fixture/diagnostic-notifications') return Response.json(messages)
-    if (url.pathname === '/__fixture/email-code' && env.RESEND_API_KEY === 'fixture-only') {
+    if ((url.pathname === '/__fixture/email-code' || url.pathname === '/__fixture/email-message') && env.RESEND_API_KEY === 'fixture-only') {
       const id = url.searchParams.get('id') ?? ''
       const code = emailCodes.get(id)
       emailCodes.delete(id)
-      return Response.json(code ?? null)
+      return Response.json((url.pathname === '/__fixture/email-message' ? code : code?.code) ?? null)
     }
     if (url.pathname === '/__fixture/diagnostic-notification-failure') {
       failNotification = true

@@ -9,6 +9,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { CrawlService, type YoutubeFetched } from '@/domain/crawl'
 import { SocialMediaApi } from '@/infra/external/socialMedia'
 import { YOUTUBE_ARTICLE_PROMPT_VERSION } from '@/infra/repository/dbYoutubeArticle'
+import { ContextManager } from '@/utils/context'
 import { buildYoutubeCaptionDocument } from '@/utils/youtubeCaption'
 import { createMockCtx, createMockBucketClient, createMockBookmarkRepo, createMockLogsService, createMockAlertBot } from '@test/helpers/mockFactory'
 
@@ -197,12 +198,19 @@ describe('fetchYoutubeData', () => {
     vi.unstubAllGlobals()
   })
 
-  test('passes the user language as the track fallback and keeps the caption document', async () => {
+  test.each([
+    ['zh-Hant', 'zh'],
+    ['en-US', 'en'],
+    ['', 'en']
+  ])('passes the capture locale %j to the caption adapter as %s', async (locale, expected) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ title: 'T', author_name: 'A', author_url: 'u', thumbnail_url: 'th' }) }))
     fetchCaption.mockResolvedValue({ cues: [{ t: 0, text: 'x' }], caption })
     const { svc } = wire()
-    const res = await svc.fetchYoutubeData(createMockCtx({ lang: 'zh' }), 'https://youtu.be/dQw4w9WgXcQ')
-    expect(fetchCaption).toHaveBeenCalledWith(expect.anything(), 'dQw4w9WgXcQ', 'zh')
+    const mock = createMockCtx()
+    const ctx = new ContextManager(mock.execution, mock.env)
+    ctx.setUserInfo(1, 100, '', locale)
+    const res = await svc.fetchYoutubeData(ctx, 'https://youtu.be/dQw4w9WgXcQ')
+    expect(fetchCaption).toHaveBeenCalledWith(ctx.env, 'dQw4w9WgXcQ', expected)
     expect(res.caption).toBe(caption)
     expect(res.hasCaption).toBe(true)
   })

@@ -1,9 +1,9 @@
 import { computed, type MaybeRef, toValue } from 'vue'
-import type { BookmarkSaveState } from './bookmarkSaveGuard'
 
 import { toUtcDate } from '@/utils/date'
 import { sortBookmarkTags } from '@/utils/tags'
 
+import type { BookmarkSaveState } from './bookmarkSaveGuard'
 import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
 import { useQuery } from '@powersync/vue'
 import type { PowerSyncDatabase } from '@powersync/web'
@@ -154,9 +154,9 @@ function rowToItem(r: LocalBookmarkRow): BookmarkItem {
 const listSql = (where: string, orderBy = 'updated_at DESC') => `SELECT ${SELECT_COLS} FROM sr_user_bookmark WHERE ${where} ORDER BY ${orderBy}`
 const detailSql = (where: string) => `SELECT ${SELECT_COLS}, deleted_at, is_read, metadata FROM sr_user_bookmark WHERE ${where}`
 
-export const useLocalBookmarks = () => {
-  const { $powersync } = useNuxtApp()
-  const db = $powersync as PowerSyncDatabase
+// `database` lets a document that became ready after setup pass its late database explicitly.
+export const useLocalBookmarks = (database?: PowerSyncDatabase) => {
+  const db = database ?? (useNuxtApp().$powersync as PowerSyncDatabase)
   const nowIso = () => new Date().toISOString()
 
   const getSaveState = async (url: string): Promise<BookmarkSaveState | null> => {

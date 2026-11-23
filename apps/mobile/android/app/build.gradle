@@ -90,8 +90,8 @@ android {
         applicationId 'com.slax.reader'
         minSdk = rootProject.ext.minSdkVersion
         targetSdk = rootProject.ext.targetSdkVersion
-        versionCode 807
-        versionName "1.0.32"
+        versionCode 808
+        versionName "1.0.33"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

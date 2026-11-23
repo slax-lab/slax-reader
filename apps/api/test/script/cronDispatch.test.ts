@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest'
 vi.mock('@/handler/cron/bookmarkJob', () => ({ BookmarkJob: class {} }))
 vi.mock('@/handler/cron/collectionJob', () => ({ CollectionJob: class {} }))
 vi.mock('@/handler/cron/subscriptionJob', () => ({ SubscriptionJob: class {} }))
-import { handleCronjob } from '@/di/generated/cronjob'
+import { handleCronjob } from '@/di/generated/core/cronjob'
 
 describe('scheduled job fanout', () => {
   test('all same-expression jobs run even when one fails', async () => {

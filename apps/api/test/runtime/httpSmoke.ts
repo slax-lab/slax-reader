@@ -78,6 +78,8 @@ async function main() {
   const state = resolve(resources.workspace, 'state')
   const coreConfig = resolve(resources.workspace, 'core.json')
   const edgeConfig = resolve(resources.workspace, 'edge.json')
+  const aiConfig = resolve(resources.workspace, 'ai.json')
+  const objectsConfig = resolve(resources.workspace, 'objects.json')
   const localPath = (path: string) => relative(resources.workspace, resolve(ROOT, path))
   mkdirSync(state)
   const d1Args = ['--config', coreConfig, '--local', '--env-file', resources.emptyEnv, '--persist-to', state]
@@ -164,73 +166,72 @@ async function main() {
       vars,
       rules: [{ type: 'CompiledWasm', globs: ['**/*.wasm'], fallthrough: true }]
     }
-    writeFileSync(
-      coreConfig,
-      JSON.stringify(
+    const names = { core: `root-tooling-${httpPort}-core`, edge: `root-tooling-${httpPort}-edge`, ai: `root-tooling-${httpPort}-ai`, objects: `root-tooling-${httpPort}-objects` }
+    const data = {
+      hyperdrive: [
         {
-          ...shared,
-          name: `root-tooling-${httpPort}-core`,
-          main: localPath('apps/api/test/runtime/diagnosticWorker.ts'),
-          hyperdrive: [
-            {
-              binding: 'HYPERDRIVE',
-              id: '00000000000000000000000000000002',
-              localConnectionString: url('http_reader')
-            },
-            {
-              binding: 'HYPERDRIVE_LOGS',
-              id: '00000000000000000000000000000003',
-              localConnectionString: url('http_logs')
-            }
-          ],
-          d1_databases: [
-            {
-              binding: 'DB',
-              database_name: 'http-reader',
-              database_id: '00000000-0000-0000-0000-000000000001',
-              migrations_dir: localPath('apps/api/prisma/d1_migrations')
-            },
-            {
-              binding: 'DB_FULLTEXT',
-              database_name: 'http-fulltext',
-              database_id: '00000000-0000-0000-0000-000000000002',
-              migrations_dir: localPath('apps/api/prisma/d1_migrations/fulltext')
-            }
-          ],
-          kv_namespaces: [{ binding: 'KV', id: '00000000000000000000000000000001' }],
-          r2_buckets: [
-            { binding: 'OSS', bucket_name: 'http-reader' },
-            { binding: 'DIAGNOSTICS', bucket_name: 'http-diagnostics' }
-          ],
-          workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow', script_name: `root-tooling-${httpPort}-edge` }],
-          durable_objects: {
-            bindings: [
-              { name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' },
-              { name: 'SLAX_JIEBA', class_name: 'SlaxJieba' }
-            ]
-          },
-          migrations: [{ tag: 'v1', new_classes: ['SlaxWebSocketServer', 'SlaxJieba'] }]
+          binding: 'HYPERDRIVE',
+          id: '00000000000000000000000000000002',
+          localConnectionString: url('http_reader')
         },
-        null,
-        2
-      )
-    )
-    writeFileSync(
-      edgeConfig,
-      JSON.stringify(
         {
-          ...shared,
-          ...JSON.parse(readFileSync(coreConfig, 'utf8')),
-          name: `root-tooling-${httpPort}-edge`,
-          workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow' }],
-          main: localPath('apps/api/src/entry/edge/index.ts'),
-          services: [{ binding: 'CORE', service: `root-tooling-${httpPort}-core` }],
-          ratelimits: [{ name: 'BOOKMARK_ADD_RATE_LIMITER', namespace_id: '1001', simple: { limit: 30, period: 60 } }]
+          binding: 'HYPERDRIVE_LOGS',
+          id: '00000000000000000000000000000003',
+          localConnectionString: url('http_logs')
+        }
+      ],
+      d1_databases: [
+        {
+          binding: 'DB',
+          database_name: 'http-reader',
+          database_id: '00000000-0000-0000-0000-000000000001',
+          migrations_dir: localPath('apps/api/prisma/d1_migrations')
         },
-        null,
-        2
-      )
-    )
+        {
+          binding: 'DB_FULLTEXT',
+          database_name: 'http-fulltext',
+          database_id: '00000000-0000-0000-0000-000000000002',
+          migrations_dir: localPath('apps/api/prisma/d1_migrations/fulltext')
+        }
+      ],
+      kv_namespaces: [{ binding: 'KV', id: '00000000000000000000000000000001' }]
+    }
+    const objectBindings = [
+      { name: 'WEBSOCKET_SERVER', class_name: 'SlaxWebSocketServer' },
+      { name: 'SLAX_JIEBA', class_name: 'SlaxJieba' }
+    ]
+    const write = (file: string, config: Record<string, unknown>) => writeFileSync(file, JSON.stringify({ ...shared, ...config }, null, 2))
+    write(coreConfig, {
+      ...data,
+      name: names.core,
+      main: localPath('apps/api/test/runtime/diagnosticWorker.ts'),
+      r2_buckets: [
+        { binding: 'OSS', bucket_name: 'http-reader' },
+        { binding: 'DIAGNOSTICS', bucket_name: 'http-diagnostics' }
+      ],
+      workflows: [{ binding: 'CRAWL_WORKFLOW', name: 'fork-smoke-crawl', class_name: 'CrawlWorkflow' }],
+      durable_objects: { bindings: objectBindings.map(binding => ({ ...binding, script_name: names.objects })) }
+    })
+    write(aiConfig, { ...data, name: names.ai, main: localPath('apps/api/src/entry/ai/index.ts'), r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }] })
+    write(objectsConfig, {
+      name: names.objects,
+      main: localPath('apps/api/src/entry/objects/index.ts'),
+      d1_databases: data.d1_databases.slice(0, 1),
+      hyperdrive: data.hyperdrive.slice(0, 1),
+      r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
+      durable_objects: { bindings: objectBindings },
+      migrations: [{ tag: 'objects-v1', new_sqlite_classes: objectBindings.map(binding => binding.class_name) }]
+    })
+    write(edgeConfig, {
+      name: names.edge,
+      main: localPath('apps/api/src/entry/edge/index.ts'),
+      r2_buckets: [{ binding: 'OSS', bucket_name: 'http-reader' }],
+      services: [
+        { binding: 'CORE', service: names.core },
+        { binding: 'AIGC', service: names.ai }
+      ],
+      ratelimits: [{ name: 'BOOKMARK_ADD_RATE_LIMITER', namespace_id: '1001', simple: { limit: 30, period: 60 } }]
+    })
     const pgStatus = await resources.migrate('migrate-pgsql', url('http_reader'), 'pgsql')
     const logsStatus = await resources.migrate('migrate-logs', url('http_logs'), 'logs')
     const d1Statuses = []
@@ -253,7 +254,7 @@ async function main() {
       INSERT INTO sr_bookmark_share (user_id,bookmark_id,share_code) VALUES (2,1,'SmokeA1');
     `
     )
-    if (process.env.FORK_SMOKE === '1') forks = await prepareForkSmoke(resources, pg.id, state, url('http_reader'), `root-tooling-${httpPort}-edge`)
+    if (process.env.FORK_SMOKE === '1') forks = await prepareForkSmoke(resources, pg.id, state, url('http_reader'), names.edge)
     const token = await new Auth(vars as Env).sign({
       id: String(new Hashid(vars as Env).encodeId(1)),
       email: 'saver@smoke.invalid',
@@ -263,7 +264,22 @@ async function main() {
     process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE = '1'
     let options: ReturnType<typeof localDevOptions>
     try {
-      options = localDevOptions(['--edge-config', edgeConfig, '--core-config', coreConfig, '--state', state, '--env-file', resources.emptyEnv, '--port', String(httpPort)])
+      options = localDevOptions([
+        '--edge-config',
+        edgeConfig,
+        '--core-config',
+        coreConfig,
+        '--ai-config',
+        aiConfig,
+        '--objects-config',
+        objectsConfig,
+        '--state',
+        state,
+        '--env-file',
+        resources.emptyEnv,
+        '--port',
+        String(httpPort)
+      ])
     } finally {
       if (previousDiagnosticFixture === undefined) delete process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE
       else process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE = previousDiagnosticFixture
@@ -319,20 +335,20 @@ async function main() {
       }
     }, 'authenticated Core database ready')
     if (emailRedis) {
-      const authCall = async (path: string, body?: object, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
+      const authCall = async (path: string, body?: object, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev', deviceId = 'email-http-smoke') => {
         const response = await localFetch(`http://localhost:${httpPort}${path}`, {
           method: body ? 'POST' : 'GET',
           headers: {
             'Content-Type': 'application/json',
             'X-Fixture-Email-Run-Type': runType,
-            'X-Device-ID': 'email-http-smoke',
+            'X-Device-ID': deviceId,
             ...(bearer ? { Authorization: `Bearer ${bearer}` } : {})
           },
           body: body ? JSON.stringify(body) : undefined
         })
         return response.json() as Promise<{ code: number; data: any }>
       }
-      const prove = async (purpose: 'login' | 'bind', email: string, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev') => {
+      const prove = async (purpose: 'login' | 'bind', email: string, bearer?: string, runType: 'dev' | 'beta' | 'prod' = 'dev', deviceId = 'email-http-smoke') => {
         const sent = await authCall('/v1/user/email/send', { email, purpose }, bearer, runType)
         assert.equal(sent.code, 200, JSON.stringify(sent))
         const { request_id } = sent.data
@@ -389,6 +405,33 @@ async function main() {
       assert.equal(fresh.data.is_new_user, true)
       const freshInfo = (await authCall(userInfo, undefined, fresh.data.token)).data
       assert.equal(freshInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, 'new-reader@smoke.invalid')
+      const linkCall = (path: string, body?: object, bearer?: string) => authCall(path, body, bearer, 'dev', 'email-link-http-smoke')
+      for (const first of ['link', 'code']) {
+        const email = `link-${first}@smoke.invalid`
+        const sent = await linkCall('/v1/user/email/send', { email })
+        assert.equal(sent.code, 200)
+        assert.deepEqual(Object.keys(sent.data).sort(), ['expires_in', 'request_id', 'resend_after'])
+        const messageResponse = await localFetch(`http://localhost:${httpPort}/__fixture/email-message?id=${sent.data.request_id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        const message = (await messageResponse.json()) as { code: string; link: string }
+        const url = new URL(message.link)
+        assert.equal(url.origin, vars.FRONT_END_URL)
+        assert.equal(url.pathname, '/email-login')
+        assert.equal(url.search, '')
+        const params = new URLSearchParams(url.hash.slice(1))
+        const linkProof = { type: 'email_link', email, request_id: sent.data.request_id, token: params.get('token') }
+        const codeProof = { type: 'email', email, request_id: sent.data.request_id, code: message.code }
+        const result = await linkCall('/v1/user/login', first === 'link' ? linkProof : codeProof)
+        assert.equal(result.code, 200, JSON.stringify(result))
+        assert.equal(result.data.login_type, 'email')
+        const info = await linkCall('/v1/user/userinfo', undefined, result.data.token)
+        assert.equal(info.data.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, email)
+        const replay = await linkCall('/v1/user/login', first === 'link' ? codeProof : linkProof)
+        assert.notEqual(replay.code, 200)
+      }
+      evidence.emailLinks =
+        'real Core HTTP/DI/PostgreSQL/Redis: normalized fragment mail, /login email_link account creation and mail binding, OTP/link mutual consumption, unchanged send response; Resend is a local capture adapter'
       const internalEmail = 'Internal-Reader@INTERNAL.INVALID'
       const internalSent = await authCall('/v1/user/email/send', {
         email: internalEmail
@@ -400,7 +443,9 @@ async function main() {
         internalCode = /\[Email login\] email=Internal-Reader@INTERNAL\.INVALID code=(\d{6})/.exec(workerLog)?.[1]
         return Boolean(internalCode)
       }, 'internal email code in Worker logs')
-      const undelivered = await localFetch(`http://localhost:${httpPort}/__fixture/email-code?id=${internalSent.data.request_id}`, { headers: { Authorization: `Bearer ${token}` } })
+      const undelivered = await localFetch(`http://localhost:${httpPort}/__fixture/email-code?id=${internalSent.data.request_id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
       assert.equal(await undelivered.json(), null)
       const internalProof = {
         type: 'email',
@@ -413,7 +458,20 @@ async function main() {
       const internalInfo = (await authCall(userInfo, undefined, internalLogin.data.token)).data
       assert.equal(internalInfo.platform.find((item: { platform: string }) => item.platform === 'mail').user_name, internalEmail)
       assert.equal((await authCall('/v1/user/login', internalProof)).data, 'EMAIL_VERIFY_CODE_ERROR')
-      evidence.internalEmailLogin = 'code read from Worker logs; no provider delivery; existing login and verified binding succeeded; replay rejected'
+      const internalLinkEmail = 'internal-link@internal.invalid'
+      const internalLinkSent = await authCall('/v1/user/email/send', { email: internalLinkEmail }, undefined, 'beta')
+      assert.equal(internalLinkSent.code, 200)
+      const internalLinkPattern = /\[Email login\] email=internal-link@internal\.invalid code=(\d{6}) link=(\S+)/
+      await poll(() => internalLinkPattern.test(workerLog), 'internal login link in Worker logs')
+      const internalLink = internalLinkPattern.exec(workerLog)!
+      const internalParams = new URLSearchParams(new URL(internalLink[2]).hash.slice(1))
+      const internalLinkProof = { type: 'email_link', email: internalParams.get('email'), request_id: internalParams.get('request_id'), token: internalParams.get('token') }
+      const internalLinkLogin = await authCall('/v1/user/login', internalLinkProof, undefined, 'beta')
+      assert.equal(internalLinkLogin.code, 200)
+      assert.equal((await authCall('/v1/user/login', internalLinkProof, undefined, 'beta')).data, 'EMAIL_VERIFY_CODE_ERROR')
+      const internalCodeProof = { type: 'email', email: internalLinkEmail, request_id: internalLinkSent.data.request_id, code: internalLink[1] }
+      assert.equal((await authCall('/v1/user/login', internalCodeProof, undefined, 'beta')).data, 'EMAIL_VERIFY_CODE_ERROR')
+      evidence.internalEmailLogin = 'code and link read from Worker logs; no provider delivery; existing login/binding succeeded; link replay and consumed code rejected'
       evidence.passkeys = await exercisePasskeys(authCall, query => resources.sql(pg.id, 'http_reader', query), token, ownerToken, vars.FRONT_END_URL)
       evidence.emailAuthentication =
         'binding API works in dev, beta, and prod; user information returns login methods through the platform list; legacy sign-in guidance, existing-account login, and new-account session'

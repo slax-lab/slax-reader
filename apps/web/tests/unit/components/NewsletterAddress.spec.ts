@@ -265,7 +265,7 @@ describe('disclosure and session isolation', () => {
     expect(w.get('[data-toggle-newsletter]').attributes('aria-expanded')).toBe('false')
     expect(w.get('.newsletter-address').text()).toBe(ready.address)
     expect(w.get('[data-copy-address]').isVisible()).toBe(true)
-    expect(w.get('#newsletter-details').isVisible()).toBe(false)
+    expect(w.get('#newsletter-details').attributes('inert')).toBeDefined()
     w.unmount()
     w = create()
     await flushPromises()
@@ -277,6 +277,7 @@ describe('disclosure and session isolation', () => {
     user.userInfo.userId = 2
     await flushPromises()
     expect(w.get('[data-toggle-newsletter]').attributes('aria-expanded')).toBe('true')
+    expect(w.get('#newsletter-details').attributes('inert')).toBeUndefined()
     expect(w.text()).not.toContain(ready.address)
   })
   it('storage failure does not block load, disclosure or copy', async () => {

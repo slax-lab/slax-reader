@@ -13,6 +13,8 @@ export interface LabFeatureDef {
   name: { [lang in Language]?: string }
   /** ISO date the feature left Labs; the settings page hides graduated rows after a while */
   graduatedAt?: string
+  /** Content kind that enables this Lab when a Fork is published. */
+  forkContentKind?: string
 }
 
 export interface LabFeatureItem {
@@ -32,16 +34,23 @@ export class LabService {
     return {
       newsletter: { status: 'active', name: { zh: 'Newsletter 订阅', en: 'Newsletters', es: 'Boletines' } },
       rss: { status: 'active', name: { zh: 'RSS 订阅', en: 'RSS feeds', es: 'Fuentes RSS' } },
-      youtube: { status: 'active', name: { zh: 'YouTube 视频', en: 'YouTube videos', es: 'Los vídeos de YouTube' } },
+      youtube: { status: 'active', forkContentKind: 'youtube', name: { zh: 'YouTube 视频', en: 'YouTube videos', es: 'Los vídeos de YouTube' } },
       youtube_article: { status: 'active', name: { zh: 'YouTube AI 整理稿', en: 'YouTube AI articles', es: 'Los artículos de IA de YouTube' } },
-      pdf: { status: 'active', name: { zh: 'PDF 收藏', en: 'PDF bookmarks', es: 'Los documentos PDF' } },
+      pdf: { status: 'active', forkContentKind: 'pdf', name: { zh: 'PDF 收藏', en: 'PDF bookmarks', es: 'Los documentos PDF' } },
       // Not a gated route: without the switch, podcast links keep saving as normal pages
-      podcast: { status: 'active', name: { zh: '播客整理稿', en: 'Podcast articles', es: 'Los artículos de pódcast' } }
+      podcast: { status: 'active', forkContentKind: 'podcast', name: { zh: '播客整理稿', en: 'Podcast articles', es: 'Los artículos de pódcast' } }
     }
   }
 
   protected gatedFeatureForUrl(url: string): string | null {
     return LabService.GATED_ROUTES[detectRoute(url)] ?? null
+  }
+
+  public featureForFork(contentKind: string | undefined, targetUrl: string): string | undefined {
+    const legacyFeature = contentKind === undefined ? this.gatedFeatureForUrl(targetUrl) : null
+    return Object.entries(this.features()).find(
+      ([key, def]) => def.status === 'active' && def.forkContentKind && (contentKind === undefined ? key === legacyFeature : def.forkContentKind === contentKind)
+    )?.[0]
   }
 
   /** Rows for the settings page: active and graduated only. */

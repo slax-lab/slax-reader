@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
 import { container } from '@/decorators/di'
-import { initializeCore, initializeInfrastructure } from '@/di/generated/dependency'
+import { initializeCore, initializeInfrastructure } from '@/di/generated/core/dependency'
 import { ContextManager } from '@/utils/context'
 import { VectorMaintenanceService } from '@/domain/vectorMaintenance'
 import { VectorPreferenceStores } from '@/infra/repository/vectorPreferenceStore'

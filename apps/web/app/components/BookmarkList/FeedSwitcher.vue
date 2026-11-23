@@ -143,8 +143,9 @@ watch(
     &.has-new::after {
       content: '';
       --style: absolute top-1px right-1px w-6px h-6px rounded-full;
+      box-sizing: content-box;
       background: var(--slax-collection-unread);
-      border: 1.5px solid var(--slax-bg, #fff);
+      border: 1.5px solid var(--slax-bg);
       pointer-events: none;
     }
   }

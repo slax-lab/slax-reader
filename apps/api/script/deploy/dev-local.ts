@@ -23,27 +23,29 @@ export function isolatedEnvironment(home: string, emptyEnv: string): NodeJS.Proc
   }
 }
 
+const ROLES = ['edge', 'core', 'ai', 'objects'] as const
+type Role = (typeof ROLES)[number]
+const FLAGS: Record<Role, string> = { edge: '--edge-config', core: '--core-config', ai: '--ai-config', objects: '--objects-config' }
+const OBJECT_CLASSES = ['SlaxJieba', 'SlaxWebSocketServer', 'ScreenshotBrowser']
+const USAGE =
+  'Usage: api -- dev:local --edge-config <isolated.json> --core-config <isolated.json> --ai-config <isolated.json> --objects-config <isolated.json> --state <isolated directory> --env-file <empty file> [--port <loopback port>]'
+
 export function localDevOptions(args: string[]) {
   const values = new Map<string, string>()
+  const flags = [...Object.values(FLAGS), '--state', '--env-file']
   for (let i = 0; i < args.length; i += 2) {
-    if (!['--edge-config', '--core-config', '--state', '--env-file', '--port'].includes(args[i]) || !args[i + 1] || values.has(args[i])) {
-      throw new Error(
-        'Usage: api -- dev:local --edge-config <isolated.json> --core-config <isolated.json> --state <isolated directory> --env-file <empty file> [--port <loopback port>]'
-      )
-    }
+    if (![...flags, '--port'].includes(args[i]) || !args[i + 1] || values.has(args[i])) throw new Error(USAGE)
     values.set(args[i], args[i] === '--port' ? args[i + 1] : resolve(ROOT, args[i + 1]))
   }
-  if (!['--edge-config', '--core-config', '--state', '--env-file'].every(key => values.has(key)))
-    throw new Error('All four explicit local paths are required; there are no default configurations.')
+  if (!flags.every(key => values.has(key))) throw new Error('All six explicit local paths are required; there are no default configurations.')
   const port = Number(values.get('--port') ?? '8787')
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Local port must be an integer between 1 and 65535')
-  const edge = values.get('--edge-config')!
-  const core = values.get('--core-config')!
+  const files = Object.fromEntries(ROLES.map(role => [role, values.get(FLAGS[role])!])) as Record<Role, string>
   const state = values.get('--state')!
   const emptyEnv = values.get('--env-file')!
-  const workspace = dirname(edge)
+  const workspace = dirname(files.edge)
   if (!/^\.tmp-root-tooling-http-[\w-]+$/.test(relative(ROOT, workspace))) throw new Error('Configs must be in a repository .tmp-root-tooling-http-* workspace')
-  if (realpathSync(workspace) !== workspace || dirname(core) !== workspace) throw new Error('Configs must share a real, non-symlink workspace')
+  if (realpathSync(workspace) !== workspace || ROLES.some(role => dirname(files[role]) !== workspace)) throw new Error('Configs must share a real, non-symlink workspace')
   const inside = (path: string) => {
     const rel = relative(workspace, path)
     if (!rel || rel.startsWith(`..${sep}`) || rel === '..' || isAbsolute(rel) || realpathSync(path) !== path)
@@ -51,10 +53,13 @@ export function localDevOptions(args: string[]) {
     if (rel.split(sep).some(part => part.startsWith('.env') || part.startsWith('.dev.vars') || part.endsWith('.local.toml')))
       throw new Error('Secret files and overrides are not accepted')
   }
-  for (const path of [edge, core, state, emptyEnv]) inside(path)
-  if (![edge, core].every(path => path.endsWith('.json'))) throw new Error('Explicit JSON configurations are required')
+  for (const path of [...Object.values(files), state, emptyEnv]) inside(path)
+  if (!ROLES.every(role => files[role].endsWith('.json'))) throw new Error('Explicit JSON configurations are required')
   if (readFileSync(emptyEnv).length !== 0) throw new Error('The explicit env file must be empty')
-  const configs = [edge, core].map(path => JSON.parse(readFileSync(path, 'utf8')) as Record<string, any>)
+  const configs = Object.fromEntries(ROLES.map(role => [role, JSON.parse(readFileSync(files[role], 'utf8')) as Record<string, any>])) as Record<Role, Record<string, any>>
+  const names = Object.fromEntries(ROLES.map(role => [role, configs[role].name])) as Record<Role, string>
+  if (new Set(Object.values(names)).size !== ROLES.length || Object.values(names).some(name => typeof name !== 'string' || !name))
+    throw new Error('Each local Worker needs its own name')
   const allowed = new Set([
     'name',
     'main',
@@ -73,26 +78,55 @@ export function localDevOptions(args: string[]) {
     'ratelimits',
     'workflows'
   ])
-  configs.forEach((config, index) => {
+  // Each local Worker may bind only to the other local Workers, in the same direction as the published topology.
+  // Edge needs both callees; Core's vector RPC to AI is optional because local runs may omit Vectorize.
+  const expectedServices: Record<Role, Record<string, string>> = {
+    edge: { CORE: names.core, AIGC: names.ai },
+    core: { VECTOR: names.ai },
+    ai: {},
+    objects: {}
+  }
+  const requiredServices: Record<Role, number> = { edge: 2, core: 0, ai: 0, objects: 0 }
+  for (const role of ROLES) {
+    const config = configs[role]
     if (Object.keys(config).some(key => !allowed.has(key))) throw new Error('Only the minimal local binding configuration is supported')
-    const expected = resolve(ROOT, `apps/api/src/entry/${index === 0 ? 'edge' : 'core'}/index.ts`)
-    const diagnosticFixture =
-      index === 1 && process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE === '1' && resolve(workspace, config.main) === resolve(ROOT, 'apps/api/test/runtime/diagnosticWorker.ts')
-    if (resolve(workspace, config.main) !== expected && !diagnosticFixture) throw new Error('Use the actual Edge/Core entrypoints')
+    const expected = resolve(ROOT, `apps/api/src/entry/${role}/index.ts`)
+    const fixtures: Partial<Record<Role, string>> = { core: 'apps/api/test/runtime/diagnosticWorker.ts' }
+    const diagnosticFixture = !!fixtures[role] && process.env.SLAX_API_DIAGNOSTIC_HTTP_FIXTURE === '1' && resolve(workspace, config.main) === resolve(ROOT, fixtures[role]!)
+    if (resolve(workspace, config.main) !== expected && !diagnosticFixture) throw new Error('Use the actual Edge/Core/AI/Objects entrypoints')
     if (resolve(workspace, config.tsconfig) !== resolve(ROOT, 'apps/api/tsconfig.json')) throw new Error('Use the root API tsconfig')
     const workflows = config.workflows ?? []
     if (
       !Array.isArray(workflows) ||
       workflows.length > 1 ||
+      (role !== 'core' && workflows.length) ||
       workflows.some(
         workflow =>
-          workflow.binding !== 'CRAWL_WORKFLOW' ||
-          workflow.class_name !== 'CrawlWorkflow' ||
-          Object.keys(workflow).some(key => !['binding', 'name', 'class_name', 'script_name'].includes(key)) ||
-          (index === 0 ? workflow.script_name !== undefined : workflow.script_name !== configs[0].name || workflow.name !== configs[0].workflows?.[0]?.name)
+          workflow.binding !== 'CRAWL_WORKFLOW' || workflow.class_name !== 'CrawlWorkflow' || Object.keys(workflow).some(key => !['binding', 'name', 'class_name'].includes(key))
       )
     )
-      throw new Error('Only the declared local Crawl Workflow is supported')
+      throw new Error('Only the declared local Crawl Workflow on Core is supported')
+    const services = config.services ?? []
+    const wanted = expectedServices[role]
+    if (
+      !Array.isArray(services) ||
+      services.length < requiredServices[role] ||
+      new Set(services.map(service => service.binding)).size !== services.length ||
+      services.some(service => wanted[service.binding] !== service.service || Object.keys(service).some(key => !['binding', 'service', 'entrypoint'].includes(key)))
+    )
+      throw new Error('Only local Edge-to-Core, Edge-to-AI and Core-to-AI service bindings are supported')
+    // Only Core's vector RPC names an entrypoint; Edge reaches Core and AI through their default fetch handlers.
+    if (services.some(service => service.entrypoint !== undefined && !(service.binding === 'VECTOR' && service.entrypoint === 'AiEntry')))
+      throw new Error('Only the local Core-to-AI VECTOR binding names an entrypoint (AiEntry)')
+    const objects = config.durable_objects?.bindings ?? []
+    for (const binding of objects) {
+      const owned = (role === 'objects' || role === 'core') && OBJECT_CLASSES.includes(binding.class_name)
+      if (!owned || Object.keys(binding).some(key => !['name', 'class_name', 'script_name'].includes(key)))
+        throw new Error('Only Objects-owned Durable Objects, bound from Core, are supported')
+      if (role === 'objects' ? binding.script_name !== undefined : binding.script_name !== names.objects)
+        throw new Error('Core must reach Durable Objects through the local Objects Worker')
+    }
+    if (role !== 'objects' && config.migrations) throw new Error('Only the local Objects Worker declares Durable Object migrations')
     const walk = (value: unknown): void => {
       if (!value || typeof value !== 'object') return
       for (const [key, item] of Object.entries(value)) {
@@ -100,8 +134,8 @@ export function localDevOptions(args: string[]) {
         walk(item)
       }
     }
-    // Validated Workflow script_name can refer only to this launcher's local Edge.
-    const { workflows: _workflows, ...otherBindings } = config
+    // Validated service and Durable Object targets can refer only to this launcher's local Workers.
+    const { workflows: _workflows, services: _services, durable_objects: _objects, ...otherBindings } = config
     walk(otherBindings)
     for (const binding of config.hyperdrive ?? []) {
       const url = new URL(binding.localConnectionString)
@@ -113,9 +147,6 @@ export function localDevOptions(args: string[]) {
       if (![resolve(ROOT, 'apps/api/prisma/d1_migrations'), resolve(ROOT, 'apps/api/prisma/d1_migrations/fulltext')].includes(migrations))
         throw new Error('Use the historical D1 migrations')
     }
-  })
-  if (configs[1].services?.length || configs[0].services?.length !== 1 || configs[0].services[0].binding !== 'CORE' || configs[0].services[0].service !== configs[1].name) {
-    throw new Error('Only the local Edge-to-Core service binding is supported')
   }
   // Wrangler 4 normalizes tsconfig against cwd, then resolves it against each config's project root.
   const shim = resolve(workspace, 'tsconfig.json')
@@ -136,10 +167,7 @@ export function localDevOptions(args: string[]) {
       'exec',
       'wrangler',
       'dev',
-      '-c',
-      edge,
-      '-c',
-      core,
+      ...ROLES.flatMap(role => ['-c', files[role]]),
       '--tsconfig',
       resolve(ROOT, 'apps/api/tsconfig.json'),
       '--local',

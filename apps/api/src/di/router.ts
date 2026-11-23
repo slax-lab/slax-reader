@@ -1,11 +1,13 @@
-import { Container } from '../decorators/di'
-import { getRouter as readerRouter } from '../di/generated/readerRouter'
+import type { Container } from '../decorators/di'
 
-export function getRouter(host: string, container: Container, apiOrigin?: string) {
+type TierRouter<R> = (container: Container) => R
+
+// Each Worker passes its own generated router; this module only decides whether the host is served.
+export function getRouter<R>(host: string, container: Container, apiOrigin: string | undefined, router: TierRouter<R>): R | null {
   if (apiOrigin) {
     try {
       const configured = new URL(apiOrigin)
-      if (['http:', 'https:'].includes(configured.protocol) && !configured.username && !configured.password && configured.host === host) return readerRouter(container)
+      if (['http:', 'https:'].includes(configured.protocol) && !configured.username && !configured.password && configured.host === host) return router(container)
     } catch {
       /* Invalid operator config must not allow arbitrary hosts. */
     }
@@ -19,7 +21,7 @@ export function getRouter(host: string, container: Container, apiOrigin?: string
     case 'api-reader.slax.com':
     case 'api-reader-beta.slax.com':
     case 'localhost:8787':
-      return readerRouter(container)
+      return router(container)
     default:
       return null
   }

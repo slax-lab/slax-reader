@@ -38,6 +38,12 @@ function fixture(t) {
     { path: '/_nuxt/worker-v4.js', sha256: createHash('sha256').update(worker).digest('hex') },
     { path: '/_nuxt/client.js', sha256: createHash('sha256').update('console.log("fixture")').digest('hex') }
   ] }))
+  const sha = value => createHash('sha256').update(value).digest('hex')
+  put('source/_nuxt/build-assets.json', JSON.stringify({ assets: [
+    { path: '/_nuxt/client.js', sha256: sha('console.log("fixture")') },
+    { path: '/_nuxt/client.wasm', sha256: sha(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])) },
+    { path: '/_nuxt/worker-v4.js', sha256: sha(worker) }
+  ] }))
   put('source/_routes.json', JSON.stringify({ version: 1, include: ['/b/*'], exclude: ['/_nuxt/*'] }))
   put('source/_headers', '/*\n  X-Test: fixture')
   put('source/_redirects', '/old /new 302')

@@ -30,11 +30,11 @@ export interface YoutubeCaptionDocument {
 
 /** `a.en` → `en`, `pt-BR` → `pt-br`. */
 export function captionBaseLanguage(languageCode: string): string {
-  return languageCode.replace(/^a\./, '').toLowerCase()
+  return languageCode.replace(/^a\./i, '').toLowerCase()
 }
 
 export function captionKindFromTrack(track: TikHubYoutubeCaptionTrack): YoutubeCaptionKind {
-  if (track.kind === 'asr') return 'asr'
+  if (track.kind === 'asr' || /^a\./i.test(track.language_code)) return 'asr'
   return 'manual'
 }
 

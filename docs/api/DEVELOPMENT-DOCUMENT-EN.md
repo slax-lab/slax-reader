@@ -20,9 +20,9 @@ pnpm api -- build
 
 Prisma automatically loads `HYPERDRIVE_DATABASE_URL` and `LOGS_DATABASE_URL` from `deploy/local/.env`; no manual export is needed. Placeholder URLs work only for generation. `migration:local` excludes logs; invoke its separate command. `gen:pull` requires pgsql/logs and can rewrite schema. D1 diff resolves input from repository root and refuses to overwrite migrations. Never rewrite historical SQL when moving tooling.
 
-`types` extracts compatibility date/flags from api.toml and generates runtime declarations in an isolated directory with minimal config and an empty env file, preserving the manually maintained Env contract. Do not run Wrangler types directly. New bindings require updates to the example, `script/deploy/config.ts` and Env; register HTTP controllers in `script/gen-routers.ts`.
+`types` extracts compatibility date/flags from api.toml and generates runtime declarations in an isolated directory with minimal config and an empty env file, preserving the manually maintained Env contract. Do not run Wrangler types directly. New bindings require updates to the example, `script/deploy/config.ts` and Env; register HTTP controllers in `script/gen-routers.ts`. A path listed in `AI_ROUTES` (`src/const/routes.ts`) is served by the AI Worker and every other path by Core; one controller serves only one Worker, and generation fails when a controller mixes both. Each Worker gets its own generated registry under `src/di/generated/core` or `src/di/generated/ai`, which only that Worker's `src/entry/<worker>` modules may import.
 
-Optional smoke tests require pre-cached `postgres:17-alpine`, plus `redis:7-alpine` for integration; containers use `--pull=never`. HTTP needs port 8787 free. Integration additionally reserves `slax-payment-review` on port 6543 and never reuses an existing resource. Some database tests truncate data: use disposable databases only. Logs/results stay in isolated `.tmp-root-tooling-http-*` workspaces. `dev:local` requires all four paths under such a workspace, an empty env file, dev runtime, loopback PostgreSQL and local Edge→Core binding; remote resources are rejected.
+Optional smoke tests require pre-cached `postgres:17-alpine`, plus `redis:7-alpine` for integration; containers use `--pull=never`. HTTP needs port 8787 free. Integration additionally reserves `slax-payment-review` on port 6543 and never reuses an existing resource. Some database tests truncate data: use disposable databases only. Logs/results stay in isolated `.tmp-root-tooling-http-*` workspaces. `dev:local` starts local Edge, Core, AI and Objects together. It requires all six paths under such a workspace, an empty env file, dev runtime and loopback PostgreSQL, and accepts only the local Edge→Core, Edge→AI and Core→AI service bindings and Core→Objects Durable Object bindings; remote resources are rejected.
 
 See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operations. `backfill:device-alias` retains read-only transactions, count-only default and root-relative exclusive SQL output; SQL is not applied automatically. Apple certificate generation needs networking; Stripe CLI must be installed separately. No seed operation is provided. `keys:powersync` generates keys only for PowerSync and is unrelated to browser Web Push.
 
@@ -40,17 +40,18 @@ See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operat
 | Local logs migrations | `pnpm api -- migration:local:logs` |
 | Deploy PostgreSQL / logs migrations | `pnpm api -- migration:deploy:pgsql` / `migration:deploy:logs` |
 | Remote D1 / fulltext migrations | `pnpm api -- migration:remote:d1` / `migration:remote:fulltext` |
-| Offline bundle | `pnpm api -- build [core\|edge\|ai\|browser]` |
+| Offline bundle | `pnpm api -- build [core\|edge\|ai\|objects\|browser]` |
 | Config generation only | `pnpm api -- deploy --dry-run` |
-| Dev with explicit isolated configs | `pnpm api -- dev:local --edge-config <file> --core-config <file> --state <dir> --env-file <empty-file>` |
+| Dev with explicit isolated configs | `pnpm api -- dev:local --edge-config <file> --core-config <file> --ai-config <file> --objects-config <file> --state <dir> --env-file <empty-file>` |
 | Real HTTP / database integration | `pnpm api -- test:http` / `test:integration:local` |
+| Copy values each Worker reads before the first five-Worker release | `pnpm api -- secrets:sync --from <file> [--dry-run]` |
 | Resource plan / create | `pnpm api -- resources` / `resources --apply` |
 | Wrangler command with actual config | `pnpm api -- wrangler edge <command> [args...]` |
 | Edge logs | `pnpm api -- tail` |
 | Complete local API setup | `pnpm api -- setup` |
 | Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` |
 | Diagnostics | `pnpm api -- debug:hashids` / `debug:hash-article` |
-| Optional CLI tools | `pnpm api -- stripe:webhook` / `mcp:tool` / `update:cli` |
+| Optional CLI tools | `pnpm api -- stripe:webhook` / `update:cli` |
 
 ## Environment file locations
 
@@ -88,6 +89,6 @@ Include a `<title>` and a body containing text or supported media. Supply the by
 
 New captures use per-user private raw bookmarks. Saving a configured Reader `/b/<uuid>` URL delegates to the same copy operation as `POST /v1/bookmark/fork`; it does not parse the Reader page shell. The nullable `sr_user_bookmark.forked_from_id` references the immediate source user-bookmark row. See [the feasibility and implementation design](bookmark-fork-feasibility.md) for duplicate, access and all-format semantics.
 
-Run `FORK_SMOKE=1 pnpm api -- test:http` from the repository root to exercise all existing content formats through local Edge/Core, PostgreSQL and R2. It uses disposable resources and historical migrations, requires the documented local Docker/prerequisite tools, and performs no remote deployment. `FORK_TEST_DATABASE_URL=<disposable PostgreSQL URL> pnpm api -- test test/infra/bookmarkFork.integration.test.ts` additionally exercises publication concurrency, source-policy rechecks and sync placeholder lifecycle. Never point these fixture tests at a shared or production database.
+Run `FORK_SMOKE=1 pnpm api -- test:http` from the repository root to exercise all existing content formats through local Edge, Core, AI and Objects, PostgreSQL and R2. It uses disposable resources and historical migrations, requires the documented local Docker/prerequisite tools, and performs no remote deployment. `FORK_TEST_DATABASE_URL=<disposable PostgreSQL URL> pnpm api -- test test/infra/bookmarkFork.integration.test.ts` additionally exercises publication concurrency, source-policy rechecks and sync placeholder lifecycle. Never point these fixture tests at a shared or production database.
 
 Apply the additive migration before deploying the updated API, then publish compatible Web/Extension clients. Preserve the provenance column and managed-content guards during rollback; old shared-media writers cannot safely write new private bundles. Runtime evidence and release gates are maintained in [the change validation record](../../openspec/changes/add-bookmark-fork/validation.md).

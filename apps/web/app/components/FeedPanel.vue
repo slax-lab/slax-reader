@@ -1,9 +1,11 @@
 <template>
   <RssPanel
     v-if="rss.rssEnabled.value && !rss.newsletterEnabled.value"
+    ref="rssPanel"
     :active="props.active"
     :search="props.search"
     v-model:list-mode="listMode"
+    @add-feed="showAdd"
   />
   <div v-else class="rss-panel">
     <div class="rss-heading">
@@ -525,16 +527,16 @@
   </div>
 </template>
 <script setup lang="ts">
-import { observeTableLayout } from "~/components/Article/processors/table-layout.processor";
-import { httpOriginalUrl } from "~/utils/bookmarkSource";
 import ListLayoutSwitcher from "~/components/BookmarkList/ListLayoutSwitcher.vue";
 import NewsletterAddress from "~/components/NewsletterAddress.vue";
 import RssIcon from "~/components/RssIcon.vue";
 import RssPanel from "~/components/RssPanel.vue";
 
+import { httpOriginalUrl } from "~/utils/bookmarkSource";
 import { sanitizeNewsletterPreview, sanitizeRssPreview } from "~/utils/rssPreview";
 
 import type { FeedEntry, FeedSubscription } from "@slax-reader/contracts";
+import { observeTableLayout } from "~/components/Article/processors/table-layout.processor";
 import {
   feedSourceText,
   feedSubscriptionName,
@@ -637,14 +639,24 @@ const imageFailed = (event: Event) => {
 const closeBackdrop = (event: MouseEvent, dialog?: HTMLDialogElement) => {
   if (event.target === dialog) dialog?.close();
 };
+const emit = defineEmits<{ addFeed: [] }>();
+const rssPanel = ref<InstanceType<typeof RssPanel>>();
 const showAdd = () => {
   rss.error.value = "";
-  editing.value = null;
-  url.value = "";
-  remark.value = "";
-  adding.value = true;
-  addDialog.value?.showModal();
+  emit("addFeed");
 };
+const addFeed = async (address: string, name: string) => {
+  if (!rss.rssEnabled.value) throw new Error("lab_disabled");
+  if (!rss.newsletterEnabled.value) {
+    if (!rssPanel.value) throw new Error("source_unavailable");
+    await rssPanel.value.addFeed(address, name);
+    return;
+  }
+  if (rss.pending.value) throw new Error("source_unavailable");
+  await rss.add(address, name);
+  if (rss.error.value) throw new Error(rss.error.value);
+};
+defineExpose({ addFeed });
 const showEdit = (row: Extract<FeedSubscription, { kind: "rss" }>) => {
   rss.error.value = "";
   editing.value = row;
@@ -865,7 +877,7 @@ h1 {
   background: var(--slax-accent-bg);
 }
 .source-fallback {
-  font: 500 21px/1 var(--slax-font-serif);
+  font: 500 21px/1.4 var(--slax-font-serif);
   color: var(--slax-accent);
 }
 .source-word {
@@ -882,6 +894,7 @@ h1 {
   white-space: nowrap;
   text-align: center;
   font-size: 11px;
+  line-height: 1.4;
 }
 .source-tile:hover .source-avatar {
   transform: translateY(-2px);

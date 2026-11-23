@@ -41,7 +41,7 @@ jobs:
       - run: pnpm api -- lint
       - run: pnpm api -- typecheck
       - run: pnpm api -- test
-      - name: Bundle all four Workers without deployment
+      - name: Bundle all five Workers without deployment
         run: pnpm api -- build
     needs: changes
     if: ${{ !cancelled() && (inputs.full_validation || (needs.changes.result == 'success' && needs.changes.outputs.api == 'true')) }}

@@ -9,7 +9,7 @@ vi.mock('cloudflare:workers', () => ({
 }))
 vi.mock('@cloudflare/puppeteer', () => ({ default: {}, connect: vi.fn() }))
 import { enforcePublicRequests, SlaxBrowser } from '@/utils/browser'
-import { ScreenshotBrowser } from '@/entry/core/screenshotBrowser'
+import { ScreenshotBrowser } from '@/entry/objects/screenshotBrowser'
 
 afterEach(() => vi.restoreAllMocks())
 

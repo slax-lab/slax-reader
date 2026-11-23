@@ -16,8 +16,8 @@
   <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:allowBackup="true" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="true" android:requestLegacyExternalStorage="true" android:fullBackupContent="@xml/secure_store_backup_rules" android:dataExtractionRules="@xml/secure_store_data_extraction_rules" android:usesCleartextTraffic="true">
     <meta-data android:name="SlaxApiBaseURL" android:value="https://api-reader.slax.com"/>
     <meta-data android:name="SlaxApiBetaURL" android:value="https://api-reader-beta.slax.com"/>
-    <meta-data android:name="SlaxVersionCode" android:value="807"/>
-    <meta-data android:name="SlaxVersionName" android:value="1.0.32"/>
+    <meta-data android:name="SlaxVersionCode" android:value="808"/>
+    <meta-data android:name="SlaxVersionName" android:value="1.0.33"/>
     <meta-data android:name="asset_statements" android:resource="@string/asset_statements"/>
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.ENABLE_BSDIFF_PATCH_SUPPORT" android:value="true"/>
@@ -37,6 +37,24 @@
         <data android:scheme="app.slax.reader"/>
         <data android:scheme="slaxreader"/>
         <data android:scheme="exp+slax-reader"/>
+      </intent-filter>
+      <intent-filter android:autoVerify="true" data-generated="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <data android:scheme="https" android:host="r.slax.com" android:path="/email-login"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+      </intent-filter>
+      <intent-filter android:autoVerify="true" data-generated="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <data android:scheme="https" android:host="r.slax.dev" android:path="/email-login"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+      </intent-filter>
+      <intent-filter android:autoVerify="true" data-generated="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <data android:scheme="https" android:host="r-beta.slax.com" android:path="/email-login"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
       </intent-filter>
     </activity>
     <activity android:name="com.slax.reader.extension.ShareActivity" android:exported="true" android:theme="@style/SlaxShareTheme" android:taskAffinity="" android:excludeFromRecents="true" android:launchMode="singleTask">

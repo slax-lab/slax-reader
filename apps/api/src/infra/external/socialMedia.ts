@@ -6,11 +6,31 @@ import { TikHubWeixinResponse, TikHubWeixinContent, isWeixinImageShower } from '
 import { DajialaArticleUnavailableError } from '@/const/err'
 import { TikHubYoutubeCaptionTrack, TikHubYoutubeCaptionListData, TikHubYoutubeCaptionContentData, TikHubYoutubeCaptionResponse } from '@/const/moreapi/youtube'
 import { YoutubeCue } from '@/utils/htmlBuilder'
-import { buildYoutubeCaptionDocument, captionBaseLanguage, toCompatCues, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
+import { buildYoutubeCaptionDocument, captionBaseLanguage, captionKindFromTrack, toCompatCues, type YoutubeCaptionDocument } from '@/utils/youtubeCaption'
 import { FetchThreePartyError } from '@/const/err'
 import { TweetArticleAPIResponse, TweetArticleInfo, TweetInfo, TwitterAPIResponse, TwitterMentionsAPIResponse } from '@/const/twitterapi/struct'
 import { fetchToutiaoArticle } from './toutiao'
 import { fetchZhihuByUrl } from './zhihu'
+
+type YoutubeCaptionData = Partial<TikHubYoutubeCaptionListData & TikHubYoutubeCaptionContentData> & { status?: string; job_id?: string }
+
+function youtubeCaptionLanguage(code: unknown): string {
+  return typeof code === 'string' ? captionBaseLanguage(code).split('-')[0] : ''
+}
+
+function logYoutubeCaption(videoId: string, branch: 'list' | 'direct' | 'track', reason: string, selected?: string, returned?: string): void {
+  const languageCode = (code?: string) => (typeof code === 'string' && /^[a-z]{1,8}(?:[.-][a-z0-9]{1,8}){0,5}$/i.test(code) ? code : undefined)
+  console.log(
+    JSON.stringify({
+      event: 'youtube_caption_selection',
+      video_id: videoId,
+      branch,
+      reason,
+      selected_language_code: languageCode(selected),
+      returned_language_code: languageCode(returned)
+    })
+  )
+}
 
 export class SocialMediaApi {
   public static fetchToutiao(env: Pick<Env, 'TIKHUB_TOKEN'>, url: string) {
@@ -37,7 +57,8 @@ export class SocialMediaApi {
     })
 
     if (!resp.ok) {
-      console.error(`fetch tikhub ${path} failed, response is not ok: ${await resp.text()}`)
+      const detail = path.startsWith(SocialMediaApi.youtubeCaptionPath) ? resp.status : await resp.text()
+      console.error(`fetch tikhub ${path} failed, response is not ok: ${detail}`)
       throw FetchThreePartyError()
     }
 
@@ -499,32 +520,38 @@ export class SocialMediaApi {
 
   private static youtubeCaptionPath = '/api/v1/youtube/web_v2/get_video_captions'
 
-  /**
-   * Pick the caption track to keep the original language of the video.
-   * The ASR track (language_code `a.xx`, kind=asr) is always in the spoken language, so it tells
-   * us the original language: manual track in that language → the ASR track itself.
-   * Without an ASR track the original language is unknown: manual track in the user's language →
-   * English track → first track. Translated tracks are never requested here.
-   * The track list is sorted by language name, so the first track is often a translation
-   * (`ar` for a video with many uploaded translations). English is the most likely original.
-   * debt: a non-English video with uploaded translations and no ASR track still gets English.
-   * Upgrade path: take the video's default audio language from its metadata.
-   */
-  private static pickYoutubeCaptionTrack(tracks: TikHubYoutubeCaptionTrack[], userLang?: string): TikHubYoutubeCaptionTrack | null {
-    if (!tracks.length) return null
-    const base = (t: TikHubYoutubeCaptionTrack) => captionBaseLanguage(t.language_code ?? '').split('-')[0]
-    const isManual = (t: TikHubYoutubeCaptionTrack) => t.kind !== 'asr'
-    const asr = tracks.find(t => t.kind === 'asr')
-    if (asr) {
-      const original = base(asr)
-      return tracks.find(t => isManual(t) && base(t) === original) ?? asr
+  private static rankYoutubeCaptionTracks(tracks: TikHubYoutubeCaptionTrack[], userLanguage: string): TikHubYoutubeCaptionTrack[] {
+    const byLanguage = new Map<string, TikHubYoutubeCaptionTrack[]>()
+    const automaticLanguages = new Set<string>()
+    for (const track of tracks) {
+      const language = youtubeCaptionLanguage(track?.language_code)
+      if (!language) continue
+      const candidates = byLanguage.get(language) ?? []
+      candidates.push(track)
+      byLanguage.set(language, candidates)
+      if (captionKindFromTrack(track) === 'asr') automaticLanguages.add(language)
     }
-    const user = (userLang ?? '').toLowerCase().split('-')[0]
-    for (const lang of [user, 'en']) {
-      const inLang = lang && tracks.find(t => isManual(t) && base(t) === lang)
-      if (inLang) return inLang
+
+    // A single automatic language is the existing cue for the original audio. Several
+    // automatic languages can come from dubs, so their order cannot identify the original.
+    const preferred = automaticLanguages.size > 1 && userLanguage !== 'zh' ? 'en' : userLanguage
+    const languages = automaticLanguages.size === 1 ? automaticLanguages : new Set([preferred, 'en'])
+    if (!automaticLanguages.size && byLanguage.size === 1) {
+      for (const language of byLanguage.keys()) languages.add(language)
     }
-    return tracks[0]
+
+    const ranked = Array.from(languages).flatMap(language =>
+      (byLanguage.get(language) ?? []).sort(
+        (a, b) => Number(captionKindFromTrack(a) === 'asr') - Number(captionKindFromTrack(b) === 'asr') || a.language_code.localeCompare(b.language_code)
+      )
+    )
+    const requestedCodes = new Set<string>()
+    return ranked.filter(track => {
+      const code = track.language_code.toLowerCase()
+      if (requestedCodes.has(code)) return false
+      requestedCodes.add(code)
+      return true
+    })
   }
 
   /**
@@ -535,8 +562,7 @@ export class SocialMediaApi {
     if (typeof data === 'string') {
       try {
         return JSON.parse(data) as T
-      } catch (err) {
-        console.error(`failed to parse tikhub data string: ${err}`)
+      } catch {
         return null
       }
     }
@@ -544,69 +570,109 @@ export class SocialMediaApi {
   }
 
   private static async requestYoutubeCaptions(env: Env, videoId: string, params: Record<string, string>, signal: AbortSignal) {
-    type Data = Partial<TikHubYoutubeCaptionListData & TikHubYoutubeCaptionContentData> & { status?: string; job_id?: string }
-    let response = await SocialMediaApi.fetchTikHub<TikHubYoutubeCaptionResponse<Data>>(env, SocialMediaApi.youtubeCaptionPath, {
-      searchParams: { video_id: videoId, ...params },
-      signal
-    })
+    const request = (path: string, searchParams: Record<string, string>) =>
+      SocialMediaApi.fetchTikHub<TikHubYoutubeCaptionResponse<YoutubeCaptionData>>(env, path, { searchParams, signal }).catch(() => {
+        throw FetchThreePartyError('YouTube caption provider request failed')
+      })
+    let response = await request(SocialMediaApi.youtubeCaptionPath, { video_id: videoId, ...params })
     let jobId: string | undefined
     // TikHub recommends 2–5s between polls. Bound the wait so an upstream job cannot hang a crawl.
     for (let attempt = 0; ; attempt++) {
       const data = SocialMediaApi.normalizeTikHubData(response.data)
       if (response.code !== 200 || !data || typeof data !== 'object') throw FetchThreePartyError('Invalid YouTube caption response')
       if (!['processing', 'queued', 'active'].includes(data.status ?? '')) {
-        if (data.status && data.status !== 'completed') throw FetchThreePartyError(`YouTube caption job ${data.status}`)
+        if (data.status && data.status !== 'completed') throw FetchThreePartyError('YouTube caption job failed')
         return data
       }
       jobId = data.job_id || jobId
       if (!jobId) throw FetchThreePartyError('YouTube caption job is missing job_id')
       if (attempt >= 20) throw FetchThreePartyError('YouTube caption job timed out')
       await new Promise(resolve => setTimeout(resolve, 3000))
-      response = await SocialMediaApi.fetchTikHub<TikHubYoutubeCaptionResponse<Data>>(env, `${SocialMediaApi.youtubeCaptionPath}_result`, {
-        searchParams: { job_id: jobId, format: 'json3' },
-        signal
-      })
+      signal.throwIfAborted()
+      response = await request(`${SocialMediaApi.youtubeCaptionPath}_result`, { job_id: jobId, format: 'json3' })
     }
+  }
+
+  private static readYoutubeCaption(videoId: string, track: TikHubYoutubeCaptionTrack, data: YoutubeCaptionData): YoutubeCaptionDocument | string {
+    if (data.video_id != null && data.video_id !== videoId) return 'video_mismatch'
+    if (data.language_code != null && youtubeCaptionLanguage(data.language_code) !== youtubeCaptionLanguage(track.language_code)) return 'language_mismatch'
+    const content = SocialMediaApi.normalizeTikHubData(data.content ?? null)
+    if (!content || !Array.isArray(content.events)) return 'invalid_json3'
+    const events = content.events.filter(
+      event =>
+        typeof event?.tStartMs === 'number' &&
+        Number.isFinite(event.tStartMs) &&
+        event.tStartMs >= 0 &&
+        Array.isArray(event.segs) &&
+        event.segs.every(segment => segment && (segment.utf8 == null || typeof segment.utf8 === 'string'))
+    )
+    const caption = buildYoutubeCaptionDocument(videoId, { ...track, language_name: data.language_name || track.language_name }, events)
+    return caption.cues.length ? caption : 'no_timed_cues'
   }
 
   /**
    * Fetch the YouTube captions through TikHub. Returns the legacy cues for the player HTML and the
    * normalized caption document (milliseconds, duration, track, kind) for downstream processing.
-   * `userLang` is only the fallback when the original language cannot be told from the tracks.
+   * The crawl passes the two-character preference from ContextManager.getlang().
    */
   public static async fetchYoutubeCaption(env: Env, videoId: string, userLang?: string): Promise<{ cues: YoutubeCue[]; caption: YoutubeCaptionDocument | null }> {
     // Bound HTTP time as well as poll count, across both list and content requests.
     const signal = AbortSignal.timeout(90_000)
-    const listData = await SocialMediaApi.requestYoutubeCaptions(env, videoId, {}, signal)
-    // An async list request may complete with the caption content directly.
-    const directContent = listData.status === 'completed' && listData.content != null && listData.language_code
-    if (!directContent && !Array.isArray(listData.captions)) throw FetchThreePartyError('Invalid YouTube caption list')
-    const track = directContent
-      ? {
-          language_code: listData.language_code!,
-          language_name: listData.language_name ?? '',
-          kind: listData.language_code!.startsWith('a.') ? 'asr' : '',
-          is_translatable: false,
-          base_url: ''
-        }
-      : SocialMediaApi.pickYoutubeCaptionTrack(listData.captions!, userLang)
-    if (!track) return { cues: [], caption: null }
+    let listData: YoutubeCaptionData
+    try {
+      listData = await SocialMediaApi.requestYoutubeCaptions(env, videoId, {}, signal)
+    } catch (error) {
+      logYoutubeCaption(videoId, 'list', 'list_request_failed')
+      throw error
+    }
+    if (listData.video_id != null && listData.video_id !== videoId) {
+      logYoutubeCaption(videoId, 'list', 'video_mismatch')
+      throw FetchThreePartyError('YouTube caption list video mismatch')
+    }
 
-    const contentData = directContent
-      ? listData
-      : await SocialMediaApi.requestYoutubeCaptions(
-          env,
-          videoId,
-          {
-            language_code: track.language_code,
-            format: 'json3'
-          },
-          signal
-        )
-    const content = SocialMediaApi.normalizeTikHubData(contentData.content ?? null)
-    if (!content || !Array.isArray(content.events)) throw FetchThreePartyError('Invalid YouTube json3 caption content')
-    const caption = buildYoutubeCaptionDocument(videoId, { ...track, language_name: contentData.language_name || track.language_name }, content.events)
-    return { cues: toCompatCues(caption.cues), caption }
+    const userLanguage = userLang?.toLowerCase() || 'en'
+    const directContent = !Array.isArray(listData.captions) && listData.status === 'completed' && listData.content != null
+    let tracks: TikHubYoutubeCaptionTrack[]
+    if (directContent) {
+      const language = youtubeCaptionLanguage(listData.language_code)
+      if (language !== 'en' && (language !== 'zh' || userLanguage !== 'zh')) {
+        logYoutubeCaption(videoId, 'direct', 'ineligible_language', undefined, listData.language_code)
+        return { cues: [], caption: null }
+      }
+      tracks = [{ language_code: listData.language_code!, language_name: listData.language_name ?? '', kind: '', is_translatable: false, base_url: '' }]
+    } else if (Array.isArray(listData.captions)) {
+      tracks = SocialMediaApi.rankYoutubeCaptionTracks(listData.captions, userLanguage)
+      if (!tracks.length) {
+        logYoutubeCaption(videoId, 'list', listData.captions.length ? 'no_eligible_track' : 'no_tracks')
+        return { cues: [], caption: null }
+      }
+    } else {
+      logYoutubeCaption(videoId, 'list', 'invalid_list')
+      throw FetchThreePartyError('Invalid YouTube caption list')
+    }
+
+    const branch = directContent ? 'direct' : 'track'
+    let failure = 'caption_timeout'
+    for (const track of tracks.slice(0, 2)) {
+      if (signal.aborted) break
+      let data: YoutubeCaptionData
+      try {
+        data = directContent ? listData : await SocialMediaApi.requestYoutubeCaptions(env, videoId, { language_code: track.language_code, format: 'json3' }, signal)
+      } catch {
+        failure = 'content_request_failed'
+        logYoutubeCaption(videoId, branch, failure, track.language_code)
+        continue
+      }
+      const caption = SocialMediaApi.readYoutubeCaption(videoId, track, data)
+      if (typeof caption === 'string') {
+        failure = caption
+        logYoutubeCaption(videoId, branch, failure, track.language_code, data.language_code)
+        continue
+      }
+      logYoutubeCaption(videoId, branch, 'selected', track.language_code, data.language_code)
+      return { cues: toCompatCues(caption.cues), caption }
+    }
+    throw FetchThreePartyError(`YouTube caption acquisition failed: ${failure}`)
   }
 
   /** Legacy entry point: cues only. */

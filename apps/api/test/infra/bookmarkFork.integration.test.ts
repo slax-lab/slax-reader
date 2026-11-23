@@ -5,6 +5,8 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/hyperdrive-client'
 import { BookmarkForkRepo } from '@/infra/repository/dbBookmarkFork'
 import { BookmarkForkService } from '@/domain/bookmarkFork'
+import { LabService } from '@/domain/lab'
+import { LabRepo } from '@/infra/repository/dbLab'
 import { podcastInputFingerprint } from '@/utils/mediaSnapshot'
 import { DBSyncBatchOperation } from '@/infra/repository/dbSyncBatch'
 import { BookmarkRepo, queueStatus } from '@/infra/repository/dbBookmark'
@@ -21,6 +23,7 @@ const url = process.env.FORK_TEST_DATABASE_URL
 describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
   const client = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
   const repo = new BookmarkForkRepo(() => client)
+  const labs = new LabService(new LabRepo(() => client))
   const publish = async (data: Parameters<BookmarkForkRepo['publish']>[0]) => {
     return repo.publish(data)
   }
@@ -60,6 +63,7 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     await client.sr_user_delete_bookmark.deleteMany({ where: { user_id: { in: users } } })
     await client.sr_user_bookmark.deleteMany({ where: { user_id: { in: users } } })
     await client.sr_bookmark.deleteMany({ where: { OR: [{ private_user: { in: users } }, { id: { in: raws } }] } })
+    await client.sr_user_lab_feature.deleteMany({ where: { user_id: { in: users } } })
     await client.sr_user.deleteMany({ where: { id: { in: users } } })
     await client.$disconnect()
   })
@@ -69,6 +73,72 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     const { content_key, content_md_key } = snapshotKeys(uuid)
     return { userId: users[1], source: source!, targetUrl: target, uuid, content: { content_key, content_md_key, content_word_count: 4 } }
   }
+
+  const lab = (feature: string) => client.sr_user_lab_feature.findUnique({ where: { user_id_feature: { user_id: users[1], feature } } })
+
+  it('enables the selected Lab on create and keeps its timestamp on refresh', async () => {
+    const request = { ...input(`https://fork-labs.test/${crypto.randomUUID()}`), labFeature: 'pdf' }
+    const { relation } = await publish(request)
+    const enabled = await lab('pdf')
+    expect(enabled).toMatchObject({ enabled: true })
+    expect(relation.bookmark.status).toBe('success')
+
+    const refresh = (await repo.admit({ ...request, uuid: crypto.randomUUID() })).relation
+    await publish({
+      ...request,
+      destination: { id: refresh.id, bookmark_id: refresh.bookmark_id, updated_at: refresh.bookmark.updated_at }
+    })
+    expect(await lab('pdf')).toEqual(enabled)
+  })
+
+  it('keeps the Lab off when publication loses the destination revision', async () => {
+    const request = { ...input(`https://fork-labs.test/${crypto.randomUUID()}`), labFeature: 'youtube' }
+    const { relation } = await repo.admit(request)
+    await expect(publish({ ...request, destination: { id: relation.id, bookmark_id: relation.bookmark_id, updated_at: new Date(0) } })).rejects.toMatchObject({
+      name: 'fork_destination_in_progress'
+    })
+    expect(await lab('youtube')).toBeNull()
+    expect((await repo.snapshot(relation.bookmark_id))?.status).toBe('parseing')
+  })
+
+  it('leaves a disabled Lab untouched when returning an existing copy without publication', async () => {
+    const request = input(`https://fork-labs.test/${crypto.randomUUID()}`)
+    const saved = await publish(request)
+    const duplicate = await publish({ ...request, uuid: crypto.randomUUID(), labFeature: 'podcast' })
+    expect(duplicate).toMatchObject({ disposition: 'already_saved', relation: { id: saved.relation.id } })
+    expect(await lab('podcast')).toBeNull()
+  })
+
+  it('enables YouTube when a synchronous Reader import publishes a historical video', async () => {
+    const targetUrl = 'https://youtu.be/dQw4w9WgXcQ'
+    const now = new Date()
+    const original = await client.sr_bookmark.create({
+      data: { target_url: targetUrl, private_user: users[0], status: 'success', content_key: 'legacy-video.html', created_at: now, updated_at: now, published_at: now }
+    })
+    const relation = await client.sr_user_bookmark.create({ data: { user_id: users[0], bookmark_id: original.id, updated_at: now } })
+    const { bucket } = memoryBucket()
+    await bucket.put(original.content_key, '<article>Saved YouTube video</article>')
+    const forkService = Object.assign(Object.create(BookmarkForkService.prototype), {
+      repo,
+      labs,
+      bucket: () => ({ R2Bucket: bucket }),
+      media: Object.assign(Object.create(MediaSnapshotService.prototype), { repo }),
+      afterCommit: async () => {}
+    }) as BookmarkForkService
+    const bookmarks = Object.assign(Object.create(BookmarkService.prototype), { forkService }) as BookmarkService
+    const ctx = {
+      getUserId: () => users[1],
+      execution: { waitUntil: vi.fn() },
+      env: { FRONT_END_URL: 'https://reader.test', VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch: vi.fn().mockResolvedValue([]) } }
+    } as any
+    expect(await lab('youtube')).toBeNull()
+    const saved = await bookmarks.addUrlBookmarkItem(ctx, { target_url: `https://reader.test/b/${relation.uuid}`, tags: [], import_only: true })
+    expect(saved).toMatchObject({ kind: 'completed', skipParse: true })
+    const destination = await repo.destination(users[1], targetUrl)
+    expect(destination?.bookmark.status).toBe('success')
+    expect(await lab('youtube')).toMatchObject({ enabled: true })
+    expect(await lab('youtube_article')).toBeNull()
+  })
 
   it('returns the committed cached-release timestamp for later moderation', async () => {
     const destination = await publish(input(`https://cached-release.test/${crypto.randomUUID()}`))
@@ -280,7 +350,7 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     const ctx = { getUserId: () => users[1] } as any
     const service = Object.assign(Object.create(BookmarkForkService.prototype), {
       repo,
-      labs: { assertUrlAllowed: async () => {}, assertEnabled: async () => {} },
+      labs,
       search: { clearSearchCache: async () => {} }
     }) as BookmarkForkService
     const accepted = await repo.admit({ userId: users[1], source: source!, targetUrl, uuid: crypto.randomUUID() })
@@ -372,7 +442,7 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     } as any
     const service = Object.assign(Object.create(BookmarkForkService.prototype), {
       repo,
-      labs: { assertUrlAllowed: async () => {}, assertEnabled: async () => {} },
+      labs,
       search: { clearSearchCache: async () => {} },
       bucket: () => ({ R2Bucket: memory.bucket }),
       media: { copyForFork: async () => undefined },

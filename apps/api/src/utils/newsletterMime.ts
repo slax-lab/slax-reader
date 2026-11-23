@@ -1,4 +1,4 @@
-import mailsplit, { type MimeNode, type SplitterChunk, type Headers } from '@zone-eu/mailsplit'
+import type { MimeNode, SplitterChunk, Headers } from '@zone-eu/mailsplit'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import type { Transform, Writable } from 'node:stream'
@@ -109,6 +109,8 @@ interface Leaf {
 }
 
 export async function readNewsletterMime(message: NewsletterMessageInput): Promise<NewsletterMimeInput> {
+  // Loaded on first use: the MIME splitter brings large charset tables that only inbound email needs.
+  const { default: mailsplit } = await import('@zone-eu/mailsplit')
   if (!Number.isInteger(message.rawSize) || message.rawSize <= 0 || message.rawSize > NEWSLETTER_LIMITS.inboundBytes) throw new NewsletterError('invalid_message', 413)
   // The library's declarations narrow inherited event overloads; both implementations are Node Transforms.
   const splitter = new mailsplit.Splitter({ ignoreEmbedded: true, maxHeadSize: NEWSLETTER_LIMITS.headerBytes, maxChildNodes: NEWSLETTER_LIMITS.parts }) as unknown as Transform

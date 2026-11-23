@@ -60,15 +60,21 @@
     "too_many_requests": "请求过于频繁，请稍后再试。",
     "stale_session": "登录状态已变更或过期。请重新加载账号设置后再试。",
     "back_to_sign_in": "返回登录",
-    "back_to_settings": "返回账号设置"
+    "back_to_settings": "返回账号设置",
+    "signing_in_link": "正在登录",
+    "sign_in_link_active_title": "你已登录",
+    "sign_in_link_active": "已保留当前账号。如需使用此邮件链接，请先退出账号，再重新打开邮件中的链接。",
+    "sign_in_link_keep_account": "继续使用当前账号",
+    "sign_in_link_failed": "链接无效、已过期或已使用。请返回登录页面重新发送邮件。"
   },
   "bookmark_fork": {
     "action": "收藏本篇",
     "submitting": "收藏中…",
     "saved": "已收藏",
-    "label": "Fork:",
-    "generic_source": "Reader 收藏",
-    "unavailable": "来源已不可访问",
+    "saved_from": "收藏自 {name}",
+    "generic_source": "Reader",
+    "pending_source": "来自其他收藏",
+    "unavailable": "原收藏不可访问",
     "offline": "请联网后再收藏本篇。",
     "failed": "收藏未成功，请重试。"
   },
@@ -228,6 +234,14 @@
     },
     "tips": {
       "interface_load_failed": "界面加载失败。可刷新页面后重试；未保存的草稿将丢失。",
+      "update_notice": {
+        "available_title": "有新版本可用",
+        "available_message": "刷新页面即可使用最新版 Slax Reader。",
+        "outdated_title": "当前页面版本已过期",
+        "outdated_message": "请刷新页面后继续使用 Slax Reader。",
+        "refresh": "刷新",
+        "close": "关闭更新提示"
+      },
       "in_app_browser": {
         "title": "建议在浏览器中打开",
         "message_before": "为获得更好的使用体验，请点击右上角的",
@@ -1523,6 +1537,18 @@
       "article_url_missing": "文章没有可收藏的原文地址",
       "source_unavailable": "源站暂时不可用，已缓存内容会保留"
     }
+  },
+  "add_content": {
+    "title": "添加内容",
+    "url": "链接",
+    "feed": "订阅",
+    "file": "文件",
+    "feed_hint": "这个链接可能是 RSS 订阅源，订阅后可以持续收到更新。",
+    "switch_feed": "切换为订阅",
+    "keep_url": "继续作为链接",
+    "feed_placeholder": "RSS 地址",
+    "choose_file": "选择 PDF",
+    "replace_file": "更换 PDF"
   },
   "promotion": {
     "identity_error": "暂时无法验证账号，请联网后重试。",
