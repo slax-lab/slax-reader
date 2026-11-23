@@ -1,5 +1,3 @@
-import { NewsletterTiming } from '@/utils/newsletterTiming'
-import { NewsletterService, receiveNewsletterEmail } from '@/domain/newsletter'
 import { MultiLangError } from '@/utils/multiLangError'
 import { Failed } from '@/utils/responseUtils'
 import { ServerError } from '@/const/err'
@@ -8,9 +6,9 @@ import { ContextManager } from '@/utils/context'
 import { initializeInfrastructure, initializeCore } from '@/di/generated/core/dependency'
 import { getRouter as readerRouter } from '@/di/generated/core/readerRouter'
 import { getRouter } from '@/di/router'
-import { handleMessage } from '@/di/generated/core/consumer'
-import { handleCronjob } from '@/di/generated/core/cronjob'
 import { handleContentRequest, isContentRequest } from './contentHandler'
+import { handleJobsRequest, isJobsRequest } from './jobs'
+import { handleEmailEvent, handleQueueEvent, handleScheduledEvent } from './handlers'
 import { VectorPreferenceObject } from './vectorPreferenceObject'
 import { EDGE_RAY_ID_HEADER } from '@/const/edge'
 import { applyApiResponseHeaders } from '@/middleware/cors'
@@ -20,7 +18,10 @@ initializeCore()
 const internalRoutes: ReadonlyArray<{
   match: (request: Request) => boolean
   handle: (request: Request, env: Env, ctx: ExecutionContext) => Promise<Response>
-}> = [{ match: isContentRequest, handle: handleContentRequest }]
+}> = [
+  { match: isContentRequest, handle: handleContentRequest },
+  { match: isJobsRequest, handle: handleJobsRequest }
+]
 
 async function handleFetch(request: Request, env: Env, ctx: ExecutionContext) {
   for (const route of internalRoutes) {
@@ -53,44 +54,6 @@ async function handleFetch(request: Request, env: Env, ctx: ExecutionContext) {
   return response
 }
 
-export async function handleEmailEvent(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) {
-  const timing = new NewsletterTiming(message.rawSize)
-  const ctxManager = new ContextManager(ctx, env)
-  try {
-    const currentContainer = container.clone()
-    initializeInfrastructure(ctxManager, currentContainer)
-    await receiveNewsletterEmail(message, env, currentContainer.resolve(NewsletterService), timing)
-  } finally {
-    try {
-      await timing.measure('cleanup', () =>
-        ctxManager.cleanup(() => {
-          timing.cleanupFailed = true
-        })
-      )
-    } catch {
-      timing.cleanupFailed = true
-    } finally {
-      timing.log()
-    }
-  }
-}
-
-export async function handleQueueEvent(batch: MessageBatch, env: Env, ctx: ExecutionContext) {
-  const ctxManager = new ContextManager(ctx, env)
-  const currentContainer = container.clone()
-
-  initializeInfrastructure(ctxManager, currentContainer)
-  return await handleMessage(currentContainer, batch, env, ctx)
-}
-
-export async function handleScheduledEvent(event: Event, env: Env, ctx: ExecutionContext) {
-  const ctxManager = new ContextManager(ctx, env)
-  const currentContainer = container.clone()
-
-  initializeInfrastructure(ctxManager, currentContainer)
-  return await handleCronjob(currentContainer, event, env, ctx)
-}
-
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     return applyApiResponseHeaders(await handleFetch(request, env, ctx), request, env.FRONT_END_URL)
@@ -101,6 +64,8 @@ export default {
 }
 
 export { VectorPreferenceObject }
+export { handleEmailEvent, handleQueueEvent, handleScheduledEvent }
+// Kept for one release: the Edge published before the fetch path still calls Core's jobs over this RPC entrypoint.
 export { CoreJobs } from './jobs'
 export { SlaxJieba, SlaxWebSocketServer, ScreenshotBrowser } from '../retired'
 export { CrawlWorkflow } from './workflows/crawlWorkflow'

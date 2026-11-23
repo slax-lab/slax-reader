@@ -232,9 +232,8 @@ export function workerConfig(config: ApiConfig, target: Target, local = false, m
   if (target === 'browser') return browserConfig(output)
   const internal = { CORE: names.core, EDGE: names.edge, AIGC: names.ai, VECTOR: names.ai, OBJECTS: names.objects, SlaxBrowser: names.browser }
   const services = target === 'edge' ? [] : rows(output.services).filter(service => !Object.prototype.hasOwnProperty.call(internal, String(service.binding)))
-  // Edge forwards HTTP to Core and AI, and the queue, cron and email events it receives to Core's job entrypoint.
-  if (target === 'edge')
-    services.push({ binding: 'CORE', service: names.core }, { binding: 'CORE_JOBS', service: names.core, entrypoint: 'CoreJobs' }, { binding: 'AIGC', service: names.ai })
+  // Edge forwards HTTP, and the queue, cron and email events it receives, to Core and AI.
+  if (target === 'edge') services.push({ binding: 'CORE', service: names.core }, { binding: 'AIGC', service: names.ai })
   // Core reaches the Vectorize indexes through AI's RPC; AI binds them natively, so it needs no binding to itself.
   if (target === 'core') services.push({ binding: 'VECTOR', service: names.ai, entrypoint: 'AiEntry' }, { binding: 'SlaxBrowser', service: names.browser })
   output.services = target === 'objects' ? [] : services

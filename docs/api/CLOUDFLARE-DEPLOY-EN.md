@@ -28,8 +28,8 @@ For a new installation, bootstrap deploys Browser → Objects → AI → Edge wi
 
 | Worker | Placement | Owns |
 |---|---|---|
-| Edge (public) | none, runs near the user | HTTP entry: CORS, cache, image proxy, authentication and forwarding to Core or AI; `ContentEntry`; the queue consumers, cron triggers and Email Routing target, each forwarded unchanged to Core's `CoreJobs` entrypoint |
-| Core | `aws:ap-southeast-1` | Reader routes outside `AI_ROUTES`; the queue, cron and newsletter email handlers, run through `CoreJobs`; the six Workflows and `VectorPreferenceObject` |
+| Edge (public) | none, runs near the user | HTTP entry: CORS, cache, image proxy, authentication and forwarding to Core or AI; `ContentEntry`; the queue consumers, cron triggers and Email Routing target, each forwarded unchanged to Core's internal `jobs.internal` host |
+| Core | `aws:ap-southeast-1` | Reader routes outside `AI_ROUTES`; the queue, cron and newsletter email handlers, run through the internal `jobs.internal` host; the six Workflows and `VectorPreferenceObject` |
 | AI | `aws:ap-southeast-1` | the routes listed in `apps/api/src/const/routes.ts` (`AI_ROUTES`: AIGC, overview/outline, search, recommendations, vector refresh) and the `AiEntry` vector RPC |
 | Objects | `aws:ap-southeast-1` | the `SlaxJieba`, `SlaxWebSocketServer` and `ScreenshotBrowser` Durable Objects; no HTTP |
 | Browser | none | `SlaxBrowser` (unchanged) |
@@ -38,7 +38,7 @@ For a new installation, bootstrap deploys Browser → Objects → AI → Edge wi
 
 ## First five-Worker release (existing installations)
 
-Edge keeps the queue consumers, cron triggers and Email Routing target it already has, and forwards each event to Core over a service binding (`CORE_JOBS`, entrypoint `CoreJobs`; service binding calls are not billed as extra requests). So no trigger, consumer or email rule moves, and the first five-Worker release is an ordinary `deploy` (CI or `pnpm api -- deploy`). Before its first publication a remote release reads the account and:
+Edge keeps the queue consumers, cron triggers and Email Routing target it already has, and forwards each event to Core with a `fetch` over the existing `CORE` service binding to the internal host `jobs.internal`, authenticated with `EDGE_SHARED_SECRET`. A fetch, unlike an RPC call, honors Core's placement, so the jobs run in Singapore beside the database; a service-binding fetch is billed like an RPC call (no extra request, only CPU time). So no trigger, consumer or email rule moves, and the first five-Worker release is an ordinary `deploy` (CI or `pnpm api -- deploy`). Before its first publication a remote release reads the account and:
 
 - stops while any Worker lacks a value its code reads (below), naming the Worker and key;
 - picks the order. While an `SlaxMcpServer` namespace remains it publishes Browser → Objects → Core (still exporting the MCP stub, since the old Edge binds Core's namespace) → AI → Edge (deleting Edge's namespace) → Core (deleting Core's). Wrangler moves the Workflows to Core on its first publication. Later releases find no namespace and publish Browser → Objects → Core → AI → Edge.

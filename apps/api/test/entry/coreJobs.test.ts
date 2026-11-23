@@ -1,42 +1,56 @@
 import { describe, expect, test, vi } from 'vitest'
 
+const handlers = vi.hoisted(() => ({
+  queue: vi.fn<(batch: MessageBatch, env: Env, ctx: ExecutionContext) => Promise<void>>(),
+  cron: vi.fn<(event: { cron: string; scheduledTime: number }, env: Env, ctx: ExecutionContext) => Promise<void>>(),
+  email: vi.fn<(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) => Promise<void>>()
+}))
+vi.mock('@/entry/core/handlers', () => ({ handleQueueEvent: handlers.queue, handleScheduledEvent: handlers.cron, handleEmailEvent: handlers.email }))
 vi.mock('cloudflare:workers', () => ({
   WorkerEntrypoint: class {
     constructor(
       protected ctx: ExecutionContext,
       protected env: Env
     ) {}
-  },
-  DurableObject: class {}
+  }
 }))
 
-const handlers = vi.hoisted(() => ({
-  queue: vi.fn<(batch: MessageBatch, env: Env, ctx: ExecutionContext) => Promise<void>>(),
-  cron: vi.fn<(event: { cron: string; scheduledTime: number }, env: Env, ctx: ExecutionContext) => Promise<void>>(),
-  email: vi.fn<(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) => Promise<void>>()
-}))
-vi.mock('@/entry/core/index', () => ({ handleQueueEvent: handlers.queue, handleScheduledEvent: handlers.cron, handleEmailEvent: handlers.email }))
-
-import { CoreJobs } from '@/entry/core/jobs'
+import { CoreJobs, handleJobsRequest, isJobsRequest } from '@/entry/core/jobs'
 import { forwardEmail, forwardQueue, forwardScheduled } from '@/entry/edge/jobs'
+import { EDGE_SECRET_HEADER } from '@/const/edge'
 
+const SECRET = 'shared-secret'
 const parent = { waitUntil: vi.fn(), passThroughOnException: vi.fn(), props: {}, tracing: {}, abort: vi.fn() } as unknown as ExecutionContext
-// Edge's binding behaves as an RPC stub that calls the entrypoint in Core.
-const edgeEnv = () => ({ CORE_JOBS: new (CoreJobs as unknown as new (ctx: ExecutionContext, env: Env) => CoreJobs)(parent, {} as Env) }) as unknown as Env
+// Edge's CORE binding behaves as a fetch to Core's entry, which routes the jobs host to handleJobsRequest.
+const edgeEnv = (secret = SECRET) => {
+  const fetch = vi.fn(async (input: string, init?: RequestInit) => {
+    const request = new Request(input, { ...init, duplex: 'half' } as RequestInit)
+    expect(isJobsRequest(request)).toBe(true)
+    return handleJobsRequest(request, { EDGE_SHARED_SECRET: SECRET } as Env, parent)
+  })
+  return { env: { EDGE_SHARED_SECRET: secret, CORE: { fetch } } as unknown as Env, fetch }
+}
 
-const message = (id: string) => ({ id, timestamp: new Date(0), body: { id }, attempts: 1, ack: vi.fn(), retry: vi.fn() })
+const message = (id: string) => ({ id, timestamp: new Date(0), body: { id }, attempts: 2, ack: vi.fn(), retry: vi.fn() })
+const batchOf = (messages: ReturnType<typeof message>[]) =>
+  ({ queue: 'slax-reader-parser-twitter', metadata: { metrics: { backlogCount: 1, backlogBytes: 1 } }, messages, ackAll: vi.fn(), retryAll: vi.fn() }) as unknown as MessageBatch
 
-describe('Edge forwards job events to Core', () => {
+describe('Edge forwards job events to Core over fetch, where placement applies', () => {
   test('queue decisions made in Core settle the real messages on Edge', async () => {
     handlers.queue.mockImplementationOnce(async batch => {
       expect(batch.queue).toBe('slax-reader-parser-twitter')
-      expect(batch.messages.map(item => item.body)).toEqual([{ id: 'a' }, { id: 'b' }, { id: 'c' }])
+      expect(batch.messages.map(item => [item.body, item.attempts, item.timestamp.getTime()])).toEqual([
+        [{ id: 'a' }, 2, 0],
+        [{ id: 'b' }, 2, 0],
+        [{ id: 'c' }, 2, 0]
+      ])
       batch.messages[0].ack()
       batch.messages[1].retry({ delaySeconds: 30 })
     })
     const messages = [message('a'), message('b'), message('c')]
-    const batch = { queue: 'slax-reader-parser-twitter', metadata: { metrics: {} }, messages, ackAll: vi.fn(), retryAll: vi.fn() } as unknown as MessageBatch
-    await forwardQueue(batch, edgeEnv())
+    const { env, fetch } = edgeEnv()
+    await forwardQueue(batchOf(messages), env)
+    expect(fetch.mock.calls[0][0]).toBe('https://jobs.internal/queue')
     expect(messages[0].ack).toHaveBeenCalledOnce()
     expect(messages[1].retry).toHaveBeenCalledWith({ delaySeconds: 30 })
     // A message the handler neither acked nor retried falls back to the batch's implicit outcome, as before.
@@ -44,19 +58,20 @@ describe('Edge forwards job events to Core', () => {
     expect(messages[2].retry).not.toHaveBeenCalled()
   })
 
-  test('a failing queue handler fails the Edge invocation, so the queue retries the batch', async () => {
-    handlers.queue.mockRejectedValueOnce(new Error('database unavailable'))
-    const batch = { queue: 'q', metadata: { metrics: {} }, messages: [message('a')], ackAll: vi.fn(), retryAll: vi.fn() } as unknown as MessageBatch
-    await expect(forwardQueue(batch, edgeEnv())).rejects.toThrow('database unavailable')
+  test('a failing queue handler fails the Edge call without leaking its message, so the queue retries the batch', async () => {
+    handlers.queue.mockRejectedValueOnce(new Error('postgresql://user:secret@db.invalid'))
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(forwardQueue(batchOf([message('a')]), edgeEnv().env)).rejects.toThrow('Core job /queue failed with HTTP 500')
+    error.mockRestore()
   })
 
   test('batch-wide ack and retry are applied on Edge', async () => {
     handlers.queue.mockImplementationOnce(async batch => batch.retryAll({ delaySeconds: 5 }))
-    const batch = { queue: 'q', metadata: { metrics: {} }, messages: [message('a')], ackAll: vi.fn(), retryAll: vi.fn() } as unknown as MessageBatch
-    await forwardQueue(batch, edgeEnv())
+    const batch = batchOf([message('a')])
+    await forwardQueue(batch, edgeEnv().env)
     expect(batch.retryAll).toHaveBeenCalledWith({ delaySeconds: 5 })
     handlers.queue.mockImplementationOnce(async batch => batch.ackAll())
-    await forwardQueue(batch, edgeEnv())
+    await forwardQueue(batch, edgeEnv().env)
     expect(batch.ackAll).toHaveBeenCalledOnce()
   })
 
@@ -66,36 +81,74 @@ describe('Edge forwards job events to Core', () => {
       expect(event).toMatchObject({ cron: '*/5 * * * *', scheduledTime: 42 })
       ctx.waitUntil(new Promise<void>(resolve => setTimeout(() => ((finished = true), resolve()), 20)))
     })
-    await forwardScheduled({ cron: '*/5 * * * *', scheduledTime: 42, noRetry: vi.fn() } as unknown as ScheduledController, edgeEnv())
+    await forwardScheduled({ cron: '*/5 * * * *', scheduledTime: 42, noRetry: vi.fn() } as unknown as ScheduledController, edgeEnv().env)
     expect(finished).toBe(true)
   })
 
-  test('email reaches Core with its envelope, headers and body, and a rejection returns to Edge', async () => {
+  test('email reaches Core with its recipient and raw body, and a rejection returns to Edge', async () => {
     handlers.email.mockImplementationOnce(async message => {
-      expect([message.from, message.to, message.rawSize, message.headers.get('subject')]).toEqual(['a@example.com', 'feed@news.example', 5, 'Hello'])
+      expect([message.to, message.rawSize]).toEqual(['订阅+x@news.example', 5])
       expect(await new Response(message.raw).text()).toBe('hello')
       message.setReject('Newsletter delivery is not available for this message.')
     })
+    // Email Routing exposes decoded values, which may hold any Unicode, unlike HTTP header values. Headers of any
+    // size stay in the raw MIME, which the handler parses; none travel in request headers.
+    const huge = new Map([['subject', 'Hello, 世界 '.repeat(4000)]])
     const incoming = {
-      from: 'a@example.com',
-      to: 'feed@news.example',
-      headers: new Headers({ Subject: 'Hello' }),
+      from: '发件人@example.com',
+      to: '订阅+x@news.example',
+      headers: { [Symbol.iterator]: () => huge[Symbol.iterator](), get: (name: string) => huge.get(name) ?? null },
       raw: new Response('hello').body,
       rawSize: 5,
       setReject: vi.fn()
     } as unknown as ForwardableEmailMessage
-    await forwardEmail(incoming, edgeEnv())
+    const { env, fetch } = edgeEnv()
+    await forwardEmail(incoming, env)
     expect(incoming.setReject).toHaveBeenCalledWith('Newsletter delivery is not available for this message.')
+    expect(JSON.stringify([...new Headers(fetch.mock.calls[0][1]!.headers).keys()])).not.toContain('subject')
     handlers.email.mockImplementationOnce(async () => {})
-    const accepted = { ...incoming, setReject: vi.fn() } as unknown as ForwardableEmailMessage
-    await forwardEmail(accepted, edgeEnv())
+    const accepted = { ...incoming, raw: new Response('hello').body, setReject: vi.fn() } as unknown as ForwardableEmailMessage
+    await forwardEmail(accepted, edgeEnv().env)
     expect(accepted.setReject).not.toHaveBeenCalled()
   })
 
   test('an email that Core cannot admit fails on Edge, so Email Routing reports the failure', async () => {
     handlers.email.mockRejectedValueOnce(new Error('Newsletter admission unavailable'))
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     const incoming = { from: 'a', to: 'b', headers: new Headers(), raw: new Response('x').body, rawSize: 1, setReject: vi.fn() } as unknown as ForwardableEmailMessage
-    await expect(forwardEmail(incoming, edgeEnv())).rejects.toThrow('Newsletter admission unavailable')
+    await expect(forwardEmail(incoming, edgeEnv().env)).rejects.toThrow('Core job /email failed with HTTP 500')
     expect(incoming.setReject).not.toHaveBeenCalled()
+    error.mockRestore()
+  })
+
+  test('the jobs route rejects a request without the shared secret and runs no handler', async () => {
+    for (const headers of [{}, { [EDGE_SECRET_HEADER]: 'wrong' }]) {
+      const response = await handleJobsRequest(new Request('https://jobs.internal/cron', { method: 'POST', headers, body: '{}' }), { EDGE_SHARED_SECRET: SECRET } as Env, parent)
+      expect(response.status).toBe(403)
+    }
+    const unset = await handleJobsRequest(new Request('https://jobs.internal/cron', { method: 'POST', headers: { [EDGE_SECRET_HEADER]: '' }, body: '{}' }), {} as Env, parent)
+    expect(unset.status).toBe(403)
+    await expect(forwardScheduled({ cron: '* * * * *', scheduledTime: 1 } as unknown as ScheduledController, edgeEnv('wrong').env)).rejects.toThrow('HTTP 403')
+    expect(handlers.cron).not.toHaveBeenCalledWith(expect.objectContaining({ cron: '* * * * *' }), expect.anything(), expect.anything())
+    expect(isJobsRequest(new Request('https://reader-api.slax.dev/queue'))).toBe(false)
+  })
+
+  test('the RPC entrypoint kept for one release runs the same handlers, so an Edge published before this change keeps working', async () => {
+    const jobs = new (CoreJobs as unknown as new (ctx: ExecutionContext, env: Env) => CoreJobs)(parent, {} as Env)
+    handlers.queue.mockImplementationOnce(async batch => {
+      expect(batch.messages[0].timestamp.getTime()).toBe(0)
+      batch.messages[0].retry({ delaySeconds: 9 })
+    })
+    expect(
+      await jobs.runQueue({ queue: 'q', metadata: { metrics: { backlogCount: 0, backlogBytes: 0 } }, messages: [{ id: 'a', timestamp: new Date(0), body: 1, attempts: 1 }] })
+    ).toEqual({
+      acked: [],
+      retried: [{ id: 'a', delaySeconds: 9 }],
+      ackAll: false
+    })
+    handlers.cron.mockImplementationOnce(async event => expect(event).toMatchObject({ cron: '0 */1 * * *', scheduledTime: 7 }))
+    await jobs.runCron('0 */1 * * *', 7)
+    handlers.email.mockImplementationOnce(async message => message.setReject('no'))
+    expect(await jobs.receiveEmail({ to: 'a@b', raw: new Response('x').body!, rawSize: 1 })).toEqual({ rejected: 'no' })
   })
 })

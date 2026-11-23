@@ -85,6 +85,10 @@ The deployment SHALL publish an explicit placement region, defined once by the A
 - **WHEN** Workers are started locally
 - **THEN** no generated configuration carries placement
 
+#### Scenario: A forwarded job runs at Core's placement
+- **WHEN** Edge forwards a queue batch, scheduled event or inbound email to Core
+- **THEN** it calls Core's `fetch` handler through the service binding, so the handler runs in Core's placement region rather than the location where the trigger fired, and Core rejects a forwarded job that does not carry the edge shared secret
+
 ### Requirement: Ownership moves preserve live state
 
 Moving ownership onto this topology SHALL preserve existing data and in-flight work:

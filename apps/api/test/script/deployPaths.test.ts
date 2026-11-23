@@ -89,7 +89,6 @@ describe('single API configuration', () => {
     expect([core.name, edge.name, ai.name, objects.name, browser.name]).toEqual(['custom-core', 'custom-edge', 'custom-ai', 'custom-objects', 'custom-browser'])
     expect(edge.services).toEqual([
       { binding: 'CORE', service: 'custom-core' },
-      { binding: 'CORE_JOBS', service: 'custom-core', entrypoint: 'CoreJobs' },
       { binding: 'AIGC', service: 'custom-ai' }
     ])
     const doTargets = (output: TomlTable) => Object.fromEntries(((output.durable_objects as TomlTable).bindings as TomlTable[]).map(row => [row.name, row.script_name ?? 'self']))
