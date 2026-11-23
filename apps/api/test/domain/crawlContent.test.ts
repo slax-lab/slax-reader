@@ -206,3 +206,55 @@ describe('Reuters regular capture', () => {
     expect(updateBookmark).toHaveBeenCalledWith(42, expect.objectContaining({ status: 'success' }))
   })
 })
+
+describe('short JavaScript notices', () => {
+  const url = 'https://reader.example.org/story'
+  const capture = (text: string) => {
+    const { service, putIfKeyExists } = createService()
+    const content = `<html><head><title>Story</title></head><body><article><p>${text}</p></article></body></html>`
+    return { result: service.parseAndSaveContent(createMockCtx(), { url, content }, 42, 'bookmark-uuid', 'initial'), putIfKeyExists }
+  }
+
+  test.each([
+    'You need to enable JavaScript to run this app.',
+    'JavaScript is currently disabled.',
+    'Please    turn on JS.',
+    'Site unavailable: enable JS to continue.',
+    '请在浏览器中开启 JavaScript 后重试。',
+    'Enable JS. ' + '界'.repeat(109)
+  ])('recognizes the directive before any write: %s', async text => {
+    const { result, putIfKeyExists } = capture(text)
+    await expect(result).rejects.toThrow('Page requires JavaScript')
+    expect(putIfKeyExists).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    'Enable JS. ' + '界'.repeat(110),
+    'A short editorial note.',
+    'How to enable JavaScript in a browser',
+    'This report quotes: Please enable JS. The rest of the report follows.'
+  ])('preserves ordinary text or a page over the threshold', async text => {
+    const { result } = capture(text)
+    expect((await result).textContent.trim()).toBe(text)
+  })
+
+  test('rejects the observed Reuters notice even with invisible spacing and a publisher logo', async () => {
+    const { service, putIfKeyExists } = createService()
+    const content =
+      '<html><head><title>Reuters</title></head><body><article><p>Please enable J\u200bS and disable any ad blocker.</p><img src="https://example.org/logo.svg" alt="Reuters"></article></body></html>'
+    await expect(service.parseAndSaveContent(createMockCtx(), { url: 'https://www.reuters.com/story', content }, 42, 'bookmark-uuid')).rejects.toThrow(
+      'Reuters returned an access notice'
+    )
+    expect(putIfKeyExists).not.toHaveBeenCalled()
+  })
+
+  test('a failed target response from the raw fallback is not a successful input to browser recovery', async () => {
+    const { service } = createService()
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(null, { status: 502 }))
+      .mockResolvedValueOnce(Response.json({ status: 'SUCCESS', httpCode: 403, result: 'Please enable JS.' }))
+    await expect(service.fetchRegular(createMockCtx(), url)).rejects.toThrow()
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+})

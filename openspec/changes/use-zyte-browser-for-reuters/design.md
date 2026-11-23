@@ -11,3 +11,7 @@ Select the Reuters exception at the point where the primary provider's mode is c
 ## Verification limits
 
 A browser-rendered response can still contain a publisher access notice. A live check needs a configured Zyte credential and must examine the extracted body. A successful request or a stubbed response alone cannot establish that the reported article is available.
+
+## Browser retry for a short JavaScript notice
+
+Inspect the selected article text before snapshot publication in the regular remote URL workflow. Collapse whitespace and require an explicit JavaScript enablement notice within 120 characters. Preserve illustrated articles and the existing handling of inline and imported content. A checkpoint carries the URL and notice length to a separate step with zero automatic retries. The step uses the existing Zyte browser transport. Record bounded structured events with the hostname, text length and outcome.

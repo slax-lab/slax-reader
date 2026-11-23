@@ -75,6 +75,7 @@ import { SlaxAlertBotClient } from '@/infra/external/slaxAlertBot'
 import { OpenAIModerationClient, ModerationResult } from '@/infra/external/openaiModeration'
 import { fetchZhihuByUrl, ZhihuCaptureUnavailableError } from '@/infra/external/zhihu'
 import {
+  createMockMediaSnapshots,
   createMockEnv,
   createMockCrawlService,
   createMockBookmarkService,
@@ -267,6 +268,64 @@ describe('CrawlWorkflow fetch step 状态转换', () => {
     expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
     expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
     expect(env.CONTENT_VALIDATION_WORKFLOW.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('short JavaScript notice browser recovery', () => {
+  const url = 'https://reader.example.org/story?source=private'
+  const shell = '<html><head><title>Story</title></head><body><article><p>Please enable JS.</p></article></body></html>'
+  const body = 'The rendered article is ready to read.'
+  const article = `<html><head><title>Story</title></head><body><article><p>${body}</p></article></body></html>`
+
+  test.each(['recovered', 'still_notice', 'retry_failed', 'already_rendered'])('records %s and bounds the number of requests and writes', async outcome => {
+    const { wf, cs, bs, uph } = wireWorkflow()
+    const target = outcome === 'already_rendered' ? 'https://www.infoq.cn/story' : url
+    const snapshots = createMockMediaSnapshots()
+    const service: CrawlService = Object.assign(Object.create(CrawlService.prototype), { snapshots })
+    cs.fetchRegular.mockImplementation(service.fetchRegular.bind(service))
+    cs.parseAndSaveContent.mockImplementation(service.parseAndSaveContent.bind(service))
+    const provider = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      Response.json({
+        url: target,
+        statusCode: 200,
+        httpResponseBody: Buffer.from(shell).toString('base64url'),
+        browserHtml: shell
+      })
+    )
+    provider.mockResolvedValueOnce(
+      outcome === 'retry_failed' ? new Response(null, { status: 503 }) : Response.json({ url: target, statusCode: 200, browserHtml: outcome === 'recovered' ? article : shell })
+    )
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const step = createMockStep()
+      const run = runWorkflow(wf, { url: target }, step)
+      if (outcome === 'recovered') {
+        await run
+        expect(snapshots.capture).toHaveBeenCalledOnce()
+        expect(snapshots.capture.mock.calls[0][2].text).toContain(body)
+        expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
+      } else {
+        await expect(run).rejects.toThrow()
+        expect(snapshots.capture).not.toHaveBeenCalled()
+        expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+        expect(uph.processContentPostProcessing).not.toHaveBeenCalled()
+      }
+      const events = [...info.mock.calls, ...warn.mock.calls].map(([event]) => event).filter(event => event?.event === 'capture_js_notice')
+      expect(events.map(event => event.outcome)).toEqual(outcome === 'already_rendered' ? [outcome] : ['retry_started', outcome])
+      expect(events[0]).toMatchObject({ hostname: new URL(target).hostname, textLength: 17 })
+      expect(JSON.stringify(events)).not.toMatch(/private|Please enable JS/)
+      const requests = provider.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))
+      expect(requests.map(request => request.browserHtml ?? false)).toEqual(outcome === 'already_rendered' ? [true] : [false, true])
+      expect(requests.at(-1)).toEqual({ url: target, browserHtml: true, javascript: true })
+      const checkpoint = step.do.mock.calls.find(([name]) => name === 'retry-js-notice-in-browser')
+      if (outcome === 'already_rendered') expect(checkpoint).toBeUndefined()
+      else expect(checkpoint?.[1]).toMatchObject({ retries: { limit: 0 } })
+    } finally {
+      provider.mockRestore()
+      info.mockRestore()
+      warn.mockRestore()
+    }
   })
 })
 

@@ -4,7 +4,7 @@ import { parseHTML } from 'linkedom'
 import { NonRetryableError } from 'cloudflare:workflows'
 import { initializeInfrastructure, initializeCore } from '@/di/generated/core/dependency'
 import { ContextManager } from '@/utils/context'
-import { CrawlService, CrawlResult, TwitterFetched, ZhihuFetched } from '@/domain/crawl'
+import { CrawlService, JavaScriptNoticeError, CrawlResult, TwitterFetched, ZhihuFetched } from '@/domain/crawl'
 import type { XHSData, WeiboData } from '@/const/moreapi/base'
 import type { RedditData } from '@/const/moreapi/reddit'
 import { isWeixinImageShower, isWeixinLegacyImageShower } from '@/const/moreapi/weixin'
@@ -21,7 +21,7 @@ import { MultiLangError } from '@/utils/multiLangError'
 import { ErrorName } from '@/const/err'
 import { ContentValidationWorkflowParams } from './contentValidationWorkflow'
 import { ImportService } from '@/domain/import'
-import { detectRoute, isSocialMediaRoute, normalizeYoutubeUrl } from '@/utils/platformDetector'
+import { detectRoute, isSocialMediaRoute, normalizeYoutubeUrl, shouldUseZyteBrowserHtml } from '@/utils/platformDetector'
 import { isProhibitedContentUrl } from '@/utils/prohibitedContentDetector'
 import { OpenAIModerationClient, ModerationResult } from '@/infra/external/openaiModeration'
 import { extractImageUrls } from '@/utils/htmlImages'
@@ -49,6 +49,8 @@ export interface CrawlWorkflowParams {
   repairPdfMetadata?: boolean
   importTaskId?: number
 }
+
+type JavaScriptBrowserRetry = { kind: 'retry_js_notice'; resolvedUrl: string; textLength: number }
 
 type FetchedPayload =
   | {
@@ -219,13 +221,13 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     // 预解析/抓取/保存内容
     let fetched: FetchedPayload | undefined
     try {
-      fetched = await step.do(
+      const initial = await step.do(
         'fetch',
         {
           retries: { limit: 2, delay: '1 minute' as const, backoff: 'constant' as const },
           timeout: '5 minutes'
         },
-        async (): Promise<FetchedPayload> => {
+        async (): Promise<FetchedPayload | JavaScriptBrowserRetry> => {
           if (!(await crawlService.ownsCapture(ctxManager, bookmarkId))) throw new NonRetryableError('Capture revision superseded')
           await assertUrlCaptureAllowed(url)
           const stored = await bookmarkService.getBookmarkById(bookmarkId)
@@ -363,12 +365,41 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             }
             default: {
               const fetchRes = await trackStep('zyte_fetching', () => crawlService.fetchRegular(ctxManager, resolvedUrl))
-              const result = await trackStep('parsing', () => crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid))
-              return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: false }
+              try {
+                const result = await trackStep('parsing', () => crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid, 'initial'))
+                return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: false }
+              } catch (err) {
+                if (!(err instanceof JavaScriptNoticeError)) throw err
+                if (shouldUseZyteBrowserHtml(resolvedUrl)) {
+                  console.warn({ event: 'capture_js_notice', hostname: new URL(resolvedUrl).hostname, textLength: err.textLength, outcome: 'already_rendered' })
+                  throw new NonRetryableError(err.message)
+                }
+                return { kind: 'retry_js_notice', resolvedUrl, textLength: err.textLength }
+              }
             }
           }
         }
       )
+      if (initial.kind === 'retry_js_notice') {
+        // Checkpoint the initial result so a persistent shell cannot replay the paid browser request.
+        fetched = await step.do('retry-js-notice-in-browser', { retries: { limit: 0, delay: '1 second' }, timeout: '5 minutes' }, async (): Promise<FetchedPayload> => {
+          if (!(await crawlService.ownsCapture(ctxManager, bookmarkId))) throw new NonRetryableError('Capture revision superseded')
+          const fields = { event: 'capture_js_notice', hostname: new URL(initial.resolvedUrl).hostname, textLength: initial.textLength }
+          console.info({ ...fields, outcome: 'retry_started' })
+          try {
+            const page = await crawlService.fetchRegular(ctxManager, initial.resolvedUrl, 'zyte-browser-only')
+            const data = await crawlService.parseAndSaveContent(ctxManager, page, bookmarkId, userBookmarkUuid, 'retry')
+            console.info({ ...fields, outcome: 'recovered', renderedTextLength: data.textContent.trim().replace(/\s+/g, ' ').length })
+            return { kind: 'parsed', resolvedUrl: initial.resolvedUrl, data, isSocialMedia: false }
+          } catch (err) {
+            if (err instanceof JavaScriptNoticeError) console.warn({ ...fields, outcome: 'still_notice', renderedTextLength: err.textLength })
+            else console.warn({ ...fields, outcome: 'retry_failed' })
+            throw err
+          }
+        })
+      } else {
+        fetched = initial
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       console.error(`Crawl workflow fetch failed for bookmark ${bookmarkId}: ${errMsg}`)

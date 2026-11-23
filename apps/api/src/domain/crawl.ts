@@ -8,7 +8,7 @@ import { BookmarkForkRepo, type MediaSnapshotRef } from '@/infra/repository/dbBo
 import type { MediaSnapshot } from '@/utils/mediaSnapshot'
 import { FetchError, SlaxFetch } from '../infra/external/remoteFetcher'
 import { HtmlBuilder, YoutubeCue } from '../utils/htmlBuilder'
-import { extractYoutubeVideoId, isReutersUrl, shouldUseBrowserHtml } from '../utils/platformDetector'
+import { extractYoutubeVideoId, isReutersUrl, shouldUseBrowserHtml, shouldUseZyteBrowserHtml } from '../utils/platformDetector'
 import { captionPlainText, captionSourceHash, youtubeCaptionKeys, type YoutubeCaptionDocument } from '../utils/youtubeCaption'
 import { evaluateYoutubeEligibility } from '../utils/youtubeEligibility'
 import { YoutubeArticleRepo, YOUTUBE_ARTICLE_PROMPT_VERSION, YOUTUBE_ARTICLE_SCHEMA_VERSION } from '../infra/repository/dbYoutubeArticle'
@@ -89,20 +89,55 @@ export type WeixinFetched = { source: 'tikhub'; content: TikHubWeixinContent } |
 
 const DYNAMIC_LOADING_PLACEHOLDER_RE = /^(?:加载中|正在加载中?|loading|pleasewait|cancel|ok|确定|取消|加载中确定删除吗取消确定|确定删除吗取消确定)+$/i
 
-function rejectReutersAccessNotice(url: string, text: string, document: Document) {
-  if (!/^\s*please\s+enable\s+js\s+and\s+disable\s+any\s+ad\s+blocker[.!]?\s*$/i.test(text) || !isReutersUrl(url)) return
+const ENABLE_JS_INSTRUCTIONS = [
+  /(?:^|[,.!?，。！？]\s*)(?:please\s+)?(?:enable|turn on)\s+(?:javascript|js)\b/i,
+  /\b(?:enable|turn on)\s+(?:javascript|js)\s+to (?:view|read|display|load|use|run|continue|proceed)\b/i,
+  /\b(?:you (?:must|need to)|requires? you to)\s+(?:enable|turn on)\s+(?:javascript|js)\b/i,
+  /\b(?:javascript|js)\s+(?:is (?:currently )?(?:disabled|required)|must be enabled)\b/i,
+  /(?:启用|开启|打开)\s*(?:javascript|js)\b|(?:javascript|js)\s*(?:未启用|未开启|已禁用)/i
+]
+const MAX_JS_NOTICE_LENGTH = 120
 
+export class JavaScriptNoticeError extends Error {
+  constructor(
+    message: string,
+    readonly textLength: number
+  ) {
+    super(message)
+  }
+}
+
+function hasArticleMedia(document: Document): boolean {
   // A photo or chart caption can quote the notice. Tracking pixels do not constitute article content.
   for (const image of document.querySelectorAll('img[src][alt]')) {
-    if (!image.getAttribute('alt')?.trim()) continue
+    const alt = image.getAttribute('alt')?.trim()
+    if (!alt || /\blogo\b|^reuters$/i.test(alt)) continue
     const isPixel = ['width', 'height'].some(attr => {
       const size = image.getAttribute(attr)
       return size !== null && /^\d+$/.test(size) && Number(size) <= 2
     })
-    if (!isPixel) return
+    if (!isPixel) return true
   }
-  if (document.querySelector('video[src], video source[src], audio[src], audio source[src]')) return
-  throw FetchThreePartyError('Reuters returned an access notice')
+  return !!document.querySelector('video[src], video source[src], audio[src], audio source[src]')
+}
+
+function rejectAccessNotice(url: string, text: string, document: Document, detectJavaScript = false) {
+  const reuters = isReutersUrl(url)
+  if (!reuters && !detectJavaScript) return
+  const normalized = text
+    .normalize('NFKC')
+    .replace(/[\u200b\ufeff]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+  if (normalized.length > MAX_JS_NOTICE_LENGTH * 2) return
+  const textLength = [...normalized].length
+  if (textLength > MAX_JS_NOTICE_LENGTH) return
+  const reutersNotice = reuters && /^please enable js and disable any ad blocker[.!]?$/i.test(normalized)
+  if (!reutersNotice && !(detectJavaScript && ENABLE_JS_INSTRUCTIONS.some(pattern => pattern.test(normalized)))) return
+  if (hasArticleMedia(document)) return
+  const message = reutersNotice ? 'Reuters returned an access notice' : 'Page requires JavaScript'
+  if (detectJavaScript) throw new JavaScriptNoticeError(message, textLength)
+  throw FetchThreePartyError(message)
 }
 
 export const isDynamicLoadingPlaceholder = (title: string, textContent: string): boolean => {
@@ -486,11 +521,11 @@ export class CrawlService {
   /**
    * 抓取普通网页
    */
-  public async fetchRegular(ctx: ContextManager, url: string): Promise<fetchResult> {
+  public async fetchRegular(ctx: ContextManager, url: string, mode?: 'zyte-browser-only'): Promise<fetchResult> {
     const fetcher = new SlaxFetch(ctx.env)
 
-    const useBrowserHtml = shouldUseBrowserHtml(url)
-    const useZyteBrowserHtml = useBrowserHtml || isReutersUrl(url)
+    if (mode === 'zyte-browser-only') return fetcher.zyte(url, true)
+    const useZyteBrowserHtml = shouldUseZyteBrowserHtml(url)
     console.log(`using Zyte browser html for ${url}: ${useZyteBrowserHtml}`)
 
     try {
@@ -499,7 +534,9 @@ export class CrawlService {
       console.log(`Zyte fetch failed for ${url}: ${zyteErr}`)
     }
     try {
-      return await fetcher.scrapingBot(url, useBrowserHtml)
+      const { targetStatus, ...page } = await fetcher.scrapingBot(url, shouldUseBrowserHtml(url))
+      if (targetStatus !== undefined && targetStatus >= 400) throw FetchThreePartyError(`Fallback returned HTTP ${targetStatus}`)
+      return page
     } catch (scrapingErr) {
       console.log(`ScrapingBot fetch failed for ${url}: ${scrapingErr}`)
     }
@@ -847,10 +884,19 @@ export class CrawlService {
     }
   }
 
-  public async parseAndSaveContent(ctx: ContextManager, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  public async parseAndSaveContent(
+    ctx: ContextManager,
+    fetchRes: fetchResult,
+    bookmarkId: number,
+    userBookmarkUuid: string,
+    jsNoticeCheck?: 'initial' | 'retry'
+  ): Promise<CrawlResult> {
     if (detectRoute(fetchRes.url) === 'regular') {
       const selected = await this.createBestParseRes(ctx, fetchRes)
-      rejectReutersAccessNotice(fetchRes.url, selected.parseRes.textContent, selected.parseRes.contentDocument)
+      rejectAccessNotice(fetchRes.url, selected.parseRes.textContent, selected.parseRes.contentDocument, !!jsNoticeCheck)
+      if (jsNoticeCheck === 'retry' && !selected.parseRes.textContent.trim() && !hasArticleMedia(selected.parseRes.contentDocument)) {
+        throw FetchThreePartyError('Browser retry returned an empty page')
+      }
       if (isDynamicLoadingPlaceholder(selected.parseRes.title, selected.parseRes.textContent)) {
         console.warn(`Dynamic page returned a loading placeholder for ${fetchRes.url}`)
         throw FetchThreePartyError('Dynamic page returned a loading placeholder')
@@ -1189,7 +1235,7 @@ export class CrawlService {
     }
   ): Promise<CrawlResult> {
     const { document } = parseHTML(opts.html)
-    rejectReutersAccessNotice(opts.originalUrl, opts.meta.textContent, document)
+    rejectAccessNotice(opts.originalUrl, opts.meta.textContent, document)
     await new Imager(ctx.env).batchReplaceImage(new URL(opts.originalUrl), document)
 
     const content = await this.snapshots.capture(

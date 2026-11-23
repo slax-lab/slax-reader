@@ -277,7 +277,7 @@ export class SlaxFetch {
     }
   }
 
-  public async scrapingBot(url: string, browserHtml: boolean = false): Promise<fetchResult> {
+  public async scrapingBot(url: string, browserHtml: boolean = false): Promise<fetchResult & { targetStatus?: number }> {
     url = publicTarget(url).href
     const body = browserHtml
       ? {
@@ -305,6 +305,7 @@ export class SlaxFetch {
     }
     const data = (await resp.json()) as ScrapingBotResponse
     return {
+      targetStatus: data.httpCode,
       content: data.result,
       url: url,
       title: ''
