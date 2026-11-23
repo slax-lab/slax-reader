@@ -117,7 +117,7 @@ export function localDevOptions(args: string[]) {
       throw new Error('Only local Edge-to-Core, Edge-to-AI and Core-to-AI service bindings are supported')
     const objects = config.durable_objects?.bindings ?? []
     for (const binding of objects) {
-      const owned = role === 'objects' ? OBJECT_CLASSES.includes(binding.class_name) : role === 'core' && OBJECT_CLASSES.includes(binding.class_name)
+      const owned = (role === 'objects' || role === 'core') && OBJECT_CLASSES.includes(binding.class_name)
       if (!owned || Object.keys(binding).some(key => !['name', 'class_name', 'script_name'].includes(key)))
         throw new Error('Only Objects-owned Durable Objects, bound from Core, are supported')
       if (role === 'objects' ? binding.script_name !== undefined : binding.script_name !== names.objects)

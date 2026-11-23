@@ -137,3 +137,13 @@ test('a hand-typed --transition is rejected, so a release never skips the readin
   expect(result.status).not.toBe(0)
   expect(result.stderr).toContain('Unknown argument: --transition')
 })
+
+test('a malformed SLAX_API_DEV_PORTS only affects local sessions, never a remote release', () => {
+  const { root, run } = harness(false, true)
+  const remote = run(['core'], { SLAX_API_DEV_PORTS: 'ai=not-a-port' }, true)
+  expect(remote.status, remote.stderr).toBe(0)
+  expect(JSON.parse(fs.readFileSync(path.join(root, 'result.json'), 'utf8')).args[0]).toBe('deploy')
+  const local = harness(true, false).run(['--dev', 'core'], { SLAX_API_DEV_PORTS: 'ai=not-a-port', SLAX_API_SKIP_DEV_PORT_GUARD: '1' })
+  expect(local.status).not.toBe(0)
+  expect(local.stderr).toContain('SLAX_API_DEV_PORTS entry "ai=not-a-port"')
+})

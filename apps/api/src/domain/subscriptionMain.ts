@@ -649,7 +649,11 @@ export class SubscriptionServiceMain {
     }
     // An unparseable end time must not turn a claimed reward into a 500 (date-fns throws where moment printed "Invalid date").
     const endTime = new Date(result.endTime)
-    return { title: $i.receiveActivityTitle({}), message: $i.receiveActivityResult({ end_time: isValid(endTime) ? format(endTime, 'yyyy-MM-dd') : '' }), subMessage: '' }
+    return {
+      title: $i.receiveActivityTitle({}),
+      message: $i.receiveActivityResult({ end_time: isValid(endTime) ? format(endTime, 'yyyy-MM-dd') : String(result.endTime) }),
+      subMessage: ''
+    }
   }
 
   public async redeemSubscription(ctx: ContextManager, code: string) {

@@ -55,6 +55,6 @@ describe('promotion status and grant compatibility', () => {
     h.repo.claimReward.mockResolvedValueOnce({ credit: false, endTime: 'not a date' })
     const invalid = await h.service.receiveSubscription(h.ctx, receiveActivityType.PLATFORM_0527)
     expect(invalid.title).toBe(valid.title)
-    expect(invalid.message).not.toContain('2027')
+    expect(invalid.message).toContain('ends on not a date.')
   })
 })
