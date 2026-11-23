@@ -3,7 +3,7 @@ import path from 'node:path'
 import { parse } from 'smol-toml'
 import { describe, expect, test, vi } from 'vitest'
 import { ROOT } from '../../script/root'
-import { cloudflareApi, requireTopology, topologyProblems, transition, type CloudflareApi, type TopologyState } from '../../script/deploy/topology'
+import { cloudflareApi, coreGaps, requireTopology, topologyProblems, transition, type CloudflareApi, type TopologyState } from '../../script/deploy/topology'
 import { workerNames, type ApiConfig, type McpPhase, type Target } from '../../script/deploy/config'
 import { RUNTIME_KEYS } from '../../script/deploy/runtimeKeys'
 
@@ -96,7 +96,7 @@ describe('five-Worker topology check', () => {
     for (const name of workflows) expect(problems).toContain(`Workflow ${name} belongs to ${EDGE}, not reader-core`)
     for (const name of queues) expect(problems).toContain(`Queue ${name} is consumed by ${EDGE}, not only reader-core`)
     expect(problems).toContain(`Edge ${EDGE} still has cron schedules ${crons.join(', ')}`)
-    expect(problems).toContain(`Core reader-core lacks cron schedules ${crons.join(', ')}`)
+    expect(coreGaps(state, config)).toContain(`Core reader-core lacks cron schedules ${crons.join(', ')}`)
     for (const script of [EDGE, 'reader-core']) expect(problems).toContain(`MCP namespace SlaxMcpServer still exists on ${script}`)
     expect(problems.join('\n')).not.toContain('another-app')
     await expect(requireTopology(api, config)).rejects.toThrow('topology:transition')
@@ -209,12 +209,40 @@ describe('values that move with the code', () => {
     expect(await transition({ step: 1, dryRun: false, api, config, deploy, log: quiet })).toBe(0)
   })
 
-  test('Core without its configured cron schedules is an incomplete move', async () => {
+  test('a release that adds a cron or a queue consumer is not blocked by what it creates', async () => {
     const { state, api } = account('core', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
     state.schedules[EDGE] = []
+    const grown = structuredClone(config)
+    ;(grown.triggers as { crons: string[] }).crons.push('15 3 * * *')
+    ;(grown.queues as { consumers: { queue: string }[] }).consumers.push({ queue: 'brand-new-queue' })
+    state.queues.push({ queue_id: 'qn', queue_name: 'brand-new-queue', consumers: [] })
+    await expect(requireTopology(api, grown)).resolves.toBeUndefined()
+    // The transition still requires Core to have taken every cron and queue once it has published Core.
+    expect(coreGaps(state, grown)).toEqual(['Queue brand-new-queue has no consumer; reader-core should consume it', 'Core reader-core lacks cron schedules 15 3 * * *'])
+  })
+
+  test('step 2 fails while Core lacks a configured cron after publishing', async () => {
+    const { api, deploy } = account('edge', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    const drift = structuredClone(config)
+    ;(drift.triggers as { crons: string[] }).crons.push('15 3 * * *')
+    await expect(transition({ step: 2, dryRun: false, api, config: drift, deploy, log: quiet })).rejects.toThrow('Core reader-core lacks cron schedules 15 3 * * *')
+  })
+
+  test('an Edge-consumed queue missing from the configuration blocks releases, and step 2 releases it', async () => {
+    const { state, api, calls, deploy } = account('edge', { scripts: ['reader-browser', 'reader-objects', 'reader-core', 'reader-ai', EDGE] })
+    state.queues.push({ queue_id: 'qx', queue_name: 'legacy-parser', consumers: [{ script: EDGE, consumer_id: 'cx', type: 'worker' }] })
+    state.queues.push({ queue_id: 'qy', queue_name: 'another-apps-queue', consumers: [{ script: 'another-app', consumer_id: 'cy', type: 'worker' }] })
+    const problems = topologyProblems(state, config)
+    expect(problems).toContain(`Queue legacy-parser is consumed by ${EDGE} but is not in the configuration; the slim Edge has no queue handler`)
+    expect(problems.join('\n')).not.toContain('another-apps-queue')
+    const log = vi.fn()
+    expect(await transition({ step: 2, dryRun: false, api, config, deploy, log })).toBe(0)
+    expect(calls).toContain('DELETE /queues/qx/consumers/cx')
+    expect(calls).not.toContain('DELETE /queues/qy/consumers/cy')
+    expect(log).toHaveBeenCalledWith('will remove Edge consumer of legacy-parser (not in the configuration, so Core will not consume it)')
+    state.schedules[EDGE] = []
+    state.mcp = []
     await expect(requireTopology(api, config)).resolves.toBeUndefined()
-    state.schedules['reader-core'] = crons.slice(1)
-    await expect(requireTopology(api, config)).rejects.toThrow(`Core reader-core lacks cron schedules ${crons[0]}`)
   })
 
   test('a key no Worker holds is an unconfigured optional feature and does not block', async () => {

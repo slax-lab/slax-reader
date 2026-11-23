@@ -86,7 +86,7 @@ Moving ownership onto this topology SHALL preserve existing data and in-flight w
 - The removed MCP server's `SlaxMcpServer` namespaces in Core and Edge SHALL be deleted, with their stored sessions, only in the final transition step, after every other ownership move is complete and no Worker binds them. Earlier transition steps MUST NOT delete any namespace.
 - Every queue SHALL keep at most one consumer at any moment and SHALL regain exactly one consumer at the end of the move; messages produced during the handover SHALL remain queued and be delivered afterwards. Every cron schedule and the email route SHALL end with exactly one handler.
 
-Existing installations SHALL reach this topology through a documented transition run before normal releases resume. Normal releases MUST detect an installation that has not completed the transition and stop before publication with a message naming the transition. New installations SHALL deploy directly into this topology through bootstrap.
+Existing installations SHALL reach this topology through a documented transition run before normal releases resume. Normal releases MUST detect an installation that has not completed the transition and stop before publication with a message naming the transition. That check SHALL cover every queue in the account consumed by the legacy Edge, including queues absent from the selected configuration, and MUST NOT require a cron schedule or queue consumer that the release itself creates. New installations SHALL deploy directly into this topology through bootstrap.
 
 #### Scenario: A Workflow instance is running during the transition
 - **WHEN** a Workflow instance created before the transition resumes after Core takes ownership
@@ -107,3 +107,11 @@ Existing installations SHALL reach this topology through a documented transition
 #### Scenario: A normal release runs before the transition
 - **WHEN** a normal release targets an installation that has not completed the transition
 - **THEN** it stops before the first Worker publication and names the transition that must be run
+
+#### Scenario: Edge consumes a queue the configuration omits
+- **WHEN** the legacy Edge consumes a queue that the selected configuration does not list
+- **THEN** a normal release stops and names the queue, and the transition removes that Edge consumer without assigning the queue to Core
+
+#### Scenario: A release adds a cron schedule or a queue consumer
+- **WHEN** a release on a transitioned installation adds a cron schedule or a consumer for a new queue
+- **THEN** the readiness check passes and the Core publication creates them

@@ -60,8 +60,8 @@ export async function readState(api: CloudflareApi, config: ApiConfig): Promise<
   const scripts = (await api.list<{ id: string }>('/workers/scripts')).map(script => script.id)
   const wanted = new Set(workflowNames(config))
   const workflows = (await api.list<TopologyState['workflows'][number]>('/workflows')).filter(workflow => wanted.has(workflow.name))
-  const queuesWanted = new Set(queueNames(config))
-  const queues = (await api.list<TopologyState['queues'][number]>('/queues')).filter(queue => queuesWanted.has(queue.queue_name))
+  // Every queue, not only configured ones: a queue the configuration omits can still be consumed by the old Edge.
+  const queues = await api.list<TopologyState['queues'][number]>('/queues')
   const schedules: Record<string, string[]> = {}
   for (const script of [names.core, names.edge].filter(name => scripts.includes(name))) {
     const result = await api.get<{ schedules?: { cron: string }[] }>(`/workers/scripts/${encodeURIComponent(script)}/schedules`)
@@ -76,7 +76,9 @@ export async function readState(api: CloudflareApi, config: ApiConfig): Promise<
 
 const consumerScript = (consumer: TopologyState['queues'][number]['consumers'][number]) => consumer.script ?? consumer.service
 
-// Problems that keep an installation from the five-Worker topology; empty means the transition is complete.
+// Surfaces the old topology still holds; a normal release stops while any remains, because the slim Edge would
+// drop them. What a Core release creates itself (a new cron, the consumer of a new queue) is not listed, so the
+// release that adds one is never blocked by it.
 export function topologyProblems(state: TopologyState, config: ApiConfig): string[] {
   const names = workerNames(config)
   const problems: string[] = []
@@ -85,22 +87,36 @@ export function topologyProblems(state: TopologyState, config: ApiConfig): strin
     const workflow = state.workflows.find(item => item.name === name)
     if (workflow && workflow.script_name !== names.core) problems.push(`Workflow ${name} belongs to ${workflow.script_name}, not ${names.core}`)
   }
-  for (const name of queueNames(config)) {
-    const queue = state.queues.find(item => item.queue_name === name)
-    // A queue missing from the account has no consumer to split between Edge and Core; Core's deploy fails
-    // on its consumer binding until the queue is created (`pnpm api -- resources --apply`).
-    if (!queue) continue
+  const configured = new Set(queueNames(config))
+  for (const queue of state.queues) {
     const owners = queue.consumers.filter(consumer => consumer.type !== 'http_pull').map(consumerScript)
-    if (owners.length !== 1 || owners[0] !== names.core) problems.push(`Queue ${name} is consumed by ${owners.join(', ') || 'nothing'}, not only ${names.core}`)
+    if (configured.has(queue.queue_name)) {
+      if (owners.some(owner => owner !== names.core)) problems.push(`Queue ${queue.queue_name} is consumed by ${owners.join(', ')}, not only ${names.core}`)
+    } else if (owners.includes(names.edge)) {
+      problems.push(`Queue ${queue.queue_name} is consumed by ${names.edge} but is not in the configuration; the slim Edge has no queue handler`)
+    }
   }
   if (state.schedules[names.edge]?.length) problems.push(`Edge ${names.edge} still has cron schedules ${state.schedules[names.edge].join(', ')}`)
-  // The ownership move is complete only once Core runs every configured schedule.
+  for (const script of state.mcp) problems.push(`MCP namespace SlaxMcpServer still exists on ${script}`)
+  return problems
+}
+
+// What the transition must leave on Core once step 2 has published it. Normal releases do not check these: the
+// Core deploy itself creates them.
+export function coreGaps(state: TopologyState, config: ApiConfig): string[] {
+  const names = workerNames(config)
+  const gaps: string[] = []
+  for (const name of queueNames(config)) {
+    // A queue missing from the account has no consumer to move; Core's deploy fails on its consumer binding until
+    // the queue is created (`pnpm api -- resources --apply`).
+    const queue = state.queues.find(item => item.queue_name === name)
+    if (queue && !queue.consumers.some(consumer => consumer.type !== 'http_pull')) gaps.push(`Queue ${name} has no consumer; ${names.core} should consume it`)
+  }
   const crons = ((config.triggers as { crons?: unknown[] } | undefined)?.crons ?? []).map(String)
   const coreCrons = new Set(state.schedules[names.core] ?? [])
   const missingCrons = crons.filter(cron => !coreCrons.has(cron))
-  if (state.scripts.includes(names.core) && missingCrons.length) problems.push(`Core ${names.core} lacks cron schedules ${missingCrons.join(', ')}`)
-  for (const script of state.mcp) problems.push(`MCP namespace SlaxMcpServer still exists on ${script}`)
-  return problems
+  if (state.scripts.includes(names.core) && missingCrons.length) gaps.push(`Core ${names.core} lacks cron schedules ${missingCrons.join(', ')}`)
+  return gaps
 }
 
 // Values that would be lost when code moves to another Worker, by name only. Deploys use --keep-vars, so a
@@ -175,7 +191,10 @@ export async function transition({ step, dryRun, api, config, deploy, log = cons
     return status
   }
   // Steps 1 to 3 change only ownership and keep every namespace, so each can be rolled back.
-  const pendingOwnership = (state: TopologyState) => topologyProblems(state, config).filter(problem => !problem.startsWith('Edge ') && !problem.startsWith('MCP '))
+  const pendingOwnership = (state: TopologyState) => [
+    ...topologyProblems(state, config).filter(problem => !problem.startsWith('Edge ') && !problem.startsWith('MCP ')),
+    ...coreGaps(state, config)
+  ]
   // Every Worker that newly runs moved code must already hold the values that code reads.
   const requireValues = async (targets: readonly (keyof typeof RUNTIME_KEYS)[]) => {
     const missing = await missingRuntimeValues(api, config, targets)
@@ -194,10 +213,15 @@ export async function transition({ step, dryRun, api, config, deploy, log = cons
     // Core goes before AI: AI binds the Workflows by script_name, and only the new Core exports their classes (the
     // old Core does not; the old Edge does). The old AI needs nothing the new Core drops, since its AiEntry methods
     // are unchanged.
+    // The slim Edge consumes nothing, so every Edge consumer goes, including one on a queue the configuration
+    // omits: the current Edge already rejects those batches ("Unconfigured queue"), so no handled work is lost.
+    const configured = new Set(queueNames(config))
     for (const queue of before.queues)
       for (const consumer of queue.consumers)
-        if (consumerScript(consumer) === names.edge && consumer.consumer_id)
-          await act(`remove Edge consumer of ${queue.queue_name}`, () => api.send('DELETE', `/queues/${queue.queue_id}/consumers/${consumer.consumer_id}`))
+        if (consumerScript(consumer) === names.edge && consumer.consumer_id) {
+          const note = configured.has(queue.queue_name) ? '' : ' (not in the configuration, so Core will not consume it)'
+          await act(`remove Edge consumer of ${queue.queue_name}${note}`, () => api.send('DELETE', `/queues/${queue.queue_id}/consumers/${consumer.consumer_id}`))
+        }
     if (before.schedules[names.edge]?.length)
       await act(`clear Edge cron schedules ${before.schedules[names.edge].join(', ')}`, () =>
         api.send('PUT', `/workers/scripts/${encodeURIComponent(names.edge)}/schedules`, [] satisfies { cron: string }[])
@@ -225,7 +249,7 @@ export async function transition({ step, dryRun, api, config, deploy, log = cons
     return status
   }
   // Step 4 is the only irreversible step: it deletes the MCP server's stored sessions.
-  const problems = topologyProblems(before, config).filter(problem => !problem.startsWith('MCP '))
+  const problems = [...topologyProblems(before, config).filter(problem => !problem.startsWith('MCP ')), ...coreGaps(before, config)]
   if (problems.length) {
     log(`Transition incomplete; finish steps 1 to 3 first:\n- ${problems.join('\n- ')}`)
     return 1
