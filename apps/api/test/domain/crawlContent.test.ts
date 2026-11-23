@@ -248,13 +248,25 @@ describe('short JavaScript notices', () => {
     expect(putIfKeyExists).not.toHaveBeenCalled()
   })
 
-  test('a failed target response from the raw fallback is not a successful input to browser recovery', async () => {
-    const { service } = createService()
-    const fetch = vi
-      .spyOn(globalThis, 'fetch')
+  test('preserves readable fallback bodies even when the reported status precludes a browser retry', async () => {
+    const { service, updateBookmark } = createService()
+    vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(null, { status: 502 }))
-      .mockResolvedValueOnce(Response.json({ status: 'SUCCESS', httpCode: 403, result: 'Please enable JS.' }))
-    await expect(service.fetchRegular(createMockCtx(), url)).rejects.toThrow()
-    expect(fetch).toHaveBeenCalledTimes(2)
+      .mockResolvedValueOnce(
+        Response.json({ status: 'SUCCESS', httpCode: 403, result: '<html><head><title>News</title></head><body><p>The full report remains available.</p></body></html>' })
+      )
+    const ctx = createMockCtx()
+    const page = await service.fetchRegular(ctx, url)
+    expect(page.targetErrorStatus).toBe(403)
+    const result = await service.parseAndSaveContent(ctx, page, 42, 'bookmark-uuid', 'initial')
+    expect(result.textContent).toContain('full report')
+    expect(updateBookmark).toHaveBeenCalled()
+  })
+
+  test.each(['src', 'data-src'])('preserves an image-only browser result using %s without alt text', async attribute => {
+    const { service, putIfKeyExists } = createService()
+    const content = `<html><head><title>Photo essay</title></head><body><article><figure><img ${attribute}="https://images.example.org/news.jpg"></figure></article></body></html>`
+    await service.parseAndSaveContent(createMockCtx(), { url, content }, 42, 'bookmark-uuid', 'retry')
+    expect(putIfKeyExists).toHaveBeenCalledWith(expect.stringMatching(/body\.html$/), expect.stringContaining('news.jpg'))
   })
 })

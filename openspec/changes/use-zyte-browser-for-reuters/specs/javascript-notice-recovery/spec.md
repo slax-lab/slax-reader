@@ -25,6 +25,16 @@ For regular remote bookmark saves, the system SHALL recognize explicit English a
 - **WHEN** the initial capture already attempted browser mode and produces a short JavaScript notice
 - **THEN** the workflow records the outcome and makes no additional browser request
 
+#### Scenario: The fallback reports a target error
+
+- **WHEN** the fallback reports an unsuccessful target HTTP status
+- **THEN** a matching notice fails without a browser retry and a readable article remains eligible for regular publication
+
+#### Scenario: A recovered notice reaches bookmark telemetry
+
+- **WHEN** the browser retry succeeds
+- **THEN** fetch and parse success are visible in bookmark step telemetry, and the initial notice does not emit a bookmark save failure
+
 #### Scenario: Ordinary content
 
 - **WHEN** the body exceeds the limit, lacks an explicit enablement instruction, or includes substantive editorial media

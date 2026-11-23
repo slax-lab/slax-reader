@@ -521,7 +521,7 @@ export class CrawlService {
   /**
    * 抓取普通网页
    */
-  public async fetchRegular(ctx: ContextManager, url: string, mode?: 'zyte-browser-only'): Promise<fetchResult> {
+  public async fetchRegular(ctx: ContextManager, url: string, mode?: 'zyte-browser-only'): Promise<fetchResult & { targetErrorStatus?: number }> {
     const fetcher = new SlaxFetch(ctx.env)
 
     if (mode === 'zyte-browser-only') return fetcher.zyte(url, true)
@@ -534,9 +534,7 @@ export class CrawlService {
       console.log(`Zyte fetch failed for ${url}: ${zyteErr}`)
     }
     try {
-      const { targetStatus, ...page } = await fetcher.scrapingBot(url, shouldUseBrowserHtml(url))
-      if (targetStatus !== undefined && targetStatus >= 400) throw FetchThreePartyError(`Fallback returned HTTP ${targetStatus}`)
-      return page
+      return await fetcher.scrapingBot(url, shouldUseBrowserHtml(url))
     } catch (scrapingErr) {
       console.log(`ScrapingBot fetch failed for ${url}: ${scrapingErr}`)
     }
@@ -894,7 +892,11 @@ export class CrawlService {
     if (detectRoute(fetchRes.url) === 'regular') {
       const selected = await this.createBestParseRes(ctx, fetchRes)
       rejectAccessNotice(fetchRes.url, selected.parseRes.textContent, selected.parseRes.contentDocument, !!jsNoticeCheck)
-      if (jsNoticeCheck === 'retry' && !selected.parseRes.textContent.trim() && !hasArticleMedia(selected.parseRes.contentDocument)) {
+      if (
+        jsNoticeCheck === 'retry' &&
+        !selected.parseRes.textContent.trim() &&
+        !selected.parseRes.contentDocument.querySelector('img[src], img[data-src], video[src], audio[src], source[src]')
+      ) {
         throw FetchThreePartyError('Browser retry returned an empty page')
       }
       if (isDynamicLoadingPlaceholder(selected.parseRes.title, selected.parseRes.textContent)) {

@@ -277,6 +277,22 @@ describe('short JavaScript notice browser recovery', () => {
   const body = 'The rendered article is ready to read.'
   const article = `<html><head><title>Story</title></head><body><article><p>${body}</p></article></body></html>`
 
+  test('a fallback target error with a matching notice fails without another browser request', async () => {
+    const { wf, cs, bs } = wireWorkflow()
+    const service: CrawlService = Object.create(CrawlService.prototype)
+    cs.fetchRegular.mockResolvedValue({ url, content: shell, targetErrorStatus: 403 })
+    cs.parseAndSaveContent.mockImplementation(service.parseAndSaveContent.bind(service))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await expect(runWorkflow(wf, { url })).rejects.toThrow('Page requires JavaScript')
+      expect(cs.fetchRegular).toHaveBeenCalledOnce()
+      expect(bs.updateBookmarkStatus).toHaveBeenCalledWith(42, 'failed')
+      expect(warn).toHaveBeenCalledWith(expect.objectContaining({ event: 'capture_js_notice', outcome: 'source_error', targetStatus: 403 }))
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
   test.each(['recovered', 'still_notice', 'retry_failed', 'already_rendered'])('records %s and bounds the number of requests and writes', async outcome => {
     const { wf, cs, bs, uph } = wireWorkflow()
     const target = outcome === 'already_rendered' ? 'https://www.infoq.cn/story' : url
@@ -305,6 +321,12 @@ describe('short JavaScript notice browser recovery', () => {
         expect(snapshots.capture).toHaveBeenCalledOnce()
         expect(snapshots.capture.mock.calls[0][2].text).toContain(body)
         expect(uph.processContentPostProcessing).toHaveBeenCalledOnce()
+        const acquisitionEvents = cs.sendAddBookmarkStepEvent.mock.calls.filter(call => ['zyte_fetching', 'parsing'].includes(call[3]))
+        expect(acquisitionEvents.map(call => call.slice(3, 5))).toEqual([
+          ['zyte_fetching', 'success'],
+          ['zyte_fetching', 'success'],
+          ['parsing', 'success']
+        ])
       } else {
         await expect(run).rejects.toThrow()
         expect(snapshots.capture).not.toHaveBeenCalled()

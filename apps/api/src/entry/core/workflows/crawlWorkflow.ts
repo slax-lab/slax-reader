@@ -205,12 +205,13 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       }
     }
 
-    const trackStep = async <T>(stepName: string, fn: () => Promise<T>): Promise<T> => {
+    const trackStep = async <T>(stepName: string, fn: () => Promise<T>, deferJavaScriptNotice = false): Promise<T> => {
       try {
         const result = await fn()
         await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, stepName, 'success')
         return result
       } catch (err) {
+        if (deferJavaScriptNotice && err instanceof JavaScriptNoticeError) throw err
         await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, stepName, 'failed', err instanceof Error ? err.message : String(err), ctxManager)
         throw err
       }
@@ -365,13 +366,20 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
             }
             default: {
               const fetchRes = await trackStep('zyte_fetching', () => crawlService.fetchRegular(ctxManager, resolvedUrl))
+              const canRetryNotice = !fetchRes.targetErrorStatus && !shouldUseZyteBrowserHtml(resolvedUrl)
               try {
-                const result = await trackStep('parsing', () => crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid, 'initial'))
+                const result = await trackStep('parsing', () => crawlService.parseAndSaveContent(ctxManager, fetchRes, bookmarkId, userBookmarkUuid, 'initial'), canRetryNotice)
                 return { kind: 'parsed', resolvedUrl, data: result, isSocialMedia: false }
               } catch (err) {
                 if (!(err instanceof JavaScriptNoticeError)) throw err
-                if (shouldUseZyteBrowserHtml(resolvedUrl)) {
-                  console.warn({ event: 'capture_js_notice', hostname: new URL(resolvedUrl).hostname, textLength: err.textLength, outcome: 'already_rendered' })
+                if (!canRetryNotice) {
+                  console.warn({
+                    event: 'capture_js_notice',
+                    hostname: new URL(resolvedUrl).hostname,
+                    textLength: err.textLength,
+                    outcome: fetchRes.targetErrorStatus ? 'source_error' : 'already_rendered',
+                    targetStatus: fetchRes.targetErrorStatus
+                  })
                   throw new NonRetryableError(err.message)
                 }
                 return { kind: 'retry_js_notice', resolvedUrl, textLength: err.textLength }
@@ -387,8 +395,8 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
           const fields = { event: 'capture_js_notice', hostname: new URL(initial.resolvedUrl).hostname, textLength: initial.textLength }
           console.info({ ...fields, outcome: 'retry_started' })
           try {
-            const page = await crawlService.fetchRegular(ctxManager, initial.resolvedUrl, 'zyte-browser-only')
-            const data = await crawlService.parseAndSaveContent(ctxManager, page, bookmarkId, userBookmarkUuid, 'retry')
+            const page = await trackStep('zyte_fetching', () => crawlService.fetchRegular(ctxManager, initial.resolvedUrl, 'zyte-browser-only'))
+            const data = await trackStep('parsing', () => crawlService.parseAndSaveContent(ctxManager, page, bookmarkId, userBookmarkUuid, 'retry'))
             console.info({ ...fields, outcome: 'recovered', renderedTextLength: data.textContent.trim().replace(/\s+/g, ' ').length })
             return { kind: 'parsed', resolvedUrl: initial.resolvedUrl, data, isSocialMedia: false }
           } catch (err) {
