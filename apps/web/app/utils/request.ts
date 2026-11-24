@@ -1,11 +1,25 @@
 import { configuredCookieName, readStringCookie } from './authCookie'
 import { isClient, isServer } from '@commons/frontend-utils/is'
 import { type FetchOptions, FetchRequest, type FetchResult, RequestError, RequestMethodType } from '@commons/frontend-utils/request'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
+import { ErrorName } from '@slax-reader/contracts/errors'
 import { useCookies } from '@vueuse/integrations/useCookies'
 import Toast, { ToastType } from '~/components/Toast'
 
 let requestInstance: FetchRequest | null = null
 let clientDeviceId = ''
+
+class ClientRequest extends FetchRequest {
+  override async fetchRequest(options: FetchOptions): Promise<Response> {
+    const response = (await super.fetchRequest(options)) as Response
+    if (!options.stream || options.url !== RESTMethodPath.BOOKMARK_OVERVIEW || response.ok) return response
+
+    // Non-401 HTTP errors throw here. A 401 returns a session-rejection result.
+    const failure = await this.handleResult(response)
+    await this.options.responseInterceptors?.(failure)
+    throw new RequestError({ code: response.status, name: ErrorName.UNAUTHORIZED, message: failure.message })
+  }
+}
 
 class ServerRequest extends FetchRequest {
   override async fetchRequest(options: FetchOptions) {
@@ -30,7 +44,7 @@ class ServerRequest extends FetchRequest {
 export const request = () => {
   if (!requestInstance) {
     const baseUrl = useRuntimeConfig().public.DWEB_API_BASE_URL as string
-    requestInstance = new (isClient ? FetchRequest : ServerRequest)({
+    requestInstance = new (isClient ? ClientRequest : ServerRequest)({
       baseUrl,
       requestInterceptors: async options => {
         const token = getUserToken()
@@ -50,7 +64,7 @@ export const request = () => {
         return response as FetchResult<T>
       },
       errorInterceptors: error => {
-        if (isServer) {
+        if (isServer || (error instanceof RequestError && error.code === 401 && error.name === ErrorName.UNAUTHORIZED)) {
           return error
         }
 
