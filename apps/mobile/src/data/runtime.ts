@@ -453,7 +453,11 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     errorLog, preferences, sessions, api, start, stop,
     diagnostics: options.diagnostics,
     credentials: readiness as CredentialReadiness | undefined,
-    setForeground: (foreground: boolean) => activity.setForeground(foreground),
+    setForeground: (foreground: boolean) => {
+      // Queued error records may not survive suspension, so they are delivered as the app backgrounds.
+      if (!foreground) void errorLog.flush(true).catch(() => undefined);
+      return activity.setForeground(foreground);
+    },
     getAccountPreferences: () => accountPreferences,
     getNativeResourceOwner: () => nativeResourceOwner,
     /** UI reports scroll/transition activity so offline status persistence waits; each source clears its own flag. */

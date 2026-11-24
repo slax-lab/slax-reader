@@ -18,8 +18,8 @@ async function until(check) {for (let i = 0; i < 200; i++) {if (check()) return;
 const sdkError = Object.assign(new Error('HTTP Bad Gateway: upstream'), {status: 502});
 
 async function fixture({status = 500} = {}) {
-  const events = [], captured = [], sent = [], databases = [];
-  let networkListener = () => {};
+  const events = [], captured = [], sent = [], databases = [], flushed = [];
+  let networkListener = () => {}, onSessionChange;
   class Database {
     constructor(options) {this.logger = options.logger; this.listeners = []; databases.push(this);}
     async init() {} async close() {}
@@ -42,7 +42,8 @@ async function fixture({status = 500} = {}) {
     if (path === '/v1/sync/token') return Response.json({code: 200, data: {endpoint: 'https://sync.example', token: testJwt('42', Math.floor(Date.now() / 1000) + 86400, Math.floor(Date.now() / 1000))}});
     if (path === '/events') {sent.push(JSON.parse(request.body).events); return new Response(null, {status: 204});}
     if (path === '/v1/broken') return new Response('bad gateway', {status, headers: {'cf-ray': 'ray-1-SIN'}});
-    if (path === '/v1/offline') throw new TypeError('Network request failed');
+    if (path === '/v1/offline') throw Object.assign(new Error('The Internet connection appears to be offline.'), {name: 'FetchError'});
+    if (path === '/v1/session-changed') {onSessionChange?.(); return Response.json({code: 200, data: {}});}
     return Response.json({code: 200, data: {ok: true}});
   };
   const {createMobileDataRuntime} = await loadComponent('../../src/data/runtime.ts', {
@@ -58,9 +59,9 @@ async function fixture({status = 500} = {}) {
     './schema.ts': {createMobileSchema: async () => ({}), SYNC_PARAMETERS: {}}, '@powersync/react-native': {PowerSyncDatabase: Database},
   }, {Error});
   const runtime = createMobileDataRuntime({baseUrl: 'https://api.example', platform: 'ios', version: 'test', fetch, sleep: async () => {},
-    errorLog: () => ({capture: (kind, error, properties) => {captured.push({kind, message: error?.message, properties}); return `fp-${captured.length}`;}, flush: async () => {}})});
+    errorLog: () => ({capture: (kind, error, properties) => {captured.push({kind, message: error?.message, properties}); return `fp-${captured.length}`;}, flush: async hiding => {flushed.push(hiding);}})});
   const phases = () => sent.flat().filter(event => event.event_name === 'powersync_phase').map(event => event.properties);
-  return {runtime, events, captured, sent, phases, database: () => databases.at(-1), network: value => networkListener(value)};
+  return {runtime, events, captured, sent, phases, flushed: () => flushed, changeSessionOnNextRequest: change => {onSessionChange = () => {onSessionChange = undefined; change();};}, database: () => databases.at(-1), network: value => networkListener(value)};
 }
 
 async function connected(context, options) {
@@ -131,7 +132,19 @@ test('failed API requests record 5xx and network failures with ray but not 4xx o
   const api = f.captured.filter(record => record.properties.source === 'api');
   assert.deepEqual(api.map(record => [record.kind, record.properties.path, record.properties.status, record.properties.ray]), [['network', '/v1/broken', 500, 'ray-1-SIN'], ['network', '/v1/offline', undefined, undefined]]);
   assert.equal(api.every(record => !JSON.stringify(record).includes('secret')), true);
+  f.changeSessionOnNextRequest(() => f.runtime.api.setBaseUrl('https://other.example'));
+  await assert.rejects(f.runtime.api.request('/v1/session-changed', 'GET', undefined, undefined, undefined, {abortable: true, retryable: false}), /environment changed/);
+  assert.equal(f.captured.filter(record => record.properties.source === 'api').length, 2);
   const g = await connected(context, {status: 404});
   await assert.rejects(g.runtime.api.request('/v1/broken'));
   assert.equal(g.captured.filter(record => record.properties.source === 'api').length, 0);
+});
+
+test('queued error records are flushed when the app moves to the background', async context => {
+  context.mock.timers.enable({apis: ['setTimeout', 'Date'], now: Date.now()});
+  const f = await fixture(); context.after(() => f.runtime.stop());
+  await f.runtime.start();
+  await f.runtime.setForeground(false);
+  await f.runtime.setForeground(true);
+  assert.deepEqual(f.flushed(), [true]);
 });

@@ -47,6 +47,8 @@ export interface SyncChange { table: string; id: string; op: string; data: Recor
 export interface CheckPurchase { jws_representation: string; order_id: string; product_id: string; platform: string }
 export interface FeedbackRequest { bookmark_uuid: string | null; entry_point: string; type: string; content: string; platform: string; environment: string; version: string; allow_follow_up: boolean; target_url: string | null }
 export interface FeedbackDiagnosticUpload {file: Blob; filename: string}
+// Marks a rejection from the transport itself, the only throw that counts as a network failure.
+const TRANSPORT_FAILURE = Symbol('transport failure');
 export const FEEDBACK_DIAGNOSTIC_MAX_BYTES = 12582912;
 export const FEEDBACK_MULTIPART_OVERHEAD_BYTES = 65536;
 export interface AiEvent { type: string; data?: { overview?: string; outline?: string; tags?: {id: number; name: string}[]; tag?: {id: number; name: string}; key_takeaways?: string[]; done?: boolean }; message?: string }
@@ -124,7 +126,9 @@ export class SlaxApi {
         }, started = Date.now();
         const pending = this.transport(url, {method, headers, body: multipart ? body : body === undefined ? undefined : JSON.stringify(body), signal: controller.signal, redirect: 'error'});
         if (abortableResponse) void pending.then(value => {if (controller.signal.aborted) void value.body?.cancel().catch(() => undefined);}).catch(() => undefined);
-        const response = await (abortableResponse ? abortable(pending, controller.signal) : pending);
+        let response: Response;
+        try {response = await (abortableResponse ? abortable(pending, controller.signal) : pending);}
+        catch (error) {if (typeof error === 'object' && error !== null) (error as {[TRANSPORT_FAILURE]?: true})[TRANSPORT_FAILURE] = true; throw error;}
         if (abortableResponse) {
           try {identity?.(); scope?.assertCurrent(); if (origin !== this.origin) throw new Error('API environment changed'); throwIfAborted(signal);}
           catch (error) {void response.body?.cancel().catch(() => undefined); throw error;}
@@ -146,7 +150,7 @@ export class SlaxApi {
         cleanup();
         if (controller.signal.aborted) {throwIfAborted(signal); throwIfAborted(controller.signal);}
         if (!retryable || error instanceof ApiError || attempt >= 2) {
-          if (!(error instanceof ApiError)) {try {this.options.onFailure?.({method, path: path.split(/[?#]/)[0], network: true});} catch {}}
+          if (typeof error === 'object' && error !== null && TRANSPORT_FAILURE in error) {try {this.options.onFailure?.({method, path: path.split(/[?#]/)[0], network: true});} catch {}}
           throw error;
         }
         await this.delay(attempt, signal);
