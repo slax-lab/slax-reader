@@ -28,6 +28,11 @@ The baseline ran on the deployed `origin/dev` build; `reader-ai` was then deploy
 
 `getUserBookmarkItem` keeps one fulltext row id per bookmark (the last shard listed), so other shards of a long article are not searched. This change preserves that behavior.
 
+## Review and validation
+
+- Local `REVIEW.md` review (Bugs, Security, Compliance) before push: one finding fixed in `3bfab510` (bookmark shard handling, later removed as unreachable in `a8f6675c`).
+- `openspec validate --all --strict`: 169 passed, 0 failed.
+
 ## Not verified
 
 - Production traffic: the change has not been deployed to beta or production.

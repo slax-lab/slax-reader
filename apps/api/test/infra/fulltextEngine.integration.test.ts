@@ -399,8 +399,8 @@ describe('fulltext engine: bounded candidates, chunk dedup and current admission
   test('returns bounded raw prefixes for rows outside the highlight set', async () => {
     await insertRaw(70, 0, 'x'.repeat(500), 't'.repeat(300), 'r'.repeat(500), 'q'.repeat(300))
     const [row] = (await d1.prepare('SELECT id FROM slax_bookmark_raw WHERE bookmark_id = 70').all<{ id: number }>()).results ?? []
-    const [prefix] = await fulltext.getFulltextRawPrefixes([row.id])
-    expect(prefix).toEqual({ row_id: row.id, raw_title: 'q'.repeat(120), raw_content: 'r'.repeat(120) })
+    const [prefix] = await fulltext.getFulltextRawPrefixes([row.id], 60)
+    expect(prefix).toEqual({ row_id: row.id, raw_title: 'q'.repeat(60), raw_content: 'r'.repeat(60) })
   })
 
   test('keeps selective and common global queries indexed while exposing ranking work beyond LIMIT', async () => {

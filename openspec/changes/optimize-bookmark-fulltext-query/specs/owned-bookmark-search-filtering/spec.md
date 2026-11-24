@@ -2,7 +2,7 @@
 
 ### Requirement: The fulltext branch ranks all owned rows completely and highlights a bounded set
 
-The bookmark search fulltext branch SHALL rank every fulltext row of the user's eligible bookmarks that matches the normalized keyword expression, using one ranking query regardless of the number of candidate rows. It SHALL NOT drop matching rows because the candidate set is split into independently failing parts, because the database is overloaded, or because an excerpt cannot be produced. Highlight excerpts SHALL be produced only for a bounded number of the best-ranked rows; rows beyond the bound SHALL keep their rank and use the existing no-highlight excerpt. A failure of the ranking or highlight query SHALL fail the fulltext branch rather than return a partial fulltext result.
+The bookmark search fulltext branch SHALL rank every candidate fulltext row of the user's eligible bookmarks that matches the normalized keyword expression, using one ranking query regardless of the number of candidate rows. It SHALL NOT drop matching rows because the candidate set is split into independently failing parts, because the database is overloaded, or because an excerpt cannot be produced. Highlight excerpts SHALL be produced only for a bounded number of the best-ranked rows; rows beyond the bound SHALL keep their rank and use the existing no-highlight excerpt. A failure of the ranking or highlight query SHALL fail the fulltext branch rather than return a partial fulltext result.
 
 #### Scenario: A user with thousands of fulltext rows searches a common term
 - **WHEN** an owned keyword matches rows across thousands of the user's fulltext shards

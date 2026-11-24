@@ -6,7 +6,7 @@ import { VectorizeRepo } from '@/infra/repository/dbVectorize'
 import { ContextManager } from '@/utils/context'
 import { Normalizer, type fulltextExpressions } from '@/utils/hybridSearch/normalizer'
 import { vectorizeData, embedding } from '@/utils/hybridSearch/vectorize'
-import { mapHighlight } from '@/utils/hybridSearch/highlightMatch'
+import { HIGHLIGHT_TARGET_LENGTH, mapHighlight } from '@/utils/hybridSearch/highlightMatch'
 import { BookmarkNotFoundError } from '@/const/err'
 import { rerank } from '@/utils/hybridSearch/rerank'
 import { escapeHtml } from '@/utils/escape'
@@ -155,12 +155,14 @@ export class SearchService {
     // 混合搜索
     const t2 = performance.now()
     let [fulltextResult, semanticResult] = await Promise.allSettled([this.fulltextSearch(ctx, fulltextExpressions, bmList), this.semanticSearch(ctx, vectorizeResult, bmList)])
-    if (fulltextResult.status === 'rejected')
-      console.error(`fulltext search failed: ${fulltextResult.reason instanceof Error ? fulltextResult.reason.message : String(fulltextResult.reason)}`)
     const fulltextRes = fulltextResult.status === 'fulfilled' ? fulltextResult.value : []
     const semanticRes = semanticResult.status === 'fulfilled' ? semanticResult.value : []
 
-    console.log(`hybrid search time: ${performance.now() - t2} ms, fulltext: ${fulltextRes.length}, semantic: ${semanticRes.length}`)
+    if (fulltextResult.status === 'rejected')
+      console.error(`fulltext search failed: ${fulltextResult.reason instanceof Error ? fulltextResult.reason.message : String(fulltextResult.reason)}`)
+    console.log(
+      `hybrid search time: ${performance.now() - t2} ms, fulltext: ${fulltextResult.status === 'rejected' ? 'failed' : fulltextRes.length}, semantic: ${semanticResult.status === 'rejected' ? 'failed' : semanticRes.length}`
+    )
 
     // 搜索结果拼接
     const hybridSearchMap: Record<number, hybridSearchItem> = {}
@@ -316,7 +318,7 @@ export class SearchService {
     const rest = ranked.slice(FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id)
     const [highlights, prefixes] = await Promise.all([
       this.bookmarkSearchRepo.getFulltextHighlights(highlighted, expressions),
-      this.bookmarkSearchRepo.getFulltextRawPrefixes(rest)
+      this.bookmarkSearchRepo.getFulltextRawPrefixes(rest, HIGHLIGHT_TARGET_LENGTH)
     ])
     const texts = new Map<number, { content_snippet: string; title_snippet: string; raw_content: string; raw_title: string }>()
     for (const row of highlights) texts.set(row.row_id, row)

@@ -95,7 +95,7 @@ describe('search highlight rendering boundary', () => {
     expect(searchRepo.rankFulltextRows).toHaveBeenCalledTimes(1)
     expect(searchRepo.rankFulltextRows).toHaveBeenCalledWith(items.map(item => item.rowId), 'full')
     expect(searchRepo.getFulltextHighlights).toHaveBeenCalledWith(ranked.slice(0, FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id), expressions)
-    expect(searchRepo.getFulltextRawPrefixes).toHaveBeenCalledWith(ranked.slice(FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id))
+    expect(searchRepo.getFulltextRawPrefixes).toHaveBeenCalledWith(ranked.slice(FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id), 60)
     expect(results.map(row => row.bookmark_id)).toEqual(ranked.map(row => row.bookmark_id))
     expect(results.map(row => row.score)).toEqual(ranked.map(row => row.score))
     expect(results[0]).toMatchObject({ title_snippet: '[highlight]title[/highlight] 1000', raw_content: 'body 1000' })

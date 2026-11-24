@@ -123,14 +123,11 @@ export class BookmarkSearchRepo {
     }))
   }
 
-  /**
-   * Leading raw title/content characters for ranked rows outside the highlight bound; mapHighlight shows the first
-   * 60 characters when a row has no highlight, so a short prefix is all those rows need.
-   */
-  async getFulltextRawPrefixes(rowIds: number[]) {
+  /** Leading raw title/content characters for ranked rows outside the highlight bound. */
+  async getFulltextRawPrefixes(rowIds: number[], length: number) {
     if (rowIds.length < 1) return []
     return this.prisma().$queryRaw<{ row_id: number; raw_title: string; raw_content: string }[]>`
-      SELECT id AS row_id, substr(raw_title, 1, 120) AS raw_title, substr(raw_content, 1, 120) AS raw_content
+      SELECT id AS row_id, substr(raw_title, 1, ${length}) AS raw_title, substr(raw_content, 1, ${length}) AS raw_content
       FROM slax_bookmark_raw WHERE id IN (SELECT value FROM json_each(${JSON.stringify(rowIds)}))
     `
   }
