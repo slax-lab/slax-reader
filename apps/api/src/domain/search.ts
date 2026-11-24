@@ -302,22 +302,16 @@ export class SearchService {
   }
 
   /**
-   * Fulltext search: one query ranks every candidate row, each bookmark keeps its best-scoring shard, and only the
-   * top FULLTEXT_HIGHLIGHT_LIMIT bookmarks read highlights and full raw text. The rest read a raw prefix, which
-   * mapHighlight turns into its no-highlight excerpt. Query failures propagate instead of returning partial hits.
+   * Fulltext search: one query ranks every candidate row, and only the top FULLTEXT_HIGHLIGHT_LIMIT rows read
+   * highlights and full raw text. The rest read a raw prefix, which mapHighlight turns into its no-highlight
+   * excerpt. Query failures propagate instead of returning partial hits.
    */
   public async fulltextSearch(ctx: ContextManager, expressions: fulltextExpressions, userBookmarkItem: userBookmarkItem[]): Promise<fulltextMatchItem[]> {
     const rowIds = userBookmarkItem.map(item => item.rowId).filter(rowId => rowId > 0)
     if (rowIds.length < 1 || !expressions.full) return []
 
     const t1 = performance.now()
-    // Rows arrive by ascending bm25 (lower is more relevant); keep the first row seen for each bookmark
-    const seen = new Set<number>()
-    const ranked = (await this.bookmarkSearchRepo.rankFulltextRows(rowIds, expressions.full)).filter(row => {
-      if (seen.has(row.bookmark_id)) return false
-      seen.add(row.bookmark_id)
-      return true
-    })
+    const ranked = await this.bookmarkSearchRepo.rankFulltextRows(rowIds, expressions.full)
     const highlighted = ranked.slice(0, FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id)
     const rest = ranked.slice(FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id)
     const [highlights, prefixes] = await Promise.all([

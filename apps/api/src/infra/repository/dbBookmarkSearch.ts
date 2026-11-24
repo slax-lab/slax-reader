@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { inject, injectable, singleton } from '@/decorators/di'
 import { PRISIMA_FULLTEXT_CLIENT, VECTORIZE_CLIENTS } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
+import type { fulltextExpressions } from '@/utils/hybridSearch/normalizer'
 
 export interface bookmarkRowPO {
   id: number
@@ -91,7 +92,7 @@ export class BookmarkSearchRepo {
    * single-column expression because FTS5 snippet() can fail with SQLITE_CORRUPT_VTAB on the two-column
    * NEAR OR expression used for ranking.
    */
-  async getFulltextHighlights(rowIds: number[], expressions: { title: string; content: string }) {
+  async getFulltextHighlights(rowIds: number[], expressions: fulltextExpressions) {
     if (rowIds.length < 1) return []
     const ids = JSON.stringify(rowIds)
     const [contents, titles, raws] = await Promise.all([

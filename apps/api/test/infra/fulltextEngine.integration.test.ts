@@ -389,7 +389,7 @@ describe('fulltext engine: bounded candidates, chunk dedup and current admission
     expect(ranked.map(row => row.bookmark_id).sort()).toEqual([60, 61])
     const highlights = await fulltext.getFulltextHighlights(
       ranked.map(row => row.row_id),
-      { content: 'content:NEAR("cloudflare" "worker", 30)', title: 'title:NEAR("cloudflare" "worker", 20)' }
+      { full, content: 'content:NEAR("cloudflare" "worker", 30)', title: 'title:NEAR("cloudflare" "worker", 20)' }
     )
     const byBookmark = new Map(highlights.map(row => [ranked.find(item => item.row_id === row.row_id)!.bookmark_id, row]))
     expect(byBookmark.get(60)).toMatchObject({ content_snippet: 's the [highlight]worker[/highlight] [highlight]cloudflar[/highlight]', title_snippet: '', raw_content: 's the worker cloudflar' })

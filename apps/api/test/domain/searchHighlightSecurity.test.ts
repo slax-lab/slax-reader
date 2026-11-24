@@ -102,25 +102,6 @@ describe('search highlight rendering boundary', () => {
     expect(results[FULLTEXT_HIGHLIGHT_LIMIT]).toMatchObject({ title_snippet: '', content_snippet: '', raw_content: `prefix body ${1000 + FULLTEXT_HIGHLIGHT_LIMIT}` })
   })
 
-  test('keeps only the best-scoring shard of a bookmark and highlights it', async () => {
-    const searchRepo = {
-      rankFulltextRows: vi.fn().mockResolvedValue([
-        { row_id: 31, bookmark_id: 3, score: -9 },
-        { row_id: 41, bookmark_id: 4, score: -5 },
-        { row_id: 32, bookmark_id: 3, score: -1 }
-      ]),
-      getFulltextHighlights: vi.fn(async (ids: number[]) => ids.map(id => ({ row_id: id, raw_title: `t${id}`, raw_content: `b${id}`, title_snippet: '', content_snippet: `[highlight]${id}[/highlight]` }))),
-      getFulltextRawPrefixes: vi.fn().mockResolvedValue([])
-    }
-    const service = new SearchService({} as never, {} as never, searchRepo as never, {} as never)
-
-    const results = await service.fulltextSearch({} as never, { full: 'f', title: 't', content: 'c' }, [31, 32, 41].map(rowId => ({ bmId: 0, shardIdx: 0, rowId })))
-
-    expect(results.map(row => [row.bookmark_id, row.score])).toEqual([[3, -9], [4, -5]])
-    expect(searchRepo.getFulltextHighlights).toHaveBeenCalledWith([31, 41], { full: 'f', title: 't', content: 'c' })
-    expect(results[0].content_snippet).toBe('[highlight]31[/highlight]')
-  })
-
   test('fails the fulltext branch instead of returning a partial result', async () => {
     const searchRepo = { rankFulltextRows: vi.fn().mockRejectedValue(new Error('D1 DB is overloaded')), getFulltextHighlights: vi.fn(), getFulltextRawPrefixes: vi.fn() }
     const service = new SearchService({} as never, {} as never, searchRepo as never, {} as never)

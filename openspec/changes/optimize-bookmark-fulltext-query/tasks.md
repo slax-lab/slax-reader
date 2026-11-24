@@ -6,7 +6,7 @@
 
 ## 2. Repository
 
-- [x] 2.1 Replace `seachBM25` with a single ranking query and a highlight batch in `BookmarkSearchRepo`; verify `fulltextEngine.integration.test.ts` (Miniflare D1 FTS5) covers ranking order, score equality with the current expression, `EXPLAIN QUERY PLAN` access path, and a two-row fixture that reproduces the FTS5 snippet defect.
+- [x] 2.1 Replace `seachBM25` with a single ranking query and a highlight batch in `BookmarkSearchRepo`; verify `fulltextEngine.integration.test.ts` (Miniflare D1 FTS5) covers ranking order, the `EXPLAIN QUERY PLAN` access path, and a two-row fixture that reproduces the FTS5 snippet defect.
 
 ## 3. Domain
 

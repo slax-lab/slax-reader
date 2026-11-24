@@ -2,7 +2,7 @@
 
 ## Automated checks (2026-11-24)
 
-- `pnpm api -- test`: 280 files passed, 20 skipped; 4,521 tests passed, 166 skipped (existing skips).
+- `pnpm api -- test`: 280 files passed, 20 skipped; 4,520 tests passed, 166 skipped (existing skips).
 - `pnpm api -- test test/script/layerArchitecture.test.ts`: 45 passed.
 - `pnpm api -- build` (with `gen:all`): passed.
 - ESLint on the three changed source files: no errors; three warnings already present before this change (unused imports in `dbBookmarkSearch.ts`, `any` in `normalizer.ts` line 39).
@@ -24,8 +24,6 @@ The baseline ran on the deployed `origin/dev` build; `reader-ai` was then deploy
 
 - No error logs in either run for these requests.
 - Highlights are identical for the 50 best fulltext ranks of every keyword (all 19 for "cloudflare worker"). Differences start at fulltext rank 50, as designed; those rows show the first characters of the text, for example the first differing "AI" row appears at overall position 91 of 397.
-- Local review found that, when several shards of one bookmark match, the old loop kept the last-sorted (worst) shard; the new code keeps the best-scoring shard and highlights it. Covered by `searchHighlightSecurity.test.ts`. Test has 5 multi-shard bookmarks and production 98, so this is the only intended ranking difference.
-
 ## Known pre-existing limitation
 
 `getUserBookmarkItem` keeps one fulltext row id per bookmark (the last shard listed), so other shards of a long article are not searched. This change preserves that behavior.
