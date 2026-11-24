@@ -14,6 +14,10 @@ The `/v1/bookmark/search` response, its optional all-tags behavior and its fusio
 - **AND** a keyword related to none of the caller's articles contributes no semantic hit
 - **AND** the response shape, fusion and current ownership admission are unchanged
 
+#### Scenario: A semantic hit has no fulltext rows
+- **WHEN** an untagged search returns a semantic-only hit for a current article that has no fulltext rows
+- **THEN** its title and text are the article's stored title and description, escaped, instead of empty strings
+
 #### Scenario: A tag-filtered bookmark search keeps the legacy buckets
 - **WHEN** a caller searches `/v1/bookmark/search` with one or more tag filters
 - **THEN** semantic retrieval uses the legacy encoder and buckets restricted to bookmarks carrying every requested tag

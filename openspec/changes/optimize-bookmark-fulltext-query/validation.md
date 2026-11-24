@@ -2,7 +2,7 @@
 
 ## Automated checks (2026-11-24)
 
-- `pnpm api -- test`: 285 files passed, 20 skipped; 4,541 tests passed, 166 skipped (existing skips), on the final revision of the combined scope.
+- `pnpm api -- test`: 285 files passed, 20 skipped; 4,542 tests passed, 166 skipped (existing skips), on the final revision of the combined scope.
 - `pnpm api -- test test/script/layerArchitecture.test.ts`: 45 passed.
 - `pnpm api -- build` (with `gen:all`): passed.
 - ESLint on the three changed source files: no errors; three warnings already present before this change (unused imports in `dbBookmarkSearch.ts`, `any` in `normalizer.ts` line 39).
@@ -45,9 +45,19 @@ The baseline ran on the deployed `origin/dev` build; `reader-ai` was then deploy
 - Semantic (V5): best centered scores 0.486 (AI), 0.530 (阅读), 0.752 (cloudflare worker), 0.615 (open source), 0.321 (nonsense, so nothing kept). The branch took 1.0–2.1 s: measured from Singapore, embedding 0.25–0.45 s, native query 0.24 s, and reading 100 candidate vectors 0.4–1.1 s in five parallel `getByIds` batches. Reducing the candidate count or fetching values with the query is a follow-up.
 - During the window in which a dev release had moved the test Workers back to the old fulltext database, one bookmark (1043940) was written there; its raw row and relation were copied to the APAC database before the comparison.
 
+## Hands-on acceptance: local Web (2026-11-24)
+
+The Web app from this branch ran locally (`pnpm web -- dev`, `http://localhost:3000`) against the test API (`reader-api.slax.dev`, `reader-core` `696bafc6`, `reader-ai` `e744b393`), signed in as user 14412. Only searches and reads were performed.
+
+- "AI" in the Web search view: 311 results. The 50 best fulltext ranks show keyword-centred excerpts with `<mark>`; later rows show the opening text of the article as the excerpt, rendered as plain text with no layout change.
+- "阅读" 128, "open source" 121, "cloudflare worker" 26 results; "xqzv lorem 9981" returns none. End to end 1.4–2.5 s from the browser.
+- `<img src=x onerror=alert(1)>` as the keyword: every title and excerpt arrives escaped; the only element in any highlight is `<mark>`.
+- Tag filters, with tag UUIDs read from the Web's PowerSync copy of `sr_user_tag`: "AI" with `software` returned 26 results and "AI" with `software` and `dev` 9; every result carries every requested tag. "startup" with `yc` returned 3. An unknown tag UUID returns no result.
+- Finding, fixed in this change: 1–10 cards per keyword had an empty title and excerpt and showed only the "Semantic related" score (10 of 311 for "AI"). These were semantic hits on bookmarks that PostgreSQL holds as current, successful articles but that have no rows in the fulltext database, so `getBookmarkRaw` returned nothing for them. The legacy buckets never produced such hits because their candidates came from the fulltext mirror. Semantic-only hits without fulltext rows now show the PostgreSQL alias title or title and the description, cut to 50 characters and escaped like other semantic text; the data comes from the final admission query, so no query is added. Covered by `searchHighlightSecurity.test.ts`; the deployed test build predates the fix, so the fixed cards were not seen in a running environment.
+
 ## Not verified
 
 - Production traffic: the change has not been deployed to beta or production.
-- The tagged search path ran only through unit tests; the test account's tag list returned no tag with a stable UUID for the comparison script.
+- The fallback title and description for semantic-only hits in a running environment (unit test only; see above).
+- Mobile rendering; Mobile uses the same `/v1/bookmark/search` response shape.
 - `fulltext:prune-relations` has not been run against either mirror; applying its output is the operator's action.
-- Web and Mobile rendering of rows beyond the highlight bound was not inspected; the response shape and escaping are unchanged and covered by `searchHighlightSecurity.test.ts`.

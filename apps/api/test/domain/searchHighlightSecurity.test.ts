@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { parseHTML } from 'linkedom'
-import { FULLTEXT_HIGHLIGHT_LIMIT, SearchService, type hybridSearchItem } from '@/domain/search'
+import { FULLTEXT_HIGHLIGHT_LIMIT, SEMANTIC_FALLBACK_TEXT_LENGTH, SearchService, type hybridSearchItem } from '@/domain/search'
 import { escapeHtml } from '@/utils/escape'
 import { rerank } from '@/utils/hybridSearch/rerank'
 
@@ -283,6 +283,35 @@ describe('search highlight rendering boundary', () => {
     const results = await service.hybridSearch({ getUserId: () => 7, env: {} } as never, 'body')
     expect(results).toHaveLength(1)
     expect(results[0]).toMatchObject({ bookmark_id: 11, bookmark_user_uuid: 'owned', target_url: 'https://owned.example/article', created_at: '2026-10-21T00:00:00.000Z' })
+  })
+
+  test('shows the PostgreSQL title and description for a semantic hit without fulltext rows', async () => {
+    const repo = {
+      getSearchEligibleBookmarks: vi
+        .fn()
+        .mockResolvedValueOnce([{ bookmark_id: 12, uuid: 'vector-uuid' }])
+        .mockResolvedValueOnce([
+          {
+            bookmark_id: 12,
+            uuid: 'vector-uuid',
+            created_at: new Date('2026-09-22T14:33:00Z'),
+            alias_title: '',
+            bookmark: { target_url: 'https://vector.example/article', title: '<b>Title</b>' + 'x'.repeat(80), description: 'Summary <img src=x onerror=alert(1)>' }
+          }
+        ])
+    }
+    const searchRepo = { getBookmarkRaw: vi.fn().mockResolvedValue([]) }
+    const service = new SearchService(repo as never, searchRepo as never, {} as never)
+    vi.spyOn(service, 'getUserBookmarkItem').mockResolvedValue([])
+    vi.spyOn(service, 'fulltextSearch').mockResolvedValue([])
+    vi.spyOn(service, 'semanticSearchV5').mockResolvedValue([{ id: '12_0', score: 0.5 }])
+
+    const [result] = await service.hybridSearch({ getUserId: () => 7, env: {} } as never, 'topic')
+
+    expect(searchRepo.getBookmarkRaw).toHaveBeenCalledWith([12])
+    expect(expectSafeMarkup(result.highlight_title)).toBe(('<b>Title</b>' + 'x'.repeat(80)).slice(0, SEMANTIC_FALLBACK_TEXT_LENGTH))
+    expect(expectSafeMarkup(result.highlight_content)).toBe('Summary <img src=x onerror=alert(1)>')
+    expect(result.highlight_content).not.toContain('<img')
   })
 
   test('rejects unknown or foreign requested tags before consulting cached FTS or vector candidates', async () => {

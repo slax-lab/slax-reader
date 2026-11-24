@@ -22,6 +22,8 @@ export const SEMANTIC_CANDIDATE_LIMIT = 100
 export const SEMANTIC_MIN_TOP_SCORE = 0.35
 // Hits must reach this share of the best centered score.
 export const SEMANTIC_RELATIVE_FLOOR = 0.6
+// Length of the title and text shown for a semantic-only hit, matching the raw prefix getBookmarkRaw reads.
+export const SEMANTIC_FALLBACK_TEXT_LENGTH = 50
 
 export interface userBookmarkItem {
   bmId: number
@@ -230,6 +232,15 @@ export class SearchService {
     const uuidMap = new Map(currentRows.map(row => [row.bookmark_id, row.uuid]))
     const metadata = new Map(currentRows.map(row => [row.bookmark_id, row]))
     for (const id of matchedIds) if (!uuidMap.has(id)) delete hybridSearchMap[id]
+    // A semantic-only hit can be a bookmark without fulltext rows; show its PostgreSQL title and description instead
+    // of an empty card.
+    for (const id of returnTableIds) {
+      const item = hybridSearchMap[id]
+      const row = metadata.get(id)
+      if (!item || !row || item.highlight_title) continue
+      item.highlight_title = (row.alias_title || row.bookmark?.title || '').slice(0, SEMANTIC_FALLBACK_TEXT_LENGTH)
+      item.highlight_content = (row.bookmark?.description || '').slice(0, SEMANTIC_FALLBACK_TEXT_LENGTH)
+    }
     return this.processHybridSearchList(hybridSearchMap, uuidMap).map(item => ({
       ...item,
       target_url: metadata.get(item.bookmark_id)?.bookmark?.target_url ?? '',
