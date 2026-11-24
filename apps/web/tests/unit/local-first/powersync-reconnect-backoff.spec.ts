@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   capture: vi.fn(),
   events: vi.fn(),
   listeners: [] as Array<{ statusChanged?: (status: unknown) => void }>,
+  afterEach: vi.fn(),
   token: '' as string | undefined
 }))
 
@@ -18,7 +19,7 @@ const token = (id: string) => `header.${btoa(JSON.stringify({ id, exp: Math.floo
 mockNuxtImport('useAppConfig', () => () => ({ lcp: { anonymousPublicStartup: false } }))
 mockNuxtImport('useRuntimeConfig', () => () => ({ public: { DWEB_API_BASE_URL: 'https://api.test', COOKIE_TOKEN_NAME: 'token' } }))
 mockNuxtImport('useState', () => (_key: string, init: () => unknown) => ({ value: init() }))
-mockNuxtImport('useRouter', () => () => ({ afterEach: vi.fn(), beforeEach: vi.fn() }))
+mockNuxtImport('useRouter', () => () => ({ afterEach: state.afterEach, beforeEach: vi.fn() }))
 mockNuxtImport('useCookie', () => () => ({ value: undefined }))
 mockNuxtImport('watch', () => vi.fn())
 vi.mock('~/utils/request', () => ({ getUserToken: () => state.token, getClientEventHeaders: () => ({}) }))
@@ -131,6 +132,18 @@ describe('PowerSync reconnect backoff', () => {
     expect(state.connect).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(1)
     expect(state.connect).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not let a route change bypass a pending backoff retry', async () => {
+    await start()
+    failStream()
+    const before = state.connect.mock.calls.length
+    const reconcile = state.afterEach.mock.calls.at(-1)![0] as () => void
+    reconcile()
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(state.connect.mock.calls.length).toBe(before)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(state.connect.mock.calls.length).toBe(before + 1)
   })
 
   it('resets to 5 seconds after a successful connection', async () => {

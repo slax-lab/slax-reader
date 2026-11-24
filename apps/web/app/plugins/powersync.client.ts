@@ -520,7 +520,8 @@ export default defineNuxtPlugin({
       }
       onStreamFailure = stopForFailure
       const connect = async () => {
-        if (connected || connecting || offlinePaused || (typeof navigator !== 'undefined' && !navigator.onLine) || !havePowerSyncUserToken()) return
+        // A pending backoff retry owns the next attempt; route reconciliation must not bypass it.
+        if (connected || connecting || reconnectTimer !== undefined || offlinePaused || (typeof navigator !== 'undefined' && !navigator.onLine) || !havePowerSyncUserToken()) return
         connecting = true
         intentionalStop = false
         connectStartedAt = Date.now()
@@ -531,7 +532,7 @@ export default defineNuxtPlugin({
           // ConnectionManager 会自行重试；这里表示已发起连接，不代表网络流已在线。
           // The SDK resolves connect() only after the first attempt settles, so a stream failure seen while
           // waiting has already disconnected and scheduled the retry; marking it connected would void that retry.
-          if (streamFailures === failuresBefore) connected = true
+          if (streamFailures === failuresBefore && reconnectTimer === undefined) connected = true
           powerSyncConsole.info('[powersync] sync connect call completed', {
             mode: recovery.mode,
             connected: db.connected,
