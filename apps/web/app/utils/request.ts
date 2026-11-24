@@ -1,4 +1,6 @@
 import { configuredCookieName, readStringCookie } from './authCookie'
+import { clientErrorContext, noteApiFailure, noteApiSuccess, recentHostTiming } from './clientErrorContext'
+import { useClientErrorLog } from './clientErrorLog'
 import { isClient, isServer } from '@commons/frontend-utils/is'
 import { type FetchOptions, FetchRequest, type FetchResult, RequestError, RequestMethodType } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -59,9 +61,41 @@ export const request = () => {
         if (response.status === 401) {
           await useAuth().clearAuth()
           await navigateTo('/login')
+        } else if (response.status === undefined || response.status < 400) {
+          noteApiSuccess()
         }
 
         return response as FetchResult<T>
+      },
+      onFailure: failure => {
+        try {
+          if (isServer || failure.cancelled) return
+          if (failure.status !== undefined && failure.status < 500) return
+          const base = String(useRuntimeConfig().public.DWEB_API_BASE_URL || '')
+          let host: string | undefined
+          try {
+            host = new URL(base).hostname
+          } catch {
+            host = undefined
+          }
+          const path = failure.url.split(/[?#]/)[0] || failure.url
+          const net = recentHostTiming(host)
+          const properties = {
+            source: 'api',
+            method: failure.method,
+            path,
+            ...(failure.status !== undefined ? { status: failure.status } : {}),
+            ...(failure.ray ? { ray: failure.ray } : {}),
+            phase: 'request',
+            ...clientErrorContext(),
+            consecutive_failures: noteApiFailure(),
+            ...(net ? { net } : {})
+          }
+          const message = failure.status !== undefined ? `${failure.method.toUpperCase()} ${path} failed (${failure.status})` : `${failure.method.toUpperCase()} ${path} network failure`
+          useClientErrorLog().capture('network', failure.error instanceof Error ? failure.error : new Error(message), properties)
+        } catch {
+          // Diagnostics must not change request behavior.
+        }
       },
       errorInterceptors: error => {
         if (isServer || (error instanceof RequestError && error.code === 401 && error.name === ErrorName.UNAUTHORIZED)) {

@@ -46,6 +46,14 @@ describe('frontend-utils error log collector', () => {
     expect(record.session_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
   })
 
+  it('accepts Mobile applications and returns the fingerprint for joins', async () => {
+    const { collector, sent } = make({ app: 'ios' })
+    const fingerprint = collector.capture('network', new Error('GET /v1/x failed (500)'), { phase: 'request', net: { dns_ms: 4 } })
+    await collector.flush()
+    expect(fingerprint).toMatch(/^[0-9a-f]{16}$/)
+    expect(sent[0].body[0]).toMatchObject({ app: 'ios', kind: 'network', properties: { phase: 'request', net: { dns_ms: 4 } } })
+  })
+
   it('strips the query and fragment from page and script URLs', async () => {
     const { collector, sent } = make()
     collector.capture('error', new TypeError('boom'))
@@ -417,6 +425,19 @@ describe('installGlobalErrorCapture', () => {
     expect(records.map(r => r.kind)).toEqual(['error', 'unhandledrejection', 'resource'])
     expect(records[0].properties).toMatchObject({ filename: 'https://r.slax.com/_nuxt/a.js', lineno: 3, colno: 4 })
     expect(records[2]).toMatchObject({ message: 'Script failed to load: https://r.slax.com/_nuxt/chunk.js', properties: { src: 'https://r.slax.com/_nuxt/chunk.js' } })
+  })
+
+  it('skips ad-blockable third-party scripts but keeps first-party and Stripe failures', async () => {
+    const { collector, sent } = make()
+    const { listeners, target } = listenerTarget()
+    installGlobalErrorCapture(collector, target)
+    for (const src of ['https://www.googletagmanager.com/gtm.js', 'https://www.google-analytics.com/analytics.js', 'https://static.cloudflareinsights.com/beacon.min.js']) {
+      listeners.error({ target: { tagName: 'SCRIPT', src } })
+    }
+    listeners.error({ target: { tagName: 'SCRIPT', src: 'https://js.stripe.com/v3/' } })
+    listeners.error({ target: { tagName: 'SCRIPT', src: 'https://r.slax.com/_nuxt/chunk.js' } })
+    await collector.flush()
+    expect(sent[0].body.map(record => record.properties?.src)).toEqual(['https://js.stripe.com/v3/', 'https://r.slax.com/_nuxt/chunk.js'])
   })
 
   it('flushes as a beacon when the document is hidden', async () => {

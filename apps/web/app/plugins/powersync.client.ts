@@ -1,5 +1,7 @@
 import { type ShallowRef, shallowRef } from 'vue'
 
+import { eventLog } from '~/utils/analytics'
+import { clientErrorContext, recentHostTiming } from '~/utils/clientErrorContext'
 import { useClientErrorLog } from '~/utils/clientErrorLog'
 import { notifyExtensionBridgeAuthExpired, parseExtensionBridgeIds } from '~/utils/extensionBridge'
 import { requestExtensionBridgeSession } from '~/utils/extensionBridgeSession'
@@ -35,11 +37,47 @@ const powerSyncConsole = globalThis.console
 
 // Error capture is diagnostics only: any failure inside it, including creating the collector, is
 // swallowed so it can never change sync, upload, or recovery behavior.
-const capturePowerSyncError = (source: string, error: unknown, properties: Record<string, unknown> = {}) => {
+const OBSERVATION_ID = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`
+let syncFailureCount = 0
+let syncConnectedAt: number | undefined
+let syncHost: string | undefined
+let onStreamFailure: (() => void) | undefined
+
+const apiHostname = () => {
   try {
-    useClientErrorLog().capture('powersync', error ?? { name: 'PowerSyncError', message: source }, { source, ...properties })
+    return new URL(String(useRuntimeConfig().public.DWEB_API_BASE_URL)).hostname
+  } catch {
+    return undefined
+  }
+}
+
+const syncContext = (host?: string) => ({
+  ...clientErrorContext(),
+  ...(syncConnectedAt !== undefined ? { connection_ms: Math.max(0, Date.now() - syncConnectedAt) } : {}),
+  consecutive_failures: syncFailureCount,
+  ...(host ? (recentHostTiming(host) ? { net: recentHostTiming(host) } : {}) : {})
+})
+
+// Observations must be attributable to a signed-in account; the plugin installs its session check.
+let hasObservableSession: () => boolean = () => false
+
+const emitPhase = (phase: 'token' | 'connect' | 'stream' | 'upload', outcome: 'success' | 'failure', properties: Record<string, unknown> = {}) => {
+  try {
+    if (!hasObservableSession()) return
+    eventLog({ event_name: 'powersync_phase', properties: { observation_id: OBSERVATION_ID, phase, outcome, ...properties } })
+  } catch {
+    // Telemetry is best effort.
+  }
+}
+
+const capturePowerSyncError = (source: string, error: unknown, properties: Record<string, unknown> = {}, host?: string) => {
+  try {
+    const ray = typeof error === 'object' && error !== null && typeof (error as { ray?: unknown }).ray === 'string' ? (error as { ray: string }).ray : undefined
+    const fingerprint = useClientErrorLog().capture('powersync', error ?? { name: 'PowerSyncError', message: source }, { source, ...syncContext(host), ...properties, ...(ray ? { ray } : {}) })
+    return { fingerprint, ray }
   } catch {
     // Diagnostics must not affect the caller.
+    return {}
   }
 }
 
@@ -99,7 +137,14 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
         if (key === windowKey && now - windowStart < SDK_DUPLICATE_WINDOW_MS) return
         windowKey = key
         windowStart = now
-        capturePowerSyncError('sdk.logger', captured, { worker_mode: mode })
+        syncFailureCount += 1
+        const capturedInfo = capturePowerSyncError('sdk.logger', captured, { worker_mode: mode, phase: 'stream' }, syncHost)
+        emitPhase('stream', 'failure', { ...(capturedInfo.fingerprint ? { fingerprint: capturedInfo.fingerprint } : {}), ...(capturedInfo.ray ? { ray: capturedInfo.ray } : {}) })
+        try {
+          onStreamFailure?.()
+        } catch {
+          // Control path must not affect the SDK.
+        }
       } catch {
         // Diagnostics must not affect the SDK.
       }
@@ -130,7 +175,7 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
       })
       break
     case 'attempt-error':
-      capturePowerSyncError('recovery.attempt', event.error, { worker_mode: event.mode, attempt: event.attempt, duration_ms: event.durationMs })
+      capturePowerSyncError('recovery.attempt', event.error, { worker_mode: event.mode, attempt: event.attempt, duration_ms: event.durationMs, phase: 'connect', stage: 'recovery' }, apiHostname())
       powerSyncConsole.error('[powersync] recovery attempt failed', {
         mode: event.mode,
         attempt: event.attempt,
@@ -145,7 +190,7 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
       })
       break
     case 'dispose-timeout':
-      capturePowerSyncError('recovery.dispose', { name: 'PowerSyncCleanupTimeout', message: 'failed database cleanup timed out' }, { worker_mode: event.mode, timeout_ms: event.timeoutMs })
+      capturePowerSyncError('recovery.dispose', { name: 'PowerSyncCleanupTimeout', message: 'failed database cleanup timed out' }, { worker_mode: event.mode, timeout_ms: event.timeoutMs, phase: 'connect', stage: 'recovery' }, apiHostname())
       powerSyncConsole.warn('[powersync] failed database cleanup timed out; stopping local recovery', {
         mode: event.mode,
         attempt: event.attempt,
@@ -153,7 +198,7 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
       })
       break
     case 'dispose-error':
-      capturePowerSyncError('recovery.dispose', event.error, { worker_mode: event.mode, attempt: event.attempt })
+      capturePowerSyncError('recovery.dispose', event.error, { worker_mode: event.mode, attempt: event.attempt, phase: 'connect', stage: 'recovery' }, apiHostname())
       powerSyncConsole.warn('[powersync] failed database cleanup reported an error', {
         mode: event.mode,
         attempt: event.attempt,
@@ -162,6 +207,7 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
       break
     case 'unavailable':
       capturePowerSyncError('recovery.unavailable', { name: 'PowerSyncUnavailable', message: `local database unavailable: ${event.stopReason ?? 'exhausted'}` }, {
+            phase: 'connect', stage: 'recovery',
         attempted_modes: event.attemptedModes,
         stop_reason: event.stopReason
       })
@@ -212,6 +258,8 @@ export default defineNuxtPlugin({
     let bridgeUserId: string | null = null
     const getPowerSyncUserToken = () => (isBridgeFrame ? bridgeToken : getUserToken())
     const havePowerSyncUserToken = () => Boolean(getPowerSyncUserToken())
+    // The Extension bridge frame is outside sync telemetry, and eventLog would send without its session.
+    hasObservableSession = () => !isBridgeFrame && havePowerSyncUserToken()
     const refreshPowerSyncUserToken = async () => {
       if (!isBridgeFrame) return getUserToken()
       const token = await requestExtensionBridgeSession({
@@ -282,8 +330,9 @@ export default defineNuxtPlugin({
 
     const connector = createConnector({
       fetchToken: async () => {
+        const startedAt = Date.now()
         const authToken = await refreshPowerSyncUserToken()
-        return fetchSyncCredentials({
+        const credentials = await fetchSyncCredentials({
           baseUrl: cfg.DWEB_API_BASE_URL as string,
           authToken,
           onUnauthorized: async () => {
@@ -301,11 +350,19 @@ export default defineNuxtPlugin({
             if (window.parent === window) await navigateTo('/login')
           }
         })
+        try {
+          syncHost = new URL(credentials.endpoint).hostname
+        } catch {
+          syncHost = apiHostname()
+        }
+        if (credentials.token) emitPhase('token', 'success', { duration_ms: Math.max(0, Date.now() - startedAt) })
+        return credentials
       },
       uploadChanges: async changes => {
         // 用原始 fetch：共享 request() 会把 401 当“成功”静默返回，
         // 导致 uploadData 误执行 batch.complete() 丢掉未同步写入。
         // 这里非 2xx 一律抛错，让 PowerSync 重试，不丢数据。
+        const startedAt = Date.now()
         const token = await refreshPowerSyncUserToken()
         if (!token) throw new Error('PowerSync upload requires an active session')
         const base = (cfg.DWEB_API_BASE_URL as string).replace(/\/$/, '')
@@ -320,10 +377,12 @@ export default defineNuxtPlugin({
           notifyExtensionBridgeAuthExpired()
           bridgeToken = null
         }
-        if (!res.ok) throw new Error(`[powersync] upload changes failed: ${res.status}`)
+        if (!res.ok) throw Object.assign(new Error(`[powersync] upload changes failed: ${res.status}`), { phase: 'upload', ray: res.headers.get('cf-ray') ?? undefined, status: res.status })
+        emitPhase('upload', 'success', { step: 'submit', batch_size: changes.length, duration_ms: Math.max(0, Date.now() - startedAt) })
       },
       onError: e => {
-        capturePowerSyncError('connector.upload', e)
+        const info = capturePowerSyncError('connector.upload', e, { phase: 'upload' }, apiHostname())
+        emitPhase('upload', 'failure', { step: 'submit', ...(info.fingerprint ? { fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
         powerSyncConsole.error('[powersync] uploadData failed:', e)
       }
     })
@@ -361,7 +420,7 @@ export default defineNuxtPlugin({
               return { database, mode: 'main' as const }
             } catch (error) {
               reportVersionSkew(updateNotice, error)
-              capturePowerSyncError('init', error, { worker_mode: 'main' })
+              capturePowerSyncError('init', error, { worker_mode: 'main', phase: 'connect', stage: 'init' }, apiHostname())
               powerSyncConsole.error('[powersync] local database initialization unavailable; using REST fallback', {
                 attemptedModes: ['main'],
                 reason: 'initialization-error',
@@ -419,9 +478,49 @@ export default defineNuxtPlugin({
 
       let connected = false
       let connecting = false
+      let reconnectTimer: ReturnType<typeof setTimeout> | undefined
+      let offlinePaused = false
+      let intentionalStop = false
+      let connectStartedAt: number | undefined
+      let downloadingSince: number | undefined
+      let lastSyncedAt: Date | null = null
+      syncFailureCount = 0
+      syncConnectedAt = undefined
+      const clearReconnect = () => {
+        if (reconnectTimer !== undefined) clearTimeout(reconnectTimer)
+        reconnectTimer = undefined
+      }
+      // Delays follow 5 s, 10 s, 20 s ... capped at 2 min; syncFailureCount already counts the failure being retried.
+      const reconnectDelay = () => Math.min(5000 * 2 ** Math.max(0, syncFailureCount - 1), 120000)
+      const canReconnect = () => !offlinePaused && !(typeof navigator !== 'undefined' && navigator.onLine === false) && havePowerSyncUserToken()
+      const waitAndReconnect = () =>
+        new Promise<void>(resolve => {
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = undefined
+            if (canReconnect()) void transition(guardAccountAndConnect).finally(resolve)
+            else resolve()
+          }, reconnectDelay())
+        })
+      const scheduleReconnect = () => {
+        if (!canReconnect() || reconnectTimer !== undefined) return
+        // Shared-worker tabs share one connection: the tab holding the lock owns the schedule until its
+        // attempt finishes, and the others skip, so tabs do not multiply attempts.
+        if (recovery.mode === 'shared' && typeof navigator !== 'undefined' && navigator.locks?.request) {
+          void navigator.locks.request('slax-ps-reconnect-controller', { ifAvailable: true }, lock => (lock ? waitAndReconnect() : undefined)).catch(() => undefined)
+        } else void waitAndReconnect()
+      }
+      const stopForFailure = () => {
+        connected = false
+        syncConnectedAt = undefined
+        void db.disconnect().catch(() => undefined)
+        scheduleReconnect()
+      }
+      onStreamFailure = stopForFailure
       const connect = async () => {
-        if (connected || connecting || !havePowerSyncUserToken()) return
+        if (connected || connecting || offlinePaused || (typeof navigator !== 'undefined' && !navigator.onLine) || !havePowerSyncUserToken()) return
         connecting = true
+        intentionalStop = false
+        connectStartedAt = Date.now()
         try {
           powerSyncConsole.info('[powersync] sync connect requested', { mode: recovery.mode })
           await db.connect(connector, { params: { schema_version: '2' }, connectionMethod: SyncStreamConnectionMethod.HTTP })
@@ -433,20 +532,82 @@ export default defineNuxtPlugin({
             connecting: db.connecting
           })
         } catch (e) {
-          capturePowerSyncError('app.connect', e, { worker_mode: recovery.mode })
+          syncFailureCount += 1
+          const phase = typeof e === 'object' && e !== null && (e as { phase?: unknown }).phase === 'token' ? 'token' : 'connect'
+          const info = capturePowerSyncError('app.connect', e, { worker_mode: recovery.mode, phase }, syncHost ?? apiHostname())
+          emitPhase(phase, 'failure', { ...(info.fingerprint ? { fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
           powerSyncConsole.error('[powersync] connect failed:', e)
+          scheduleReconnect()
         } finally {
           connecting = false
+          connectStartedAt = undefined
         }
       }
+      try {
+        db.registerListener({
+          statusChanged: status => {
+            if (status.connected) {
+              if (!connected) {
+                syncConnectedAt = Date.now()
+                emitPhase('connect', 'success', connectStartedAt !== undefined ? { duration_ms: Math.max(0, Date.now() - connectStartedAt) } : {})
+              }
+              connected = true
+              syncFailureCount = 0
+              clearReconnect()
+            } else if (connected && !status.connecting) {
+              connected = false
+              syncConnectedAt = undefined
+              if (!intentionalStop) {
+                try {
+                  if (hasObservableSession()) eventLog({ event_name: 'powersync_connection_lost', properties: { observation_id: OBSERVATION_ID, reason: 'stream_lost' } })
+                } catch {}
+              }
+            }
+            if (status.downloading && downloadingSince === undefined) downloadingSince = performance.now()
+            if (!status.downloading && downloadingSince !== undefined && status.lastSyncedAt && status.lastSyncedAt !== lastSyncedAt) {
+              emitPhase('stream', 'success', { duration_ms: Math.max(0, Math.round(performance.now() - downloadingSince)) })
+              downloadingSince = undefined
+              lastSyncedAt = status.lastSyncedAt
+            }
+          }
+        })
+      } catch {
+        // A missing listener only removes observations.
+      }
+      const onOffline = () => {
+        offlinePaused = true
+        intentionalStop = true
+        clearReconnect()
+        connected = false
+        syncConnectedAt = undefined
+        void db.disconnect().catch(() => undefined)
+      }
+      const reconnectNow = () => {
+        clearReconnect()
+        intentionalStop = false
+        if (canReconnect()) void transition(guardAccountAndConnect)
+      }
+      const onOnline = () => {
+        offlinePaused = false
+        reconnectNow()
+      }
+      const onVisibility = () => {
+        if (document.visibilityState === 'visible' && !connected) reconnectNow()
+      }
+      window.addEventListener('offline', onOffline)
+      window.addEventListener('online', onOnline)
+      document.addEventListener('visibilitychange', onVisibility)
       const reset = async () => {
         localOwner.value = null
+        intentionalStop = true
+        clearReconnect()
+        syncConnectedAt = undefined
         powerSyncConsole.info('[powersync] clearing local database for logout/account transition')
         clearSyncCredsCache()
         try {
           await db.disconnectAndClear()
         } catch (e) {
-          capturePowerSyncError('app.reset', e, { worker_mode: recovery.mode })
+          capturePowerSyncError('app.reset', e, { worker_mode: recovery.mode, phase: 'connect', stage: 'reset' }, apiHostname())
           powerSyncConsole.error('[powersync] disconnectAndClear failed:', e)
         }
         connected = false
@@ -465,7 +626,7 @@ export default defineNuxtPlugin({
           try {
             await db.disconnectAndClear()
           } catch (e) {
-            capturePowerSyncError('app.accountSwitch', e, { worker_mode: recovery.mode })
+            capturePowerSyncError('app.accountSwitch', e, { worker_mode: recovery.mode, phase: 'connect', stage: 'account-switch' }, apiHostname())
             powerSyncConsole.error('[powersync] clear on account switch failed, will retry next startup:', e)
             return false
           }
@@ -500,7 +661,7 @@ export default defineNuxtPlugin({
             await db.disconnectAndClear()
           } catch (e) {
             // 清失败不打版本戳，下次启动重试，避免陈旧数据被当成已迁移
-            capturePowerSyncError('app.dataVersion', e, { worker_mode: recovery.mode })
+            capturePowerSyncError('app.dataVersion', e, { worker_mode: recovery.mode, phase: 'connect', stage: 'data-version' }, apiHostname())
             powerSyncConsole.error('[powersync] data-version clear failed, will retry next startup:', e)
             throw e
           }
@@ -515,7 +676,7 @@ export default defineNuxtPlugin({
       let lifecycle: Promise<void> = Promise.resolve()
       const transition = (fn: () => Promise<void>) => {
         lifecycle = lifecycle.then(fn).catch(e => {
-          capturePowerSyncError('app.lifecycle', e, { worker_mode: recovery.mode })
+          capturePowerSyncError('app.lifecycle', e, { worker_mode: recovery.mode, phase: 'connect', stage: 'lifecycle' }, apiHostname())
           powerSyncConsole.error('[powersync] lifecycle error:', e)
         })
         return lifecycle

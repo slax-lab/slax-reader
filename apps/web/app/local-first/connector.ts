@@ -104,7 +104,7 @@ export async function fetchSyncCredentials(options: {
     await options.onUnauthorized()
     return { token: '', endpoint: '' }
   }
-  if (!response.ok) throw new Error(`[powersync] sync token failed: ${response.status}`)
+  if (!response.ok) throw Object.assign(new Error(`[powersync] sync token failed: ${response.status}`), { phase: 'token', ray: response.headers.get('cf-ray') ?? undefined })
 
   const result = (await response.json()) as { data?: { token?: string; endpoint?: string } }
   return { token: result.data?.token ?? '', endpoint: result.data?.endpoint ?? '' }

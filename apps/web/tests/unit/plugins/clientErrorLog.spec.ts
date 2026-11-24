@@ -2,7 +2,24 @@
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const state = vi.hoisted(() => ({ endpoint: 'https://stream.ingest.invalid', sent: [] as unknown[][], fetch: vi.fn() }))
+const state = vi.hoisted(() => ({
+  endpoint: 'https://stream.ingest.invalid',
+  sent: [] as unknown[][],
+  fetch: vi.fn(),
+  // The bridge page's persisted user store: userInfo before and after $hydrate.
+  store: { userInfo: null as { userId: number; name?: string; email?: string } | null, persisted: null as { userId: number; name?: string; email?: string } | null, hydrate: vi.fn() }
+}))
+vi.mock('~/stores/user', () => ({
+  useUserStore: () => ({
+    get userInfo() {
+      return state.store.userInfo
+    },
+    $hydrate: () => {
+      state.store.hydrate()
+      state.store.userInfo = state.store.persisted
+    }
+  })
+}))
 
 mockNuxtImport('useRuntimeConfig', () => () => ({ public: { CLIENT_ERROR_INGEST_URL: state.endpoint, appVersion: '2.1.0', slaxEnv: 'production', COOKIE_TOKEN_NAME: 'token' } }))
 // The shared cookie helpers register change listeners; the collector must not call them.
@@ -168,5 +185,51 @@ describe('client error log plugin', () => {
     window.dispatchEvent(new ErrorEvent('error', { error: new Error('x') }))
     await collector.flush()
     expect(state.fetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('client error log on the Extension bridge page', () => {
+  const persistUser = (userId: number) => (state.store.persisted = { userId, name: 'private name', email: 'private@example.com' })
+  const startBridge = async () => {
+    window.history.replaceState(null, '', '/x/ext-bridge')
+    return start()
+  }
+  beforeEach(() => {
+    state.store.userInfo = null
+    state.store.persisted = null
+    state.store.hydrate.mockReset()
+  })
+
+  it('attributes records to the bridge user from the page store and marks the surface', async () => {
+    persistUser(4871)
+    setCookie('token', `h.${btoa(JSON.stringify({ id: 10001 }))}.s`)
+    const collector = await startBridge()
+    collector.capture('powersync', new TypeError('Failed to fetch'), { phase: 'stream' })
+    await collector.flush()
+    const [record] = state.sent.flat() as Array<Record<string, unknown>>
+    expect(record).toMatchObject({ kind: 'powersync', user_id: '4871', device_id: 'device-1' })
+    expect(record!.properties).toMatchObject({ phase: 'stream', surface: 'ext-bridge' })
+    expect(JSON.stringify(record)).not.toContain('private')
+    expect(state.store.hydrate).toHaveBeenCalled()
+  })
+
+  it('records no user when the bridge store has none, without falling back to a cookie', async () => {
+    setCookie('token', `h.${btoa(JSON.stringify({ id: 10001 }))}.s`)
+    const collector = await startBridge()
+    collector.capture('powersync', new TypeError('Failed to fetch'))
+    await collector.flush()
+    const [record] = state.sent.flat() as Array<Record<string, unknown>>
+    expect(record).not.toHaveProperty('user_id')
+    expect(record!.properties).toMatchObject({ surface: 'ext-bridge' })
+  })
+
+  it('leaves records outside the bridge page unchanged', async () => {
+    persistUser(4871)
+    const collector = await start()
+    collector.capture('error', new Error('boom'))
+    await collector.flush()
+    const [record] = state.sent.flat() as Array<Record<string, unknown>>
+    expect(record).toMatchObject({ user_id: '10001' })
+    expect(record!.properties ?? {}).not.toHaveProperty('surface')
   })
 })
