@@ -40,6 +40,10 @@ Deleting a user's bookmark relation in PostgreSQL through any deletion path, inc
 - **WHEN** the import-failure batch delete removes relations from PostgreSQL
 - **THEN** the matching fulltext mirror rows are removed in the same operation
 
+#### Scenario: A failed bookmark is covered by a new save
+- **WHEN** saving a URL removes the user's relation to a failed or pending bookmark of the same URL
+- **THEN** the matching fulltext mirror row is removed with it
+
 #### Scenario: An operator prunes stale mirror rows
 - **WHEN** the operator runs the pruning command against an exported mirror
 - **THEN** it reads PostgreSQL in a read-only transaction and writes DELETE statements only for relations PostgreSQL no longer has, without applying them

@@ -35,7 +35,7 @@ See `proposal.md` for the measurements. `SearchService.hybridSearch` (`apps/api/
 
 ## Fulltext relation mirror
 
-`slax_user_bookmark` in the fulltext database mirrors PostgreSQL relations and is the fulltext candidate source. `deleteBookmark` already removed the mirror row; `batchDeleteBookmarksByIds` (import-failure cleanup) and `UserDeletionService.deleteUserBookmarks` did not. Both now delete the mirror rows. Existing stale rows are removed by `fulltext:prune-relations`, which compares an exported mirror with PostgreSQL in a read-only transaction and writes DELETE statements; trashed relations stay because they can be restored.
+`slax_user_bookmark` in the fulltext database mirrors PostgreSQL relations and is the fulltext candidate source. `deleteBookmark` already removed the mirror row; `batchDeleteBookmarksByIds` (import-failure cleanup), `checkAndCoverFailBookmark` (a failed or pending relation replaced by a new save of the same URL) and `UserDeletionService.deleteUserBookmarks` did not. All three now delete the mirror rows. Existing stale rows are removed by `fulltext:prune-relations`, which compares an exported mirror with PostgreSQL in a read-only transaction and writes DELETE statements; trashed relations stay because they can be restored.
 
 ## Non-Goals
 

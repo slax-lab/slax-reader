@@ -2,7 +2,7 @@
 
 ## Automated checks (2026-11-24)
 
-- `pnpm api -- test`: 284 files passed, 20 skipped; 4,538 tests passed, 166 skipped (existing skips), on the final revision of the combined scope.
+- `pnpm api -- test`: 285 files passed, 20 skipped; 4,541 tests passed, 166 skipped (existing skips), on the final revision of the combined scope.
 - `pnpm api -- test test/script/layerArchitecture.test.ts`: 45 passed.
 - `pnpm api -- build` (with `gen:all`): passed.
 - ESLint on the three changed source files: no errors; three warnings already present before this change (unused imports in `dbBookmarkSearch.ts`, `any` in `normalizer.ts` line 39).
@@ -24,10 +24,6 @@ The baseline ran on the deployed `origin/dev` build; `reader-ai` was then deploy
 
 - No error logs in either run for these requests.
 - Highlights are identical for the 50 best fulltext ranks of every keyword (all 19 for "cloudflare worker"). Differences start at fulltext rank 50, as designed; those rows show the first characters of the text, for example the first differing "AI" row appears at overall position 91 of 397.
-## Known pre-existing limitation
-
-`getUserBookmarkItem` keeps one fulltext row id per bookmark (the last shard listed), so other shards of a long article are not searched. This change preserves that behavior.
-
 ## Review and validation
 
 - Local `REVIEW.md` review (Bugs, Security, Compliance) before push: one finding fixed in `3bfab510` (bookmark shard handling, later removed as unreachable in `a8f6675c`).

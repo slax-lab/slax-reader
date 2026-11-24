@@ -414,6 +414,8 @@ export class SearchService {
     const userId = ctx.getUserId()
     if (!keyword.trim() || !eligible.size) return []
     const query = await this.vectorEmbedding.cachedQuery(keyword)
+    // The index already restricts candidates to this owner; the userId check is an assertion, and `eligible` drops
+    // trashed or removed bookmarks. Tag filters never reach this branch.
     const candidates = (await this.vectors.queryArticles(query, { userId, limit: SEMANTIC_CANDIDATE_LIMIT })).filter(
       candidate => candidate.userId === userId && eligible.has(candidate.id)
     )
