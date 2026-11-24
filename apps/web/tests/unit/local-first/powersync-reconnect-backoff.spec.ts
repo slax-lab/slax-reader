@@ -120,6 +120,19 @@ describe('PowerSync reconnect backoff', () => {
     expect(waits).toEqual([5, 10, 20, 40, 80, 120, 120])
   })
 
+  it('still retries when the first attempt fails before connect() resolves', async () => {
+    // The SDK resolves connect() only after its first attempt settles, so the failure log arrives first.
+    state.connect.mockImplementationOnce(async () => {
+      failStream()
+    })
+    await start()
+    expect(state.connect).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(state.connect).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(state.connect).toHaveBeenCalledTimes(2)
+  })
+
   it('resets to 5 seconds after a successful connection', async () => {
     await start()
     failStream()

@@ -91,8 +91,12 @@ export const request = () => {
             consecutive_failures: noteApiFailure(),
             ...(net ? { net } : {})
           }
-          const message = failure.status !== undefined ? `${failure.method.toUpperCase()} ${path} failed (${failure.status})` : `${failure.method.toUpperCase()} ${path} network failure`
-          useClientErrorLog().capture('network', failure.error instanceof Error ? failure.error : new Error(message), properties)
+          const message =
+            failure.status !== undefined ? `${failure.method.toUpperCase()} ${path} failed (${failure.status})` : `${failure.method.toUpperCase()} ${path} network failure`
+          // A 5xx body is often an HTML error page whose parse error says nothing about the request, so a
+          // response failure is named by the request; a network failure keeps the browser's own error.
+          const error = failure.status === undefined && failure.error instanceof Error ? failure.error : Object.assign(new Error(message), { name: 'ApiRequestError' })
+          useClientErrorLog().capture('network', error, properties)
         } catch {
           // Diagnostics must not change request behavior.
         }

@@ -105,7 +105,7 @@ An operator creates, outside this repository:
 | Test | test account | new Mobile stream + pipeline | existing `client_errors_sink` → `client_errors.errors` | `ios`, `android` | `development` |
 | Production | production account | new Mobile stream + pipeline | existing `client_errors_sink` → `client_errors.errors` | `ios`, `android` | `beta`, `production` |
 
-Admission SQL rules, applied by each Mobile pipeline before its insert; the Web pipeline keeps its current rules:
+Admission SQL rules, applied by each Mobile pipeline before its insert. The Web pipelines keep their current rules and add `network` to their kind list, since Web now records failed API requests with `kind=network` (`kind IN ('error','unhandledrejection','vue','resource','powersync','network')`); without it those records would be dropped:
 
 - `app IN ('ios','android')`.
 - `env` in the environment's list above.
@@ -140,7 +140,7 @@ Two further operator actions: a Cloudflare Transform Rule on the PowerSync hostn
 ## Migration Plan
 
 1. API deploy: CORS exposure, diagnostic fields, AI summary line and bookmark event classification take effect together. Monitor queries need the `bookmark_add_step_failed` migration; keep the old rows readable for the 30-day overlap.
-2. Operator creates the Mobile streams, pipelines and Transform Rule before the Mobile build ships. No table or Web stream change.
+2. Operator creates the Mobile streams, pipelines and Transform Rule before the Mobile build ships, and recreates both Web pipelines with `network` in their kind list before the Web deploy. No table or Web stream change.
 3. Web deploy starts API failure capture, context and backoff; reverting the plugin restores the previous retry behavior without data migration.
 4. Mobile build starts collection and backoff; an empty ingestion input stops collection immediately.
 5. The old branches and PCT remain untouched; this branch is the single delivery vehicle.

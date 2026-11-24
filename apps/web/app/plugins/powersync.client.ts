@@ -207,7 +207,8 @@ const logPowerSyncRecoveryEvent = (event: PowerSyncRecoveryEvent) => {
       break
     case 'unavailable':
       capturePowerSyncError('recovery.unavailable', { name: 'PowerSyncUnavailable', message: `local database unavailable: ${event.stopReason ?? 'exhausted'}` }, {
-            phase: 'connect', stage: 'recovery',
+        phase: 'connect',
+        stage: 'recovery',
         attempted_modes: event.attemptedModes,
         stop_reason: event.stopReason
       })
@@ -509,7 +510,9 @@ export default defineNuxtPlugin({
           void navigator.locks.request('slax-ps-reconnect-controller', { ifAvailable: true }, lock => (lock ? waitAndReconnect() : undefined)).catch(() => undefined)
         } else void waitAndReconnect()
       }
+      let streamFailures = 0
       const stopForFailure = () => {
+        streamFailures += 1
         connected = false
         syncConnectedAt = undefined
         void db.disconnect().catch(() => undefined)
@@ -521,11 +524,14 @@ export default defineNuxtPlugin({
         connecting = true
         intentionalStop = false
         connectStartedAt = Date.now()
+        const failuresBefore = streamFailures
         try {
           powerSyncConsole.info('[powersync] sync connect requested', { mode: recovery.mode })
           await db.connect(connector, { params: { schema_version: '2' }, connectionMethod: SyncStreamConnectionMethod.HTTP })
           // ConnectionManager 会自行重试；这里表示已发起连接，不代表网络流已在线。
-          connected = true
+          // The SDK resolves connect() only after the first attempt settles, so a stream failure seen while
+          // waiting has already disconnected and scheduled the retry; marking it connected would void that retry.
+          if (streamFailures === failuresBefore) connected = true
           powerSyncConsole.info('[powersync] sync connect call completed', {
             mode: recovery.mode,
             connected: db.connected,

@@ -224,7 +224,7 @@ A fingerprint's first occurrence in an app session SHALL be delivered promptly. 
 
 ### Requirement: Admit only well-formed records into the shared error table
 
-Each environment's Web and Mobile ingestion pipelines SHALL admit a record only when its fields match the record format, its `app` is allowed for that pipeline, its `env` belongs to that environment, its `release` matches the required format, its `kind` is allowed, its bounded fields are within their byte limits, and its `occurred_at` falls within the accepted time window. The Mobile pipeline SHALL also require `page_url IS NULL`, SHALL admit only `app` values `ios` and `android`, and SHALL use the same `user_id` rule as the production Web pipeline: `user_id IS NULL OR regexp_like(user_id, '^[0-9]{1,20}$')`. The Web pipeline SHALL keep its existing `app=web`, page-origin and `user_id` rules. Both pipelines SHALL insert into the existing `client_errors_sink` and `client_errors.errors` table without changing the table schema, so records from both clients are queryable from one table. Records failing any check SHALL be dropped before storage.
+Each environment's Web and Mobile ingestion pipelines SHALL admit a record only when its fields match the record format, its `app` is allowed for that pipeline, its `env` belongs to that environment, its `release` matches the required format, its `kind` is allowed, its bounded fields are within their byte limits, and its `occurred_at` falls within the accepted time window. The Mobile pipeline SHALL also require `page_url IS NULL`, SHALL admit only `app` values `ios` and `android`, and SHALL use the same `user_id` rule as the production Web pipeline: `user_id IS NULL OR regexp_like(user_id, '^[0-9]{1,20}$')`. The Web pipeline SHALL keep its existing `app=web`, page-origin and `user_id` rules and SHALL admit `kind=network` in addition to its existing kinds. Both pipelines SHALL insert into the existing `client_errors_sink` and `client_errors.errors` table without changing the table schema, so records from both clients are queryable from one table. Records failing any check SHALL be dropped before storage.
 
 #### Scenario: A production record reaches the test stream
 - **WHEN** a record with `env=production` is sent to the test environment's Mobile endpoint
@@ -245,6 +245,10 @@ Each environment's Web and Mobile ingestion pipelines SHALL admit a record only 
 #### Scenario: A record has an unknown kind
 - **WHEN** a record with a kind outside the pipeline's list is sent
 - **THEN** it is not stored
+
+#### Scenario: A Web API failure reaches the Web pipeline
+- **WHEN** a valid Web record with `kind=network` is sent to its environment's Web endpoint
+- **THEN** it is stored
 
 #### Scenario: Mobile has no screen yet
 - **WHEN** an error occurs before any route has mounted and the record has no `properties.screen`
