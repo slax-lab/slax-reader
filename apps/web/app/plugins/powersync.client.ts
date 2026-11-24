@@ -112,6 +112,7 @@ const claimWorkerLogReporter = () => {
 // milliseconds; its retries are seconds apart. The window is measured from the first log of a
 // failure, so a failure repeating faster than the window is still counted once per window.
 const SDK_DUPLICATE_WINDOW_MS = 1000
+const isStreamFailureLog = (message: string) => message === 'Sync error' || message.startsWith('Could not POST streaming')
 
 // Keeps the SDK's default console logger unchanged and also records its error-level messages,
 // which include sync failures and worker crashes. This is the only counting source for sync-stream
@@ -137,6 +138,12 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
         if (key === windowKey && now - windowStart < SDK_DUPLICATE_WINDOW_MS) return
         windowKey = key
         windowStart = now
+        // Only the HTTP stream's failure logs end the connection; other error logs (watch, checkpoint,
+        // upload loop) are recorded but do not count as stream failures or drive the backoff.
+        if (!isStreamFailureLog(message)) {
+          capturePowerSyncError('sdk.logger', captured, { worker_mode: mode }, syncHost)
+          return
+        }
         syncFailureCount += 1
         const capturedInfo = capturePowerSyncError('sdk.logger', captured, { worker_mode: mode, phase: 'stream' }, syncHost)
         emitPhase('stream', 'failure', { ...(capturedInfo.fingerprint ? { fingerprint: capturedInfo.fingerprint } : {}), ...(capturedInfo.ray ? { ray: capturedInfo.ray } : {}) })
@@ -331,7 +338,6 @@ export default defineNuxtPlugin({
 
     const connector = createConnector({
       fetchToken: async () => {
-        const startedAt = Date.now()
         const authToken = await refreshPowerSyncUserToken()
         const credentials = await fetchSyncCredentials({
           baseUrl: cfg.DWEB_API_BASE_URL as string,
@@ -356,7 +362,6 @@ export default defineNuxtPlugin({
         } catch {
           syncHost = apiHostname()
         }
-        if (credentials.token) emitPhase('token', 'success', { duration_ms: Math.max(0, Date.now() - startedAt) })
         return credentials
       },
       uploadChanges: async changes => {
@@ -381,6 +386,8 @@ export default defineNuxtPlugin({
         if (!res.ok) throw Object.assign(new Error(`[powersync] upload changes failed: ${res.status}`), { phase: 'upload', ray: res.headers.get('cf-ray') ?? undefined, status: res.status })
         emitPhase('upload', 'success', { step: 'submit', batch_size: changes.length, duration_ms: Math.max(0, Date.now() - startedAt) })
       },
+      onCredentials: (source, durationMs) => emitPhase('token', 'success', { credential_source: source, duration_ms: durationMs }),
+      onAcknowledged: (batchSize, durationMs) => emitPhase('upload', 'success', { step: 'acknowledge', batch_size: batchSize, duration_ms: durationMs }),
       onError: e => {
         const info = capturePowerSyncError('connector.upload', e, { phase: 'upload' }, apiHostname())
         emitPhase('upload', 'failure', { step: 'submit', ...(info.fingerprint ? { fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
@@ -478,6 +485,8 @@ export default defineNuxtPlugin({
       // to every tab. Counting the status too would double every failure, so it is not captured.
 
       let connected = false
+      // Separates the first connection of a session from later reconnections in `connect` observations.
+      let everConnected = false
       let connecting = false
       let reconnectTimer: ReturnType<typeof setTimeout> | undefined
       let offlinePaused = false
@@ -550,13 +559,28 @@ export default defineNuxtPlugin({
           connectStartedAt = undefined
         }
       }
+      // A shared worker may already hold a live stream when this tab starts observing it.
+      try {
+        if (db.connected) {
+          connected = true
+          everConnected = true
+          syncConnectedAt = Date.now()
+          emitPhase('connect', 'success', { connection_kind: 'already_connected' })
+        }
+      } catch {
+        // Status is advisory here.
+      }
       try {
         db.registerListener({
           statusChanged: status => {
             if (status.connected) {
               if (!connected) {
                 syncConnectedAt = Date.now()
-                emitPhase('connect', 'success', connectStartedAt !== undefined ? { duration_ms: Math.max(0, Date.now() - connectStartedAt) } : {})
+                emitPhase('connect', 'success', {
+                  connection_kind: everConnected ? 'reconnect' : 'initial',
+                  ...(connectStartedAt !== undefined ? { duration_ms: Math.max(0, Date.now() - connectStartedAt) } : {})
+                })
+                everConnected = true
               }
               connected = true
               syncFailureCount = 0
@@ -608,6 +632,8 @@ export default defineNuxtPlugin({
         localOwner.value = null
         intentionalStop = true
         clearReconnect()
+        syncFailureCount = 0
+        everConnected = false
         syncConnectedAt = undefined
         powerSyncConsole.info('[powersync] clearing local database for logout/account transition')
         clearSyncCredsCache()

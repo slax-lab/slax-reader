@@ -12,6 +12,14 @@ export class RequestError extends Error {
   }
 }
 
+// A subclass may throw from fetchRequest after reading the response; such an error carries it.
+const responseOf = (error: unknown): Response | undefined => {
+  const response = typeof error === 'object' && error !== null ? (error as { response?: unknown }).response : undefined
+  return response instanceof Response ? response : undefined
+}
+const responseStatus = (error: unknown) => responseOf(error)?.status
+const responseRay = (error: unknown) => responseOf(error)?.headers.get('cf-ray') ?? undefined
+
 export interface RequestFailure {
   method: string
   url: string
@@ -181,9 +189,9 @@ export class FetchRequest {
         const failure: RequestFailure = {
           method: options.method ?? RequestMethodType.get,
           url: options.url,
-          status: received?.status,
-          ray: received?.headers.get('cf-ray') ?? undefined,
-          network: received === undefined,
+          status: received?.status ?? responseStatus(error),
+          ray: received?.headers.get('cf-ray') ?? responseRay(error),
+          network: received === undefined && responseStatus(error) === undefined,
           cancelled: error instanceof Error && error.name === 'AbortError',
           error
         }

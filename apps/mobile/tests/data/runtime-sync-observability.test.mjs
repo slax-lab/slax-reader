@@ -119,10 +119,11 @@ test('offline schedules no reconnect and online reconnects immediately', async c
 
 test('sync observations stop once the account signs out', async context => {
   const f = await connected(context);
-  f.database().status({connected: true, connecting: false}); await until(() => f.phases().length === 1);
+  f.database().status({connected: true, connecting: false}); await until(() => f.phases().some(item => item.phase === 'connect'));
+  await setImmediate(); const before = f.phases().length;
   await f.runtime.sessions.signOut();
   f.database().streamFailure(); await setImmediate(); await setImmediate();
-  assert.equal(f.phases().length, 1);
+  assert.equal(f.phases().length, before);
 });
 
 test('failed API requests record 5xx and network failures with ray but not 4xx or sync requests', async context => {
@@ -147,4 +148,20 @@ test('queued error records are flushed when the app moves to the background', as
   await f.runtime.setForeground(false);
   await f.runtime.setForeground(true);
   assert.deepEqual(f.flushed(), [true]);
+});
+
+test('token, connect and stream successes carry their source, kind and duration', async context => {
+  const f = await connected(context);
+  await until(() => f.phases().some(item => item.phase === 'token'));
+  const token = f.phases().find(item => item.phase === 'token');
+  assert.equal(token.outcome, 'success'); assert.equal(token.credential_source, 'api'); assert.equal(typeof token.duration_ms, 'number');
+  f.database().status({connected: true, connecting: false, downloading: true});
+  context.mock.timers.tick(250);
+  f.database().status({connected: true, connecting: false, downloading: false, lastSyncedAt: new Date()});
+  f.database().streamFailure(); context.mock.timers.tick(5000); await until(() => connects(f) === 2);
+  f.database().status({connected: true, connecting: false, downloading: false});
+  await until(() => f.phases().filter(item => item.phase === 'connect' && item.outcome === 'success').length === 2);
+  assert.deepEqual(f.phases().filter(item => item.phase === 'connect' && item.outcome === 'success').map(item => item.connection_kind), ['initial', 'reconnect']);
+  const stream = f.phases().find(item => item.phase === 'stream' && item.outcome === 'success');
+  assert.equal(stream.duration_ms, 250);
 });

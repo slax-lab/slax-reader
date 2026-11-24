@@ -6,6 +6,8 @@ export interface CrudOperation { table: string; id: string; op: string; opData?:
 export interface PendingTransaction { crud: CrudOperation[]; transactionId?: number | string; complete(): Promise<void> }
 export interface CrudQueue { getCrudTransactions(): AsyncIterable<PendingTransaction> }
 export interface UploadResult { uploaded: number; rejected: number }
+/** Per non-empty batch: the accepted submission, then its local completion. */
+export interface UploadObservers { submitted?(batchSize: number, durationMs: number): void; acknowledged?(batchSize: number, durationMs: number): void }
 function rowStrings(row: SqlRow): Record<string, string | null> {
   return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, value === null ? null : String(value)]));
 }
@@ -61,7 +63,7 @@ export function transactionChanges(transactions: PendingTransaction[]): SyncChan
   return transactions.flatMap(transaction => transaction.crud.map(entry => ({table: entry.table, id: entry.id, op: entry.op, ...diffChanges(entry.opData, entry.previousValues)})));
 }
 /** Completes only in queue order. A non-400 failure retains the failed and following transactions. */
-export async function uploadPendingTransactions(queue: CrudQueue, upload: (changes: SyncChange[]) => Promise<unknown>, sleep: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms))): Promise<UploadResult> {
+export async function uploadPendingTransactions(queue: CrudQueue, upload: (changes: SyncChange[]) => Promise<unknown>, sleep: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms)), observe: UploadObservers = {}): Promise<UploadResult> {
   const transactions: PendingTransaction[] = [];
   for await (const transaction of queue.getCrudTransactions()) { transactions.push(transaction); if (transactions.length >= 100) break; }
   const result = {uploaded: 0, rejected: 0};
@@ -75,7 +77,8 @@ export async function uploadPendingTransactions(queue: CrudQueue, upload: (chang
   for (let index = 0; index < batches.length; index++) {
     if (index) await sleep(200);
     const batch = batches[index]!;
-    try { await upload(transactionChanges(batch)); }
+    const size = batch.reduce((total, transaction) => total + transaction.crud.length, 0), submitStartedAt = Date.now();
+    try { await upload(transactionChanges(batch)); observe.submitted?.(size, Math.max(0, Date.now() - submitStartedAt)); }
     catch (error) {
       if (!(error instanceof ApiError) || error.status !== 400) throw error;
       for (const transaction of batch) {
@@ -85,7 +88,9 @@ export async function uploadPendingTransactions(queue: CrudQueue, upload: (chang
       }
       continue;
     }
+    const acknowledgeStartedAt = Date.now();
     for (const transaction of batch) { await transaction.complete(); result.uploaded++; }
+    observe.acknowledged?.(size, Math.max(0, Date.now() - acknowledgeStartedAt));
   }
   return result;
 }

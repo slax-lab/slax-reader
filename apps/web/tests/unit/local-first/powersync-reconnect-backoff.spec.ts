@@ -146,6 +146,31 @@ describe('PowerSync reconnect backoff', () => {
     expect(state.connect.mock.calls.length).toBe(before + 1)
   })
 
+  it('records other SDK error logs without treating them as stream failures', async () => {
+    await start()
+    const before = state.connect.mock.calls.length
+    logger().log({ level: 50, message: 'Error in watch', error: new Error('query failed') })
+    logger().log({ level: 50, message: 'Error in crud upload loop', error: new Error('upload loop') })
+    expect(state.disconnect).not.toHaveBeenCalled()
+    expect(state.capture).toHaveBeenCalledTimes(2)
+    expect(state.capture.mock.calls.every(call => (call[2] as { phase?: string }).phase === undefined)).toBe(true)
+    await vi.advanceTimersByTimeAsync(130_000)
+    expect(state.connect.mock.calls.length).toBe(before)
+  })
+
+  it('labels the first connection initial and later ones reconnections', async () => {
+    // As in the SDK, the connected status arrives before connect() resolves.
+    state.connect.mockImplementation(async () => connectedStatus())
+    await start()
+    failStream()
+    await vi.advanceTimersByTimeAsync(5000)
+    const kinds = state.events.mock.calls
+      .map(([event]) => event as { event_name: string; properties: { phase?: string; outcome?: string; connection_kind?: string } })
+      .filter(event => event.event_name === 'powersync_phase' && event.properties.phase === 'connect' && event.properties.outcome === 'success')
+      .map(event => event.properties.connection_kind)
+    expect(kinds).toEqual(['initial', 'reconnect'])
+  })
+
   it('resets to 5 seconds after a successful connection', async () => {
     await start()
     failStream()

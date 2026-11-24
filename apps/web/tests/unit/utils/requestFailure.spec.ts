@@ -51,6 +51,19 @@ describe('FetchRequest failure observer', () => {
     await expect(request.get({ url: '/v1/x' })).rejects.toThrow('Failed to fetch')
   })
 
+  it('reads the status and Ray ID from a response a subclass threw with', async () => {
+    class Throwing extends FetchRequest {
+      override async fetchRequest(): Promise<Response> {
+        const response = new Response('down', { status: 503, headers: { 'cf-ray': 'abc-HKG' } })
+        throw Object.defineProperty(new RequestError({ code: 503, name: 'UNAUTHORIZED', message: 'down' }), 'response', { value: response, enumerable: false })
+      }
+    }
+    const failures: unknown[] = []
+    const request = new Throwing({ baseUrl: 'https://api.test', onFailure: failure => failures.push(failure) })
+    await expect(request.stream({ url: '/v1/x' })).rejects.toBeInstanceOf(RequestError)
+    expect(failures).toEqual([expect.objectContaining({ status: 503, ray: 'abc-HKG', network: false })])
+  })
+
   it('marks an abort as cancelled', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' }))
     const failures: unknown[] = []

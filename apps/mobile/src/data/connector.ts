@@ -8,7 +8,14 @@ import {uploadPendingTransactions} from './uploader.ts';
 import type {CrudQueue} from './uploader.ts';
 import type {SlaxApi} from './api.ts';
 
-export function createSyncConnector(api: SlaxApi, preferences: PreferenceStore, sessions: SessionAuthority, localEndpoint?: string, now = Date.now) {
+/** Diagnostics only; a throwing observer never changes credential or upload results. */
+export interface SyncConnectorObservers {
+  credentials?(source: 'cache' | 'api', durationMs: number): void;
+  submitted?(batchSize: number, durationMs: number): void;
+  acknowledged?(batchSize: number, durationMs: number): void;
+}
+const notify = (observe: () => void) => {try {observe();} catch {}};
+export function createSyncConnector(api: SlaxApi, preferences: PreferenceStore, sessions: SessionAuthority, localEndpoint?: string, now = Date.now, observers: SyncConnectorObservers = {}) {
   let generation = 0, paused = false, initialCache = true;
   let flight: {generation: number; promise: Promise<PowerSyncCredentials | null>; request: AbortController} | undefined;
   const fetchCredentials = (): Promise<PowerSyncCredentials | null> => {
@@ -26,7 +33,7 @@ export function createSyncConnector(api: SlaxApi, preferences: PreferenceStore, 
         const endpoint = values[K.syncEndpoint], token = values[K.syncToken], refreshed = values[K.syncRefresh];
         const expiresAt = typeof token === 'string' && typeof refreshed === 'number' ? syncTokenExpiresAt(token, session.userId, refreshed, now()) : null;
         if (initialCache && expiresAt && values[K.token] === session.token && values[K.userId] === session.userId && values[K.syncUserId] === session.userId && values[K.syncApiOrigin] === apiOrigin && typeof endpoint === 'string' && endpoint && (!localEndpoint || endpoint === localEndpoint)) {
-          initialCache = false; return {endpoint, token: token as string, expiresAt};
+          initialCache = false; notify(() => observers.credentials?.('cache', 0)); return {endpoint, token: token as string, expiresAt};
         }
         initialCache = false;
         await preferences.update(next => {
@@ -36,6 +43,7 @@ export function createSyncConnector(api: SlaxApi, preferences: PreferenceStore, 
           }
         });
         check();
+        const startedAt = now();
         const received = await api.getSyncToken(request.signal); check();
         const fetchedAt = now(), expiration = syncTokenExpiresAt(received.token, session.userId, fetchedAt, fetchedAt);
         const credentials = {endpoint: localEndpoint ?? received.endpoint, token: received.token, expiresAt: expiration ?? undefined};
@@ -49,7 +57,9 @@ export function createSyncConnector(api: SlaxApi, preferences: PreferenceStore, 
           next[K.syncEndpoint] = credentials.endpoint; next[K.syncToken] = credentials.token; next[K.syncRefresh] = fetchedAt;
           next[K.syncApiOrigin] = apiOrigin; next[K.syncUserId] = session.userId;
         });
-        check(); return accepted ? credentials : null;
+        check();
+        if (accepted) notify(() => observers.credentials?.('api', Math.max(0, now() - startedAt)));
+        return accepted ? credentials : null;
       } catch (error) {
         if (error instanceof SessionChangedError || request.signal.aborted) return null;
         try {check();} catch {return null;}
@@ -64,6 +74,6 @@ export function createSyncConnector(api: SlaxApi, preferences: PreferenceStore, 
     pause() {paused = true; generation++; flight?.request.abort(); flight = undefined;},
     resume() {paused = false; initialCache = true;},
     invalidate() {generation++; flight?.request.abort(); flight = undefined; initialCache = false;},
-    async uploadData(database: CrudQueue): Promise<void> {await sessions.prepareRequest?.(); if (paused) return; await uploadPendingTransactions(database, changes => api.uploadChanges(changes));},
+    async uploadData(database: CrudQueue): Promise<void> {await sessions.prepareRequest?.(); if (paused) return; await uploadPendingTransactions(database, changes => api.uploadChanges(changes), undefined, {submitted: (size, ms) => notify(() => observers.submitted?.(size, ms)), acknowledged: (size, ms) => notify(() => observers.acknowledged?.(size, ms))});},
   };
 }

@@ -38,3 +38,11 @@ test('repeated isolated 400 rejects only its transaction; retryable failure reta
 test('one invocation consumes at most 100 transactions', async () => {
   const source = queue(Array(101).fill(1)); await uploadPendingTransactions(source, async () => {}, async () => {}); assert.equal(source.completed.length, 100);
 });
+test('each accepted batch reports its submission and then its acknowledgement', async () => {
+  const source = queue([3, 2]); const steps: string[] = [];
+  await uploadPendingTransactions(source, async () => {steps.push('upload');}, async () => {}, {submitted: size => steps.push(`submit:${size}`), acknowledged: size => steps.push(`ack:${size}`)});
+  assert.deepEqual(steps, ['upload', 'submit:5', 'ack:5']);
+  const rejected = queue([1]); const seen: string[] = [];
+  await assert.rejects(uploadPendingTransactions(rejected, async () => {throw new ApiError(500, 'down');}, async () => {}, {submitted: () => seen.push('submit'), acknowledged: () => seen.push('ack')}));
+  assert.deepEqual(seen, []); assert.deepEqual(rejected.completed, []);
+});

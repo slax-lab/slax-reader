@@ -69,7 +69,8 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   let startPromise: Promise<void> | null = null, hasLease = false;
   let storageReady: Promise<void> | null = null, environmentReady: Promise<void> | null = null;
   let errorLog: MobileErrorLog = noopErrorLog;
-  let syncConnectedAt: number | undefined, connectStartedAt: number | undefined;
+  let syncConnectedAt: number | undefined, connectStartedAt: number | undefined, everConnected = false;
+  let downloadingSince: number | undefined, lastSyncedAt: Date | undefined;
   let upgradeState: UpgradeState = {status: 'idle'};
   const listeners = new Set<(state: UpgradeState) => void>();
   const emit = (state: UpgradeState) => { upgradeState = state; listeners.forEach(listener => listener(state)); };
@@ -137,7 +138,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   const revokeAccountScope = () => {
     const wasPresented = libraryPresented; libraryPresented = false; pendingWarmup = undefined;
     if (wasPresented) notifyPresentation();
-    accountGeneration++; cancelWarmup?.(); cancelWarmup = undefined; connecting = undefined; connectionRequested = false; connector.invalidate(); clearSyncRetry(); syncFailures = 0;
+    accountGeneration++; cancelWarmup?.(); cancelWarmup = undefined; connecting = undefined; connectionRequested = false; connector.invalidate(); clearSyncRetry(); syncFailures = 0; everConnected = false; downloadingSince = undefined;
     const previousBackground = offline; offline = null; previousBackground?.cancel();
     avatars?.dispose(); avatars = null;
     accountLease?.invalidate(); accountLease = null; accountPreferences = null; nativeResourceOwner = null; repositories = null; cache = null;
@@ -318,14 +319,16 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       }
     };
   };
-  const connector = createSyncConnector(api, preferences, sessions, options.localSyncEndpoint);
-  // Wrap the upload for phase observations; a connector without uploads (test doubles) is left as is.
+  const connector = createSyncConnector(api, preferences, sessions, options.localSyncEndpoint, Date.now, {
+    credentials: (source, durationMs) => emitPhase('token', 'success', {credential_source: source, duration_ms: durationMs}),
+    submitted: (batchSize, durationMs) => emitPhase('upload', 'success', {step: 'submit', batch_size: batchSize, duration_ms: durationMs}),
+    acknowledged: (batchSize, durationMs) => emitPhase('upload', 'success', {step: 'acknowledge', batch_size: batchSize, duration_ms: durationMs}),
+  });
+  // Wrap the upload to record a rejected submission; a connector without uploads (test doubles) is left as is.
   const uploadData = typeof connector.uploadData === 'function' ? connector.uploadData.bind(connector) : undefined;
   if (uploadData) connector.uploadData = async database => {
-    const startedAt = Date.now();
     try {
       await uploadData(database);
-      emitPhase('upload', 'success', {step: 'submit', duration_ms: Math.max(0, Date.now() - startedAt)});
     } catch (error) {
       const info = captureSyncFailure('connector.upload', error, 'upload');
       emitPhase('upload', 'failure', {step: 'submit', ...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
@@ -399,8 +402,13 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
             if (status.connected) {
               if (syncConnectedAt === undefined) {
                 syncConnectedAt = Date.now();
-                emitPhase('connect', 'success', connectStartedAt !== undefined ? {duration_ms: Math.max(0, syncConnectedAt - connectStartedAt)} : {});
-                connectStartedAt = undefined;
+                emitPhase('connect', 'success', {connection_kind: everConnected ? 'reconnect' : 'initial', ...(connectStartedAt !== undefined ? {duration_ms: Math.max(0, syncConnectedAt - connectStartedAt)} : {})});
+                connectStartedAt = undefined; everConnected = true;
+              }
+              if (status.downloading && downloadingSince === undefined) downloadingSince = Date.now();
+              if (!status.downloading && downloadingSince !== undefined && status.lastSyncedAt && status.lastSyncedAt !== lastSyncedAt) {
+                emitPhase('stream', 'success', {duration_ms: Math.max(0, Date.now() - downloadingSince)});
+                downloadingSince = undefined; lastSyncedAt = status.lastSyncedAt;
               }
               syncFailures = 0; clearSyncRetry();
             } else if (syncConnectedAt !== undefined && !status.connecting) {

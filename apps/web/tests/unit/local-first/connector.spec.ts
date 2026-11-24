@@ -110,6 +110,42 @@ describe('PowerSync login credentials', () => {
     expect(onUnauthorized).not.toHaveBeenCalled()
   })
 
+  it('reports where credentials came from, once per shared fetch', async () => {
+    const onCredentials = vi.fn()
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const fetchToken = vi.fn(async () => {
+      await gate
+      return { token: jwtWithExp(Math.floor(Date.now() / 1000) + 3600), endpoint: 'https://powersync.test' }
+    })
+    const connector = createConnector({ fetchToken, uploadChanges: vi.fn(), onCredentials })
+    const shared = Promise.all([connector.fetchCredentials(), connector.fetchCredentials()])
+    release()
+    await shared
+    await connector.fetchCredentials()
+    expect(onCredentials.mock.calls.map(([source]) => source)).toEqual(['api', 'cache'])
+    expect(typeof onCredentials.mock.calls[0]![1]).toBe('number')
+  })
+
+  it('reports the acknowledgement after a submitted batch completes', async () => {
+    const order: string[] = []
+    const connector = createConnector({
+      fetchToken: vi.fn(),
+      uploadChanges: vi.fn(async () => {
+        order.push('submit')
+      }),
+      onAcknowledged: (size: number) => order.push(`ack:${size}`)
+    })
+    const batch = {
+      crud: [{ table: 'bookmarks', id: '1', op: 'DELETE', opData: undefined, previousValues: undefined }],
+      complete: vi.fn(async () => order.push('complete'))
+    }
+    await connector.uploadData({ getCrudBatch: async () => batch } as never)
+    expect(order).toEqual(['submit', 'complete', 'ack:1'])
+  })
+
   it('coalesces concurrent retries for the same rejected token', async () => {
     let authToken: string | undefined = jwtWithExp(Math.floor(Date.now() / 1000) + 60)
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 401 }))

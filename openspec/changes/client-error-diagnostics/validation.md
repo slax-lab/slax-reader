@@ -38,28 +38,24 @@ Mobile: exercised through the runtime host tests only (see Not verified).
 
 ## Requirement evidence
 
-Scenarios covered by the automated tests above; running-environment coverage is listed in the previous section.
+Scenarios and the tests that cover them (Web `apps/web/tests/unit/**`, Mobile `apps/mobile/tests/**`, API `apps/api/test/**`); running-environment coverage is in the previous section. A scenario is listed only where a test asserts it.
 
-- `backend-error-diagnostics` / RSS refresh commit retains cause: failing commit log captured with feed id, name, message, code, meta, no ray and no URL.
-- `backend-error-diagnostics` / Sync save retains cause and Ray ID: single-change, multi-change, with and without `CF-Ray`.
-- `backend-error-diagnostics` / AI summary retains provider fields: status/reference, timeout/overloaded, non-provider error, no-ray execution, one entry per request.
-- `backend-error-diagnostics` / Browser clients read Ray ID and timings: JSON and preflight headers, `Timing-Allow-Origin` origins, media list unchanged.
-- `backend-error-diagnostics` / Bookmark failure events: post-save step event, blocked target class, real save failure, background step without context, unchanged `bookmark_add_step` and `source_bookmark_id`.
-- `backend-error-diagnostics` / Bounded and payload-free: payload-like error property and raw provider response excluded.
-- `client-error-logs` / Mobile JS and render capture: uncaught, rejection, render, native crash, no endpoint.
-- `client-error-logs` / Failed API requests: Web and Mobile 500, network, 404, abort, retry-success, sync exclusion, no payload leakage.
-- `client-error-logs` / PowerSync failures once: upload, repeated stream, token, connect, init, shared worker, healthy sync, offline pause, consecutive counts.
-- `client-error-logs` / Ray correlation: response present, no response, PowerSync upload, SDK stream without headers.
-- `client-error-logs` / Host timing: earlier entry with DNS/TCP/TLS/TTFB/protocol, slow handshake visible, no entry omitted, Mobile omits `net`.
-- `client-error-logs` / Third-party script filtering: GTM/GA/Cloudflare blocked with no record, Stripe and first-party recorded.
-- `client-error-logs` / Ext-bridge attribution: signed-in store user, conflicting bridge payload, empty store, surface property.
-- `client-error-logs` / Normalize and deliver: repeat counts, long recurrence, Mobile screen, Web page URL, account change, background flush, unreachable endpoint, capture failure, deep stack.
-- `client-error-logs` / Admission: production→test, cross-client rejection, non-NULL page URL, unknown kind, missing screen, field bound, numeric `user_id` rule, `release=1.0.33+808`, both clients in one table.
-- `powersync-reconnect-backoff` / Exponential backoff: 5/10/20/40/80/120 sequence, reset on success, upload rejection, ext-bridge, shared worker.
-- `powersync-reconnect-backoff` / Offline and foreground: offline pause, online resume, foreground resume, account change cancels retry.
-- `powersync-client-telemetry` / Phase outcomes: token cache/network, connect/reconnect, stream download, upload submit/acknowledge, connection lost.
-- `powersync-client-telemetry` / Join without double counting: failure fingerprint and ray in both tables, stream without ray, one error row only, success has no error row.
-- `powersync-client-telemetry` / Attribution and best effort: persistent status error once, stale account discarded, sender unavailable.
+- `backend-error-diagnostics` / RSS refresh commit retains cause: the API test asserts feed id, name, message, code, meta, no ray and no URL.
+- `backend-error-diagnostics` / Sync save retains cause and Ray ID: single-change table/op, multi-change count, with and without `CF-Ray`.
+- `backend-error-diagnostics` / AI summary retains provider fields: provider status/reference, absent fields omitted, one entry per request.
+- `backend-error-diagnostics` / Browser clients read Ray ID and timings: JSON and preflight responses expose `cf-ray` and send `Timing-Allow-Origin` for the three Web origins.
+- `backend-error-diagnostics` / Bookmark failure events: `bookmark_add_step_failed`, `unsupported_target`, `bookmark_save_failed` for non-persisted saves, `source_bookmark_id` kept.
+- `client-error-logs` / Mobile JS and render capture: chained global handler, release-only rejection tracking, render capture, throwing collector contained (`tests/telemetry/native-handlers.test.mjs`); empty endpoint sends nothing (`tests/telemetry/error-log.test.ts`).
+- `client-error-logs` / Failed API requests: Web 500 named by request, network error kept, 4xx ignored, streamed 5xx keeps status and ray (`requestCapture.spec.ts`, `requestFailure.spec.ts`); Mobile 500 with ray, `FetchError` network failure, 404, session/environment change and query stripping (`runtime-sync-observability.test.mjs`).
+- `client-error-logs` / PowerSync failures once: SDK duplicate window, one counting source per failure, non-stream SDK errors recorded without `phase=stream` or backoff (Web and Mobile).
+- `client-error-logs` / Ray correlation and host timing: upload and API ray, SDK stream without ray, `net` present and absent (`clientErrorContext.spec.ts`).
+- `client-error-logs` / Third-party script filtering: GTM/GA/Cloudflare skipped, Stripe and first-party recorded (`errorLog.spec.ts`).
+- `client-error-logs` / Ext-bridge attribution: store user, empty store, conflicting payload, `surface` property (`clientErrorLog.spec.ts`).
+- `client-error-logs` / Normalize and deliver: Mobile release `1.0.34+809`, numeric user id, device id rule, screen, no `page_url`, background flush.
+- `powersync-reconnect-backoff`: 5/10/20/40/80/120 s sequence, reset on connected, one pending retry, offline pause, online and foreground resume, no retry after the session ends, a failure before `connect()` resolves, route changes during a backoff (Web); the same sequence, reset, offline and online on Mobile.
+- `powersync-client-telemetry` / Phase outcomes: `token` success with `credential_source` `api` then `cache` and one observation per shared fetch (Web `connector.spec.ts`, Mobile runtime test); `connect` success with `connection_kind` `initial` then `reconnect` (Web and Mobile) and `already_connected` when a shared worker is live at start (Web, untested); `stream` success duration (Mobile test; Web observed in the browser); `upload` `submit` and `acknowledge` with batch size (Web connector and Mobile uploader tests); `powersync_connection_lost` (Web browser run).
+- `powersync-client-telemetry` / Join without double counting: stream and upload failures carry the error fingerprint (Web and Mobile tests, Web browser run).
+- `powersync-client-telemetry` / Attribution and best effort: no observations after sign-out or for a retired account (Mobile test; Web `hasObservableSession` test); throwing observers do not change credential or upload results.
 
 ## Not verified
 

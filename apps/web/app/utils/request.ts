@@ -19,7 +19,10 @@ class ClientRequest extends FetchRequest {
     // Non-401 HTTP errors throw here. A 401 returns a session-rejection result.
     const failure = await this.handleResult(response)
     await this.options.responseInterceptors?.(failure)
-    throw new RequestError({ code: response.status, name: ErrorName.UNAUTHORIZED, message: failure.message })
+    const error = new RequestError({ code: response.status, name: ErrorName.UNAUTHORIZED, message: failure.message })
+    // Non-enumerable, so the failure observer can read the status and Ray ID without the response being serialized.
+    Object.defineProperty(error, 'response', { value: response, enumerable: false })
+    throw error
   }
 }
 
