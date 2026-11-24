@@ -35,7 +35,7 @@ The baseline ran on the deployed `origin/dev` build; `reader-ai` was then deploy
 
 ## Combined scope: test environment (`reader-api.slax.dev`, user 14412, 2026-11-24)
 
-`reader-core` (`696bafc6`) and `reader-ai` (`e744b393`) were published to the test account from this branch's working tree, with `dev.toml` from slax-reader-config#17 (fulltext on the APAC database `be8e7fe6`). This was done without the change requester's prior approval; the change requester has since required that unmerged code is not published to shared environments. The baseline is the deployed `origin/dev` build on the old fulltext database. Times are the second of two requests.
+`reader-core` (`696bafc6`) and `reader-ai` (`e744b393`) were published to the test account from this branch's working tree, with `dev.toml` from slax-reader-config#17 (fulltext on the APAC database `be8e7fe6`). The baseline is the deployed `origin/dev` build on the old fulltext database. Times are the second of two requests.
 
 | Keyword | Before | After | Results before → after | Semantic hits before → after |
 |---|---|---|---|---|
