@@ -20,7 +20,7 @@ import { VectorSourceRepo } from '@/infra/repository/vectorSources'
 import { VectorIndexClient } from '@/infra/repository/vectorIndexClient'
 import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
 import { articleVectorId, type VectorRefreshResult } from '@/utils/vectorMaintenanceTypes'
-import { estimatedTokens, normalized, requestBytes, VECTOR_MODEL, VECTOR_REQUEST_BYTES } from '@/utils/vectorEmbedding'
+import { estimatedTokens, normalized, requestBytes, VECTOR_DIMENSIONS, VECTOR_MODEL, VECTOR_REQUEST_BYTES } from '@/utils/vectorEmbedding'
 import { EMBEDDING_MEAN_VERSION } from '@/utils/recommendationAlgorithms'
 import { referenceCenter, weightedNormalizedSum } from '../helpers/recommendationReference'
 import { pdfFixture } from '../helpers/pdfFixture'
@@ -66,7 +66,7 @@ function index() {
           })
         )
         .slice(0, options.topK)
-        .map(vector => ({ id: vector.id, score: 0.9 }))
+        .map(vector => (options.returnValues ? { id: vector.id, score: 0.9, values: vector.values } : { id: vector.id, score: 0.9 }))
       return { matches, count: matches.length }
     })
   }
@@ -764,6 +764,11 @@ describe('minimal per-user vector maintenance', () => {
     expect(indexes[0].stored.get('a:2:1')?.metadata).toMatchObject({ user_id: 2 })
     expect(await service.queryArticles(unit(), { userId: 1 })).toEqual([{ id: 1, userId: 1, score: 0.9 }])
     expect(indexes[0].query.mock.calls[0][1]).toEqual({ topK: 20, filter: { kind: 'article', user_id: 1 }, returnValues: false, returnMetadata: 'none' })
+    const withValues = await service.queryArticleVectors(unit(), { userId: 1, limit: 50 })
+    expect(withValues.map(({ id, userId, score }) => ({ id, userId, score }))).toEqual([{ id: 1, userId: 1, score: 0.9 }])
+    expect(withValues[0].values).toHaveLength(VECTOR_DIMENSIONS)
+    expect(Math.hypot(...withValues[0].values)).toBeCloseTo(1, 6)
+    expect(indexes[0].query.mock.calls[1][1]).toEqual({ topK: 50, filter: { kind: 'article', user_id: 1 }, returnValues: true, returnMetadata: 'none' })
     await expect(service.queryArticles(unit(), { recommendable: true } as never)).rejects.toThrow('invalid_v5_query_scope')
     await db.exec('DELETE FROM sr_user_bookmark WHERE user_id=1')
     expect((await service.refreshArticles([identities[0]]))[0].state).toBe('deleted')

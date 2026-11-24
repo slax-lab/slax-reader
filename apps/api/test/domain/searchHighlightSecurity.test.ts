@@ -346,21 +346,14 @@ describe('search highlight rendering boundary', () => {
     const weak = around(unit(direction(0).map((value, dimension) => value * 0.5 + (dimension === 1 ? 0.866 : 0))))
     const unrelated = around(direction(2))
     const vectors = {
-      queryArticles: vi.fn().mockResolvedValue([
-        { userId: 7, id: 1, score: 0.9 },
-        { userId: 7, id: 2, score: 0.8 },
-        { userId: 7, id: 3, score: 0.85 },
-        { userId: 8, id: 4, score: 0.99 },
-        { userId: 7, id: 5, score: 0.95 }
+      queryArticleVectors: vi.fn().mockResolvedValue([
+        { userId: 7, id: 1, score: 0.9, values: strong },
+        { userId: 7, id: 2, score: 0.8, values: weak },
+        { userId: 7, id: 3, score: 0.85, values: unrelated },
+        { userId: 8, id: 4, score: 0.99, values: strong },
+        { userId: 7, id: 5, score: 0.95, values: strong }
       ]),
-      readArticles: vi.fn().mockResolvedValue(
-        new Map([
-          ['a:7:1', strong],
-          ['a:7:2', weak],
-          ['a:7:3', unrelated],
-          ['a:7:5', strong]
-        ])
-      )
+      readArticles: vi.fn()
     }
     const embedding = { cachedQuery: vi.fn().mockResolvedValue(query) }
     const service = new SearchService({} as never, {} as never, {} as never, vectors as never, embedding as never)
@@ -368,12 +361,8 @@ describe('search highlight rendering boundary', () => {
     const hits = await service.semanticSearchV5({ getUserId: () => 7 } as never, 'term', new Set([1, 2, 3]))
 
     expect(embedding.cachedQuery).toHaveBeenCalledWith('term')
-    expect(vectors.queryArticles).toHaveBeenCalledWith(query, { userId: 7, limit: 100 })
-    expect(vectors.readArticles).toHaveBeenCalledWith([
-      { userId: 7, id: 1 },
-      { userId: 7, id: 2 },
-      { userId: 7, id: 3 }
-    ])
+    expect(vectors.queryArticleVectors).toHaveBeenCalledExactlyOnceWith(query, { userId: 7, limit: 50 })
+    expect(vectors.readArticles).not.toHaveBeenCalled()
     expect(hits.map(hit => hit.id)).toEqual(['1_0'])
     expect(hits[0].score).toBeCloseTo(1, 5)
     expect(center(weak)[1]).toBeGreaterThan(0)
@@ -387,7 +376,7 @@ describe('search highlight rendering boundary', () => {
       const norm = Math.hypot(...values)
       return values.map(value => value / norm)
     }
-    const vectors = { queryArticles: vi.fn().mockResolvedValue([{ userId: 7, id: 1, score: 0.8 }]), readArticles: vi.fn().mockResolvedValue(new Map([['a:7:1', at(1)]])) }
+    const vectors = { queryArticleVectors: vi.fn().mockResolvedValue([{ userId: 7, id: 1, score: 0.8, values: at(1) }]) }
     const service = new SearchService({} as never, {} as never, {} as never, vectors as never, { cachedQuery: vi.fn().mockResolvedValue(at(0)) } as never)
     expect(await service.semanticSearchV5({ getUserId: () => 7 } as never, 'noise', new Set([1]))).toEqual([])
   })

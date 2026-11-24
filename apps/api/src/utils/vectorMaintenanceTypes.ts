@@ -36,6 +36,8 @@ export interface ArticleVectorCandidate extends VectorCandidate {
 
 export interface VectorQueryOptions {
   limit?: number
+  /** Return each match's stored values; the native index then caps topK at 50. */
+  values?: boolean
 }
 
 export type ArticleQueryOptions = VectorQueryOptions & ({ userId: number; recommendable?: never } | { recommendable: true; userId?: never })
@@ -50,6 +52,7 @@ export interface VectorMaintenance {
   readArticles(articles: ArticleVectorIdentity[]): Promise<Map<string, number[]>>
   readCollections(ids: number[]): Promise<Map<number, number[]>>
   queryArticles(vector: number[], options: ArticleQueryOptions): Promise<ArticleVectorCandidate[]>
+  queryArticleVectors(vector: number[], options: ArticleQueryOptions): Promise<(ArticleVectorCandidate & { values: number[] })[]>
   queryCollections(vector: number[], options?: VectorQueryOptions): Promise<VectorCandidate[]>
   verifyRefresh(result: VectorRefreshResult): Promise<boolean>
 }

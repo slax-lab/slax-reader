@@ -29,7 +29,11 @@ export class AiEntry extends WorkerEntrypoint<Env> {
     return this.vectors.getVectorsByIds(kind, ids)
   }
 
-  async queryVectors(kind: 'article' | 'collection', vector: number[], options: ArticleQueryOptions | VectorQueryOptions): Promise<{ id: string; score: number }[]> {
+  async queryVectors(
+    kind: 'article' | 'collection',
+    vector: number[],
+    options: ArticleQueryOptions | VectorQueryOptions
+  ): Promise<{ id: string; score: number; values?: number[] }[]> {
     return this.vectors.queryVectors(kind, vector, options)
   }
 

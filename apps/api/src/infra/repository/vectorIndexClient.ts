@@ -26,7 +26,7 @@ export class VectorIndexClient {
     return this.rpc.deleteVectorsByIds(kind, ids)
   }
 
-  query(kind: 'article' | 'collection', vector: number[], options: ArticleQueryOptions | VectorQueryOptions): Promise<{ id: string; score: number }[]> {
+  query(kind: 'article' | 'collection', vector: number[], options: ArticleQueryOptions | VectorQueryOptions): Promise<{ id: string; score: number; values?: number[] }[]> {
     return this.rpc.queryVectors(kind, vector, options)
   }
 }

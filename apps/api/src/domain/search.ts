@@ -12,12 +12,12 @@ import { escapeHtml } from '@/utils/escape'
 import { VectorMaintenanceService } from './vectorMaintenance'
 import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
 import { center, cosineSimilarity } from '@/utils/recommendationAlgorithms'
-import { articleVectorId } from '@/utils/vectorMaintenanceTypes'
 
 // Maximum number of fulltext hits that receive highlight snippets and full raw text
 export const FULLTEXT_HIGHLIGHT_LIMIT = 50
-// V5 semantic retrieval: raw-vector candidates per query, reranked by cosine after removing the platform mean.
-export const SEMANTIC_CANDIDATE_LIMIT = 100
+// V5 semantic retrieval: raw-vector candidates per query, returned with their values and reranked by cosine after
+// removing the platform mean. 50 is the native topK limit when values are returned.
+export const SEMANTIC_CANDIDATE_LIMIT = 50
 // Below this best centered score the query relates to none of the user's articles, so no semantic hit is kept.
 export const SEMANTIC_MIN_TOP_SCORE = 0.35
 // Hits must reach this share of the best centered score.
@@ -415,8 +415,8 @@ export class SearchService {
   }
 
   /**
-   * Semantic search on the V5 article index. Candidates come from the native index with the raw query vector, as
-   * the index stores raw representatives; they are then rescored by cosine after removing the platform mean
+   * Semantic search on the V5 article index. Candidates and their stored vectors come from one native query with the
+   * raw query vector, as the index stores raw representatives; they are then rescored by cosine after removing the platform mean
    * (EMBEDDING_MEAN), because raw V5 cosines sit in a narrow band where unrelated text scores close to real matches.
    * Ids keep the legacy `<bookmarkId>_0` shape so fusion is unchanged.
    */
@@ -427,17 +427,13 @@ export class SearchService {
     const query = await this.vectorEmbedding.cachedQuery(keyword)
     // The index already restricts candidates to this owner; the userId check is an assertion, and `eligible` drops
     // trashed or removed bookmarks. Tag filters never reach this branch.
-    const candidates = (await this.vectors.queryArticles(query, { userId, limit: SEMANTIC_CANDIDATE_LIMIT })).filter(
+    const candidates = (await this.vectors.queryArticleVectors(query, { userId, limit: SEMANTIC_CANDIDATE_LIMIT })).filter(
       candidate => candidate.userId === userId && eligible.has(candidate.id)
     )
     if (!candidates.length) return []
-    const vectors = await this.vectors.readArticles(candidates.map(candidate => ({ userId, id: candidate.id })))
     const centeredQuery = center(query)
     const scored = candidates
-      .flatMap(candidate => {
-        const vector = vectors.get(articleVectorId({ userId, id: candidate.id }))
-        return vector ? [{ id: candidate.id, score: cosineSimilarity(centeredQuery, center(vector)) }] : []
-      })
+      .map(candidate => ({ id: candidate.id, score: cosineSimilarity(centeredQuery, center(candidate.values)) }))
       .sort((a, b) => b.score - a.score || a.id - b.id)
     const top = scored[0]?.score ?? 0
     const kept = top < SEMANTIC_MIN_TOP_SCORE ? [] : scored.filter(item => item.score >= top * SEMANTIC_RELATIVE_FLOOR)

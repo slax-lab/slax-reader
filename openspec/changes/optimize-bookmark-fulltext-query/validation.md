@@ -61,3 +61,11 @@ The Web app from this branch ran locally (`pnpm web -- dev`, `http://localhost:3
 - The fallback title and description for semantic-only hits in a running environment (unit test only; see above).
 - Mobile rendering; Mobile uses the same `/v1/bookmark/search` response shape.
 - `fulltext:prune-relations` has not been run against either mirror; applying its output is the operator's action.
+
+## Single-query V5 candidates (2026-11-24)
+
+- Test environment before the change (`wrangler tail` on `reader-ai`, SIN colo, user 1, eight requests for "AI", "阅读", "open source" and "cloudflare worker"): server wall time 2.1–3.4 s; V5 branch 1.0–2.2 s for 100 candidates; candidate preparation 0.25–0.9 s; fulltext 0.22–0.46 s; raw text and admission 0.07–0.1 s.
+- Native `getByIds` accepts at most 20 ids per call, so 100 candidates took five reads after the query. Timed from a local Worker with remote bindings (each call adds a round trip from the workstation, so absolute values are high): query topK 100 without values 0.38–1.0 s, then five `getByIds` reads 1.0–2.9 s; query topK 50 with values 0.72–1.5 s in one call.
+- Change: one query with `returnValues: true` and topK 50 (the native limit with values). Semantic hits per query are now at most 50; on the earlier test comparison only "AI" exceeded that (70 kept of 100).
+- `pnpm api -- test`: 285 files passed, 20 skipped; 4,543 tests passed, 166 skipped. Layer architecture 45 passed; typecheck passed; `openspec validate --all --strict` passed.
+- Not verified yet: timings in the test environment after deployment.
