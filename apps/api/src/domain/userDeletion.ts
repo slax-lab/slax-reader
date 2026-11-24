@@ -9,6 +9,7 @@ import { removeDiagnosticObjects } from '../utils/diagnosticAttachment'
 import { BucketClient } from '../infra/repository/bucketClient'
 import { enqueueVectorMaintenanceBatch, type VectorMaintenanceEvent } from './vectorMaintenanceHooks'
 import { VectorMaintenanceRepo } from '../infra/repository/dbVectorMaintenance'
+import { BookmarkSearchRepo } from '../infra/repository/dbBookmarkSearch'
 
 @injectable()
 export class UserDeletionService {
@@ -17,7 +18,8 @@ export class UserDeletionService {
     @inject(UserRepo) private userRepo: UserRepo,
     @inject(BucketClient) private bucket: LazyInstance<BucketClient>,
     @inject(VectorMaintenanceRepo) private vectorRepo: VectorMaintenanceRepo,
-    @inject(PasskeyRepo) private passkeys: PasskeyRepo
+    @inject(PasskeyRepo) private passkeys: PasskeyRepo,
+    @inject(BookmarkSearchRepo) private searchRepo: BookmarkSearchRepo
   ) {}
 
   public async ensureUserNotDeleted(userId: number): Promise<void> {
@@ -188,6 +190,8 @@ export class UserDeletionService {
       where: { user_id: userId }
     })
     console.log(`Deleted ${result.count} user bookmarks`)
+    // The fulltext relation mirror is not cascaded from PostgreSQL; remove it with the relations it mirrors.
+    await this.searchRepo.deleteAllUserBookmarks(userId)
   }
 
   private async deletePrivateBookmarks(userId: number): Promise<void> {

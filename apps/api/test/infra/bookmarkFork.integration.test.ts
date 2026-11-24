@@ -502,7 +502,8 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
       ),
       () => ({ R2Bucket: memory.bucket }) as any,
       new VectorMaintenanceRepo(() => client),
-      new PasskeyRepo(() => client)
+      new PasskeyRepo(() => client),
+      { deleteAllUserBookmarks: async () => 0 } as never
     )
     await deletion.cleanupUserData(user.id)
     expect([...memory.objects.keys()]).toEqual(['html/body/other-one.html'])
@@ -533,7 +534,8 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
           }
         }) as any,
       new VectorMaintenanceRepo(() => client),
-      new PasskeyRepo(() => client)
+      new PasskeyRepo(() => client),
+      { deleteAllUserBookmarks: async () => 0 } as never
     )
     await expect(failedR2.cleanupUserData(user.id)).resolves.toBeUndefined()
     expect(await client.sr_bookmark.count({ where: { private_user: user.id } })).toBe(0)

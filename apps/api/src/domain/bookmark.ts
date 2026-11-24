@@ -1091,7 +1091,7 @@ export class BookmarkService extends BookmarkReadService {
     const res = await bmRepo.getBookmark(targetUrl, privateUser === 0 ? userId : 0)
     if (!res || !res.bookmark_id || (res.status !== bookmarkParseStatus.FAILED && res.status !== bookmarkParseStatus.PENDING)) return
 
-    await bmRepo.deleteUserBookmark(res.bookmark_id, userId)
+    await Promise.all([bmRepo.deleteUserBookmark(res.bookmark_id, userId), this.bookmarkSearchRepo.deleteUserBookmark(userId, res.bookmark_id)])
   }
 
   /** 检查并填充公用书签数据 */
@@ -1503,7 +1503,7 @@ export class BookmarkService extends BookmarkReadService {
     const deletePromises = []
     for (let i = 0; i < bookmarkIds.length; i += 50) {
       const batch = bookmarkIds.slice(i, i + 50)
-      deletePromises.push(this.bookmarkData.batchDeleteBookmarksByIds(userId, batch))
+      deletePromises.push(this.bookmarkData.batchDeleteBookmarksByIds(userId, batch), this.bookmarkSearchRepo.deleteUserBookmarks(userId, batch))
     }
 
     try {

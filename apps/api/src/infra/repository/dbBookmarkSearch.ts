@@ -2,10 +2,17 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { inject, injectable, singleton } from '@/decorators/di'
 import { PRISIMA_FULLTEXT_CLIENT, VECTORIZE_CLIENTS } from '@/const/symbol'
 import type { LazyInstance } from '@/decorators/lazy'
+import type { fulltextExpressions } from '@/utils/hybridSearch/normalizer'
 
 export interface bookmarkRowPO {
   id: number
   bookmark_id: number
+}
+
+export interface fulltextRankPO {
+  row_id: number
+  bookmark_id: number
+  score: number
 }
 
 @injectable()
@@ -63,39 +70,66 @@ export class BookmarkSearchRepo {
     `
   }
 
-  async seachBM25(rowIds: number[], keyword: string) {
-    try {
-      const t1 = performance.now()
-      if (rowIds.length < 1) return []
+  /**
+   * Ranks the given fulltext rows against the MATCH expression in one query. The row ids travel as a single JSON
+   * parameter, so the statement size does not grow with the candidate count. Driving the join from
+   * slax_bookmark_raw lets SQLite scan the FTS match once and probe the id list through a bloom filter; carrying
+   * text columns here would make the planner rescan them per match.
+   */
+  async rankFulltextRows(rowIds: number[], expression: string) {
+    if (rowIds.length < 1 || !expression) return []
+    return this.prisma().$queryRaw<fulltextRankPO[]>`
+      SELECT r.id AS row_id, r.bookmark_id, bm25(slax_fts_bookmark) AS score
+      FROM slax_bookmark_raw r
+      JOIN slax_fts_bookmark ON slax_fts_bookmark.rowid = r.id
+      WHERE slax_fts_bookmark MATCH ${expression} AND r.id IN (SELECT value FROM json_each(${JSON.stringify(rowIds)}))
+      ORDER BY score ASC, r.id ASC
+    `
+  }
 
-      const res = await this.prisma().$queryRaw<{ bookmark_id: number; score: number; content_snippet: string; title_snippet: string; raw_content: string; raw_title: string }[]>`
-        WITH filtered_ids AS (
-            SELECT DISTINCT r.id, r.bookmark_id, r.raw_content, r.raw_title
-            FROM slax_bookmark_raw r
-            where id in (${Prisma.join(rowIds)})
-        ),
-        search_results AS (
-            SELECT
-                f.bookmark_id,
-                f.raw_content,
-                f.raw_title,
-                bm25(slax_fts_bookmark) as score,
-                snippet(slax_fts_bookmark, 0, '[highlight]', '[/highlight]', '...', 32) as content_snippet,
-                snippet(slax_fts_bookmark, 1, '[highlight]', '[/highlight]', '...', 8) as title_snippet,
-                raw_content,
-                raw_title
-            FROM filtered_ids f
-            INNER JOIN slax_fts_bookmark ON slax_fts_bookmark.rowid = f.id
-            WHERE slax_fts_bookmark match ${keyword}
-        )
-        SELECT * FROM search_results;`
-      const t2 = performance.now()
-      console.log(`seachBM25 time: ${t2 - t1} ms`)
-      return res
-    } catch (e) {
-      console.error(`seachBM25 error (rowIds=${rowIds.length}, keyword=${keyword}): ${e instanceof Error ? e.message : String(e)}`)
-      throw e
-    }
+  /**
+   * Title and content snippets plus the raw text for a bounded set of ranked rows. Each snippet uses its
+   * single-column expression because FTS5 snippet() can fail with SQLITE_CORRUPT_VTAB on the two-column
+   * NEAR OR expression used for ranking.
+   */
+  async getFulltextHighlights(rowIds: number[], expressions: fulltextExpressions) {
+    if (rowIds.length < 1) return []
+    const ids = JSON.stringify(rowIds)
+    const [contents, titles, raws] = await Promise.all([
+      this.prisma().$queryRaw<{ row_id: number; snippet: string }[]>`
+        SELECT r.id AS row_id, snippet(slax_fts_bookmark, 0, '[highlight]', '[/highlight]', '...', 32) AS snippet
+        FROM slax_bookmark_raw r
+        JOIN slax_fts_bookmark ON slax_fts_bookmark.rowid = r.id
+        WHERE slax_fts_bookmark MATCH ${expressions.content} AND r.id IN (SELECT value FROM json_each(${ids}))
+      `,
+      this.prisma().$queryRaw<{ row_id: number; snippet: string }[]>`
+        SELECT r.id AS row_id, snippet(slax_fts_bookmark, 1, '[highlight]', '[/highlight]', '...', 8) AS snippet
+        FROM slax_bookmark_raw r
+        JOIN slax_fts_bookmark ON slax_fts_bookmark.rowid = r.id
+        WHERE slax_fts_bookmark MATCH ${expressions.title} AND r.id IN (SELECT value FROM json_each(${ids}))
+      `,
+      this.prisma().$queryRaw<{ row_id: number; raw_title: string; raw_content: string }[]>`
+        SELECT id AS row_id, raw_title, raw_content FROM slax_bookmark_raw WHERE id IN (SELECT value FROM json_each(${ids}))
+      `
+    ])
+    const contentSnippets = new Map(contents.map(row => [row.row_id, row.snippet]))
+    const titleSnippets = new Map(titles.map(row => [row.row_id, row.snippet]))
+    return raws.map(row => ({
+      row_id: row.row_id,
+      raw_title: row.raw_title,
+      raw_content: row.raw_content,
+      content_snippet: contentSnippets.get(row.row_id) ?? '',
+      title_snippet: titleSnippets.get(row.row_id) ?? ''
+    }))
+  }
+
+  /** Leading raw title/content characters for ranked rows outside the highlight bound. */
+  async getFulltextRawPrefixes(rowIds: number[], length: number) {
+    if (rowIds.length < 1) return []
+    return this.prisma().$queryRaw<{ row_id: number; raw_title: string; raw_content: string }[]>`
+      SELECT id AS row_id, substr(raw_title, 1, ${length}) AS raw_title, substr(raw_content, 1, ${length}) AS raw_content
+      FROM slax_bookmark_raw WHERE id IN (SELECT value FROM json_each(${JSON.stringify(rowIds)}))
+    `
   }
 
   async getBookmarkRaw(bookmarkIds: number[]) {
@@ -128,5 +162,15 @@ export class BookmarkSearchRepo {
 
   async deleteUserBookmark(userId: number, bookmarkId: number) {
     return await this.prisma().$executeRaw`DELETE FROM slax_user_bookmark WHERE user_id = ${userId} AND bookmark_id = ${bookmarkId}`
+  }
+
+  async deleteUserBookmarks(userId: number, bookmarkIds: number[]) {
+    if (bookmarkIds.length < 1) return 0
+    return await this.prisma()
+      .$executeRaw`DELETE FROM slax_user_bookmark WHERE user_id = ${userId} AND bookmark_id IN (SELECT value FROM json_each(${JSON.stringify(bookmarkIds)}))`
+  }
+
+  async deleteAllUserBookmarks(userId: number) {
+    return await this.prisma().$executeRaw`DELETE FROM slax_user_bookmark WHERE user_id = ${userId}`
   }
 }

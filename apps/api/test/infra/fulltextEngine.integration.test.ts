@@ -222,6 +222,24 @@ describe('fulltext engine: real Normalizer + Jieba WASM', () => {
     expect(hits[0].excerpt).not.toContain('。')
   })
 
+  test('builds the ranking expression and matching single-column snippet expressions for a keyword', async () => {
+    await ingest(30, 'Cloudflare Workers smart placement', 'Workers placement moves cloudflare compute near the database.')
+    const expressions = await normalizer.processSearchKeyword('cloudflare workers')
+    expect(expressions.full).toBe(`(${expressions.title}) OR (${expressions.content})`)
+    expect(expressions.title).toMatch(/^title:NEAR\(/)
+    expect(expressions.content).toMatch(/^content:NEAR\(/)
+    expect(expressions.title).not.toContain('content:')
+    expect(expressions.content).not.toContain('title:')
+
+    const ids = ((await d1.prepare('SELECT id FROM slax_bookmark_raw WHERE bookmark_id = 30').all<{ id: number }>()).results ?? []).map(row => row.id)
+    const ranked = await fulltext.rankFulltextRows(ids, expressions.full)
+    expect(ranked.map(row => row.bookmark_id)).toEqual([30])
+    const [highlight] = await fulltext.getFulltextHighlights(ranked.map(row => row.row_id), expressions)
+    expect(highlight.title_snippet).toContain('[highlight]')
+    expect(highlight.content_snippet).toContain('[highlight]')
+    expect(await normalizer.processSearchKeyword('  ,.  ')).toEqual({ full: '', title: '', content: '' })
+  })
+
   test('handles CJK + ASCII mixed content and case-insensitive English terms', async () => {
     await ingest(11, '混合标题', '使用 vLLM 部署 Qwen3 推理服务，并接入 RAG 向量检索。')
     expect(await queryCandidates('RAG 向量检索')).not.toEqual([])
@@ -339,20 +357,50 @@ describe('fulltext engine: bounded candidates, chunk dedup and current admission
     expect(await search.articles(1, [50])).toEqual([])
   })
 
-  test('keeps the actual legacy 50-row CTE query on rowid lookups and the MATCH index', async () => {
+  test('ranks all candidate rows in one query through the MATCH index and a rowid probe', async () => {
     await d1.prepare(`WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 2000)
       INSERT INTO slax_bookmark_raw (shard_idx, bookmark_id, content, raw_content, title, raw_title)
-      SELECT 0, 10000 + n, 'common planner body', 'common planner body', 'fixture title', 'fixture title' FROM seq`).run()
-    const selected = await d1.prepare('SELECT id, bookmark_id FROM slax_bookmark_raw ORDER BY id LIMIT 50').all<{ id: number; bookmark_id: number }>()
+      SELECT 0, 10000 + n, CASE WHEN n % 4 = 0 THEN 'common planner body' ELSE 'planner filler' END, 'raw body', 'fixture title', 'fixture title' FROM seq`).run()
+    const selected = await d1.prepare('SELECT id, bookmark_id FROM slax_bookmark_raw ORDER BY id LIMIT 600').all<{ id: number; bookmark_id: number }>()
     const rows = selected.results ?? []
-    const hits = await fulltext.seachBM25(rows.map(row => row.id), '"common"')
+    const ranked = await fulltext.rankFulltextRows(rows.map(row => row.id), '"common"')
     const plan = await explainLastQuery()
-    expect(hits.map(row => row.bookmark_id).sort((a, b) => a - b)).toEqual(rows.map(row => row.bookmark_id))
-    expect(plan.some(detail => /SEARCH r USING INTEGER PRIMARY KEY/.test(detail))).toBe(true)
+    const expected = rows.filter(row => (row.bookmark_id - 10000) % 4 === 0).map(row => row.bookmark_id)
+    expect(ranked.map(row => row.bookmark_id).sort((a, b) => a - b)).toEqual(expected)
+    expect(ranked.every((row, index) => index === 0 || ranked[index - 1].score <= row.score)).toBe(true)
     expect(plan.some(detail => /slax_fts_bookmark VIRTUAL TABLE INDEX .*M[0-9]+/.test(detail))).toBe(true)
-    expect(plan.some(detail => /SCAN (?:r|raw|slax_bookmark_raw)(?:$| )/.test(detail))).toBe(false)
-    expect(d1Queries.at(-1)!.values.slice(0, -1)).toEqual(rows.map(row => row.id))
-    console.log(JSON.stringify({ query: 'legacy-50', returned: hits.length, rowsRead: d1Queries.at(-1)!.rowsRead, plan }))
+    expect(plan.some(detail => /SEARCH r USING INTEGER PRIMARY KEY/.test(detail))).toBe(true)
+    expect(plan.some(detail => /CO-ROUTINE/.test(detail))).toBe(false)
+    expect(d1Queries.at(-1)!.values).toHaveLength(2)
+    console.log(JSON.stringify({ query: 'rank-once', candidates: rows.length, returned: ranked.length, rowsRead: d1Queries.at(-1)!.rowsRead, plan }))
+  })
+
+  test('produces highlights for a multi-term NEAR keyword that breaks snippet() on the two-column expression', async () => {
+    await insertRaw(60, 0, 's the worker cloudflar', '')
+    await insertRaw(61, 0, 't', 'cloudflare workers')
+    const full = '(title:NEAR("cloudflare" "worker", 20)) OR (content:NEAR("cloudflare" "worker", 30))'
+    const ids = ((await d1.prepare('SELECT id FROM slax_bookmark_raw ORDER BY id').all<{ id: number }>()).results ?? []).map(row => row.id)
+
+    await expect(
+      d1.prepare(`SELECT snippet(slax_fts_bookmark, 0, '[', ']', '...', 32) FROM slax_fts_bookmark WHERE slax_fts_bookmark MATCH ?`).bind(full).all()
+    ).rejects.toThrow(/malformed|CORRUPT/i)
+
+    const ranked = await fulltext.rankFulltextRows(ids, full)
+    expect(ranked.map(row => row.bookmark_id).sort()).toEqual([60, 61])
+    const highlights = await fulltext.getFulltextHighlights(
+      ranked.map(row => row.row_id),
+      { full, content: 'content:NEAR("cloudflare" "worker", 30)', title: 'title:NEAR("cloudflare" "worker", 20)' }
+    )
+    const byBookmark = new Map(highlights.map(row => [ranked.find(item => item.row_id === row.row_id)!.bookmark_id, row]))
+    expect(byBookmark.get(60)).toMatchObject({ content_snippet: 's the [highlight]worker[/highlight] [highlight]cloudflar[/highlight]', title_snippet: '', raw_content: 's the worker cloudflar' })
+    expect(byBookmark.get(61)).toMatchObject({ title_snippet: '[highlight]cloudflare[/highlight] [highlight]workers[/highlight]', content_snippet: '' })
+  })
+
+  test('returns bounded raw prefixes for rows outside the highlight set', async () => {
+    await insertRaw(70, 0, 'x'.repeat(500), 't'.repeat(300), 'r'.repeat(500), 'q'.repeat(300))
+    const [row] = (await d1.prepare('SELECT id FROM slax_bookmark_raw WHERE bookmark_id = 70').all<{ id: number }>()).results ?? []
+    const [prefix] = await fulltext.getFulltextRawPrefixes([row.id], 60)
+    expect(prefix).toEqual({ row_id: row.id, raw_title: 'q'.repeat(60), raw_content: 'r'.repeat(60) })
   })
 
   test('keeps selective and common global queries indexed while exposing ranking work beyond LIMIT', async () => {

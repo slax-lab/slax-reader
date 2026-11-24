@@ -1,20 +1,35 @@
 import { BookmarkSearchRepo, bookmarkRowPO } from '@/infra/repository/dbBookmarkSearch'
 import { BookmarkRepo, bookmarkShardPO } from '@/infra/repository/dbBookmark'
 import { inject, injectable } from '@/decorators/di'
-import { SubscriptionRepo } from '@/infra/repository/dbSubscription'
 import { VectorizeRepo } from '@/infra/repository/dbVectorize'
 import { ContextManager } from '@/utils/context'
-import { Normalizer } from '@/utils/hybridSearch/normalizer'
+import { Normalizer, type fulltextExpressions } from '@/utils/hybridSearch/normalizer'
 import { vectorizeData, embedding } from '@/utils/hybridSearch/vectorize'
-import { mapHighlight } from '@/utils/hybridSearch/highlightMatch'
+import { HIGHLIGHT_TARGET_LENGTH, mapHighlight } from '@/utils/hybridSearch/highlightMatch'
 import { BookmarkNotFoundError } from '@/const/err'
 import { rerank } from '@/utils/hybridSearch/rerank'
 import { escapeHtml } from '@/utils/escape'
+import { VectorMaintenanceService } from './vectorMaintenance'
+import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
+import { center, cosineSimilarity } from '@/utils/recommendationAlgorithms'
+import { articleVectorId } from '@/utils/vectorMaintenanceTypes'
+
+// Maximum number of fulltext hits that receive highlight snippets and full raw text
+export const FULLTEXT_HIGHLIGHT_LIMIT = 50
+// V5 semantic retrieval: raw-vector candidates per query, reranked by cosine after removing the platform mean.
+export const SEMANTIC_CANDIDATE_LIMIT = 100
+// Below this best centered score the query relates to none of the user's articles, so no semantic hit is kept.
+export const SEMANTIC_MIN_TOP_SCORE = 0.35
+// Hits must reach this share of the best centered score.
+export const SEMANTIC_RELATIVE_FLOOR = 0.6
+// Length of the title and text shown for a semantic-only hit, matching the raw prefix getBookmarkRaw reads.
+export const SEMANTIC_FALLBACK_TEXT_LENGTH = 50
 
 export interface userBookmarkItem {
   bmId: number
   shardIdx: number
-  rowId: number
+  // Every fulltext shard row of the bookmark; a long article is split into several rows.
+  rowIds: number[]
 }
 
 export interface vectorizeMatcheItem {
@@ -52,9 +67,10 @@ export interface hybridSearchItem {
 export class SearchService {
   constructor(
     @inject(BookmarkRepo) private bookmarkRepo: BookmarkRepo,
-    @inject(SubscriptionRepo) private subscriptionRepo: SubscriptionRepo,
     @inject(BookmarkSearchRepo) private bookmarkSearchRepo: BookmarkSearchRepo,
-    @inject(VectorizeRepo) private dbVectorize: VectorizeRepo
+    @inject(VectorizeRepo) private dbVectorize: VectorizeRepo,
+    @inject(VectorMaintenanceService) private vectors: VectorMaintenanceService,
+    @inject(VectorEmbeddingClient) private vectorEmbedding: VectorEmbeddingClient
   ) {}
 
   public async getUserBookmarkItem(ctx: ContextManager): Promise<userBookmarkItem[]> {
@@ -100,35 +116,31 @@ export class SearchService {
     // 创建有效书签ID集合，用于过滤回收站书签
     const validBookmarkSet = new Set(validBookmarkIds)
 
-    const bmMap = new Map<number, { shardIdx: number; rowId: number }>()
+    const bmMap = new Map<number, { shardIdx: number; rowIds: number[] }>()
 
     shardList.forEach(item => {
       if (validBookmarkSet.has(item.bookmark_id)) {
-        bmMap.set(item.bookmark_id, { shardIdx: item.bucket_idx, rowId: 0 })
+        bmMap.set(item.bookmark_id, { shardIdx: item.bucket_idx, rowIds: [] })
       }
     })
     rowIds.forEach(item => {
       if (!validBookmarkSet.has(item.bookmark_id)) return // 过滤掉回收站书签
       const existing = bmMap.get(item.bookmark_id)
       if (existing) {
-        existing.rowId = item.id
+        existing.rowIds.push(item.id)
       } else {
-        bmMap.set(item.bookmark_id, { shardIdx: 0, rowId: item.id })
+        bmMap.set(item.bookmark_id, { shardIdx: 0, rowIds: [item.id] })
       }
     })
 
     return Array.from(bmMap.entries()).map(([bmId, data]) => ({
       bmId,
       shardIdx: data.shardIdx,
-      rowId: data.rowId
+      rowIds: data.rowIds
     }))
   }
 
   public async hybridSearch(ctx: ContextManager, fulltextContent: string, vectorizeContent: string[] = [], tagUuids: string[] = []) {
-    const userInfo = await this.subscriptionRepo.getUserSubscriptionInfo(ctx.getUserId())
-    if (userInfo?.subscription_end_time && userInfo.subscription_end_time > new Date()) {
-      if (vectorizeContent.length < 1) vectorizeContent = [fulltextContent]
-    }
     if (fulltextContent.length < 1 && vectorizeContent.length < 1) return []
     if (vectorizeContent.length < 1) vectorizeContent = [fulltextContent]
 
@@ -138,24 +150,34 @@ export class SearchService {
     // 查找用户拥有的bookmark list
     const t1 = performance.now()
 
+    // Tag-filtered searches stay on the legacy buckets, which can filter by the eligible bookmark ids; the V5 index is
+    // filtered natively by owner only, and post-filtering its top-K by tag would drop matches.
+    const legacySemantic = tagUuids.length > 0
     const [bmListRes, vectorizeResultRes, jbSearchContentRes] = await Promise.allSettled([
       this.getUserBookmarkItem(ctx),
-      embedding(ctx.env, vectorizeContent),
+      legacySemantic ? embedding(ctx.env, vectorizeContent) : Promise.resolve([] as vectorizeData[]),
       normalizer.processSearchKeyword(fulltextContent)
     ])
     console.log(`get base data time: ${performance.now() - t1} ms`)
 
     const bmList = bmListRes.status === 'fulfilled' ? bmListRes.value.filter(row => eligible.has(row.bmId)) : []
     const vectorizeResult = vectorizeResultRes.status === 'fulfilled' ? vectorizeResultRes.value : []
-    const jbSearchContent = jbSearchContentRes.status === 'fulfilled' ? jbSearchContentRes.value : ''
+    const fulltextExpressions = jbSearchContentRes.status === 'fulfilled' ? jbSearchContentRes.value : { full: '', title: '', content: '' }
 
     // 混合搜索
     const t2 = performance.now()
-    let [fulltextResult, semanticResult] = await Promise.allSettled([this.fulltextSearch(ctx, jbSearchContent, bmList), this.semanticSearch(ctx, vectorizeResult, bmList)])
+    let [fulltextResult, semanticResult] = await Promise.allSettled([
+      this.fulltextSearch(ctx, fulltextExpressions, bmList),
+      legacySemantic ? this.semanticSearch(ctx, vectorizeResult, bmList) : this.semanticSearchV5(ctx, vectorizeContent.join(' '), eligible)
+    ])
     const fulltextRes = fulltextResult.status === 'fulfilled' ? fulltextResult.value : []
     const semanticRes = semanticResult.status === 'fulfilled' ? semanticResult.value : []
 
-    console.log(`hybrid search time: ${performance.now() - t2} ms, fulltext: ${fulltextRes.length}, semantic: ${semanticRes.length}`)
+    if (fulltextResult.status === 'rejected')
+      console.error(`fulltext search failed: ${fulltextResult.reason instanceof Error ? fulltextResult.reason.message : String(fulltextResult.reason)}`)
+    console.log(
+      `hybrid search time: ${performance.now() - t2} ms, fulltext: ${fulltextResult.status === 'rejected' ? 'failed' : fulltextRes.length}, semantic: ${semanticResult.status === 'rejected' ? 'failed' : semanticRes.length}`
+    )
 
     // 搜索结果拼接
     const hybridSearchMap: Record<number, hybridSearchItem> = {}
@@ -176,9 +198,9 @@ export class SearchService {
       }
     })
 
-    // 语义搜索结果
+    // 语义搜索结果；V5 结果已按平台均值去中心化后的阈值筛选，0.4 只适用于旧分片的原始余弦
     semanticRes
-      .filter(item => item.score > 0.4)
+      .filter(item => !legacySemantic || item.score > 0.4)
       .forEach(item => {
         const bmId = parseInt(item.id.split('_')[0])
         if (isNaN(bmId) || !bmId || bmId < 1) return
@@ -210,6 +232,15 @@ export class SearchService {
     const uuidMap = new Map(currentRows.map(row => [row.bookmark_id, row.uuid]))
     const metadata = new Map(currentRows.map(row => [row.bookmark_id, row]))
     for (const id of matchedIds) if (!uuidMap.has(id)) delete hybridSearchMap[id]
+    // A semantic-only hit can be a bookmark without fulltext rows; show its PostgreSQL title and description instead
+    // of an empty card.
+    for (const id of returnTableIds) {
+      const item = hybridSearchMap[id]
+      const row = metadata.get(id)
+      if (!item || !row || item.highlight_title) continue
+      item.highlight_title = (row.alias_title || row.bookmark?.title || '').slice(0, SEMANTIC_FALLBACK_TEXT_LENGTH)
+      item.highlight_content = (row.bookmark?.description || '').slice(0, SEMANTIC_FALLBACK_TEXT_LENGTH)
+    }
     return this.processHybridSearchList(hybridSearchMap, uuidMap).map(item => ({
       ...item,
       target_url: metadata.get(item.bookmark_id)?.bookmark?.target_url ?? '',
@@ -297,50 +328,39 @@ export class SearchService {
   }
 
   /**
-   * 全文搜索
-   * @param ctx
-   * @param env
-   * @param fulltextContent
-   * @param db
-   * @param userBookmarkItem
-   * @returns
+   * Fulltext search: one query ranks every shard row of the candidate bookmarks, each bookmark keeps its
+   * best-matching shard, and only the top FULLTEXT_HIGHLIGHT_LIMIT bookmarks read highlights and full raw text. The rest read a raw prefix, which mapHighlight turns into its no-highlight
+   * excerpt. Query failures propagate instead of returning partial hits.
    */
-  public async fulltextSearch(ctx: ContextManager, jbSearchContent: string, userBookmarkItem: userBookmarkItem[]): Promise<fulltextMatchItem[]> {
-    if (userBookmarkItem.length < 1 || jbSearchContent.length < 1) return []
+  public async fulltextSearch(ctx: ContextManager, expressions: fulltextExpressions, userBookmarkItem: userBookmarkItem[]): Promise<fulltextMatchItem[]> {
+    const rowIds = userBookmarkItem.flatMap(item => item.rowIds).filter(rowId => rowId > 0)
+    if (rowIds.length < 1 || !expressions.full) return []
 
     const t1 = performance.now()
-    // bm25单次搜50条左右的文章效率最高
-    // 分割bmIds为50条一组
-    // WARING: 这里只能是50条，不能改为别的。如果要改，必须要用explain Query plan真实SQL检查一次是否会全表搜索
-    const bmIdGroups = Array.from({ length: Math.ceil(userBookmarkItem.length / 50) }, (_, i) => userBookmarkItem.slice(i * 50, (i + 1) * 50))
-    const fullTextPromises = []
-    for (const bmIdGroup of bmIdGroups) {
-      if (bmIdGroup.length < 1) continue
-      fullTextPromises.push(
-        this.bookmarkSearchRepo.seachBM25(
-          bmIdGroup.map(item => item.rowId),
-          jbSearchContent
-        )
-      )
-    }
+    // Rows arrive by ascending bm25 (lower is more relevant); a bookmark is represented by its best-matching shard.
+    const seen = new Set<number>()
+    const ranked = (await this.bookmarkSearchRepo.rankFulltextRows(rowIds, expressions.full)).filter(row => {
+      if (seen.has(row.bookmark_id)) return false
+      seen.add(row.bookmark_id)
+      return true
+    })
+    const highlighted = ranked.slice(0, FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id)
+    const rest = ranked.slice(FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id)
+    const [highlights, prefixes] = await Promise.all([
+      this.bookmarkSearchRepo.getFulltextHighlights(highlighted, expressions),
+      this.bookmarkSearchRepo.getFulltextRawPrefixes(rest, HIGHLIGHT_TARGET_LENGTH)
+    ])
+    const texts = new Map<number, { content_snippet: string; title_snippet: string; raw_content: string; raw_title: string }>()
+    for (const row of highlights)
+      texts.set(row.row_id, { content_snippet: row.content_snippet, title_snippet: row.title_snippet, raw_content: row.raw_content, raw_title: row.raw_title })
+    for (const row of prefixes) texts.set(row.row_id, { content_snippet: '', title_snippet: '', raw_content: row.raw_content, raw_title: row.raw_title })
+    console.log(`fulltext search candidates: ${rowIds.length}, matched: ${ranked.length}, time: ${performance.now() - t1} ms`)
 
-    console.log(`fulltext search candidates: ${userBookmarkItem.length}, tasks: ${fullTextPromises.length}`)
-
-    const res = (await Promise.allSettled(fullTextPromises))
-      .filter(item => item.status === 'fulfilled')
-      .flatMap(item => item.value)
-      .filter(item => !!item)
-      .sort((a, b) => b.score - a.score)
-
-    console.log(`fulltext search time: ${performance.now() - t1} ms`)
-    // const consoleRes = res.map(item => ({
-    //   bookmark_id: item.bookmark_id,
-    //   score: item.score,
-    //   content_snippet: item.content_snippet,
-    //   title_snippet: item.title_snippet
-    // }))
-    // console.log(`fulltext search result: ${JSON.stringify(consoleRes)}`)
-    return res
+    // A ranked row whose text is gone was deleted between the queries; it is dropped rather than shown blank.
+    return ranked.flatMap(row => {
+      const text = texts.get(row.row_id)
+      return text ? [{ bookmark_id: row.bookmark_id, score: row.score, ...text }] : []
+    })
   }
 
   /**
@@ -392,6 +412,37 @@ export class SearchService {
 
     console.log(`semantic search time: ${performance.now() - t1} ms`)
     return result
+  }
+
+  /**
+   * Semantic search on the V5 article index. Candidates come from the native index with the raw query vector, as
+   * the index stores raw representatives; they are then rescored by cosine after removing the platform mean
+   * (EMBEDDING_MEAN), because raw V5 cosines sit in a narrow band where unrelated text scores close to real matches.
+   * Ids keep the legacy `<bookmarkId>_0` shape so fusion is unchanged.
+   */
+  public async semanticSearchV5(ctx: ContextManager, keyword: string, eligible: Set<number>): Promise<vectorizeMatcheItem[]> {
+    const t1 = performance.now()
+    const userId = ctx.getUserId()
+    if (!keyword.trim() || !eligible.size) return []
+    const query = await this.vectorEmbedding.cachedQuery(keyword)
+    // The index already restricts candidates to this owner; the userId check is an assertion, and `eligible` drops
+    // trashed or removed bookmarks. Tag filters never reach this branch.
+    const candidates = (await this.vectors.queryArticles(query, { userId, limit: SEMANTIC_CANDIDATE_LIMIT })).filter(
+      candidate => candidate.userId === userId && eligible.has(candidate.id)
+    )
+    if (!candidates.length) return []
+    const vectors = await this.vectors.readArticles(candidates.map(candidate => ({ userId, id: candidate.id })))
+    const centeredQuery = center(query)
+    const scored = candidates
+      .flatMap(candidate => {
+        const vector = vectors.get(articleVectorId({ userId, id: candidate.id }))
+        return vector ? [{ id: candidate.id, score: cosineSimilarity(centeredQuery, center(vector)) }] : []
+      })
+      .sort((a, b) => b.score - a.score || a.id - b.id)
+    const top = scored[0]?.score ?? 0
+    const kept = top < SEMANTIC_MIN_TOP_SCORE ? [] : scored.filter(item => item.score >= top * SEMANTIC_RELATIVE_FLOOR)
+    console.log(`semantic search v5 time: ${performance.now() - t1} ms, candidates: ${candidates.length}, kept: ${kept.length}, top: ${top.toFixed(3)}`)
+    return kept.map(item => ({ id: `${item.id}_0`, score: item.score }))
   }
 
   public async addSearchRecordByBmId(ctx: ContextManager, bookmarkId: number) {

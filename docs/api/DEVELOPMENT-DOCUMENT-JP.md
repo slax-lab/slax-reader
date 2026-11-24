@@ -24,7 +24,7 @@ Prisma は `deploy/local/.env` から `HYPERDRIVE_DATABASE_URL` と `LOGS_DATABA
 
 任意 smoke はキャッシュ済み `postgres:17-alpine`、統合テストは追加で `redis:7-alpine` を必要とし、`--pull=never` で起動します。HTTP はポート 8787、統合テストは `slax-payment-review` と 6543 を専有し、既存リソースを再利用しません。DB テストは TRUNCATE を行い得るため、使い捨て DB のみ使用します。ログは隔離 `.tmp-root-tooling-http-*` に残ります。`dev:local` はローカルの Edge・Core・AI・Objects を同時に起動します。六つのパスは同ワークスペース内に置き、空 env、dev 環境、loopback PostgreSQL、ローカルの Edge→Core・Edge→AI・Core→AI service binding と Core→Objects の Durable Object binding のみを許可します。
 
-クラウド操作には明示的な許可が必要です。[デプロイ](CLOUDFLARE-DEPLOY-JP.md)を参照してください。backfill は読み取り専用・既定で件数のみ・ルート基準の SQL 出力で、自動適用しません。Apple 証明書生成はネットワーク、Stripe は別途 CLI を必要とします。seed はありません。`keys:powersync` は PowerSync 専用の鍵を生成するもので、ブラウザーの Web Push とは関係ありません。
+クラウド操作には明示的な許可が必要です。[デプロイ](CLOUDFLARE-DEPLOY-JP.md)を参照してください。`fulltext:prune-relations` は読み取り専用トランザクションで全文 DB の `slax_user_bookmark` エクスポートと PostgreSQL を比較し、PostgreSQL に存在しない関係の DELETE 文をルート基準の新規ファイルに書き出します。自動適用はしません。backfill は読み取り専用・既定で件数のみ・ルート基準の SQL 出力で、自動適用しません。Apple 証明書生成はネットワーク、Stripe は別途 CLI を必要とします。seed はありません。`keys:powersync` は PowerSync 専用の鍵を生成するもので、ブラウザーの Web Push とは関係ありません。
 
 | Task / 操作 | Command |
 | --- | --- |
@@ -49,7 +49,7 @@ Prisma は `deploy/local/.env` から `HYPERDRIVE_DATABASE_URL` と `LOGS_DATABA
 | Wrangler command with actual config | `pnpm api -- wrangler edge <command> [args...]` |
 | Edge logs | `pnpm api -- tail` |
 | Complete local API setup | `pnpm api -- setup` |
-| Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` |
+| Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` / `fulltext:prune-relations` |
 | Diagnostics | `pnpm api -- debug:hashids` / `debug:hash-article` |
 | Optional CLI tools | `pnpm api -- stripe:webhook` / `update:cli` |
 

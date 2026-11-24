@@ -47,10 +47,10 @@ import { PodcastArticleRepo, PodcastEpisodeRepo } from '../../../infra/repositor
 import { MarkRepo } from '../../../infra/repository/dbMark'
 import { SearchService } from '../../../domain/search'
 import { VectorMaintenanceRepo } from '../../../infra/repository/dbVectorMaintenance'
-import { SubscriptionRepo } from '../../../infra/repository/dbSubscription'
 import { VectorizeRepo } from '../../../infra/repository/dbVectorize'
 import { TagService } from '../../../domain/tag'
 import { UserProfileService } from '../../../domain/userProfile'
+import { SubscriptionRepo } from '../../../infra/repository/dbSubscription'
 import { CollectionRepo } from '../../../infra/repository/dbCollection'
 import { VectorSourceRepo } from '../../../infra/repository/vectorSources'
 import { VectorIndexClient } from '../../../infra/repository/vectorIndexClient'
@@ -126,7 +126,13 @@ container.register(MediaSnapshotService, {
 
 container.register(SearchService, {
   useFactory: container =>
-    new SearchService(container.resolve(BookmarkRepo), container.resolve(SubscriptionRepo), container.resolve(BookmarkSearchRepo), container.resolve(VectorizeRepo))
+    new SearchService(
+      container.resolve(BookmarkRepo),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(VectorizeRepo),
+      container.resolve(VectorMaintenanceService),
+      container.resolve(VectorEmbeddingClient)
+    )
 })
 
 container.register(TagService, {
