@@ -320,9 +320,58 @@ test('actual precompiled Pages modules render through the installed workerd runt
   const worker = join(assets, '_worker.js')
   const files = readdirSync(worker, { recursive: true }).filter(file => /\.(m?js|wasm)$/.test(file))
   const modules = ['index.js', ...files.filter(file => file !== 'index.js')].map(file => ({ type: file.endsWith('.wasm') ? 'CompiledWasm' : 'ESModule', path: join(worker, file) }))
+  const articleId = '00000000-0000-4000-8000-000000000001'
+  const contentKey = `html/body/${articleId}.html`
+  const articleTitle = 'Slax Reader 分享预览图'
+  const articleBody = 'A public article with text only.'
+  const compatibilityDate = '2026-05-26'
   const runtime = new Miniflare(await convertV4MiniflareOptions({
-    modules, modulesRoot: worker, compatibilityDate: '2026-05-26', compatibilityFlags: ['nodejs_compat'],
-    serviceBindings: { ASSETS: async () => new Response('missing', { status: 404 }) }
+    workers: [{
+      name: 'pages',
+      modules, modulesRoot: worker, compatibilityDate, compatibilityFlags: ['nodejs_compat'],
+      r2Buckets: ['OSS'],
+      serviceBindings: {
+        ASSETS: async request => {
+          const pathname = new URL(request.url).pathname
+          if (pathname.startsWith('/fonts/') || pathname.startsWith('/_og-static-fonts/')) {
+            const file = join(assets, pathname)
+            if (existsSync(file)) return new Response(readFileSync(file))
+          }
+          return new Response(null, { status: 404 })
+        },
+        BACKEND: 'fixture-content'
+      }
+    }, {
+      name: 'fixture-content',
+      modules: true,
+      compatibilityDate,
+      bindings: {
+        ARTICLE: {
+          uuid: articleId,
+          title: articleTitle,
+          target_url: 'https://source.example.test/text-article',
+          content_key: contentKey,
+          content_cover: '',
+          created_at: '2026-05-26T00:00:00Z',
+          type: 'html',
+          role: 'visitor',
+          tags: []
+        }
+      },
+      script: `
+        import { WorkerEntrypoint } from 'cloudflare:workers'
+        export default class extends WorkerEntrypoint {
+          fetch(request) {
+            const url = new URL(request.url)
+            if (url.pathname === '/content/meta' && url.searchParams.get('uuid') === this.env.ARTICLE.uuid) {
+              return Response.json(this.env.ARTICLE)
+            }
+            return new Response(null, { status: 404 })
+          }
+          trackEvent() {}
+        }
+      `
+    }]
   }))
   try {
     for (const pathname of ['/', '/bookmarks']) {
@@ -330,6 +379,26 @@ test('actual precompiled Pages modules render through the installed workerd runt
       assert.equal(result.status, 200)
       assert.match(await result.text(), /slax-reader-dweb/)
     }
+
+    await (await runtime.getR2Bucket('OSS')).put(contentKey, `<p>${articleBody}</p>`)
+    const articleUrl = new URL(`https://web.example.test/b/${articleId}`)
+    const article = await runtime.dispatchFetch(articleUrl)
+    assert.equal(article.status, 200)
+    const html = await article.text()
+    assert.ok(html.includes(articleTitle))
+    assert.ok(html.includes(articleBody))
+    const imageTag = html.match(/<meta property="og:image" content="([^"]+)"/)
+    assert.ok(imageTag, 'The text-only article should emit og:image')
+
+    const imageUrl = new URL(imageTag[1], articleUrl)
+    assert.match(imageUrl.pathname, /^\/_og\/d\/.+\.png$/)
+    const image = await runtime.dispatchFetch(new URL(imageUrl.pathname + imageUrl.search, articleUrl), {
+      headers: { Accept: 'image/png' }
+    })
+    assert.equal(image.status, 200, 'The generated Open Graph image should render in Pages')
+    assert.equal(image.headers.get('content-type'), 'image/png')
+    const png = Buffer.from(await image.arrayBuffer())
+    assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
   } finally { await runtime.dispose() }
 })
 
