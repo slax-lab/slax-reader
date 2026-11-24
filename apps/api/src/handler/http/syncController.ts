@@ -5,6 +5,7 @@ import { inject } from '@/decorators/di'
 import { Successed } from '@/utils/responseUtils'
 import { SyncOrchestrator } from '@/domain/orchestrator/sync'
 import { RequestUtils } from '@/utils/requestUtils'
+import { errorDiagnostic } from '@/utils/errorDiagnostic'
 import { SyncChangeItem } from '@/domain/orchestrator/sync'
 import { Failed } from '@/utils/responseUtils'
 import { ErrorParam } from '@/const/err'
@@ -35,7 +36,13 @@ export class SyncController {
     try {
       await this.syncOrchestrator.syncChanges(ctx, req)
     } catch (error) {
-      console.error('handleSyncSaveRequest failed', { userId: ctx.getUserId(), count: req.length })
+      console.error('handleSyncSaveRequest failed', {
+        userId: ctx.getUserId(),
+        count: req.length,
+        ...(req.length === 1 ? { table: String(req[0]?.table ?? ''), op: String(req[0]?.op ?? '') } : {}),
+        ...(ctx.get('rayId') ? { ray: ctx.get('rayId') } : {}),
+        ...errorDiagnostic(error)
+      })
       return Failed(ErrorParam())
     }
     return Successed({ status: true })
