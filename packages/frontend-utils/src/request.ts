@@ -12,6 +12,16 @@ export class RequestError extends Error {
   }
 }
 
+export interface RequestFailure {
+  method: string
+  url: string
+  status?: number
+  ray?: string
+  network: boolean
+  cancelled: boolean
+  error?: unknown
+}
+
 export enum RequestMethodType {
   get = 'get',
   post = 'post',
@@ -25,6 +35,8 @@ interface FetchConfig {
   requestInterceptors?: (options: FetchOptions) => FetchOptions | Promise<FetchOptions>
   responseInterceptors?: <T = unknown>(response: FetchResult<unknown>) => FetchResult<T> | Promise<FetchResult<T>>
   errorInterceptors?: (error: unknown) => unknown
+  /** One call per failed request, before the error interceptor; diagnostics only. */
+  onFailure?: (failure: RequestFailure) => void
 }
 
 type StreamCallbackFunc = (handler: (text: string, done: boolean) => void) => Promise<void>
@@ -113,6 +125,7 @@ export class FetchRequest {
 
   async handleRequest<T, F extends FetchOptions>(options: F): Promise<(F['stream'] extends true ? StreamCallbackFunc : T) | undefined> {
     type ResultType = F['stream'] extends true ? StreamCallbackFunc : T
+    let received: Response | undefined
     try {
       const requestInterceptors = this.options.requestInterceptors
       if (requestInterceptors && isFunction(requestInterceptors)) {
@@ -124,6 +137,7 @@ export class FetchRequest {
       }
 
       const result = (await this.fetchRequest(options)) as Response
+      received = result instanceof Response ? result : undefined
       if (options.stream) {
         const data = result.body
         if (!data) {
@@ -163,6 +177,21 @@ export class FetchRequest {
 
       return response.data as ResultType
     } catch (error) {
+      try {
+        const failure: RequestFailure = {
+          method: options.method ?? RequestMethodType.get,
+          url: options.url,
+          status: received?.status,
+          ray: received?.headers.get('cf-ray') ?? undefined,
+          network: received === undefined,
+          cancelled: error instanceof Error && error.name === 'AbortError',
+          error
+        }
+        const observer = this.options.onFailure
+        observer?.(failure)
+      } catch {
+        // Diagnostics must not change request behavior.
+      }
       if (options.errorInterceptors) {
         options.errorInterceptors(error)
       } else if (this.options.errorInterceptors) {
