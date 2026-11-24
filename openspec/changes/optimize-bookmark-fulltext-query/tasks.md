@@ -21,6 +21,7 @@
 - [x] 4.5 Delete fulltext mirror rows in the import-failure batch delete and account deletion, and add `fulltext:prune-relations`; verify with `pruneFulltextRelations.test.ts` and `generatorPaths.test.ts`.
 - [x] 4.6 In the test environment compare untagged and tagged `/v1/bookmark/search` against the deployed build (hits, order, timings) and record them in `validation.md`.
 - [x] 4.8 Hands-on acceptance of the search view in the local Web against the test API (excerpts beyond rank 50, V5 hits, tags, escaping); show the PostgreSQL title and description for semantic-only hits without fulltext rows; record in `validation.md`.
+- [x] 4.9 Read V5 semantic candidates and their stored vectors in one native query (`returnValues: true`, topK 50) instead of a 100-candidate query followed by `getByIds` batches; verify with `searchHighlightSecurity.test.ts`, `vectorIndexRepo.test.ts` and `vectorMaintenance.test.ts`.
 - [ ] 4.7 Run the pruning command against the production and test mirrors and record counts; applying the DELETE file is the operator's action.
 
 ## 5. Verification

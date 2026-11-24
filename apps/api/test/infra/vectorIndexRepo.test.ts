@@ -183,7 +183,7 @@ describe('VectorIndexRepo native validation and filters', () => {
     ['mismatched article kind', [articleVector({ metadata: { ...articleVector().metadata, kind: 'chunk' } as never })]],
     ['mismatched chunk index', [chunkVector({ metadata: { ...chunkVector().metadata, part_index: 2 } as never })]],
     ['missing part count', [articleVector({ metadata: { ...articleVector().metadata, part_count: 0 } as never })]],
-    ['invalid private user', [articleVector({ metadata: { ...articleVector().metadata, private_user: -1 } as never })]],
+    ['invalid private user', [articleVector({ metadata: { ...articleVector().metadata, private_user: -1 } as never })]]
   ] as const)('upsert rejects %s before the native binding', async (_label, vectors) => {
     const { env, article, collection, user } = environment()
     const repo = new VectorIndexRepo(env)
@@ -210,9 +210,7 @@ describe('VectorIndexRepo native validation and filters', () => {
   test('upsert validates the user namespace and Collection identity on their own indexes', async () => {
     const { env, user, collection } = environment()
     const repo = new VectorIndexRepo(env)
-    await expect(repo.upsertVectors('user', [{ id: 'u:1:article', namespace: 'user-collection', values: unit() } as VectorizeVector])).rejects.toThrow(
-      'invalid_v5_namespace'
-    )
+    await expect(repo.upsertVectors('user', [{ id: 'u:1:article', namespace: 'user-collection', values: unit() } as VectorizeVector])).rejects.toThrow('invalid_v5_namespace')
     await expect(repo.upsertVectors('collection', [collectionVector({ metadata: { ...collectionVector().metadata, collection_id: 6 } as never })])).rejects.toThrow(
       'invalid_v5_identity'
     )
@@ -227,9 +225,7 @@ describe('VectorIndexRepo native validation and filters', () => {
     const { env, article } = environment()
     const repo = new VectorIndexRepo(env)
     const blob = 'x'.repeat(4 * 1024 * 1024 + 1)
-    await expect(
-      repo.upsertVectors('article', [articleVector({ metadata: { ...articleVector().metadata, blob } as never })])
-    ).rejects.toThrow('v5_payload_too_large')
+    await expect(repo.upsertVectors('article', [articleVector({ metadata: { ...articleVector().metadata, blob } as never })])).rejects.toThrow('v5_payload_too_large')
     expect(article.upsert).not.toHaveBeenCalled()
   })
 
@@ -255,6 +251,18 @@ describe('VectorIndexRepo native validation and filters', () => {
     for (const scope of [{ recommendable: true }, { userId: 42, recommendable: true }, { userId: 0 }, { userId: 1.5 }, {}] as never[]) {
       await expect(repo.queryVectors('article', unit(), scope)).rejects.toThrow('invalid_v5_query_scope')
     }
+    expect(article.query).toHaveBeenCalledOnce()
+  })
+
+  test('article queries can return stored values, with the native topK cap of fifty', async () => {
+    const { env, article } = environment()
+    article.query.mockResolvedValueOnce({ matches: [{ id: 'a:1:2', score: 0.75, values: new Float32Array([0.6, 0.8]) }], count: 1 } as never)
+    const repo = new VectorIndexRepo(env)
+    expect(await repo.queryVectors('article', unit(), { userId: 42, limit: 50, values: true })).toEqual([
+      { id: 'a:1:2', score: 0.75, values: [Math.fround(0.6), Math.fround(0.8)] }
+    ])
+    expect(article.query.mock.calls[0][1]).toEqual({ topK: 50, filter: { kind: 'article', user_id: 42 }, returnValues: true, returnMetadata: 'none' })
+    await expect(repo.queryVectors('article', unit(), { userId: 42, limit: 51, values: true })).rejects.toThrow('invalid_v5_query_limit')
     expect(article.query).toHaveBeenCalledOnce()
   })
 
