@@ -65,8 +65,6 @@ export default {
 
 export { VectorPreferenceObject }
 export { handleEmailEvent, handleQueueEvent, handleScheduledEvent }
-// Kept for one release: the Edge published before the fetch path still calls Core's jobs over this RPC entrypoint.
-export { CoreJobs } from './jobs'
 export { SlaxJieba, SlaxWebSocketServer, ScreenshotBrowser } from '../retired'
 export { CrawlWorkflow } from './workflows/crawlWorkflow'
 export { ContentValidationWorkflow } from './workflows/contentValidationWorkflow'

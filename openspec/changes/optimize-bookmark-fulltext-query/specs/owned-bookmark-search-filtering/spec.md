@@ -23,3 +23,24 @@ The bookmark search fulltext branch SHALL rank every candidate fulltext row of t
 - **WHEN** the ranking or highlight query fails
 - **THEN** the fulltext branch reports a failure through the existing search error handling
 - **AND** it does not present a subset of matching rows as the complete fulltext result
+
+### Requirement: Every fulltext shard of an owned article is searchable
+
+The fulltext branch SHALL rank every stored fulltext shard of each eligible bookmark, so a term that occurs only in a later shard of a long article can find it. Each bookmark SHALL be represented by its best-scoring shard.
+
+#### Scenario: A term occurs only in the second shard of a long article
+- **WHEN** an owned article is stored as several fulltext shards and the keyword occurs only in a later shard
+- **THEN** the fulltext branch returns that article once, scored and highlighted from the matching shard
+
+### Requirement: The fulltext relation mirror follows relation deletions
+
+Deleting a user's bookmark relation in PostgreSQL through any deletion path, including the import-failure batch delete and account deletion, SHALL also delete the corresponding fulltext relation mirror row. Operators SHALL have a read-only way to list mirror rows whose PostgreSQL relation no longer exists, as DELETE statements they apply explicitly; trashed relations SHALL be kept.
+
+#### Scenario: A user deletes failed import bookmarks
+- **WHEN** the import-failure batch delete removes relations from PostgreSQL
+- **THEN** the matching fulltext mirror rows are removed in the same operation
+
+#### Scenario: An operator prunes stale mirror rows
+- **WHEN** the operator runs the pruning command against an exported mirror
+- **THEN** it reads PostgreSQL in a read-only transaction and writes DELETE statements only for relations PostgreSQL no longer has, without applying them
+

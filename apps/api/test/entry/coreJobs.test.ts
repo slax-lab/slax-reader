@@ -6,16 +6,8 @@ const handlers = vi.hoisted(() => ({
   email: vi.fn<(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) => Promise<void>>()
 }))
 vi.mock('@/entry/core/handlers', () => ({ handleQueueEvent: handlers.queue, handleScheduledEvent: handlers.cron, handleEmailEvent: handlers.email }))
-vi.mock('cloudflare:workers', () => ({
-  WorkerEntrypoint: class {
-    constructor(
-      protected ctx: ExecutionContext,
-      protected env: Env
-    ) {}
-  }
-}))
 
-import { CoreJobs, handleJobsRequest, isJobsRequest } from '@/entry/core/jobs'
+import { handleJobsRequest, isJobsRequest } from '@/entry/core/jobs'
 import { forwardEmail, forwardQueue, forwardScheduled } from '@/entry/edge/jobs'
 import { EDGE_SECRET_HEADER } from '@/const/edge'
 
@@ -133,22 +125,17 @@ describe('Edge forwards job events to Core over fetch, where placement applies',
     expect(isJobsRequest(new Request('https://reader-api.slax.dev/queue'))).toBe(false)
   })
 
-  test('the RPC entrypoint kept for one release runs the same handlers, so an Edge published before this change keeps working', async () => {
-    const jobs = new (CoreJobs as unknown as new (ctx: ExecutionContext, env: Env) => CoreJobs)(parent, {} as Env)
-    handlers.queue.mockImplementationOnce(async batch => {
-      expect(batch.messages[0].timestamp.getTime()).toBe(0)
-      batch.messages[0].retry({ delaySeconds: 9 })
-    })
-    expect(
-      await jobs.runQueue({ queue: 'q', metadata: { metrics: { backlogCount: 0, backlogBytes: 0 } }, messages: [{ id: 'a', timestamp: new Date(0), body: 1, attempts: 1 }] })
-    ).toEqual({
-      acked: [],
-      retried: [{ id: 'a', delaySeconds: 9 }],
-      ackAll: false
-    })
-    handlers.cron.mockImplementationOnce(async event => expect(event).toMatchObject({ cron: '0 */1 * * *', scheduledTime: 7 }))
-    await jobs.runCron('0 */1 * * *', 7)
-    handlers.email.mockImplementationOnce(async message => message.setReject('no'))
-    expect(await jobs.receiveEmail({ to: 'a@b', raw: new Response('x').body!, rawSize: 1 })).toEqual({ rejected: 'no' })
+  test('an email request missing its recipient or size header is rejected before any handler runs', async () => {
+    const send = (headers: Record<string, string>) =>
+      handleJobsRequest(
+        new Request('https://jobs.internal/email', { method: 'POST', headers: { [EDGE_SECRET_HEADER]: SECRET, ...headers }, body: 'x' }),
+        { EDGE_SHARED_SECRET: SECRET } as Env,
+        parent
+      )
+    handlers.email.mockClear()
+    expect((await send({ 'x-slax-email-size': '1' })).status).toBe(400)
+    expect((await send({ 'x-slax-email-to': 'a%40b' })).status).toBe(400)
+    expect((await send({ 'x-slax-email-to': 'a%40b', 'x-slax-email-size': 'NaN' })).status).toBe(400)
+    expect(handlers.email).not.toHaveBeenCalled()
   })
 })

@@ -64,7 +64,7 @@ export class HybridSearchService {
   async queryEmbedding(keyword: string, signal: AbortSignal): Promise<number[]> {
     signal.throwIfAborted()
     try {
-      return await this.embedding.query(keyword, signal)
+      return await this.embedding.cachedQuery(keyword, signal)
     } catch (error) {
       signal.throwIfAborted()
       throw new HybridSearchError(error instanceof Error && error.message === 'embedding_request_timeout' ? 'embedding_timeout' : 'embedding_failed')

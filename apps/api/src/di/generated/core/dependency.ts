@@ -85,6 +85,8 @@ import { PasskeyChallengeRepo } from '../../../infra/repository/redisPasskeyChal
 import { PodcastService } from '../../../domain/podcast'
 import { RssRepo } from '../../../infra/repository/dbRss'
 import { RssContent } from '../../../domain/rss/content'
+import { VectorMaintenanceService } from '../../../domain/vectorMaintenance'
+import { VectorEmbeddingClient } from '../../../infra/external/vectorEmbedding'
 import { ShareService } from '../../../domain/share'
 import { SubscriptionService } from '../../../domain/subscription'
 import { StripeClient } from '../../../infra/external/stripe'
@@ -99,9 +101,7 @@ import { UserService } from '../../../domain/user'
 import { ReportRepo } from '../../../infra/repository/dbReport'
 import { UserProfileService } from '../../../domain/userProfile'
 import { UserDeletionService } from '../../../domain/userDeletion'
-import { VectorMaintenanceService } from '../../../domain/vectorMaintenance'
 import { VectorSourceRepo } from '../../../infra/repository/vectorSources'
-import { VectorEmbeddingClient } from '../../../infra/external/vectorEmbedding'
 import { VectorIndexClient } from '../../../infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '../../../infra/repository/vectorPreferenceClient'
 import { YoutubeArticleService } from '../../../domain/youtubeArticle'
@@ -348,7 +348,13 @@ container.register(RssService, {
 
 container.register(SearchService, {
   useFactory: container =>
-    new SearchService(container.resolve(BookmarkRepo), container.resolve(SubscriptionRepo), container.resolve(BookmarkSearchRepo), container.resolve(VectorizeRepo))
+    new SearchService(
+      container.resolve(BookmarkRepo),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(VectorizeRepo),
+      container.resolve(VectorMaintenanceService),
+      container.resolve(VectorEmbeddingClient)
+    )
 })
 
 container.register(ShareService, {
@@ -436,7 +442,8 @@ container.register(UserDeletionService, {
       container.resolve(UserRepo),
       lazy(() => container.resolve(BucketClient)),
       container.resolve(VectorMaintenanceRepo),
-      container.resolve(PasskeyRepo)
+      container.resolve(PasskeyRepo),
+      container.resolve(BookmarkSearchRepo)
     )
 })
 

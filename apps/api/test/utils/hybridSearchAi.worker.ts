@@ -112,6 +112,10 @@ const embedding = {
     }
     signal?.throwIfAborted()
     return unit()
+  },
+  // The KV cache is covered by vectorEmbeddingCache.test.ts; this runtime fixture audits provider calls.
+  cachedQuery(text: string, signal?: AbortSignal) {
+    return embedding.query(text, signal)
   }
 }
 

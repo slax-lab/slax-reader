@@ -163,4 +163,14 @@ export class BookmarkSearchRepo {
   async deleteUserBookmark(userId: number, bookmarkId: number) {
     return await this.prisma().$executeRaw`DELETE FROM slax_user_bookmark WHERE user_id = ${userId} AND bookmark_id = ${bookmarkId}`
   }
+
+  async deleteUserBookmarks(userId: number, bookmarkIds: number[]) {
+    if (bookmarkIds.length < 1) return 0
+    return await this.prisma()
+      .$executeRaw`DELETE FROM slax_user_bookmark WHERE user_id = ${userId} AND bookmark_id IN (SELECT value FROM json_each(${JSON.stringify(bookmarkIds)}))`
+  }
+
+  async deleteAllUserBookmarks(userId: number) {
+    return await this.prisma().$executeRaw`DELETE FROM slax_user_bookmark WHERE user_id = ${userId}`
+  }
 }

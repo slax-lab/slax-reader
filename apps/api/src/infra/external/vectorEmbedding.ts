@@ -1,11 +1,13 @@
 import { Buffer } from 'node:buffer'
 import { injectable } from '@/decorators/di'
+import { hashSHA256 } from '@/utils/strings'
 import {
   bisectText,
   estimatedTokens,
   modelPayload,
   normalized,
   VECTOR_BATCH_SIZE,
+  VECTOR_DIMENSIONS,
   VECTOR_MEDIA_REQUEST_BYTES,
   VECTOR_MODEL,
   VECTOR_REQUEST_BYTES,
@@ -61,17 +63,35 @@ export function providerDiagnostic(status: number, text: string, requestId: stri
   return diagnostic
 }
 
+// Search-term embeddings are immutable for a model; a week bounds KV growth from one-off terms.
+const QUERY_EMBEDDING_CACHE_SECONDS = 7 * 24 * 60 * 60
+
 @injectable()
 export class VectorEmbeddingClient {
   private readonly apiKey: string
+  private readonly cache?: KVNamespace
   private readonly fetcher: typeof fetch = (input, init) => fetch(input, init)
 
   constructor(env: Env) {
     this.apiKey = env.JINA_API_KEY
+    this.cache = env.KV
   }
 
   async query(text: string, signal?: AbortSignal): Promise<number[]> {
     return (await this.request([{ text }], 1, VECTOR_REQUEST_BYTES, signal))[0]
+  }
+
+  /**
+   * query() for search terms, cached in KV per model, dimensions and exact text. A search term's embedding never
+   * changes for a given model, so repeated searches skip the provider round trip. Cache failures fall back to query().
+   */
+  async cachedQuery(text: string, signal?: AbortSignal): Promise<number[]> {
+    const key = `search:embedding:${await hashSHA256(`${VECTOR_MODEL}:${VECTOR_DIMENSIONS}:${text}`)}`
+    const hit = await this.cache?.get<number[]>(key, 'json').catch(() => null)
+    if (Array.isArray(hit) && hit.length === VECTOR_DIMENSIONS && hit.every(Number.isFinite)) return hit
+    const vector = await this.query(text, signal)
+    await this.cache?.put(key, JSON.stringify(vector), { expirationTtl: QUERY_EMBEDDING_CACHE_SECONDS }).catch(() => {})
+    return vector
   }
 
   private async request(input: ModelInput[] | { pdf: string }, count?: number, maxBytes = VECTOR_REQUEST_BYTES, requestSignal?: AbortSignal): Promise<number[][]> {

@@ -25,7 +25,19 @@ See `proposal.md` for the measurements. `SearchService.hybridSearch` (`apps/api/
 - Per-term clauses beyond the first word: the single-column snippet expressions keep the same AND structure restricted to one column, so a title-only snippet is not produced for a row that matched by content.
 - D1 limits: 1 bound JSON parameter per statement; candidate lists of several thousand ids stay well under the 100 KB statement and 2 MB value limits.
 
+## Semantic branch on V5
+
+- Candidates: `VectorMaintenanceService.queryArticles(query, { userId, limit: 100 })` with the raw V5 query vector, because the index stores raw representatives (the recommendation design makes the same choice). Measured for user 1, raw-vector candidates contained 22–28 of the 30 best centered matches, centered-query candidates only 7–22.
+- Rescoring: `readArticles` returns the candidates' vectors; query and articles are centered with `center()` from `recommendationAlgorithms.ts` and compared by cosine. Ids are emitted as `<bookmarkId>_0`, so fusion and the legacy 0.4 filter path stay as they are; the 0.4 filter now applies only to the legacy branch.
+- Threshold: no hit when the best centered score is below `SEMANTIC_MIN_TOP_SCORE = 0.35`; otherwise keep scores at or above `SEMANTIC_RELATIVE_FLOOR = 0.6` of the best. On nine probe queries for user 1 this kept 11–44 hits for real queries and 0–6 for nonsense, while an absolute 0.30 floor kept only 4 hits for "阅读". The values are initial and tied to `EMBEDDING_MEAN` version `ebb4b388aad2`; regenerating the mean requires recalibrating them.
+- Tags: the V5 article index indexes `user_id`, `kind` and `recommendable` but not `bookmark_id`, so a tag-filtered query keeps the legacy encoder and buckets, which filter by eligible bookmark ids.
+- Embedding cache: `VectorEmbeddingClient.cachedQuery` stores the query vector in `KV` under `search:embedding:<sha256(model:dimensions:text)>` for seven days and validates length and finiteness on read; read and write failures fall back to the provider.
+
+## Fulltext relation mirror
+
+`slax_user_bookmark` in the fulltext database mirrors PostgreSQL relations and is the fulltext candidate source. `deleteBookmark` already removed the mirror row; `batchDeleteBookmarksByIds` (import-failure cleanup) and `UserDeletionService.deleteUserBookmarks` did not. Both now delete the mirror rows. Existing stale rows are removed by `fulltext:prune-relations`, which compares an exported mirror with PostgreSQL in a read-only transaction and writes DELETE statements; trashed relations stay because they can be restored.
+
 ## Non-Goals
 
-- No change to `/v1/search` (`HybridSearchService`), vector search, embedding, normalizer tokenization, or the FTS schema. Moving this endpoint's vector branch to the v5 index waits until v5 covers existing libraries.
+- No change to `/v1/search` retrieval apart from the shared embedding cache, to normalizer tokenization, or to the FTS schema.
 - No read replication or database relocation; those are separate operational work.

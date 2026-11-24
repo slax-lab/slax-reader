@@ -7,7 +7,10 @@ import { handleMessage } from '@/di/generated/core/consumer'
 import { handleCronjob } from '@/di/generated/core/cronjob'
 
 // Core's queue, cron and email handlers, shared by the Worker's own handlers and the jobs Edge forwards.
-export async function handleEmailEvent(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) {
+// The part of an inbound message the newsletter handler reads; Email Routing and the jobs route both provide it.
+export type EmailJob = Pick<ForwardableEmailMessage, 'to' | 'raw' | 'rawSize' | 'setReject'>
+
+export async function handleEmailEvent(message: EmailJob, env: Env, ctx: ExecutionContext) {
   const timing = new NewsletterTiming(message.rawSize)
   const ctxManager = new ContextManager(ctx, env)
   try {

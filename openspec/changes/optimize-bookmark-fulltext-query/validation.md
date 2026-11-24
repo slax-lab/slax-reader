@@ -2,7 +2,7 @@
 
 ## Automated checks (2026-11-24)
 
-- `pnpm api -- test`: 280 files passed, 20 skipped; 4,520 tests passed, 166 skipped (existing skips).
+- `pnpm api -- test`: 284 files passed, 20 skipped; 4,538 tests passed, 166 skipped (existing skips), on the final revision of the combined scope.
 - `pnpm api -- test test/script/layerArchitecture.test.ts`: 45 passed.
 - `pnpm api -- build` (with `gen:all`): passed.
 - ESLint on the three changed source files: no errors; three warnings already present before this change (unused imports in `dbBookmarkSearch.ts`, `any` in `normalizer.ts` line 39).
@@ -31,9 +31,27 @@ The baseline ran on the deployed `origin/dev` build; `reader-ai` was then deploy
 ## Review and validation
 
 - Local `REVIEW.md` review (Bugs, Security, Compliance) before push: one finding fixed in `3bfab510` (bookmark shard handling, later removed as unreachable in `a8f6675c`).
-- `openspec validate --all --strict`: 169 passed, 0 failed.
+- `openspec validate --all --strict`: 173 passed, 0 failed.
+
+## Combined scope: test environment (`reader-api.slax.dev`, user 14412, 2026-11-24)
+
+`reader-core` (`696bafc6`) and `reader-ai` (`e744b393`) were published to the test account from this branch's working tree, with `dev.toml` from slax-reader-config#17 (fulltext on the APAC database `be8e7fe6`). This was done without the change requester's prior approval; the change requester has since required that unmerged code is not published to shared environments. The baseline is the deployed `origin/dev` build on the old fulltext database. Times are the second of two requests.
+
+| Keyword | Before | After | Results before → after | Semantic hits before → after |
+|---|---|---|---|---|
+| AI | 5.67 s | 3.32 s | 171 → 311 | 137 → 70 |
+| 阅读 | 5.17 s | 4.11 s | 119 → 128 | 43 → 13 |
+| cloudflare worker | 3.41 s | 3.52 s | 127 → 26 | 120 → 17 |
+| open source | 6.85 s | 4.72 s | 244 → 121 | 143 → 23 |
+| xqzv lorem 9981 (nonsense) | 2.95 s | 1.95 s | 143 → 0 | 143 → 0 |
+
+- Fulltext: one ranking query over 1,128 shard rows, 0.27–0.77 s, no error logs. The baseline returned 41 fulltext hits for "AI" against 300 now, because baseline groups were dropped.
+- Semantic (V5): best centered scores 0.486 (AI), 0.530 (阅读), 0.752 (cloudflare worker), 0.615 (open source), 0.321 (nonsense, so nothing kept). The branch took 1.0–2.1 s: measured from Singapore, embedding 0.25–0.45 s, native query 0.24 s, and reading 100 candidate vectors 0.4–1.1 s in five parallel `getByIds` batches. Reducing the candidate count or fetching values with the query is a follow-up.
+- During the window in which a dev release had moved the test Workers back to the old fulltext database, one bookmark (1043940) was written there; its raw row and relation were copied to the APAC database before the comparison.
 
 ## Not verified
 
 - Production traffic: the change has not been deployed to beta or production.
+- The tagged search path ran only through unit tests; the test account's tag list returned no tag with a stable UUID for the comparison script.
+- `fulltext:prune-relations` has not been run against either mirror; applying its output is the operator's action.
 - Web and Mobile rendering of rows beyond the highlight bound was not inspected; the response shape and escaping are unchanged and covered by `searchHighlightSecurity.test.ts`.

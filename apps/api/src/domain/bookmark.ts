@@ -1503,7 +1503,7 @@ export class BookmarkService extends BookmarkReadService {
     const deletePromises = []
     for (let i = 0; i < bookmarkIds.length; i += 50) {
       const batch = bookmarkIds.slice(i, i + 50)
-      deletePromises.push(this.bookmarkData.batchDeleteBookmarksByIds(userId, batch))
+      deletePromises.push(this.bookmarkData.batchDeleteBookmarksByIds(userId, batch), this.bookmarkSearchRepo.deleteUserBookmarks(userId, batch))
     }
 
     try {

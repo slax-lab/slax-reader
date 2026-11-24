@@ -49,7 +49,7 @@ Prisma は `deploy/local/.env` から `HYPERDRIVE_DATABASE_URL` と `LOGS_DATABA
 | Wrangler command with actual config | `pnpm api -- wrangler edge <command> [args...]` |
 | Edge logs | `pnpm api -- tail` |
 | Complete local API setup | `pnpm api -- setup` |
-| Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` |
+| Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` / `fulltext:prune-relations` |
 | Diagnostics | `pnpm api -- debug:hashids` / `debug:hash-article` |
 | Optional CLI tools | `pnpm api -- stripe:webhook` / `update:cli` |
 

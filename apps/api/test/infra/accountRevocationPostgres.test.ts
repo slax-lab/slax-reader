@@ -180,7 +180,8 @@ describe.skipIf(!enabled)('account revocation against isolated local PostgreSQL'
         throw new Error('R2 is not part of this test')
       },
       new VectorMaintenanceRepo(() => first!),
-      new PasskeyRepo(() => first!)
+      new PasskeyRepo(() => first!),
+      { deleteAllUserBookmarks: async () => 0 } as never
     )
     await deletion.cleanupUserData(user.id, { VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch: async () => [] } as unknown as Env['VECTOR_V5_MAINTENANCE_WORKFLOW'] })
     expect(await repo.getUserBindPlatform(user.id)).toEqual([])

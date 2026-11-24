@@ -143,3 +143,9 @@ Built with the published template, `--minify`, Wrangler 4.127.1 (the repository'
 **Compliance.** The implementation matches proposal, design D1 to D12 and the delta specs; tasks marked complete are implemented and verified above. The layer baseline changed only by renaming keys of moved files at unchanged counts. Open items are 8.2 (cloud-bound flows) and 8.3 (test-account transition, needs operator authorization); 8.4 records the no-increment version decision.
 
 No Important findings remain.
+
+## Transitional `CoreJobs` removal (task 6.7, 2026-11-24)
+
+- Before removal, the live Edge scripts were read through the Cloudflare API: `slax-read-backend`, `slax-read-backend-beta` (production account) and `slax-read-backend-beta`, `reader-backend` (test account) bind no `CORE_JOBS`; all forward jobs over `CORE.fetch`.
+- Removed the `CoreJobs` export from `src/entry/core/jobs.ts` and `src/entry/core/index.ts` and its transitional case from `coreJobs.test.ts`.
+- Follow-ups from the #712 review: the email job is typed as `EmailJob = Pick<ForwardableEmailMessage, 'to' | 'raw' | 'rawSize' | 'setReject'>` through `handleEmailEvent` and `NewsletterService.receive`; the jobs route answers `400` when the recipient or size header is missing or the size is not a decimal integer, before any handler runs; `coreJobsRoute.test.ts` calls Core's entry `fetch` with a `jobs.internal` request and fails when the `internalRoutes` entry is removed (checked by deleting it locally).

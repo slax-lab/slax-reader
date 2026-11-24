@@ -24,7 +24,7 @@ Prisma automatically loads `HYPERDRIVE_DATABASE_URL` and `LOGS_DATABASE_URL` fro
 
 Optional smoke tests require pre-cached `postgres:17-alpine`, plus `redis:7-alpine` for integration; containers use `--pull=never`. HTTP needs port 8787 free. Integration additionally reserves `slax-payment-review` on port 6543 and never reuses an existing resource. Some database tests truncate data: use disposable databases only. Logs/results stay in isolated `.tmp-root-tooling-http-*` workspaces. `dev:local` starts local Edge, Core, AI and Objects together. It requires all six paths under such a workspace, an empty env file, dev runtime and loopback PostgreSQL, and accepts only the local Edge→Core, Edge→AI and Core→AI service bindings and Core→Objects Durable Object bindings; remote resources are rejected.
 
-See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operations. `backfill:device-alias` retains read-only transactions, count-only default and root-relative exclusive SQL output; SQL is not applied automatically. Apple certificate generation needs networking; Stripe CLI must be installed separately. No seed operation is provided. `keys:powersync` generates keys only for PowerSync and is unrelated to browser Web Push.
+See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operations. `fulltext:prune-relations` compares a fulltext `slax_user_bookmark` export with PostgreSQL in a read-only transaction and writes DELETE statements for relations PostgreSQL no longer has to a new root-relative file; it never applies them. `backfill:device-alias` retains read-only transactions, count-only default and root-relative exclusive SQL output; SQL is not applied automatically. Apple certificate generation needs networking; Stripe CLI must be installed separately. No seed operation is provided. `keys:powersync` generates keys only for PowerSync and is unrelated to browser Web Push.
 
 | Task / 操作 | Command |
 | --- | --- |
@@ -49,7 +49,7 @@ See [deployment](CLOUDFLARE-DEPLOY-EN.md) for explicitly authorized cloud operat
 | Wrangler command with actual config | `pnpm api -- wrangler edge <command> [args...]` |
 | Edge logs | `pnpm api -- tail` |
 | Complete local API setup | `pnpm api -- setup` |
-| Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` |
+| Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` / `fulltext:prune-relations` |
 | Diagnostics | `pnpm api -- debug:hashids` / `debug:hash-article` |
 | Optional CLI tools | `pnpm api -- stripe:webhook` / `update:cli` |
 
