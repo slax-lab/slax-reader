@@ -4,7 +4,9 @@ import type {PowerSyncDatabase as Database} from '@powersync/react-native';
 import {fetch as expoFetch} from 'expo/fetch';
 import { SessionController } from '../domain/session.ts';
 import {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailableError} from '../domain/credential-readiness.ts';
+import { createConsoleLogger, LogLevels } from '@powersync/common';
 import { createMobileApi } from './api.ts';
+import { noopErrorLog, type MobileErrorLog } from '../domain/error-log.ts';
 import type { MobileApiOptions } from './api.ts';
 import { ArticleFileCache } from './cache.ts';
 import { clearAccountData } from './account-cleanup.ts';
@@ -29,7 +31,7 @@ import {noDiagnostics, recordDiagnostic} from '../domain/diagnostics.ts';
 import type {MobileDiagnostics} from '../diagnostics/native.ts';
 
 export type UpgradeState = {status: 'idle' | 'checking' | 'ready'} | {status: 'error'; error: Error};
-export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { diagnostics?: MobileDiagnostics; betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]} }
+export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { errorLog?: (deps: {preferences: PreferenceStore; sessions: SessionController; api: ReturnType<typeof createMobileApi>; generateIdentifier: () => string}) => MobileErrorLog; diagnostics?: MobileDiagnostics; betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]} }
 /** Construct once at the app root; start before mounting account-bound watchers. */
 export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   const bridge = options.nativeBridge ?? loadLegacyBridge();
@@ -66,6 +68,8 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   let accountGeneration = 0, stopping = false;
   let startPromise: Promise<void> | null = null, hasLease = false;
   let storageReady: Promise<void> | null = null, environmentReady: Promise<void> | null = null;
+  let errorLog: MobileErrorLog = noopErrorLog;
+  let syncConnectedAt: number | undefined, connectStartedAt: number | undefined;
   let upgradeState: UpgradeState = {status: 'idle'};
   const listeners = new Set<(state: UpgradeState) => void>();
   const emit = (state: UpgradeState) => { upgradeState = state; listeners.forEach(listener => listener(state)); };
@@ -94,13 +98,20 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       if (!current()) return;
       const credentials = await connector.prepareConnection();
       if (credentials && current()) {
-        clearSyncRetry(); syncFailures = 0; connectionRequested = true;
-        void opened.connect(connector, {params: SYNC_PARAMETERS}).catch(() => {if (generation === accountGeneration) connectionRequested = false;});
+        clearSyncRetry(); connectionRequested = true; connectStartedAt = Date.now();
+        void opened.connect(connector, {params: SYNC_PARAMETERS}).catch(error => {
+          if (generation !== accountGeneration) return;
+          connectionRequested = false;
+          const info = captureSyncFailure('app.connect', error, 'connect');
+          emitPhase(info.phase, 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
+          noteSyncFailure(opened, generation);
+        });
       }
-    }).catch(() => {
+    }).catch(error => {
       if (current() && readiness.getSnapshot().status === 'ready') {
-        clearSyncRetry();
-        syncRetry = setTimeout(() => {syncRetry = undefined; void connectAccount(opened, generation);}, Math.min(300000, 5000 * 2 ** Math.min(syncFailures++, 6)));
+        const info = captureSyncFailure('app.credentials', error, 'token');
+        emitPhase('token', 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
+        noteSyncFailure(opened, generation);
       }
     }).finally(() => {if (connecting === attempt) connecting = undefined;});
     connecting = attempt; return attempt;
@@ -222,8 +233,105 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   const diagnosticExchanges = createAccountDiagnostics(options.diagnostics?.sink ?? noDiagnostics, () => sessions.captureRequestScope().assertCurrent);
   const api = createMobileApi({...options, fetch: options.fetch ?? expoFetch, sessions,
     getDeviceId: () => preferences.deviceId(() => bridge.newIdentifier()),
+    onFailure: failure => {
+      try {
+        if (failure.status !== undefined && failure.status < 500) return;
+        if (failure.path === '/v1/sync/token' || failure.path === '/v1/sync/changes') return;
+        const message = failure.status !== undefined ? `${failure.method.toUpperCase()} ${failure.path} failed (${failure.status})` : `${failure.method.toUpperCase()} ${failure.path} network failure`;
+        errorLog.capture('network', Object.assign(new Error(message), {name: 'ApiRequestError'}), {source: 'api', phase: 'request', method: failure.method, path: failure.path, ...(failure.status !== undefined ? {status: failure.status} : {}), ...(failure.ray ? {ray: failure.ray} : {})});
+      } catch {}
+    },
     onFailedExchange: diagnosticExchanges.failed, onAccountSuccess: diagnosticExchanges.succeeded});
+  const baseErrorLog = options.errorLog?.({preferences, sessions, api, generateIdentifier: () => bridge.newIdentifier()}) ?? noopErrorLog;
+  errorLog = {
+    capture: (kind, error, properties = {}) => {
+      try {
+        return baseErrorLog.capture(kind, error, {
+          online: network.getSnapshot() !== 'offline',
+          foreground: activity.isForeground(),
+          consecutive_failures: syncFailures,
+          ...(syncConnectedAt !== undefined ? {connection_ms: Math.max(0, Date.now() - syncConnectedAt)} : {}),
+          ...properties
+        });
+      } catch {
+        return undefined;
+      }
+    },
+    flush: hiding => baseErrorLog.flush(hiding)
+  };
+  const observationId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
+  // Observations belong to the signed-in account that produced them; a retired account sends nothing.
+  const sendSyncEvent = (event_name: 'powersync_phase' | 'powersync_connection_lost', properties: Record<string, string | number | boolean>) => {
+    try {
+      if (stopping || !accountLease || sessions.getSnapshot().status !== 'authenticated') return;
+      const generation = accountGeneration;
+      void preferences.deviceId(() => bridge.newIdentifier()).then(deviceId => {
+        if (generation !== accountGeneration || stopping) return;
+        return api.sendClientEvents(deviceId, [{event_name, occurred_at: new Date().toISOString(), properties: {observation_id: observationId, ...properties}}]);
+      }).catch(() => undefined);
+    } catch {}
+  };
+  const emitPhase = (phase: 'token' | 'connect' | 'stream' | 'upload', outcome: 'success' | 'failure', properties: Record<string, string | number | boolean> = {}) => sendSyncEvent('powersync_phase', {phase, outcome, ...properties});
+  const captureSyncFailure = (source: string, error: unknown, phase: 'token' | 'connect' | 'stream' | 'upload', stage?: string) => {
+    const phaseProperty = typeof error === 'object' && error !== null && (error as {phase?: unknown}).phase === 'token' ? 'token' : phase;
+    const ray = typeof error === 'object' && error !== null && typeof (error as {ray?: unknown}).ray === 'string' ? (error as {ray: string}).ray : undefined;
+    const fingerprint = errorLog.capture('powersync', error ?? {name: 'PowerSyncError', message: source}, {source, phase: phaseProperty, ...(stage ? {stage} : {}), ...(ray ? {ray} : {})});
+    return {fingerprint, ray, phase: phaseProperty};
+  };
+  const noteSyncFailure = (opened: Database, generation: number) => {
+    if (stopping || network.getSnapshot() === 'offline') return;
+    const delay = Math.min(120000, 5000 * 2 ** Math.min(syncFailures, 5));
+    syncFailures += 1;
+    clearSyncRetry();
+    syncRetry = setTimeout(() => {syncRetry = undefined; void connectAccount(opened, generation);}, delay);
+  };
+  // The SDK logs one stream failure twice ("Could not POST streaming…", then "Sync error") within
+  // milliseconds and then retries on its own fixed delay; the window counts that failure once.
+  const SDK_DUPLICATE_WINDOW_MS = 1000;
+  const stopForStreamFailure = () => {
+    const opened = database, generation = accountGeneration;
+    if (!opened || stopping) return;
+    connectionRequested = false; syncConnectedAt = undefined;
+    void opened.disconnect().catch(() => undefined);
+    noteSyncFailure(opened, generation);
+  };
+  const createSyncLogger = () => {
+    const consoleLogger = createConsoleLogger();
+    let windowKey = '', windowStart = 0;
+    return {
+      log(record: {level: number; message: string; error?: unknown}) {
+        consoleLogger.log(record as never);
+        // The SDK calls this from its sync loop without a guard, so nothing here may throw.
+        try {
+          if (record.level < LogLevels.error) return;
+          const streamFailure = record.message === 'Sync error' || record.message.startsWith('Could not POST streaming');
+          const captured = record.error ?? {name: 'PowerSyncLog', message: record.message};
+          const key = captured instanceof Error ? `${captured.name}:${captured.message}` : record.message;
+          const now = Date.now();
+          if (key === windowKey && now - windowStart < SDK_DUPLICATE_WINDOW_MS) return;
+          windowKey = key; windowStart = now;
+          const info = captureSyncFailure('sdk.logger', captured, 'stream');
+          if (!streamFailure) return;
+          emitPhase(info.phase, 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
+          stopForStreamFailure();
+        } catch {}
+      }
+    };
+  };
   const connector = createSyncConnector(api, preferences, sessions, options.localSyncEndpoint);
+  // Wrap the upload for phase observations; a connector without uploads (test doubles) is left as is.
+  const uploadData = typeof connector.uploadData === 'function' ? connector.uploadData.bind(connector) : undefined;
+  if (uploadData) connector.uploadData = async database => {
+    const startedAt = Date.now();
+    try {
+      await uploadData(database);
+      emitPhase('upload', 'success', {step: 'submit', duration_ms: Math.max(0, Date.now() - startedAt)});
+    } catch (error) {
+      const info = captureSyncFailure('connector.upload', error, 'upload');
+      emitPhase('upload', 'failure', {step: 'submit', ...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
+      throw error;
+    }
+  };
   const readiness = new CredentialReadiness({
     read: () => sessions.getSession(),
     async refresh(signal) {
@@ -283,8 +391,25 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       const [{PowerSyncDatabase}, schema] = await sdkReady;
       if (stopping) throw new AccountInactiveError();
       database = await activity.whileActive(async () => {
-        const opened = new PowerSyncDatabase({schema, database: {dbFilename: 'powersync.db', dbLocation: inventory.newDatabaseDirectory}});
-        try {await opened.init(); return opened;} catch (error) {await opened.close(); throw error;}
+        const opened = new PowerSyncDatabase({schema, database: {dbFilename: 'powersync.db', dbLocation: inventory.newDatabaseDirectory}, logger: createSyncLogger()});
+        try {await opened.init();} catch (error) {await opened.close(); throw error;}
+        // Connection status only drives backoff resets and uptime; a missing listener must not fail startup.
+        try {
+          opened.registerListener?.({statusChanged: status => {
+            if (status.connected) {
+              if (syncConnectedAt === undefined) {
+                syncConnectedAt = Date.now();
+                emitPhase('connect', 'success', connectStartedAt !== undefined ? {duration_ms: Math.max(0, syncConnectedAt - connectStartedAt)} : {});
+                connectStartedAt = undefined;
+              }
+              syncFailures = 0; clearSyncRetry();
+            } else if (syncConnectedAt !== undefined && !status.connecting) {
+              syncConnectedAt = undefined;
+              if (connectionRequested && !stopping && network.getSnapshot() !== 'offline' && activity.isForeground()) sendSyncEvent('powersync_connection_lost', {reason: 'stream_lost'});
+            }
+          }});
+        } catch {}
+        return opened;
       });
       if (stopping) throw new AccountInactiveError();
     })();
@@ -299,6 +424,8 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
         }).catch(() => undefined);
       } catch (reason) {
         const error = reason instanceof Error ? reason : new Error('Application data initialization failed');
+        const info = captureSyncFailure('app.init', error, 'connect', 'init');
+        emitPhase('connect', 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
         if (__DEV__) console.error('[mobile] data initialization failed', error);
         network.stop(); readiness.pause(); connector.pause();
         const previousBackground = revokeAccountScope(); await previousBackground?.close(); adminCache = null;
@@ -323,7 +450,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   }
   recordDiagnostic(options.diagnostics?.sink, 'app.launch', {});
   return {
-    preferences, sessions, api, start, stop,
+    errorLog, preferences, sessions, api, start, stop,
     diagnostics: options.diagnostics,
     credentials: readiness as CredentialReadiness | undefined,
     setForeground: (foreground: boolean) => activity.setForeground(foreground),
