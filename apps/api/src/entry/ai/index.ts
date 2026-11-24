@@ -10,7 +10,7 @@ import { getRouter } from '@/di/router'
 import { EDGE_RAY_ID_HEADER } from '@/const/edge'
 import { applyApiResponseHeaders } from '@/middleware/cors'
 import { VectorIndexRepo } from '@/infra/repository/vectorIndexRepo'
-import type { ArticleQueryOptions, VectorIndexKind, VectorQueryOptions } from '@/utils/vectorMaintenanceTypes'
+import type { VectorIndexKind, VectorIndexQueryOptions } from '@/utils/vectorMaintenanceTypes'
 
 initializeCore()
 
@@ -29,11 +29,7 @@ export class AiEntry extends WorkerEntrypoint<Env> {
     return this.vectors.getVectorsByIds(kind, ids)
   }
 
-  async queryVectors(
-    kind: 'article' | 'collection',
-    vector: number[],
-    options: ArticleQueryOptions | VectorQueryOptions
-  ): Promise<{ id: string; score: number; values?: number[] }[]> {
+  async queryVectors(kind: 'article' | 'collection', vector: number[], options: VectorIndexQueryOptions): Promise<{ id: string; score: number; values?: number[] }[]> {
     return this.vectors.queryVectors(kind, vector, options)
   }
 

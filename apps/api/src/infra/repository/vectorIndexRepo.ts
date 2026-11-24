@@ -1,5 +1,5 @@
 import { normalized } from '@/utils/vectorEmbedding'
-import type { ArticleQueryOptions, VectorIndexKind, VectorQueryOptions } from '@/utils/vectorMaintenanceTypes'
+import type { ArticleQueryOptions, VectorIndexKind, VectorIndexQueryOptions } from '@/utils/vectorMaintenanceTypes'
 
 export type VectorIndexRpc = Pick<VectorIndexRepo, 'getVectorsByIds' | 'upsertVectors' | 'deleteVectorsByIds' | 'queryVectors'>
 
@@ -64,11 +64,7 @@ export class VectorIndexRepo {
     return this.nativeIndex(kind).getByIds(ids)
   }
 
-  async queryVectors(
-    kind: 'article' | 'collection',
-    vector: number[],
-    options: ArticleQueryOptions | VectorQueryOptions
-  ): Promise<{ id: string; score: number; values?: number[] }[]> {
+  async queryVectors(kind: 'article' | 'collection', vector: number[], options: VectorIndexQueryOptions): Promise<{ id: string; score: number; values?: number[] }[]> {
     if (kind !== 'article' && kind !== 'collection') throw new Error('invalid_v5_query_index')
     const topK = options?.limit ?? 20
     const returnValues = options?.values === true

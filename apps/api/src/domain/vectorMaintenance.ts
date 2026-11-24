@@ -947,7 +947,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
   }
 
   async queryArticles(vector: number[], options: ArticleQueryOptions) {
-    const matches = await this.index.query('article', normalized(vector), { ...options, values: false })
+    const matches = await this.index.query('article', normalized(vector), options)
     return matches.map(match => articleCandidate(match))
   }
 
@@ -961,7 +961,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
   }
 
   async queryCollections(vector: number[], options: VectorQueryOptions = {}) {
-    const matches = await this.index.query('collection', normalized(vector), { ...options, values: false })
+    const matches = await this.index.query('collection', normalized(vector), options)
     return matches.map(match => {
       const parts = /^c:([1-9]\d*)$/.exec(match.id)
       if (!parts || !Number.isFinite(match.score)) throw new Error('invalid_collection_candidate')

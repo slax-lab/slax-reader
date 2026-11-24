@@ -1,6 +1,6 @@
 import { injectable } from '@/decorators/di'
 import { VectorIndexRepo, type VectorIndexRpc } from './vectorIndexRepo'
-import type { ArticleQueryOptions, VectorIndexKind, VectorQueryOptions } from '@/utils/vectorMaintenanceTypes'
+import type { VectorIndexKind, VectorIndexQueryOptions } from '@/utils/vectorMaintenanceTypes'
 
 @injectable()
 export class VectorIndexClient {
@@ -26,7 +26,7 @@ export class VectorIndexClient {
     return this.rpc.deleteVectorsByIds(kind, ids)
   }
 
-  query(kind: 'article' | 'collection', vector: number[], options: ArticleQueryOptions | VectorQueryOptions): Promise<{ id: string; score: number; values?: number[] }[]> {
+  query(kind: 'article' | 'collection', vector: number[], options: VectorIndexQueryOptions): Promise<{ id: string; score: number; values?: number[] }[]> {
     return this.rpc.queryVectors(kind, vector, options)
   }
 }

@@ -36,9 +36,10 @@ export interface ArticleVectorCandidate extends VectorCandidate {
 
 export interface VectorQueryOptions {
   limit?: number
-  /** Return each match's stored values; the native index then caps topK at 50. */
-  values?: boolean
 }
+
+/** Repository-level options: `values` returns each match's stored values, and the native index then caps topK at 50. */
+export type VectorIndexQueryOptions = (ArticleQueryOptions | VectorQueryOptions) & { values?: boolean }
 
 export type ArticleQueryOptions = VectorQueryOptions & ({ userId: number; recommendable?: never } | { recommendable: true; userId?: never })
 

@@ -66,6 +66,18 @@ The Web app from this branch ran locally (`pnpm web -- dev`, `http://localhost:3
 
 - Test environment before the change (`wrangler tail` on `reader-ai`, SIN colo, user 1, eight requests for "AI", "阅读", "open source" and "cloudflare worker"): server wall time 2.1–3.4 s; V5 branch 1.0–2.2 s for 100 candidates; candidate preparation 0.25–0.9 s; fulltext 0.22–0.46 s; raw text and admission 0.07–0.1 s.
 - Native `getByIds` accepts at most 20 ids per call, so 100 candidates took five reads after the query. Timed from a local Worker with remote bindings (each call adds a round trip from the workstation, so absolute values are high): query topK 100 without values 0.38–1.0 s, then five `getByIds` reads 1.0–2.9 s; query topK 50 with values 0.72–1.5 s in one call.
-- Change: one query with `returnValues: true` and topK 50 (the native limit with values). Semantic hits per query are now at most 50; on the earlier test comparison only "AI" exceeded that (70 kept of 100).
+- Change: one query with `returnValues: true` and topK 50 (the native limit with values).
+- Kept semantic hits, old (100 candidates, `getByIds`) against new (50 candidates with values), computed by a local read-only Worker with remote bindings to the test V5 index and the cached query embeddings, user 1, same centering, floor and relative bound:
+
+| Keyword | Kept, old → new | Best hit | Old top 10 still kept | Order of shared hits |
+|---|---|---|---|---|
+| AI | 70 → 46 | same (0.486) | 10 / 10 | same |
+| 阅读 | 13 → 13 | same (0.530) | 10 / 10 | same |
+| open source | 23 → 23 | same (0.615) | 10 / 10 | same |
+| cloudflare worker | 17 → 17 | same (0.752) | 10 / 10 | same |
+| xqzv lorem 9981 | 0 → 0 | 0.321, below the floor | – | – |
+
+  No hit appears only in the new set. For "AI" the 24 hits that are no longer returned start at old rank 19 (19, 29, 35, 37, 39, …); they are hits whose raw cosine falls outside the raw top 50.
+- Intent: the goal of this change is a faster and more precise semantic branch, not broader recall. More candidates do not make the result better: the hits dropped for a broad keyword are the low-ranked tail, while the best hit, the top 10 and the order of shared hits are unchanged. The change requester confirmed on 2026-11-24 that the smaller, more precise hit set is the intended result, not a regression to be compensated.
 - `pnpm api -- test`: 285 files passed, 20 skipped; 4,543 tests passed, 166 skipped. Layer architecture 45 passed; typecheck passed; `openspec validate --all --strict` passed.
-- Not verified yet: timings in the test environment after deployment.
+- Not verified yet: `/v1/bookmark/search` timings and hit sets in the test environment after deployment; the comparison above computes the semantic branch only. They are recorded after the dev release publishes this change.
