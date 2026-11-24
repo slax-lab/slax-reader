@@ -480,9 +480,7 @@ describe('chat — handleData 流式分支', () => {
     })
   })
 
-  // 用例 9：tool search finished_failed → STATUS_UPDATE（codex 第 1 轮 P2 第 3 条修订）
-  // 源码 line 230-234：tips 复用 search_finished，status='finished'（与官方设计一致）
-  it('tool search finished_failed → STATUS_UPDATE', async () => {
+  it('reports a failed web search as failed', async () => {
     const callback = vi.fn()
     const bot = new ChatBot({ bookmarkId: 1 }, callback)
     await bot.chat({ type: ChatParamsType.CONTENT, content: 'q' })
@@ -503,8 +501,8 @@ describe('chat — handleData 流式分支', () => {
       data: {
         [ChatResponseType.STATUS_UPDATE]: {
           name: 'search',
-          tips: '__T__util.chatbot.search_finished',
-          status: 'finished'
+          tips: '__T__component.chat_bot.search_failed',
+          status: 'failed'
         }
       }
     })
