@@ -18,6 +18,7 @@ export interface ShareCollectionItem {
   cb_id: number
   bookmark_uuid: string
   site_name: string
+  host_url: string
   mark_count: number
   starred_at: string
   created_at: string

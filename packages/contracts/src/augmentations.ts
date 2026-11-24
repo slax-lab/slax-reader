@@ -241,6 +241,7 @@ declare module '@slax-reader/contracts/interface' {
     // 卡片直跳 /b/{bookmark_uuid}
     bookmark_uuid?: string
     site_name?: string
+    host_url?: string
     // 全部非回复 mark 数（后端 stats 表 comment_count）
     mark_count?: number
     // 星标时间；展示/分组统一按 starred_at
