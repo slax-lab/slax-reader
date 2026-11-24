@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { parseHTML } from 'linkedom'
-import { SearchService, type hybridSearchItem } from '@/domain/search'
+import { FULLTEXT_HIGHLIGHT_LIMIT, SearchService, type hybridSearchItem } from '@/domain/search'
 import { escapeHtml } from '@/utils/escape'
 import { rerank } from '@/utils/hybridSearch/rerank'
 
 vi.mock('@/utils/hybridSearch/normalizer', () => ({
   Normalizer: class {
     async processSearchKeyword(keyword: string) {
-      return keyword
+      return { full: keyword, title: `title:${keyword}`, content: `content:${keyword}` }
     }
   }
 }))
@@ -77,16 +77,72 @@ describe('search highlight rendering boundary', () => {
     expect(result!.content).toBeUndefined()
   })
 
-  test('keeps legacy fulltext row-ID batches at 50 without dropping the remainder', async () => {
-    const searchRepo = { seachBM25: vi.fn().mockResolvedValue([]) }
-    const service = new SearchService({} as never, {} as never, searchRepo as never, {} as never)
+  test('ranks every candidate row in one query and highlights only the best-ranked rows', async () => {
     const items = Array.from({ length: 125 }, (_, index) => ({ bmId: index + 1, shardIdx: 0, rowId: 1000 + index }))
+    const ranked = items.map((item, index) => ({ row_id: item.rowId, bookmark_id: item.bmId, score: -100 + index }))
+    const searchRepo = {
+      rankFulltextRows: vi.fn().mockResolvedValue(ranked),
+      getFulltextHighlights: vi.fn(async (ids: number[]) =>
+        ids.map(id => ({ row_id: id, raw_title: `title ${id}`, raw_content: `body ${id}`, title_snippet: `[highlight]title[/highlight] ${id}`, content_snippet: `[highlight]body[/highlight] ${id}` }))
+      ),
+      getFulltextRawPrefixes: vi.fn(async (ids: number[]) => ids.map(id => ({ row_id: id, raw_title: `prefix title ${id}`, raw_content: `prefix body ${id}` })))
+    }
+    const service = new SearchService({} as never, {} as never, searchRepo as never, {} as never)
+    const expressions = { full: 'full', title: 'title:x', content: 'content:x' }
 
-    await service.fulltextSearch({} as never, 'saved', items)
+    const results = await service.fulltextSearch({} as never, expressions, items)
 
-    expect(searchRepo.seachBM25.mock.calls.map(([ids]) => ids.length)).toEqual([50, 50, 25])
-    expect(searchRepo.seachBM25.mock.calls.flatMap(([ids]) => ids)).toEqual(items.map(item => item.rowId))
-    expect(searchRepo.seachBM25.mock.calls.every(([, keyword]) => keyword === 'saved')).toBe(true)
+    expect(searchRepo.rankFulltextRows).toHaveBeenCalledTimes(1)
+    expect(searchRepo.rankFulltextRows).toHaveBeenCalledWith(items.map(item => item.rowId), 'full')
+    expect(searchRepo.getFulltextHighlights).toHaveBeenCalledWith(ranked.slice(0, FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id), expressions)
+    expect(searchRepo.getFulltextRawPrefixes).toHaveBeenCalledWith(ranked.slice(FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id))
+    expect(results.map(row => row.bookmark_id)).toEqual(ranked.map(row => row.bookmark_id))
+    expect(results.map(row => row.score)).toEqual(ranked.map(row => row.score))
+    expect(results[0]).toMatchObject({ title_snippet: '[highlight]title[/highlight] 1000', raw_content: 'body 1000' })
+    expect(results[FULLTEXT_HIGHLIGHT_LIMIT]).toMatchObject({ title_snippet: '', content_snippet: '', raw_content: `prefix body ${1000 + FULLTEXT_HIGHLIGHT_LIMIT}` })
+  })
+
+  test('keeps only the best-scoring shard of a bookmark and highlights it', async () => {
+    const searchRepo = {
+      rankFulltextRows: vi.fn().mockResolvedValue([
+        { row_id: 31, bookmark_id: 3, score: -9 },
+        { row_id: 41, bookmark_id: 4, score: -5 },
+        { row_id: 32, bookmark_id: 3, score: -1 }
+      ]),
+      getFulltextHighlights: vi.fn(async (ids: number[]) => ids.map(id => ({ row_id: id, raw_title: `t${id}`, raw_content: `b${id}`, title_snippet: '', content_snippet: `[highlight]${id}[/highlight]` }))),
+      getFulltextRawPrefixes: vi.fn().mockResolvedValue([])
+    }
+    const service = new SearchService({} as never, {} as never, searchRepo as never, {} as never)
+
+    const results = await service.fulltextSearch({} as never, { full: 'f', title: 't', content: 'c' }, [31, 32, 41].map(rowId => ({ bmId: 0, shardIdx: 0, rowId })))
+
+    expect(results.map(row => [row.bookmark_id, row.score])).toEqual([[3, -9], [4, -5]])
+    expect(searchRepo.getFulltextHighlights).toHaveBeenCalledWith([31, 41], { full: 'f', title: 't', content: 'c' })
+    expect(results[0].content_snippet).toBe('[highlight]31[/highlight]')
+  })
+
+  test('fails the fulltext branch instead of returning a partial result', async () => {
+    const searchRepo = { rankFulltextRows: vi.fn().mockRejectedValue(new Error('D1 DB is overloaded')), getFulltextHighlights: vi.fn(), getFulltextRawPrefixes: vi.fn() }
+    const service = new SearchService({} as never, {} as never, searchRepo as never, {} as never)
+
+    await expect(service.fulltextSearch({} as never, { full: 'f', title: 't', content: 'c' }, [{ bmId: 1, shardIdx: 0, rowId: 2 }])).rejects.toThrow('D1 DB is overloaded')
+    expect(searchRepo.getFulltextHighlights).not.toHaveBeenCalled()
+  })
+
+  test('keeps vector results when the fulltext branch fails', async () => {
+    const repo = {getSearchEligibleBookmarks: vi.fn()
+      .mockResolvedValueOnce([{bookmark_id: 12, uuid: 'vector-uuid'}])
+      .mockResolvedValueOnce([{bookmark_id: 12, uuid: 'vector-uuid', created_at: new Date('2026-10-21T00:00:00Z'), bookmark: {target_url: 'https://vector.example/article'}}])}
+    const searchRepo = { getBookmarkRaw: vi.fn().mockResolvedValue([{ bookmark_id: 12, raw_title: 'Vector title', raw_content: 'Vector body' }]) }
+    const service = new SearchService(repo as never, {getUserSubscriptionInfo: vi.fn().mockResolvedValue(null)} as never, searchRepo as never, {} as never)
+    vi.spyOn(service, 'getUserBookmarkItem').mockResolvedValue([{bmId: 12, shardIdx: 0, rowId: 22}])
+    vi.spyOn(service, 'fulltextSearch').mockRejectedValue(new Error('D1 DB is overloaded'))
+    vi.spyOn(service, 'semanticSearch').mockResolvedValue([{ id: '12_0', score: 0.9 }])
+
+    const results = await service.hybridSearch({getUserId: () => 7, env: {}} as never, 'body')
+
+    expect(results).toHaveLength(1)
+    expect(results[0]).toMatchObject({ bookmark_id: 12, type: 'vector' })
   })
 
   test('escapes stored FTS and vector rows through hybridSearch with existing ID-only cache entries', async () => {
@@ -110,14 +166,15 @@ describe('search highlight rendering boundary', () => {
       ])
     }
     const searchRepo = {
-      seachBM25: vi.fn().mockResolvedValue([{
-        bookmark_id: 11,
-        score: -2,
+      rankFulltextRows: vi.fn().mockResolvedValue([{ row_id: 21, bookmark_id: 11, score: -2 }]),
+      getFulltextHighlights: vi.fn().mockResolvedValue([{
+        row_id: 21,
         raw_title: fts.title,
         raw_content: fts.content,
         title_snippet: fts.highlight_title,
         content_snippet: fts.highlight_content
       }]),
+      getFulltextRawPrefixes: vi.fn().mockResolvedValue([]),
       getBookmarkRaw: vi.fn().mockResolvedValue([{ bookmark_id: 12, raw_title: vector.title, raw_content: vector.content }])
     }
     const service = new SearchService(
@@ -130,7 +187,8 @@ describe('search highlight rendering boundary', () => {
     const results = await service.hybridSearch({ getUserId: () => 7, env: { KV: kv } } as never, 'saved')
 
     expect(results).toHaveLength(2)
-    expect(searchRepo.seachBM25).toHaveBeenCalledWith([21, 22], 'saved')
+    expect(searchRepo.rankFulltextRows).toHaveBeenCalledWith([21, 22], 'saved')
+    expect(searchRepo.getFulltextHighlights).toHaveBeenCalledWith([21], { full: 'saved', title: 'title:saved', content: 'content:saved' })
     expect(searchRepo.getBookmarkRaw).toHaveBeenCalledWith([12])
     expect(results.map(item => item.type).sort()).toEqual(['fts', 'vector'])
     for (const result of results) {
@@ -161,7 +219,7 @@ describe('search highlight rendering boundary', () => {
   test('rejects unknown or foreign requested tags before consulting cached FTS or vector candidates', async () => {
     const kv = { get: vi.fn(), put: vi.fn(), delete: vi.fn() }
     const repo = {getSearchEligibleBookmarks: vi.fn().mockResolvedValue([])}
-    const searchRepo = {seachBM25: vi.fn(), getBookmarkRaw: vi.fn()}
+    const searchRepo = {rankFulltextRows: vi.fn(), getBookmarkRaw: vi.fn()}
     const vectorRepo = {seachVector: vi.fn()}
     const service = new SearchService(
       repo as never,
@@ -175,7 +233,7 @@ describe('search highlight rendering boundary', () => {
     expect(results).toEqual([])
     expect(repo.getSearchEligibleBookmarks).toHaveBeenCalledWith(7, ['foreign-tag'])
     expect(kv.get).not.toHaveBeenCalled()
-    expect(searchRepo.seachBM25).not.toHaveBeenCalled()
+    expect(searchRepo.rankFulltextRows).not.toHaveBeenCalled()
     expect(vectorRepo.seachVector).not.toHaveBeenCalled()
   })
 })

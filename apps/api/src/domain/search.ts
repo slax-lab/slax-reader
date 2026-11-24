@@ -4,12 +4,15 @@ import { inject, injectable } from '@/decorators/di'
 import { SubscriptionRepo } from '@/infra/repository/dbSubscription'
 import { VectorizeRepo } from '@/infra/repository/dbVectorize'
 import { ContextManager } from '@/utils/context'
-import { Normalizer } from '@/utils/hybridSearch/normalizer'
+import { Normalizer, type fulltextExpressions } from '@/utils/hybridSearch/normalizer'
 import { vectorizeData, embedding } from '@/utils/hybridSearch/vectorize'
 import { mapHighlight } from '@/utils/hybridSearch/highlightMatch'
 import { BookmarkNotFoundError } from '@/const/err'
 import { rerank } from '@/utils/hybridSearch/rerank'
 import { escapeHtml } from '@/utils/escape'
+
+// Maximum number of fulltext hits that receive highlight snippets and full raw text
+export const FULLTEXT_HIGHLIGHT_LIMIT = 50
 
 export interface userBookmarkItem {
   bmId: number
@@ -147,11 +150,13 @@ export class SearchService {
 
     const bmList = bmListRes.status === 'fulfilled' ? bmListRes.value.filter(row => eligible.has(row.bmId)) : []
     const vectorizeResult = vectorizeResultRes.status === 'fulfilled' ? vectorizeResultRes.value : []
-    const jbSearchContent = jbSearchContentRes.status === 'fulfilled' ? jbSearchContentRes.value : ''
+    const fulltextExpressions = jbSearchContentRes.status === 'fulfilled' ? jbSearchContentRes.value : { full: '', title: '', content: '' }
 
     // 混合搜索
     const t2 = performance.now()
-    let [fulltextResult, semanticResult] = await Promise.allSettled([this.fulltextSearch(ctx, jbSearchContent, bmList), this.semanticSearch(ctx, vectorizeResult, bmList)])
+    let [fulltextResult, semanticResult] = await Promise.allSettled([this.fulltextSearch(ctx, fulltextExpressions, bmList), this.semanticSearch(ctx, vectorizeResult, bmList)])
+    if (fulltextResult.status === 'rejected')
+      console.error(`fulltext search failed: ${fulltextResult.reason instanceof Error ? fulltextResult.reason.message : String(fulltextResult.reason)}`)
     const fulltextRes = fulltextResult.status === 'fulfilled' ? fulltextResult.value : []
     const semanticRes = semanticResult.status === 'fulfilled' ? semanticResult.value : []
 
@@ -297,50 +302,41 @@ export class SearchService {
   }
 
   /**
-   * 全文搜索
-   * @param ctx
-   * @param env
-   * @param fulltextContent
-   * @param db
-   * @param userBookmarkItem
-   * @returns
+   * Fulltext search: one query ranks every candidate row, each bookmark keeps its best-scoring shard, and only the
+   * top FULLTEXT_HIGHLIGHT_LIMIT bookmarks read highlights and full raw text. The rest read a raw prefix, which
+   * mapHighlight turns into its no-highlight excerpt. Query failures propagate instead of returning partial hits.
    */
-  public async fulltextSearch(ctx: ContextManager, jbSearchContent: string, userBookmarkItem: userBookmarkItem[]): Promise<fulltextMatchItem[]> {
-    if (userBookmarkItem.length < 1 || jbSearchContent.length < 1) return []
+  public async fulltextSearch(ctx: ContextManager, expressions: fulltextExpressions, userBookmarkItem: userBookmarkItem[]): Promise<fulltextMatchItem[]> {
+    const rowIds = userBookmarkItem.map(item => item.rowId).filter(rowId => rowId > 0)
+    if (rowIds.length < 1 || !expressions.full) return []
 
     const t1 = performance.now()
-    // bm25单次搜50条左右的文章效率最高
-    // 分割bmIds为50条一组
-    // WARING: 这里只能是50条，不能改为别的。如果要改，必须要用explain Query plan真实SQL检查一次是否会全表搜索
-    const bmIdGroups = Array.from({ length: Math.ceil(userBookmarkItem.length / 50) }, (_, i) => userBookmarkItem.slice(i * 50, (i + 1) * 50))
-    const fullTextPromises = []
-    for (const bmIdGroup of bmIdGroups) {
-      if (bmIdGroup.length < 1) continue
-      fullTextPromises.push(
-        this.bookmarkSearchRepo.seachBM25(
-          bmIdGroup.map(item => item.rowId),
-          jbSearchContent
-        )
-      )
-    }
+    // Rows arrive by ascending bm25 (lower is more relevant); keep the first row seen for each bookmark
+    const seen = new Set<number>()
+    const ranked = (await this.bookmarkSearchRepo.rankFulltextRows(rowIds, expressions.full)).filter(row => {
+      if (seen.has(row.bookmark_id)) return false
+      seen.add(row.bookmark_id)
+      return true
+    })
+    const highlighted = ranked.slice(0, FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id)
+    const rest = ranked.slice(FULLTEXT_HIGHLIGHT_LIMIT).map(row => row.row_id)
+    const [highlights, prefixes] = await Promise.all([
+      this.bookmarkSearchRepo.getFulltextHighlights(highlighted, expressions),
+      this.bookmarkSearchRepo.getFulltextRawPrefixes(rest)
+    ])
+    const texts = new Map<number, { content_snippet: string; title_snippet: string; raw_content: string; raw_title: string }>()
+    for (const row of highlights) texts.set(row.row_id, row)
+    for (const row of prefixes) texts.set(row.row_id, { content_snippet: '', title_snippet: '', raw_content: row.raw_content, raw_title: row.raw_title })
+    console.log(`fulltext search candidates: ${rowIds.length}, matched: ${ranked.length}, time: ${performance.now() - t1} ms`)
 
-    console.log(`fulltext search candidates: ${userBookmarkItem.length}, tasks: ${fullTextPromises.length}`)
-
-    const res = (await Promise.allSettled(fullTextPromises))
-      .filter(item => item.status === 'fulfilled')
-      .flatMap(item => item.value)
-      .filter(item => !!item)
-      .sort((a, b) => b.score - a.score)
-
-    console.log(`fulltext search time: ${performance.now() - t1} ms`)
-    // const consoleRes = res.map(item => ({
-    //   bookmark_id: item.bookmark_id,
-    //   score: item.score,
-    //   content_snippet: item.content_snippet,
-    //   title_snippet: item.title_snippet
-    // }))
-    // console.log(`fulltext search result: ${JSON.stringify(consoleRes)}`)
-    return res
+    return ranked.map(row => ({
+      bookmark_id: row.bookmark_id,
+      score: row.score,
+      content_snippet: texts.get(row.row_id)?.content_snippet ?? '',
+      title_snippet: texts.get(row.row_id)?.title_snippet ?? '',
+      raw_content: texts.get(row.row_id)?.raw_content ?? '',
+      raw_title: texts.get(row.row_id)?.raw_title ?? ''
+    }))
   }
 
   /**
