@@ -89,6 +89,8 @@ export interface CrawlResult {
 
 export type WeixinFetched = { source: 'tikhub'; content: TikHubWeixinContent } | { source: 'legacy'; fetchRes: fetchResult }
 
+type ArticleFetchResult = fetchResult & { fallbackSiteName?: string }
+
 const DYNAMIC_LOADING_PLACEHOLDER_RE = /^(?:加载中|正在加载中?|loading|pleasewait|cancel|ok|确定|取消|加载中确定删除吗取消确定|确定删除吗取消确定)+$/i
 
 const ENABLE_JS_INSTRUCTIONS = [
@@ -887,7 +889,7 @@ export class CrawlService {
 
   public async parseAndSaveContent(
     ctx: ContextManager,
-    fetchRes: fetchResult,
+    fetchRes: ArticleFetchResult,
     bookmarkId: number,
     userBookmarkUuid: string,
     jsNoticeCheck?: 'initial' | 'retry'
@@ -906,7 +908,7 @@ export class CrawlService {
         console.warn(`Dynamic page returned a loading placeholder for ${fetchRes.url}`)
         throw FetchThreePartyError('Dynamic page returned a loading placeholder')
       }
-      return await this.saveParseRes(selected.parseRes, bookmarkId, userBookmarkUuid, selected.qualityReview, ctx)
+      return await this.saveParseRes(selected.parseRes, bookmarkId, userBookmarkUuid, selected.qualityReview, ctx, fetchRes.fallbackSiteName)
     }
 
     const parseRes = await this.createParseRes(ctx, fetchRes)
@@ -938,7 +940,7 @@ export class CrawlService {
     return this.scoreAndSaveArticle(ctx, parseRes, fetchRes, bookmarkId, userBookmarkUuid)
   }
 
-  private async scoreAndSaveArticle(ctx: ContextManager, parseRes: Preparse, fetchRes: fetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
+  private async scoreAndSaveArticle(ctx: ContextManager, parseRes: Preparse, fetchRes: ArticleFetchResult, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
     let qualityReview: ArticleQualityReview
     try {
       qualityReview = scoreArticleQuality({
@@ -950,7 +952,7 @@ export class CrawlService {
       console.warn(`Article quality scoring failed for ${fetchRes.url}: ${error instanceof Error ? error.message : String(error)}`)
       qualityReview = unavailableArticleQualityReview()
     }
-    return await this.saveParseRes(parseRes, bookmarkId, userBookmarkUuid, qualityReview, ctx)
+    return await this.saveParseRes(parseRes, bookmarkId, userBookmarkUuid, qualityReview, ctx, fetchRes.fallbackSiteName)
   }
 
   private async createBestParseRes(ctx: ContextManager, fetchRes: fetchResult): Promise<{ parseRes: Preparse; qualityReview: ArticleQualityReview }> {
@@ -1017,7 +1019,15 @@ export class CrawlService {
     return parseRes
   }
 
-  protected async saveParseRes(parseRes: Preparse, bookmarkId: number, userBookmarkUuid: string, qualityReview?: ArticleQualityReview, ctx?: ContextManager): Promise<CrawlResult> {
+  protected async saveParseRes(
+    parseRes: Preparse,
+    bookmarkId: number,
+    userBookmarkUuid: string,
+    qualityReview?: ArticleQualityReview,
+    ctx?: ContextManager,
+    fallbackSiteName?: string
+  ): Promise<CrawlResult> {
+    const siteName = fallbackSiteName && !parseRes.siteName.trim() ? fallbackSiteName : parseRes.siteName
     const content = await this.snapshots.capture(
       bookmarkId,
       userBookmarkUuid,
@@ -1026,7 +1036,7 @@ export class CrawlService {
         title: parseRes.title,
         description: parseRes.excerpt || '',
         byline: parseRes.byline || '',
-        site_name: parseRes.siteName || '',
+        site_name: siteName || '',
         published_at: parseRes.publishedTime
       },
       null,
@@ -1039,7 +1049,7 @@ export class CrawlService {
       textContent: parseRes.textContent,
       excerpt: parseRes.excerpt,
       byline: parseRes.byline,
-      siteName: parseRes.siteName,
+      siteName,
       publishedTime: parseRes.publishedTime,
       contentKey,
       publishedRevision: content.publishedRevision,
@@ -1416,7 +1426,7 @@ export class CrawlService {
   /** parse：legacy 用 HTML；tikhub 合成 swiper/文章页后走 parseAndSaveContent */
   public async parseAndSaveWeixin(ctx: ContextManager, fetched: WeixinFetched, url: string, bookmarkId: number, userBookmarkUuid: string): Promise<CrawlResult> {
     if (fetched.source === 'legacy') {
-      return await this.parseAndSaveContent(ctx, fetched.fetchRes, bookmarkId, userBookmarkUuid)
+      return await this.parseAndSaveContent(ctx, { ...fetched.fetchRes, fallbackSiteName: '微信' }, bookmarkId, userBookmarkUuid)
     }
 
     const content = fetched.content
