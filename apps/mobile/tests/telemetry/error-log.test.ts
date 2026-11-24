@@ -54,3 +54,12 @@ test('a non-numeric user id is omitted and a missing screen adds no property', a
   assert.equal(record.user_id, undefined);
   assert.equal(record.properties?.screen, undefined);
 });
+
+test('a device id outside the admission pattern is left out so the record is kept', async context => {
+  const f = await setup('https://ingest.example', {auth_token: 'token', user_id: '42', analytics_device_id: 'legacy.device:id'}); context.after(f.restore);
+  f.log.capture('error', new Error('boom'));
+  await f.log.flush(true);
+  const [record] = f.records();
+  assert.equal(record.device_id, undefined);
+  assert.equal(record.user_id, '42');
+});

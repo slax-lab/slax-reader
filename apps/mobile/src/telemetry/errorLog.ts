@@ -21,7 +21,9 @@ export function createMobileErrorLog(options: MobileErrorLogOptions): MobileErro
   let cached: {env: string; collector: ErrorCollector} | undefined;
   let deviceId: string | undefined;
   try {
-    void options.preferences.deviceId(options.generateIdentifier).then(id => {deviceId = id;}).catch(() => undefined);
+    // The Mobile pipeline drops a record whose device id breaks its pattern; an id carried over from the
+    // legacy app may, so such an id is left out rather than losing the record.
+    void options.preferences.deviceId(options.generateIdentifier).then(id => {if (/^[A-Za-z0-9_-]{8,128}$/.test(id)) deviceId = id;}).catch(() => undefined);
   } catch {}
   const collector = () => {
     const env = options.env();
