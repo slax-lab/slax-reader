@@ -9,11 +9,11 @@ API, shared packages, Web and Mobile on `feat/client-error-diagnostics`. The Ext
 All run on the branch head unless noted; results as of 2026-11-24.
 
 - `pnpm exec openspec validate --all --strict`: 173 passed, 0 failed.
-- API (with `HYPERDRIVE_DATABASE_URL`/`LOGS_DATABASE_URL` set to the CI generation-only URLs, after `config:init` and `gen:all`): `pnpm api -- typecheck` passed; `pnpm api -- lint` 0 errors (334 existing warnings); `pnpm api -- test` 282 files, 4534 passed, 166 skipped. Seven new API tests were checked to fail with their change reverted.
+- API (with `HYPERDRIVE_DATABASE_URL`/`LOGS_DATABASE_URL` set to the CI generation-only URLs, after `config:init` and `gen:all`): `pnpm api -- typecheck` passed; `pnpm api -- lint` 0 errors (334 existing warnings); `pnpm api -- test` 4555 passed, 166 skipped. Seven new API tests were checked to fail with their change reverted.
 - Contracts: `pnpm --filter @slax-reader/contracts typecheck` passed, including the event payload type test.
 - Web: `pnpm --filter @apps/slax-reader-dweb typecheck` passed; eslint and Prettier (`--config ../api/.prettierrc.mjs`) clean on touched files; `pnpm web -- test` 3401 passed, 3 skipped before the final rebase onto `origin/dev`. On this machine, under a load average near 900, each later full run timed out a different test this change does not touch (`useSlaxRoutes` “#imports 解析到 fork 版”, `errorLog` oversized properties, and two suite hooks at 30 s); each passes alone. The new backoff, request-capture and Mobile tests were each checked to fail without their fix. The pull request's CI run is the clean full run.
 - Extension: `pnpm --filter @apps/slax-reader-extensions compile` passed; `pnpm extension -- test` 27 files, 127 passed.
-- Mobile: `pnpm mobile -- check` (architecture, typecheck, tests) 1365 tests, 1360 passed, 0 failed, 5 skipped; `pnpm mobile -- bundle` passed; `pnpm mobile -- config` shows `1.0.34` and build `809` on both platforms.
+- Mobile: `pnpm mobile -- check` (architecture, typecheck, tests) 1373 tests, 1367 passed, 5 skipped; the one failure was a 30 s Playwright timeout in `tests/reader/pdf-browser.test.mjs`, which this change does not touch, and it passes alone (4 passed); `pnpm mobile -- bundle` passed; `pnpm mobile -- config` shows `1.0.34` and build `809` on both platforms.
 
 ## Running-environment evidence
 
@@ -42,12 +42,12 @@ Scenarios and the tests that cover them (Web `apps/web/tests/unit/**`, Mobile `a
 
 - `backend-error-diagnostics` / RSS refresh commit retains cause: the API test asserts feed id, name, message, code, meta, no ray and no URL.
 - `backend-error-diagnostics` / Sync save retains cause and Ray ID: single-change table/op, multi-change count, with and without `CF-Ray`.
-- `backend-error-diagnostics` / AI summary retains provider fields: provider status/reference, absent fields omitted, one entry per request.
+- `backend-error-diagnostics` / AI summary retains provider fields: provider status/reference, absent fields omitted, one entry per request; an error whose `message` or `toString` throws yields `Unknown error` instead of escaping (`test/utils/errorDiagnostic.test.ts`).
 - `backend-error-diagnostics` / Browser clients read Ray ID and timings: JSON and preflight responses expose `cf-ray` and send `Timing-Allow-Origin` for the three Web origins.
 - `backend-error-diagnostics` / Bookmark failure events: `bookmark_add_step_failed`, `unsupported_target`, `bookmark_save_failed` for non-persisted saves, `source_bookmark_id` kept.
 - `client-error-logs` / Mobile JS and render capture: chained global handler, release-only rejection tracking, render capture, throwing collector contained (`tests/telemetry/native-handlers.test.mjs`); empty endpoint sends nothing (`tests/telemetry/error-log.test.ts`).
-- `client-error-logs` / Failed API requests: Web 500 named by request, network error kept, 4xx ignored, streamed 5xx keeps status and ray (`requestCapture.spec.ts`, `requestFailure.spec.ts`); Mobile 500 with ray, `FetchError` network failure, 404, session/environment change and query stripping (`runtime-sync-observability.test.mjs`).
-- `client-error-logs` / PowerSync failures once: SDK duplicate window, one counting source per failure, non-stream SDK errors recorded without `phase=stream` or backoff (Web and Mobile).
+- `client-error-logs` / Failed API requests: Web 500 named by request, network error kept, 4xx ignored, streamed 5xx keeps status and ray (`requestCapture.spec.ts`, `requestFailure.spec.ts`); Mobile 500 with ray, `FetchError` network failure, 404, session/environment change and query stripping (`runtime-sync-observability.test.mjs`); Mobile PDF uploads that finally fail with a 5xx or network error report one failure and a 400 none (`pdf-api.test.ts`).
+- `client-error-logs` / PowerSync failures once: SDK duplicate window, one counting source per failure, both stream-failure messages of one episode counted once, non-stream SDK errors recorded without `phase` and without disconnecting or backing off (Web `powersync-reconnect-backoff.spec.ts`, Mobile `runtime-sync-observability.test.mjs`); the first failure reports `consecutive_failures: 1` on Mobile, as on Web.
 - `client-error-logs` / Ray correlation and host timing: upload and API ray, SDK stream without ray, `net` present and absent (`clientErrorContext.spec.ts`).
 - `client-error-logs` / Third-party script filtering: GTM/GA/Cloudflare skipped, Stripe and first-party recorded (`errorLog.spec.ts`).
 - `client-error-logs` / Ext-bridge attribution: store user, empty store, conflicting payload, `surface` property (`clientErrorLog.spec.ts`).

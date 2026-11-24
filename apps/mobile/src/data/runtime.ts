@@ -70,7 +70,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   let storageReady: Promise<void> | null = null, environmentReady: Promise<void> | null = null;
   let errorLog: MobileErrorLog = noopErrorLog;
   let syncConnectedAt: number | undefined, connectStartedAt: number | undefined, everConnected = false;
-  let downloadingSince: number | undefined, lastSyncedAt: Date | undefined;
+  let downloadingSince: number | undefined, lastSyncedAt: Date | undefined, apiFailures = 0;
   let upgradeState: UpgradeState = {status: 'idle'};
   const listeners = new Set<(state: UpgradeState) => void>();
   const emit = (state: UpgradeState) => { upgradeState = state; listeners.forEach(listener => listener(state)); };
@@ -102,7 +102,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
         clearSyncRetry(); connectionRequested = true; connectStartedAt = Date.now();
         void opened.connect(connector, {params: SYNC_PARAMETERS}).catch(error => {
           if (generation !== accountGeneration) return;
-          connectionRequested = false;
+          connectionRequested = false; syncFailures += 1;
           const info = captureSyncFailure('app.connect', error, 'connect');
           emitPhase(info.phase, 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
           noteSyncFailure(opened, generation);
@@ -110,6 +110,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       }
     }).catch(error => {
       if (current() && readiness.getSnapshot().status === 'ready') {
+        syncFailures += 1;
         const info = captureSyncFailure('app.credentials', error, 'token');
         emitPhase('token', 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
         noteSyncFailure(opened, generation);
@@ -238,20 +239,22 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       try {
         if (failure.status !== undefined && failure.status < 500) return;
         if (failure.path === '/v1/sync/token' || failure.path === '/v1/sync/changes') return;
+        apiFailures += 1;
         const message = failure.status !== undefined ? `${failure.method.toUpperCase()} ${failure.path} failed (${failure.status})` : `${failure.method.toUpperCase()} ${failure.path} network failure`;
-        errorLog.capture('network', Object.assign(new Error(message), {name: 'ApiRequestError'}), {source: 'api', phase: 'request', method: failure.method, path: failure.path, ...(failure.status !== undefined ? {status: failure.status} : {}), ...(failure.ray ? {ray: failure.ray} : {})});
+        errorLog.capture('network', Object.assign(new Error(message), {name: 'ApiRequestError'}), {source: 'api', phase: 'request', consecutive_failures: apiFailures, method: failure.method, path: failure.path, ...(failure.status !== undefined ? {status: failure.status} : {}), ...(failure.ray ? {ray: failure.ray} : {})});
       } catch {}
     },
+    onSuccess: () => {apiFailures = 0;},
     onFailedExchange: diagnosticExchanges.failed, onAccountSuccess: diagnosticExchanges.succeeded});
   const baseErrorLog = options.errorLog?.({preferences, sessions, api, generateIdentifier: () => bridge.newIdentifier()}) ?? noopErrorLog;
   errorLog = {
     capture: (kind, error, properties = {}) => {
       try {
+        // Failure counts and connection age describe the PowerSync family; API records count separately.
         return baseErrorLog.capture(kind, error, {
           online: network.getSnapshot() !== 'offline',
           foreground: activity.isForeground(),
-          consecutive_failures: syncFailures,
-          ...(syncConnectedAt !== undefined ? {connection_ms: Math.max(0, Date.now() - syncConnectedAt)} : {}),
+          ...(kind === 'powersync' ? {consecutive_failures: syncFailures, ...(syncConnectedAt !== undefined ? {connection_ms: Math.max(0, Date.now() - syncConnectedAt)} : {})} : {}),
           ...properties
         });
       } catch {
@@ -281,8 +284,8 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   };
   const noteSyncFailure = (opened: Database, generation: number) => {
     if (stopping || network.getSnapshot() === 'offline') return;
-    const delay = Math.min(120000, 5000 * 2 ** Math.min(syncFailures, 5));
-    syncFailures += 1;
+    // syncFailures already counts the failure being retried: 5 s, 10 s, 20 s ... capped at 2 min.
+    const delay = Math.min(120000, 5000 * 2 ** Math.min(Math.max(0, syncFailures - 1), 5));
     clearSyncRetry();
     syncRetry = setTimeout(() => {syncRetry = undefined; void connectAccount(opened, generation);}, delay);
   };
@@ -307,12 +310,15 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
           if (record.level < LogLevels.error) return;
           const streamFailure = record.message === 'Sync error' || record.message.startsWith('Could not POST streaming');
           const captured = record.error ?? {name: 'PowerSyncLog', message: record.message};
-          const key = captured instanceof Error ? `${captured.name}:${captured.message}` : record.message;
+          // Both stream-failure messages of one episode share a key, so the episode is counted once.
+          const key = streamFailure ? 'stream' : captured instanceof Error ? `${captured.name}:${captured.message}` : record.message;
           const now = Date.now();
           if (key === windowKey && now - windowStart < SDK_DUPLICATE_WINDOW_MS) return;
           windowKey = key; windowStart = now;
+          // Other error logs (watch, checkpoint, upload loop) have no phase and do not drive the backoff.
+          if (!streamFailure) {errorLog.capture('powersync', captured, {source: 'sdk.logger'}); return;}
+          syncFailures += 1;
           const info = captureSyncFailure('sdk.logger', captured, 'stream');
-          if (!streamFailure) return;
           emitPhase(info.phase, 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
           stopForStreamFailure();
         } catch {}

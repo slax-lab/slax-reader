@@ -108,6 +108,29 @@ test('a connected status resets the backoff and reports one connect success with
   assert.match(failure.fingerprint, /^fp-/);
 });
 
+test('other SDK error logs are recorded without a phase and do not disconnect or back off', async context => {
+  const f = await connected(context);
+  const before = connects(f), disconnects = f.events.filter(event => event === 'disconnect').length;
+  f.database().logger.log({level: LogLevels.error, message: 'Error in watch', error: new Error('query failed')});
+  const record = f.captured.at(-1);
+  assert.equal(record.properties.source, 'sdk.logger'); assert.equal(record.properties.phase, undefined);
+  assert.equal(f.events.filter(event => event === 'disconnect').length, disconnects);
+  context.mock.timers.tick(130000); await setImmediate();
+  assert.equal(connects(f), before);
+});
+
+test('the first failure of a session reports one consecutive failure and waits 5 s', async context => {
+  const f = await connected(context);
+  f.database().streamFailure();
+  const records = f.captured.filter(item => item.properties.source === 'sdk.logger');
+  assert.equal(records.length, 1); assert.equal(records[0].properties.consecutive_failures, 1);
+  context.mock.timers.tick(4999); await setImmediate(); assert.equal(connects(f), 1);
+  context.mock.timers.tick(1); await until(() => connects(f) === 2);
+  await assert.rejects(f.runtime.api.request('/v1/broken'));
+  const api = f.captured.find(item => item.properties.source === 'api');
+  assert.equal(api.properties.consecutive_failures, 1); assert.equal(api.properties.connection_ms, undefined);
+});
+
 test('offline schedules no reconnect and online reconnects immediately', async context => {
   const f = await connected(context);
   f.network({isConnected: false});

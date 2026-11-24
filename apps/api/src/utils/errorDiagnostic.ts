@@ -33,6 +33,14 @@ export function providerDiagnostic(error: unknown): {
   timedOut?: boolean
   message: string
 } {
+  try {
+    return providerFields(error)
+  } catch {
+    return { message: 'Unknown error' }
+  }
+}
+
+function providerFields(error: unknown): ReturnType<typeof providerDiagnostic> {
   const record = asRecord(error)
   const providerStatus = typeof record.providerStatus === 'number' ? record.providerStatus : undefined
   const providerCode = typeof record.providerCode === 'string' || typeof record.providerCode === 'number' ? record.providerCode : undefined

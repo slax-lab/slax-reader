@@ -23,4 +23,22 @@ describe('errorDiagnostic', () => {
       message: 'provider down'
     })
   })
+
+  test('never throws for an error whose message or string form throws', () => {
+    const hostile = Object.defineProperty(
+      {
+        toString: () => {
+          throw new Error('toString')
+        }
+      },
+      'message',
+      {
+        get: () => {
+          throw new Error('getter')
+        }
+      }
+    )
+    expect(providerDiagnostic(hostile)).toEqual({ message: 'Unknown error' })
+    expect(errorDiagnostic(hostile)).toEqual({ message: 'Unknown error' })
+  })
 })

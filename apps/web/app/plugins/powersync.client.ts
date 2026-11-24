@@ -133,7 +133,8 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
         if (mode === 'shared' && !isWorkerLogReporter) return
         const captured = error ?? { name: 'PowerSyncLog', message }
         const normalized = normalizeError(captured)
-        const key = `${normalized.name ?? ''}:${normalized.message}`
+        // Both stream-failure messages of one episode share a key, so the episode is counted once.
+        const key = isStreamFailureLog(message) ? 'stream' : `${normalized.name ?? ''}:${normalized.message}`
         const now = Date.now()
         if (key === windowKey && now - windowStart < SDK_DUPLICATE_WINDOW_MS) return
         windowKey = key

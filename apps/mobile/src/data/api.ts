@@ -52,7 +52,7 @@ const TRANSPORT_FAILURE = Symbol('transport failure');
 export const FEEDBACK_DIAGNOSTIC_MAX_BYTES = 12582912;
 export const FEEDBACK_MULTIPART_OVERHEAD_BYTES = 65536;
 export interface AiEvent { type: string; data?: { overview?: string; outline?: string; tags?: {id: number; name: string}[]; tag?: {id: number; name: string}; key_takeaways?: string[]; done?: boolean }; message?: string }
-export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; getDeviceId?: () => Promise<string>; fetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void>; onFailedExchange?: (exchange: DiagnosticExchange) => void; onAccountSuccess?: (exchange: DiagnosticExchange) => void; onFailure?: (failure: {method: string; path: string; status?: number; ray?: string; network: boolean}) => void }
+export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; getDeviceId?: () => Promise<string>; fetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void>; onFailedExchange?: (exchange: DiagnosticExchange) => void; onAccountSuccess?: (exchange: DiagnosticExchange) => void; onFailure?: (failure: {method: string; path: string; status?: number; ray?: string; network: boolean}) => void; onSuccess?: () => void }
 interface RequestOptions {
   access?: 'public' | 'required';
   retryable?: boolean;
@@ -145,6 +145,7 @@ export class SlaxApi {
           if (exchange) {this.failures.set(error, exchange); observeExchange(this.options.onFailedExchange, exchange, error);}
           throw error;
         }
+        try {this.options.onSuccess?.();} catch {}
         return {response, cleanup, diagnostic};
       } catch (error) {
         cleanup();
@@ -242,12 +243,19 @@ export class SlaxApi {
           if (response.status !== 200) {
             const retryAfter = retryAfterMs(response.headers.get('Retry-After'));
             retryHttp = response.status >= 500 && response.status <= 599 && !retryAfter;
-            throw Object.assign(new ApiError(response.status, `PDF request failed (${response.status})`, undefined, {stage}), {retryAfterMs: retryAfter});
+            throw Object.assign(new ApiError(response.status, `PDF request failed (${response.status})`, undefined, {stage, ray: response.headers.get('cf-ray') ?? undefined}), {retryAfterMs: retryAfter});
           }
+          try {this.options.onSuccess?.();} catch {}
           const value = await consume(response, controller.signal); check(); return value;
         } catch (error) {
           check();
-          if (body || attempt + 1 >= PDF_REQUEST_MAX_ATTEMPTS || !(retryHttp || isNetworkTransportError(error))) throw error;
+          if (body || attempt + 1 >= PDF_REQUEST_MAX_ATTEMPTS || !(retryHttp || isNetworkTransportError(error))) {
+            const status = error instanceof ApiError ? error.status : undefined;
+            if (status === undefined ? isNetworkTransportError(error) : status >= 500) {
+              try {this.options.onFailure?.({method: body ? 'POST' : 'GET', path: path.split(/[?#]/)[0], status, ray: error instanceof ApiError ? error.ray : undefined, network: status === undefined});} catch {}
+            }
+            throw error;
+          }
         } finally {if (response?.body && !response.body.locked) void response.body.cancel().catch(() => undefined);}
         check();
         if (this.options.sleep) await abortable(this.options.sleep(PDF_RETRY_DELAYS_MS[attempt]), controller.signal);

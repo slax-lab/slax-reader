@@ -146,6 +146,19 @@ describe('PowerSync reconnect backoff', () => {
     expect(state.connect.mock.calls.length).toBe(before + 1)
   })
 
+  it('counts one episode that logs both stream messages once, so the first retry waits 5 seconds', async () => {
+    await start()
+    const error = new Error('HTTP Service Unavailable: upstream')
+    logger().log({ level: 50, message: 'Could not POST streaming to /sync/stream - 503 - Service Unavailable: upstream', error })
+    logger().log({ level: 50, message: 'Sync error', error })
+    expect(state.capture).toHaveBeenCalledTimes(1)
+    const before = state.connect.mock.calls.length
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(state.connect.mock.calls.length).toBe(before)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(state.connect.mock.calls.length).toBe(before + 1)
+  })
+
   it('records other SDK error logs without treating them as stream failures', async () => {
     await start()
     const before = state.connect.mock.calls.length
