@@ -43,6 +43,22 @@ describe('API failure capture', () => {
     expect(properties.status).toBeUndefined()
   })
 
+  it('keeps the status and Ray ID of a failed overview stream, and ignores a streamed 4xx', async () => {
+    const { RESTMethodPath } = await import('@slax-reader/contracts/const')
+    const { request } = await import('~~/app/utils/request')
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response('<html>502</html>', { status: 502, headers: { 'cf-ray': 'ov-1-SIN' } }))
+    await request()
+      .stream({ url: RESTMethodPath.BOOKMARK_OVERVIEW })
+      .catch(() => undefined)
+    expect(state.capture).toHaveBeenCalledTimes(1)
+    expect(state.capture.mock.calls[0]![2]).toMatchObject({ status: 502, ray: 'ov-1-SIN' })
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 40001, message: 'bad', data: 'ERROR_PARAM' }), { status: 400 }))
+    await request()
+      .stream({ url: RESTMethodPath.BOOKMARK_OVERVIEW })
+      .catch(() => undefined)
+    expect(state.capture).toHaveBeenCalledTimes(1)
+  })
+
   it('does not capture a 4xx response', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 40001, message: 'bad', data: 'ERROR_PARAM' }), { status: 400 }))
     const { request } = await import('~~/app/utils/request')

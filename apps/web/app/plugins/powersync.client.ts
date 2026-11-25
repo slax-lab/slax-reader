@@ -9,7 +9,7 @@ import { getClientEventHeaders, getUserToken } from '~/utils/request'
 import { getTokenUserId } from '~/utils/sessionOwner'
 import { isVersionSkewError } from '~/utils/versionSkew'
 
-import { normalizeError } from '@commons/frontend-utils/errorLog'
+import { normalizeError, powerSyncLogError } from '@commons/frontend-utils/errorLog'
 import { createPowerSyncPlugin } from '@powersync/vue'
 import { createConsoleLogger, LogLevels, PowerSyncDatabase, type PowerSyncLogger, SyncStreamConnectionMethod } from '@powersync/web'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -20,6 +20,7 @@ import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type Powe
 import { deferLiveQueriesWhileHidden } from '~/local-first/powersync-visibility-gate'
 import { shouldUsePowerSyncSharedWorker } from '~/local-first/powersync-worker-policy'
 import { isPublicStartupEntryPath, type PublicTokenState, shouldBypassPublicDatabase } from '~/local-first/public-startup-policy'
+import { createReconnectScheduler } from '~/local-first/reconnect-scheduler'
 import { AppSchema } from '~/local-first/schema'
 import { POWER_SYNC_DATABASE_GENERATION, POWER_SYNC_LOCAL_DATA_VERSION } from '~/local-first/version'
 
@@ -40,6 +41,8 @@ const powerSyncConsole = globalThis.console
 const OBSERVATION_ID = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`
 let syncFailureCount = 0
 let syncConnectedAt: number | undefined
+// Set once a stream connects in this session; cleared on logout so a new account starts as `connect`.
+let streamEstablished = false
 let syncHost: string | undefined
 let onStreamFailure: (() => void) | undefined
 
@@ -114,6 +117,18 @@ const claimWorkerLogReporter = () => {
 const SDK_DUPLICATE_WINDOW_MS = 1000
 const isStreamFailureLog = (message: string) => message === 'Sync error' || message.startsWith('Could not POST streaming')
 
+// A token failure recorded by the tab claims the SDK's following "Sync error" for this long.
+const TOKEN_CLAIM_WINDOW_MS = 5000
+let tokenFailureClaimedAt: number | undefined
+const claimTokenFailure = () => {
+  tokenFailureClaimedAt = Date.now()
+}
+const consumeClaimedTokenFailure = () => {
+  const claimed = tokenFailureClaimedAt !== undefined && Date.now() - tokenFailureClaimedAt < TOKEN_CLAIM_WINDOW_MS
+  tokenFailureClaimedAt = undefined
+  return claimed
+}
+
 // Keeps the SDK's default console logger unchanged and also records its error-level messages,
 // which include sync failures and worker crashes. This is the only counting source for sync-stream
 // failures; the status listener below sees the same failures again and does not count them.
@@ -131,7 +146,7 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
         const { level, message, error } = record
         if (level < LogLevels.error) return
         if (mode === 'shared' && !isWorkerLogReporter) return
-        const captured = error ?? { name: 'PowerSyncLog', message }
+        const captured = powerSyncLogError(message, error)
         const normalized = normalizeError(captured)
         // Both stream-failure messages of one episode share a key, so the episode is counted once.
         const key = isStreamFailureLog(message) ? 'stream' : `${normalized.name ?? ''}:${normalized.message}`
@@ -146,8 +161,15 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
           return
         }
         syncFailureCount += 1
-        const capturedInfo = capturePowerSyncError('sdk.logger', captured, { worker_mode: mode, phase: 'stream' }, syncHost)
-        emitPhase('stream', 'failure', { ...(capturedInfo.fingerprint ? { fingerprint: capturedInfo.fingerprint } : {}), ...(capturedInfo.ray ? { ray: capturedInfo.ray } : {}) })
+        // The SDK fetches credentials inside its sync loop, so a failed token request also ends as "Sync error".
+        // That failure was already recorded as `token` where it happened (its tag does not survive the shared
+        // worker), so the log only drives the backoff.
+        if (!consumeClaimedTokenFailure()) {
+          // A failure before any stream was established in this session cannot be a dropped stream.
+          const phase = syncConnectedAt === undefined && !streamEstablished ? 'connect' : 'stream'
+          const capturedInfo = capturePowerSyncError('sdk.logger', captured, { worker_mode: mode, phase }, syncHost)
+          emitPhase(phase, 'failure', { ...(capturedInfo.fingerprint ? { fingerprint: capturedInfo.fingerprint } : {}), ...(capturedInfo.ray ? { ray: capturedInfo.ray } : {}) })
+        }
         try {
           onStreamFailure?.()
         } catch {
@@ -388,10 +410,16 @@ export default defineNuxtPlugin({
         emitPhase('upload', 'success', { step: 'submit', batch_size: changes.length, duration_ms: Math.max(0, Date.now() - startedAt) })
       },
       onCredentials: (source, durationMs) => emitPhase('token', 'success', { credential_source: source, duration_ms: durationMs }),
+      onCredentialsFailed: error => {
+        const info = capturePowerSyncError('connector.credentials', error, { phase: 'token' }, apiHostname())
+        emitPhase('token', 'failure', { ...(info.fingerprint ? { fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
+        claimTokenFailure()
+      },
       onAcknowledged: (batchSize, durationMs) => emitPhase('upload', 'success', { step: 'acknowledge', batch_size: batchSize, duration_ms: durationMs }),
       onError: e => {
-        const info = capturePowerSyncError('connector.upload', e, { phase: 'upload' }, apiHostname())
-        emitPhase('upload', 'failure', { step: 'submit', ...(info.fingerprint ? { fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
+        const step = typeof e === 'object' && e !== null && (e as { step?: unknown }).step === 'acknowledge' ? 'acknowledge' : 'submit'
+        const info = capturePowerSyncError('connector.upload', e, { phase: 'upload', step }, apiHostname())
+        emitPhase('upload', 'failure', { step, ...(info.fingerprint ? { fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
         powerSyncConsole.error('[powersync] uploadData failed:', e)
       }
     })
@@ -489,37 +517,24 @@ export default defineNuxtPlugin({
       // Separates the first connection of a session from later reconnections in `connect` observations.
       let everConnected = false
       let connecting = false
-      let reconnectTimer: ReturnType<typeof setTimeout> | undefined
       let offlinePaused = false
       let intentionalStop = false
       let connectStartedAt: number | undefined
       let downloadingSince: number | undefined
-      let lastSyncedAt: Date | null = null
+      let downloadStartSyncedAt: number | undefined
       syncFailureCount = 0
       syncConnectedAt = undefined
-      const clearReconnect = () => {
-        if (reconnectTimer !== undefined) clearTimeout(reconnectTimer)
-        reconnectTimer = undefined
-      }
       // Delays follow 5 s, 10 s, 20 s ... capped at 2 min; syncFailureCount already counts the failure being retried.
       const reconnectDelay = () => Math.min(5000 * 2 ** Math.max(0, syncFailureCount - 1), 120000)
       const canReconnect = () => !offlinePaused && !(typeof navigator !== 'undefined' && navigator.onLine === false) && havePowerSyncUserToken()
-      const waitAndReconnect = () =>
-        new Promise<void>(resolve => {
-          reconnectTimer = setTimeout(() => {
-            reconnectTimer = undefined
-            if (canReconnect()) void transition(guardAccountAndConnect).finally(resolve)
-            else resolve()
-          }, reconnectDelay())
-        })
-      const scheduleReconnect = () => {
-        if (!canReconnect() || reconnectTimer !== undefined) return
-        // Shared-worker tabs share one connection: the tab holding the lock owns the schedule until its
-        // attempt finishes, and the others skip, so tabs do not multiply attempts.
-        if (recovery.mode === 'shared' && typeof navigator !== 'undefined' && navigator.locks?.request) {
-          void navigator.locks.request('slax-ps-reconnect-controller', { ifAvailable: true }, lock => (lock ? waitAndReconnect() : undefined)).catch(() => undefined)
-        } else void waitAndReconnect()
-      }
+      const reconnects = createReconnectScheduler({
+        delay: reconnectDelay,
+        canReconnect,
+        reconnect: () => transition(guardAccountAndConnect),
+        sharedLock: () => recovery.mode === 'shared'
+      })
+      const clearReconnect = reconnects.cancel
+      const scheduleReconnect = reconnects.schedule
       let streamFailures = 0
       const stopForFailure = () => {
         streamFailures += 1
@@ -531,7 +546,7 @@ export default defineNuxtPlugin({
       onStreamFailure = stopForFailure
       const connect = async () => {
         // A pending backoff retry owns the next attempt; route reconciliation must not bypass it.
-        if (connected || connecting || reconnectTimer !== undefined || offlinePaused || (typeof navigator !== 'undefined' && !navigator.onLine) || !havePowerSyncUserToken()) return
+        if (connected || connecting || reconnects.pending() || offlinePaused || (typeof navigator !== 'undefined' && !navigator.onLine) || !havePowerSyncUserToken()) return
         connecting = true
         intentionalStop = false
         connectStartedAt = Date.now()
@@ -542,7 +557,7 @@ export default defineNuxtPlugin({
           // ConnectionManager 会自行重试；这里表示已发起连接，不代表网络流已在线。
           // The SDK resolves connect() only after the first attempt settles, so a stream failure seen while
           // waiting has already disconnected and scheduled the retry; marking it connected would void that retry.
-          if (streamFailures === failuresBefore && reconnectTimer === undefined) connected = true
+          if (streamFailures === failuresBefore && !reconnects.pending()) connected = true
           powerSyncConsole.info('[powersync] sync connect call completed', {
             mode: recovery.mode,
             connected: db.connected,
@@ -565,6 +580,7 @@ export default defineNuxtPlugin({
         if (db.connected) {
           connected = true
           everConnected = true
+          streamEstablished = true
           syncConnectedAt = Date.now()
           emitPhase('connect', 'success', { connection_kind: 'already_connected' })
         }
@@ -577,6 +593,7 @@ export default defineNuxtPlugin({
             if (status.connected) {
               if (!connected) {
                 syncConnectedAt = Date.now()
+                streamEstablished = true
                 emitPhase('connect', 'success', {
                   connection_kind: everConnected ? 'reconnect' : 'initial',
                   ...(connectStartedAt !== undefined ? { duration_ms: Math.max(0, Date.now() - connectStartedAt) } : {})
@@ -595,11 +612,19 @@ export default defineNuxtPlugin({
                 } catch {}
               }
             }
-            if (status.downloading && downloadingSince === undefined) downloadingSince = performance.now()
-            if (!status.downloading && downloadingSince !== undefined && status.lastSyncedAt && status.lastSyncedAt !== lastSyncedAt) {
-              emitPhase('stream', 'success', { duration_ms: Math.max(0, Math.round(performance.now() - downloadingSince)) })
+            // The SDK builds a new Date on each read, so cycles are compared by timestamp; a cycle that ends
+            // without advancing it, or with the stream down, applied nothing and is discarded.
+            const syncedAt = status.lastSyncedAt?.getTime()
+            if (status.downloading && downloadingSince === undefined) {
+              downloadingSince = performance.now()
+              downloadStartSyncedAt = syncedAt
+            }
+            if (!status.connected && !status.connecting) downloadingSince = undefined
+            if (!status.downloading && downloadingSince !== undefined) {
+              if (syncedAt !== undefined && syncedAt !== downloadStartSyncedAt) {
+                emitPhase('stream', 'success', { duration_ms: Math.max(0, Math.round(performance.now() - downloadingSince)) })
+              }
               downloadingSince = undefined
-              lastSyncedAt = status.lastSyncedAt
             }
           }
         })
@@ -635,6 +660,7 @@ export default defineNuxtPlugin({
         clearReconnect()
         syncFailureCount = 0
         everConnected = false
+        streamEstablished = false
         syncConnectedAt = undefined
         powerSyncConsole.info('[powersync] clearing local database for logout/account transition')
         clearSyncCredsCache()

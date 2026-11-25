@@ -13,6 +13,8 @@ export interface MobileErrorLogOptions {
   sessions: SessionController;
   screen(): string | undefined;
   generateIdentifier(): string;
+  /** Resolves once legacy preferences are migrated; the device id is read only after it, so an upgrade keeps its id. */
+  preferencesReady: Promise<unknown>;
 }
 
 /** Builds the shared collector for one environment; the collector is recreated if the runtime environment changes. */
@@ -20,11 +22,9 @@ export function createMobileErrorLog(options: MobileErrorLogOptions): MobileErro
   const endpoint = options.endpoint?.trim();
   let cached: {env: string; collector: ErrorCollector} | undefined;
   let deviceId: string | undefined;
-  try {
-    // The Mobile pipeline drops a record whose device id breaks its pattern; an id carried over from the
-    // legacy app may, so such an id is left out rather than losing the record.
-    void options.preferences.deviceId(options.generateIdentifier).then(id => {if (/^[A-Za-z0-9_-]{8,128}$/.test(id)) deviceId = id;}).catch(() => undefined);
-  } catch {}
+  // The Mobile pipeline drops a record whose device id breaks its pattern; an id carried over from the
+  // legacy app may, so such an id is left out rather than losing the record. Without an endpoint nothing is read.
+  if (endpoint) void options.preferencesReady.then(() => options.preferences.deviceId(options.generateIdentifier)).then(id => {if (/^[A-Za-z0-9_-]{8,128}$/.test(id)) deviceId = id;}).catch(() => undefined);
   const collector = () => {
     const env = options.env();
     if (cached?.env !== env) {

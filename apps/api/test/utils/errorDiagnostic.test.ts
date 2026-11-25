@@ -24,6 +24,22 @@ describe('errorDiagnostic', () => {
     })
   })
 
+  test('keeps user content out of parse errors and metadata', () => {
+    let parseError: unknown
+    try {
+      JSON.parse('private-bookmark-title')
+    } catch (error) {
+      parseError = error
+    }
+    expect(JSON.stringify(errorDiagnostic(parseError))).not.toContain('private')
+    expect(errorDiagnostic(parseError)).toMatchObject({ name: 'SyntaxError', message: 'Invalid JSON' })
+    const prisma = Object.assign(new Error('Unique constraint failed'), {
+      code: 'P2002',
+      meta: { modelName: 'sr_bookmark', target: ['uuid'], value: 'private-note', nested: { body: 'private' } }
+    })
+    expect(errorDiagnostic(prisma).meta).toEqual({ modelName: 'sr_bookmark', target: ['uuid'] })
+  })
+
   test('never throws for an error whose message or string form throws', () => {
     const hostile = Object.defineProperty(
       {

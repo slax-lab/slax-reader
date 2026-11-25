@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   events: vi.fn(),
   listeners: [] as Array<{ statusChanged?: (status: unknown) => void }>,
   afterEach: vi.fn(),
+  connectorOptions: [] as unknown[],
   token: '' as string | undefined
 }))
 
@@ -26,6 +27,16 @@ vi.mock('~/utils/request', () => ({ getUserToken: () => state.token, getClientEv
 vi.mock('~/utils/analytics', () => ({ eventLog: state.events }))
 vi.mock('~/utils/clientErrorLog', () => ({ useClientErrorLog: () => ({ enabled: true, capture: state.capture, flush: async () => {} }) }))
 vi.mock('~/composables/useUpdateNotice', () => ({ useUpdateNotice: () => ({ report: vi.fn() }) }))
+vi.mock('~/local-first/connector', async importOriginal => {
+  const actual = await importOriginal<typeof import('~/local-first/connector')>()
+  return {
+    ...actual,
+    createConnector: (options: Parameters<typeof actual.createConnector>[0]) => {
+      state.connectorOptions.push(options)
+      return actual.createConnector(options)
+    }
+  }
+})
 vi.mock('~/local-first/schema', () => ({ AppSchema: {} }))
 vi.mock('@powersync/vue', () => ({ createPowerSyncPlugin: () => ({}) }))
 vi.mock('@powersync/web', () => ({
@@ -81,6 +92,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
   vi.clearAllMocks()
   state.listeners = []
+  state.connectorOptions = []
   state.token = token('user-a')
   state.connect.mockResolvedValue(undefined)
   state.disconnect.mockResolvedValue(undefined)
@@ -157,6 +169,46 @@ describe('PowerSync reconnect backoff', () => {
     expect(state.connect.mock.calls.length).toBe(before)
     await vi.advanceTimersByTimeAsync(1)
     expect(state.connect.mock.calls.length).toBe(before + 1)
+  })
+
+  it('records a failed token request once as a token failure, and the following SDK sync error only backs off', async () => {
+    await start()
+    const options = state.connectorOptions.at(-1) as { onCredentialsFailed?: (error: unknown) => void }
+    // As in shared-worker mode, the SDK's logged error has lost the connector's tag.
+    options.onCredentialsFailed?.(Object.assign(new Error('[powersync] sync token failed: 503'), { phase: 'token', ray: 'tok-1' }))
+    logger().log({ level: 50, message: 'Sync error', error: new Error('[powersync] sync token failed: 503') })
+    expect(state.capture).toHaveBeenCalledTimes(1)
+    expect(state.capture.mock.calls[0]![2]).toMatchObject({ phase: 'token', ray: 'tok-1' })
+    const phases = state.events.mock.calls.map(([event]) => (event as { properties: { phase?: string; outcome?: string } }).properties)
+    expect(phases.filter(properties => properties.outcome === 'failure')).toEqual([expect.objectContaining({ phase: 'token' })])
+    const before = state.connect.mock.calls.length
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(state.connect.mock.calls.length).toBe(before + 1)
+  })
+
+  it('labels a failure before any stream connected as connect, and later ones as stream', async () => {
+    await start()
+    failStream()
+    // As in the SDK, a successful attempt reports the connected status before connect() resolves.
+    state.connect.mockImplementation(async () => connectedStatus())
+    await vi.advanceTimersByTimeAsync(5000)
+    failStream()
+    const phases = state.capture.mock.calls.map(call => (call[2] as { phase?: string }).phase)
+    expect(phases).toEqual(['connect', 'stream'])
+  })
+
+  it('does not count a download that ends without advancing the sync time as a stream success', async () => {
+    await start()
+    const at = new Date('2026-11-25T00:00:00Z').getTime()
+    const emit = (downloading: boolean) =>
+      state.listeners.forEach(listener => listener.statusChanged?.({ connected: true, connecting: false, downloading, lastSyncedAt: new Date(at), dataFlowStatus: {} }))
+    emit(false)
+    emit(true)
+    emit(false)
+    const successes = state.events.mock.calls
+      .map(([event]) => (event as { properties: { phase?: string; outcome?: string } }).properties)
+      .filter(properties => properties.phase === 'stream' && properties.outcome === 'success')
+    expect(successes).toEqual([])
   })
 
   it('records other SDK error logs without treating them as stream failures', async () => {

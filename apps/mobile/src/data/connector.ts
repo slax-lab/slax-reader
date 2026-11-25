@@ -44,7 +44,11 @@ export function createSyncConnector(api: SlaxApi, preferences: PreferenceStore, 
         });
         check();
         const startedAt = now();
-        const received = await api.getSyncToken(request.signal); check();
+        // The SDK reports this rejection from its sync loop; the tag keeps it recorded as a token failure.
+        const received = await api.getSyncToken(request.signal).catch(error => {
+          if (typeof error === 'object' && error !== null && !('phase' in error)) Object.assign(error, {phase: 'token'});
+          throw error;
+        }); check();
         const fetchedAt = now(), expiration = syncTokenExpiresAt(received.token, session.userId, fetchedAt, fetchedAt);
         const credentials = {endpoint: localEndpoint ?? received.endpoint, token: received.token, expiresAt: expiration ?? undefined};
         if (!credentials.endpoint || !expiration) throw new Error('Invalid or expired synchronization credentials');

@@ -85,6 +85,8 @@ export interface CreateConnectorOptions {
   // One call per credential acquisition: `cache` for stored credentials, `api` for a fetched token
   // (callers that share an in-flight fetch are reported once).
   onCredentials?: (source: 'cache' | 'api', durationMs: number) => void
+  // Called once per failed token request, in the calling tab where the response and its Ray ID are known.
+  onCredentialsFailed?: (error: unknown) => void
   // Called after a submitted batch has been completed locally.
   onAcknowledged?: (batchSize: number, durationMs: number) => void
 }
@@ -198,7 +200,15 @@ export function createConnector(opts: CreateConnectorOptions): RefreshablePowerS
       inflight = (async () => {
         try {
           const startedAt = Date.now()
-          const { token, endpoint } = await opts.fetchToken()
+          let fetched: Awaited<ReturnType<typeof opts.fetchToken>>
+          try {
+            fetched = await opts.fetchToken()
+          } catch (error) {
+            if (typeof error === 'object' && error !== null && !('phase' in error)) Object.assign(error, { phase: 'token' })
+            notify(() => opts.onCredentialsFailed?.(error))
+            throw error
+          }
+          const { token, endpoint } = fetched
           if (!token || !endpoint) return null
           const expMs = getJwtExpMs(token) ?? Date.now() + 24 * 60 * 60 * 1000
           saveStoredCreds({ token, endpoint, expMs })
@@ -227,7 +237,13 @@ export function createConnector(opts: CreateConnectorOptions): RefreshablePowerS
         })
         await opts.uploadChanges(changes)
         const acknowledgeStartedAt = Date.now()
-        await batch.complete()
+        // The server accepted the batch; a failure here is the local acknowledgement, not the submission.
+        try {
+          await batch.complete()
+        } catch (error) {
+          if (typeof error === 'object' && error !== null) Object.assign(error, { step: 'acknowledge' })
+          throw error
+        }
         notify(() => opts.onAcknowledged?.(changes.length, Math.max(0, Date.now() - acknowledgeStartedAt)))
       } catch (e) {
         opts.onError?.(e)

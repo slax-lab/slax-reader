@@ -89,7 +89,9 @@ export async function uploadPendingTransactions(queue: CrudQueue, upload: (chang
       continue;
     }
     const acknowledgeStartedAt = Date.now();
-    for (const transaction of batch) { await transaction.complete(); result.uploaded++; }
+    // The server accepted the batch; a failure here is the local acknowledgement, not the submission.
+    try { for (const transaction of batch) { await transaction.complete(); result.uploaded++; } }
+    catch (error) { if (typeof error === 'object' && error !== null) Object.assign(error, {step: 'acknowledge'}); throw error; }
     observe.acknowledged?.(size, Math.max(0, Date.now() - acknowledgeStartedAt));
   }
   return result;

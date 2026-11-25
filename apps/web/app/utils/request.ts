@@ -16,13 +16,20 @@ class ClientRequest extends FetchRequest {
     const response = (await super.fetchRequest(options)) as Response
     if (!options.stream || options.url !== RESTMethodPath.BOOKMARK_OVERVIEW || response.ok) return response
 
-    // Non-401 HTTP errors throw here. A 401 returns a session-rejection result.
-    const failure = await this.handleResult(response)
-    await this.options.responseInterceptors?.(failure)
-    const error = new RequestError({ code: response.status, name: ErrorName.UNAUTHORIZED, message: failure.message })
     // Non-enumerable, so the failure observer can read the status and Ray ID without the response being serialized.
-    Object.defineProperty(error, 'response', { value: response, enumerable: false })
-    throw error
+    const withResponse = (error: unknown) => {
+      if (typeof error === 'object' && error !== null) Object.defineProperty(error, 'response', { value: response, enumerable: false, configurable: true })
+      return error
+    }
+    // Non-401 HTTP errors throw here. A 401 returns a session-rejection result.
+    let failure: Awaited<ReturnType<typeof this.handleResult>>
+    try {
+      failure = await this.handleResult(response)
+    } catch (error) {
+      throw withResponse(error)
+    }
+    await this.options.responseInterceptors?.(failure)
+    throw withResponse(new RequestError({ code: response.status, name: ErrorName.UNAUTHORIZED, message: failure.message }))
   }
 }
 

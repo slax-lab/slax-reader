@@ -107,6 +107,20 @@ export const redactCapabilityPaths = (text: string): string =>
     kind.toLowerCase() === 's' ? `${lead}/s/:code${member ?? ''}` : `${lead}/c/:code${member ? '/:id' : ''}`
   )
 
+/**
+ * PowerSync SDK HTTP failures carry the whole response body in their message ("HTTP <statusText>: <body>",
+ * "Could not POST streaming to <path> - <status> - <statusText>: <body>"). An upstream error page can hold
+ * a client IP or other private text, so the record keeps only the status and status text.
+ */
+export const powerSyncLogError = (message: string, error: unknown): { name: string; message: string } | unknown => {
+  const status = typeof error === 'object' && error !== null && typeof (error as { status?: unknown }).status === 'number' ? (error as { status: number }).status : undefined
+  const streaming = /^Could not POST streaming to (\S+) - (\d{3}) - ([^:]*)/.exec(message)
+  const http = /^HTTP ([^:]*):/.exec(error instanceof Error ? error.message : '')
+  if (streaming) return { name: 'PowerSyncHttpError', message: `Could not POST streaming to ${streaming[1]} - ${streaming[2]} - ${streaming[3]}` }
+  if (http) return { name: 'PowerSyncHttpError', message: `HTTP ${status ?? ''} ${http[1]}`.replace(/\s+/g, ' ').trim() }
+  return error ?? { name: 'PowerSyncLog', message }
+}
+
 // Ad blockers routinely block these third-party analytics/ads scripts; a blocked script there is not
 // an application fault. Stripe stays captured because a blocked Stripe script breaks checkout.
 const THIRD_PARTY_SCRIPT_HOSTS = ['googletagmanager.com', 'google-analytics.com', 'static.cloudflareinsights.com']

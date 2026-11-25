@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {setImmediate} from 'node:timers/promises';
 import {LogLevels} from '@powersync/common';
+import * as frontendErrorLog from '@commons/frontend-utils/errorLog';
 import {loadComponent} from '../reader/parity-host.mjs';
 import {RuntimeActivity} from '../../src/data/runtime-activity.ts';
 import {AccountDatabaseLease, AccountInactiveError} from '../../src/data/account-lease.ts';
@@ -57,6 +58,7 @@ async function fixture({status = 500} = {}) {
     './legacy-preferences.ts': {migrateLegacyPreferences}, './native-storage.ts': {loadLegacyBridge: () => bridge, nativePreferenceStorage: () => storage},
     './preferences.ts': {PreferenceStore, PREFERENCE_KEYS}, './repositories.ts': {MobileRepositories: class {constructor(lease) {this.lease = lease;}}},
     './schema.ts': {createMobileSchema: async () => ({}), SYNC_PARAMETERS: {}}, '@powersync/react-native': {PowerSyncDatabase: Database},
+    '@commons/frontend-utils/errorLog': frontendErrorLog,
   }, {Error});
   const runtime = createMobileDataRuntime({baseUrl: 'https://api.example', platform: 'ios', version: 'test', fetch, sleep: async () => {},
     errorLog: () => ({capture: (kind, error, properties) => {captured.push({kind, message: error?.message, properties}); return `fp-${captured.length}`;}, flush: async hiding => {flushed.push(hiding);}})});
@@ -88,7 +90,8 @@ test('one SDK stream failure is captured once, disconnects the SDK retry and bac
   }
   const record = f.captured.find(item => item.properties.source === 'sdk.logger');
   assert.equal(record.kind, 'powersync');
-  assert.equal(record.properties.phase, 'stream');
+  // No connected status arrived in this test, so the failures are connection failures.
+  assert.equal(record.properties.phase, 'connect');
   assert.equal(record.properties.online, true);
   assert.equal(record.properties.foreground, true);
   assert.equal(typeof record.properties.consecutive_failures, 'number');
@@ -106,6 +109,43 @@ test('a connected status resets the backoff and reports one connect success with
   assert.equal(connects(f), 3); context.mock.timers.tick(1); await until(() => connects(f) === 4);
   const failure = f.phases().find(item => item.phase === 'stream' && item.outcome === 'failure');
   assert.match(failure.fingerprint, /^fp-/);
+});
+
+test('an SDK HTTP failure is recorded with its status but without the response body', async context => {
+  const f = await connected(context);
+  const body = 'upstream page for 203.0.113.7';
+  f.database().logger.log({level: LogLevels.error, message: `Could not POST streaming to /sync/stream - 502 - Bad Gateway: ${body}`, error: Object.assign(new Error(`HTTP Bad Gateway: ${body}`), {status: 502})});
+  const record = f.captured.find(item => item.properties.source === 'sdk.logger');
+  assert.equal(record.message, 'Could not POST streaming to /sync/stream - 502 - Bad Gateway');
+  assert.equal(JSON.stringify(f.captured).includes('203.0.113.7'), false);
+});
+
+test('a credential failure the SDK logs as a sync error is recorded as a token failure and still backs off', async context => {
+  const f = await connected(context);
+  f.database().logger.log({level: LogLevels.error, message: 'Sync error', error: Object.assign(new Error('HTTP Service Unavailable: token backend down'), {status: 503, phase: 'token', ray: 'tok-1-SIN'})});
+  const record = f.captured.find(item => item.properties.source === 'sdk.logger');
+  assert.equal(record.properties.phase, 'token'); assert.equal(record.properties.ray, 'tok-1-SIN');
+  await until(() => f.phases().some(item => item.phase === 'token' && item.outcome === 'failure'));
+  context.mock.timers.tick(5000); await until(() => connects(f) === 2);
+});
+
+test('a download that ends without advancing the sync time is not a stream success', async context => {
+  const f = await connected(context);
+  const at = Date.now();
+  f.database().status({connected: true, connecting: false, downloading: false, lastSyncedAt: new Date(at)});
+  f.database().status({connected: true, connecting: false, downloading: true, lastSyncedAt: new Date(at)});
+  f.database().status({connected: true, connecting: false, downloading: false, lastSyncedAt: new Date(at)});
+  await setImmediate(); await setImmediate();
+  assert.equal(f.phases().some(item => item.phase === 'stream' && item.outcome === 'success'), false);
+});
+
+test('a stream failure before the first connection is a connect failure, and later ones are stream failures', async context => {
+  const f = await connected(context);
+  f.database().streamFailure();
+  context.mock.timers.tick(5000); await until(() => connects(f) === 2);
+  f.database().status({connected: true, connecting: false});
+  context.mock.timers.tick(1000); f.database().streamFailure();
+  assert.deepEqual(f.captured.filter(item => item.properties.source === 'sdk.logger').map(item => item.properties.phase), ['connect', 'stream']);
 });
 
 test('other SDK error logs are recorded without a phase and do not disconnect or back off', async context => {

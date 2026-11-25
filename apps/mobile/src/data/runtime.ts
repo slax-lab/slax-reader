@@ -7,6 +7,7 @@ import {CredentialReadiness, ReauthenticationRequiredError, CredentialsUnavailab
 import { createConsoleLogger, LogLevels } from '@powersync/common';
 import { createMobileApi } from './api.ts';
 import { noopErrorLog, type MobileErrorLog } from '../domain/error-log.ts';
+import { powerSyncLogError } from '@commons/frontend-utils/errorLog';
 import type { MobileApiOptions } from './api.ts';
 import { ArticleFileCache } from './cache.ts';
 import { clearAccountData } from './account-cleanup.ts';
@@ -31,7 +32,7 @@ import {noDiagnostics, recordDiagnostic} from '../domain/diagnostics.ts';
 import type {MobileDiagnostics} from '../diagnostics/native.ts';
 
 export type UpgradeState = {status: 'idle' | 'checking' | 'ready'} | {status: 'error'; error: Error};
-export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { errorLog?: (deps: {preferences: PreferenceStore; sessions: SessionController; api: ReturnType<typeof createMobileApi>; generateIdentifier: () => string}) => MobileErrorLog; diagnostics?: MobileDiagnostics; betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]} }
+export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { errorLog?: (deps: {preferences: PreferenceStore; sessions: SessionController; api: ReturnType<typeof createMobileApi>; generateIdentifier: () => string; preferencesReady: Promise<unknown>}) => MobileErrorLog; diagnostics?: MobileDiagnostics; betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]} }
 /** Construct once at the app root; start before mounting account-bound watchers. */
 export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   const bridge = options.nativeBridge ?? loadLegacyBridge();
@@ -70,7 +71,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   let storageReady: Promise<void> | null = null, environmentReady: Promise<void> | null = null;
   let errorLog: MobileErrorLog = noopErrorLog;
   let syncConnectedAt: number | undefined, connectStartedAt: number | undefined, everConnected = false;
-  let downloadingSince: number | undefined, lastSyncedAt: Date | undefined, apiFailures = 0;
+  let downloadingSince: number | undefined, downloadStartSyncedAt: number | undefined, apiFailures = 0;
   let upgradeState: UpgradeState = {status: 'idle'};
   const listeners = new Set<(state: UpgradeState) => void>();
   const emit = (state: UpgradeState) => { upgradeState = state; listeners.forEach(listener => listener(state)); };
@@ -246,7 +247,10 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     },
     onSuccess: () => {apiFailures = 0;},
     onFailedExchange: diagnosticExchanges.failed, onAccountSuccess: diagnosticExchanges.succeeded});
-  const baseErrorLog = options.errorLog?.({preferences, sessions, api, generateIdentifier: () => bridge.newIdentifier()}) ?? noopErrorLog;
+  // Settled by start() once local preferences, including any legacy migration, are restored.
+  let markPreferencesReady!: () => void;
+  const preferencesReady = new Promise<void>(resolve => {markPreferencesReady = resolve;});
+  const baseErrorLog = options.errorLog?.({preferences, sessions, api, generateIdentifier: () => bridge.newIdentifier(), preferencesReady}) ?? noopErrorLog;
   errorLog = {
     capture: (kind, error, properties = {}) => {
       try {
@@ -276,10 +280,10 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     } catch {}
   };
   const emitPhase = (phase: 'token' | 'connect' | 'stream' | 'upload', outcome: 'success' | 'failure', properties: Record<string, string | number | boolean> = {}) => sendSyncEvent('powersync_phase', {phase, outcome, ...properties});
-  const captureSyncFailure = (source: string, error: unknown, phase: 'token' | 'connect' | 'stream' | 'upload', stage?: string) => {
+  const captureSyncFailure = (source: string, error: unknown, phase: 'token' | 'connect' | 'stream' | 'upload', stage?: string, extra: Record<string, unknown> = {}) => {
     const phaseProperty = typeof error === 'object' && error !== null && (error as {phase?: unknown}).phase === 'token' ? 'token' : phase;
     const ray = typeof error === 'object' && error !== null && typeof (error as {ray?: unknown}).ray === 'string' ? (error as {ray: string}).ray : undefined;
-    const fingerprint = errorLog.capture('powersync', error ?? {name: 'PowerSyncError', message: source}, {source, phase: phaseProperty, ...(stage ? {stage} : {}), ...(ray ? {ray} : {})});
+    const fingerprint = errorLog.capture('powersync', error ?? {name: 'PowerSyncError', message: source}, {source, phase: phaseProperty, ...(stage ? {stage} : {}), ...(ray ? {ray} : {}), ...extra});
     return {fingerprint, ray, phase: phaseProperty};
   };
   const noteSyncFailure = (opened: Database, generation: number) => {
@@ -309,7 +313,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
         try {
           if (record.level < LogLevels.error) return;
           const streamFailure = record.message === 'Sync error' || record.message.startsWith('Could not POST streaming');
-          const captured = record.error ?? {name: 'PowerSyncLog', message: record.message};
+          const captured = powerSyncLogError(record.message, record.error);
           // Both stream-failure messages of one episode share a key, so the episode is counted once.
           const key = streamFailure ? 'stream' : captured instanceof Error ? `${captured.name}:${captured.message}` : record.message;
           const now = Date.now();
@@ -318,7 +322,10 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
           // Other error logs (watch, checkpoint, upload loop) have no phase and do not drive the backoff.
           if (!streamFailure) {errorLog.capture('powersync', captured, {source: 'sdk.logger'}); return;}
           syncFailures += 1;
-          const info = captureSyncFailure('sdk.logger', captured, 'stream');
+          // The SDK fetches credentials inside its sync loop; the connector tags that failure as a token failure.
+          const tokenFailure = typeof record.error === 'object' && record.error !== null && (record.error as {phase?: unknown}).phase === 'token';
+          // A failure before any stream connected for this account cannot be a dropped stream.
+          const info = captureSyncFailure('sdk.logger', tokenFailure ? record.error : captured, tokenFailure ? 'token' : everConnected ? 'stream' : 'connect');
           emitPhase(info.phase, 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
           stopForStreamFailure();
         } catch {}
@@ -336,8 +343,9 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     try {
       await uploadData(database);
     } catch (error) {
-      const info = captureSyncFailure('connector.upload', error, 'upload');
-      emitPhase('upload', 'failure', {step: 'submit', ...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
+      const step = typeof error === 'object' && error !== null && (error as {step?: unknown}).step === 'acknowledge' ? 'acknowledge' : 'submit';
+      const info = captureSyncFailure('connector.upload', error, 'upload', undefined, {step});
+      emitPhase('upload', 'failure', {step, ...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
       throw error;
     }
   };
@@ -389,6 +397,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       } else api.setBaseUrl(options.baseUrl);
       return values;
     }).then(() => undefined);
+    void environmentReady.then(() => markPreferencesReady(), () => undefined);
     void environmentReady.then(() => {
       if (!stopping && activity.isForeground()) return readiness.resume();
     }).catch(() => undefined);
@@ -411,14 +420,17 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
                 emitPhase('connect', 'success', {connection_kind: everConnected ? 'reconnect' : 'initial', ...(connectStartedAt !== undefined ? {duration_ms: Math.max(0, syncConnectedAt - connectStartedAt)} : {})});
                 connectStartedAt = undefined; everConnected = true;
               }
-              if (status.downloading && downloadingSince === undefined) downloadingSince = Date.now();
-              if (!status.downloading && downloadingSince !== undefined && status.lastSyncedAt && status.lastSyncedAt !== lastSyncedAt) {
-                emitPhase('stream', 'success', {duration_ms: Math.max(0, Date.now() - downloadingSince)});
-                downloadingSince = undefined; lastSyncedAt = status.lastSyncedAt;
+              // The SDK builds a new Date on each read, so cycles are compared by timestamp; a cycle that ends
+              // without advancing it applied nothing and is discarded.
+              const syncedAt = status.lastSyncedAt?.getTime();
+              if (status.downloading && downloadingSince === undefined) {downloadingSince = Date.now(); downloadStartSyncedAt = syncedAt;}
+              if (!status.downloading && downloadingSince !== undefined) {
+                if (syncedAt !== undefined && syncedAt !== downloadStartSyncedAt) emitPhase('stream', 'success', {duration_ms: Math.max(0, Date.now() - downloadingSince)});
+                downloadingSince = undefined;
               }
               syncFailures = 0; clearSyncRetry();
             } else if (syncConnectedAt !== undefined && !status.connecting) {
-              syncConnectedAt = undefined;
+              syncConnectedAt = undefined; downloadingSince = undefined;
               if (connectionRequested && !stopping && network.getSnapshot() !== 'offline' && activity.isForeground()) sendSyncEvent('powersync_connection_lost', {reason: 'stream_lost'});
             }
           }});

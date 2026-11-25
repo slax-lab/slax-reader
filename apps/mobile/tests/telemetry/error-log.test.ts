@@ -13,10 +13,15 @@ async function setup(endpoint: string | undefined, values: PreferenceValues = {a
   const original = globalThis.fetch;
   globalThis.fetch = (async (_url: string, init: RequestInit) => {bodies.push(String(init.body)); return new Response(null, {status: 204});}) as typeof fetch;
   let screen: string | undefined = 'Reader';
-  const log = createMobileErrorLog({endpoint, platform: 'android', version: '1.0.34', buildNumber: '809', env: () => 'production', preferences, sessions, screen: () => screen, generateIdentifier: () => 'generated'});
+  let ready!: () => void;
+  const preferencesReady = new Promise<void>(resolve => {ready = resolve;});
+  const log = createMobileErrorLog({endpoint, platform: 'android', version: '1.0.34', buildNumber: '809', env: () => 'production', preferences, sessions, screen: () => screen, generateIdentifier: () => 'generated', preferencesReady});
+  await new Promise(resolve => setImmediate(resolve));
+  const beforeReady = (await preferences.read()).analytics_device_id;
+  ready();
   await new Promise(resolve => setImmediate(resolve));
   const records = () => bodies.flatMap(body => JSON.parse(body));
-  return {log, bodies, records, setScreen: (value: string | undefined) => {screen = value;}, restore: () => {globalThis.fetch = original;}};
+  return {log, bodies, records, beforeReady, setScreen: (value: string | undefined) => {screen = value;}, restore: () => {globalThis.fetch = original;}};
 }
 
 test('an empty ingestion endpoint sends nothing and capture never throws', async context => {
@@ -62,4 +67,9 @@ test('a device id outside the admission pattern is left out so the record is kep
   const [record] = f.records();
   assert.equal(record.device_id, undefined);
   assert.equal(record.user_id, '42');
+});
+
+test('the device id is not created before legacy preferences are migrated', async context => {
+  const f = await setup('https://ingest.example', {auth_token: 'token', user_id: '42'}); context.after(f.restore);
+  assert.equal(f.beforeReady, undefined);
 });

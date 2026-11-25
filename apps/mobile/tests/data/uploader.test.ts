@@ -16,8 +16,9 @@ test('metadata diff matches source fields and falls back to complete raw malform
 });
 function queue(counts: number[]) {
   const completed: number[] = [];
-  const transactions: PendingTransaction[] = counts.map((count, i) => ({transactionId: i, crud: Array.from({length: count}, (_, n) => ({table: 'sr_user_bookmark', id: `${i}:${n}`, op: 'PATCH', opData: {is_starred: 1}})), complete: async () => {completed.push(i);}}));
-  return {completed, async *getCrudTransactions() {yield* transactions;}};
+  const source = {completed, failComplete: undefined as Error | undefined, async *getCrudTransactions() {yield* transactions;}};
+  const transactions: PendingTransaction[] = counts.map((count, i) => ({transactionId: i, crud: Array.from({length: count}, (_, n) => ({table: 'sr_user_bookmark', id: `${i}:${n}`, op: 'PATCH', opData: {is_starred: 1}})), complete: async () => {if (source.failComplete) throw source.failComplete; completed.push(i);}}));
+  return source;
 }
 test('batches count operations, keep large transactions whole, pace, and complete in order', async () => {
   const source = queue([12, 9, 25, 1]); const sizes: number[] = [], delays: number[] = [];
@@ -45,4 +46,10 @@ test('each accepted batch reports its submission and then its acknowledgement', 
   const rejected = queue([1]); const seen: string[] = [];
   await assert.rejects(uploadPendingTransactions(rejected, async () => {throw new ApiError(500, 'down');}, async () => {}, {submitted: () => seen.push('submit'), acknowledged: () => seen.push('ack')}));
   assert.deepEqual(seen, []); assert.deepEqual(rejected.completed, []);
+});
+test('a local completion failure after an accepted submission is tagged as the acknowledgement', async () => {
+  const source = queue([1]); source.failComplete = new Error('disk full');
+  const steps: string[] = [];
+  const failure = await uploadPendingTransactions(source, async () => {}, async () => {}, {submitted: () => steps.push('submit'), acknowledged: () => steps.push('ack')}).catch(error => error);
+  assert.equal(failure.step, 'acknowledge'); assert.deepEqual(steps, ['submit']);
 });
