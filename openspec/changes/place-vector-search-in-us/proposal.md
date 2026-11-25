@@ -39,6 +39,6 @@ None.
 
 ## Impact
 
-- API: new entry `src/entry/vector/index.ts`; `SearchService.hybridSearch` and `semanticSearchV5`; a client for the binding; deploy scripts (`config.ts`, `deploy.ts`, `runtimeKeys.ts`, `topology.ts`, `sync-secrets.ts`, `build.ts`, `dev-local.ts`) and their tests; `worker-configuration.d.ts`; deployment documentation.
+- API: new entry `src/entry/vector/index.ts`; `SearchService.hybridSearch` and `semanticSearchV5`; a client for the binding; deploy scripts (`config.ts`, `deploy.ts`, `runtimeKeys.ts`, `topology.ts`, `sync-secrets.ts`, `wrangler.ts`, `generate-worker-types.ts`; `build.ts` follows `TARGETS` and `dev:local` is unchanged) and their tests; `worker-configuration.d.ts`; deployment documentation.
 - Cloudflare: one new Worker per account (test, beta, production); no new index, database or route. Service-binding calls are billed as CPU time only.
 - No HTTP contract change. Untagged search results are unchanged; latency changes.
