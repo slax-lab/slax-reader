@@ -17,4 +17,6 @@ On 2026-11-25, a subagent reviewed the implementation against the existing names
 
 ## Pull request acceptance
 
+The follow-up CI regression run exercised promotion profile ordering with a Nuxt state mock that accepts an omitted initializer. The focused Web run passed 63 tests across five suites.
+
 On 2026-11-25, the change requester confirmed hands-on acceptance of the implemented Web UX batch in the local acceptance environment and authorized opening the pull request. The requester asked for no adjustments.

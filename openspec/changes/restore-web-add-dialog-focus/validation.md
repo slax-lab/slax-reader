@@ -21,4 +21,6 @@ On 2026-11-25, a subagent reviewed the implementation against the existing names
 
 ## Pull request acceptance
 
+The follow-up CI regression test verifies that both RSS Add launchers emit their own click event so the Inbox can restore focus to the correct button. The focused Web run passed 63 tests across five suites.
+
 On 2026-11-25, the change requester confirmed hands-on acceptance of the implemented Web UX batch in the local acceptance environment and authorized opening the pull request. The requester asked for no adjustments.
