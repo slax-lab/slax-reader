@@ -109,6 +109,28 @@ describe('Collection/BookmarkCell', () => {
     })
   })
 
+  describe('article source', () => {
+    it.each([
+      { siteName: '微信', host: 'mp.weixin.qq.com', expected: '微信' },
+      { siteName: '', host: 'mp.weixin.qq.com', expected: 'mp.weixin.qq.com' },
+      { siteName: '   ', host: 'example.com', expected: 'example.com' }
+    ])('renders $expected as the source', async ({ siteName, host, expected }) => {
+      const { default: BookmarkCell } = await import('~~/app/components/Collection/BookmarkCell.vue')
+      const wrapper = mountWithApp(BookmarkCell, {
+        props: { bookmark: makeBookmark({ site_name: siteName, host_url: host }) }
+      })
+      expect(wrapper.find('.article-source').text()).toBe(expected)
+    })
+
+    it('omits the source when both values are empty', async () => {
+      const { default: BookmarkCell } = await import('~~/app/components/Collection/BookmarkCell.vue')
+      const wrapper = mountWithApp(BookmarkCell, {
+        props: { bookmark: makeBookmark({ site_name: '', host_url: '   ' }) }
+      })
+      expect(wrapper.find('.article-source').exists()).toBe(false)
+    })
+  })
+
   describe('navigation target', () => {
     it('links to /b/{bookmark_uuid} when present', async () => {
       const { default: BookmarkCell } = await import('~~/app/components/Collection/BookmarkCell.vue')

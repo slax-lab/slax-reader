@@ -22,7 +22,7 @@ export class NewsletterService {
     }
     return this.repo.address(ctx.getUserId(), domain, provision, confirmedAddress)
   }
-  async receive(message: ForwardableEmailMessage, env: Env, timing = new NewsletterTiming(message.rawSize)): Promise<void> {
+  async receive(message: Pick<ForwardableEmailMessage, 'to' | 'raw' | 'rawSize'>, env: Env, timing = new NewsletterTiming(message.rawSize)): Promise<void> {
     const domain = configuredNewsletterDomain(env)
     const at = message.to.lastIndexOf('@'),
       part = newsletterRecipientPart(message.to.slice(0, at))
@@ -56,7 +56,12 @@ export class NewsletterService {
 }
 
 /** Permanent policy rejection is distinct from infrastructure failure before durable admission. */
-export async function receiveNewsletterEmail(message: ForwardableEmailMessage, env: Env, service: NewsletterService, timing = new NewsletterTiming(message.rawSize)) {
+export async function receiveNewsletterEmail(
+  message: Pick<ForwardableEmailMessage, 'to' | 'raw' | 'rawSize' | 'setReject'>,
+  env: Env,
+  service: NewsletterService,
+  timing = new NewsletterTiming(message.rawSize)
+) {
   try {
     await service.receive(message, env, timing)
   } catch (error) {

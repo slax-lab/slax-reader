@@ -830,7 +830,7 @@ const updateTipsSearchStatus = (success: boolean) => {
     return
   }
   const tipsText = success ? t('component.chat_bot.search_complete') : t('component.chat_bot.search_failed')
-  const reg = new RegExp(`${t('component.chat_bot.searching_token')}\\.\\.\\.$`)
+  const reg = new RegExp(`${t('component.chat_bot.searching_token')}\\.\\.\\.$`, 'i')
   searchMessage.tips = searchMessage.tips.replace(reg, tipsText)
   searchMessage.loading = false
 }

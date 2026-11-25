@@ -120,9 +120,8 @@ describe('dev port guard', () => {
 })
 
 test('SLAX_API_DEV_PORTS moves individual local Workers and rejects invalid or clashing ports', () => {
-  expect(devPorts(undefined)).toEqual({ edge: 8787, core: 8686, ai: 8788, browser: 8789, objects: 8790 })
-  expect(devPorts('ai=8798,objects=8791')).toEqual({ edge: 8787, core: 8686, ai: 8798, browser: 8789, objects: 8791 })
+  expect(devPorts(undefined)).toEqual({ edge: 8787, core: 8686, ai: 8788, browser: 8789, objects: 8790, vector: 8791 })
+  expect(devPorts('ai=8798,objects=8792')).toEqual({ edge: 8787, core: 8686, ai: 8798, browser: 8789, objects: 8792, vector: 8791 })
   for (const value of ['web=1', 'ai=0', 'ai=x', 'ai=70000']) expect(() => devPorts(value)).toThrow('must be')
   expect(() => devPorts('ai=8787')).toThrow('same port')
 })
-

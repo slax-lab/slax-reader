@@ -66,7 +66,7 @@ function index() {
           })
         )
         .slice(0, options.topK)
-        .map(vector => ({ id: vector.id, score: 0.9 }))
+        .map(vector => (options.returnValues ? { id: vector.id, score: 0.9, values: vector.values } : { id: vector.id, score: 0.9 }))
       return { matches, count: matches.length }
     })
   }
@@ -239,9 +239,15 @@ describe('single-target task refresh semantics', () => {
   test('an unrelated provider 400 remains a failure after empty-image filtering', async () => {
     await seed(41)
     provider.mockImplementationOnce(async () => new Response('invalid nonempty input', { status: 400 }))
-    const [output] = await service.refreshArticles([{ userId: 1, id: 41 }])
-    expect(output).toMatchObject({ state: 'failed', reason: 'embedding_http_400' })
-    expect(indexes[0].upsert).not.toHaveBeenCalled()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const [output] = await service.refreshArticles([{ userId: 1, id: 41 }])
+      expect(output).toMatchObject({ state: 'failed', reason: 'embedding_http_400' })
+      expect(indexes[0].upsert).not.toHaveBeenCalled()
+      expect(log.mock.calls.filter(call => call[0] === '[embedding-provider]')).toEqual([['[embedding-provider]', JSON.stringify({ status: 400 })]])
+    } finally {
+      log.mockRestore()
+    }
   })
 
   test('two owners of one original keep independent article identities', async () => {
@@ -2047,12 +2053,18 @@ describe('available-input incremental repair', () => {
     provider.mockImplementation(async (url, request) =>
       JSON.parse(request.body as string).input.some((input: any) => input.text?.includes('bad text')) ? new Response('invalid input', { status: 400 }) : normal(url, request)
     )
-    const results = await service.refreshArticles([
-      { userId: 1, id: 1 },
-      { userId: 1, id: 2 }
-    ])
-    expect(results.map(result => result.state)).toEqual(['failed', 'written'])
-    expect(indexes[0].stored.has('a:1:2')).toBe(true)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const results = await service.refreshArticles([
+        { userId: 1, id: 1 },
+        { userId: 1, id: 2 }
+      ])
+      expect(results.map(result => result.state)).toEqual(['failed', 'written'])
+      expect(indexes[0].stored.has('a:1:2')).toBe(true)
+      expect(log.mock.calls.filter(call => call[0] === '[embedding-provider]')).toEqual([['[embedding-provider]', JSON.stringify({ status: 400 })]])
+    } finally {
+      log.mockRestore()
+    }
   })
 
   test('a relation-only event updates weights despite missing original source', async () => {

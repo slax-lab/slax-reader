@@ -1,11 +1,13 @@
 import { Buffer } from 'node:buffer'
 import { injectable } from '@/decorators/di'
+import { hashSHA256 } from '@/utils/strings'
 import {
   bisectText,
   estimatedTokens,
   modelPayload,
   normalized,
   VECTOR_BATCH_SIZE,
+  VECTOR_DIMENSIONS,
   VECTOR_MEDIA_REQUEST_BYTES,
   VECTOR_MODEL,
   VECTOR_REQUEST_BYTES,
@@ -36,7 +38,27 @@ async function responseText(response: Response, limit: number): Promise<string> 
   }
 }
 
-class ContextOverflow extends Error {}
+export type ProviderDiagnostic = { status: number; code?: string; detail?: string; requestId?: string }
+
+export class EmbeddingProviderError extends Error {
+  constructor(
+    message: string,
+    readonly diagnostic: ProviderDiagnostic
+  ) {
+    super(message)
+  }
+}
+
+class ContextOverflow extends EmbeddingProviderError {}
+
+const reported = new WeakSet<EmbeddingProviderError>()
+
+/** Emits the provider diagnostic once for a failure that is not retried any further. */
+export function reportProviderFailure(error: unknown): void {
+  if (!(error instanceof EmbeddingProviderError) || reported.has(error)) return
+  reported.add(error)
+  console.error('[embedding-provider]', JSON.stringify(error.diagnostic))
+}
 
 const SAFE_PROVIDER_DETAILS: Record<string, string> = {
   INPUT_TOKEN_LIMIT_EXCEEDED: 'Input exceeds the model token limit',
@@ -44,8 +66,8 @@ const SAFE_PROVIDER_DETAILS: Record<string, string> = {
   AUTH_INVALID_API_KEY: 'Invalid API key'
 }
 
-export function providerDiagnostic(status: number, text: string, requestId: string | null) {
-  const diagnostic: { status: number; code?: string; detail?: string; requestId?: string } = { status }
+export function providerDiagnostic(status: number, text: string, requestId: string | null): ProviderDiagnostic {
+  const diagnostic: ProviderDiagnostic = { status }
   try {
     const body = JSON.parse(text) as { code?: unknown; detail?: unknown; request_id?: unknown }
     if (typeof body.code === 'string' && /^[A-Z][A-Z0-9_]{1,64}$/.test(body.code)) {
@@ -61,17 +83,35 @@ export function providerDiagnostic(status: number, text: string, requestId: stri
   return diagnostic
 }
 
+// Search-term embeddings are immutable for a model; a week bounds KV growth from one-off terms.
+const QUERY_EMBEDDING_CACHE_SECONDS = 7 * 24 * 60 * 60
+
 @injectable()
 export class VectorEmbeddingClient {
   private readonly apiKey: string
+  private readonly cache?: KVNamespace
   private readonly fetcher: typeof fetch = (input, init) => fetch(input, init)
 
   constructor(env: Env) {
     this.apiKey = env.JINA_API_KEY
+    this.cache = env.KV
   }
 
   async query(text: string, signal?: AbortSignal): Promise<number[]> {
     return (await this.request([{ text }], 1, VECTOR_REQUEST_BYTES, signal))[0]
+  }
+
+  /**
+   * query() for search terms, cached in KV per model, dimensions and exact text. A search term's embedding never
+   * changes for a given model, so repeated searches skip the provider round trip. Cache failures fall back to query().
+   */
+  async cachedQuery(text: string, signal?: AbortSignal): Promise<number[]> {
+    const key = `search:embedding:${await hashSHA256(`${VECTOR_MODEL}:${VECTOR_DIMENSIONS}:${text}`)}`
+    const hit = await this.cache?.get<number[]>(key, 'json').catch(() => null)
+    if (Array.isArray(hit) && hit.length === VECTOR_DIMENSIONS && hit.every(Number.isFinite)) return hit
+    const vector = await this.query(text, signal)
+    await this.cache?.put(key, JSON.stringify(vector), { expirationTtl: QUERY_EMBEDDING_CACHE_SECONDS }).catch(() => {})
+    return vector
   }
 
   private async request(input: ModelInput[] | { pdf: string }, count?: number, maxBytes = VECTOR_REQUEST_BYTES, requestSignal?: AbortSignal): Promise<number[][]> {
@@ -93,7 +133,7 @@ export class VectorEmbeddingClient {
     }).catch(() => bodyFailure(new Error('embedding_transport_failed')))
     if (!response.ok) {
       const text = await responseText(response, 16 * 1024).catch(bodyFailure)
-      console.error('[embedding-provider]', JSON.stringify(providerDiagnostic(response.status, text, response.headers.get('x-request-id'))))
+      const diagnostic = providerDiagnostic(response.status, text, response.headers.get('x-request-id'))
       const imageOnly = Array.isArray(input) && input.length === 1 && !('text' in input[0])
       if (imageOnly && [400, 413, 422].includes(response.status)) {
         let message = ''
@@ -111,9 +151,9 @@ export class VectorEmbeddingClient {
         (response.status === 400 || response.status === 413 || response.status === 422) &&
         /context[_ -]?(length|window)|maximum.*tokens|token.*(limit|exceed)|input.*too long|(?:input.*exceed.*maximum length|exceed.*model(?:['’]s)? maximum length)/i.test(text)
       ) {
-        throw new ContextOverflow('embedding_context_overflow')
+        throw new ContextOverflow('embedding_context_overflow', diagnostic)
       }
-      throw new Error(`embedding_http_${response.status}`)
+      throw new EmbeddingProviderError(`embedding_http_${response.status}`, diagnostic)
     }
     const result = (
       count === undefined ? await response.json().catch(bodyFailure) : JSON.parse(await responseText(response, Math.max(2 * 1024 * 1024, count * 64 * 1024)).catch(bodyFailure))
@@ -156,9 +196,15 @@ export class VectorEmbeddingClient {
         return [...(await this.embedWithinBudget(inputs.slice(0, middle), budget)), ...(await this.embedWithinBudget(inputs.slice(middle), budget))]
       }
       const input = inputs[0]
-      if (!('text' in input)) throw new Error('pending_multimodal_context_overflow')
+      if (!('text' in input)) throw new EmbeddingProviderError('pending_multimodal_context_overflow', error.diagnostic)
+      let halves: [string, string]
+      try {
+        halves = bisectText(input.text)
+      } catch {
+        throw new EmbeddingProviderError('input_cannot_be_split', error.diagnostic)
+      }
       const parts: EmbeddedPart[] = []
-      for (const text of bisectText(input.text)) parts.push(...(await this.embedWithinBudget([{ text }], budget))[0])
+      for (const text of halves) parts.push(...(await this.embedWithinBudget([{ text }], budget))[0])
       return [parts]
     }
   }

@@ -361,8 +361,9 @@ export class SubscriptionAppleService {
   }
 
   private validateAppleApplication(env: Env, bundleId: string, environment: Environment) {
-    const expectedEnvironment = env.RUN_TYPE === 'prod' ? Environment.PRODUCTION : Environment.SANDBOX
-    if (!env.APP_STORE_BUNDLE_ID || bundleId !== env.APP_STORE_BUNDLE_ID || environment !== expectedEnvironment) {
+    // Production also accepts Sandbox because TestFlight and App Review purchases are always Sandbox transactions.
+    const allowedEnvironments = env.RUN_TYPE === 'prod' ? [Environment.PRODUCTION, Environment.SANDBOX] : [Environment.SANDBOX]
+    if (!env.APP_STORE_BUNDLE_ID || bundleId !== env.APP_STORE_BUNDLE_ID || !allowedEnvironments.includes(environment)) {
       throw ErrorParam()
     }
   }

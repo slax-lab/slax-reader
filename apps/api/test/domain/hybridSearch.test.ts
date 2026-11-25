@@ -1,15 +1,8 @@
 import { describe, expect, test, vi } from 'vitest'
-import {
-  HybridSearchError,
-  HybridSearchService,
-  compareSearchIdentity,
-  searchOriginKey,
-  type SearchChannelResult,
-  type SearchMatch
-} from '../../src/domain/hybridSearch'
+import { HybridSearchError, HybridSearchService, compareSearchIdentity, searchOriginKey, type SearchChannelResult, type SearchMatch } from '../../src/domain/hybridSearch'
 import type { HybridSearchRepo, SearchArticleRow } from '../../src/infra/repository/dbHybridSearch'
 import type { BookmarkSearchRepo } from '../../src/infra/repository/dbBookmarkSearch'
-import type { VectorEmbeddingClient } from '../../src/infra/external/vectorEmbedding'
+import { EmbeddingProviderError, type VectorEmbeddingClient } from '../../src/infra/external/vectorEmbedding'
 import type { VectorMaintenanceService } from '../../src/domain/vectorMaintenance'
 import type { ContextManager } from '../../src/utils/context'
 import type { HybridSearchArticleOrigin, HybridSearchEntity } from '@slax-reader/contracts'
@@ -41,12 +34,17 @@ function dependencies() {
     rssEntries: vi.fn(async () => [] as Array<{ entry_id: string; feed_id: string; subscription_id: string; title: string; source_title: string; article_url: string | null }>)
   }
   const fulltextRepo = { searchCandidatePage: vi.fn(async () => [] as Array<{ row_id: number; bookmark_id: number; score: number; excerpt: string }>) }
-  const embedding = { query: vi.fn(async () => unit()) }
+  const embedding = { cachedQuery: vi.fn(async () => unit()) }
   const vectors = {
     queryArticles: vi.fn(async () => [] as Array<{ userId: number; id: number; score: number }>),
     queryCollections: vi.fn(async () => [] as Array<{ id: number; score: number }>)
   }
-  const service = new HybridSearchService(repo as unknown as HybridSearchRepo, fulltextRepo as unknown as BookmarkSearchRepo, embedding as unknown as VectorEmbeddingClient, vectors as unknown as VectorMaintenanceService)
+  const service = new HybridSearchService(
+    repo as unknown as HybridSearchRepo,
+    fulltextRepo as unknown as BookmarkSearchRepo,
+    embedding as unknown as VectorEmbeddingClient,
+    vectors as unknown as VectorMaintenanceService
+  )
   return { repo, fulltextRepo, embedding, vectors, service }
 }
 
@@ -73,7 +71,15 @@ describe('search identity helpers', () => {
 
   test('keeps own and Collection origins distinct, with own ordering first', () => {
     const own: HybridSearchArticleOrigin = { kind: 'own', bookmark_user_uuid: 'uuid-a', title: 'Own' }
-    const collection: HybridSearchArticleOrigin = { kind: 'collection', collection_id: 30, collection_code: 'code', owner_id: 8, cb_id: 77, bookmark_uuid: 'owner-uuid', title: 'Shared' }
+    const collection: HybridSearchArticleOrigin = {
+      kind: 'collection',
+      collection_id: 30,
+      collection_code: 'code',
+      owner_id: 8,
+      cb_id: 77,
+      bookmark_uuid: 'owner-uuid',
+      title: 'Shared'
+    }
     expect(searchOriginKey(own)).toBe('0:uuid-a')
     expect(searchOriginKey(collection)).toBe('1:30:77')
     expect(searchOriginKey(own)).not.toBe(searchOriginKey({ ...own, bookmark_user_uuid: 'uuid-b' }))
@@ -84,25 +90,44 @@ describe('queryEmbedding', () => {
   test('returns the embedding and forwards the abort signal', async () => {
     const { embedding, service } = dependencies()
     const controller = new AbortController()
-    embedding.query.mockResolvedValueOnce(unit(2))
+    embedding.cachedQuery.mockResolvedValueOnce(unit(2))
     await expect(service.queryEmbedding('reader', controller.signal)).resolves.toEqual(unit(2))
-    expect(embedding.query).toHaveBeenCalledExactlyOnceWith('reader', controller.signal)
+    expect(embedding.cachedQuery).toHaveBeenCalledExactlyOnceWith('reader', controller.signal)
   })
 
   test('maps provider timeout and other failures to explicit channel codes', async () => {
     const { embedding, service } = dependencies()
-    embedding.query.mockRejectedValueOnce(new Error('embedding_request_timeout'))
+    embedding.cachedQuery.mockRejectedValueOnce(new Error('embedding_request_timeout'))
     await expect(service.queryEmbedding('reader', new AbortController().signal)).rejects.toMatchObject({ code: 'embedding_timeout' })
-    embedding.query.mockRejectedValueOnce(new Error('transport down'))
+    embedding.cachedQuery.mockRejectedValueOnce(new Error('transport down'))
     await expect(service.queryEmbedding('reader', new AbortController().signal)).rejects.toMatchObject({ code: 'embedding_failed' })
     expect(HybridSearchError.prototype).toBeInstanceOf(Error)
+  })
+
+  test('reports one provider diagnostic for a final search embedding failure', async () => {
+    const { embedding, service } = dependencies()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const provider = new EmbeddingProviderError('embedding_http_400', { status: 400, code: 'INVALID_TASK', requestId: 'abcdef0123456789abcdef0123456789' })
+    try {
+      embedding.cachedQuery.mockRejectedValue(provider)
+      await expect(service.queryEmbedding('reader', new AbortController().signal)).rejects.toMatchObject({ code: 'embedding_failed' })
+      expect(log).toHaveBeenCalledExactlyOnceWith('[embedding-provider]', JSON.stringify({ status: 400, code: 'INVALID_TASK', requestId: 'abcdef0123456789abcdef0123456789' }))
+      embedding.cachedQuery.mockRejectedValueOnce(new Error('transport down'))
+      await expect(service.queryEmbedding('reader', new AbortController().signal)).rejects.toMatchObject({ code: 'embedding_failed' })
+      const aborted = new AbortController()
+      aborted.abort()
+      await expect(service.queryEmbedding('reader', aborted.signal)).rejects.toMatchObject({ name: 'AbortError' })
+      expect(log).toHaveBeenCalledOnce()
+    } finally {
+      log.mockRestore()
+    }
   })
 
   test('an aborted signal wins over a provider failure', async () => {
     const { embedding, service } = dependencies()
     const controller = new AbortController()
     controller.abort()
-    embedding.query.mockRejectedValueOnce(new Error('embedding_request_timeout'))
+    embedding.cachedQuery.mockRejectedValueOnce(new Error('embedding_request_timeout'))
     await expect(service.queryEmbedding('reader', controller.signal)).rejects.toMatchObject({ name: 'AbortError' })
   })
 })
@@ -163,12 +188,23 @@ describe('titles channel', () => {
     ])
     repo.collections.mockResolvedValue([{ collection_id: 30, collection_code: 'code', owner_id: 8, title: 'Collection subject' }])
     repo.rssFeeds.mockResolvedValue([{ feed_id: 'feed-1', subscription_id: 'sub-1', title: 'Feed alias' }])
-    repo.rssEntries.mockResolvedValue([{ entry_id: 'entry-1', feed_id: 'feed-1', subscription_id: 'sub-1', title: 'Entry', source_title: 'Feed alias', article_url: 'https://example.com/e' }])
+    repo.rssEntries.mockResolvedValue([
+      { entry_id: 'entry-1', feed_id: 'feed-1', subscription_id: 'sub-1', title: 'Entry', source_title: 'Feed alias', article_url: 'https://example.com/e' }
+    ])
     const result = await service.titles(USER, 'reader', new AbortController().signal)
     expect(result.matches.map(match => match.entity)).toEqual([
       { type: 'collection', id: 'collection:30', collection_id: 30, collection_code: 'code', owner_id: 8, title: 'Collection subject' },
       { type: 'rss_feed', id: 'rss_feed:feed-1', feed_id: 'feed-1', subscription_id: 'sub-1', title: 'Feed alias' },
-      { type: 'rss_entry', id: 'rss_entry:entry-1', entry_id: 'entry-1', feed_id: 'feed-1', subscription_id: 'sub-1', title: 'Entry', source_title: 'Feed alias', article_url: 'https://example.com/e' }
+      {
+        type: 'rss_entry',
+        id: 'rss_entry:entry-1',
+        entry_id: 'entry-1',
+        feed_id: 'feed-1',
+        subscription_id: 'sub-1',
+        title: 'Entry',
+        source_title: 'Feed alias',
+        article_url: 'https://example.com/e'
+      }
     ])
     expect(result.matches.some(match => match.entity.type === 'article')).toBe(false)
   })
@@ -220,12 +256,8 @@ describe('fulltext channel', () => {
   test('continues past a full inaccessible page and admits an eligible bookmark on the next page', async () => {
     const { repo, fulltextRepo, service } = dependencies()
     const { ctx: context } = ctx()
-    fulltextRepo.searchCandidatePage
-      .mockResolvedValueOnce(Array.from({ length: 101 }, () => pageRow(10)))
-      .mockResolvedValueOnce([pageRow(11)])
-    repo.articles.mockImplementation(async (_userId: number, ids: number[]) =>
-      ids.includes(11) ? [articleRow({ bookmark_id: 11 })] : []
-    )
+    fulltextRepo.searchCandidatePage.mockResolvedValueOnce(Array.from({ length: 101 }, () => pageRow(10))).mockResolvedValueOnce([pageRow(11)])
+    repo.articles.mockImplementation(async (_userId: number, ids: number[]) => (ids.includes(11) ? [articleRow({ bookmark_id: 11 })] : []))
     const result = await service.fulltext(context, 'reader', new AbortController().signal)
     expect(fulltextRepo.searchCandidatePage).toHaveBeenCalledTimes(2)
     expect(result.matches.map(match => match.entity.id)).toEqual(['article:11'])
@@ -419,9 +451,7 @@ describe('article vector channel', () => {
   test('drops an own-vector candidate whose current admission has no own origin', async () => {
     const { repo, vectors, service } = dependencies()
     vectors.queryArticles.mockResolvedValue([{ userId: USER, id: 10, score: 0.9 }])
-    repo.articles.mockResolvedValue([
-      articleRow({ user_id: 8, collection_id: 30, collection_code: 'code', collection_readable: true })
-    ])
+    repo.articles.mockResolvedValue([articleRow({ user_id: 8, collection_id: 30, collection_code: 'code', collection_readable: true })])
     const result = await service.articleVector(USER, unit(), new AbortController().signal)
     expect(result.matches).toEqual([])
   })
@@ -489,7 +519,12 @@ describe('revalidate', () => {
     repo.articles.mockResolvedValue([articleRow({ title: 'Current title', target_url: 'https://example.com/current' })])
     const withExcerpt: SearchMatch = { ...vectorMatch, entity: { ...vectorMatch.entity, excerpt: { text: 'old excerpt', source: 'indexed_text' } } as HybridSearchEntity }
     const [result] = await service.revalidate(USER, 'fulltext', [withExcerpt], new AbortController().signal)
-    expect(result.entity).toMatchObject({ type: 'article', title: 'Current title', target_url: 'https://example.com/current', excerpt: { text: 'old excerpt', source: 'indexed_text' } })
+    expect(result.entity).toMatchObject({
+      type: 'article',
+      title: 'Current title',
+      target_url: 'https://example.com/current',
+      excerpt: { text: 'old excerpt', source: 'indexed_text' }
+    })
   })
 
   test('article-vector revalidation requires a current own origin, not only Collection access', async () => {
@@ -534,9 +569,7 @@ describe('revalidate', () => {
       repo.articles.mockResolvedValue([articleRow()])
       repo.titleCandidates.mockResolvedValue([])
       const channels = { titles: channel([articleMatch]), article_vector: channel([articleMatch]) }
-      const current = Object.fromEntries(
-        (await service.revalidateAll(USER, channels, new AbortController().signal, 'reader')).map(item => [item.channel, item])
-      )
+      const current = Object.fromEntries((await service.revalidateAll(USER, channels, new AbortController().signal, 'reader')).map(item => [item.channel, item]))
       expect(repo.titleCandidates).toHaveBeenCalledExactlyOnceWith(USER, 'reader', 100, expect.any(Array))
       expect(current.titles.result?.matches).toEqual([])
       expect(current.article_vector.result?.matches.map(match => match.entity.id)).toEqual(['article:10'])
@@ -550,9 +583,7 @@ describe('revalidate', () => {
       repo.articles.mockResolvedValue([articleRow({ title: 'Stored title' })])
       repo.titleCandidates.mockResolvedValue([articleCandidate(10, 'New alias')])
       const channels = { titles: channel([articleMatch]), fulltext: channel([{ ...articleMatch, nativeScore: -1 }]) }
-      const current = Object.fromEntries(
-        (await service.revalidateAll(USER, channels, new AbortController().signal, 'reader')).map(item => [item.channel, item])
-      )
+      const current = Object.fromEntries((await service.revalidateAll(USER, channels, new AbortController().signal, 'reader')).map(item => [item.channel, item]))
       expect(current.titles.result?.matches[0].entity.title).toBe('New alias')
       expect(current.fulltext.result?.matches[0].entity.type === 'article' && current.fulltext.result?.matches[0].entity.origins).toEqual([
         { kind: 'own', bookmark_user_uuid: 'own-uuid', title: 'Stored title' }
@@ -566,9 +597,7 @@ describe('revalidate', () => {
       )
       repo.titleCandidates.mockResolvedValue([collectionCandidate(30, 'Collection title')])
       const channels = { titles: channel([collectionMatch]), collection_vector: channel([collectionMatch]) }
-      const current = Object.fromEntries(
-        (await service.revalidateAll(USER, channels, new AbortController().signal, 'reader')).map(item => [item.channel, item])
-      )
+      const current = Object.fromEntries((await service.revalidateAll(USER, channels, new AbortController().signal, 'reader')).map(item => [item.channel, item]))
       expect(current.titles.result?.matches.map(match => match.entity.id)).toEqual(['collection:30'])
       expect(current.titles.result?.matches[0].entity.title).toBe('Collection title')
       expect(current.collection_vector.result?.matches).toEqual([])
@@ -582,9 +611,7 @@ describe('revalidate', () => {
         return []
       })
       const channels = { titles: channel([collectionMatch]), article_vector: channel([articleMatch]) }
-      const current = Object.fromEntries(
-        (await service.revalidateAll(USER, channels, new AbortController().signal, 'reader')).map(item => [item.channel, item])
-      )
+      const current = Object.fromEntries((await service.revalidateAll(USER, channels, new AbortController().signal, 'reader')).map(item => [item.channel, item]))
       expect(current.titles.error).toMatchObject({ code: 'admission_failed' })
       expect(current.article_vector.result?.matches.map(match => match.entity.id)).toEqual(['article:10'])
     })

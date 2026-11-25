@@ -103,7 +103,8 @@ export interface searchEligibleBookmarkPO {
   bookmark_id: number
   uuid: string
   created_at?: Date
-  bookmark?: { target_url: string }
+  alias_title?: string
+  bookmark?: { target_url: string; title: string; description: string }
 }
 
 export interface bookmarkActionChangePO {
@@ -1069,7 +1070,7 @@ export class BookmarkRepo {
       select: {
         bookmark_id: true,
         uuid: true,
-        ...(bookmarkIds ? { created_at: true, bookmark: { select: { target_url: true } } } : {})
+        ...(bookmarkIds ? { created_at: true, alias_title: true, bookmark: { select: { target_url: true, title: true, description: true } } } : {})
       }
     })
   }

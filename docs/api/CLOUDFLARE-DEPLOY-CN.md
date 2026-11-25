@@ -7,7 +7,7 @@
 3. 创建自己的 D1、KV、R2、队列、五个 1024 维 cosine Vectorize 索引，配置 PostgreSQL/Hyperdrive、PowerSync。`resources` 默认仅列计划，`--apply` 才创建缺失资源并输出 ID，需账号与 API token；Hyperdrive/数据库/外部服务不由它创建。模板的 SlaxTwitterFxembed 是外部 `fxembed` 服务，需自行部署实现或提供等价服务名。Cloudflare 账号需具备这些产品及 Browser Rendering 的权限。
 4. 保留逻辑 binding 名称，自定义物理资源名。队列映射使用原生 producer binding，导入死信队列通过 IMPORT_OTHER 消费者的 dead_letter_queue 关联。配置原文件不被改写。环境间隔离物理队列和 Workflow 名称。
 5. 已有安装必须保留原 Worker 名、资源 ID、DO migration tags/classes 与所有历史迁移，模板不是生产配置的替代品。远程 D1/fulltext 与 PostgreSQL/logs 迁移需独立核对目标并运行开发文档中的对应命令。
-6. Secret 使用 Cloudflare Worker secrets；本地使用忽略的 `deploy/local/.dev.vars`。Edge/Core/AI 配置同一个 EDGE_SHARED_SECRET，按功能配置 JWT、Hashids、支付、OAuth、模型和 PowerSync 等凭据（完整 Env 契约在 apps/api/worker-configuration.d.ts）。不要写进 TOML。支付/OAuth 等提供方的回调域名也要配置为自己的 origin。
+6. Secret 使用 Cloudflare Worker secrets；本地使用忽略的 `deploy/local/.dev.vars`。Edge/Core/AI/Vector 配置同一个 EDGE_SHARED_SECRET，按功能配置 JWT、Hashids、支付、OAuth、模型和 PowerSync 等凭据（完整 Env 契约在 apps/api/worker-configuration.d.ts）。不要写进 TOML。支付/OAuth 等提供方的回调域名也要配置为自己的 origin。
 
 ```bash
 pnpm api -- build
@@ -18,12 +18,12 @@ pnpm api -- deploy --bootstrap        # NEW installation only
 pnpm api -- deploy                    # subsequent updates
 pnpm api -- deploy edge               # update one existing Worker
 pnpm api -- wrangler edge secret put EDGE_SHARED_SECRET
-pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 首次五 Worker 发布前执行，见下文
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 新增 Worker 的发布前执行，见下文
 ```
 
-`build` 真正离线打包（minify）五个 Worker，使用临时配置与空 env，不覆盖开发中的生成配置，并为每个 Worker 写出 `bundle-<worker>.meta.json`。`deploy --dry-run` 只生成 `.generated/`，不打包也不调用云端。生成文件不是第二份配置源，请勿手动维护。
+`build` 真正离线打包（minify）六个 Worker，使用临时配置与空 env，不覆盖开发中的生成配置，并为每个 Worker 写出 `bundle-<worker>.meta.json`。`deploy --dry-run` 只生成 `.generated/`，不打包也不调用云端。生成文件不是第二份配置源，请勿手动维护。
 
-新安装的 bootstrap 顺序为 Browser → Objects → AI → Edge，其中 AI 之前先发布一个临时移除 service/Workflow 绑定的 Core，最后发布带完整绑定和 Workflow 的 Core，解决循环依赖。普通发布顺序为 Browser → Objects → Core → AI → Edge。仅在新安装使用；中断后重新运行 bootstrap 完成初始化。已有部署使用普通 deploy。部署/secret/资源创建与远程迁移均是真实云操作，自动化代理需获得明确授权。
+新安装的 bootstrap 顺序为 Browser → Objects → Vector → AI → Edge，其中 AI 之前先发布一个临时移除 service/Workflow 绑定的 Core，最后发布带完整绑定和 Workflow 的 Core，解决循环依赖。普通发布顺序为 Browser → Objects → Vector → Core → AI → Edge。仅在新安装使用；中断后重新运行 bootstrap 完成初始化。已有部署使用普通 deploy。部署/secret/资源创建与远程迁移均是真实云操作，自动化代理需获得明确授权。
 
 ## Worker 拓扑
 
@@ -33,16 +33,26 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 首次五 
 | Core | `aws:ap-southeast-1` | `AI_ROUTES` 以外的 Reader 路由；通过内部主机 `jobs.internal` 执行的队列、cron 和 newsletter 邮件处理；六个 Workflow、`VectorPreferenceObject` |
 | AI | `aws:ap-southeast-1` | `apps/api/src/const/routes.ts` 中 `AI_ROUTES` 列出的路由（AIGC、概要/大纲、搜索、推荐、向量刷新）和 `AiEntry` 向量 RPC |
 | Objects | `aws:ap-southeast-1` | `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` 三个 Durable Object，不提供 HTTP |
+| Vector | `aws:us-east-1` | 不带 tag 的 `/v1/bookmark/search` 语义步骤（查询向量化、一次带向量的 V5 文章查询、按平台均值去中心化打分），通过内部主机 `vector.internal/search` 提供给 AI 的 `VECTOR_SEARCH` 绑定；只绑定 `VECTOR_V5_ARTICLE`，没有路由 |
 | Browser | 不设置 | `SlaxBrowser`（不变） |
 
 placement 由 `apps/api/script/deploy/config.ts` 的 `DATABASE_REGION` 决定，即离主 PostgreSQL 最近的区域。私有配置中出现 `[placement]` 会在任何远程操作前被拒绝。Core 和 Edge 保留原有的 `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` 命名空间，由返回 410 的空壳类承接（`apps/api/src/entry/retired.ts`），这些数据不会被删除。MCP Server 已下线，其 `SlaxMcpServer` 命名空间连同保存的会话一起删除：只要账号中还有这个命名空间，发布就会给 Edge 和 Core 加上 `retire-mcp-v1`（`deleted_classes = ["SlaxMcpServer"]`，见下文），私有迁移历史无需修改。Objects 使用独立迁移标签 `objects-v1`。
 
-## 首次五 Worker 发布（已有安装）
+Vector 的名字由 Core 推导（`reader-core` → `reader-vector`，`reader-core-beta` → `reader-vector-beta`，其余为 `<core>-vector`），也可用 `services.VECTOR_SEARCH.service` 指定；位置由 `VECTOR_REGION`（`aws:us-east-1`）决定，靠近查询编码器和 Vectorize 索引。AI 通过服务绑定以 `fetch` 调用它，而不是 RPC，因为 placement 只对 `fetch` 处理函数生效；请求携带 `EDGE_SHARED_SECRET`。没有该绑定时（隔离的本地运行），AI 在本进程执行同样的步骤。首次包含 Vector 的发布前，每个账号先创建它并写入它要读取的值：
 
-Edge 保留它现有的队列消费者、cron 和 Email Routing 接收方，把每个事件通过现有的 `CORE` 服务绑定以 `fetch` 方式原样发到内部主机 `jobs.internal`，并用 `EDGE_SHARED_SECRET` 鉴权。与 RPC 不同，fetch 会遵循 Core 的 placement，所以这些任务在新加坡、靠近数据库执行；服务绑定的 fetch 与 RPC 计费相同（不额外计请求费，只计 CPU 时间）。因此没有任何触发器、消费者或邮件规则需要移动，首次五 Worker 发布就是一次普通 `deploy`（CI 或 `pnpm api -- deploy`）。远程发布在第一次发布前读取账号：
+```bash
+pnpm api -- deploy vector
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # 给 Vector 上传 JINA_API_KEY 和 EDGE_SHARED_SECRET
+```
+
+只有 `deploy vector` 可以在 Vector 尚不存在时不带这些值发布；其他任何发布在 Vector 缺少其中任一值时都会停止，并给出这条命令。
+
+## 拆分后的首次发布（已有安装）
+
+Edge 保留它现有的队列消费者、cron 和 Email Routing 接收方，把每个事件通过现有的 `CORE` 服务绑定以 `fetch` 方式原样发到内部主机 `jobs.internal`，并用 `EDGE_SHARED_SECRET` 鉴权。与 RPC 不同，fetch 会遵循 Core 的 placement，所以这些任务在新加坡、靠近数据库执行；服务绑定的 fetch 与 RPC 计费相同（不额外计请求费，只计 CPU 时间）。因此没有任何触发器、消费者或邮件规则需要移动，拆分后的首次发布就是一次普通 `deploy`（CI 或 `pnpm api -- deploy`）。已完成拆分、现在新增 Vector 的安装，先执行上文 Vector 的两条命令；之后的整体发布只会在 Vector 仍缺值时停止。远程发布在第一次发布前读取账号：
 
 - 若某个 Worker 缺少其代码读取的值（见下文），停止并列出 Worker 和 key 名；
-- 决定发布顺序。账号中还有 `SlaxMcpServer` 命名空间时，按 Browser → Objects → Core（仍导出 MCP 空壳，因为旧 Edge 绑定着 Core 的命名空间）→ AI → Edge（删除 Edge 的命名空间）→ Core（删除 Core 的命名空间）发布；Wrangler 在 Core 首次发布时把 Workflow 转到 Core。之后的发布不再有命名空间，按 Browser → Objects → Core → AI → Edge 发布。
+- 决定发布顺序。账号中还有 `SlaxMcpServer` 命名空间时，按 Browser → Objects → Vector → Core（仍导出 MCP 空壳，因为旧 Edge 绑定着 Core 的命名空间）→ AI → Edge（删除 Edge 的命名空间）→ Core（删除 Core 的命名空间）发布；Wrangler 在 Core 首次发布时把 Workflow 转到 Core。之后的发布不再有命名空间，按 Browser → Objects → Vector → Core → AI → Edge 发布。
 
 变量和 secret 要跟着代码走。部署使用 `--keep-vars`，用 `wrangler secret put` 设置的 secret 只留在原来那个脚本上。`apps/api/script/deploy/runtimeKeys.ts` 列出每个 Worker 的代码会读取的字符串变量和 secret（测试会从构建产物重新推导，防止过期）。发布前会按名称列出：某个 Worker 需要读取、本安装的其他 API Worker 上存在、但该 Worker 自己和所选 `[vars]` 都没有的 key，然后停止。Cloudflare 不会返回 secret 的值，无法从旧 Edge 复制，需要你提供保存值的文件（密码管理器导出或原始 `.env`，放在仓库外或被忽略的 `deploy/local/` 下）。文件可以是 `.env`、JSON（`{"KEY": "value"}` 或 `[{"name": "KEY", "value": "value"}]`，也接受 `key`），或由顶层 `KEY = "value"` 行组成的 `.toml`；数字和布尔值按字符串上传；其他以 `{` 或 `[` 开头的内容按 JSON 读取。读取失败时只报告位置、key 名和值的类型，不会输出值，然后执行：
 

@@ -284,6 +284,42 @@ describe('repository-root generator paths', () => {
     }
   })
 
+  test('fulltext relation pruning reads PostgreSQL read-only and writes root-relative exclusive SQL', async () => {
+    const query = vi.fn(async (sql: string) => (sql.includes('SELECT') ? { rows: [{ user_id: 1, bookmark_id: 10 }] } : {}))
+    const write = vi.fn(async () => {})
+    await runScript(
+      'prune-fulltext-relations.ts',
+      {
+        pg: {
+          Client: class {
+            connect = vi.fn(async () => {})
+            query = query
+            end = vi.fn(async () => {})
+          }
+        },
+        'node:fs/promises': {
+          readFile: vi.fn(async () =>
+            JSON.stringify([
+              {
+                results: [
+                  { user_id: 1, bookmark_id: 10 },
+                  { user_id: 1, bookmark_id: 11 }
+                ]
+              }
+            ])
+          ),
+          writeFile: write
+        }
+      },
+      ['--mirror', 'fixtures/mirror.json', '--output-sql', 'fixtures/prune.sql'],
+      { HYPERDRIVE_DATABASE_URL: 'postgresql://fixture:fixture@127.0.0.1/fixture' }
+    )
+    expect(query.mock.calls[0]).toEqual(['BEGIN READ ONLY'])
+    expect(query.mock.calls[1][0]).toContain('FROM sr_user_bookmark')
+    expect(query.mock.calls.at(-1)).toEqual(['COMMIT'])
+    expect(write).toHaveBeenCalledWith(path.join(ROOT, 'fixtures/prune.sql'), 'DELETE FROM slax_user_bookmark WHERE user_id = 1 AND bookmark_id IN (11);\n', { flag: 'wx' })
+  })
+
   test('backfill keeps read-only SQL and root-relative exclusive output without loading dotenv', async () => {
     const query = vi.fn(async (sql: string) => (sql.includes('SELECT') ? { rows: [{ device_id: 'fixture', user_id: 1, bound_at: '2024-01-01' }] } : {}))
     const connect = vi.fn(async () => {})

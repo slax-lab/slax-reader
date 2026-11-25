@@ -11,6 +11,7 @@
 // 本 task（1.1）仅落客户端 getUserToken / haveRequestToken 4 用例，
 // 服务端块写 it.todo 占位避免空 describe 失败 —— 8 个真用例由 task 1.3 补。
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // FetchRequest mock：继承真实 class 以保留 combineUrlWithQuery 等方法，
@@ -233,6 +234,33 @@ describe('客户端环境', () => {
       expect(clearAuth).not.toHaveBeenCalled()
       expect(navigateToMock).not.toHaveBeenCalled()
       expect(result).toBe(response)
+    })
+  })
+
+  describe('overview stream HTTP failures', () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    it('clears a rejected session before navigating without consuming its response body', async () => {
+      const response = Response.json({ code: 401, message: 'Unauthorized access', data: 'UNAUTHORIZED' }, { status: 401 })
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
+      cookieGet.mockReturnValue('overview-fixture')
+
+      await expect(requestModule.request().stream({ url: RESTMethodPath.BOOKMARK_OVERVIEW })).rejects.toMatchObject({ code: 401 })
+
+      expect(response.bodyUsed).toBe(false)
+      expect(clearAuth).toHaveBeenCalledTimes(1)
+      expect(navigateToMock).toHaveBeenCalledExactlyOnceWith('/login')
+      expect(clearAuth).toHaveBeenCalledBefore(navigateToMock)
+      expect(showToast).not.toHaveBeenCalled()
+    })
+
+    it('rejects other HTTP failures without clearing the session', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ code: 429, message: 'Rate limited', data: 'RATE_LIMITED' }, { status: 429 })))
+
+      await expect(requestModule.request().stream({ url: RESTMethodPath.BOOKMARK_OVERVIEW })).rejects.toMatchObject({ code: 429, message: 'Rate limited' })
+
+      expect(clearAuth).not.toHaveBeenCalled()
+      expect(navigateToMock).not.toHaveBeenCalled()
     })
   })
 

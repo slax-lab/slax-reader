@@ -4,6 +4,8 @@ import {createMobileTelemetry, type MobileTelemetry} from './core.ts';
 import {firebaseSink} from './firebase.ts';
 
 export * from './core.ts';
+export {reportRenderError} from './native.ts';
+export {setCurrentScreen} from './screen.ts';
 const collectors = new WeakMap<MobileServices['runtime'], {telemetry: MobileTelemetry; locale: string}>();
 /** Navigation, authentication, and reader actions share the runtime's device identity and SDKs. */
 export function telemetryFor(context: MobileServices): MobileTelemetry {

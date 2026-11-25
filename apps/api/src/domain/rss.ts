@@ -5,6 +5,7 @@ import { RssRepo, type RssEntryRow, type RssSubscriptionRow, type RssFeedRow } f
 import { BookmarkSearchRepo } from '@/infra/repository/dbBookmarkSearch'
 import { BookmarkRepo } from '@/infra/repository/dbBookmark'
 import { ContextManager } from '@/utils/context'
+import { errorDiagnostic } from '@/utils/errorDiagnostic'
 import { Hashid } from '@/utils/hashids'
 import { RssContent } from './rss/content'
 import { publicTarget } from '@/utils/publicTargetPolicy'
@@ -146,7 +147,7 @@ export class RssService {
       const icon = result instanceof RssError ? null : await this.icon(ctx, result.unchanged ? row.site_url : result.feed.site_url, row.feed_url)
       await this.repo.finish(row, result, icon)
     } catch (error) {
-      if (!(error instanceof RssError)) console.error('RSS refresh commit failed')
+      if (!(error instanceof RssError)) console.error('RSS refresh commit failed', { feedId: row.id, ...errorDiagnostic(error) })
     }
   }
   async tick(ctx: ContextManager) {

@@ -6,8 +6,11 @@ interface HighlightRange {
   end: number
 }
 
+// Length of the excerpt mapHighlight returns; rows without highlights only need this many leading characters
+export const HIGHLIGHT_TARGET_LENGTH = 60
+
 const LENGTH_CONFIG = {
-  TARGET_LENGTH: 60, // 目标返回长度
+  TARGET_LENGTH: HIGHLIGHT_TARGET_LENGTH, // 目标返回长度
   MIN_WINDOW_SIZE: 60, // 最小窗口大小
   WINDOW_STEP: 5 // 滑动窗口步长
 } as const

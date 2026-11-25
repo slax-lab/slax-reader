@@ -1,6 +1,6 @@
 export type AnalyticsValue = string | number | boolean;
 export type AnalyticsParams = Record<string, AnalyticsValue>;
-export interface ClientEvent { event_name: string; occurred_at: string; properties: Record<string, string> }
+export interface ClientEvent { event_name: string; occurred_at: string; properties: Record<string, string | number | boolean> }
 export interface FirebaseSink {
   logEvent(name: string, params: AnalyticsParams): Promise<void> | void;
   setUserId(userId: string | null): Promise<void> | void;

@@ -375,6 +375,17 @@ export default defineNuxtConfig({
       }
     ],
     preset: 'cloudflare-pages',
+    rollupConfig: {
+      plugins: [{
+        name: 'slax-pages-yoga-wasm',
+        transform(code, id) {
+          if (!id.endsWith('/satori/yoga.wasm?module')) return
+          // workerd cannot evaluate unwasm's nested top-level dynamic import.
+          const binding = code.match(/^\s*const _mod = await import\(("[^"]+")\)\.then\(r => r\.default \|\| r\);\s*export default _mod;\s*$/)
+          if (binding) return { code: `export { default } from ${binding[1]};`, map: { mappings: '' } }
+        }
+      }]
+    },
     output: {
       dir: 'dist'
     },

@@ -11,7 +11,7 @@ pnpm api -- setup
 pnpm api -- dev
 ```
 
-`setup` 先检查配置，再在 apps/api 中执行一次 `pnpm exec wrangler login`（需要在浏览器完成授权）。登录成功后启动 PostgreSQL，执行主库/logs/D1/fulltext 迁移、生成 Prisma/types/路由，再启动 PowerSync、等待健康检查通过，然后退出。它只启动 PostgreSQL/PowerSync 依赖，不启动 Core、Edge、AI、Objects、Browser。`pnpm api -- dev` 单独启动五个 Worker（本地端口：Edge 8787、Core 8686、AI 8788、Browser 8789、Objects 8790；端口被占用时可用 `SLAX_API_DEV_PORTS="ai=8798"` 单独改）。登录失败或被中断会停止后续初始化。
+`setup` 先检查配置，再在 apps/api 中执行一次 `pnpm exec wrangler login`（需要在浏览器完成授权）。登录成功后启动 PostgreSQL，执行主库/logs/D1/fulltext 迁移、生成 Prisma/types/路由，再启动 PowerSync、等待健康检查通过，然后退出。它只启动 PostgreSQL/PowerSync 依赖，不启动 Core、Edge、AI、Objects、Browser。`pnpm api -- dev` 单独启动六个 Worker（本地端口：Edge 8787、Core 8686、AI 8788、Browser 8789、Objects 8790、Vector 8791；端口被占用时可用 `SLAX_API_DEV_PORTS="ai=8798"` 单独改）。登录失败或被中断会停止后续初始化。
 
 配置由你准备：`api.toml` 使用原生 Wrangler 格式（`name`、`services`、`[env.dev]` 等）；`.dev.vars` 至少包含 JWT_SECRET_TEXT、HASH_IDS_SALT、EDGE_SHARED_SECRET 和有效的 RSA 签名私钥 POWERSYNC_JWK_PRIVATE_KEY（包括 kid）。本地 PowerSync 使用从该私钥推导出的公钥，通过启动进程传给 Compose；不再要求 dev-jwks-private.json、dev-jwks-public.json、compose.env 三份文件，也不读取或改写其中的旧密钥。工具凭据和 Prisma URL 放在同目录 `.env`，CI 也可通过进程变量提供。
 

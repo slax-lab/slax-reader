@@ -11,7 +11,7 @@
       </blockquote>
       <div class="article-meta">
         <span v-if="dateString" class="article-date">{{ dateString }}</span>
-        <span v-if="bookmark.site_name" class="article-source">{{ bookmark.site_name }}</span>
+        <span v-if="sourceName" class="article-source">{{ sourceName }}</span>
         <span v-if="bookmark.mark_count" class="article-highlight-count">
           {{ $t('page.c_index.highlight_count', { count: bookmark.mark_count }) }}
         </span>
@@ -22,7 +22,6 @@
 
 <script lang="ts" setup>
 import { formatDate } from '@commons/frontend-utils/date'
-
 import type { UserShareCollectListItem } from '@slax-reader/contracts/interface'
 
 const props = defineProps({
@@ -37,6 +36,8 @@ const props = defineProps({
     default: ''
   }
 })
+
+const sourceName = computed(() => props.bookmark.site_name?.trim() || props.bookmark.host_url?.trim())
 
 const target = computed(() => (props.bookmark.bookmark_uuid ? `/b/${props.bookmark.bookmark_uuid}` : '#'))
 

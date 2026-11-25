@@ -101,6 +101,19 @@ describe('PowerSync error capture', () => {
     expect(state.sdkConsole).toHaveBeenCalledWith({ level: 20, message: 'Upload complete, no write checkpoint needed.' })
   })
 
+  it('keeps the status of an SDK HTTP failure but not its response body', async () => {
+    await start()
+    const body = 'upstream page for 203.0.113.7'
+    logger().log({
+      level: 50,
+      message: `Could not POST streaming to /sync/stream - 502 - Bad Gateway: ${body}`,
+      error: Object.assign(new Error(`HTTP Bad Gateway: ${body}`), { status: 502 })
+    })
+    logger().log({ level: 50, message: 'Error in watch', error: Object.assign(new Error(`HTTP Service Unavailable: ${body}`), { status: 503 }) })
+    expect(state.capture.mock.calls.map(call => (call[1] as { message: string }).message)).toEqual(['Could not POST streaming to /sync/stream - 502 - Bad Gateway', 'HTTP 503 Service Unavailable'])
+    expect(JSON.stringify(state.capture.mock.calls)).not.toContain('203.0.113.7')
+  })
+
   it('counts one SDK failure logged twice in a row once, and later retries again', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     try {

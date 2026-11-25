@@ -367,6 +367,40 @@ describe('RSS shared cache service', () => {
     expect(bucket.client.putIfKeyExists).not.toHaveBeenCalled()
     fetch.mockRestore()
   })
+  test('a failed refresh commit logs its cause and feed id without feed content', async () => {
+    const { service, repo, ctx } = wire()
+    const claim = { id: 'feed', feed_url: 'https://example.com/rss?token=secret', claimed: true, next_allowed_at: new Date(), lease_token: 'lease' }
+    repo.claim.mockResolvedValue(claim)
+    const fetch = vi.spyOn(feedApi, 'fetchFeed').mockResolvedValue({ unchanged: true })
+    const failure = Object.assign(new Error('Transaction already closed: timeout'), { name: 'PrismaClientKnownRequestError', code: 'P2028', meta: { modelName: 'sr_rss_feed' } })
+    repo.finish.mockRejectedValueOnce(failure)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await service.refresh(ctx, 'sub')
+    await (ctx.execution.waitUntil as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(error).toHaveBeenCalledWith('RSS refresh commit failed', {
+      feedId: 'feed',
+      name: 'PrismaClientKnownRequestError',
+      message: 'Transaction already closed: timeout',
+      code: 'P2028',
+      meta: { modelName: 'sr_rss_feed' }
+    })
+    expect(JSON.stringify(error.mock.calls)).not.toContain('secret')
+    expect(JSON.stringify(error.mock.calls)).not.toMatch(/"ray"/)
+    error.mockRestore()
+    fetch.mockRestore()
+  })
+  test('an expected RSS failure still writes its outcome and logs nothing', async () => {
+    const { service, repo, ctx } = wire()
+    repo.claim.mockResolvedValue({ id: 'feed', feed_url: 'https://example.com/rss', claimed: true, next_allowed_at: new Date(), lease_token: 'lease' })
+    const fetch = vi.spyOn(feedApi, 'fetchFeed').mockRejectedValue(new RssError('source_unavailable', 502))
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await service.refresh(ctx, 'sub')
+    await (ctx.execution.waitUntil as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(repo.finish).toHaveBeenCalledWith(expect.objectContaining({ id: 'feed' }), expect.objectContaining({ code: 'source_unavailable' }), null)
+    expect(error).not.toHaveBeenCalledWith('RSS refresh commit failed', expect.anything())
+    error.mockRestore()
+    fetch.mockRestore()
+  })
   test('stored HTML is returned unchanged without image reparsing or writes', async () => {
     const { service, repo, ctx, bucket } = wire()
     bucket.objects.set('rss-content/feed/body', { body: '<p>One</p><p>Two</p>', uploaded: new Date() })

@@ -292,3 +292,38 @@ describe('POST /v1/aigc/summaries recovers after a failed generation', () => {
     expect(stored.get('42')).toBe('# Outline\n')
   })
 })
+
+describe('bookmarkSummary logs why generation failed', () => {
+  const failingWith = (error: unknown) => serviceWith(async () => Promise.reject(error))
+  const rayCtx = (ray?: string) => ({ get: vi.fn((key: string) => (key === 'rayId' ? ray : 'zh')), env: {} })
+  const summaryLines = (spy: ReturnType<typeof vi.spyOn>) => spy.mock.calls.filter(call => call[0] === '[aigc.summary] summary generation failed')
+
+  test('a provider failure is logged once with its provider fields and the Ray ID', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new AIProviderError('internal error; reference = abc123', { providerStatus: 500, providerCode: 'INTERNAL', reference: 'abc123', timedOut: false })
+    await failingWith(failure).bookmarkSummary(rayCtx('a5f5911d1ca2fdc2') as never, 'article text', captureWriter().writer, vi.fn())
+    expect(summaryLines(error)).toEqual([
+      [
+        '[aigc.summary] summary generation failed',
+        { providerStatus: 500, providerCode: 'INTERNAL', reference: 'abc123', message: 'internal error; reference = abc123', ray: 'a5f5911d1ca2fdc2' }
+      ]
+    ])
+    expect(JSON.stringify(error.mock.calls)).not.toContain('article text')
+    error.mockRestore()
+  })
+
+  test('a timeout keeps timedOut, and a request without a Ray ID omits it', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await failingWith(new AIProviderError('timed out', { timedOut: true })).bookmarkSummary(rayCtx() as never, 'x', captureWriter().writer, vi.fn())
+    expect(summaryLines(error)).toEqual([['[aigc.summary] summary generation failed', { timedOut: true, message: 'timed out' }]])
+    error.mockRestore()
+  })
+
+  test('a non-provider error keeps only its bounded message', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await failingWith(new Error('x'.repeat(800))).bookmarkSummary(rayCtx('r1') as never, 'x', captureWriter().writer, vi.fn())
+    const [[, fields]] = summaryLines(error) as [[string, { message: string; ray: string }]]
+    expect(fields).toEqual({ message: 'x'.repeat(500), ray: 'r1' })
+    error.mockRestore()
+  })
+})

@@ -15,7 +15,7 @@ import type {
 import { decodeIdList } from './tagController'
 import { Failed, Successed } from '../../utils/responseUtils'
 import { ContextManager } from '@/utils/context'
-import { BookmarkChangesSyncTooOldError, BookmarkContentNotFoundError, ErrorConnectionParam, ErrorParam, ServerError } from '../../const/err'
+import { BookmarkChangesSyncTooOldError, BookmarkContentNotFoundError, ErrorConnectionParam, ErrorName, ErrorParam, ServerError } from '../../const/err'
 import { RequestUtils } from '../../utils/requestUtils'
 import { callbackType } from '../../infra/queue/queueClient'
 import { bookmarkPO } from '../../infra/repository/dbBookmark'
@@ -127,11 +127,15 @@ export class BookmarkController {
     }
   }
 
-  private saveFailed(ctx: ContextManager, request: Request, targetUrl = '', sourceBookmarkId?: string) {
+  private failureClass(error: unknown): 'unsupported_target' | 'bookmark_add' {
+    return error instanceof MultiLangError && error.name === ErrorName.BLOCK_TARGET_URL ? 'unsupported_target' : 'bookmark_add'
+  }
+
+  private saveFailed(ctx: ContextManager, request: Request, targetUrl = '', sourceBookmarkId?: string, errorClass: 'unsupported_target' | 'bookmark_add' = 'bookmark_add') {
     submitServerEvent(ctx, request, 'bookmark_save_failed', {
       // A rejected request has no persisted bookmark relation yet.
       bookmark_id: null,
-      error_class: 'bookmark_add',
+      error_class: errorClass,
       url_domain: this.urlDomain(targetUrl),
       source: this.bookmarkSource(ctx, request),
       content_type: this.contentTypeForUrl(ctx, targetUrl),
@@ -171,7 +175,7 @@ export class BookmarkController {
 
       return Successed({ bmId: ctx.hashIds.encodeId(result.bookmarkId) } satisfies AddBookmarkResponse)
     } catch (e) {
-      this.saveFailed(ctx, request, req.target_url)
+      this.saveFailed(ctx, request, req.target_url, undefined, this.failureClass(e))
       throw e
     }
   }
@@ -210,7 +214,7 @@ export class BookmarkController {
       // 按现有客户端约定固定返回空字符串
       return Successed({ bmId: '' } satisfies AddBookmarkResponse)
     } catch (e) {
-      this.saveFailed(ctx, request, req.target_url, sourceBookmarkId)
+      this.saveFailed(ctx, request, req.target_url, sourceBookmarkId, this.failureClass(e))
       // Labs 拦截是预期行为：文案原样透出，前端据 LAB_FEATURE_DISABLED 引导去设置页
       if (LabService.isLabDisabledError(e)) {
         ctx.execution.waitUntil(this.logsService.track(ctx.getUserId(), 'bookmark_add', { channel: 'add_url', status: 'lab_disabled' }))

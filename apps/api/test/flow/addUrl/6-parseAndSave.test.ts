@@ -120,6 +120,28 @@ describe('parseAndSaveReddit', () => {
   })
 })
 
+describe('parseAndSaveWeixin', () => {
+  // Readability decodes character references after trimming the source metadata.
+  test.each([
+    ['', '微信'],
+    ['&amp;#32;', '微信'],
+    ['&amp;#32;Publisher Name&amp;#32;', ' Publisher Name ']
+  ])('publishes legacy capture attribution when the source site name is "%s"', async (siteName, expected) => {
+    const { svc, br } = wire()
+    const url = 'https://mp.weixin.qq.com/s/legacy-article'
+    const title = 'WeChat article'
+    const metadata = siteName ? `<meta property="og:site_name" content="${siteName}">` : ''
+    const body = 'A readable WeChat article remains available when the fetch provider omits its site name.'
+    const content = `<html><head><title>${title}</title>${metadata}</head><body><article><p>${body}</p></article></body></html>`
+
+    const result = await svc.parseAndSaveWeixin(createMockCtx(), { source: 'legacy', fetchRes: { url, title, content } }, url, 45, 'ub-uuid-45')
+
+    expect(result.textContent).toContain(body)
+    expect(result.siteName).toBe(expected)
+    expect(br.updateBookmark).toHaveBeenCalledWith(45, expect.objectContaining({ status: 'success', site_name: expected }))
+  })
+})
+
 describe('parseAndSaveContent (普通页面)', () => {
   test('正常 HTML → parse + R2 + DB + CrawlResult', async () => {
     const { svc, putIfKeyExists, br } = wire()
