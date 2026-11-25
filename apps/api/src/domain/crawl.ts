@@ -1455,7 +1455,7 @@ export class CrawlService {
       try {
         const relation = await this.bookmarkRepo.getUserBookmarkWithDetail(bookmarkId, userId)
         if (relation?.bookmark)
-          submitServerEvent(ctx, undefined, 'bookmark_save_failed', { ...bookmarkEventProperties(relation, getEventContext(ctx).source), error_class: stepName }, { userId })
+          submitServerEvent(ctx, undefined, 'bookmark_add_step_failed', { ...bookmarkEventProperties(relation, getEventContext(ctx).source), error_class: stepName }, { userId })
       } catch (error) {
         console.error('[events] failed to report bookmark step:', error)
       }

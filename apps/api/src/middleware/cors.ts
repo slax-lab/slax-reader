@@ -6,6 +6,8 @@ export const corsHeader = {
   'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range, X-Device-ID, X-CLIENT-TYPE, X-CLIENT-VERSION, X-CLIENT-LOCALE',
   'Access-Control-Allow-Methods': 'POST, GET, HEAD, OPTIONS, DELETE, PUT',
   'Access-Control-Allow-Origin': '*',
+  'Access-Control-Expose-Headers': 'cf-ray',
+  'Timing-Allow-Origin': 'https://r.slax.com, https://r-beta.slax.com, https://r.slax.dev',
   'Access-Control-Max-Age': '86400'
 }
 

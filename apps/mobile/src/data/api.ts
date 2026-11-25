@@ -21,8 +21,9 @@ export class ApiError extends Error {
   readonly stage: DataErrorStage;
   readonly kind: 'http' | 'protocol';
   readonly code: DataErrorCode;
-  constructor(status: number, message: string, data?: unknown, diagnostic?: {stage: DataErrorStage; code?: DataErrorCode}) {
-    super(message); this.name = 'ApiError'; this.status = status; this.data = data;
+  readonly ray?: string;
+  constructor(status: number, message: string, data?: unknown, diagnostic?: {stage: DataErrorStage; code?: DataErrorCode; ray?: string}) {
+    super(message); this.name = 'ApiError'; this.status = status; this.data = data; this.ray = diagnostic?.ray;
     this.stage = diagnostic?.stage ?? 'api'; this.kind = diagnostic?.code ? 'protocol' : 'http'; this.code = diagnostic?.code ?? httpErrorCode(status);
   }
 }
@@ -46,10 +47,12 @@ export interface SyncChange { table: string; id: string; op: string; data: Recor
 export interface CheckPurchase { jws_representation: string; order_id: string; product_id: string; platform: string }
 export interface FeedbackRequest { bookmark_uuid: string | null; entry_point: string; type: string; content: string; platform: string; environment: string; version: string; allow_follow_up: boolean; target_url: string | null }
 export interface FeedbackDiagnosticUpload {file: Blob; filename: string}
+// Marks a rejection from the transport itself, the only throw that counts as a network failure.
+const TRANSPORT_FAILURE = Symbol('transport failure');
 export const FEEDBACK_DIAGNOSTIC_MAX_BYTES = 12582912;
 export const FEEDBACK_MULTIPART_OVERHEAD_BYTES = 65536;
 export interface AiEvent { type: string; data?: { overview?: string; outline?: string; tags?: {id: number; name: string}[]; tag?: {id: number; name: string}; key_takeaways?: string[]; done?: boolean }; message?: string }
-export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; getDeviceId?: () => Promise<string>; fetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void>; onFailedExchange?: (exchange: DiagnosticExchange) => void; onAccountSuccess?: (exchange: DiagnosticExchange) => void }
+export interface MobileApiOptions { baseUrl: string; platform: 'android' | 'ios'; version: string; sessions: SessionAuthority; getDeviceId?: () => Promise<string>; fetch?: typeof globalThis.fetch; sleep?: (ms: number) => Promise<void>; onFailedExchange?: (exchange: DiagnosticExchange) => void; onAccountSuccess?: (exchange: DiagnosticExchange) => void; onFailure?: (failure: {method: string; path: string; status?: number; ray?: string; network: boolean}) => void; onSuccess?: () => void }
 interface RequestOptions {
   access?: 'public' | 'required';
   retryable?: boolean;
@@ -123,7 +126,9 @@ export class SlaxApi {
         }, started = Date.now();
         const pending = this.transport(url, {method, headers, body: multipart ? body : body === undefined ? undefined : JSON.stringify(body), signal: controller.signal, redirect: 'error'});
         if (abortableResponse) void pending.then(value => {if (controller.signal.aborted) void value.body?.cancel().catch(() => undefined);}).catch(() => undefined);
-        const response = await (abortableResponse ? abortable(pending, controller.signal) : pending);
+        let response: Response;
+        try {response = await (abortableResponse ? abortable(pending, controller.signal) : pending);}
+        catch (error) {if (typeof error === 'object' && error !== null) (error as {[TRANSPORT_FAILURE]?: true})[TRANSPORT_FAILURE] = true; throw error;}
         if (abortableResponse) {
           try {identity?.(); scope?.assertCurrent(); if (origin !== this.origin) throw new Error('API environment changed'); throwIfAborted(signal);}
           catch (error) {void response.body?.cancel().catch(() => undefined); throw error;}
@@ -134,16 +139,21 @@ export class SlaxApi {
         if (retryable && response.status >= 500 && attempt < 2 && !retryAfter) { await response.body?.cancel(); cleanup(); await this.delay(attempt, signal); continue; }
         if (response.status !== 200 && response.status !== 204) {
           const envelope = await response.json().catch(() => null) as {message?: string; data?: unknown; code?: number} | null;
-          const error = Object.assign(new ApiError(response.status, envelope?.message ?? `Request failed (${response.status})`, envelope?.data), {retryAfterMs: retryAfter});
+          const error = Object.assign(new ApiError(response.status, envelope?.message ?? `Request failed (${response.status})`, envelope?.data, {stage: 'api', ray: response.headers.get('cf-ray') ?? undefined}), {retryAfterMs: retryAfter});
+          try {this.options.onFailure?.({method, path: path.split(/[?#]/)[0], status: response.status, ray: error.ray, network: false});} catch {}
           const exchange = diagnostic(envelope?.code);
           if (exchange) {this.failures.set(error, exchange); observeExchange(this.options.onFailedExchange, exchange, error);}
           throw error;
         }
+        try {this.options.onSuccess?.();} catch {}
         return {response, cleanup, diagnostic};
       } catch (error) {
         cleanup();
         if (controller.signal.aborted) {throwIfAborted(signal); throwIfAborted(controller.signal);}
-        if (!retryable || error instanceof ApiError || attempt >= 2) throw error;
+        if (!retryable || error instanceof ApiError || attempt >= 2) {
+          if (typeof error === 'object' && error !== null && TRANSPORT_FAILURE in error) {try {this.options.onFailure?.({method, path: path.split(/[?#]/)[0], network: true});} catch {}}
+          throw error;
+        }
         await this.delay(attempt, signal);
       }
     }
@@ -233,12 +243,19 @@ export class SlaxApi {
           if (response.status !== 200) {
             const retryAfter = retryAfterMs(response.headers.get('Retry-After'));
             retryHttp = response.status >= 500 && response.status <= 599 && !retryAfter;
-            throw Object.assign(new ApiError(response.status, `PDF request failed (${response.status})`, undefined, {stage}), {retryAfterMs: retryAfter});
+            throw Object.assign(new ApiError(response.status, `PDF request failed (${response.status})`, undefined, {stage, ray: response.headers.get('cf-ray') ?? undefined}), {retryAfterMs: retryAfter});
           }
+          try {this.options.onSuccess?.();} catch {}
           const value = await consume(response, controller.signal); check(); return value;
         } catch (error) {
           check();
-          if (body || attempt + 1 >= PDF_REQUEST_MAX_ATTEMPTS || !(retryHttp || isNetworkTransportError(error))) throw error;
+          if (body || attempt + 1 >= PDF_REQUEST_MAX_ATTEMPTS || !(retryHttp || isNetworkTransportError(error))) {
+            const status = error instanceof ApiError ? error.status : undefined;
+            if (status === undefined ? isNetworkTransportError(error) : status >= 500) {
+              try {this.options.onFailure?.({method: body ? 'POST' : 'GET', path: path.split(/[?#]/)[0], status, ray: error instanceof ApiError ? error.ray : undefined, network: status === undefined});} catch {}
+            }
+            throw error;
+          }
         } finally {if (response?.body && !response.body.locked) void response.body.cancel().catch(() => undefined);}
         check();
         if (this.options.sleep) await abortable(this.options.sleep(PDF_RETRY_DELAYS_MS[attempt]), controller.signal);
@@ -453,7 +470,7 @@ export class SlaxApi {
     try {const value = await (signal ? abortable(result, signal) : result); current(); throwIfAborted(signal); return value;}
     catch (error) {current(); throwIfAborted(signal); throw error;}
   };
-  async sendClientEvents(deviceId: string, events: {event_name: string; occurred_at: string; properties: Record<string, string>}[]): Promise<void> {
+  async sendClientEvents(deviceId: string, events: {event_name: string; occurred_at: string; properties: Record<string, string | number | boolean>}[]): Promise<void> {
     const {response, cleanup} = await this.response('/events', 'POST', {events}, undefined, undefined, {accept: '*/*', headers: {'X-Device-ID': deviceId, 'X-CLIENT-TYPE': this.options.platform, 'X-CLIENT-VERSION': this.options.version}});
     try { await response.body?.cancel(); } finally { cleanup(); }
   }

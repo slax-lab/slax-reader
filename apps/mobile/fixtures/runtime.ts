@@ -205,7 +205,7 @@ export async function createFixtureRuntime(scenario: string, payload: FixturePay
     const telemetry = createMobileTelemetry({preferences, api: {async sendClientEvents() {}}, platform: mobileConfig.platform, version: 'fixture (1)', locale: () => normalizeLocale(localeInput), generateIdentifier: () => 'synthetic-ui-fixture'});
     const payments = new PaymentController({async start() {}, async products() {}, async purchase() {throw new Error('Native purchases are disabled in UI fixtures');}, async finish() {}, async restore() {return [];}, async pending() {return [];}, async entitlements() {return [];}, async stop() {}}, sessions, preferences, async () => ({ok: false}));
     const worker = () => {if (!queue || stopped) throw new Error('This fixture has no active PDF cache scope'); return queue;};
-    const runtime: MobileDataRuntime = {preferences, sessions, api,
+    const runtime: MobileDataRuntime = {errorLog: {capture: () => undefined, flush: async () => {}}, preferences, sessions, api,
       markLibraryPresented() {}, isLibraryPresented: () => true, subscribeLibraryPresented: () => () => {}, getAvatarCache: () => null, setInteractionBusy: (busy, source) => queue?.setInteractionBusy(busy, source),
       setForeground: active => controls.setForeground(active), async start() {},
       async stop() {stopped = true; controls.dispose(); activityListener?.remove(); stopPdfActions?.(); await revoke(); await database?.close(); database = null; repositories = null; cache = null; if (seedDirectory?.exists) seedDirectory.delete();},

@@ -12,6 +12,24 @@ export class RequestError extends Error {
   }
 }
 
+// A subclass may throw from fetchRequest after reading the response; such an error carries it.
+const responseOf = (error: unknown): Response | undefined => {
+  const response = typeof error === 'object' && error !== null ? (error as { response?: unknown }).response : undefined
+  return response instanceof Response ? response : undefined
+}
+const responseStatus = (error: unknown) => responseOf(error)?.status
+const responseRay = (error: unknown) => responseOf(error)?.headers.get('cf-ray') ?? undefined
+
+export interface RequestFailure {
+  method: string
+  url: string
+  status?: number
+  ray?: string
+  network: boolean
+  cancelled: boolean
+  error?: unknown
+}
+
 export enum RequestMethodType {
   get = 'get',
   post = 'post',
@@ -25,6 +43,8 @@ interface FetchConfig {
   requestInterceptors?: (options: FetchOptions) => FetchOptions | Promise<FetchOptions>
   responseInterceptors?: <T = unknown>(response: FetchResult<unknown>) => FetchResult<T> | Promise<FetchResult<T>>
   errorInterceptors?: (error: unknown) => unknown
+  /** One call per failed request, before the error interceptor; diagnostics only. */
+  onFailure?: (failure: RequestFailure) => void
 }
 
 type StreamCallbackFunc = (handler: (text: string, done: boolean) => void) => Promise<void>
@@ -113,6 +133,7 @@ export class FetchRequest {
 
   async handleRequest<T, F extends FetchOptions>(options: F): Promise<(F['stream'] extends true ? StreamCallbackFunc : T) | undefined> {
     type ResultType = F['stream'] extends true ? StreamCallbackFunc : T
+    let received: Response | undefined
     try {
       const requestInterceptors = this.options.requestInterceptors
       if (requestInterceptors && isFunction(requestInterceptors)) {
@@ -124,6 +145,7 @@ export class FetchRequest {
       }
 
       const result = (await this.fetchRequest(options)) as Response
+      received = result instanceof Response ? result : undefined
       if (options.stream) {
         const data = result.body
         if (!data) {
@@ -163,6 +185,21 @@ export class FetchRequest {
 
       return response.data as ResultType
     } catch (error) {
+      try {
+        const failure: RequestFailure = {
+          method: options.method ?? RequestMethodType.get,
+          url: options.url,
+          status: received?.status ?? responseStatus(error),
+          ray: received?.headers.get('cf-ray') ?? responseRay(error),
+          network: received === undefined && responseStatus(error) === undefined,
+          cancelled: error instanceof Error && error.name === 'AbortError',
+          error
+        }
+        const observer = this.options.onFailure
+        observer?.(failure)
+      } catch {
+        // Diagnostics must not change request behavior.
+      }
       if (options.errorInterceptors) {
         options.errorInterceptors(error)
       } else if (this.options.errorInterceptors) {

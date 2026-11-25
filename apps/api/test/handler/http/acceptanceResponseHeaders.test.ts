@@ -22,6 +22,16 @@ describe('acceptance response contracts', () => {
     expect(response!.headers.get('Access-Control-Allow-Origin')).toBe('*')
   })
 
+
+  test('API responses expose the Ray ID and cross-origin timing headers', async () => {
+    const json = Failed(ErrorParam())
+    expect(json.headers.get('Access-Control-Expose-Headers')).toBe('cf-ray')
+    expect(json.headers.get('Timing-Allow-Origin')).toBe('https://r.slax.com, https://r-beta.slax.com, https://r.slax.dev')
+    const preflight = await cors(new Request('https://reader-api.slax.dev/v1/sync/token', { method: 'OPTIONS' }), {} as any)
+    expect(preflight!.headers.get('Access-Control-Expose-Headers')).toBe('cf-ray')
+    expect(preflight!.headers.get('Timing-Allow-Origin')).toContain('https://r.slax.com')
+  })
+
   test.each(['/v1/bookmark/detail'])('Private detail middleware failures remain no-store at %s', path => {
     const response = applyApiResponseHeaders(Failed(UnauthorizedError()), new Request(`https://reader-api.slax.dev${path}`))
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')

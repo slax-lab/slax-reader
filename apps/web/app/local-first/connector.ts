@@ -82,6 +82,13 @@ export interface CreateConnectorOptions {
   // POST /v1/sync/changes
   uploadChanges: (changes: SyncChangeItem[]) => Promise<void>
   onError?: (e: unknown) => void
+  // One call per credential acquisition: `cache` for stored credentials, `api` for a fetched token
+  // (callers that share an in-flight fetch are reported once).
+  onCredentials?: (source: 'cache' | 'api', durationMs: number) => void
+  // Called once per failed token request, in the calling tab where the response and its Ray ID are known.
+  onCredentialsFailed?: (error: unknown) => void
+  // Called after a submitted batch has been completed locally.
+  onAcknowledged?: (batchSize: number, durationMs: number) => void
 }
 
 export async function fetchSyncCredentials(options: {
@@ -104,7 +111,7 @@ export async function fetchSyncCredentials(options: {
     await options.onUnauthorized()
     return { token: '', endpoint: '' }
   }
-  if (!response.ok) throw new Error(`[powersync] sync token failed: ${response.status}`)
+  if (!response.ok) throw Object.assign(new Error(`[powersync] sync token failed: ${response.status}`), { phase: 'token', ray: response.headers.get('cf-ray') ?? undefined })
 
   const result = (await response.json()) as { data?: { token?: string; endpoint?: string } }
   return { token: result.data?.token ?? '', endpoint: result.data?.endpoint ?? '' }
@@ -168,6 +175,15 @@ export function clearSyncCredsCache() {
   }
 }
 
+// Observers are diagnostics; a throwing observer must not change credential or upload results.
+const notify = (observe: () => void) => {
+  try {
+    observe()
+  } catch {
+    // Ignored.
+  }
+}
+
 export function createConnector(opts: CreateConnectorOptions): RefreshablePowerSyncBackendConnector {
   let inflight: Promise<PowerSyncCredentials | null> | null = null
 
@@ -176,16 +192,27 @@ export function createConnector(opts: CreateConnectorOptions): RefreshablePowerS
       // token 24h 有效：持久化到 localStorage，刷新页面也复用，临近过期才重新拉
       const cached = loadStoredCreds()
       if (cached && Date.now() < cached.expMs - REFRESH_MARGIN) {
+        notify(() => opts.onCredentials?.('cache', 0))
         return { endpoint: cached.endpoint, token: cached.token }
       }
       // 并发去重：PowerSync 建连时会并发调用多次，合并成一次 /v1/sync/token
       if (inflight) return inflight
       inflight = (async () => {
         try {
-          const { token, endpoint } = await opts.fetchToken()
+          const startedAt = Date.now()
+          let fetched: Awaited<ReturnType<typeof opts.fetchToken>>
+          try {
+            fetched = await opts.fetchToken()
+          } catch (error) {
+            if (typeof error === 'object' && error !== null && !('phase' in error)) Object.assign(error, { phase: 'token' })
+            notify(() => opts.onCredentialsFailed?.(error))
+            throw error
+          }
+          const { token, endpoint } = fetched
           if (!token || !endpoint) return null
           const expMs = getJwtExpMs(token) ?? Date.now() + 24 * 60 * 60 * 1000
           saveStoredCreds({ token, endpoint, expMs })
+          notify(() => opts.onCredentials?.('api', Math.max(0, Date.now() - startedAt)))
           return { endpoint, token }
         } finally {
           inflight = null
@@ -209,7 +236,15 @@ export function createConnector(opts: CreateConnectorOptions): RefreshablePowerS
           return { table: entry.table, id: entry.id, op: entry.op.toString(), data, preData }
         })
         await opts.uploadChanges(changes)
-        await batch.complete()
+        const acknowledgeStartedAt = Date.now()
+        // The server accepted the batch; a failure here is the local acknowledgement, not the submission.
+        try {
+          await batch.complete()
+        } catch (error) {
+          if (typeof error === 'object' && error !== null) Object.assign(error, { step: 'acknowledge' })
+          throw error
+        }
+        notify(() => opts.onAcknowledged?.(changes.length, Math.max(0, Date.now() - acknowledgeStartedAt)))
       } catch (e) {
         opts.onError?.(e)
         throw e // 抛出 → PowerSync 自动重试

@@ -20,6 +20,7 @@ import { BatchRequest, GeminiBatchProvider } from '@/infra/external/batchComplet
 import { VertexAIClient, ToolDefinition, classifyProviderError } from '@/infra/external/vertexAIClient'
 import { Content, Type } from '@google/genai'
 import { MultiLangError } from '@/utils/multiLangError'
+import { providerDiagnostic } from '@/utils/errorDiagnostic'
 import { AIError, ErrorParam, ErrorName } from '@/const/err'
 
 export type deltaType = {
@@ -515,7 +516,7 @@ export class AigcService {
       )
       completed = true
     } catch (error) {
-      console.error(error)
+      console.error('[aigc.summary] summary generation failed', { ...providerDiagnostic(error), ...(ctx.get('rayId') ? { ray: ctx.get('rayId') } : {}) })
       try {
         await wr.write(this.ted.encode(error instanceof MultiLangError ? error.message : 'Failed to get summary, please try again later.\n'))
       } catch (writeErr) {

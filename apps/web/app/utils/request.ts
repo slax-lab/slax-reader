@@ -1,4 +1,6 @@
 import { configuredCookieName, readStringCookie } from './authCookie'
+import { clientErrorContext, noteApiFailure, noteApiSuccess, recentHostTiming } from './clientErrorContext'
+import { useClientErrorLog } from './clientErrorLog'
 import { isClient, isServer } from '@commons/frontend-utils/is'
 import { type FetchOptions, FetchRequest, type FetchResult, RequestError, RequestMethodType } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -14,10 +16,20 @@ class ClientRequest extends FetchRequest {
     const response = (await super.fetchRequest(options)) as Response
     if (!options.stream || options.url !== RESTMethodPath.BOOKMARK_OVERVIEW || response.ok) return response
 
+    // Non-enumerable, so the failure observer can read the status and Ray ID without the response being serialized.
+    const withResponse = (error: unknown) => {
+      if (typeof error === 'object' && error !== null) Object.defineProperty(error, 'response', { value: response, enumerable: false, configurable: true })
+      return error
+    }
     // Non-401 HTTP errors throw here. A 401 returns a session-rejection result.
-    const failure = await this.handleResult(response)
+    let failure: Awaited<ReturnType<typeof this.handleResult>>
+    try {
+      failure = await this.handleResult(response)
+    } catch (error) {
+      throw withResponse(error)
+    }
     await this.options.responseInterceptors?.(failure)
-    throw new RequestError({ code: response.status, name: ErrorName.UNAUTHORIZED, message: failure.message })
+    throw withResponse(new RequestError({ code: response.status, name: ErrorName.UNAUTHORIZED, message: failure.message }))
   }
 }
 
@@ -59,9 +71,45 @@ export const request = () => {
         if (response.status === 401) {
           await useAuth().clearAuth()
           await navigateTo('/login')
+        } else if (response.status === undefined || response.status < 400) {
+          noteApiSuccess()
         }
 
         return response as FetchResult<T>
+      },
+      onFailure: failure => {
+        try {
+          if (isServer || failure.cancelled) return
+          if (failure.status !== undefined && failure.status < 500) return
+          const base = String(useRuntimeConfig().public.DWEB_API_BASE_URL || '')
+          let host: string | undefined
+          try {
+            host = new URL(base).hostname
+          } catch {
+            host = undefined
+          }
+          const path = failure.url.split(/[?#]/)[0] || failure.url
+          const net = recentHostTiming(host)
+          const properties = {
+            source: 'api',
+            method: failure.method,
+            path,
+            ...(failure.status !== undefined ? { status: failure.status } : {}),
+            ...(failure.ray ? { ray: failure.ray } : {}),
+            phase: 'request',
+            ...clientErrorContext(),
+            consecutive_failures: noteApiFailure(),
+            ...(net ? { net } : {})
+          }
+          const message =
+            failure.status !== undefined ? `${failure.method.toUpperCase()} ${path} failed (${failure.status})` : `${failure.method.toUpperCase()} ${path} network failure`
+          // A 5xx body is often an HTML error page whose parse error says nothing about the request, so a
+          // response failure is named by the request; a network failure keeps the browser's own error.
+          const error = failure.status === undefined && failure.error instanceof Error ? failure.error : Object.assign(new Error(message), { name: 'ApiRequestError' })
+          useClientErrorLog().capture('network', error, properties)
+        } catch {
+          // Diagnostics must not change request behavior.
+        }
       },
       errorInterceptors: error => {
         if (isServer || (error instanceof RequestError && error.code === 401 && error.name === ErrorName.UNAUTHORIZED)) {

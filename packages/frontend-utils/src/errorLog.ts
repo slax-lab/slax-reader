@@ -1,6 +1,6 @@
-export type ClientErrorApp = 'web'
+export type ClientErrorApp = 'web' | 'ios' | 'android'
 export type ClientErrorEnv = 'development' | 'preview' | 'beta' | 'production'
-export type ClientErrorKind = 'error' | 'unhandledrejection' | 'vue' | 'resource' | 'powersync'
+export type ClientErrorKind = 'error' | 'unhandledrejection' | 'vue' | 'resource' | 'powersync' | 'render' | 'network'
 
 export interface ClientErrorContext {
   userId?: string | number | null
@@ -45,7 +45,7 @@ export interface ErrorCollectorOptions {
 export interface ErrorCollector {
   readonly enabled: boolean
   /** Records one occurrence. Each failure must reach capture from exactly one source. */
-  capture(kind: ClientErrorKind, error: unknown, properties?: Record<string, unknown>): void
+  capture(kind: ClientErrorKind, error: unknown, properties?: Record<string, unknown>): string | undefined
   flush(hiding?: boolean): Promise<void>
 }
 
@@ -106,6 +106,33 @@ export const redactCapabilityPaths = (text: string): string =>
   text.replace(CAPABILITY_PATH_PATTERN, (_match, lead: string, kind: string, _code: string, member?: string) =>
     kind.toLowerCase() === 's' ? `${lead}/s/:code${member ?? ''}` : `${lead}/c/:code${member ? '/:id' : ''}`
   )
+
+/**
+ * PowerSync SDK HTTP failures carry the whole response body in their message ("HTTP <statusText>: <body>",
+ * "Could not POST streaming to <path> - <status> - <statusText>: <body>"). An upstream error page can hold
+ * a client IP or other private text, so the record keeps only the status and status text.
+ */
+export const powerSyncLogError = (message: string, error: unknown): { name: string; message: string } | unknown => {
+  const status = typeof error === 'object' && error !== null && typeof (error as { status?: unknown }).status === 'number' ? (error as { status: number }).status : undefined
+  const streaming = /^Could not POST streaming to (\S+) - (\d{3}) - ([^:]*)/.exec(message)
+  const http = /^HTTP ([^:]*):/.exec(error instanceof Error ? error.message : '')
+  if (streaming) return { name: 'PowerSyncHttpError', message: `Could not POST streaming to ${streaming[1]} - ${streaming[2]} - ${streaming[3]}` }
+  if (http) return { name: 'PowerSyncHttpError', message: `HTTP ${status ?? ''} ${http[1]}`.replace(/\s+/g, ' ').trim() }
+  return error ?? { name: 'PowerSyncLog', message }
+}
+
+// Ad blockers routinely block these third-party analytics/ads scripts; a blocked script there is not
+// an application fault. Stripe stays captured because a blocked Stripe script breaks checkout.
+const THIRD_PARTY_SCRIPT_HOSTS = ['googletagmanager.com', 'google-analytics.com', 'static.cloudflareinsights.com']
+export const isThirdPartyScriptHost = (value: string | undefined | null): boolean => {
+  if (!value) return false
+  try {
+    const host = new URL(value).hostname.toLowerCase()
+    return THIRD_PARTY_SCRIPT_HOSTS.some(entry => host === entry || host.endsWith(`.${entry}`))
+  } catch {
+    return false
+  }
+}
 
 /** A URL for a record field: no query or fragment, and no share or collection code in its path. */
 export const urlForRecord = (value: string | undefined | null): string | undefined => {
@@ -343,7 +370,7 @@ export const chunkBodies = (records: ClientErrorRecord[], maxBytes = MAX_REQUEST
   return bodies
 }
 
-const disabled: ErrorCollector = { enabled: false, capture: () => {}, flush: async () => {} }
+const disabled: ErrorCollector = { enabled: false, capture: () => undefined, flush: async () => {} }
 
 /** Creates a best-effort collector; it is a no-op without an https endpoint, a known env, or a semver release. */
 export function createErrorCollector(options: ErrorCollectorOptions): ErrorCollector {
@@ -472,10 +499,10 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
         existing.count = Math.min(existing.count + 1, MAX_COUNT)
         existing.properties = { ...(existing.properties ?? {}), last_occurred_at: now() }
         mergeSource(existing, source)
-        return
+        return fingerprint
       }
       if (!seen.has(fingerprint)) {
-        if (seen.size >= MAX_FINGERPRINTS_PER_SESSION) return
+        if (seen.size >= MAX_FINGERPRINTS_PER_SESSION) return undefined
         seen.add(fingerprint)
       }
       // The stack is compacted only for a new record; a repeat above reuses the queued one.
@@ -503,8 +530,10 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
       // Only first occurrences fill a flush early; held repeats wait for their interval either way.
       if ([...queue.keys()].filter(queued => !lastSentAt.has(queued)).length >= MAX_QUEUED_PER_FLUSH) void flush(false)
       else schedule()
+      return fingerprint
     } catch {
       // Error capture must never throw into the caller.
+      return undefined
     }
   }
 
@@ -538,6 +567,7 @@ export function installGlobalErrorCapture(collector: ErrorCollector, target: Lis
       const element = event.target as { tagName?: unknown; src?: string } | null
       if (element && element !== (target as unknown) && typeof element.tagName === 'string') {
         if (element.tagName === 'SCRIPT') {
+          if (isThirdPartyScriptHost(element.src)) return
           const src = urlForRecord(element.src) ?? 'inline'
           collector.capture('resource', { name: 'ResourceError', message: `Script failed to load: ${src}` }, { source: 'script', src })
         }
