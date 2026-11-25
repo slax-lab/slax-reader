@@ -196,9 +196,15 @@ export class VectorEmbeddingClient {
         return [...(await this.embedWithinBudget(inputs.slice(0, middle), budget)), ...(await this.embedWithinBudget(inputs.slice(middle), budget))]
       }
       const input = inputs[0]
-      if (!('text' in input)) throw new Error('pending_multimodal_context_overflow')
+      if (!('text' in input)) throw new EmbeddingProviderError('pending_multimodal_context_overflow', error.diagnostic)
+      let halves: [string, string]
+      try {
+        halves = bisectText(input.text)
+      } catch {
+        throw new EmbeddingProviderError('input_cannot_be_split', error.diagnostic)
+      }
       const parts: EmbeddedPart[] = []
-      for (const text of bisectText(input.text)) parts.push(...(await this.embedWithinBudget([{ text }], budget))[0])
+      for (const text of halves) parts.push(...(await this.embedWithinBudget([{ text }], budget))[0])
       return [parts]
     }
   }
