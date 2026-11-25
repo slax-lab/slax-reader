@@ -8,6 +8,9 @@ import type { VectorSearchResponse } from '@/const/vectorSearch'
 // values are returned.
 export const SEMANTIC_CANDIDATE_LIMIT = 50
 
+// The article query the caller provides: the native repository in the Vector Worker, VectorIndexClient in AI.
+export type ArticleVectorQuery = (vector: number[], options: VectorIndexQueryOptions) => Promise<{ id: string; score: number; values?: number[] }[]>
+
 /**
  * Untagged bookmark-search candidates for one user: embed the keyword, read the user's article vectors with their
  * values in one native query (the index stores raw representatives, so the raw query vector selects them), and score
@@ -15,8 +18,6 @@ export const SEMANTIC_CANDIDATE_LIMIT = 50
  * unrelated text scores close to real matches. The caller filters by current ownership and then applies the floor and
  * relative bound. Runs in the Vector Worker, and in AI when the VECTOR_SEARCH binding is absent.
  */
-// The article query the caller provides: the native repository in the Vector Worker, VectorIndexClient in AI.
-export type ArticleVectorQuery = (vector: number[], options: VectorIndexQueryOptions) => Promise<{ id: string; score: number; values?: number[] }[]>
 
 export async function semanticCandidates(
   embedding: Pick<VectorEmbeddingClient, 'query'>,

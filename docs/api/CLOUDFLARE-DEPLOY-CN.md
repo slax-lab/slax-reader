@@ -52,7 +52,7 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # 给 Vector 上传 JI
 Edge 保留它现有的队列消费者、cron 和 Email Routing 接收方，把每个事件通过现有的 `CORE` 服务绑定以 `fetch` 方式原样发到内部主机 `jobs.internal`，并用 `EDGE_SHARED_SECRET` 鉴权。与 RPC 不同，fetch 会遵循 Core 的 placement，所以这些任务在新加坡、靠近数据库执行；服务绑定的 fetch 与 RPC 计费相同（不额外计请求费，只计 CPU 时间）。因此没有任何触发器、消费者或邮件规则需要移动，拆分后的首次发布就是一次普通 `deploy`（CI 或 `pnpm api -- deploy`）。已完成拆分、现在新增 Vector 的安装，先执行上文 Vector 的两条命令；之后的整体发布只会在 Vector 仍缺值时停止。远程发布在第一次发布前读取账号：
 
 - 若某个 Worker 缺少其代码读取的值（见下文），停止并列出 Worker 和 key 名；
-- 决定发布顺序。账号中还有 `SlaxMcpServer` 命名空间时，按 Browser → Objects → Core（仍导出 MCP 空壳，因为旧 Edge 绑定着 Core 的命名空间）→ AI → Edge（删除 Edge 的命名空间）→ Core（删除 Core 的命名空间）发布；Wrangler 在 Core 首次发布时把 Workflow 转到 Core。之后的发布不再有命名空间，按 Browser → Objects → Core → AI → Edge 发布。
+- 决定发布顺序。账号中还有 `SlaxMcpServer` 命名空间时，按 Browser → Objects → Vector → Core（仍导出 MCP 空壳，因为旧 Edge 绑定着 Core 的命名空间）→ AI → Edge（删除 Edge 的命名空间）→ Core（删除 Core 的命名空间）发布；Wrangler 在 Core 首次发布时把 Workflow 转到 Core。之后的发布不再有命名空间，按 Browser → Objects → Vector → Core → AI → Edge 发布。
 
 变量和 secret 要跟着代码走。部署使用 `--keep-vars`，用 `wrangler secret put` 设置的 secret 只留在原来那个脚本上。`apps/api/script/deploy/runtimeKeys.ts` 列出每个 Worker 的代码会读取的字符串变量和 secret（测试会从构建产物重新推导，防止过期）。发布前会按名称列出：某个 Worker 需要读取、本安装的其他 API Worker 上存在、但该 Worker 自己和所选 `[vars]` 都没有的 key，然后停止。Cloudflare 不会返回 secret 的值，无法从旧 Edge 复制，需要你提供保存值的文件（密码管理器导出或原始 `.env`，放在仓库外或被忽略的 `deploy/local/` 下）。文件可以是 `.env`、JSON（`{"KEY": "value"}` 或 `[{"name": "KEY", "value": "value"}]`，也接受 `key`），或由顶层 `KEY = "value"` 行组成的 `.toml`；数字和布尔值按字符串上传；其他以 `{` 或 `[` 开头的内容按 JSON 读取。读取失败时只报告位置、key 名和值的类型，不会输出值，然后执行：
 
