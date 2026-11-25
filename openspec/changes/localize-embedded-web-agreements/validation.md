@@ -12,6 +12,7 @@ On November 25, 2026, the change requester chose to keep Mobile at 1.0.33 (808).
 
 - Web agreement integration suites passed 13 tests. The checkout uses shared pnpm dependencies. A temporary Vitest config allowed their real filesystem root and tests ran with a single worker.
 - The mounted Mobile login suite passed all 51 tests, including both agreement tabs in Chinese and English.
+- The first PR CI run found two additional mounted login cases that still mocked a locale-free runtime and expected unlocalized URLs. The updated fixture supplies a locale and asserts both localized tabs and WebView reuse on iOS and Android. The two focused Mobile suites passed all 75 tests.
 - Mobile architecture, asset, fixture, RSS and TypeScript checks passed. The full Mobile test discovery run was stopped to avoid overloading this machine. The targeted mounted login suite completed independently.
 - The production Cloudflare Pages build passed. Exact route rules prerender the four embedded documents with the general prerender route list left empty.
 - The full Mobile Expo export for iOS and Android passed.
