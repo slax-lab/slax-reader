@@ -71,6 +71,21 @@ describe('the only release precondition is that every Worker holds the values it
     expect(RUNTIME_KEYS.vector).toEqual(['EDGE_SHARED_SECRET', 'JINA_API_KEY'])
     secrets[names.vector] = new Set()
     await expect(requireValues(api, config)).rejects.toThrow(`- ${names.vector}: EDGE_SHARED_SECRET, JINA_API_KEY`)
+    await expect(requireValues(api, config, 'vector')).rejects.toThrow(`- ${names.vector}: EDGE_SHARED_SECRET, JINA_API_KEY`)
+  })
+
+  test('only a single-Worker release of a Worker that does not exist yet may create it without its secrets', async () => {
+    const undeployed = account({ scripts: [names.browser, names.objects, names.core, names.ai, names.edge] })
+    // A full release, or a release of another Worker, still stops and says how to create the Worker.
+    await expect(requireValues(undeployed.api, config)).rejects.toThrow(`- ${names.vector}: EDGE_SHARED_SECRET, JINA_API_KEY`)
+    await expect(requireValues(undeployed.api, config)).rejects.toThrow('pnpm api -- deploy --target vector')
+    await expect(requireValues(undeployed.api, config, 'ai')).rejects.toThrow(names.vector)
+    // Creating it is allowed; the other Workers are still checked.
+    await expect(requireValues(undeployed.api, config, 'vector')).resolves.toBeUndefined()
+    undeployed.secrets[names.ai].delete('DEEPSEEK_API_KEY')
+    undeployed.secrets[names.core].delete('DEEPSEEK_API_KEY')
+    undeployed.secrets[names.edge].add('DEEPSEEK_API_KEY')
+    await expect(requireValues(undeployed.api, config, 'vector')).rejects.toThrow(`${names.ai}: DEEPSEEK_API_KEY`)
   })
 
   test('a key no Worker holds is an unconfigured optional feature and does not block', async () => {

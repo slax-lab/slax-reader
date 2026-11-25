@@ -7,7 +7,7 @@
 3. 创建自己的 D1、KV、R2、队列、五个 1024 维 cosine Vectorize 索引，配置 PostgreSQL/Hyperdrive、PowerSync。`resources` 默认仅列计划，`--apply` 才创建缺失资源并输出 ID，需账号与 API token；Hyperdrive/数据库/外部服务不由它创建。模板的 SlaxTwitterFxembed 是外部 `fxembed` 服务，需自行部署实现或提供等价服务名。Cloudflare 账号需具备这些产品及 Browser Rendering 的权限。
 4. 保留逻辑 binding 名称，自定义物理资源名。队列映射使用原生 producer binding，导入死信队列通过 IMPORT_OTHER 消费者的 dead_letter_queue 关联。配置原文件不被改写。环境间隔离物理队列和 Workflow 名称。
 5. 已有安装必须保留原 Worker 名、资源 ID、DO migration tags/classes 与所有历史迁移，模板不是生产配置的替代品。远程 D1/fulltext 与 PostgreSQL/logs 迁移需独立核对目标并运行开发文档中的对应命令。
-6. Secret 使用 Cloudflare Worker secrets；本地使用忽略的 `deploy/local/.dev.vars`。Edge/Core/AI 配置同一个 EDGE_SHARED_SECRET，按功能配置 JWT、Hashids、支付、OAuth、模型和 PowerSync 等凭据（完整 Env 契约在 apps/api/worker-configuration.d.ts）。不要写进 TOML。支付/OAuth 等提供方的回调域名也要配置为自己的 origin。
+6. Secret 使用 Cloudflare Worker secrets；本地使用忽略的 `deploy/local/.dev.vars`。Edge/Core/AI/Vector 配置同一个 EDGE_SHARED_SECRET，按功能配置 JWT、Hashids、支付、OAuth、模型和 PowerSync 等凭据（完整 Env 契约在 apps/api/worker-configuration.d.ts）。不要写进 TOML。支付/OAuth 等提供方的回调域名也要配置为自己的 origin。
 
 ```bash
 pnpm api -- build
@@ -45,7 +45,7 @@ pnpm api -- deploy --target vector
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # 给 Vector 上传 JINA_API_KEY 和 EDGE_SHARED_SECRET
 ```
 
-已存在的 Vector 缺少其中任一值时，发布会停止。
+只有 `deploy --target vector` 可以在 Vector 尚不存在时不带这些值发布；其他任何发布在 Vector 缺少其中任一值时都会停止，并给出这条命令。
 
 ## 首次五 Worker 发布（已有安装）
 

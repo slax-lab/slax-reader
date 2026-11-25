@@ -4,7 +4,7 @@
 
 - [x] 1.1 Add the `vector` target: name from `services.VECTOR_SEARCH.service` or derived from Core's, `VECTOR_REGION = 'aws:us-east-1'`, generated configuration with only `VECTOR_V5_ARTICLE`, no routes or public hostname, and AI's `VECTOR_SEARCH` service binding (default entrypoint).
 - [x] 1.2 Publish Vector before AI in the normal and bootstrap orders; give it a local dev port.
-- [x] 1.3 Add `RUNTIME_KEYS.vector`; include Vector in the requirement check and `secrets:sync`.
+- [x] 1.3 Add `RUNTIME_KEYS.vector`; include Vector in the requirement check and `secrets:sync`; let only a single-Worker release create a Worker that does not exist yet.
 - [x] 1.4 Cover the new target in `release`, `deployPaths`, `workerTopology`, `rootDeployment`, `devPortGuard` and secret-sync tests.
 
 ## 2. Vector Worker

@@ -7,7 +7,7 @@ Maintain one public template: `deploy/cloudflare/api.toml.example`. Run `pnpm ap
 3. Provision D1, KV, R2, queues, five 1024-dimensional cosine Vectorize indexes, PostgreSQL/Hyperdrive and PowerSync. `resources` is a local plan; `--apply` creates missing resources with your account/token and reports IDs. It does not provision Hyperdrive, databases or external services. Deploy or supply the template's external `fxembed` service (`SlaxTwitterFxembed`). Your account needs access to these products, including Browser Rendering.
 4. Keep logical binding names while customizing physical names. Queue roles use native producer bindings and the IMPORT_OTHER consumer dead_letter_queue relationship. Source configuration is never rewritten. Isolate queue and Workflow names between environments.
 5. Existing installations must preserve their Worker identities, resource IDs and DO migration tags/classes. Never replace production history with the example. Apply remote D1/fulltext and PostgreSQL/logs migrations separately after checking database targets; commands are listed in the development guide.
-6. For merged releases, maintain runtime values and credentials in `[vars]` of the private environment TOML. All five Workers receive those values during normal deployment; Edge/Core/AI share the same EDGE_SHARED_SECRET. Configure JWT, Hashids, payment, OAuth, model and PowerSync credentials as required by `apps/api/worker-configuration.d.ts`. Local development can continue using ignored `deploy/local/.dev.vars`. Real credentials must never enter the public template or source repository. Set provider callback URLs to your own origin.
+6. For merged releases, maintain runtime values and credentials in `[vars]` of the private environment TOML. All six Workers receive those values during normal deployment; Edge, Core, AI and Vector share the same EDGE_SHARED_SECRET. Configure JWT, Hashids, payment, OAuth, model and PowerSync credentials as required by `apps/api/worker-configuration.d.ts`. Local development can continue using ignored `deploy/local/.dev.vars`. Real credentials must never enter the public template or source repository. Set provider callback URLs to your own origin.
 
 ```bash
 pnpm api -- build
@@ -44,7 +44,7 @@ pnpm api -- deploy --target vector
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # uploads JINA_API_KEY and EDGE_SHARED_SECRET to Vector
 ```
 
-A release stops while an existing Vector Worker lacks either value.
+Only `deploy --target vector` may publish a Worker that does not exist yet without its values; every other release stops while Vector lacks either value and names that command.
 
 ## First five-Worker release (existing installations)
 

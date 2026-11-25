@@ -106,7 +106,7 @@ export async function deploy(args: string[], api?: CloudflareApi): Promise<numbe
   if (remote && !bootstrap) {
     loadApiEnv()
     const account = api ?? accountApi(config)
-    await requireValues(account, config)
+    await requireValues(account, config, options.target)
     steps = releaseOrder(await readReleaseState(account, config), options.target)
   }
   // Fail before touching any shared state: the generated configs, the dev

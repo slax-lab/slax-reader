@@ -7,7 +7,7 @@
 3. D1・KV・R2・キュー・五つの 1024 次元 cosine Vectorize・PostgreSQL/Hyperdrive・PowerSync を用意します。resources は計画のみ、--apply は自分の account/token で不足リソースを作り ID を表示します。Hyperdrive・DB・外部サービスは作成しません。外部 `fxembed`（SlaxTwitterFxembed）は別途用意します。Browser Rendering を含む各製品の権限が必要です。
 4. 論理 binding 名を維持し、物理名を設定します。キューは producer binding と IMPORT_OTHER の dead_letter_queue で関連付けます。元の設定ファイルは変更しません。環境ごとにキューと Workflow 名を分離してください。
 5. 既存環境では Worker 名・リソース ID・DO migration tags/classes・履歴を維持します。テンプレートで本番履歴を置換しないでください。リモート D1/fulltext と PostgreSQL/logs のマイグレーションは、開発ガイドのコマンドで対象を確認して別途実行します。
-6. 秘密は Worker secrets、本地では無視対象の `.dev.vars` を使います。Edge/Core/AI の EDGE_SHARED_SECRET は同一にします。JWT・Hashids・決済・OAuth・モデル・PowerSync の設定は Env 契約を参照してください。TOML に秘密を書かず、提供者の callback URL も独自 origin に設定します。
+6. 秘密は Worker secrets、本地では無視対象の `.dev.vars` を使います。Edge/Core/AI/Vector の EDGE_SHARED_SECRET は同一にします。JWT・Hashids・決済・OAuth・モデル・PowerSync の設定は Env 契約を参照してください。TOML に秘密を書かず、提供者の callback URL も独自 origin に設定します。
 
 ```bash
 pnpm api -- build
@@ -45,7 +45,7 @@ pnpm api -- deploy --target vector
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # Vector に JINA_API_KEY と EDGE_SHARED_SECRET をアップロード
 ```
 
-既存の Vector にどちらかの値がない間、リリースは停止します。
+値を持たずに公開できるのは、まだ存在しない Vector に対する `deploy --target vector` だけです。それ以外のリリースは、Vector にどちらかの値がない間は停止し、このコマンドを示します。
 
 ## 最初の五 Worker リリース（既存環境）
 
