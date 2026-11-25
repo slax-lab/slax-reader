@@ -13,7 +13,7 @@
       <AppIcon :name="saved ? 'snapshot.saved' : 'snapshot.save'" class="fork-icon" />
       <span>{{ $t(pending ? 'bookmark_fork.submitting' : saved ? 'bookmark_fork.saved' : 'bookmark_fork.action') }}</span>
     </button>
-    <span class="sr-only" role="status" aria-live="polite">{{ error }}</span>
+    <span v-if="error !== retryMessage || (ready && !saved)" :class="{ 'sr-only': error !== retryMessage }" role="status" aria-live="polite">{{ error }}</span>
   </div>
 </template>
 <script setup lang="ts">
@@ -23,8 +23,17 @@ import type { BookmarkForkMetadata } from '@slax-reader/contracts'
 import { useBookmarkFork } from '~/composables/bookmark/useBookmarkFork'
 const props = withDefaults(defineProps<{ bookmarkUid: string; viewerForkStatus?: BookmarkForkMetadata['viewer_fork_status']; ready?: boolean }>(), { ready: true })
 const emit = defineEmits<{ accepted: [] }>()
+const { t } = useI18n()
+const retryMessage = computed(() => t('bookmark_fork.retry_after_login'))
 const source = toRef(props, 'bookmarkUid')
 const { fork, pending, saved, error } = useBookmarkFork(source, toRef(props, 'viewerForkStatus'))
+onMounted(() => {
+  const url = new URL(location.href)
+  if (url.searchParams.get('save_failed') !== '1') return
+  error.value = retryMessage.value
+  url.searchParams.delete('save_failed')
+  history.replaceState(history.state, '', url)
+})
 async function submit() {
   if (!props.ready) return
   if (await fork(props.bookmarkUid)) emit('accepted')

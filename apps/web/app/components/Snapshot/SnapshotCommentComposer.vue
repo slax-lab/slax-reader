@@ -27,8 +27,9 @@
       @input="autoResize"
     />
     <div class="comment-composer-actions">
-      <span class="comment-composer-hint">{{ $t('page.bookmarks_detail.send_hint') }}</span>
-      <button class="comment-composer-send" :disabled="!inputText.trim() || sending" @click="handleSend">
+      <span v-if="commentTooLong" role="alert" class="comment-composer-hint">{{ $t('page.bookmarks_detail.comment_length_limit', { limit: MAX_COMMENT_LENGTH }) }}</span>
+      <span v-else class="comment-composer-hint">{{ $t('page.bookmarks_detail.send_hint') }}</span>
+      <button class="comment-composer-send" :disabled="!inputText.trim() || commentTooLong || sending" @click="handleSend">
         <div v-if="sending" class="i-svg-spinners:90-ring w-14px" />
         <span v-else>{{ $t('common.operate.send') }}</span>
       </button>
@@ -37,6 +38,8 @@
 </template>
 
 <script lang="ts" setup>
+import { MAX_COMMENT_LENGTH } from '~/utils/mark'
+
 import type { MarkCommentInfo, MarkItemInfo, QuoteData } from '@slax-reader/selection/types'
 import type { ReaderSelection } from '~/components/Article/Selection/ReaderSelection'
 import { getUUID } from '~/components/Article/Selection/tools'
@@ -67,6 +70,7 @@ const { t } = useI18n()
 const userStore = useUserStore()
 const textareaRef = ref<HTMLTextAreaElement>()
 const inputText = ref('')
+const commentTooLong = computed(() => inputText.value.trim().length > MAX_COMMENT_LENGTH)
 const sending = ref(false)
 
 // 组装引用信息：@用户名：内容
@@ -177,7 +181,7 @@ const autoResize = () => {
 }
 
 const handleSend = async () => {
-  if (!canCompose.value || !inputText.value.trim() || sending.value) return
+  if (!canCompose.value || !inputText.value.trim() || commentTooLong.value || sending.value) return
 
   if (!userStore.userInfo) {
     showLoginModal({ redirect: location.href })

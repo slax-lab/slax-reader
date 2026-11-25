@@ -103,7 +103,9 @@
               </div>
             </div>
             <div class="panel-footer">
-              <button type="button" class="confirm-btn" @click="commitPending">{{ $t('component.bookmark_tags.confirm', { n: pending.size }) }}</button>
+              <button type="button" class="confirm-btn" @click="commitPending">
+                {{ pending.size ? $t('component.bookmark_tags.add_count', { n: pending.size }) : $t('component.bookmark_tags.confirm') }}
+              </button>
             </div>
             <div class="list-loading" v-if="isAddingLoading">
               <div class="i-svg-spinners:90-ring w-24px" style="color: var(--slax-accent)" />
@@ -290,10 +292,8 @@ const isNewKey = (key: string) => key.startsWith(NEW_PREFIX)
 
 const attachedIds = computed(() => new Set(bookmarkTags.value.map(tag => String(tag.id))))
 
-const searchResultTags = computed(() => {
-  if (!searchText.value) return searchTags.value
-  return searchTags.value.filter(tag => tag.show_name.includes(searchText.value))
-})
+const query = computed(() => searchText.value.trim().toLowerCase())
+const searchResultTags = computed(() => searchTags.value.filter(tag => tag.show_name.toLowerCase().includes(query.value)))
 
 // 分组：我的在前，自动在后；空组不出标题
 const groupedCandidates = computed(() => {
@@ -305,9 +305,8 @@ const groupedCandidates = computed(() => {
   return groups
 })
 
-// 输入了词表里没有的名字（大小写敏感）→ 给一个“创建”行
-const exactMatch = computed(() => searchTags.value.find(tag => tag.show_name === searchText.value) ?? null)
-const createName = computed(() => (searchText.value && !exactMatch.value ? searchText.value : ''))
+const exactMatches = computed(() => searchResultTags.value.filter(tag => tag.show_name.toLowerCase() === query.value))
+const createName = computed(() => (exactMatches.value.length ? '' : searchText.value.trim()))
 
 // 搜索词变了，之前勾的“创建 xxx”已经看不见，不能留在 pending 里被提交
 watch(createName, name => {
@@ -544,12 +543,12 @@ const deleteBookmarkTag = async (tagId: number) => {
 // Enter：先把精确命中（或“创建”行）加进 pending，再提交
 const onKeyDown = async (e: KeyboardEvent) => {
   if (e.key !== 'Enter' || !isAddingTag.value) return
-  const text = searchText.value
-  if (text) {
-    const match = exactMatch.value
-    const key = match ? String(match.id) : newKey(text)
-    const attached = match ? attachedIds.value.has(key) : false
-    if (!attached && !pending.value.has(key)) togglePending(key)
+  if (exactMatches.value.length > 1) {
+    if (pending.value.size === 0) return
+  } else if (query.value) {
+    const match = exactMatches.value[0]
+    const key = match ? String(match.id) : newKey(createName.value)
+    if (!attachedIds.value.has(key) && !pending.value.has(key)) togglePending(key)
   }
   await commitPending()
 }

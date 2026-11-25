@@ -2,6 +2,8 @@ import { computed, reactive, ref } from 'vue'
 
 import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
 
+import { bindSnapshotEmail, finishSnapshotEmail, finishSnapshotSave, startSnapshotSave } from '~/utils/bookmarkFork'
+
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises, mount } from '@vue/test-utils'
 import { useBookmarkFork } from '~/composables/bookmark/useBookmarkFork'
@@ -10,6 +12,14 @@ import { beforeEach, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({ post: vi.fn(), login: vi.fn(), toast: vi.fn(), user: null as any }))
 vi.mock('~/stores/user', () => ({ useUserStore: () => mocks.user }))
 vi.mock('~/composables/useAccountContext', () => ({ useAccountContext: () => ({ sync: () => {}, context: computed(() => ({ generation: mocks.user.generation })) }) }))
+const cookies = vi.hoisted(() => new Map<string, string>())
+vi.mock('@vueuse/integrations/useCookies', () => ({
+  useCookies: () => ({
+    get: (key: string) => cookies.get(key),
+    set: (key: string, value: string) => cookies.set(key, value),
+    remove: (key: string) => cookies.delete(key)
+  })
+}))
 vi.mock('~/utils/request', () => ({ request: () => ({ post: mocks.post }) }))
 vi.mock('~/components/Modal', () => ({ showLoginModal: mocks.login }))
 vi.mock('~/components/Toast', () => ({ default: { showToast: mocks.toast }, ToastType: { Error: 'error' } }))
@@ -17,6 +27,7 @@ mockNuxtImport('useI18n', () => () => ({ t: (key: string) => key }))
 
 beforeEach(() => {
   vi.clearAllMocks()
+  cookies.clear()
   useRuntimeConfig().public.PUBLIC_BASE_URL = 'https://reader.test'
   mocks.user = reactive({ isLogin: true, userInfo: { userId: 1 }, generation: 0 })
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
@@ -38,7 +49,8 @@ it('blocks offline and anonymous saves using existing feedback', async () => {
   mocks.user.isLogin = false
   await action.fork(sourceUuid)
   expect(mocks.login).toHaveBeenCalledExactlyOnceWith({
-    redirect: location.href,
+    redirect: expect.stringContaining('slax_save='),
+    onDismiss: expect.any(Function),
     authAttribution: {
       source_screen: 'detail',
       presentation: 'modal',
@@ -154,4 +166,47 @@ it('coalesces same-source requests while allowing independent resources', async 
   pending.resolve(null)
   await result
   expect(b.pending.value).toBe(false)
+})
+
+it('resumes only the explicit admission attempt and consumes it once', async () => {
+  const attribution = { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: sourceUuid } as const
+  const signal = new AbortController().signal
+  const { redirect } = startSnapshotSave(sourceUuid)
+  mocks.post.mockResolvedValueOnce({ bmId: 'one' })
+  await finishSnapshotSave(redirect, undefined, 'test-session', signal)
+  expect(mocks.post).not.toHaveBeenCalled()
+  expect(await finishSnapshotSave(redirect, attribution, 'test-session', signal)).toBe(location.href)
+  expect(mocks.post).toHaveBeenCalledWith(expect.objectContaining({ body: { target_url: 'https://reader.test/b/' + sourceUuid, tags: [] } }))
+  await finishSnapshotSave(redirect, attribution, 'test-session', signal)
+  expect(mocks.post).toHaveBeenCalledOnce()
+})
+
+it('drops a cancelled attempt and offers retry after an unsuccessful admission', async () => {
+  const attribution = { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: sourceUuid } as const
+  const signal = new AbortController().signal
+  const cancelled = startSnapshotSave(sourceUuid)
+  cancelled.onDismiss()
+  const expired = await finishSnapshotSave(cancelled.redirect, attribution, 'test-session', signal)
+  expect(new URL(expired).searchParams.get('save_failed')).toBe('1')
+  expect(mocks.post).not.toHaveBeenCalled()
+  const retry = startSnapshotSave(sourceUuid)
+  mocks.post.mockRejectedValueOnce(new Error('unavailable'))
+  expect(new URL(await finishSnapshotSave(retry.redirect, attribution, 'test-session', signal)).searchParams.get('save_failed')).toBe('1')
+})
+
+it('links an email return only to the same live save and consumes it once', async () => {
+  const attribution = { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: sourceUuid } as const
+  const signal = new AbortController().signal
+  const cancelled = startSnapshotSave(sourceUuid)
+  bindSnapshotEmail('cancelled', cancelled.redirect, attribution)
+  cancelled.onDismiss()
+  expect(await finishSnapshotEmail('cancelled', 'test-session', signal)).toBe('/bookmarks')
+  const active = startSnapshotSave(sourceUuid)
+  bindSnapshotEmail('active', active.redirect, attribution)
+  expect(await finishSnapshotEmail('unrelated', 'test-session', signal)).toBe('/bookmarks')
+  expect(mocks.post).not.toHaveBeenCalled()
+  mocks.post.mockResolvedValueOnce({ bmId: 'one' })
+  expect(await finishSnapshotEmail('active', 'test-session', signal)).toBe('https://reader.test/b/' + sourceUuid)
+  expect(await finishSnapshotEmail('active', 'test-session', signal)).toBe('/bookmarks')
+  expect(mocks.post).toHaveBeenCalledOnce()
 })

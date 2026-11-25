@@ -15,7 +15,7 @@ async function loginFixture(host, platform, run, props = {}, development = false
   const controls = new Map(), providers = [], requests = [], accepted = [], alerts = [], lifecycle = []
   const png = readFileSync(new URL('../../assets/drawable/bg_login.png', import.meta.url))
   const background = {uri: 'bundled:bg_login', width: png.readUInt32BE(16), height: png.readUInt32BE(20)}
-  let artwork, viewport = {width: 390, height: 844}
+  let agreementSource, artwork, viewport = {width: 390, height: 844}
   const Image = props => {
     if (props.source === background) artwork = {...props, resolvedStyle: {...background, ...flattenStyle(props.style)}}
     return React.createElement(host.native.Image, props)
@@ -41,7 +41,7 @@ async function loginFixture(host, platform, run, props = {}, development = false
   }, sessions: {getSnapshot: () => session, captureIdentity: () => {const before = identity; return () => {if (before !== identity) throw new Error('Identity changed')}}, accept: async (...values) => accepted.push(values)}, t: key => key, locale: 'en', config: {development, isBeta: false, webUrl: 'https://fixture.test', apiUrl: 'https://api.fixture.test'}}
   const {LoginScreen} = await loadComponent('../../src/screens/LoginScreen.tsx', {
     react: React, 'react-native': {...host.native, Platform: {OS: platform}, useWindowDimensions: () => viewport, Image, Text: primitive, Pressable: primitive, Modal, Alert: {alert: (...args) => alerts.push(args)}},
-    'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: () => null}, '../../assets': {mobileAssets: {bg_login: background}},
+    'react-native-safe-area-context': {useSafeAreaInsets: () => ({top: 62, bottom: 34})}, 'react-native-webview': {WebView: ({source}) => {agreementSource = source; return null}}, '../../assets': {mobileAssets: {bg_login: background}},
     '../auth/providers': {authenticate: provider => {providers.push({provider, phase}); return authenticate(provider)}}, '../runtime': {useMobile: () => mobile},
     '../theme': {mobileColors, mobileLayout, mobileTypography}, '../theme/testIds': {mobileTestIds: {}}, '../telemetry': {useTelemetry: () => ({element() {}, firebase() {}})}, '../native/fixture-document': {}, '../components/fixture-actions': {},
     '../native/passkeys': {nativePasskeys: {isSupported: () => passkeySupported, authenticate: (options, signal) => nativePasskey(options, signal)}},
@@ -51,7 +51,7 @@ async function loginFixture(host, platform, run, props = {}, development = false
   const render = () => host.render(React.createElement(LoginScreen, props))
   const press = key => act(async () => controls.get(key).onPress())
   await render()
-  await run({setEmailLink: async value => {mobile.emailLink = value; await render()}, render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
+  await run({agreementSource: () => agreementSource, setLocale: async locale => {mobile.locale = locale; await render()}, setEmailLink: async value => {mobile.emailLink = value; await render()}, render, press, modal: () => modal, controls, providers, requests, accepted, alerts, lifecycle, marks: () => marks, useSessions: value => {mobile.sessions = value}, response: value => {loginResponse = value},
     passkey: value => {nativePasskey = value}, setPasskeySupported: async value => {passkeySupported = value; await render()}, artwork: () => artwork, resize: async width => {viewport = {...viewport, width}; await render()}, verifyEmail: value => {verifyEmail = value},
     setProfile: async profile => {mobile.config.development = profile === 'development'; mobile.config.isBeta = profile === 'beta'; mobile.config.webUrl = {development: 'https://fixture.test', preview: 'https://r.slax.dev', beta: 'https://r.slax.com', production: 'https://r.slax.com'}[profile]; controls.clear(); await render()},
     changeOrigin: async () => {mobile.config.apiUrl = 'https://replacement.fixture.test'; await render()},
@@ -59,6 +59,14 @@ async function loginFixture(host, platform, run, props = {}, development = false
     replaceIdentity: () => {identity++; session = {status: 'unauthenticated'}},
     setUser: () => {identity++; session = {status: 'authenticated', session: {userId: 'other', token: 'replacement'}}}, authenticate: value => {authenticate = value}})
 }
+
+for (const language of ['en', 'zh']) test(`mounted iOS login opens both agreements in ${language}`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, 'ios', async fixture => {
+  await fixture.setLocale(language)
+  await fixture.press('login_google')
+  assert.equal(fixture.agreementSource().uri, 'https://fixture.test/' + language + '/terms')
+  await fixture.press('agreement_tab_privacy')
+  assert.equal(fixture.agreementSource().uri, 'https://fixture.test/' + language + '/privacy')
+})))
 
 for (const platform of ['ios', 'android']) test(`mounted ${platform} login artwork overrides intrinsic PNG dimensions and follows the source layout ratio`, nativeBoundary, async () => withNativeHost(async host => loginFixture(host, platform, async fixture => {
   assert.equal(fixture.artwork().source.width, 1500); assert.equal(fixture.artwork().source.height, 1260)

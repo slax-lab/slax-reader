@@ -1,6 +1,7 @@
 import { AccountLocaleStaleError, createAccountLocaleRequest } from '../utils/accountLocaleRequest'
 import { persistSessionCookie, readStringCookie } from '../utils/authCookie'
 import { notifyExtensionAccountLocaleInvalidated } from '../utils/extensionLocale'
+import { type SignInLanguageChoice,takeSignInLanguageChoice } from '../utils/signInLanguage'
 import { existingUserLocaleTasks, getUserLocaleTasks, type LocaleUserState } from '../utils/userLocaleTasks'
 
 import type { AppLocale } from '@commons/frontend-types/locale'
@@ -103,9 +104,15 @@ export const useUserStore = defineStore<'user', UserState, UserGetters, UserActi
     async refreshServerUserInfo(signal?: AbortSignal): Promise<UserInfo> {
       const accountContext = useAccountContext()
       const snapshot = accountContext.snapshot()
+      const cookieDomain = useRuntimeConfig().public.COOKIE_DOMAIN
+      const languageChoice = useState<SignInLanguageChoice | undefined>('sign-in-language-choice')
       try {
         const profile = await localeTasksForStore(this).read(signal)
-        accountContext.acceptServerUser(profile.userId, snapshot)
+        if (accountContext.acceptServerUser(profile.userId, snapshot) && import.meta.client && this.confirmedAccountLocale) {
+          const { accountKey, locale } = this.confirmedAccountLocale
+          const choice = takeSignInLanguageChoice(accountKey, locale, cookieDomain)
+          if (choice) languageChoice.value = choice
+        }
         return profile
       } catch (error) {
         // A newer same-session read owns the identity result. An older read

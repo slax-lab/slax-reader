@@ -106,6 +106,7 @@ describe('useImportTasks', () => {
     const { importProgressPercent } = await import('~~/app/composables/useImportTasks')
     expect(importProgressPercent(task({ current_count: 5, batch_count: 20 }))).toBe(25)
     expect(importProgressPercent(task({ current_count: 0, batch_count: 0 }))).toBe(0)
+    expect(importProgressPercent(task({ current_count: 199, batch_count: 200 }))).toBe(99)
     expect(importProgressPercent(task({ current_count: 30, batch_count: 20 }))).toBe(100)
   })
 

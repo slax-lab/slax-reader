@@ -7,7 +7,7 @@
       :href="articleHref"
       target="_blank"
       rel="noopener noreferrer"
-      :aria-label="bookmark.alias_title || bookmark.title"
+      :aria-label="bookmarkDisplayTitle(bookmark)"
       @click.stop.prevent="clickCard"
     ></a>
     <!-- 序号 -->
@@ -26,7 +26,7 @@
           rel="noopener noreferrer"
           @click.stop.prevent="clickTitle"
         >
-          {{ truncateTitle(bookmark.alias_title || bookmark.title, 48) || bookmark.target_url }}
+          {{ truncateTitle(bookmarkDisplayTitle(bookmark), 48) || bookmark.target_url }}
         </a>
         <input
           ref="input"
@@ -36,6 +36,9 @@
           class="article-title-input"
           v-model="editingTitle"
           :placeholder="$t('component.bookmark_cell.edit_title_placeholder')"
+          :aria-invalid="invalidTitle || undefined"
+          :aria-describedby="invalidTitle ? titleErrorId : undefined"
+          @blur="invalidTitle = !editingTitle.trim()"
           @input="handleInput"
           v-on-key-stroke:Enter="[onKeyDown, { eventName: 'keydown' }]"
           v-on-click-outside="[
@@ -45,6 +48,7 @@
             { ignore: [editTitleButton] }
           ]"
         />
+        <p v-if="isEditingTitle && invalidTitle" :id="titleErrorId" role="alert" class="title-error">{{ $t('component.bookmark_cell.title_required') }}</p>
       </div>
 
       <!-- meta 行：来源 + 标签 + hover 操作区 -->
@@ -131,7 +135,7 @@ import { inject } from 'vue'
 import BookmarkTags from '~/components/BookmarkTags.vue'
 
 import { getBookmarkSourceDomain, httpOriginalUrl, isNewsletterBookmarkTarget } from '~/utils/bookmarkSource'
-import { truncateTitle } from '~/utils/string'
+import { bookmarkDisplayTitle, truncateTitle } from '~/utils/string'
 
 import type { BookmarkItem, BookmarkTag } from '@commons/frontend-types/models'
 import { urlHttpString } from '@commons/frontend-utils/string'
@@ -207,6 +211,8 @@ const haveRetried = ref(false)
 const input = ref<HTMLInputElement | null>(null)
 const editTitleButton = useTemplateRef('editTitleButton')
 const editingTitle = ref('')
+const invalidTitle = ref(false)
+const titleErrorId = useId()
 const archieveButton = ref<HTMLButtonElement>()
 const isArchieveHovered = useElementHover(archieveButton)
 const deleteButton = ref<HTMLButtonElement>()
@@ -265,7 +271,8 @@ const clickEdit = () => {
   isEditingTitle.value = !isEditingTitle.value
 
   if (isEditingTitle.value) {
-    editingTitle.value = bookmark.value.alias_title || bookmark.value.title
+    invalidTitle.value = false
+    editingTitle.value = bookmarkDisplayTitle(bookmark.value)
     nextTick(() => {
       handleInput()
       if (input.value) {
@@ -451,6 +458,7 @@ const removeCell = (stroke: boolean) => {
 }
 
 const handleInput = () => {
+  if (editingTitle.value.trim()) invalidTitle.value = false
   if (!input.value) {
     return
   }
@@ -474,6 +482,10 @@ const onClickoutside = () => {
 }
 
 const updateBookmarkTitle = () => {
+  if (!editingTitle.value.trim()) {
+    invalidTitle.value = true
+    return
+  }
   if (editingTitle.value === bookmark.value.alias_title) {
     isEditingTitle.value = false
     return
@@ -704,6 +716,11 @@ const starBookmark = async (isStar: boolean, event?: MouseEvent) => {
 }
 
 // 标题编辑输入框
+.title-error {
+  color: var(--slax-danger);
+  font-size: 14px;
+}
+
 .article-title-input {
   display: block;
   width: 100%;

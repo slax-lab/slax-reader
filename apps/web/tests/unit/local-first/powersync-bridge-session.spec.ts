@@ -8,6 +8,8 @@ const state = vi.hoisted(() => ({
   session: vi.fn(),
   connect: vi.fn(),
   clear: vi.fn(),
+  disconnect: vi.fn(),
+  getCrudBatch: vi.fn(),
   init: vi.fn(),
   afterEach: vi.fn(),
   clearAuth: vi.fn()
@@ -42,6 +44,8 @@ vi.mock('@powersync/web', () => ({
   PowerSyncDatabase: class {
     init = state.init
     connect = state.connect
+    getCrudBatch = state.getCrudBatch
+    disconnect = state.disconnect
     disconnectAndClear = state.clear
     onChangeWithCallback = () => () => {}
     resolveTables = async () => []
@@ -85,6 +89,7 @@ beforeEach(() => {
   state.connect.mockResolvedValue(undefined)
   state.clear.mockResolvedValue(undefined)
   state.init.mockResolvedValue(undefined)
+  state.getCrudBatch.mockReset().mockResolvedValue(null)
   vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ data: { token: 'sync-token', endpoint: 'https://sync.test' } })))
 })
 afterEach(() => vi.restoreAllMocks())
@@ -114,6 +119,19 @@ describe('snapshot session expiry coordination', () => {
     expect(navigation.refreshContent).toHaveBeenCalledExactlyOnceWith('content-current')
     expect(state.clearAuth).not.toHaveBeenCalled()
     expect(navigation.login).not.toHaveBeenCalled()
+  })
+
+  it.each(['current', 'navigating', 'recovering'])('keeps the snapshot URL on upload rejection while %s', async phase => {
+    topLevel('/b/current')
+    await start()
+    if (phase === 'navigating') navigationState.value = '/b/next'
+    if (phase === 'recovering') recoveryState.value = 'reader-recovery'
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 401 }))
+    await expect(getConnector().uploadData({ getCrudBatch: async () => ({ crud: [], complete: vi.fn() }) })).rejects.toThrow('401')
+    expect(localStorage.getItem('slax:powersync:interruptedUpload')).toBe('suspended')
+    expect(navigation.refreshContent).toHaveBeenCalledTimes(phase === 'current' ? 1 : 0)
+    expect(navigation.login).not.toHaveBeenCalled()
+    expect(state.clearAuth).not.toHaveBeenCalled()
   })
 
   it('retains the login redirect outside snapshot routes', async () => {
@@ -256,5 +274,81 @@ describe('PowerSync in an authenticated extension iframe with no page cookie', (
     await start()
     expect(state.session).not.toHaveBeenCalled()
     expect(state.connect).toHaveBeenCalledOnce()
+  })
+})
+
+describe('recovering a rejected Web upload', () => {
+  const marker = 'slax:powersync:interruptedUpload'
+  beforeEach(() => {
+    vi.spyOn(window, 'parent', 'get').mockReturnValue(window)
+    window.history.replaceState(null, '', '/bookmarks')
+    state.cookie.mockReturnValue(token('user-a'))
+  })
+
+  it('keeps an incomplete batch on rejection, disconnects, and hides the database on anonymous startup', async () => {
+    await start()
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 401 }))
+    state.clearAuth.mockImplementationOnce(() => state.cookie.mockReturnValue(undefined))
+    const complete = vi.fn()
+    await expect(getConnector().uploadData({ getCrudBatch: async () => ({ crud: [], complete }) })).rejects.toThrow('401')
+    expect(complete).not.toHaveBeenCalled()
+    expect(localStorage.getItem(marker)).toBe('suspended')
+    expect(ownership.value).toBeNull()
+    await state.afterEach.mock.calls.at(-1)![0]()
+    expect(state.disconnect).toHaveBeenCalled()
+    expect(state.clear).not.toHaveBeenCalled()
+    expect(navigation.login).toHaveBeenCalledWith('/login', { external: true })
+    expect((await start())?.provide?.powersync).toBeNull()
+  })
+
+  it.each(['server rejection', 'expired JWT'])('retains offline edits on %s before upload begins', async mode => {
+    if (mode === 'expired JWT') state.cookie.mockReturnValue('header.' + btoa(JSON.stringify({ id: 'user-a', exp: 1 })) + '.fixture')
+    await start()
+    state.getCrudBatch.mockResolvedValue({ crud: [{}] })
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 401 }))
+    state.clearAuth.mockImplementationOnce(() => state.cookie.mockReturnValue(undefined))
+    await expect(getConnector().fetchCredentials()).resolves.toBeNull()
+    expect(localStorage.getItem(marker)).toBe('suspended')
+    await state.afterEach.mock.calls.at(-1)![0]()
+    expect(state.disconnect).toHaveBeenCalled()
+    expect(state.clear).not.toHaveBeenCalled()
+    expect(fetch).toHaveBeenCalledTimes(mode === 'expired JWT' ? 0 : 1)
+  })
+
+  it.each(['user-a', 'user-b'])('verifies returning %s before connecting the queue', async owner => {
+    localStorage.setItem(marker, 'suspended')
+    state.cookie.mockReturnValue(token(owner))
+    await start()
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/sync/token'), expect.anything())
+    expect(state.clear).toHaveBeenCalledTimes(owner === 'user-a' ? 0 : 1)
+    expect(state.connect).toHaveBeenCalledOnce()
+    expect(ownership.value).toBe(owner)
+    expect(localStorage.getItem(marker)).toBeNull()
+  })
+
+  it('leaves the interrupted database inaccessible when the server rejects a matching identity', async () => {
+    localStorage.setItem(marker, 'suspended')
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 401 }))
+    expect((await start())?.provide?.powersync).toBeNull()
+    expect(localStorage.getItem(marker)).toBe('suspended')
+    expect(state.connect).not.toHaveBeenCalled()
+    expect(state.clear).not.toHaveBeenCalled()
+  })
+
+  it('discards a suspended queue explicitly signed out on a database-bypassed screen', async () => {
+    localStorage.setItem(marker, 'discard')
+    await start()
+    expect(state.clear).toHaveBeenCalledOnce()
+    expect(state.clear.mock.invocationCallOrder[0]).toBeLessThan(state.connect.mock.invocationCallOrder[0]!)
+    expect(localStorage.getItem(marker)).toBeNull()
+  })
+
+  it('never uploads a previous owner’s batch with a newly switched cookie', async () => {
+    await start()
+    state.cookie.mockReturnValue(token('user-b'))
+    const complete = vi.fn()
+    await expect(getConnector().uploadData({ getCrudBatch: async () => ({ crud: [], complete }) })).rejects.toThrow('owner')
+    expect(fetch).not.toHaveBeenCalledWith('https://api.test/v1/sync/changes', expect.anything())
+    expect(complete).not.toHaveBeenCalled()
   })
 })

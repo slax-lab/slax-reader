@@ -28,6 +28,7 @@ import { useRoute } from 'vue-router'
 import AppleLoginButton from '~/components/AppleLoginButton.vue'
 import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
 
+import { finishSnapshotSave } from '~/utils/bookmarkFork'
 import { authReturnTarget, emailAuthErrorKey } from '~/utils/emailAuth'
 import { finishProviderLink, isProviderLinkState, takePendingProviderLink } from '~/utils/providerLink'
 
@@ -149,14 +150,16 @@ if (import.meta.client) {
         controller.abort()
       }, 20_000)
       phase = 'login'
-      await auth.grantAuth(code, state.redirectUrl, state.affCode, state.platform, authAttribution, {
+      const token = await auth.grantAuth(code, state.redirectUrl, state.affCode, state.platform, authAttribution, {
         signal: controller.signal,
         // The callback owns persistent recovery instead of the shared request toast.
         errorInterceptors: () => {}
       })
       if (controller.signal.aborted) return
+      clearTimeout(deadline)
       phase = 'navigation'
-      if (await navigateTo(recovery.value.target, { external: true }) === false) {
+      const target = await finishSnapshotSave(recovery.value.target, authAttribution, token, controller.signal)
+      if (await navigateTo(target, { external: true }) === false) {
         throw new Error('Authentication navigation did not complete')
       }
     } catch (error) {

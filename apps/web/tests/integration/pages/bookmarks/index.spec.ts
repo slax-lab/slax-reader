@@ -265,7 +265,7 @@ describe('components/BookmarkList/BookmarksPage.vue', () => {
   }
   const mountRssPage = () => mountWithApp(IndexPage, {
     attachTo: document.body,
-    global: { stubs: { ...baseStubs, AddUrlTopModal: false } }
+    global: { stubs: { ...baseStubs, AddUrlTopModal: false, BookmarksFab: false } }
   })
   const fillModalInput = async (selector: string, value: string) => {
     const input = document.querySelector(`.modal-dialog ${selector}`) as HTMLInputElement
@@ -285,12 +285,12 @@ describe('components/BookmarkList/BookmarksPage.vue', () => {
     for (const button of buttons) {
       await button.trigger('click')
       expect(document.querySelector('#add-tab-feed')?.getAttribute('aria-selected')).toBe('true')
+      expect(wrapper.findComponent(AddUrlTopModal).props('opener')).toBe(button.element)
       expect(panel.find('dialog[open]').exists()).toBe(false)
       ;(document.querySelector('.modal-close') as HTMLButtonElement).click()
       await nextTick()
     }
-    wrapper.findComponent({ name: 'BookmarksFab' }).vm.$emit('click')
-    await nextTick()
+    await wrapper.get('.fab').trigger('click')
     expect(document.querySelector('#add-tab-url')?.getAttribute('aria-selected')).toBe('true')
     expect(mockPost.mock.calls.filter(([options]) => (options as { url: string })?.url === '/v1/rss/subscriptions')).toHaveLength(0)
   })
@@ -304,8 +304,7 @@ describe('components/BookmarkList/BookmarksPage.vue', () => {
     await flushPromises()
     const existing = wrapper.findComponent(RssPanel)
     const ownerId = existing.exists() ? existing.vm.$.uid : undefined
-    wrapper.findComponent({ name: 'BookmarksFab' }).vm.$emit('click')
-    await nextTick()
+    await wrapper.get('.fab').trigger('click')
     ;(document.querySelector('#add-tab-feed') as HTMLButtonElement).click()
     await nextTick()
     await fillModalInput('input[type=url]', source.feed_url)
@@ -333,8 +332,7 @@ describe('components/BookmarkList/BookmarksPage.vue', () => {
     })
     const wrapper = mountRssPage()
     await flushPromises()
-    wrapper.findComponent({ name: 'BookmarksFab' }).vm.$emit('click')
-    await nextTick()
+    await wrapper.get('.fab').trigger('click')
     ;(document.querySelector('#add-tab-feed') as HTMLButtonElement).click()
     await nextTick()
     await fillModalInput('input[type=url]', 'https://example.com/not-feed?token=a%2Fb')

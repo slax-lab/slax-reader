@@ -472,6 +472,24 @@ describe('components/BookmarkList/BookmarkCell', () => {
       expect(wrapper.find('input').exists()).toBe(false)
     })
 
+    it('shows the source title for a blank alias and rejects whitespace before a corrected submission', async () => {
+      const bookmark = makeBookmarkItem({ alias_title: '  ', title: 'Original' })
+      const wrapper = mountWithApp(BookmarkCell, { props: { bookmark } })
+      expect(wrapper.get('.article-title').text()).toBe('Original')
+      await wrapper.get('.edit-title').trigger('click')
+      const input = wrapper.get('input')
+      await input.setValue(' \t ')
+      await input.trigger('keydown', { key: 'Enter' })
+      await input.trigger('blur')
+      expect(input.attributes('aria-invalid')).toBe('true')
+      expect(wrapper.get('[role="alert"]').text()).toContain('title')
+      expect(mockPost).not.toHaveBeenCalled()
+      expect(wrapper.emitted('bookmarkUpdate')).toBeUndefined()
+      await input.setValue('Corrected')
+      await input.trigger('keydown', { key: 'Enter' })
+      expect(mockPost).toHaveBeenCalledWith(expect.objectContaining({ body: { bookmark_id: bookmark.id, alias_title: 'Corrected' } }))
+    })
+
     it('编辑后值与原 alias_title 一致：短路不调 post，仅退出编辑态', async () => {
       const bm = makeBookmarkItem({ alias_title: '已存在' })
       const wrapper = mountWithApp(BookmarkCell, { props: { bookmark: bm, isSubscribe: false } })

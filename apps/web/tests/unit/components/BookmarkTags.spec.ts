@@ -208,7 +208,7 @@ describe('components/BookmarkTags', () => {
       expect(candidateNames()).toEqual(['tech', 'design', 'ai', 'ai-tools'])
       expect(panelFindAll('.search-tag.attached').map(r => r.find('.tag-name').text())).toEqual(['tech', 'ai'])
       await panelFind('.search-tag.attached').trigger('click')
-      expect(panelFind('.confirm-btn').text()).toBe('Done (0)')
+      expect(panelFind('.confirm-btn').text()).toBe('Done')
     })
 
     it('某组为空时不渲染该组标题', async () => {
@@ -268,7 +268,7 @@ describe('components/BookmarkTags', () => {
       await panelFind('.search-tag.create').trigger('click')
       expect(panelFind('.confirm-btn').text()).toContain('1')
       await panelFind('input').setValue('foob')
-      expect(panelFind('.confirm-btn').text()).toContain('0')
+      expect(panelFind('.confirm-btn').text()).toBe('Done')
     })
 
     it('重开面板保留 searchText 与滚动位置', async () => {
@@ -322,7 +322,7 @@ describe('components/BookmarkTags', () => {
       expect(wrapper.emitted('change')).toBeUndefined()
       if (action === 'add') {
         expect(isPanelHidden()).toBe(false)
-        expect(panelFind('.confirm-btn').text()).toBe('Done (1)')
+        expect(panelFind('.confirm-btn').text()).toBe('Add (1)')
       } else {
         expect(wrapper.findAll('.tag-name').map(tag => tag.text())).toEqual(baseTags.map(tag => tag.name))
       }
@@ -335,10 +335,10 @@ describe('components/BookmarkTags', () => {
       await rows[0]!.trigger('click')
       expect(mockPost).not.toHaveBeenCalled()
       expect(selectable()[0]!.classes()).toContain('active')
-      expect(panelFind('.confirm-btn').text()).toBe('Done (1)')
+      expect(panelFind('.confirm-btn').text()).toBe('Add (1)')
       await selectable()[0]!.trigger('click')
       expect(selectable()[0]!.classes()).not.toContain('active')
-      expect(panelFind('.confirm-btn').text()).toBe('Done (0)')
+      expect(panelFind('.confirm-btn').text()).toBe('Done')
     })
 
     it('Done：一次 ADD_BOOKMARK_TAGS 带 tags:[{id,name},{id,name}]，合并列表 + emit change + 关闭', async () => {
@@ -350,6 +350,7 @@ describe('components/BookmarkTags', () => {
       await openPanel(wrapper)
       await selectable()[0]!.trigger('click')
       await selectable()[1]!.trigger('click')
+      expect(panelFind('.confirm-btn').text()).toBe('Add (2)')
       await panelFind('.confirm-btn').trigger('click')
       await flushPromises()
       expect(mockPost).toHaveBeenCalledTimes(1)
@@ -360,6 +361,9 @@ describe('components/BookmarkTags', () => {
       const emitted = wrapper.emitted('change')![0]![0] as BookmarkTag[]
       expect(emitted.map(t => t.id)).toEqual([1, 2, 3, 4])
       expect(isPanelHidden()).toBe(true)
+      await openPanel(wrapper)
+      expect(panelFindAll('.search-tag.attached')).toHaveLength(4)
+      expect(panelFind('.confirm-btn').text()).toBe('Done')
     })
 
     it('includes the raw catalog name rather than its display alias when attaching an existing REST tag', async () => {
@@ -415,7 +419,7 @@ describe('components/BookmarkTags', () => {
       expect(create.exists()).toBe(true)
       expect(create.text()).toContain('Create “brand-new”')
       await create.trigger('click')
-      expect(panelFind('.confirm-btn').text()).toBe('Done (1)')
+      expect(panelFind('.confirm-btn').text()).toBe('Add (1)')
       await panelFind('.confirm-btn').trigger('click')
       await flushPromises()
       expect(lastPostBody().body.tags).toEqual([{ name: 'brand-new' }])
@@ -425,13 +429,14 @@ describe('components/BookmarkTags', () => {
       expect((panelFind('input').element as HTMLInputElement).value).toBe('')
     })
 
-    it('搜索精确匹配某候选（大小写敏感）：不出现 create 行', async () => {
+    it('uses the existing display spelling for a case-insensitive match', async () => {
       const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
       await openPanel(wrapper)
       await panelFind('input').setValue('design')
       expect(document.querySelector('.search-tag.create')).toBeNull()
       await panelFind('input').setValue('Design')
-      expect(document.querySelector('.search-tag.create')).not.toBeNull()
+      expect(document.querySelector('.search-tag.create')).toBeNull()
+      expect(candidateNames()).toEqual(['design'])
     })
 
     it('出错：toast 报错、pending 保留、面板不关', async () => {
@@ -443,7 +448,7 @@ describe('components/BookmarkTags', () => {
       await flushPromises()
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }))
       expect(isPanelHidden()).toBe(false)
-      expect(panelFind('.confirm-btn').text()).toBe('Done (1)')
+      expect(panelFind('.confirm-btn').text()).toBe('Add (1)')
       expect(selectable()[0]!.classes()).toContain('active')
       expect(wrapper.emitted('change')).toBeUndefined()
     })
@@ -466,12 +471,43 @@ describe('components/BookmarkTags', () => {
       const wrapper = mountTags({ props: { tags: [...baseTags], bookmarkId: 7 } })
       await openPanel(wrapper)
       const input = panelFind('input')
-      await input.setValue('design')
+      await input.setValue('DESIGN')
       await input.trigger('keydown', { key: 'Enter' })
       await flushPromises()
       expect(mockPost).toHaveBeenCalledTimes(1)
       expect(lastPostBody().body.tags).toEqual([{ id: 3, name: 'design' }])
       expect(isPanelHidden()).toBe(true)
+    })
+
+    it('requires explicit selection among historical case variants', async () => {
+      const variants = [{ id: 21, name: 'Rust', show_name: 'Rust' }, { id: 22, name: 'RUST', show_name: 'RUST' }]
+      mockGet.mockResolvedValueOnce(variants)
+      const wrapper = mountTags({ props: { tags: [], bookmarkId: 7 } })
+      await openPanel(wrapper)
+      const input = panelFind('input')
+      await input.setValue('rust')
+      expect(candidateNames()).toEqual(['Rust', 'RUST'])
+      expect(document.querySelector('.search-tag.create')).toBeNull()
+      await input.trigger('keydown', { key: 'Enter' })
+      expect(mockPost).not.toHaveBeenCalled()
+      await selectable()[1]!.trigger('click')
+      await input.trigger('keydown', { key: 'Enter' })
+      await flushPromises()
+      expect(lastPostBody().body.tags).toEqual([{ id: 22, name: 'RUST' }])
+    })
+
+    it('commits earlier selections without guessing between case variants', async () => {
+      const other = { id: 20, name: 'Other', show_name: 'Other' }
+      mockGet.mockResolvedValueOnce([other, { id: 21, name: 'Rust', show_name: 'Rust' }, { id: 22, name: 'RUST', show_name: 'RUST' }])
+      const wrapper = mountTags({ props: { tags: [], bookmarkId: 7 } })
+      await openPanel(wrapper)
+      const input = panelFind('input')
+      await input.setValue('Other')
+      await selectable()[0]!.trigger('click')
+      await input.setValue('rust')
+      await input.trigger('keydown', { key: 'Enter' })
+      await flushPromises()
+      expect(lastPostBody().body.tags).toEqual([{ id: 20, name: 'Other' }])
     })
 
     it('文本未命中：提交 {name}，连同已勾选的候选', async () => {
@@ -644,7 +680,7 @@ describe('components/BookmarkTags', () => {
       await panelFind('.search-tag.create').trigger('click')
       await panelFind('.confirm-btn').trigger('click')
       await flushPromises()
-      expect(panelFind('.confirm-btn').text()).toBe('Done (2)')
+      expect(panelFind('.confirm-btn').text()).toBe('Add (2)')
       expect((panelFind('input').element as HTMLInputElement).value).toBe('fresh')
       expect(document.querySelector('.list-loading')).toBeNull()
       expect(wrapper.emitted('change')).toBeUndefined()
@@ -670,7 +706,7 @@ describe('components/BookmarkTags', () => {
       await flushPromises()
       expect(mockPost).not.toHaveBeenCalled()
       expect(wrapper.emitted('change')).toBeUndefined()
-      expect(panelFind('.confirm-btn').text()).toBe('Done (1)')
+      expect(panelFind('.confirm-btn').text()).toBe('Add (1)')
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }))
     })
 
@@ -708,6 +744,24 @@ describe('components/BookmarkTags', () => {
       }
       return { src, tags, userTags }
     }
+
+    it('attaches a case-matched local tag by its UUID without creating a duplicate', async () => {
+      const { src } = makeSource()
+      const wrapper = mountTags({
+        props: { tags: [lfTech], bookmarkUuid: 'b-1', dataSource: 'local' },
+        global: { provide: { [LocalFirstAdapterKey as symbol]: { bookmarkTagSource: () => src } } }
+      })
+      await openPanel(wrapper)
+      const input = panelFind('input')
+      await input.setValue('DESIGN')
+      expect(candidateNames()).toEqual(['design'])
+      expect(document.querySelector('.search-tag.create')).toBeNull()
+      await input.trigger('keydown', { key: 'Enter' })
+      await flushPromises()
+      expect(src.setTags).toHaveBeenCalledWith('b-1', ['t-1', 't-3'])
+      expect(src.createUserTag).not.toHaveBeenCalled()
+      expect(mockPost).not.toHaveBeenCalled()
+    })
 
     it('非 compact：两个已有 + 一个新建 → createUserTag 一次 + setTags 一次（并集）', async () => {
       const { src } = makeSource()
@@ -843,7 +897,7 @@ describe('components/BookmarkTags', () => {
       await flushPromises()
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }))
       expect(isPanelHidden()).toBe(false)
-      expect(panelFind('.confirm-btn').text()).toBe('Done (1)')
+      expect(panelFind('.confirm-btn').text()).toBe('Add (1)')
       expect(mockPost).not.toHaveBeenCalled()
     })
   })

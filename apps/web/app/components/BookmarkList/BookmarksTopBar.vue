@@ -117,6 +117,13 @@ onMounted(() => {
   --style: flex items-center gap-16px;
 }
 
+@media (max-width: 860px) {
+  .topbar-inner:has(.compact-open) {
+    .topbar-left, .topbar-right > :not(.compact-open) { display: none; }
+    .topbar-right { width: 100%; }
+  }
+}
+
 /* fork-only：PowerSync 状态指示（紧凑：仅圆点 + 文案，无边框无底色，置于 logo 右侧） */
 .sync-status {
   display: inline-flex;

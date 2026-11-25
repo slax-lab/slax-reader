@@ -2,6 +2,7 @@
   <AppLayoutShell>
     <div class="auth-wrap">
       <div class="auth-stack">
+        <p v-if="pendingEdits" class="pending-edits" role="status">{{ t('page.auth.pending_edits') }}</p>
         <LoginView :redirect="redirect" :affcode="affcode" :has-invite="!!invitation" :auth-attribution="authAttribution">
           <template v-if="invitation" #invite>
             <component :is="invitation.banner" :blogger-info="invitation.info" />
@@ -22,6 +23,7 @@ import { isInAppBrowser } from '~/utils/inAppBrowser'
 
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { BloggerInfo } from '@slax-reader/contracts/interface'
+import { hasInterruptedUpload } from '~/local-first/interrupted-upload'
 import type { Component } from 'vue'
 
 definePageMeta({ layout: false })
@@ -64,12 +66,20 @@ useHead({
   titleTemplate: `${t('common.operate.login')} - ${t('common.app.name')}`
 })
 
+const pendingEdits = ref(false)
 onMounted(() => {
+  pendingEdits.value = hasInterruptedUpload()
   analyticsLog({ event: 'user_view_login' })
 })
 </script>
 
 <style lang="scss" scoped>
+.pending-edits {
+  margin: 0 0 16px;
+  color: var(--slax-text);
+  text-align: center;
+}
+
 .auth-wrap {
   min-height: 100vh;
   display: flex;

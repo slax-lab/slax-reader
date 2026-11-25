@@ -33,7 +33,7 @@ describe('composables/bookmark/useArticle', () => {
     })
 
     it('BookmarkDetail：alias_title 空时 fallback title', () => {
-      const detail = ref({ bookmark_id: 1, alias_title: '', title: 'B', starred: 'star', trashed_at: null })
+      const detail = ref({ bookmark_id: 1, alias_title: ' \t ', title: 'B', starred: 'star', trashed_at: null })
       const r = useArticleDetail(detail as never)
       expect(r.title.value).toBe('B')
     })

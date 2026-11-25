@@ -10,7 +10,7 @@
         <span>{{ t(open ? 'email_auth.cancel' : 'email_auth.continue_with_email') }}</span>
       </button>
     </div>
-    <EmailCodeForm v-if="open" :id="formId" ref="form" class="email-code-form--inline email-code-form--login" :initial-email="initialEmail" retain-pending-on-success :verify="verifyEmail" :authenticate-passkey="passkeysSupported ? authenticatePasskey : undefined" :passkey-autofill="passkeyAutofill" />
+    <EmailCodeForm v-if="open" :id="formId" ref="form" class="email-code-form--inline email-code-form--login" :initial-email="initialEmail" :restored-challenge="restoredChallenge" @challenge="updateChallenge" retain-pending-on-success :on-challenge-issued="bindSnapshotChallenge" :verify="verifyEmail" :authenticate-passkey="passkeysSupported ? authenticatePasskey : undefined" :passkey-autofill="passkeyAutofill" />
   </div>
 </template>
 
@@ -18,18 +18,22 @@
 import AppIcon from '~/components/AppIcon.vue'
 import EmailCodeForm from '~/components/Login/EmailCodeForm.vue'
 
+import { bindSnapshotEmail, finishSnapshotSave } from '~/utils/bookmarkFork'
 import { authReturnTarget } from '~/utils/emailAuth'
 import { readLastLoginEmail, rememberLoginEmail } from '~/utils/lastLoginEmail'
 import type { PasskeyAuthenticationMode } from '~/utils/passkeyAuth'
 import { signalUnknownPasskey } from '~/utils/passkeyAuth'
+import { type PendingEmailLogin,readPendingEmailLogin, writePendingEmailLogin } from '~/utils/pendingEmailLogin'
+import { beginSignInLanguage } from '~/utils/signInLanguage'
 
 import { browserSupportsPasskeys, browserSupportsWebAuthn, browserSupportsWebAuthnAutofill, getBrowserCapabilities, startAuthentication, WebAuthnAbortService } from '@simplewebauthn/browser'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { EmailCodeInput } from '@slax-reader/contracts/email-auth'
-import type { WebAuthAttribution } from '@slax-reader/contracts/events'
+import { isSnapshotAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import type { PasskeyAuthenticationChallenge } from '@slax-reader/contracts/passkey'
 
 const props = defineProps<{
+  surface: 'page' | 'modal'
   redirect: string
   affcode?: string
   authAttribution?: WebAuthAttribution
@@ -38,12 +42,15 @@ const props = defineProps<{
 const nuxtApp = useNuxtApp()
 const { t } = nuxtApp.$i18n
 const auth = useAuth()
+const cookieDomain = useRuntimeConfig().public.COOKIE_DOMAIN
 const formId = useId()
 const passkeysSupported = ref(false)
 const passkeyAutofill = ref(false)
 let mounted = true
 onBeforeUnmount(() => { mounted = false })
 onMounted(async () => {
+  restoredChallenge.value = readPendingEmailLogin(challengeKey())
+  if (restoredChallenge.value) open.value = true
   try {
     // Older supported browsers expose WebAuthn without the newer capabilities API.
     const supported = await browserSupportsPasskeys() || (browserSupportsWebAuthn() && typeof PublicKeyCredential.getClientCapabilities !== 'function')
@@ -58,6 +65,18 @@ onMounted(async () => {
     // Capability detection must leave the existing email login available.
   }
 })
+const challengeKey = () => {
+  // The same snapshot save receives a new continuation nonce whenever its login modal reopens.
+  if (props.surface === 'modal' && isSnapshotAuthAttribution(props.authAttribution)) {
+    return JSON.stringify(['snapshot-save', props.authAttribution.source_bookmark_id])
+  }
+  return JSON.stringify([props.surface, location.pathname, authReturnTarget(props.redirect, location.origin), props.affcode || '', props.authAttribution])
+}
+const restoredChallenge = ref<PendingEmailLogin>()
+const updateChallenge = (entry?: PendingEmailLogin) => {
+  restoredChallenge.value = entry
+  writePendingEmailLogin(challengeKey(), entry)
+}
 const open = ref(false)
 const initialEmail = ref('')
 const departing = ref(false)
@@ -69,25 +88,31 @@ const cancel = () => {
   open.value = false
 }
 
-defineExpose({ cancel })
+defineExpose({ cancel, departing })
 
 const toggle = () => {
   if (departing.value) return
   if (open.value) {
+    updateChallenge()
     cancel()
   } else {
+    beginSignInLanguage('email', nuxtApp.$i18n.locale.value, cookieDomain)
     initialEmail.value = readLastLoginEmail()
     open.value = true
     analyticsLog({ event: 'user_login_start', method: 'email' })
   }
 }
 
-const continueLogin = async (email: string, target: string, signal: AbortSignal) => {
+const bindSnapshotChallenge = (id: string) => bindSnapshotEmail(id, props.redirect, props.authAttribution)
+
+const continueLogin = async (email: string, target: string, token: string, signal: AbortSignal) => {
   signal.throwIfAborted()
+  updateChallenge()
   rememberLoginEmail(email)
   departing.value = true
   try {
-    if (await nuxtApp.runWithContext(() => navigateTo(target, { external: true })) === false) throw new Error('Login navigation did not complete')
+    const destination = await nuxtApp.runWithContext(() => finishSnapshotSave(target, props.authAttribution, token, signal))
+    if (await nuxtApp.runWithContext(() => navigateTo(destination, { external: true })) === false) throw new Error('Login navigation did not complete')
   } catch (error) {
     departing.value = false
     throw error
@@ -111,8 +136,9 @@ const authenticatePasskey = async (email: string, signal: AbortSignal, mode: Pas
     signal.throwIfAborted()
     mode.onCredential?.()
     signal.throwIfAborted()
+    let token: string
     try {
-      await auth.verifyPasskeyAuth({
+      token = await auth.verifyPasskeyAuth({
         type: 'passkey', email, request_id: response.request_id, credential,
         ...(props.authAttribution ? { auth_attribution: props.authAttribution } : {})
       }, { signal, errorInterceptors: () => {} })
@@ -121,7 +147,7 @@ const authenticatePasskey = async (email: string, signal: AbortSignal, mode: Pas
       void signalUnknownPasskey(error, response.options.rpId ?? location.hostname, credential.id)
       throw error
     }
-    await continueLogin(email, target, signal)
+    await continueLogin(email, target, token, signal)
   } finally {
     signal.removeEventListener('abort', cancelCeremony)
   }
@@ -129,13 +155,13 @@ const authenticatePasskey = async (email: string, signal: AbortSignal, mode: Pas
 
 const verifyEmail = async (proof: EmailCodeInput, signal: AbortSignal) => {
   const target = authReturnTarget(props.redirect, location.origin)
-  await auth.verifyEmailAuth({
+  const token = await auth.verifyEmailAuth({
     ...proof,
     ...(props.affcode ? { aff_code: props.affcode } : {}),
     ...(props.authAttribution ? { auth_attribution: props.authAttribution } : {})
   }, { signal, errorInterceptors: () => {} })
 
-  await continueLogin(proof.email, target, signal)
+  await continueLogin(proof.email, target, token, signal)
 }
 </script>
 

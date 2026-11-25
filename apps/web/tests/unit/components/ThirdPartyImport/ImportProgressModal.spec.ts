@@ -133,6 +133,19 @@ describe('ThirdPartyImport/ImportProgressModal', () => {
     }
   })
 
+  it('shows finalizing for a fully processed batch until the terminal status arrives', async () => {
+    const item = { ...baseItem, batch_count: 1, current_count: 1, success_total: 1 }
+    const wrapper = await mountProgress([item])
+    const status = () => document.querySelector('.table-body .status span')?.textContent
+    expect(status()).toBe('Finalizing')
+    mockGet.mockResolvedValueOnce([{ ...item, status: 3 }])
+    await useImportTasks().refresh()
+    await flushPromises()
+    expect(status()).not.toBe('Finalizing')
+    expect(document.querySelector('.table-body .status-complete')).not.toBeNull()
+    wrapper.unmount()
+  })
+
   it('loads and renders progress rows', async () => {
     const wrapper = await mountProgress([baseItem])
     expect(document.querySelector('.modal-overlay')).not.toBeNull()

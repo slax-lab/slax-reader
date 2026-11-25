@@ -71,6 +71,8 @@
 </template>
 
 <script lang="ts" setup>
+import { bookmarkDisplayTitle } from '~/utils/string'
+
 import type { CollectionBookmarkItem } from '@/composables/bookmark/useLocalCollections'
 import { WindowVirtualizer } from 'virtua/vue'
 
@@ -81,7 +83,7 @@ const defaultAvatar = new URL('@images/user-default-avatar.png', import.meta.url
 const feedItems = computed(() => {
   return props.bookmarks.map(bookmark => ({
     ...bookmark,
-    displayTitle: truncateTitle(bookmark.alias_title || bookmark.title, 48) || bookmark.target_url,
+    displayTitle: truncateTitle(bookmarkDisplayTitle(bookmark), 48) || bookmark.target_url,
     // 所划线引用的内容
     previewText: markText(bookmark.first_mark?.content),
     // 展示时间用 starred_at

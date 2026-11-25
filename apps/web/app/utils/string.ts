@@ -1,3 +1,6 @@
+export const bookmarkDisplayTitle = (bookmark: { title: string; alias_title?: string | null }) =>
+  bookmark.alias_title?.trim() ? bookmark.alias_title : bookmark.title
+
 /** 列表标题字数上限 */
 export const TITLE_DISPLAY_MAX = 48
 

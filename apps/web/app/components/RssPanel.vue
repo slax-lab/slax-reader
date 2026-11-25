@@ -248,10 +248,10 @@ const imageFailed = (event: Event) => {
 const closeBackdrop = (event: MouseEvent, dialog?: HTMLDialogElement) => {
   if (event.target === dialog) dialog?.close()
 }
-const emit = defineEmits<{ addFeed: [] }>()
-const showAdd = () => {
+const emit = defineEmits<{ addFeed: [event: MouseEvent] }>()
+const showAdd = (event: MouseEvent) => {
   rss.error.value = ''
-  emit('addFeed')
+  emit('addFeed', event)
 }
 const addFeed = async (address: string, name: string) => {
   if (!rss.enabled.value) throw new Error('lab_disabled')

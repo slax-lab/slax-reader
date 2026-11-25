@@ -45,6 +45,7 @@ describe('Modal/LoginModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    sessionStorage.clear()
     runtimeConfig.public.slaxEnv = 'development'
     post.mockReset().mockResolvedValue({ request_id: 'modal-attempt', expires_in: 300, resend_after: 60 })
     verifyEmailAuth.mockReset().mockResolvedValue('session')
@@ -53,6 +54,58 @@ describe('Modal/LoginModal', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('restores the pending code step only for this continuation and forgets it on address change', async () => {
+    const mount = (redirect = '/saved') => mountWithApp(LoginModal, { props: { redirect } })
+    const first = mount()
+    await first.get('.email-login-toggle').trigger('click')
+    await first.get('input[type=email]').setValue('reader@example.com')
+    await first.get('form').trigger('submit')
+    await flushPromises()
+    await first.get('[autocomplete="one-time-code"]').setValue('012345')
+    expect(JSON.stringify(sessionStorage)).not.toContain('012345')
+    first.unmount()
+    const different = mount('/other')
+    expect(different.find('form').exists()).toBe(false)
+    different.unmount()
+    const restored = mount()
+    await flushPromises()
+    expect(restored.get('form').text()).toContain('reader@example.com')
+    expect((restored.get('[autocomplete="one-time-code"]').element as HTMLInputElement).value).toBe('')
+    expect(restored.get('.email-code-actions button:last-child').attributes('disabled')).toBeDefined()
+    expect(post).toHaveBeenCalledOnce()
+    await restored.get('.email-code-actions button').trigger('click')
+    restored.unmount()
+    const cleared = mount()
+    expect(cleared.find('form').exists()).toBe(false)
+    cleared.unmount()
+  })
+
+  it('restores a snapshot challenge across save nonces and returns with the current nonce', async () => {
+    const articleA = '00000000-0000-4000-8000-00000000000a'
+    const articleB = '00000000-0000-4000-8000-00000000000b'
+    const mount = (article: string, nonce: string) => mountWithApp(LoginModal, { props: {
+      redirect: '/b/' + article + '?slax_save=' + nonce,
+      authAttribution: { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: article }
+    } })
+    const first = mount(articleA, 'first')
+    await first.get('.email-login-toggle').trigger('click')
+    await first.get('input[type=email]').setValue('reader@example.com')
+    await first.get('form').trigger('submit')
+    await flushPromises()
+    first.unmount()
+    const different = mount(articleB, 'second')
+    expect(different.find('form').exists()).toBe(false)
+    different.unmount()
+    const restored = mount(articleA, 'third')
+    await flushPromises()
+    await restored.get('[autocomplete="one-time-code"]').setValue('012345')
+    await restored.get('form').trigger('submit')
+    await flushPromises()
+    expect(post).toHaveBeenCalledOnce()
+    expect(verifyEmailAuth.mock.calls[0]![0].auth_attribution.source_bookmark_id).toBe(articleA)
+    expect(navigateTo).toHaveBeenCalledWith(location.origin + '/b/' + articleA + '?slax_save=third', { external: true })
   })
 
   it('mount → 渲染 .login-modal + .modal-shell + close button', () => {

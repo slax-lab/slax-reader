@@ -19,7 +19,8 @@
         <SnapshotForkAttribution :has-fork="detail.has_fork === true" :attribution="detail.fork" />
       </div>
       <div v-if="!isPdf || detail.pdf" class="article-divider" />
-      <h1 class="article-title" :title="title">{{ title }}</h1>
+      <h1 class="article-title" :title="title" :aria-invalid="invalidTitle || undefined" :aria-describedby="invalidTitle ? titleErrorId : undefined">{{ title }}</h1>
+      <p v-if="invalidTitle" :id="titleErrorId" class="title-error" role="alert">{{ $t('component.bookmark_cell.title_required') }}</p>
       <BookmarkTags
         v-if="effAllowTagged"
         class="article-tags"
@@ -75,7 +76,9 @@ import type { QuoteData } from '~/components/Chat/type'
 import { useArticleDetail } from '~/composables/bookmark/useArticle'
 import { useArticleSelection } from '~/composables/bookmark/useArticleSelection'
 
+const titleErrorId = useId()
 const props = defineProps({
+  invalidTitle: Boolean,
   detail: {
     type: Object as PropType<BookmarkArticleDetail>,
     required: true
@@ -289,6 +292,11 @@ defineExpose({ findQuote, articleSelection: activeSelection })
   height: 1px;
   background: var(--slax-border);
   margin: 20px 0 24px;
+}
+
+.title-error {
+  color: var(--slax-danger);
+  font-size: 14px;
 }
 
 .article-title {

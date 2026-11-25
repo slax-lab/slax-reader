@@ -20,6 +20,12 @@
     "added": "通行密钥已添加。",
     "deleted": "通行密钥已删除。"
   },
+  "sign_in_language": {
+    "question": "你希望使用哪种语言？",
+    "use_origin": "继续使用中文",
+    "keep": "保留英文",
+    "failed": "语言设置未能保存，请重试。"
+  },
   "email_auth": {
     "continue_with_email": "使用邮箱继续",
     "address_label": "邮箱地址",
@@ -68,6 +74,8 @@
     "sign_in_link_failed": "链接无效、已过期或已使用。请返回登录页面重新发送邮件。"
   },
   "bookmark_fork": {
+    "sign_in_to_save": "登录后，这篇文章会自动加入收件箱。",
+    "retry_after_login": "文章未能保存，请再次点击「收藏本篇」重试。",
     "action": "收藏本篇",
     "submitting": "收藏中…",
     "saved": "已收藏",
@@ -336,13 +344,15 @@
     },
     "bookmark_cell": {
       "add_tag": "加标签",
+      "title_required": "标题不能只包含空格，请输入标题。",
       "edit_title_placeholder": "请输入新标题",
       "no_title": "无标题",
       "shortcut": "link to:"
     },
     "bookmark_tags": {
       "create": "创建“{name}”",
-      "confirm": "确定 ({n})",
+      "confirm": "完成",
+      "add_count": "添加（{n}）",
       "by_ai": "AI 添加",
       "group_mine": "我的标签",
       "group_auto": "自动标签",
@@ -535,6 +545,8 @@
       "title": "要移除订阅“{name}”吗？"
     },
     "search_header": {
+      "failed": "搜索结果加载失败",
+      "retry": "重试",
       "empty": "没有找到相关内容",
       "empty_desc": "换个关键词，或者扩大搜索范围试试",
       "placeholder": "输入你要查找的内容",
@@ -856,6 +868,7 @@
       "ai_label_summary": "Outline"
     },
     "auth": {
+      "pending_edits": "有修改等待同步。请使用原账号登录。",
       "authenticating": "认证中",
       "incomplete": "登录未完成",
       "failed": "暂时无法完成登录，请重新登录。若持续失败，请检查网络后再试。",
@@ -885,6 +898,7 @@
       "comments": "评论",
       "from_collection": "本文来自",
       "from_collection_short": "来自",
+      "comment_length_limit": "评论最多可输入 {limit} 个字符，请缩短后再发送。",
       "send_hint": "Enter 发送 · Shift+Enter 换行",
       "share_to_twitter": "分享到 X / Twitter",
       "shared_via": "分享自",
@@ -1289,6 +1303,7 @@
       "import_network_error": "网络错误",
       "import_status_pending": "待处理",
       "import_status_processing": "处理中",
+      "import_status_finalizing": "正在完成导入",
       "import_status_processing_percent": "处理中（{percentage}%）",
       "import_status_failed": "失败",
       "import_status_complete": "完成",
@@ -1296,10 +1311,12 @@
       "import_unzipping": "正在解压文件...",
       "import_uploading": "正在上传文件...",
       "import_uploading_progress": "正在上传文件 {current} / {total}...",
+      "import_unsupported_file": "{source} 不支持「{file}」的格式。请选择以 {formats} 结尾的文件。",
       "import_file_invalid": "未找到文件，或文件类型不是 {type}",
       "import_upload_success": "{type} 数据导入成功，请稍候",
       "import_submitted": "文件已接收，正在后台导入 {count} 条书签。可以离开本页，稍后在“导入进度”里查看。",
       "import_submitted_no_count": "文件已接收，正在后台导入。可以离开本页，稍后在“导入进度”里查看。",
+      "import_active_finalizing": "{count} 个导入进行中，最近一项正在完成导入",
       "import_active_summary": "{count} 个导入进行中，最新一个 {percentage}%",
       "import_too_many": "同时最多 {max} 个导入，等其中一个完成后再试。",
       "language": "界面语言:",

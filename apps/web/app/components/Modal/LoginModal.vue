@@ -15,7 +15,7 @@
           </div>
 
           <h1 class="auth-title">{{ t('common.app.name') }}</h1>
-          <p class="auth-subtitle">{{ t('component.login_view.title') }}</p>
+          <p class="auth-subtitle">{{ t(isSnapshotAuthAttribution(authAttribution) ? 'bookmark_fork.sign_in_to_save' : 'component.login_view.title') }}</p>
 
           <ul class="auth-benefits">
             <li v-for="benefit in ['save', 'devices', 'space']" :key="benefit">
@@ -27,7 +27,7 @@
           <div class="auth-btns">
             <GoogleLoginButton :redirect="redirect" :auth-attribution="authAttribution" @click.capture="emailLogin?.cancel()" />
             <AppleLoginButton v-if="appleLoginEnabled" :redirect="redirect" :auth-attribution="appleAuthAttribution" @click.capture="emailLogin?.cancel()" />
-            <EmailLoginForm ref="emailLogin" :redirect="redirect" :auth-attribution="authAttribution" />
+            <EmailLoginForm surface="modal" ref="emailLogin" :redirect="redirect" :auth-attribution="authAttribution" />
           </div>
 
           <p class="auth-tos">
@@ -47,7 +47,7 @@ import AppleLoginButton from '~/components/AppleLoginButton.vue'
 import GoogleLoginButton from '~/components/GoogleLoginButton.vue'
 import EmailLoginForm from '~/components/Login/EmailLoginForm.vue'
 
-import { isCollectionAuthAttribution, type LoginModalAttribution } from '@slax-reader/contracts/events'
+import { isCollectionAuthAttribution, isSnapshotAuthAttribution, type LoginModalAttribution } from '@slax-reader/contracts/events'
 import type { PropType } from 'vue'
 
 const props = defineProps({
@@ -85,6 +85,7 @@ onMounted(() => {
 })
 
 const closeModal = () => {
+  if (emailLogin.value?.departing) return
   emailLogin.value?.cancel()
   appear.value = false
 }

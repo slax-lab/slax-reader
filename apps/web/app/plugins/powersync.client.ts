@@ -16,6 +16,7 @@ import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { useUpdateNotice } from '~/composables/useUpdateNotice'
 import { clearSyncCredsCache, createConnector, fetchSyncCredentials } from '~/local-first/connector'
 import { isDeferredLocalStartupPath, needsLocalStartupDocumentExit } from '~/local-first/deferred-startup-policy'
+import { hasInterruptedUpload, interruptedUploadKey } from '~/local-first/interrupted-upload'
 import { initializePowerSyncWithFallback, type PowerSyncRecoveryEvent, type PowerSyncRecoveryResult, type PowerSyncWorkerMode } from '~/local-first/powersync-recovery'
 import { deferLiveQueriesWhileHidden } from '~/local-first/powersync-visibility-gate'
 import { shouldUsePowerSyncSharedWorker } from '~/local-first/powersync-worker-policy'
@@ -359,34 +360,55 @@ export default defineNuxtPlugin({
       }
     }
 
-    const connector = createConnector({
-      fetchToken: async () => {
-        const authToken = await refreshPowerSyncUserToken()
-        const credentials = await fetchSyncCredentials({
-          baseUrl: cfg.DWEB_API_BASE_URL as string,
-          authToken,
-          onUnauthorized: async () => {
-            if (recoveringSnapshotSession.value || snapshotNavigation.value) return
-            const snapshot = /^\/b\/([^/]+)\/?$/.exec(window.location.pathname)
-            if (window.parent === window && snapshot) {
-              // Let the current snapshot's metadata decide recovery and retain its URL.
-              await nuxtApp.runWithContext(() => refreshNuxtData(`content-${snapshot[1]}`))
-              return
-            }
-            await useAuth().clearAuth()
-            clearSyncCredsCache()
-            notifyExtensionBridgeAuthExpired()
-            bridgeToken = null
-            if (window.parent === window) await navigateTo('/login')
+    let activeDatabase: PowerSyncDatabase | null = null
+    const recoverRejectedSession = async (token: string | null | undefined, rejectedUpload: boolean) => {
+      if (token !== getPowerSyncUserToken()) return
+      if (topLevel && localOwner.value && !hasInterruptedUpload()) {
+        let pending = rejectedUpload
+        if (!pending && activeDatabase) {
+          try {
+            pending = Boolean((await activeDatabase.getCrudBatch(1))?.crud.length)
+          } catch (error) {
+            // A failed queue read must not discard unconfirmed writes.
+            capturePowerSyncError('app.pendingOnExpiry', error)
+            pending = true
           }
-        })
-        try {
-          syncHost = new URL(credentials.endpoint).hostname
-        } catch {
-          syncHost = apiHostname()
         }
-        return credentials
-      },
+        if (token !== getPowerSyncUserToken()) return
+        if (pending) {
+          localStorage.setItem(interruptedUploadKey, 'suspended')
+          localOwner.value = null
+        }
+      }
+      if (recoveringSnapshotSession.value || snapshotNavigation.value) return
+      const snapshot = /^\/b\/([^/]+)\/?$/.exec(window.location.pathname)
+      if (topLevel && snapshot) {
+        // Snapshot metadata decides whether to clear the session and reload this same article.
+        await nuxtApp.runWithContext(() => refreshNuxtData(`content-${snapshot[1]}`))
+        return
+      }
+      await nuxtApp.runWithContext(() => useAuth().clearAuth())
+      clearSyncCredsCache()
+      notifyExtensionBridgeAuthExpired()
+      bridgeToken = null
+      if (topLevel) await nuxtApp.runWithContext(() => hasInterruptedUpload() ? navigateTo('/login', { external: true }) : navigateTo('/login'))
+    }
+    const fetchToken = async () => {
+      const authToken = await refreshPowerSyncUserToken()
+      const credentials = await fetchSyncCredentials({
+        baseUrl: cfg.DWEB_API_BASE_URL as string,
+        authToken,
+        onUnauthorized: () => recoverRejectedSession(authToken, false)
+      })
+      try {
+        syncHost = new URL(credentials.endpoint).hostname
+      } catch {
+        syncHost = apiHostname()
+      }
+      return credentials
+    }
+    const connector = createConnector({
+      fetchToken,
       uploadChanges: async changes => {
         // 用原始 fetch：共享 request() 会把 401 当“成功”静默返回，
         // 导致 uploadData 误执行 batch.complete() 丢掉未同步写入。
@@ -394,18 +416,14 @@ export default defineNuxtPlugin({
         const startedAt = Date.now()
         const token = await refreshPowerSyncUserToken()
         if (!token) throw new Error('PowerSync upload requires an active session')
+        if (!localOwner.value || getTokenUserId(token) !== localOwner.value) throw new Error('PowerSync upload requires the database owner')
         const base = (cfg.DWEB_API_BASE_URL as string).replace(/\/$/, '')
         const res = await fetch(`${base}${RESTMethodPath.SYNC_CHANGES}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getClientEventHeaders(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify(changes)
         })
-        if (res.status === 401) {
-          await useAuth().clearAuth()
-          clearSyncCredsCache()
-          notifyExtensionBridgeAuthExpired()
-          bridgeToken = null
-        }
+        if (res.status === 401) await recoverRejectedSession(token, true)
         if (!res.ok) throw Object.assign(new Error(`[powersync] upload changes failed: ${res.status}`), { phase: 'upload', ray: res.headers.get('cf-ray') ?? undefined, status: res.status })
         emitPhase('upload', 'success', { step: 'submit', batch_size: changes.length, duration_ms: Math.max(0, Date.now() - startedAt) })
       },
@@ -666,10 +684,19 @@ export default defineNuxtPlugin({
         clearSyncCredsCache()
         try {
           await db.disconnectAndClear()
+          localStorage.removeItem(interruptedUploadKey)
         } catch (e) {
           capturePowerSyncError('app.reset', e, { worker_mode: recovery.mode, phase: 'connect', stage: 'reset' }, apiHostname())
           powerSyncConsole.error('[powersync] disconnectAndClear failed:', e)
         }
+        connected = false
+      }
+
+      const endSession = async () => {
+        if (!hasInterruptedUpload()) return reset()
+        localOwner.value = null
+        clearSyncCredsCache()
+        await db.disconnect()
         connected = false
       }
 
@@ -681,7 +708,15 @@ export default defineNuxtPlugin({
         const token = getPowerSyncUserToken()
         const currentUserId = token ? getTokenUserId(token) : null
         const lastUser = localStorage.getItem(LAST_USER_KEY)
-        if (token && lastUser && lastUser !== currentUserId) {
+        const interruptedState = localStorage.getItem(interruptedUploadKey)
+        const interrupted = interruptedState === 'suspended'
+        if (interrupted) {
+          if (!currentUserId) return false
+          // The cookie claims identify an owner only after the server accepts this session.
+          const credentials = await fetchToken()
+          if (!credentials.token || !credentials.endpoint || token !== getPowerSyncUserToken()) return false
+        }
+        if (interruptedState === 'discard' || (token && (lastUser || interrupted) && lastUser !== currentUserId)) {
           clearSyncCredsCache()
           try {
             await db.disconnectAndClear()
@@ -694,6 +729,7 @@ export default defineNuxtPlugin({
         }
         if (token && !currentUserId) return false
         if (currentUserId) localStorage.setItem(LAST_USER_KEY, currentUserId)
+        if (interruptedState) localStorage.removeItem(interruptedUploadKey)
         localOwner.value = currentUserId
         return true
       }
@@ -758,6 +794,7 @@ export default defineNuxtPlugin({
         }
         return null
       }
+      activeDatabase = db
       nuxtApp.vueApp.use(createPowerSyncPlugin({ database: db }))
       transition(connect)
       localControls = { connect, reset }
@@ -775,7 +812,7 @@ export default defineNuxtPlugin({
             () => tokenCookie.value,
             (val, old) => {
               if (val) transition(guardAccountAndConnect)
-              else if (old) transition(reset)
+              else if (old) transition(endSession)
             }
           )
         }
@@ -786,7 +823,7 @@ export default defineNuxtPlugin({
         let lastHadToken = havePowerSyncUserToken()
         const reconcileAuthAndConnect = async () => {
           if (!havePowerSyncUserToken()) {
-            if (lastHadToken || connected) await reset()
+            if (lastHadToken || connected) await endSession()
             lastHadToken = false
             return
           }

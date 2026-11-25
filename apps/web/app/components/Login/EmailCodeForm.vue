@@ -45,6 +45,7 @@
 import { emailAuthErrorKey } from '~/utils/emailAuth'
 import type { PasskeyAuthenticationMode } from '~/utils/passkeyAuth'
 import { passkeyAuthErrorKey } from '~/utils/passkeyAuth'
+import type { PendingEmailLogin } from '~/utils/pendingEmailLogin'
 
 import type { FetchRequest } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -52,27 +53,32 @@ import type { EmailCodeChallenge, EmailCodeInput, EmailCodeSendInput } from '@sl
 
 const props = defineProps<{
   purpose?: 'login' | 'bind'
+  restoredChallenge?: PendingEmailLogin
   initialEmail?: string
   retainPendingOnSuccess?: boolean
   client?: Pick<FetchRequest, 'post'>
+  onChallengeIssued?: (requestId: string) => void
   passkeyAutofill?: boolean
   authenticatePasskey?: (email: string, signal: AbortSignal, mode?: PasskeyAuthenticationMode) => Promise<void>
   verify: (proof: EmailCodeInput, signal: AbortSignal) => Promise<void>
 }>()
+const emit = defineEmits<{ challenge: [entry?: PendingEmailLogin] }>()
 const { $i18n } = useNuxtApp()
 const { t, locale } = $i18n
-const email = ref(props.initialEmail ?? '')
+onMounted(() => {
+  watch(() => challenge.value?.request_id, id => { if (id) props.onChallengeIssued?.(id) }, { immediate: true, flush: 'sync' })
+})
+const email = ref(props.restoredChallenge?.email ?? props.initialEmail ?? '')
 const code = ref('')
 const emailInput = ref<HTMLInputElement>()
 const codeInput = ref<HTMLInputElement>()
-const challenge = ref<EmailCodeChallenge>()
+const challenge = ref<PendingEmailLogin | undefined>(props.restoredChallenge)
 const pending = ref<'send' | 'verify' | 'passkey'>()
 const errorKey = ref('')
 const clock = ref(Date.now())
-const sentAt = ref(0)
-const expired = computed(() => Boolean(challenge.value && clock.value >= sentAt.value + challenge.value.expires_in * 1000))
+const expired = computed(() => Boolean(challenge.value && clock.value >= challenge.value.expiresAt))
 const secondsToResend = computed(() =>
-  challenge.value ? Math.max(0, Math.ceil((sentAt.value + challenge.value.resend_after * 1000 - clock.value) / 1000)) : 0
+  challenge.value ? Math.max(0, Math.ceil((challenge.value.resendAt - clock.value) / 1000)) : 0
 )
 
 let operation: AbortController | undefined
@@ -98,7 +104,23 @@ const stop = () => {
   clearInterval(ticker)
 }
 
-onMounted(() => emailInput.value?.focus())
+const startCountdown = () => {
+  clearInterval(ticker)
+  ticker = setInterval(() => {
+    clock.value = Date.now()
+    if (expired.value) {
+      emit('challenge')
+      if (secondsToResend.value === 0) clearInterval(ticker)
+    }
+  }, 1000)
+}
+
+onMounted(() => {
+  if (challenge.value) {
+    startCountdown()
+    codeInput.value?.focus()
+  } else emailInput.value?.focus()
+})
 onBeforeUnmount(stop)
 defineExpose({ cancel: stop })
 
@@ -106,6 +128,7 @@ const editEmail = async () => {
   if (pending.value) return
   stop()
   challenge.value = undefined
+  emit('challenge')
   errorKey.value = ''
   code.value = ''
   await nextTick()
@@ -185,14 +208,16 @@ const sendCode = async () => {
     })
     controller.signal.throwIfAborted()
     if (!response) throw new Error('Email code request failed')
-    clock.value = sentAt.value = Date.now()
-    challenge.value = response
+    clock.value = Date.now()
+    challenge.value = {
+      email: email.value,
+      request_id: response.request_id,
+      expiresAt: clock.value + response.expires_in * 1000,
+      resendAt: clock.value + response.resend_after * 1000
+    }
+    emit('challenge', challenge.value)
     code.value = ''
-    clearInterval(ticker)
-    ticker = setInterval(() => {
-      clock.value = Date.now()
-      if (expired.value && secondsToResend.value === 0) clearInterval(ticker)
-    }, 1000)
+    startCountdown()
     pending.value = undefined
     await nextTick()
     if (!controller.signal.aborted) codeInput.value?.focus()

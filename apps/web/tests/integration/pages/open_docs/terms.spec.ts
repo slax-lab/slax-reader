@@ -10,20 +10,25 @@ import { flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockQueryCollection, mockUseHead, mockUseAsyncData, mockUseI18n, locale } = vi.hoisted(() => {
+const { mockQueryCollection, mockUseHead, mockUseAsyncData, mockUseI18n, locale, route } = vi.hoisted(() => {
   const localeRef = { value: 'en' }
   return {
     mockQueryCollection: vi.fn(),
     mockUseHead: vi.fn(),
     // 必须返回 Vue ref（{ data: ref(...) }），与 privacy.spec 同因
     mockUseAsyncData: vi.fn(),
-    mockUseI18n: vi.fn(() => ({ locale: localeRef, t: (key: string) => key })),
+    mockUseI18n: vi.fn(() => ({ locale: localeRef, t: (key: string, _values: object, options: { locale: string }) => key + '/' + options.locale, loadLocaleMessages: vi.fn() })),
+    route: { params: {} as { agreementLocale?: string } },
     locale: localeRef
   }
 })
 
-mockUseAsyncData.mockImplementation(async (_key: string, fn: () => Promise<unknown>) => ({ data: ref(await fn()) }))
+mockUseAsyncData.mockImplementation((_key: unknown, fn: () => Promise<unknown>) => {
+    const data = ref<unknown>()
+    return Object.assign(fn().then(value => { data.value = value }), { data })
+  })
 
+mockNuxtImport('useRoute', () => () => route)
 mockNuxtImport('useHead', () => mockUseHead)
 mockNuxtImport('useAsyncData', () => mockUseAsyncData)
 mockNuxtImport('useI18n', () => mockUseI18n)
@@ -38,9 +43,13 @@ const SuspenseWrapper = defineComponent({
 
 beforeEach(() => {
   locale.value = 'en'
+  route.params = {}
   mockUseHead.mockClear()
   mockUseAsyncData.mockClear()
-  mockUseAsyncData.mockImplementation(async (_key: string, fn: () => Promise<unknown>) => ({ data: ref(await fn()) }))
+  mockUseAsyncData.mockImplementation((_key: unknown, fn: () => Promise<unknown>) => {
+    const data = ref<unknown>()
+    return Object.assign(fn().then(value => { data.value = value }), { data })
+  })
   mockQueryCollection.mockReset()
 })
 
@@ -49,6 +58,17 @@ afterEach(() => {
 })
 
 describe('pages/(open_docs)/terms.vue', () => {
+  it.each([['en', 'zh'], ['zh', 'en']])('renders the %s link independently of the %s Web preference', async (hint, preference) => {
+    route.params = { agreementLocale: hint }
+    locale.value = preference
+    mockQueryCollection.mockReturnValue({ path: () => ({ first: vi.fn().mockResolvedValue({ body: hint }) }) })
+    mountWithApp(SuspenseWrapper, { global: { stubs: { ContentRenderer: true } } })
+    await flushPromises()
+    expect(mockQueryCollection).toHaveBeenCalledWith('open_docs_' + hint)
+    expect(mockUseHead.mock.calls[0]![0].title()).toBe('docs.title.terms/' + hint)
+    expect(locale.value).toBe(preference)
+  })
+
   it('locale=en：读取 open_docs_en 的 /terms + useHead 设标题', async () => {
     const fakePage = { body: 'Terms content' }
     mockQueryCollection.mockReturnValueOnce({
@@ -64,7 +84,7 @@ describe('pages/(open_docs)/terms.vue', () => {
     })
     await flushPromises()
 
-    expect(mockUseHead).toHaveBeenCalledWith({ title: 'docs.title.terms' })
+    expect(mockUseHead.mock.calls[0]![0].title()).toBe('docs.title.terms/en')
     expect(mockQueryCollection).toHaveBeenCalledWith('open_docs_en')
     expect(wrapper.find('.content-stub').text()).toBe('Terms content')
   })

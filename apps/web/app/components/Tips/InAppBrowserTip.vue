@@ -40,6 +40,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import AppIcon from '~/components/AppIcon.vue'
 
+import { localizedAgreementPath } from '~/utils/agreementRoutes'
 import { isSlaxReaderApp } from '~/utils/environment'
 import { isInAppBrowser } from '~/utils/inAppBrowser'
 import { isInAppBrowserTipCoolingDown, recordInAppBrowserTipManualClose } from '~/utils/inAppBrowserTipState'
@@ -66,7 +67,7 @@ const tipStyle = computed(() => {
 
 const isExcludedRoute = (path: string): boolean => {
   const normalizedPath = path.toLowerCase().replace(/\/+$/, '') || '/'
-  if (PROTOCOL_ROUTES.has(normalizedPath)) return true
+  if (PROTOCOL_ROUTES.has(normalizedPath) || localizedAgreementPath.test(normalizedPath)) return true
   if (/^\/(?:auth|x\/ext-bridge|rss)(?:\/|$)/.test(normalizedPath)) return true
   if (/^\/bookmarks\/[^/]+(?:\/|$)/.test(normalizedPath)) return true
   if (/^\/c\/[^/]+\/[^/]+(?:\/|$)/.test(normalizedPath)) return true

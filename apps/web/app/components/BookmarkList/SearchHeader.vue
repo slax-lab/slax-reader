@@ -8,7 +8,7 @@
         </svg>
         <span>{{ $t('page.bookmarks_index.search_back') }}</span>
       </button>
-      <p class="search-view-meta" v-if="searchResults.length > 0 || (!isSearching && defaultSearchText)">
+      <p class="search-view-meta" v-if="status === 'success'">
         {{ $t('component.search_header.found_count', { count: searchResults.length }) }}
         <span class="search-keyword">{{ defaultSearchText }}</span>
       </p>
@@ -26,11 +26,20 @@
     </div>
 
     <!-- 单次返回全量，非加载即到底 -->
-    <ListEndHint v-if="!isSearching && searchResults.length > 0" class="search-end" :text="$t('page.bookmarks_index.no_more')" />
+    <ListEndHint v-if="searchResults.length > 0" class="search-end" :text="$t('page.bookmarks_index.no_more')" />
+
+    <BookmarksEmptyView
+      v-if="status === 'failed'"
+      class="search-error"
+      :title="$t('component.search_header.failed')"
+      :desc="defaultSearchText"
+      :action-text="$t('component.search_header.retry')"
+      @action="search(defaultSearchText)"
+    />
 
     <!-- 空态 -->
     <BookmarksEmptyView
-      v-if="!isSearching && searchResults.length === 0 && defaultSearchText"
+      v-if="status === 'success' && searchResults.length === 0"
       class="search-empty"
       :title="$t('component.search_header.empty')"
       :desc="$t('component.search_header.empty_desc')"
@@ -41,7 +50,7 @@
     </BookmarksEmptyView>
 
     <!-- 加载中 -->
-    <div class="search-loading" v-if="isSearching">
+    <div class="search-loading" v-if="status === 'loading'">
       <div class="i-svg-spinners:90-ring" style="color: var(--slax-accent); width: 20px; height: 20px"></div>
     </div>
   </div>
@@ -65,37 +74,33 @@ const props = defineProps({
 
 const emits = defineEmits(['back', 'searchStatusUpdate'])
 
-const isSearching = ref(false)
+const status = ref<'idle' | 'loading' | 'success' | 'failed'>('idle')
 const searchResults = ref<SearchResultItem[]>([])
+let generation = 0
 
-watch(
-  () => props.defaultSearchText,
-  value => {
-    if (value) {
-      search(value)
-    }
+const search = async (keyword: string) => {
+  const current = ++generation
+  searchResults.value = []
+  status.value = keyword ? 'loading' : 'idle'
+  if (!keyword) return
+
+  try {
+    const results = await request().post<SearchResultItem[]>({
+      url: RESTMethodPath.SEARCH_CONTENT,
+      body: { keyword },
+      errorInterceptors: () => {}
+    })
+    if (current !== generation) return
+    searchResults.value = results || []
+    status.value = 'success'
+  } catch {
+    if (current === generation) status.value = 'failed'
   }
-)
-
-watch(
-  () => isSearching.value,
-  value => {
-    emits('searchStatusUpdate', value)
-  }
-)
-
-onMounted(() => {
-  if (props.defaultSearchText) {
-    search(props.defaultSearchText)
-  }
-})
-
-const searchApi = async (text: string) => {
-  return await request().post<SearchResultItem[]>({
-    url: RESTMethodPath.SEARCH_CONTENT,
-    body: { keyword: text }
-  })
 }
+
+watch(() => props.defaultSearchText, search)
+watch(() => status.value === 'loading', loading => emits('searchStatusUpdate', loading))
+onMounted(() => search(props.defaultSearchText))
 
 const navigateBack = () => {
   emits('back')
@@ -108,18 +113,6 @@ const navigateToBookmark = (result: SearchResultItem) => {
   pwaOpen({ url: target })
 }
 
-const search = async (text: string) => {
-  if (!text) return
-  isSearching.value = true
-  try {
-    const results = await searchApi(text)
-    searchResults.value = results || []
-  } catch (error) {
-    console.error('搜索出错:', error)
-  } finally {
-    isSearching.value = false
-  }
-}
 </script>
 
 <style lang="scss" scoped>

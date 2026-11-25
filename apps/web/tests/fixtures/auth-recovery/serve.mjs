@@ -42,7 +42,7 @@ const server = await createServer({
 import { useI18n } from 'vue-i18n'
 import { useAuth, navigateTo, useHead } from '${runtime}'
 `)
-      if (id.endsWith('/app/composables/useAuth.ts')) return `import { useRuntimeConfig } from '${runtime}'\nimport { request } from '~/utils/request'\n${oldAuth ?? source}`
+      if (id.endsWith('/app/composables/useAuth.ts')) return `import { useRuntimeConfig, useNuxtApp } from '${runtime}'\nimport { request } from '~/utils/request'\n${oldAuth ?? source}`
         .replace('https://accounts.google.com/o/oauth2/v2/auth', '/__fixture/google/authorize')
         .replace('https://appleid.apple.com/auth/authorize', '/__fixture/apple/authorize')
       if (id.endsWith('/app/utils/request.ts')) return `import { useRuntimeConfig, useAuth, navigateTo, tryUseNuxtApp, useRequestHeaders } from '${runtime}';\n${source}`

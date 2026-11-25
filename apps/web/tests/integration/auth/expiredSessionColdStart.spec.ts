@@ -39,6 +39,7 @@ vi.mock('@powersync/web', () => ({
   createConsoleLogger: () => ({ log: () => {} }),
   PowerSyncDatabase: class {
     init = async () => {}
+    getCrudBatch = async () => null
     connect = boundary.connect
     disconnectAndClear = async () => {}
     onChangeWithCallback = () => () => {}

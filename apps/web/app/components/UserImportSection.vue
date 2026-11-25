@@ -20,7 +20,7 @@
             <p class="import-notes">{{ `${$t('page.user.import_note1')}\n${$t('page.user.import_note2')}` }}</p>
           </div>
           <p v-if="activeCount > 0" class="import-active" role="status">
-            {{ $t('page.user.import_active_summary', { count: activeCount, percentage: latestPercent }) }}
+            {{ latestPercent === 100 ? $t('page.user.import_active_finalizing', { count: activeCount }) : $t('page.user.import_active_summary', { count: activeCount, percentage: latestPercent }) }}
             <template v-if="!canStart"> {{ $t('page.user.import_too_many', { max: MAX_ACTIVE_IMPORT_TASKS }) }}</template>
           </p>
           <button class="inline" @click="popupImportProgress">
@@ -55,7 +55,6 @@ import ImportPreviewModal, { type ImportPreview } from '~/components/ThirdPartyI
 import ImportProgressModal from '~/components/ThirdPartyImport/ImportProgressModal.vue'
 
 import { RequestError } from '@commons/frontend-utils/request'
-
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import Toast from '~/components/Toast'
 import { importProgressPercent, MAX_ACTIVE_IMPORT_TASKS, useImportTasks } from '~/composables/useImportTasks'
@@ -151,7 +150,8 @@ const chooseFile = (type: string) => {
   activeInput = input
   document.body.appendChild(input)
   input.type = 'file'
-  input.accept = sources.find(s => s.type === type)?.accept || '.zip'
+  const source = sources.find(s => s.type === type)
+  input.accept = source?.accept || '.zip'
   input.hidden = true
   input.oncancel = () => input.remove()
   input.onchange = async () => {
@@ -163,12 +163,13 @@ const chooseFile = (type: string) => {
       errorText.value = t('page.user.import_size_limit')
       return
     }
-    const source = sources.find(s => s.type === type)
+    const formats = input.accept.split(',')
+    if (!formats.some(ext => file.name.toLowerCase().endsWith(ext))) {
+      const name = source?.name ?? (type === 'pocket' ? 'Pocket' : 'Omnivore')
+      errorText.value = t('page.user.import_unsupported_file', { file: file.name, source: name, formats: formats.join(', ') })
+      return
+    }
     if (source) {
-      if (!source.accept.split(',').some(ext => file.name.toLowerCase().endsWith(ext))) {
-        errorText.value = t('page.user.import_file_invalid', { type })
-        return
-      }
       selectedFile.value = file
       selectedType.value = type
       showPreviewModal.value = true

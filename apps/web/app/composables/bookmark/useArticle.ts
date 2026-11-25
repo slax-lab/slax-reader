@@ -1,11 +1,13 @@
 import { computed } from 'vue'
 
+import { bookmarkDisplayTitle } from '~/utils/string'
+
 export const useArticleDetail = (detail: Ref<BookmarkArticleDetail>) => {
   const { t } = useI18n()
 
   const title = computed(
     () =>
-      (isBookmarkDetail(detail.value) || isSnapshotBookmarkDetail(detail.value) ? detail.value.alias_title || detail.value.title : detail.value.title) ||
+      (isBookmarkDetail(detail.value) || isSnapshotBookmarkDetail(detail.value) ? bookmarkDisplayTitle(detail.value) : detail.value.title) ||
       t('component.bookmark_article.no_title')
   )
 

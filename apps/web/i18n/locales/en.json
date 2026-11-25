@@ -20,6 +20,12 @@
     "added": "Passkey added.",
     "deleted": "Passkey deleted."
   },
+  "sign_in_language": {
+    "question": "Which language would you like to use?",
+    "use_origin": "Continue in English",
+    "keep": "Keep Chinese",
+    "failed": "Couldn’t save your language. Try again."
+  },
   "email_auth": {
     "continue_with_email": "Continue with email",
     "address_label": "Email address",
@@ -68,6 +74,8 @@
     "sign_in_link_failed": "This link is invalid, expired, or already used. Return to sign in and request a new email."
   },
   "bookmark_fork": {
+    "sign_in_to_save": "Sign in to add this article to your Inbox.",
+    "retry_after_login": "The article could not be saved. Select Save for later to retry.",
     "action": "Save for later",
     "submitting": "Saving…",
     "saved": "Saved",
@@ -336,13 +344,15 @@
     },
     "bookmark_cell": {
       "add_tag": "Add tag",
+      "title_required": "Enter a title with at least one non-space character.",
       "edit_title_placeholder": "Enter title",
       "no_title": "No Title",
       "shortcut": "link to:"
     },
     "bookmark_tags": {
       "create": "Create “{name}”",
-      "confirm": "Done ({n})",
+      "confirm": "Done",
+      "add_count": "Add ({n})",
       "by_ai": "Added by AI",
       "group_mine": "My tags",
       "group_auto": "Auto tags",
@@ -535,6 +545,8 @@
       "title": "Remove from collection {name} ?"
     },
     "search_header": {
+      "failed": "Could not load search results",
+      "retry": "Retry",
       "empty": "No related content found",
       "empty_desc": "Try a different keyword or a broader search.",
       "placeholder": "Enter what you want to find",
@@ -855,6 +867,7 @@
       "ai_label_summary": "Outline"
     },
     "auth": {
+      "pending_edits": "Sign in with the same account to sync your pending edits.",
       "authenticating": "Authenticating",
       "incomplete": "Sign-in not complete",
       "failed": "We couldn't complete your sign-in. Please sign in again. If this continues, check your connection and try again.",
@@ -884,6 +897,7 @@
       "comments": "Comments",
       "from_collection": "From the collection",
       "from_collection_short": "From",
+      "comment_length_limit": "Shorten your comment to {limit} characters or fewer.",
       "send_hint": "Enter to send · Shift+Enter for newline",
       "share_to_twitter": "Share to X / Twitter",
       "shared_via": "Shared via",
@@ -1288,6 +1302,7 @@
       "import_network_error": "Network error",
       "import_status_pending": "Pending",
       "import_status_processing": "Processing",
+      "import_status_finalizing": "Finalizing",
       "import_status_processing_percent": "Processing ({percentage}%)",
       "import_status_failed": "Failed",
       "import_status_complete": "Complete",
@@ -1295,10 +1310,12 @@
       "import_unzipping": "Unzipping file...",
       "import_uploading": "Uploading file...",
       "import_uploading_progress": "Uploading file {current} of {total}...",
+      "import_unsupported_file": "{source} cannot import “{file}”. Choose a file ending in {formats}.",
       "import_file_invalid": "File not found or is not a {type} file",
       "import_upload_success": "{type} data imported successfully, please wait a moment",
       "import_submitted": "File received. {count} bookmarks are importing in the background. You can leave this page and check Import progress later.",
       "import_submitted_no_count": "File received. Your bookmarks are importing in the background. You can leave this page and check Import progress later.",
+      "import_active_finalizing": "{count} imports in progress, newest is finalizing",
       "import_active_summary": "{count} imports in progress, newest at {percentage}%",
       "import_too_many": "Up to {max} imports can run at a time. Wait for one to finish and try again.",
       "language": "Language:",

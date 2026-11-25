@@ -10,7 +10,8 @@
         </div>
         <div class="content">
           <div class="title" v-if="props.name">{{ props.name }}</div>
-          <textarea v-autofocus="{ enabled: appear }" v-model="editname" :placeholder="t('component.edit_name_modal.placeholder')"></textarea>
+          <textarea v-autofocus="{ enabled: appear }" v-model="editname" :aria-invalid="invalidTitle || undefined" @input="invalidTitle = false" :placeholder="t('component.edit_name_modal.placeholder')"></textarea>
+          <p v-if="invalidTitle" role="alert">{{ t('component.bookmark_cell.title_required') }}</p>
         </div>
         <div class="bottom">
           <button @click="submitBookmarkName">{{ t('common.operate.save') }}</button>
@@ -41,6 +42,7 @@ const isLoading = ref(false)
 const isLocked = useScrollLock(window)
 const appear = ref(false)
 const editname = ref(props.aliasName || '')
+const invalidTitle = ref(false)
 
 isLocked.value = true
 
@@ -65,8 +67,13 @@ const editBookmarkName = async () => {
     return
   }
 
-  if (editname.value === props.aliasName) {
+  if (editname.value === (props.aliasName || '')) {
     closeModal()
+    return
+  }
+
+  if (!editname.value.trim()) {
+    invalidTitle.value = true
     return
   }
 
