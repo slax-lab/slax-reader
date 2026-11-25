@@ -2,7 +2,7 @@ import type { HybridSearchChannel, HybridSearchCoverage, HybridSearchEntity, Hyb
 import { inject, injectable } from '@/decorators/di'
 import { HybridSearchRepo, type SearchTitleCandidate } from '@/infra/repository/dbHybridSearch'
 import { BookmarkSearchRepo } from '@/infra/repository/dbBookmarkSearch'
-import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
+import { VectorEmbeddingClient, reportProviderFailure } from '@/infra/external/vectorEmbedding'
 import { VectorMaintenanceService } from './vectorMaintenance'
 import { ContextManager } from '@/utils/context'
 import { Normalizer } from '@/utils/hybridSearch/normalizer'
@@ -67,6 +67,7 @@ export class HybridSearchService {
       return await this.embedding.cachedQuery(keyword, signal)
     } catch (error) {
       signal.throwIfAborted()
+      reportProviderFailure(error)
       throw new HybridSearchError(error instanceof Error && error.message === 'embedding_request_timeout' ? 'embedding_timeout' : 'embedding_failed')
     }
   }

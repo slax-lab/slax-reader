@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ArticleVectorAccumulator, bisectText, estimatedTokens, normalized, requestBytes, textInputs, VECTOR_MODEL, VECTOR_REQUEST_BYTES } from '@/utils/vectorEmbedding'
-import { VectorEmbeddingClient as VectorEmbedding, providerDiagnostic } from '@/infra/external/vectorEmbedding'
+import { VectorEmbeddingClient as VectorEmbedding, EmbeddingProviderError, providerDiagnostic, reportProviderFailure } from '@/infra/external/vectorEmbedding'
 
 const unit = (axis = 0) => Array.from({ length: 1024 }, (_, i) => (i === axis ? 1 : 0))
 const response = (count: number) => Response.json({ model: VECTOR_MODEL, data: Array.from({ length: count }, (_, i) => ({ index: i, embedding: unit(i) })) })
@@ -323,7 +323,25 @@ describe('provider diagnostics', () => {
     expect(providerDiagnostic(422, JSON.stringify({ code: 'not safe', detail: 42 }), null)).toEqual({ status: 422 })
   })
 
-  test('logs safe details for a rejected request and stays silent on success', async () => {
+  test('keeps the provider diagnostic when an overflow cannot be subdivided further', async () => {
+    const overflow = JSON.stringify({ code: 'INPUT_TOKEN_LIMIT_EXCEEDED', detail: 'input too long', request_id: 'abcdef0123456789abcdef0123456789' })
+    const diagnostic = { status: 400, code: 'INPUT_TOKEN_LIMIT_EXCEEDED', detail: 'Input exceeds the model token limit', requestId: 'abcdef0123456789abcdef0123456789' }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(overflow, { status: 400 }))
+    )
+    const client = new VectorEmbedding({ JINA_API_KEY: 'test-only-key' } as Env)
+    const image = await client.embed([{ image: 'AQ==' }]).catch(error => error)
+    expect(image).toBeInstanceOf(EmbeddingProviderError)
+    expect(image.message).toBe('pending_multimodal_context_overflow')
+    expect(image.diagnostic).toEqual(diagnostic)
+    const text = await client.embed([{ text: 'a' }]).catch(error => error)
+    expect(text).toBeInstanceOf(EmbeddingProviderError)
+    expect(text.message).toBe('input_cannot_be_split')
+    expect(text.diagnostic).toEqual(diagnostic)
+  })
+
+  test('carries safe details on the rejected request and logs only when the failure is final', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       vi.stubGlobal(
@@ -331,7 +349,13 @@ describe('provider diagnostics', () => {
         vi.fn(async () => Response.json({ code: 'INVALID_TASK', detail: 'Task is not supported', request_id: 'abcdef0123456789abcdef0123456789' }, { status: 422 }))
       )
       const client = new VectorEmbedding({ JINA_API_KEY: 'test-only-key' } as Env)
-      await expect(client.embed([{ text: 'private input never logged' }])).rejects.toThrow('embedding_http_422')
+      const error = await client.embed([{ text: 'private input never logged' }]).catch(error => error)
+      expect(error).toBeInstanceOf(EmbeddingProviderError)
+      expect(error.message).toBe('embedding_http_422')
+      expect(error.diagnostic).toEqual({ status: 422, code: 'INVALID_TASK', detail: 'Task is not supported', requestId: 'abcdef0123456789abcdef0123456789' })
+      expect(log).not.toHaveBeenCalled()
+      reportProviderFailure(error)
+      reportProviderFailure(error)
       expect(log).toHaveBeenCalledExactlyOnceWith(
         '[embedding-provider]',
         JSON.stringify({ status: 422, code: 'INVALID_TASK', detail: 'Task is not supported', requestId: 'abcdef0123456789abcdef0123456789' })
@@ -339,6 +363,8 @@ describe('provider diagnostics', () => {
       expect(JSON.stringify(log.mock.calls)).not.toContain('private input')
       expect(JSON.stringify(log.mock.calls)).not.toContain('test-only-key')
       log.mockClear()
+      reportProviderFailure(new Error('embedding_transport_failed'))
+      expect(log).not.toHaveBeenCalled()
       vi.stubGlobal(
         'fetch',
         vi.fn(async () => Response.json({ model: VECTOR_MODEL, data: [{ index: 0, embedding: Array.from({ length: 1024 }, (_, i) => (i === 0 ? 1 : 0)) }] }))

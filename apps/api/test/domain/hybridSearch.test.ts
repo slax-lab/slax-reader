@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest'
 import { HybridSearchError, HybridSearchService, compareSearchIdentity, searchOriginKey, type SearchChannelResult, type SearchMatch } from '../../src/domain/hybridSearch'
 import type { HybridSearchRepo, SearchArticleRow } from '../../src/infra/repository/dbHybridSearch'
 import type { BookmarkSearchRepo } from '../../src/infra/repository/dbBookmarkSearch'
-import type { VectorEmbeddingClient } from '../../src/infra/external/vectorEmbedding'
+import { EmbeddingProviderError, type VectorEmbeddingClient } from '../../src/infra/external/vectorEmbedding'
 import type { VectorMaintenanceService } from '../../src/domain/vectorMaintenance'
 import type { ContextManager } from '../../src/utils/context'
 import type { HybridSearchArticleOrigin, HybridSearchEntity } from '@slax-reader/contracts'
@@ -102,6 +102,25 @@ describe('queryEmbedding', () => {
     embedding.cachedQuery.mockRejectedValueOnce(new Error('transport down'))
     await expect(service.queryEmbedding('reader', new AbortController().signal)).rejects.toMatchObject({ code: 'embedding_failed' })
     expect(HybridSearchError.prototype).toBeInstanceOf(Error)
+  })
+
+  test('reports one provider diagnostic for a final search embedding failure', async () => {
+    const { embedding, service } = dependencies()
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const provider = new EmbeddingProviderError('embedding_http_400', { status: 400, code: 'INVALID_TASK', requestId: 'abcdef0123456789abcdef0123456789' })
+    try {
+      embedding.cachedQuery.mockRejectedValue(provider)
+      await expect(service.queryEmbedding('reader', new AbortController().signal)).rejects.toMatchObject({ code: 'embedding_failed' })
+      expect(log).toHaveBeenCalledExactlyOnceWith('[embedding-provider]', JSON.stringify({ status: 400, code: 'INVALID_TASK', requestId: 'abcdef0123456789abcdef0123456789' }))
+      embedding.cachedQuery.mockRejectedValueOnce(new Error('transport down'))
+      await expect(service.queryEmbedding('reader', new AbortController().signal)).rejects.toMatchObject({ code: 'embedding_failed' })
+      const aborted = new AbortController()
+      aborted.abort()
+      await expect(service.queryEmbedding('reader', aborted.signal)).rejects.toMatchObject({ name: 'AbortError' })
+      expect(log).toHaveBeenCalledOnce()
+    } finally {
+      log.mockRestore()
+    }
   })
 
   test('an aborted signal wins over a provider failure', async () => {
