@@ -22,7 +22,7 @@ export interface semanticShard {
 
 export class Normalizer {
   private ngramLengths = [1, 2, 3]
-  private static maxDOCount = 20
+  private static tokenizerName = 'tokenizer'
   private static maxShardSize = 2 * 1024 * 1024
   private static maxTokens = 8096
   private overlapSize = 500
@@ -30,10 +30,8 @@ export class Normalizer {
   private jbObject!: DurableObjectStub<SlaxJieba>
 
   constructor(private env: Env) {
-    const doId = Math.floor(Math.random() * Normalizer.maxDOCount)
     const jbObj = this.env.SLAX_JIEBA
-    this.jbObject = jbObj.get(jbObj.idFromName(`${doId}`))
-    // this.jbObject = jbObj.get(jbObj.idFromName('0'))
+    this.jbObject = jbObj.get(jbObj.idFromName(Normalizer.tokenizerName))
   }
 
   async cut(text: string, hmm?: boolean, options?: { signal?: AbortSignal; strict?: boolean }): Promise<any[]> {

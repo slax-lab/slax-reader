@@ -25,6 +25,11 @@ import { HybridSearchRepo } from '@/infra/repository/dbHybridSearch'
 import { Normalizer } from '@/utils/hybridSearch/normalizer'
 import { SlaxJieba } from '@/utils/hybridSearch/jieba'
 
+vi.mock('@/utils/wasmJieba/jieba_rs_wasm_bg.wasm', async () => {
+  const { readFile } = await import('node:fs/promises')
+  return { default: await WebAssembly.compile(await readFile(new URL('../../src/utils/wasmJieba/jieba_rs_wasm_bg.wasm', import.meta.url))) }
+})
+
 vi.mock('cloudflare:workers', () => ({
   DurableObject: class {
     constructor(
@@ -44,7 +49,6 @@ const d1FulltextMigrationsRoot = path.join(apiRoot, 'prisma/d1_migrations/fullte
 let pg: PGlite
 let d1: D1Database
 let runtime: InstanceType<typeof Miniflare>
-let jieba: InstanceType<typeof SlaxJieba>
 let normalizer: Normalizer
 let searchEnv: Env
 let fulltext: BookmarkSearchRepo
@@ -69,18 +73,10 @@ async function applyFulltextMigrations(db: D1Database) {
 }
 
 beforeAll(async () => {
-  const wasm = await WebAssembly.compile(await readFile(new URL('../../src/utils/wasmJieba/jieba_rs_wasm_bg.wasm', import.meta.url)))
-  jieba = new SlaxJieba({} as never, {} as never)
-  await (jieba as unknown as { __wbg_init: (module: WebAssembly.Module) => Promise<unknown> }).__wbg_init(wasm)
-
+  const jieba = new SlaxJieba({} as never, {} as never)
   const jiebaStub = {
     idFromName: (name: string) => name,
-    get: () => ({
-      fetch: async (_input: unknown, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body ?? '{}')) as { text?: string; hmm?: boolean }
-        return Response.json({ data: await jieba.cutForSearch(body.text ?? '', body.hmm) })
-      }
-    })
+    get: () => ({ fetch: (input: string, init?: RequestInit) => jieba.fetch(new Request(input, init)) })
   }
   searchEnv = { SLAX_JIEBA: jiebaStub } as unknown as Env
   normalizer = new Normalizer(searchEnv)

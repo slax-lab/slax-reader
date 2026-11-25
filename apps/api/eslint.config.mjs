@@ -8,7 +8,7 @@ const files = ['{src,script}/**/*.{ts,tsx,mjs,js}', 'prisma/*.config.ts']
 
 export default [
   {
-    ignores: ['**/node_modules/**', '**/build/**', '**/dist/**', '**/.wrangler/**', '**/.cache/**', '**/test/**', '.tmp-root-tooling-*/**']
+    ignores: ['**/node_modules/**', '**/build/**', '**/dist/**', '**/.wrangler/**', '**/.cache/**', '**/test/**', '.tmp-root-tooling-*/**', 'src/utils/wasmJieba/**']
   },
   {
     files: ['{src,script}/**/*.{ts,tsx}', 'prisma/*.config.ts'],
