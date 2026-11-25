@@ -40,11 +40,11 @@ For a new installation, bootstrap deploys Browser → Objects → Vector → AI 
 Vector is named after Core (`reader-core` → `reader-vector`, `reader-core-beta` → `reader-vector-beta`, otherwise `<core>-vector`) unless `services.VECTOR_SEARCH.service` names it, and is placed by `VECTOR_REGION` (`aws:us-east-1`), beside the query encoder and the Vectorize index. AI calls it with a `fetch` over the service binding, not RPC, because placement applies only to `fetch` handlers; the request carries `EDGE_SHARED_SECRET`. Without the binding (isolated local runs) AI runs the same step itself. Before the first release that contains Vector, create it and give it its values once per account:
 
 ```bash
-pnpm api -- deploy --target vector
+pnpm api -- deploy vector
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # uploads JINA_API_KEY and EDGE_SHARED_SECRET to Vector
 ```
 
-Only `deploy --target vector` may publish a Worker that does not exist yet without its values; every other release stops while Vector lacks either value and names that command.
+Only `deploy vector` may publish a Worker that does not exist yet without its values; every other release stops while Vector lacks either value and names that command.
 
 ## First release after the Worker split (existing installations)
 

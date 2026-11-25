@@ -41,11 +41,11 @@ placement は `apps/api/script/deploy/config.ts` の `DATABASE_REGION`（主 Pos
 Vector の名前は Core から導出されます（`reader-core` → `reader-vector`、`reader-core-beta` → `reader-vector-beta`、それ以外は `<core>-vector`）。`services.VECTOR_SEARCH.service` で指定することもできます。配置は `VECTOR_REGION`（`aws:us-east-1`）で、クエリエンコーダーと Vectorize インデックスの近くです。placement は `fetch` ハンドラーにのみ適用されるため、AI は RPC ではなく service binding 経由の `fetch` で呼び出し、リクエストは `EDGE_SHARED_SECRET` を持ちます。binding がない場合（分離されたローカル実行）は AI が同じ処理を自分で実行します。Vector を含む最初のリリースの前に、アカウントごとに作成して値を設定します。
 
 ```bash
-pnpm api -- deploy --target vector
+pnpm api -- deploy vector
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # Vector に JINA_API_KEY と EDGE_SHARED_SECRET をアップロード
 ```
 
-値を持たずに公開できるのは、まだ存在しない Vector に対する `deploy --target vector` だけです。それ以外のリリースは、Vector にどちらかの値がない間は停止し、このコマンドを示します。
+値を持たずに公開できるのは、まだ存在しない Vector に対する `deploy vector` だけです。それ以外のリリースは、Vector にどちらかの値がない間は停止し、このコマンドを示します。
 
 ## Worker 分割後の最初のリリース（既存環境）
 

@@ -45,7 +45,7 @@ Today `semanticSearchV5` filters candidates by the up-front list before computin
 - Generated Vector configuration keeps only `vectorize` filtered to `VECTOR_V5_ARTICLE` (remote in local runs), the compatibility settings and `vars`; `workers_dev`, routes and preview URLs are off.
 - AI gets `{ binding: 'VECTOR_SEARCH', service: names.vector }` (default entrypoint, so the fetch honors Vector's placement).
 - Release order publishes Vector before AI (callee first) in both normal and bootstrap orders.
-- `RUNTIME_KEYS.vector = ['EDGE_SHARED_SECRET', 'JINA_API_KEY']`; `requireValues`, `missingRuntimeValues` and `secrets:sync` include it. A Worker that does not exist yet cannot hold secrets and `secrets:sync` skips it, so the release precondition exempts exactly one case: a single-Worker release (`deploy --target <worker>`) of a Worker that does not exist yet. Every other release, including a full one, still stops on it and names that command. Nothing binds to Vector until the next full release, which the check gates (see Migration).
+- `RUNTIME_KEYS.vector = ['EDGE_SHARED_SECRET', 'JINA_API_KEY']`; `requireValues`, `missingRuntimeValues` and `secrets:sync` include it. A Worker that does not exist yet cannot hold secrets and `secrets:sync` skips it, so the release precondition exempts exactly one case: a single-Worker release (`deploy <worker>`) of a Worker that does not exist yet. Every other release, including a full one, still stops on it and names that command. Nothing binds to Vector until the next full release, which the check gates (see Migration).
 - Local development (`pnpm api -- dev`) starts Vector on port 8791 with its remote article index; `dev:local` (the isolated smoke launcher) does not change, because it forbids remote resources and the vector call is optional there: AI without a `VECTOR_SEARCH` binding falls back to running the same step in-process.
 
 ### D6. Fallback when the binding is absent or fails
@@ -61,7 +61,7 @@ Today `semanticSearchV5` filters candidates by the up-front list before computin
 
 ## Migration Plan
 
-1. Before merging, the operator creates the Worker and gives it its values once per account, from this branch: `pnpm api -- deploy --target vector --config <env.toml>` (allowed because the Worker does not exist yet), then `pnpm api -- secrets:sync --config <env.toml> --from <secrets file>`, which uploads `JINA_API_KEY` and `EDGE_SHARED_SECRET` to it. The created Worker serves nothing until AI binds it.
+1. Before merging, the operator creates the Worker and gives it its values once per account, from this branch: `pnpm api -- deploy vector --config <env.toml>` (allowed because the Worker does not exist yet), then `pnpm api -- secrets:sync --config <env.toml> --from <secrets file>`, which uploads `JINA_API_KEY` and `EDGE_SHARED_SECRET` to it. The created Worker serves nothing until AI binds it.
 2. Merge. The normal release publishes Vector before AI; AI gains `VECTOR_SEARCH`.
 3. Rollback: revert the merge; AI without `VECTOR_SEARCH` uses the in-process path. The Vector Worker can be deleted afterwards.
 

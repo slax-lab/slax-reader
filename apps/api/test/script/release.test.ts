@@ -5,7 +5,7 @@ import { describe, expect, test, vi } from 'vitest'
 import { ROOT } from '../../script/root'
 import { cloudflareApi, readReleaseState, requireValues, type CloudflareApi } from '../../script/deploy/topology'
 import { releaseOrder } from '../../script/deploy/deploy'
-import { workerNames, type ApiConfig } from '../../script/deploy/config'
+import { parseArgs, workerNames, type ApiConfig } from '../../script/deploy/config'
 import { RUNTIME_KEYS } from '../../script/deploy/runtimeKeys'
 
 const config = parse(fs.readFileSync(path.join(ROOT, 'deploy/cloudflare/api.toml.example'), 'utf8')) as ApiConfig
@@ -78,7 +78,11 @@ describe('the only release precondition is that every Worker holds the values it
     const undeployed = account({ scripts: [names.browser, names.objects, names.core, names.ai, names.edge] })
     // A full release, or a release of another Worker, still stops and says how to create the Worker.
     await expect(requireValues(undeployed.api, config)).rejects.toThrow(`- ${names.vector}: EDGE_SHARED_SECRET, JINA_API_KEY`)
-    await expect(requireValues(undeployed.api, config)).rejects.toThrow('pnpm api -- deploy --target vector')
+    await expect(requireValues(undeployed.api, config)).rejects.toThrow('pnpm api -- deploy vector')
+    // The printed command is one the deploy script accepts.
+    const message = await requireValues(undeployed.api, config).catch((error: Error) => error.message)
+    const printed = /`pnpm api -- deploy ([^`]+)`/.exec(String(message))![1].split(' ')
+    expect(parseArgs(printed, ['--dev', '--dry-run', '--bootstrap']).target).toBe('vector')
     await expect(requireValues(undeployed.api, config, 'ai')).rejects.toThrow(names.vector)
     // Creating it is allowed; the other Workers are still checked.
     await expect(requireValues(undeployed.api, config, 'vector')).resolves.toBeUndefined()

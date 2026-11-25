@@ -70,7 +70,7 @@ const describeMissing = (missing: Record<string, string[]>) =>
 
 // The only release precondition: every Worker already holds the secrets and strings its code reads. A Worker that
 // does not exist yet cannot hold secrets, and `secrets:sync` skips it, so a single-Worker release of exactly that
-// Worker (`deploy --target <worker>`) may create it; nothing binds to it until a full release, which this check gates.
+// Worker (`deploy <worker>`) may create it; nothing binds to it until a full release, which this check gates.
 export async function requireValues(api: CloudflareApi, config: ApiConfig, target?: Target): Promise<void> {
   const names = workerNames(config)
   const scripts = new Set((await api.list<{ id: string }>('/workers/scripts')).map(script => script.id))
@@ -86,7 +86,7 @@ export async function requireValues(api: CloudflareApi, config: ApiConfig, targe
   throw new Error(
     `These Workers lack values their code reads. Run \`pnpm api -- secrets:sync --from <file with the values>\` (or add them to [vars] of the selected configuration), then release again:\n${describeMissing(missing)}${
       absent.length
-        ? `\nA Worker that does not exist yet cannot hold secrets: create it first with ${absent.map(worker => `\`pnpm api -- deploy --target ${worker}\``).join(', ')}, then run secrets:sync.`
+        ? `\nA Worker that does not exist yet cannot hold secrets: create it first with ${absent.map(worker => `\`pnpm api -- deploy ${worker}\``).join(', ')}, then run secrets:sync.`
         : ''
     }`
   )

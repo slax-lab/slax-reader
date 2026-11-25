@@ -41,11 +41,11 @@ placement 由 `apps/api/script/deploy/config.ts` 的 `DATABASE_REGION` 决定，
 Vector 的名字由 Core 推导（`reader-core` → `reader-vector`，`reader-core-beta` → `reader-vector-beta`，其余为 `<core>-vector`），也可用 `services.VECTOR_SEARCH.service` 指定；位置由 `VECTOR_REGION`（`aws:us-east-1`）决定，靠近查询编码器和 Vectorize 索引。AI 通过服务绑定以 `fetch` 调用它，而不是 RPC，因为 placement 只对 `fetch` 处理函数生效；请求携带 `EDGE_SHARED_SECRET`。没有该绑定时（隔离的本地运行），AI 在本进程执行同样的步骤。首次包含 Vector 的发布前，每个账号先创建它并写入它要读取的值：
 
 ```bash
-pnpm api -- deploy --target vector
+pnpm api -- deploy vector
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # 给 Vector 上传 JINA_API_KEY 和 EDGE_SHARED_SECRET
 ```
 
-只有 `deploy --target vector` 可以在 Vector 尚不存在时不带这些值发布；其他任何发布在 Vector 缺少其中任一值时都会停止，并给出这条命令。
+只有 `deploy vector` 可以在 Vector 尚不存在时不带这些值发布；其他任何发布在 Vector 缺少其中任一值时都会停止，并给出这条命令。
 
 ## 拆分后的首次发布（已有安装）
 
