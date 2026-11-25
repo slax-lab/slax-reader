@@ -5,7 +5,7 @@ import { VectorMaintenanceRepo, type VectorArticleRow as ArticleRow, type Vector
 import { VectorIndexClient } from '@/infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '@/infra/repository/vectorPreferenceClient'
 import { VectorSourceRepo, type SourceFingerprint } from '@/infra/repository/vectorSources'
-import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
+import { VectorEmbeddingClient, reportProviderFailure } from '@/infra/external/vectorEmbedding'
 import type { ImageSelection } from '@/utils/vectorSources'
 import {
   center,
@@ -115,6 +115,7 @@ function failed(output: VectorRefreshResult, error: unknown): VectorRefreshResul
           )
       : undefined
   console.error('[vector-maintenance]', JSON.stringify({ kind: output.target.kind, name: detail.name, code: detail.code, message, frames }))
+  reportProviderFailure(error)
   return output
 }
 

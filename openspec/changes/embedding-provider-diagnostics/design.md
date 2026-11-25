@@ -14,11 +14,11 @@
 
 - Keep error classification local to the Jina client. Parse only structured error `code` and `request_id`. Alternate `detail` object forms are ignored rather than serialized.
 - Retain only static safe detail labels for a small allowlist of known provider codes; never log arbitrary provider detail, whether single-line, multi-line, quoted or unquoted. Structured error codes use a conservative uppercase pattern. If parsing fails, record only status.
-- Emit through a dedicated `[embedding-provider]` error log, separate from the existing `[vector-maintenance]` target error. Return/throw the original error unchanged. Preserve the request ID from the body or header independently of detail presence.
-- Add tests for structured detail shapes, multi-line article excerpts, malformed responses and success silence. Keep this delivery PR-only: no deployment or replay is authorized here.
+- Carry the diagnostic on the thrown error and emit one `[embedding-provider]` error log only when the failure is final. `VectorMaintenanceService` reports it from its terminal failure path, so batch attempts that subdivide into a successful request stay silent; `HybridSearchService` reports it because a search query failure is terminal. The thrown message stays `embedding_http_<status>`. Preserve the request ID from the body or header independently of detail presence.
+- Add tests for structured detail shapes, multi-line article excerpts, malformed responses, success silence, retried-then-succeeded batches and one report per final failure. Keep this delivery PR-only: no deployment or replay is authorized here.
 
 ## Risks / Trade-offs
 
 - Provider detail may itself contain user text: do not log it at all. Use only static labels for known codes and retain the provider's structured code to identify other causes.
 - An error may be non-JSON or have no allowlisted detail: preserve the generic status/code rather than echoing input or inventing a cause.
-- Logging adds one diagnostic per failed request, not per successful request or article-history scan. This delivery adds no remote calls.
+- Logging adds one diagnostic per final failure, not per retried attempt, successful request or article-history scan. This delivery adds no remote calls.
