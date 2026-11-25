@@ -18,7 +18,7 @@ pnpm api -- deploy --bootstrap        # NEW installation only
 pnpm api -- deploy                    # subsequent updates
 pnpm api -- deploy edge               # update one existing Worker
 pnpm api -- wrangler edge secret put EDGE_SHARED_SECRET
-pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 最初の五 Worker リリース前に。下記参照
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # Worker を追加するリリースの前に。下記参照
 ```
 
 `build` は一時設定と空 env で六つの Worker をオフラインで minify バンドルし、現在の生成設定を上書きせず、Worker ごとに `bundle-<worker>.meta.json` を出力します。`deploy --dry-run` は `.generated/` の生成のみで、クラウドには接続しません。生成ファイルを手で管理しないでください。
@@ -47,9 +47,9 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # Vector に JINA_API_
 
 値を持たずに公開できるのは、まだ存在しない Vector に対する `deploy --target vector` だけです。それ以外のリリースは、Vector にどちらかの値がない間は停止し、このコマンドを示します。
 
-## 最初の五 Worker リリース（既存環境）
+## Worker 分割後の最初のリリース（既存環境）
 
-Edge は既存のキュー consumer・cron・Email Routing の受信先をそのまま持ち、各イベントを既存の `CORE` service binding の `fetch` で内部ホスト `jobs.internal` にそのまま転送し、`EDGE_SHARED_SECRET` で認証します。RPC と違い fetch は Core の placement に従うため、ジョブはデータベースに近いシンガポールで実行されます。service binding の fetch は RPC と同じ課金です（追加リクエストなし、CPU 時間のみ）。トリガー・consumer・メールルールは一切移動しないため、最初の五 Worker リリースも通常の `deploy`（CI または `pnpm api -- deploy`）です。リモートリリースは最初の公開前にアカウントを読み、次を行います。
+Edge は既存のキュー consumer・cron・Email Routing の受信先をそのまま持ち、各イベントを既存の `CORE` service binding の `fetch` で内部ホスト `jobs.internal` にそのまま転送し、`EDGE_SHARED_SECRET` で認証します。RPC と違い fetch は Core の placement に従うため、ジョブはデータベースに近いシンガポールで実行されます。service binding の fetch は RPC と同じ課金です（追加リクエストなし、CPU 時間のみ）。トリガー・consumer・メールルールは一切移動しないため、分割後の最初のリリースも通常の `deploy`（CI または `pnpm api -- deploy`）です。すでに分割済みで Vector を追加する環境は、先に上記の Vector の二つのコマンドを実行します。以降の通常リリースは、Vector に値がない場合にのみ停止します。リモートリリースは最初の公開前にアカウントを読み、次を行います。
 
 - コードが読む値をいずれかの Worker が持たない場合（下記）、Worker 名と key 名を示して停止します。
 - 公開順序を決めます。`SlaxMcpServer` namespace が残っている間は Browser → Objects → Core（旧 Edge が Core の namespace を束縛しているため MCP スタブを export したまま）→ AI → Edge（Edge の namespace を削除）→ Core（Core の namespace を削除）の順に公開します。Workflow は Core の最初の公開で Wrangler が Core に移します。以降のリリースは namespace が無いため Browser → Objects → Core → AI → Edge です。

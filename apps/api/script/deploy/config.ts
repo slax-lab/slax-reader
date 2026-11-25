@@ -177,7 +177,9 @@ export function workerNames(config: ApiConfig): Record<Target, string> {
 export function validateConfig(config: ApiConfig, filename: string): ApiConfig {
   if (config.workers) throw new Error(`${filename}: use native Wrangler name/services/[env.*] configuration; [workers.*] is not supported`)
   if (config.placement !== undefined)
-    throw new Error(`${filename}: remove placement; apps/api/script/deploy/config.ts places Core, AI and Objects in ${DATABASE_REGION} and Edge/Browser near the user`)
+    throw new Error(
+      `${filename}: remove placement; apps/api/script/deploy/config.ts places Core, AI and Objects in ${DATABASE_REGION}, Vector in ${VECTOR_REGION}, and Edge/Browser near the user`
+    )
   const names = workerNames(config)
   const fields = {
     core: 'name',

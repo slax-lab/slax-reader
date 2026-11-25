@@ -18,7 +18,7 @@ pnpm api -- deploy --bootstrap        # NEW installation only
 pnpm api -- deploy                    # subsequent updates
 pnpm api -- deploy edge               # update one existing Worker
 pnpm api -- wrangler edge secret put EDGE_SHARED_SECRET
-pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 首次五 Worker 发布前执行，见下文
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 新增 Worker 的发布前执行，见下文
 ```
 
 `build` 真正离线打包（minify）六个 Worker，使用临时配置与空 env，不覆盖开发中的生成配置，并为每个 Worker 写出 `bundle-<worker>.meta.json`。`deploy --dry-run` 只生成 `.generated/`，不打包也不调用云端。生成文件不是第二份配置源，请勿手动维护。
@@ -47,9 +47,9 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # 给 Vector 上传 JI
 
 只有 `deploy --target vector` 可以在 Vector 尚不存在时不带这些值发布；其他任何发布在 Vector 缺少其中任一值时都会停止，并给出这条命令。
 
-## 首次五 Worker 发布（已有安装）
+## 拆分后的首次发布（已有安装）
 
-Edge 保留它现有的队列消费者、cron 和 Email Routing 接收方，把每个事件通过现有的 `CORE` 服务绑定以 `fetch` 方式原样发到内部主机 `jobs.internal`，并用 `EDGE_SHARED_SECRET` 鉴权。与 RPC 不同，fetch 会遵循 Core 的 placement，所以这些任务在新加坡、靠近数据库执行；服务绑定的 fetch 与 RPC 计费相同（不额外计请求费，只计 CPU 时间）。因此没有任何触发器、消费者或邮件规则需要移动，首次五 Worker 发布就是一次普通 `deploy`（CI 或 `pnpm api -- deploy`）。远程发布在第一次发布前读取账号：
+Edge 保留它现有的队列消费者、cron 和 Email Routing 接收方，把每个事件通过现有的 `CORE` 服务绑定以 `fetch` 方式原样发到内部主机 `jobs.internal`，并用 `EDGE_SHARED_SECRET` 鉴权。与 RPC 不同，fetch 会遵循 Core 的 placement，所以这些任务在新加坡、靠近数据库执行；服务绑定的 fetch 与 RPC 计费相同（不额外计请求费，只计 CPU 时间）。因此没有任何触发器、消费者或邮件规则需要移动，拆分后的首次发布就是一次普通 `deploy`（CI 或 `pnpm api -- deploy`）。已完成拆分、现在新增 Vector 的安装，先执行上文 Vector 的两条命令；之后的整体发布只会在 Vector 仍缺值时停止。远程发布在第一次发布前读取账号：
 
 - 若某个 Worker 缺少其代码读取的值（见下文），停止并列出 Worker 和 key 名；
 - 决定发布顺序。账号中还有 `SlaxMcpServer` 命名空间时，按 Browser → Objects → Core（仍导出 MCP 空壳，因为旧 Edge 绑定着 Core 的命名空间）→ AI → Edge（删除 Edge 的命名空间）→ Core（删除 Core 的命名空间）发布；Wrangler 在 Core 首次发布时把 Workflow 转到 Core。之后的发布不再有命名空间，按 Browser → Objects → Core → AI → Edge 发布。

@@ -17,7 +17,7 @@ pnpm api -- resources --apply         # creates remote resources
 pnpm api -- deploy --bootstrap        # NEW installation only
 pnpm api -- deploy                    # subsequent updates
 pnpm api -- deploy edge               # update one existing Worker
-pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # before the first five-Worker release, see below
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # before a release that adds a Worker, see below
 ```
 
 `build` bundles all six Workers offline (minified) with temporary config and an empty env file, leaving active generated configs intact, and writes a `bundle-<worker>.meta.json` metafile per Worker. `deploy --dry-run` only generates `.generated/` files and never contacts Cloudflare. Do not maintain generated files manually.
@@ -46,9 +46,9 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # uploads JINA_API_KEY
 
 Only `deploy --target vector` may publish a Worker that does not exist yet without its values; every other release stops while Vector lacks either value and names that command.
 
-## First five-Worker release (existing installations)
+## First release after the Worker split (existing installations)
 
-Edge keeps the queue consumers, cron triggers and Email Routing target it already has, and forwards each event to Core with a `fetch` over the existing `CORE` service binding to the internal host `jobs.internal`, authenticated with `EDGE_SHARED_SECRET`. A fetch, unlike an RPC call, honors Core's placement, so the jobs run in Singapore beside the database; a service-binding fetch is billed like an RPC call (no extra request, only CPU time). So no trigger, consumer or email rule moves, and the first five-Worker release is an ordinary `deploy` (CI or `pnpm api -- deploy`). Before its first publication a remote release reads the account and:
+Edge keeps the queue consumers, cron triggers and Email Routing target it already has, and forwards each event to Core with a `fetch` over the existing `CORE` service binding to the internal host `jobs.internal`, authenticated with `EDGE_SHARED_SECRET`. A fetch, unlike an RPC call, honors Core's placement, so the jobs run in Singapore beside the database; a service-binding fetch is billed like an RPC call (no extra request, only CPU time). So no trigger, consumer or email rule moves, and the first release after the split is an ordinary `deploy` (CI or `pnpm api -- deploy`). An installation that already runs the split and gains Vector first runs the two Vector commands above; its next full release then stops only if Vector still lacks a value. Before its first publication a remote release reads the account and:
 
 - stops while any Worker lacks a value its code reads (below), naming the Worker and key;
 - picks the order. While an `SlaxMcpServer` namespace remains it publishes Browser → Objects → Core (still exporting the MCP stub, since the old Edge binds Core's namespace) → AI → Edge (deleting Edge's namespace) → Core (deleting Core's). Wrangler moves the Workflows to Core on its first publication. Later releases find no namespace and publish Browser → Objects → Core → AI → Edge.
