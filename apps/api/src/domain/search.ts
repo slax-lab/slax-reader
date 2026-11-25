@@ -10,7 +10,7 @@ import { BookmarkNotFoundError } from '@/const/err'
 import { rerank } from '@/utils/hybridSearch/rerank'
 import { escapeHtml } from '@/utils/escape'
 import { VectorMaintenanceService } from './vectorMaintenance'
-import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
+import { VectorEmbeddingClient, reportProviderFailure } from '@/infra/external/vectorEmbedding'
 import { center, cosineSimilarity } from '@/utils/recommendationAlgorithms'
 
 // Maximum number of fulltext hits that receive highlight snippets and full raw text
@@ -424,7 +424,13 @@ export class SearchService {
     const t1 = performance.now()
     const userId = ctx.getUserId()
     if (!keyword.trim() || !eligible.size) return []
-    const query = await this.vectorEmbedding.cachedQuery(keyword)
+    let query: number[]
+    try {
+      query = await this.vectorEmbedding.cachedQuery(keyword)
+    } catch (error) {
+      reportProviderFailure(error)
+      throw error
+    }
     // The index already restricts candidates to this owner; the userId check is an assertion, and `eligible` drops
     // trashed or removed bookmarks. Tag filters never reach this branch.
     const candidates = (await this.vectors.queryArticleVectors(query, { userId, limit: SEMANTIC_CANDIDATE_LIMIT })).filter(

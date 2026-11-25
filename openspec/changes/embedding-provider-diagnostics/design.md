@@ -14,7 +14,8 @@
 
 - Keep error classification local to the Jina client. Parse only structured error `code` and `request_id`. Alternate `detail` object forms are ignored rather than serialized.
 - Retain only static safe detail labels for a small allowlist of known provider codes; never log arbitrary provider detail, whether single-line, multi-line, quoted or unquoted. Structured error codes use a conservative uppercase pattern. If parsing fails, record only status.
-- Carry the diagnostic on the thrown error and emit one `[embedding-provider]` error log only when the failure is final. `VectorMaintenanceService` reports it from its terminal failure path, so batch attempts that subdivide into a successful request stay silent; `HybridSearchService` reports it because a search query failure is terminal. The thrown message stays `embedding_http_<status>`. Preserve the request ID from the body or header independently of detail presence.
+- Carry the diagnostic on the thrown error and emit one `[embedding-provider]` error log only when the failure is final. `VectorMaintenanceService` reports it from its terminal failure path, so batch attempts that subdivide into a successful request stay silent; `HybridSearchService` and `SearchService`'s V5 semantic query report it because their query failure is terminal. The thrown message stays `embedding_http_<status>`. Preserve the request ID from the body or header independently of detail presence.
+- Provider rejections classified as an unsupported image (`embedding_image_aspect_ratio`, `embedding_image_decode`, `embedding_image_size`) are recorded as skipped images in the article result instead of failing the target, so they emit no provider diagnostic.
 - Add tests for structured detail shapes, multi-line article excerpts, malformed responses, success silence, retried-then-succeeded batches and one report per final failure. Keep this delivery PR-only: no deployment or replay is authorized here.
 
 ## Risks / Trade-offs

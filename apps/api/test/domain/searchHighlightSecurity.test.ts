@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { parseHTML } from 'linkedom'
 import { FULLTEXT_HIGHLIGHT_LIMIT, SEMANTIC_FALLBACK_TEXT_LENGTH, SearchService, type hybridSearchItem } from '@/domain/search'
+import { EmbeddingProviderError } from '@/infra/external/vectorEmbedding'
 import { escapeHtml } from '@/utils/escape'
 import { rerank } from '@/utils/hybridSearch/rerank'
 
@@ -379,6 +380,19 @@ describe('search highlight rendering boundary', () => {
     const vectors = { queryArticleVectors: vi.fn().mockResolvedValue([{ userId: 7, id: 1, score: 0.8, values: at(1) }]) }
     const service = new SearchService({} as never, {} as never, {} as never, vectors as never, { cachedQuery: vi.fn().mockResolvedValue(at(0)) } as never)
     expect(await service.semanticSearchV5({ getUserId: () => 7 } as never, 'noise', new Set([1]))).toEqual([])
+  })
+
+  test('V5 semantic search reports one provider diagnostic when the query embedding finally fails', async () => {
+    const provider = new EmbeddingProviderError('embedding_http_400', { status: 400, code: 'INVALID_TASK', requestId: 'abcdef0123456789abcdef0123456789' })
+    const embedding = { cachedQuery: vi.fn().mockRejectedValue(provider) }
+    const service = new SearchService({} as never, {} as never, {} as never, {} as never, embedding as never)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await expect(service.semanticSearchV5({ getUserId: () => 7 } as never, 'term', new Set([1]))).rejects.toThrow('embedding_http_400')
+      expect(log).toHaveBeenCalledExactlyOnceWith('[embedding-provider]', JSON.stringify({ status: 400, code: 'INVALID_TASK', requestId: 'abcdef0123456789abcdef0123456789' }))
+    } finally {
+      log.mockRestore()
+    }
   })
 
   test('tag-filtered searches keep the legacy encoder and buckets; untagged searches use V5', async () => {

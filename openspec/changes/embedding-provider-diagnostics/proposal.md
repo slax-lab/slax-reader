@@ -23,7 +23,7 @@ None.
 
 ## Impact
 
-`apps/api/src/infra/external/vectorEmbedding.ts`, its callers in `apps/api/src/domain/vectorMaintenance.ts` and `apps/api/src/domain/hybridSearch.ts`, and their existing tests. No schema, dependency, client contract or production configuration changes.
+`apps/api/src/infra/external/vectorEmbedding.ts`, its callers in `apps/api/src/domain/vectorMaintenance.ts`, `apps/api/src/domain/hybridSearch.ts` and `apps/api/src/domain/search.ts`, and their existing tests. No schema, dependency, client contract or production configuration changes.
 
 ## Approval
 
