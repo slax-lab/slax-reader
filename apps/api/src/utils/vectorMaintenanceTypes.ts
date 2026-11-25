@@ -53,7 +53,6 @@ export interface VectorMaintenance {
   readArticles(articles: ArticleVectorIdentity[]): Promise<Map<string, number[]>>
   readCollections(ids: number[]): Promise<Map<number, number[]>>
   queryArticles(vector: number[], options: ArticleQueryOptions): Promise<ArticleVectorCandidate[]>
-  queryArticleVectors(vector: number[], options: ArticleQueryOptions): Promise<(ArticleVectorCandidate & { values: number[] })[]>
   queryCollections(vector: number[], options?: VectorQueryOptions): Promise<VectorCandidate[]>
   verifyRefresh(result: VectorRefreshResult): Promise<boolean>
 }

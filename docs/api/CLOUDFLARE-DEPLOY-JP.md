@@ -21,9 +21,9 @@ pnpm api -- wrangler edge secret put EDGE_SHARED_SECRET
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 最初の五 Worker リリース前に。下記参照
 ```
 
-`build` は一時設定と空 env で五つの Worker をオフラインで minify バンドルし、現在の生成設定を上書きせず、Worker ごとに `bundle-<worker>.meta.json` を出力します。`deploy --dry-run` は `.generated/` の生成のみで、クラウドには接続しません。生成ファイルを手で管理しないでください。
+`build` は一時設定と空 env で六つの Worker をオフラインで minify バンドルし、現在の生成設定を上書きせず、Worker ごとに `bundle-<worker>.meta.json` を出力します。`deploy --dry-run` は `.generated/` の生成のみで、クラウドには接続しません。生成ファイルを手で管理しないでください。
 
-新規 bootstrap は Browser → Objects → AI → Edge の順で公開し、AI の前に service/Workflow binding を一時除外した Core を公開して、最後に完全な binding と Workflow を持つ Core を公開することで循環依存を解消します。通常リリースは Browser → Objects → Core → AI → Edge です。新規環境のみで使い、中断時は bootstrap を再実行します。既存環境は通常 deploy を使います。デプロイ・secret・リソース作成・リモート migration は実クラウド操作であり、エージェントが実行する場合は明示的な許可が必要です。
+新規 bootstrap は Browser → Objects → Vector → AI → Edge の順で公開し、AI の前に service/Workflow binding を一時除外した Core を公開して、最後に完全な binding と Workflow を持つ Core を公開することで循環依存を解消します。通常リリースは Browser → Objects → Vector → Core → AI → Edge です。新規環境のみで使い、中断時は bootstrap を再実行します。既存環境は通常 deploy を使います。デプロイ・secret・リソース作成・リモート migration は実クラウド操作であり、エージェントが実行する場合は明示的な許可が必要です。
 
 ## Worker 構成
 
@@ -33,9 +33,19 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 最初の�
 | Core | `aws:ap-southeast-1` | `AI_ROUTES` 以外の Reader ルート、内部ホスト `jobs.internal` 経由のキュー・cron・newsletter メール処理、六つの Workflow、`VectorPreferenceObject` |
 | AI | `aws:ap-southeast-1` | `apps/api/src/const/routes.ts` の `AI_ROUTES`（AIGC、概要/アウトライン、検索、推薦、ベクトル更新）と `AiEntry` ベクトル RPC |
 | Objects | `aws:ap-southeast-1` | `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` の Durable Object（HTTP なし） |
+| Vector | `aws:us-east-1` | タグなし `/v1/bookmark/search` のセマンティック処理（クエリのベクトル化、値付きの V5 記事クエリ 1 回、プラットフォーム平均を除いたスコア）。内部ホスト `vector.internal/search` で AI の `VECTOR_SEARCH` binding に提供。`VECTOR_V5_ARTICLE` のみを bind し、ルートなし |
 | Browser | 指定なし | `SlaxBrowser`（変更なし） |
 
 placement は `apps/api/script/deploy/config.ts` の `DATABASE_REGION`（主 PostgreSQL に最も近いリージョン）が決めます。非公開設定の `[placement]` はリモート操作前に拒否されます。Core と Edge は既存の `SlaxJieba`・`SlaxWebSocketServer`・`ScreenshotBrowser` namespace を 410 を返すスタブクラス（`apps/api/src/entry/retired.ts`）で保持し、そのデータは削除しません。廃止した MCP Server の `SlaxMcpServer` namespace は保存済みセッションごと削除します。アカウントにこの namespace が残っている間、リリースは Edge と Core に `retire-mcp-v1`（`deleted_classes = ["SlaxMcpServer"]`）を加えます（下記参照）。非公開の migration 履歴を変更する必要はありません。Objects は独自の migration tag `objects-v1` を持ちます。
+
+Vector の名前は Core から導出されます（`reader-core` → `reader-vector`、`reader-core-beta` → `reader-vector-beta`、それ以外は `<core>-vector`）。`services.VECTOR_SEARCH.service` で指定することもできます。配置は `VECTOR_REGION`（`aws:us-east-1`）で、クエリエンコーダーと Vectorize インデックスの近くです。placement は `fetch` ハンドラーにのみ適用されるため、AI は RPC ではなく service binding 経由の `fetch` で呼び出し、リクエストは `EDGE_SHARED_SECRET` を持ちます。binding がない場合（分離されたローカル実行）は AI が同じ処理を自分で実行します。Vector を含む最初のリリースの前に、アカウントごとに作成して値を設定します。
+
+```bash
+pnpm api -- deploy --target vector
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # Vector に JINA_API_KEY と EDGE_SHARED_SECRET をアップロード
+```
+
+既存の Vector にどちらかの値がない間、リリースは停止します。
 
 ## 最初の五 Worker リリース（既存環境）
 

@@ -70,7 +70,7 @@ const describeMissing = (missing: Record<string, string[]>) =>
 
 // The only release precondition: every Worker already holds the secrets and strings its code reads.
 export async function requireValues(api: CloudflareApi, config: ApiConfig): Promise<void> {
-  const missing = await missingRuntimeValues(api, config, ['edge', 'core', 'ai', 'objects'])
+  const missing = await missingRuntimeValues(api, config, ['edge', 'core', 'ai', 'objects', 'vector'])
   if (Object.keys(missing).length)
     throw new Error(
       `These Workers lack values their code reads. Run \`pnpm api -- secrets:sync --from <file with the values>\` (or add them to [vars] of the selected configuration), then release again:\n${describeMissing(missing)}`
@@ -86,7 +86,7 @@ export async function missingRuntimeValues(api: CloudflareApi, config: ApiConfig
   const scripts = new Set((await api.list<{ id: string }>('/workers/scripts')).map(script => script.id))
   const published = new Set(Object.keys((config.vars as Record<string, unknown> | undefined) ?? {}))
   const held: Record<string, Set<string>> = {}
-  for (const target of ['edge', 'core', 'ai', 'objects'] as const) {
+  for (const target of ['edge', 'core', 'ai', 'objects', 'vector'] as const) {
     held[target] = new Set()
     if (!scripts.has(names[target])) continue
     const settings = await api.get<{ bindings?: { name: string; type: string }[] }>(`/workers/scripts/${encodeURIComponent(names[target])}/settings`)

@@ -952,15 +952,6 @@ export class VectorMaintenanceService implements VectorMaintenance {
     return matches.map(match => articleCandidate(match))
   }
 
-  /** queryArticles with each candidate's stored vector, in one native query (topK at most 50). */
-  async queryArticleVectors(vector: number[], options: ArticleQueryOptions) {
-    const matches = await this.index.query('article', normalized(vector), { ...options, values: true })
-    return matches.flatMap(match => {
-      const values = this.validContribution(match.values)
-      return values ? [{ ...articleCandidate(match), values }] : []
-    })
-  }
-
   async queryCollections(vector: number[], options: VectorQueryOptions = {}) {
     const matches = await this.index.query('collection', normalized(vector), options)
     return matches.map(match => {

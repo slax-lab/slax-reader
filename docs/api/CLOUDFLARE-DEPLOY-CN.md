@@ -21,9 +21,9 @@ pnpm api -- wrangler edge secret put EDGE_SHARED_SECRET
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 首次五 Worker 发布前执行，见下文
 ```
 
-`build` 真正离线打包（minify）五个 Worker，使用临时配置与空 env，不覆盖开发中的生成配置，并为每个 Worker 写出 `bundle-<worker>.meta.json`。`deploy --dry-run` 只生成 `.generated/`，不打包也不调用云端。生成文件不是第二份配置源，请勿手动维护。
+`build` 真正离线打包（minify）六个 Worker，使用临时配置与空 env，不覆盖开发中的生成配置，并为每个 Worker 写出 `bundle-<worker>.meta.json`。`deploy --dry-run` 只生成 `.generated/`，不打包也不调用云端。生成文件不是第二份配置源，请勿手动维护。
 
-新安装的 bootstrap 顺序为 Browser → Objects → AI → Edge，其中 AI 之前先发布一个临时移除 service/Workflow 绑定的 Core，最后发布带完整绑定和 Workflow 的 Core，解决循环依赖。普通发布顺序为 Browser → Objects → Core → AI → Edge。仅在新安装使用；中断后重新运行 bootstrap 完成初始化。已有部署使用普通 deploy。部署/secret/资源创建与远程迁移均是真实云操作，自动化代理需获得明确授权。
+新安装的 bootstrap 顺序为 Browser → Objects → Vector → AI → Edge，其中 AI 之前先发布一个临时移除 service/Workflow 绑定的 Core，最后发布带完整绑定和 Workflow 的 Core，解决循环依赖。普通发布顺序为 Browser → Objects → Vector → Core → AI → Edge。仅在新安装使用；中断后重新运行 bootstrap 完成初始化。已有部署使用普通 deploy。部署/secret/资源创建与远程迁移均是真实云操作，自动化代理需获得明确授权。
 
 ## Worker 拓扑
 
@@ -33,9 +33,19 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 首次五 
 | Core | `aws:ap-southeast-1` | `AI_ROUTES` 以外的 Reader 路由；通过内部主机 `jobs.internal` 执行的队列、cron 和 newsletter 邮件处理；六个 Workflow、`VectorPreferenceObject` |
 | AI | `aws:ap-southeast-1` | `apps/api/src/const/routes.ts` 中 `AI_ROUTES` 列出的路由（AIGC、概要/大纲、搜索、推荐、向量刷新）和 `AiEntry` 向量 RPC |
 | Objects | `aws:ap-southeast-1` | `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` 三个 Durable Object，不提供 HTTP |
+| Vector | `aws:us-east-1` | 不带 tag 的 `/v1/bookmark/search` 语义步骤（查询向量化、一次带向量的 V5 文章查询、按平台均值去中心化打分），通过内部主机 `vector.internal/search` 提供给 AI 的 `VECTOR_SEARCH` 绑定；只绑定 `VECTOR_V5_ARTICLE`，没有路由 |
 | Browser | 不设置 | `SlaxBrowser`（不变） |
 
 placement 由 `apps/api/script/deploy/config.ts` 的 `DATABASE_REGION` 决定，即离主 PostgreSQL 最近的区域。私有配置中出现 `[placement]` 会在任何远程操作前被拒绝。Core 和 Edge 保留原有的 `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` 命名空间，由返回 410 的空壳类承接（`apps/api/src/entry/retired.ts`），这些数据不会被删除。MCP Server 已下线，其 `SlaxMcpServer` 命名空间连同保存的会话一起删除：只要账号中还有这个命名空间，发布就会给 Edge 和 Core 加上 `retire-mcp-v1`（`deleted_classes = ["SlaxMcpServer"]`，见下文），私有迁移历史无需修改。Objects 使用独立迁移标签 `objects-v1`。
+
+Vector 的名字由 Core 推导（`reader-core` → `reader-vector`，`reader-core-beta` → `reader-vector-beta`，其余为 `<core>-vector`），也可用 `services.VECTOR_SEARCH.service` 指定；位置由 `VECTOR_REGION`（`aws:us-east-1`）决定，靠近查询编码器和 Vectorize 索引。AI 通过服务绑定以 `fetch` 调用它，而不是 RPC，因为 placement 只对 `fetch` 处理函数生效；请求携带 `EDGE_SHARED_SECRET`。没有该绑定时（隔离的本地运行），AI 在本进程执行同样的步骤。首次包含 Vector 的发布前，每个账号先创建它并写入它要读取的值：
+
+```bash
+pnpm api -- deploy --target vector
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # 给 Vector 上传 JINA_API_KEY 和 EDGE_SHARED_SECRET
+```
+
+已存在的 Vector 缺少其中任一值时，发布会停止。
 
 ## 首次五 Worker 发布（已有安装）
 

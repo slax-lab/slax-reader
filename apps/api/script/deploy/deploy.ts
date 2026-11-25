@@ -21,9 +21,9 @@ import { fileURLToPath } from 'node:url'
 import { loadApiEnv } from '../env'
 import { accountApi, readReleaseState, requireValues, type CloudflareApi, type ReleaseState } from './topology'
 
-const DEFAULT_PORTS: Record<Target, number> = { edge: 8787, core: 8686, ai: 8788, browser: 8789, objects: 8790 }
+const DEFAULT_PORTS: Record<Target, number> = { edge: 8787, core: 8686, ai: 8788, browser: 8789, objects: 8790, vector: 8791 }
 
-// SLAX_API_DEV_PORTS="ai=8798,objects=8791" moves individual local Workers off ports another process holds.
+// SLAX_API_DEV_PORTS="ai=8798,objects=8792" moves individual local Workers off ports another process holds.
 export function devPorts(value = process.env.SLAX_API_DEV_PORTS): Record<Target, number> {
   const ports = { ...DEFAULT_PORTS }
   for (const entry of (value ?? '').split(',').filter(Boolean)) {
@@ -213,12 +213,12 @@ export interface ReleaseStep {
   mcp: McpPhase
 }
 
-// Callees publish before callers: Objects and Browser own Durable Objects others bind to, Core runs the jobs and
-// Workflows Edge and AI call, AI serves the VECTOR RPC, and Edge binds to Core and AI. A bootstrap breaks the
+// Callees publish before callers: Objects and Browser own Durable Objects others bind to, Vector serves AI's search
+// fetch, Core runs the jobs and Workflows Edge and AI call, AI serves the VECTOR RPC, and Edge binds to Core and AI. A bootstrap breaks the
 // AI -> Core cycle by first publishing a Core stripped of its service bindings and Workflows; the complete Core is
 // published last.
-const NORMAL_ORDER: Target[] = ['browser', 'objects', 'core', 'ai', 'edge']
-const BOOTSTRAP_ORDER: Target[] = ['browser', 'objects', 'ai', 'edge', 'core']
+const NORMAL_ORDER: Target[] = ['browser', 'objects', 'vector', 'core', 'ai', 'edge']
+const BOOTSTRAP_ORDER: Target[] = ['browser', 'objects', 'vector', 'ai', 'edge', 'core']
 
 // While an MCP namespace remains, Core first publishes still exporting the stub class (the old Edge binds Core's
 // namespace), Edge then deletes its own namespace and stops binding Core's, and a second Core publication deletes
@@ -233,7 +233,7 @@ export function releaseOrder(state: ReleaseState, target?: Target): ReleaseStep[
   }
   if (!state.mcp.length) return NORMAL_ORDER.map(worker => ({ target: worker, mcp: phase(worker) }))
   return [
-    ...(['browser', 'objects'] as const).map(worker => ({ target: worker, mcp: 'retired' as const })),
+    ...(['browser', 'objects', 'vector'] as const).map(worker => ({ target: worker, mcp: 'retired' as const })),
     { target: 'core', mcp: 'keep-mcp' },
     { target: 'ai', mcp: 'retired' },
     { target: 'edge', mcp: phase('edge') },

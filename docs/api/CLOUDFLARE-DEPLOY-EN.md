@@ -20,9 +20,9 @@ pnpm api -- deploy edge               # update one existing Worker
 pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # before the first five-Worker release, see below
 ```
 
-`build` bundles all five Workers offline (minified) with temporary config and an empty env file, leaving active generated configs intact, and writes a `bundle-<worker>.meta.json` metafile per Worker. `deploy --dry-run` only generates `.generated/` files and never contacts Cloudflare. Do not maintain generated files manually.
+`build` bundles all six Workers offline (minified) with temporary config and an empty env file, leaving active generated configs intact, and writes a `bundle-<worker>.meta.json` metafile per Worker. `deploy --dry-run` only generates `.generated/` files and never contacts Cloudflare. Do not maintain generated files manually.
 
-For a new installation, bootstrap deploys Browser → Objects → AI → Edge with a Core stripped of service/Workflow bindings published before AI, then Core with complete bindings and Workflows. Normal releases publish Browser → Objects → Core → AI → Edge. Retry bootstrap after an interrupted first deployment. Existing installations use normal deploy; bootstrap is not a normal update procedure. Deployment, secrets, resource creation and remote migrations are real cloud operations requiring explicit authorization when performed by agents.
+For a new installation, bootstrap deploys Browser → Objects → Vector → AI → Edge with a Core stripped of service/Workflow bindings published before AI, then Core with complete bindings and Workflows. Normal releases publish Browser → Objects → Vector → Core → AI → Edge. Retry bootstrap after an interrupted first deployment. Existing installations use normal deploy; bootstrap is not a normal update procedure. Deployment, secrets, resource creation and remote migrations are real cloud operations requiring explicit authorization when performed by agents.
 
 ## Worker topology
 
@@ -32,9 +32,19 @@ For a new installation, bootstrap deploys Browser → Objects → AI → Edge wi
 | Core | `aws:ap-southeast-1` | Reader routes outside `AI_ROUTES`; the queue, cron and newsletter email handlers, run through the internal `jobs.internal` host; the six Workflows and `VectorPreferenceObject` |
 | AI | `aws:ap-southeast-1` | the routes listed in `apps/api/src/const/routes.ts` (`AI_ROUTES`: AIGC, overview/outline, search, recommendations, vector refresh) and the `AiEntry` vector RPC |
 | Objects | `aws:ap-southeast-1` | the `SlaxJieba`, `SlaxWebSocketServer` and `ScreenshotBrowser` Durable Objects; no HTTP |
+| Vector | `aws:us-east-1` | the semantic step of untagged `/v1/bookmark/search` (query embedding, one V5 article query with values, mean-centered scores), served on the internal `vector.internal/search` host to AI's `VECTOR_SEARCH` binding; binds only `VECTOR_V5_ARTICLE`, no route |
 | Browser | none | `SlaxBrowser` (unchanged) |
 
 `apps/api/script/deploy/config.ts` owns placement through `DATABASE_REGION`, the region nearest the primary PostgreSQL database. A `[placement]` table in the private configuration is rejected before any remote operation. Core and Edge keep their old `SlaxJieba`, `SlaxWebSocketServer` and `ScreenshotBrowser` namespaces behind stub classes that answer 410 (`apps/api/src/entry/retired.ts`), so that data is never deleted. The MCP Server was removed and its `SlaxMcpServer` namespaces are deleted with their stored sessions: the release adds `retire-mcp-v1` (`deleted_classes = ["SlaxMcpServer"]`) to Edge and Core while the account still has such a namespace (see below), so the private migration history needs no change. Objects declares its own migration tag `objects-v1`.
+
+Vector is named after Core (`reader-core` → `reader-vector`, `reader-core-beta` → `reader-vector-beta`, otherwise `<core>-vector`) unless `services.VECTOR_SEARCH.service` names it, and is placed by `VECTOR_REGION` (`aws:us-east-1`), beside the query encoder and the Vectorize index. AI calls it with a `fetch` over the service binding, not RPC, because placement applies only to `fetch` handlers; the request carries `EDGE_SHARED_SECRET`. Without the binding (isolated local runs) AI runs the same step itself. Before the first release that contains Vector, create it and give it its values once per account:
+
+```bash
+pnpm api -- deploy --target vector
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # uploads JINA_API_KEY and EDGE_SHARED_SECRET to Vector
+```
+
+A release stops while an existing Vector Worker lacks either value.
 
 ## First five-Worker release (existing installations)
 

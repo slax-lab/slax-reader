@@ -174,7 +174,6 @@ describe('search highlight rendering boundary', () => {
     const repo = {
       getSearchEligibleBookmarks: vi
         .fn()
-        .mockResolvedValueOnce([{ bookmark_id: 12, uuid: 'vector-uuid' }])
         .mockResolvedValueOnce([{ bookmark_id: 12, uuid: 'vector-uuid', created_at: new Date('2026-10-21T00:00:00Z'), bookmark: { target_url: 'https://vector.example/article' } }])
     }
     const searchRepo = { getBookmarkRaw: vi.fn().mockResolvedValue([{ bookmark_id: 12, raw_title: 'Vector title', raw_content: 'Vector body' }]) }
@@ -266,10 +265,6 @@ describe('search highlight rendering boundary', () => {
     const repo = {
       getSearchEligibleBookmarks: vi
         .fn()
-        .mockResolvedValueOnce([
-          { bookmark_id: 11, uuid: 'owned' },
-          { bookmark_id: 99, uuid: 'removed' }
-        ])
         .mockResolvedValueOnce([{ bookmark_id: 11, uuid: 'owned', created_at: new Date('2026-10-21T00:00:00Z'), bookmark: { target_url: 'https://owned.example/article' } }])
     }
     const service = new SearchService(repo as never, {} as never, {} as never)
@@ -284,22 +279,20 @@ describe('search highlight rendering boundary', () => {
     const results = await service.hybridSearch({ getUserId: () => 7, env: {} } as never, 'body')
     expect(results).toHaveLength(1)
     expect(results[0]).toMatchObject({ bookmark_id: 11, bookmark_user_uuid: 'owned', target_url: 'https://owned.example/article', created_at: '2026-10-21T00:00:00.000Z' })
+    expect(repo.getSearchEligibleBookmarks).toHaveBeenCalledExactlyOnceWith(7, [], [11, 99])
   })
 
   test('shows the PostgreSQL title and description for a semantic hit without fulltext rows', async () => {
     const repo = {
-      getSearchEligibleBookmarks: vi
-        .fn()
-        .mockResolvedValueOnce([{ bookmark_id: 12, uuid: 'vector-uuid' }])
-        .mockResolvedValueOnce([
-          {
-            bookmark_id: 12,
-            uuid: 'vector-uuid',
-            created_at: new Date('2026-09-22T14:33:00Z'),
-            alias_title: '',
-            bookmark: { target_url: 'https://vector.example/article', title: '<b>Title</b>' + 'x'.repeat(80), description: 'Summary <img src=x onerror=alert(1)>' }
-          }
-        ])
+      getSearchEligibleBookmarks: vi.fn().mockResolvedValueOnce([
+        {
+          bookmark_id: 12,
+          uuid: 'vector-uuid',
+          created_at: new Date('2026-09-22T14:33:00Z'),
+          alias_title: '',
+          bookmark: { target_url: 'https://vector.example/article', title: '<b>Title</b>' + 'x'.repeat(80), description: 'Summary <img src=x onerror=alert(1)>' }
+        }
+      ])
     }
     const searchRepo = { getBookmarkRaw: vi.fn().mockResolvedValue([]) }
     const service = new SearchService(repo as never, searchRepo as never, {} as never)
@@ -331,8 +324,7 @@ describe('search highlight rendering boundary', () => {
     expect(vectorRepo.seachVector).not.toHaveBeenCalled()
   })
 
-  test('V5 semantic search reranks native candidates by mean-centered cosine and keeps only strong hits', async () => {
-    const { center } = await import('@/utils/recommendationAlgorithms')
+  test('V5 candidates are scored in one query by mean-centered cosine, without bounds', async () => {
     const { EMBEDDING_MEAN } = await import('@/utils/embeddingMean')
     const unit = (values: number[]) => {
       const norm = Math.hypot(...values)
@@ -344,51 +336,138 @@ describe('search highlight rendering boundary', () => {
     const around = (offset: number[]) => unit(mean.map((value, dimension) => value + offset[dimension]))
     const query = around(direction(0))
     const strong = around(direction(0))
-    const weak = around(unit(direction(0).map((value, dimension) => value * 0.5 + (dimension === 1 ? 0.866 : 0))))
     const unrelated = around(direction(2))
-    const vectors = {
-      queryArticleVectors: vi.fn().mockResolvedValue([
-        { userId: 7, id: 1, score: 0.9, values: strong },
-        { userId: 7, id: 2, score: 0.8, values: weak },
-        { userId: 7, id: 3, score: 0.85, values: unrelated },
-        { userId: 8, id: 4, score: 0.99, values: strong },
-        { userId: 7, id: 5, score: 0.95, values: strong }
-      ]),
-      readArticles: vi.fn()
+    const index = {
+      query: vi.fn().mockResolvedValue([
+        { id: 'a:7:3', score: 0.85, values: unrelated },
+        { id: 'a:7:1', score: 0.9, values: strong },
+        { id: 'a:8:4', score: 0.99, values: strong },
+        { id: 'a:7:5:c:1', score: 0.95, values: strong },
+        { id: 'a:7:6', score: 0.9 }
+      ])
     }
     const embedding = { cachedQuery: vi.fn().mockResolvedValue(query) }
-    const service = new SearchService({} as never, {} as never, {} as never, vectors as never, embedding as never)
+    const service = new SearchService({} as never, {} as never, {} as never, embedding as never, { available: false } as never, index as never)
 
-    const hits = await service.semanticSearchV5({ getUserId: () => 7 } as never, 'term', new Set([1, 2, 3]))
+    const hits = await service.semanticSearchV5({ getUserId: () => 7 } as never, 'term')
 
     expect(embedding.cachedQuery).toHaveBeenCalledWith('term')
-    expect(vectors.queryArticleVectors).toHaveBeenCalledExactlyOnceWith(query, { userId: 7, limit: 50 })
-    expect(vectors.readArticles).not.toHaveBeenCalled()
-    expect(hits.map(hit => hit.id)).toEqual(['1_0'])
+    expect(index.query).toHaveBeenCalledExactlyOnceWith('article', expect.any(Array), { userId: 7, limit: 50, values: true })
+    // Another user's vector, a chunk and a match without values are dropped; nothing is cut by a threshold here.
+    expect(hits.map(hit => hit.id)).toEqual(['1_0', '3_0'])
     expect(hits[0].score).toBeCloseTo(1, 5)
-    expect(center(weak)[1]).toBeGreaterThan(0)
+    expect(hits[1].score).toBeLessThan(0.1)
   })
 
-  test('V5 semantic search returns nothing when even the best centered score is weak', async () => {
-    const { EMBEDDING_MEAN } = await import('@/utils/embeddingMean')
-    const mean = EMBEDDING_MEAN.values
-    const at = (index: number) => {
-      const values = mean.map((value, dimension) => value + (dimension === index ? 1 : 0))
-      const norm = Math.hypot(...values)
-      return values.map(value => value / norm)
+  test('the Vector Worker answers the untagged semantic step when its binding exists', async () => {
+    const vectorSearch = { available: true, search: vi.fn().mockResolvedValue({ candidates: [{ id: 4, score: 0.7 }], timings: { embedding: 80, query: 200 } }) }
+    const embedding = { cachedQuery: vi.fn() }
+    const index = { query: vi.fn() }
+    const service = new SearchService({} as never, {} as never, {} as never, embedding as never, vectorSearch as never, index as never)
+
+    expect(await service.semanticSearchV5({ getUserId: () => 7 } as never, 'term')).toEqual([{ id: '4_0', score: 0.7 }])
+    expect(vectorSearch.search).toHaveBeenCalledExactlyOnceWith({ userId: 7, keyword: 'term' })
+    expect(embedding.cachedQuery).not.toHaveBeenCalled()
+    expect(index.query).not.toHaveBeenCalled()
+  })
+
+  test('bounds apply to admitted V5 candidates only, so a trashed best match sets neither the floor nor the cut', async () => {
+    const admitted = [3, 4, 5].map(bookmark_id => ({
+      bookmark_id,
+      uuid: `u${bookmark_id}`,
+      created_at: new Date('2026-11-01T00:00:00Z'),
+      bookmark: { target_url: '', title: 't', description: 'd' }
+    }))
+    const repo = { getSearchEligibleBookmarks: vi.fn().mockResolvedValue(admitted) }
+    const searchRepo = { getBookmarkRaw: vi.fn().mockResolvedValue([3, 4, 5].map(bookmark_id => ({ bookmark_id, raw_title: 'Title', raw_content: 'Body' }))) }
+    const service = new SearchService(repo as never, searchRepo as never, {} as never)
+    vi.spyOn(service, 'getUserBookmarkItem').mockResolvedValue([])
+    vi.spyOn(service, 'fulltextSearch').mockResolvedValue([])
+    // 9 is trashed: it is the best candidate but absent from admission. Against 0.9, 0.5 and 0.3 would be cut.
+    vi.spyOn(service, 'semanticSearchV5').mockResolvedValue([
+      { id: '9_0', score: 0.9 },
+      { id: '3_0', score: 0.5 },
+      { id: '4_0', score: 0.32 },
+      { id: '5_0', score: 0.2 }
+    ])
+
+    const results = await service.hybridSearch({ getUserId: () => 7, env: {} } as never, 'term')
+
+    expect(repo.getSearchEligibleBookmarks).toHaveBeenCalledOnce()
+    expect(repo.getSearchEligibleBookmarks.mock.calls[0][2].sort()).toEqual([3, 4, 5, 9])
+    // Best admitted 0.5 >= 0.35; keep >= 0.3: 3 and 4, not 5.
+    expect(results.map(item => item.bookmark_id).sort()).toEqual([3, 4])
+  })
+
+  test('no V5 hit is kept when the best admitted candidate is below the floor, and a hybrid hit keeps its fulltext match', async () => {
+    const admitted = [3, 4].map(bookmark_id => ({
+      bookmark_id,
+      uuid: `u${bookmark_id}`,
+      created_at: new Date('2026-11-01T00:00:00Z'),
+      bookmark: { target_url: '', title: 't', description: 'd' }
+    }))
+    const repo = { getSearchEligibleBookmarks: vi.fn().mockResolvedValue(admitted) }
+    const searchRepo = { getBookmarkRaw: vi.fn().mockResolvedValue([{ bookmark_id: 4, raw_title: 'Title', raw_content: 'Body' }]) }
+    const service = new SearchService(repo as never, searchRepo as never, {} as never)
+    vi.spyOn(service, 'getUserBookmarkItem').mockResolvedValue([{ bmId: 3, shardIdx: 0, rowIds: [1] }])
+    vi.spyOn(service, 'fulltextSearch').mockResolvedValue([{ bookmark_id: 3, score: -2, raw_title: 'T', raw_content: 'B', title_snippet: 'T', content_snippet: 'B' }])
+    vi.spyOn(service, 'semanticSearchV5').mockResolvedValue([
+      { id: '3_0', score: 0.3 },
+      { id: '4_0', score: 0.2 }
+    ])
+
+    const results = await service.hybridSearch({ getUserId: () => 7, env: {} } as never, 'noise')
+
+    expect(results.map(item => [item.bookmark_id, item.type, item.vs_score])).toEqual([[3, 'fts', 0]])
+  })
+
+  test('a failed Vector call returns the fulltext results without semantic hits', async () => {
+    const repo = {
+      getSearchEligibleBookmarks: vi.fn().mockResolvedValue([{ bookmark_id: 3, uuid: 'u3', created_at: new Date('2026-11-01T00:00:00Z'), bookmark: { target_url: '' } }])
     }
-    const vectors = { queryArticleVectors: vi.fn().mockResolvedValue([{ userId: 7, id: 1, score: 0.8, values: at(1) }]) }
-    const service = new SearchService({} as never, {} as never, {} as never, vectors as never, { cachedQuery: vi.fn().mockResolvedValue(at(0)) } as never)
-    expect(await service.semanticSearchV5({ getUserId: () => 7 } as never, 'noise', new Set([1]))).toEqual([])
+    const service = new SearchService(repo as never, {} as never, {} as never)
+    vi.spyOn(service, 'getUserBookmarkItem').mockResolvedValue([{ bmId: 3, shardIdx: 0, rowIds: [1] }])
+    vi.spyOn(service, 'fulltextSearch').mockResolvedValue([{ bookmark_id: 3, score: -2, raw_title: 'T', raw_content: 'B', title_snippet: 'T', content_snippet: 'B' }])
+    vi.spyOn(service, 'semanticSearchV5').mockRejectedValue(new Error('vector_search_status_500'))
+
+    const results = await service.hybridSearch({ getUserId: () => 7, env: {} } as never, 'term')
+
+    expect(results.map(item => [item.bookmark_id, item.type])).toEqual([[3, 'fts']])
+  })
+
+  test('the semantic step starts before candidate preparation finishes', async () => {
+    const order: string[] = []
+    let release!: () => void
+    const preparation = new Promise<void>(resolve => (release = resolve))
+    const repo = { getSearchEligibleBookmarks: vi.fn().mockResolvedValue([]) }
+    const service = new SearchService(repo as never, {} as never, {} as never)
+    vi.spyOn(service, 'getUserBookmarkItem').mockImplementation(async () => {
+      order.push('prepare')
+      await preparation
+      return []
+    })
+    vi.spyOn(service, 'fulltextSearch').mockResolvedValue([])
+    vi.spyOn(service, 'semanticSearchV5').mockImplementation(async () => {
+      order.push('semantic')
+      release()
+      return []
+    })
+
+    await service.hybridSearch({ getUserId: () => 7, env: {} } as never, 'term')
+
+    expect(order).toEqual(['semantic', 'prepare'])
+    expect(repo.getSearchEligibleBookmarks).toHaveBeenCalledTimes(1)
   })
 
   test('V5 semantic search reports one provider diagnostic when the query embedding finally fails', async () => {
     const provider = new EmbeddingProviderError('embedding_http_400', { status: 400, code: 'INVALID_TASK', requestId: 'abcdef0123456789abcdef0123456789' })
     const embedding = { cachedQuery: vi.fn().mockRejectedValue(provider) }
-    const service = new SearchService({} as never, {} as never, {} as never, {} as never, embedding as never)
+    const index = { query: vi.fn() }
+    const service = new SearchService({} as never, {} as never, {} as never, embedding as never, { available: false } as never, index as never)
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      await expect(service.semanticSearchV5({ getUserId: () => 7 } as never, 'term', new Set([1]))).rejects.toThrow('embedding_http_400')
+      await expect(service.semanticSearchV5({ getUserId: () => 7 } as never, 'term')).rejects.toThrow('embedding_http_400')
+      expect(index.query).not.toHaveBeenCalled()
       expect(log).toHaveBeenCalledExactlyOnceWith('[embedding-provider]', JSON.stringify({ status: 400, code: 'INVALID_TASK', requestId: 'abcdef0123456789abcdef0123456789' }))
     } finally {
       log.mockRestore()
@@ -407,8 +486,13 @@ describe('search highlight rendering boundary', () => {
     expect(legacy).toHaveBeenCalledOnce()
     expect(v5).not.toHaveBeenCalled()
 
+    expect(repo.getSearchEligibleBookmarks).toHaveBeenCalledWith(7, ['tag-uuid'])
+
+    repo.getSearchEligibleBookmarks.mockClear()
     await service.hybridSearch({ getUserId: () => 7, env: {} } as never, 'body')
-    expect(v5).toHaveBeenCalledWith(expect.anything(), 'body', new Set([11]))
+    expect(v5).toHaveBeenCalledWith(expect.anything(), 'body')
     expect(legacy).toHaveBeenCalledOnce()
+    // Untagged searches have no up-front ownership list; there were no matches to admit.
+    expect(repo.getSearchEligibleBookmarks).toHaveBeenCalledExactlyOnceWith(7, [], [])
   })
 })
