@@ -5,7 +5,7 @@ import { describe, expect, test, vi } from 'vitest'
 import { ROOT } from '../../script/root'
 import { cloudflareApi, readReleaseState, requireValues, type CloudflareApi } from '../../script/deploy/topology'
 import { releaseOrder } from '../../script/deploy/deploy'
-import { workerNames, type ApiConfig } from '../../script/deploy/config'
+import { parseArgs, workerNames, type ApiConfig } from '../../script/deploy/config'
 import { RUNTIME_KEYS } from '../../script/deploy/runtimeKeys'
 
 const config = parse(fs.readFileSync(path.join(ROOT, 'deploy/cloudflare/api.toml.example'), 'utf8')) as ApiConfig
@@ -13,8 +13,10 @@ const names = workerNames(config)
 
 // An account that answers the reads a release makes. Every Worker holds what its code reads unless a test removes it.
 function account(options: { scripts?: string[]; mcp?: string[]; coreTag?: string } = {}) {
-  const scripts = options.scripts ?? [names.browser, names.objects, names.core, names.ai, names.edge]
-  const secrets: Record<string, Set<string>> = Object.fromEntries((['edge', 'core', 'ai', 'objects'] as const).map(target => [names[target], new Set(RUNTIME_KEYS[target])]))
+  const scripts = options.scripts ?? [names.browser, names.objects, names.vector, names.core, names.ai, names.edge]
+  const secrets: Record<string, Set<string>> = Object.fromEntries(
+    (['edge', 'core', 'ai', 'objects', 'vector'] as const).map(target => [names[target], new Set(RUNTIME_KEYS[target])])
+  )
   const calls: string[] = []
   const api: CloudflareApi = {
     async list<T>(pathname: string) {
@@ -59,9 +61,35 @@ describe('the only release precondition is that every Worker holds the values it
     await expect(requireValues(api, withoutVars)).rejects.toThrow(`${names.objects}: FRONT_END_URL`)
     // A Worker not deployed yet is checked too: it cannot hold secrets before it exists, so its first release
     // needs the value in [vars], which the template provides.
-    const undeployed = account({ scripts: [names.browser, names.core, names.ai, names.edge] })
+    const undeployed = account({ scripts: [names.browser, names.vector, names.core, names.ai, names.edge] })
     await expect(requireValues(undeployed.api, config)).resolves.toBeUndefined()
     await expect(requireValues(undeployed.api, withoutVars)).rejects.toThrow(`${names.objects}: FRONT_END_URL`)
+  })
+
+  test('the Vector Worker needs the encoder key and the edge shared secret that Core and AI hold', async () => {
+    const { api, secrets } = account()
+    expect(RUNTIME_KEYS.vector).toEqual(['EDGE_SHARED_SECRET', 'JINA_API_KEY'])
+    secrets[names.vector] = new Set()
+    await expect(requireValues(api, config)).rejects.toThrow(`- ${names.vector}: EDGE_SHARED_SECRET, JINA_API_KEY`)
+    await expect(requireValues(api, config, 'vector')).rejects.toThrow(`- ${names.vector}: EDGE_SHARED_SECRET, JINA_API_KEY`)
+  })
+
+  test('only a single-Worker release of a Worker that does not exist yet may create it without its secrets', async () => {
+    const undeployed = account({ scripts: [names.browser, names.objects, names.core, names.ai, names.edge] })
+    // A full release, or a release of another Worker, still stops and says how to create the Worker.
+    await expect(requireValues(undeployed.api, config)).rejects.toThrow(`- ${names.vector}: EDGE_SHARED_SECRET, JINA_API_KEY`)
+    await expect(requireValues(undeployed.api, config)).rejects.toThrow('pnpm api -- deploy vector')
+    // The printed command is one the deploy script accepts.
+    const message = await requireValues(undeployed.api, config).catch((error: Error) => error.message)
+    const printed = /`pnpm api -- deploy ([^`]+)`/.exec(String(message))![1].split(' ')
+    expect(parseArgs(printed, ['--dev', '--dry-run', '--bootstrap']).target).toBe('vector')
+    await expect(requireValues(undeployed.api, config, 'ai')).rejects.toThrow(names.vector)
+    // Creating it is allowed; the other Workers are still checked.
+    await expect(requireValues(undeployed.api, config, 'vector')).resolves.toBeUndefined()
+    undeployed.secrets[names.ai].delete('DEEPSEEK_API_KEY')
+    undeployed.secrets[names.core].delete('DEEPSEEK_API_KEY')
+    undeployed.secrets[names.edge].add('DEEPSEEK_API_KEY')
+    await expect(requireValues(undeployed.api, config, 'vector')).rejects.toThrow(`${names.ai}: DEEPSEEK_API_KEY`)
   })
 
   test('a key no Worker holds is an unconfigured optional feature and does not block', async () => {
@@ -81,15 +109,15 @@ describe('the account decides the publication order', () => {
     expect(state).toEqual({ mcp: [names.edge, names.core], edge: names.edge, coreMigrationTag: 'vector-preference-v1' })
     // Core first keeps the stub while the old Edge binds its namespace, then Edge stops binding it and deletes its
     // own, and the second Core publication deletes Core's.
-    expect(order(releaseOrder(state))).toEqual(['browser', 'objects', 'core:keep-mcp', 'ai', 'edge:retire-mcp', 'core:retire-mcp'])
+    expect(order(releaseOrder(state))).toEqual(['browser', 'objects', 'vector', 'core:keep-mcp', 'ai', 'edge:retire-mcp', 'core:retire-mcp'])
     expect(calls.every(call => call.startsWith('GET '))).toBe(true)
   })
 
   test('later releases publish each Worker once, keeping the deletion tag Core already carries', async () => {
     const { api } = account({ coreTag: 'retire-mcp-v1' })
-    expect(order(releaseOrder(await readReleaseState(api, config)))).toEqual(['browser', 'objects', 'core:retire-mcp', 'ai', 'edge'])
+    expect(order(releaseOrder(await readReleaseState(api, config)))).toEqual(['browser', 'objects', 'vector', 'core:retire-mcp', 'ai', 'edge'])
     const fresh = account({ coreTag: 'vector-preference-v1' })
-    expect(order(releaseOrder(await readReleaseState(fresh.api, config)))).toEqual(['browser', 'objects', 'core', 'ai', 'edge'])
+    expect(order(releaseOrder(await readReleaseState(fresh.api, config)))).toEqual(['browser', 'objects', 'vector', 'core', 'ai', 'edge'])
   })
 
   test('a single-Worker release of Core keeps the stub while Edge still binds the namespace', async () => {

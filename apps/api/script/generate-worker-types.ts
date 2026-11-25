@@ -41,6 +41,7 @@ export function environmentTypes(source: string): string {
     ['DEEPSEEK_API_KEY', 'string'],
     ['DIAGNOSTICS', 'R2Bucket'],
     ['DIAGNOSTIC_DOWNLOAD_SECRET', 'string'],
+    ['VECTOR_SEARCH', 'Fetcher'],
     ['PUBLISHER_USER_IDS', 'string'],
     ['JINA_API_KEY', 'string'],
     ['VECTOR_REFRESH_SECRET', 'string'],

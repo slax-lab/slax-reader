@@ -1,6 +1,6 @@
 // String variables and secrets each Worker's code reads from env (bindings and generated values excluded).
 // test/script/workerTopology.test.ts re-derives these from the built bundles, so the lists cannot go stale.
-export const RUNTIME_KEYS: Record<'edge' | 'core' | 'ai' | 'objects', readonly string[]> = {
+export const RUNTIME_KEYS: Record<'edge' | 'core' | 'ai' | 'objects' | 'vector', readonly string[]> = {
   edge: [
     'EDGE_SHARED_SECRET',
     'FRONT_END_URL',
@@ -110,5 +110,6 @@ export const RUNTIME_KEYS: Record<'edge' | 'core' | 'ai' | 'objects', readonly s
     'WHITE_EMAILS',
     'ZYTE_API_KEY'
   ],
-  objects: ['FRONT_END_URL']
+  objects: ['FRONT_END_URL'],
+  vector: ['EDGE_SHARED_SECRET', 'JINA_API_KEY']
 }

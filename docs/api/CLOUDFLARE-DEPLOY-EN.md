@@ -7,7 +7,7 @@ Maintain one public template: `deploy/cloudflare/api.toml.example`. Run `pnpm ap
 3. Provision D1, KV, R2, queues, five 1024-dimensional cosine Vectorize indexes, PostgreSQL/Hyperdrive and PowerSync. `resources` is a local plan; `--apply` creates missing resources with your account/token and reports IDs. It does not provision Hyperdrive, databases or external services. Deploy or supply the template's external `fxembed` service (`SlaxTwitterFxembed`). Your account needs access to these products, including Browser Rendering.
 4. Keep logical binding names while customizing physical names. Queue roles use native producer bindings and the IMPORT_OTHER consumer dead_letter_queue relationship. Source configuration is never rewritten. Isolate queue and Workflow names between environments.
 5. Existing installations must preserve their Worker identities, resource IDs and DO migration tags/classes. Never replace production history with the example. Apply remote D1/fulltext and PostgreSQL/logs migrations separately after checking database targets; commands are listed in the development guide.
-6. For merged releases, maintain runtime values and credentials in `[vars]` of the private environment TOML. All five Workers receive those values during normal deployment; Edge/Core/AI share the same EDGE_SHARED_SECRET. Configure JWT, Hashids, payment, OAuth, model and PowerSync credentials as required by `apps/api/worker-configuration.d.ts`. Local development can continue using ignored `deploy/local/.dev.vars`. Real credentials must never enter the public template or source repository. Set provider callback URLs to your own origin.
+6. For merged releases, maintain runtime values and credentials in `[vars]` of the private environment TOML. All six Workers receive those values during normal deployment; Edge, Core, AI and Vector share the same EDGE_SHARED_SECRET. Configure JWT, Hashids, payment, OAuth, model and PowerSync credentials as required by `apps/api/worker-configuration.d.ts`. Local development can continue using ignored `deploy/local/.dev.vars`. Real credentials must never enter the public template or source repository. Set provider callback URLs to your own origin.
 
 ```bash
 pnpm api -- build
@@ -17,12 +17,12 @@ pnpm api -- resources --apply         # creates remote resources
 pnpm api -- deploy --bootstrap        # NEW installation only
 pnpm api -- deploy                    # subsequent updates
 pnpm api -- deploy edge               # update one existing Worker
-pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # before the first five-Worker release, see below
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # before a release that adds a Worker, see below
 ```
 
-`build` bundles all five Workers offline (minified) with temporary config and an empty env file, leaving active generated configs intact, and writes a `bundle-<worker>.meta.json` metafile per Worker. `deploy --dry-run` only generates `.generated/` files and never contacts Cloudflare. Do not maintain generated files manually.
+`build` bundles all six Workers offline (minified) with temporary config and an empty env file, leaving active generated configs intact, and writes a `bundle-<worker>.meta.json` metafile per Worker. `deploy --dry-run` only generates `.generated/` files and never contacts Cloudflare. Do not maintain generated files manually.
 
-For a new installation, bootstrap deploys Browser → Objects → AI → Edge with a Core stripped of service/Workflow bindings published before AI, then Core with complete bindings and Workflows. Normal releases publish Browser → Objects → Core → AI → Edge. Retry bootstrap after an interrupted first deployment. Existing installations use normal deploy; bootstrap is not a normal update procedure. Deployment, secrets, resource creation and remote migrations are real cloud operations requiring explicit authorization when performed by agents.
+For a new installation, bootstrap deploys Browser → Objects → Vector → AI → Edge with a Core stripped of service/Workflow bindings published before AI, then Core with complete bindings and Workflows. Normal releases publish Browser → Objects → Vector → Core → AI → Edge. Retry bootstrap after an interrupted first deployment. Existing installations use normal deploy; bootstrap is not a normal update procedure. Deployment, secrets, resource creation and remote migrations are real cloud operations requiring explicit authorization when performed by agents.
 
 ## Worker topology
 
@@ -32,16 +32,26 @@ For a new installation, bootstrap deploys Browser → Objects → AI → Edge wi
 | Core | `aws:ap-southeast-1` | Reader routes outside `AI_ROUTES`; the queue, cron and newsletter email handlers, run through the internal `jobs.internal` host; the six Workflows and `VectorPreferenceObject` |
 | AI | `aws:ap-southeast-1` | the routes listed in `apps/api/src/const/routes.ts` (`AI_ROUTES`: AIGC, overview/outline, search, recommendations, vector refresh) and the `AiEntry` vector RPC |
 | Objects | `aws:ap-southeast-1` | the `SlaxJieba`, `SlaxWebSocketServer` and `ScreenshotBrowser` Durable Objects; no HTTP |
+| Vector | `aws:us-east-1` | the semantic step of untagged `/v1/bookmark/search` (query embedding, one V5 article query with values, mean-centered scores), served on the internal `vector.internal/search` host to AI's `VECTOR_SEARCH` binding; binds only `VECTOR_V5_ARTICLE`, no route |
 | Browser | none | `SlaxBrowser` (unchanged) |
 
 `apps/api/script/deploy/config.ts` owns placement through `DATABASE_REGION`, the region nearest the primary PostgreSQL database. A `[placement]` table in the private configuration is rejected before any remote operation. Core and Edge keep their old `SlaxJieba`, `SlaxWebSocketServer` and `ScreenshotBrowser` namespaces behind stub classes that answer 410 (`apps/api/src/entry/retired.ts`), so that data is never deleted. The MCP Server was removed and its `SlaxMcpServer` namespaces are deleted with their stored sessions: the release adds `retire-mcp-v1` (`deleted_classes = ["SlaxMcpServer"]`) to Edge and Core while the account still has such a namespace (see below), so the private migration history needs no change. Objects declares its own migration tag `objects-v1`.
 
-## First five-Worker release (existing installations)
+Vector is named after Core (`reader-core` → `reader-vector`, `reader-core-beta` → `reader-vector-beta`, otherwise `<core>-vector`) unless `services.VECTOR_SEARCH.service` names it, and is placed by `VECTOR_REGION` (`aws:us-east-1`), beside the query encoder and the Vectorize index. AI calls it with a `fetch` over the service binding, not RPC, because placement applies only to `fetch` handlers; the request carries `EDGE_SHARED_SECRET`. Without the binding (isolated local runs) AI runs the same step itself. Before the first release that contains Vector, create it and give it its values once per account:
 
-Edge keeps the queue consumers, cron triggers and Email Routing target it already has, and forwards each event to Core with a `fetch` over the existing `CORE` service binding to the internal host `jobs.internal`, authenticated with `EDGE_SHARED_SECRET`. A fetch, unlike an RPC call, honors Core's placement, so the jobs run in Singapore beside the database; a service-binding fetch is billed like an RPC call (no extra request, only CPU time). So no trigger, consumer or email rule moves, and the first five-Worker release is an ordinary `deploy` (CI or `pnpm api -- deploy`). Before its first publication a remote release reads the account and:
+```bash
+pnpm api -- deploy vector
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # uploads JINA_API_KEY and EDGE_SHARED_SECRET to Vector
+```
+
+Only `deploy vector` may publish a Worker that does not exist yet without its values; every other release stops while Vector lacks either value and names that command.
+
+## First release after the Worker split (existing installations)
+
+Edge keeps the queue consumers, cron triggers and Email Routing target it already has, and forwards each event to Core with a `fetch` over the existing `CORE` service binding to the internal host `jobs.internal`, authenticated with `EDGE_SHARED_SECRET`. A fetch, unlike an RPC call, honors Core's placement, so the jobs run in Singapore beside the database; a service-binding fetch is billed like an RPC call (no extra request, only CPU time). So no trigger, consumer or email rule moves, and the first release after the split is an ordinary `deploy` (CI or `pnpm api -- deploy`). An installation that already runs the split and gains Vector first runs the two Vector commands above; its next full release then stops only if Vector still lacks a value. Before its first publication a remote release reads the account and:
 
 - stops while any Worker lacks a value its code reads (below), naming the Worker and key;
-- picks the order. While an `SlaxMcpServer` namespace remains it publishes Browser → Objects → Core (still exporting the MCP stub, since the old Edge binds Core's namespace) → AI → Edge (deleting Edge's namespace) → Core (deleting Core's). Wrangler moves the Workflows to Core on its first publication. Later releases find no namespace and publish Browser → Objects → Core → AI → Edge.
+- picks the order. While an `SlaxMcpServer` namespace remains it publishes Browser → Objects → Vector → Core (still exporting the MCP stub, since the old Edge binds Core's namespace) → AI → Edge (deleting Edge's namespace) → Core (deleting Core's). Wrangler moves the Workflows to Core on its first publication. Later releases find no namespace and publish Browser → Objects → Vector → Core → AI → Edge.
 
 Values move with the code. Deploys use `--keep-vars`, so a secret set with `wrangler secret put` stays only on the script that had it. `apps/api/script/deploy/runtimeKeys.ts` lists the string variables and secrets each Worker's code reads (a test re-derives it from the bundles). A release lists by name any key a Worker reads that another API Worker of the installation holds but neither that Worker nor the selected `[vars]` provides, and stops. Cloudflare never returns a secret's value, so it cannot be copied from the old Edge; supply the values in a file you hold (a password-manager export or the original `.env`, outside the repository or under the ignored `deploy/local/`) and run the commands below. The file is `.env`, JSON (`{"KEY": "value"}` or `[{"name": "KEY", "value": "value"}]`, `key` accepted too) or a `.toml` file of top-level `KEY = "value"` lines; numbers and booleans upload as strings, and other content starting with `{` or `[` is read as JSON. A file that cannot be read is reported by position, key names and value types, never by value:
 

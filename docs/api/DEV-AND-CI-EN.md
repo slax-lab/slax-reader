@@ -20,7 +20,7 @@ CI verifies that the configuration repository is private, resolves its default b
 
 Release files must use the declarative subset enforced by the CI loader:
 
-- The top-level `[vars]` table accepts strings, including runtime tokens, private keys, salts, webhook URLs and allowlists. Maintain their real values only in these private TOMLs; multiline strings use native TOML syntax. All five Workers receive the selected environment's runtime values through normal publication.
+- The top-level `[vars]` table accepts strings, including runtime tokens, private keys, salts, webhook URLs and allowlists. Maintain their real values only in these private TOMLs; multiline strings use native TOML syntax. All six Workers receive the selected environment's runtime values through normal publication.
 - Outside that `[vars]` table, keys named `localConnectionString`, `build`, `assets`, `site`, `define`, `unsafe` or `containers` are forbidden at any nesting depth.
 - Outside `[vars]`, keys matching `secret|password|private.?key|api.?key|auth.?key|token|credential|command` and strings containing `PRIVATE KEY-----`, `postgres://`, `postgresql://` or HTTP(S) URLs with user information (`https?://...@`) are forbidden. These matches are case-insensitive.
 - Non-empty top-level `env` and `dev` tables are forbidden. Each release file must supply the selected environment's settings at the top level.

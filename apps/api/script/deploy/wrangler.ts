@@ -3,7 +3,7 @@ import { loadApiEnv } from '../env'
 import { API_ROOT, CONFIG_PATH, LOCAL_STATE, TARGETS, checkRemote, readConfig, writeGenerated, type Target } from './config'
 
 const [target, ...args] = process.argv.slice(2)
-if (!TARGETS.includes(target as Target) || !args.length) throw new Error('Usage: pnpm api -- wrangler <core|edge|ai|browser> <wrangler arguments>')
+if (!TARGETS.includes(target as Target) || !args.length) throw new Error(`Usage: pnpm api -- wrangler <${TARGETS.join('|')}> <wrangler arguments>`)
 if (args.some(arg => arg === '--config' || arg === '-c' || arg.startsWith('--config=')))
   throw new Error('Select the API configuration with SLAX_API_CONFIG, not a generated Wrangler config')
 const local = args.includes('--local')

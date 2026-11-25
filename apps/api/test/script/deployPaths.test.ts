@@ -16,6 +16,7 @@ import {
   selectEnvironment,
   workerNames,
   DATABASE_REGION,
+  VECTOR_REGION,
   type ApiConfig,
   type McpPhase
 } from '../../script/deploy/config'
@@ -83,7 +84,7 @@ describe('single API configuration', () => {
       const role = { CORE: 'core', EDGE: 'edge', AIGC: 'ai', VECTOR: 'ai', SlaxBrowser: 'browser' }[String(row.binding)]
       if (role) row.service = `custom-${role}`
     }
-    ;(config.services as TomlTable[]).push({ binding: 'OBJECTS', service: 'custom-objects' })
+    ;(config.services as TomlTable[]).push({ binding: 'OBJECTS', service: 'custom-objects' }, { binding: 'VECTOR_SEARCH', service: 'custom-vector' })
     const original = structuredClone(config.migrations)
     const [core, edge, ai, objects, browser] = (['core', 'edge', 'ai', 'objects', 'browser'] as const).map(target => workerConfig(config, target))
     expect([core.name, edge.name, ai.name, objects.name, browser.name]).toEqual(['custom-core', 'custom-edge', 'custom-ai', 'custom-objects', 'custom-browser'])
@@ -137,6 +138,49 @@ describe('single API configuration', () => {
     expect((objects.d1_databases as TomlTable[]).map(row => row.binding)).toEqual(['DB'])
     expect((objects.hyperdrive as TomlTable[]).map(row => row.binding)).toEqual(['HYPERDRIVE'])
     expect((objects.r2_buckets as TomlTable[]).map(row => row.binding)).toEqual(['OSS'])
+    // AI reaches Vector through its default entrypoint so the fetch runs in Vector's placement region.
+    expect(ai.services).toContainEqual({ binding: 'VECTOR_SEARCH', service: 'custom-vector' })
+    for (const output of [core, edge, objects, browser]) expect(((output.services as TomlTable[] | undefined) ?? []).map(row => row.binding)).not.toContain('VECTOR_SEARCH')
+  })
+  test('Vector holds only the article index, has no route and is placed beside the encoder', () => {
+    const config = readConfig(template)
+    const vector = workerConfig(config, 'vector')
+    expect(vector.name).toBe('reader-vector')
+    expect(vector.vectorize).toEqual((config.vectorize as TomlTable[]).filter(row => row.binding === 'VECTOR_V5_ARTICLE'))
+    for (const key of [
+      'd1_databases',
+      'hyperdrive',
+      'kv_namespaces',
+      'r2_buckets',
+      'durable_objects',
+      'migrations',
+      'services',
+      'queues',
+      'workflows',
+      'ai',
+      'browser',
+      'pipelines',
+      'ratelimits'
+    ])
+      expect(vector[key], key).toBeUndefined()
+    expect(vector.triggers).toEqual({ crons: [] })
+    expect([vector.workers_dev, vector.routes, vector.preview_urls]).toEqual([false, [], false])
+    expect(vector.placement).toEqual({ region: VECTOR_REGION })
+    expect((vector.vars as TomlTable).DIAGNOSTIC_DOWNLOAD_SECRET).toBeUndefined()
+    const local = workerConfig(config, 'vector', true)
+    expect(local.placement).toBeUndefined()
+    for (const row of local.vectorize as TomlTable[]) expect(row.remote).toBe(true)
+  })
+  test('Vector identity is derived from Core and must be distinct', () => {
+    const config = readConfig(template)
+    expect(workerNames(config).vector).toBe('reader-vector')
+    expect(workerNames({ ...config, name: 'reader-core-beta' }).vector).toBe('reader-vector-beta')
+    expect(workerNames({ ...config, name: 'acme-api' }).vector).toBe('acme-api-vector')
+    const dir = directory(),
+      file = path.join(dir, 'api.toml')
+    ;(config.services as TomlTable[]).push({ binding: 'VECTOR_SEARCH', service: String(config.name) })
+    fs.writeFileSync(file, stringify(config))
+    expect(() => readConfig(file)).toThrow('services.VECTOR_SEARCH.service and name must be distinct')
   })
   test('Objects identity is derived from Core and must be distinct', () => {
     const config = readConfig(template)
@@ -153,10 +197,11 @@ describe('single API configuration', () => {
     const config = readConfig(template)
     for (const target of TARGETS) {
       const remote = workerConfig(config, target)
-      expect(remote.placement).toEqual(['core', 'ai', 'objects'].includes(target) ? { region: DATABASE_REGION } : undefined)
+      expect(remote.placement).toEqual(['core', 'ai', 'objects'].includes(target) ? { region: DATABASE_REGION } : target === 'vector' ? { region: VECTOR_REGION } : undefined)
       expect(workerConfig(config, target, true).placement).toBeUndefined()
     }
     expect(DATABASE_REGION).toBe('aws:ap-southeast-1')
+    expect(VECTOR_REGION).toBe('aws:us-east-1')
     const dir = directory(),
       file = path.join(dir, 'api.toml')
     for (const placed of [{ placement: { mode: 'smart' } }, { env: { prod: { placement: { region: 'aws:us-east-1' } } } }]) {

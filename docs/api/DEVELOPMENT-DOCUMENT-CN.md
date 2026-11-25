@@ -48,7 +48,7 @@ Prisma 自动读取 `deploy/local/.env` 中的 `HYPERDRIVE_DATABASE_URL` 和 `LO
 | Config generation only | `pnpm api -- deploy --dry-run` |
 | Dev with explicit isolated configs | `pnpm api -- dev:local --edge-config <file> --core-config <file> --ai-config <file> --objects-config <file> --state <dir> --env-file <empty-file>` |
 | Real HTTP / database integration | `pnpm api -- test:http` / `test:integration:local` |
-| Copy values each Worker reads before the first five-Worker release | `pnpm api -- secrets:sync --from <file> [--dry-run]` |
+| Copy values each Worker reads (once for each new Worker, such as Vector) | `pnpm api -- secrets:sync --from <file> [--dry-run]` |
 | Resource plan / create | `pnpm api -- resources` / `resources --apply` |
 | Wrangler command with actual config | `pnpm api -- wrangler edge <command> [args...]` |
 | Edge logs | `pnpm api -- tail` |

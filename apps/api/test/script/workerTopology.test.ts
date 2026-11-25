@@ -9,8 +9,8 @@ import { RUNTIME_KEYS } from '../../script/deploy/runtimeKeys'
 
 // Builds every Worker with the published configuration (minified, offline) and inspects which
 // modules reach each bundle, so a stray import fails here before it reaches a deploy.
-type Target = 'edge' | 'core' | 'ai' | 'objects' | 'browser'
-const TARGETS: Target[] = ['edge', 'core', 'ai', 'objects', 'browser']
+type Target = 'edge' | 'core' | 'ai' | 'objects' | 'vector' | 'browser'
+const TARGETS: Target[] = ['edge', 'core', 'ai', 'objects', 'vector', 'browser']
 const BIN = path.join(API_ROOT, 'node_modules/.bin')
 
 let directory: string
@@ -58,7 +58,9 @@ const CORE_ONLY =
 describe('each Worker bundles only its own code', () => {
   test('Edge carries no registry, database client, job, Durable Object or WebAssembly', () => {
     expect(assets.edge!.filter(name => name.endsWith('.wasm'))).toEqual([])
-    expect(matching('edge', /node_modules\/(@prisma|\.prisma|pg)\/|src\/di\/generated\/|src\/entry\/(core|ai|objects)\/|src\/handler\/(queue|cron)\/|Workflow\.ts$/)).toEqual([])
+    expect(
+      matching('edge', /node_modules\/(@prisma|\.prisma|pg)\/|src\/di\/generated\/|src\/entry\/(core|ai|objects|vector)\/|src\/handler\/(queue|cron)\/|Workflow\.ts$/)
+    ).toEqual([])
     expect(matching('edge', DO_IMPLEMENTATIONS)).toEqual([])
     expect(matching('edge', /src\/entry\/retired\.ts/)).toEqual(['src/entry/retired.ts'])
   })
@@ -83,6 +85,13 @@ describe('each Worker bundles only its own code', () => {
       'src/entry/core/vectorPreferenceObject.ts'
     ])
       expect(modules.core, owned).toContain(owned)
+  })
+
+  test('Vector carries only the semantic step: no registry, router, database client, Durable Object or WebAssembly', () => {
+    expect(assets.vector!.filter(name => name.endsWith('.wasm'))).toEqual([])
+    expect(matching('vector', /node_modules\/(@prisma|\.prisma|pg)\/|src\/di\/|src\/handler\/|src\/entry\/(core|ai|edge|objects)\/|Workflow\.ts$/)).toEqual([])
+    expect(matching('vector', DO_IMPLEMENTATIONS)).toEqual([])
+    for (const owned of ['src/entry/vector/index.ts', 'src/domain/semanticCandidates.ts', 'src/utils/embeddingMean.ts']) expect(modules.vector, owned).toContain(owned)
   })
 
   test('Objects carries its three classes and no registry, router or job handler', () => {
@@ -117,7 +126,7 @@ function envReads(target: Target): Set<string> {
 }
 
 describe('runtime values follow the code', () => {
-  test.each(['edge', 'core', 'ai', 'objects'] as const)('RUNTIME_KEYS.%s lists exactly the string values its bundle reads', target => {
+  test.each(['edge', 'core', 'ai', 'objects', 'vector'] as const)('RUNTIME_KEYS.%s lists exactly the string values its bundle reads', target => {
     const strings = [...envReads(target)].filter(name => STRING.test(declared.get(name)!) && name !== 'API_QUEUE_CHANNELS').sort()
     expect([...RUNTIME_KEYS[target]].sort(), 'update script/deploy/runtimeKeys.ts so the transition and release checks cover it').toEqual(strings)
   })

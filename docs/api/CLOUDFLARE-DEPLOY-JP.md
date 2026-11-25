@@ -7,7 +7,7 @@
 3. D1・KV・R2・キュー・五つの 1024 次元 cosine Vectorize・PostgreSQL/Hyperdrive・PowerSync を用意します。resources は計画のみ、--apply は自分の account/token で不足リソースを作り ID を表示します。Hyperdrive・DB・外部サービスは作成しません。外部 `fxembed`（SlaxTwitterFxembed）は別途用意します。Browser Rendering を含む各製品の権限が必要です。
 4. 論理 binding 名を維持し、物理名を設定します。キューは producer binding と IMPORT_OTHER の dead_letter_queue で関連付けます。元の設定ファイルは変更しません。環境ごとにキューと Workflow 名を分離してください。
 5. 既存環境では Worker 名・リソース ID・DO migration tags/classes・履歴を維持します。テンプレートで本番履歴を置換しないでください。リモート D1/fulltext と PostgreSQL/logs のマイグレーションは、開発ガイドのコマンドで対象を確認して別途実行します。
-6. 秘密は Worker secrets、本地では無視対象の `.dev.vars` を使います。Edge/Core/AI の EDGE_SHARED_SECRET は同一にします。JWT・Hashids・決済・OAuth・モデル・PowerSync の設定は Env 契約を参照してください。TOML に秘密を書かず、提供者の callback URL も独自 origin に設定します。
+6. 秘密は Worker secrets、本地では無視対象の `.dev.vars` を使います。Edge/Core/AI/Vector の EDGE_SHARED_SECRET は同一にします。JWT・Hashids・決済・OAuth・モデル・PowerSync の設定は Env 契約を参照してください。TOML に秘密を書かず、提供者の callback URL も独自 origin に設定します。
 
 ```bash
 pnpm api -- build
@@ -18,12 +18,12 @@ pnpm api -- deploy --bootstrap        # NEW installation only
 pnpm api -- deploy                    # subsequent updates
 pnpm api -- deploy edge               # update one existing Worker
 pnpm api -- wrangler edge secret put EDGE_SHARED_SECRET
-pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 最初の五 Worker リリース前に。下記参照
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # Worker を追加するリリースの前に。下記参照
 ```
 
-`build` は一時設定と空 env で五つの Worker をオフラインで minify バンドルし、現在の生成設定を上書きせず、Worker ごとに `bundle-<worker>.meta.json` を出力します。`deploy --dry-run` は `.generated/` の生成のみで、クラウドには接続しません。生成ファイルを手で管理しないでください。
+`build` は一時設定と空 env で六つの Worker をオフラインで minify バンドルし、現在の生成設定を上書きせず、Worker ごとに `bundle-<worker>.meta.json` を出力します。`deploy --dry-run` は `.generated/` の生成のみで、クラウドには接続しません。生成ファイルを手で管理しないでください。
 
-新規 bootstrap は Browser → Objects → AI → Edge の順で公開し、AI の前に service/Workflow binding を一時除外した Core を公開して、最後に完全な binding と Workflow を持つ Core を公開することで循環依存を解消します。通常リリースは Browser → Objects → Core → AI → Edge です。新規環境のみで使い、中断時は bootstrap を再実行します。既存環境は通常 deploy を使います。デプロイ・secret・リソース作成・リモート migration は実クラウド操作であり、エージェントが実行する場合は明示的な許可が必要です。
+新規 bootstrap は Browser → Objects → Vector → AI → Edge の順で公開し、AI の前に service/Workflow binding を一時除外した Core を公開して、最後に完全な binding と Workflow を持つ Core を公開することで循環依存を解消します。通常リリースは Browser → Objects → Vector → Core → AI → Edge です。新規環境のみで使い、中断時は bootstrap を再実行します。既存環境は通常 deploy を使います。デプロイ・secret・リソース作成・リモート migration は実クラウド操作であり、エージェントが実行する場合は明示的な許可が必要です。
 
 ## Worker 構成
 
@@ -33,16 +33,26 @@ pnpm api -- secrets:sync --from ~/slax-secrets/prod.env --dry-run   # 最初の�
 | Core | `aws:ap-southeast-1` | `AI_ROUTES` 以外の Reader ルート、内部ホスト `jobs.internal` 経由のキュー・cron・newsletter メール処理、六つの Workflow、`VectorPreferenceObject` |
 | AI | `aws:ap-southeast-1` | `apps/api/src/const/routes.ts` の `AI_ROUTES`（AIGC、概要/アウトライン、検索、推薦、ベクトル更新）と `AiEntry` ベクトル RPC |
 | Objects | `aws:ap-southeast-1` | `SlaxJieba`、`SlaxWebSocketServer`、`ScreenshotBrowser` の Durable Object（HTTP なし） |
+| Vector | `aws:us-east-1` | タグなし `/v1/bookmark/search` のセマンティック処理（クエリのベクトル化、値付きの V5 記事クエリ 1 回、プラットフォーム平均を除いたスコア）。内部ホスト `vector.internal/search` で AI の `VECTOR_SEARCH` binding に提供。`VECTOR_V5_ARTICLE` のみを bind し、ルートなし |
 | Browser | 指定なし | `SlaxBrowser`（変更なし） |
 
 placement は `apps/api/script/deploy/config.ts` の `DATABASE_REGION`（主 PostgreSQL に最も近いリージョン）が決めます。非公開設定の `[placement]` はリモート操作前に拒否されます。Core と Edge は既存の `SlaxJieba`・`SlaxWebSocketServer`・`ScreenshotBrowser` namespace を 410 を返すスタブクラス（`apps/api/src/entry/retired.ts`）で保持し、そのデータは削除しません。廃止した MCP Server の `SlaxMcpServer` namespace は保存済みセッションごと削除します。アカウントにこの namespace が残っている間、リリースは Edge と Core に `retire-mcp-v1`（`deleted_classes = ["SlaxMcpServer"]`）を加えます（下記参照）。非公開の migration 履歴を変更する必要はありません。Objects は独自の migration tag `objects-v1` を持ちます。
 
-## 最初の五 Worker リリース（既存環境）
+Vector の名前は Core から導出されます（`reader-core` → `reader-vector`、`reader-core-beta` → `reader-vector-beta`、それ以外は `<core>-vector`）。`services.VECTOR_SEARCH.service` で指定することもできます。配置は `VECTOR_REGION`（`aws:us-east-1`）で、クエリエンコーダーと Vectorize インデックスの近くです。placement は `fetch` ハンドラーにのみ適用されるため、AI は RPC ではなく service binding 経由の `fetch` で呼び出し、リクエストは `EDGE_SHARED_SECRET` を持ちます。binding がない場合（分離されたローカル実行）は AI が同じ処理を自分で実行します。Vector を含む最初のリリースの前に、アカウントごとに作成して値を設定します。
 
-Edge は既存のキュー consumer・cron・Email Routing の受信先をそのまま持ち、各イベントを既存の `CORE` service binding の `fetch` で内部ホスト `jobs.internal` にそのまま転送し、`EDGE_SHARED_SECRET` で認証します。RPC と違い fetch は Core の placement に従うため、ジョブはデータベースに近いシンガポールで実行されます。service binding の fetch は RPC と同じ課金です（追加リクエストなし、CPU 時間のみ）。トリガー・consumer・メールルールは一切移動しないため、最初の五 Worker リリースも通常の `deploy`（CI または `pnpm api -- deploy`）です。リモートリリースは最初の公開前にアカウントを読み、次を行います。
+```bash
+pnpm api -- deploy vector
+pnpm api -- secrets:sync --from ~/slax-secrets/prod.env   # Vector に JINA_API_KEY と EDGE_SHARED_SECRET をアップロード
+```
+
+値を持たずに公開できるのは、まだ存在しない Vector に対する `deploy vector` だけです。それ以外のリリースは、Vector にどちらかの値がない間は停止し、このコマンドを示します。
+
+## Worker 分割後の最初のリリース（既存環境）
+
+Edge は既存のキュー consumer・cron・Email Routing の受信先をそのまま持ち、各イベントを既存の `CORE` service binding の `fetch` で内部ホスト `jobs.internal` にそのまま転送し、`EDGE_SHARED_SECRET` で認証します。RPC と違い fetch は Core の placement に従うため、ジョブはデータベースに近いシンガポールで実行されます。service binding の fetch は RPC と同じ課金です（追加リクエストなし、CPU 時間のみ）。トリガー・consumer・メールルールは一切移動しないため、分割後の最初のリリースも通常の `deploy`（CI または `pnpm api -- deploy`）です。すでに分割済みで Vector を追加する環境は、先に上記の Vector の二つのコマンドを実行します。以降の通常リリースは、Vector に値がない場合にのみ停止します。リモートリリースは最初の公開前にアカウントを読み、次を行います。
 
 - コードが読む値をいずれかの Worker が持たない場合（下記）、Worker 名と key 名を示して停止します。
-- 公開順序を決めます。`SlaxMcpServer` namespace が残っている間は Browser → Objects → Core（旧 Edge が Core の namespace を束縛しているため MCP スタブを export したまま）→ AI → Edge（Edge の namespace を削除）→ Core（Core の namespace を削除）の順に公開します。Workflow は Core の最初の公開で Wrangler が Core に移します。以降のリリースは namespace が無いため Browser → Objects → Core → AI → Edge です。
+- 公開順序を決めます。`SlaxMcpServer` namespace が残っている間は Browser → Objects → Vector → Core（旧 Edge が Core の namespace を束縛しているため MCP スタブを export したまま）→ AI → Edge（Edge の namespace を削除）→ Core（Core の namespace を削除）の順に公開します。Workflow は Core の最初の公開で Wrangler が Core に移します。以降のリリースは namespace が無いため Browser → Objects → Vector → Core → AI → Edge です。
 
 値はコードと一緒に移す必要があります。デプロイは `--keep-vars` を使うため、`wrangler secret put` で設定した secret は元のスクリプトにのみ残ります。`apps/api/script/deploy/runtimeKeys.ts` は各 Worker のコードが読む文字列変数と secret を列挙します（テストがバンドルから再導出します）。リリースは、ある Worker が読み、同じ環境の別の API Worker が持つが、その Worker 自身と選択した `[vars]` のどちらにも無い key を名前で列挙して停止します。Cloudflare は secret の値を返さないため旧 Edge からコピーできません。値を保存したファイル（パスワードマネージャーのエクスポートや元の `.env`、リポジトリ外か無視対象の `deploy/local/`）を用意して実行します。ファイルは `.env`、JSON（`{"KEY": "value"}` または `[{"name": "KEY", "value": "value"}]`、`key` も可）、またはトップレベルの `KEY = "value"` 行からなる `.toml` で、数値と真偽値は文字列としてアップロードされ、その他の `{` か `[` で始まる内容は JSON として読みます。読めない場合は位置・key 名・値の型のみを報告し、値は出力しません。以下を実行します。
 
