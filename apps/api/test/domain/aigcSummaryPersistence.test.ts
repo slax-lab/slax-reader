@@ -99,6 +99,67 @@ describe('bookmarkSummary persists only a complete, non-empty generation', () =>
   })
 })
 
+describe('bookmarkSummary reports a client that leaves as a warning', () => {
+  const rayCtx = (ray?: string) => ({ get: vi.fn((key: string) => (key === 'rayId' ? ray : 'zh')), env: {} })
+  const linesFor = (spy: ReturnType<typeof vi.spyOn>, tag: string) => spy.mock.calls.filter(call => call[0] === tag)
+  const silence = () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    return { error, warn, restore: () => (error.mockRestore(), warn.mockRestore()) }
+  }
+
+  test('a cancelled stream logs one warning and no service errors', async () => {
+    const logs = silence()
+    const save = vi.fn()
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
+    await readable.cancel('client closed')
+
+    await serviceWith(streamDeltas(['# Title\n'])).bookmarkSummary(rayCtx('r1') as never, 'article', writable, save)
+
+    expect(save).not.toHaveBeenCalled()
+    expect(logs.error).not.toHaveBeenCalled()
+    expect(linesFor(logs.warn, '[aigc.summary] client closed the stream')).toEqual([['[aigc.summary] client closed the stream', { message: expect.any(String), ray: 'r1' }]])
+    logs.restore()
+  })
+
+  test('a close that fails after a complete stream is a warning', async () => {
+    const logs = silence()
+    const save = vi.fn().mockResolvedValue(undefined)
+    const writer = new WritableStream<Uint8Array>({
+      write() {},
+      close() {
+        throw new Error('close failed')
+      }
+    })
+
+    await serviceWith(streamDeltas(['# Title\n'])).bookmarkSummary(rayCtx() as never, 'article', writer, save)
+
+    expect(save).toHaveBeenCalled()
+    expect(logs.error).not.toHaveBeenCalled()
+    expect(linesFor(logs.warn, '[aigc.summary] failed to close stream')).toHaveLength(1)
+    logs.restore()
+  })
+
+  test('a failure frame that cannot be written is a warning and skips the close', async () => {
+    const logs = silence()
+    const closed = vi.fn()
+    const writer = new WritableStream<Uint8Array>({
+      write() {
+        throw new Error('client gone')
+      },
+      close: closed
+    })
+
+    await serviceWith(async () => Promise.reject(providerFailure())).bookmarkSummary(rayCtx() as never, 'article', writer, vi.fn())
+
+    expect(linesFor(logs.error, '[aigc.summary] summary generation failed')).toHaveLength(1)
+    expect(linesFor(logs.warn, '[aigc.summary] failed to write error text')).toHaveLength(1)
+    expect(linesFor(logs.warn, '[aigc.summary] failed to close stream')).toHaveLength(0)
+    expect(closed).not.toHaveBeenCalled()
+    logs.restore()
+  })
+})
+
 describe('generateOutline reports whether generation completed', () => {
   test('completed is false when the provider fails mid-stream', async () => {
     const chunks: unknown[] = []
