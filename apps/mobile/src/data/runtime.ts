@@ -265,7 +265,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
         return undefined;
       }
     },
-    telemetry: (event, properties, label) => baseErrorLog.telemetry(event, properties, label),
+    telemetry: (event, properties = {}, label) => baseErrorLog.telemetry(event, {online: network.getSnapshot() !== 'offline', foreground: activity.isForeground(), ...properties}, label),
     flush: hiding => baseErrorLog.flush(hiding)
   };
   const observationId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
@@ -274,7 +274,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   const sendSyncEvent = (event_name: 'powersync_phase' | 'powersync_connection_lost', properties: Record<string, string | number | boolean>, label: string) => {
     try {
       if (stopping || !accountLease || sessions.getSnapshot().status !== 'authenticated') return;
-      baseErrorLog.telemetry(event_name, {observation_id: observationId, ...properties}, label);
+      errorLog.telemetry(event_name, {observation_id: observationId, ...properties}, label);
     } catch {}
   };
   const emitPhase = (phase: 'token' | 'connect' | 'stream' | 'upload', outcome: 'success' | 'failure', properties: Record<string, string | number | boolean> = {}) => sendSyncEvent('powersync_phase', {phase, outcome, ...properties}, `${phase} ${outcome}`);

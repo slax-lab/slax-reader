@@ -105,6 +105,7 @@ test('a connected status resets the backoff and reports one connect success with
   await until(() => f.phases().some(item => item.phase === 'connect' && item.outcome === 'success'));
   const successes = f.phases().filter(item => item.phase === 'connect' && item.outcome === 'success');
   assert.equal(successes.length, 1); assert.equal(typeof successes[0].duration_ms, 'number');
+  assert.equal(successes[0].online, true); assert.equal(successes[0].foreground, true);
   context.mock.timers.tick(1000); f.database().streamFailure(); context.mock.timers.tick(4999); await setImmediate();
   assert.equal(connects(f), 3); context.mock.timers.tick(1); await until(() => connects(f) === 4);
   const failure = f.phases().find(item => item.phase === 'stream' && item.outcome === 'failure');

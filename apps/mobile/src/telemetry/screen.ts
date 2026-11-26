@@ -5,14 +5,14 @@ const ROUTE_ID_PARAM: Record<string, string> = {Reader: 'bookmarkId'}
 const PAGE_ID_PATTERN = /^[0-9A-Za-z_-]{1,64}$/
 
 /** `DeleteAccount` → `delete-account`, the path segment of the app's page address. */
-const routeSegment = (name: string) => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
+const routeSegment = (name: string) => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase().replace(/[^a-z-]/g, '')
 
 /**
  * The page address recorded with error and telemetry rows: `slaxreader://<route>`, plus the record id
  * for routes that show one record (`slaxreader://reader/<bookmarkId>`). No other parameter is kept.
  */
 export function pageAddress(name: string | undefined, params?: object): string | undefined {
-  if (!name || !/^[A-Za-z]{1,32}$/.test(name)) return undefined
+  if (!name || !/^[A-Za-z][A-Za-z0-9-]{0,31}$/.test(name)) return undefined
   const key = ROUTE_ID_PARAM[name]
   const id = key && params ? (params as Record<string, unknown>)[key] : undefined
   const base = `slaxreader://${routeSegment(name)}`

@@ -80,6 +80,7 @@ test('a Mobile record carries the slaxreader:// page address of the current rout
   assert.equal(pageAddress('DeleteAccount', undefined), 'slaxreader://delete-account');
   assert.equal(pageAddress('Reader', {bookmarkId: 'bad id/../x'}), 'slaxreader://reader');
   assert.equal(pageAddress(undefined), undefined);
+  assert.equal(pageAddress('Step2Review'), 'slaxreader://step-review');
   const page = {url: 'slaxreader://reader/b-12345'};
   const f = await setup('https://ingest.example', undefined, () => page.url); context.after(f.restore);
   f.log.capture('error', new Error('boom'));
