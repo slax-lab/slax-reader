@@ -9,7 +9,7 @@ import { getLocales } from 'expo-localization';
 import {File} from 'expo-file-system';
 import {createMobileDiagnostics} from './diagnostics/native';
 import {createMobileErrorLog} from './telemetry/errorLog';
-import {currentScreen} from './telemetry/screen';
+import {currentPageUrl, currentScreen} from './telemetry/screen';
 import {installNativeErrorHandlers, setActiveErrorLog} from './telemetry/native';
 import { createMobileDataRuntime, type MobileDataRuntime, type MobileRepositories, type PreferenceValues } from './data';
 import { createTranslator, normalizeLocale, type MobileLocale } from './i18n';
@@ -108,7 +108,7 @@ export function FixtureMobileProvider({value, children}: {value: MobileContextVa
 
 type AppIntentsRuntimePort = Pick<typeof import('expo-app-intents'), 'isAvailable' | 'useAppIntents' | 'removePendingInvocationAsync' | 'setEntityCatalogAsync' | 'deleteDonationsAsync' | 'donateIntentAsync'>;
 export function MobileProvider({children, appIntents}: {children: React.ReactNode; appIntents?: AppIntentsRuntimePort}) {
-  const [runtime] = useState(() => createMobileDataRuntime({baseUrl: mobileConfig.apiUrl, betaBaseUrl: mobileConfig.betaApiUrl, platform: mobileConfig.platform, version: `${mobileConfig.version} (${mobileConfig.buildNumber})`, diagnostics: createMobileDiagnostics(`${mobileConfig.version} (${mobileConfig.buildNumber})`), errorLog: ({preferences, sessions, api, generateIdentifier, preferencesReady}) => createMobileErrorLog({preferencesReady, endpoint: mobileConfig.clientErrorIngestUrl, platform: mobileConfig.platform, version: mobileConfig.version, buildNumber: mobileConfig.buildNumber, env: () => mobileConfig.development || __DEV__ ? 'development' : api.options.baseUrl === mobileConfig.betaApiUrl ? 'beta' : 'production', preferences, sessions, screen: currentScreen, generateIdentifier}), readerHosts: {protectedHosts: readerProtectedHosts(mobileConfig), imageProxyOrigins: readerImageProxyOrigins(mobileConfig)}}));
+  const [runtime] = useState(() => createMobileDataRuntime({baseUrl: mobileConfig.apiUrl, betaBaseUrl: mobileConfig.betaApiUrl, platform: mobileConfig.platform, version: `${mobileConfig.version} (${mobileConfig.buildNumber})`, diagnostics: createMobileDiagnostics(`${mobileConfig.version} (${mobileConfig.buildNumber})`), errorLog: ({preferences, sessions, api, generateIdentifier, preferencesReady}) => createMobileErrorLog({preferencesReady, endpoint: mobileConfig.clientErrorIngestUrl, platform: mobileConfig.platform, version: mobileConfig.version, buildNumber: mobileConfig.buildNumber, env: () => mobileConfig.development || __DEV__ ? 'development' : api.options.baseUrl === mobileConfig.betaApiUrl ? 'beta' : 'production', preferences, sessions, screen: currentScreen, pageUrl: currentPageUrl, generateIdentifier}), readerHosts: {protectedHosts: readerProtectedHosts(mobileConfig), imageProxyOrigins: readerImageProxyOrigins(mobileConfig)}}));
   // Handlers chain to React Native's own; installing them here keeps the root entry free of telemetry.
   useEffect(() => { setActiveErrorLog(runtime.errorLog); installNativeErrorHandlers(); }, [runtime]);
   useEffect(() => runtime.diagnostics?.start(), [runtime]);

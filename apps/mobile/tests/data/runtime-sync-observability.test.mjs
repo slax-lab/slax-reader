@@ -61,7 +61,7 @@ async function fixture({status = 500} = {}) {
     '@commons/frontend-utils/errorLog': frontendErrorLog,
   }, {Error});
   const runtime = createMobileDataRuntime({baseUrl: 'https://api.example', platform: 'ios', version: 'test', fetch, sleep: async () => {},
-    errorLog: () => ({capture: (kind, error, properties) => {captured.push({kind, message: error?.message, properties}); return `fp-${captured.length}`;}, flush: async hiding => {flushed.push(hiding);}})});
+    errorLog: () => ({capture: (kind, error, properties) => {captured.push({kind, message: error?.message, properties}); return `fp-${captured.length}`;}, telemetry: (event_name, properties, label) => {sent.push([{event_name, properties, label}]);}, flush: async hiding => {flushed.push(hiding);}})});
   const phases = () => sent.flat().filter(event => event.event_name === 'powersync_phase').map(event => event.properties);
   return {runtime, events, captured, sent, phases, flushed: () => flushed, changeSessionOnNextRequest: change => {onSessionChange = () => {onSessionChange = undefined; change();};}, database: () => databases.at(-1), network: value => networkListener(value)};
 }
@@ -105,10 +105,11 @@ test('a connected status resets the backoff and reports one connect success with
   await until(() => f.phases().some(item => item.phase === 'connect' && item.outcome === 'success'));
   const successes = f.phases().filter(item => item.phase === 'connect' && item.outcome === 'success');
   assert.equal(successes.length, 1); assert.equal(typeof successes[0].duration_ms, 'number');
+  assert.equal(successes[0].online, true); assert.equal(successes[0].foreground, true);
   context.mock.timers.tick(1000); f.database().streamFailure(); context.mock.timers.tick(4999); await setImmediate();
   assert.equal(connects(f), 3); context.mock.timers.tick(1); await until(() => connects(f) === 4);
   const failure = f.phases().find(item => item.phase === 'stream' && item.outcome === 'failure');
-  assert.match(failure.fingerprint, /^fp-/);
+  assert.match(failure.error_fingerprint, /^fp-/);
 });
 
 test('an SDK HTTP failure is recorded with its status but without the response body', async context => {

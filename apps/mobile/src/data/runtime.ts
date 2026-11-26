@@ -105,7 +105,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
           if (generation !== accountGeneration) return;
           connectionRequested = false; syncFailures += 1;
           const info = captureSyncFailure('app.connect', error, 'connect');
-          emitPhase(info.phase, 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
+          emitPhase(info.phase, 'failure', {...(info.fingerprint ? {error_fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
           noteSyncFailure(opened, generation);
         });
       }
@@ -113,7 +113,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       if (current() && readiness.getSnapshot().status === 'ready') {
         syncFailures += 1;
         const info = captureSyncFailure('app.credentials', error, 'token');
-        emitPhase('token', 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
+        emitPhase('token', 'failure', {...(info.fingerprint ? {error_fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
         noteSyncFailure(opened, generation);
       }
     }).finally(() => {if (connecting === attempt) connecting = undefined;});
@@ -265,21 +265,19 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
         return undefined;
       }
     },
+    telemetry: (event, properties = {}, label) => baseErrorLog.telemetry(event, {online: network.getSnapshot() !== 'offline', foreground: activity.isForeground(), ...properties}, label),
     flush: hiding => baseErrorLog.flush(hiding)
   };
   const observationId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
   // Observations belong to the signed-in account that produced them; a retired account sends nothing.
-  const sendSyncEvent = (event_name: 'powersync_phase' | 'powersync_connection_lost', properties: Record<string, string | number | boolean>) => {
+  // They go to the client error lake as `telemetry` rows, bound to the account when recorded.
+  const sendSyncEvent = (event_name: 'powersync_phase' | 'powersync_connection_lost', properties: Record<string, string | number | boolean>, label: string) => {
     try {
       if (stopping || !accountLease || sessions.getSnapshot().status !== 'authenticated') return;
-      const generation = accountGeneration;
-      void preferences.deviceId(() => bridge.newIdentifier()).then(deviceId => {
-        if (generation !== accountGeneration || stopping) return;
-        return api.sendClientEvents(deviceId, [{event_name, occurred_at: new Date().toISOString(), properties: {observation_id: observationId, ...properties}}]);
-      }).catch(() => undefined);
+      errorLog.telemetry(event_name, {observation_id: observationId, ...properties}, label);
     } catch {}
   };
-  const emitPhase = (phase: 'token' | 'connect' | 'stream' | 'upload', outcome: 'success' | 'failure', properties: Record<string, string | number | boolean> = {}) => sendSyncEvent('powersync_phase', {phase, outcome, ...properties});
+  const emitPhase = (phase: 'token' | 'connect' | 'stream' | 'upload', outcome: 'success' | 'failure', properties: Record<string, string | number | boolean> = {}) => sendSyncEvent('powersync_phase', {phase, outcome, ...properties}, `${phase} ${outcome}`);
   const captureSyncFailure = (source: string, error: unknown, phase: 'token' | 'connect' | 'stream' | 'upload', stage?: string, extra: Record<string, unknown> = {}) => {
     const phaseProperty = typeof error === 'object' && error !== null && (error as {phase?: unknown}).phase === 'token' ? 'token' : phase;
     const ray = typeof error === 'object' && error !== null && typeof (error as {ray?: unknown}).ray === 'string' ? (error as {ray: string}).ray : undefined;
@@ -326,7 +324,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
           const tokenFailure = typeof record.error === 'object' && record.error !== null && (record.error as {phase?: unknown}).phase === 'token';
           // A failure before any stream connected for this account cannot be a dropped stream.
           const info = captureSyncFailure('sdk.logger', tokenFailure ? record.error : captured, tokenFailure ? 'token' : everConnected ? 'stream' : 'connect');
-          emitPhase(info.phase, 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
+          emitPhase(info.phase, 'failure', {...(info.fingerprint ? {error_fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
           stopForStreamFailure();
         } catch {}
       }
@@ -345,7 +343,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     } catch (error) {
       const step = typeof error === 'object' && error !== null && (error as {step?: unknown}).step === 'acknowledge' ? 'acknowledge' : 'submit';
       const info = captureSyncFailure('connector.upload', error, 'upload', undefined, {step});
-      emitPhase('upload', 'failure', {step, ...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
+      emitPhase('upload', 'failure', {step, ...(info.fingerprint ? {error_fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
       throw error;
     }
   };
@@ -431,7 +429,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
               syncFailures = 0; clearSyncRetry();
             } else if (syncConnectedAt !== undefined && !status.connecting) {
               syncConnectedAt = undefined; downloadingSince = undefined;
-              if (connectionRequested && !stopping && network.getSnapshot() !== 'offline' && activity.isForeground()) sendSyncEvent('powersync_connection_lost', {reason: 'stream_lost'});
+              if (connectionRequested && !stopping && network.getSnapshot() !== 'offline' && activity.isForeground()) sendSyncEvent('powersync_connection_lost', {reason: 'stream_lost'}, 'stream_lost');
             }
           }});
         } catch {}
@@ -451,7 +449,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
       } catch (reason) {
         const error = reason instanceof Error ? reason : new Error('Application data initialization failed');
         const info = captureSyncFailure('app.init', error, 'connect', 'init');
-        emitPhase('connect', 'failure', {...(info.fingerprint ? {fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
+        emitPhase('connect', 'failure', {...(info.fingerprint ? {error_fingerprint: info.fingerprint} : {}), ...(info.ray ? {ray: info.ray} : {})});
         if (__DEV__) console.error('[mobile] data initialization failed', error);
         network.stop(); readiness.pause(); connector.pause();
         const previousBackground = revokeAccountScope(); await previousBackground?.close(); adminCache = null;

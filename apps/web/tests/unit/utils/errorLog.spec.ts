@@ -402,6 +402,56 @@ describe('frontend-utils error log collector', () => {
     expect(bodies.flatMap(body => JSON.parse(body) as unknown[])).toHaveLength(20)
     expect(chunkBodies([])).toEqual([])
   })
+
+  it('sends every telemetry observation as its own row with its numeric duration', async () => {
+    const { collector, sent } = make({ getContext: () => ({ userId: 7, deviceId: 'device-1' }) })
+    collector.telemetry('powersync_phase', { phase: 'connect', outcome: 'success', duration_ms: 120 }, 'connect success')
+    collector.telemetry('powersync_phase', { phase: 'connect', outcome: 'success', duration_ms: 340 }, 'connect success')
+    await vi.advanceTimersByTimeAsync(5000)
+    const rows = sent.flatMap(entry => entry.body)
+    expect(rows).toHaveLength(2)
+    expect(rows.map(row => row.properties?.duration_ms)).toEqual([120, 340])
+    expect(rows[0]).toMatchObject({ kind: 'telemetry', count: 1, message: 'powersync_phase connect success', user_id: '7', device_id: 'device-1', page_url: 'https://r.slax.com/b/abc', properties: { event: 'powersync_phase', phase: 'connect' } })
+    expect(rows[0].stack).toBeUndefined()
+    expect(rows[0].properties?.session_count).toBeUndefined()
+    expect(rows[0].fingerprint).toBe(rows[1].fingerprint)
+  })
+
+  it('sends telemetry with the next flush and never holds it behind error backoff', async () => {
+    const { collector, sent } = make()
+    collector.capture('powersync', new Error('HTTP 503'))
+    await collector.flush()
+    collector.capture('powersync', new Error('HTTP 503'))
+    collector.telemetry('powersync_phase', { phase: 'stream', outcome: 'failure' }, 'stream failure')
+    await collector.flush()
+    expect(sent[1].body.map(row => row.kind)).toEqual(['telemetry'])
+  })
+
+  it('drops telemetry with an unbounded event name or label and caps queued observations', async () => {
+    const { collector, sent } = make()
+    collector.telemetry('Bad Name', {})
+    collector.telemetry('powersync_phase', {}, 'free text: /s/secret?token=1')
+    for (let i = 0; i < 150; i++) collector.telemetry('powersync_phase', { i }, 'token success')
+    await collector.flush()
+    const rows = sent.flatMap(entry => entry.body)
+    expect(rows).toHaveLength(100)
+    expect(rows[0].properties?.i).toBe(50)
+  })
+
+  it('keeps a Mobile slaxreader:// page address and drops any other custom scheme', async () => {
+    const page = { url: 'slaxreader://reader/12345' }
+    const { collector, sent } = make({ app: 'ios', pageUrl: () => page.url })
+    collector.telemetry('powersync_phase', {}, 'token success')
+    page.url = 'slaxreader://reader/12345?token=x'
+    collector.telemetry('powersync_phase', {}, 'token success')
+    await collector.flush()
+    expect(sent[0].body.map(row => row.page_url)).toEqual(['slaxreader://reader/12345', undefined])
+  })
+
+  it('is a no-op for a disabled collector', () => {
+    const collector = createErrorCollector({ endpoint: '', app: 'web', release: '2.1.0', env: 'production' })
+    expect(() => collector.telemetry('powersync_phase', {})).not.toThrow()
+  })
 })
 
 describe('installGlobalErrorCapture', () => {
