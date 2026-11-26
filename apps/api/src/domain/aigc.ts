@@ -21,6 +21,7 @@ import { VertexAIClient, ToolDefinition, classifyProviderError } from '@/infra/e
 import { Content, Type } from '@google/genai'
 import { MultiLangError } from '@/utils/multiLangError'
 import { providerDiagnostic } from '@/utils/errorDiagnostic'
+import { ResponseStreamClosedError } from '@/utils/responseStream'
 import { AIError, ErrorParam, ErrorName } from '@/const/err'
 
 export type deltaType = {
@@ -514,7 +515,7 @@ export class AigcService {
               await wr.write(this.ted.encode(chunk))
             } catch (writeErr) {
               streamBroken = true
-              throw writeErr
+              throw new ResponseStreamClosedError(writeErr)
             }
             response += chunk
           },

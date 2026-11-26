@@ -8,6 +8,7 @@ Nothing fails on the service side: no user-visible output is lost, and the compl
 
 ## What Changes
 
+- A response write that fails is raised as `ResponseStreamClosedError`, and `VertexAIClient.chatStream` passes that error through untouched instead of logging `[aigc.vertex] chat stream failed` and wrapping it as a provider failure — the departure is not a provider fault.
 - `bookmarkSummary` records that the response stream rejected a write and then stops: it does not write the failure text to that stream, does not close it again, and reports the client departure once at warning level with the request's Ray ID.
 - A failed failure-text write and a failed terminal close are reported at warning level, because they also mean the response can no longer be delivered.
 - Everything else stays: a provider failure on a live stream still logs at error level with its diagnostic fields, still writes the failure text, and still closes the stream; an interrupted stream still stores nothing.

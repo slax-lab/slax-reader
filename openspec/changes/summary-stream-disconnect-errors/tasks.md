@@ -8,9 +8,10 @@ A separate design document is intentionally omitted: the change marks a rejected
 
 ## 2. Implementation
 
-- [x] 2.1 In `AigcService.bookmarkSummary`, mark the response stream broken when a delta write rejects, and on a broken stream stop generation, skip the failure-text write and the terminal close, and log the client departure once at warning level with the Ray ID.
-- [x] 2.2 Keep the error-level `summary generation failed` log, the failure text and the close for a live stream, and report a failed failure-text write or terminal close at warning level.
-- [x] 2.3 Cover the three paths in `apps/api/test/domain/aigcSummaryPersistence.test.ts`: a cancelled stream logs one warning and no errors and stores nothing, a failed close after a complete stream logs a warning and still stores, and a failure frame that cannot be written logs a warning and skips the close.
+- [x] 2.1 Raise a failed response write as `ResponseStreamClosedError`, and make `VertexAIClient.chatStream` pass that error through without its provider-failure log or `AIProviderError` wrapper.
+- [x] 2.2 In `AigcService.bookmarkSummary`, mark the response stream broken when a delta write rejects, and on a broken stream stop generation, skip the failure-text write and the terminal close, and log the client departure once at warning level with the Ray ID.
+- [x] 2.3 Keep the error-level `summary generation failed` log, the failure text and the close for a live stream, and report a failed failure-text write or terminal close at warning level.
+- [x] 2.4 Cover the paths in `apps/api/test/domain/aigcSummaryPersistence.test.ts`: a cancelled stream logs one warning and no errors and stores nothing, the same holds through the real `VertexAIClient.chatStream` over a fake SDK stream, a failed close after a complete stream logs a warning and still stores, and a failure frame that cannot be written logs a warning and skips the close. Cover the provider pass-through in `apps/api/test/infra/vertexAIClient.test.ts`.
 
 ## 3. Verification and delivery
 

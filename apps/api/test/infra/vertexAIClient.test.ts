@@ -1,14 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ApiError } from '@google/genai'
-import {
-  AIProviderError,
-  CHAT_FIRST_BYTE_TIMEOUT_MS,
-  classifyProviderError,
-  toProviderFailure,
-  VertexAIClient,
-  type AIProviderFailure
-} from '@/infra/external/vertexAIClient'
+import { AIProviderError, CHAT_FIRST_BYTE_TIMEOUT_MS, classifyProviderError, toProviderFailure, VertexAIClient, type AIProviderFailure } from '@/infra/external/vertexAIClient'
 import { ErrorName } from '@/const/err'
+import { ResponseStreamClosedError } from '@/utils/responseStream'
 
 /**
  * Provider failure detail and the first-byte budget.
@@ -141,6 +135,33 @@ describe('VertexAIClient.chatStream provider failures', () => {
       .catch(e => e)
 
     expect(classifyProviderError(error).name).toBe(ErrorName.AI_PROVIDER_AUTH)
+  })
+
+  test('a consumer whose response stream is closed is passed through, not reported as a provider failure', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const writeError = new Error('client closed')
+    const client = makeClient(async () =>
+      (async function* () {
+        yield { text: 'hello' }
+      })()
+    )
+
+    const thrown = await client
+      .chatStream(
+        contents,
+        { model: 'gemini-test' },
+        {
+          onTextDelta: async () => {
+            throw new ResponseStreamClosedError(writeError)
+          }
+        }
+      )
+      .catch(e => e)
+
+    expect(thrown).toBeInstanceOf(ResponseStreamClosedError)
+    expect((thrown as ResponseStreamClosedError).cause).toBe(writeError)
+    expect(logged).not.toHaveBeenCalled()
+    logged.mockRestore()
   })
 })
 

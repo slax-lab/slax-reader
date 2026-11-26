@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { AigcService } from '@/domain/aigc'
 import { BookmarkService } from '@/domain/bookmark'
 import { BookmarkAiOrchestrator } from '@/domain/orchestrator/bookmarkAi'
-import { AIProviderError } from '@/infra/external/vertexAIClient'
+import { AIProviderError, VertexAIClient } from '@/infra/external/vertexAIClient'
 import { setGlobalLanguage } from '@/utils/multiLangError'
 import { createMockCtx } from '@test/helpers/mockFactory'
 
@@ -40,6 +40,21 @@ const captureWriter = () => {
 }
 
 const serviceWith = (chatStream: DeltaStream) => new AigcService((() => ({ chatStream: vi.fn(chatStream) })) as never, (() => ({})) as never, {} as never, {} as never)
+
+/** The real provider client over a fake SDK stream, so its own failure handling runs. */
+const serviceWithSdkStream = (texts: string[]) => {
+  const client = new VertexAIClient({ VERTEX_API_KEY: 'test-key' } as never)
+  ;(client as unknown as { getAIClient: () => Promise<unknown> }).getAIClient = async () => ({
+    models: {
+      generateContentStream: vi.fn(async () =>
+        (async function* () {
+          for (const text of texts) yield { text }
+        })()
+      )
+    }
+  })
+  return new AigcService((() => client) as never, (() => ({})) as never, {} as never, {} as never)
+}
 
 const ctx = { get: vi.fn(() => 'zh'), env: {} }
 
@@ -102,11 +117,16 @@ describe('bookmarkSummary persists only a complete, non-empty generation', () =>
 describe('bookmarkSummary reports a client that leaves as a warning', () => {
   const rayCtx = (ray?: string) => ({ get: vi.fn((key: string) => (key === 'rayId' ? ray : 'zh')), env: {} })
   const linesFor = (spy: ReturnType<typeof vi.spyOn>, tag: string) => spy.mock.calls.filter(call => call[0] === tag)
+  let spies: ReturnType<typeof vi.spyOn>[] = []
   const silence = () => {
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    return { error, warn, restore: () => (error.mockRestore(), warn.mockRestore()) }
+    spies = [vi.spyOn(console, 'error').mockImplementation(() => {}), vi.spyOn(console, 'warn').mockImplementation(() => {})]
+    return { error: spies[0], warn: spies[1] }
   }
+
+  afterEach(() => {
+    for (const spy of spies) spy.mockRestore()
+    spies = []
+  })
 
   test('a cancelled stream logs one warning and no service errors', async () => {
     const logs = silence()
@@ -119,7 +139,21 @@ describe('bookmarkSummary reports a client that leaves as a warning', () => {
     expect(save).not.toHaveBeenCalled()
     expect(logs.error).not.toHaveBeenCalled()
     expect(linesFor(logs.warn, '[aigc.summary] client closed the stream')).toEqual([['[aigc.summary] client closed the stream', { message: expect.any(String), ray: 'r1' }]])
-    logs.restore()
+  })
+
+  test('a real provider stream to a cancelled client logs one warning and no errors', async () => {
+    const logs = silence()
+    const save = vi.fn()
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
+    await readable.cancel('client closed')
+
+    await serviceWithSdkStream(['# Title\n', '- point\n']).bookmarkSummary(rayCtx('r2') as never, 'article', writable, save)
+
+    expect(save).not.toHaveBeenCalled()
+    expect(logs.error).not.toHaveBeenCalled()
+    expect(linesFor(logs.warn, '[aigc.summary] client closed the stream')).toEqual([
+      ['[aigc.summary] client closed the stream', { message: 'The response stream is closed', ray: 'r2' }]
+    ])
   })
 
   test('a close that fails after a complete stream is a warning', async () => {
@@ -137,7 +171,6 @@ describe('bookmarkSummary reports a client that leaves as a warning', () => {
     expect(save).toHaveBeenCalled()
     expect(logs.error).not.toHaveBeenCalled()
     expect(linesFor(logs.warn, '[aigc.summary] failed to close stream')).toHaveLength(1)
-    logs.restore()
   })
 
   test('a failure frame that cannot be written is a warning and skips the close', async () => {
@@ -156,7 +189,6 @@ describe('bookmarkSummary reports a client that leaves as a warning', () => {
     expect(linesFor(logs.warn, '[aigc.summary] failed to write error text')).toHaveLength(1)
     expect(linesFor(logs.warn, '[aigc.summary] failed to close stream')).toHaveLength(0)
     expect(closed).not.toHaveBeenCalled()
-    logs.restore()
   })
 })
 

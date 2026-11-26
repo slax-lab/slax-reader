@@ -17,17 +17,18 @@ The requester asked in the on-call thread on 2026-11-26 to adopt this fix for th
   - a cancelled response stream (`readable.cancel('client closed')` before generation) now produces one warning `[aigc.summary] client closed the stream` with the Ray ID, no error logs, and no stored summary;
   - a response stream whose `close()` throws after a full generation stores the summary and reports one warning `[aigc.summary] failed to close stream` without error logs;
   - a generation failure whose failure text cannot be written keeps exactly one error log (`summary generation failed`), reports the failed write as a warning, and does not attempt the close.
+- The real `VertexAIClient.chatStream` over a fake SDK generator, with the response stream already cancelled: the provider no longer logs `[aigc.vertex] chat stream failed` and no longer wraps the failure in `AIProviderError`; the service reports one warning with the Ray ID and no error logs (`apps/api/test/infra/vertexAIClient.test.ts` covers the pass-through directly).
 - `POST /v1/aigc/summaries` end to end in the same file ("POST /v1/aigc/summaries recovers after a failed generation") still streamed the failure text on a live-stream provider failure, stored nothing, and served the next successful generation from the cache.
-- Negative control: with `apps/api/src/domain/aigc.ts` reverted to `origin/dev`, the three new tests fail (the cancelled stream and the failed close log at error level, and the failed failure-text write is logged at error level plus a close attempt); with this change they pass.
+- Negative control: with `apps/api/src` reverted to `origin/dev`, the four new summary tests fail (the cancelled stream, the real-provider cancellation and the failed close log at error level, and the failed failure-text write is logged at error level plus a close attempt) and the provider test file cannot load because the marker type does not exist; with this change they pass.
 
 ## Automated checks
 
-- `pnpm api -- test test/domain/aigcSummaryPersistence.test.ts`: 23 passed (3 new).
-- `pnpm api -- test` (with `SLAX_API_CONFIG`, `HYPERDRIVE_DATABASE_URL` and `LOGS_DATABASE_URL` unset): 289 files passed, 20 skipped; 4,586 tests passed, 169 skipped, 0 failed.
+- `pnpm api -- test test/domain/aigcSummaryPersistence.test.ts test/infra/vertexAIClient.test.ts`: 44 passed (24 in the summary file, 4 of them new; 20 in the provider file, 1 of them new).
+- `pnpm api -- test` (with `SLAX_API_CONFIG`, `HYPERDRIVE_DATABASE_URL` and `LOGS_DATABASE_URL` unset): 289 files passed, 20 skipped; 4,588 tests passed, 169 skipped, 0 failed.
 - `pnpm api -- test test/script/layerArchitecture.test.ts`: 45 passed; no baseline entry added.
 - `pnpm api -- typecheck`: passed.
 - `pnpm api -- lint`: 0 errors, 317 warnings (all pre-existing).
-- API Prettier check of both changed source and test files: passed.
+- Prettier check of every changed source and test file: passed.
 - `node_modules/.bin/openspec validate --all --strict`: 195 passed, 0 failed.
 - `git diff --check`: passed.
 
@@ -42,6 +43,6 @@ The requester asked in the on-call thread on 2026-11-26 to adopt this fix for th
 
 Completed the three `REVIEW.md` passes on this branch on 2026-11-26. No Important findings.
 
-- Bugs: the broken-stream flag is set only by a rejected write to this request's own writer, so a healthy stream keeps the existing error log, failure text and close; a broken stream skips exactly the two follow-ups that can only reject with the same cause, and `completed` stays false so nothing is stored; a complete generation whose close fails still stores and reports a warning. No other caller of `bookmarkSummary` exists, and the endpoint, frames and cache rule are unchanged.
+- Bugs: the broken-stream flag is set only by a rejected write to this request's own writer, so a healthy stream keeps the existing error log, failure text and close; a broken stream skips exactly the two follow-ups that can only reject with the same cause, and `completed` stays false so nothing is stored; a complete generation whose close fails still stores and reports a warning. The provider client rethrows the marker before `toProviderFailure`, so it cannot turn a departure into a provider diagnostic or an `AIProviderError`, and only the summary callback raises the marker, leaving the chat and outline callers unchanged. No other caller of `bookmarkSummary` exists, and the endpoint, frames and cache rule are unchanged.
 - Security: no new dependency, secret, network destination, log field or data write. The new warning carries the same bounded diagnostic fields as the existing error log, and the catch-all object passed to the close warning is an error object, not user content.
-- Compliance: the diff matches `openspec/changes/summary-stream-disconnect-errors`; the delta scenarios are covered by the new tests; the missing deployed-Worker exercise is declared above; the PR targets `dev` with `OpenSpec: summary-stream-disconnect-errors` and does not merge, deploy or apply anything.
+- Compliance: the diff matches `openspec/changes/summary-stream-disconnect-errors`; the delta scenarios are covered by the new tests; the missing deployed-Worker exercise is declared above; the PR targets `dev` with `OpenSpec: summary-stream-disconnect-errors` and does not merge, deploy or apply anything. The first review round's Important finding — the provider client still logged a departure at error level — is fixed by the marker pass-through and covered by a test that drives the real `chatStream`; its two nits were taken (the warning now carries the accurate closed-stream message, and the new spies are restored within each test).
