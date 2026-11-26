@@ -244,6 +244,7 @@ describe('PowerSync reconnect backoff', () => {
 
   describe('powersync_connection_lost', () => {
     const lost = () => state.events.mock.calls.filter(([event]) => (event as { event_name: string }).event_name === 'powersync_connection_lost').length
+    const connectSuccesses = () => state.events.mock.calls.filter(([event]) => { const e = event as { event_name: string; properties: { phase?: string; outcome?: string } }; return e.event_name === 'powersync_phase' && e.properties.phase === 'connect' && e.properties.outcome === 'success' }).length
     const disconnectedStatus = () => state.listeners.forEach(listener => listener.statusChanged?.({ connected: false, connecting: false, dataFlowStatus: {} }))
     const setHidden = (hidden: boolean) => Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') })
     afterEach(() => setHidden(false))
@@ -272,14 +273,25 @@ describe('PowerSync reconnect backoff', () => {
       expect(lost()).toBe(0)
     })
 
-    it('is not recorded when the browser goes offline or the page is hidden', async () => {
+    it('is recorded when the stream connects after connect() already resolved, and that stream drops', async () => {
+      await start()
+      connectedStatus()
+      disconnectedStatus()
+      expect(lost()).toBe(1)
+      expect(connectSuccesses()).toBe(1)
+    })
+
+    it('is not recorded when the browser goes offline', async () => {
       state.connect.mockImplementation(async () => connectedStatus())
       await start()
       setOnline(false)
       disconnectedStatus()
-      setOnline(true)
-      await vi.advanceTimersByTimeAsync(0)
-      connectedStatus()
+      expect(lost()).toBe(0)
+    })
+
+    it('is not recorded when the page is hidden', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
       setHidden(true)
       disconnectedStatus()
       expect(lost()).toBe(0)

@@ -590,7 +590,9 @@ export default defineNuxtPlugin({
         db.registerListener({
           statusChanged: status => {
             if (status.connected) {
-              if (!connected) {
+              // Keyed on the SDK status, not on `connected`: connect() can resolve before the stream is up
+              // (it then sets `connected` itself), and the stream that connects later is still a new one.
+              if (syncConnectedAt === undefined) {
                 syncConnectedAt = Date.now()
                 streamEstablished = true
                 emitPhase('connect', 'success', {
@@ -603,8 +605,8 @@ export default defineNuxtPlugin({
               syncFailureCount = 0
               clearReconnect()
             } else if (connected && !status.connecting) {
-              // Only a stream that was established and then dropped counts as lost; a failed connect, a stop
-              // for a counted failure, going offline and a hidden page are not losses.
+              // Only a stream the SDK reported connected and that then dropped counts as lost; a connect that
+              // never came up, a stop for a counted failure, going offline and a hidden page are not losses.
               const wasStreaming = syncConnectedAt !== undefined
               connected = false
               syncConnectedAt = undefined
