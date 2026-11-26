@@ -697,6 +697,7 @@ export default defineNuxtPlugin({
             return false
           }
           connected = false
+          syncConnectedAt = undefined
         }
         if (token && !currentUserId) return false
         if (currentUserId) localStorage.setItem(LAST_USER_KEY, currentUserId)

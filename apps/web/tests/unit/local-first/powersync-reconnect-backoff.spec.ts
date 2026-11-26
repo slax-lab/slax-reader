@@ -281,6 +281,30 @@ describe('PowerSync reconnect backoff', () => {
       expect(connectSuccesses()).toBe(1)
     })
 
+    it('is not recorded when the client stops the stream on logout', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      state.token = undefined
+      ;(state.afterEach.mock.calls.at(-1)![0] as () => void)()
+      await vi.advanceTimersByTimeAsync(0)
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
+
+    it('starts a new stream for the next account after an in-page account switch', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      state.connect.mockResolvedValue(undefined)
+      state.token = token('user-b')
+      ;(state.afterEach.mock.calls.at(-1)![0] as () => void)()
+      await vi.advanceTimersByTimeAsync(0)
+      // The next account's connect resolved without a stream; its drop is not a loss.
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+      connectedStatus()
+      expect(connectSuccesses()).toBe(2)
+    })
+
     it('is not recorded when the browser goes offline', async () => {
       state.connect.mockImplementation(async () => connectedStatus())
       await start()
