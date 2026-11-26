@@ -117,6 +117,7 @@ const ENV_PROFILES: Record<SlaxEnv, EnvProfile> = {
 }
 
 const profile = ENV_PROFILES[env] ?? ENV_PROFILES.development
+const embeddedAgreements = ['/en/terms', '/zh/terms', '/en/privacy', '/zh/privacy']
 
 // 站点根 URL（结构化/OG 用）
 const siteBaseUrl = `${(envConfig.PUBLIC_BASE_URL as string) || ''}`.replace(/\/$/, '')
@@ -398,6 +399,8 @@ export default defineNuxtConfig({
       failOnError: true
     },
     routeRules: {
+      // Embedded documents are static. Hydrating the global locale can replace an existing Web language cookie.
+      ...Object.fromEntries(embeddedAgreements.map(path => [path, { ssr: true, prerender: true, noScripts: true }])),
       '/.well-known/apple-app-site-association': {
         headers: { 'content-type': 'application/json' }
       },

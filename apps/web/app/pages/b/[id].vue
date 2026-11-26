@@ -32,6 +32,7 @@
         :key="`${detail.pdf?.document_id ?? 'title'}-${bodyKey}`"
         ref="bookmarkArticle"
         :detail="detail"
+        :invalid-title="invalidTitle"
         :marks="marks"
         :footer-via="footerVia"
         :footer-show-via="!isOwner"
@@ -1090,6 +1091,7 @@ const editTitleIcon: IconKey = 'snapshot.edit-title'
 const feedbackIcon: IconKey = 'snapshot.feedback'
 
 const menuLoading = ref(false)
+const invalidTitle = ref(false)
 
 // 标题与反馈均仅 owner 可见
 const moreMenuActions = computed<MoreMenuAction[]>(() => {
@@ -1111,9 +1113,12 @@ const editTitle = () => {
   const titleEl = document.querySelector('.bookmark-detail .article-title') as HTMLElement | null
   if (!titleEl) return
 
-  // 编辑基准：完整标题，alias 优先
-  // CSS 截断仅视觉，内容仍完整
-  const fullTitle = detail.value?.alias_title || detail.value?.title || ''
+  if (titleEl.isContentEditable) {
+    titleEl.focus()
+    return
+  }
+  const fullTitle = titleEl.title
+  invalidTitle.value = false
 
   titleEl.setAttribute('contenteditable', 'true')
   titleEl.focus()
@@ -1135,11 +1140,16 @@ const editTitle = () => {
   }
 
   const finish = async () => {
+    const newTitle = titleEl.textContent?.trim() || ''
+    if (!newTitle) {
+      invalidTitle.value = true
+      return
+    }
+    invalidTitle.value = false
     titleEl.removeAttribute('contenteditable')
     titleEl.removeEventListener('blur', finish)
     titleEl.removeEventListener('keydown', onKey)
-    const newTitle = titleEl.textContent?.trim() || ''
-    if (newTitle && newTitle !== fullTitle && bookmarkUid.value) {
+    if (newTitle !== fullTitle && bookmarkUid.value) {
       menuLoading.value = true
       try {
         if (localFirst.value && local.value) {

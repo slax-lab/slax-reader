@@ -88,7 +88,7 @@ export const showEditTagModal = (options: {
   }))
 }
 
-export const showLoginModal = (options: { redirect?: string; authAttribution?: LoginModalAttribution }) => {
+export const showLoginModal = (options: { redirect?: string; authAttribution?: LoginModalAttribution; onDismiss?: () => void }) => {
   const nuxtApp = useNuxtApp()
   return import('./LoginModal.vue').then(({ default: LoginModal }) => nuxtApp.runWithContext(() => {
     const app = modalBootloader({
@@ -97,6 +97,7 @@ export const showLoginModal = (options: { redirect?: string; authAttribution?: L
         redirect: options.redirect,
         authAttribution: options.authAttribution,
         onDismiss: () => {
+          options.onDismiss?.()
           app.unmount()
           app._container?.remove()
         }

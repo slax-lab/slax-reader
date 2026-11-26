@@ -1,4 +1,5 @@
 import { acquisitionUtmQuery } from '~/utils/acquisitionAttribution'
+import { localizedAgreementPath } from '~/utils/agreementRoutes'
 import { readStringCookie } from '~/utils/authCookie'
 import { isProviderLinkState } from '~/utils/providerLink'
 
@@ -43,6 +44,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
     '/x/ext-bridge'
   ]
   const isToAuthWhiteList =
+    localizedAgreementPath.test(to.path) ||
     /^\/[^/]+-reader\/?$/.test(to.path) || // [blogger]-reader 博主页
     authWhiteList.some(p => (p.endsWith('/') ? to.path.startsWith(p) : to.path === p || to.path.startsWith(`${p}/`)))
 

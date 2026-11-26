@@ -1,7 +1,10 @@
 <template>
   <!-- 顶栏内嵌搜索框：支持历史记录下拉、回车搜索、Esc 收起 -->
   <!-- click-outside 绑在容器上，避免 input focus 时被误判为外部点击导致历史闪烁 -->
-  <div class="topbar-search" :class="{ focused: isFocused }" ref="searchWrap" v-on-click-outside="onClickOutside">
+  <button ref="opener" class="compact-search-open" type="button" :aria-expanded="compactOpen" @click="openCompact">
+    {{ $t('common.operate.search') }}
+  </button>
+  <form class="topbar-search" :class="{ focused: isFocused, 'compact-open': compactOpen }" role="search" v-on-click-outside="onClickOutside" @submit.prevent="doSearch" @keydown.esc="dismissSearch">
     <!-- 搜索图标 -->
     <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="11" cy="11" r="8" />
@@ -11,12 +14,14 @@
     <!-- 搜索输入框 -->
     <input
       v-ime-guard
+      ref="input"
       class="search-input"
+      enterkeyhint="search"
+      :aria-label="$t('page.bookmarks_index.search_placeholder')"
       :placeholder="$t('page.bookmarks_index.search_placeholder')"
       v-model="keyword"
       @focus="onFocus"
-      @keydown.enter="doSearch"
-      @keydown.esc="closeSearch"
+      @keydown.enter.prevent="doSearch"
     />
 
     <!-- 清除按钮 -->
@@ -26,8 +31,11 @@
       </svg>
     </button>
 
+    <button class="compact-search-submit" type="submit">{{ $t('common.operate.search') }}</button>
+    <button class="compact-search-cancel" type="button" @click="dismissSearch">{{ $t('common.operate.cancel') }}</button>
+
     <!-- 历史记录下拉 -->
-    <Transition name="search-dropdown">
+    <Transition :key="historyKey" name="search-dropdown">
       <div class="search-history" v-if="showHistory">
         <div class="search-history-header">
           <span>{{ $t('page.bookmarks_index.search_history_title') }}</span>
@@ -46,7 +54,7 @@
         </div>
       </div>
     </Transition>
-  </div>
+  </form>
 </template>
 
 <script lang="ts" setup>
@@ -61,6 +69,27 @@ const emit = defineEmits<{
   search: [keyword: string]
 }>()
 
+const compactOpen = ref(false)
+const opener = ref<HTMLButtonElement>()
+const input = ref<HTMLInputElement>()
+const isCompact = useMediaQuery('(max-width: 860px)')
+watch(isCompact, compact => { if (!compact) compactOpen.value = false })
+
+const openCompact = async () => {
+  compactOpen.value = true
+  await nextTick()
+  input.value?.focus()
+}
+
+const dismissSearch = async () => {
+  closeSearch()
+  if (!compactOpen.value) return
+  compactOpen.value = false
+  clearKeyword()
+  await nextTick()
+  opener.value?.focus()
+}
+
 // 搜索关键词
 const keyword = ref('')
 // 输入框聚焦状态（控制边框高亮）
@@ -73,38 +102,57 @@ const historyList = ref<string[]>([])
 const HISTORY_KEY = 'slax-reader.search-history'
 const MAX_HISTORY = 5
 
-// 从 localStorage 读取历史记录
+const account = useAccountContext()
+const historyKey = computed(() => {
+  const { status, accountKey } = account.context.value
+  return status === 'ready' && accountKey ? `${HISTORY_KEY}:${accountKey}` : undefined
+})
+
 const loadHistory = () => {
-  if (!import.meta.client) return
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY)
-    historyList.value = raw ? JSON.parse(raw) : []
-  } catch {
-    historyList.value = []
-  }
-}
-
-// 写入历史记录（去重 + 最多 5 条）
-const saveHistory = (text: string) => {
-  if (!import.meta.client || !text.trim()) return
-  const list = historyList.value.filter(item => item !== text)
-  list.unshift(text)
-  historyList.value = list.slice(0, MAX_HISTORY)
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(historyList.value))
-}
-
-// 清空历史记录
-const clearHistory = () => {
   historyList.value = []
-  if (import.meta.client) {
-    localStorage.removeItem(HISTORY_KEY)
+  if (!import.meta.client || !historyKey.value) return
+  try {
+    const raw = localStorage.getItem(historyKey.value)
+    const terms: unknown = raw && JSON.parse(raw)
+    if (Array.isArray(terms)) historyList.value = terms.filter((term): term is string => typeof term === 'string').slice(0, MAX_HISTORY)
+  } catch {
+    // Malformed or unavailable storage leaves the current history empty.
   }
+}
+
+watch(historyKey, () => {
+  showHistory.value = false
+  loadHistory()
+}, { flush: 'sync' })
+
+const persistHistory = (key: string, terms: string[] = []) => {
+  try {
+    if (terms.length) localStorage.setItem(key, JSON.stringify(terms))
+    else localStorage.removeItem(key)
+  } catch {
+    // Browsing with storage disabled still allows submitting a search.
+  }
+}
+
+const saveHistory = (text: string) => {
+  account.sync()
+  if (!historyKey.value) return
+  const list = historyList.value.filter(item => item !== text)
+  historyList.value = [text, ...list].slice(0, MAX_HISTORY)
+  persistHistory(historyKey.value, historyList.value)
+}
+
+const clearHistory = () => {
+  account.sync()
+  historyList.value = []
+  if (historyKey.value) persistHistory(historyKey.value)
   showHistory.value = false
 }
 
 // 聚焦时：若无输入且有历史则展开下拉
 const onFocus = () => {
   isFocused.value = true
+  account.sync()
   loadHistory()
   if (!keyword.value && historyList.value.length > 0) {
     showHistory.value = true
@@ -153,11 +201,30 @@ watch(
 )
 
 onMounted(() => {
+  persistHistory(HISTORY_KEY)
   loadHistory()
 })
 </script>
 
 <style lang="scss" scoped>
+.compact-search-open, .compact-search-submit, .compact-search-cancel {
+  display: none;
+  font: inherit;
+  color: var(--slax-text);
+  background: var(--slax-surface-solid);
+  border: 1px solid var(--slax-border);
+  border-radius: var(--slax-radius-sm);
+  padding: 5px 9px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (max-width: 860px) {
+  .compact-search-open, .compact-search-submit, .compact-search-cancel { display: inline-block; }
+  .compact-search-open[aria-expanded="true"] { display: none; }
+  .compact-search-submit { background: var(--slax-accent); color: var(--slax-btn-text); }
+}
+
 .topbar-search {
   position: relative;
   display: flex;
@@ -182,9 +249,14 @@ onMounted(() => {
     box-shadow: 0 0 0 3px var(--slax-accent-bg);
   }
 
-  // ≤860px 隐藏搜索框
   @media (max-width: 860px) {
     display: none;
+
+    &.compact-open {
+      display: flex;
+      width: 100%;
+      box-sizing: border-box;
+    }
   }
 }
 

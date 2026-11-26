@@ -11,13 +11,16 @@
           @input="handleInput"
         >
         </textarea>
-        <button class="send-button" :class="{ disabled: !sendable }" @click="sendMessage"></button>
+        <button class="send-button" :disabled="!sendable" :class="{ disabled: !sendable }" @click="sendMessage"></button>
       </div>
+      <p v-if="commentTooLong" role="alert">{{ t('page.bookmarks_detail.comment_length_limit', { limit: MAX_COMMENT_LENGTH }) }}</p>
     </div>
   </Transition>
 </template>
 
 <script lang="ts" setup>
+import { MAX_COMMENT_LENGTH } from '~/utils/mark'
+
 import { vOnKeyStroke } from '@vueuse/components'
 
 const emits = defineEmits(['post'])
@@ -31,16 +34,17 @@ const props = defineProps({
   }
 })
 
-const t = (text: string) => {
-  return useNuxtApp().$i18n.t(text)
+const t = (text: string, values: Record<string, number> = {}) => {
+  return useNuxtApp().$i18n.t(text, values)
 }
 
 const isMac = /Mac/i.test(navigator.platform || navigator.userAgent)
 const textarea = ref<HTMLTextAreaElement>()
 const inputText = ref('')
+const commentTooLong = computed(() => inputText.value.trim().length > MAX_COMMENT_LENGTH)
 const textareaPlaceholder = props.placeholder ?? ref(t('component.article_selection.placeholder'))
 const sendable = computed(() => {
-  return inputText.value.trim().length > 0
+  return inputText.value.trim().length > 0 && !commentTooLong.value
 })
 
 watch(
@@ -73,7 +77,7 @@ onMounted(() => {
 })
 
 const onKeyDown = (e: KeyboardEvent) => {
-  if (e.key !== 'Enter') {
+  if (e.key !== 'Enter' || e.isComposing) {
     return
   }
 

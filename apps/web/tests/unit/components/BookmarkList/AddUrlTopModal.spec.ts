@@ -99,6 +99,25 @@ describe('AddUrlTopModal', () => {
     document.body.innerHTML = ''
   })
 
+  it.each([false, true])('restores the specific opener only while attached (detached=%s)', async detached => {
+    const opener = document.createElement('button')
+    const next = document.createElement('button')
+    document.body.append(opener, next)
+    const wrapper = mountWithApp(AddUrlTopModal, {
+      props: { show: true, opener },
+      attachTo: document.body,
+      global: { stubs: { transition: false } }
+    })
+    document.querySelector<HTMLInputElement>('.modal-input')!.focus()
+    if (detached) {
+      opener.remove()
+      next.focus()
+    }
+    await wrapper.setProps({ show: false })
+    await vi.waitFor(() => expect(document.querySelector('.modal-dialog')).toBeNull())
+    expect(document.activeElement).toBe(detached ? next : opener)
+  })
+
   it.each([
     { rss: true, pdf: true, modes: ['url', 'feed', 'file'] },
     { rss: true, pdf: false, modes: ['url', 'feed'] },

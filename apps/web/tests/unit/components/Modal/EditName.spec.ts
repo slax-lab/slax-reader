@@ -93,6 +93,13 @@ describe('Modal/EditName', () => {
     expect(mockPost).not.toHaveBeenCalled()
   })
 
+  it.each([undefined, ' ', ''])('closes without validating an unchanged missing or blank alias (%j)', async aliasName => {
+    const wrapper = mountWithApp(EditName, { props: { bookmarkId: 1, name: 'Original', aliasName } })
+    await wrapper.find('.bottom button').trigger('click')
+    expect(mockPost).not.toHaveBeenCalled()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
   it('save 按钮：editname !== aliasName → request.post + emit success', async () => {
     const wrapper = mountWithApp(EditName, { props: { bookmarkId: 1, name: 'X', aliasName: 'old' } })
     const textarea = wrapper.find('textarea')

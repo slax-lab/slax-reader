@@ -1,3 +1,5 @@
+export const MAX_COMMENT_LENGTH = 1500
+
 // content 可能是划线 JSON，提取纯文本
 export const markText = (raw?: string): string => {
   if (!raw) return ''

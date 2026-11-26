@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <Transition name="modal">
+    <Transition name="modal" @after-leave="restoreFocus">
       <div v-if="show" class="modal-backdrop" @click.self="closeModal">
         <div class="modal-dialog" :class="{ 'pdf-upload-enabled': pdfUploadEnabled }" role="dialog" aria-modal="true">
           <div class="modal-header">
@@ -93,8 +93,12 @@ import { bookmarkSaveGuardFor } from '~/composables/bookmark/useBookmarkSaveGuar
 import { useLabFeatures } from '~/composables/useLabFeatures'
 import { useUserStore } from '~/stores/user'
 
-const props = withDefaults(defineProps<{ initialMode?: 'url' | 'feed' | 'file'; submitFeed?: (url: string, name: string) => Promise<void> }>(), { initialMode: 'url' })
+const props = withDefaults(defineProps<{ opener?: HTMLElement; initialMode?: 'url' | 'feed' | 'file'; submitFeed?: (url: string, name: string) => Promise<void> }>(), { initialMode: 'url' })
 const show = defineModel('show')
+let navigatingAway = false
+const restoreFocus = () => {
+  if (!show.value && !navigatingAway && props.opener?.isConnected) props.opener.focus()
+}
 const mode = ref<'url' | 'feed' | 'file'>('url')
 const feedName = ref('')
 const feedError = ref('')
@@ -155,6 +159,7 @@ watch(
     pdfError.value = ''
     showError.value = false
     if (value) {
+      navigatingAway = false
       // 打开弹窗时拉一次开关列表，isBlocked 才有依据；拉不到就交给服务端置失败
       if (isClient && !labs.loaded.value) labs.fetch().catch(() => {})
       // 聚焦交由 v-autofocus 指令处理
@@ -207,6 +212,7 @@ const uploadPdf = async () => {
       errorInterceptors: err => { if (!labs.handleSaveError(err)) pdfError.value = t('pdf.upload_failed') }
     })
     if (!result?.bookmark_uid) throw new Error('PDF upload returned no bookmark')
+    navigatingAway = true
     show.value = false
     emits('addUrlSuccess', '')
     await navigateTo(`/b/${result.bookmark_uid}`)

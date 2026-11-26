@@ -1,6 +1,6 @@
 import { mountWithApp } from '../../setup/mount'
 import type { MarkCommentInfo, MarkItemInfo } from '@slax-reader/selection/types'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 const comment = (overrides: Partial<MarkCommentInfo> = {}): MarkCommentInfo => ({
   markUid: 'root-uid',
@@ -81,6 +81,28 @@ describe('Snapshot visitor reply permissions', () => {
 
     expect(wrapper.find('.comment-sub-reply-btn').exists()).toBe(false)
     expect(wrapper.find('.comment-sub-delete-btn').exists()).toBe(false)
+  })
+
+  it('retains an over-limit reply and accepts correction at the UTF-16 boundary', async () => {
+    const { default: Composer } = await import('~/components/Snapshot/SnapshotCommentComposer.vue')
+    const { useUserStore } = await import('~/stores/user')
+    const strokeSelection = vi.fn().mockResolvedValue('info-1')
+    const wrapper = mountWithApp(Composer, {
+      props: { allowAction: false, allowReply: true, articleSelection: { strokeSelection } as any, pendingSelection: null, pendingQuote: null, activeInfoId: 'info-1', infos: [info([comment()])], replyToUid: 'root-uid' }
+    })
+    useUserStore().user = { userId: 20 } as any
+    const field = wrapper.get('textarea')
+    const limit = '🌱'.repeat(750)
+    await field.setValue(limit + 'x')
+    await field.trigger('keydown.enter')
+    expect(strokeSelection).not.toHaveBeenCalled()
+    expect(field.element.value).toBe(limit + 'x')
+    expect(wrapper.get('[role=alert]').text()).toContain('1500')
+    expect(wrapper.get('.comment-composer-send').attributes('disabled')).toBeDefined()
+    await field.setValue(limit)
+    await wrapper.get('.comment-composer-send').trigger('click')
+    expect(strokeSelection).toHaveBeenCalledWith(expect.objectContaining({ comment: limit }))
+    wrapper.unmount()
   })
 
   it('hides the reply-only composer unless the reply target exists', async () => {

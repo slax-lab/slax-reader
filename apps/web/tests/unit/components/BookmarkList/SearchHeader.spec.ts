@@ -4,7 +4,6 @@
 // 依赖 request().post (auto-import) + pwaOpen (auto-import)
 // onMounted 调 search 一次（依赖 defaultSearchText 非空）
 // watch defaultSearchText / isSearching
-import { nextTick } from 'vue'
 
 import SearchHeader from '~~/app/components/BookmarkList/SearchHeader.vue'
 
@@ -125,14 +124,47 @@ describe('SearchHeader', () => {
       expect(events!.length).toBeGreaterThanOrEqual(2)
     })
 
-    it('搜索抛错 → console.error + isSearching 走完 → .search-empty 渲染', async () => {
-      mockPost.mockRejectedValueOnce(new Error('network'))
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      const wrapper = mountWithApp(SearchHeader, { props: { defaultSearchText: 'foo' } })
+    it('keeps the latest success when an older result arrives', async () => {
+      const slow = Promise.withResolvers<unknown[]>()
+      mockPost.mockReturnValueOnce(slow.promise)
+      const wrapper = mountWithApp(SearchHeader, { props: { defaultSearchText: 'Rust' } })
+      mockPost.mockResolvedValueOnce([{ bookmark_id: 2, highlight_title: 'JavaScript guide' }])
+      await wrapper.setProps({ defaultSearchText: 'JavaScript' })
       await flushPromises()
-      expect(consoleSpy).toHaveBeenCalled()
+      slow.resolve([{ bookmark_id: 1, highlight_title: 'Rust guide' }])
+      await flushPromises()
+      expect(wrapper.get('.search-result-title').text()).toBe('JavaScript guide')
+      expect(wrapper.get('.search-keyword').text()).toBe('JavaScript')
+    })
+
+    it('clears old rows and count on failure and retries the active query', async () => {
+      mockPost.mockResolvedValueOnce([{ bookmark_id: 1, highlight_title: 'Rust guide' }])
+      const wrapper = mountWithApp(SearchHeader, { props: { defaultSearchText: 'Rust' } })
+      await flushPromises()
+      mockPost.mockRejectedValueOnce(new Error('transport detail'))
+      await wrapper.setProps({ defaultSearchText: 'Images' })
+      await flushPromises()
+      expect(wrapper.find('.search-result-item').exists()).toBe(false)
+      expect(wrapper.find('.search-view-meta').exists()).toBe(false)
+      expect(wrapper.find('.search-empty').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('transport detail')
+      await wrapper.get('.search-error button').trigger('click')
+      await flushPromises()
+      expect(mockPost).toHaveBeenLastCalledWith(expect.objectContaining({ body: { keyword: 'Images' } }))
       expect(wrapper.find('.search-empty').exists()).toBe(true)
-      consoleSpy.mockRestore()
+    })
+
+    it('preserves an empty success after an old request rejects', async () => {
+      const slow = Promise.withResolvers<unknown[]>()
+      mockPost.mockReturnValueOnce(slow.promise)
+      const wrapper = mountWithApp(SearchHeader, { props: { defaultSearchText: 'Rust' } })
+      await wrapper.setProps({ defaultSearchText: 'Images' })
+      await flushPromises()
+      slow.reject(new Error('old failure'))
+      await flushPromises()
+      expect(wrapper.find('.search-empty').exists()).toBe(true)
+      expect(wrapper.find('.search-error').exists()).toBe(false)
+      expect(wrapper.find('.search-loading').exists()).toBe(false)
     })
   })
 })

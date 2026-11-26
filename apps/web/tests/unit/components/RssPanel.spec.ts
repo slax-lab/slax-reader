@@ -162,7 +162,12 @@ describe('RSS inside Inbox', () => {
     const buttons = wrapper.findAll('button').filter(button => button.text() === 'rss.add')
     expect(buttons).toHaveLength(2)
     for (const button of buttons) await button.trigger('click')
-    expect(wrapper.emitted('addFeed')).toEqual([[], []])
+    const events = wrapper.emitted<[MouseEvent]>('addFeed')
+    expect(events).toHaveLength(2)
+    buttons.forEach((button, index) => {
+      expect(events?.[index]?.[0]).toBeInstanceOf(MouseEvent)
+      expect(events?.[index]?.[0].target).toBe(button.element)
+    })
     expect(wrapper.find('dialog[open]').exists()).toBe(false)
     expect(rss.add).not.toHaveBeenCalled()
   })

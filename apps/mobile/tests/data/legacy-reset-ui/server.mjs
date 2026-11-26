@@ -28,7 +28,7 @@ const server = createServer(async (req, out) => {
     let body = ''; for await (const chunk of req) {body += chunk; assert(body.length < 1048576);}
     if (path === '/v1/user/login') {assert(JSON.parse(body).code === 'synthetic-provider-success');loginCount++; return json(out, {token, user_id: 'synthetic-user', is_new_user: false});}
     if (path === '/v1/user/refresh') return json(out, {token});
-    if (path === '/terms' || path === '/privacy') {out.setHeader('Content-Type', 'text/html');return out.end('<html><body><h1>Isolated simulator agreement</h1><p>Only synthetic acceptance data.</p></body></html>');}
+    if (/^\/(en|zh)\/(terms|privacy)$/.test(path)) {out.setHeader('Content-Type', 'text/html');return out.end('<html><body><h1>Isolated simulator agreement</h1><p>Only synthetic acceptance data.</p></body></html>');}
     if (path === '/fixture/summary') return json(out, {loginCount, contentCount, backend: await call('/fixture/server-receipts')});
     if (path === '/v1/sync/token' || path === '/v1/sync/changes') {assert(req.headers.authorization === `Bearer ${token}`);return json(out, await call(path, body ? JSON.parse(body) : undefined));}
     if (path === '/v1/user/labs') return json(out, {features: []});

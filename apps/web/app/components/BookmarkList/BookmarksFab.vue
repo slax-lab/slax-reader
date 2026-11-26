@@ -1,6 +1,6 @@
 <template>
   <!-- 浮动添加按钮：固定在右下角，宽屏时跟随内容区右边缘 -->
-  <button class="fab" type="button" data-analytics-element="bookmark_add_button" :title="$t('page.bookmarks_index.add_article')" @click="$emit('click')">
+  <button class="fab" type="button" data-analytics-element="bookmark_add_button" :title="$t('page.bookmarks_index.add_article')" @click="$emit('click', $event)">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
       <path d="M12 5v14M5 12h14" />
     </svg>
@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-defineEmits<{ click: [] }>()
+defineEmits<{ click: [event: MouseEvent] }>()
 </script>
 
 <style lang="scss" scoped>

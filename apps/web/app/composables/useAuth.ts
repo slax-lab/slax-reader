@@ -1,4 +1,6 @@
 import { configuredCookieName, persistSessionCookie, readStringCookie } from '~/utils/authCookie'
+import { clearPendingEmailLogins } from '~/utils/pendingEmailLogin'
+import { beginSignInLanguage, completeSignInLanguage } from '~/utils/signInLanguage'
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
@@ -6,17 +8,20 @@ import type { EmailCodeInput, EmailLinkInput } from '@slax-reader/contracts/emai
 import { type AcquisitionAuthAttribution, isAcquisitionAuthAttribution, isSnapshotAuthAttribution, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import type { PasskeyLoginRequest } from '@slax-reader/contracts/passkey'
 import { useCookies } from '@vueuse/integrations/useCookies'
+import { hasInterruptedUpload, interruptedUploadKey } from '~/local-first/interrupted-upload'
 import { useUserStore } from '~/stores/user'
 
 const cookies = useCookies()
 const { remove } = cookies
 
-const completeAuth = async (response: { token: string } | undefined, signal?: AbortSignal) => {
+const completeAuth = async (response: { token: string } | undefined, method: 'google' | 'apple' | 'email', cookieDomain: string, signal?: AbortSignal) => {
   signal?.throwIfAborted()
   if (!response?.token) throw new Error('login failed')
   const persisted = await persistSessionCookie(response.token, signal)
   signal?.throwIfAborted()
   if (!persisted) throw new Error('login failed')
+  completeSignInLanguage(method, response.token, cookieDomain)
+  clearPendingEmailLogins()
   return response.token
 }
 
@@ -40,6 +45,7 @@ const useAuth = {
       })
     }
 
+    beginSignInLanguage('google', useNuxtApp().$i18n.locale.value, $config.COOKIE_DOMAIN)
     location.href = url + '?' + new URLSearchParams(params)
   },
   async requestAppleAuth(options: { redirect: string; affCode: string; authAttribution?: WebAuthAttribution }) {
@@ -61,6 +67,7 @@ const useAuth = {
       })
     }
 
+    beginSignInLanguage('apple', useNuxtApp().$i18n.locale.value, $config.COOKIE_DOMAIN)
     location.href = url + '?' + new URLSearchParams(params)
   },
   async grantAuth(
@@ -90,7 +97,7 @@ const useAuth = {
       }
     })
 
-    return completeAuth(resp, options.signal)
+    return completeAuth(resp, platformType, $config.COOKIE_DOMAIN, options.signal)
   },
   async verifyEmailAuth(
     input: EmailCodeInput & { aff_code?: string; auth_attribution?: WebAuthAttribution },
@@ -107,30 +114,34 @@ const useAuth = {
     })
     options.signal?.throwIfAborted()
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
-    return completeAuth(response, options.signal)
+    return completeAuth(response, 'email', config.COOKIE_DOMAIN, options.signal)
   },
   async verifyEmailLinkAuth(input: EmailLinkInput, options: Pick<FetchOptions, 'signal' | 'errorInterceptors'> = {}): Promise<string> {
-    const cookieName = configuredCookieName(useRuntimeConfig().public.COOKIE_TOKEN_NAME)
+    const config = useRuntimeConfig().public
+    const cookieName = configuredCookieName(config.COOKIE_TOKEN_NAME)
     if (!cookieName) throw new Error('Missing valid COOKIE_TOKEN_NAME')
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
     const response = await request().post<{ token: string }>({ ...options, url: RESTMethodPath.LOGIN, body: { ...input, type: 'email_link' } })
     options.signal?.throwIfAborted()
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
-    return completeAuth(response, options.signal)
+    return completeAuth(response, 'email', config.COOKIE_DOMAIN, options.signal)
   },
   async verifyPasskeyAuth(
     input: PasskeyLoginRequest,
     options: Pick<FetchOptions, 'signal' | 'errorInterceptors'> = {}
   ): Promise<string> {
-    const cookieName = configuredCookieName(useRuntimeConfig().public.COOKIE_TOKEN_NAME)
+    const config = useRuntimeConfig().public
+    const cookieName = configuredCookieName(config.COOKIE_TOKEN_NAME)
     if (!cookieName) throw new Error('Missing valid COOKIE_TOKEN_NAME')
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
     const response = await request().post<{ token: string }>({ ...options, url: RESTMethodPath.LOGIN, body: input })
     options.signal?.throwIfAborted()
     if (readStringCookie(cookieName, cookies)) throw new Error('A session is already active')
-    return completeAuth(response, options.signal)
+    return completeAuth(response, 'email', config.COOKIE_DOMAIN, options.signal)
   },
-  async clearAuth(): Promise<void> {
+  async clearAuth(intent?: 'sign-out'): Promise<void> {
+    // Anonymous startup may have bypassed the database. Its next owner guard must still discard the queue.
+    if (intent === 'sign-out' && hasInterruptedUpload()) localStorage.setItem(interruptedUploadKey, 'discard')
     const $config = useRuntimeConfig().public
     const cookieName = configuredCookieName($config.COOKIE_TOKEN_NAME)
     const configuredDomain = (typeof $config.COOKIE_DOMAIN === 'string' ? $config.COOKIE_DOMAIN : '').replace(/^\.+/, '').toLowerCase()

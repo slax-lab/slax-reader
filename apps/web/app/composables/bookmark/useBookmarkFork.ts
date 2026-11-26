@@ -1,8 +1,8 @@
 import { computed, type MaybeRef, reactive, ref, toValue, watch } from 'vue'
 
-import { request } from '~/utils/request'
+import { startSnapshotSave, submitBookmarkFork } from '~/utils/bookmarkFork'
 
-import type { AddBookmarkResponse,BookmarkForkMetadata } from '@slax-reader/contracts'
+import type { AddBookmarkResponse, BookmarkForkMetadata } from '@slax-reader/contracts'
 import { showLoginModal } from '~/components/Modal'
 import Toast, { ToastType } from '~/components/Toast'
 import { useAccountContext } from '~/composables/useAccountContext'
@@ -25,7 +25,6 @@ export function useBookmarkFork(source?: MaybeRef<string>, status?: MaybeRef<Boo
   const error = ref('')
   const user = useUserStore()
   const account = useAccountContext()
-  const config = useRuntimeConfig().public
   const { t } = useI18n()
   const state = forkState(user)
   const key = computed(() => `${user.isLogin ? user.userInfo?.userId : 'anonymous'}:${source ? toValue(source) : lastSource.value}`)
@@ -52,7 +51,7 @@ export function useBookmarkFork(source?: MaybeRef<string>, status?: MaybeRef<Boo
     }
     if (!user.isLogin) {
       showLoginModal({
-        redirect: location.href,
+        ...startSnapshotSave(sourceUuid),
         authAttribution: {
           source_screen: 'detail',
           presentation: 'modal',
@@ -64,9 +63,7 @@ export function useBookmarkFork(source?: MaybeRef<string>, status?: MaybeRef<Boo
     }
     state.requests.add(key)
     try {
-      const result = await request().post<AddBookmarkResponse>({
-        url: '/v1/bookmark/add_url',
-        body: { target_url: new URL(`/b/${sourceUuid}`, String(config.PUBLIC_BASE_URL)).href, tags: [] },
+      const result = await submitBookmarkFork(sourceUuid, {
         errorInterceptors: failure => {
           if (account.context.value.generation !== generation || !user.isLogin || user.userInfo?.userId !== accountId || (source && toValue(source) !== sourceUuid)) return
           error.value = failure instanceof Error ? failure.message : t('bookmark_fork.failed')

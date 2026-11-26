@@ -1,4 +1,6 @@
 /// <reference lib="WebWorker" />
+import { readerPath } from '../offline/public-reader'
+import { readerNavigation } from './offline-reader'
 import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 import { clientsClaim } from 'workbox-core'
 import { ExpirationPlugin } from 'workbox-expiration'
@@ -13,6 +15,11 @@ clientsClaim()
 
 cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
+
+registerRoute(
+  ({ sameOrigin, request, url }) => sameOrigin && request.mode === 'navigate' && readerPath.test(url.pathname),
+  ({ request, url }) => readerNavigation(request, url.pathname)
+)
 
 const dwebAPIBaseUrl = process.env.__DWEB_API_BASE_URL__
 const requestCacheEnable = false

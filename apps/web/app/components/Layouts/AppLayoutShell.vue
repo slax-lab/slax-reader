@@ -36,7 +36,7 @@ const themeColorMap: Record<string, string> = {
 
 useHead({
   htmlAttrs: {
-    lang: locale.value
+    lang: locale
   },
   meta: [
     {

@@ -177,7 +177,7 @@ export function LoginScreen({onAuthenticated}: {onAuthenticated?(): void} = {}) 
           </Pressable>)}</View>
           <View style={[styles.divider, {marginTop: 8}]}/>
           {agreement && <WebView containerStyle={{flex: 0, height: Math.max(0, height * 0.8 - 24 - 40 - 9) * 0.7}} incognito={Boolean(fixtureOnly)}
-            source={fixtureOnly ? {html: fixtureDocument(fixtureOnly.agreementHtml?.[agreement] ?? '<html><head></head><body><p>Controlled agreement fixture. External content and provider accounts are disabled.</p></body></html>'), baseUrl: 'https://reader-fixture.test'} : {uri: `${config.webUrl}/${agreement}`}}
+            source={fixtureOnly ? {html: fixtureDocument(fixtureOnly.agreementHtml?.[agreement] ?? '<html><head></head><body><p>Controlled agreement fixture. External content and provider accounts are disabled.</p></body></html>'), baseUrl: 'https://reader-fixture.test'} : {uri: `${config.webUrl}/${locale}/${agreement}`}}
             onShouldStartLoadWithRequest={(request: {url: string}) => !fixtureOnly || request.url === 'about:blank' || request.url === 'https://reader-fixture.test/'}/>}
           <View style={styles.divider}/>
           <Pressable accessibilityRole="button" onPress={acceptAgreement} style={styles.agreeButton}><Text style={styles.agreeText}>{t('agreement_btn_agree')}</Text></Pressable>

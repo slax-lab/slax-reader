@@ -57,6 +57,7 @@ describe('global/LoginView', () => {
     sendSignal.mockReset().mockResolvedValue(undefined)
     startAuthentication.mockReset()
     localStorage.clear()
+    sessionStorage.clear()
     runtimeConfig.public.slaxEnv = 'development'
     get.mockResolvedValue({ enabled: false })
     post.mockResolvedValue({ request_id: 'attempt', expires_in: 300, resend_after: 60 })
@@ -64,6 +65,34 @@ describe('global/LoginView', () => {
     navigate.mockReset().mockResolvedValue(undefined)
     runtimeConfig.public.APPLE_OAUTH_CLIENT_ID = 'apple-client-id'
     runtimeConfig.public.TURNSTILE_SITE_KEY = 'turnstile-site-key'
+  })
+
+  it('restores the pending code step only for this continuation and forgets it on address change', async () => {
+    const mount = (redirect = '/saved') => mountWithApp(LoginView, { props: { redirect } })
+    const first = mount()
+    await first.get('.email-login-toggle').trigger('click')
+    await first.get('input[type=email]').setValue('reader@example.com')
+    await first.get('form').trigger('submit')
+    await flushPromises()
+    await first.get('[autocomplete="one-time-code"]').setValue('012345')
+    expect(JSON.stringify(sessionStorage)).not.toContain('012345')
+    const stored = Object.keys(sessionStorage).find(key => key.startsWith('slax:email-login:'))!
+    expect(JSON.parse(sessionStorage.getItem(stored)!)).toMatchObject({ request_id: 'attempt' })
+    first.unmount()
+    const different = mount('/other')
+    expect(different.find('form').exists()).toBe(false)
+    different.unmount()
+    const restored = mount()
+    await flushPromises()
+    expect(restored.get('form').text()).toContain('reader@example.com')
+    expect((restored.get('[autocomplete="one-time-code"]').element as HTMLInputElement).value).toBe('')
+    expect(restored.get('.email-code-actions button:last-child').attributes('disabled')).toBeDefined()
+    expect(post).toHaveBeenCalledOnce()
+    await restored.get('.email-code-actions button').trigger('click')
+    restored.unmount()
+    const cleared = mount()
+    expect(cleared.find('form').exists()).toBe(false)
+    cleared.unmount()
   })
 
   it('未配置 Apple OAuth 时隐藏 AppleLoginButton', () => {

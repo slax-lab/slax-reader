@@ -7,7 +7,6 @@
 import UserImportSection from '~~/app/components/UserImportSection.vue'
 
 import { RequestError } from '@commons/frontend-utils/request'
-
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 import { resetImportTasks } from '~~/app/composables/useImportTasks'
@@ -236,6 +235,23 @@ describe('UserImportSection', () => {
       })
     )
     document.body.removeChild(input)
+  })
+
+  it.each([['Pinboard', '.json, .html, .htm, .xml'], ['Omnivore', '.zip'], ['Pocket', '.zip']])('identifies the unsupported %s file and lists the accepted formats', async (name, formats) => {
+    const wrapper = mountSection()
+    const button = wrapper.findAllComponents({ name: 'NavigateStyleButton' }).find(button => button.props('title') === name)!
+    await button.trigger('click')
+    const input = document.querySelector<HTMLInputElement>('input[type=file]')!
+    Object.defineProperty(input, 'files', { value: [new File(['text'], 'notes.txt')] })
+    input.dispatchEvent(new Event('change'))
+    await flushPromises()
+
+    const message = wrapper.get('[role=alert]').text()
+    expect(message).toContain('notes.txt')
+    expect(message).toContain(name)
+    expect(message).toContain(formats)
+    expect(mockUploadFile).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it('previews a selected Readwise file without starting an import', async () => {

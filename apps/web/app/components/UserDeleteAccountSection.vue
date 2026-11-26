@@ -156,7 +156,7 @@ const performDelete = async () => {
       type: ToastType.Success
     })
 
-    await auth.clearAuth()
+    await auth.clearAuth('sign-out')
     secondAppear.value = false
     noticeAppear.value = false
     isLocked.value = false

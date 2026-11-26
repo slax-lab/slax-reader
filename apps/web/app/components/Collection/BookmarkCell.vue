@@ -3,7 +3,7 @@
   <NuxtLink class="collection-article-row" :to="target" target="_blank" rel="noopener noreferrer">
     <div class="article-content">
       <!-- 标题规则同 inbox 单元格 -->
-      <h3 class="article-title">{{ truncateTitle(bookmark.alias_title || bookmark.title, 48) || bookmark.target_url }}</h3>
+      <h3 class="article-title">{{ truncateTitle(bookmarkDisplayTitle(bookmark), 48) || bookmark.target_url }}</h3>
       <!-- 策展 snippet：头像+文本（对齐原型，无类型徽标） -->
       <blockquote v-if="snippet" class="article-owner-note" :class="`is-${snippet.type}`">
         <img v-if="ownerAvatar" class="article-owner-avatar" :src="ownerAvatar" alt="" loading="lazy" />
@@ -21,6 +21,8 @@
 </template>
 
 <script lang="ts" setup>
+import { bookmarkDisplayTitle } from '~/utils/string'
+
 import { formatDate } from '@commons/frontend-utils/date'
 import type { UserShareCollectListItem } from '@slax-reader/contracts/interface'
 

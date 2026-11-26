@@ -19,8 +19,8 @@ import { baseUser } from '~~/tests/fixtures/user'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const env = vi.hoisted(() => ({ apply: vi.fn(), router: null as any, states: new Map<string, any>(), token: 'test-session', post: vi.fn(), get: vi.fn(), localEnabled: false, localRead: vi.fn(), pinia: null as any, fetch: vi.fn(), user: null as any }))
-mockNuxtImport('useState', () => (key: string, init: () => unknown) => {
-  if (!env.states.has(key)) env.states.set(key, ref(init()))
+mockNuxtImport('useState', () => (key: string, init?: () => unknown) => {
+  if (!env.states.has(key)) env.states.set(key, ref(init?.()))
   return env.states.get(key)
 })
 mockNuxtImport('useI18n', () => () => ({ t: (key: string) => (key === 'promotion.resume' ? 'Claim KOC reward' : key) }))

@@ -7,7 +7,8 @@ export const IMPORT_STATUS_PROCESSING = 1
 
 export const importProgressPercent = (task: Pick<ImportProcessResp, 'current_count' | 'batch_count'>) => {
   if (!task.batch_count) return 0
-  return Math.min(100, Math.round((task.current_count / task.batch_count) * 100))
+  if (task.current_count >= task.batch_count) return 100
+  return Math.min(99, Math.round((task.current_count / task.batch_count) * 100))
 }
 
 // One list for the whole page: the settings section keeps it fresh, so the

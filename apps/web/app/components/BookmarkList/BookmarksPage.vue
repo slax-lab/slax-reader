@@ -18,10 +18,10 @@
       </Transition>
     </div>
 
-    <AddUrlTopModal v-model:show="isShowTopModal" :initial-mode="addInitialMode" :submit-feed="addFeed" @add-url-success="addUrlSuccess" />
+    <AddUrlTopModal v-model:show="isShowTopModal" :initial-mode="addInitialMode" :opener="addOpener" :submit-feed="addFeed" @add-url-success="addUrlSuccess" />
 
     <!-- FAB：浮动添加按钮 -->
-    <BookmarksFab v-show="!rssActive" @click="showAdd('url')" />
+    <BookmarksFab v-show="!rssActive" @click="showAdd('url', $event)" />
 
     <BookmarksLayout
       ref="bookmarksLayout"
@@ -114,7 +114,7 @@
         </div>
       </template>
       <template v-slot:content-list>
-        <FeedPanel v-if="rssVisited" ref="rssPanel" v-show="rssActive" :active="rssActive" :search="rssSearch" v-model:list-mode="listMode" @add-feed="showAdd('feed')" />
+        <FeedPanel v-if="rssVisited" ref="rssPanel" v-show="rssActive" :active="rssActive" :search="rssSearch" v-model:list-mode="listMode" @add-feed="showAdd('feed', $event)" />
         <div v-show="!rssActive">
           <!-- fork-only：星标视图顶部合集引导横幅 -->
           <ClientOnly>
@@ -243,7 +243,9 @@ const isSearching = ref(false)
 const isShowTopModal = ref(false)
 const addInitialMode = ref<'url' | 'feed'>('url')
 const rssPanel = ref<InstanceType<typeof FeedPanel>>()
-const showAdd = (mode: 'url' | 'feed') => {
+const addOpener = shallowRef<HTMLElement>()
+const showAdd = (mode: 'url' | 'feed', event: MouseEvent) => {
+  addOpener.value = event.currentTarget as HTMLElement
   addInitialMode.value = mode
   isShowTopModal.value = true
 }

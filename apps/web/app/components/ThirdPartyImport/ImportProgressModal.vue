@@ -121,6 +121,7 @@ const getStatusText = (item: ImportProcessResp) => {
 
   // 如果是处理中状态，显示百分比
   if (item.status === 1 && item.batch_count > 0) {
+    if (item.current_count >= item.batch_count) return t('page.user.import_status_finalizing')
     return t('page.user.import_status_processing_percent', { percentage: importProgressPercent(item) })
   }
 
