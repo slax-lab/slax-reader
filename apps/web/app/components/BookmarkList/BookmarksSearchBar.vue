@@ -1,38 +1,37 @@
 <template>
   <!-- 顶栏内嵌搜索框：支持历史记录下拉、回车搜索、Esc 收起 -->
   <!-- click-outside 绑在容器上，避免 input focus 时被误判为外部点击导致历史闪烁 -->
-  <button ref="opener" class="compact-search-open" type="button" :aria-expanded="compactOpen" @click="openCompact">
-    {{ $t('common.operate.search') }}
+  <button ref="opener" class="compact-search-open" type="button" :aria-label="$t('common.operate.search')" :aria-expanded="compactOpen" @click="openCompact">
+    <AppIcon name="empty.search" :size="22" />
   </button>
   <form class="topbar-search" :class="{ focused: isFocused, 'compact-open': compactOpen }" role="search" v-on-click-outside="onClickOutside" @submit.prevent="doSearch" @keydown.esc="dismissSearch">
-    <!-- 搜索图标 -->
-    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="11" cy="11" r="8" />
-      <path d="M21 21l-4.35-4.35" />
-    </svg>
-
-    <!-- 搜索输入框 -->
-    <input
-      v-ime-guard
-      ref="input"
-      class="search-input"
-      enterkeyhint="search"
-      :aria-label="$t('page.bookmarks_index.search_placeholder')"
-      :placeholder="$t('page.bookmarks_index.search_placeholder')"
-      v-model="keyword"
-      @focus="onFocus"
-      @keydown.enter.prevent="doSearch"
-    />
-
-    <!-- 清除按钮 -->
-    <button class="search-clear" v-show="keyword" @mousedown.prevent="clearKeyword" type="button">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M18 6L6 18M6 6l12 12" />
-      </svg>
+    <button class="compact-search-cancel" type="button" :aria-label="$t('common.operate.cancel')" @click="dismissSearch">
+      <AppIcon name="tags.back" :size="22" />
     </button>
 
+    <div class="search-field">
+      <svg class="search-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8" />
+        <path d="M21 21l-4.35-4.35" />
+      </svg>
+      <input
+        v-ime-guard
+        ref="input"
+        class="search-input"
+        enterkeyhint="search"
+        :aria-label="$t('page.bookmarks_index.search_placeholder')"
+        :placeholder="$t('page.bookmarks_index.search_placeholder')"
+        v-model="keyword"
+        @focus="onFocus"
+        @keydown.enter.prevent="doSearch"
+      />
+      <button class="search-clear" v-show="keyword" :aria-label="$t('page.bookmarks_index.search_history_clear')" @mousedown.prevent @click="clearKeyword(); input?.focus()" type="button">
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
     <button class="compact-search-submit" type="submit">{{ $t('common.operate.search') }}</button>
-    <button class="compact-search-cancel" type="button" @click="dismissSearch">{{ $t('common.operate.cancel') }}</button>
 
     <!-- 历史记录下拉 -->
     <Transition :key="historyKey" name="search-dropdown">
@@ -58,6 +57,8 @@
 </template>
 
 <script lang="ts" setup>
+import AppIcon from '~/components/AppIcon.vue'
+
 import { vOnClickOutside } from '@vueuse/components'
 
 // The page's current search text; when it changes (a ?q= handoff, or "back" out of a search) the box follows
@@ -207,22 +208,14 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.compact-search-open, .compact-search-submit, .compact-search-cancel {
+.compact-search-open,
+.compact-search-cancel,
+.compact-search-submit {
   display: none;
-  font: inherit;
-  color: var(--slax-text);
-  background: var(--slax-surface-solid);
-  border: 1px solid var(--slax-border);
-  border-radius: var(--slax-radius-sm);
-  padding: 5px 9px;
-  white-space: nowrap;
-  cursor: pointer;
 }
 
-@media (max-width: 860px) {
-  .compact-search-open, .compact-search-submit, .compact-search-cancel { display: inline-block; }
-  .compact-search-open[aria-expanded="true"] { display: none; }
-  .compact-search-submit { background: var(--slax-accent); color: var(--slax-btn-text); }
+.search-field {
+  display: contents;
 }
 
 .topbar-search {
@@ -251,12 +244,6 @@ onMounted(() => {
 
   @media (max-width: 860px) {
     display: none;
-
-    &.compact-open {
-      display: flex;
-      width: 100%;
-      box-sizing: border-box;
-    }
   }
 }
 
@@ -390,6 +377,98 @@ onMounted(() => {
   &:hover {
     background: var(--slax-accent-bg);
     color: var(--slax-text);
+  }
+}
+
+@media (max-width: 860px) {
+  .compact-search-open,
+  .compact-search-cancel,
+  .compact-search-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--slax-radius-sm);
+    background: transparent;
+    color: var(--slax-text-muted);
+    cursor: pointer;
+
+    &:hover,
+    &:active {
+      background: var(--slax-accent-bg);
+      color: var(--slax-text);
+    }
+  }
+
+  .compact-search-open[aria-expanded='true'] {
+    display: none;
+  }
+
+  .compact-search-submit {
+    padding-inline: 6px;
+    font: 500 var(--slax-fs-meta) var(--slax-font-sans);
+    color: var(--slax-accent);
+  }
+
+  .compact-search-open:focus-visible,
+  .topbar-search button:focus-visible {
+    outline: 2px solid var(--slax-accent);
+    outline-offset: -2px;
+  }
+
+  .topbar-search.compact-open {
+    display: flex;
+    width: 100%;
+    gap: 4px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
+    cursor: auto;
+  }
+
+  .search-field {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    box-sizing: border-box;
+    gap: 8px;
+    padding-inline: 10px 4px;
+    border: 1px solid var(--slax-border-strong);
+    border-radius: var(--slax-radius-sm);
+    background: var(--slax-surface-solid);
+
+    &:focus-within {
+      border-color: var(--slax-accent);
+    }
+  }
+
+  .search-input {
+    height: 100%;
+    font-size: var(--slax-fs-body);
+    caret-color: var(--slax-accent);
+  }
+
+  .search-input::placeholder,
+  .search-icon,
+  .search-clear {
+    color: var(--slax-text-muted);
+  }
+
+  .search-clear {
+    width: 32px;
+    height: 32px;
+  }
+
+  .search-history {
+    box-shadow: var(--slax-shadow-sm);
   }
 }
 

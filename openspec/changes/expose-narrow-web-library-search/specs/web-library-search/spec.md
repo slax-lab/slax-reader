@@ -18,3 +18,8 @@ The Web experience SHALL expose a labeled compact search action at the narrow br
 
 - **WHEN** the Web library is displayed in an App browser and the on-screen keyboard opens
 - **THEN** the query and submit or return action remain usable
+
+#### Scenario: Compact search toolbar
+
+- **WHEN** the compact library search opens
+- **THEN** the input has visible space above and below it and its field boundary is distinct from the dismissal and submit actions in light, dark and e-ink themes

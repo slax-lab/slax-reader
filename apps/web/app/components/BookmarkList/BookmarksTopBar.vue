@@ -119,6 +119,10 @@ onMounted(() => {
 
 @media (max-width: 860px) {
   .topbar-inner:has(.compact-open) {
+    box-sizing: border-box;
+    padding-inline: max(8px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-right));
+    padding-top: var(--library-search-top-inset, 0px);
+
     .topbar-left, .topbar-right > :not(.compact-open) { display: none; }
     .topbar-right { width: 100%; }
   }
