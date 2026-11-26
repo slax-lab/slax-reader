@@ -1,6 +1,5 @@
 import { type ShallowRef, shallowRef } from 'vue'
 
-import { eventLog } from '~/utils/analytics'
 import { clientErrorContext, recentHostTiming } from '~/utils/clientErrorContext'
 import { useClientErrorLog } from '~/utils/clientErrorLog'
 import { notifyExtensionBridgeAuthExpired, parseExtensionBridgeIds } from '~/utils/extensionBridge'
@@ -67,7 +66,7 @@ let hasObservableSession: () => boolean = () => false
 const emitPhase = (phase: 'token' | 'connect' | 'stream' | 'upload', outcome: 'success' | 'failure', properties: Record<string, unknown> = {}) => {
   try {
     if (!hasObservableSession()) return
-    eventLog({ event_name: 'powersync_phase', properties: { observation_id: OBSERVATION_ID, phase, outcome, ...properties } })
+    useClientErrorLog().telemetry('powersync_phase', { observation_id: OBSERVATION_ID, phase, outcome, ...properties }, `${phase} ${outcome}`)
   } catch {
     // Telemetry is best effort.
   }
@@ -168,7 +167,7 @@ const createPowerSyncLogger = (mode: PowerSyncWorkerMode): PowerSyncLogger => {
           // A failure before any stream was established in this session cannot be a dropped stream.
           const phase = syncConnectedAt === undefined && !streamEstablished ? 'connect' : 'stream'
           const capturedInfo = capturePowerSyncError('sdk.logger', captured, { worker_mode: mode, phase }, syncHost)
-          emitPhase(phase, 'failure', { ...(capturedInfo.fingerprint ? { fingerprint: capturedInfo.fingerprint } : {}), ...(capturedInfo.ray ? { ray: capturedInfo.ray } : {}) })
+          emitPhase(phase, 'failure', { ...(capturedInfo.fingerprint ? { error_fingerprint: capturedInfo.fingerprint } : {}), ...(capturedInfo.ray ? { ray: capturedInfo.ray } : {}) })
         }
         try {
           onStreamFailure?.()
@@ -289,7 +288,7 @@ export default defineNuxtPlugin({
     let bridgeUserId: string | null = null
     const getPowerSyncUserToken = () => (isBridgeFrame ? bridgeToken : getUserToken())
     const havePowerSyncUserToken = () => Boolean(getPowerSyncUserToken())
-    // The Extension bridge frame is outside sync telemetry, and eventLog would send without its session.
+    // The Extension bridge frame is outside sync telemetry; its identity comes from a bridged session, not the page cookie.
     hasObservableSession = () => !isBridgeFrame && havePowerSyncUserToken()
     const refreshPowerSyncUserToken = async () => {
       if (!isBridgeFrame) return getUserToken()
@@ -412,14 +411,14 @@ export default defineNuxtPlugin({
       onCredentials: (source, durationMs) => emitPhase('token', 'success', { credential_source: source, duration_ms: durationMs }),
       onCredentialsFailed: error => {
         const info = capturePowerSyncError('connector.credentials', error, { phase: 'token' }, apiHostname())
-        emitPhase('token', 'failure', { ...(info.fingerprint ? { fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
+        emitPhase('token', 'failure', { ...(info.fingerprint ? { error_fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
         claimTokenFailure()
       },
       onAcknowledged: (batchSize, durationMs) => emitPhase('upload', 'success', { step: 'acknowledge', batch_size: batchSize, duration_ms: durationMs }),
       onError: e => {
         const step = typeof e === 'object' && e !== null && (e as { step?: unknown }).step === 'acknowledge' ? 'acknowledge' : 'submit'
         const info = capturePowerSyncError('connector.upload', e, { phase: 'upload', step }, apiHostname())
-        emitPhase('upload', 'failure', { step, ...(info.fingerprint ? { fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
+        emitPhase('upload', 'failure', { step, ...(info.fingerprint ? { error_fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
         powerSyncConsole.error('[powersync] uploadData failed:', e)
       }
     })
@@ -567,7 +566,7 @@ export default defineNuxtPlugin({
           syncFailureCount += 1
           const phase = typeof e === 'object' && e !== null && (e as { phase?: unknown }).phase === 'token' ? 'token' : 'connect'
           const info = capturePowerSyncError('app.connect', e, { worker_mode: recovery.mode, phase }, syncHost ?? apiHostname())
-          emitPhase(phase, 'failure', { ...(info.fingerprint ? { fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
+          emitPhase(phase, 'failure', { ...(info.fingerprint ? { error_fingerprint: info.fingerprint } : {}), ...(info.ray ? { ray: info.ray } : {}) })
           powerSyncConsole.error('[powersync] connect failed:', e)
           scheduleReconnect()
         } finally {
@@ -608,7 +607,7 @@ export default defineNuxtPlugin({
               syncConnectedAt = undefined
               if (!intentionalStop) {
                 try {
-                  if (hasObservableSession()) eventLog({ event_name: 'powersync_connection_lost', properties: { observation_id: OBSERVATION_ID, reason: 'stream_lost' } })
+                  if (hasObservableSession()) useClientErrorLog().telemetry('powersync_connection_lost', { observation_id: OBSERVATION_ID, reason: 'stream_lost' }, 'stream_lost')
                 } catch {}
               }
             }

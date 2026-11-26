@@ -55,7 +55,8 @@ export function ApplicationRoutes() {
   useReaderPrewarm(session.status === 'authenticated' ? runtime : undefined);
   function reportRoutes() {
     const state = navigationRef.getRootState();
-    telemetryModule.setCurrentScreen?.(navigationRef.getCurrentRoute()?.name);
+    const currentRoute = navigationRef.getCurrentRoute();
+    telemetryModule.setCurrentScreen?.(currentRoute?.name, currentRoute?.params);
     if (!state) return;
     const active = new Set(state.routes.map(route => route.key));
     for (const key of reported.current) if (!active.has(key)) reported.current.delete(key);
