@@ -32,3 +32,7 @@ Sequence after scope-web-search-history; use the same search surface and history
 ## Demo approval
 
 On November 25, 2026, the change requester approved the interactive Web demo for compact search entry, submission and keyboard dismissal and authorized implementation as shown.
+
+## Compact styling follow-up
+
+On November 26, 2026, the requester asked for more space above the open input and alignment with the Web library design. Keep the approved compact search flow, with a centered paper-surface field, a quiet dismissal control and a distinct submit action.

@@ -28,12 +28,14 @@ describe('BookmarksSearchBar', () => {
     expect(w.emitted('search')?.[0]).toEqual(['vue'])
   })
 
-  it('emits an empty search from the clear button', async () => {
-    const w = mountWithApp(BookmarksSearchBar)
+  it('clears the keyword and returns focus to the input', async () => {
+    const w = mountWithApp(BookmarksSearchBar, { attachTo: document.body })
     await w.find('input.search-input').setValue('vue')
-    await w.find('.search-clear').trigger('mousedown')
+    await w.find('.search-clear').trigger('click')
     expect(w.emitted('search')?.[0]).toEqual([''])
     expect((w.find('input.search-input').element as HTMLInputElement).value).toBe('')
+    expect(document.activeElement).toBe(w.get('input').element)
+    w.unmount()
   })
 
   it('opens the same input, submits a keyword and restores focus when dismissed', async () => {

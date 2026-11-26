@@ -10,3 +10,9 @@
 - [x] 2.3 Exercise **Embedded view**. When the Web library is displayed in an App browser and the on-screen keyboard opens, verify that the query and submit or return action remain usable.
 - [x] 2.4 Add focused regression coverage for the branches above and run the affected suite. Record running-environment evidence in `validation.md`.
 - [x] 2.5 Obtain hands-on acceptance of the changed Web surface before opening the task PR. Run `openspec validate --all --strict` and the repository pre-push review.
+
+## 3. Compact styling follow-up
+
+- [x] 3.1 Center the input in the compact library toolbar and style the dismissal and submit controls separately from the field using Web theme tokens.
+- [x] 3.2 Verify the revised toolbar in the running library, including the narrow breakpoint and all three core themes.
+- [x] 3.3 Obtain hands-on acceptance of the revised presentation before opening a follow-up pull request.

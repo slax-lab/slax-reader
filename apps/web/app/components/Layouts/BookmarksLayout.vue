@@ -60,6 +60,14 @@ defineExpose({
 .bookmarks-layout {
   --style: w-full min-h-screen;
   position: relative;
+
+  @media (max-width: 860px) {
+    &:has(.compact-open) {
+      --library-search-top-inset: env(safe-area-inset-top, 0px);
+      --slax-header-h-mobile: calc(var(--slax-header-h-list) + var(--library-search-top-inset));
+      --slax-header-height: var(--slax-header-h-mobile);
+    }
+  }
 }
 
 // 移动端断点检测：小屏时 opacity-1，桌面端 opacity-0
