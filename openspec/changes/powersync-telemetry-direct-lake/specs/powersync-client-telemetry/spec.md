@@ -27,9 +27,12 @@ Authenticated Web and Mobile app sessions SHALL publish `powersync_phase` observ
 - **AND** a rejected submission leaves the mutations queued under the existing retry behavior
 
 #### Scenario: A connection is lost
-- **WHEN** an observed active connection becomes disconnected for an unknown reason
-- **THEN** a `powersync_connection_lost` observation carries the bounded reason when known
-- **AND** intentional suspension and known offline transitions are distinguishable from unexplained loss
+- **WHEN** a stream that reached a connected status becomes disconnected for an unknown reason
+- **THEN** one `powersync_connection_lost` observation carries the bounded reason when known
+
+#### Scenario: A disconnect is not a loss
+- **WHEN** a connection attempt ends without ever reaching a connected status, a stream failure is already recorded as a phase failure, the client is offline, the page or app is in the background, or the client stopped the stream itself
+- **THEN** no `powersync_connection_lost` observation is recorded
 
 #### Scenario: Several observations share a phase and outcome
 - **WHEN** two `connect success` observations with different durations are recorded in one session
