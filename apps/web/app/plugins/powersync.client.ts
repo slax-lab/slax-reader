@@ -689,6 +689,8 @@ export default defineNuxtPlugin({
         const lastUser = localStorage.getItem(LAST_USER_KEY)
         if (token && lastUser && lastUser !== currentUserId) {
           clearSyncCredsCache()
+          // The disconnect below is the client's own; the next connect() clears this flag.
+          intentionalStop = true
           try {
             await db.disconnectAndClear()
           } catch (e) {

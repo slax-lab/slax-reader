@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const state = vi.hoisted(() => ({
   connect: vi.fn(),
   disconnect: vi.fn(),
+  disconnectAndClear: vi.fn(),
   construct: vi.fn(),
   capture: vi.fn(),
   events: vi.fn(),
@@ -56,7 +57,7 @@ vi.mock('@powersync/web', () => ({
     init = vi.fn().mockResolvedValue(undefined)
     connect = state.connect
     disconnect = state.disconnect
-    disconnectAndClear = vi.fn().mockResolvedValue(undefined)
+    disconnectAndClear = state.disconnectAndClear
     close = vi.fn().mockResolvedValue(undefined)
     getCrudBatch = vi.fn().mockResolvedValue(null)
     onChangeWithCallback = () => () => {}
@@ -102,6 +103,7 @@ beforeEach(() => {
   state.token = token('user-a')
   state.connect.mockResolvedValue(undefined)
   state.disconnect.mockResolvedValue(undefined)
+  state.disconnectAndClear.mockReset().mockResolvedValue(undefined)
   failures = 0
   vi.stubGlobal('SharedWorker', undefined)
   Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true })
@@ -288,6 +290,16 @@ describe('PowerSync reconnect backoff', () => {
       ;(state.afterEach.mock.calls.at(-1)![0] as () => void)()
       await vi.advanceTimersByTimeAsync(0)
       disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
+
+    it('is not recorded for the disconnect an in-page account switch makes', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      state.disconnectAndClear.mockImplementationOnce(async () => disconnectedStatus())
+      state.token = token('user-b')
+      ;(state.afterEach.mock.calls.at(-1)![0] as () => void)()
+      await vi.advanceTimersByTimeAsync(0)
       expect(lost()).toBe(0)
     })
 
