@@ -5,7 +5,7 @@ import { useUserStore } from '~/stores/user'
 
 let collector: ErrorCollector | undefined
 
-const disabledCollector: ErrorCollector = { enabled: false, capture: () => undefined, flush: async () => {} }
+const disabledCollector: ErrorCollector = { enabled: false, capture: () => undefined, telemetry: () => undefined, flush: async () => {} }
 
 // Reads one cookie straight from `document.cookie`. The shared helpers use `useCookies()`, which
 // registers a change listener (a `cookieStore` handler or a 300 ms poll) that is released only with a

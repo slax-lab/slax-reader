@@ -12,6 +12,8 @@ export interface MobileErrorLogOptions {
   preferences: PreferenceStore;
   sessions: SessionController;
   screen(): string | undefined;
+  /** The current page as `slaxreader://<route>[/<id>]`, without query or other parameters. */
+  pageUrl?(): string | undefined;
   generateIdentifier(): string;
   /** Resolves once legacy preferences are migrated; the device id is read only after it, so an upgrade keeps its id. */
   preferencesReady: Promise<unknown>;
@@ -35,7 +37,7 @@ export function createMobileErrorLog(options: MobileErrorLogOptions): MobileErro
           app: options.platform,
           release: `${options.version}+${options.buildNumber}`,
           env,
-          pageUrl: () => undefined,
+          pageUrl: () => options.pageUrl?.(),
           getContext: () => {
             const session = options.sessions.getSnapshot();
             return {
@@ -59,6 +61,12 @@ export function createMobileErrorLog(options: MobileErrorLogOptions): MobileErro
       } catch {
         return undefined;
       }
+    },
+    telemetry(event, properties = {}, label) {
+      try {
+        const screen = options.screen();
+        collector().telemetry(event, {...(screen ? {screen} : {}), ...properties}, label);
+      } catch {}
     },
     async flush(hiding = false) {
       try {

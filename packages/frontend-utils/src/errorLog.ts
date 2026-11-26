@@ -1,6 +1,8 @@
 export type ClientErrorApp = 'web' | 'ios' | 'android'
 export type ClientErrorEnv = 'development' | 'preview' | 'beta' | 'production'
 export type ClientErrorKind = 'error' | 'unhandledrejection' | 'vue' | 'resource' | 'powersync' | 'render' | 'network'
+/** A timing or outcome observation shares the error table under this kind but is never an error. */
+export type ClientRecordKind = ClientErrorKind | 'telemetry'
 
 export interface ClientErrorContext {
   userId?: string | number | null
@@ -12,7 +14,7 @@ export interface ClientErrorRecord {
   app: ClientErrorApp
   release: string
   env: ClientErrorEnv
-  kind: ClientErrorKind
+  kind: ClientRecordKind
   fingerprint: string
   count: number
   error_name?: string
@@ -46,6 +48,12 @@ export interface ErrorCollector {
   readonly enabled: boolean
   /** Records one occurrence. Each failure must reach capture from exactly one source. */
   capture(kind: ClientErrorKind, error: unknown, properties?: Record<string, unknown>): string | undefined
+  /**
+   * Records one observation as its own `kind: 'telemetry'` row, never merged, counted, or backed off,
+   * so every duration is kept. `event` is a fixed name such as `powersync_phase`; `label` holds bounded
+   * grouping words (for example `connect success`) that join the message and the fingerprint.
+   */
+  telemetry(event: string, properties?: Record<string, unknown>, label?: string): void
   flush(hiding?: boolean): Promise<void>
 }
 
@@ -57,6 +65,12 @@ const MAX_PROPERTIES_BYTES = 8 * 1024
 const MAX_PAGE_URL_BYTES = 2 * 1024
 const MAX_FINGERPRINTS_PER_SESSION = 200
 const MAX_QUEUED_PER_FLUSH = 20
+const MAX_OBSERVATIONS_QUEUED = 100
+const MAX_OBSERVATIONS_PER_SESSION = 1000
+const TELEMETRY_EVENT_PATTERN = /^[a-z][a-z0-9_]{0,63}$/
+const TELEMETRY_LABEL_PATTERN = /^[a-z0-9_ -]{1,64}$/
+// The Mobile app's page address: a route name and an optional single id, the Mobile pipeline's rule.
+const APP_PAGE_URL_PATTERN = /^slaxreader:\/\/[a-z-]{1,32}(\/[0-9A-Za-z_-]{1,64})?$/
 // Browsers cap keepalive fetch and sendBeacon bodies at 64 KiB; stay below it per request.
 const MAX_REQUEST_BYTES = 60 * 1024
 const MAX_COUNT = 100000
@@ -140,8 +154,9 @@ export const urlForRecord = (value: string | undefined | null): string | undefin
   return stripped ? redactCapabilityPaths(stripped) : undefined
 }
 
-/** The page URL without its query, fragment, or the share and collection codes in its path. */
+/** The page URL without its query, fragment, or the share and collection codes in its path; a Mobile `slaxreader://` page address is kept as is. */
 export const pageUrlForRecord = (value: string | undefined | null): string | undefined => {
+  if (value && APP_PAGE_URL_PATTERN.test(value)) return value
   const stripped = stripUrl(value)
   if (!stripped) return undefined
   const url = new URL(stripped)
@@ -370,7 +385,7 @@ export const chunkBodies = (records: ClientErrorRecord[], maxBytes = MAX_REQUEST
   return bodies
 }
 
-const disabled: ErrorCollector = { enabled: false, capture: () => undefined, flush: async () => {} }
+const disabled: ErrorCollector = { enabled: false, capture: () => undefined, telemetry: () => undefined, flush: async () => {} }
 
 /** Creates a best-effort collector; it is a no-op without an https endpoint, a known env, or a semver release. */
 export function createErrorCollector(options: ErrorCollectorOptions): ErrorCollector {
@@ -396,6 +411,9 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
   const deliveries = new Map<string, number>()
   const sessionCounts = new Map<string, number>()
   const groupKey = (record: Pick<ClientErrorRecord, 'fingerprint' | 'user_id'>) => `${record.fingerprint}|${record.user_id ?? ''}`
+  // Observations are sent with the next flush as they are; each one is its own row.
+  const observations: ClientErrorRecord[] = []
+  let observationsRecorded = 0
   let timer: ReturnType<typeof setTimeout> | undefined
   let inFlight: Promise<void> | undefined
   const identity = (): { user_id?: string; device_id?: string } => {
@@ -427,8 +445,10 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
   let timerAt = Infinity
   // Arms one timer for the earliest due record; a new error moves an armed timer earlier.
   const schedule = () => {
-    if (!queue.size) return
-    const at = Math.min(...[...queue.keys()].map(key => Math.max(dueAt(key), now() + flushDelayMs)))
+    if (!queue.size && !observations.length) return
+    const times = [...queue.keys()].map(key => Math.max(dueAt(key), now() + flushDelayMs))
+    if (observations.length) times.push(now() + flushDelayMs)
+    const at = Math.min(...times)
     if (timer && timerAt <= at) return
     if (timer) clearTimeout(timer)
     timerAt = at
@@ -447,12 +467,13 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     }
     const sentAt = now()
     // Hiding the page delivers everything held, since there may be no later flush.
-    const records = [...queue.values()].filter(record => hiding || dueAt(groupKey(record)) <= sentAt)
-    if (!records.length) {
+    const due = [...queue.values()].filter(record => hiding || dueAt(groupKey(record)) <= sentAt)
+    const observed = observations.splice(0)
+    if (!due.length && !observed.length) {
       schedule()
       return inFlight
     }
-    for (const record of records) {
+    for (const record of due) {
       const key = groupKey(record)
       queue.delete(key)
       lastSentAt.set(key, sentAt)
@@ -461,6 +482,7 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
       sessionCounts.set(key, total)
       record.properties = { ...(record.properties ?? {}), session_count: total }
     }
+    const records = [...due, ...observed]
     const previous = inFlight
     const current = (async () => {
       if (!hiding) await previous
@@ -537,7 +559,38 @@ export function createErrorCollector(options: ErrorCollectorOptions): ErrorColle
     }
   }
 
-  return { enabled: true, capture, flush }
+  const telemetry: ErrorCollector['telemetry'] = (event, properties = {}, label) => {
+    try {
+      if (!TELEMETRY_EVENT_PATTERN.test(event) || (label !== undefined && !TELEMETRY_LABEL_PATTERN.test(label))) return
+      if (observationsRecorded >= MAX_OBSERVATIONS_PER_SESSION) return
+      // A sender that cannot keep up loses the oldest observations, never the page's errors.
+      if (observations.length >= MAX_OBSERVATIONS_QUEUED) observations.shift()
+      observationsRecorded++
+      const message = label ? `${event} ${label}` : event
+      const pageUrl = pageUrlForRecord(options.pageUrl ? options.pageUrl() : typeof location !== 'undefined' ? location.href : undefined)
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent : undefined
+      observations.push({
+        occurred_at: now(),
+        app: options.app,
+        release: options.release,
+        env,
+        kind: 'telemetry',
+        fingerprint: fnv1a(['telemetry', message].join('|')),
+        count: 1,
+        message,
+        ...(pageUrl ? { page_url: pageUrl } : {}),
+        session_id: sessionId,
+        ...identity(),
+        ...(ua ? { ua: truncateBytes(ua, 1024) } : {}),
+        properties: boundedProperties({ event, ...properties })
+      })
+      schedule()
+    } catch {
+      // Telemetry must never throw into the caller.
+    }
+  }
+
+  return { enabled: true, capture, telemetry, flush }
 }
 
 interface ListenerTarget {

@@ -23,7 +23,7 @@ mockNuxtImport('useRouter', () => () => ({ afterEach: state.afterEach }))
 mockNuxtImport('useCookie', () => () => ({ value: undefined }))
 mockNuxtImport('watch', () => vi.fn())
 vi.mock('~/utils/request', () => ({ getUserToken: () => undefined, getClientEventHeaders: () => ({}) }))
-vi.mock('~/utils/clientErrorLog', () => ({ useClientErrorLog: () => ({ enabled: true, capture: state.capture, flush: async () => {} }) }))
+vi.mock('~/utils/clientErrorLog', () => ({ useClientErrorLog: () => ({ enabled: true, capture: state.capture, telemetry: vi.fn(), flush: async () => {} }) }))
 vi.mock('~/local-first/connector', async importOriginal => {
   const actual = await importOriginal<typeof import('~/local-first/connector')>()
   return {
