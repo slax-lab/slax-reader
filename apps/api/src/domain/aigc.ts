@@ -20,11 +20,12 @@ import { BatchRequest, GeminiBatchProvider } from '@/infra/external/batchComplet
 import { VertexAIClient, ToolDefinition, classifyProviderError } from '@/infra/external/vertexAIClient'
 import { Content, Type } from '@google/genai'
 import { MultiLangError } from '@/utils/multiLangError'
+import { providerDiagnostic } from '@/utils/errorDiagnostic'
 import { AIError, ErrorParam, ErrorName } from '@/const/err'
 
 export type deltaType = {
   role?: 'system' | 'user' | 'assistant' | 'tool'
-  content?: string
+  content?: string | null
   function_call?: { name: string; arguments: string }
   name?: string
   tool_call_id?: string
@@ -108,7 +109,7 @@ export class AigcService {
   public async writeProgress(
     role: 'system' | 'user' | 'assistant' | 'tool',
     name: string | undefined = undefined,
-    content: string | undefined = undefined,
+    content: string | null | undefined = undefined,
     status: string | undefined = undefined,
     finishReason: string | undefined = undefined
   ) {
@@ -132,6 +133,7 @@ export class AigcService {
       const result = await searchAgent.chat(
         searchMessages,
         {
+          model: 'gemini-3-flash-preview',
           tools: [{ googleSearch: {} }],
           temperature: 0.7,
           maxOutputTokens: 2048
@@ -142,7 +144,8 @@ export class AigcService {
       )
 
       const searchResult = result.text || 'No search results found'
-      await this.writeProgress('tool', 'search', searchResult, toolStatus.SUCCESSFULLY)
+      // The client expects link records in this event. Pass the text summary to the chat model.
+      await this.writeProgress('tool', 'search', null, toolStatus.SUCCESSFULLY)
       return searchResult
     } catch (error) {
       await this.writeProgress('tool', 'search', query, toolStatus.FAILED)
@@ -513,7 +516,7 @@ export class AigcService {
       )
       completed = true
     } catch (error) {
-      console.error(error)
+      console.error('[aigc.summary] summary generation failed', { ...providerDiagnostic(error), ...(ctx.get('rayId') ? { ray: ctx.get('rayId') } : {}) })
       try {
         await wr.write(this.ted.encode(error instanceof MultiLangError ? error.message : 'Failed to get summary, please try again later.\n'))
       } catch (writeErr) {

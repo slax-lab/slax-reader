@@ -61,6 +61,12 @@ test('only the guarded publish step receives a Cloudflare Secret', () => {
   assert.equal(secretSteps[0].if, "steps.release.outputs.current == 'true'")
   assert.ok(job.steps.some(step => step.run === 'pnpm install --frozen-lockfile'))
   assert.ok(job.steps.some(step => step.run === 'node tooling/web-pages-deploy.mjs build'))
+  const smoke = job.steps.find(step => step.name === 'Smoke test the built Pages Worker')
+  assert.ok(job.steps.indexOf(smoke) > job.steps.indexOf(freshness))
+  assert.ok(job.steps.indexOf(smoke) < job.steps.indexOf(secretSteps[0]))
+  assert.equal(smoke.if, secretSteps[0].if)
+  assert.equal(smoke.env.SLAX_TEST_PAGES_BUILD, '1')
+  assert.equal(smoke.run, 'node --test tooling/web-pages-deploy.test.mjs')
 })
 
 test('trigger and freshness scopes agree and tooling CI covers release workflow changes', () => {

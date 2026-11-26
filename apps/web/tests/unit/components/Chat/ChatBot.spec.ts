@@ -256,6 +256,27 @@ describe('ChatBot.vue', () => {
 
   // === E 类：callback STATUS_UPDATE 子分支（C17-C23）===
   describe('callback STATUS_UPDATE', () => {
+    it('replaces the English pending search label with the failure label', async () => {
+      const wrapper = mountChatBot({ bookmarkId: 1 })
+      mockT.mockReturnValueOnce('"kw" Searching...')
+      capturedCallback.value({
+        type: 'STATUS_UPDATE',
+        data: { STATUS_UPDATE: { name: 'search', tips: 'kw', status: 'processing' } }
+      })
+      await nextTick()
+
+      mockT.mockReturnValueOnce('Search failed').mockReturnValueOnce('searching')
+      capturedCallback.value({
+        type: 'STATUS_UPDATE',
+        data: { STATUS_UPDATE: { name: 'search', tips: 'kw', status: 'failed' } }
+      })
+      await nextTick()
+
+      expect(wrapper.getComponent({ name: 'BubbleMessage' }).props('message')).toMatchObject({
+        contents: [{ tips: '"kw" Search failed', loading: false }]
+      })
+    })
+
     it('C17: processing + generateQuestion → pushBuffer tips', async () => {
       const wrapper = mountChatBot({ bookmarkId: 1 })
       capturedCallback.value({

@@ -29,6 +29,43 @@ describe('resource boundaries', () => {
     expect(syncChanges).not.toHaveBeenCalled()
   })
 
+  test('a failed sync batch logs its cause and Ray ID without the change payload', async () => {
+    const failure = Object.assign(new Error('Unique constraint failed'), { name: 'PrismaClientKnownRequestError', code: 'P2002', meta: { target: ['uuid'] } })
+    const syncChanges = vi.fn().mockRejectedValue(failure)
+    const controller = new SyncController({ syncChanges } as never, { ensureUserNotDeleted: vi.fn().mockResolvedValue(undefined) } as never)
+    const ctx = { getUserId: () => 7, get: (key: string) => (key === 'rayId' ? 'a5f5911d1ca2fdc2' : undefined) }
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const body = [{ table: 'sr_user_bookmark', op: 'PATCH', data: { title: 'private title' } }]
+    await controller.handleSyncSaveRequest(ctx as never, new Request('https://api.example/changes', { method: 'POST', body: JSON.stringify(body) }))
+    expect(error).toHaveBeenCalledWith('handleSyncSaveRequest failed', {
+      userId: 7,
+      count: 1,
+      table: 'sr_user_bookmark',
+      op: 'PATCH',
+      ray: 'a5f5911d1ca2fdc2',
+      name: 'PrismaClientKnownRequestError',
+      message: 'Unique constraint failed',
+      code: 'P2002',
+      meta: { target: ['uuid'] }
+    })
+    expect(JSON.stringify(error.mock.calls)).not.toContain('private title')
+    error.mockRestore()
+  })
+
+  test('a failed multi-change sync batch omits table and op, and a request without a Ray ID omits it', async () => {
+    const syncChanges = vi.fn().mockRejectedValue(new Error('boom'))
+    const controller = new SyncController({ syncChanges } as never, { ensureUserNotDeleted: vi.fn().mockResolvedValue(undefined) } as never)
+    const ctx = { getUserId: () => 7, get: () => undefined }
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const body = [
+      { table: 'sr_user_bookmark', op: 'PATCH', data: { title: 'a' } },
+      { table: 'sr_mark', op: 'PUT', data: { comment: 'b' } }
+    ]
+    await controller.handleSyncSaveRequest(ctx as never, new Request('https://api.example/changes', { method: 'POST', body: JSON.stringify(body) }))
+    expect(error).toHaveBeenCalledWith('handleSyncSaveRequest failed', { userId: 7, count: 2, name: 'Error', message: 'boom' })
+    error.mockRestore()
+  })
+
   test('legacy Omnivore imports share the 10000-record cap before storage or enqueue', async () => {
     const bucketData = vi.fn()
     const service = Object.assign(Object.create(ImportService.prototype), { bucketData }) as ImportService

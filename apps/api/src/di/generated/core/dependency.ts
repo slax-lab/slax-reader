@@ -21,6 +21,7 @@ import { provide as provideVectorEmbeddingClient } from '../../providers/VectorE
 import { provide as provideVectorIndexClient } from '../../providers/VectorIndexClient'
 import { provide as provideVectorPreferenceClient } from '../../providers/VectorPreferenceClient'
 import { provide as provideVectorPreferenceStores } from '../../providers/VectorPreferenceStores'
+import { provide as provideVectorSearchClient } from '../../providers/VectorSearchClient'
 import { provide as provideVectorSourceRepo } from '../../providers/VectorSourceRepo'
 import { AigcService } from '../../../domain/aigc'
 import {
@@ -85,6 +86,9 @@ import { PasskeyChallengeRepo } from '../../../infra/repository/redisPasskeyChal
 import { PodcastService } from '../../../domain/podcast'
 import { RssRepo } from '../../../infra/repository/dbRss'
 import { RssContent } from '../../../domain/rss/content'
+import { VectorEmbeddingClient } from '../../../infra/external/vectorEmbedding'
+import { VectorSearchClient } from '../../../infra/external/vectorSearchClient'
+import { VectorIndexClient } from '../../../infra/repository/vectorIndexClient'
 import { ShareService } from '../../../domain/share'
 import { SubscriptionService } from '../../../domain/subscription'
 import { StripeClient } from '../../../infra/external/stripe'
@@ -101,8 +105,6 @@ import { UserProfileService } from '../../../domain/userProfile'
 import { UserDeletionService } from '../../../domain/userDeletion'
 import { VectorMaintenanceService } from '../../../domain/vectorMaintenance'
 import { VectorSourceRepo } from '../../../infra/repository/vectorSources'
-import { VectorEmbeddingClient } from '../../../infra/external/vectorEmbedding'
-import { VectorIndexClient } from '../../../infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '../../../infra/repository/vectorPreferenceClient'
 import { YoutubeArticleService } from '../../../domain/youtubeArticle'
 import { AigcBatchOrchestrator } from '../../../domain/orchestrator/aigc'
@@ -348,7 +350,14 @@ container.register(RssService, {
 
 container.register(SearchService, {
   useFactory: container =>
-    new SearchService(container.resolve(BookmarkRepo), container.resolve(SubscriptionRepo), container.resolve(BookmarkSearchRepo), container.resolve(VectorizeRepo))
+    new SearchService(
+      container.resolve(BookmarkRepo),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(VectorizeRepo),
+      container.resolve(VectorEmbeddingClient),
+      container.resolve(VectorSearchClient),
+      container.resolve(VectorIndexClient)
+    )
 })
 
 container.register(ShareService, {
@@ -436,7 +445,8 @@ container.register(UserDeletionService, {
       container.resolve(UserRepo),
       lazy(() => container.resolve(BucketClient)),
       container.resolve(VectorMaintenanceRepo),
-      container.resolve(PasskeyRepo)
+      container.resolve(PasskeyRepo),
+      container.resolve(BookmarkSearchRepo)
     )
 })
 
@@ -644,6 +654,10 @@ container.register(StripeClient, {
 
 container.register(VectorEmbeddingClient, {
   useClass: VectorEmbeddingClient
+})
+
+container.register(VectorSearchClient, {
+  useClass: VectorSearchClient
 })
 
 container.register(NotificationMessage, {
@@ -934,6 +948,7 @@ const registry = new DatabaseRegistry([
   provideVectorIndexClient,
   provideVectorPreferenceClient,
   provideVectorPreferenceStores,
+  provideVectorSearchClient,
   provideVectorSourceRepo
 ])
 

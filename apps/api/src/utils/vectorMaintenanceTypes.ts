@@ -38,6 +38,9 @@ export interface VectorQueryOptions {
   limit?: number
 }
 
+/** Repository-level options: `values` returns each match's stored values, and the native index then caps topK at 50. */
+export type VectorIndexQueryOptions = (ArticleQueryOptions | VectorQueryOptions) & { values?: boolean }
+
 export type ArticleQueryOptions = VectorQueryOptions & ({ userId: number; recommendable?: never } | { recommendable: true; userId?: never })
 
 export interface VectorMaintenance {

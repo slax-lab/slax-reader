@@ -415,13 +415,17 @@ describe('SnapshotChatPanel.vue', () => {
       expect(wrapper.find('[data-tips-type="search"]').exists()).toBe(true)
       expect(wrapper.find('[data-tips-type="search"][data-loading="true"]').exists()).toBe(false)
     })
-    it('F11: failed search → loading=false', async () => {
+    it('replaces the English pending search label with the failure label', async () => {
       const wrapper = mountPanel({ bookmarkId: 1 })
+      mockT.mockReturnValueOnce('"kw" Searching...')
       emit({ type: 'STATUS_UPDATE', data: { STATUS_UPDATE: { name: 'search', status: 'processing', tips: 'kw' } } })
       await nextTick()
+
+      mockT.mockReturnValueOnce('Search failed').mockReturnValueOnce('searching')
       emit({ type: 'STATUS_UPDATE', data: { STATUS_UPDATE: { name: 'search', status: 'failed', tips: 'kw' } } })
       await nextTick()
-      expect(wrapper.find('[data-tips-type="search"][data-loading="true"]').exists()).toBe(false)
+
+      expect(wrapper.get('[data-tips-type="search"][data-loading="false"]').text()).toBe('"kw" Search failed')
     })
     it('F12: processing browser → loading tips', async () => {
       const wrapper = mountPanel({ bookmarkId: 1 })

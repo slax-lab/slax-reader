@@ -101,7 +101,7 @@ afterEach(() => {
 describe('Apple receipt validation before entitlement writes', () => {
   test.each([
     ['wrong bundle', { bundleId: 'another.app' }],
-    ['wrong environment', { environment: Environment.SANDBOX }],
+    ['unknown environment', { environment: 'LocalTesting' as Environment }],
     ['unknown product', { productId: 'another.subscription' }],
     ['offer ID is not a product', { productId: 'promotional_offer_1m' }],
     ['foreign account', { appAccountToken: 'another-user' }],
@@ -167,6 +167,17 @@ describe('Apple receipt validation before entitlement writes', () => {
     h.assertNoSideEffects()
   })
 
+  test('prod accepts Sandbox transactions in their own ledger namespace', async () => {
+    const h = setup()
+    const tx = transaction({ environment: Environment.SANDBOX })
+    h.verify.mockResolvedValue(tx)
+    await expect(h.service.checkAppleIAPSubscription(h.ctx, tx.productId, uuid, 'signed')).resolves.toBe(true)
+    expect(h.subscriptionRepo.applyPaymentGrant).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'apple:app.slax.reader:Sandbox:transaction-1', scope: 'apple:app.slax.reader:Sandbox' })
+    )
+    expect(h.subscriptionRepo.hasActivePaymentGrant).toHaveBeenCalledWith('apple:app.slax.reader:Sandbox:transaction-1', 7)
+  })
+
   test.each(['dev', 'beta'])('%s uses Sandbox despite RUN_ENV=prod', async runType => {
     const h = setup(runType)
     const tx = transaction({ environment: Environment.SANDBOX, productId: 'app.slax.reader.monthly' })
@@ -188,7 +199,7 @@ describe('Apple receipt validation before entitlement writes', () => {
 describe('Apple notification boundaries', () => {
   test.each([
     ['outer bundle', { bundleId: 'another.app', environment: Environment.PRODUCTION }],
-    ['outer environment', { bundleId, environment: Environment.SANDBOX }]
+    ['outer environment', { bundleId, environment: 'LocalTesting' as Environment }]
   ] as const)('rejects %s before any writes', async (_name, data) => {
     const h = setup()
     await expect(h.notification(transaction(), NotificationType.DID_RENEW, { data: { ...data, signedTransactionInfo: 'signed' } })).rejects.toBeDefined()
@@ -197,12 +208,20 @@ describe('Apple notification boundaries', () => {
 
   test.each([
     ['inner bundle', { bundleId: 'another.app' }],
-    ['inner environment', { environment: Environment.SANDBOX }],
+    ['inner environment', { environment: 'LocalTesting' as Environment }],
     ['inner product', { productId: 'another.subscription' }]
   ] as const)('rejects %s before any writes', async (_name, changes) => {
     const h = setup()
     await expect(h.notification(transaction(changes))).rejects.toBeDefined()
     h.assertNoSideEffects()
+  })
+
+  test('prod processes Sandbox notifications in their own ledger namespace', async () => {
+    const h = setup()
+    await h.notification(transaction({ environment: Environment.SANDBOX }), NotificationType.SUBSCRIBED, {
+      data: { bundleId, environment: Environment.SANDBOX, signedTransactionInfo: 'signed' }
+    })
+    expect(h.subscriptionRepo.applyPaymentGrant).toHaveBeenCalledWith(expect.objectContaining({ key: 'apple:app.slax.reader:Sandbox:transaction-1' }))
   })
 
   test('deleted user notification has no side effects', async () => {

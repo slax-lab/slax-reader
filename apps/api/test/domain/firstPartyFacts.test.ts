@@ -9,6 +9,7 @@ import { CrawlService } from '@/domain/crawl'
 import { ImportOrchestrator } from '@/domain/orchestrator/import'
 import { captureEventContext, EVENT_CONTEXT_KEY, submitServerEvent } from '@/domain/events'
 import { rateLimit } from '@/middleware/rateLimit'
+import { BlockTargetUrlError } from '@/const/err'
 
 const bookmark = () => ({
   uuid: 'bookmark-1',
@@ -523,6 +524,15 @@ describe('REST and asynchronous failure boundaries', () => {
     expect(f.records).toMatchObject([{ event_name: 'bookmark_save_failed', properties: { bookmark_id: null, error_class: 'bookmark_add' } }])
   })
 
+  test('a blocked target is a rejected target, not a generic save failure', async () => {
+    const f = setup()
+    const controller = addUrlController()
+    controller.bookmarkAddOrchestrator = { addByUrl: vi.fn().mockRejectedValue(BlockTargetUrlError()) }
+    await controller.handleUserAddUrlBookmarkRequest(f.ctx, addUrlRequest('https://r.slax.com/b/1'))
+    await f.flush()
+    expect(f.records).toMatchObject([{ event_name: 'bookmark_save_failed', properties: { error_class: 'unsupported_target' } }])
+  })
+
   test('step failure uses the original request metadata, never an anonymous workflow identity', async () => {
     const f = setup()
     const service = Object.create(CrawlService.prototype)
@@ -533,7 +543,7 @@ describe('REST and asynchronous failure boundaries', () => {
     await f.flush()
     expect(f.records).toMatchObject([
       {
-        event_name: 'bookmark_save_failed',
+        event_name: 'bookmark_add_step_failed',
         user_id: 7,
         device_id: 'device-1',
         properties: { bookmark_id: 'bookmark-1', error_class: 'parsing', client_version: '2.0.11', locale: 'zh' }

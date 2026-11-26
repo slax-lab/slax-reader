@@ -1,10 +1,11 @@
 import { getTokenUserId } from '~/utils/sessionOwner'
 
 import { createErrorCollector, type ErrorCollector } from '@commons/frontend-utils/errorLog'
+import { useUserStore } from '~/stores/user'
 
 let collector: ErrorCollector | undefined
 
-const disabledCollector: ErrorCollector = { enabled: false, capture: () => {}, flush: async () => {} }
+const disabledCollector: ErrorCollector = { enabled: false, capture: () => undefined, telemetry: () => undefined, flush: async () => {} }
 
 // Reads one cookie straight from `document.cookie`. The shared helpers use `useCookies()`, which
 // registers a change listener (a `cookieStore` handler or a 300 ms poll) that is released only with a
@@ -30,13 +31,27 @@ export const useClientErrorLog = (): ErrorCollector => {
   try {
     const config = useRuntimeConfig().public
     const tokenCookie = typeof config.COOKIE_TOKEN_NAME === 'string' ? config.COOKIE_TOKEN_NAME.trim() : ''
-    collector = createErrorCollector({
+    const isBridge = typeof location !== 'undefined' && location.pathname === '/x/ext-bridge'
+    // The bridge runs in the Extension's iframe where cookies are unavailable; the page itself reads
+    // this store for its bridge responses, so the collector reads the same source and never the payload.
+    // The collector is created by a 'pre' plugin before Pinia exists, so the store is resolved per record.
+    const bridgeUser = () => {
+      try {
+        const userStore = useUserStore()
+        if (!userStore.userInfo) userStore.$hydrate()
+        return userStore.userInfo?.userId
+      } catch {
+        return undefined
+      }
+    }
+    const base = createErrorCollector({
       endpoint: import.meta.client ? String(config.CLIENT_ERROR_INGEST_URL || '') : '',
       app: 'web',
       release: String(config.appVersion || ''),
       env: String(config.slaxEnv || ''),
-      getContext: () => ({ userId: getTokenUserId(readCookie(tokenCookie)), deviceId: readCookie('_su') ?? null })
+      getContext: () => ({ userId: isBridge ? bridgeUser() : getTokenUserId(readCookie(tokenCookie)), deviceId: readCookie('_su') ?? null })
     })
+    collector = isBridge ? { ...base, capture: (kind, error, properties = {}) => base.capture(kind, error, { ...properties, surface: 'ext-bridge' }) } : base
   } catch {
     collector = disabledCollector
   }

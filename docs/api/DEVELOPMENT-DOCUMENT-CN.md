@@ -28,7 +28,7 @@ Prisma 自动读取 `deploy/local/.env` 中的 `HYPERDRIVE_DATABASE_URL` 和 `LO
 
 `dev:local` 是 smoke 的受限入口，会同时启动本地 Edge、Core、AI、Objects：六个路径均必填，配置与 state 必须位于仓库内 `.tmp-root-tooling-http-*`，env 必须为空，只允许 dev、loopback PostgreSQL，以及本地 Edge→Core、Edge→AI、Core→AI 服务绑定和 Core→Objects 的 Durable Object 绑定，拒绝远程资源。
 
-远程部署、资源创建、远程迁移需明确授权，参考 [部署文档](CLOUDFLARE-DEPLOY-CN.md)。`backfill:device-alias` 保留只读事务与默认计数，输出 SQL 不自动应用，输出路径按根解析。Apple 证书生成需网络；Stripe CLI 必须预先安装；没有 seed 命令。`keys:powersync` 仅用于生成 PowerSync 密钥，与浏览器 Web Push 无关。
+远程部署、资源创建、远程迁移需明确授权，参考 [部署文档](CLOUDFLARE-DEPLOY-CN.md)。`fulltext:prune-relations` 在只读事务中比对全文库 `slax_user_bookmark` 导出与 PostgreSQL，把 PostgreSQL 已不存在的关系写成 DELETE 语句到新的根相对路径文件，不自动应用。`backfill:device-alias` 保留只读事务与默认计数，输出 SQL 不自动应用，输出路径按根解析。Apple 证书生成需网络；Stripe CLI 必须预先安装；没有 seed 命令。`keys:powersync` 仅用于生成 PowerSync 密钥，与浏览器 Web Push 无关。
 
 | Task / 操作 | Command |
 | --- | --- |
@@ -48,12 +48,12 @@ Prisma 自动读取 `deploy/local/.env` 中的 `HYPERDRIVE_DATABASE_URL` 和 `LO
 | Config generation only | `pnpm api -- deploy --dry-run` |
 | Dev with explicit isolated configs | `pnpm api -- dev:local --edge-config <file> --core-config <file> --ai-config <file> --objects-config <file> --state <dir> --env-file <empty-file>` |
 | Real HTTP / database integration | `pnpm api -- test:http` / `test:integration:local` |
-| Copy values each Worker reads before the first five-Worker release | `pnpm api -- secrets:sync --from <file> [--dry-run]` |
+| Copy values each Worker reads (once for each new Worker, such as Vector) | `pnpm api -- secrets:sync --from <file> [--dry-run]` |
 | Resource plan / create | `pnpm api -- resources` / `resources --apply` |
 | Wrangler command with actual config | `pnpm api -- wrangler edge <command> [args...]` |
 | Edge logs | `pnpm api -- tail` |
 | Complete local API setup | `pnpm api -- setup` |
-| Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` |
+| Maintenance | `pnpm api -- gen:apple-certs` / `backfill:device-alias` / `fulltext:prune-relations` |
 | Diagnostics | `pnpm api -- debug:hashids` / `debug:hash-article` |
 | Optional CLI tools | `pnpm api -- stripe:webhook` / `update:cli` |
 

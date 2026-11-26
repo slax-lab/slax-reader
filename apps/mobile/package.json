@@ -1,8 +1,8 @@
 {
   "name": "@apps/slax-reader-mobile",
-  "version": "1.0.33",
-  "buildNumber": 808,
-  "previousBuildNumber": 807,
+  "version": "1.0.34",
+  "buildNumber": 809,
+  "previousBuildNumber": 808,
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -43,6 +43,7 @@
     "check": "node tooling/check.mjs"
   },
   "dependencies": {
+    "@commons/frontend-utils": "workspace:*",
     "@expo/ui": "58.0.27",
     "@op-engineering/op-sqlite": "18.2.5",
     "@powersync/common": "2.3.1",

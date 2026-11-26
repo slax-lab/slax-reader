@@ -96,6 +96,11 @@ jobs:
           if [ "$current" = false ]; then
             echo 'Web release skipped: newer Web changes are already on this branch'
           fi
+      - name: Smoke test the built Pages Worker
+        if: steps.release.outputs.current == 'true'
+        env:
+          SLAX_TEST_PAGES_BUILD: '1'
+        run: node --test tooling/web-pages-deploy.test.mjs
       - name: Publish to the existing Pages project and purge its edge cache
         if: steps.release.outputs.current == 'true'
         env:

@@ -124,6 +124,7 @@ interface __BaseEnv_Env {
   SlaxTwitterFxembed: Fetcher /* fxembed */
   AIGC: Fetcher /* reader-ai */
   VECTOR: Service /* entrypoint AiEntry from reader-ai */
+  VECTOR_SEARCH?: Fetcher /* reader-vector, AI's search fetch; absent locally and in tests */
   CORE: Service<typeof import('./src/entry/core/index').default>
   CRAWL_WORKFLOW: Workflow /* CrawlWorkflow from reader-core */
   CONTENT_VALIDATION_WORKFLOW: Workflow /* ContentValidationWorkflow from reader-core */

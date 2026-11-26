@@ -54,3 +54,14 @@ for (const enabled of [true, false]) {
     assert.deepEqual(await api.setLab('pdf', enabled), {enabled});
   });
 }
+test('a PDF upload that finally fails with a 5xx or a network error reports one failure', async () => {
+  const failures: unknown[] = [];
+  const observed = (fetch: typeof globalThis.fetch) => createMobileApi({baseUrl: 'https://api.example', platform: 'ios', version: 'test', sessions: {getSession: async () => fixedSession, clearIfMatches: async () => false}, fetch, onFailure: failure => failures.push(failure)});
+  await assert.rejects(observed(async () => new Response('down', {status: 502, headers: {'cf-ray': 'pdf-1-SIN'}})).uploadPdf(new Blob([bytes]), 'paper.pdf'), isApiError(502));
+  await assert.rejects(observed(async () => {throw new TypeError('Network request failed');}).uploadPdf(new Blob([bytes]), 'paper.pdf'));
+  await assert.rejects(observed(async () => new Response('bad', {status: 400})).uploadPdf(new Blob([bytes]), 'paper.pdf'));
+  assert.deepEqual(failures, [
+    {method: 'POST', path: '/v1/bookmark/upload_pdf', status: 502, ray: 'pdf-1-SIN', network: false},
+    {method: 'POST', path: '/v1/bookmark/upload_pdf', status: undefined, ray: undefined, network: true},
+  ]);
+});

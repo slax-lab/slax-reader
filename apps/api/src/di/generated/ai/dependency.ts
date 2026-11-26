@@ -14,6 +14,7 @@ import { provide as provideVECTORIZE_CLIENTS } from '../../providers/VECTORIZE_C
 import { provide as provideVectorEmbeddingClient } from '../../providers/VectorEmbeddingClient'
 import { provide as provideVectorIndexClient } from '../../providers/VectorIndexClient'
 import { provide as provideVectorPreferenceClient } from '../../providers/VectorPreferenceClient'
+import { provide as provideVectorSearchClient } from '../../providers/VectorSearchClient'
 import { provide as provideVectorSourceRepo } from '../../providers/VectorSourceRepo'
 import { AigcService } from '../../../domain/aigc'
 import {
@@ -47,13 +48,14 @@ import { PodcastArticleRepo, PodcastEpisodeRepo } from '../../../infra/repositor
 import { MarkRepo } from '../../../infra/repository/dbMark'
 import { SearchService } from '../../../domain/search'
 import { VectorMaintenanceRepo } from '../../../infra/repository/dbVectorMaintenance'
-import { SubscriptionRepo } from '../../../infra/repository/dbSubscription'
 import { VectorizeRepo } from '../../../infra/repository/dbVectorize'
+import { VectorSearchClient } from '../../../infra/external/vectorSearchClient'
+import { VectorIndexClient } from '../../../infra/repository/vectorIndexClient'
 import { TagService } from '../../../domain/tag'
 import { UserProfileService } from '../../../domain/userProfile'
+import { SubscriptionRepo } from '../../../infra/repository/dbSubscription'
 import { CollectionRepo } from '../../../infra/repository/dbCollection'
 import { VectorSourceRepo } from '../../../infra/repository/vectorSources'
-import { VectorIndexClient } from '../../../infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '../../../infra/repository/vectorPreferenceClient'
 import { BookmarkAiOrchestrator } from '../../../domain/orchestrator/bookmarkAi'
 import { ContentRecommendationOrchestrator } from '../../../domain/orchestrator/contentRecommendation'
@@ -126,7 +128,14 @@ container.register(MediaSnapshotService, {
 
 container.register(SearchService, {
   useFactory: container =>
-    new SearchService(container.resolve(BookmarkRepo), container.resolve(SubscriptionRepo), container.resolve(BookmarkSearchRepo), container.resolve(VectorizeRepo))
+    new SearchService(
+      container.resolve(BookmarkRepo),
+      container.resolve(BookmarkSearchRepo),
+      container.resolve(VectorizeRepo),
+      container.resolve(VectorEmbeddingClient),
+      container.resolve(VectorSearchClient),
+      container.resolve(VectorIndexClient)
+    )
 })
 
 container.register(TagService, {
@@ -163,6 +172,10 @@ container.register(HybridSearchOrchestrator, {
 
 container.register(VectorEmbeddingClient, {
   useClass: VectorEmbeddingClient
+})
+
+container.register(VectorSearchClient, {
+  useClass: VectorSearchClient
 })
 
 container.register(BucketClient, {
@@ -295,6 +308,7 @@ const registry = new DatabaseRegistry([
   provideVectorEmbeddingClient,
   provideVectorIndexClient,
   provideVectorPreferenceClient,
+  provideVectorSearchClient,
   provideVectorSourceRepo
 ])
 

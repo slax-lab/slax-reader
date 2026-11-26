@@ -9,6 +9,12 @@ export interface contentShard {
   shard_idx: number
 }
 
+export interface fulltextExpressions {
+  full: string
+  title: string
+  content: string
+}
+
 export interface semanticShard {
   id: string
   embedding: number[]
@@ -16,7 +22,7 @@ export interface semanticShard {
 
 export class Normalizer {
   private ngramLengths = [1, 2, 3]
-  private static maxDOCount = 20
+  private static tokenizerName = 'tokenizer'
   private static maxShardSize = 2 * 1024 * 1024
   private static maxTokens = 8096
   private overlapSize = 500
@@ -24,10 +30,8 @@ export class Normalizer {
   private jbObject!: DurableObjectStub<SlaxJieba>
 
   constructor(private env: Env) {
-    const doId = Math.floor(Math.random() * Normalizer.maxDOCount)
     const jbObj = this.env.SLAX_JIEBA
-    this.jbObject = jbObj.get(jbObj.idFromName(`${doId}`))
-    // this.jbObject = jbObj.get(jbObj.idFromName('0'))
+    this.jbObject = jbObj.get(jbObj.idFromName(Normalizer.tokenizerName))
   }
 
   async cut(text: string, hmm?: boolean, options?: { signal?: AbortSignal; strict?: boolean }): Promise<any[]> {
@@ -41,10 +45,14 @@ export class Normalizer {
     return result.data
   }
 
-  async processSearchKeyword(keyword: string): Promise<string> {
+  /**
+   * Builds the fulltext MATCH expression and its single-column title/content halves. Snippets must use a
+   * single-column half: FTS5 snippet() can fail with SQLITE_CORRUPT_VTAB on the two-column NEAR OR expression.
+   */
+  async processSearchKeyword(keyword: string): Promise<fulltextExpressions> {
     keyword = keyword.replace(/[^\w\s\u4e00-\u9fff]/g, ' ')
     const searchTerms = keyword.split(/\s+/).filter(term => term.trim().length > 0)
-    if (searchTerms.length === 0) return ''
+    if (searchTerms.length === 0) return { full: '', title: '', content: '' }
 
     // 分词处理
     const termSegments = await Promise.all(
@@ -68,7 +76,9 @@ export class Normalizer {
       contentQueries.push(`(${otherTerms.map(item => `content:"${item}"`).join(' OR ')})`)
     }
 
-    return `(${titleQueries.join(' AND ')}) OR (${contentQueries.join(' AND ')})`
+    const title = titleQueries.join(' AND ')
+    const content = contentQueries.join(' AND ')
+    return { full: `(${title}) OR (${content})`, title, content }
   }
   /**
    * 处理文本内容，返回分片结果

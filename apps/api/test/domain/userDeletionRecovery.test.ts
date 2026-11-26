@@ -61,7 +61,8 @@ describe('best-effort account cleanup', () => {
         { deleteNewsletterBatch: vi.fn().mockResolvedValue([]) } as any,
         {} as any,
         vectorRepo as any,
-        { deleteByUserId: async () => {} } as any
+        { deleteByUserId: async () => {} } as any,
+        { deleteAllUserBookmarks: async () => 0 } as any
       )
       await expect(service.cleanupUserData(7, env)).rejects.toThrow(failure === 'missing-env' ? 'missing_vector_maintenance_workflow' : 'vector admission unavailable')
       expect(deleted).toBe(false)
@@ -98,7 +99,8 @@ describe('best-effort account cleanup', () => {
       { deleteNewsletterBatch: vi.fn().mockResolvedValue([]) } as any,
       {} as any,
       vectorRepo as any,
-      { deleteByUserId: async () => {} } as any
+      { deleteByUserId: async () => {} } as any,
+      { deleteAllUserBookmarks: async () => 0 } as any
     )
     await service.cleanupUserData(7, { VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch } } as any)
     expect(vectorRepo.listSubscriberUsers).not.toHaveBeenCalled()

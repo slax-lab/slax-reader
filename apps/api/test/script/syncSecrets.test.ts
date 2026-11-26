@@ -18,11 +18,12 @@ afterEach(() => {
 })
 
 // Live state before the transition: the old Edge holds every key, Core and AI lack DEEPSEEK_API_KEY.
-function account(scripts = [names.edge, names.core, names.ai]) {
+function account(scripts = [names.edge, names.core, names.ai, names.vector]) {
   const held: Record<string, Set<string>> = {
     [names.edge]: new Set(Object.values(RUNTIME_KEYS).flat()),
     [names.core]: new Set(RUNTIME_KEYS.core.filter(key => key !== 'DEEPSEEK_API_KEY')),
-    [names.ai]: new Set(RUNTIME_KEYS.ai.filter(key => key !== 'DEEPSEEK_API_KEY'))
+    [names.ai]: new Set(RUNTIME_KEYS.ai.filter(key => key !== 'DEEPSEEK_API_KEY')),
+    [names.vector]: new Set(RUNTIME_KEYS.vector)
   }
   const api: CloudflareApi = {
     async list<T>(pathname: string) {
@@ -72,6 +73,17 @@ describe('secrets:sync', () => {
     expect(upload).not.toHaveBeenCalled()
     expect(log).toHaveBeenCalledWith(`${names.core}: not in the secrets file: DEEPSEEK_API_KEY`)
     expect(log.mock.calls.flat().some(line => String(line).startsWith(`${names.ai}: not deployed yet`))).toBe(true)
+  })
+
+  test('a newly created Vector Worker receives the encoder key and the edge shared secret', async () => {
+    const { api, held } = account()
+    held[names.core].add('DEEPSEEK_API_KEY')
+    held[names.ai].add('DEEPSEEK_API_KEY')
+    held[names.vector] = new Set()
+    const upload = vi.fn(() => 0)
+    const values = { EDGE_SHARED_SECRET: 'edge-value', JINA_API_KEY: 'jina-value', DEEPSEEK_API_KEY: 'unused' }
+    expect(await syncSecrets({ api, config, values, dryRun: false, upload, log: vi.fn() })).toBe(0)
+    expect(upload.mock.calls).toEqual([['vector', { EDGE_SHARED_SECRET: 'edge-value', JINA_API_KEY: 'jina-value' }]])
   })
 
   test('nothing to do once every Worker holds its values', async () => {

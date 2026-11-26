@@ -72,6 +72,8 @@ import MarkdownText from '~/components/Markdown/MarkdownText.vue'
 
 import { cancelReaderRestore } from '~/utils/readerStartup'
 
+import { LineDecoder } from '@commons/frontend-utils/decoder'
+import { isObject } from '@commons/frontend-utils/is'
 import { RequestMethodType } from '@commons/frontend-utils/request'
 import { findMatchingElement, queryMarkdownAnchorQuote, querySimularMarkdownAnchorQuote } from '@commons/frontend-utils/search'
 import { extractMarkdownFromText } from '@commons/frontend-utils/text'
@@ -312,47 +314,6 @@ const outlineLoading = ref(false)
 const outlineError = ref(false)
 const outlineDone = ref(false)
 
-// ── overview 流式 JSON 帧类型（内联自 AIOverview.vue）──
-type OverviewSocketData =
-  | {
-      type: 'progress' | 'done'
-      data: {
-        overview?: string
-        key_takeaways?: string[]
-        tags?: { id: number; name: string }[]
-        tag?: { id: number; name: string }
-        done?: boolean
-        id?: number
-      }
-    }
-  | {
-      type: 'error'
-      message: string
-    }
-
-// 解析后端拼接的多段 JSON（内联自 AIOverview.vue 的 parseConcatenatedJson）
-const parseConcatenatedJson = (inputString: string): OverviewSocketData[] => {
-  const trimmedString = inputString.trim()
-  if (!trimmedString) {
-    return []
-  }
-
-  const parts = trimmedString.split('}\n{')
-  const fixedParts = parts.map((part, index) => {
-    if (index === 0 && parts.length > 1) {
-      return part + '}'
-    } else if (index === parts.length - 1 && parts.length > 1) {
-      return '{' + part
-    } else if (parts.length > 1) {
-      return '{' + part + '}'
-    }
-
-    return part
-  })
-
-  return fixedParts.map(str => JSON.parse(str)) as OverviewSocketData[]
-}
-
 // overview 加载完成后的收尾：内容为空则自动重试一次，再为空则报错
 const settleOverviewAfterDone = () => {
   overviewLoading.value = false
@@ -370,17 +331,21 @@ const settleOverviewAfterDone = () => {
 }
 
 const loadOverview = async () => {
-  if (overviewLoading.value) {
+  if (!overviewSupported.value || overviewLoading.value) {
     return
   }
 
   overviewLoading.value = true
   overviewError.value = false
 
+  const controller = new AbortController()
+  let settled = false
+
   try {
     const callBack = await request().stream({
       url: RESTMethodPath.BOOKMARK_OVERVIEW,
       method: RequestMethodType.post,
+      signal: controller.signal,
       body: {
         ...(props.bookmarkId ? { bookmark_id: props.bookmarkId } : undefined),
         ...(props.shareCode ? { share_code: props.shareCode } : undefined),
@@ -395,51 +360,50 @@ const loadOverview = async () => {
       return
     }
 
-    let errorCacheText = ''
+    const lineDecoder = new LineDecoder()
 
-    callBack((text: string, isDone: boolean) => {
-      // 空文本 + done：done 帧，无新内容
-      if (text.length === 0 && isDone) {
-        settleOverviewAfterDone()
-        return
-      }
+    await callBack((text: string, isDone: boolean) => {
+      if (settled) return
 
-      let parsedJsons: OverviewSocketData[] = []
-      try {
-        parsedJsons = parseConcatenatedJson(errorCacheText + text)
-        errorCacheText = ''
-      } catch {
-        // JSON 跨块未闭合，缓存等待下一块拼接
-        errorCacheText = text
-        if (isDone) {
-          settleOverviewAfterDone()
+      const lines = lineDecoder.decode(text)
+      if (isDone) lines.push(...lineDecoder.flush())
+
+      for (const line of lines) {
+        if (!line.trim()) continue
+
+        const frame: unknown = JSON.parse(line)
+        if (!isObject(frame)) throw new Error('Invalid overview stream frame')
+
+        if (frame.type === 'error' || frame.type === 'done') {
+          settled = true
+          break
         }
-        return
-      }
 
-      for (const res of parsedJsons) {
-        if (res.type === 'error') {
-          // error 帧按 done + 空内容处理，触发自动重试
-          settleOverviewAfterDone()
-          return
-        } else if (res.type === 'done' || 'done' in res.data) {
-          settleOverviewAfterDone()
-          return
-        } else if (res.data.overview !== undefined) {
-          // overview 覆盖最新值（非追加）
-          overviewContent.value = res.data.overview
-          overviewLoading.value = false
-        } else if (res.data.key_takeaways) {
-          keyTakeaways.value = res.data.key_takeaways
+        const { data } = frame
+        if (frame.type !== 'progress' || !isObject(data)) throw new Error('Invalid overview stream payload')
+
+        if ('done' in data) {
+          settled = true
+          break
         }
-        // tags / tag 帧忽略
+
+        if (data.overview !== undefined) {
+          if (typeof data.overview !== 'string') throw new Error('Invalid overview text')
+          overviewContent.value = data.overview
+        } else if (data.key_takeaways !== undefined) {
+          if (!Array.isArray(data.key_takeaways) || !data.key_takeaways.every(item => typeof item === 'string')) throw new Error('Invalid overview takeaways')
+          keyTakeaways.value = data.key_takeaways
+        }
       }
 
-      if (isDone) {
+      if (settled || isDone) {
+        settled = true
         settleOverviewAfterDone()
       }
     })
   } catch {
+    controller.abort()
+    if (settled) return
     overviewLoading.value = false
     overviewError.value = true
   }

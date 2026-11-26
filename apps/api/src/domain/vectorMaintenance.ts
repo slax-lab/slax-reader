@@ -5,7 +5,7 @@ import { VectorMaintenanceRepo, type VectorArticleRow as ArticleRow, type Vector
 import { VectorIndexClient } from '@/infra/repository/vectorIndexClient'
 import { VectorPreferenceClient } from '@/infra/repository/vectorPreferenceClient'
 import { VectorSourceRepo, type SourceFingerprint } from '@/infra/repository/vectorSources'
-import { VectorEmbeddingClient } from '@/infra/external/vectorEmbedding'
+import { VectorEmbeddingClient, reportProviderFailure } from '@/infra/external/vectorEmbedding'
 import type { ImageSelection } from '@/utils/vectorSources'
 import {
   center,
@@ -80,6 +80,12 @@ function positiveId(value: number) {
   return value
 }
 
+function articleCandidate(match: { id: string; score: number }) {
+  const parts = /^a:([1-9]\d*):([1-9]\d*)$/.exec(match.id)
+  if (!parts || !Number.isFinite(match.score)) throw new Error('invalid_article_candidate')
+  return { userId: positiveId(Number(parts[1])), id: positiveId(Number(parts[2])), score: match.score }
+}
+
 function result(target: VectorTarget): VectorRefreshResult {
   return { target, state: 'empty', vectorIds: [], mutationIds: [], removedVectorIds: [] }
 }
@@ -109,6 +115,7 @@ function failed(output: VectorRefreshResult, error: unknown): VectorRefreshResul
           )
       : undefined
   console.error('[vector-maintenance]', JSON.stringify({ kind: output.target.kind, name: detail.name, code: detail.code, message, frames }))
+  reportProviderFailure(error)
   return output
 }
 
@@ -942,11 +949,7 @@ export class VectorMaintenanceService implements VectorMaintenance {
 
   async queryArticles(vector: number[], options: ArticleQueryOptions) {
     const matches = await this.index.query('article', normalized(vector), options)
-    return matches.map(match => {
-      const parts = /^a:([1-9]\d*):([1-9]\d*)$/.exec(match.id)
-      if (!parts || !Number.isFinite(match.score)) throw new Error('invalid_article_candidate')
-      return { userId: positiveId(Number(parts[1])), id: positiveId(Number(parts[2])), score: match.score }
-    })
+    return matches.map(match => articleCandidate(match))
   }
 
   async queryCollections(vector: number[], options: VectorQueryOptions = {}) {

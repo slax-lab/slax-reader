@@ -348,7 +348,7 @@ export class ChatBot {
             choice.status === 'finished_failed' &&
               this.responseCallback({
                 type: ChatResponseType.STATUS_UPDATE,
-                data: { [ChatResponseType.STATUS_UPDATE]: { name: 'search', tips: t('util.chatbot.search_finished'), status: 'finished' } }
+                data: { [ChatResponseType.STATUS_UPDATE]: { name: 'search', tips: t('component.chat_bot.search_failed'), status: 'failed' } }
               })
 
             choice.status === 'finished_successfully' &&

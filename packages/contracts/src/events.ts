@@ -76,3 +76,33 @@ export interface EventsResponse {
 export interface EventsErrorResponse {
   error: string
 }
+
+/** One phase vocabulary shared by Web, Mobile and the Reader event lake. */
+export const POWERSYNC_PHASES = ['token', 'connect', 'stream', 'upload'] as const
+export type PowerSyncPhase = (typeof POWERSYNC_PHASES)[number]
+export type PowerSyncOutcome = 'success' | 'failure'
+
+/** `powersync_phase` and `powersync_connection_lost` event names. */
+export const POWERSYNC_EVENT_NAMES = ['powersync_phase', 'powersync_connection_lost'] as const
+export type PowerSyncEventName = (typeof POWERSYNC_EVENT_NAMES)[number]
+
+/**
+ * Properties carried by `powersync_phase` / `powersync_connection_lost`. Failure observations also
+ * carry the matching error record's fingerprint and Ray ID so the two lakes can be joined.
+ */
+export interface PowerSyncEventProperties {
+  observation_id: string
+  phase?: PowerSyncPhase
+  outcome?: PowerSyncOutcome
+  duration_ms?: number
+  failure_kind?: string
+  http_status?: number
+  credential_source?: string
+  connection_kind?: string
+  batch_size?: number
+  step?: 'submit' | 'acknowledge'
+  reason?: string
+  fingerprint?: string
+  ray?: string
+  [key: string]: JsonValue | undefined
+}

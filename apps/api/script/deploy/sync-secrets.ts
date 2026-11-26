@@ -8,7 +8,7 @@ import { API_ROOT, ROOT, parseArgs, readConfig, workerNames, writeGenerated, typ
 import { accountApi, missingRuntimeValues, type CloudflareApi } from './topology'
 import { loadApiEnv } from '../env'
 
-const TARGETS = ['core', 'ai', 'objects', 'edge'] as const
+const TARGETS = ['core', 'ai', 'objects', 'vector', 'edge'] as const
 type SecretTarget = (typeof TARGETS)[number]
 export type Upload = (target: SecretTarget, values: Record<string, string>) => number
 

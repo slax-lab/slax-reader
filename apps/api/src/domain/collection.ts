@@ -104,6 +104,7 @@ export class CollectionService {
       bookmark_uuid: item.bookmark_user_uuid,
       cb_id: ctx.hashIds.encodeId(item.id),
       site_name: item.site_name ?? '',
+      host_url: item.host_url ?? '',
       mark_count: item.mark_count ?? 0,
       starred_at: item.starred_at ? new Date(item.starred_at).toISOString() : '',
       created_at: item.created_at ? new Date(item.created_at).toISOString() : '',

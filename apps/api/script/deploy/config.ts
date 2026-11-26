@@ -4,7 +4,7 @@ import { parse, stringify, type TomlTable } from 'smol-toml'
 import { API_ROOT, API_TSCONFIG, ROOT, LOCAL_DIR } from '../root'
 
 export { API_ROOT, ROOT }
-export const TARGETS = ['core', 'edge', 'ai', 'objects', 'browser'] as const
+export const TARGETS = ['core', 'edge', 'ai', 'objects', 'vector', 'browser'] as const
 export type Target = (typeof TARGETS)[number]
 export const CONFIG_DIR = LOCAL_DIR
 export const CONFIG_TEMPLATE = path.join(ROOT, 'deploy/cloudflare/api.toml.example')
@@ -26,6 +26,9 @@ const rows = (value: unknown): TomlTable[] => (Array.isArray(value) ? (value as 
 // Core, AI and Objects query the primary PostgreSQL database; Edge and Browser stay next to the user.
 export const DATABASE_REGION = 'aws:ap-southeast-1'
 const PLACED: readonly Target[] = ['core', 'ai', 'objects']
+// Vector answers untagged bookmark search beside the query encoder and the V5 article index, which serve from North
+// America. Placement applies only to fetch handlers, so AI reaches it with a fetch over VECTOR_SEARCH, not RPC.
+export const VECTOR_REGION = 'aws:us-east-1'
 // Stateless Durable Objects owned by the Objects Worker.
 export const OBJECT_CLASSES: Record<string, string> = { SLAX_JIEBA: 'SlaxJieba', WEBSOCKET_SERVER: 'SlaxWebSocketServer', SCREENSHOT_BROWSER: 'ScreenshotBrowser' }
 export const OBJECTS_MIGRATIONS = [{ tag: 'objects-v1', new_sqlite_classes: Object.values(OBJECT_CLASSES) }]
@@ -40,7 +43,7 @@ export type McpPhase = 'retired' | 'keep-mcp' | 'retire-mcp'
 const createsMcp = (history: unknown) => rows(history).some(row => Array.isArray(row.new_sqlite_classes) && row.new_sqlite_classes.includes('SlaxMcpServer'))
 const deletesMcp = (history: unknown) => rows(history).some(row => Array.isArray(row.deleted_classes) && row.deleted_classes.includes('SlaxMcpServer'))
 // Bindings each Worker reads at runtime; every other binding is removed from its generated configuration.
-const OWNED: Record<Exclude<Target, 'browser'>, readonly string[]> = {
+const OWNED: Record<Exclude<Target, 'browser' | 'vector'>, readonly string[]> = {
   edge: ['r2_buckets', 'ratelimits', 'pipelines', 'services', 'queues', 'triggers'],
   core: [
     'ai',
@@ -166,6 +169,7 @@ export function workerNames(config: ApiConfig): Record<Target, string> {
     edge: String(service('EDGE') ?? legacyEdge[core] ?? `${core}-edge`),
     ai: String(service('AIGC') ?? service('VECTOR') ?? ''),
     objects: String(service('OBJECTS') ?? (core.startsWith('reader-core') ? core.replace(/^reader-core/, 'reader-objects') : `${core}-objects`)),
+    vector: String(service('VECTOR_SEARCH') ?? (core.startsWith('reader-core') ? core.replace(/^reader-core/, 'reader-vector') : `${core}-vector`)),
     browser: String(service('SlaxBrowser') ?? '')
   }
 }
@@ -173,13 +177,16 @@ export function workerNames(config: ApiConfig): Record<Target, string> {
 export function validateConfig(config: ApiConfig, filename: string): ApiConfig {
   if (config.workers) throw new Error(`${filename}: use native Wrangler name/services/[env.*] configuration; [workers.*] is not supported`)
   if (config.placement !== undefined)
-    throw new Error(`${filename}: remove placement; apps/api/script/deploy/config.ts places Core, AI and Objects in ${DATABASE_REGION} and Edge/Browser near the user`)
+    throw new Error(
+      `${filename}: remove placement; apps/api/script/deploy/config.ts places Core, AI and Objects in ${DATABASE_REGION}, Vector in ${VECTOR_REGION}, and Edge/Browser near the user`
+    )
   const names = workerNames(config)
   const fields = {
     core: 'name',
     edge: 'services.EDGE.service',
     ai: 'services.AIGC.service (or VECTOR)',
     objects: 'services.OBJECTS.service',
+    vector: 'services.VECTOR_SEARCH.service',
     browser: 'services.SlaxBrowser.service'
   }
   const owners = new Map<string, string>()
@@ -230,12 +237,15 @@ export function workerConfig(config: ApiConfig, target: Target, local = false, m
   const names = workerNames(config)
   output.name = names[target]
   if (target === 'browser') return browserConfig(output)
-  const internal = { CORE: names.core, EDGE: names.edge, AIGC: names.ai, VECTOR: names.ai, OBJECTS: names.objects, SlaxBrowser: names.browser }
+  if (target === 'vector') return vectorConfig(output, local)
+  const internal = { CORE: names.core, EDGE: names.edge, AIGC: names.ai, VECTOR: names.ai, OBJECTS: names.objects, VECTOR_SEARCH: names.vector, SlaxBrowser: names.browser }
   const services = target === 'edge' ? [] : rows(output.services).filter(service => !Object.prototype.hasOwnProperty.call(internal, String(service.binding)))
   // Edge forwards HTTP, and the queue, cron and email events it receives, to Core and AI.
   if (target === 'edge') services.push({ binding: 'CORE', service: names.core }, { binding: 'AIGC', service: names.ai })
   // Core reaches the Vectorize indexes through AI's RPC; AI binds them natively, so it needs no binding to itself.
   if (target === 'core') services.push({ binding: 'VECTOR', service: names.ai, entrypoint: 'AiEntry' }, { binding: 'SlaxBrowser', service: names.browser })
+  // The default entrypoint, so AI's fetch to Vector runs in Vector's placement region.
+  if (target === 'ai') services.push({ binding: 'VECTOR_SEARCH', service: names.vector })
   output.services = target === 'objects' ? [] : services
   // Edge stays every queue's consumer and forwards batches to Core, which maps queue names to handlers.
   const queue = output.queues as TomlTable | undefined
@@ -311,6 +321,22 @@ export function workerConfig(config: ApiConfig, target: Target, local = false, m
     delete output.route
     delete output.routes
   } else if (PLACED.includes(target)) output.placement = { region: DATABASE_REGION }
+  return output
+}
+
+// Vector holds only the V5 article index and its runtime strings; it has no route, public hostname or other binding.
+function vectorConfig(output: TomlTable, local: boolean): TomlTable {
+  const article = rows(output.vectorize).filter(binding => binding.binding === 'VECTOR_V5_ARTICLE')
+  for (const key of [...BINDING_KEYS, 'limits', 'placement']) delete output[key]
+  output.vectorize = local ? article.map(binding => ({ ...binding, remote: true })) : article
+  if (output.vars) delete (output.vars as TomlTable).DIAGNOSTIC_DOWNLOAD_SECRET
+  output.triggers = { crons: [] }
+  output.workers_dev = false
+  delete output.route
+  output.routes = []
+  output.preview_urls = false
+  if (local) delete output.routes
+  else output.placement = { region: VECTOR_REGION }
   return output
 }
 

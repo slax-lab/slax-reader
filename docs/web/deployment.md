@@ -163,6 +163,8 @@ These use synthetic configuration, temporary build trees, mocked Cloudflare resp
 SLAX_TEST_PAGES_BUILD=1 node --test tooling/powersync-assets.test.mjs tooling/powersync-retention.test.mjs tooling/build-assets.test.mjs tooling/web-pages-deploy.test.mjs tooling/web-pages-workflow.test.mjs
 ```
 
+Before publication, the release runs the built Worker smoke check with synthetic services. It loads a public text-only article, follows its `og:image` URL, and checks for a valid PNG response.
+
 The pinned Wrangler 4.127.0 local `pages dev --no-bundle` path has been observed to fail while locating its generated middleware facade on macOS. This does not change the upload command; the explicit workerd smoke test checks the precompiled application independently of that dev wrapper. It is not a claim that the Wrangler local preview command passes.
 
 These checks do not publish or change cloud settings. Passing them verifies the release contract and basic rendering, not real OAuth, service bindings, or deployment permissions. The first live deployment remains an operator check after configuration.

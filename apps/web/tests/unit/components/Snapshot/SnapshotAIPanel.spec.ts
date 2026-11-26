@@ -6,8 +6,8 @@
 //  - request().stream 真实协议：resolve 一个注册函数 callBack；callBack(handler:(text,isDone)=>void)
 //  - overview / outline 都走 stream，断言时按 url 过滤；mockStream 按 url 分发返回值
 //  - 每个用例 reset 后必须重装默认 URL 分发（mockReset 会清掉 implementation）
-import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -80,6 +80,18 @@ describe('SnapshotAIPanel', () => {
       expect(streamCallsFor(RESTMethodPath.BOOKMARK_OVERVIEW).length).toBeGreaterThan(0)
     })
 
+    it('displays an existing visitor outline without requesting the hidden overview', async () => {
+      const wrapper = mountWithApp(SnapshotAIPanel, {
+        props: { bookmarkUid: 'public-bookmark', overviewEnabled: false, defaultOutline: 'Public outline', isAppeared: true },
+        global: { stubs }
+      })
+      await flushPromises()
+
+      expect(wrapper.find('.panel-overview').exists()).toBe(false)
+      expect(wrapper.find('.panel-outline-text').text()).toBe('Public outline')
+      expect(mockStream).not.toHaveBeenCalled()
+    })
+
     it('isAppeared=true 时自动触发 outline 加载，bookmarkId 模式 query 含 bookmark_id', async () => {
       mountWithApp(SnapshotAIPanel, { props: { bookmarkId: 7, isAppeared: true }, global: { stubs } })
       await flushPromises()
@@ -109,26 +121,34 @@ describe('SnapshotAIPanel', () => {
       })
       const wrapper = mountWithApp(SnapshotAIPanel, { props: { bookmarkId: 1, isAppeared: true }, global: { stubs } })
       await flushPromises()
-      handler!('{"type":"progress","data":{"overview":"first"}}', false)
+      handler!('{"type":"progress","data":{"overview":"first"}}\n', false)
       await flushPromises()
+      expect(wrapper.find('.overview-loading-bottom').exists()).toBe(true)
       handler!('{"type":"progress","data":{"overview":"second"}}', true)
       await flushPromises()
       expect(wrapper.find('.panel-overview-text').text()).toBe('second')
+      expect(wrapper.find('.overview-loading-bottom').exists()).toBe(false)
     })
 
-    it('key takeaways 正确渲染', async () => {
+    it('renders fragmented overview and takeaway frames and finishes on the done frame', async () => {
       mockStream.mockImplementation((opts: { url: string }) => {
         if (opts.url === RESTMethodPath.BOOKMARK_OVERVIEW) {
           return Promise.resolve((cb: (text: string, done: boolean) => void) => {
-            cb('{"type":"progress","data":{"overview":"text"}}', false)
-            cb('{"type":"progress","data":{"key_takeaways":["a","b","c"]}}', true)
+            cb('{"type":"pro', false)
+            cb('gress","data":{"over', false)
+            cb('view":"text"}}\n{"type":"progress","data":{"key_takeaways":["a","b","c"]}}\n', false)
+            cb('{"type":"progress","data":{"done":true}}\n', false)
+            cb('', true)
           })
         }
         return Promise.resolve(null)
       })
       const wrapper = mountWithApp(SnapshotAIPanel, { props: { bookmarkId: 1, isAppeared: true }, global: { stubs } })
       await flushPromises()
+      expect(wrapper.find('.panel-overview-text').text()).toBe('text')
       expect(wrapper.findAll('.panel-keypoints li').length).toBe(3)
+      expect(wrapper.find('.panel-overview .retry-btn').exists()).toBe(false)
+      expect(streamCallsFor(RESTMethodPath.BOOKMARK_OVERVIEW)).toHaveLength(1)
     })
 
     it('overview 内容为空 → 自动重试一次（outline 用缓存隔离）', async () => {
@@ -195,11 +215,49 @@ describe('SnapshotAIPanel', () => {
       expect((calls[0]![0] as { body: Record<string, unknown> }).body).toMatchObject({ bookmark_id: 42 })
     })
 
-    it('shareCode 正确传入 overview 请求体（依赖后端契约）', async () => {
+    it('does not request overview for a share code alone', async () => {
       mountWithApp(SnapshotAIPanel, { props: { shareCode: 'sc1', isAppeared: true }, global: { stubs } })
       await flushPromises()
-      const calls = streamCallsFor(RESTMethodPath.BOOKMARK_OVERVIEW)
-      expect((calls[0]![0] as { body: Record<string, unknown> }).body).toMatchObject({ share_code: 'sc1' })
+      expect(streamCallsFor(RESTMethodPath.BOOKMARK_OVERVIEW)).toHaveLength(0)
+    })
+
+    it.each([
+      ['non-object payload', (consume: (text: string, done: boolean) => void) => consume('{"type":"progress","data":"UNAUTHORIZED"}\n', false)],
+      ['unexpected JSON envelope', (consume: (text: string, done: boolean) => void) => consume('{"data":"UNAUTHORIZED","code":401}\n', false)],
+      ['asynchronous read failure', () => { throw new Error('Stream interrupted') }]
+    ])('settles loading on %s', async (_name, read) => {
+      mockStream.mockResolvedValue((consume: (text: string, done: boolean) => void) => {
+        const reading = Promise.resolve().then(() => read(consume))
+        void reading.catch(() => {})
+        return reading
+      })
+      const wrapper = mountWithApp(SnapshotAIPanel, {
+        props: { bookmarkId: 1, defaultOutline: 'Cached outline', isAppeared: true },
+        global: { stubs }
+      })
+      await flushPromises()
+
+      expect(wrapper.find('.panel-overview .retry-btn').exists()).toBe(true)
+      expect(wrapper.find('.panel-overview .skeleton-row').exists()).toBe(false)
+      expect(streamCallsFor(RESTMethodPath.BOOKMARK_OVERVIEW)).toHaveLength(1)
+      expect(mockStream.mock.calls[0]![0].signal?.aborted).toBe(true)
+    })
+
+    it('keeps the retry loading when the previous reader rejects after its done frame', async () => {
+      mockStream.mockResolvedValueOnce(async (consume: (text: string, done: boolean) => void) => {
+        consume('{"type":"progress","data":{"done":true}}\n', false)
+        throw new Error('Connection closed after done')
+      })
+      mockStream.mockImplementation(() => new Promise(() => {}))
+      const wrapper = mountWithApp(SnapshotAIPanel, {
+        props: { bookmarkId: 1, defaultOutline: 'Cached outline', isAppeared: true },
+        global: { stubs }
+      })
+      await flushPromises()
+
+      expect(streamCallsFor(RESTMethodPath.BOOKMARK_OVERVIEW)).toHaveLength(2)
+      expect(wrapper.find('.panel-overview .skeleton-row').exists()).toBe(true)
+      expect(wrapper.find('.panel-overview .retry-btn').exists()).toBe(false)
     })
   })
 

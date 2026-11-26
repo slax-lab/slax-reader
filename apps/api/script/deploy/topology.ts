@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { type ApiConfig, workerNames } from './config'
+import { type ApiConfig, type Target, workerNames } from './config'
 import { RUNTIME_KEYS } from './runtimeKeys'
 
 export interface CloudflareApi {
@@ -68,13 +68,28 @@ const describeMissing = (missing: Record<string, string[]>) =>
     .map(([script, keys]) => `- ${script}: ${keys.join(', ')}`)
     .join('\n')
 
-// The only release precondition: every Worker already holds the secrets and strings its code reads.
-export async function requireValues(api: CloudflareApi, config: ApiConfig): Promise<void> {
-  const missing = await missingRuntimeValues(api, config, ['edge', 'core', 'ai', 'objects'])
-  if (Object.keys(missing).length)
-    throw new Error(
-      `These Workers lack values their code reads. Run \`pnpm api -- secrets:sync --from <file with the values>\` (or add them to [vars] of the selected configuration), then release again:\n${describeMissing(missing)}`
-    )
+// The only release precondition: every Worker already holds the secrets and strings its code reads. A Worker that
+// does not exist yet cannot hold secrets, and `secrets:sync` skips it, so a single-Worker release of exactly that
+// Worker (`deploy <worker>`) may create it; nothing binds to it until a full release, which this check gates.
+export async function requireValues(api: CloudflareApi, config: ApiConfig, target?: Target): Promise<void> {
+  const names = workerNames(config)
+  const scripts = new Set((await api.list<{ id: string }>('/workers/scripts')).map(script => script.id))
+  const all = ['edge', 'core', 'ai', 'objects', 'vector'] as const
+  const creating = all.find(worker => worker === target && !scripts.has(names[worker]))
+  const missing = await missingRuntimeValues(
+    api,
+    config,
+    all.filter(worker => worker !== creating)
+  )
+  if (!Object.keys(missing).length) return
+  const absent = all.filter(worker => missing[names[worker]] && !scripts.has(names[worker]))
+  throw new Error(
+    `These Workers lack values their code reads. Run \`pnpm api -- secrets:sync --from <file with the values>\` (or add them to [vars] of the selected configuration), then release again:\n${describeMissing(missing)}${
+      absent.length
+        ? `\nA Worker that does not exist yet cannot hold secrets: create it first with ${absent.map(worker => `\`pnpm api -- deploy ${worker}\``).join(', ')}, then run secrets:sync.`
+        : ''
+    }`
+  )
 }
 
 // Values that would be lost when code moves to another Worker, by name only. Deploys use --keep-vars, so a
@@ -86,7 +101,7 @@ export async function missingRuntimeValues(api: CloudflareApi, config: ApiConfig
   const scripts = new Set((await api.list<{ id: string }>('/workers/scripts')).map(script => script.id))
   const published = new Set(Object.keys((config.vars as Record<string, unknown> | undefined) ?? {}))
   const held: Record<string, Set<string>> = {}
-  for (const target of ['edge', 'core', 'ai', 'objects'] as const) {
+  for (const target of ['edge', 'core', 'ai', 'objects', 'vector'] as const) {
     held[target] = new Set()
     if (!scripts.has(names[target])) continue
     const settings = await api.get<{ bindings?: { name: string; type: string }[] }>(`/workers/scripts/${encodeURIComponent(names[target])}/settings`)

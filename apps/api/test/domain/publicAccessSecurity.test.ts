@@ -116,6 +116,17 @@ describe('public controller authorization', () => {
     await expect(w.cs.getCollectionBookmarkInfo('collection', 100)).rejects.toBeTruthy()
   })
 
+  test('public collection items expose the saved host and site name', async () => {
+    const w = wire()
+    w.repo.listUserStarBookmarksWithStatsByTargetUser.mockResolvedValue([
+      { id: 100, bookmark_user_uuid: 'bookmark', title: 'Article', target_url: 'https://mp.weixin.qq.com/s/saved-article', host_url: 'mp.weixin.qq.com', site_name: '' }
+    ])
+
+    const result = await w.cs.getShareCollectionInfo(createMockCtx({ userId: 0 }), 'collection')
+
+    expect(result.list).toEqual([expect.objectContaining({ host_url: 'mp.weixin.qq.com', site_name: '' })])
+  })
+
   test('public collection list filters disabled articles and rejects deleted owners', async () => {
     const w = wire()
     w.repo.listUserStarBookmarksWithStatsByTargetUser.mockResolvedValue([])

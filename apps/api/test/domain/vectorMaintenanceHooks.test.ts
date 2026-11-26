@@ -54,12 +54,7 @@ describe('private vector maintenance dispatch', () => {
     try {
       const { ctx, flush } = context(vi.fn().mockRejectedValue(new Error('dispatch unavailable')))
       const upsertVector = vi.fn().mockResolvedValue({ mutationId: 'legacy' })
-      const service = new SearchService(
-        { upsertVectorShard: vi.fn().mockResolvedValue({ bucket_idx: 0 }) } as any,
-        {} as any,
-        {} as any,
-        { deleteVector: vi.fn(), upsertVector } as any
-      )
+      const service = new SearchService({ upsertVectorShard: vi.fn().mockResolvedValue({ bucket_idx: 0 }) } as any, {} as any, { deleteVector: vi.fn(), upsertVector } as any)
       await expect(service.semanticNormalize(ctx, { processSemantic: vi.fn().mockResolvedValue([{ id: 'legacy', embedding: [1] }]) } as any, 99, 'Title', 'Body')).resolves.toEqual(
         { mutationId: 'legacy' }
       )
@@ -73,7 +68,7 @@ describe('private vector maintenance dispatch', () => {
   it('legacy provider failure never causes hidden maintenance admission from search normalization', async () => {
     const { SearchService } = await import('@/domain/search')
     const { ctx, create, flush } = context()
-    const service = new SearchService({} as any, {} as any, {} as any, {} as any)
+    const service = new SearchService({} as any, {} as any, {} as any)
     await expect(service.semanticNormalize(ctx, { processSemantic: vi.fn().mockRejectedValue(new Error('legacy unavailable')) } as any, 99, 'Title', 'Body')).rejects.toThrow(
       'legacy unavailable'
     )
@@ -88,7 +83,6 @@ describe('private vector maintenance dispatch', () => {
     ctx.hashIds = { encodeId: (id: number) => id }
     const search = new SearchService(
       { upsertVectorShard: vi.fn().mockResolvedValue({ bucket_idx: 0 }) } as any,
-      {} as any,
       {} as any,
       { deleteVector: vi.fn(), upsertVector: vi.fn().mockResolvedValue({ mutationId: 'legacy' }) } as any
     )

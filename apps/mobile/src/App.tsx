@@ -8,7 +8,8 @@ import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {MobileProvider, useMobile} from './runtime';
 import {mobileColors as C} from './theme';
 import type {RootStackParams} from './navigation/types';
-import {useTelemetry} from './telemetry';
+import * as telemetryModule from './telemetry';
+const {useTelemetry} = telemetryModule;
 import {SourceLine} from './components/SourceLine';
 import {AppRecoveryScreen} from './screens/AppRecoveryScreen';
 import {ObserveNavigationContainer, ObserveRoot} from './observe';
@@ -54,6 +55,8 @@ export function ApplicationRoutes() {
   useReaderPrewarm(session.status === 'authenticated' ? runtime : undefined);
   function reportRoutes() {
     const state = navigationRef.getRootState();
+    const currentRoute = navigationRef.getCurrentRoute();
+    telemetryModule.setCurrentScreen?.(currentRoute?.name, currentRoute?.params);
     if (!state) return;
     const active = new Set(state.routes.map(route => route.key));
     for (const key of reported.current) if (!active.has(key)) reported.current.delete(key);
@@ -86,6 +89,7 @@ export function ApplicationRoutes() {
 class RuntimeBoundary extends React.Component<{children: React.ReactNode}, {error: Error|null}> {
   state: {error: Error|null} = {error: null};
   static getDerivedStateFromError(error: Error) { return {error}; }
+  componentDidCatch(error: Error) { telemetryModule.reportRenderError?.(error); }
   render() {
     return this.state.error ? <SafeAreaView style={styles.center}><Text style={styles.title}>Unable to start Slax Reader</Text><Text style={styles.message}>{this.state.error.message}</Text></SafeAreaView> : this.props.children;
   }

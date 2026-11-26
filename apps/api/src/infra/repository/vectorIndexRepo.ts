@@ -1,5 +1,5 @@
 import { normalized } from '@/utils/vectorEmbedding'
-import type { ArticleQueryOptions, VectorIndexKind, VectorQueryOptions } from '@/utils/vectorMaintenanceTypes'
+import type { ArticleQueryOptions, VectorIndexKind, VectorIndexQueryOptions } from '@/utils/vectorMaintenanceTypes'
 
 export type VectorIndexRpc = Pick<VectorIndexRepo, 'getVectorsByIds' | 'upsertVectors' | 'deleteVectorsByIds' | 'queryVectors'>
 
@@ -64,10 +64,11 @@ export class VectorIndexRepo {
     return this.nativeIndex(kind).getByIds(ids)
   }
 
-  async queryVectors(kind: 'article' | 'collection', vector: number[], options: ArticleQueryOptions | VectorQueryOptions): Promise<{ id: string; score: number }[]> {
+  async queryVectors(kind: 'article' | 'collection', vector: number[], options: VectorIndexQueryOptions): Promise<{ id: string; score: number; values?: number[] }[]> {
     if (kind !== 'article' && kind !== 'collection') throw new Error('invalid_v5_query_index')
     const topK = options?.limit ?? 20
-    if (!Number.isInteger(topK) || topK < 1 || topK > 100) throw new Error('invalid_v5_query_limit')
+    const returnValues = options?.values === true
+    if (!Number.isInteger(topK) || topK < 1 || topK > (returnValues ? 50 : 100)) throw new Error('invalid_v5_query_limit')
     const filter: VectorizeVectorMetadataFilter = {}
     if (kind === 'article') {
       const scope = options as ArticleQueryOptions
@@ -76,8 +77,8 @@ export class VectorIndexRepo {
       filter.kind = 'article'
       filter.user_id = scope.userId!
     } else filter.recommendable = true
-    const result = await this.nativeIndex(kind).query(normalized(vector), { topK, filter, returnValues: false, returnMetadata: 'none' })
-    return result.matches.map(({ id, score }) => ({ id, score }))
+    const result = await this.nativeIndex(kind).query(normalized(vector), { topK, filter, returnValues, returnMetadata: 'none' })
+    return result.matches.map(({ id, score, values }) => (returnValues ? { id, score, values: values ? Array.from(values) : undefined } : { id, score }))
   }
 
   private legacyIndex(shardIdx: number): VectorizeIndex {
