@@ -284,6 +284,14 @@ describe('PowerSync reconnect backoff', () => {
       disconnectedStatus()
       expect(lost()).toBe(0)
     })
+
+    it('is not recorded when the stream drops while navigator reports offline before its event fires', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
   })
 
   it('resets to 5 seconds after a successful connection', async () => {
