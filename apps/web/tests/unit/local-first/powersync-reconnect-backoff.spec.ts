@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const state = vi.hoisted(() => ({
   connect: vi.fn(),
   disconnect: vi.fn(),
+  disconnectAndClear: vi.fn(),
   construct: vi.fn(),
   capture: vi.fn(),
   events: vi.fn(),
@@ -56,7 +57,7 @@ vi.mock('@powersync/web', () => ({
     init = vi.fn().mockResolvedValue(undefined)
     connect = state.connect
     disconnect = state.disconnect
-    disconnectAndClear = vi.fn().mockResolvedValue(undefined)
+    disconnectAndClear = state.disconnectAndClear
     close = vi.fn().mockResolvedValue(undefined)
     getCrudBatch = vi.fn().mockResolvedValue(null)
     onChangeWithCallback = () => () => {}
@@ -102,6 +103,7 @@ beforeEach(() => {
   state.token = token('user-a')
   state.connect.mockResolvedValue(undefined)
   state.disconnect.mockResolvedValue(undefined)
+  state.disconnectAndClear.mockReset().mockResolvedValue(undefined)
   failures = 0
   vi.stubGlobal('SharedWorker', undefined)
   Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true })
@@ -240,6 +242,104 @@ describe('PowerSync reconnect backoff', () => {
       .filter(event => event.event_name === 'powersync_phase' && event.properties.phase === 'connect' && event.properties.outcome === 'success')
       .map(event => event.properties.connection_kind)
     expect(kinds).toEqual(['initial', 'reconnect'])
+  })
+
+  describe('powersync_connection_lost', () => {
+    const lost = () => state.events.mock.calls.filter(([event]) => (event as { event_name: string }).event_name === 'powersync_connection_lost').length
+    const connectSuccesses = () => state.events.mock.calls.filter(([event]) => { const e = event as { event_name: string; properties: { phase?: string; outcome?: string } }; return e.event_name === 'powersync_phase' && e.properties.phase === 'connect' && e.properties.outcome === 'success' }).length
+    const disconnectedStatus = () => state.listeners.forEach(listener => listener.statusChanged?.({ connected: false, connecting: false, dataFlowStatus: {} }))
+    const setHidden = (hidden: boolean) => Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') })
+    afterEach(() => setHidden(false))
+
+    it('is recorded once when an established stream drops without an SDK error', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      disconnectedStatus()
+      disconnectedStatus()
+      expect(lost()).toBe(1)
+    })
+
+    it('is not recorded when connect() returned but the stream never came up', async () => {
+      // connect() resolves after its first attempt; a credential failure inside the SDK loop then ends it
+      // without any connected status, as seen on iOS during the auth redirect.
+      await start()
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
+
+    it('is not recorded for a stream failure, which is already counted as one', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      failStream()
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
+
+    it('is recorded when the stream connects after connect() already resolved, and that stream drops', async () => {
+      await start()
+      connectedStatus()
+      disconnectedStatus()
+      expect(lost()).toBe(1)
+      expect(connectSuccesses()).toBe(1)
+    })
+
+    it('is not recorded when the client stops the stream on logout', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      state.token = undefined
+      ;(state.afterEach.mock.calls.at(-1)![0] as () => void)()
+      await vi.advanceTimersByTimeAsync(0)
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
+
+    it('is not recorded for the disconnect an in-page account switch makes', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      state.disconnectAndClear.mockImplementationOnce(async () => disconnectedStatus())
+      state.token = token('user-b')
+      ;(state.afterEach.mock.calls.at(-1)![0] as () => void)()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(lost()).toBe(0)
+    })
+
+    it('starts a new stream for the next account after an in-page account switch', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      state.connect.mockResolvedValue(undefined)
+      state.token = token('user-b')
+      ;(state.afterEach.mock.calls.at(-1)![0] as () => void)()
+      await vi.advanceTimersByTimeAsync(0)
+      // The next account's connect resolved without a stream; its drop is not a loss.
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+      connectedStatus()
+      expect(connectSuccesses()).toBe(2)
+    })
+
+    it('is not recorded when the browser goes offline', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      setOnline(false)
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
+
+    it('is not recorded when the page is hidden', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      setHidden(true)
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
+
+    it('is not recorded when the stream drops while navigator reports offline before its event fires', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
   })
 
   it('resets to 5 seconds after a successful connection', async () => {

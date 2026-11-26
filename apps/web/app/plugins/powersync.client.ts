@@ -590,7 +590,9 @@ export default defineNuxtPlugin({
         db.registerListener({
           statusChanged: status => {
             if (status.connected) {
-              if (!connected) {
+              // Keyed on the SDK status, not on `connected`: connect() can resolve before the stream is up
+              // (it then sets `connected` itself), and the stream that connects later is still a new one.
+              if (syncConnectedAt === undefined) {
                 syncConnectedAt = Date.now()
                 streamEstablished = true
                 emitPhase('connect', 'success', {
@@ -603,9 +605,14 @@ export default defineNuxtPlugin({
               syncFailureCount = 0
               clearReconnect()
             } else if (connected && !status.connecting) {
+              // Only a stream the SDK reported connected and that then dropped counts as lost; a connect that
+              // never came up, a stop for a counted failure, going offline and a hidden page are not losses.
+              const wasStreaming = syncConnectedAt !== undefined
               connected = false
               syncConnectedAt = undefined
-              if (!intentionalStop) {
+              const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+              const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+              if (wasStreaming && !intentionalStop && !offlinePaused && !offline && !hidden) {
                 try {
                   if (hasObservableSession()) useClientErrorLog().telemetry('powersync_connection_lost', { observation_id: OBSERVATION_ID, reason: 'stream_lost' }, 'stream_lost')
                 } catch {}
@@ -682,6 +689,8 @@ export default defineNuxtPlugin({
         const lastUser = localStorage.getItem(LAST_USER_KEY)
         if (token && lastUser && lastUser !== currentUserId) {
           clearSyncCredsCache()
+          // The disconnect below is the client's own; the next connect() clears this flag.
+          intentionalStop = true
           try {
             await db.disconnectAndClear()
           } catch (e) {
@@ -690,6 +699,7 @@ export default defineNuxtPlugin({
             return false
           }
           connected = false
+          syncConnectedAt = undefined
         }
         if (token && !currentUserId) return false
         if (currentUserId) localStorage.setItem(LAST_USER_KEY, currentUserId)

@@ -17,3 +17,4 @@ A separate design document is omitted: the change reroutes existing observations
 - [x] 3.1 Run a local Web build against the test stream, sign in, and confirm `telemetry` rows for token, connect and stream with numeric durations in the test `client_errors.errors`, and no `/events` request for these names.
 - [x] 3.2 Confirm the monitor excludes `kind = 'telemetry'` from error counts and alerts and shows a PowerSync telemetry card before the Web deploy.
 - [x] 3.3 Run affected Web, Mobile and shared checks and `openspec validate --all --strict`; record results and gaps in `validation.md`; complete the local Bugs, Security and Compliance review.
+- [x] 3.4 Record `powersync_connection_lost` on Web only for a stream that reached a connected status and then dropped while online and visible, matching Mobile. Verify with plugin tests that fail without the change.
