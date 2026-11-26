@@ -603,9 +603,14 @@ export default defineNuxtPlugin({
               syncFailureCount = 0
               clearReconnect()
             } else if (connected && !status.connecting) {
+              // Only a stream that was established and then dropped counts as lost; a failed connect, a stop
+              // for a counted failure, going offline and a hidden page are not losses.
+              const wasStreaming = syncConnectedAt !== undefined
               connected = false
               syncConnectedAt = undefined
-              if (!intentionalStop) {
+              const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+              const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+              if (wasStreaming && !intentionalStop && !offlinePaused && !offline && !hidden) {
                 try {
                   if (hasObservableSession()) useClientErrorLog().telemetry('powersync_connection_lost', { observation_id: OBSERVATION_ID, reason: 'stream_lost' }, 'stream_lost')
                 } catch {}

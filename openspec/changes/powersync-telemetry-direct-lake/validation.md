@@ -36,3 +36,7 @@ Each environment now has one client stream and one pipeline (production `client_
 ## Local review
 
 Bugs, Security and Compliance passes on the diff: no Important findings. Telemetry rows pass through the same property sanitizer (URL query, share and collection code redaction) and identity binding as errors, cannot displace pending errors, and accept only fixed event names and bounded labels; the Mobile page address keeps only the route and the bookmark id.
+
+## Follow-up: `powersync_connection_lost` on Web
+
+On beta (2026-11-26 03:30 UTC) an iPhone Chrome session on `/auth` failed its first credential request (`TypeError: Load failed`) and still recorded `powersync_connection_lost`, because Web counted any connected-to-disconnected status change after `connect()` resolved, even when no stream had connected. Web now records it only for a stream that reached a connected status and then dropped while the browser is online and the page is visible, the same rule Mobile already applies. `powersync-reconnect-backoff.spec.ts` covers an established stream dropping (recorded once), a connect that never came up, a counted stream failure, going offline and a hidden page (none recorded); two of these fail against the previous plugin. Web `local-first` tests: 18 files, 242 passed.

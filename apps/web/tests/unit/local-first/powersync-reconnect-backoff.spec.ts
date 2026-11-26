@@ -242,6 +242,50 @@ describe('PowerSync reconnect backoff', () => {
     expect(kinds).toEqual(['initial', 'reconnect'])
   })
 
+  describe('powersync_connection_lost', () => {
+    const lost = () => state.events.mock.calls.filter(([event]) => (event as { event_name: string }).event_name === 'powersync_connection_lost').length
+    const disconnectedStatus = () => state.listeners.forEach(listener => listener.statusChanged?.({ connected: false, connecting: false, dataFlowStatus: {} }))
+    const setHidden = (hidden: boolean) => Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') })
+    afterEach(() => setHidden(false))
+
+    it('is recorded once when an established stream drops without an SDK error', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      disconnectedStatus()
+      disconnectedStatus()
+      expect(lost()).toBe(1)
+    })
+
+    it('is not recorded when connect() returned but the stream never came up', async () => {
+      // connect() resolves after its first attempt; a credential failure inside the SDK loop then ends it
+      // without any connected status, as seen on iOS during the auth redirect.
+      await start()
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
+
+    it('is not recorded for a stream failure, which is already counted as one', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      failStream()
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
+
+    it('is not recorded when the browser goes offline or the page is hidden', async () => {
+      state.connect.mockImplementation(async () => connectedStatus())
+      await start()
+      setOnline(false)
+      disconnectedStatus()
+      setOnline(true)
+      await vi.advanceTimersByTimeAsync(0)
+      connectedStatus()
+      setHidden(true)
+      disconnectedStatus()
+      expect(lost()).toBe(0)
+    })
+  })
+
   it('resets to 5 seconds after a successful connection', async () => {
     await start()
     failStream()
