@@ -74,9 +74,9 @@
     "sign_in_link_failed": "This link is invalid, expired, or already used. Return to sign in and request a new email."
   },
   "bookmark_fork": {
-    "sign_in_to_save": "Sign in to add this article to your Inbox.",
-    "retry_after_login": "The article could not be saved. Select Save for later to retry.",
-    "action": "Save for later",
+    "sign_in_to_save": "Sign in to keep a copy of this article in your bookmarks.",
+    "retry_after_login": "Your copy could not be saved after sign-in. Try saving it again.",
+    "action": "Save to my library",
     "submitting": "Saving…",
     "saved": "Saved",
     "saved_from": "Saved from {name}",
@@ -84,7 +84,19 @@
     "pending_source": "From another save",
     "unavailable": "Original save unavailable",
     "offline": "Connect to the internet to save this article.",
-    "failed": "Could not save this article. Please try again."
+    "failed": "Could not save this article. Please try again.",
+    "save_copy": "Save a copy",
+    "keep_copy": "Keep your own copy",
+    "copy_description": "Find this article later in your bookmarks.",
+    "copying": "Saving your copy…",
+    "keep_reading": "You can keep reading.",
+    "saved_copy": "Saved to my library",
+    "email_sent": "We’ve sent you a confirmation email.",
+    "view_bookmarks": "View bookmarks",
+    "failed_title": "Couldn’t save this article",
+    "retry": "Try again",
+    "checking": "Checking…",
+    "check_status": "Check status"
   },
   "pdf": {
     "local_upload": "Local upload",

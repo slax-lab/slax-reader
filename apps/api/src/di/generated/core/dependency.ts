@@ -194,7 +194,8 @@ container.register(BookmarkForkService, {
       container.resolve(SearchService),
       container.resolve(BookmarkRepo),
       container.resolve(MediaSnapshotService),
-      container.resolve(NotificationMessage)
+      container.resolve(NotificationMessage),
+      container.resolve(UserRepo)
     )
 })
 

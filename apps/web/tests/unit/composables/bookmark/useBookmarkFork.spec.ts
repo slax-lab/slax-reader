@@ -2,7 +2,7 @@ import { computed, reactive, ref } from 'vue'
 
 import SnapshotForkButton from '~/components/Snapshot/SnapshotForkButton.vue'
 
-import { bindSnapshotEmail, finishSnapshotEmail, finishSnapshotSave, startSnapshotSave } from '~/utils/bookmarkFork'
+import { bindSnapshotEmail, consumeSnapshotSaveFeedback, finishSnapshotEmail, finishSnapshotSave, startSnapshotSave } from '~/utils/bookmarkFork'
 
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -11,7 +11,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ post: vi.fn(), login: vi.fn(), toast: vi.fn(), user: null as any }))
 vi.mock('~/stores/user', () => ({ useUserStore: () => mocks.user }))
-vi.mock('~/composables/useAccountContext', () => ({ useAccountContext: () => ({ sync: () => {}, context: computed(() => ({ generation: mocks.user.generation })) }) }))
+vi.mock('~/composables/useAccountContext', () => ({ useAccountContext: () => ({ sync: () => {}, context: computed(() => ({ generation: mocks.user.generation })), token: ref('test-session') }) }))
 const cookies = vi.hoisted(() => new Map<string, string>())
 vi.mock('@vueuse/integrations/useCookies', () => ({
   useCookies: () => ({
@@ -73,6 +73,7 @@ it('attributes anonymous and signed-in clicks to the same source snapshot', asyn
   }))
   expect(mocks.post).not.toHaveBeenCalled()
 
+  mocks.login.mock.calls[0][0].onDismiss()
   mocks.user.isLogin = true
   mocks.post.mockResolvedValueOnce({ bmId: '' })
   await button.get('button').trigger('click')
@@ -80,7 +81,7 @@ it('attributes anonymous and signed-in clicks to the same source snapshot', asyn
   expect(mocks.login).toHaveBeenCalledOnce()
   expect(mocks.post).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
     url: '/v1/bookmark/add_url',
-    body: { target_url: `https://reader.test/b/${sourceUuid}`, tags: [] }
+    body: { target_url: `https://reader.test/b/${sourceUuid}`, tags: [], snapshot_save: true }
   }))
   button.unmount()
 })
@@ -92,20 +93,25 @@ it('uses add_url admission without requiring a destination UUID; shares request 
   await a.get('button').trigger('click')
   await b.get('button').trigger('click')
   expect(mocks.post).toHaveBeenCalledOnce()
-  expect(mocks.post.mock.calls[0][0]).toMatchObject({ url: '/v1/bookmark/add_url', body: { target_url: 'https://reader.test/b/source', tags: [] } })
-  expect(b.get('button').element.disabled).toBe(true)
+  expect(mocks.post.mock.calls[0][0]).toMatchObject({ url: '/v1/bookmark/add_url', body: { target_url: 'https://reader.test/b/source', tags: [], snapshot_save: true } })
+  expect(b.get('button').attributes('aria-disabled')).toBe('true')
   pending.resolve({ bmId: '' })
   await flushPromises()
-  expect(a.emitted('accepted')).toHaveLength(1)
-  expect(a.get('button').element.disabled).toBe(true)
-  expect(b.get('button').element.disabled).toBe(true)
+  expect(a.get('button').text()).toBe('bookmark_fork.submitting')
+  expect(a.get('button').attributes('aria-disabled')).toBe('true')
+  expect(b.get('button').attributes('aria-disabled')).toBe('true')
+  expect(a.get('button').attributes('aria-busy')).toBe('true')
+  await a.setProps({ viewerForkStatus: 'success', viewerForkReceipt: 'pending' })
   expect(a.get('button').attributes('aria-busy')).toBe('false')
+  expect(a.text()).not.toContain('bookmark_fork.email_sent')
+  await a.setProps({ viewerForkReceipt: 'sent' })
+  expect(a.text()).toContain('bookmark_fork.email_sent')
   a.unmount(); b.unmount()
 })
 
 it.each(['pending', 'success'] as const)('uses persisted %s from page detail and supports deliberate URL refresh', async status => {
   const button = mountButton(status)
-  expect(button.get('button').element.disabled).toBe(true)
+  expect(button.get('button').attributes('aria-disabled')).toBe('true')
   mocks.post.mockResolvedValue({ bmId: '' })
   expect(await useBookmarkFork().fork('source')).toEqual({ bmId: '' })
   expect(mocks.post).toHaveBeenCalledOnce()
@@ -115,15 +121,30 @@ it.each(['pending', 'success'] as const)('uses persisted %s from page detail and
 it('reconciles failed/deleted copies on a fresh detail and permits explicit retry after request failure', async () => {
   const button = mountButton('success')
   await button.setProps({ viewerForkStatus: 'failed' })
-  expect(button.get('button').element.disabled).toBe(false)
+  expect(button.get('button').attributes('aria-disabled')).toBe('false')
   mocks.post.mockRejectedValueOnce(new Error('network failure'))
   await button.get('button').trigger('click')
   await flushPromises()
-  expect(button.get('button').element.disabled).toBe(false)
-  expect(button.emitted('accepted')).toBeUndefined()
+  expect(button.get('button').attributes('aria-disabled')).toBe('false')
+  expect(button.get('button').attributes('aria-busy')).toBe('false')
   await button.setProps({ viewerForkStatus: 'success' })
   await button.setProps({ viewerForkStatus: null })
-  expect(button.get('button').element.disabled).toBe(false)
+  expect(button.get('button').attributes('aria-disabled')).toBe('false')
+  button.unmount()
+})
+
+it('shows a normal save on revisit and opens failure feedback for the current attempt', async () => {
+  const button = mountButton('failed')
+  expect(button.get('button').text()).toBe('bookmark_fork.action')
+  expect(button.find('.fork-feedback').exists()).toBe(false)
+
+  mocks.post.mockResolvedValueOnce({ bmId: '' })
+  await button.get('button').trigger('click')
+  await flushPromises()
+  await button.setProps({ viewerForkStatus: 'pending' })
+  await button.setProps({ viewerForkStatus: 'failed' })
+  expect(button.get('button').text()).toBe('bookmark_fork.retry')
+  expect(button.get('.fork-feedback').text()).toContain('bookmark_fork.failed_title')
   button.unmount()
 })
 
@@ -132,7 +153,7 @@ it('suppresses actions while the new account detail is unavailable', async () =>
   await button.setProps({ ready: false, viewerForkStatus: undefined })
   await button.get('button').trigger('click')
   expect(mocks.post).not.toHaveBeenCalled()
-  expect(button.get('button').element.disabled).toBe(true)
+  expect(button.get('button').attributes('aria-disabled')).toBe('true')
   button.unmount()
 })
 
@@ -148,7 +169,7 @@ it.each(['account', 'session', 'route'])('ignores late acceptance after a %s cha
   }
   pending.resolve({ bmId: '' })
   await flushPromises()
-  expect(button.emitted('accepted')).toBeUndefined()
+  expect(button.get('button').attributes('aria-busy')).toBe('false')
   button.unmount()
 })
 
@@ -176,7 +197,9 @@ it('resumes only the explicit admission attempt and consumes it once', async () 
   await finishSnapshotSave(redirect, undefined, 'test-session', signal)
   expect(mocks.post).not.toHaveBeenCalled()
   expect(await finishSnapshotSave(redirect, attribution, 'test-session', signal)).toBe(location.href)
-  expect(mocks.post).toHaveBeenCalledWith(expect.objectContaining({ body: { target_url: 'https://reader.test/b/' + sourceUuid, tags: [] } }))
+  expect(consumeSnapshotSaveFeedback(sourceUuid, 'test-session')).toBe(true)
+  expect(consumeSnapshotSaveFeedback(sourceUuid, 'test-session')).toBe(false)
+  expect(mocks.post).toHaveBeenCalledWith(expect.objectContaining({ body: { target_url: 'https://reader.test/b/' + sourceUuid, tags: [], snapshot_save: true } }))
   await finishSnapshotSave(redirect, attribution, 'test-session', signal)
   expect(mocks.post).toHaveBeenCalledOnce()
 })

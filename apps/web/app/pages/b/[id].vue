@@ -4,7 +4,8 @@
       v-if="detail"
       class="bookmark-detail"
       :data-reader-path="readerPath"
-      :class="{ 'has-save-action': !isOwner && bookmarkUid, 'is-pdf': !!detail.pdf, 'yt-transcript-folded': youtubeArticleReady && !youtubeTranscriptShown, 'podcast-translated': podcastShowsTranslation }"
+      :class="{ 'has-save-action': !isOwner && bookmarkUid, 'has-fork-card': forkCardHeight > 0, 'is-pdf': !!detail.pdf, 'yt-transcript-folded': youtubeArticleReady && !youtubeTranscriptShown, 'podcast-translated': podcastShowsTranslation }"
+      :style="{ '--snapshot-fork-card-offset': forkCardHeight ? (forkCardHeight + 12) + 'px' : '0px' }"
       @close-panel="onUserPanelChange(null)"
     >
       <template #topbar>
@@ -19,7 +20,19 @@
             <ClientOnly><ThemeSwitcher /></ClientOnly>
           </template>
           <template #right>
-            <ClientOnly><SnapshotForkButton v-if="!isOwner && bookmarkUid" :bookmark-uid="bookmarkUid" :viewer-fork-status="detail.viewer_fork_status" :ready="detail.viewer_fork_status !== undefined" @accepted="refreshForkDetail" /></ClientOnly>
+            <ClientOnly>
+              <SnapshotForkButton
+                v-if="!isOwner && bookmarkUid"
+                :key="`${accountGeneration}:${bookmarkUid}`"
+                :bookmark-uid="bookmarkUid"
+                :viewer-fork-status="detail.viewer_fork_status"
+                :viewer-fork-receipt="detail.viewer_fork_receipt"
+                :ready="detail.viewer_fork_status !== undefined"
+                :mobile="isH5"
+                :panel-open="activePanel !== null"
+                @card-height="forkCardHeight = $event"
+              />
+            </ClientOnly>
             <SnapshotSharePopover :bookmark-uid="bookmarkUid" :can-manage-share="isOwner" :twitter-text="twitterShareText" />
             <div v-if="menuLoading" class="i-svg-spinners:90-ring w-1em text-txt"></div>
             <SnapshotMoreMenu v-else-if="moreMenuActions.length" :actions="moreMenuActions" @action="moreMenuClick" />
@@ -94,6 +107,7 @@
       </template>
 
       <template #bottom-toolbar>
+        <div id="snapshot-fork-card" class="snapshot-fork-card" />
         <!-- owner 底栏：面板开时隐藏 -->
         <SnapshotBottomToolbar
           v-if="detail && isOwner"
@@ -353,7 +367,7 @@ const {
     }
   }
 
-  if (import.meta.server && !authenticatedSsr && res.metadata) res.metadata = { ...res.metadata, fork: null, viewer_fork_status: res.metadata.viewer_fork_status ?? null }
+  if (import.meta.server && !authenticatedSsr && res.metadata) res.metadata = { ...res.metadata, fork: null, viewer_fork_receipt: undefined, viewer_fork_status: res.metadata.viewer_fork_status ?? null }
   return { ...res, generation }
 })
 // A response for an earlier session is never exposed, even before a watcher runs.
@@ -469,10 +483,7 @@ onBeforeUnmount(() => {
   clearNuxtState(`snapshot-rejected-session-${uuid}`)
 })
 
-// Admission succeeds independently of this optional detail refresh.
-async function refreshForkDetail() {
-  await refreshContent().catch(() => {})
-}
+const forkCardHeight = ref(0)
 
 const readingPosition = useReadingPosition(uuid, {
   navigation: import.meta.client ? window.__slaxReaderStartup!.navigation : undefined,
@@ -1453,6 +1464,39 @@ renderServerData()
       flex-shrink: 0;
       display: block;
     }
+  }
+}
+
+.snapshot-fork-card { display: none; }
+
+@media (max-width: 768px) {
+  .bookmark-detail { --snapshot-fork-fade-reach: 96px; }
+
+  [data-slax-theme='eink'] .bookmark-detail { --snapshot-fork-fade-reach: 0px; }
+
+  .snapshot-fork-card:not(:empty) {
+    display: block;
+    position: fixed;
+    inset: auto 0 0;
+    pointer-events: none;
+    z-index: 22;
+  }
+
+  .bookmark-detail.has-fork-card {
+    --snapshot-fork-reading-clearance: var(--snapshot-fork-fade-reach);
+
+    :deep(.notes-pill-area),
+    :deep(.notes-welcome) {
+      z-index: 23;
+    }
+
+    :deep(.notes-pill-area) {
+      background: none;
+    }
+  }
+
+  .bookmark-detail :deep(.snapshot-content) {
+    padding-bottom: calc(var(--snapshot-fork-card-offset, 0px) + var(--snapshot-fork-reading-clearance, 0px) + env(safe-area-inset-bottom));
   }
 }
 

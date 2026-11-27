@@ -27,6 +27,7 @@ export interface AddUrlBookmarkRequest {
   saved_at?: string
   is_starred?: boolean
   import_only?: boolean
+  snapshot_save?: true
   target_url: string
   target_title?: string
   thumbnail?: string
@@ -84,6 +85,7 @@ export type BookmarkForkAttribution =
 export interface BookmarkForkMetadata {
   /** Viewer-only availability: active/failed same-resource saves; success requires exact Fork provenance. */
   viewer_fork_status?: 'pending' | 'success' | 'failed' | null
+  viewer_fork_receipt?: 'pending' | 'sent' | 'failed'
   has_fork: boolean
   fork: BookmarkForkAttribution | null
 }

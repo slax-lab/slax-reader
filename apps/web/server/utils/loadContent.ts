@@ -21,7 +21,7 @@ function appendServerTiming(event: H3Event, step: string, durationMs: number): v
   setResponseHeader(event, 'Server-Timing', current ? `${String(current)}, ${metric}` : metric)
 }
 
-export async function loadContent(event: H3Event, uuid: string): Promise<ContentResult> {
+export async function loadContent(event: H3Event, uuid: string, metadataOnly = false): Promise<ContentResult> {
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
   const totalStartedAt = performance.now()
   const timingEnabled = isServerTimingEnabled(event)
@@ -74,7 +74,7 @@ export async function loadContent(event: H3Event, uuid: string): Promise<Content
       throw createError({ statusCode: 404, message: 'not found' })
     }
 
-    if (isPdfContentKey(metadata.content_key)) return { metadata, body: null }
+    if (metadataOnly || isPdfContentKey(metadata.content_key)) return { metadata, body: null }
 
     let body: string | null = null
     const contentKey = metadata.content_key || `html/body/${uuid}.html`

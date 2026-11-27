@@ -443,6 +443,7 @@ export class UserRepo {
       if (!user) throw UserNotFoundError()
       if (!user.deleted_at) await tx.sr_user.update({ where: { id: userId }, data: { deleted_at: new Date() } })
       await tx.sr_user_api_key.deleteMany({ where: { user_id: userId } })
+      await tx.sr_bookmark_fork_receipt.deleteMany({ where: { user_id: userId } })
       await tx.$executeRaw`UPDATE sr_newsletter_feed SET state='cancelled' WHERE user_id=${userId} AND state='pending'`
     })
   }

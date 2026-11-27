@@ -104,6 +104,7 @@ export const showLoginModal = (options: { redirect?: string; authAttribution?: L
       }
     })
   }), () => nuxtApp.runWithContext(() => {
+    options.onDismiss?.()
     Toast.showToast({ text: nuxtApp.$i18n.t('common.tips.interface_load_failed'), type: ToastType.Error })
   }))
 }

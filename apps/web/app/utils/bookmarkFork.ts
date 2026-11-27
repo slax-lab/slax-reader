@@ -1,3 +1,4 @@
+import { tokenFingerprint } from '~/utils/accountContext'
 import { request } from '~/utils/request'
 
 import type { FetchOptions } from '@commons/frontend-utils/request'
@@ -6,10 +7,10 @@ import { RESTMethodPath } from '@slax-reader/contracts/const'
 import { isSnapshotAuthAttribution, SNAPSHOT_BOOKMARK_ID_PATTERN, type WebAuthAttribution } from '@slax-reader/contracts/events'
 import { useCookies } from '@vueuse/integrations/useCookies'
 
-export function submitBookmarkFork(sourceUuid: string, options: Pick<FetchOptions, 'errorInterceptors' | 'headers' | 'signal'>) {
+export function submitBookmarkFork(sourceUuid: string, options: Pick<FetchOptions, 'errorInterceptors' | 'headers' | 'signal'>, snapshotSave = false) {
   return request().post<AddBookmarkResponse>({
     url: RESTMethodPath.ADD_URL_BOOKMARK,
-    body: { target_url: new URL(`/b/${sourceUuid}`, String(useRuntimeConfig().public.PUBLIC_BASE_URL)).href, tags: [] },
+    body: { target_url: new URL(`/b/${sourceUuid}`, String(useRuntimeConfig().public.PUBLIC_BASE_URL)).href, tags: [], ...(snapshotSave ? { snapshot_save: true } : {}) },
     ...options
   })
 }
@@ -22,6 +23,17 @@ const cookieOptions = () => ({
   sameSite: 'lax' as const,
   secure: location.protocol === 'https:'
 })
+
+const feedbackCookieName = (source: string) => `slax_save_feedback_${source}`
+
+export function consumeSnapshotSaveFeedback(source: string, token: string | null | undefined) {
+  const cookies = useCookies()
+  const name = feedbackCookieName(source)
+  const value = cookies.get(name, { doNotParse: true })
+  if (!value) return false
+  cookies.remove(name, cookieOptions())
+  return value === tokenFingerprint(token)
+}
 
 // The reader and the provider callback can run on different session-sharing hosts.
 export function startSnapshotSave(sourceUuid: string) {
@@ -58,8 +70,9 @@ export async function finishSnapshotSave(target: string, attribution: WebAuthAtt
       headers: { Authorization: `Bearer ${token}` },
       signal: admission.signal,
       errorInterceptors: () => {}
-    })
-    if (!accepted) url.searchParams.set('save_failed', '1')
+    }, true)
+    if (accepted) cookies.set(feedbackCookieName(attribution.source_bookmark_id), tokenFingerprint(token), { ...cookieOptions(), maxAge: 5 * 60 })
+    else url.searchParams.set('save_failed', '1')
   } catch {
     signal.throwIfAborted()
     url.searchParams.set('save_failed', '1')

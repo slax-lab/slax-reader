@@ -151,6 +151,7 @@ async function main() {
       BACKEND_API_PREFIX: `http://localhost:${httpPort}`,
       IMAGE_PREFIX: `http://localhost:${httpPort}`,
       PROXY_IMAGE_PREFIX: `http://localhost:${httpPort}`,
+      ...(process.env.FORK_SMOKE === '1' ? { RESEND_API_KEY: 'fixture-only' } : {}),
       ...(emailRedis
         ? {
             RESEND_API_KEY: 'fixture-only',

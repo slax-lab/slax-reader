@@ -94,7 +94,7 @@ const commentIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 .notes-welcome {
   position: fixed;
   left: 50%;
-  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px) + var(--snapshot-fork-card-offset, 0px));
   transform: translateX(-50%) translateY(0);
   width: min(calc(100vw - 32px), 420px);
   z-index: 21;
@@ -193,7 +193,7 @@ const commentIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--snapshot-fork-card-offset, 0px);
   z-index: 20;
 
   // 底部渐变，柔化边界
