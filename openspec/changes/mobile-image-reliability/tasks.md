@@ -25,4 +25,4 @@
 
 - [x] 5.1 Run `pnpm mobile -- check`, `pnpm mobile -- bundle`, the native resource and registry host tests, and `openspec validate --all --strict`.
 - [x] 5.2 Build and install Android on a device and exercise: Reader images on an image-rich article, a forced image failure showing the placeholder and a successful retry, a highlighted image, background caching parallelism, an offline open, login/session cookies, avatars and an update check; capture the diagnostic records in the test pipeline or the device log. Record results and gaps in `validation.md`.
-- [ ] 5.3 Obtain the change requester's hands-on acceptance of the Reader placeholder and the Mobile version decision, complete the local Bugs, Security and Compliance review, and open the pull request against `dev`.
+- [x] 5.3 Obtain the change requester's hands-on acceptance of the Reader placeholder and the Mobile version decision, complete the local Bugs, Security and Compliance review, and open the pull request against `dev`.

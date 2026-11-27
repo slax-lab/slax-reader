@@ -84,16 +84,20 @@ Exercised scenarios:
 
 - R8 reported no `Missing class` or other errors.
 - The APK carries OkHttp 5's `PublicSuffixDatabase.list` asset, and its embedded user agent is `okhttp/5.5.1`.
-- The release APK was not installed or exercised. The device exercise used the Debug build.
+
+After the version bump, a 1.0.36 (811) Release APK built the same way was signed with the repository's debug keystore (matching the installed package's signature, so app data was kept) and installed on the Pixel 9 Pro Fold (Android 17) with `adb install -r`. The package reported `versionName=1.0.36`, `versionCode=811`. The device reached the production API through the Wi-Fi HTTP proxy on the host Mac. The exercise on 2026-11-28 (Asia/Shanghai):
+
+- **Placeholder and retry.** With Wi-Fi off, an article whose image was not cached showed the failed-image placeholder: a neutral block with a crossed-out image icon and the localized "点击重试" (tap to retry) label. With Wi-Fi back on, tapping it showed the neutral loading block, and the image rendered within about five seconds.
+- **Two-level proxied images.** The tweet bookmark still showed the placeholder for its images, as expected until the API-side fix in a separate change is deployed.
+- **Diagnostic delivery.** The production client-error lake (`client_errors.errors`) received one `kind=network` record for release `1.0.36+811` at 2026-11-27T16:14:30Z after the app moved to the background: `family=image`, `host=api-reader.slax.com`, system and public DNS answer counts and timings, IPv4 and IPv6 TCP connect results, `network.transport=wifi`, `validated=true`, and `image_failure={"error":"SlaxImageFailure","terminal":true}`. The record carried no URL, address or content. No second image record was sent in that session. PowerSync telemetry rows for the same release arrived in the same lake.
 
 ## Not verified
 
 - **iOS on a device or simulator.** iOS changes were verified only by the Swift native host tests and a `swiftc -typecheck` of the new probe against the iOS 16.4 simulator SDK. These changes are the probe, registry limits, parallel background images, the Reader image worker width and retry-marker stripping. No iOS device build or exercise was performed. The iOS staging-root path was checked: Foundation's `cachesDirectory` already resolves to itself.
-- **Delivery of a diagnostic to the production client-error lake.** Development builds have no ingestion endpoint, so the records were observed in the device log only. Release builds send through the existing collector, whose delivery is unchanged.
 - **PowerSync and content diagnostics on a device.** These paths are covered by the collector tests and the runtime wiring. No sync or content failure occurred on the device during the exercise.
-- **Stale `denied` manifest entries.** Entries recorded before this fix stay `denied` for background acquisition. The Reader still loads those images on open and persists them, so the user sees them, but they are not pre-cached in the background. Re-admitting them is a data migration that was deferred to the change requester.
+- **Stale `denied` manifest entries.** On affected production installs the staging-root exception has no HTTP status, so background acquisition recorded those images as retryable `failed` entries, which the fixed build retries without an attempt cap. The 878 `denied` entries on the test device came from switching that device between development and production API origins: their proxy origin was outside the development build's admitted image-proxy origins. `denied` entries stay excluded from background acquisition; the Reader still loads them on open. The change requester decided on 2026-11-28 not to re-admit them.
 - **Two-level proxied images.** A tweet bookmark's images are proxy URLs whose `u` parameter is itself a proxy URL. The outer proxy redirects to `notfound.png`, which the client correctly refuses. This is an API-side issue outside this change.
 
 ## Human acceptance
 
-Pending: the change requester's hands-on acceptance of the Reader failed-image placeholder and tap-to-retry, on the prepared Pixel device. Also pending: the Mobile version decision.
+On 2026-11-28 the change requester accepted the Android Reader behavior from the 1.0.36 (811) Release screenshots of the failed-image placeholder, the retrying state and the loaded image, and asked for the pull request as an urgent fix. Nothing was adjusted. On 2026-11-27 the change requester approved the Mobile version increment to `1.0.36 (811)`, previous build 810. The two-level proxied tweet images are handled by a separate API change.

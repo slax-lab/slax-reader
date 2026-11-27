@@ -8,7 +8,7 @@ An Android 1.0.31 user reported that saved articles show no images and the app l
 - Android 1.0.31 had no client error reporting.
 - The Worker logs held no image-proxy record for the session.
 
-Exercising the Android Reader on a Pixel 9 Pro Fold (Android 17) found the direct cause: the shared native image registry refused to start, so no Reader or background image was ever downloaded. Android reports `cacheDir` as `/data/user/0/<package>/cache`, a per-user mount that canonicalizes to `/data/data/<package>/cache`. The registry's staging-root check compared the canonical and absolute paths of `cacheDir/slax-image-transfers` and threw `Unsafe image staging root` on every attempt. On that device 878 background image attempts were recorded as `denied` and 53 as `failed`, and 2 of 118 cached articles had any image. The browser loads the same images directly, so it was unaffected.
+Exercising the Android Reader on a Pixel 9 Pro Fold (Android 17) found the direct cause: the shared native image registry refused to start, so no Reader or background image was ever downloaded. Android reports `cacheDir` as `/data/user/0/<package>/cache`, a per-user mount that canonicalizes to `/data/data/<package>/cache`. The registry's staging-root check compared the canonical and absolute paths of `cacheDir/slax-image-transfers` and threw `Unsafe image staging root` on every attempt, so uncached Reader images showed nothing and background image acquisition never succeeded. The check arrived in `d033836a` (2026-10-15), which every Android build from 1.0.25 (768) through 1.0.35 (810) contains; iOS is unaffected. Over 2026-10-28 to 2026-11-28 UTC the business event lake recorded 150 users on 308 Android devices running those builds (48 users on 75 devices in the last seven days). The browser loads the same images directly, so it was unaffected.
 
 Reading the code also found contributing client-side causes. The Android and iOS Reader and the background cache share one native image queue. That queue downloads at most two images per host at once, and every article image goes through the same proxy host. The queue's 60 MiB staging budget, at 20 MiB per image, also caps it at three concurrent downloads in total. Background acquisition downloads one article's images one at a time. A download that does not finish within 30 seconds is dropped without a retry. The Reader script then hides the failed image, so the user sees a missing image instead of an error. Android uses OkHttp 4.9.2, which has no IPv4/IPv6 fast fallback. When the IPv6 route to the edge stalls, OkHttp waits out a full timeout before trying IPv4, and browsers do not.
 
@@ -61,7 +61,7 @@ None. `client-error-logs` is still an active, unarchived delta in `client-error-
 - `apps/mobile/assets/embedded/js/react-native-host.js` and the generated reader embedding: the placeholder and retry.
 - Native host tests: classpaths for OkHttp 5.5.1 and Okio 3.18.1.
 - UI-visible: the Reader image failure state on Android and iOS.
-- Mobile ships this code, so it needs a version decision from the change requester before delivery.
+- Mobile ships this code. On 2026-11-27 the change requester approved the version increment to `1.0.36 (811)`, previous build 810.
 
 ## Non-goals
 
