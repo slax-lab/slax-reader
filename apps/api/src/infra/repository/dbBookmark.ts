@@ -560,6 +560,16 @@ export class BookmarkRepo {
     `
   }
 
+  /** Sets the original publication time on a successful bookmark the owner captured privately. */
+  public async setOwnerPublishedAt(bmId: number, ownerId: number, publishedAt: Date) {
+    return (
+      await this.prismaPg().sr_bookmark.updateMany({
+        where: { id: bmId, private_user: ownerId, status: queueStatus.SUCCESS, NOT: { published_at: publishedAt } },
+        data: { published_at: publishedAt }
+      })
+    ).count
+  }
+
   public async updateBookmark(bmId: number, info: bookmarkParsePO) {
     return this.prismaPg().sr_bookmark.update({
       where: { id: bmId },

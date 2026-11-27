@@ -1636,3 +1636,54 @@ describe('CrawlWorkflow Zhihu partial capture', () => {
     })
   })
 })
+
+describe('CrawlWorkflow publisher publication time', () => {
+  const YT = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+  const original = '2013-08-15T00:00:00.000Z'
+
+  function wirePublished(publisherIds: string) {
+    const w = wireWorkflow()
+    mockResolveMap.set(YoutubeArticleService, { triggerAfterCrawl: vi.fn().mockResolvedValue(undefined) })
+    mockResolveMap.set(SlaxAlertBotClient, { crawl: { pushMessage: vi.fn().mockResolvedValue(undefined) } })
+    ;(w.env as any).PUBLISHER_USER_IDS = publisherIds
+    ;(w.bs as any).updateBookmarkModerationResult = vi.fn().mockResolvedValue(true)
+    ;(w.bs as any).applyPublisherPublishedAt = vi.fn().mockResolvedValue(true)
+    ;(w.cs as any).fetchYoutubeData = vi.fn().mockResolvedValue({ videoId: 'dQw4w9WgXcQ', title: 'Old talk', cues: [] })
+    ;(w.cs as any).parseAndSaveYoutube = vi.fn().mockResolvedValue({ ...STANDARD_CRAWL_RESULT, title: 'Old talk', publishedRevision: '2026-11-18T00:00:00.000Z' })
+    return w
+  }
+
+  test('applies the publisher time after the capture is published and before moderation', async () => {
+    const { wf, bs } = wirePublished('1')
+    const step = createMockStep()
+    await runWorkflow(wf, { url: YT, publishedAt: original }, step)
+    expect((bs as any).applyPublisherPublishedAt).toHaveBeenCalledExactlyOnceWith(expect.anything(), 42, 1, new Date(original))
+    const names = step.do.mock.calls.map((c: any[]) => c[0])
+    expect(names.indexOf('publisher-published-at')).toBeGreaterThan(-1)
+    expect(names.indexOf('publisher-published-at')).toBeLessThan(names.indexOf('content-moderation'))
+  })
+
+  test.each([
+    ['an ordinary user', '9', original],
+    ['a publisher without a time', '1', undefined],
+    ['a publisher with an unzoned time', '1', '2013-08-15']
+  ])('leaves the derived time alone for %s', async (_name, ids, publishedAt) => {
+    const { wf, bs } = wirePublished(ids)
+    const step = createMockStep()
+    await runWorkflow(wf, { url: YT, ...(publishedAt ? { publishedAt } : {}) }, step)
+    expect((bs as any).applyPublisherPublishedAt).not.toHaveBeenCalled()
+    expect(step.do.mock.calls.map((c: any[]) => c[0])).not.toContain('publisher-published-at')
+  })
+
+  test('a failed time step does not stop moderation or post-processing', async () => {
+    const { wf, bs, uph } = wirePublished('1')
+    ;(bs as any).applyPublisherPublishedAt.mockRejectedValue(new Error('db unavailable'))
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await runWorkflow(wf, { url: YT, publishedAt: original })
+      expect(uph.processContentPostProcessing).toHaveBeenCalled()
+    } finally {
+      log.mockRestore()
+    }
+  })
+})

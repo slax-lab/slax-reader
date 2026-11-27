@@ -85,6 +85,8 @@ An account listed in `PUBLISHER_USER_IDS` can submit its captured document in th
 
 Include a `<title>` and a body containing text or supported media. Supply the byline with `<meta name="author">`, the site with `og:site_name`, and the original timestamp with `article:published_time`, using the `content` attribute for each value. X posts can include the Reader tweet container, quote markup and footer counts. WeChat photo posts and X photo or video posts may have an empty caption.
 
+The `article:published_time` of supplied HTML becomes the bookmark's publication time whichever capture route stores it, including a re-save of an existing capture. For URL and PDF saves, the same account can send the original time as `published_at` in the `POST /v1/bookmark/add_url` body or the `POST /v1/bookmark/upload_pdf` query string. It takes precedence over the time Reader derives from the page, YouTube or the PDF. In every case the value must be an ISO 8601 time with `Z` or an offset and not later than the request; other values, and values from other accounts, are ignored.
+
 ## Private bookmark and Fork runtime verification
 
 New captures use per-user private raw bookmarks. Saving a configured Reader `/b/<uuid>` URL delegates to the same copy operation as `POST /v1/bookmark/fork`; it does not parse the Reader page shell. The nullable `sr_user_bookmark.forked_from_id` references the immediate source user-bookmark row. See [the feasibility and implementation design](bookmark-fork-feasibility.md) for duplicate, access and all-format semantics.

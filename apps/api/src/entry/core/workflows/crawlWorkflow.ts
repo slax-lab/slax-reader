@@ -30,6 +30,7 @@ import { EVENT_CONTEXT_KEY, type EventRequestContext } from '@/domain/events'
 import { YoutubeArticleService } from '@/domain/youtubeArticle'
 import { PodcastService, PODCAST_LAB } from '@/domain/podcast'
 import { classifyPodcastUrl } from '@/utils/podcastSource'
+import { isPublisherUser, publisherPublishedTime } from '@/utils/publishedTime'
 import { ZhihuCaptureUnavailableError } from '@/infra/external/zhihu'
 
 export interface CrawlWorkflowParams {
@@ -45,6 +46,8 @@ export interface CrawlWorkflowParams {
   callbackOriginMessageId?: number
   ignoreGenerateTag?: boolean
   inlineContent?: string
+  // ISO original publication time from an allowlisted publisher; applied once the capture is published.
+  publishedAt?: string
   skipParse?: boolean
   repairPdfMetadata?: boolean
   importTaskId?: number
@@ -129,7 +132,7 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
     const alertBot = currentContainer.resolve(SlaxAlertBotClient)
 
     const { url, bookmarkId, userId, callbackChatId, callbackOriginMessageId, ignoreGenerateTag, inlineContent } = event.payload
-    const isPublisher = this.env.PUBLISHER_USER_IDS?.split(',').some(id => id.trim() === String(userId))
+    const isPublisher = isPublisherUser(this.env, userId)
     const hostname = (() => {
       try {
         return new URL(url).hostname || 'unknown'
@@ -526,6 +529,18 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
       console.log(`Soft 404 detected for bookmark ${bookmarkId}: textContent length = ${crawlResult.textContent.length}`)
       await crawlService.sendAddBookmarkStepEvent(userId, bookmarkId, hostname, 'parsing', 'failed', `soft_404:len=${crawlResult.textContent.length}`, ctxManager)
       await alertFailure('workflow_parse.soft_404', { bookmark_id: bookmarkId, url, domain: hostname, text_content_length: crawlResult.textContent.length })
+    }
+
+    // A publisher's original publication time replaces whatever the capture route derived.
+    const suppliedPublishedAt = isPublisher ? publisherPublishedTime(event.payload.publishedAt) : undefined
+    if (crawlResult?.publishedRevision && suppliedPublishedAt) {
+      try {
+        await step.do('publisher-published-at', { retries: { limit: 2, delay: '5 seconds' as const, backoff: 'constant' as const }, timeout: '1 minute' }, () =>
+          bookmarkService.applyPublisherPublishedAt(ctxManager, bookmarkId, userId, suppliedPublishedAt)
+        )
+      } catch (err) {
+        console.error(`Publisher publication time step failed for bookmark ${bookmarkId}: ${err instanceof Error ? err.message : String(err)}`)
+      }
     }
 
     // 内容审核（omni-moderation）：前置到主流程，post-processing 必须等待其完成。

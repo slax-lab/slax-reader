@@ -33,6 +33,8 @@ export interface AddUrlBookmarkRequest {
   description?: string
   tags: string[]
   is_archive?: boolean
+  /** Original publication time (ISO 8601); honored only for allowlisted publisher accounts. */
+  published_at?: string
 }
 
 export interface BookmarkExistsResponse {

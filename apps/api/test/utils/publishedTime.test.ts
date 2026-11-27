@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { parsePublishedTime } from '@/utils/publishedTime'
+import { isPublisherUser, parsePublishedTime, publisherPublishedTime, suppliedArticleTime } from '@/utils/publishedTime'
 
 describe('article publish time parsing', () => {
   test.each([
@@ -24,5 +24,46 @@ describe('article publish time parsing', () => {
 
   test.each([[''], ['not a date'], ['2024-13-45'], ['2024-03-05-'], ['1709634030000']])('rejects %j', value => {
     expect(parsePublishedTime(value)).toBeUndefined()
+  })
+})
+
+describe('publisher-supplied publication time', () => {
+  const now = new Date('2026-11-27T08:00:00Z')
+
+  test.each([
+    ['2013-08-15T00:00:00Z', '2013-08-15T00:00:00.000Z'],
+    ['2026-11-10T16:00:00+08:00', '2026-11-10T08:00:00.000Z'],
+    ['2023-10-19T12:01:36+0000', '2023-10-19T12:01:36.000Z'],
+    ['  2004-03-05T08:00:00Z  ', '2004-03-05T08:00:00.000Z']
+  ])('accepts zoned value %j', (value, expected) => {
+    expect(publisherPublishedTime(value, now)?.toISOString()).toBe(expected)
+  })
+
+  test.each([[undefined], [null], [12345], [''], ['2026-11-10'], ['2026-11-10T08:00:00'], ['not a date'], ['2026-11-27T08:00:01Z']])('rejects %j', value => {
+    expect(publisherPublishedTime(value, now)).toBeUndefined()
+  })
+
+  test('accepts a time equal to the request time', () => {
+    expect(publisherPublishedTime('2026-11-27T08:00:00Z', now)?.toISOString()).toBe('2026-11-27T08:00:00.000Z')
+  })
+
+  test('reads article:published_time from supplied HTML', () => {
+    const html =
+      '<!doctype html><html data-slax-publisher="article"><head><meta charset="utf-8"><title>T</title><meta property="article:published_time" content="2023-10-19T12:01:36+00:00"></head><body><p>x</p></body></html>'
+    expect(suppliedArticleTime(html, now)?.toISOString()).toBe('2023-10-19T12:01:36.000Z')
+  })
+
+  test.each([
+    ['no tag', '<html><head><title>T</title></head><body></body></html>'],
+    ['unzoned tag', '<html><head><meta property="article:published_time" content="2023-10-19"></head><body></body></html>'],
+    ['tag in body only', '<html><head></head><body><meta property="article:published_time" content="2023-10-19T00:00:00Z"></body></html>']
+  ])('ignores supplied HTML with %s', (_name, html) => {
+    expect(suppliedArticleTime(html, now)).toBeUndefined()
+  })
+
+  test('recognizes allowlisted publisher accounts only', () => {
+    expect(isPublisherUser({ PUBLISHER_USER_IDS: '3, 7 ,9' } as never, 7)).toBe(true)
+    expect(isPublisherUser({ PUBLISHER_USER_IDS: '3,9' } as never, 7)).toBe(false)
+    expect(isPublisherUser({} as never, 7)).toBe(false)
   })
 })
