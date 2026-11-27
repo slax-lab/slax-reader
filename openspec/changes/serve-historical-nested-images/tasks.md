@@ -14,4 +14,4 @@
 
 - [x] 3.1 Exercise a local Worker with public example configuration and synthetic signing data: compare direct and double-wrapped GET status, headers, body digest and absence of an inner proxy redirect, then record observations or specific declared gaps in `validation.md`. Do not use production secrets.
 - [x] 3.2 Run focused proxy tests, `pnpm api -- test test/script/layerArchitecture.test.ts`, API typecheck, lint, full tests and build, then `pnpm exec openspec validate --all --strict`. Record results and check git status for artifacts.
-- [ ] 3.3 Perform the Bugs, Security and Compliance passes in `REVIEW.md`, then deliver a separate task PR to `dev` using the repository template, with `OpenSpec: serve-historical-nested-images`, root cause, test evidence and the conditional cache guidance. Do not merge, deploy or purge.
+- [x] 3.3 Perform the Bugs, Security and Compliance passes in `REVIEW.md`, then deliver a separate task PR to `dev` using the repository template, with `OpenSpec: serve-historical-nested-images`, root cause, test evidence and the conditional cache guidance. Do not merge, deploy or purge.
