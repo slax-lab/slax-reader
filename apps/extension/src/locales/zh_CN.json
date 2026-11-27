@@ -30,7 +30,7 @@
     "permission_title": "开启本地 PDF 访问权限",
     "permission_step_settings": "打开此扩展的设置页面。",
     "permission_step_toggle": "开启“允许访问文件网址”开关。",
-    "permission_step_return": "Chrome 可能重启扩展。开启后回到此 PDF，再点 Slax Reader 或按 Alt+Y 即可收藏。",
+    "permission_step_return": "Chrome 可能重启扩展。开启后回到此 PDF，点 Slax Reader 或按 Alt+Y，再选「收藏当前网页」。",
     "permission_toggle_label": "允许访问文件网址",
     "permission_image": "Chrome 扩展设置示意：允许访问文件网址开关。请开启该开关以收藏当前本地 PDF。"
   },
@@ -216,5 +216,20 @@
       "search_finished": "搜索完成"
     }
   },
-  "open_labs_in_settings": "去网页设置打开 ↗"
+  "open_labs_in_settings": "去网页设置打开 ↗",
+  "action_popup": {
+    "save": "收藏当前网页",
+    "open_bookmark": "查看详情",
+    "inbox": "打开 Inbox",
+    "notifications": "通知",
+    "empty": "暂无通知",
+    "loading": "正在加载通知…",
+    "signed_out": "登录后查看通知",
+    "unavailable": "暂时无法获取通知",
+    "saved": "已收藏成功",
+    "saved_subject": "「$1」已收藏成功",
+    "new_content": "有新的未读收藏",
+    "new_content_subject": "「$1」有新的未读收藏",
+    "failed": "操作未完成，请重试。"
+  }
 }

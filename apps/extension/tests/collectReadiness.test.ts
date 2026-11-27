@@ -71,6 +71,15 @@ describe('collector readiness after SPA navigation / service worker restart', ()
     expect(sendMessage).toHaveBeenCalledWith(tab.id, { action: MessageTypeAction.ContentScriptReady })
     expect(sendMessage).not.toHaveBeenCalledWith(tab.id, { action: MessageTypeAction.ShowCollectPopup })
   })
+
+  test('toolbar collection waits for the HTML submission acknowledgement', async () => {
+    sendMessage.mockImplementation(async (_id, message) => message.action === MessageTypeAction.ContentScriptReady ? { ready: true, kind: 'html' } : { accepted: true })
+    await BrowserService.markContentScriptReady(tab.id)
+    const fallback = vi.fn(async () => {})
+    await expect(BrowserService.openCollectPopup(tab as Browser.tabs.Tab, 'open_collect', auth, fallback)).resolves.toEqual({ accepted: true })
+    expect(sendMessage).toHaveBeenLastCalledWith(tab.id, { action: MessageTypeAction.SaveFromActionPopup, url: tab.url }, { frameId: 0 })
+    expect(fallback).not.toHaveBeenCalled()
+  })
 })
 
 

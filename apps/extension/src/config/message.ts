@@ -45,6 +45,7 @@ export interface BridgeBookmarkPayload {
   description: string
   byline: string
   status: string
+  readable?: boolean
   published_at: string | null
   created_at: string
   updated_at: string
@@ -66,6 +67,7 @@ export enum MessageTypeAction {
   QueryHTMLContent = 'query-html-content',
   OpenWelcome = 'open-welcome-tab',
   ShowCollectPopup = 'show-collect-popup',
+  SaveFromActionPopup = 'save-from-action-popup',
   ShowPdfCollectPopup = 'show-pdf-collect-popup',
   PdfCollectSurfaceUpdate = 'pdf-collect-surface-update',
   HideCollectPopup = 'hide-collect-popup',
@@ -102,6 +104,10 @@ export type MessageType =
         | MessageTypeAction.ContentScriptReady
     }
   | {
+      action: MessageTypeAction.SaveFromActionPopup
+      url: string
+    }
+  | {
       action: MessageTypeAction.PinnedStatusUpdate
       isOnToolbar: boolean
     }
@@ -127,3 +133,11 @@ export type MessageType =
       actionType: number
       bookmarkId?: number
     }
+
+export const ACTION_POPUP_PORT = 'slax-action-popup'
+
+export type ActionPopupBookmark =
+  | { state: 'unsaved' | 'saving' | 'saved' }
+  | { state: 'readable'; id: string }
+
+export type ActionPopupSubmission = { accepted: boolean; labMessage?: string }

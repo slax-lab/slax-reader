@@ -201,6 +201,7 @@ import { isInboxPath } from '~/utils/promotionFlow'
 import { useBookmarkData } from '@/composables/bookmark/useBookmarkData'
 import { type CollectionBookmarkItem, type LocalCollectionItem, useLocalCollections } from '@/composables/bookmark/useLocalCollections'
 import { useOwnerInfo } from '@/composables/bookmark/useOwnerInfo'
+import { usePopupInboxCheckpoint } from '@/composables/bookmark/usePopupInboxCheckpoint'
 import type { BookmarkTag } from '@commons/frontend-types/models'
 import { RESTMethodPath } from '@slax-reader/contracts/const'
 import type { UserInfo } from '@slax-reader/contracts/interface'
@@ -453,11 +454,13 @@ const subscriptionReady = computed(() =>
 // fork-only：有效订阅数（排除已取消）
 const activeSubscribedCount = computed(() => subscribedCollections.value.filter(c => !c.is_cancelled).length)
 
+const isMainInbox = computed(
+  () => isInboxPath(route.path) && isCurrentInboxTab.value && !rssActive.value && !searchText.value && !sourceFilter.value && !activeCollectionCode.value
+)
+
 // inbox 空态三态判断
 const { inboxState } = useInboxOnboardingState({
-  isCurrentInboxTab: computed(
-    () => isInboxPath(route.path) && isCurrentInboxTab.value && !rssActive.value && !searchText.value && !sourceFilter.value && !activeCollectionCode.value
-  ),
+  isCurrentInboxTab: isMainInbox,
   subscribedCount: activeSubscribedCount,
   subscriptionReady,
   isDataEmpty,
@@ -466,6 +469,11 @@ const { inboxState } = useInboxOnboardingState({
   confirmEmpty: confirmOnboardingEmpty,
   account: account.context
 })
+
+usePopupInboxCheckpoint(
+  () => isMainInbox.value,
+  () => bookmarkDataSource.value === 'local' && onboardingReady.value && !isFirstLoad.value && inboxState.value !== 'A' && !kocFlow.blocksOnboarding.value
+)
 
 // 状态 A → 跳转 /onboarding
 watch(

@@ -1,4 +1,4 @@
-import { BookmarkActionType, type BookmarkLookupResult, MessageTypeAction } from '@/config/message'
+import { ACTION_POPUP_PORT, type ActionPopupBookmark, BookmarkActionType, type BookmarkLookupResult, MessageTypeAction } from '@/config/message'
 
 import { setExtensionLocale } from '@/utils/locale'
 import { ACCOUNT_LOCALE_KEY, normalizeBrowserLocale } from '@/utils/localeCore'
@@ -8,6 +8,7 @@ import { ensureLocaleCalibrationAlarm } from './localeAlarm'
 import { readLocaleUserInfo } from './localeApi'
 import { LocaleService } from './localeService'
 import { expireLocaleSession } from './localeSessionExpiry'
+import { PopupNotifications } from './popupNotifications'
 import { AuthService } from '@/entrypoints/background/authService'
 import { BridgeService, canUseBridgeState } from '@/entrypoints/background/bridgeService'
 import { BrowserService, logTabMessageError } from '@/entrypoints/background/browserService'
@@ -16,6 +17,7 @@ import { MessageHandler } from '@/entrypoints/background/messageHandler'
 import { MetricService } from '@/entrypoints/background/metricService'
 import { getSessionAccountKey, getTokenIdentityKeys, SessionService, userInfoMatchesIdentity } from '@/entrypoints/background/sessionService'
 import { StorageService } from '@/entrypoints/background/storageService'
+import { isPopupInboxPath, type PopupBookmarkCheckpoint } from '@commons/frontend-types/frontend'
 import type { MetricActionType } from '@slax-reader/contracts/analytics'
 import type { UserInfo } from '@slax-reader/contracts/interface'
 
@@ -31,10 +33,20 @@ export default defineBackground(() => {
   }
   const bridgeService = new BridgeService(sessionService, () => sessionTransition)
   const metricService = new MetricService(sessionService)
+  const popupNotifications = new PopupNotifications(sessionService, bridgeService, visible => BrowserService.setToolbarNotificationDot(visible))
+  const popupUrl = browser.runtime.getURL('/popup.html')
+  const syncActionPopup = async () => {
+    await browser.action.setPopup({ popup: (await sessionService.hasSession()) ? popupUrl : '' })
+  }
+  const isPopup = (sender: Browser.runtime.MessageSender | undefined) => sender?.id === browser.runtime.id && sender.url === popupUrl && !sender.tab
+  browser.runtime.onConnect.addListener(port => {
+    if (port.name === ACTION_POPUP_PORT && isPopup(port.sender)) popupNotifications.connect(port, checkPopupLogin)
+  })
 
   const expireSession = (expectedToken?: string): Promise<void> => {
-    return enqueueSessionTransition(() =>
-      expireLocaleSession(
+    popupNotifications.reset()
+    return enqueueSessionTransition(async () => {
+      await expireLocaleSession(
         {
           session: sessionService,
           invalidateLocale: () => localeService.invalidateSession(null),
@@ -44,7 +56,8 @@ export default defineBackground(() => {
         },
         expectedToken
       )
-    )
+      await syncActionPopup()
+    }).then(() => popupNotifications.refresh())
   }
   setExtensionLocale(normalizeBrowserLocale(browser.i18n.getUILanguage()))
   const localeService = new LocaleService({
@@ -75,10 +88,11 @@ export default defineBackground(() => {
   void ensureLocaleCalibrationAlarm().catch(error => console.warn('[locale] alarm initialization failed', error))
 
   let loginInFlight: Promise<void> | null = null
-  const requireLogin = () => {
+  const requireLogin = (expectedToken?: string) => {
     if (loginInFlight) return loginInFlight
-    loginInFlight = expireSession()
+    loginInFlight = expireSession(expectedToken)
       .then(async () => {
+        if (expectedToken && (await sessionService.hasSession())) return
         const loginUrl = `${process.env.PUBLIC_BASE_URL}/login?from=extension`
         const existing = (await browser.tabs.query({})).find(tab => tab.url === loginUrl)
         if (existing?.id) {
@@ -155,6 +169,12 @@ export default defineBackground(() => {
     })
 
   const authService = new AuthService(sessionService, requireLogin, () => bridgeService.userInfo(), userInfoMatchesSession)
+  const checkPopupLogin = async (unauthorizedToken?: string) => {
+    await sessionTransition
+    if (!unauthorizedToken) return authService.checkLogin()
+    await requireLogin(unauthorizedToken)
+    return sessionService.hasSession()
+  }
   const messageHandler = new MessageHandler(authService)
 
   const queryBookmarkRef = async (url: string): Promise<BookmarkLookupResult> => {
@@ -166,6 +186,37 @@ export default defineBackground(() => {
     }
 
     return { bookmarkUid: null, bridgeReady: false, bookmark: null }
+  }
+
+  type PopupSaveResponse = { ok: boolean; operation?: string; bookmark?: ActionPopupBookmark; labMessage?: string }
+  type PopupSaveReceipt = { url: string; account: string }
+  const popupSaves = new Map<string, Promise<PopupSaveResponse>>()
+  const receiptKey = (tabId: number) => `slax:action-popup-save:${tabId}`
+  const submissionKey = (tabId: number, url: string, account: string | null) => JSON.stringify([tabId, url, account])
+
+  const hasSaveReceipt = async (tabId: number, url: string, account: string | null) => {
+    if (!account) return false
+    const key = receiptKey(tabId)
+    const receipt = (await browser.storage.session.get(key))[key] as PopupSaveReceipt | undefined
+    return receipt?.url === url && receipt.account === account
+  }
+
+  const readPopupBookmark = async (tabId: number, url: string, account: string | null): Promise<ActionPopupBookmark | undefined> => {
+    if (!/^https?:\/\//.test(url)) return { state: 'unsaved' }
+    if (popupSaves.has(submissionKey(tabId, url, account))) return { state: 'saving' }
+    const acknowledged = await hasSaveReceipt(tabId, url, account)
+    const lookup = await queryBookmarkRef(url)
+    if (lookup.bookmark) {
+      const { readable, status, uuid } = lookup.bookmark
+      const canOpen = readable ?? (status === 'success')
+      if (canOpen || status === 'failed') {
+        if (acknowledged) await browser.storage.session.remove(receiptKey(tabId))
+        return canOpen ? { state: 'readable', id: uuid } : { state: 'unsaved' }
+      }
+      return { state: 'saved' }
+    }
+    if (acknowledged) return { state: 'saved' }
+    if (lookup.bridgeReady) return { state: 'unsaved' }
   }
 
   const updateTabBookmarkStatus = async (tabId: number, url: string) => {
@@ -249,6 +300,8 @@ export default defineBackground(() => {
   }
 
   void storageService.clearUserData()
+  void enqueueSessionTransition(syncActionPopup)
+  popupNotifications.refresh()
   sessionService.hasSession().then(hasSession => {
     if (hasSession) void changesCheckup()
   })
@@ -266,22 +319,29 @@ export default defineBackground(() => {
 
     if (changeInfo.removed) {
       if (changeInfo.cause !== 'overwrite') {
+        popupNotifications.reset()
         void localeService.invalidateSession(null).catch(error => console.warn('[locale] reset failed', error))
         void enqueueSessionTransition(async () => {
+          await syncActionPopup()
           await Promise.allSettled([storageService.clearUserData(), bridgeService.teardown()])
-        })
+        }).then(() => popupNotifications.refresh())
       }
       return
     }
 
+    const currentIdentity = [...getTokenIdentityKeys(changeInfo.cookie.value)][0] || ''
+    if (currentIdentity !== lastSessionIdentity) popupNotifications.reset()
     void enqueueSessionTransition(async () => {
+      await syncActionPopup()
       await initialSessionIdentity
-      const currentIdentity = [...getTokenIdentityKeys(changeInfo.cookie.value)][0] || ''
       const sameUser = Boolean(currentIdentity && currentIdentity === lastSessionIdentity)
       lastSessionIdentity = currentIdentity
-      if (!sameUser)
+      if (!sameUser) {
+        popupNotifications.reset()
         await Promise.allSettled([localeService.invalidateSession(await getSessionAccountKey(changeInfo.cookie.value)), storageService.clearUserData(), bridgeService.teardown()])
+      }
     }).then(async () => {
+      popupNotifications.refresh()
       refreshLocale('session')
       if (!(await sessionService.hasSession())) return
       await changesCheckup(true)
@@ -394,27 +454,94 @@ export default defineBackground(() => {
     }
   })
 
-  // 监听插件图标点击事件
-  browser.action.onClicked.addListener(async tab => {
-    refreshLocale('open')
-    void metricService.track().catch(error => console.warn('[collect] metric failed:', error))
-    BrowserService.openCollectPopup(tab, 'open_collect', authService)
+  browser.action.onClicked.addListener(tab => {
+    void (async () => {
+      if (!(await checkPopupLogin())) return
+      // The click can race the cookie event that restores the native popup.
+      await enqueueSessionTransition(syncActionPopup)
+      await browser.action.openPopup?.(tab.windowId == null ? undefined : { windowId: tab.windowId })
+    })().catch(error => console.warn('[popup] action failed:', error))
   })
 
-  // 监听插件置顶状态变化，推送给所有标签页（不依赖 visibilitychange）
   BrowserService.watchPinnedStatusChanges()
-
-  // Alt+Y is the reserved `_execute_action` command: Chrome delivers it as an action click, so the
-  // `action.onClicked` handler above covers it and no separate `commands.onCommand` listener is needed.
-
-  const configureAction = (tab: Browser.tabs.Tab) => {
-    void import('./pdfOperations').then(({ configurePdfAction }) => configurePdfAction(tab)).catch(() => {})
-  }
-  void browser.tabs.query({}).then(tabs => tabs.forEach(configureAction))
-  browser.tabs.onActivated.addListener(({ tabId }) => { void browser.tabs.get(tabId).then(configureAction).catch(() => {}) })
 
   // 监听其他页面发送的消息
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.target === 'action-popup' && isPopup(sender)) {
+      if (!['open', 'open-inbox', 'bookmark-state', 'open-bookmark', 'save'].includes(message.method)) return false
+      void (async () => {
+        if (message.method === 'bookmark-state') {
+          await sessionTransition
+          if (!(await sessionService.hasSession())) return { ok: false }
+        } else if (!(await checkPopupLogin())) return { ok: true, redirected: true }
+        if (message.method === 'open') return { ok: true }
+        if (message.method === 'open-inbox') {
+          await browser.tabs.create({ url: new URL('/bookmarks', process.env.PUBLIC_BASE_URL).href })
+          return { ok: true }
+        }
+        if (typeof message.tabId !== 'number' || typeof message.url !== 'string') return { ok: false }
+        const { tabId, url } = message as { tabId: number; url: string }
+        const tab = await browser.tabs.get(tabId)
+        if (tab.url !== url) return { ok: false }
+        const token = await sessionService.getToken()
+        if (!token) {
+          if (message.method !== 'bookmark-state' && !(await checkPopupLogin())) return { ok: true, redirected: true }
+          return { ok: false }
+        }
+        const account = await getSessionAccountKey(token)
+        if (message.method === 'bookmark-state' || message.method === 'open-bookmark') {
+          const bookmark = await readPopupBookmark(tabId, url, account)
+          if (message.method === 'bookmark-state') return { ok: true, bookmark }
+          if (bookmark?.state !== 'readable') {
+            if (!(await checkPopupLogin())) return { ok: true, redirected: true }
+            return { ok: false, bookmark }
+          }
+          await browser.tabs.create({ url: new URL(`/b/${encodeURIComponent(bookmark.id)}`, process.env.PUBLIC_BASE_URL).href })
+          return { ok: true }
+        }
+
+        const key = submissionKey(tabId, url, account)
+        const existing = popupSaves.get(key)
+        if (existing) return existing
+        const save = (async (): Promise<PopupSaveResponse> => {
+          if (await hasSaveReceipt(tabId, url, account)) return { ok: true, bookmark: { state: 'saved' } }
+          refreshLocale('open')
+          void metricService.track().catch(error => console.warn('[collect] metric failed:', error))
+          let operation: string | undefined
+          const submission = await BrowserService.openCollectPopup(tab, 'open_collect', authService, async source => {
+            const { initializePdfAction } = await import('./pdfOperations')
+            const result = await initializePdfAction(source)
+            if (typeof result.operation !== 'string') throw new Error('PDF source is no longer current')
+            operation = result.operation
+          })
+          if (!submission) return { ok: true, operation }
+          if (!submission.accepted) return { ok: false, labMessage: submission.labMessage }
+          if (account && (await browser.tabs.get(tabId).catch(() => undefined))?.url === url) {
+            await browser.storage.session.set({ [receiptKey(tabId)]: { url, account } satisfies PopupSaveReceipt })
+              .catch(() => console.warn('[popup] could not store the save receipt'))
+          }
+          return { ok: true, bookmark: { state: 'saved' } }
+        })().finally(() => {
+          popupSaves.delete(key)
+          popupNotifications.refresh()
+        })
+        popupSaves.set(key, save)
+        return save
+      })().then(sendResponse).catch(() => sendResponse({ ok: false }))
+      return true
+    }
+    if (message?.target === 'slax-background' && message.method === 'popup-inbox-checkpoint') {
+      if (!isLocaleSender(sender, browser.runtime.id, process.env.PUBLIC_BASE_URL || '') || !isPopupInboxPath(new URL(sender.url!).pathname)) return false
+      void popupNotifications.inbox(message.checkpoint as PopupBookmarkCheckpoint)
+        .then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }))
+      return true
+    }
+    if (message?.target === 'slax-background' && message.method === 'popup-notifications-changed') {
+      if (sender.id === browser.runtime.id && sender.url === browser.runtime.getURL('/offscreen.html') && !sender.tab && typeof message.watchId === 'string') {
+        popupNotifications.refresh(message.watchId)
+      }
+      return false
+    }
     if (message?.target === 'pdf-save') {
       void import('./pdfOperations').then(async ({ pdfOperationMessage, trustedPdfAction, initializePdfAction }) => {
         if (message.method === 'initialize') {
@@ -501,7 +628,10 @@ export default defineBackground(() => {
 
     if (receiveMessage.target === 'slax-background' && receiveMessage.method === 'powersync-status') {
       console.log('[powersync] connection status changed:', receiveMessage.status)
-      onPowerSyncStatusChanged(receiveMessage.status as unknown as PowerSyncStatusSnapshot)
+      const status = receiveMessage.status as unknown as PowerSyncStatusSnapshot
+      const wasSynced = lastPowerSyncStatus?.hasSynced
+      onPowerSyncStatusChanged(status)
+      if (wasSynced !== status.hasSynced) popupNotifications.refresh()
       return false
     }
 
@@ -565,7 +695,6 @@ export default defineBackground(() => {
 
   // 监听标签页更新
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.url || changeInfo.status === 'complete') configureAction(tab)
     if (changeInfo.status === 'loading' || changeInfo.url) {
       void import('./pdfOperations').then(({ invalidatePdfSource }) => invalidatePdfSource(tabId)).catch(() => {})
     }
@@ -599,6 +728,7 @@ export default defineBackground(() => {
 
   browser.tabs.onRemoved.addListener(tabId => {
     void BrowserService.clearContentScript(tabId)
+    void browser.storage.session.remove(receiptKey(tabId))
     void import('./pdfOperations').then(({ invalidatePdfSource }) => invalidatePdfSource(tabId, true)).catch(() => {})
   })
 })

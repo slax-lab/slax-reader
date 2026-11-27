@@ -64,9 +64,52 @@ try {
     assert.ok(targetInfo)
     await cdp.send('Extensions.triggerAction', { id, targetId: targetInfo.targetId })
   }
+  const nativePopup = async entry => {
+    let popupTarget
+    for (let i = 0; i < 100 && !popupTarget; i++) {
+      popupTarget = (await cdp.send('Target.getTargets')).targetInfos.find(target => target.type === 'page' && target.url.startsWith(`chrome-extension://${id}/${entry}`))
+      if (!popupTarget) await new Promise(resolve => setTimeout(resolve, 100))
+    }
+    assert.ok(popupTarget, 'the toolbar action opens its native extension popup')
+    // Playwright omits native action popups from context.pages(); inspect the
+    // actual browser-created popup target over its own CDP session instead.
+    const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: popupTarget.targetId })
+    let commandId = 0
+    const popupCommand = (method, params = {}) => new Promise((resolve, reject) => {
+      const id = ++commandId
+      const cleanup = () => { clearTimeout(timer); cdp.off('Target.receivedMessageFromTarget', receive) }
+      const receive = event => {
+        if (event.sessionId !== sessionId) return
+        const response = JSON.parse(event.message)
+        if (response.id !== id) return
+        cleanup()
+        if (response.error) reject(new Error(response.error.message))
+        else resolve(response.result)
+      }
+      const timer = setTimeout(() => { cleanup(); reject(new Error(`Native popup ${method} timed out`)) }, 10_000)
+      cdp.on('Target.receivedMessageFromTarget', receive)
+      cdp.send('Target.sendMessageToTarget', { sessionId, message: JSON.stringify({ id, method, params }) }).catch(error => { cleanup(); reject(error) })
+    })
+    const popupValue = async expression => {
+      const result = await popupCommand('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
+      assert.equal(result.exceptionDetails, undefined)
+      return result.result.value
+    }
+    return { popupCommand, popupValue }
+  }
+  const saveFromAction = async source => {
+    const before = requests.length
+    await action(source)
+    const { popupValue } = await nativePopup('popup.html')
+    for (let i = 0; i < 100 && !(await popupValue("!!document.querySelector('.action-primary')")); i++) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    assert.equal(requests.length, before, 'opening the toolbar popup does not start a save')
+    await popupValue("document.querySelector('.action-primary').click()")
+  }
   const trigger = async (source, expected = /PDF saved|PDF 已保存/) => {
     const before = context.pages().length
-    await action(source)
+    await saveFromAction(source)
     const frame = source.frameLocator('slax-reader-modal iframe')
     await frame.getByRole('status').filter({ hasText: expected }).waitFor()
     assert.equal(context.pages().length, before, 'collection creates no tab or window')
@@ -98,12 +141,14 @@ try {
   enabled = false
   save = await trigger(local, /unavailable for this account|此账号暂不可/)
   assert.equal(requests.filter(r => r.path.endsWith('upload_pdf')).length, 1)
-  await save.getByRole('button', { name: /Close collection popup|关闭收藏弹窗/ }).click()
+  await local.bringToFront()
+  await save.getByRole('button', { name: /Close collection popup|关闭收藏弹窗/ }).evaluate(button => button.click())
+  await local.locator('slax-reader-modal iframe').waitFor({ state: 'detached' })
   enabled = true
   holdLabs = true
   save = await trigger(local, /Checking your account|正在检查账号/)
   const uploadsBeforeSwitch = requests.filter(r => r.path.endsWith('upload_pdf')).length
-  await action(local)
+  await saveFromAction(local)
   assert.equal(await local.locator('slax-reader-modal iframe').count(), 1)
   pendingLabs.splice(0).forEach(resolve => resolve())
   holdLabs = false
@@ -114,7 +159,7 @@ try {
   const html = await context.newPage()
   await html.goto(origin + '/html.pdf')
   await html.locator('slax-reader-modal').waitFor({ state: 'attached' })
-  await action(html)
+  await saveFromAction(html)
   for (let i = 0; i < 100 && !requests.some(r => r.path === '/v1/bookmark/add'); i++) await new Promise(resolve => setTimeout(resolve, 100))
   assert.ok(requests.some(r => r.path === '/v1/bookmark/add'))
   assert.equal(context.pages().filter(p => p.url().includes('/pdf-save.html')).length, 0)
@@ -129,7 +174,7 @@ try {
       const worker = context.serviceWorkers().find(worker => worker.url().startsWith(`chrome-extension://${id}/`))
       const configured = await worker?.evaluate(async ({ source, allowed }) => {
         const tab = (await chrome.tabs.query({})).find(tab => tab.url === source)
-        return tab && (await chrome.extension.isAllowedFileSchemeAccess()) === allowed && !!(await chrome.action.getPopup({ tabId: tab.id })) === !allowed
+        return tab && (await chrome.extension.isAllowedFileSchemeAccess()) === allowed && (await chrome.action.getPopup({ tabId: tab.id })).endsWith('/popup.html')
       }, { source: local.url(), allowed }).catch(() => false)
       if (configured) return
       await new Promise(resolve => setTimeout(resolve, 100))
@@ -138,37 +183,8 @@ try {
   }
   await waitForFileAccess(false)
   const uploadsBeforePermission = requests.filter(r => r.path.endsWith('upload_pdf')).length
-  await action(local)
-  let popupTarget
-  for (let i = 0; i < 100 && !popupTarget; i++) {
-    popupTarget = (await cdp.send('Target.getTargets')).targetInfos.find(target => target.type === 'page' && target.url.startsWith(`chrome-extension://${id}/pdf-save.html`))
-    if (!popupTarget) await new Promise(resolve => setTimeout(resolve, 100))
-  }
-  assert.ok(popupTarget, 'the toolbar action opens its native extension popup')
-  // Playwright omits native action popups from context.pages(); inspect the
-  // actual browser-created popup target over its own CDP session instead.
-  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: popupTarget.targetId })
-  let commandId = 0
-  const popupCommand = (method, params = {}) => new Promise((resolve, reject) => {
-    const id = ++commandId
-    const cleanup = () => { clearTimeout(timer); cdp.off('Target.receivedMessageFromTarget', receive) }
-    const receive = event => {
-      if (event.sessionId !== sessionId) return
-      const response = JSON.parse(event.message)
-      if (response.id !== id) return
-      cleanup()
-      if (response.error) reject(new Error(response.error.message))
-      else resolve(response.result)
-    }
-    const timer = setTimeout(() => { cleanup(); reject(new Error(`Native popup ${method} timed out`)) }, 10_000)
-    cdp.on('Target.receivedMessageFromTarget', receive)
-    cdp.send('Target.sendMessageToTarget', { sessionId, message: JSON.stringify({ id, method, params }) }).catch(error => { cleanup(); reject(error) })
-  })
-  const popupValue = async expression => {
-    const result = await popupCommand('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
-    assert.equal(result.exceptionDetails, undefined)
-    return result.result.value
-  }
+  await saveFromAction(local)
+  const { popupCommand, popupValue } = await nativePopup('pdf-save.html')
   let guideShown = false
   for (let i = 0; i < 100 && !guideShown; i++) {
     guideShown = await popupValue(`/Allow access to local PDFs|开启本地 PDF 访问权限/.test(document.querySelector('h1')?.textContent || '') && document.querySelector('.switch-demo')?.getAttribute('role') === 'img' && !!document.querySelector('.switch-demo-track')`)
@@ -185,7 +201,7 @@ try {
       await chrome.storage.local.set({ [key]: { ...current, locale: '${locale}', revision: current.revision + 1 } })
     })()`)
     for (let i = 0; i < 100 && !(await popupValue(`document.querySelector('main').lang === '${locale}'`)); i++) await new Promise(resolve => setTimeout(resolve, 50))
-    assert.ok(await popupValue(`document.querySelector('main').lang === '${locale}' && document.querySelectorAll('h1').length === 1 && document.querySelectorAll('.permission-guide li').length === 2`))
+    assert.ok(await popupValue(`document.querySelector('main').lang === '${locale}' && document.querySelectorAll('h1').length === 1 && document.querySelectorAll('.permission-guide li').length === 3`))
     assert.ok(await popupValue(`innerHeight <= 600 && document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('.actions button')].every(button => button.getBoundingClientRect().bottom <= innerHeight)`), 'localized permission guidance fits the native popup')
     await popupValue(`document.activeElement.blur()`)
     for (let i = 0; i < 3 && !(await popupValue(`document.activeElement === document.querySelector('.primary-action')`)); i++) {

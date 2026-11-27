@@ -17,6 +17,7 @@ const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Err
 
 class BridgeLoadingError extends Error {}
 class BridgeTransportError extends Error {}
+class BridgeAuthError extends BridgeTransportError {}
 
 const clearLoadTimer = () => {
   if (loadTimer) clearTimeout(loadTimer)
@@ -132,6 +133,15 @@ window.addEventListener('message', event => {
     return
   }
 
+  if (event.data?.type === 'slax-bridge-popup-changed' && typeof event.data.watchId === 'string') {
+    void runtimeBrowser.runtime.sendMessage({
+      target: 'slax-background',
+      method: 'popup-notifications-changed',
+      watchId: event.data.watchId
+    }).catch(() => undefined)
+    return
+  }
+
   if (event.data?.type === 'slax-bridge-sync-status') {
     void runtimeBrowser.runtime.sendMessage({
       target: 'slax-background',
@@ -147,7 +157,7 @@ window.addEventListener('message', event => {
   }
 
   if (event.data?.type === 'slax-bridge-auth-expired') {
-    const error = new BridgeTransportError('bridge session expired')
+    const error = new BridgeAuthError('bridge session expired')
     markFailed(error)
     removeBridge()
     void runtimeBrowser.runtime.sendMessage({ target: 'slax-background', method: 'session-expired' }).catch(() => undefined)
@@ -215,7 +225,7 @@ runtimeBrowser.runtime.onMessage.addListener((message: unknown, _sender: Browser
   call(msg.method!, msg.params)
     .then(result => sendResponse({ success: true, data: result }))
     .catch(err => {
-      const kind = err instanceof BridgeLoadingError ? 'loading' : err instanceof BridgeTransportError ? 'transport' : 'business'
+      const kind = err instanceof BridgeAuthError ? 'auth' : err instanceof BridgeLoadingError ? 'loading' : err instanceof BridgeTransportError ? 'transport' : 'business'
       sendResponse({ success: false, kind, code: `bridge-${kind}`, error: String(err) })
     })
   return true

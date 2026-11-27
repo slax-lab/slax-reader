@@ -13,6 +13,15 @@ export interface BookmarkExportItem {
 
 export type BookmarkExportResponse = CursorPage<BookmarkExportItem>
 
+export function processTargetUrl(targetUrl: InstanceType<typeof URL>): string {
+  if (targetUrl.host === 'x.com' || targetUrl.host === 'twitter.com') {
+    targetUrl.searchParams.forEach((_, key) => targetUrl.searchParams.delete(key))
+  } else if (targetUrl.host === 'mp.weixin.qq.com') {
+    targetUrl.searchParams.delete('poc_token')
+  }
+  return targetUrl.toString()
+}
+
 export interface AddBookmarkRequest {
   target_url: string
   target_title: string
@@ -95,11 +104,17 @@ declare const URL: new (value: string) => {
   protocol: string
   username: string
   password: string
+  host: string
   origin: string
   pathname: string
   search: string
   hash: string
   href: string
+  searchParams: {
+    forEach(callback: (value: string, key: string) => void): void
+    delete(key: string): void
+  }
+  toString(): string
 }
 
 export function readerBookmarkUuid(target: string, readerOrigins: readonly string[]): string | null {

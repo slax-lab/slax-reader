@@ -30,7 +30,7 @@
     "permission_title": "Allow access to local PDFs",
     "permission_step_settings": "Open this extension’s settings.",
     "permission_step_toggle": "Turn on “Allow access to file URLs”.",
-    "permission_step_return": "Chrome may restart the extension. Return to this PDF, then click Slax Reader or press Alt+Y to save it.",
+    "permission_step_return": "Chrome may restart the extension. Return to this PDF, open Slax Reader with the toolbar or Alt+Y, then select Save current page.",
     "permission_toggle_label": "Allow access to file URLs",
     "permission_image": "Chrome extension settings: the Allow access to file URLs switch. Turn this switch on to save the open local PDF."
   },
@@ -216,5 +216,20 @@
       "search_finished": "Search complete"
     }
   },
-  "open_labs_in_settings": "Turn on in web settings ↗"
+  "open_labs_in_settings": "Turn on in web settings ↗",
+  "action_popup": {
+    "save": "Save current page",
+    "open_bookmark": "View details",
+    "inbox": "Open Inbox",
+    "notifications": "Notifications",
+    "empty": "No notifications",
+    "loading": "Loading notifications…",
+    "signed_out": "Sign in to see notifications",
+    "unavailable": "Notifications are unavailable",
+    "saved": "Saved successfully",
+    "saved_subject": "「$1」 saved successfully",
+    "new_content": "New unread saves",
+    "new_content_subject": "「$1」 has unread saves",
+    "failed": "Could not complete this action. Try again."
+  }
 }

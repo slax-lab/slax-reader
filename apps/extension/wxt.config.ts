@@ -105,7 +105,7 @@ export default defineConfig({
           mac: 'Alt+Y',
           linux: 'Alt+Y'
         },
-        description: 'Open the collect popup'
+        description: 'Open Slax Reader'
       }
     }
   },

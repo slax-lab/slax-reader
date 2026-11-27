@@ -1,6 +1,6 @@
-import type { BookmarkExistsResponse } from '@slax-reader/contracts'
 import { requestExtensionBridgeSession } from './extensionBridgeSession'
 import { getTokenUserId } from './sessionOwner'
+import { type BookmarkExistsResponse, processTargetUrl } from '@slax-reader/contracts'
 
 type ReaderLookupOptions = {
   apiBaseUrl: string
@@ -8,6 +8,15 @@ type ReaderLookupOptions = {
   userKey: string | null
   getUserKey: () => string | null
   sessionPolicy: Parameters<typeof requestExtensionBridgeSession>[0]
+}
+
+export async function lookupExtensionSourceBookmark<T extends { readable: number }>(targetUrl: string, parsed: URL, lookup: (url: string) => Promise<T | null>): Promise<T | null> {
+  const exact = await lookup(targetUrl)
+  if (exact?.readable === 1) return exact
+  const storedUrl = processTargetUrl(parsed)
+  if (storedUrl === targetUrl) return exact
+  const normalized = await lookup(storedUrl)
+  return normalized?.readable === 1 ? normalized : exact ?? normalized
 }
 
 /** The offscreen frame cannot rely on Web cookies or redirect to the Web login page. */

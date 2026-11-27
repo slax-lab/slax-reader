@@ -1,6 +1,7 @@
 import type { BridgeBookmarkPayload } from '@/config/message'
 
 import type { SessionService } from './sessionService'
+import type { PopupBookmarkCheckpoint, PopupSaveNotification, PopupSaveState, PopupSubscriptionNotification } from '@commons/frontend-types/frontend'
 import type { UserInfo } from '@slax-reader/contracts/interface'
 
 /**
@@ -139,14 +140,15 @@ export class BridgeService {
     return true
   }
 
-  private async call<T>(method: string, params?: Record<string, unknown>): Promise<T | null> {
+  private async call<T>(method: string, params?: Record<string, unknown>, unauthorizedResult?: T): Promise<T | null> {
     try {
       // Capability detection and offscreen creation must be inside the same
       // fallback boundary. Firefox/old Chrome has no offscreen API.
       if (!(await this.ensureBridge())) return null
-      const res = (await browser.runtime.sendMessage({ target: 'slax-offscreen', method, params })) as { success?: boolean; data?: T; error?: string } | undefined
+      const res = (await browser.runtime.sendMessage({ target: 'slax-offscreen', method, params })) as { success?: boolean; data?: T; code?: string; error?: string } | undefined
       if (!res?.success) {
         this.mounted = false
+        if (res?.code === 'bridge-auth' && unauthorizedResult !== undefined) return unauthorizedResult
         console.warn(`[bridge] ${method} failed:`, res?.error)
         return null
       }
@@ -176,6 +178,28 @@ export class BridgeService {
 
   async deleteMark(markUid: string) {
     return this.call<{ ok: true }>('deleteMark', { markUid })
+  }
+
+  async startPopupWatch(id: string) {
+    return this.call<boolean>('startPopupWatch', { id })
+  }
+
+  async stopPopupWatch(id: string) {
+    if (this.mounted) await browser.runtime.sendMessage({ target: 'slax-offscreen', method: 'stopPopupWatch', params: { id } })
+  }
+
+  async popupNotifications(userKey: string, state?: PopupSaveState) {
+    return this.call<{
+      userKey: string | null
+      hasSynced: boolean
+      checkpoint?: PopupBookmarkCheckpoint
+      subscriptions?: PopupSubscriptionNotification[]
+      saves?: PopupSaveNotification[]
+    }>('popupNotifications', { userKey, state })
+  }
+
+  async readPopupSubscription(userKey: string, code: string, throughAt: string) {
+    return this.call<boolean | 'auth-required'>('readPopupSubscription', { userKey, code, throughAt }, 'auth-required')
   }
 
   async teardown() {
