@@ -15,6 +15,9 @@ import { SnapshotBundle, snapshotKeys } from '@/utils/snapshotBundle'
 import { MediaSnapshotService } from './mediaSnapshot'
 import { NotificationMessage } from '@/infra/message/notification'
 import { dispatchVectorMaintenance } from './vectorMaintenanceHooks'
+import { UserRepo, platformBindType } from '@/infra/repository/dbUser'
+import { EMAIL_CODE_CONFIG } from '@/const/emailCode'
+import { sendResendEmail } from '@/infra/external/resend'
 
 export type ForkWorkflowJob = {
   sourceUuid: string
@@ -26,6 +29,7 @@ export type ForkWorkflowJob = {
   destinationId: number
   revision: string
   created: boolean
+  receiptTitle?: string
 }
 
 export type CompletedFork = { bookmark_uid: string; disposition: 'created' | 'already_saved' | 'updated'; bookmark_id: number }
@@ -40,7 +44,8 @@ export class BookmarkForkService {
     @inject(SearchService) private search: SearchService,
     @inject(BookmarkRepo) private bookmarks: BookmarkRepo,
     @inject(MediaSnapshotService) private media: MediaSnapshotService,
-    @inject(NotificationMessage) private notifications: NotificationMessage
+    @inject(NotificationMessage) private notifications: NotificationMessage,
+    @inject(UserRepo) private users: UserRepo
   ) {}
 
   private maintainReboundArticles(ctx: ContextManager, result: { rebindings?: { userId: number; previousBookmarkId: number; bookmarkId: number }[] }) {
@@ -49,7 +54,7 @@ export class BookmarkForkService {
     }
   }
 
-  async admit(ctx: ContextManager, sourceUuid: string): Promise<CompletedFork> {
+  async admit(ctx: ContextManager, sourceUuid: string, snapshotSave = false): Promise<CompletedFork> {
     const userId = ctx.getUserId()
     if (!userId) throw UnauthorizedError()
     if (typeof sourceUuid !== 'string' || !uuidPattern.test(sourceUuid)) throw ErrorParam()
@@ -57,6 +62,10 @@ export class BookmarkForkService {
     if (!source) throw BookmarkNotFoundError()
     if (source.user_id === userId) return this.existingResult(ctx, await this.repo.ownSource(userId, sourceUuid))
     if (source.bookmark.status !== 'success') throw forkError()
+    const admittedAt = Date.now()
+    const account = snapshotSave ? await this.users.getUserInfo(userId) : undefined
+    const age = account ? admittedAt - account.created_at.getTime() : Infinity
+    const sendReceipt = age < 24 * 60 * 60 * 1000
     const admission = await this.repo.admit({ userId, source, targetUrl: this.destinationUrl(source, userId), uuid: crypto.randomUUID() })
     this.maintainReboundArticles(ctx, admission)
     const { relation, disposition } = admission
@@ -74,7 +83,8 @@ export class BookmarkForkService {
         destinationUuid: relation.uuid,
         destinationId: relation.id,
         revision: revision.toISOString(),
-        created: disposition === 'created'
+        created: disposition === 'created',
+        ...(sendReceipt ? { receiptTitle: source.bookmark.title } : {})
       }
       try {
         await ctx.env.CRAWL_WORKFLOW.create({
@@ -146,6 +156,7 @@ export class BookmarkForkService {
         userId: ctx.getUserId(),
         source,
         targetUrl: this.destinationUrl(source, ctx.getUserId()),
+        sendReceipt: job.receiptTitle !== undefined,
         uuid: job.destinationUuid,
         content,
         destination: { id: job.destinationId, bookmark_id: bookmarkId, updated_at: revision, requireLive: true },
@@ -162,6 +173,48 @@ export class BookmarkForkService {
       if ((!publishing || error instanceof MultiLangError) && (await ownsWrite())) await bundle.discard().catch(() => {})
       throw error
     }
+  }
+
+  async deliverReceipt(ctx: ContextManager, bookmarkId: number, job: ForkWorkflowJob) {
+    const userId = ctx.getUserId()
+    const revision = new Date(job.revision)
+    if (job.receiptTitle === undefined || !(await this.repo.hasPendingReceipt(userId, job.sourceId, bookmarkId, revision))) return
+
+    const apiKey = ctx.env.RESEND_API_KEY?.trim()
+    const account = await this.users.getUserInfo(userId)
+    const bindings = account.deleted_at ? [] : await this.users.getUserBindPlatform(userId)
+    const mail = bindings.find(binding => binding.platform === platformBindType.MAIL)?.user_name
+    const providers = bindings.filter(binding => binding.platform === platformBindType.GOOGLE || binding.platform === platformBindType.APPLE)
+    const email = [mail, account.email, ...providers.map(binding => binding.user_name)].find(
+      address => address && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address.trim()) && !/@(?:appleid\.apple\.com|[^@]*\.invalid)$/i.test(address.trim())
+    )
+    if (!apiKey || account.deleted_at || !email) {
+      await this.failReceipt(ctx, bookmarkId, job)
+      return
+    }
+
+    const title = job.receiptTitle
+      .replace(/[\s\p{Cf}]+/gu, ' ')
+      .trim()
+      .slice(0, 160)
+    const chinese = (account.lang || ctx.getlang()).toLowerCase().startsWith('zh')
+    const article = title ? `《${title}》` : '这篇文章'
+    const subject = chinese ? 'Fork 成功，文章已保存' : 'Fork Success — your article is saved'
+    const message = chinese
+      ? `已经把${article}存好了。想看的时候，打开 Slax Reader 就能找到。\n\n打开 Slax Reader → https://r.slax.com/`
+      : `You now have your own copy of ${title ? `“${title}”` : 'this article'} in Slax Reader. When you’re ready to keep reading, you’ll find it in your bookmarks.\n\nOpen Slax Reader → https://r.slax.com/`
+    const outcome = await sendResendEmail(apiKey, `fork-receipt-${userId}-${job.sourceId}`, {
+      from: ctx.env.EMAIL_AUTH_FROM?.trim() || EMAIL_CODE_CONFIG.defaultFrom,
+      to: [email.trim()],
+      subject,
+      text: message
+    })
+    if (!outcome || outcome.status >= 500 || [408, 409, 429].includes(outcome.status)) throw new Error('Fork receipt service unavailable')
+    await this.repo.completeReceipt(userId, job.sourceId, bookmarkId, revision, outcome.ok ? 'sent' : 'failed')
+  }
+
+  async failReceipt(ctx: ContextManager, bookmarkId: number, job: ForkWorkflowJob) {
+    await this.repo.completeReceipt(ctx.getUserId(), job.sourceId, bookmarkId, new Date(job.revision), 'failed')
   }
 
   private featureForFork(source: ForkSource, pdf: boolean, mediaKind: string | undefined) {
@@ -323,6 +376,9 @@ export class BookmarkForkService {
     if (ctx.getUserId() && destination.user_id !== ctx.getUserId()) {
       try {
         result.viewer_fork_status = await this.repo.viewerStatus(ctx.getUserId(), destination.id, this.destinationUrl(destination, ctx.getUserId()))
+        if (result.viewer_fork_status === 'success') {
+          result.viewer_fork_receipt = await this.repo.viewerReceiptStatus(ctx.getUserId(), destination.id)
+        }
       } catch (error) {
         if (!(error instanceof MultiLangError)) throw error
       }

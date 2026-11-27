@@ -29,6 +29,7 @@ export const adapter = (db: any): any => {
       update: ({ where, data }: any) => db.query('UPDATE sr_user SET deleted_at=$1 WHERE id=$2', [data.deleted_at, where.id])
     },
     sr_user_api_key: { deleteMany: async () => ({ count: 0 }) },
+    sr_bookmark_fork_receipt: { deleteMany: ({ where }: any) => db.query('DELETE FROM sr_bookmark_fork_receipt WHERE user_id=$1', [where.user_id]) },
     $queryRaw: query,
     $executeRaw: query,
     $transaction: (fn: any) => db.transaction((tx: any) => fn(adapter(tx)))
@@ -46,7 +47,8 @@ beforeAll(async () => {
     '20260923044137_add_rss_timeline_index',
     '20260923065020',
     '20261019090000_rss_local_first',
-    '20261028142946_newsletter_feed'
+    '20261028142946_newsletter_feed',
+    '20261127090000_bookmark_fork_receipt'
   ])
     await db.exec(await readFile(new URL('../../../prisma/pg_migrations/' + path + '/migration.sql', import.meta.url), 'utf8'))
   repo = new NewsletterRepo(() => adapter(db))

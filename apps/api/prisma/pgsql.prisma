@@ -107,6 +107,17 @@ model sr_user_bookmark {
     @@index([user_id, deleted_at, is_starred, starred_at(sort: Desc)])
 }
 
+model sr_bookmark_fork_receipt {
+    user_id            Int
+    source_id          Int
+    bookmark_id        Int
+    admission_revision DateTime
+    published_revision DateTime
+    status             String   @default("pending")
+
+    @@id([user_id, source_id])
+}
+
 model sr_user_bookmark_stats {
     id Int @id @default(autoincrement())
 

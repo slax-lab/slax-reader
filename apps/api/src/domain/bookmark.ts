@@ -1431,7 +1431,12 @@ export class BookmarkService extends BookmarkReadService {
     assertExternalNewsletterTarget(req?.target_url)
     const source = readerBookmarkUuid(req?.target_url, [ctx.env.FRONT_END_URL])
     if (source)
-      return { kind: 'completed' as const, ...(await (callback === callbackType.NOT_CALLBACK ? this.forkService.admit(ctx, source) : this.forkService.fork(ctx, source))) }
+      return {
+        kind: 'completed' as const,
+        ...(await (callback === callbackType.NOT_CALLBACK
+          ? this.forkService.admit(ctx, source, req.snapshot_save === true && !req.import_only)
+          : this.forkService.fork(ctx, source)))
+      }
     // Covers /add_url, Telegram and the CLI; the extension and iOS share go through addBookmark
     await this.labService.assertUrlAllowed(ctx, req.target_url)
     try {

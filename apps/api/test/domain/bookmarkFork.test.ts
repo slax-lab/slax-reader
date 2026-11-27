@@ -32,6 +32,7 @@ describe('Fork service publication boundary', () => {
     repo = {
       source: vi.fn(async () => source),
       viewerStatus: vi.fn(async () => null),
+      viewerReceiptStatus: vi.fn(async () => undefined),
       mediaRef: vi.fn(async () => null),
       existing: vi.fn(async () => null),
       reconcile: vi.fn(async () => null),
@@ -216,6 +217,23 @@ describe('Fork service publication boundary', () => {
     return relation
   }
 
+  it('does not copy or send a receipt when the sign-in account owns the source', async () => {
+    admission()
+    source.user_id = ctx.getUserId()
+    repo.ownSource = vi.fn().mockResolvedValue({ uuid: source.uuid, bookmark_id: source.bookmark_id })
+    const getUserInfo = vi.fn()
+    Object.assign(service, { users: { getUserInfo } })
+
+    await expect(service.admit(ctx, source.uuid, true)).resolves.toEqual({
+      bookmark_uid: source.uuid,
+      bookmark_id: source.bookmark_id,
+      disposition: 'already_saved'
+    })
+    expect(repo.admit).not.toHaveBeenCalled()
+    expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
+    expect(getUserInfo).not.toHaveBeenCalled()
+  })
+
   it('acknowledges admission before blocked R2 work and binds the Workflow to the accepted revision', async () => {
     admission()
     const read = vi.spyOn(bucket.bucket, 'get').mockImplementation(() => new Promise(() => {}))
@@ -294,6 +312,84 @@ describe('Fork service publication boundary', () => {
     await service.execute(ctx, 20, job)
     expect(repo.publish).toHaveBeenCalledOnce()
     expect(await (await bucket.bucket.get('html/body/destination.html'))?.text()).toContain('Original')
+  })
+
+  it.each([
+    { age: 86_399_999, marked: true, expected: 'Original' },
+    { age: 86_400_000, marked: true, expected: undefined },
+    { age: 0, marked: false, expected: undefined }
+  ])('carries receipt eligibility from authenticated admission ($age/$marked)', async ({ age, marked, expected }) => {
+    admission()
+    const now = Date.now()
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
+    const getUserInfo = vi.fn(async () => ({ created_at: new Date(now - age) }))
+    Object.assign(service, { users: { getUserInfo } })
+    try {
+      await service.admit(ctx, source.uuid, marked)
+      const job = ctx.env.CRAWL_WORKFLOW.create.mock.calls[0][0].params.fork
+      expect(job.receiptTitle).toBe(expected)
+      expect(getUserInfo).toHaveBeenCalledTimes(marked ? 1 : 0)
+      repo.snapshot = vi.fn(async () => ({ content_key: '' }))
+      await service.execute(ctx, 20, job)
+      expect(repo.publish.mock.calls[0][0].sendReceipt).toBe(expected !== undefined)
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
+  it.each([
+    { accepted: true, lang: 'en', title: 'One article', subject: 'Fork Success — your article is saved', phrase: '“One article”' },
+    { accepted: false, lang: 'en', title: '', subject: 'Fork Success — your article is saved', phrase: 'your own copy of this article' },
+    { accepted: true, lang: 'zh-CN', title: '河岸手记', subject: 'Fork 成功，文章已保存', phrase: '已经把《河岸手记》存好了。' },
+    { accepted: true, lang: 'zh-CN', title: '  ', subject: 'Fork 成功，文章已保存', phrase: '已经把这篇文章存好了。' }
+  ])('sends localized receipts and records acceptance ($lang/$accepted/$title)', async ({ accepted, lang, title, subject, phrase }) => {
+    const revision = new Date()
+    const receipt = { sourceId: 11, receiptTitle: title, revision: revision.toISOString() } as Parameters<BookmarkForkService['deliverReceipt']>[2]
+    Object.assign(service, { users: {
+      getUserInfo: vi.fn(async () => ({ email: 'unused@appleid.apple.com', lang, deleted_at: null })),
+      getUserBindPlatform: vi.fn(async () => [{ platform: 'mail', user_name: 'reader@example.test' }])
+    } })
+    let status = 'pending'
+    repo.hasPendingReceipt = vi.fn(async () => status === 'pending')
+    repo.completeReceipt = vi.fn(async (_user, _source, _bookmark, _revision, result) => { status = result })
+    const send = vi.fn(async () => new Response(null, { status: accepted ? 200 : 400 }))
+    vi.stubGlobal('fetch', send)
+    try {
+      const sendingCtx = { ...ctx, env: { ...ctx.env, RESEND_API_KEY: 'fixture-key' } }
+      await service.deliverReceipt(sendingCtx, 20, receipt)
+      await service.deliverReceipt(sendingCtx, 20, receipt)
+      expect(send).toHaveBeenCalledOnce()
+      const [, options] = send.mock.calls[0] as unknown as [string, RequestInit]
+      expect(new Headers(options.headers).get('Idempotency-Key')).toBe('fork-receipt-2-11')
+      expect(JSON.parse(options.body as string)).toMatchObject({
+        to: ['reader@example.test'], subject,
+        text: expect.stringContaining(phrase)
+      })
+      expect(JSON.parse(options.body as string).text).toContain('https://r.slax.com/')
+      expect(repo.completeReceipt).toHaveBeenCalledWith(2, 11, 20, revision, accepted ? 'sent' : 'failed')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('ends delivery without contacting Resend when the reader has no deliverable address', async () => {
+    const revision = new Date()
+    const receipt = { sourceId: 11, receiptTitle: 'One article', revision: revision.toISOString() } as Parameters<BookmarkForkService['deliverReceipt']>[2]
+    Object.assign(service, { users: {
+      getUserInfo: vi.fn(async () => ({ email: 'unlinked@appleid.apple.com', lang: 'en', deleted_at: null })),
+      getUserBindPlatform: vi.fn(async () => [])
+    } })
+    repo.hasPendingReceipt = vi.fn(async () => true)
+    repo.completeReceipt = vi.fn()
+    const send = vi.fn()
+    vi.stubGlobal('fetch', send)
+    try {
+      await service.deliverReceipt({ ...ctx, env: { ...ctx.env, RESEND_API_KEY: 'fixture-key' } }, 20, receipt)
+      expect(send).not.toHaveBeenCalled()
+      expect(repo.completeReceipt).toHaveBeenCalledWith(2, 11, 20, revision, 'failed')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it.each(['pending', 'pending_retry', 'parseing', 'success', 'failed'])('projects viewer Fork state for %s', async status => {

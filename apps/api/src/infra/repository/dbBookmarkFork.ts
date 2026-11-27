@@ -36,6 +36,7 @@ export type ForkPublication = {
   mediaInput?: PodcastSnapshotInput
   labFeature?: string
   personal?: ForkPersonalState
+  sendReceipt?: boolean
   destination?: { id: number; bookmark_id: number; updated_at: Date; requireLive?: boolean }
 }
 
@@ -332,15 +333,48 @@ export class BookmarkForkRepo {
   }
 
   async viewerStatus(userId: number, sourceId: number, targetUrl: string): Promise<'pending' | 'success' | 'failed' | null> {
-    const relation = await this.client().sr_user_bookmark.findFirst({
-      where: { user_id: userId, deleted_at: null, bookmark: { target_url: targetUrl, private_user: userId } },
-      include: { bookmark: true }
-    })
-    if (!relation) return null
-    const status = relation.bookmark.status
+    // Polling must observe current writes even when Hyperdrive caches ordinary reads.
+    const [copy] = await this.client().$queryRaw<{ status: string; forked_from_id: number | null }[]>`
+      SELECT bookmark.status, copy.forked_from_id FROM sr_user_bookmark copy
+      JOIN sr_bookmark bookmark ON bookmark.id = copy.bookmark_id
+      WHERE copy.user_id = ${userId} AND copy.deleted_at IS NULL
+        AND bookmark.target_url = ${targetUrl} AND bookmark.private_user = ${userId}
+        AND CURRENT_TIMESTAMP IS NOT NULL
+      LIMIT 1
+    `
+    if (!copy) return null
+    const { status } = copy
     if (['pending', 'pending_retry', 'parseing', 'retrying', 'pending_import'].includes(status)) return 'pending'
     if (status === 'failed') return 'failed'
-    return status === 'success' && relation.forked_from_id === sourceId ? 'success' : null
+    return status === 'success' && copy.forked_from_id === sourceId ? 'success' : null
+  }
+
+  async hasPendingReceipt(userId: number, sourceId: number, bookmarkId: number, revision: Date) {
+    const [receipt] = await this.client().$queryRaw<{ status: string }[]>`
+      SELECT status FROM sr_bookmark_fork_receipt
+      WHERE user_id = ${userId} AND source_id = ${sourceId} AND bookmark_id = ${bookmarkId}
+        AND admission_revision = ${revision} AND status = 'pending' AND CURRENT_TIMESTAMP IS NOT NULL
+    `
+    return !!receipt
+  }
+
+  async completeReceipt(userId: number, sourceId: number, bookmarkId: number, revision: Date, status: 'sent' | 'failed') {
+    await this.client().sr_bookmark_fork_receipt.updateMany({
+      where: { user_id: userId, source_id: sourceId, bookmark_id: bookmarkId, admission_revision: revision, status: 'pending' },
+      data: { status }
+    })
+  }
+
+  async viewerReceiptStatus(userId: number, sourceId: number) {
+    const [receipt] = await this.client().$queryRaw<{ status: 'pending' | 'sent' | 'failed' }[]>`
+      SELECT receipt.status FROM sr_bookmark_fork_receipt receipt
+      JOIN sr_bookmark bookmark ON bookmark.id = receipt.bookmark_id AND bookmark.updated_at = receipt.published_revision
+      JOIN sr_user_bookmark copy ON copy.bookmark_id = bookmark.id AND copy.user_id = receipt.user_id
+      WHERE receipt.user_id = ${userId} AND receipt.source_id = ${sourceId}
+        AND copy.forked_from_id = receipt.source_id AND copy.deleted_at IS NULL AND bookmark.status = 'success'
+        AND CURRENT_TIMESTAMP IS NOT NULL
+    `
+    return receipt?.status
   }
 
   async publish(input: ForkPublication) {
@@ -424,6 +458,18 @@ export class BookmarkForkRepo {
             await db.sr_media_article_ref.deleteMany({
               where: { bookmark_id: relation.bookmark_id }
             })
+          if (input.sendReceipt) {
+            await db.sr_bookmark_fork_receipt.createMany({
+              data: {
+                user_id: input.userId,
+                source_id: current.id,
+                bookmark_id: input.destination.bookmark_id,
+                admission_revision: input.destination.updated_at,
+                published_revision: now
+              },
+              skipDuplicates: true
+            })
+          }
           return {
             disposition: 'updated' as const,
             relation: await this.restore(db, relation)

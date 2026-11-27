@@ -87,11 +87,12 @@ describe('atomic account deletion and login race', () => {
       () => ({ $transaction: (fn: any) => fn(tx) }) as any
     )
   }
-  test('locks the identity, tombstones and deletes keys in one transaction', async () => {
+  test('locks the identity, tombstones and deletes keys and Fork receipts in one transaction', async () => {
     const tx = {
       $executeRaw: vi.fn(),
       sr_user: { findUnique: vi.fn().mockResolvedValue({ id: 42, deleted_at: null }), update: vi.fn() },
-      sr_user_api_key: { deleteMany: vi.fn() }
+      sr_user_api_key: { deleteMany: vi.fn() },
+      sr_bookmark_fork_receipt: { deleteMany: vi.fn() }
     }
     await repo(tx).markUserAsDeleted(42)
     expect(tx.$executeRaw.mock.calls[0][1]).toBe('account:42')
@@ -100,6 +101,7 @@ describe('atomic account deletion and login race', () => {
     expect(updates).not.toContain('sr_platform_bind')
     expect(tx.sr_user.update).toHaveBeenCalledOnce()
     expect(tx.sr_user_api_key.deleteMany).toHaveBeenCalledWith({ where: { user_id: 42 } })
+    expect(tx.sr_bookmark_fork_receipt.deleteMany).toHaveBeenCalledWith({ where: { user_id: 42 } })
   })
   test('propagates failed key revocation rather than reporting successful deletion', async () => {
     const tx = {

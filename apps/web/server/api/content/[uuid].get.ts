@@ -4,5 +4,5 @@ export default defineEventHandler(async event => {
   const uuid = event.context.params?.uuid
   if (!uuid) throw createError({ statusCode: 400, message: 'missing uuid' })
 
-  return await loadContent(event, uuid)
+  return await loadContent(event, uuid, getQuery(event).meta === '1')
 })

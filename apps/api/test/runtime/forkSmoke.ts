@@ -187,8 +187,12 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           assert.equal(response.status, 200)
           return { response, result: { data: (await response.json()) as any } }
         }
-        const fork = async (sourceUuid: string, wait = true) => {
-          const response = await call('/v1/bookmark/add_url', { target_url: `${readerOrigin}/b/${sourceUuid}`, tags: [] })
+        const fork = async (sourceUuid: string, wait = true, snapshotSave = false) => {
+          const response = await call('/v1/bookmark/add_url', {
+            target_url: `${readerOrigin}/b/${sourceUuid}`,
+            tags: [],
+            ...(snapshotSave ? { snapshot_save: true } : {})
+          })
           let destinationUuid = ''
           if (response.result.code === 200) {
             assert.deepEqual(response.result.data, { bmId: '' })
@@ -202,6 +206,9 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           }
           return { ...response, destinationUuid }
         }
+        // Use a verified delivery fixture without changing the profile used by the other smoke operations.
+        sql("INSERT INTO sr_platform_bind(user_id, platform, platform_id, user_name, created_at) VALUES (1,'mail','fork-receipt@example.test','fork-receipt@example.test',now())")
+        const receiptSources = new Set(['html', 'shortcut', 'podcast'])
         const saved: Record<string, any> = {}
         const matchingLabs: Record<string, string> = { uploadedPdf: 'pdf', urlPdf: 'pdf', youtube: 'youtube', podcast: 'podcast', legacyYouTube: 'youtube' }
         const initialLabs = await labs()
@@ -223,7 +230,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           console.log(`Fork HTTP exercise: ${name}`)
           if (name === 'legacyYouTube') await setLab('youtube', false)
           const before = await labs()
-          const { response, result, destinationUuid } = await fork(src.uuid)
+          const { response, result, destinationUuid } = await fork(src.uuid, true, receiptSources.has(name))
           assert.equal(response.status, 200, `${name}: ${JSON.stringify(result)}`)
           const after = await labs()
           const changed = after.filter((feature, index) => feature.enabled !== before[index].enabled)
@@ -260,6 +267,17 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
             }
           }
           saved[name] = dest
+          if (receiptSources.has(name)) {
+            const sourceId = sql(`SELECT id FROM sr_user_bookmark WHERE uuid=${sqlString(src.uuid)}`)
+            let receipt = ''
+            for (let attempt = 0; attempt < 40 && receipt !== 'sent'; attempt++) {
+              receipt = sql(`SELECT status FROM sr_bookmark_fork_receipt WHERE user_id=1 AND source_id=${Number(sourceId)}`)
+              if (receipt !== 'sent') await new Promise(resolve => setTimeout(resolve, 250))
+            }
+            assert.equal(receipt, 'sent', `Resend fixture accepted the ${name} receipt`)
+            assert.equal((await detail(src.uuid)).result.data.viewer_fork_receipt, 'sent')
+            assert.equal((await detail(src.uuid, true)).result.data.viewer_fork_receipt, undefined)
+          }
           const duplicate = await fork(src.uuid)
           assert.equal(duplicate.destinationUuid, dest.uuid)
           assert.equal(sql(`SELECT content_key FROM sr_bookmark WHERE id=${dest.bookmark_id}`), dest.content_key)
@@ -697,6 +715,7 @@ export async function prepareForkSmoke(resources: LocalResources, container: str
           workflowFailureAndRetry: true,
           supplementalWriteRetryAndStaleRelease: true,
           viewerStatusIsolation: true,
+          sentReceipts: receiptSources.size,
           independent: true,
           repeatedRefresh: true,
           sourceDeletion: true,

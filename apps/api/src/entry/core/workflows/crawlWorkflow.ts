@@ -113,6 +113,15 @@ export class CrawlWorkflow extends WorkflowEntrypoint<Env, CrawlWorkflowParams> 
         await step.do('fail-fork', () => service.failExecution(event.payload.bookmarkId, job))
         throw error
       }
+      if (job.receiptTitle !== undefined) {
+        try {
+          await step.do('send-fork-receipt', { retries: { limit: 2, delay: '1 second', backoff: 'constant' }, timeout: '15 seconds' }, () =>
+            service.deliverReceipt(ctxManager, event.payload.bookmarkId, job)
+          )
+        } catch {
+          await step.do('fail-fork-receipt', () => service.failReceipt(ctxManager, event.payload.bookmarkId, job)).catch(() => console.error('Fork receipt status update failed'))
+        }
+      }
       if (copied) {
         await step.do('vector-maintenance', () =>
           currentContainer.resolve(UrlParserHandler).processVectorMaintenance(ctxManager, { userId: event.payload.userId, bookmarkId: event.payload.bookmarkId })

@@ -18,7 +18,14 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = input instanceof Request ? input.url : String(input)
   if (url === 'https://api.resend.com/emails') {
     const id = new Headers(init?.headers).get('Idempotency-Key')
-    const text = JSON.parse(String(init?.body)).text as string
+    const message = JSON.parse(String(init?.body)) as { text: string; subject: string; to: string[] }
+    if (id?.startsWith('fork-receipt-')) {
+      const valid = message.to.length === 1 && message.to[0] === 'fork-receipt@example.test'
+        && message.subject === 'Fork Success — your article is saved'
+        && message.text.includes('https://r.slax.com/')
+      return Promise.resolve(new Response(null, { status: valid ? 200 : 400 }))
+    }
+    const text = message.text
     const code = /\b\d{6}\b/.exec(text)?.[0]
     const link = /https?:\/\/\S+/.exec(text)?.[0]
     if (!id || !code) return Promise.resolve(new Response(null, { status: 400 }))

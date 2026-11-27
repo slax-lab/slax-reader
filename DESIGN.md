@@ -249,20 +249,22 @@ The common reference sizes are 12, 14, 15, 16, 17, 18, 20, 24, and 32 pixels. Fi
 
 ### 7.5 Public-reader save-state icons
 
-The `/b/[id]` save action uses the Web registry's `snapshot.save` (outline star)
-and `snapshot.saved` (filled star). Both reuse the curated `bookmark-action-star`
-SVG pair, preserve its `0 0 24 24` view box and provenance, and render at 14px with
-`currentColor` paint. The surrounding localized button labels the action; both
-icons use `control-labelled` accessibility and remain hidden from the accessibility
-tree. The saved state contains no trailing checkmark.
+The public reader's personal-copy action uses a component-owned folded bookmark
+with a rounded notch. Its mark distinguishes ready, working, confirmed and
+failure states. The desktop saved indicator uses the Web registry's
+`snapshot.saved` icon. The localized action supplies the accessible name, and
+the artwork stays decorative.
 
-This star pair represents saving a shared snapshot as a personal copy in this
-placement. It does not toggle the separate starred-bookmark flag. The saved
-button keeps its accent treatment at full opacity while preventing duplicate
-activation; unavailable metadata and an in-flight request have separate visual
-states. Use Web semantic tokens for all themes, preserve the 44px minimum hit-area
-height and visible keyboard focus, and keep the resting surface transparent and
-borderless. The runtime files own exact executable values.
+The desktop header uses an accent-filled action with nearby progress and
+confirmation. At the Web 768px transition, a non-modal bottom card gives the
+copy explanation and action room to coexist with reading controls. Respect safe
+areas and accommodate the full translated labels. Keep the saved indicator and
+the unavailable control distinct from active progress. Confirm publication with
+the filled star and a brief transition. Use read-later language in the save
+action and report the outcome directly in the confirmation. Keep the
+destination link visually secondary to the confirmation. Use Web semantic
+tokens, a 44px minimum hit area and visible keyboard focus. Reduced motion and
+e-ink display the status without animation.
 
 ## 8. Components and states
 

@@ -55,6 +55,7 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
     source = await repo.source(users[1], relation.uuid)
   })
   afterAll(async () => {
+    await client.sr_bookmark_fork_receipt.deleteMany({ where: { user_id: { in: users } } })
     await client.sr_user_bookmark_tag.deleteMany({ where: { user_id: { in: users } } })
     await client.sr_user_tag.deleteMany({ where: { user_id: { in: users } } })
     await client.sr_bookmark_comment.deleteMany({ where: { user_id: { in: users } } })
@@ -75,6 +76,69 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
   }
 
   const lab = (feature: string) => client.sr_user_lab_feature.findUnique({ where: { user_id_feature: { user_id: users[1], feature } } })
+
+  it('publishes one receipt for a source and projects it only for the matching publication', async () => {
+    const request = input(`https://fork-receipt.test/${crypto.randomUUID()}`)
+    const admitted = await repo.admit({ userId: request.userId, source: request.source, targetUrl: request.targetUrl, uuid: request.uuid })
+    const { relation } = admitted
+    const claim = { id: relation.id, bookmark_id: relation.bookmark_id, updated_at: relation.bookmark.updated_at, requireLive: true }
+    const sourceId = request.source.id
+    expect(await repo.viewerReceiptStatus(request.userId, sourceId)).toBeUndefined()
+    expect(await repo.hasPendingReceipt(request.userId, sourceId, relation.bookmark_id, claim.updated_at)).toBe(false)
+
+    await repo.publish({ ...request, destination: claim, sendReceipt: true })
+    expect(await repo.hasPendingReceipt(request.userId, sourceId, relation.bookmark_id, claim.updated_at)).toBe(true)
+    expect(await repo.viewerReceiptStatus(request.userId, sourceId)).toBe('pending')
+    const service = Object.assign(Object.create(BookmarkForkService.prototype) as BookmarkForkService, {
+      repo, users: new UserRepo(() => { throw new Error('Unexpected D1 access') }, () => client)
+    })
+    const ctx = { getUserId: () => request.userId, getlang: () => 'en', env: { RESEND_API_KEY: 'fixture-key' } } as Parameters<BookmarkForkService['deliverReceipt']>[0]
+    const job = {
+      sourceId, receiptTitle: request.source.bookmark.title, revision: claim.updated_at.toISOString()
+    } as Parameters<BookmarkForkService['deliverReceipt']>[2]
+    const send = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', send)
+    try {
+      await expect(service.deliverReceipt(ctx, relation.bookmark_id, job)).rejects.toThrow('Fork receipt service unavailable')
+      expect(await repo.viewerReceiptStatus(request.userId, sourceId)).toBe('pending')
+      await service.deliverReceipt(ctx, relation.bookmark_id, job)
+      await service.deliverReceipt(ctx, relation.bookmark_id, job)
+      expect(send).toHaveBeenCalledTimes(2)
+      expect(send.mock.calls[0][1]?.headers).toEqual(send.mock.calls[1][1]?.headers)
+      expect(JSON.parse(String(send.mock.calls[1][1]?.body))).toMatchObject({
+        subject: 'Fork Success — your article is saved',
+        text: expect.stringContaining('https://r.slax.com/')
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+    expect(await repo.viewerReceiptStatus(request.userId, sourceId)).toBe('sent')
+    expect(await repo.viewerReceiptStatus(users[0], sourceId)).toBeUndefined()
+
+    const next = await repo.admit({ userId: request.userId, source: request.source, targetUrl: request.targetUrl, uuid: crypto.randomUUID() })
+    const nextClaim = { ...claim, updated_at: next.relation.bookmark.updated_at }
+    await repo.publish({ ...request, destination: nextClaim, sendReceipt: true })
+    expect(await repo.viewerReceiptStatus(request.userId, sourceId)).toBeUndefined()
+    expect(await repo.hasPendingReceipt(request.userId, sourceId, relation.bookmark_id, nextClaim.updated_at)).toBe(false)
+    expect(await client.sr_bookmark_fork_receipt.count({ where: { user_id: request.userId, source_id: sourceId } })).toBe(1)
+  })
+
+  it('clears the reader’s pending Fork receipts when closing their account', async () => {
+    const reader = await client.sr_user.create({ data: { email: `${crypto.randomUUID()}@fork.test`, created_at: new Date(), last_login_at: new Date() } })
+    users.push(reader.id)
+    const request = { ...input(`https://fork-deletion.test/${crypto.randomUUID()}`), userId: reader.id }
+    const { relation } = await repo.admit(request)
+    const revision = relation.bookmark.updated_at
+    await repo.publish({ ...request, destination: { id: relation.id, bookmark_id: relation.bookmark_id, updated_at: revision, requireLive: true }, sendReceipt: true })
+    expect(await repo.hasPendingReceipt(reader.id, request.source.id, relation.bookmark_id, revision)).toBe(true)
+
+    const userRepo = new UserRepo(() => { throw new Error('Unexpected D1 access') }, () => client)
+    await userRepo.markUserAsDeleted(reader.id)
+    expect(await client.sr_bookmark_fork_receipt.count({ where: { user_id: reader.id } })).toBe(0)
+    expect(await repo.hasPendingReceipt(reader.id, request.source.id, relation.bookmark_id, revision)).toBe(false)
+  })
 
   it('enables the selected Lab on create and keeps its timestamp on refresh', async () => {
     const request = { ...input(`https://fork-labs.test/${crypto.randomUUID()}`), labFeature: 'pdf' }
@@ -505,7 +569,8 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
       new PasskeyRepo(() => client),
       { deleteAllUserBookmarks: async () => 0 } as never
     )
-    await deletion.cleanupUserData(user.id)
+    const env = { VECTOR_V5_MAINTENANCE_WORKFLOW: { createBatch: async () => [] } as unknown as Env['VECTOR_V5_MAINTENANCE_WORKFLOW'] }
+    await deletion.cleanupUserData(user.id, env)
     expect([...memory.objects.keys()]).toEqual(['html/body/other-one.html'])
     expect(await client.sr_bookmark.count({ where: { private_user: user.id } })).toBe(0)
     expect(await client.sr_bookmark.findUnique({ where: { id: source!.bookmark_id } })).not.toBeNull()
@@ -537,7 +602,7 @@ describe.runIf(!!url)('Fork publication against PostgreSQL', () => {
       new PasskeyRepo(() => client),
       { deleteAllUserBookmarks: async () => 0 } as never
     )
-    await expect(failedR2.cleanupUserData(user.id)).resolves.toBeUndefined()
+    await expect(failedR2.cleanupUserData(user.id, env)).resolves.toBeUndefined()
     expect(await client.sr_bookmark.count({ where: { private_user: user.id } })).toBe(0)
   })
 
