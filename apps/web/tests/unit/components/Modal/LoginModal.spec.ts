@@ -9,6 +9,8 @@ import { nextTick, ref } from 'vue'
 
 import LoginModal from '~~/app/components/Modal/LoginModal.vue'
 
+import { consumeSnapshotSaveFeedback, startSnapshotSave } from '~/utils/bookmarkFork'
+
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { mountWithApp } from '~~/tests/setup/mount'
@@ -24,12 +26,22 @@ mockNuxtImport('eventLog', () => eventLog)
 mockNuxtImport('request', () => () => ({ post }))
 mockNuxtImport('useAuth', () => () => ({ verifyEmailAuth }))
 mockNuxtImport('navigateTo', () => navigateTo)
+vi.mock('~/utils/request', () => ({ request: () => ({ post }) }))
+
+const cookies = vi.hoisted(() => new Map<string, string>())
+vi.mock('@vueuse/integrations/useCookies', () => ({
+  useCookies: () => ({
+    get: (key: string) => cookies.get(key),
+    set: (key: string, value: string) => cookies.set(key, value),
+    remove: (key: string) => cookies.delete(key)
+  })
+}))
 
 enableAutoUnmount(afterEach)
 
 const runtimeConfig = {
   app: { baseURL: '/' },
-  public: { slaxEnv: 'development', APPLE_OAUTH_CLIENT_ID: 'apple-client-id' }
+  public: { slaxEnv: 'development', APPLE_OAUTH_CLIENT_ID: 'apple-client-id', PUBLIC_BASE_URL: 'https://reader.test' }
 }
 mockNuxtImport('useRuntimeConfig', () => () => runtimeConfig)
 
@@ -44,6 +56,7 @@ vi.mock('@vueuse/core', async () => {
 describe('Modal/LoginModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    cookies.clear()
     localStorage.clear()
     sessionStorage.clear()
     runtimeConfig.public.slaxEnv = 'development'
@@ -214,10 +227,12 @@ describe('Modal/LoginModal', () => {
     expect(localStorage.getItem('slax:last-login-email')).toBe('reader@example.com')
   })
 
-  it('verifies a code with snapshot attribution and returns to the snapshot', async () => {
-    const redirect = '/b/00000000-0000-4000-8000-000000000001'
-    const authAttribution = { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: '00000000-0000-4000-8000-000000000001' } as const
-    const wrapper = mountWithApp(LoginModal, { props: { redirect, authAttribution } })
+  it('automatically saves the source after completing email-code sign-in', async () => {
+    const source = '00000000-0000-4000-8000-000000000001'
+    const authAttribution = { source_screen: 'detail', presentation: 'modal', trigger_element_id: 'snapshot_save_button', source_bookmark_id: source } as const
+    const redirect = new URL(startSnapshotSave(source).redirect)
+    redirect.pathname = `/b/${source}`
+    const wrapper = mountWithApp(LoginModal, { props: { redirect: redirect.href, authAttribution } })
     await vi.waitFor(() => expect(wrapper.get('.modal-shell').isVisible()).toBe(true))
 
     await wrapper.get('.email-login-toggle').trigger('click')
@@ -231,7 +246,15 @@ describe('Modal/LoginModal', () => {
     expect(verifyEmailAuth).toHaveBeenCalledExactlyOnceWith({
       email: 'reader@example.com', request_id: 'modal-attempt', code: '012345', auth_attribution: authAttribution
     }, expect.objectContaining({ signal: expect.any(AbortSignal) }))
-    expect(navigateTo).toHaveBeenCalledExactlyOnceWith(`${location.origin}${redirect}`, { external: true })
+    expect(post).toHaveBeenCalledTimes(2)
+    expect(post).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      url: '/v1/bookmark/add_url',
+      body: { target_url: `https://reader.test/b/${source}`, tags: [], snapshot_save: true },
+      headers: { Authorization: 'Bearer session' }
+    }))
+    expect(post).toHaveBeenCalledBefore(navigateTo)
+    expect(navigateTo).toHaveBeenCalledExactlyOnceWith(`${location.origin}/b/${source}`, { external: true })
+    expect(consumeSnapshotSaveFeedback(source, 'session')).toBe(true)
   })
 
   it('aborts a pending email code request when the modal closes', async () => {

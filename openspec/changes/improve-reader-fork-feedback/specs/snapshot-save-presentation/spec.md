@@ -2,19 +2,19 @@
 
 ### Requirement: Localized save-state presentation
 
-The public reader SHALL explain that saving creates a personal bookmark. Submission and background copying SHALL have visible in-place progress. Only confirmed successful publication SHALL produce the localized saved state. A newly observed completion after the reader's action SHALL show a success confirmation, with an optional link to their bookmarks. The page SHALL retain reading position until the reader chooses to navigate.
+The public reader SHALL explain that saving lets the reader return to the article later. Submission and background copying SHALL have visible in-place progress. Only confirmed successful publication SHALL produce the localized saved state. A newly observed completion after the reader's action SHALL show a success confirmation, with a visually secondary link to their saved articles. The page SHALL retain reading position until the reader chooses to navigate.
 
 #### Scenario: Reader has not saved the source
 
 - **WHEN** a non-owner is eligible and ready to save
-- **THEN** the desktop header offers “Save to my library” or “保存到我的书签” and the mobile card explains the copy next to “Save a copy” or “保存副本”
+- **THEN** the desktop header offers “Save for later” or “稍后再看” and the mobile card explains how to return to the article next to “Save” or “稍后再看”
 
 #### Scenario: Save is admitted or already persisted
 
 - **WHEN** admission completes and copying is still pending
 - **THEN** the action stays busy and prevents duplicate saves while the reader can continue reading
 - **WHEN** viewer-specific status confirms successful publication after the reader's action
-- **THEN** the confirmation shows that their copy has been saved, with a filled star and an explicit link to their bookmarks
+- **THEN** the confirmation states that the article was saved, shows a filled star, and offers a quiet text link to saved articles
 - **WHEN** an already-saved source is revisited
 - **THEN** a compact saved indicator appears without replaying the prompt or completion animation
 
@@ -76,6 +76,8 @@ The action SHALL respect ownership, metadata readiness, online submission and th
 #### Scenario: Sign-in and context changes
 
 - **WHEN** an anonymous visitor explicitly saves and completes the associated sign-in
-- **THEN** the single intended save resumes with feedback on the source page
+- **THEN** the single intended save of another reader’s article resumes automatically with feedback on the source page
+- **WHEN** sign-in identifies the visitor as the source owner
+- **THEN** the reader returns to the source without an additional copy or receipt
 - **WHEN** the visitor cancels sign-in or changes account or source
 - **THEN** no stale completion, email claim or save prompt from the previous context is shown

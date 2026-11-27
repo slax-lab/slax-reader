@@ -64,3 +64,31 @@
 - Claude Code reported `claude-opus-5-5` for the final edge-case review. Its confirmed issue was an unprompted failure message when opening a source with a previously failed same-URL copy. The component now opens failure feedback only for the current attempt or an explicit error. Chromium exercised the normal entry, a fresh failure and successful retry at 390px and 1120px.
 - Both viewer status and pending delivery reads now use the same cache bypass as the existing receipt status query. This follows the documented Hyperdrive behavior for stable SQL expressions. PostgreSQL verified state transitions and revocation with the final queries. [Cloudflare Hyperdrive query caching](https://developers.cloudflare.com/hyperdrive/concepts/query-caching/)
 - The same mock article at 1120px and 390px supplied the key visual captures for the PR. The desktop before image renders the target branch's Fork action in the same fixture. The mobile images cover the final ready state with the expanded backdrop and the saved state after simulated provider acceptance.
+
+## Read-later copy and action emphasis
+
+- Chromium exercised the revised copy at 320px, 390px, 768px, 769px and 1120px in Chinese and English across light, dark and e-ink. It verified the saved text with an accepted, delayed, absent or failed receipt, a readable 44px minimum hit area for the secondary link, keyboard navigation to the mobile destination, and Escape focus restoration on desktop.
+- Web type checking and component lint passed. All 121 focused Web tests and 195 OpenSpec items passed. The local preview uses the production component with fixture responses.
+
+## Conversational Simplified Chinese copy
+
+- Chromium verified the “稍后再看” action and revised progress, confirmation and email feedback across the same five widths and three themes. The secondary navigation retained its 44px target and keyboard access.
+- Fifteen focused Web tests, 58 API Fork tests and all 195 OpenSpec items passed. The API tests captured both titled and untitled Simplified Chinese receipts and checked the updated wording and the Slax Reader link.
+
+- Chromium repeated the five-width browser check after removing the in-progress supporting sentence. The progress title remained visible and the action remained busy and unavailable for duplicate activation before confirmation.
+
+## Compact desktop progress
+
+- Chromium verified the compact desktop popover at 769px, 1120px and 1320px, across both locales and all three themes. The icon, title and close control aligned vertically. The tested popovers were 62px tall, retained the 44px close hit area and held a 13.5px gap below the header. The browser run also verified the direct confirmation title, receipt feedback and mobile navigation.
+
+## Automatic save after sign-in
+
+- Browser verification at 390px and 1120px used the current save component with simulated sign-in. Cancelling restored the original save action. Completing sign-in advanced through publication and confirmation on the source without a second save click.
+- The mounted Google and Apple callbacks and email-code modal used the real save continuation with fixture credentials. Tests verified one authenticated save request for the same source before returning, plus the one-time feedback marker. The existing email-link and cancelled continuation tests also passed. The API owner regression verified an existing source returns without publishing a copy or qualifying for a receipt.
+- All 47 focused Web tests, 59 API Fork tests and 195 OpenSpec items passed.
+
+## Follow-up submission
+
+- The change requester reviewed the running preview and requested more conversational copy, secondary navigation, a compact desktop progress row and direct confirmation wording. The updated PR visuals show the final copy and layout.
+- The pre-push review checked Bugs, Security and OpenSpec Compliance against the existing change. The follow-up adjusts presentation, localized receipt copy and verification of automatic continuation. Only the Web and API applications are affected.
+- Fresh runs passed the affected lint and type checks, 63 focused Web tests, 59 Fork domain tests and all 195 OpenSpec items. Chromium repeated cancellation and automatic save after simulated sign-in at 390px and 1120px.

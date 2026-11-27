@@ -199,9 +199,9 @@ export class BookmarkForkService {
       .slice(0, 160)
     const chinese = (account.lang || ctx.getlang()).toLowerCase().startsWith('zh')
     const article = title ? `《${title}》` : '这篇文章'
-    const subject = chinese ? 'Fork 成功，文章已存入书签' : 'Fork Success — your article is saved'
+    const subject = chinese ? 'Fork 成功，文章已保存' : 'Fork Success — your article is saved'
     const message = chinese
-      ? `你已保存${article}的个人副本。下次想接着读时，可以在 Slax Reader 的书签里找到它。\n\n打开 Slax Reader → https://r.slax.com/`
+      ? `已经把${article}存好了。想看的时候，打开 Slax Reader 就能找到。\n\n打开 Slax Reader → https://r.slax.com/`
       : `You now have your own copy of ${title ? `“${title}”` : 'this article'} in Slax Reader. When you’re ready to keep reading, you’ll find it in your bookmarks.\n\nOpen Slax Reader → https://r.slax.com/`
     const outcome = await sendResendEmail(apiKey, `fork-receipt-${userId}-${job.sourceId}`, {
       from: ctx.env.EMAIL_AUTH_FROM?.trim() || EMAIL_CODE_CONFIG.defaultFrom,

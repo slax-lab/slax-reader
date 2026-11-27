@@ -260,9 +260,11 @@ confirmation. At the Web 768px transition, a non-modal bottom card gives the
 copy explanation and action room to coexist with reading controls. Respect safe
 areas and accommodate the full translated labels. Keep the saved indicator and
 the unavailable control distinct from active progress. Confirm publication with
-the filled star and a brief transition. Use Web semantic tokens, a 44px
-minimum hit area and visible keyboard focus. Reduced motion and e-ink display
-the status without animation.
+the filled star and a brief transition. Use read-later language in the save
+action and report the outcome directly in the confirmation. Keep the
+destination link visually secondary to the confirmation. Use Web semantic
+tokens, a 44px minimum hit area and visible keyboard focus. Reduced motion and
+e-ink display the status without animation.
 
 ## 8. Components and states
 

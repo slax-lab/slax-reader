@@ -16,18 +16,18 @@ Keep one action controller across viewport changes. Desktop uses an accent-fille
 
 | Stage | Desktop | Mobile card |
 | --- | --- | --- |
-| Ready | 保存到我的书签 / Save to my library | 留一份自己的副本 / Keep your own copy · 保存副本 / Save a copy |
-| Working | 正在保存… / Saving… | 正在保存副本… / Saving your copy… · 你可以继续阅读这篇文章。 / You can keep reading. |
-| Confirmed | 已存入我的书签 / Saved to my library | 已存入我的书签 / Saved to my library · 查看书签 / View bookmarks |
-| Receipt accepted | 已向你的邮箱发送保存确认邮件。 / We’ve sent you a confirmation email. | Same wording in the success card |
+| Ready | 稍后再看 / Save for later | 把这篇文章存起来 / Save it for later · 稍后再看 / Save |
+| Working | 正在保存… / Saving… | 正在保存文章… / Saving this article… |
+| Confirmed | 文章已保存 / Article saved · 已存文章 / Saved articles as a text link | Same confirmation and secondary action |
+| Receipt accepted | 也发了封邮件，方便之后找回这篇文章。 / We also sent an email so you can find your way back. | Same wording in the success card |
 | Failure | 未能保存这篇文章 / Couldn’t save this article · 重试保存 / Try again | Explain the actionable cause and offer retry |
 | Revisit | Filled star and compact saved status | Compact header status, with the bottom area released |
 
-Use the existing outline and filled star pair, clear text, Web theme tokens and one short fill/scale transition on confirmed success (about 200 ms). The working state is immediate with no artificial delay. If saving finishes quickly, do not delay it to show a spinner. Keep confirmation available in the current reading session, with a deliberate link to /bookmarks and a dismissible desktop popover. Suppress motion in e-ink and reduced-motion modes. Keep status announcements independent of decorative animation and preserve keyboard focus on state changes. Touch targets are at least 44px. Update DESIGN.md §7.5 during implementation.
+Use the existing outline and filled star pair, clear text, Web theme tokens and one short fill/scale transition on confirmed success (about 200 ms). The working state is immediate with no artificial delay. If saving finishes quickly, do not delay it to show a spinner. Keep confirmation available in the current reading session, with a quiet text link to /bookmarks and a dismissible desktop popover. Suppress motion in e-ink and reduced-motion modes. Keep status announcements independent of decorative animation and preserve keyboard focus on state changes. Touch targets are at least 44px. Update DESIGN.md §7.5 during implementation.
 
-Use the reader's paper surface and a folded bookmark for the copy status. Its outline star changes to a progress arc, then fills on success. Reserve the filled treatment for the ready and retry actions. Use a compact saved indicator in the desktop header. Within the confirmation, group the title and optional receipt text beside the paper artwork and give the bookmarks link its own action row. The mobile success card keeps the saved title and gives the bookmarks action a quieter treatment.
+Use the reader's paper surface and a folded bookmark for the copy status. Its outline star changes to a progress arc, then fills on success. Reserve the filled treatment for the ready and retry actions. Use a compact saved indicator in the desktop header. Group the title and supporting text beside the paper artwork. When the provider accepts the receipt, replace the return guidance with the email line. On both layouts, the saved-articles action uses muted, underlined text and has no button fill.
 
-Center the four marks inside the folded bookmark silhouette so its visual spacing holds at the narrow viewport. Anchor desktop feedback below the header rule with a physical gap. On mobile, move the card upward as the dock fades in and reverse the motion on exit. A pointer-transparent gradient fades article content above the card and reaches the reading background at the card edge, independent of the card height. The solid reading background continues behind the card and through the device safe area. The notes entry uses the shared lower backdrop while the card is visible. During exit the surface releases focus and pointer input, and the e-ink and reduced-motion presentations use static state changes.
+Center the four marks inside the folded bookmark silhouette so its visual spacing holds at the narrow viewport. Anchor desktop feedback below the header rule with a physical gap. Fit the desktop progress popover to its content and center the icon, single status line and close control in one compact row. On mobile, move the card upward as the dock fades in and reverse the motion on exit. A pointer-transparent gradient fades article content above the card and reaches the reading background at the card edge, independent of the card height. The solid reading background continues behind the card and through the device safe area. The notes entry uses the shared lower backdrop while the card is visible. During exit the surface releases focus and pointer input, and the e-ink and reduced-motion presentations use static state changes.
 
 ### Resolve publication separately from admission
 
@@ -45,11 +45,11 @@ Resolve a deliverable account email using existing verified identity rules, pref
 
 | | Simplified Chinese | English |
 | --- | --- | --- |
-| Subject | Fork 成功，文章已存入书签 | Fork Success — your article is saved |
-| Body | 你已保存《{title}》的个人副本。下次想接着读时，可以在 Slax Reader 的书签里找到它。 | You now have your own copy of “{title}” in Slax Reader. When you’re ready to keep reading, you’ll find it in your bookmarks. |
+| Subject | Fork 成功，文章已保存 | Fork Success — your article is saved |
+| Body | 已经把《{title}》存好了。想看的时候，打开 Slax Reader 就能找到。 | You now have your own copy of “{title}” in Slax Reader. When you’re ready to keep reading, you’ll find it in your bookmarks. |
 | Plain-text navigation | 打开 Slax Reader → https://r.slax.com/ | Open Slax Reader → https://r.slax.com/ |
 
-Use “你已保存这篇文章的个人副本。” or “You now have your own copy of this article in Slax Reader.” for a missing title. Keep the link address fixed and the article title in the plain-text body. The link opens Slax Reader's home, while the success surface links to the bookmarks list.
+Use “已经把这篇文章存好了。” or “You now have your own copy of this article in Slax Reader.” for a missing title. Keep the link address fixed and the article title in the plain-text body. The link opens Slax Reader's home, while the optional link in the success surface opens saved articles.
 
 ## Risks / Trade-offs
 

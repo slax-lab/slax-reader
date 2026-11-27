@@ -217,6 +217,23 @@ describe('Fork service publication boundary', () => {
     return relation
   }
 
+  it('does not copy or send a receipt when the sign-in account owns the source', async () => {
+    admission()
+    source.user_id = ctx.getUserId()
+    repo.ownSource = vi.fn().mockResolvedValue({ uuid: source.uuid, bookmark_id: source.bookmark_id })
+    const getUserInfo = vi.fn()
+    Object.assign(service, { users: { getUserInfo } })
+
+    await expect(service.admit(ctx, source.uuid, true)).resolves.toEqual({
+      bookmark_uid: source.uuid,
+      bookmark_id: source.bookmark_id,
+      disposition: 'already_saved'
+    })
+    expect(repo.admit).not.toHaveBeenCalled()
+    expect(ctx.env.CRAWL_WORKFLOW.create).not.toHaveBeenCalled()
+    expect(getUserInfo).not.toHaveBeenCalled()
+  })
+
   it('acknowledges admission before blocked R2 work and binds the Workflow to the accepted revision', async () => {
     admission()
     const read = vi.spyOn(bucket.bucket, 'get').mockImplementation(() => new Promise(() => {}))
@@ -323,8 +340,8 @@ describe('Fork service publication boundary', () => {
   it.each([
     { accepted: true, lang: 'en', title: 'One article', subject: 'Fork Success — your article is saved', phrase: '“One article”' },
     { accepted: false, lang: 'en', title: '', subject: 'Fork Success — your article is saved', phrase: 'your own copy of this article' },
-    { accepted: true, lang: 'zh-CN', title: '河岸手记', subject: 'Fork 成功，文章已存入书签', phrase: '《河岸手记》' },
-    { accepted: true, lang: 'zh-CN', title: '  ', subject: 'Fork 成功，文章已存入书签', phrase: '这篇文章的个人副本' }
+    { accepted: true, lang: 'zh-CN', title: '河岸手记', subject: 'Fork 成功，文章已保存', phrase: '已经把《河岸手记》存好了。' },
+    { accepted: true, lang: 'zh-CN', title: '  ', subject: 'Fork 成功，文章已保存', phrase: '已经把这篇文章存好了。' }
   ])('sends localized receipts and records acceptance ($lang/$accepted/$title)', async ({ accepted, lang, title, subject, phrase }) => {
     const revision = new Date()
     const receipt = { sourceId: 11, receiptTitle: title, revision: revision.toISOString() } as Parameters<BookmarkForkService['deliverReceipt']>[2]

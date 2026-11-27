@@ -7,7 +7,7 @@ Readers overlook the small star beside Share and cannot tell whether it creates 
 ## What Changes
 
 - Give eligible visitors to the public Web reader a primary save button in the desktop header and a non-blocking bottom card on mobile Web. The card explains the personal copy on the left and offers the action on the right.
-- Keep the reader on the source throughout submission, background copying, completion and retry. Confirm completion in place, with a deliberate transition and an optional link to the reader's bookmarks.
+- Keep the reader on the source throughout submission, background copying, completion and retry. Confirm completion in place, with a deliberate transition, read-later wording, and a quiet optional link to saved articles.
 - Send a localized transactional receipt for each distinct article successfully saved by a public reader button click initiated during the account's first 24 hours. The change requester confirmed one receipt per article, including when multiple different articles succeed on the same day.
 - In the success confirmation on both layouts, add an email-sent line once the mail provider accepts the message for the current reader and article. Show article success immediately, including when mail is delayed or unavailable.
 - Carry the same intent across the existing sign-in continuation. Keep ordinary URL adds and batch imports outside this email trigger.
@@ -39,3 +39,11 @@ The change requester asked for a visibly longer lower fade, a more distinctive c
 The change requester asked to refine the earlier bookmark ribbon silhouette. The latest icon uses a folded corner and a rounded notch within that silhouette.
 
 The change requester reported the lower backdrop was still hard to see. The existing backdrop now extends farther into the reading area and reaches the reading background at the card edge, independent of card height.
+
+The change requester clarified that readers save the shared article so they can come back and finish it later. Use natural language focused on that intent, avoid internal destination names in the save and receipt feedback, and make the existing destination link secondary to the confirmation.
+
+The requester preferred “稍后再看” for the Simplified Chinese action. Use conversational wording with “看” across the Chinese save feedback and receipt.
+
+Keep the in-progress copy to the save status. The reader can continue using the article while the save runs.
+
+The requester asked for a compact desktop progress popover and clearer confirmation wording. Align the single progress line with its icon and close control, and confirm the outcome directly with “文章已保存”.

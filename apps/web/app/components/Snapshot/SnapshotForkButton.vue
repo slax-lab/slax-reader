@@ -36,20 +36,20 @@
     </button>
 
     <Transition name="fork-popover" @before-leave="disableLeavingSurface">
-      <div v-if="feedbackVisible" class="fork-feedback" :class="{ 'is-error': !!failure }">
+      <div v-if="feedbackVisible" class="fork-feedback" :class="{ 'is-error': !!failure, 'is-working': busy }">
         <div class="fork-summary">
           <svg class="fork-symbol" viewBox="0 0 40 40" aria-hidden="true"><use :href="`#${ribbonId}`" /></svg>
           <div class="fork-copy">
             <p :key="feedbackTitle" class="fork-title">{{ feedbackTitle }}</p>
             <p v-if="feedbackText" :key="feedbackText" class="fork-description">{{ feedbackText }}</p>
+            <NuxtLink v-if="confirmed" class="fork-link fork-destination" to="/bookmarks">
+              {{ $t('bookmark_fork.view_bookmarks') }}
+            </NuxtLink>
           </div>
           <button type="button" class="fork-close" :aria-label="$t('common.operate.close')" @click="dismissFeedback">
             <AppIcon name="rss.close" :size="15" />
           </button>
         </div>
-        <NuxtLink v-if="confirmed" class="fork-link fork-destination" to="/bookmarks">
-          {{ $t('bookmark_fork.view_bookmarks') }} <AppIcon class="fork-arrow" name="rss.back" :size="16" />
-        </NuxtLink>
         <button v-if="needsStatus && pollWindowEnded" type="button" class="fork-link fork-check" @click="restartPolling">
           {{ $t('bookmark_fork.check_status') }}
         </button>
@@ -73,7 +73,6 @@
           </div>
           <button ref="cardAction" v-bind="actionAttributes" class="fork-button" @click="activate">
             <span :key="buttonLabel" class="fork-label">{{ buttonLabel }}</span>
-            <AppIcon v-if="confirmed" class="fork-arrow" name="rss.back" :size="14" />
           </button>
         </div>
       </div>
@@ -127,8 +126,8 @@ const feedbackTitle = computed(() => t(
 ))
 const feedbackText = computed(() => {
   if (failure.value) return failure.value === t('bookmark_fork.failed') ? '' : failure.value
-  if (confirmed.value) return mailSent.value ? t('bookmark_fork.email_sent') : ''
-  return t(busy.value ? 'bookmark_fork.keep_reading' : 'bookmark_fork.copy_description')
+  if (confirmed.value) return t(mailSent.value ? 'bookmark_fork.email_sent' : 'bookmark_fork.copy_description')
+  return busy.value ? '' : t('bookmark_fork.copy_description')
 })
 const buttonLabel = computed(() => t(
   !props.ready ? 'bookmark_fork.checking' : confirmed.value ? (showCard.value ? 'bookmark_fork.view_bookmarks' : 'bookmark_fork.saved')
@@ -403,6 +402,17 @@ async function activate() {
   line-height: 1.4;
 }
 .fork-summary .fork-description { margin-top: 4px; }
+.fork-toolbar .fork-feedback.is-working {
+  width: max-content;
+  max-width: min(306px, 80vw);
+}
+.is-working .fork-summary {
+  grid-template-columns: 32px minmax(0, 1fr) 44px;
+  align-items: center;
+  column-gap: 8px;
+  padding: 8px 7px 8px 12px;
+}
+.is-working .fork-summary .fork-symbol { width: 32px; height: 32px; }
 .fork-close {
   position: absolute;
   inset-block-start: 0;
@@ -418,6 +428,7 @@ async function activate() {
   color: var(--slax-text-muted);
   cursor: pointer;
 }
+.is-working .fork-close { position: static; }
 .fork-close:hover { color: var(--slax-text); }
 .fork-close:focus-visible { outline-offset: -4px; }
 .fork-copy { min-width: 0; overflow-wrap: anywhere; }
@@ -456,7 +467,9 @@ async function activate() {
   cursor: pointer;
 }
 button.fork-link { display: flex; }
-.fork-toolbar :is(.fork-destination, .fork-check) {
+.fork-destination { font-weight: 500; }
+.fork-toolbar.is-confirmed .fork-summary { padding-block-end: 8px; }
+.fork-toolbar .fork-check {
   box-sizing: border-box;
   display: flex;
   justify-content: space-between;
@@ -470,9 +483,8 @@ button.fork-link { display: flex; }
   text-align: start;
 }
 .fork-link:hover { text-decoration: underline; text-underline-offset: 3px; }
-.fork-toolbar :is(.fork-destination, .fork-check):hover { background: var(--slax-selection); }
-.fork-toolbar :is(.fork-destination, .fork-check):focus-visible { outline-offset: -3px; }
-.fork-arrow { flex: none; transform: rotate(180deg); }
+.fork-toolbar .fork-check:hover { background: var(--slax-selection); }
+.fork-toolbar .fork-check:focus-visible { outline-offset: -3px; }
 
 .fork-artwork { position: absolute; pointer-events: none; }
 .fork-symbol { display: block; flex: none; width: 40px; height: 40px; }
@@ -565,14 +577,19 @@ button.fork-link { display: flex; }
 }
 .fork-card .fork-description { text-wrap: balance; }
 .fork-card .fork-button { flex: none; max-width: 45%; font-size: var(--slax-fs-aux); }
+.fork-destination,
 .fork-card.is-confirmed .fork-button {
-  --fork-face: var(--slax-accent-bg);
-  padding-inline: 11px;
-  color: var(--fork-accent-ink);
+  color: var(--slax-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.fork-card.is-confirmed .fork-button:hover {
-  --fork-face: color-mix(in srgb, var(--slax-accent) 14%, var(--slax-surface-solid));
+.fork-card.is-confirmed .fork-button {
+  --fork-face: transparent;
+  padding-inline: 4px;
+  font-weight: 500;
 }
+.fork-destination:hover,
+.fork-card.is-confirmed .fork-button:hover { color: var(--slax-text); }
 .fork-card .fork-button[aria-busy='true'] { --fork-face: var(--slax-accent-bg); }
 
 .fork-popover-enter-active, .fork-popover-leave-active {
@@ -600,7 +617,7 @@ button.fork-link { display: flex; }
   .fork-card .fork-feedback { gap: 7px; }
   .fork-card .fork-symbol { width: 32px; height: 32px; }
   .fork-card .fork-button { padding-inline: 10px; }
-  .fork-card.is-confirmed .fork-button { gap: 5px; padding-inline: 8px; }
+  .fork-card.is-confirmed .fork-button { padding-inline: 4px; }
 }
 [data-slax-theme='eink'] .fork-dock::before { background: none; }
 [data-slax-theme='eink'] :is(.fork-dock-enter-from, .fork-dock-leave-to, .fork-popover-enter-from, .fork-popover-leave-to) {

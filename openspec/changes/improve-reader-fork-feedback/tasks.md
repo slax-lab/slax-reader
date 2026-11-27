@@ -15,7 +15,7 @@
 
 - [x] 3.1 Split admission, copying, success and retry states in the reader save controller. Exercise sign-in continuation, lost status responses, route changes and a slow copy using metadata-only reconciliation.
 - [x] 3.2 Build the single desktop header action and mobile bottom card with shared state and both locales. Update DESIGN.md §7.5 and exercise notes, media, safe area and panel coexistence.
-- [x] 3.3 Add the one-time success transition, explicit bookmarks link and independently updating sent line. Verify late email acceptance, unavailable mail, reduced motion, e-ink, focus and live announcements.
+- [x] 3.3 Add the one-time success transition, secondary saved-articles link and independently updating sent line. Verify late email acceptance, unavailable mail, reduced motion, e-ink, focus and live announcements.
 
 ## 4. Verify and deliver
 
