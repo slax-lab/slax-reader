@@ -8,6 +8,7 @@ import { MessageTypeAction } from '@/config/message'
 
 import { initializeLocaleClient } from '@/utils/localeClient'
 import { startLocaleRelay } from '@/utils/localeRelay'
+import { startPopupInboxRelay } from '@/utils/popupInboxRelay'
 import { watchPinnedStatus } from '@/utils/pinnedStatus'
 
 import '@/styles/reset.scss'
@@ -30,11 +31,13 @@ export default defineContentScript({
     const isPdf = location.protocol === 'file:' || document.contentType?.split(';', 1)[0].trim().toLowerCase() === 'application/pdf'
     const localeClient = initializeLocaleClient()
     const stopRelay = startLocaleRelay()
+    const stopPopupInboxRelay = startPopupInboxRelay()
     let invalidated = false
     ctx.onInvalidated(() => {
       invalidated = true
       localeClient.dispose()
       stopRelay()
+      stopPopupInboxRelay()
     })
     let localeTimer: ReturnType<typeof setTimeout> | undefined
     await Promise.race([

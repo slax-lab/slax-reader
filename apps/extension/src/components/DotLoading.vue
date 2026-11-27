@@ -1,9 +1,9 @@
 <template>
-  <div>
-    <div class="dot-loading">
-      <div class="dot" v-for="(_, index) in Array.from({ length: 3 })" :key="index"></div>
-    </div>
-  </div>
+  <span>
+    <span class="dot-loading">
+      <span class="dot" v-for="index in 3" :key="index" />
+    </span>
+  </span>
 </template>
 
 <script setup lang="ts"></script>
@@ -24,24 +24,20 @@
     }
 
     &:nth-child(1) {
-      background-color: #16b998;
+      background-color: var(--dot-loading-color, #16b998);
       animation-delay: 0s;
     }
 
     &:nth-child(2) {
-      background-color: #ffc255;
+      background-color: var(--dot-loading-color, #ffc255);
       animation-delay: 0.25s;
     }
 
     &:nth-child(3) {
-      background-color: #56caf2;
+      background-color: var(--dot-loading-color, #56caf2);
       animation-delay: 0.5s;
     }
 
-    &:nth-child(4) {
-      background-color: #fb8f6c;
-      animation-delay: 0.75s;
-    }
   }
 
   @keyframes wave {

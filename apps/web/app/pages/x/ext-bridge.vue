@@ -4,11 +4,14 @@
 
 <script lang="ts" setup>
 import { isAllowedExtensionOrigin, parseExtensionBridgeIds } from '~/utils/extensionBridge'
-import { readerBookmarkUuid } from '@slax-reader/contracts'
-import { lookupExtensionReaderBookmark } from '~/utils/extensionBridgeBookmark'
+import { lookupExtensionReaderBookmark, lookupExtensionSourceBookmark } from '~/utils/extensionBridgeBookmark'
 
-import type { UserInfo } from '@slax-reader/contracts/interface'
+import { POPUP_BOOKMARK_READABLE_SQL, POPUP_NOTIFICATION_TABLES, readPopupInboxCheckpoint, readPopupNotifications } from '@/composables/bookmark/localPopupNotifications'
+import { setCollectionLastRead } from '@/composables/bookmark/useLocalCollections'
+import type { PopupSaveState } from '@commons/frontend-types/frontend'
 import type { PowerSyncDatabase } from '@powersync/web'
+import { readerBookmarkUuid } from '@slax-reader/contracts'
+import type { UserInfo } from '@slax-reader/contracts/interface'
 import { useUserStore } from '~/stores/user'
 
 definePageMeta({ layout: false })
@@ -51,6 +54,7 @@ type BookmarkRow = {
   alias_title: string | null
   type: number | null
   metadata: string | null
+  readable: number
 }
 
 type LocalBookmarkInfoRow = {
@@ -89,7 +93,8 @@ type AddMarkBody = {
 }
 
 const BOOKMARK_URL_SQL = `
-  SELECT id, archive_status, is_starred, created_at, updated_at, alias_title, type, metadata
+  SELECT id, archive_status, is_starred, created_at, updated_at, alias_title, type, metadata,
+    ${POPUP_BOOKMARK_READABLE_SQL} AS readable
   FROM sr_user_bookmark
   WHERE deleted_at IS NULL
     AND JSON_EXTRACT(metadata, '$.bookmark.target_url') = ?
@@ -253,6 +258,7 @@ const toBookmarkPayload = async (row: BookmarkRow) => {
     description: text(bookmark.description),
     byline: text(bookmark.byline),
     status: text(bookmark.status, 'success'),
+    readable: row.readable === 1,
     published_at: text(bookmark.published_at) || null,
     created_at: row.created_at ?? new Date(0).toISOString(),
     updated_at: row.updated_at ?? row.created_at ?? new Date(0).toISOString(),
@@ -321,6 +327,12 @@ const getBridgeState = async () => {
   }
 }
 
+const popupWatches = new Map<string, () => void>()
+const invalidatePopupWatch = (watchId: string) => window.parent.postMessage({ type: 'slax-bridge-popup-changed', watchId }, '*')
+const popupOwner = useState<string | null>('powersync-owner', () => null)
+const popupAccount = () => ({ userKey: popupOwner.value, hasSynced: getSyncStatus().hasSynced })
+watch(popupOwner, () => popupWatches.forEach((_, id) => invalidatePopupWatch(id)))
+
 const handlers: Record<string, (params?: Record<string, unknown>) => Promise<unknown>> = {
   // 健康检查
   async status() {
@@ -342,7 +354,7 @@ const handlers: Record<string, (params?: Record<string, unknown>) => Promise<unk
 
     const state = await getBridgeState()
     const readerUuid = readerBookmarkUuid(targetUrl, [runtimeConfig.PUBLIC_BASE_URL, runtimeConfig.SHARE_BASE_URL])
-    let rows: BookmarkRow[]
+    let row: BookmarkRow | null
     if (readerUuid) {
       if (!navigator.onLine) return { ...state, bookmark: null }
       const saved = await lookupExtensionReaderBookmark({
@@ -353,17 +365,56 @@ const handlers: Record<string, (params?: Record<string, unknown>) => Promise<unk
         sessionPolicy: { clientId: bridgeClientId, configuredIds: configuredExtensionIds, environment: runtimeConfig.slaxEnv }
       })
       if (state.userKey !== localStorage.getItem('slax:powersync:lastUser')) return { ...(await getBridgeState()), bookmark: null }
-      rows =
+      row =
         saved?.exists && saved.bookmark_uid
-          ? await db!.getAll<BookmarkRow>(BOOKMARK_URL_SQL.replace("JSON_EXTRACT(metadata, '$.bookmark.target_url') = ?", 'id = ?'), [saved.bookmark_uid])
-          : []
-    } else rows = await db!.getAll<BookmarkRow>(BOOKMARK_URL_SQL, [targetUrl])
-    const row = rows[0]
+          ? await db!.getOptional<BookmarkRow>(BOOKMARK_URL_SQL.replace("JSON_EXTRACT(metadata, '$.bookmark.target_url') = ?", 'id = ?'), [saved.bookmark_uid])
+          : null
+    } else {
+      row = await lookupExtensionSourceBookmark(targetUrl, parsed, url => db!.getOptional<BookmarkRow>(BOOKMARK_URL_SQL, [url]))
+    }
     const bookmark = row?.id ? await toBookmarkPayload(row) : null
     return {
       ...state,
       bookmark: bookmark?.url ? bookmark : null
     }
+  },
+
+  async startPopupWatch(params) {
+    const id = params?.id
+    if (typeof id !== 'string') return false
+    if (!popupWatches.has(id)) {
+      const stop = db!.onChange({
+        onChange: () => invalidatePopupWatch(id)
+      }, { tables: POPUP_NOTIFICATION_TABLES })
+      popupWatches.set(id, stop)
+    }
+    return true
+  },
+
+  async stopPopupWatch(params) {
+    const id = params?.id
+    if (typeof id !== 'string') return false
+    popupWatches.get(id)?.()
+    popupWatches.delete(id)
+    return true
+  },
+
+  async popupNotifications(params) {
+    const account = popupAccount()
+    const state = params?.state as PopupSaveState | undefined
+    if (!account.hasSynced || !account.userKey || account.userKey !== params?.userKey) return account
+    const result = state ? await readPopupNotifications(db!, state) : { checkpoint: await readPopupInboxCheckpoint(db!, account.userKey) }
+    return popupOwner.value === account.userKey ? { ...account, ...result } : popupAccount()
+  },
+
+  async readPopupSubscription(params) {
+    const code = params?.code
+    const throughAt = params?.throughAt
+    const account = popupAccount()
+    if (!account.hasSynced || !account.userKey || account.userKey !== params?.userKey
+      || typeof code !== 'string' || typeof throughAt !== 'string' || !Number.isFinite(Date.parse(throughAt))) return false
+    await setCollectionLastRead(db!, code, throughAt)
+    return popupOwner.value === account.userKey
   },
 
   async createMark(params) {
@@ -452,6 +503,8 @@ onMounted(() => {
 onUnmounted(() => {
   cleanup?.()
   stopSyncStatusWatch?.()
+  popupWatches.forEach(stop => stop())
+  popupWatches.clear()
   stopSyncStatusWatch = null
 })
 </script>

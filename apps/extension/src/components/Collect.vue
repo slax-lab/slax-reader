@@ -116,14 +116,26 @@ watch(
 )
 
 props.browser.runtime.onMessage.addListener(
-  (message: unknown, sender: Browser.runtime.MessageSender, sendResponse: (response?: 'string' | Record<string, string | number>) => void) => {
+  (message: unknown, sender: Browser.runtime.MessageSender, sendResponse: (response?: string | Record<string, string | number | boolean>) => void) => {
     console.log('receive message', message, sender)
 
-    const action = (message as MessageType).action
-    switch (action) {
+    const command = message as MessageType
+    switch (command.action) {
       case MessageTypeAction.ShowCollectPopup: {
         showPopup.value = true
         break
+      }
+      case MessageTypeAction.SaveFromActionPopup: {
+        if (sender.id !== props.browser.runtime.id || sender.tab || command.url !== location.href) return false
+        void submitBookmark().then(
+          response => sendResponse({ accepted: Boolean(response?.bmId) }),
+          error => {
+            if (error instanceof RequestError && error.name === 'LAB_FEATURE_DISABLED') {
+              sendResponse({ accepted: false, labMessage: error.message })
+            } else sendResponse({ accepted: false })
+          }
+        )
+        return true
       }
       case MessageTypeAction.OpenWelcome:
         props.browser.tabs.create({
@@ -166,31 +178,34 @@ const updateTitle = () => {
   title.value = document.title || document.querySelector('meta[property="og:title"]')?.getAttribute('content') || `${location.href}${location.pathname}`
 }
 
-let addBookmarkInFlight = false
+let submission: Promise<AddBookmarkResp | undefined> | undefined
+const submitBookmark = () => {
+  if (submission) return submission
+  const params = getRequestParams()
+  submission = request.post<AddBookmarkResp>({ url: RESTMethodPath.ADD_BOOKMARK, body: params })
+    .then(response => {
+      if (response?.bmId) void props.browser.runtime.sendMessage({
+        action: MessageTypeAction.RecordBookmark,
+        url: params.target_url,
+        actionType: BookmarkActionType.ADD,
+        bookmarkId: response.bmId
+      }).catch(() => {})
+      return response
+    }).finally(() => { submission = undefined })
+  return submission
+}
+
 const addBookmark = async () => {
-  if (loading.value || addBookmarkInFlight) return
-  addBookmarkInFlight = true
+  if (loading.value || submission) return
   labBlocked.value = false
   keepPopupOpen = false
   showLoading('collection_in_progress')
   try {
-    const resp = await request.post<AddBookmarkResp>({
-      url: RESTMethodPath.ADD_BOOKMARK,
-      body: {
-        ...getRequestParams()
-      }
-    })
+    const resp = await submitBookmark()
 
-    if (resp) {
+    if (resp?.bmId) {
       bookmarkId.value = resp.bmId
       bookmarkExists.value = true
-      props.browser.runtime.sendMessage({
-        action: MessageTypeAction.RecordBookmark,
-        url: window.location.href,
-        actionType: BookmarkActionType.ADD,
-        bookmarkId: resp.bmId
-      })
-
       showTips({ kind: 'message', key: 'collection_successful' })
     } else {
       showTips({ kind: 'message', key: 'collection_failed' })
@@ -212,7 +227,6 @@ const addBookmark = async () => {
 
     showTips({ kind: 'message', key: 'collection_failed' })
   } finally {
-    addBookmarkInFlight = false
     // 实验室拦截时留着弹窗，用户要点链接去打开
     if (!keepPopupOpen) {
       setTimeout(() => {

@@ -1,4 +1,4 @@
-import { MessageTypeAction } from '@/config/message'
+import { type ActionPopupSubmission, MessageTypeAction } from '@/config/message'
 
 import { $t } from '@/utils/locale'
 import type { ScriptPublicPath } from 'wxt/utils/inject-script'
@@ -6,11 +6,34 @@ import type { ScriptPublicPath } from 'wxt/utils/inject-script'
 type AuthSession = { checkLogin: () => Promise<boolean> }
 const CONTENT_SCRIPT_READY_TABS = 'content-script-ready-tabs'
 
+async function notificationIcon(size: number, path: string): Promise<ImageData> {
+  const canvas = new OffscreenCanvas(size, size)
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Toolbar icon canvas is unavailable')
+
+  const response = await fetch(new URL(path, browser.runtime.getURL('/')))
+  const icon = await createImageBitmap(await response.blob())
+  context.drawImage(icon, 0, 0, size, size)
+  icon.close()
+
+  context.beginPath()
+  context.arc(size * 0.82, size * 0.18, size * 0.163, 0, 2 * Math.PI)
+  context.fillStyle = '#F57F59'
+  context.fill()
+  context.strokeStyle = '#71351f'
+  context.lineWidth = size * 0.028
+  context.stroke()
+  return context.getImageData(0, 0, size, size)
+}
+
 export const logTabMessageError = (message: string, error: unknown) => {
   console.error(message, error)
 }
 
 export class BrowserService {
+  private static toolbarDot: boolean | undefined
+  private static toolbarIconWrite = Promise.resolve()
+
   static openTab(url: string): void {
     browser.tabs.create({ url })
   }
@@ -18,6 +41,26 @@ export class BrowserService {
   static setupBadge(): void {
     browser.action.setBadgeBackgroundColor({ color: '#10b981' })
     browser.action.setBadgeTextColor({ color: '#fff' })
+  }
+
+  static setToolbarNotificationDot(visible: boolean): void {
+    if (this.toolbarDot === visible) return
+    this.toolbarDot = visible
+    this.toolbarIconWrite = this.toolbarIconWrite.then(async () => {
+      if (this.toolbarDot !== visible) return
+      const path = browser.runtime.getManifest().action!.default_icon as Record<string, string>
+      if (!visible) {
+        await browser.action.setIcon({ path })
+        return
+      }
+      const icons = await Promise.all(
+        Object.entries(path).map(async ([size, icon]) => [size, await notificationIcon(Number(size), icon)] as const)
+      )
+      if (this.toolbarDot === visible) await browser.action.setIcon({ imageData: Object.fromEntries(icons) })
+    }).catch(error => {
+      if (this.toolbarDot === visible) this.toolbarDot = undefined
+      console.warn('[popup] Toolbar notification dot could not be updated:', error)
+    })
   }
 
   private static menuQueue: Promise<void> = Promise.resolve()
@@ -202,16 +245,17 @@ export class BrowserService {
     return result
   }
 
-  static async openCollectPopup(tab: Browser.tabs.Tab, command = 'open_collect', authService: AuthSession): Promise<void> {
+  static async openCollectPopup(tab: Browser.tabs.Tab, command = 'open_collect', authService: AuthSession, openFallback?: (source: Browser.tabs.Tab) => Promise<void>): Promise<ActionPopupSubmission | void> {
     if (command !== 'open_collect') return
     tab = { ...tab }
     try {
-      const { configurePdfAction, openPdfAction, openPdfSave } = await import('./pdfOperations')
+      const { openPdfAction, openPdfSave } = await import('./pdfOperations')
+      const fallback = openFallback ?? openPdfAction
       if (tab.url?.startsWith('file:') && !(await browser.extension.isAllowedFileSchemeAccess())) {
-        await openPdfAction(tab)
+        await fallback(tab)
         return
       }
-      if (!/^(https?:\/\/|file:)/.test(tab.url || '')) { await openPdfAction(tab); return }
+      if (!/^(https?:\/\/|file:)/.test(tab.url || '')) { await fallback(tab); return }
       let ready = await this.waitForContentScript(tab)
       if (!ready && tab.id != null) {
         try {
@@ -219,15 +263,18 @@ export class BrowserService {
           ready = await this.waitForContentScript(tab)
         } catch { /* Restricted sources still use the anchored toolbar recovery UI. */ }
       }
-      if (!ready) { await openPdfAction(tab); return }
+      if (!ready) { await fallback(tab); return }
       const probe = await browser.tabs.sendMessage(tab.id!, { action: MessageTypeAction.ContentScriptReady })
-      await configurePdfAction(tab)
       if (probe?.kind === 'pdf' || tab.url?.startsWith('file:')) { await openPdfSave(tab); return }
       if (!(await authService.checkLogin())) return
-      await browser.tabs.sendMessage(tab.id!, { action: MessageTypeAction.ShowCollectPopup })
+      const response = openFallback
+        ? await browser.tabs.sendMessage(tab.id!, { action: MessageTypeAction.SaveFromActionPopup, url: tab.url }, { frameId: 0 })
+        : await browser.tabs.sendMessage(tab.id!, { action: MessageTypeAction.ShowCollectPopup })
       analytics.track('click_extension_collect')
+      if (openFallback) return response ?? { accepted: false }
     } catch (error) {
       logTabMessageError('[collect] failed to open popup:', error)
+      if (openFallback) throw error
     }
   }
 

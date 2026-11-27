@@ -76,19 +76,17 @@ export function initializePdfAction(tab: Browser.tabs.Tab): Promise<Record<strin
     return operation ? { ok: true, operation: operation.id } : { error: 'source' }
   })
 }
-export async function configurePdfAction(tab: Browser.tabs.Tab): Promise<void> {
-  if (tab.id == null) return
-  const needsGuide = tab.url?.startsWith('file:') && !(await browser.extension.isAllowedFileSchemeAccess())
-  await browser.action.setPopup({ tabId: tab.id, popup: needsGuide ? browser.runtime.getURL('/pdf-save.html') : '' })
-}
 export async function openPdfAction(tab: Browser.tabs.Tab): Promise<void> {
+  const action = browser.action as typeof browser.action & { openPopup?: (options?: { windowId?: number }) => Promise<void> }
+  if (!action.openPopup) return
   const operation = await serialized(() => prepare(tab, 'action'))
   if (!operation) return
-  await browser.action.setPopup({ tabId: operation.sourceTabId, popup: browser.runtime.getURL('/pdf-save.html') + '?operation=' + operation.id })
-  // Normal file-permission guidance is configured before the click. This is also
-  // a best-effort recovery for a click that races tab/permission initialization.
-  const action = browser.action as typeof browser.action & { openPopup?: (options?: { windowId?: number }) => Promise<void> }
-  if (action.openPopup) await action.openPopup(tab.windowId == null ? undefined : { windowId: tab.windowId })
+  await action.setPopup({ tabId: operation.sourceTabId, popup: browser.runtime.getURL('/pdf-save.html') + '?operation=' + operation.id })
+  try {
+    await action.openPopup(tab.windowId == null ? undefined : { windowId: tab.windowId })
+  } finally {
+    await action.setPopup({ tabId: operation.sourceTabId, popup: browser.runtime.getURL('/popup.html') })
+  }
 }
 export function invalidatePdfSource(tabId: number, removed = false): Promise<void> {
   return serialized(async () => {

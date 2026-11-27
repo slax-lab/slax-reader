@@ -1,5 +1,7 @@
 import { deploymentOrigin } from './deploymentOrigin'
 
+export { processTargetUrl } from '@slax-reader/contracts'
+
 export enum parserType {
   UNKNOWN = 0,
   CLIENT_PARSE = 1,
@@ -90,37 +92,4 @@ export class URLPolicie {
     if (!this.parseType) this.initURLPolicie()
     return this.parseType || parserType.UNKNOWN
   }
-}
-
-const PreparseHost: Map<string, (u: URL) => string> = new Map([
-  [
-    'x.com',
-    (u: URL) => {
-      u.searchParams.forEach((value, key) => u.searchParams.delete(key))
-      return u.toString()
-    }
-  ],
-  [
-    'twitter.com',
-    (u: URL) => {
-      u.searchParams.forEach((value, key) => u.searchParams.delete(key))
-      return u.toString()
-    }
-  ],
-  [
-    'mp.weixin.qq.com',
-    (u: URL) => {
-      u.searchParams.delete('poc_token')
-      return u.toString()
-    }
-  ]
-])
-
-export const processTargetUrl = (targetUrl: URL) => {
-  let processedUrl = targetUrl.toString()
-  const preFunc = PreparseHost.get(targetUrl.host)
-  if (preFunc) {
-    processedUrl = preFunc(targetUrl).toString()
-  }
-  return processedUrl
 }

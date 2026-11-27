@@ -36,7 +36,7 @@ export interface CollectionBookmarkItem extends BookmarkItem {
   starred_at: string | null
 }
 
-interface LocalCollectionRow {
+export interface LocalCollectionRow {
   id: string
   code: string | null
   name: string | null
@@ -100,7 +100,7 @@ const BOOKMARK_COLS = `
 
 // 我订阅（未删除）的专栏，JOIN 专栏信息 + 该专栏最新入栏时间（算未读）。关闭的专栏也保留（status 交给 UI）
 // 入栏时间取 starred_at
-const SUBSCRIBED_SQL = `
+export const SUBSCRIBED_SQL = `
   SELECT
     c.id                       AS id,
     c.collection_code          AS code,
@@ -134,13 +134,26 @@ const SUBSCRIBER_READ_STATE_SQL = `
 
 // 未读 = 有文章的入栏时间晚于 last_read_at（从未读过则只要有文章就算未读）
 // 时间串格式混杂（同步下来是 'YYYY-MM-DD HH:MM:SS'，本地写入是 ISO），统一过 toUtcDate 比较，避免字符串比较错判
-const hasUnread = (lastReadAt: string | null, latestArticleAt: string | null): boolean => {
+export const hasUnread = (lastReadAt: string | null, latestArticleAt: string | null): boolean => {
   if (!latestArticleAt) return false
   const latest = toUtcDate(latestArticleAt).getTime()
   if (Number.isNaN(latest)) return false
   if (!lastReadAt) return true
   const lastRead = toUtcDate(lastReadAt).getTime()
   return Number.isNaN(lastRead) || latest > lastRead
+}
+
+export async function setCollectionLastRead(db: PowerSyncDatabase, collectionCode: string, throughAt?: string): Promise<boolean> {
+  const state = await db.getOptional<{ id: string; last_read_at: string | null; latest_article_at: string | null }>(SUBSCRIBER_READ_STATE_SQL, [collectionCode])
+  if (!state || !hasUnread(state.last_read_at, state.latest_article_at)) return false
+
+  const readAt = throughAt ?? new Date().toISOString()
+  await db.execute(
+    `UPDATE sr_user_collection_subscriber SET last_read_at = ?
+     WHERE id = ? AND (last_read_at IS NULL OR julianday(last_read_at) < julianday(?))`,
+    [readAt, state.id, readAt]
+  )
+  return true
 }
 
 function rowToCollection(r: LocalCollectionRow): LocalCollectionItem {
@@ -193,7 +206,6 @@ function rowToItem(r: LocalCollectionBookmarkRow): CollectionBookmarkItem {
 export const useLocalCollections = () => {
   const { $powersync } = useNuxtApp()
   const db = $powersync as PowerSyncDatabase
-  const nowIso = () => new Date().toISOString()
 
   const watchSubscribedCollections = (enabled: MaybeRef<boolean> = true) => {
     const sql = computed(() => (toValue(enabled) ? SUBSCRIBED_SQL : `SELECT * FROM sr_user_collection WHERE 0`))
@@ -222,13 +234,7 @@ export const useLocalCollections = () => {
     return { items, isLoading, isFetching, error }
   }
 
-  const setLastRead = async (collectionCode: string): Promise<boolean> => {
-    const state = await db.getOptional<{ id: string; last_read_at: string | null; latest_article_at: string | null }>(SUBSCRIBER_READ_STATE_SQL, [collectionCode])
-    if (!state || !hasUnread(state.last_read_at, state.latest_article_at)) return false
-
-    await db.execute('UPDATE sr_user_collection_subscriber SET last_read_at = ? WHERE id = ?', [nowIso(), state.id])
-    return true
-  }
+  const setLastRead = (collectionCode: string) => setCollectionLastRead(db, collectionCode)
 
   return {
     watchSubscribedCollections,

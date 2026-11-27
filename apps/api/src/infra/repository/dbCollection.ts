@@ -252,6 +252,7 @@ export class CollectionRepo {
       UPDATE sr_user_collection_subscriber
       SET last_read_at = ${lastReadAt}
       WHERE uuid = ${uuid} AND user_id = ${userId}
+        AND (last_read_at IS NULL OR last_read_at < ${lastReadAt})
     `
   }
 
