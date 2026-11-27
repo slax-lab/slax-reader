@@ -16,10 +16,18 @@ import org.json.JSONObject
 
 internal object SlaxImageResources {
   private var registry: SlaxImageRegistry? = null
+  /**
+   * The platform reports cacheDir through the /data/user/0 user mount, which canonicalizes to /data/data. The
+   * platform directory itself is resolved first, so only a link or alias below it makes the staging root unsafe.
+   */
+  internal fun stagingRoot(cacheDir: File): File {
+    val root = File(cacheDir.canonicalFile, "slax-image-transfers")
+    check(root.canonicalFile == root.absoluteFile && !Files.isSymbolicLink(root.toPath())) {"Unsafe image staging root"}
+    return root
+  }
   @Synchronized fun registry(context: Context): SlaxImageRegistry {
     registry?.let {return it}
-    val root = File(context.cacheDir, "slax-image-transfers")
-    check(root.canonicalFile == root.absoluteFile && !Files.isSymbolicLink(root.toPath())) {"Unsafe image staging root"}
+    val root = stagingRoot(context.cacheDir)
     Files.createDirectories(root.toPath())
     fun erase(file: File) {
       if (!Files.isSymbolicLink(file.toPath()) && file.isDirectory) for (child in file.listFiles() ?: error("Image staging cleanup failed")) erase(child)

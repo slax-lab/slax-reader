@@ -19,7 +19,24 @@ internal data class SlaxImageResource(val file: File, val mime: String?, val siz
 internal class SlaxImageFailure(val status: Int = 0, val retryAfter: String? = null, val terminal: Boolean = false) : Exception("Image resource unavailable")
 
 internal class SlaxImageRegistry(private val directory: File) {
-  companion object {const val MAX_BYTES = 20L * 1024 * 1024; const val TOTAL_BYTES = 60L * 1024 * 1024; const val CHUNK_BYTES = 64 * 1024}
+  companion object {
+    /** The most recent download failure that was not a cancellation: HTTP status, exception class and timeout, never a URL. */
+    @Volatile var lastFailure: Map<String, Any>? = null
+    internal fun describe(error: Throwable): Map<String, Any> {
+      val failure = error as? SlaxImageFailure
+      val timeout = error is java.io.InterruptedIOException || error.cause is java.io.InterruptedIOException
+      return linkedMapOf<String, Any>("error" to (if (failure != null) "SlaxImageFailure" else error.javaClass.simpleName.take(64).ifEmpty {"Error"})).apply {
+        if (failure != null && failure.status > 0) put("status", failure.status)
+        if (failure?.terminal == true) put("terminal", true)
+        if (timeout) put("timeout", true)
+      }
+    }
+    const val MAX_BYTES = 20L * 1024 * 1024; const val CHUNK_BYTES = 64 * 1024
+    /** Concurrent downloads; background acquisition takes at most [BACKGROUND_IMAGES] of them, the rest stay free for an open Reader. */
+    const val WORKERS = 10; const val PER_HOST = 10
+    /** Staging reserves [MAX_BYTES] per running download, so the budget bounds each image's size, not the concurrency. */
+    const val TOTAL_BYTES = WORKERS * MAX_BYTES
+  }
   private val lock = Any()
   private val jobs = mutableMapOf<List<String>, Job>()
   private val retained = mutableSetOf<Job>()
@@ -27,7 +44,7 @@ internal class SlaxImageRegistry(private val directory: File) {
   private val destinations = mutableMapOf<String, Int>()
   private var reserved = 0L
   private var closed = false
-  private val workers = ThreadPoolExecutor(3, 3, 30, TimeUnit.SECONDS, ArrayBlockingQueue<Runnable>(128)) { work -> Thread(work, "SlaxImageResource").apply {isDaemon = true} }.apply {allowCoreThreadTimeOut(true)}
+  private val workers = ThreadPoolExecutor(WORKERS, WORKERS, 30, TimeUnit.SECONDS, ArrayBlockingQueue<Runnable>(128)) { work -> Thread(work, "SlaxImageResource").apply {isDaemon = true} }.apply {allowCoreThreadTimeOut(true)}
   private val client = OkHttpClient.Builder().cookieJar(CookieJar.NO_COOKIES).authenticator(Authenticator.NONE).proxyAuthenticator(Authenticator.NONE)
     .followRedirects(false).followSslRedirects(false).cache(null).retryOnConnectionFailure(false)
     .connectTimeout(30, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).callTimeout(30, TimeUnit.SECONDS).build()
@@ -95,8 +112,8 @@ internal class SlaxImageRegistry(private val directory: File) {
   }
   private fun pump() {
     if (closed) return
-    while (running.size < 3 && reserved + MAX_BYTES <= TOTAL_BYTES) {
-      val job = jobs.values.firstOrNull {it.state == "queued" && !it.cancelled && it.consumers.isNotEmpty() && running.count {running -> running.host == it.host} < 2} ?: return
+    while (running.size < WORKERS && reserved + MAX_BYTES <= TOTAL_BYTES) {
+      val job = jobs.values.firstOrNull {it.state == "queued" && !it.cancelled && it.consumers.isNotEmpty() && running.count {running -> running.host == it.host} < PER_HOST} ?: return
       job.state = "running"; running.add(job); job.reserved = MAX_BYTES; reserved += MAX_BYTES
       workers.execute {run(job)}
     }
@@ -131,6 +148,8 @@ internal class SlaxImageRegistry(private val directory: File) {
       synchronized(lock) {job.result = output; reserved -= job.reserved - output.size; job.reserved = output.size}
     } catch (error: Exception) {
       output?.file?.let {runCatching {Files.deleteIfExists(it.toPath())}}
+      val cancelled = synchronized(lock) {closed || job.cancelled || job.consumers.isEmpty()}
+      if (!cancelled) lastFailure = describe(error)
       synchronized(lock) {job.error = error; if (jobs[job.key] === job) jobs.remove(job.key)}
     } finally {
       synchronized(lock) {
@@ -162,7 +181,7 @@ internal class SlaxImageRegistry(private val directory: File) {
         val request = Request.Builder().url(url).get().build()
         val host = "${request.url.scheme}://${request.url.host}:${request.url.port}"
         synchronized(lock) {
-          if ((destinations[host] ?: 0) >= 2) throw SlaxImageFailure()
+          if ((destinations[host] ?: 0) >= PER_HOST) throw SlaxImageFailure()
           destinations[host] = (destinations[host] ?: 0) + 1; destination = host
         }
         val call = client.newCall(request)

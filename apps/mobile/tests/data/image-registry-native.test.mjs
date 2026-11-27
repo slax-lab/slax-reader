@@ -17,7 +17,8 @@ function jar(group, name, version) {
   try {matches = readdirSync(base).flatMap(hash => readdirSync(resolve(base, hash)).filter(file => file.endsWith('.jar') && !file.includes('sources')).map(file => resolve(base, hash, file)));} catch {return null;}
   return matches.length === 1 ? matches[0] : null;
 }
-const kotlinNetwork = process.env.SLAX_OKHTTP_CLASSPATH ?? (() => {const okhttp = jar('com.squareup.okhttp3', 'okhttp', '4.9.2'), okio = jar('com.squareup.okio', 'okio', '2.8.0'); return okhttp && okio ? [okhttp, okio].join(delimiter) : null;})();
+// The JVM artifacts of the app's OkHttp 5 BOM line; Android itself resolves okhttp-android.
+const kotlinNetwork = process.env.SLAX_OKHTTP_CLASSPATH ?? (() => {const okhttp = jar('com.squareup.okhttp3', 'okhttp-jvm', '5.5.1'), okio = jar('com.squareup.okio', 'okio-jvm', '3.18.1'); return okhttp && okio ? [okhttp, okio].join(delimiter) : null;})();
 const kotlinNetworkMissing = {skip: !kotlinNetwork && 'OkHttp/Okio jars are unavailable in the local Gradle cache; supply SLAX_OKHTTP_CLASSPATH or run the native build first'};
 
 test('actual Kotlin shared image registry deduplicates policy-scoped HTTP, cancellation and streaming atomic retention', kotlinNetworkMissing, () => {

@@ -6,6 +6,9 @@ import java.util.Locale
 internal class SlaxReaderSecurity(hosts: List<String>, val imageProxyOrigins: List<String> = emptyList(), val pdfMode: Boolean = false) {
   val documentOrigin get() = if (pdfMode) PDF_ORIGIN else ORIGIN
   companion object {
+    private val retryMarker = Regex("#slax-retry-[0-9]{1,6}$")
+    /** The Reader's placeholder retry reissues an image with only this fragment added; it is never part of the image's identity. */
+    fun withoutRetryMarker(raw: String): String = raw.replace(retryMarker, "")
     const val ORIGIN = "https://reader.slax.invalid/"
     const val PDF_ORIGIN = "https://pdf.reader.slax.invalid/"
     const val CSP = "default-src 'none'; script-src 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'unsafe-inline' https:; font-src https: data:; img-src https: data: blob: slaxstatic: slaxstatics:; media-src https: data: blob: slaxmedia: slaxmedias:; frame-src https:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; worker-src 'none'"

@@ -7,7 +7,7 @@ final class SlaxWebImageTask: SlaxResourceTask {
   private static let budget = NSLock()
   private static var pending = 0
   private static let workers: OperationQueue = {
-    let queue = OperationQueue(); queue.name = "SlaxWebImage"; queue.qualityOfService = .userInitiated; queue.maxConcurrentOperationCount = 3; return queue
+    let queue = OperationQueue(); queue.name = "SlaxWebImage"; queue.qualityOfService = .userInitiated; queue.maxConcurrentOperationCount = SlaxImageRegistry.workers; return queue
   }()
   private let task: WKURLSchemeTask
   private let original: URL

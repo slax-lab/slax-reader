@@ -56,10 +56,13 @@ func rejects(_ work: () throws -> Void) { var failed = false; do { try work() } 
 
     let cancelled = registry("cancelled"), last = try acquire(cancelled, "held-last")
     try until("held-last"); last.close(); rejects { _ = try last.wait() }; try release("held-last"); close(cancelled); try expect(try empty("cancelled"))
-    let limits = registry("limits"), limited = try (0..<3).map { try acquire(limits, "limit-\($0)") }
-    for _ in 0..<100 { if try (0..<3).reduce(0, { $0 + (try counts()["limit-\($1)", default: 0]) }) >= 2 { break }; Thread.sleep(forTimeInterval: 0.02) }
-    let snapshot = try counts(); precondition((0..<3).reduce(0, { $0 + snapshot["limit-\($1)", default: 0] }) == 2)
-    for index in 0..<3 { try release("limit-\(index)") }
+    // Ten downloads run per host at once; the eleventh waits for a slot.
+    let hostLimit = SlaxImageRegistry.perHost, total = hostLimit + 1
+    let limits = registry("limits"), limited = try (0..<total).map { try acquire(limits, "limit-\($0)") }
+    for _ in 0..<200 { if try (0..<total).reduce(0, { $0 + (try counts()["limit-\($1)", default: 0]) }) >= hostLimit { break }; Thread.sleep(forTimeInterval: 0.02) }
+    Thread.sleep(forTimeInterval: 0.1)
+    let snapshot = try counts(); precondition((0..<total).reduce(0, { $0 + snapshot["limit-\($1)", default: 0] }) == hostLimit)
+    for index in 0..<total { try release("limit-\(index)") }
     for consumer in limited { try expect(try consumer.wait().size == expected.count); consumer.close() }; close(limits)
 
     let stale = registry("stale"), old = try acquire(stale, "held-stale"); try until("held-stale")
@@ -98,9 +101,10 @@ func rejects(_ work: () throws -> Void) { var failed = false; do { try work() } 
 
     let capacity = registry("capacity"), many = try (0..<256).map { _ in try acquire(capacity, "held-capacity") }
     rejects { _ = try acquire(capacity, "held-capacity") }; many.forEach { $0.close() }; try release("held-capacity"); close(capacity)
-    let budget = registry("budget")
-    let retained = try (0..<3).map { index -> SlaxImageRegistry.Consumer in let consumer = try acquire(budget, "budget-\(index)"); try expect(try consumer.wait().size == SlaxImageRegistry.maxBytes); return consumer }
-    let queued = try acquire(budget, "budget-3"); Thread.sleep(forTimeInterval: 0.1); try expect(try counts()["budget-3", default: 0] == 0)
+    // The staging budget holds one maximum-size image per worker; the next one waits until a retained image is released.
+    let budget = registry("budget"), slots = SlaxImageRegistry.workers
+    let retained = try (0..<slots).map { index -> SlaxImageRegistry.Consumer in let consumer = try acquire(budget, "budget-\(index)"); try expect(try consumer.wait().size == SlaxImageRegistry.maxBytes); return consumer }
+    let queued = try acquire(budget, "budget-\(slots)"); Thread.sleep(forTimeInterval: 0.1); try expect(try counts()["budget-\(slots)", default: 0] == 0)
     retained[0].close(); try expect(try queued.wait().size == SlaxImageRegistry.maxBytes)
     retained.dropFirst().forEach { $0.close() }; queued.close(); close(budget); try expect(try empty("budget"))
     print("Swift shared image registry passed")

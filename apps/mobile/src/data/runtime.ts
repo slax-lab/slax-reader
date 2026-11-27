@@ -19,7 +19,9 @@ import {RuntimeActivity} from './runtime-activity.ts';
 import {NetworkAvailability, type NetworkAvailabilitySource} from './network-availability.ts';
 import {nativeNetwork} from './native-network.ts';
 import {loadReaderImage} from '../native/reader-image';
-import { activateReaderResources, revokeReaderResources } from '../native/platform';
+import { activateReaderResources, probeNetwork as nativeProbeNetwork, revokeReaderResources } from '../native/platform';
+import {createNetworkDiagnostics, type NetworkDiagnosticFailure} from '../domain/network-diagnostics.ts';
+import {getDataErrorDiagnostic} from './transport-errors.ts';
 import { createSyncConnector } from './connector.ts';
 import { migrateLegacyPreferences } from './legacy-preferences.ts';
 import { loadLegacyBridge, nativePreferenceStorage } from './native-storage.ts';
@@ -32,7 +34,7 @@ import {noDiagnostics, recordDiagnostic} from '../domain/diagnostics.ts';
 import type {MobileDiagnostics} from '../diagnostics/native.ts';
 
 export type UpgradeState = {status: 'idle' | 'checking' | 'ready'} | {status: 'error'; error: Error};
-export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { errorLog?: (deps: {preferences: PreferenceStore; sessions: SessionController; api: ReturnType<typeof createMobileApi>; generateIdentifier: () => string; preferencesReady: Promise<unknown>}) => MobileErrorLog; diagnostics?: MobileDiagnostics; betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]} }
+export interface MobileDataRuntimeOptions extends Omit<MobileApiOptions, 'sessions'> { errorLog?: (deps: {preferences: PreferenceStore; sessions: SessionController; api: ReturnType<typeof createMobileApi>; generateIdentifier: () => string; preferencesReady: Promise<unknown>}) => MobileErrorLog; diagnostics?: MobileDiagnostics; betaBaseUrl?: string; nativeBridge?: SlaxLegacyBridge; localSyncEndpoint?: string; network?: NetworkAvailabilitySource; freshStorage?: boolean; offlineEngine?: OfflineEngine; readerHosts?: {protectedHosts: string[]; imageProxyOrigins: string[]}; probeNetwork?: (host: string, allowed: string[]) => Promise<Record<string, unknown>> }
 /** Construct once at the app root; start before mounting account-bound watchers. */
 export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
   const bridge = options.nativeBridge ?? loadLegacyBridge();
@@ -99,6 +101,7 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     const attempt = readiness.ensure().then(async () => {
       if (!current()) return;
       const credentials = await connector.prepareConnection();
+      if (credentials?.endpoint) syncHost = hostOf(credentials.endpoint);
       if (credentials && current()) {
         clearSyncRetry(); connectionRequested = true; connectStartedAt = Date.now();
         void opened.connect(connector, {params: SYNC_PARAMETERS}).catch(error => {
@@ -268,6 +271,24 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     telemetry: (event, properties = {}, label) => baseErrorLog.telemetry(event, {online: network.getSnapshot() !== 'offline', foreground: activity.isForeground(), ...properties}, label),
     flush: hiding => baseErrorLog.flush(hiding)
   };
+  // One network snapshot per failure family for this process, probed only against the app's own hosts.
+  const diagnosticHosts = [...new Set([...(options.readerHosts?.protectedHosts ?? []), ...[options.baseUrl, options.betaBaseUrl].flatMap(value => {try {return value ? [new URL(value).hostname] : [];} catch {return [];}})])];
+  const networkDiagnostics = createNetworkDiagnostics({
+    // Development builds usually have no ingestion endpoint, so the record is also written to the device log there.
+    errorLog: () => __DEV__ ? {...errorLog, capture: (kind, error, properties) => {console.log('[mobile] network diagnostic', JSON.stringify(properties)); return errorLog.capture(kind, error, properties);}} : errorLog,
+    online: () => network.getSnapshot() !== 'offline',
+    probe: host => (options.probeNetwork ?? nativeProbeNetwork)(host, diagnosticHosts),
+  });
+  const hostOf = (value: string | undefined) => {try {return value ? new URL(value).hostname : '';} catch {return '';}};
+  // The endpoint host of the last credentials handed to PowerSync; the endpoint itself is never recorded.
+  let syncHost = '';
+  // Only transport outcomes describe the network; account, session, protocol and engine errors do not.
+  const transportFailure = (error: unknown, host: string): NetworkDiagnosticFailure | undefined => {
+    const diagnostic = getDataErrorDiagnostic(error);
+    if (diagnostic.kind !== 'network' && diagnostic.kind !== 'timeout' && diagnostic.kind !== 'http') return undefined;
+    const name = error instanceof Error ? error.name : undefined;
+    return {host, ...(diagnostic.status ? {status: diagnostic.status} : {}), ...(name ? {errorClass: name} : {}), ...(diagnostic.kind === 'timeout' ? {timeout: true} : {})};
+  };
   const observationId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
   // Observations belong to the signed-in account that produced them; a retired account sends nothing.
   // They go to the client error lake as `telemetry` rows, bound to the account when recorded.
@@ -282,6 +303,11 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     const phaseProperty = typeof error === 'object' && error !== null && (error as {phase?: unknown}).phase === 'token' ? 'token' : phase;
     const ray = typeof error === 'object' && error !== null && typeof (error as {ray?: unknown}).ray === 'string' ? (error as {ray: string}).ray : undefined;
     const fingerprint = errorLog.capture('powersync', error ?? {name: 'PowerSyncError', message: source}, {source, phase: phaseProperty, ...(stage ? {stage} : {}), ...(ray ? {ray} : {}), ...extra});
+    if (phaseProperty === 'connect' || phaseProperty === 'stream') {
+      const status = typeof error === 'object' && error !== null && typeof (error as {status?: unknown}).status === 'number' ? (error as {status: number}).status : undefined;
+      networkDiagnostics.report('powersync', {host: syncHost || hostOf(api.options.baseUrl),
+        ...(status ? {status} : {}), ...(error instanceof Error ? {errorClass: error.name} : {})});
+    }
     return {fingerprint, ray, phase: phaseProperty};
   };
   const noteSyncFailure = (opened: Database, generation: number) => {
@@ -335,6 +361,8 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     submitted: (batchSize, durationMs) => emitPhase('upload', 'success', {step: 'submit', batch_size: batchSize, duration_ms: durationMs}),
     acknowledged: (batchSize, durationMs) => emitPhase('upload', 'success', {step: 'acknowledge', batch_size: batchSize, duration_ms: durationMs}),
   });
+  const fetchCredentials = connector.fetchCredentials;
+  connector.fetchCredentials = () => fetchCredentials().then(credentials => {if (credentials?.endpoint) syncHost = hostOf(credentials.endpoint); return credentials;});
   // Wrap the upload to record a rejected submission; a connector without uploads (test doubles) is left as is.
   const uploadData = typeof connector.uploadData === 'function' ? connector.uploadData.bind(connector) : undefined;
   if (uploadData) connector.uploadData = async database => {
@@ -487,7 +515,17 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     /** UI reports scroll/transition activity so offline status persistence waits; each source clears its own flag. */
     setInteractionBusy: (busy: boolean, source?: string) => {interactionBusy[busy ? 'add' : 'delete'](source ?? 'interaction'); offline?.setInteractionBusy(busy, source);},
     beginArticleAccess: (key: string) => offline?.beginForeground(key) ?? (() => {}),
-    getArticleContent: (bookmarkId: string, ownerId?: string, signal?: AbortSignal, force?: boolean) => offline ? offline.getArticleContent(bookmarkId, ownerId, signal, force) : Promise.reject(new AccountInactiveError()),
+    getArticleContent: (bookmarkId: string, ownerId?: string, signal?: AbortSignal, force?: boolean) => offline
+      ? offline.getArticleContent(bookmarkId, ownerId, signal, force).catch(error => {
+        const failure = signal?.aborted ? undefined : transportFailure(error, hostOf(api.options.baseUrl));
+        if (failure) networkDiagnostics.report('content', failure);
+        throw error;
+      })
+      : Promise.reject(new AccountInactiveError()),
+    /** A Reader article image failed to load; its source is never recorded, only the image proxy path is probed. */
+    reportReaderImageFailure() {
+      networkDiagnostics.report('image', {host: hostOf(api.options.baseUrl)});
+    },
     getPdfMetadata: (bookmarkId: string, ownerId?: string, signal?: AbortSignal) => offline ? offline.getPdfMetadata(bookmarkId, ownerId, signal) : Promise.reject(new AccountInactiveError()),
     cachePdf: (bookmarkId: string, ownerId?: string) => offline ? offline.cachePdf(bookmarkId, ownerId) : Promise.reject(new AccountInactiveError()),
     pdfCacheStatus: (bookmarkId: string, ownerId?: string) => offline ? offline.pdfCacheStatus(bookmarkId, ownerId) : Promise.reject(new AccountInactiveError()),
@@ -508,4 +546,4 @@ export function createMobileDataRuntime(options: MobileDataRuntimeOptions) {
     subscribeUpgrade: (listener: (state: UpgradeState) => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
   };
 }
-export type MobileDataRuntime = Omit<ReturnType<typeof createMobileDataRuntime>, 'credentials' | 'diagnostics'> & {credentials?: CredentialReadiness; diagnostics?: MobileDiagnostics};
+export type MobileDataRuntime = Omit<ReturnType<typeof createMobileDataRuntime>, 'credentials' | 'diagnostics' | 'reportReaderImageFailure'> & {credentials?: CredentialReadiness; diagnostics?: MobileDiagnostics; reportReaderImageFailure?: () => void};

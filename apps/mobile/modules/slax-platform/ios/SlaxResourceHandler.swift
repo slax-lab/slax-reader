@@ -26,7 +26,8 @@ final class SlaxResourceHandler: NSObject, WKURLSchemeHandler {
   func webView(_ webView: WKWebView, start task: WKURLSchemeTask) { start(task) }
   func start(_ task: WKURLSchemeTask) {
     guard !closed, hasResourceOwnership() else { task.didFailWithError(URLError(.cancelled)); return }
-    guard let security, let custom = task.request.url else { task.didFailWithError(URLError(.badURL)); return }
+    guard let security, let requested = task.request.url else { task.didFailWithError(URLError(.badURL)); return }
+    let custom = SlaxReaderSecurity.withoutRetryMarker(requested)
     let media = ["slaxmedia", "slaxmedias"].contains(custom.scheme ?? "")
     guard let original = media ? security.mediaOriginal(custom) : security.imageOriginal(custom),
       task.request.httpMethod == nil || task.request.httpMethod == "GET",

@@ -22,7 +22,8 @@ function jar(group, name, version) {
   try {matches = readdirSync(base).flatMap(hash => readdirSync(resolve(base, hash)).filter(file => file.endsWith('.jar') && !file.includes('sources')).map(file => resolve(base, hash, file)));} catch {return null;}
   return matches.length === 1 ? matches[0] : null;
 }
-const kotlinNetwork = process.env.SLAX_OKHTTP_CLASSPATH ?? (() => {const okhttp = jar('com.squareup.okhttp3', 'okhttp', '4.9.2'), okio = jar('com.squareup.okio', 'okio', '2.8.0'); return okhttp && okio ? [okhttp, okio].join(delimiter) : null;})();
+// The JVM artifacts of the app's OkHttp 5 BOM line; Android itself resolves okhttp-android.
+const kotlinNetwork = process.env.SLAX_OKHTTP_CLASSPATH ?? (() => {const okhttp = jar('com.squareup.okhttp3', 'okhttp-jvm', '5.5.1'), okio = jar('com.squareup.okio', 'okio-jvm', '3.18.1'); return okhttp && okio ? [okhttp, okio].join(delimiter) : null;})();
 async function fixture(t) {
   const base = resolve(root, '.local/native-pdf-transfer'); mkdirSync(base, {recursive: true});
   const output = mkdtempSync(resolve(base, 'host-')); let redirects = 0;

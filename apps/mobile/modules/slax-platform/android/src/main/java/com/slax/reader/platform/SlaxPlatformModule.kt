@@ -79,6 +79,12 @@ class SlaxPlatformModule : Module() {
       if (server == null) InetAddress.getAllByName(host).joinToString(", ") { it.hostAddress.orEmpty() }
       else SlaxDns.lookup(host, server)
     }
+    // The probe blocks for up to about ten seconds, so it runs on the IO pool rather than the shared module queue.
+    AsyncFunction("probeNetwork") Coroutine { host: String, allowed: List<String> ->
+      require(SlaxNetworkProbe.allowed(host, allowed)) { "Unsupported diagnostic host" }
+      val context = appContext.reactContext ?: error("No application context")
+      kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { SlaxNetworkProbe.probe(context, host) }
+    }
     Function("systemInfo") {
       mapOf("Platform" to "Android", "OS Version" to Build.VERSION.RELEASE, "SDK Version" to Build.VERSION.SDK_INT.toString(), "Device" to "${Build.MANUFACTURER} ${Build.MODEL}")
     }

@@ -101,7 +101,7 @@ internal fun SlaxOfflineSession.pump() {
     for (job in jobs.values) running[job.task.domain] = (running[job.task.domain] ?: 0) + 1
     for (key in order) {
       val task = tasks[key] ?: continue
-      if (jobs.containsKey(key) || (running[task.domain] ?: 0) >= 3) continue
+      if (jobs.containsKey(key) || (running[task.domain] ?: 0) >= BACKGROUND_CONTENT_PER_DOMAIN) continue
       val entry = entries[key] ?: continue
       if (complete(entry, task)) continue
       val retry = entry.manifest?.retry
@@ -114,14 +114,15 @@ internal fun SlaxOfflineSession.pump() {
     }
   }
   if (online && downloadImages) {
-    val active = imageJobs.keys.mapNotNull { tasks[it]?.domain }.toMutableSet()
+    // Several articles may hold image jobs at once; the engine's image permits bound their downloads together.
     for (key in order) {
+      if (imageJobs.size >= BACKGROUND_IMAGES) break
       val task = tasks[key] ?: continue
-      if (task.kind != "article" || task.domain in active || imageJobs.containsKey(key) || jobs.containsKey(key)) continue
+      if (task.kind != "article" || imageJobs.containsKey(key) || jobs.containsKey(key)) continue
       val entry = entries[key] ?: continue
       if (!complete(entry, task)) continue
       val images = entry.manifest?.images ?: continue
-      if (images.any { it.eligible(now) }) {active.add(task.domain); startImages(task); continue}
+      if (images.any { it.eligible(now) }) {startImages(task); continue}
       for (image in images) if (image.state == "failed") deadline = minOf(deadline, image.retryAt)
     }
   }

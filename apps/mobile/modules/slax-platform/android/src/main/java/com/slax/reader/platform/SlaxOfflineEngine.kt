@@ -39,6 +39,11 @@ internal class SlaxOfflineEnvironment(
   val credentialWaitMs: Long = 20_000,
 )
 
+/** Concurrent background article-content requests per cache domain (personal or collection). */
+internal const val BACKGROUND_CONTENT_PER_DOMAIN = 7
+/** Concurrent background image downloads across all articles. */
+internal const val BACKGROUND_IMAGES = 7
+
 /**
  * Native offline acquisition. All session state is confined to the single `SlaxOfflineEngine` control thread; network and
  * file work run on Dispatchers.IO and HTML extraction on Dispatchers.Default.
@@ -49,6 +54,8 @@ internal class SlaxOfflineEngine(val environment: SlaxOfflineEnvironment) {
   val scope = CoroutineScope(SupervisorJob() + control)
   /** Committed-copy reads for an open Reader; never shared with the control thread or background IO work. */
   val foreground = Executors.newFixedThreadPool(2) { Thread(it, "SlaxOfflineEngine.foreground").apply { isDaemon = true } }
+  /** Background image downloads across all sessions; the shared registry keeps its remaining slots for an open Reader. */
+  val imagePermits = kotlinx.coroutines.sync.Semaphore(BACKGROUND_IMAGES)
   /** Network transfers of an open PDF Reader (missing byte ranges); never waits behind background PDF acquisition. */
   val pdfForeground = Executors.newFixedThreadPool(4) { Thread(it, "SlaxOfflineEngine.pdfForeground").apply { isDaemon = true } }.asCoroutineDispatcher()
   private val sessions = HashMap<String, SlaxOfflineSession>()

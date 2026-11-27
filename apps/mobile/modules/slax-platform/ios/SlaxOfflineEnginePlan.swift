@@ -88,7 +88,7 @@ extension SlaxOfflineSession {
       var running = ["personal": 0, "collection": 0]
       for job in jobs.values { running[job.task.domain, default: 0] += 1 }
       for key in order {
-        guard let task = tasks[key], jobs[key] == nil, let entry = entries[key], running[task.domain, default: 0] < 3, !complete(entry, task) else { continue }
+        guard let task = tasks[key], jobs[key] == nil, let entry = entries[key], running[task.domain, default: 0] < SlaxOfflineEngine.backgroundContentPerDomain, !complete(entry, task) else { continue }
         if let retry = entry.manifest?.retry, retry.version == task.version {
           if retry.denied { continue }
           if retry.retryAt > now && !explicit.contains(key) { deadline = min(deadline, retry.retryAt); continue }
@@ -98,11 +98,12 @@ extension SlaxOfflineSession {
       }
     }
     if online, downloadImages {
-      var active = Set(imageJobs.keys.compactMap { tasks[$0]?.domain })
+      // Several articles may hold image jobs at once; the engine's image queue bounds their downloads together.
       for key in order {
-        guard let task = tasks[key], task.kind == "article", !active.contains(task.domain), imageJobs[key] == nil, jobs[key] == nil,
+        if imageJobs.count >= SlaxOfflineEngine.backgroundImages { break }
+        guard let task = tasks[key], task.kind == "article", imageJobs[key] == nil, jobs[key] == nil,
           let entry = entries[key], complete(entry, task), let images = entry.manifest?.images else { continue }
-        if images.contains(where: { $0.eligible(now) }) { active.insert(task.domain); startImages(task); continue }
+        if images.contains(where: { $0.eligible(now) }) { startImages(task); continue }
         for image in images where image.state == "failed" { deadline = min(deadline, image.retryAt) }
       }
     }

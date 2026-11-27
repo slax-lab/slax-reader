@@ -55,6 +55,13 @@ struct SlaxReaderSecurity: Equatable {
     if allows(url) { return true }
     return signedImageProxy(url) && URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.contains(where: { $0.name == "m" }) == false
   }
+  /// The Reader's placeholder retry reissues an image with only this fragment added; it is never part of the image's identity.
+  static func withoutRetryMarker(_ url: URL) -> URL {
+    guard let fragment = url.fragment, fragment.range(of: "^slax-retry-[0-9]{1,6}$", options: .regularExpression) != nil,
+      var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+    parts.fragment = nil
+    return parts.url ?? url
+  }
   static func validRange(_ range: String) -> Bool {
     guard range.range(of: "^bytes=([0-9]*)-([0-9]*)$", options: .regularExpression) != nil else { return false }
     let parts = range.dropFirst(6).split(separator: "-", omittingEmptySubsequences: false)

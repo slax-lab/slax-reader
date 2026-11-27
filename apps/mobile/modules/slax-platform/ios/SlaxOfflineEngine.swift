@@ -37,7 +37,14 @@ final class SlaxOfflineEngine {
   let io = SlaxOfflineEngine.queue("SlaxOfflineEngine.io", 4)
   let commits = SlaxOfflineEngine.queue("SlaxOfflineEngine.commit", 1)
   let cpu = SlaxOfflineEngine.queue("SlaxOfflineEngine.cpu", 2)
-  let images = SlaxOfflineEngine.queue("SlaxOfflineEngine.images", 2)
+  /// Concurrent background article-content requests per cache domain (personal or collection).
+  static let backgroundContentPerDomain = 7
+  /// Concurrent background image downloads across all articles; the shared registry keeps its other slots for an open Reader.
+  static let backgroundImages = 7
+  /// One operation per article image job; it only schedules and merges, so it is not bounded by the image limit.
+  let images = SlaxOfflineEngine.queue("SlaxOfflineEngine.images", SlaxOfflineEngine.backgroundImages)
+  /// Individual background image downloads, bounded together across every article.
+  let imageDownloads = SlaxOfflineEngine.queue("SlaxOfflineEngine.imageDownloads", SlaxOfflineEngine.backgroundImages)
   let pdf = SlaxOfflineEngine.queue("SlaxOfflineEngine.pdf", 6)
   /// Committed-copy reads for an open Reader; never shared with acquisition, migration or entry loading.
   let foreground = SlaxOfflineEngine.queue("SlaxOfflineEngine.foreground", 2, qos: .userInitiated)

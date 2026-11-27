@@ -81,6 +81,8 @@ export interface ReaderWebViewProps {
   currentUserId: number
   /** Retained for caller compatibility; Reader always uses its isolated unauthenticated origin. */
   baseUrl?: string
+  /** App locale for in-document labels; omitted keeps English. */
+  locale?: 'zh' | 'en'
   marks?: ReaderMarkDetail
   initialPosition?: number | null
   infoPack?: Record<string, unknown>
@@ -180,7 +182,7 @@ const ReaderPage = forwardRef<ReaderHandle, ReaderPageProps>(function ReaderPage
   const nativeContextRef = useRef(nativeContext)
   nativeContextRef.current = nativeContext
   const observesInput = __DEV__ && Boolean(props.onObservation)
-  const document = useMemo(() => composeReaderDocument(props.html, { pageId: props.pageId, platform, imageProxyOrigins, rewriteImageTransports: props.rewriteImageTransports, controlledFixture: __DEV__ && Boolean(props.cacheDirectory), observeInput: observesInput }), [props.html, props.pageId, platform, props.rewriteImageTransports, props.cacheDirectory, observesInput])
+  const document = useMemo(() => composeReaderDocument(props.html, { pageId: props.pageId, platform, imageProxyOrigins, rewriteImageTransports: props.rewriteImageTransports, controlledFixture: __DEV__ && Boolean(props.cacheDirectory), observeInput: observesInput, ...(props.locale ? {locale: props.locale} : {}) }), [props.html, props.pageId, platform, props.rewriteImageTransports, props.cacheDirectory, observesInput, props.locale])
   const shortDocument = (height: number) => headerHeight + height <= viewportHeight
   const footer = props.footerOnlyForLongDocument && shortDocument(documentHeightPoints.current) ? null : props.footer
   useEffect(() => {if (!footer) setFooterHeight(0)}, [Boolean(footer)])

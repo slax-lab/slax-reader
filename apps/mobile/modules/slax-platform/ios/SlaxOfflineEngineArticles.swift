@@ -107,11 +107,22 @@ extension SlaxOfflineSession {
         commits.addOperations([BlockOperation { merged = try? Self.mergeImages(store, key, snapshot) }], waitUntilFinished: true)
         return merged
       }
-      for index in images.indices where images[index].eligible(now) {
-        guard !work.isCancelled, let next = Self.acquireImage(images[index], key: key, scope: scope, store: store, work: work, environment: environment) else { break }
-        images[index] = next; changed += 1
-        if changed % 8 == 0 { _ = merge() }
+      // One article's images download in parallel on the engine-wide image queue; results are applied under one lock.
+      final class Progress { let lock = NSLock(); var images: [SlaxOfflineImage]; var changed = 0; init(_ images: [SlaxOfflineImage]) { self.images = images } }
+      let progress = Progress(images), downloads = self.engine.imageDownloads
+      let operations = images.indices.filter { images[$0].eligible(now) }.map { index in
+        let source = images[index]
+        return BlockOperation {
+          guard !work.isCancelled, let next = Self.acquireImage(source, key: key, scope: scope, store: store, work: work, environment: environment) else { return }
+          progress.lock.lock(); progress.images[index] = next; progress.changed += 1
+          let snapshot = progress.changed % 8 == 0 ? progress.images : nil; progress.lock.unlock()
+          if let snapshot { commits.addOperations([BlockOperation { _ = try? Self.mergeImages(store, key, snapshot) }], waitUntilFinished: true) }
+        }
       }
+      let cancelHook = work.attach { operations.forEach { $0.cancel() } }
+      downloads.addOperations(operations, waitUntilFinished: true)
+      work.detach(cancelHook)
+      progress.lock.lock(); images = progress.images; changed = progress.changed; progress.lock.unlock()
       let final = work.isCancelled ? nil : merge()
       self.engine.control.async {
         guard self.imageJobs[key] === work else { return }
