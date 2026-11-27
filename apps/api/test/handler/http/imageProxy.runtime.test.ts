@@ -14,7 +14,13 @@ test('workerd fills and reuses the signed edge cache after real R2 image hits', 
       contents: `
         import { handleImageProxy } from './src/handler/http/imageProxy';
         import { hashMD5, hashSHA256 } from './src/utils/strings';
-        export default { async fetch(_request, env) {
+        import { applyCacheHeaders } from './src/middleware/cacheHeaders';
+        export default { async fetch(request, env, execution) {
+          const prefix = 'https://image-cache-fixture.invalid/static/image';
+          if (new URL(request.url).pathname === '/static/image') {
+            const ctx = { env: { ...env, IMAGER_CHECK_DIGST_SALT: 'fixture-salt', PROXY_IMAGE_PREFIX: prefix }, execution };
+            return applyCacheHeaders(await handleImageProxy(ctx, request), request);
+          }
           const results = [];
           for (const mode of ['', 'rss']) {
             const u = encodeURIComponent('https://images.example/cover.png');
@@ -69,6 +75,23 @@ test('workerd fills and reuses the signed edge cache after real R2 image hits', 
     for (const result of results) {
       expect(result).toMatchObject({ firstStatus: 200, secondStatus: 200, firstBody: 'native-r2-image', cachedBody: 'native-r2-image', secondBody: 'native-r2-image', r2Gets: 1, mime: 'image/png' })
       expect(result.cacheControl).toContain('public')
+      const { createHash } = await import('node:crypto')
+      const signed = (source: string, r: string) => {
+        const u = encodeURIComponent(source)
+        const d = createHash('md5').update(u + r + 'fixture-salt' + result.mode).digest('hex')
+        return new URL('https://image-cache-fixture.invalid/static/image?' + new URLSearchParams({ u, r, d, ...(result.mode ? { m: result.mode } : {}) }))
+      }
+      const inner = signed('https://images.example/cover.png', 'https://x.com/inner')
+      const outer = signed(inner.href, 'https://x.com/outer')
+      const endpoint = await runtime.ready
+      for (const url of [outer, inner]) {
+        const res = await fetch(new URL(url.pathname + url.search, endpoint), { redirect: 'manual' })
+        expect(res.status).toBe(200)
+        expect(res.headers.get('Location')).toBeNull()
+        expect(res.headers.get('Content-Type')).toBe('image/png')
+        expect(res.headers.get('Cache-Control')).toBe('public, max-age=2592000, immutable')
+        expect(await res.text()).toBe('native-r2-image')
+      }
     }
   } finally {
     await runtime.dispose()

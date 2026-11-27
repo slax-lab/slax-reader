@@ -46,6 +46,27 @@ const readImage = async (body: ReadableStream<Uint8Array>, limit: number): Promi
   return bytes
 }
 
+const validDigest = async (u: string, r: string, salt: string, mode: string, d: string) => (await hashMD5(u + r + salt + mode)) === d
+
+const nestedImage = async (source: URL, env: Env, mode: string) => {
+  if (!URL.canParse(env.PROXY_IMAGE_PREFIX)) return
+  const proxy = new URL(env.PROXY_IMAGE_PREFIX)
+  const matchesProxy = (url: URL) => url.origin === proxy.origin && url.pathname === proxy.pathname
+  if (!matchesProxy(source) || source.hash) return
+  const query = source.searchParams
+  const u = query.get('u')
+  const r = query.get('r')
+  const d = query.get('d')
+  if (!u || r === null || !d || query.get('m') !== (mode || null) || query.size !== (mode ? 4 : 3)) return
+  if (!(await validDigest(u, r, env.IMAGER_CHECK_DIGST_SALT, mode, d))) return
+  try {
+    const target = publicTarget(decodeURIComponent(u))
+    if (!matchesProxy(target)) return { u, r, sourceUrl: target.href, cacheUrl: source.href }
+  } catch {
+    return
+  }
+}
+
 export async function handleImageProxy(ctx: ContextManager, request: Request): Promise<Response> {
   const params = await RequestUtils.query<{ u: string; r: string; d: string; m?: string }>(request)
   if (!params?.u) return Failed(NotFound('action not found'))
@@ -53,21 +74,25 @@ export async function handleImageProxy(ctx: ContextManager, request: Request): P
 
   if (params.m && params.m !== 'rss') return new Response(null, { status: 400 })
   const rss = params.m === 'rss'
-  const checkDigest = (await hashMD5(params.u + params.r + ctx.env.IMAGER_CHECK_DIGST_SALT + (params.m || ''))) === params.d
+  const checkDigest = await validDigest(params.u, params.r, ctx.env.IMAGER_CHECK_DIGST_SALT, params.m || '', params.d)
   const validReferer = isValidReferer(request.headers.get('Referer') || '', ctx.env.FRONT_END_URL)
   if (!ctx.env.IMAGER_CHECK_DIGST_SALT || !checkDigest || !validReferer) return new Response(null, { status: 403 })
 
+  let decoded: string
   let sourceUrl: string
   try {
-    sourceUrl = publicTarget(decodeURIComponent(params.u)).href
+    decoded = decodeURIComponent(params.u)
+    sourceUrl = publicTarget(decoded).href
   } catch {
     return new Response(null, { status: 400 })
   }
 
   const range = request.headers.get('Range')
   if ((rss && range !== null) || (range !== null && !isSafeRange(range))) return new Response(null, { status: 400 })
+  const inner = await nestedImage(new URL(decoded), ctx.env, params.m || '')
+  if (inner) sourceUrl = inner.sourceUrl
   const cache = typeof caches !== 'undefined' ? caches.default : undefined
-  const cacheKey = new Request(request.url, { method: 'GET' })
+  const cacheKey = new Request(inner?.cacheUrl ?? request.url, { method: 'GET' })
   const cached = !range && cache ? await cache.match(cacheKey) : undefined
   if (cached) {
     if (!(rss ? isSafeImageMime : isSafeMediaMime)(cached.headers.get('Content-Type') || '')) {
@@ -82,7 +107,7 @@ export async function handleImageProxy(ctx: ContextManager, request: Request): P
     await cached.body?.cancel()
   }
 
-  const fileKey = `${rss ? 'rss-image' : 'image'}/${await hashSHA256(params.u)}`
+  const fileKey = `${rss ? 'rss-image' : 'image'}/${await hashSHA256(inner?.u ?? params.u)}`
   const object = range ? null : await ctx.env.OSS.get(fileKey)
   if (rss && object && (object.size > maxImageBytes || !isSafeImageMime(object.httpMetadata?.contentType || ''))) {
     await object.body.cancel()
@@ -95,7 +120,7 @@ export async function handleImageProxy(ctx: ContextManager, request: Request): P
   }
   await object?.body.cancel()
 
-  const headers = new Headers(getImageProxyHeaders(sourceUrl, params.r, request.headers))
+  const headers = new Headers(getImageProxyHeaders(sourceUrl, inner?.r ?? params.r, request.headers))
   headers.set('Accept-Encoding', 'identity')
   if (range) headers.set('Range', range)
   let imageResponse: Response

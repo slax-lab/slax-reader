@@ -153,6 +153,71 @@ const mediaContext = () => {
   return { ctx, get, put, match, cachePut, waitUntil }
 }
 
+describe('historical nested image proxy', () => {
+  const prefix = 'https://api.example/static/image'
+  const original = 'https://images.example/photo.jpg?name=a%2Fb'
+  const innerReferer = 'https://x.com/source'
+  const outerReferer = 'https://x.com/bookmark'
+  const signed = async (source: string, r: string, mode = '', encoded = encodeURIComponent(source)) => {
+    const d = await hashMD5(encoded + r + 'salt' + mode)
+    return new URL(prefix + '?' + new URLSearchParams({ u: encoded, r, d, ...(mode ? { m: mode } : {}) }))
+  }
+  beforeEach(async () => {
+    const { createHash } = await import('node:crypto')
+    vi.mocked(hashMD5).mockImplementation(async value => createHash('md5').update(value).digest('hex'))
+  })
+
+  test.each(['', 'rss'])('serves the signed inner image without fetching the proxy (%s)', async mode => {
+    const { ctx, cachePut } = mediaContext()
+    ctx.env.PROXY_IMAGE_PREFIX = prefix
+    const inner = await signed(original, innerReferer, mode)
+    const outer = await signed(inner.href, outerReferer, mode)
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) =>
+      String(url) === original && new Headers(init?.headers).get('Referer') === innerReferer
+        ? new Response('image bytes', { headers: { 'Content-Type': 'image/jpeg' } })
+        : new Response(null, { status: 403 })
+    )
+    const response = await handleImageProxy(ctx, new Request(outer))
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe('image/jpeg')
+    expect(response.headers.has('Location')).toBe(false)
+    expect(await response.text()).toBe('image bytes')
+    expect(fetchSpy).toHaveBeenCalledOnce()
+    expect(cachePut.mock.calls[0][0].url).toBe(inner.href)
+  })
+
+  test.each(['digest', 'origin', 'path', 'rss inside ordinary', 'ordinary inside rss', 'triple', 'missing referer', 'duplicate source', 'bad encoding'])('leaves unsupported %s on the original path', async shape => {
+    const { ctx, match } = mediaContext()
+    ctx.env.PROXY_IMAGE_PREFIX = prefix
+    let inner = await signed(original, innerReferer, shape === 'rss inside ordinary' ? 'rss' : '')
+    if (shape === 'digest') inner.searchParams.set('d', 'invalid')
+    if (shape === 'origin') inner.hostname = 'another.example'
+    if (shape === 'path') inner.pathname += '/other'
+    if (shape === 'triple') inner = await signed(inner.href, innerReferer)
+    if (shape === 'missing referer') inner.searchParams.delete('r')
+    if (shape === 'duplicate source') inner.searchParams.append('u', inner.searchParams.get('u')!)
+    if (shape === 'bad encoding') inner = await signed(original, innerReferer, '', '%')
+    const outer = await signed(inner.href, outerReferer, shape === 'ordinary inside rss' ? 'rss' : '')
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 403 }))
+    const response = await handleImageProxy(ctx, new Request(outer))
+    expect(response.status).toBe(shape === 'ordinary inside rss' ? 502 : 302)
+    expect(match.mock.calls[0][0].url).toBe(outer.href)
+    expect(String(fetchSpy.mock.calls[0][0])).toBe(inner.href)
+  })
+
+  test.each(['signature', 'referer', 'mode'])('checks outer %s before a warm inner cache', async invalid => {
+    const { ctx, match } = mediaContext()
+    ctx.env.PROXY_IMAGE_PREFIX = prefix
+    match.mockResolvedValue(new Response('cached image', { headers: { 'Content-Type': 'image/jpeg' } }))
+    const outer = await signed((await signed(original, innerReferer)).href, outerReferer)
+    if (invalid === 'signature') outer.searchParams.set('d', 'invalid')
+    if (invalid === 'mode') outer.searchParams.set('m', 'unknown')
+    const response = await handleImageProxy(ctx, new Request(outer, { headers: invalid === 'referer' ? { Referer: outerReferer } : {} }))
+    expect(response.status).toBe(invalid === 'mode' ? 400 : 403)
+    expect(match).not.toHaveBeenCalled()
+  })
+})
+
 describe('signed media proxy', () => {
   test.each(['video/mp4', 'video/webm', 'video/ogg'])('streams %s without buffering or caching it', async mime => {
     const { ctx, put, cachePut } = mediaContext()

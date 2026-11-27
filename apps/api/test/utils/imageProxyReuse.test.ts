@@ -31,6 +31,13 @@ describe('configured signed image proxy reuse', () => {
     expect(await buildImageProxyUrl(env, await buildImageProxyUrl(env, existing, referer, mode), referer, mode)).toBe(existing)
   })
 
+  it.each([undefined, 'rss'] as const)('preserves an existing double wrapper without changing signed bytes (%s)', async mode => {
+    const inner = signed(source, mode)
+    const outer = signed(inner, mode)
+    expect(await buildImageProxyUrl(env, outer, referer, mode)).toBe(outer)
+    expect(decodeURIComponent(new URL(outer).searchParams.get('u')!)).toBe(inner)
+  })
+
   it('preserves the original query encoding rather than serializing a reusable URL', async () => {
     const existing = signed(source).replaceAll('%3A', '%3a').replaceAll('+', '%20')
     expect(await buildImageProxyUrl(env, existing, referer)).toBe(existing)
