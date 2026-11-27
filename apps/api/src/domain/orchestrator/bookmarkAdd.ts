@@ -17,6 +17,7 @@ export interface PreWorkflowResult {
     userId: number
     captureRevision?: string
     inlineContent?: string
+    publishedAt?: string
   } | null
 }
 
@@ -51,7 +52,8 @@ export class BookmarkAddOrchestrator {
           url: res.info.targetUrl,
           bookmarkId: res.info.bookmarkId,
           captureRevision: res.info.captureRevision,
-          userId: res.info.userId
+          userId: res.info.userId,
+          publishedAt: res.info.publishedAt
         }
       }
     } catch (e) {
@@ -90,7 +92,8 @@ export class BookmarkAddOrchestrator {
           bookmarkId: res.info.bookmarkId,
           captureRevision: res.info.captureRevision,
           userId: res.info.userId,
-          inlineContent: res.info.resource && res.info.resource.length > 0 ? res.info.resource : undefined
+          inlineContent: res.info.resource && res.info.resource.length > 0 ? res.info.resource : undefined,
+          publishedAt: res.info.publishedAt
         },
         resource: res.info.resource
       }
@@ -117,6 +120,7 @@ export class BookmarkAddOrchestrator {
       userId: number
       captureRevision?: string
       inlineContent?: string
+      publishedAt?: string
     },
     opts: {
       callbackChatId?: number
@@ -137,7 +141,8 @@ export class BookmarkAddOrchestrator {
           callbackOriginMessageId: opts.callbackOriginMessageId ?? 0,
           ignoreGenerateTag: opts.ignoreGenerateTag ?? false,
           captureRevision: params.captureRevision,
-          inlineContent: params.inlineContent
+          inlineContent: params.inlineContent,
+          publishedAt: params.publishedAt
         },
         3,
         ctx

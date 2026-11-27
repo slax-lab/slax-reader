@@ -82,6 +82,8 @@ export interface parseMessage {
   skipParsing?: boolean
   // Set when the parse belongs to an import task; post-processing keeps the imported save time.
   importTaskId?: number
+  // ISO time an allowlisted publisher supplied; set as the bookmark's publication time once captured.
+  publishedAt?: string
 }
 
 export interface importBookmarkMessage {

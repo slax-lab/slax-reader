@@ -1,5 +1,6 @@
 import { parseHTML } from 'linkedom'
 import { assertExternalNewsletterTarget } from '@/utils/newsletterTarget'
+import { isPublisherUser, publisherPublishedTime, suppliedArticleTime } from '@/utils/publishedTime'
 import { bookmarkContentType, isPdfContentKey, PDF_MAX_BYTES, pdfByteRange, pdfResponseHeaders, type PdfDescriptor, type PdfUploadResult } from '@slax-reader/contracts/pdf'
 import { readPdfBody, pdfFilename, pdfHash, extractPdfText, extractPdfMetadata, hasPdfSignature, PdfSaveInProgressError } from '@/utils/pdf'
 import { publicFetch } from '@/utils/publicFetch'
@@ -282,6 +283,7 @@ export class BookmarkService extends BookmarkReadService {
     const privateUser = ctx.getUserId()
     const lastBm = await this.bookmarkRepo.getBookmark(target_url, privateUser)
     if (isPdfContentKey(lastBm?.content_key)) await this.labService.assertEnabled(ctx, 'pdf')
+    const publishedAt = isPublisherUser(ctx.env, privateUser) && content?.trim() ? suppliedArticleTime(content) : undefined
 
     const bmInfo = await this.createBookmarkBase({
       ctx,
@@ -303,7 +305,7 @@ export class BookmarkService extends BookmarkReadService {
         bmInfo.content_key?.endsWith('.html') &&
         (!bmInfo.title?.trim() || !bmInfo.site_name?.trim() || !bmInfo.byline?.trim()) &&
         content?.trim() &&
-        ctx.env.PUBLISHER_USER_IDS?.split(',').some(id => id.trim() === String(privateUser))
+        isPublisherUser(ctx.env, privateUser)
       ) {
         const { document } = parseHTML(content)
         const root = document.documentElement
@@ -315,6 +317,7 @@ export class BookmarkService extends BookmarkReadService {
           })
         }
       }
+      if (bmInfo.private_user === privateUser) await this.applyPublisherPublishedAt(ctx, bmInfo.id, privateUser, publishedAt)
       await this.processCachedBookmark(ctx, bmInfo)
       return { kind: 'completed' as const, bookmark_id: bmInfo.id }
     }
@@ -334,7 +337,8 @@ export class BookmarkService extends BookmarkReadService {
           ignoreGenerateTag: false,
           privateUser: bmInfo.private_user,
           targetTitle: target_title ?? '',
-          skipParse: false
+          skipParse: false,
+          ...(publishedAt ? { publishedAt: publishedAt.toISOString() } : {})
         }
       }
     }
@@ -388,6 +392,7 @@ export class BookmarkService extends BookmarkReadService {
     const privateUser = ctx.getUserId()
     const lastBm = await this.bookmarkRepo.getBookmark(targetUrl, privateUser)
     if (isPdfContentKey(lastBm?.content_key)) await this.labService.assertEnabled(ctx, 'pdf')
+    const publishedAt = isPublisherUser(ctx.env, privateUser) ? publisherPublishedTime(req.published_at) : undefined
 
     // 创建书签
     const bmInfo = await this.createBookmarkBase({
@@ -406,6 +411,7 @@ export class BookmarkService extends BookmarkReadService {
     this.maintainReboundArticles(ctx, bmInfo)
     if (bmInfo.admitted === false) return bmInfo.id
     if (bmInfo.status === queueStatus.SUCCESS && !urlPolicie.isUrlShortcut()) {
+      if (bmInfo.private_user === privateUser) await this.applyPublisherPublishedAt(ctx, bmInfo.id, privateUser, publishedAt)
       await this.processCachedBookmark(ctx, bmInfo)
       return { kind: 'completed' as const, bookmark_id: bmInfo.id }
     }
@@ -425,7 +431,8 @@ export class BookmarkService extends BookmarkReadService {
           callbackPayload,
           ignoreGenerateTag: false,
           privateUser: bmInfo.private_user,
-          skipParse: false
+          skipParse: false,
+          ...(publishedAt ? { publishedAt: publishedAt.toISOString() } : {})
         }
       }
     }
@@ -849,8 +856,11 @@ export class BookmarkService extends BookmarkReadService {
   public async uploadPdf(ctx: ContextManager, request: Request): Promise<PdfUploadResult> {
     await this.labService.assertEnabled(ctx, 'pdf')
     let filename: string
+    let publishedAt: Date | undefined
     try {
-      filename = pdfFilename(new URL(request.url).searchParams.get('filename') || 'document.pdf')
+      const params = new URL(request.url).searchParams
+      filename = pdfFilename(params.get('filename') || 'document.pdf')
+      publishedAt = isPublisherUser(ctx.env, ctx.getUserId()) ? publisherPublishedTime(params.get('published_at')) : undefined
     } catch {
       throw ErrorParam()
     }
@@ -868,6 +878,7 @@ export class BookmarkService extends BookmarkReadService {
     const relation = await this.bookmarkRepo.getUserBookmarkWithDetail(bookmark.id, ctx.getUserId())
     if (!relation) throw BookmarkNotFoundError()
     if (bookmark.status === queueStatus.SUCCESS) {
+      await this.applyPublisherPublishedAt(ctx, bookmark.id, ctx.getUserId(), publishedAt)
       const title = await this.processCachedBookmark(ctx, bookmark, true, bytes)
       return { bookmark_id: ctx.hashIds.encodeId(bookmark.id), bookmark_uid: relation.uuid, title }
     }
@@ -915,14 +926,18 @@ export class BookmarkService extends BookmarkReadService {
           captureRevision: pending?.updated_at.toISOString(),
           userId: ctx.getUserId(),
           enUserId: ctx.hashIds.encodeId(ctx.getUserId()),
-          userLang: ctx.get('user_lang') || 'en'
+          userLang: ctx.get('user_lang') || 'en',
+          ...(publishedAt ? { publishedAt: publishedAt.toISOString() } : {})
         },
         3,
         ctx
       )
     } else if (descriptor) {
       const completed = await this.bookmarkRepo.getBookmarkById(bookmark.id)
-      if (completed?.status === queueStatus.SUCCESS) title = await this.processCachedBookmark(ctx, completed, true, bytes)
+      if (completed?.status === queueStatus.SUCCESS) {
+        await this.applyPublisherPublishedAt(ctx, bookmark.id, ctx.getUserId(), publishedAt)
+        title = await this.processCachedBookmark(ctx, completed, true, bytes)
+      }
     }
     return { bookmark_id: ctx.hashIds.encodeId(bookmark.id), bookmark_uid: relation.uuid, title }
   }
@@ -1462,6 +1477,14 @@ export class BookmarkService extends BookmarkReadService {
       byline: res.byline,
       privateUser: res.private_user
     }
+  }
+
+  /** Applies a publisher's original publication time to its own successful bookmark. */
+  public async applyPublisherPublishedAt(ctx: ContextManager, bookmarkId: number, ownerId: number, publishedAt?: Date) {
+    if (!publishedAt || !isPublisherUser(ctx.env, ownerId)) return false
+    const changed = await this.bookmarkData.setOwnerPublishedAt(bookmarkId, ownerId, publishedAt)
+    if (changed) await this.searchService.clearSearchCache(ctx, ownerId)
+    return changed > 0
   }
 
   public async updateBookmarkModerationResult(bmId: number, moderationResult: number, capture?: { revision: Date; userId: number }) {

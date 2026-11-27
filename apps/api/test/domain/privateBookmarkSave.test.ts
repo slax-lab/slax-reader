@@ -244,3 +244,80 @@ describe('bookmark save privacy', () => {
     expect(tx.sr_user_delete_bookmark.deleteMany).toHaveBeenCalled()
   })
 })
+
+describe('publisher original publication time', () => {
+  const original = '2023-10-19T12:01:36.000Z'
+  const article = `<html data-slax-publisher="article"><head><title>T</title><meta property="article:published_time" content="2023-10-19T12:01:36+00:00"></head><body><p>Body</p></body></html>`
+  const publisherCtx = (allowed = String(userId)) =>
+    ({
+      getUserId: () => userId,
+      env: { RUN_ENV: 'prod', PUBLISHER_USER_IDS: allowed },
+      hashIds: { encodeId: (id: number) => `encoded-${id}` },
+      getlang: () => 'en',
+      execution: { waitUntil: vi.fn() }
+    }) as any
+
+  function cached(privateUser = userId) {
+    const value = createService()
+    value.createBookmarkBase.mockResolvedValue({
+      id: 11,
+      private_user: privateUser,
+      status: 'success',
+      updated_at: new Date(),
+      target_url: targetUrl,
+      title: 'Article',
+      byline: 'A',
+      site_name: 'S',
+      content_key: 'html/body/article.html'
+    })
+    const setOwnerPublishedAt = vi.fn().mockResolvedValue(1)
+    Object.assign(value.bookmarkRepo, { setOwnerPublishedAt, fillPublisherMetadata: vi.fn() })
+    Object.assign(value.service, { searchService: { clearSearchCache: vi.fn() } })
+    return { ...value, setOwnerPublishedAt }
+  }
+
+  test('a cached add_url resave applies the supplied time to the publisher bookmark', async () => {
+    const { service, setOwnerPublishedAt } = cached()
+    await service.addUrlBookmark(publisherCtx(), { target_url: targetUrl, tags: [], published_at: original }, callbackType.NOT_CALLBACK)
+    expect(setOwnerPublishedAt).toHaveBeenCalledExactlyOnceWith(11, userId, new Date(original))
+  })
+
+  test('a cached add resave applies the time from the supplied article HTML', async () => {
+    const { service, setOwnerPublishedAt } = cached()
+    await service.addBookmark(publisherCtx(), { target_url: targetUrl, target_title: 'T', content: article, target_icon: '', taget_cover: '', description: '', tag: [] })
+    expect(setOwnerPublishedAt).toHaveBeenCalledExactlyOnceWith(11, userId, new Date(original))
+  })
+
+  test.each([
+    ['a non-publisher', '99', original],
+    ['an unzoned time', String(userId), '2023-10-19'],
+    ['a future time', String(userId), '2999-01-01T00:00:00Z']
+  ])('a cached resave from %s keeps the stored time', async (_name, allowed, value) => {
+    const { service, setOwnerPublishedAt } = cached()
+    await service.addUrlBookmark(publisherCtx(allowed), { target_url: targetUrl, tags: [], published_at: value }, callbackType.NOT_CALLBACK)
+    expect(setOwnerPublishedAt).not.toHaveBeenCalled()
+  })
+
+  test('a cached resave never writes another owner bookmark', async () => {
+    const { service, setOwnerPublishedAt } = cached(0)
+    await service.addUrlBookmark(publisherCtx(), { target_url: targetUrl, tags: [], published_at: original }, callbackType.NOT_CALLBACK)
+    expect(setOwnerPublishedAt).not.toHaveBeenCalled()
+  })
+
+  test.each(['url', 'inline'] as const)('a fresh %s capture carries the time to the workflow message', async entry => {
+    const { service, createBookmarkBase } = createService()
+    createBookmarkBase.mockResolvedValue({ id: 11, private_user: userId, status: 'pending', updated_at: new Date() })
+    const result: any =
+      entry === 'url'
+        ? await service.addUrlBookmark(publisherCtx(), { target_url: targetUrl, tags: [], published_at: original }, callbackType.NOT_CALLBACK)
+        : await service.addBookmark(publisherCtx(), { target_url: targetUrl, target_title: 'T', content: article, target_icon: '', taget_cover: '', description: '', tag: [] })
+    expect(result.info.publishedAt).toBe(original)
+  })
+
+  test('a fresh capture by a non-publisher carries no time', async () => {
+    const { service, createBookmarkBase } = createService()
+    createBookmarkBase.mockResolvedValue({ id: 11, private_user: userId, status: 'pending', updated_at: new Date() })
+    const result: any = await service.addUrlBookmark(publisherCtx('99'), { target_url: targetUrl, tags: [], published_at: original }, callbackType.NOT_CALLBACK)
+    expect(result.info).not.toHaveProperty('publishedAt')
+  })
+})

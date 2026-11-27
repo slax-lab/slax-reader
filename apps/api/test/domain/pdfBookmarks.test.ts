@@ -377,6 +377,36 @@ describe('PDF upload', () => {
     expect(bucket.put).not.toHaveBeenCalled()
     await body.cancel()
   })
+  it('hands a publisher-supplied publication time to the extraction workflow, and drops it for other users', async () => {
+    for (const [allowed, expected] of [
+      ['7', '2026-11-10T08:00:00.000Z'],
+      ['8', undefined]
+    ] as const) {
+      const { service, bucket } = uploadWire()
+      bucket.head.mockResolvedValue(null)
+      bucket.get.mockResolvedValue({ json: async () => ({ text_status: 'pending', pages: 0 }) })
+      bucket.put.mockImplementation(async (key: string) => {
+        if (key.endsWith('.pdf')) bucket.head.mockResolvedValue({ size: 100, customMetadata: { source: 'upload' } })
+        return {}
+      })
+      const ctx = createMockCtx({ userId: 7 })
+      ctx.env.PUBLISHER_USER_IDS = allowed
+      await service.uploadPdf(ctx, new Request('https://example.com/upload?filename=a.pdf&published_at=2026-11-10T16:00:00%2B08:00', { method: 'POST', body: pdfFixture() }))
+      const params = (service as any).crawlService.createWorkflow.mock.calls[0][1]
+      expect(params.publishedAt).toBe(expected)
+    }
+  })
+  it('applies a publisher-supplied publication time when the uploaded PDF is already saved', async () => {
+    const { service, create, repo } = uploadWire()
+    create.mockResolvedValue({ id: 10, status: 'success', updated_at: pdfRevision, content_key: 'pdf/body/saved.pdf', title: 'Saved', byline: '', target_url: 'slax-pdf://7/x' })
+    const setOwnerPublishedAt = vi.fn().mockResolvedValue(1)
+    Object.assign(repo, { setOwnerPublishedAt })
+    Object.assign(service, { bookmarkData: repo, processCachedBookmark: vi.fn().mockResolvedValue('Saved') })
+    const ctx = createMockCtx({ userId: 7 })
+    ctx.env.PUBLISHER_USER_IDS = '7'
+    await service.uploadPdf(ctx, new Request('https://example.com/upload?published_at=2026-11-10T08:00:00Z', { method: 'POST', body: pdfFixture() }))
+    expect(setOwnerPublishedAt).toHaveBeenCalledExactlyOnceWith(10, 7, new Date('2026-11-10T08:00:00Z'))
+  })
   it('creates a private filename-titled PDF and schedules text extraction after storage', async () => {
     const { service, create, bucket, repo } = uploadWire()
     bucket.head.mockResolvedValue(null)
