@@ -1,6 +1,7 @@
 import { GoogleGenAI, Content, FunctionDeclaration, Schema, Tool } from '@google/genai'
 import { AIError, AIProviderAuthError, AIProviderUnavailableError, AIRateLimitError } from '../../const/err'
 import type { MultiLangError } from '../../utils/multiLangError'
+import { ResponseStreamClosedError } from '../../utils/responseStream'
 
 export type ToolDefinition = {
   declaration: FunctionDeclaration
@@ -352,6 +353,11 @@ export class VertexAIClient {
       }
     } catch (error) {
       clearFirstByteBudget()
+
+      // A response write that fails because the client went away is not a provider failure: pass it
+      // to the caller without the provider diagnostic log or the AIProviderError wrapper.
+      if (error instanceof ResponseStreamClosedError) throw error
+
       const failure = toProviderFailure(error, timedOut)
 
       // Structured, greppable diagnosis for operators. Only extracted scalars and the

@@ -21,6 +21,7 @@ import { VertexAIClient, ToolDefinition, classifyProviderError } from '@/infra/e
 import { Content, Type } from '@google/genai'
 import { MultiLangError } from '@/utils/multiLangError'
 import { providerDiagnostic } from '@/utils/errorDiagnostic'
+import { ResponseStreamClosedError } from '@/utils/responseStream'
 import { AIError, ErrorParam, ErrorName } from '@/const/err'
 
 export type deltaType = {
@@ -492,6 +493,10 @@ export class AigcService {
     const wr = writer.getWriter()
     let response = ''
     let completed = false
+    // A client that leaves the page breaks the response stream. Writing the error text or closing
+    // it after that can only reject with the same cause, which would report one client-side event
+    // as three service errors.
+    let streamBroken = false
 
     try {
       const contents: Content[] = [
@@ -506,7 +511,12 @@ export class AigcService {
         },
         {
           onTextDelta: async (chunk: string) => {
-            await wr.write(this.ted.encode(chunk))
+            try {
+              await wr.write(this.ted.encode(chunk))
+            } catch (writeErr) {
+              streamBroken = true
+              throw new ResponseStreamClosedError(writeErr)
+            }
             response += chunk
           },
           onStep: async step => {
@@ -516,17 +526,27 @@ export class AigcService {
       )
       completed = true
     } catch (error) {
-      console.error('[aigc.summary] summary generation failed', { ...providerDiagnostic(error), ...(ctx.get('rayId') ? { ray: ctx.get('rayId') } : {}) })
+      const diagnostic = { ...providerDiagnostic(error), ...(ctx.get('rayId') ? { ray: ctx.get('rayId') } : {}) }
+      if (streamBroken) {
+        console.warn('[aigc.summary] client closed the stream', diagnostic)
+        return
+      }
+      console.error('[aigc.summary] summary generation failed', diagnostic)
       try {
         await wr.write(this.ted.encode(error instanceof MultiLangError ? error.message : 'Failed to get summary, please try again later.\n'))
       } catch (writeErr) {
-        console.error('[aigc.summary] failed to write error text', writeErr)
+        // The client can also leave between a generation failure and this frame.
+        streamBroken = true
+        console.warn('[aigc.summary] failed to write error text', writeErr)
       }
     } finally {
-      try {
-        await wr.close()
-      } catch (closeErr) {
-        console.error('[aigc.summary] failed to close stream', closeErr)
+      // A stream that already rejected a write is terminated; closing it could only reject again.
+      if (!streamBroken) {
+        try {
+          await wr.close()
+        } catch (closeErr) {
+          console.warn('[aigc.summary] failed to close stream', closeErr)
+        }
       }
     }
 
