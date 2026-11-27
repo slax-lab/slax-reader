@@ -228,6 +228,15 @@ fun main(args: Array<String>) {
   until("legacy re-acquired") { counts()["content:legacy"] == 1 && manifest("legacy")?.get("version") == "v2" }
   until("legacy v2 complete") { recorder.state("legacy")?.get("state") == "complete" }
   until("legacy images") { ((manifest("legacy")?.get("images") as? List<*>)?.firstOrNull() as? Map<*, *>)?.get("s") == "ready" }
+  // One article's background images download in parallel, bounded by the engine-wide limit of seven.
+  engine.applyPlan("acct", mapOf("revision" to 3.5, "remove" to emptyList<String>(), "upsert" to listOf(task("legacy", "v2"), task("gallery"))))
+  until("gallery complete") { recorder.state("gallery")?.get("state") == "complete" }
+  until("gallery images held", 30.0) { (counts()["gallery:started"] ?: 0) >= BACKGROUND_IMAGES }
+  Thread.sleep(300)
+  precondition(counts()["gallery:peak"] == BACKGROUND_IMAGES) { "Background image concurrency ${counts()["gallery:peak"]}" }
+  runCatching { URL("$origin/release?key=gallery").readText() }
+  until("gallery images", 30.0) { ((manifest("gallery")?.get("images") as? List<*>).orEmpty()).let { images -> images.size == 20 && images.all { (it as Map<*, *>)["s"] == "ready" } } }
+  precondition(counts()["gallery:peak"] == BACKGROUND_IMAGES && counts()["gallery:started"] == 20) { "Gallery ${counts()}" }
   precondition((value { engine.clear("acct", listOf("legacy"), listOf("images"), it) } as List<*>).isEmpty() && !exists("bookmark/legacy/images") && exists("bookmark/legacy/content.html"))
   engine.applyPlan("acct", mapOf("revision" to 4.0, "remove" to listOf("legacy"), "upsert" to emptyList<Any>()))
   precondition(value { engine.clear("acct", listOf("legacy"), listOf("article"), it) } == listOf("legacy") && !exists("bookmark/legacy/content.html"))

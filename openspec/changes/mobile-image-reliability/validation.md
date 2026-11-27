@@ -8,7 +8,7 @@ Mobile only, on `feat/mobile-image-reliability` cut from `origin/dev` at `de3803
 
 All results are from 2026-11-27, on the final branch state unless noted otherwise.
 
-- `pnpm mobile -- check` (architecture, typecheck, all Mobile tests): 1392 tests, 1389 passed, 0 failed, 3 skipped. The three skips are the Kotlin host tests below, which skip in this command without a local OkHttp JVM jar. They were run separately.
+- `pnpm mobile -- check` (architecture, typecheck, all Mobile tests), on the final branch state: 1393 tests, 1390 passed, 0 failed, 3 skipped. The three skips are the Kotlin host tests below, which skip in this command without a local OkHttp JVM jar. They were run separately.
 - `pnpm mobile -- bundle`: passed for Android and iOS.
 - `pnpm exec openspec validate --all --strict`: 195 passed, 0 failed.
 - Native host tests, run with `SLAX_OKHTTP_CLASSPATH` / `SLAX_OFFLINE_ENGINE_CLASSPATH` pointing to `okhttp-jvm-5.5.1` and `okio-jvm-3.18.1`. The SHA-1 of both jars was checked against Maven Central's published value.
@@ -16,6 +16,7 @@ All results are from 2026-11-27, on the final branch state unless noted otherwis
   - `tests/reader/native-resources-host.mjs`: Kotlin and Swift passed.
 - Android dependency graph (`./gradlew :app:dependencies --configuration releaseRuntimeClasspath`): every `com.squareup.okhttp3` artifact resolves to 5.5.1. This covers `okhttp`, `okhttp-android`, `okhttp-urlconnection` and `okhttp-java-net-cookiejar`, and lifts React Native's 4.9.2, Fresco's 3.14.9 and Glide's 3.10.0 declarations. Every Okio artifact resolves to 3.18.1. `:slax-platform:compileDebugKotlin` compiled against 5.5.1 with no new warnings.
 - Android Debug build (`assembleDebug`, arm64-v8a): passed. Release build: see Release build below.
+- `tests/data/runtime-sync-observability.test.mjs` (14 passed): three spaced sync stream failures produce one `powersync` diagnostic probing only the sync endpoint host, while the existing PowerSync records keep counting each failure. The case fails when the PowerSync hook is disabled.
 
 The new tests were checked against the old behavior, and each fails there:
 
@@ -79,7 +80,11 @@ Exercised scenarios:
 
 ## Release build
 
-To be recorded: `assembleRelease` with R8 minification enabled for arm64-v8a, unsigned. See below.
+`./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a` (unsigned verification artifact, `android.enableMinifyInReleaseBuilds=true`) passed and produced a 52 MB `app-release-unsigned.apk`.
+
+- R8 reported no `Missing class` or other errors.
+- The APK carries OkHttp 5's `PublicSuffixDatabase.list` asset, and its embedded user agent is `okhttp/5.5.1`.
+- The release APK was not installed or exercised. The device exercise used the Debug build.
 
 ## Not verified
 

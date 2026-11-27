@@ -65,6 +65,11 @@ public final class SlaxPlatformModule: Module {
       ["Platform": "iOS", "OS Version": UIDevice.current.systemVersion, "Device": UIDevice.current.model]
     }
     AsyncFunction("resolveDns") { (host: String, server: String?) -> String in try SlaxDns.lookup(host: host, server: server) }
+    // The probe blocks for up to about ten seconds, so it runs on its own queue rather than the shared module queue.
+    AsyncFunction("probeNetwork") { (host: String, allowed: [String]) -> [String: Any] in
+      guard SlaxNetworkProbe.allowed(host: host, suffixes: allowed) else { throw NSError(domain: "SlaxPlatform", code: 4, userInfo: [NSLocalizedDescriptionKey: "Unsupported diagnostic host"]) }
+      return SlaxNetworkProbe.probe(host: host)
+    }.runOnQueue(SlaxNetworkProbe.queue)
     AsyncFunction("shareImage") { (uri: URL, title: String, url: String?, promise: Promise) in
       guard uri.isFileURL, let image = UIImage(contentsOfFile: uri.path), let presenter = self.appContext?.utilities?.currentViewController() else { throw NSError(domain: "SlaxPlatform", code: 3, userInfo: [NSLocalizedDescriptionKey: "Image or active screen unavailable"]) }
       let item = SlaxImageShareItem(image: image, title: title, url: url.flatMap(URL.init(string:)))

@@ -34,6 +34,8 @@ class SlaxResources(private val context: Context, private val hasResourceOwnersh
     fixtureDirectory = resolved
   }
   val displayDensity = context.resources.displayMetrics.density.toDouble()
+  /** `dataDir` resolved once: the platform reports it through the /data/user/0 user mount, while cache paths are canonical. */
+  private val dataRoot: File by lazy { context.dataDir.canonicalFile }
   private val streams = java.util.Collections.synchronizedSet(mutableSetOf<InputStream>())
   @Volatile internal var security: SlaxReaderSecurity? = null
   private val client = OkHttpClient.Builder().cookieJar(CookieJar.NO_COOKIES)
@@ -61,15 +63,17 @@ class SlaxResources(private val context: Context, private val hasResourceOwnersh
     val hash = MessageDigest.getInstance("MD5").digest(original.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it.toInt() and 255) }
     val candidate = original.substringAfterLast('.', "").substringBefore('?').substringBefore('&').take(10).lowercase().ifEmpty { "jpg" }
     val extension = if (legacy) candidate else candidate.takeIf { !it.contains("..") && it.none { char -> char == '/' || char == '\\' || char.code < 32 || char.code == 127 } } ?: "jpg"
-    return SlaxCachePaths.file(fixtureDirectory ?: context.dataDir, cacheKey, "$hash.$extension")
+    return SlaxCachePaths.file(fixtureDirectory ?: dataRoot, cacheKey, "$hash.$extension")
   }
   private fun denied() = WebResourceResponse("text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0)))
-  fun intercept(custom: String, requestHeaders: Map<String, String> = emptyMap(), privateImage: Boolean = false): WebResourceResponse? {
+  fun intercept(requested: String, requestHeaders: Map<String, String> = emptyMap(), privateImage: Boolean = false): WebResourceResponse? {
     val policy = security ?: return denied()
+    val custom = SlaxReaderSecurity.withoutRetryMarker(requested)
     val cachedTransport = custom.startsWith("slaxstatic:", true) || custom.startsWith("slaxstatics:", true)
     val media = !privateImage && (custom.startsWith("slaxmedia:") || custom.startsWith("slaxmedias:"))
     if (!cachedTransport && !privateImage && !media) return synchronized(ownership) { if (!closed && !isFixture && hasResourceOwnership() && policy.allows(custom)) null else denied() }
-    val original = (if (media) policy.mediaOriginal(custom) else policy.imageOriginal(custom)) ?: return denied()
+    val original = (if (media) policy.mediaOriginal(custom) else policy.imageOriginal(custom))
+      ?: return denied().also { if (cachedTransport) SlaxImageRegistry.lastFailure = mapOf("error" to "policy_denied") }
     val range = if (media) requestHeaders.entries.firstOrNull { it.key.equals("Range", true) }?.value else null
     if (range != null && !SlaxReaderSecurity.validRange(range)) return denied()
     val expectedGeneration = synchronized(ownership) { if (closed || !hasResourceOwnership()) return denied(); generation }
@@ -135,7 +139,7 @@ class SlaxResources(private val context: Context, private val hasResourceOwnersh
     } catch (_: Exception) {response?.close(); opened?.let { connections.remove(it); it.cancel() }; denied()}
   }
   private fun image(original: String, policy: SlaxReaderSecurity, expectedGeneration: Long, cache: File?, strict: Boolean): WebResourceResponse {
-    val owner = resourceOwner ?: return denied()
+    val owner = resourceOwner ?: return denied().also { SlaxImageRegistry.lastFailure = mapOf("error" to "no_resource_owner") }
     val key = cacheKey
     fun active() = synchronized(ownership) {
       check(!closed && hasResourceOwnership() && generation == expectedGeneration && key == cacheKey && resourceOwner == owner && security === policy) {"Reader page detached"}
@@ -147,7 +151,7 @@ class SlaxResources(private val context: Context, private val hasResourceOwnersh
       synchronized(ownership) {active(); images.add(owned)}
       val resource = owned.await(); active()
       if (cache != null && downloadImagesEnabled()) {
-        try {owned.persist(context.dataDir, cache.relativeTo(context.dataDir).invariantSeparatorsPath) {active(); check(cacheFile(original) == cache)}}
+        try {owned.persist(dataRoot, cache.relativeTo(dataRoot).invariantSeparatorsPath) {active(); check(cacheFile(original) == cache)}}
         catch (_: Exception) {active(); owned.check()}
       }
       active()
@@ -157,7 +161,9 @@ class SlaxResources(private val context: Context, private val hasResourceOwnersh
       }
       val stream = tracked(released, expectedGeneration)
       WebResourceResponse(resource.mime ?: "image/jpeg", null, 200, "OK", mapOf("Content-Length" to resource.size.toString(), "X-Content-Type-Options" to "nosniff", "Content-Security-Policy" to "sandbox; default-src 'none'"), stream)
-    } catch (_: Exception) {
+    } catch (error: Exception) {
+      val detached = runCatching { active() }.isFailure
+      if (!detached && error !is SlaxImageFailure) SlaxImageRegistry.lastFailure = SlaxImageRegistry.describe(error)
       consumer?.close(); synchronized(ownership) {images.remove(consumer)}; denied()
     }
   }

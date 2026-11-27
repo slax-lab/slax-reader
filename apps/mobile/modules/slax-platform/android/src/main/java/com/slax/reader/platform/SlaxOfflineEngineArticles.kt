@@ -2,8 +2,12 @@ package com.slax.reader.platform
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicReference
 
@@ -94,12 +98,16 @@ internal fun SlaxOfflineSession.startImages(task: SlaxOfflineTask) {
       try {commit(key, work) { store -> merged = mergeImages(store, key, snapshot) }} catch (error: CancellationException) {throw error} catch (_: Exception) {}
       return merged
     }
-    for (index in images.indices) {
-      if (!images[index].eligible(now)) continue
-      if (work.isCancelled) break
-      val next = acquireImage(images[index], key, work) ?: break
-      images[index] = next; changed++
-      if (changed % 8 == 0) merge()
+    // One article's images download in parallel; the engine-wide permits bound all background images together.
+    // Results are applied on this lane, so `images` and `changed` are never touched from two threads.
+    coroutineScope {
+      images.indices.filter { images[it].eligible(now) }.map { index ->
+        async {
+          val next = engine.imagePermits.withPermit { if (work.isCancelled) null else acquireImage(images[index], key, work) } ?: return@async
+          images[index] = next; changed++
+          if (changed % 8 == 0) merge()
+        }
+      }.awaitAll()
     }
     val final = if (work.isCancelled) null else merge()
     if (imageJobs[key] !== work) return@launch

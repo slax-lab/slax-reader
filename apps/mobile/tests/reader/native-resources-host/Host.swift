@@ -72,6 +72,9 @@ private final class Task: NSObject, WKURLSchemeTask {
     let signed = URL(string: "https://api.example/static/image?m=rss&d=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&u=https%253A%252F%252Fpublic.test%252Fa.png&r=https%3A%2F%2Ffeed.test%2Fa")!
     precondition(signedPolicy.imageOriginal(signed) != nil && !signedPolicy.allows(signed))
     precondition(signedPolicy.imageOriginal(URL(string: signed.absoluteString + "&d=bad")!) == nil)
+    // A placeholder retry reissues the same signed image with only a retry fragment; any other fragment stays denied.
+    precondition(signedPolicy.imageOriginal(SlaxReaderSecurity.withoutRetryMarker(URL(string: signed.absoluteString + "#slax-retry-2")!)) == signedPolicy.imageOriginal(signed))
+    precondition(signedPolicy.imageOriginal(SlaxReaderSecurity.withoutRetryMarker(URL(string: signed.absoluteString + "#other")!)) == nil)
     precondition(signedPolicy.imageOriginal(URL(string: signed.absoluteString.replacingOccurrences(of: "/static/image?", with: "/account?"))!) == nil)
     for raw in ["https://auth.example/a", "https://sub.auth.example/a", "slaxstatics://api.example/a", "https://r.slax.com/a", "https://SLAX.COM.:443/a", "https://user@public.test/a"] { precondition(!policy.allows(URL(string: raw)!)) }
     for raw in ["https://auth.example.public.test/a", "https://public.test/a", "https://www.youtube.com/embed/abcdefghijk"] { precondition(policy.allows(URL(string: raw)!)) }

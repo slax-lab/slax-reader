@@ -155,6 +155,66 @@
     function scheduleMeasure() {
         if (requestFrame === null && active) requestFrame = window.requestAnimationFrame(measure);
     }
+    // A failed article image stays in place as a tappable placeholder instead of disappearing. The source bridge
+    // hides it from its own element-level onerror with an inline display:none, which the !important rule below
+    // overrides; the bridge restores its own display state when a retry loads. The image element itself shows the placeholder, so no node is added
+    // and stored highlight paths keep resolving. A retry changes only the fragment, which the native transport
+    // ignores, so the same signed proxy request is issued again.
+    var failedClass = 'slax-image-failed', retryingClass = 'slax-image-retrying';
+    var reportedImageErrors = new Set(), retryCounts = new WeakMap();
+    function retryLabel() { return configuration.locale === 'zh' ? '点击重试' : 'Tap to retry'; }
+    function imageTransport(source) { return /^(slaxstatics?|https?):\/\//i.test(source || ''); }
+    function withoutRetry(source) { return String(source || '').replace(/#slax-retry-\d+$/, ''); }
+    function placeholderImage() {
+        var text = retryLabel().replace(/[&<>"']/g, function(character) { return '&#' + character.charCodeAt(0) + ';'; });
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="140" viewBox="0 0 320 140">' +
+            '<rect width="320" height="140" fill="#F5F5F3"/>' +
+            '<g fill="none" stroke="#999999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(144 32)">' +
+            '<rect x="1" y="1" width="30" height="26" rx="3"/><path d="M1 21l8-8 6 6 4-4 12 12"/><circle cx="22" cy="9" r="3"/><path d="M4 31L28 -3"/></g>' +
+            '<text x="160" y="98" text-anchor="middle" font-family="-apple-system,Roboto,sans-serif" font-size="15" fill="#999999">' + text + '</text></svg>';
+        return 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
+    }
+    function installImageRecovery() {
+        if (typeof document.createElement !== 'function') return;
+        var style = document.createElement('style');
+        style.textContent =
+            'img.' + failedClass + ',img.' + retryingClass + '{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;' +
+            'min-height:120px!important;aspect-ratio:16/7;object-fit:contain!important;background:#F5F5F3!important;border-radius:4px;' +
+            'animation:none!important;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+            'img.' + failedClass + '{content:' + placeholderImage() + '}' +
+            'img.' + retryingClass + '{content:none;opacity:.6;background:linear-gradient(135deg,#f5f5f3 0%,rgba(153,153,153,.31) 100%)!important;background-size:400% 400%!important;animation:imageLoading 3s ease infinite!important}';
+        (document.head || document.documentElement).appendChild(style);
+        listen(document, 'error', function(event) {
+            var image = event.target;
+            if (!active || !image || image.tagName !== 'IMG') return;
+            var source = image.getAttribute('src') || '';
+            if (!imageTransport(source)) return;
+            image.classList.remove(retryingClass);
+            image.classList.add(failedClass);
+            image.setAttribute('role', 'button');
+            image.setAttribute('aria-label', retryLabel());
+            var original = withoutRetry(source);
+            if (!reportedImageErrors.has(original)) { reportedImageErrors.add(original); post({ type: 'imageError', src: original }); }
+        }, true);
+        listen(document, 'load', function(event) {
+            var image = event.target;
+            if (!image || image.tagName !== 'IMG' || !(image.classList.contains(failedClass) || image.classList.contains(retryingClass))) return;
+            image.classList.remove(failedClass, retryingClass);
+            if (image.getAttribute('role') === 'button') image.removeAttribute('role');
+            if (image.getAttribute('aria-label') === retryLabel()) image.removeAttribute('aria-label');
+        }, true);
+        listen(document, 'click', function(event) {
+            var image = event.target && typeof event.target.closest === 'function' ? event.target.closest('img') : null;
+            if (!image || !(image.classList.contains(failedClass) || image.classList.contains(retryingClass))) return;
+            event.preventDefault(); event.stopImmediatePropagation();
+            if (!image.classList.contains(failedClass)) return;
+            var attempt = (retryCounts.get(image) || 0) + 1;
+            retryCounts.set(image, attempt);
+            image.classList.remove(failedClass);
+            image.classList.add(retryingClass);
+            image.setAttribute('src', withoutRetry(image.getAttribute('src')) + '#slax-retry-' + attempt);
+        }, true);
+    }
     function begin() {
         if (!active) return;
         if (configuration.observeInput === true) {
@@ -177,6 +237,7 @@
             if (/^https:\/\//i.test(source)) image.setAttribute('src', source.replace(/^https:\/\//i, 'slaxstatics://'));
             else if (/^http:\/\//i.test(source)) image.setAttribute('src', source.replace(/^http:\/\//i, 'slaxstatic://'));
         });
+        installImageRecovery();
         scheduleMeasure();
         if (window.ResizeObserver) {
             observer = new ResizeObserver(scheduleMeasure);
@@ -198,6 +259,7 @@
         function cancelPress() { if (press) { clearTimeout(press.timer); press = null; } }
         function pressImage(target) {
             var image = target && typeof target.closest === 'function' ? target.closest('img') : null;
+            if (image && image.classList && (image.classList.contains(failedClass) || image.classList.contains(retryingClass))) return null;
             return image && (image.currentSrc || image.src) ? image : null;
         }
         listen(document, 'touchstart', function(event) {
@@ -235,6 +297,8 @@
             var touch = event.changedTouches[0];
             var selection = window.getSelection();
             if (pressFired) { start = null; return; }
+            var tapped = event.target && typeof event.target.closest === 'function' ? event.target.closest('img') : null;
+            if (tapped && tapped.classList && (tapped.classList.contains(failedClass) || tapped.classList.contains(retryingClass))) { start = null; return; }
             if (touch && start && Math.abs(touch.clientX - start.x) < 10 &&
                 Math.abs(touch.clientY - start.y) < 10 && (!selection || selection.isCollapsed)) {
                 post({ type: 'tap' });

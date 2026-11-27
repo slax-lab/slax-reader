@@ -258,6 +258,15 @@ func until(_ label: String, seconds: Double = 20, _ condition: () -> Bool) {
     until("legacy re-acquired") { counts()["content:legacy"] == 1 && manifest("legacy")?["version"] as? String == "v2" }
     until("legacy v2 complete") { recorder.state("legacy")?["state"] as? String == "complete" }
     until("legacy images") { (manifest("legacy")?["images"] as? [[String: Any]])?.first?["s"] as? String == "ready" }
+    // One article's background images download in parallel, bounded by the engine-wide limit of seven.
+    engine.applyPlan("acct", ["revision": 3.5, "remove": [String](), "upsert": [task("legacy", "v2"), task("gallery")]])
+    until("gallery complete") { recorder.state("gallery")?["state"] as? String == "complete" }
+    until("gallery images held", seconds: 30) { (counts()["gallery:started"] ?? 0) >= SlaxOfflineEngine.backgroundImages }
+    Thread.sleep(forTimeInterval: 0.3)
+    precondition(counts()["gallery:peak"] == SlaxOfflineEngine.backgroundImages, "Background image concurrency \(counts()["gallery:peak"] ?? 0)")
+    _ = try? Data(contentsOf: URL(string: origin + "/release?key=gallery")!)
+    until("gallery images", seconds: 30) { ((manifest("gallery")?["images"] as? [[String: Any]]) ?? []).count == 20 && ((manifest("gallery")?["images"] as? [[String: Any]]) ?? []).allSatisfy { $0["s"] as? String == "ready" } }
+    precondition(counts()["gallery:peak"] == SlaxOfflineEngine.backgroundImages && counts()["gallery:started"] == 20, "Gallery \(counts())")
     precondition((value { engine.clear("acct", ["legacy"], ["images"], reply: $0) } as! [String]).isEmpty && !exists("bookmark/legacy/images") && exists("bookmark/legacy/content.html"))
     engine.applyPlan("acct", ["revision": 4, "remove": ["legacy"], "upsert": [Any]()])
     precondition(value { engine.clear("acct", ["legacy"], ["article"], reply: $0) } as? [String] == ["legacy"] && !exists("bookmark/legacy/content.html"))

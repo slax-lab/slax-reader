@@ -74,6 +74,13 @@ fun main() {
   })
   val root = Files.createTempDirectory("slax-native-resources-host-").toFile().canonicalFile
   try {
+    // Android reports cacheDir through the /data/user/0 user mount; an aliased platform directory is accepted,
+    // while a link below it is still rejected.
+    val platformCache = File(root, "data/cache").apply { mkdirs() }
+    val userMount = File(root, "user-0").also { Files.createSymbolicLink(it.toPath(), File(root, "data").toPath()) }
+    check(SlaxImageResources.stagingRoot(File(userMount, "cache")) == File(platformCache, "slax-image-transfers"))
+    Files.createSymbolicLink(File(platformCache, "slax-image-transfers").toPath(), File(root, "elsewhere").apply { mkdirs() }.toPath())
+    check(runCatching { SlaxImageResources.stagingRoot(File(userMount, "cache")) }.isFailure) { "A linked staging directory must stay rejected" }
     val normalRoot = File(root, "normal").apply { mkdirs() }
     val orphan = File(normalRoot, "cache/slax-image-transfers/process-0000").apply {mkdirs()}
     File(orphan, "partial.tmp").writeText("incomplete")
@@ -87,6 +94,10 @@ fun main() {
     val proxy = SlaxResources(Context(normalRoot)).apply { resourceOwner = "synthetic-owner"; security = signedPolicy }
     check(proxy.intercept(signed)!!.data.readBytes().isEmpty())
     proxy.intercept(signed, privateImage = true)!!.data.use { check(it.readBytes().contentEquals(byteArrayOf(1, 2, 3))) }
+    // A placeholder retry reissues the same signed image with only a retry fragment; any other fragment stays denied.
+    proxy.intercept("$signed#slax-retry-2", privateImage = true)!!.data.use { check(it.readBytes().contentEquals(byteArrayOf(1, 2, 3))) { "A retry marker must reach the same signed image" } }
+    proxy.intercept("$signed#other", privateImage = true)!!.data.use { check(it.readBytes().isEmpty()) { "Only the retry marker is ignored" } }
+    check(SlaxReaderSecurity.withoutRetryMarker("$signed#slax-retry-12") == signed && SlaxReaderSecurity.withoutRetryMarker("$signed#slax-retry-x") == "$signed#slax-retry-x")
     val mediaUrl = signed.replace("http:", "slaxmedia:").replace("m=rss&", "")
     val media = proxy.intercept(mediaUrl, mapOf("Range" to "bytes=2-5"))!!
     check(media.status == 206 && media.headers.entries.any { it.key.equals("Content-Range", true) && it.value == "bytes 2-5/10" })

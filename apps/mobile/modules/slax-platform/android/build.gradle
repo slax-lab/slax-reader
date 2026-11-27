@@ -13,5 +13,10 @@ dependencies {
   implementation 'androidx.credentials:credentials:1.6.0'
   implementation 'androidx.credentials:credentials-play-services-auth:1.6.0'
   implementation 'com.google.android.libraries.identity.googleid:googleid:1.2.0'
-  implementation 'com.squareup.okhttp3:okhttp:4.9.2'
+  // One OkHttp 5 line for the whole app: the BOM's constraints also lift React Native, Fresco, Glide and Expo's
+  // OkHttp 4 declarations, so every client gets address-family fast fallback. okhttp-urlconnection keeps React
+  // Native's okhttp3.JavaNetCookieJar on the matching version.
+  implementation platform('com.squareup.okhttp3:okhttp-bom:5.5.1')
+  implementation 'com.squareup.okhttp3:okhttp'
+  runtimeOnly 'com.squareup.okhttp3:okhttp-urlconnection'
 }

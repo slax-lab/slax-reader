@@ -9,7 +9,11 @@ struct SlaxImageFailure: Error {
 
 final class SlaxImageRegistry {
   static let maxBytes: Int64 = 20 * 1024 * 1024
-  static let totalBytes: Int64 = 60 * 1024 * 1024
+  /// Concurrent downloads; background acquisition takes at most `SlaxOfflineEngine.backgroundImages`, the rest stay free for an open Reader.
+  static let workers = 10
+  static let perHost = 10
+  /// Staging reserves `maxBytes` per running download, so the budget bounds each image's size, not the concurrency.
+  static let totalBytes: Int64 = Int64(workers) * maxBytes
   static let chunkBytes = 64 * 1024
   private let directory: URL
   private let lock = NSRecursiveLock()
@@ -22,7 +26,7 @@ final class SlaxImageRegistry {
   private var closed = false
   private let drained = DispatchGroup()
   private let workers: OperationQueue = {
-    let queue = OperationQueue(); queue.name = "SlaxImageResource"; queue.qualityOfService = .utility; queue.maxConcurrentOperationCount = 3; return queue
+    let queue = OperationQueue(); queue.name = "SlaxImageResource"; queue.qualityOfService = .utility; queue.maxConcurrentOperationCount = SlaxImageRegistry.workers; return queue
   }()
   private struct Key: Hashable { let owner: String; let hosts: [String]; let proxies: [String]; let url: String }
   private final class Job: NSObject, URLSessionDataDelegate, URLSessionDownloadDelegate {
@@ -143,8 +147,8 @@ final class SlaxImageRegistry {
   }
   private func pump() {
     guard !closed else { return }
-    while running.count < 3, reserved + Self.maxBytes <= Self.totalBytes,
-      let job = retained.values.filter({ candidate in candidate.state == "queued" && !candidate.consumers.isEmpty && running.values.filter { host($0.original) == host(candidate.original) }.count < 2 }).min(by: { $0.order < $1.order }) {
+    while running.count < Self.workers, reserved + Self.maxBytes <= Self.totalBytes,
+      let job = retained.values.filter({ candidate in candidate.state == "queued" && !candidate.consumers.isEmpty && running.values.filter { host($0.original) == host(candidate.original) }.count < Self.perHost }).min(by: { $0.order < $1.order }) {
       job.state = "running"; running[job.id] = job; job.reservation = Self.maxBytes; reserved += Self.maxBytes
       workers.addOperation { self.start(job) }
     }
@@ -157,7 +161,7 @@ final class SlaxImageRegistry {
     lock.lock(); defer { lock.unlock() }
     do {
       try check(job); let destination = host(job.original)
-      guard destinations[destination, default: 0] < 2 else { throw SlaxImageFailure() }
+      guard destinations[destination, default: 0] < Self.perHost else { throw SlaxImageFailure() }
       destinations[destination, default: 0] += 1; job.destination = destination
       let configuration = URLSessionConfiguration.ephemeral
       configuration.httpShouldSetCookies = false; configuration.httpCookieStorage = nil; configuration.urlCredentialStorage = nil; configuration.urlCache = nil
@@ -196,7 +200,7 @@ final class SlaxImageRegistry {
       try check(job); job.redirects += 1
       guard job.redirects <= 10, let url = request.url, job.policy.imageOriginal(url) != nil else { throw SlaxImageFailure(terminal: true) }
       releaseDestination(job); let destination = host(url)
-      guard destinations[destination, default: 0] < 2 else { throw SlaxImageFailure() }
+      guard destinations[destination, default: 0] < Self.perHost else { throw SlaxImageFailure() }
       destinations[destination, default: 0] += 1; job.destination = destination
       completionHandler(self.request(url))
     } catch { completionHandler(nil); fail(job, error: error) }

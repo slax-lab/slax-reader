@@ -12,6 +12,8 @@ export interface ReaderDocumentOptions {
   controlledFixture?: boolean
   /** Gated debug observer only: passive counts without DOM commands or user data. */
   observeInput?: boolean
+  /** The app locale, used only for in-document labels such as the failed-image retry hint. */
+  locale?: 'zh' | 'en'
 }
 
 /** JSON is embedded as script source, never interpolated as a template literal. */

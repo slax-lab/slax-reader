@@ -33,6 +33,41 @@ test('reader bridge accepts a long-pressed image source and rejects malformed pa
   assert.equal(parseReaderMessage(wrap({type: 'imageLongPress', src: 'x'}), 'other-page'), null)
 })
 
+test('reader bridge accepts image failures and strips the placeholder retry marker from gallery and image-action sources', () => {
+  const wrap = payload => JSON.stringify({channel: 'slax-reader', pageId: 'page', payload})
+  assert.deepEqual(parseReaderMessage(wrap({type: 'imageError', src: 'slaxstatics://images.test/a.png'}), 'page'), {type: 'imageError', src: 'slaxstatics://images.test/a.png'})
+  assert.equal(parseReaderMessage(wrap({type: 'imageError', src: ''}), 'page'), null)
+  assert.equal(parseReaderMessage(wrap({type: 'imageError', src: 'x'.repeat(16 * 1024 + 1)}), 'page'), null)
+  assert.equal(parseReaderMessage(wrap({type: 'imageError', src: 'slaxstatics://images.test/a.png'}), 'other-page'), null)
+  assert.deepEqual(parseReaderMessage(wrap({type: 'imageLongPress', src: 'slaxstatics://images.test/a.png#slax-retry-3'}), 'page'), {type: 'imageLongPress', src: 'slaxstatics://images.test/a.png'})
+  assert.deepEqual(parseReaderMessage(wrap({type: 'imageClick', src: 'slaxstatics://images.test/b.png#slax-retry-1', allImages: ['slaxstatics://images.test/a.png', 'slaxstatics://images.test/b.png#slax-retry-1'], index: 1}), 'page'),
+    {type: 'imageClick', src: 'slaxstatics://images.test/b.png', allImages: ['slaxstatics://images.test/a.png', 'slaxstatics://images.test/b.png'], index: 1})
+  assert.deepEqual(parseReaderMessage(wrap({type: 'imageClick', src: 'slaxstatics://images.test/a.png#section', allImages: ['slaxstatics://images.test/a.png#section']}), 'page'),
+    {type: 'imageClick', src: 'slaxstatics://images.test/a.png#section', allImages: ['slaxstatics://images.test/a.png#section'], index: 0}, 'An authored fragment is kept')
+})
+
+test('in-document long press ignores failed-image placeholders', async () => {
+  const source = await readFile(new URL('../../assets/embedded/js/react-native-host.js', import.meta.url), 'utf8')
+  const listeners = new Map(), messages = [], timers = new Map()
+  let timerId = 0
+  const listen = (type, callback) => {if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(callback)}
+  const fire = (type, event) => {for (const callback of listeners.get(type) ?? []) callback(event)}
+  const window = {ReactNativeWebView: {postMessage: raw => messages.push(JSON.parse(raw).payload)}, requestAnimationFrame: () => 1, cancelAnimationFrame() {},
+    addEventListener: listen, removeEventListener() {}, getSelection: () => ({isCollapsed: true, removeAllRanges() {}}), webkit: {messageHandlers: {}}}
+  window.top = window
+  const document = {readyState: 'complete', body: {scrollHeight: 10, offsetHeight: 10}, documentElement: {scrollHeight: 10, appendChild() {}},
+    addEventListener: listen, removeEventListener() {}, querySelectorAll: () => [], createElement: () => ({}), head: {appendChild() {}}}
+  const classes = new Set(['slax-image-failed'])
+  const image = {tagName: 'IMG', currentSrc: 'slaxstatics://images.test/a.png', classList: {contains: name => classes.has(name)}, closest: query => query === 'img' ? image : null}
+  vm.runInNewContext(source.replace('__SLAX_READER_CONFIGURATION__', JSON.stringify({pageId: 'page', platform: 'android'})), {window, document,
+    setTimeout: (callback, ms) => {timers.set(++timerId, {callback, ms}); return timerId}, clearTimeout: id => timers.delete(id)})
+  fire('touchstart', {touches: [{clientX: 10, clientY: 10}], target: image})
+  assert.equal([...timers.values()].some(timer => timer.ms === 450), false, 'A placeholder never schedules image actions')
+  fire('touchend', {changedTouches: [{clientX: 10, clientY: 10}], target: image})
+  assert.equal(messages.some(message => message.type === 'tap'), false, 'A placeholder tap does not toggle the toolbar')
+  window.__SlaxReaderHost.teardown()
+})
+
 test('in-document long press posts image actions and suppresses the following tap and gallery click', async () => {
   const source = await readFile(new URL('../../assets/embedded/js/react-native-host.js', import.meta.url), 'utf8')
   const listeners = new Map(), messages = [], timers = new Map()

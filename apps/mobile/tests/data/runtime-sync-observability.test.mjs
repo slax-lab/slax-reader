@@ -19,7 +19,7 @@ async function until(check) {for (let i = 0; i < 200; i++) {if (check()) return;
 const sdkError = Object.assign(new Error('HTTP Bad Gateway: upstream'), {status: 502});
 
 async function fixture({status = 500} = {}) {
-  const events = [], captured = [], sent = [], databases = [], flushed = [];
+  const events = [], captured = [], sent = [], databases = [], flushed = [], probes = [];
   let networkListener = () => {}, onSessionChange;
   class Database {
     constructor(options) {this.logger = options.logger; this.listeners = []; databases.push(this);}
@@ -61,9 +61,10 @@ async function fixture({status = 500} = {}) {
     '@commons/frontend-utils/errorLog': frontendErrorLog,
   }, {Error});
   const runtime = createMobileDataRuntime({baseUrl: 'https://api.example', platform: 'ios', version: 'test', fetch, sleep: async () => {},
+    probeNetwork: async (host, allowed) => {probes.push({host, allowed}); return {dns: {system: {ms: 1, v4: 1, v6: 0}}, network: {transport: 'wifi'}};},
     errorLog: () => ({capture: (kind, error, properties) => {captured.push({kind, message: error?.message, properties}); return `fp-${captured.length}`;}, telemetry: (event_name, properties, label) => {sent.push([{event_name, properties, label}]);}, flush: async hiding => {flushed.push(hiding);}})});
   const phases = () => sent.flat().filter(event => event.event_name === 'powersync_phase').map(event => event.properties);
-  return {runtime, events, captured, sent, phases, flushed: () => flushed, changeSessionOnNextRequest: change => {onSessionChange = () => {onSessionChange = undefined; change();};}, database: () => databases.at(-1), network: value => networkListener(value)};
+  return {runtime, events, captured, sent, phases, probes, flushed: () => flushed, changeSessionOnNextRequest: change => {onSessionChange = () => {onSessionChange = undefined; change();};}, database: () => databases.at(-1), network: value => networkListener(value)};
 }
 
 async function connected(context, options) {
@@ -95,6 +96,22 @@ test('one SDK stream failure is captured once, disconnects the SDK retry and bac
   assert.equal(record.properties.online, true);
   assert.equal(record.properties.foreground, true);
   assert.equal(typeof record.properties.consecutive_failures, 'number');
+});
+
+test('repeated sync failures record one network diagnostic for the sync endpoint host only', async context => {
+  const f = await connected(context);
+  // Failures more than a second apart are separate episodes for the SDK logger's duplicate window.
+  for (let index = 0; index < 3; index++) {f.database().streamFailure(); await setImmediate(); await setImmediate(); context.mock.timers.tick(1500);}
+  await until(() => f.captured.some(record => record.properties.source === 'network_diagnostic'));
+  const diagnostics = f.captured.filter(record => record.properties.source === 'network_diagnostic');
+  assert.equal(diagnostics.length, 1, 'One PowerSync diagnostic per process');
+  assert.equal(diagnostics[0].kind, 'network');
+  assert.equal(diagnostics[0].properties.family, 'powersync');
+  assert.equal(diagnostics[0].properties.host, 'sync.example', 'The host of the credentials handed to PowerSync is probed');
+  assert.deepEqual(f.probes.map(probe => probe.host), ['sync.example']);
+  assert.ok(f.probes[0].allowed.includes('api.example'), 'Only the app origins are admitted');
+  assert.equal(f.captured.filter(record => record.properties.source === 'sdk.logger').length, 3, 'The PowerSync records stay the counting source');
+  assert.doesNotMatch(JSON.stringify(diagnostics[0].properties), /token|Bearer|https?:/);
 });
 
 test('a connected status resets the backoff and reports one connect success with a duration', async context => {

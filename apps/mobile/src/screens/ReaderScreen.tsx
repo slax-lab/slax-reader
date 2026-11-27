@@ -50,7 +50,7 @@ function useReaderSettings(): PreferenceValues {
 }
 
 export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
-  const {runtime, api, repositories, cache, preferences, session, sessions, t, config, fixtureOnly, nativeResourceOwner} = useReadingMobile()
+  const {runtime, api, repositories, cache, preferences, session, sessions, t, locale, config, fixtureOnly, nativeResourceOwner} = useReadingMobile()
   const settings = useReaderSettings()
   const observer = useControlledUpgradeReaderObserver(), safeArea = useSafeAreaInsets(), telemetry = useTelemetry()
   const markInteractive = useObserveMarkInteractive()
@@ -103,7 +103,11 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
   const diagnostics = useReaderDiagnostics(scope, {fixtureOnly, observer, navigation, routeKey: route.key, local: repositories?.local, selection: annotations.selection,
     showOverview: interactions.showOverview, openOutline: ai.open, loadAi: ai.load, showTranscript: interactions.showTranscript, closeTranscript: interactions.closeTranscript,
     saveRss: document.saveRss, flushOutline: () => ai.flush('background')})
-  const event = (value: ReaderEvent, pageId: string) => {diagnostics.event(value, pageId); interactions.handleEvent(value)}
+  const event = (value: ReaderEvent, pageId: string) => {
+    diagnostics.event(value, pageId)
+    if (value.type === 'imageError') {runtime.reportReaderImageFailure?.(); return}
+    interactions.handleEvent(value)
+  }
   const dualPagePrototypeEnabled = Boolean(__DEV__ && fixtureOnly && isIos && settings.pdf_dual_page_prototype === true)
   const showPdfPrototypeControl = Boolean(__DEV__ && fixtureOnly && isIos && isPdf)
   const togglePdfPrototype = useCallback(() => {void writePreferences(values => {values.pdf_dual_page_prototype = values.pdf_dual_page_prototype !== true}).catch(fail)}, [writePreferences, fail])
@@ -177,7 +181,7 @@ export function ReaderScreen({navigation, route}: MobileScreenProps<'Reader'>) {
         onPositionChange: position => {if (document.isPdfHostCurrent()) document.pdfPosition.current = position},
         onScrollMetrics: (position, nearBottom) => {if (document.isPdfHostCurrent()) interactions.scroll(position, nearBottom)}, onPositionFlush: document.persistPdf,
       } : null}
-      htmlProps={{...hostShared, ref: reader, cacheDirectory: fixtureOnly?.dataDirectory, html: html ?? '', baseUrl: config.webUrl, infoPack,
+      htmlProps={{...hostShared, ref: reader, cacheDirectory: fixtureOnly?.dataDirectory, html: html ?? '', baseUrl: config.webUrl, infoPack, locale,
         rewriteImageTransports: !isPreview || Boolean(__DEV__ && fixtureOnly), footerOnlyForLongDocument: true, nativeAdapter: readerNativeAdapter,
         onEvent: htmlEvent, onError: fail, onExternalUrl: htmlExternalUrl, onPositionChange: htmlPositionChange, footer,
         onFixtureLifecycle: diagnostics.onFixtureLifecycle ? fixtureLifecycle : undefined, onObservation: diagnostics.onObservation ? observation : undefined,

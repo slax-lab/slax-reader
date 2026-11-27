@@ -22,7 +22,7 @@ function jar(group, name, version, file = `${name}-${version}.jar`) {
 }
 /** Same OkHttp/Okio versions as the Android module plus the kotlinx-coroutines version shipped by expo-modules-core. */
 const classpath = process.env.SLAX_OFFLINE_ENGINE_CLASSPATH ?? (() => {
-  const jars = [jar('com.squareup.okhttp3', 'okhttp', '4.9.2'), jar('com.squareup.okio', 'okio', '2.8.0', 'okio-jvm-2.8.0.jar'), jar('org.jetbrains.kotlinx', 'kotlinx-coroutines-core-jvm', '1.10.2')];
+  const jars = [jar('com.squareup.okhttp3', 'okhttp-jvm', '5.5.1'), jar('com.squareup.okio', 'okio-jvm', '3.18.1'), jar('org.jetbrains.kotlinx', 'kotlinx-coroutines-core-jvm', '1.10.2')];
   return jars.every(Boolean) ? jars.join(delimiter) : null;
 })();
 
@@ -31,16 +31,23 @@ const pdfBytes = (begin, end) => Buffer.from(Array.from({length: end - begin}, (
 const article = image => `<!doctype html><html><head><title>t</title></head><body><p>ünïcode</p><img src="${image}/img/a.png"><img src="${image}/img/a.png"><script>'<img src="${image}/img/hidden.png">'</script><img src="${image}/img/missing.png"></body></html>`;
 
 function server() {
-  const counts = {}, held = new Map(), problems = [];
+  const counts = {}, held = new Map(), problems = [], gallery = {active: 0, peak: 0, open: false, waiting: []};
   const count = name => {counts[name] = (counts[name] ?? 0) + 1; return counts[name];};
   const http = createServer((request, response) => {
     const url = new URL(request.url, 'http://localhost'), image = `http://127.0.0.1:${http.address().port}`;
     const auth = request.headers.authorization;
     if (url.pathname === '/counts') {response.end(JSON.stringify(counts)); return;}
-    if (url.pathname === '/release') {held.get(url.searchParams.get('key'))?.(); response.end(); return;}
+    if (url.pathname === '/release') {if (url.searchParams.get('key') === 'gallery') {gallery.open = true; gallery.waiting.splice(0).forEach(finish => finish());} else held.get(url.searchParams.get('key'))?.(); response.end(); return;}
     if (url.pathname.startsWith('/img/')) {
       if (request.headers.authorization || request.headers.cookie) problems.push('image request carried credentials');
       if (url.pathname === '/img/a.png') {response.writeHead(200, {'Content-Type': 'image/png'}); response.end(Buffer.of(137, 80, 78, 71, 1, 2, 3)); return;}
+      // Gallery images are held open so the host can observe how many background downloads run at once.
+      if (url.pathname.startsWith('/img/gallery-')) {
+        gallery.active++; gallery.peak = Math.max(gallery.peak, gallery.active); counts['gallery:peak'] = gallery.peak; count('gallery:started');
+        const finish = () => {gallery.active--; response.writeHead(200, {'Content-Type': 'image/png'}); response.end(Buffer.of(137, 80, 78, 71, 9));};
+        if (gallery.open) finish(); else gallery.waiting.push(finish);
+        return;
+      }
       response.writeHead(404); response.end(); return;
     }
     if (request.headers.cookie) problems.push('API request carried cookies');
@@ -55,6 +62,7 @@ function server() {
         if (uid === 'denied') {response.writeHead(403, {'Content-Type': 'application/json'}); response.end('{"code":403}'); return;}
         if (uid === 'flaky' && attempt === 1) {response.writeHead(500); response.end(); return;}
         if (uid === 'slow') {response.writeHead(200, {'Content-Type': 'text/html'}); response.write('<p>'); held.set('slow', () => response.end('slow</p>')); return;}
+        if (uid === 'gallery') {response.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'}); response.end(`<p>gallery</p>${Array.from({length: 20}, (_, index) => `<img src="${image}/img/gallery-${index}.png">`).join('')}`); return;}
         response.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'}); response.end(article(image));
       });
       return;

@@ -81,10 +81,12 @@ fun main(args: Array<String>) {
     lastGate.countDown(); last.close().get(5, TimeUnit.SECONDS); check(File(root, "last").listFiles().orEmpty().isEmpty())
 
     val limits = registry("limits"); val limitsGate = CountDownLatch(1)
-    for (index in 0..2) routes["/limit-$index"] = Route(bytes, hold = limitsGate)
-    val consumers = (0..2).map {limits.acquire("account-a", "$origin/limit-$it", policy)}
-    await(routes["/limit-0"]!!.entered); await(routes["/limit-1"]!!.entered)
-    check(!routes["/limit-2"]!!.entered.await(100, TimeUnit.MILLISECONDS))
+    // Ten downloads run per host at once; the eleventh waits for a slot.
+    val hostLimit = SlaxImageRegistry.PER_HOST
+    for (index in 0..hostLimit) routes["/limit-$index"] = Route(bytes, hold = limitsGate)
+    val consumers = (0..hostLimit).map {limits.acquire("account-a", "$origin/limit-$it", policy)}
+    for (index in 0 until hostLimit) await(routes["/limit-$index"]!!.entered)
+    check(!routes["/limit-$hostLimit"]!!.entered.await(100, TimeUnit.MILLISECONDS))
     limitsGate.countDown(); consumers.forEach {check(it.await().size == bytes.size.toLong()); it.close()}; limits.close().get(5, TimeUnit.SECONDS)
 
     val stale = registry("stale"); val staleGate = CountDownLatch(1); routes["/stale"] = Route(bytes, hold = staleGate)
@@ -117,10 +119,12 @@ fun main(args: Array<String>) {
     many.forEach {it.close()}; capacityGate.countDown(); capacity.close().get(5, TimeUnit.SECONDS)
 
     val budget = registry("budget"); val large = ByteArray(SlaxImageRegistry.MAX_BYTES.toInt()) {7}
-    for (index in 0..3) routes["/budget-$index"] = Route(large)
-    val retained = (0..2).map {val consumer = budget.acquire("account-a", "$origin/budget-$it", policy); check(consumer.await().size == SlaxImageRegistry.MAX_BYTES); consumer}
-    val queued = budget.acquire("account-a", "$origin/budget-3", policy)
-    check(!routes["/budget-3"]!!.entered.await(100, TimeUnit.MILLISECONDS))
+    // The staging budget holds one maximum-size image per worker; the next one waits until a retained image is released.
+    val slots = SlaxImageRegistry.WORKERS
+    for (index in 0..slots) routes["/budget-$index"] = Route(large)
+    val retained = (0 until slots).map {val consumer = budget.acquire("account-a", "$origin/budget-$it", policy); check(consumer.await().size == SlaxImageRegistry.MAX_BYTES); consumer}
+    val queued = budget.acquire("account-a", "$origin/budget-$slots", policy)
+    check(!routes["/budget-$slots"]!!.entered.await(100, TimeUnit.MILLISECONDS))
     retained[0].close(); check(queued.await().size == SlaxImageRegistry.MAX_BYTES)
     retained.drop(1).forEach {it.close()}; queued.close(); budget.close().get(5, TimeUnit.SECONDS)
     check(File(root, "budget").listFiles().orEmpty().isEmpty())

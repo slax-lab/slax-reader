@@ -8,6 +8,8 @@ const object = (value: unknown): value is RecordValue => value !== null && typeo
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const integer = (value: unknown): value is number => finite(value) && Number.isSafeInteger(value)
 const string = (value: unknown): value is string => typeof value === 'string'
+/** A reloaded placeholder image carries a fragment-only retry marker; the gallery and image actions use the original source. */
+const withoutRetry = (value: string) => value.replace(/#slax-retry-\d+$/, '')
 const maybeJson = (value: unknown): unknown => {
   if (!string(value)) return value
   try { return JSON.parse(value) } catch { return undefined }
@@ -93,12 +95,15 @@ export function parseReaderMessage(message: string, pageId: string): ReaderEvent
       const marks = values.map(value => parseReaderMark(value))
       return marks.every((mark): mark is ReaderMarkItem => mark !== null) ? { type: 'markItemInfosChanged', marks } : null
     }
-    case 'imageClick':
-      return string(payload.src) && Array.isArray(payload.allImages) && payload.allImages.every(string)
-        ? { type: 'imageClick', src: payload.src, allImages: payload.allImages,
-            index: integer(payload.index) ? payload.index : payload.allImages.indexOf(payload.src) } : null
+    case 'imageClick': {
+      if (!string(payload.src) || !Array.isArray(payload.allImages) || !payload.allImages.every(string)) return null
+      const src = withoutRetry(payload.src), allImages = payload.allImages.map(withoutRetry)
+      return { type: 'imageClick', src, allImages, index: integer(payload.index) ? payload.index : allImages.indexOf(src) }
+    }
     case 'imageLongPress':
-      return string(payload.src) && payload.src ? { type: 'imageLongPress', src: payload.src } : null
+      return string(payload.src) && payload.src ? { type: 'imageLongPress', src: withoutRetry(payload.src) } : null
+    case 'imageError':
+      return string(payload.src) && payload.src && payload.src.length <= 16 * 1024 ? { type: 'imageError', src: payload.src } : null
     case 'scrollToPosition':
       return finite(payload.percentage) && payload.percentage >= 0 && payload.percentage <= 1
         ? { type: 'scrollToPosition', percentage: payload.percentage } : null
