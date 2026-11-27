@@ -9,6 +9,7 @@ Mobile only, on `feat/mobile-image-reliability` cut from `origin/dev` at `de3803
 All results are from 2026-11-27, on the final branch state unless noted otherwise.
 
 - `pnpm mobile -- check` (architecture, typecheck, all Mobile tests), on the final branch state: 1393 tests, 1390 passed, 0 failed, 3 skipped. The three skips are the Kotlin host tests below, which skip in this command without a local OkHttp JVM jar. They were run separately.
+- After the 1.0.36 (811) version bump, `pnpm mobile -- check` first reported 1 failure in 1393 tests: `tests/reader/dom.test.mjs` "registered iOS source handler forwards the original monitor through a dynamic WK namespace once" received no `textSelected` within its fixed 380 ms wait while taking 3.1 s under full-suite load. That iOS selection path is untouched by this change. The test passed three times alone, and a full rerun passed with 1393 tests, 1390 passed, 0 failed, 3 skipped.
 - `pnpm mobile -- bundle`: passed for Android and iOS.
 - `pnpm exec openspec validate --all --strict`: 195 passed, 0 failed.
 - Native host tests, run with `SLAX_OKHTTP_CLASSPATH` / `SLAX_OFFLINE_ENGINE_CLASSPATH` pointing to `okhttp-jvm-5.5.1` and `okio-jvm-3.18.1`. The SHA-1 of both jars was checked against Maven Central's published value.
